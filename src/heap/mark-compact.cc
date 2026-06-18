@@ -4140,9 +4140,10 @@ void MarkCompactCollector::TrimDescriptorArray(
     DCHECK_EQ(descriptors, ReadOnlyRoots(heap_).empty_descriptor_array());
     return;
   }
-  const bool can_trim = v8_flags.trim_descriptor_arrays_in_gc &&
-                        (v8_flags.trim_descriptor_arrays_in_gc_with_stack ||
-                         !heap_->IsGCWithStack());
+  const bool can_trim =
+      v8_flags.trim_descriptor_arrays_in_gc &&
+      (v8_flags.trim_descriptor_arrays_in_gc_with_stack ||
+       (!heap_->IsGCWithStack() && heap_->ShouldReduceMemory()));
   int to_trim =
       descriptors->number_of_all_descriptors() - number_of_own_descriptors;
   DCHECK_IMPLIES(to_trim == 0, descriptors->number_of_all_descriptors() ==
