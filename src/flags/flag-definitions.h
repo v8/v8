@@ -2729,6 +2729,10 @@ DEFINE_INT(
     sqrt_allocation_limits_factor, 80,
     "When the sqrt heap limit is enabled, multiplier on the heap growth.")
 DEFINE_INT(
+    sqrt_allocation_limits_slow_factor, 80,
+    "When the sqrt heap limit is enabled, multiplier on the heap growth for "
+    "HeapGrowingMode::kSlow.")
+DEFINE_INT(
     sqrt_allocation_limits_minimal_factor, 20,
     "When the sqrt heap limit is enabled, multiplier on the heap growth for "
     "HeapGrowingMode::kMinimal.")

@@ -24,9 +24,10 @@ double SqrtAllocationLimitFactorFromGrowingMode(
     Heap::HeapGrowingMode growing_mode) {
   switch (growing_mode) {
     case Heap::HeapGrowingMode::kConservative:
-    case Heap::HeapGrowingMode::kSlow:
     case Heap::HeapGrowingMode::kMinimal:
       return v8_flags.sqrt_allocation_limits_minimal_factor;
+    case Heap::HeapGrowingMode::kSlow:
+      return v8_flags.sqrt_allocation_limits_slow_factor;
     case Heap::HeapGrowingMode::kDefault:
       return v8_flags.sqrt_allocation_limits_factor;
   }
