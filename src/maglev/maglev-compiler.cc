@@ -198,9 +198,15 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                   "V8.Maglev.PhiUntagging");
       SYNCHRONIZATION_POINT_FOR_TESTING("MaglevPhiUntagging");
-      GraphProcessor<MaglevPhiRepresentationSelector> representation_selector(
-          graph);
-      representation_selector.ProcessGraph(graph);
+      ReachableExceptionHandlerTracker tracker(graph);
+      MaglevPhiRepresentationSelector representation_selector(graph);
+      GraphMultiProcessor<ReachableExceptionHandlerTracker&,
+                          MaglevPhiRepresentationSelector&>
+          processor{tracker, representation_selector};
+      processor.ProcessGraph(graph);
+      if (graph->may_have_unreachable_blocks()) {
+        graph->RemoveUnreachableBlocks();
+      }
       PrintGraph(graph, v8_flags.print_maglev_graphs, "After Phi untagging");
       VerifyGraph(graph);
     }

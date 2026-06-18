@@ -18,6 +18,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-known-node-aspects.h"
 #include "src/maglev/maglev-node-type.h"
+#include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/maglev/maglev-tracer.h"
 #include "src/objects/map.h"
 
@@ -45,10 +46,11 @@ concept IsNodeT = std::is_base_of_v<Node, T>;
 // successor basic blocks.
 class RecomputeKnownNodeAspectsProcessor {
  public:
-  explicit RecomputeKnownNodeAspectsProcessor(Graph* graph)
+  RecomputeKnownNodeAspectsProcessor(Graph* graph,
+                                     ReachableExceptionHandlerTracker& tracker)
       : graph_(graph),
         known_node_aspects_(nullptr),
-        reachable_exception_handlers_(zone()),
+        tracker_(tracker),
         tracer_(graph->compilation_info()) {}
 
   void PreProcessGraph(Graph* graph) {
@@ -61,21 +63,6 @@ class RecomputeKnownNodeAspectsProcessor {
   }
   void PostProcessGraph(Graph* graph) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    // TODO(victorgomes): Support removing the unreachable blocks instead of
-    // just skipping it.
-    if (V8_UNLIKELY(block->IsUnreachable())) {
-      // Ensure successors can also be unreachable.
-      return AbortBlock(block);
-    }
-
-    if (block->is_exception_handler_block()) {
-      if (!reachable_exception_handlers_.contains(block)) {
-        // This is an unreachable exception handler block.
-        // Ensure successors can also be unreachable.
-        return AbortBlock(block);
-      }
-    }
-
     bool is_fallthrough = false;
     if (block->is_loop() && block->state()->is_resumable_loop()) {
       // TODO(victorgomes): Ideally, we should use the loop backedge KNA cache
@@ -140,7 +127,7 @@ class RecomputeKnownNodeAspectsProcessor {
     if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
       BasicBlock* exception_handler = info->catch_block();
       if (mark_handler_reachable) {
-        reachable_exception_handlers_.insert(exception_handler);
+        tracker_.MarkReachable(exception_handler);
       }
       Merge(exception_handler);
     }
@@ -227,7 +214,7 @@ class RecomputeKnownNodeAspectsProcessor {
 
   Graph* graph_;
   KnownNodeAspects* known_node_aspects_;
-  ZoneAbslFlatHashSet<BasicBlock*> reachable_exception_handlers_;
+  ReachableExceptionHandlerTracker& tracker_;
   Tracer tracer_;
 
   Zone* zone() { return graph_->zone(); }
@@ -238,17 +225,6 @@ class RecomputeKnownNodeAspectsProcessor {
   }
   bool EnsureType(ValueNode* node, NodeType type) {
     return known_node_aspects().EnsureType(broker(), node, type);
-  }
-
-  BlockProcessResult AbortBlock(BasicBlock* block) {
-    ControlNode* control = block->reset_control_node();
-    block->RemovePredecessorFollowing(control);
-    control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
-    block->set_deferred(true);
-    block->set_control_node(control);
-    block->mark_dead();
-    graph_->set_may_have_unreachable_blocks();
-    return BlockProcessResult::kSkip;
   }
 
   void Merge(BasicBlock* block) {

@@ -129,12 +129,14 @@ bool MaglevInliner::InlineCallSites() {
 }
 
 void MaglevInliner::RunOptimizer() {
-  RecomputeKnownNodeAspectsProcessor kna_processor(graph_);
+  ReachableExceptionHandlerTracker exception_handler_tracker(graph_);
+  RecomputeKnownNodeAspectsProcessor kna_processor(graph_,
+                                                   exception_handler_tracker);
   MaglevGraphOptimizer optimizer(graph_, kna_processor);
-  GraphMultiProcessor<MaglevGraphOptimizer&,
+  GraphMultiProcessor<MaglevGraphOptimizer&, ReachableExceptionHandlerTracker&,
                       RecomputeKnownNodeAspectsProcessor&,
                       RecomputePhiUseHintsProcessor>
-      optimization_pass(optimizer, kna_processor,
+      optimization_pass(optimizer, exception_handler_tracker, kna_processor,
                         RecomputePhiUseHintsProcessor{graph_->zone()});
   optimization_pass.ProcessGraph(graph_);
 

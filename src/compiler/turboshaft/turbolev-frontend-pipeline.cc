@@ -244,12 +244,15 @@ struct PostOptimizerPhase {
   DECL_TURBOLEV_PHASE_CONSTANTS(PostOptimizer)
 
   bool Run(maglev::Graph* graph, maglev::NodeRanges* ranges) {
-    maglev::RecomputeKnownNodeAspectsProcessor kna_processor(graph);
+    maglev::ReachableExceptionHandlerTracker exception_handler_tracker(graph);
+    maglev::RecomputeKnownNodeAspectsProcessor kna_processor(
+        graph, exception_handler_tracker);
     maglev::MaglevGraphOptimizer optimizer(graph, kna_processor, ranges);
     maglev::GraphMultiProcessor<maglev::MaglevGraphOptimizer&,
+                                maglev::ReachableExceptionHandlerTracker&,
                                 maglev::RecomputeKnownNodeAspectsProcessor&,
                                 maglev::RecomputePhiUseHintsProcessor>
-        optimization_pass(optimizer, kna_processor,
+        optimization_pass(optimizer, exception_handler_tracker, kna_processor,
                           maglev::RecomputePhiUseHintsProcessor{graph->zone()});
     optimization_pass.ProcessGraph(graph);
 

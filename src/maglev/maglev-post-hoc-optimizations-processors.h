@@ -527,6 +527,69 @@ class DeadNodeSweepingProcessor {
   MaglevGraphLabeller* labeller_ = nullptr;
 };
 
+// Tracks which exception handlers are reachable by collecting catch blocks
+// from throwing nodes. Unreachable exception handlers (and their successors)
+// are aborted and marked dead.
+class ReachableExceptionHandlerTracker {
+ public:
+  explicit ReachableExceptionHandlerTracker(Graph* graph)
+      : graph_(graph), reachable_exception_handlers_(graph->zone()) {}
+
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
+  void PostPhiProcessing() {}
+
+  void MarkReachable(BasicBlock* block) {
+    reachable_exception_handlers_.insert(block);
+  }
+
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    // TODO(victorgomes): Support removing the unreachable blocks instead of
+    // just skipping it.
+    if (V8_UNLIKELY(block->IsUnreachable())) {
+      return AbortBlock(block);
+    }
+
+    if (block->is_exception_handler_block()) {
+      if (!IsReachable(block)) {
+        return AbortBlock(block);
+      }
+    }
+    return BlockProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (NodeT::kProperties.can_throw()) {
+      if (node->exception_handler_info()->HasExceptionHandler() &&
+          !node->exception_handler_info()->ShouldLazyDeopt()) {
+        MarkReachable(node->exception_handler_info()->catch_block());
+      }
+    }
+    return ProcessResult::kContinue;
+  }
+
+ private:
+  BlockProcessResult AbortBlock(BasicBlock* block) {
+    ControlNode* control = block->reset_control_node();
+    block->RemovePredecessorFollowing(control);
+    control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
+    block->set_deferred(true);
+    block->set_control_node(control);
+    block->mark_dead();
+    graph_->set_may_have_unreachable_blocks();
+    return BlockProcessResult::kSkip;
+  }
+
+  bool IsReachable(BasicBlock* block) const {
+    return reachable_exception_handlers_.contains(block);
+  }
+
+  Graph* graph_;
+  ZoneAbslFlatHashSet<BasicBlock*> reachable_exception_handlers_;
+};
+
 }  // namespace v8::internal::maglev
 
 #endif  // V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
