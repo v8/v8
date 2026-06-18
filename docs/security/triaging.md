@@ -11,7 +11,8 @@ These classifications refer to Buganizer which is the issue tracker used by Chro
 - **Type=Vulnerability**: Designates a security vulnerability that impacts users.
 - **Severity**: Same as [Chromium's severities](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/severity-guidelines.md).
 - **Priority**: A priority that in general is at least the severity.
-In certain circumstances, e.g., in-the-wild exploitation, we may raise the priority further.
+In certain circumstances (e.g., in-the-wild exploitation), we may raise the priority further.
+Conversely, issues with **[Security_Impact-None][hl-impact-none]** can have a priority lower than their severity (e.g., an S1 issue can be P2).
 - **Security_Impact-{[Head][hl-impact-head], [Beta][hl-impact-beta], [Stable][hl-impact-stable], [Extended][hl-impact-extended], [None][hl-impact-none]}** hotlists: Derived from the milestones set in the **Found In** field, this hotlist specifies the earliest affected release channel.
 Should not normally be set by humans, except in the case of **[Security_Impact-None][hl-impact-none]** which means that the bug is in a disabled feature, or otherwise doesn't impact Chrome: see the section below for more details.
 
@@ -63,6 +64,7 @@ Rationale: These bugs are in features that are generally complete and on the tra
 We encourage experimenting and finding bugs in those features.
 
 Note that **Severity** should still be set to the appropriate Severity (S0-S3) for **[Security_Impact-None][hl-impact-none]** issues, as if the feature were enabled or the code reachable.
+Priority can then be set lower than severity (e.g., S1 to P2).
 
 ### Bugs in code guarded by experimental flags
 
