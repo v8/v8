@@ -112,7 +112,9 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 #define UTEST_R1_FORM_WITH_RES_C(instr_name, in_type, out_type, rs1_val, \
                                  expected_res)                           \
   TEST_F(AssemblerRISCV64Test, RISCV_UTEST_##instr_name) {               \
-    if (!CpuFeatures::IsSupported(RVC)) return;                          \
+    if (!CpuFeatures::IsSupported(RVC)) {                                \
+      return;                                                            \
+    }                                                                    \
                                                                          \
     auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0); };       \
     auto res = GenAndRunTest<out_type, in_type>(rs1_val, fn);            \
@@ -3972,7 +3974,7 @@ UTEST_RVV_VI_VX_FORM_WITH_FN(vminu_vx, 32, ARRAY_INT32, std::min<uint32_t>)
 
 // Tests for vector single-width floating-point arithmetic instructions between
 // vector and vector
-#define UTEST_RVV_VF_VV_FORM_WITH_RES(instr_name, expect_res)              \
+#define UTEST_RVV_VF_VV_FORM_WITH_RES(instr_name, expect_op)               \
   TEST_F(AssemblerRISCV64Test, RISCV_UTEST_FLOAT_##instr_name) {           \
     if (!CpuFeatures::IsSupported(RVV)) {                                  \
       return;                                                              \
@@ -3992,14 +3994,16 @@ UTEST_RVV_VI_VX_FORM_WITH_FN(vminu_vx, 32, ARRAY_INT32, std::min<uint32_t>)
       for (float rs2_fval : compiler::ValueHelper::GetVector<float>()) {   \
         GenAndRunTest<float, float>(rs1_fval, rs2_fval, fn);               \
         for (unsigned i = 0; i < CpuFeatures::vlen() / 32; i++) {          \
-          CHECK_FLOAT_EQ(UseCanonicalNan<float>(expect_res), result[i]);   \
+          CHECK_FLOAT_EQ(                                                  \
+              UseCanonicalNan<float>((rs1_fval)expect_op(rs2_fval)),       \
+              result[i]);                                                  \
           result[i] = 0.0;                                                 \
         }                                                                  \
       }                                                                    \
     }                                                                      \
   }                                                                        \
   TEST_F(AssemblerRISCV64Test, RISCV_UTEST_DOUBLE_##instr_name) {          \
-    if (!CpuFeatures::IsSupported(RVV)) {                           \
+    if (!CpuFeatures::IsSupported(RVV)) {                                  \
       return;                                                              \
     }                                                                      \
                                                                            \
@@ -4017,7 +4021,41 @@ UTEST_RVV_VI_VX_FORM_WITH_FN(vminu_vx, 32, ARRAY_INT32, std::min<uint32_t>)
       for (double rs2_fval : compiler::ValueHelper::GetVector<double>()) { \
         GenAndRunTest<double, double>(rs1_fval, rs2_fval, fn);             \
         for (unsigned i = 0; i < CpuFeatures::vlen() / 64; i++) {          \
-          CHECK_DOUBLE_EQ(UseCanonicalNan<double>(expect_res), result[i]); \
+          CHECK_DOUBLE_EQ(                                                 \
+              UseCanonicalNan<double>((rs1_fval)expect_op(rs2_fval)),      \
+              result[i]);                                                  \
+          result[i] = 0.0;                                                 \
+        }                                                                  \
+      }                                                                    \
+    }                                                                      \
+  }                                                                        \
+  TEST_F(AssemblerRISCV64Test, RISCV_UTEST_FP16_##instr_name) {            \
+    if (!CpuFeatures::IsSupported(RVV)) {                                  \
+      return;                                                              \
+    }                                                                      \
+                                                                           \
+    uint16_t result[kMaxElements] = {0};                                   \
+    auto fn = [&result](MacroAssembler& assm) {                            \
+      __ VU.set(t0, zero_reg, VSew::E16, m1);                              \
+      __ vmv_vx(v0, a0);                                                   \
+      __ vmv_vx(v1, a1);                                                   \
+      __ instr_name(v0, v0, v1);                                           \
+      __ vmv_xs(a0, v0);                                                   \
+      __ li(a3, Operand(int64_t(result)));                                 \
+      __ vs(v0, a3, 0, E16);                                               \
+    };                                                                     \
+    for (float rs1_fval : compiler::ValueHelper::GetVector<float>()) {     \
+      for (float rs2_fval : compiler::ValueHelper::GetVector<float>()) {   \
+        Float16 rs1_f16 = Float16::FromFloat32(rs1_fval);                  \
+        Float16 rs2_f16 = Float16::FromFloat32(rs2_fval);                  \
+        GenAndRunTest<uint32_t, uint32_t>(rs1_f16.get_bits(),              \
+                                          rs2_f16.get_bits(), fn);         \
+        for (unsigned i = 0; i < CpuFeatures::vlen() / 16; i++) {          \
+          auto res_f16 = Float16::FromBits(result[i]);                     \
+          float expect = UseCanonicalNan<float>(                           \
+              (rs1_f16.ToFloat32())expect_op(rs2_f16.ToFloat32()));        \
+          CHECK_EQ(Float16::FromFloat32(expect).get_bits(),                \
+                   res_f16.get_bits());                                    \
           result[i] = 0.0;                                                 \
         }                                                                  \
       }                                                                    \
@@ -4046,22 +4084,19 @@ UTEST_RVV_VI_VX_FORM_WITH_FN(vminu_vx, 32, ARRAY_INT32, std::min<uint32_t>)
     }                                                                   \
   }
 
-#define UTEST_RVV_VF_VV_FORM_WITH_OP(instr_name, tested_op) \
-  UTEST_RVV_VF_VV_FORM_WITH_RES(instr_name, ((rs1_fval)tested_op(rs2_fval)))
-
 #define UTEST_RVV_VF_VF_FORM_WITH_OP(instr_name, array, tested_op) \
   UTEST_RVV_VF_VF_FORM_WITH_RES(instr_name, array,                 \
                                 ((rs1_fval)tested_op(rs2_fval)))
 
 #define ARRAY_FLOAT compiler::ValueHelper::GetVector<float>()
 
-UTEST_RVV_VF_VV_FORM_WITH_OP(vfadd_vv, +)
+UTEST_RVV_VF_VV_FORM_WITH_RES(vfadd_vv, +)
 UTEST_RVV_VF_VF_FORM_WITH_OP(vfadd_vf, ARRAY_FLOAT, +)
-UTEST_RVV_VF_VV_FORM_WITH_OP(vfsub_vv, -)
+UTEST_RVV_VF_VV_FORM_WITH_RES(vfsub_vv, -)
 // UTEST_RVV_VF_VF_FORM_WITH_OP(vfsub_vf, ARRAY_FLOAT, -)
-UTEST_RVV_VF_VV_FORM_WITH_OP(vfmul_vv, *)
+UTEST_RVV_VF_VV_FORM_WITH_RES(vfmul_vv, *)
 // UTEST_RVV_VF_VF_FORM_WITH_OP(vfmul_vf, ARRAY_FLOAT, *)
-UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, /)
+UTEST_RVV_VF_VV_FORM_WITH_RES(vfdiv_vv, /)
 // UTEST_RVV_VF_VF_FORM_WITH_OP(vfdiv_vf, ARRAY_FLOAT, /)
 
 #undef ARRAY_FLOAT
