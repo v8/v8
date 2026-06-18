@@ -264,6 +264,7 @@ assertEquals(15, result);
   assertThrows(() => check_f32(Infinity));
   assertThrows(() => check_f32(-Infinity));
   assertThrows(() => check_f32(NaN));
+  assertThrows(() => check_f32(1.0e39));
 
   // ----------- check_restricted_float64 -----------
   function check_f64(arg) {

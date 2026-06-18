@@ -206,11 +206,12 @@ class FastApiCallLoweringReducer : public Next {
             }
             return argument;
           }
+          V<Float32> result = __ TruncateFloat64ToFloat32(argument);
           if (flags &
               static_cast<uint8_t>(CTypeInfo::Flags::kIsRestrictedBit)) {
-            GOTO_IF_NOT(__ Float64IsFinite(argument), handle_error);
+            GOTO_IF_NOT(__ Float32IsFinite(result), handle_error);
           }
-          return __ TruncateFloat64ToFloat32(argument);
+          return result;
         }
         case CTypeInfo::Type::kFloat64: {
           if (flags &

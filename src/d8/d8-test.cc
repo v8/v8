@@ -936,7 +936,29 @@ class FastCApiObject {
     CHECK(std::isfinite(param));
   }
 
-  static void CheckRestrictedFloatSlowCallback(
+  static void CheckRestrictedFloat32SlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
+    Isolate* isolate = info.GetIsolate();
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW_SLOW();
+    self->slow_call_count_++;
+
+    HandleScope handle_scope(isolate);
+
+    if (info.Length() < 1 || !info[0]->IsNumber()) {
+      isolate->ThrowError("Argument must be a number.");
+      return;
+    }
+    float param = static_cast<float>(
+        info[0]->NumberValue(isolate->GetCurrentContext()).FromJust());
+    if (!std::isfinite(param)) {
+      isolate->ThrowError("Argument must be a finite number.");
+      return;
+    }
+  }
+
+  static void CheckRestrictedFloat64SlowCallback(
       const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
     Isolate* isolate = info.GetIsolate();
@@ -1930,7 +1952,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "check_restricted_float32",
         FunctionTemplate::New(
-            isolate, FastCApiObject::CheckRestrictedFloatSlowCallback,
+            isolate, FastCApiObject::CheckRestrictedFloat32SlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &check_restricted_float32_c_func));
 
@@ -1945,7 +1967,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "check_restricted_float64",
         FunctionTemplate::New(
-            isolate, FastCApiObject::CheckRestrictedFloatSlowCallback,
+            isolate, FastCApiObject::CheckRestrictedFloat64SlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &check_restricted_float64_c_func));
 
