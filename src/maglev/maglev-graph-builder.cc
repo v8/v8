@@ -5576,11 +5576,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
   for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
     if (map.IsJSDetachedTypedArrayMap()) return {};
   }
-  if (keyed_mode.access_mode() == compiler::AccessMode::kLoad &&
-      LoadModeHandlesOOB(keyed_mode.load_mode())) {
-    // TODO(victorgomes): Handle OOB mode.
-    return {};
-  }
+
   if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
       StoreModeIgnoresTypeArrayOOB(keyed_mode.store_mode())) {
     // TODO(victorgomes): Handle OOB mode.
@@ -5607,24 +5603,59 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
         is_store ? TypedArrayAccessMode::kWrite : TypedArrayAccessMode::kRead));
   }
 
+  bool is_load_handling_oob =
+      keyed_mode.access_mode() == compiler::AccessMode::kLoad &&
+      LoadModeHandlesOOB(keyed_mode.load_mode());
+
   ValueNode* index;
+  // TODO(mrcvtl): GetInt32 deopts on strings/non-int32s, and
+  // GetInt32ElementIndex deopts on negative numbers. We need a variant of
+  // CheckedObjectToIndex that accepts negative values to properly support both.
+  GET_VALUE_OR_ABORT(index, is_load_handling_oob
+                                ? GetInt32(index_object, true)
+                                : GetInt32ElementIndex(index_object));
+
   ValueNode* length;
-  GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
   GET_VALUE_OR_ABORT(length, BuildLoadTypedArrayLength(object, elements_kind));
-  RETURN_IF_ABORT(AddNewNode<CheckTypedArrayBounds>({index, length}));
+
+  if (!is_load_handling_oob) {
+    RETURN_IF_ABORT(AddNewNode<CheckTypedArrayBounds>({index, length}));
+  }
+
   switch (keyed_mode.access_mode()) {
-    case compiler::AccessMode::kLoad:
-      DCHECK(!LoadModeHandlesOOB(keyed_mode.load_mode()));
-      if (auto constant = object->TryCast<HeapConstant>()) {
-        compiler::HeapObjectRef constant_object = constant->object();
-        if (constant_object.IsJSTypedArray() &&
-            constant_object.AsJSTypedArray().is_off_heap_non_rab_gsab(
-                broker())) {
-          return BuildLoadConstantTypedArrayElement(
-              constant_object.AsJSTypedArray(), index, elements_kind);
+    case compiler::AccessMode::kLoad: {
+      const auto emit_load = [&]() -> ReduceResult {
+        if (const auto constant = object->TryCast<HeapConstant>()) {
+          const auto constant_object = constant->object();
+          if (constant_object.IsJSTypedArray() &&
+              constant_object.AsJSTypedArray().is_off_heap_non_rab_gsab(
+                  broker())) {
+            ValueNode* result_node;
+            GET_VALUE_OR_ABORT(
+                result_node,
+                BuildLoadConstantTypedArrayElement(
+                    constant_object.AsJSTypedArray(), index, elements_kind));
+            return result_node;
+          }
         }
+        ValueNode* result_node;
+        GET_VALUE_OR_ABORT(result_node, BuildLoadTypedArrayElement(
+                                            object, index, elements_kind));
+        return result_node;
+      };
+
+      if (is_load_handling_oob) {
+        return Select(
+            [&](BranchBuilder& builder) {
+              return builder.Build<BranchIfTypedArrayBounds>({index, length});
+            },
+            emit_load,
+            [&] { return GetRootConstant(RootIndex::kUndefinedValue); });
       }
-      return BuildLoadTypedArrayElement(object, index, elements_kind);
+
+      DCHECK(!LoadModeHandlesOOB(keyed_mode.load_mode()));
+      return emit_load();
+    }
     case compiler::AccessMode::kStore:
       DCHECK(StoreModeIsInBounds(keyed_mode.store_mode()));
       if (auto constant = object->TryCast<HeapConstant>()) {

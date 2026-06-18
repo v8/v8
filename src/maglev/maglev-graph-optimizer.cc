@@ -3420,6 +3420,12 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfReferenceEqual(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitBranchIfTypedArrayBounds(
+    BranchIfTypedArrayBounds* node, const ProcessingState& state) {
+  // TODO(mrcvtl): We could try to fold this if index and length are constant.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32Compare(
     BranchIfInt32Compare* node, const ProcessingState& state) {
   if (auto result = reducer_.TryFoldInt32CompareOperation(

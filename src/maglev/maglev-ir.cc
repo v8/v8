@@ -8440,6 +8440,26 @@ void BranchIfReferenceEqual::GenerateCode(MaglevAssembler* masm,
   __ Branch(kEqual, if_true(), if_false(), state.next_block());
 }
 
+void BranchIfTypedArrayBounds::SetValueLocationConstraints() {
+  UseRegister(IndexInput());
+  UseRegister(LengthInput());
+}
+
+void BranchIfTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  Register index = ToRegister(IndexInput());
+  Register length = ToRegister(LengthInput());
+
+  __ SignExtend32To64Bits(index, index);
+  __ CompareIntPtrAndJumpIf(index, length, kUnsignedLessThan,
+                            if_true()->label());
+
+  auto* next_block = state.next_block();
+  if (if_false() != next_block) {
+    __ Jump(if_false()->label());
+  }
+}
+
 void BranchIfInt32Compare::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
