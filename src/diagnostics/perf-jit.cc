@@ -399,11 +399,18 @@ void PerfJitLogger::LogWriteDebugInfo(Tagged<Code> code,
   Address code_start = code->instruction_start();
 
   last_script = Smi::zero();
-  int script_names_index = 0;
+  int script_names_index = -1;
   for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(GetSourcePositionInfo(isolate_, code, shared,
                                                   iterator.source_position()));
+    Tagged<Object> current_script = *info.script;
+    // Advance to this entry's script name *before* writing it, so that each
+    // entry emits the name of its own script run.
+    if (current_script != last_script) {
+      script_names_index++;
+      last_script = current_script;
+    }
     PerfJitDebugEntry entry;
     // The entry point of the function will be placed straight after the ELF
     // header when processed by "perf inject". Adjust the position addresses
@@ -412,14 +419,9 @@ void PerfJitLogger::LogWriteDebugInfo(Tagged<Code> code,
     entry.line_number_ = info.line + 1;
     entry.column_ = info.column + 1;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
-    Tagged<Object> current_script = *info.script;
-    auto name_string = script_names[script_names_index];
+    base::Vector<const char> name_string = script_names[script_names_index];
     LogWriteBytes(name_string.begin(), name_string.size());
     LogWriteBytes(kStringTerminator, sizeof(kStringTerminator));
-    if (current_script != last_script) {
-      if (last_script != Smi::zero()) script_names_index++;
-      last_script = current_script;
-    }
   }
   char padding_bytes[8] = {0};
   LogWriteBytes(padding_bytes, padding);
