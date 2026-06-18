@@ -1426,6 +1426,7 @@ TEST_F(HeapTest, CheckCrashKeysAreReportedInOOM) {
   EXPECT_DEATH_IF_SUPPORTED(
       { heap()->FatalProcessOutOfMemory("CheckCrashKeysAreReportedInOOM"); },
       "Reached end of test.");
+  g_crash_key_store_for_oom = nullptr;
 }
 
 }  // namespace internal

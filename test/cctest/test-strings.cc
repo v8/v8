@@ -1588,6 +1588,7 @@ TEST(CountBreakIterator) {
   // Make sure GC cleans up the break iterator, so we don't get a memory leak
   // reported by ASAN.
   CcTest::isolate()->LowMemoryNotification();
+  global_use_counts = nullptr;
 }
 
 TEST(StringReplaceAtomTwoByteResult) {
