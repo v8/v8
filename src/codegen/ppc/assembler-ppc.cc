@@ -2153,7 +2153,7 @@ PatchingAssembler::~PatchingAssembler() {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
 }
 
-RegList Assembler::DefaultTmpList() { return {ip, r26, r11}; }
+RegList Assembler::DefaultTmpList() { return {ip, r25, r26, r11}; }
 DoubleRegList Assembler::DefaultFPTmpList() {
   return {kScratchDoubleReg, kDoubleRegZero};
 }
