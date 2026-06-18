@@ -4607,6 +4607,10 @@ class LiftoffCompiler {
 
   void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& value, Value* result_val) {
+    // Charge a large static cost to account for the runtime transition and
+    // potential GC from increasing externally allocated memory.
+    // Note that we also charge proportional to the number of pages below.
+    FuzzerChargeHeavyInstruction(decoder);
     // Pop the input, then spill all cache registers to make the runtime call.
     LiftoffRegList pinned;
     LiftoffRegister num_pages = pinned.set(__ PopToRegister());
