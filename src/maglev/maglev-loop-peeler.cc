@@ -1317,8 +1317,12 @@ void MaglevLoopPeeler::SplicePeeledBlocks(PeelContext& ctx) {
   CHECK_NE(header_it, blocks.end());
   size_t header_idx = std::distance(blocks.begin(), header_it);
 
-  DCHECK_GT(header_idx, 0);
-  graph_->AddBlocksAt(new_blocks_before_header, header_idx - 1);
+  auto preheader_it =
+      std::find(blocks.begin(), blocks.end(), ctx.loop.preheader);
+  CHECK_NE(preheader_it, blocks.end());
+  size_t preheader_idx = std::distance(blocks.begin(), preheader_it);
+  DCHECK_LT(preheader_idx, header_idx);
+  graph_->AddBlocksAt(new_blocks_before_header, preheader_idx);
 
   DCHECK_NOT_NULL(ctx.exit_target);
   // Find the exit target in the updated blocks vector. The search can start
