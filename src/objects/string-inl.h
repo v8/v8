@@ -740,7 +740,7 @@ bool String::IsEqualToImpl(
 
   DisallowGarbageCollection no_gc;
 
-  int slice_offset = 0;
+  uint32_t slice_offset = 0;
   Tagged<String> string = this;
   const Char* data = str.data();
   while (true) {
@@ -760,7 +760,7 @@ bool String::IsEqualToImpl(
           return CompareCharsEqual(s->GetChars() + slice_offset, data, len);
         },
         [&](Tagged<SlicedString> s) {
-          slice_offset += s->offset();
+          slice_offset += static_cast<uint32_t>(s->offset());
           string = s->parent();
           return std::nullopt;
         },
@@ -1187,7 +1187,8 @@ Tagged<ConsString> String::VisitFlat(
     Visitor* visitor, Tagged<String> string, const int offset,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
-  int slice_offset = offset;
+  // TODO(524832525): Consider changing the offset parameter type to uint32_t.
+  uint32_t slice_offset = static_cast<uint32_t>(offset);
   const uint32_t length = string->length();
   DCHECK_LE(offset, length);
   while (true) {
@@ -1216,7 +1217,7 @@ Tagged<ConsString> String::VisitFlat(
               return Tagged<ConsString>();
             },
             [&](Tagged<SlicedString> s) {
-              slice_offset += s->offset();
+              slice_offset += static_cast<uint32_t>(s->offset());
               string = s->parent();
               return std::nullopt;
             },
