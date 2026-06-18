@@ -931,10 +931,15 @@ template <template <typename> typename HandleType>
 HandleType<String>::MaybeType FactoryBase<Impl>::NewConsString(
     HandleType<String> left, HandleType<String> right,
     AllocationType allocation) {
-  if (IsThinString(*left)) {
+  // We check if the string is thin using an acquire load. This guarantees that
+  // if it is thin, reading actual() is safe. The string might still
+  // concurrently turn thin right after we've checked, but that's fine - we'll
+  // just put ThinStrings into a ConsString, which is slightly inefficient, but
+  // nothing will go wrong.
+  if (IsThinString(*left, kAcquireLoad)) {
     left = HandleType<String>(Cast<ThinString>(*left)->actual(), isolate());
   }
-  if (IsThinString(*right)) {
+  if (IsThinString(*right, kAcquireLoad)) {
     right = HandleType<String>(Cast<ThinString>(*right)->actual(), isolate());
   }
   uint32_t left_length = left->length();
@@ -966,6 +971,13 @@ HandleType<String>::MaybeType FactoryBase<Impl>::NewConsString(
     static_assert(ConsString::kMinLength <= SlicedString::kMinLength);
     DCHECK(left->IsFlat());
     DCHECK(right->IsFlat());
+
+    // This branch doesn't handle ThinStrings correctly. But Maglev or Turbofan
+    // background compilation will never end up here, because they only call
+    // into this function with sufficiently long strings (see static_assert in
+    // ConcatenateStrings).
+    DCHECK(!IsThinString(*left));
+    DCHECK(!IsThinString(*right));
 
     static_assert(ConsString::kMinLength <= String::kMaxLength);
     if (is_one_byte) {
@@ -1010,10 +1022,13 @@ Handle<String> FactoryBase<Impl>::NewConsString(DirectHandle<String> left,
                                                 int length, bool one_byte,
                                                 AllocationType allocation) {
   SYNCHRONIZATION_POINT_FOR_TESTING("NewConsString");
-  DCHECK(!IsThinString(*left));
-  DCHECK(!IsThinString(*right));
   DCHECK_GE(length, ConsString::kMinLength);
   DCHECK_LE(length, String::kMaxLength);
+
+  // If either of the inputs is thin, it means this is a background compilation
+  // thread and the main thread made it thin after our check.
+  DCHECK_IMPLIES(IsThinString(*left), !LocalHeap::Current()->is_main_thread());
+  DCHECK_IMPLIES(IsThinString(*right), !LocalHeap::Current()->is_main_thread());
 
   Tagged<ConsString> result = Cast<ConsString>(
       one_byte ? NewWithImmortalMap(
