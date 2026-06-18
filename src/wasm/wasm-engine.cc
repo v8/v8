@@ -812,6 +812,11 @@ void WasmEngine::AsyncCompile(
     return;
   }
 
+  // If the --wasm-test-streaming flag is set, we use the streaming compilation
+  // path even for non-streaming compilation (e.g. {WebAssembly.compile}).
+  // This allows testing the streaming pipeline (which normally depends on the
+  // browser's {Response} object for the {WebAssembly.compileStreaming} API)
+  // in environments like the d8 shell by manually chunking the provided bytes.
   if (v8_flags.wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
         StartStreamingCompilation(enabled, std::move(compile_imports),

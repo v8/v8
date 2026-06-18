@@ -2443,6 +2443,9 @@ class ValidateFunctionsStreamingJob final : public JobTask {
   ValidateFunctionsStreamingJobData* data_;
 };
 
+// This class bridges the {StreamingDecoder} and the {AsyncCompileJob}.
+// It receives byte chunks from the decoder and drives the compilation steps
+// of the job.
 class AsyncStreamingProcessor final : public StreamingProcessor {
  public:
   explicit AsyncStreamingProcessor(AsyncCompileJob* job);

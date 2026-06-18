@@ -97,6 +97,16 @@ void PublishDetectedFeatures(WasmDetectedFeatures, Isolate*,
 // allocates on the V8 heap (e.g. creating the module object) must be a
 // foreground task. All other tasks (e.g. decoding and validating, the majority
 // of the work of compilation) can be background tasks.
+//
+// An AsyncCompileJob can be used in two ways:
+// 1. Non-streaming: The entire wire bytes are available upfront.
+//    {StartAsyncDecoding} is called to start the process.
+// 2. Streaming: Bytes arrive in chunks. {CreateStreamingDecoder} is called to
+//    get a {StreamingDecoder} which is then used by the embedder to push bytes.
+//    In this case, the {AsyncCompileJob} is driven by the {StreamingDecoder},
+//    and the job's lifetime is tied to the completion or abortion of the
+//    stream.
+//
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
 class AsyncCompileJob {
  public:
