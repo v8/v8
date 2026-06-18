@@ -221,23 +221,16 @@ void duplicate_type_in_index_of_type_error();
 namespace detail {
 template <typename SearchT, typename... Ts>
 consteval size_t get_index_of_type() {
-  if constexpr (sizeof...(Ts) == 0) {
-    return 0;
-  } else {
-    constexpr bool matches[sizeof...(Ts)] = {std::is_same_v<SearchT, Ts>...};
-    size_t found_index = sizeof...(Ts);
-    size_t match_count = 0;
-    for (size_t i = 0; i < sizeof...(Ts); ++i) {
-      if (matches[i]) {
-        found_index = i;
-        match_count++;
-      }
-    }
-    if (match_count > 1) {
-      duplicate_type_in_index_of_type_error();
-    }
-    return found_index;
+  size_t found_index = sizeof...(Ts);
+  size_t match_count = 0;
+  size_t idx = 0;
+  ((std::is_same_v<SearchT, Ts> ? (found_index = idx, match_count++, 0) : 0,
+    idx++),
+   ...);
+  if (match_count > 1) {
+    duplicate_type_in_index_of_type_error();
   }
+  return found_index;
 }
 }  // namespace detail
 
@@ -245,6 +238,10 @@ consteval size_t get_index_of_type() {
 // sizeof...(Ts) if not found.
 template <typename SearchT, typename... Ts>
 constexpr size_t index_of_type_v = detail::get_index_of_type<SearchT, Ts...>();
+
+template <typename SearchT, typename... Ts>
+struct index_of_type
+    : public std::integral_constant<size_t, index_of_type_v<SearchT, Ts...>> {};
 
 template <typename SearchT, typename... Ts>
 constexpr bool has_type_v = (std::is_same_v<SearchT, Ts> || ...);
