@@ -3557,12 +3557,16 @@ void WasmJs::InstallMemoryControl(Isolate* isolate,
   v8::Local<v8::ObjectTemplate> templ =
       constructor_template->InstanceTemplate();
 
+  v8::Local<v8::Signature> signature =
+      v8::Signature::New(v8_isolate, constructor_template);
   templ->Set(v8_isolate, "map",
-             v8::FunctionTemplate::New(
-                 v8_isolate, wasm::WebAssemblyMemoryMapDescriptorMap));
+             v8::FunctionTemplate::New(v8_isolate,
+                                       wasm::WebAssemblyMemoryMapDescriptorMap,
+                                       v8::Local<v8::Value>(), signature));
   templ->Set(v8_isolate, "unmap",
              v8::FunctionTemplate::New(
-                 v8_isolate, wasm::WebAssemblyMemoryMapDescriptorUnmap));
+                 v8_isolate, wasm::WebAssemblyMemoryMapDescriptorUnmap,
+                 v8::Local<v8::Value>(), signature));
   context->set_wasm_memory_map_descriptor_template(
       *Utils::OpenDirectHandle(*templ));
 
