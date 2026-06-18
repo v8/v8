@@ -8,9 +8,11 @@
 
 #include <sys/mman.h>
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
+#include <linux/elf.h>
 #include <pthread.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
+#include <sys/uio.h>
 #include <sys/user.h>
 #include <sys/wait.h>
 
@@ -275,7 +277,8 @@ MemoryAccessInformation GetMemoryAccessInformationFromPreviousInstruction(
   GENERAL_REGISTERS(FIND_REG_NAME)
 #undef FIND_REG_NAME
 
-  if (memcmp(space_pos + 1, "xmm", 3) == 0) {
+  if (memcmp(space_pos + 1, "xmm", 3) == 0 ||
+      memcmp(space_pos + 1, "ymm", 3) == 0) {
     int reg_num = atoi(space_pos + 4);
     CHECK_LE(0, reg_num);
     CHECK_LE(reg_num, 15);
@@ -294,11 +297,40 @@ void MutateReadValue(struct user_regs_struct& regs,
   if (is_xmm) {
     // Floating point values are much less interesting to mutate, but for
     // completeness we support mutating them as well.
-    struct user_fpregs_struct fpregs;
-    CHECK_EQ(0, ptrace(PTRACE_GETFPREGS, g_support.d8_pid,
-                       /* unused addr = */ 0, &fpregs));
+    // XMM registers are part of the extended state (AVX/YMM). We use the
+    // newer PTRACE_GETREGSET API to support both.
+    // The XSAVE area size can vary depending on the processor features.
+    // 8KB is sufficient for most current processors (including Sapphire Rapids
+    // with AMX). We check the required size programmatically via cpuid.
+    alignas(64) uint8_t xsave_buffer[8192];
+    struct iovec iov;
+    iov.iov_base = xsave_buffer;
+    iov.iov_len = sizeof(xsave_buffer);
+
+    int cpu_info[4];
+    // CPUID leaf 0xD, sub-leaf 0 returns the maximum size (in bytes) required
+    // by the XSAVE state for all currently enabled features in the XCR0
+    // register. The size is returned in the EBX register (cpu_info[1]).
+    __asm__ volatile("cpuid \n\t"
+                     : "=a"(cpu_info[0]), "=b"(cpu_info[1]), "=c"(cpu_info[2]),
+                       "=d"(cpu_info[3])
+                     : "a"(0xD), "c"(0));
+    size_t required_size = static_cast<size_t>(cpu_info[1]);
+    CHECK_GE(sizeof(xsave_buffer), required_size);
+
+    CHECK_EQ(0, ptrace(PTRACE_GETREGSET, g_support.d8_pid,
+                       reinterpret_cast<void*>(NT_X86_XSTATE), &iov));
+
+    static constexpr size_t kXmmRegistersOffset =
+        offsetof(struct user_fpregs_struct, xmm_space);
+    size_t reg_offset = access_info.xmm_reg_index * i::kSimd128Size;
+    // Note: We currently only mutate the lower 64 bits of the YMM/XMM register.
+    // This is sufficient to trigger a value change that can be detected in
+    // JavaScript, but does not provide full 256-bit mutation.
+    // TODO(clemensb): Implement better mutation for XMM/YMM registers in the
+    // future, e.g. by mutating all bits.
     uint64_t* target_val_ptr = reinterpret_cast<uint64_t*>(
-        &fpregs.xmm_space[access_info.xmm_reg_index * 4]);
+        xsave_buffer + kXmmRegistersOffset + reg_offset);
     uint64_t read_value_u64 = *target_val_ptr;
     double read_value_double = base::bit_cast<double>(read_value_u64);
 
@@ -334,8 +366,8 @@ void MutateReadValue(struct user_regs_struct& regs,
 
     *target_val_ptr = new_value;
 
-    CHECK_EQ(0, ptrace(PTRACE_SETFPREGS, g_support.d8_pid,
-                       /* unused addr = */ 0, &fpregs));
+    CHECK_EQ(0, ptrace(PTRACE_SETREGSET, g_support.d8_pid,
+                       reinterpret_cast<void*>(NT_X86_XSTATE), &iov));
     return;
   }
 

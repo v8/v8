@@ -19,8 +19,10 @@
 #include "src/objects/backing-store.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/tagged-field-inl.h"
 #include "src/objects/templates.h"
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
@@ -687,6 +689,34 @@ void SandboxReadObjectField(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
+// Sandbox.dereferenceTaggedPointerField(Object, Number|String) -> Object
+//
+// Reads a tagged pointer field from an object and returns the pointed-to
+// object. The second argument is the field offset (Number) or field name
+// (String). This is a convenience method that combines reading the compressed
+// pointer, decompressing it, and wrapping the result in a V8 handle.
+// Note: this method specifically handles standard tagged (compressed) pointers.
+// If used on fields containing ExternalPointers or TrustedPointerHandles, it
+// will return incorrect results or null.
+void SandboxDereferenceTaggedPointerField(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+
+  ResolvedField field;
+  if (!ResolveObjectField(info, 2, &field)) return;
+
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Tagged<Object> value = TaggedField<Object>::load(field.holder, field.offset);
+
+  if (IsHeapObject(value)) {
+    Handle<HeapObject> handle(Cast<HeapObject>(value), i_isolate);
+    info.GetReturnValue().Set(ToApiHandle<v8::Value>(handle));
+  } else {
+    info.GetReturnValue().Set(v8::Null(isolate));
+  }
+}
+
 // Corrupt one field of an object without setting up a memory view first.
 //
 //   Sandbox.corruptObjectField(obj, offset, value, bit_size);
@@ -867,6 +897,8 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
                   "setFunctionCodeToBuiltin", 2);
   InstallFunction(isolate, sandbox, SandboxReadObjectField, "readObjectField",
                   2);
+  InstallFunction(isolate, sandbox, SandboxDereferenceTaggedPointerField,
+                  "dereferenceTaggedPointerField", 2);
   InstallFunction(isolate, sandbox, SandboxCorruptObjectField,
                   "corruptObjectField", 3);
 
@@ -1383,6 +1415,8 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["SHARED_FUNCTION_INFO"] = SHARED_FUNCTION_INFO_TYPE;
     types["FEEDBACK_CELL_TYPE"] = FEEDBACK_CELL_TYPE;
     types["FEEDBACK_VECTOR_TYPE"] = FEEDBACK_VECTOR_TYPE;
+    types["FIXED_ARRAY_TYPE"] = FIXED_ARRAY_TYPE;
+    types["FIXED_DOUBLE_ARRAY_TYPE"] = FIXED_DOUBLE_ARRAY_TYPE;
     types["WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE"] =
         WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -1407,6 +1441,10 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
   auto& fields = *g_known_fields.get();
   bool is_initialized = fields.size() != 0;
   if (!is_initialized) {
+    fields[FIXED_DOUBLE_ARRAY_TYPE]["length"] =
+        offsetof(FixedDoubleArray, length_);
+    fields[FIXED_DOUBLE_ARRAY_TYPE]["data"] =
+        FixedDoubleArray::OffsetOfElementAt(0);
     fields[JS_FUNCTION_TYPE]["dispatch_handle"] =
         offsetof(JSFunction, dispatch_handle_);
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
@@ -1458,6 +1496,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[FEEDBACK_VECTOR_TYPE]["length"] = offsetof(FeedbackVector, length_);
     fields[FEEDBACK_VECTOR_TYPE]["data"] =
         FeedbackVector::kRawFeedbackSlotsOffset;
+    fields[FIXED_ARRAY_TYPE]["length"] = offsetof(FixedArray, length_);
+    fields[FIXED_ARRAY_TYPE]["data"] = FixedArray::kHeaderSize;
     fields[WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE]["length"] =
         offsetof(WeakFixedArray, length_);
 #ifdef V8_INTL_SUPPORT
@@ -1484,10 +1524,12 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[WASM_TABLE_OBJECT_TYPE]["trusted_dispatch_table"] =
         offsetof(WasmTableObject, trusted_dispatch_table_);
     fields[WASM_TAG_OBJECT_TYPE]["tag"] = offsetof(WasmTagObject, tag_);
-    fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
-        offsetof(WasmResumeData, trusted_suspender_);
+    fields[WASM_GLOBAL_OBJECT_TYPE]["buffer"] =
+        offsetof(WasmGlobalObject, buffer_);
     fields[WASM_GLOBAL_OBJECT_TYPE]["raw_type"] =
         offsetof(WasmGlobalObject, raw_type_);
+    fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
+        offsetof(WasmResumeData, trusted_suspender_);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;
