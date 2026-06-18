@@ -4328,6 +4328,8 @@ void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
     }
   }
 
+  if (isolate->IsExecutionTerminating()) return;
+
   // Converts a V8 value to a C string.
   auto ToCString = [](const v8::String::Utf8Value& value) {
     return *value ? *value : "<string conversion failed>";
