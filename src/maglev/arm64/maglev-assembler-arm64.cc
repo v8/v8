@@ -436,7 +436,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
-    Add(index, index, offset);
+    Add(index.W(), index.W(), offset.W());
     B(&loop);
   }
 

@@ -461,7 +461,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
-    Add_d(index, index, Operand(offset));
+    Add_w(index, index, Operand(offset));
     MacroAssembler::Branch(&loop, Label::kNear);
   }
 
