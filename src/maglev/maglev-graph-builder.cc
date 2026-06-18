@@ -6763,6 +6763,84 @@ ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
 }
 
 template <typename GenericAccessFunc>
+MaybeReduceResult MaglevGraphBuilder::TryBuildProxyPropertyAccess(
+    ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
+    compiler::ProxyFeedback const& feedback,
+    compiler::FeedbackSource const& feedback_source,
+    compiler::AccessMode access_mode,
+    GenericAccessFunc&& build_generic_access) {
+  // Currently only load is supported
+  if (access_mode != compiler::AccessMode::kLoad) {
+    return build_generic_access();
+  }
+
+  compiler::MapRef expected_target_map = feedback.target_map();
+  compiler::MapRef expected_handler_map = feedback.handler_map();
+  compiler::ObjectRef trap_method = feedback.trap_method();
+
+  compiler::NameRef trap_name = broker()->get_string();
+
+  compiler::PropertyAccessInfo handler_access_info =
+      broker()->GetPropertyAccessInfo(expected_handler_map, trap_name,
+                                      compiler::AccessMode::kLoad);
+
+  if (handler_access_info.IsInvalid()) {
+    return build_generic_access();
+  }
+
+  // 0. Check receiver map.
+  RETURN_IF_ABORT(BuildCheckMaps(lookup_start_object,
+                                 base::VectorOf({feedback.receiver_map()})));
+
+  // 1. Emit proxy target check.
+  ValueNode* proxy_target;
+  GET_VALUE_OR_ABORT(
+      proxy_target,
+      BuildLoadTaggedField(lookup_start_object, offsetof(JSProxy, target_)));
+  RETURN_IF_ABORT(
+      BuildCheckMaps(proxy_target, base::VectorOf({expected_target_map})));
+
+  // 2. Emit proxy handler check.
+  ValueNode* proxy_handler;
+  GET_VALUE_OR_ABORT(
+      proxy_handler,
+      BuildLoadTaggedField(lookup_start_object, offsetof(JSProxy, handler_)));
+  RETURN_IF_ABORT(
+      BuildCheckMaps(proxy_handler, base::VectorOf({expected_handler_map})));
+
+  // 3. Emit the inlined load of the trap method from the proxy handler.
+  handler_access_info.RecordDependencies(broker()->dependencies());
+
+  MaybeReduceResult maybe_trap =
+      TryBuildPropertyLoad(proxy_handler, proxy_handler, trap_name,
+                           handler_access_info, feedback_source);
+  RETURN_IF_ABORT(maybe_trap);
+  if (!maybe_trap.IsDone()) {
+    return build_generic_access();
+  }
+  ValueNode* actual_trap = maybe_trap.value();
+
+  RETURN_IF_ABORT(
+      BuildCheckValueByReference(actual_trap, trap_method.AsHeapObject(),
+                                 DeoptimizeReason::kWrongCallTarget));
+
+  // 3. Call the trap.
+  DCHECK(!trap_method.IsUndefined());
+  DCHECK(trap_method.IsJSFunction());
+  compiler::JSFunctionRef trap_js_function_ref = trap_method.AsJSFunction();
+
+  ValueNode* argument_name = GetConstant(name);
+  CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
+                     {proxy_handler, proxy_target, argument_name, receiver});
+
+  RETURN_IF_DONE(
+      TryReduceCallForConstant(trap_js_function_ref, args, feedback_source));
+
+  return BuildGenericCall(actual_trap, Call::TargetType::kJSFunction, args,
+                          feedback_source);
+}
+
+template <typename GenericAccessFunc>
 MaybeReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
     ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
     compiler::FeedbackSource& feedback_source,
@@ -6786,6 +6864,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
           receiver, lookup_start_object,
           processed_feedback.AsHomomorphicPropertyAccess(), feedback_source,
           compiler::AccessMode::kLoad, build_generic_access);
+    }
+    case compiler::ProcessedFeedback::kProxy: {
+      return TryBuildProxyPropertyAccess(
+          receiver, lookup_start_object, name, processed_feedback.AsProxy(),
+          feedback_source, compiler::AccessMode::kLoad, build_generic_access);
     }
     default:
       return {};

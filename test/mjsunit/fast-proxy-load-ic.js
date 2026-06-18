@@ -156,3 +156,29 @@
   assertEquals(42, load(proxy));
   assertEquals(2, calls);
 })();
+
+(function TestCompilerOptimizationAndReceiverMapChange() {
+  const target = { a: 42 };
+  const handler = {
+    get(t, p, r) {
+      return t[p] + 1;
+    }
+  };
+  const proxy = new Proxy(target, handler);
+
+  function load(obj) {
+    return obj.a;
+  }
+
+  %PrepareFunctionForOptimization(load);
+  %PrepareFunctionForOptimization(handler.get);
+  assertEquals(43, load(proxy));
+  assertEquals(43, load(proxy));
+
+  %OptimizeFunctionOnNextCall(load);
+  assertEquals(43, load(proxy));
+
+  // Now, pass a plain object. It should deoptimize due to receiver map mismatch
+  const plain = { a: 100 };
+  assertEquals(100, load(plain)); // Plain load (trap is not called, returns 100)
+})();

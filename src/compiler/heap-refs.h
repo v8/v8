@@ -149,6 +149,7 @@ enum class RefSerializationKind {
   NEVER_SERIALIZED(Cell)                                                      \
   NEVER_SERIALIZED(Code)                                                      \
   NEVER_SERIALIZED(Context)                                                   \
+  NEVER_SERIALIZED(DataHandler)                                               \
   NEVER_SERIALIZED(DescriptorArray)                                           \
   NEVER_SERIALIZED(FeedbackCell)                                              \
   NEVER_SERIALIZED(FeedbackVector)                                            \
@@ -766,6 +767,17 @@ class HeapNumberRef : public HeapObjectRef {
 
   double value() const;
   uint64_t value_as_bits() const;
+};
+
+class DataHandlerRef : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(DataHandler, HeapObjectRef)
+
+  IndirectHandle<DataHandler> object() const;
+
+  int data_field_count() const;
+  bool IsFastProxyHandler() const;
+  OptionalObjectRef data(JSHeapBroker* broker, int index) const;
 };
 
 class ContextCellRef : public HeapObjectRef {

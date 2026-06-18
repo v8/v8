@@ -1365,6 +1365,14 @@ class MaglevGraphBuilder {
       GenericAccessFunc&& build_generic_access);
 
   template <typename GenericAccessFunc>
+  MaybeReduceResult TryBuildProxyPropertyAccess(
+      ValueNode* receiver, ValueNode* lookup_start_object,
+      compiler::NameRef name, compiler::ProxyFeedback const& feedback,
+      compiler::FeedbackSource const& feedback_source,
+      compiler::AccessMode access_mode,
+      GenericAccessFunc&& build_generic_access);
+
+  template <typename GenericAccessFunc>
   MaybeReduceResult TryBuildLoadNamedProperty(
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NameRef name, compiler::FeedbackSource& feedback_source,

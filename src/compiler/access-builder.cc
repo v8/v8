@@ -282,6 +282,32 @@ FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSProxyTarget() {
+  FieldAccess access = {kTaggedBase,
+                        offsetof(JSProxy, target_),
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        Type::ReceiverOrNull(),
+                        MachineType::TaggedPointer(),
+                        kPointerWriteBarrier,
+                        "JSProxyTarget"};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSProxyHandler() {
+  FieldAccess access = {kTaggedBase,
+                        offsetof(JSProxy, handler_),
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        Type::ReceiverOrNull(),
+                        MachineType::TaggedPointer(),
+                        kPointerWriteBarrier,
+                        "JSProxyHandler"};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSFunctionContext() {
   FieldAccess access = {kTaggedBase,          offsetof(JSFunction, context_),
                         MaybeHandle<Name>(),  OptionalMapRef(),

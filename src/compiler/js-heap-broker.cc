@@ -17,6 +17,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/ic/handler-configuration.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/literal-objects-inl.h"
@@ -205,8 +206,7 @@ NamedAccessFeedback const& ElementAccessFeedback::Refine(JSHeapBroker* broker,
   // key is know to be a known name.
   CHECK(transition_groups_.empty());
   ZoneVector<MapRef> maps(broker->zone());
-  ZoneVector<OptionalObjectRef> handlers(broker->zone());
-  return *broker->zone()->New<NamedAccessFeedback>(broker, name, maps, handlers,
+  return *broker->zone()->New<NamedAccessFeedback>(broker, name, maps,
                                                    slot_kind());
 }
 
@@ -424,6 +424,14 @@ MegaDOMPropertyAccessFeedback::MegaDOMPropertyAccessFeedback(
 
 NamedAccessFeedback::NamedAccessFeedback(
     JSHeapBroker* broker, NameRef name, ZoneVector<MapRef> const& maps,
+    FeedbackSlotKind slot_kind,
+    bool has_deprecated_map_without_migration_target)
+    : NamedAccessFeedback(
+          broker, name, maps, ZoneVector<OptionalObjectRef>(broker->zone()),
+          slot_kind, has_deprecated_map_without_migration_target) {}
+
+NamedAccessFeedback::NamedAccessFeedback(
+    JSHeapBroker* broker, NameRef name, ZoneVector<MapRef> const& maps,
     ZoneVector<OptionalObjectRef> const& handlers, FeedbackSlotKind slot_kind,
     bool has_deprecated_map_without_migration_target)
     : ProcessedFeedback(kNamedAccess, slot_kind),
@@ -433,6 +441,7 @@ NamedAccessFeedback::NamedAccessFeedback(
       handlers_(handlers),
       has_deprecated_map_without_migration_target_(
           has_deprecated_map_without_migration_target) {
+  DCHECK_EQ(maps.size(), handlers.size());
   DCHECK(IsLoadICKind(slot_kind) || IsSetNamedICKind(slot_kind) ||
          IsDefineNamedOwnICKind(slot_kind) || IsKeyedLoadICKind(slot_kind) ||
          IsKeyedHasICKind(slot_kind) || IsKeyedStoreICKind(slot_kind) ||
@@ -577,6 +586,39 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
                    nexus.ic_state() == InlineCacheState::MEGAMORPHIC ||
                        nexus.ic_state() == InlineCacheState::HOMOMORPHIC);
     DCHECK_EQ(maps.size(), handlers.size());
+    if (mode == AccessMode::kLoad && maps.size() == 1 &&
+        maps[0].instance_type() == JS_PROXY_TYPE && handlers[0].has_value() &&
+        handlers[0].value().IsDataHandler()) {
+      DataHandlerRef data_handler = handlers[0].value().AsDataHandler();
+      if (data_handler.IsFastProxyHandler()) {
+        OptionalObjectRef target_map_obj =
+            data_handler.data(this, LoadHandler::kProxyTargetMapDataIndex);
+        OptionalObjectRef handler_map_obj =
+            data_handler.data(this, LoadHandler::kProxyHandlerMapDataIndex);
+        OptionalObjectRef trap_method =
+            data_handler.data(this, LoadHandler::kProxyTrapMethodDataIndex);
+        OptionalObjectRef smi_handler =
+            data_handler.data(this, LoadHandler::kProxyGetSmiHandlerDataIndex);
+
+        if (target_map_obj.has_value() && target_map_obj.value().IsMap() &&
+            handler_map_obj.has_value() && handler_map_obj.value().IsMap() &&
+            trap_method.has_value() && trap_method.value().IsJSFunction() &&
+            smi_handler.has_value() && smi_handler.value().IsSmi()) {
+          MapRef target_map = target_map_obj.value().AsMap();
+          MapRef handler_map = handler_map_obj.value().AsMap();
+          float frequency = 0.0f;
+          OptionalObjectRef count_obj =
+              data_handler.data(this, LoadHandler::kProxyCounterDataIndex);
+          DCHECK(count_obj.has_value() && count_obj.value().IsSmi());
+          int count = count_obj.value().AsSmi();
+          int invocation_count = nexus.vector()->invocation_count(kRelaxedLoad);
+          frequency = static_cast<float>(count) / std::max(1, invocation_count);
+          return *zone()->New<ProxyFeedback>(
+              *name, maps[0], target_map, handler_map, *trap_method,
+              smi_handler.value().AsSmi(), frequency, kind);
+        }
+      }
+    }
     return *zone()->New<NamedAccessFeedback>(
         this, *name, maps, handlers, kind,
         has_deprecated_map_without_migration_target);
@@ -869,7 +911,17 @@ ProcessedFeedback const& JSHeapBroker::GetFeedbackForInstanceOf(
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForCall(
     FeedbackSource const& source) {
-  if (HasFeedback(source)) return GetFeedback(source);
+  if (HasFeedback(source)) {
+    ProcessedFeedback const& feedback = GetFeedback(source);
+    if (feedback.kind() == ProcessedFeedback::kProxy) {
+      ProxyFeedback const& proxy = feedback.AsProxy();
+      return *zone()->New<CallFeedback>(
+          proxy.trap_method().AsHeapObject(), proxy.frequency(),
+          SpeculationMode::kDisallowSpeculation, CallFeedbackContent::kTarget,
+          FeedbackSlotKind::kCall);
+    }
+    return feedback;
+  }
   ProcessedFeedback const& feedback = ReadFeedbackForCall(source);
   SetFeedback(source, &feedback);
   return feedback;
@@ -1046,6 +1098,11 @@ InstanceOfFeedback const& ProcessedFeedback::AsInstanceOf() const {
 NamedAccessFeedback const& ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return *static_cast<NamedAccessFeedback const*>(this);
+}
+
+ProxyFeedback const& ProcessedFeedback::AsProxy() const {
+  CHECK_EQ(kProxy, kind());
+  return *static_cast<ProxyFeedback const*>(this);
 }
 
 HomomorphicPropertyAccessFeedback const&
