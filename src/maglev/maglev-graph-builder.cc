@@ -1952,15 +1952,11 @@ ReduceResult MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
   // might as well pass the result map instead if we have one.
   ValueNode* left_map = left_info.result_map;
   if (!left_map) {
-    GET_VALUE_OR_ABORT(left_map,
-                       BuildLoadTaggedField(left, offsetof(HeapObject, map_),
-                                            NodeType::kAnyHeapObject));
+    GET_VALUE_OR_ABORT(left_map, BuildLoadMap(left));
   }
   ValueNode* right_map = right_info.result_map;
   if (!right_map) {
-    GET_VALUE_OR_ABORT(right_map,
-                       BuildLoadTaggedField(right, offsetof(HeapObject, map_),
-                                            NodeType::kAnyHeapObject));
+    GET_VALUE_OR_ABORT(right_map, BuildLoadMap(right));
   }
   // Sort inputs for CSE. Move constants to the left since the instruction
   // reuses the lhs input.
@@ -6089,9 +6085,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccess(
 
       RETURN_IF_ABORT(BuildCheckHeapObject(object));
       ValueNode* object_map;
-      GET_VALUE_OR_ABORT(
-          object_map, BuildLoadTaggedField(object, offsetof(HeapObject, map_),
-                                           NodeType::kAnyHeapObject));
+      GET_VALUE_OR_ABORT(object_map, BuildLoadMap(object));
 
       RETURN_IF_ABORT(BuildTransitionElementsKindOrCheckMap(
           object, object_map, transition_sources, transition_target));
@@ -6133,9 +6127,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
 
   RETURN_IF_ABORT(BuildCheckHeapObject(object));
   ValueNode* object_map;
-  GET_VALUE_OR_ABORT(object_map,
-                     BuildLoadTaggedField(object, offsetof(HeapObject, map_),
-                                          NodeType::kAnyHeapObject));
+  GET_VALUE_OR_ABORT(object_map, BuildLoadMap(object));
 
   // TODO(pthier): We could do better here than just emitting code for each map,
   // as many different maps can produce the exact samce code (e.g. TypedArray
@@ -6844,10 +6836,7 @@ ReduceResult MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
   compiler::FeedbackSource feedback_source{feedback(), slot};
   // {home_object} is guaranteed to be a HeapObject.
   ValueNode* home_object_map;
-  GET_VALUE_OR_ABORT(
-      home_object_map,
-      BuildLoadTaggedField(home_object, offsetof(HeapObject, map_),
-                           NodeType::kAnyHeapObject));
+  GET_VALUE_OR_ABORT(home_object_map, BuildLoadMap(home_object));
   ValueNode* lookup_start_object;
   GET_VALUE_OR_ABORT(
       lookup_start_object,
@@ -6894,9 +6883,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
     if (current_for_in_state.receiver_needs_map_check ||
         speculating_receiver_map_matches) {
       ValueNode* receiver_map;
-      GET_VALUE_OR_ABORT(
-          receiver_map, BuildLoadTaggedField(object, offsetof(HeapObject, map_),
-                                             NodeType::kAnyHeapObject));
+      GET_VALUE_OR_ABORT(receiver_map, BuildLoadMap(object));
       RETURN_IF_ABORT(AddNewNode<CheckDynamicValue>(
           {receiver_map, current_for_in_state.cache_type},
           DeoptimizeReason::kWrongMapDynamic));
@@ -7661,9 +7648,7 @@ ReduceResult MaglevGraphBuilder::VisitGetSuperConstructor() {
     }
   }
   ValueNode* map;
-  GET_VALUE(map,
-            BuildLoadTaggedField(active_function, offsetof(HeapObject, map_),
-                                 NodeType::kAnyHeapObject));
+  GET_VALUE(map, BuildLoadMap(active_function));
   ValueNode* map_proto;
   GET_VALUE(map_proto, BuildLoadTaggedField(map, offsetof(Map, prototype_),
                                             NodeType::kJSReceiverOrNull));
@@ -9455,9 +9440,7 @@ MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
   // TODO(pthier): Support map packing.
   DCHECK(!V8_MAP_PACKING_BOOL);
   ValueNode* receiver_map;
-  GET_VALUE_OR_ABORT(receiver_map,
-                     BuildLoadTaggedField(receiver, offsetof(HeapObject, map_),
-                                          NodeType::kAnyHeapObject));
+  GET_VALUE_OR_ABORT(receiver_map, BuildLoadMap(receiver));
   int emitted_kind_checks = 0;
   bool any_successful = false;
 
@@ -10504,9 +10487,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
   if (receiver == current_for_in_state.receiver) {
     if (current_for_in_state.receiver_needs_map_check) {
       ValueNode* receiver_map;
-      GET_VALUE_OR_ABORT(receiver_map, BuildLoadTaggedField(
-                                           receiver, offsetof(HeapObject, map_),
-                                           NodeType::kAnyHeapObject));
+      GET_VALUE_OR_ABORT(receiver_map, BuildLoadMap(receiver));
       RETURN_IF_ABORT(AddNewNode<CheckDynamicValue>(
           {receiver_map, current_for_in_state.cache_type},
           DeoptimizeReason::kWrongMapDynamic));
@@ -15008,9 +14989,7 @@ ReduceResult MaglevGraphBuilder::VisitForInPrepare() {
       // receiver's Map instead (by definition, the {enumerator} is either
       // the receiver's Map or a FixedArray).
       ValueNode* receiver_map;
-      GET_VALUE_OR_ABORT(receiver_map, BuildLoadTaggedField(
-                                           receiver, offsetof(HeapObject, map_),
-                                           NodeType::kAnyHeapObject));
+      GET_VALUE_OR_ABORT(receiver_map, BuildLoadMap(receiver));
       RETURN_IF_ABORT(AddNewNode<CheckDynamicValue>(
           {receiver_map, enumerator}, DeoptimizeReason::kWrongMapDynamic));
 
@@ -15097,9 +15076,7 @@ ReduceResult MaglevGraphBuilder::VisitForInNext() {
       ValueNode* index = LoadRegister(1);
       // Ensure that the expected map still matches that of the {receiver}.
       ValueNode* receiver_map;
-      GET_VALUE_OR_ABORT(receiver_map, BuildLoadTaggedField(
-                                           receiver, offsetof(HeapObject, map_),
-                                           NodeType::kAnyHeapObject));
+      GET_VALUE_OR_ABORT(receiver_map, BuildLoadMap(receiver));
       RETURN_IF_ABORT(AddNewNode<CheckDynamicValue>(
           {receiver_map, cache_type}, DeoptimizeReason::kWrongMapDynamic));
       ValueNode* key;
