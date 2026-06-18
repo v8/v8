@@ -1766,15 +1766,28 @@ MaybeLocal<Promise> Shell::HostImportModuleWithPhaseDynamically(
         ->Reject(context, v8::Exception::TypeError(String::NewFromUtf8Literal(
                               isolate, "Invalid host defined options")))
         .ToChecked();
-  } else {
-    DynamicImportData* data =
-        new DynamicImportData(isolate, context, resource_name, specifier, phase,
-                              import_attributes, resolver);
-    PerIsolateData::Get(isolate)->AddDynamicImportData(data);
-    context->GetMicrotaskQueue()->EnqueueMicrotask(
-        isolate, Shell::DoHostImportModuleDynamically,
-        External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
+    return resolver->GetPromise();
   }
+
+  v8::MicrotaskQueue* microtask_queue = context->GetMicrotaskQueue();
+  if (!microtask_queue) {
+    // The context is detached, so we reject the import.
+    resolver
+        ->Reject(context,
+                 v8::Exception::Error(String::NewFromUtf8Literal(
+                     isolate, "Cannot import module from an inactive context")))
+        .ToChecked();
+    return resolver->GetPromise();
+  }
+
+  DynamicImportData* data =
+      new DynamicImportData(isolate, context, resource_name, specifier, phase,
+                            import_attributes, resolver);
+  PerIsolateData::Get(isolate)->AddDynamicImportData(data);
+  microtask_queue->EnqueueMicrotask(
+      isolate, Shell::DoHostImportModuleDynamically,
+      External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
+
   return resolver->GetPromise();
 }
 
