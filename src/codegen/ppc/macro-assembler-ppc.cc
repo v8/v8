@@ -314,11 +314,10 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
 void MacroAssembler::CallBuiltin(Builtin builtin, Condition cond) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
-  UseScratchRegisterScope temps(this);
-  temps.Include(ip);
-  Register scratch = temps.Acquire();
   switch (options().builtin_call_jump_mode) {
     case BuiltinCallJumpMode::kAbsolute: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
       Label skip;
       mov(scratch, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
       if (cond != al) b(NegateCondition(cond), &skip);
@@ -329,6 +328,8 @@ void MacroAssembler::CallBuiltin(Builtin builtin, Condition cond) {
     case BuiltinCallJumpMode::kPCRelative:
       UNREACHABLE();
     case BuiltinCallJumpMode::kIndirect: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
       Label skip;
       LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
       if (cond != al) b(NegateCondition(cond), &skip);
@@ -343,6 +344,8 @@ void MacroAssembler::CallBuiltin(Builtin builtin, Condition cond) {
         Call(static_cast<Address>(code_target_index), RelocInfo::CODE_TARGET,
              cond);
       } else {
+        UseScratchRegisterScope temps(this);
+        Register scratch = temps.Acquire();
         Label skip;
         LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
         if (cond != al) b(NegateCondition(cond), &skip);
@@ -358,11 +361,10 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
                                      CRegister cr) {
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
-  UseScratchRegisterScope temps(this);
-  temps.Include(ip);
-  Register scratch = temps.Acquire();
   switch (options().builtin_call_jump_mode) {
     case BuiltinCallJumpMode::kAbsolute: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
       Label skip;
       mov(scratch, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
       if (cond != al) b(NegateCondition(cond), &skip, cr);
@@ -373,6 +375,8 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
     case BuiltinCallJumpMode::kPCRelative:
       UNREACHABLE();
     case BuiltinCallJumpMode::kIndirect: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
       Label skip;
       LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
       if (cond != al) b(NegateCondition(cond), &skip, cr);
@@ -387,6 +391,8 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
         Jump(static_cast<intptr_t>(code_target_index), RelocInfo::CODE_TARGET,
              cond, cr);
       } else {
+        UseScratchRegisterScope temps(this);
+        Register scratch = temps.Acquire();
         Label skip;
         LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
         if (cond != al) b(NegateCondition(cond), &skip, cr);
@@ -962,9 +968,11 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
 void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
     Register object, Register value, SaveFPRegsMode fp_mode) {
   ASM_CODE_COMMENT(this);
-  PushCallerSaved(fp_mode, ip, r0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  PushCallerSaved(fp_mode, scratch, r0);
   CallVerifySkippedWriteBarrierStub(object, value);
-  PopCallerSaved(fp_mode, ip, r0);
+  PopCallerSaved(fp_mode, scratch, r0);
 }
 
 void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
@@ -1252,7 +1260,6 @@ void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
 void MacroAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   UseScratchRegisterScope temps(this);
-  temps.Include(ip);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL && load_constant_pool_pointer_reg) {
     // Push type explicitly so we can leverage the constant pool.
     // This path cannot rely on ip containing code entry.
@@ -1279,7 +1286,6 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
   UseScratchRegisterScope temps(this);
-  temps.Include(ip);
   Register scratch = temps.Acquire();
   // r3: preserved
   // r4: preserved
@@ -2326,8 +2332,8 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
             MemOperand(function, kSystemPointerSize));
     LoadU64(ip, MemOperand(function, 0));
     dest = ip;
-  } else if (ABI_CALL_VIA_IP) {
-    // pLinux and Simualtor, not AIX
+  } else if (ABI_CALL_VIA_IP && function != ip) {
+    // pLinux and Simulator, not AIX
     Move(ip, function);
     dest = ip;
   }
@@ -5094,7 +5100,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   // Additional parameter is the address of the actual callback.
   Register return_value = r3;
-  Register scratch = ip;
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   Register scratch2 = r0;
 
   // Allocate HandleScope in callee-saved registers.
