@@ -26,7 +26,7 @@ let f = inst.exports.f;
 function g() { f(); }
 %PrepareFunctionForOptimization(g);
 
-%BlockAt('TurbofanEarlyGraphTrimming');
+%BlockAt('TurbofanEarlyGraphTrimming', 10000);
 %OptimizeFunctionOnNextCall(g, 'concurrent');
 g();
 

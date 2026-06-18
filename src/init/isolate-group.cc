@@ -5,7 +5,9 @@
 #include "src/init/isolate-group.h"
 
 #include <atomic>
+#include <cinttypes>
 #include <memory>
+#include <tuple>
 
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/once.h"
@@ -735,7 +737,7 @@ IsolateGroup::optimizing_compile_task_executor() {
 }
 
 void IsolateGroup::SetBlockAtSynchronizationPointForTesting(
-    std::string synchronization_point) {
+    std::string synchronization_point, base::TimeDelta timeout) {
   any_synchronization_point_for_testing_ = true;
   base::MutexGuard lock(&synchronization_point_mutex_for_testing_);
   auto& data =
@@ -745,6 +747,7 @@ void IsolateGroup::SetBlockAtSynchronizationPointForTesting(
   }
   data->block_requested = true;
   data->block_requester_thread = ThreadId::Current();
+  data->block_timeout = timeout;
 }
 
 bool IsolateGroup::ResumeSynchronizationPointForTesting(
@@ -770,21 +773,18 @@ bool IsolateGroup::WaitUntilBlockedForTesting(
         synchronization_point_data_for_testing_.find(synchronization_point);
     if (it == synchronization_point_data_for_testing_.end()) return;
     auto* data = it->second.get();
-    if (!data->block_requested && !data->blocked) return;
+    if (!data->block_requested && data->blocked_threads == 0) return;
 
     const base::TimeTicks start = base::TimeTicks::Now();
-    while (!data->blocked) {
-      const base::TimeDelta elapsed = base::TimeTicks::Now() - start;
-      if (elapsed >= timeout) {
+    while (data->blocked_threads == 0) {
+      const base::TimeDelta remaining =
+          start + timeout - base::TimeTicks::Now();
+      if (remaining <= base::TimeDelta()) {
         timed_out = true;
         return;
       }
-      bool notified = data->cv.WaitFor(
-          &synchronization_point_mutex_for_testing_, timeout - elapsed);
-      if (!notified && !data->blocked) {
-        timed_out = true;
-        return;
-      }
+      std::ignore = data->cv.WaitFor(&synchronization_point_mutex_for_testing_,
+                                     remaining);
     }
     success = true;
   };
@@ -818,13 +818,26 @@ void IsolateGroup::DoSynchronizationPointForTesting(
     CHECK_NE(data->block_requester_thread, ThreadId::Current());
   }
 
+  base::TimeTicks start = base::TimeTicks::Now();
   base::MutexGuard lock(&synchronization_point_mutex_for_testing_);
-  data->blocked = true;
+  ++data->blocked_threads;
   data->cv.NotifyAll();
   while (data->block_requested) {
-    data->cv.Wait(&synchronization_point_mutex_for_testing_);
+    base::TimeDelta remaining =
+        start + data->block_timeout - base::TimeTicks::Now();
+    if (remaining <= base::TimeDelta()) break;
+    std::ignore =
+        data->cv.WaitFor(&synchronization_point_mutex_for_testing_, remaining);
   }
-  data->blocked = false;
+  --data->blocked_threads;
+
+  if (data->block_requested) {
+    base::OS::PrintError(
+        "Warning: Synchronization point '%.*s' timed out after %" PRId64
+        " ms. Resuming automatically.\n",
+        static_cast<int>(synchronization_point.length()),
+        synchronization_point.data(), data->block_timeout.InMilliseconds());
+  }
 }
 
 }  // namespace internal

@@ -355,9 +355,9 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   V8_INLINE static IsolateGroup* GetDefault() { return default_isolate_group_; }
 
   // Arms the given synchronization point. When a thread reaches it, it will
-  // block until resumed.
+  // block for the specified timeout (or less, if the point is resumed).
   void SetBlockAtSynchronizationPointForTesting(
-      std::string synchronization_point);
+      std::string synchronization_point, base::TimeDelta timeout);
   // Resumes a thread currently blocked at the given synchronization point.
   // Returns false if it wasn't armed.
   bool ResumeSynchronizationPointForTesting(
@@ -405,10 +405,12 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     // Set to true to signal that any thread that reaches this point should
     // block.
     bool block_requested = false;
-    // Set to true when a thread has reached the point and is currently blocked.
-    bool blocked = false;
+    // Number of threads that have reached the point and are currently blocked.
+    int blocked_threads = 0;
     // The identity of the thread that set the `block_requested` flag.
     ThreadId block_requester_thread = ThreadId::Invalid();
+    // How long a thread should remain blocked, unless resumed.
+    base::TimeDelta block_timeout;
   };
   std::atomic<bool> any_synchronization_point_for_testing_{false};
   base::Mutex synchronization_point_mutex_for_testing_;
