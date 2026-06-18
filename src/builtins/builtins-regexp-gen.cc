@@ -919,7 +919,7 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     static_assert(
         Internals::IsValidSmi(Isolate::kJSRegexpStaticOffsetsVectorSize));
     TNode<Smi> result_as_smi = CAST(CallRuntime(
-        Runtime::kRegExpExperimentalOneshotExec, context, regexp, string,
+        Runtime::kRegExpExperimentalOneshotExec, context, data, string,
         last_index, SmiFromInt32(result_offsets_vector_length)));
     var_result = UncheckedCast<UintPtrT>(SmiUntag(result_as_smi));
 #ifdef DEBUG
@@ -939,7 +939,7 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     static_assert(
         Internals::IsValidSmi(Isolate::kJSRegexpStaticOffsetsVectorSize));
     TNode<Smi> result_as_smi = CAST(
-        CallRuntime(Runtime::kRegExpExec, context, regexp, string, last_index,
+        CallRuntime(Runtime::kRegExpExec, context, data, string, last_index,
                     SmiFromInt32(result_offsets_vector_length)));
     var_result = UncheckedCast<UintPtrT>(SmiUntag(result_as_smi));
 #ifdef DEBUG

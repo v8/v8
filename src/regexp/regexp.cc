@@ -521,33 +521,32 @@ bool RegExp::EnsureFullyCompiled(Isolate* isolate,
 
 // static
 std::optional<int> RegExp::ExperimentalOneshotExec(
-    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    Isolate* isolate, DirectHandle<RegExpData> regexp_data,
     DirectHandle<String> subject, int index, int32_t* result_offsets_vector,
     uint32_t result_offsets_vector_length) {
-  DirectHandle<RegExpData> data(regexp->data(isolate), isolate);
   return regexp::ExperimentalRegExp::OneshotExec(
-      isolate, SbxCast<IrRegExpData>(data), subject, index,
+      isolate, SbxCast<IrRegExpData>(regexp_data), subject, index,
       result_offsets_vector, result_offsets_vector_length);
 }
 
 // static
-std::optional<int> RegExp::Exec(Isolate* isolate, DirectHandle<JSRegExp> regexp,
+std::optional<int> RegExp::Exec(Isolate* isolate,
+                                DirectHandle<RegExpData> regexp_data,
                                 DirectHandle<String> subject, int index,
                                 int32_t* result_offsets_vector,
                                 uint32_t result_offsets_vector_length) {
-  DirectHandle<RegExpData> data(regexp->data(isolate), isolate);
-  switch (data->type_tag()) {
+  switch (regexp_data->type_tag()) {
     case RegExpData::Type::ATOM:
       return regexp::RegExpImpl::AtomExec(
-          isolate, TrustedCast<AtomRegExpData>(data), subject, index,
+          isolate, TrustedCast<AtomRegExpData>(regexp_data), subject, index,
           result_offsets_vector, result_offsets_vector_length);
     case RegExpData::Type::IRREGEXP:
       return regexp::RegExpImpl::IrregexpExec(
-          isolate, TrustedCast<IrRegExpData>(data), subject, index,
+          isolate, TrustedCast<IrRegExpData>(regexp_data), subject, index,
           result_offsets_vector, result_offsets_vector_length);
     case RegExpData::Type::EXPERIMENTAL:
       return regexp::ExperimentalRegExp::Exec(
-          isolate, TrustedCast<IrRegExpData>(data), subject, index,
+          isolate, TrustedCast<IrRegExpData>(regexp_data), subject, index,
           result_offsets_vector, result_offsets_vector_length);
   }
   // This UNREACHABLE() is necessary because we don't return a value here,
@@ -569,7 +568,7 @@ MaybeDirectHandle<Object> RegExp::Exec_Single(
   regexp::ResultVectorScope result_vector_scope(isolate,
                                                 result_offsets_vector_length);
   std::optional<int> result =
-      RegExp::Exec(isolate, regexp, subject, index, result_vector_scope.value(),
+      RegExp::Exec(isolate, data, subject, index, result_vector_scope.value(),
                    result_offsets_vector_length);
   DCHECK_EQ(!result, isolate->has_exception());
   if (!result) return {};

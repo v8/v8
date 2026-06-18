@@ -935,7 +935,8 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
 namespace {
 
-std::optional<int> RegExpExec(Isolate* isolate, DirectHandle<JSRegExp> regexp,
+std::optional<int> RegExpExec(Isolate* isolate,
+                              DirectHandle<RegExpData> regexp_data,
                               DirectHandle<String> subject, int32_t index,
                               int32_t* result_offsets_vector,
                               uint32_t result_offsets_vector_length) {
@@ -944,23 +945,22 @@ std::optional<int> RegExpExec(Isolate* isolate, DirectHandle<JSRegExp> regexp,
   CHECK_LE(0, index);
   CHECK_GE(subject->length(), index);
   isolate->counters()->regexp_entry_runtime()->Increment();
-  return RegExp::Exec(isolate, regexp, subject, index, result_offsets_vector,
-                      result_offsets_vector_length);
+  return RegExp::Exec(isolate, regexp_data, subject, index,
+                      result_offsets_vector, result_offsets_vector_length);
 }
 
 std::optional<int> ExperimentalOneshotExec(
-    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    Isolate* isolate, DirectHandle<RegExpData> regexp_data,
     DirectHandle<String> subject, int32_t index, int32_t* result_offsets_vector,
     uint32_t result_offsets_vector_length) {
   CHECK_GE(result_offsets_vector_length,
-           JSRegExp::RegistersForCaptureCount(
-               regexp->data(isolate)->capture_count()));
+           JSRegExp::RegistersForCaptureCount(regexp_data->capture_count()));
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
   CHECK_LE(0, index);
   CHECK_GE(subject->length(), index);
   isolate->counters()->regexp_entry_runtime()->Increment();
-  return RegExp::ExperimentalOneshotExec(isolate, regexp, subject, index,
+  return RegExp::ExperimentalOneshotExec(isolate, regexp_data, subject, index,
                                          result_offsets_vector,
                                          result_offsets_vector_length);
 }
@@ -970,7 +970,8 @@ std::optional<int> ExperimentalOneshotExec(
 RUNTIME_FUNCTION(Runtime_RegExpExec) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<RegExpData> regexp_data =
+      SbxCast<RegExpData>(TrustedCast<TrustedObject>(args.at<Object>(0)));
   DirectHandle<String> subject = args.at<String>(1);
   int32_t index = 0;
   CHECK(Object::ToInt32(args[2], &index));
@@ -983,7 +984,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   DCHECK_NOT_NULL(result_offsets_vector);
 
   std::optional<int> result =
-      RegExpExec(isolate, regexp, subject, index, result_offsets_vector,
+      RegExpExec(isolate, regexp_data, subject, index, result_offsets_vector,
                  result_offsets_vector_length);
   DCHECK_EQ(!result, isolate->has_exception());
   if (!result) return ReadOnlyRoots(isolate).exception();
@@ -1012,7 +1013,8 @@ RUNTIME_FUNCTION(Runtime_RegExpGrowRegExpMatchInfo) {
 RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<RegExpData> regexp_data =
+      SbxCast<RegExpData>(TrustedCast<TrustedObject>(args.at<Object>(0)));
   DirectHandle<String> subject = args.at<String>(1);
   int32_t index = 0;
   CHECK(Object::ToInt32(args[2], &index));
@@ -1025,7 +1027,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
   DCHECK_NOT_NULL(result_offsets_vector);
 
   std::optional<int> result = ExperimentalOneshotExec(
-      isolate, regexp, subject, index, result_offsets_vector,
+      isolate, regexp_data, subject, index, result_offsets_vector,
       result_offsets_vector_length);
   DCHECK_EQ(!result, isolate->has_exception());
   if (!result) return ReadOnlyRoots(isolate).exception();
