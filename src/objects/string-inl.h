@@ -791,7 +791,7 @@ bool String::IsConsStringEqualToImpl(
 
   ConsStringIterator iter(Cast<ConsString>(string));
   base::Vector<const Char> remaining_str = str;
-  int offset;
+  uint32_t offset;
   for (Tagged<String> segment = iter.Next(&offset); !segment.is_null();
        segment = iter.Next(&offset)) {
     // We create the iterator without an offset, so we should never have a
@@ -1176,7 +1176,7 @@ Tagged<String> String::GetUnderlying() const {
 
 template <class Visitor>
 Tagged<ConsString> String::VisitFlat(Visitor* visitor, Tagged<String> string,
-                                     const int offset) {
+                                     const uint32_t offset) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
   return VisitFlat(visitor, string, offset,
                    SharedStringAccessGuardIfNeeded::NotNeeded());
@@ -1184,11 +1184,10 @@ Tagged<ConsString> String::VisitFlat(Visitor* visitor, Tagged<String> string,
 
 template <class Visitor>
 Tagged<ConsString> String::VisitFlat(
-    Visitor* visitor, Tagged<String> string, const int offset,
+    Visitor* visitor, Tagged<String> string, const uint32_t offset,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
-  // TODO(524832525): Consider changing the offset parameter type to uint32_t.
-  uint32_t slice_offset = static_cast<uint32_t>(offset);
+  uint32_t slice_offset = offset;
   const uint32_t length = string->length();
   DCHECK_LE(offset, length);
   while (true) {
@@ -1675,12 +1674,13 @@ void ConsStringIterator::Pop() {
 
 class StringCharacterStream {
  public:
-  inline explicit StringCharacterStream(Tagged<String> string, int offset = 0);
+  inline explicit StringCharacterStream(Tagged<String> string,
+                                        uint32_t offset = 0);
   StringCharacterStream(const StringCharacterStream&) = delete;
   StringCharacterStream& operator=(const StringCharacterStream&) = delete;
   inline uint16_t GetNext();
   inline bool HasMore();
-  inline void Reset(Tagged<String> string, int offset = 0);
+  inline void Reset(Tagged<String> string, uint32_t offset = 0);
   inline void VisitOneByteString(const uint8_t* chars, int length);
   inline void VisitTwoByteString(const uint16_t* chars, int length);
 
@@ -1716,12 +1716,13 @@ uint16_t StringCharacterStream::GetNext() {
 // TODO(solanes, v8:7790, chromium:1166095): Assess if we need to use
 // Isolate/LocalIsolate and pipe them through, instead of using the slow
 // version of the SharedStringAccessGuardIfNeeded.
-StringCharacterStream::StringCharacterStream(Tagged<String> string, int offset)
+StringCharacterStream::StringCharacterStream(Tagged<String> string,
+                                             uint32_t offset)
     : is_one_byte_(false), access_guard_(string) {
   Reset(string, offset);
 }
 
-void StringCharacterStream::Reset(Tagged<String> string, int offset) {
+void StringCharacterStream::Reset(Tagged<String> string, uint32_t offset) {
   buffer8_ = nullptr;
   end_ = nullptr;
 
@@ -1738,7 +1739,7 @@ void StringCharacterStream::Reset(Tagged<String> string, int offset) {
 
 bool StringCharacterStream::HasMore() {
   if (buffer8_ != end_) return true;
-  int offset;
+  uint32_t offset;
   Tagged<String> string = iter_.Next(&offset);
   DCHECK_EQ(offset, 0);
   if (string.is_null()) return false;

@@ -666,11 +666,11 @@ V8_OBJECT class String : public Name {
   template <class Visitor>
   static inline Tagged<ConsString> VisitFlat(Visitor* visitor,
                                              Tagged<String> string,
-                                             int offset = 0);
+                                             uint32_t offset = 0);
 
   template <class Visitor>
   static inline Tagged<ConsString> VisitFlat(
-      Visitor* visitor, Tagged<String> string, int offset,
+      Visitor* visitor, Tagged<String> string, uint32_t offset,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
   static uint32_t constexpr kInlineLineEndsSize = 32;
@@ -1372,12 +1372,12 @@ class ConsStringIterator {
  public:
   inline ConsStringIterator() = default;
   inline explicit ConsStringIterator(Tagged<ConsString> cons_string,
-                                     int offset = 0) {
+                                     uint32_t offset = 0) {
     Reset(cons_string, offset);
   }
   ConsStringIterator(const ConsStringIterator&) = delete;
   ConsStringIterator& operator=(const ConsStringIterator&) = delete;
-  inline void Reset(Tagged<ConsString> cons_string, int offset = 0) {
+  inline void Reset(Tagged<ConsString> cons_string, uint32_t offset = 0) {
     depth_ = 0;
     // Next will always return nullptr.
     if (cons_string.is_null()) return;
@@ -1388,7 +1388,7 @@ class ConsStringIterator {
   // to match the offset passed into the constructor or Reset -- this will only
   // be non-zero immediately after construction or Reset, and only if those had
   // a non-zero offset.
-  inline Tagged<String> Next(int* offset_out) {
+  inline Tagged<String> Next(uint32_t* offset_out) {
     *offset_out = 0;
     if (depth_ == 0) return Tagged<String>();
     return Continue(offset_out);
@@ -1407,10 +1407,11 @@ class ConsStringIterator {
   inline void AdjustMaximumDepth();
   inline void Pop();
   inline bool StackBlown() { return maximum_depth_ - depth_ == kStackSize; }
-  V8_EXPORT_PRIVATE void Initialize(Tagged<ConsString> cons_string, int offset);
-  V8_EXPORT_PRIVATE Tagged<String> Continue(int* offset_out);
+  V8_EXPORT_PRIVATE void Initialize(Tagged<ConsString> cons_string,
+                                    uint32_t offset);
+  V8_EXPORT_PRIVATE Tagged<String> Continue(uint32_t* offset_out);
   Tagged<String> NextLeaf(bool* blew_stack);
-  Tagged<String> Search(int* offset_out);
+  Tagged<String> Search(uint32_t* offset_out);
 
   // Stack must always contain only frames for which right traversal
   // has not yet been performed.

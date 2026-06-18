@@ -2211,7 +2211,7 @@ void FlatStringReader::PostGarbageCollection() {
 }
 
 void ConsStringIterator::Initialize(Tagged<ConsString> cons_string,
-                                    int offset) {
+                                    uint32_t offset) {
   DCHECK(!cons_string.is_null());
   root_ = cons_string;
   consumed_ = offset;
@@ -2221,7 +2221,7 @@ void ConsStringIterator::Initialize(Tagged<ConsString> cons_string,
   DCHECK(StackBlown());
 }
 
-Tagged<String> ConsStringIterator::Continue(int* offset_out) {
+Tagged<String> ConsStringIterator::Continue(uint32_t* offset_out) {
   DCHECK_NE(depth_, 0);
   DCHECK_EQ(0, *offset_out);
   bool blew_stack = StackBlown();
@@ -2238,7 +2238,7 @@ Tagged<String> ConsStringIterator::Continue(int* offset_out) {
   return string;
 }
 
-Tagged<String> ConsStringIterator::Search(int* offset_out) {
+Tagged<String> ConsStringIterator::Search(uint32_t* offset_out) {
   Tagged<ConsString> cons_string = root_;
   // Reset the stack, pushing the root string.
   depth_ = 1;
