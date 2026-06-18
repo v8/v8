@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "absl/container/node_hash_map.h"
 #include "src/base/iterator.h"
 #include "src/torque/ast.h"
 #include "src/torque/utils.h"
@@ -187,7 +188,7 @@ Symbol* Lexer::MatchToken(InputPosition* pos, InputPosition end) {
 // (https://en.wikipedia.org/wiki/Earley_parser).
 const Item* RunEarleyAlgorithm(
     Symbol* start, const LexerResult& tokens,
-    std::unordered_set<Item, base::hash<Item>>* processed) {
+    absl::node_hash_set<Item, base::hash<Item>>* processed) {
   // Worklist for items at the current position.
   std::vector<Item> worklist;
   // Worklist for items at the next position.
@@ -196,8 +197,8 @@ const Item* RunEarleyAlgorithm(
       SourcePosition{CurrentSourceFile::Get(), LineAndColumn::Invalid(),
                      LineAndColumn::Invalid()});
   std::vector<const Item*> completed_items;
-  std::unordered_map<std::pair<size_t, Symbol*>, std::set<const Item*>,
-                     base::hash<std::pair<size_t, Symbol*>>>
+  absl::node_hash_map<std::pair<size_t, Symbol*>, std::set<const Item*>,
+                      base::hash<std::pair<size_t, Symbol*>>>
       waiting;
 
   std::vector<const Item*> debug_trace;

@@ -4647,6 +4647,8 @@ cc_library(
     deps = [
         ":torque_base_headers",
         ":v8_libbase",
+        "@abseil-cpp//absl/container:node_hash_map",
+        "@abseil-cpp//absl/container:node_hash_set",
     ],
 )
 
@@ -4818,7 +4820,11 @@ v8_binary(
         "@v8//bazel/config:is_android": ["-llog"],
         "//conditions:default": [],
     }),
-    deps = ["v8_libbase"],
+    deps = [
+        "v8_libbase",
+        "@abseil-cpp//absl/container:node_hash_map",
+        "@abseil-cpp//absl/container:node_hash_set",
+    ],
 )
 
 v8_binary(
