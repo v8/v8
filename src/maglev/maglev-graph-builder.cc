@@ -5370,16 +5370,18 @@ ReduceResult MaglevGraphBuilder::BuildLoadElements(
                                compiler::AccessMode::kLoad);
   if (is_turbolev() && kind.has_value()) {
     // We record a map hint for Turbolev so that LateEscapeAnalysis knows that
-    // we just loaded a FixedArray array, which means that it can't alias with
-    // anything that isn't a property array itself.
+    // we just loaded an elements array, which means that it can't alias with
+    // a property array.
     // TODO(dmercadier): also record from which object this elements array came
     // from, since 2 elements arrays for objects with different maps cannot
     // alias.
-    RETURN_IF_ABORT(AddNewNode<AssumeMap>(
-        {elements},
-        compiler::ZoneRefSet<Map>(IsDoubleElementsKind(kind.value())
-                                      ? broker()->fixed_double_array_map()
-                                      : broker()->fixed_array_map())));
+    const auto maps =
+        IsDoubleElementsKind(kind.value())
+            ? compiler::ZoneRefSet<Map>(broker()->fixed_double_array_map())
+            : compiler::ZoneRefSet<Map>({broker()->fixed_array_map(),
+                                         broker()->fixed_cow_array_map()},
+                                        zone());
+    RETURN_IF_ABORT(AddNewNode<AssumeMap>({elements}, maps));
   }
   return elements;
 }

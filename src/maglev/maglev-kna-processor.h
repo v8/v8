@@ -10,6 +10,7 @@
 #include "src/base/base-export.h"
 #include "src/base/logging.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -18,6 +19,7 @@
 #include "src/maglev/maglev-known-node-aspects.h"
 #include "src/maglev/maglev-node-type.h"
 #include "src/maglev/maglev-tracer.h"
+#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -454,6 +456,16 @@ class RecomputeKnownNodeAspectsProcessor {
     ProcessStoreContextSlot(graph_->GetConstant(node->context()),
                             node->ValueInput().node(), node->slot_offset(),
                             kMaybeAssigned);
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(AssumeMap* node) {
+    auto merger = KnownMapsMerger<compiler::ZoneRefSet<Map>>(broker(), zone(),
+                                                             node->maps());
+    merger.IntersectWithKnownNodeAspects(node->ObjectInput().node(),
+                                         known_node_aspects());
+    merger.UpdateKnownNodeAspects(node->ObjectInput().node(),
+                                  known_node_aspects());
     return ProcessResult::kContinue;
   }
 
