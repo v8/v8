@@ -7049,10 +7049,7 @@ v8_source_set("torque_base") {
     ]
   }
 
-  deps = [
-    ":v8_flags",
-    ":v8_shared_internal_headers",
-  ]
+  deps = [ ":v8_shared_internal_headers" ]
 
   public_deps = [
     ":v8_config_headers",

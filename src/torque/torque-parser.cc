@@ -13,7 +13,6 @@
 
 #include "include/v8config.h"
 #include "src/common/globals.h"
-#include "src/flags/flags.h"
 #include "src/torque/ast.h"
 #include "src/torque/constants.h"
 #include "src/torque/declarations.h"
