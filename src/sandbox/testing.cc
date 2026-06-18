@@ -1511,6 +1511,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(WasmModuleObject, script_);
     fields[WASM_INSTANCE_OBJECT_TYPE]["module_object"] =
         offsetof(WasmInstanceObject, module_object_);
+    fields[WASM_INSTANCE_OBJECT_TYPE]["trusted_data"] =
+        offsetof(WasmInstanceObject, trusted_data_);
     fields[WASM_FUNC_REF_TYPE]["trusted_internal"] =
         offsetof(WasmFuncRef, trusted_internal_);
     fields[WASM_TABLE_OBJECT_TYPE]["entries"] =

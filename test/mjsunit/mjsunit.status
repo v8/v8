@@ -664,6 +664,13 @@
   'shared-memory/wasm/*': [SKIP],
 }],  # not has_wasm_interpreter and variant == jitless
 
+##############################################################################
+['not has_wasm_interpreter', {
+  # This sandbox regression test forces --wasm-jitless to exercise the DrumBrake
+  # interpreter's JS-to-Wasm wrapper.
+  'sandbox/regress-522294322': [SKIP],
+}],  # not has_wasm_interpreter
+
 ['has_wasm_interpreter and variant == jitless', {
   # Skip tests that require Wasm experimental features not supported by the
   # Wasm interpreter, or that explicitly require compilation.

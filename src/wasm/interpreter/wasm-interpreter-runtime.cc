@@ -77,6 +77,16 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   DirectHandle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
   DirectHandle<WasmTrustedInstanceData> trusted_data(
       instance->trusted_data(isolate), isolate);
+  // The JS-to-Wasm interpreter wrapper sizes the on-stack argument and return
+  // buffers from the trusted (out-of-cage) signature of the target function,
+  // but reaches this runtime through the in-cage WasmInstanceObject. A sandbox
+  // attacker could same-tag swap WasmInstanceObject::trusted_data_ to point at
+  // another instance's trusted data, which would make us read a mismatched
+  // signature below and read/write past those fixed-size buffers. Re-establish
+  // the invariant that the trusted data actually belongs to {instance} before
+  // trusting its module and signature.
+  SBXCHECK(trusted_data->has_instance_object() &&
+           trusted_data->instance_object() == *instance);
   DirectHandle<Object> ref_param_array_obj = args.at(1);
   int32_t func_index = NumberToInt32(args[2]);
   DirectHandle<Object> arg_buffer_obj = args.at(3);
@@ -101,7 +111,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
            IsFixedArray(*ref_param_array_obj));
 
   // Reserve buffers for argument and return values.
-  DCHECK_GT(trusted_data->module()->functions.size(), func_index);
+  SBXCHECK_LT(static_cast<uint32_t>(func_index),
+              trusted_data->module()->functions.size());
   const wasm::FunctionSig* sig =
       trusted_data->module()->functions[func_index].sig;
   DCHECK_GE(kMaxInt, sig->parameter_count());
