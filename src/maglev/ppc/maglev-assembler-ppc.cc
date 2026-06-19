@@ -535,7 +535,7 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
 
   // Convert the input float64 value to int32.
   ConvertDoubleToInt64(src, dst, temp);
-  SignedExtend<int>(dst, dst);
+  ZeroExtend<int>(dst, dst);
 
   // Convert that int32 value back to float64.
   ConvertIntToDouble(dst, temp);
