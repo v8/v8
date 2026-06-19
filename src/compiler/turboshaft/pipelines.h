@@ -166,6 +166,7 @@ class V8_EXPORT_PRIVATE Pipeline {
     PhaseScopeKind scope_kind(data_->pipeline_statistics(),
                               "V8.TFGraphCreation");
     turboshaft::Tracing::Scope tracing_scope(data_->info());
+    data_->InitializeGraphComponent(nullptr, Graph::Origin::kCreatedFromMaglev);
 
     TurbolevFrontendPipeline frontend(data_, linkage);
     maglev::MaglevGraphLabellerScope current_thread_graph_labeller(
@@ -189,21 +190,7 @@ class V8_EXPORT_PRIVATE Pipeline {
   }
 
   bool CreateGraphFromTurbofan(compiler::TFPipelineData* turbofan_data,
-                               Linkage* linkage) {
-    UnparkedScopeIfNeeded scope(data_->broker(),
-                                v8_flags.turboshaft_trace_reduction ||
-                                    v8_flags.turboshaft_trace_emitted);
-
-    turboshaft::Tracing::Scope tracing_scope(data_->info());
-
-    if (std::optional<BailoutReason> bailout =
-            Run<turboshaft::BuildGraphPhase>(turbofan_data, linkage)) {
-      info()->AbortOptimization(*bailout);
-      return false;
-    }
-
-    return true;
-  }
+                               Linkage* linkage);
 
   bool OptimizeTurboshaftGraph(Linkage* linkage) {
     UnparkedScopeIfNeeded scope(data_->broker(),

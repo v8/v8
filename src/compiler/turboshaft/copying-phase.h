@@ -143,7 +143,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       for (OpIndex index : Asm().output_graph().AllOperationIndices()) {
         OpIndex origin = Asm().output_graph().operation_origins()[index];
         if (origin.valid()) {
-          origins->SetNodeOrigin(index.id(), origin.id());
+          origins->SetNodeOrigin(index.id(), origin.id(),
+                                 origins->previous_phase_name());
         }
       }
     }

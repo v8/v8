@@ -375,7 +375,8 @@ std::optional<BailoutReason> GraphBuilder::Run() {
   if (origins) {
     for (OpIndex index : __ output_graph().AllOperationIndices()) {
       OpIndex origin = __ output_graph().operation_origins()[index];
-      origins->SetNodeOrigin(index.id(), origin.DecodeExternalId());
+      origins->SetNodeOrigin(index.id(), origin.DecodeExternalId(),
+                             origins->previous_phase_name());
     }
   }
 

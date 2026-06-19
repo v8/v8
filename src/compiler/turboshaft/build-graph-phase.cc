@@ -15,23 +15,13 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-std::optional<BailoutReason> BuildGraphPhase::Run(
-    PipelineData* data, Zone* temp_zone,
-    compiler::TFPipelineData* turbofan_data, Linkage* linkage) {
-  Schedule* schedule = turbofan_data->schedule();
-  turbofan_data->reset_schedule();
+std::optional<BailoutReason> BuildGraphPhase::Run(PipelineData* data,
+                                                  Zone* temp_zone,
+                                                  Schedule* schedule,
+                                                  Linkage* linkage) {
   DCHECK_NOT_NULL(schedule);
 
   UnparkedScopeIfNeeded scope(data->broker());
-
-  // Construct a new graph.
-  ZoneWithNamePointer<SourcePositionTable, kGraphZoneName> source_positions(
-      turbofan_data->source_positions());
-  ZoneWithNamePointer<NodeOriginTable, kGraphZoneName> node_origins(
-      turbofan_data->node_origins());
-  data->InitializeGraphComponentWithGraphZone(
-      turbofan_data->ReleaseGraphZone(), source_positions, node_origins,
-      Graph::Origin::kCreatedFromTurbofan);
 
   if (auto bailout =
           turboshaft::BuildGraph(data, schedule, temp_zone, linkage)) {

@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/pipelines.h"
 
 #include "src/compiler/pipeline-data-inl.h"
+#include "src/compiler/turboshaft/build-graph-phase.h"
 #include "src/compiler/turboshaft/csa-branch-elimination-phase.h"
 #include "src/compiler/turboshaft/csa-early-machine-optimization-phase.h"
 #include "src/compiler/turboshaft/csa-effects-computation.h"
@@ -175,6 +176,35 @@ void BuiltinPipeline::OptimizeBuiltin() {
   if (v8_flags.turboshaft_enable_debug_features) {
     CHECK(Run<DebugFeatureLoweringPhase>());
   }
+}
+
+bool Pipeline::CreateGraphFromTurbofan(compiler::TFPipelineData* turbofan_data,
+                                       Linkage* linkage) {
+  UnparkedScopeIfNeeded scope(
+      data_->broker(),
+      v8_flags.turboshaft_trace_reduction || v8_flags.turboshaft_trace_emitted);
+
+  turboshaft::Tracing::Scope tracing_scope(data_->info());
+
+  ZoneWithNamePointer<SourcePositionTable, kGraphZoneName> source_positions(
+      turbofan_data->source_positions());
+  ZoneWithNamePointer<NodeOriginTable, kGraphZoneName> node_origins(
+      turbofan_data->node_origins());
+  // Save the schedule before releasing the graph zone.
+  Schedule* schedule = turbofan_data->schedule();
+  turbofan_data->reset_schedule();
+
+  data_->InitializeGraphComponentWithGraphZone(
+      turbofan_data->ReleaseGraphZone(), source_positions, node_origins,
+      Graph::Origin::kCreatedFromTurbofan);
+
+  if (std::optional<BailoutReason> bailout =
+          Run<turboshaft::BuildGraphPhase>(schedule, linkage)) {
+    info()->AbortOptimization(*bailout);
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace v8::internal::compiler::turboshaft

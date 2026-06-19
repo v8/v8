@@ -7277,9 +7277,6 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(
   JSHeapBroker* broker = data->broker();
   UnparkedScopeIfNeeded unparked_scope(broker);
 
-  // TODO(nicohartmann): Should we have source positions here?
-  data->InitializeGraphComponent(nullptr, Graph::Origin::kCreatedFromMaglev);
-
   std::optional<BailoutReason> bailout;
   maglev::GraphProcessor<NodeProcessorBase> builder(
       data, data->graph(), temp_zone,
@@ -7294,13 +7291,12 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(
 
   if (data->node_origins()) {
     // Decode and record Maglev node origins for Turboshaft operations.
-    NodeOriginTable::PhaseScope phase_scope(data->node_origins(),
-                                            "V8.TFTurbolevGraphBuilding");
     for (OpIndex index : data->graph().AllOperationIndices()) {
       OpIndex origin = data->graph().operation_origins()[index];
       if (origin.valid() && origin.IsExternalId()) {
-        data->node_origins()->SetNodeOrigin(index.id(),
-                                            origin.DecodeExternalId());
+        data->node_origins()->SetNodeOrigin(
+            index.id(), origin.DecodeExternalId(),
+            data->node_origins()->previous_phase_name());
       }
     }
   }
