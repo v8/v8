@@ -4163,18 +4163,27 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
 
 #if V8_ENABLE_WEBASSEMBLY
 
-// Supports two configurations:
-// (1) input_count == 3 (i.e. all of trusted_instance_data, memory_start,
-//     memory_size are present and valid), kind == kLoop.
-// (2) input_count == 0, kind may be kFunctionEntry or kLoop.
+// Supports fine-grained optional inputs/outputs.
+// If input_count > 0:
+// - input(0) is always trusted_instance_data
+// - input(1) is memory_start if has_memory_start
+// - input(1 + has_memory_start) is memory_size if has_memory_size
 struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
   using Kind = JSStackCheckOp::Kind;
   Kind kind;
+  bool has_memory_start;
+  bool has_memory_size;
 
   OpEffects Effects() const {
     switch (kind) {
       case Kind::kLoop:
-        return OpEffects().RequiredWhenUnused().CanReadMemory().CanAllocate();
+        // A loop stack check can have arbitrary side effects via debugger
+        // interrupt requests; in particular it can trigger memory growth.
+        return OpEffects()
+            .RequiredWhenUnused()
+            .CanReadMemory()
+            .CanWriteHeapMemory()
+            .CanAllocate();
       case Kind::kFunctionEntry:
         // For function entry stack checks, we could model their side effects
         // somewhat more accurately, but it probably doesn't matter.
@@ -4190,22 +4199,32 @@ struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
                            : V<WasmTrustedInstanceData>::Invalid();
   }
   OptionalV<WordPtr> memory_start() const {
-    return input_count > 1 ? input<WordPtr>(1) : V<WordPtr>::Invalid();
+    if (!has_memory_start) return V<WordPtr>::Invalid();
+    return input<WordPtr>(1);
   }
   OptionalV<WordPtr> memory_size() const {
-    return input_count > 2 ? input<WordPtr>(2) : V<WordPtr>::Invalid();
+    if (!has_memory_size) return V<WordPtr>::Invalid();
+    return input<WordPtr>(1 + has_memory_start);
   }
 
   WasmStackCheckOp(OptionalV<WasmTrustedInstanceData> trusted_instance_data,
                    OptionalV<WordPtr> memory_start,
                    OptionalV<WordPtr> memory_size, Kind kind)
-      : Base(trusted_instance_data.valid() ? 3 : 0), kind(kind) {
+      : Base(trusted_instance_data.valid()
+                 ? 1 + memory_start.valid() + memory_size.valid()
+                 : 0),
+        kind(kind),
+        has_memory_start(trusted_instance_data.valid() && memory_start.valid()),
+        has_memory_size(trusted_instance_data.valid() && memory_size.valid()) {
     if (trusted_instance_data.valid()) {
-      DCHECK(memory_start.valid());
-      DCHECK(memory_size.valid());
       input(0) = trusted_instance_data.value();
-      input(1) = memory_start.value();
-      input(2) = memory_size.value();
+      int next_idx = 1;
+      if (memory_start.valid()) {
+        input(next_idx++) = memory_start.value();
+      }
+      if (memory_size.valid()) {
+        input(next_idx++) = memory_size.value();
+      }
     }
   }
 
@@ -4213,7 +4232,9 @@ struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
       Graph* graph, OptionalV<WasmTrustedInstanceData> trusted_instance_data,
       OptionalV<WordPtr> memory_start, OptionalV<WordPtr> memory_size,
       Kind kind) {
-    size_t input_count = trusted_instance_data.valid() ? 3 : 0;
+    size_t input_count = trusted_instance_data.valid()
+                             ? 1 + memory_start.valid() + memory_size.valid()
+                             : 0;
     return Base::New(graph, input_count, trusted_instance_data, memory_start,
                      memory_size, kind);
   }
@@ -4228,8 +4249,11 @@ struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
     if (input_count == 0) {
       return {};
     }
-    return RepVector<RegisterRepresentation::WordPtr(),
-                     RegisterRepresentation::WordPtr()>();
+    if (has_memory_start && has_memory_size) {
+      return RepVector<RegisterRepresentation::WordPtr(),
+                       RegisterRepresentation::WordPtr()>();
+    }
+    return RepVector<RegisterRepresentation::WordPtr()>();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -4237,9 +4261,12 @@ struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
     if (input_count == 0) {
       return {};
     }
-    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                          MaybeRegisterRepresentation::WordPtr(),
-                          MaybeRegisterRepresentation::WordPtr()>();
+    storage.resize(input_count);
+    storage[0] = MaybeRegisterRepresentation::Tagged();
+    for (int i = 1; i < input_count; ++i) {
+      storage[i] = MaybeRegisterRepresentation::WordPtr();
+    }
+    return base::VectorOf(storage);
   }
 
   void Validate(const Graph& graph) const {
@@ -4249,13 +4276,19 @@ struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
       DCHECK(!memory_start().valid());
       DCHECK(!memory_size().valid());
     } else if (kind == Kind::kLoop) {
-      DCHECK(input_count == 0 || input_count == 3);
+      DCHECK_LE(input_count, 3);
+      if (input_count > 0) {
+        DCHECK(trusted_instance_data().valid());
+        DCHECK_EQ(input_count, 1 + has_memory_start + has_memory_size);
+      }
     } else {
       UNREACHABLE();
     }
   }
 
-  auto options() const { return std::tuple{kind}; }
+  auto options() const {
+    return std::tuple{kind, has_memory_start, has_memory_size};
+  }
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

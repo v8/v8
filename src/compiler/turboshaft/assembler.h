@@ -3477,19 +3477,20 @@ class AssemblerOpInterface : public Next {
 #endif
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Returns the potentially updated memory start/size values.
-  V<Tuple<WordPtr, WordPtr>> WasmStackCheck_UpdateMemory(
-      V<WasmTrustedInstanceData> trusted_instance_data, V<WordPtr> memory_start,
-      V<WordPtr> memory_size) {
+  // {trusted_instance_data} must be provided when at least one of
+  // {memory_start} or {memory_size} are provided.
+  // Returns V<None> when no input values are provided.
+  // Returns a V<WordPtr> when *either* {memory_start} or {memory_size} is
+  // provided; the return value is the potentially-updated value.
+  // Returns a V<Tuple<WordPtr, WordPtr>> when *both* {memory_start} and
+  // {memory_size} are provided.
+  V<Any> WasmStackCheck(
+      WasmStackCheckOp::Kind kind,
+      OptionalV<WasmTrustedInstanceData> trusted_instance_data = {},
+      OptionalV<WordPtr> memory_start = {},
+      OptionalV<WordPtr> memory_size = {}) {
     return ReduceIfReachableWasmStackCheck(trusted_instance_data, memory_start,
-                                           memory_size,
-                                           WasmStackCheckOp::Kind::kLoop);
-  }
-
-  V<None> WasmStackCheck(WasmStackCheckOp::Kind kind) {
-    return ReduceIfReachableWasmStackCheck(OptionalV<WasmTrustedInstanceData>{},
-                                           OptionalV<WordPtr>{},
-                                           OptionalV<WordPtr>{}, kind);
+                                           memory_size, kind);
   }
 
   void MemoryCopy(V<WordPtr> dst_base, V<WordPtr> src_base,

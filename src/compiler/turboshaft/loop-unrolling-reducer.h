@@ -337,17 +337,21 @@ class LoopStackCheckElisionReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Returns V<None> or V<Tuple<WordPtr, WordPtr>> depending on inputs.
+  // Returns V<None> or V<WordPtr> or V<Tuple<WordPtr, WordPtr>> depending on
+  // inputs.
   V<Any> REDUCE_INPUT_GRAPH(WasmStackCheck)(
       V<Any> ig_idx, const WasmStackCheckOp& stack_check) {
     if (skip_next_stack_check_ &&
         stack_check.kind == WasmStackCheckOp::Kind::kLoop) {
       skip_next_stack_check_ = false;
-      if (stack_check.memory_start().valid()) {
-        DCHECK(stack_check.memory_size().valid());
+      if (stack_check.has_memory_start && stack_check.has_memory_size) {
         return __ MakeTuple(
             __ MapToNewGraph(stack_check.memory_start().value()),
             __ MapToNewGraph(stack_check.memory_size().value()));
+      } else if (stack_check.has_memory_start) {
+        return __ MapToNewGraph(stack_check.memory_start().value());
+      } else if (stack_check.has_memory_size) {
+        return __ MapToNewGraph(stack_check.memory_size().value());
       }
       return {};
     }
@@ -455,16 +459,20 @@ class LoopUnrollingReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Returns V<None> or V<Tuple<WordPtr, WordPtr>> depending on inputs.
+  // Returns V<None> or V<WordPtr> or V<Tuple<WordPtr, WordPtr>> depending on
+  // inputs.
   V<Any> REDUCE_INPUT_GRAPH(WasmStackCheck)(V<Any> ig_idx,
                                             const WasmStackCheckOp& check) {
     if (ShouldSkipOptimizationStep() || !skip_next_stack_check_) {
       return Next::ReduceInputGraphWasmStackCheck(ig_idx, check);
     }
-    if (check.memory_start().valid()) {
-      DCHECK(check.memory_size().valid());
+    if (check.has_memory_start && check.has_memory_size) {
       return __ MakeTuple(__ MapToNewGraph(check.memory_start().value()),
                           __ MapToNewGraph(check.memory_size().value()));
+    } else if (check.has_memory_start) {
+      return __ MapToNewGraph(check.memory_start().value());
+    } else if (check.has_memory_size) {
+      return __ MapToNewGraph(check.memory_size().value());
     }
     return V<None>::Invalid();
   }

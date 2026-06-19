@@ -82,7 +82,8 @@ class StackCheckLoweringReducer : public Next {
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  // Returns V<None> or V<Tuple<WordPtr, WordPtr>> depending on inputs.
+  // Returns V<None> or V<WordPtr> or V<Tuple<WordPtr, WordPtr>> depending on
+  // inputs.
   V<Any> REDUCE(WasmStackCheck)(
       OptionalV<WasmTrustedInstanceData> trusted_instance_data,
       OptionalV<WordPtr> memory_start, OptionalV<WordPtr> memory_size,
@@ -150,19 +151,15 @@ class StackCheckLoweringReducer : public Next {
           __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuardLoop);
       __ Call(target, {}, ts_call_descriptor, effects);
 
-      if (memory_start.valid()) {
-        DCHECK(memory_size.valid());
+      if (memory_start.valid() || memory_size.valid()) {
         DCHECK(trusted_instance_data.valid());
-        const wasm::WasmModule* module = __ data() -> wasm_module();
-        DCHECK(!module->memories.empty());
-        const wasm::WasmMemory& mem = module->memories[0];
-        if (mem.can_move()) {
+        if (memory_start.valid()) {
           new_mem_start =
               __ Load(trusted_instance_data.value(), LoadOp::Kind::TaggedBase(),
                       MemoryRepresentation::UintPtr(),
                       WasmTrustedInstanceData::kMemory0StartOffset);
         }
-        if (mem.can_grow()) {
+        if (memory_size.valid()) {
           new_mem_size =
               __ Load(trusted_instance_data.value(), LoadOp::Kind::TaggedBase(),
                       MemoryRepresentation::UintPtr(),
@@ -170,8 +167,12 @@ class StackCheckLoweringReducer : public Next {
         }
       }
     }
-    if (memory_start.valid()) {
+    if (memory_start.valid() && memory_size.valid()) {
       return __ MakeTuple(new_mem_start.Get(), new_mem_size.Get());
+    } else if (memory_start.valid()) {
+      return new_mem_start.Get();
+    } else if (memory_size.valid()) {
+      return new_mem_size.Get();
     }
     return V<None>::Invalid();
   }
