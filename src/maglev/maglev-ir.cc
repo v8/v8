@@ -8443,6 +8443,9 @@ void BranchIfReferenceEqual::GenerateCode(MaglevAssembler* masm,
 void BranchIfTypedArrayBounds::SetValueLocationConstraints() {
   UseRegister(IndexInput());
   UseRegister(LengthInput());
+#ifdef V8_TARGET_ARCH_64_BIT
+  set_temporaries_needed(1);
+#endif
 }
 
 void BranchIfTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
@@ -8450,9 +8453,16 @@ void BranchIfTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(IndexInput());
   Register length = ToRegister(LengthInput());
 
-  __ SignExtend32To64Bits(index, index);
+#ifdef V8_TARGET_ARCH_64_BIT
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register index_ext = temps.Acquire();
+  __ SignExtend32To64Bits(index_ext, index);
+  __ CompareIntPtrAndJumpIf(index_ext, length, kUnsignedLessThan,
+                            if_true()->label());
+#else
   __ CompareIntPtrAndJumpIf(index, length, kUnsignedLessThan,
                             if_true()->label());
+#endif
 
   auto* next_block = state.next_block();
   if (if_false() != next_block) {
