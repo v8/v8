@@ -51,6 +51,11 @@ struct JSDispatchEntry {
 
   // Returns true if this entry is a freelist entry.
   inline bool IsFreelistEntry() const;
+#ifdef V8_TARGET_ARCH_64_BIT
+  // Helper to check if an entry is a freelist entry using an already-loaded
+  // entrypoint value.
+  inline bool IsFreelistEntry(Address entrypoint) const;
+#endif
 
   // Get the index of the next entry on the freelist. This method may be
   // called even when the entry is not a freelist entry. However, the result

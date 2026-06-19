@@ -46,12 +46,12 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
 }
 
 Address JSDispatchEntry::GetEntrypoint() const {
-  CHECK(!IsFreelistEntry());
+  DCHECK(!IsFreelistEntry());
   return entrypoint_.load(std::memory_order_relaxed);
 }
 
 Address JSDispatchEntry::GetCodePointer() const {
-  CHECK(!IsFreelistEntry());
+  DCHECK(!IsFreelistEntry());
   // The pointer tag bit (LSB) of the object pointer is used as marking bit,
   // and so may be 0 or 1 here. As the return value is a tagged pointer, the
   // bit must be 1 when returned, so we need to set it here.
@@ -216,20 +216,33 @@ void JSDispatchEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   DCHECK(IsFreelistEntry());
 }
 
+#ifdef V8_TARGET_ARCH_64_BIT
+bool JSDispatchEntry::IsFreelistEntry(Address entrypoint) const {
+  return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
+}
+#endif
+
 bool JSDispatchEntry::IsFreelistEntry() const {
 #ifdef V8_TARGET_ARCH_64_BIT
   auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
-  return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
+  return IsFreelistEntry(entrypoint);
 #else
   return next_free_entry_.load(std::memory_order_relaxed) != 0;
 #endif
 }
 
 std::optional<uint32_t> JSDispatchEntry::GetNextFreelistEntryIndex() const {
-  DCHECK(IsFreelistEntry());
 #ifdef V8_TARGET_ARCH_64_BIT
-  return static_cast<uint32_t>(entrypoint_.load(std::memory_order_relaxed));
+  auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
+  // With in-sandbox corruption the entry could get overwritten with an invalid
+  // freelist index, the SBXCHECK ensures that the freelist entry contains the
+  // kFreeEntryTag.
+  SBXCHECK(IsFreelistEntry(entrypoint));
+  uint32_t next_freelist_entry = static_cast<uint32_t>(entrypoint);
+  DCHECK_LT(next_freelist_entry, kMaxJSDispatchEntries);
+  return next_freelist_entry;
 #else
+  DCHECK(IsFreelistEntry());
   return next_free_entry_.load(std::memory_order_relaxed) - 1;
 #endif
 }
