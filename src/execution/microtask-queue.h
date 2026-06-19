@@ -72,6 +72,9 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
   // builtins can update the queue directly without the write barrier.
   void IterateMicrotasks(RootVisitor* visitor);
 
+  // Clears the queue by discarding all queued Microtasks.
+  void ClearMicrotasks();
+
   // Microtasks scope depth represents nested scopes controlling microtasks
   // invocation, which happens when depth reaches zero.
   void IncrementMicrotasksScopeDepth() { ++microtasks_depth_; }

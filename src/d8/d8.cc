@@ -2333,6 +2333,10 @@ void PerIsolateData::UnregisterWorker(const std::shared_ptr<Worker>& worker) {
 PerIsolateData::RealmScope::RealmScope(Isolate* isolate,
                                        const Global<Context>& context)
     : data_(PerIsolateData::Get(isolate)) {
+  // Verify that we start with a clean microtask queue.
+  CHECK_EQ(0, reinterpret_cast<i::Isolate*>(isolate)
+                  ->default_microtask_queue()
+                  ->size());
   data_->realm_count_ = 1;
   data_->realm_current_ = 0;
   data_->realm_switch_ = 0;
@@ -2341,6 +2345,11 @@ PerIsolateData::RealmScope::RealmScope(Isolate* isolate,
 }
 
 PerIsolateData::RealmScope::~RealmScope() {
+  // Discard all pending microtasks to prevent them from leaking outside this
+  // realm scope.
+  reinterpret_cast<i::Isolate*>(data_->isolate_)
+      ->default_microtask_queue()
+      ->ClearMicrotasks();
   // Drop realms to avoid keeping them alive.
   data_->realm_count_ = 0;
   delete[] data_->realms_;

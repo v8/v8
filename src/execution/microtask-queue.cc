@@ -253,6 +253,14 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
   }
 }
 
+void MicrotaskQueue::ClearMicrotasks() {
+  delete[] ring_buffer_;
+  ring_buffer_ = nullptr;
+  capacity_ = 0;
+  size_ = 0;
+  start_ = 0;
+}
+
 void MicrotaskQueue::AddMicrotasksCompletedCallback(
     MicrotasksCompletedCallbackWithData callback, void* data) {
   std::vector<CallbackWithData>* microtasks_completed_callbacks =
