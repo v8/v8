@@ -320,14 +320,12 @@ class JSProxyData : public JSReceiverData {
 namespace {
 
 // Separate function for racy HeapNumber value read, so that we can explicitly
-// suppress it in TSAN (see tools/sanitizers/tsan_suppressions.txt).
-// We prevent inlining of this function in TSAN builds, so that TSAN does indeed
-// see that this is where the race is, and does indeed ignore it.
-#ifdef V8_IS_TSAN
-V8_NOINLINE
-#endif
+// suppress it in TSAN.
 uint64_t RacyReadHeapNumberBits(Tagged<HeapNumber> value) {
-  return value->value_as_bits();
+  TSAN_IGNORE_READS_BEGIN;
+  uint64_t result = value->value_as_bits();
+  TSAN_IGNORE_READS_END;
+  return result;
 }
 
 std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
@@ -431,21 +429,20 @@ OptionalObjectRef GetOwnDictionaryPropertyFromHeap(
 }
 
 // Separate function for racy JSTypedArray length read, so that we can
-// explicitly suppress it in TSAN (see tools/sanitizers/tsan_suppressions.txt).
-// We prevent inlining of this function in TSAN builds, so that TSAN does indeed
-// see that this is where the race is, and does indeed ignore it.
-#ifdef V8_IS_TSAN
-V8_NOINLINE
-#endif
+// explicitly suppress it in TSAN.
 size_t RacyReadJSTypedArrayLength(Tagged<JSTypedArray> object) {
+  TSAN_IGNORE_READS_BEGIN;
   Address field_address =
       object->address() + offsetof(JSArrayBufferView, raw_byte_length_);
+  size_t result;
 #ifdef V8_ENABLE_SANDBOX
   size_t raw_value = base::ReadUnalignedValue<size_t>(field_address);
-  return raw_value >> kBoundedSizeShift;
+  result = raw_value >> kBoundedSizeShift;
 #else
-  return ReadMaybeUnalignedValue<size_t>(field_address);
+  result = ReadMaybeUnalignedValue<size_t>(field_address);
 #endif
+  TSAN_IGNORE_READS_END;
+  return result;
 }
 
 }  // namespace
