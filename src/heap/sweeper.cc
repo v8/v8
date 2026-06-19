@@ -36,6 +36,7 @@
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/zapping.h"
+#include "src/init/isolate-group.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/instance-type.h"
@@ -69,7 +70,8 @@ class Sweeper::ConcurrentMajorSweeper final {
   explicit ConcurrentMajorSweeper(Sweeper* sweeper)
       : sweeper_(sweeper), local_sweeper_(sweeper_) {}
 
-  bool ConcurrentSweepSpace(AllocationSpace identity, JobDelegate* delegate) {
+  bool ConcurrentSweepSpace(AllocationSpace identity, JobDelegate* delegate,
+                            bool is_main_thread) {
     DCHECK(IsValidSweepingSpace(identity));
     DCHECK_NE(NEW_SPACE, identity);
     while (!delegate->ShouldYield()) {
@@ -78,8 +80,8 @@ class Sweeper::ConcurrentMajorSweeper final {
         TRACE_GC_NOTE("Sweeper::ConcurrentMajorSweeper Finished");
         return true;
       }
-      local_sweeper_.ParallelSweepPage(page, identity,
-                                       SweepingMode::kLazyOrConcurrent);
+      local_sweeper_.ParallelSweepPage(
+          page, identity, SweepingMode::kLazyOrConcurrent, is_main_thread);
     }
     TRACE_GC_NOTE("Sweeper::ConcurrentMajorSweeper Preempted");
     return false;
@@ -101,7 +103,7 @@ class Sweeper::ConcurrentMinorSweeper final {
   explicit ConcurrentMinorSweeper(Sweeper* sweeper)
       : sweeper_(sweeper), local_sweeper_(sweeper_) {}
 
-  bool ConcurrentSweepSpace(JobDelegate* delegate) {
+  bool ConcurrentSweepSpace(JobDelegate* delegate, bool is_main_thread) {
     DCHECK(IsValidSweepingSpace(kNewSpace));
     while (!delegate->ShouldYield()) {
       NormalPage* page = sweeper_->GetSweepingPageSafe(kNewSpace);
@@ -109,8 +111,8 @@ class Sweeper::ConcurrentMinorSweeper final {
         TRACE_GC_NOTE("Sweeper::ConcurrentMinorSweeper Finished");
         return true;
       }
-      local_sweeper_.ParallelSweepPage(page, kNewSpace,
-                                       SweepingMode::kLazyOrConcurrent);
+      local_sweeper_.ParallelSweepPage(
+          page, kNewSpace, SweepingMode::kLazyOrConcurrent, is_main_thread);
     }
     TRACE_GC_NOTE("Sweeper::ConcurrentMinorSweeper Preempted");
     return false;
@@ -177,6 +179,8 @@ class Sweeper::MajorSweeperJob final : public JobTask {
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(sweeper_->heap_->isolate());
+    SYNCHRONIZATION_POINT_FOR_TESTING(is_main_thread ? "MajorSweeperMainThread"
+                                                     : "MajorSweeperBgThread");
 
     DCHECK(sweeper_->major_sweeping_in_progress());
     const int offset = delegate->GetTaskId();
@@ -193,7 +197,10 @@ class Sweeper::MajorSweeperJob final : public JobTask {
       DCHECK_LE(FIRST_SWEEPABLE_SPACE, space_id);
       DCHECK_LE(space_id, LAST_SWEEPABLE_SPACE);
       DCHECK_NE(NEW_SPACE, space_id);
-      if (!concurrent_sweeper.ConcurrentSweepSpace(space_id, delegate)) return;
+      if (!concurrent_sweeper.ConcurrentSweepSpace(space_id, delegate,
+                                                   is_main_thread)) {
+        return;
+      }
     }
   }
 
@@ -256,8 +263,12 @@ class Sweeper::MinorSweeperJob final : public JobTask {
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(sweeper_->heap_->isolate());
+    SYNCHRONIZATION_POINT_FOR_TESTING(is_main_thread ? "MinorSweeperMainThread"
+                                                     : "MinorSweeperBgThread");
 
-    if (!concurrent_sweeper.ConcurrentSweepSpace(delegate)) return;
+    if (!concurrent_sweeper.ConcurrentSweepSpace(delegate, is_main_thread)) {
+      return;
+    }
     concurrent_sweeper.ConcurrentSweepPromotedPages(delegate);
   }
 
@@ -383,12 +394,13 @@ void Sweeper::SweepingState<scope>::Resume() {
 
 bool Sweeper::LocalSweeper::ParallelSweepSpace(AllocationSpace identity,
                                                SweepingMode sweeping_mode,
+                                               bool is_main_thread,
                                                uint32_t max_pages) {
   uint32_t pages_swept = 0;
   bool found_usable_pages = false;
   NormalPage* page = nullptr;
   while ((page = sweeper_->GetSweepingPageSafe(identity)) != nullptr) {
-    ParallelSweepPage(page, identity, sweeping_mode);
+    ParallelSweepPage(page, identity, sweeping_mode, is_main_thread);
     if (!page->never_allocate_on_chunk()) {
       found_usable_pages = true;
 #if DEBUG
@@ -410,7 +422,8 @@ bool Sweeper::LocalSweeper::ParallelSweepSpace(AllocationSpace identity,
 
 void Sweeper::LocalSweeper::ParallelSweepPage(NormalPage* page,
                                               AllocationSpace identity,
-                                              SweepingMode sweeping_mode) {
+                                              SweepingMode sweeping_mode,
+                                              bool is_main_thread) {
   DCHECK(IsValidSweepingSpace(identity));
 
   DCHECK(!page->SweepingDone());
@@ -431,7 +444,8 @@ void Sweeper::LocalSweeper::ParallelSweepPage(NormalPage* page,
         page, free_space_treatment_mode, sweeping_mode,
         identity == NEW_SPACE
             ? false
-            : sweeper_->major_sweeping_state_.should_reduce_memory());
+            : sweeper_->major_sweeping_state_.should_reduce_memory(),
+        is_main_thread);
     sweeper_->AddSweptPage(page, identity);
     DCHECK(page->SweepingDone());
   }
@@ -876,10 +890,10 @@ void Sweeper::FinishMajorJobs() {
                        : GCTracer::Scope::MC_BACKGROUND_SWEEPING,
         is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground,
         perfetto::Flow::ProcessScoped(major_sweeping_state_.trace_id()));
-    ForAllSweepingSpaces([this](AllocationSpace space) {
+    ForAllSweepingSpaces([this, is_main_thread](AllocationSpace space) {
       if (space == NEW_SPACE) return;
       main_thread_local_sweeper_.ParallelSweepSpace(
-          space, SweepingMode::kLazyOrConcurrent);
+          space, SweepingMode::kLazyOrConcurrent, is_main_thread);
     });
   }
 
@@ -946,7 +960,7 @@ void Sweeper::FinishMinorJobs() {
         is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground,
         perfetto::Flow::ProcessScoped(minor_sweeping_state_.trace_id()));
     main_thread_local_sweeper_.ParallelSweepSpace(
-        kNewSpace, SweepingMode::kLazyOrConcurrent);
+        kNewSpace, SweepingMode::kLazyOrConcurrent, is_main_thread);
     // Array buffer sweeper may have grabbed a page for iteration to contribute.
     // Wait until it has finished iterating.
     main_thread_local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
@@ -1164,7 +1178,8 @@ void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(NormalPage* page,
 
 void Sweeper::RawSweep(NormalPage* p,
                        FreeSpaceTreatmentMode free_space_treatment_mode,
-                       SweepingMode sweeping_mode, bool should_reduce_memory) {
+                       SweepingMode sweeping_mode, bool should_reduce_memory,
+                       bool is_main_thread) {
   DCHECK_NOT_NULL(p);
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
@@ -1212,6 +1227,8 @@ void Sweeper::RawSweep(NormalPage* p,
   Address free_start = p->area_start();
 
   for (auto [object, size] : LiveObjectRange(p)) {
+    SYNCHRONIZATION_POINT_FOR_TESTING(
+        is_main_thread ? "SweeperPerItemMainThread" : "SweeperPerItemBgThread");
     DCHECK(marking_state_->IsMarked(object));
     Address free_end = object.address();
     if (free_end != free_start) {
@@ -1302,10 +1319,10 @@ size_t Sweeper::ConcurrentMajorSweepingPageCount() {
 
 bool Sweeper::ParallelSweepSpace(AllocationSpace identity,
                                  SweepingMode sweeping_mode,
-                                 uint32_t max_pages) {
+                                 bool is_main_thread, uint32_t max_pages) {
   DCHECK_IMPLIES(identity == NEW_SPACE, heap_->IsMainThread());
-  return main_thread_local_sweeper_.ParallelSweepSpace(identity, sweeping_mode,
-                                                       max_pages);
+  return main_thread_local_sweeper_.ParallelSweepSpace(
+      identity, sweeping_mode, is_main_thread, max_pages);
 }
 
 void Sweeper::EnsurePageIsSwept(NormalPage* page) {
@@ -1332,7 +1349,7 @@ void Sweeper::EnsurePageIsSwept(NormalPage* page) {
       TryRemoveSweepingPageSafe(space, page)) {
     // Page was successfully removed and can now be swept.
     main_thread_local_sweeper_.ParallelSweepPage(
-        page, space, SweepingMode::kLazyOrConcurrent);
+        page, space, SweepingMode::kLazyOrConcurrent, /*is_main_thread=*/true);
 
   } else if ((concurrent_sweeping_state ==
               NormalPage::ConcurrentSweepingState::kPendingIteration) &&

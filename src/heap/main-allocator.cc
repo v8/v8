@@ -792,8 +792,8 @@ bool PagedSpaceAllocatorPolicy::ContributeToSweeping(uint32_t max_pages) {
       allocator_->in_gc_for_space() ? Sweeper::SweepingMode::kEagerDuringGC
                                     : Sweeper::SweepingMode::kLazyOrConcurrent;
 
-  if (!space_heap()->sweeper()->ParallelSweepSpace(allocator_->identity(),
-                                                   sweeping_mode, max_pages)) {
+  if (!space_heap()->sweeper()->ParallelSweepSpace(
+          allocator_->identity(), sweeping_mode, is_main_thread, max_pages)) {
     return false;
   }
   space_->RefillFreeList();

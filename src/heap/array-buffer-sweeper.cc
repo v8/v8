@@ -15,6 +15,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
+#include "src/init/isolate-group.h"
 #include "src/objects/js-array-buffer.h"
 
 namespace v8 {
@@ -465,6 +466,7 @@ void ArrayBufferSweeper::SweepingState::SweepingJob::Sweep(
 
 bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepFull(
     JobDelegate* delegate) {
+  SYNCHRONIZATION_POINT_FOR_TESTING("SweepArrayBufferFull");
   DCHECK_EQ(SweepingType::kFull, type_);
   if (!SweepListFull(delegate, young_, ArrayBufferExtension::Age::kYoung)) {
     return false;
@@ -518,6 +520,7 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepListFull(
 
 bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
     JobDelegate* delegate) {
+  SYNCHRONIZATION_POINT_FOR_TESTING("SweepArrayBufferYoung");
   static constexpr size_t kYieldCheckInterval = 256;
   static_assert(base::bits::IsPowerOfTwo(kYieldCheckInterval),
                 "kYieldCheckInterval must be power of 2");
