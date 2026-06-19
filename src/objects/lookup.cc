@@ -770,8 +770,8 @@ Maybe<bool> LookupIterator::ApplyTransitionToDataProperty(
   }
 
   if (!IsJSProxy(*receiver)) {
-    static_assert(std::is_same_v<JSTransitionableReceiver::Without<JSProxy>,
-                                 Union<JSObject>>);
+    static_assert(
+        std::is_same_v<JSTransitionableReceiver::Without<JSProxy>, JSObject>);
     JSObject::MigrateToMap(isolate_, Cast<JSObject>(receiver), transition);
   }
 
