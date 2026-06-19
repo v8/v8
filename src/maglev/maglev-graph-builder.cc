@@ -7032,6 +7032,20 @@ ReduceResult MaglevGraphBuilder::BuildGetKeyedProperty(
       break;
     }
 
+    case compiler::ProcessedFeedback::kProxy: {
+      ValueNode* key = GetAccumulator();
+      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
+          key, processed_feedback.AsProxy().name(),
+          DeoptimizeReason::kKeyedAccessChanged));
+
+      compiler::NameRef name = processed_feedback.AsProxy().name();
+      MaybeReduceResult result = TryBuildProxyPropertyAccess(
+          object, object, name, processed_feedback.AsProxy(), feedback_source,
+          compiler::AccessMode::kLoad, build_generic_access);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+      break;
+    }
+
     default:
       break;
   }
