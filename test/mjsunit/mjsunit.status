@@ -1254,6 +1254,7 @@
   # Needs a huge Uint8Array.
   'regress/regress-1432470': [SKIP],
   'wasm/imported-dataview-bytelength': [SKIP],
+  'maglev/regress-525732296': [SKIP],
 
   # Needs 64-bit integer add.
   'additive-safe-int-feedback': [SKIP],

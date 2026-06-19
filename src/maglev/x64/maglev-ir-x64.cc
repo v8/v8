@@ -113,7 +113,8 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
     __ subq(byte_length, Immediate(element_size - 1));
     __ EmitEagerDeoptIf(negative, DeoptimizeReason::kOutOfBounds, this);
   }
-  __ cmpl(index, byte_length);
+  __ SignExtend32To64Bits(index, index);
+  __ cmpq(index, byte_length);
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
