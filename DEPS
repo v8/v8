@@ -146,7 +146,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-public
   # and whatever else without interference from each other.
-  'agents_public_revision': 'b58318f66fdd931099164b8b17fc952158286aa1',
+  'agents_public_revision': 'c5a2fc32aca3c5504afe620fe536035768a7f627',
 }
 
 deps = {
