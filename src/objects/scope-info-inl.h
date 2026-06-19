@@ -401,18 +401,18 @@ void ScopeInfo::set_dependent_code(Tagged<DependentCode> value,
   data()[slot].store(this, value, mode);
 }
 
-int ScopeInfo::unused_parameter_bits() const {
+uint32_t ScopeInfo::unused_parameter_bits() const {
   DCHECK_EQ(ScopeTypeBits::decode(Flags()), ScopeType::FUNCTION_SCOPE);
   const int slot =
       scope_info_internal::DataSlotIndex(UnusedParameterBitsOffset());
-  return Cast<Smi>(data()[slot].load()).value();
+  return Smi::To31BitPattern(data()[slot].load());
 }
 
-void ScopeInfo::set_unused_parameter_bits(int value) {
+void ScopeInfo::set_unused_parameter_bits(uint32_t value) {
   DCHECK_EQ(ScopeTypeBits::decode(Flags()), ScopeType::FUNCTION_SCOPE);
   const int slot =
       scope_info_internal::DataSlotIndex(UnusedParameterBitsOffset());
-  data()[slot].store(this, Smi::From31BitPattern(value));
+  data()[slot].store(this, Smi::From31BitPattern(static_cast<int>(value)));
 }
 
 void ScopeInfo::InitializeTaggedMembers(Tagged<Object> value, int tail_length) {

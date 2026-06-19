@@ -429,8 +429,8 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   inline void set_dependent_code(Tagged<DependentCode> value,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int unused_parameter_bits() const;
-  inline void set_unused_parameter_bits(int value);
+  inline uint32_t unused_parameter_bits() const;
+  inline void set_unused_parameter_bits(uint32_t value);
 
   // Conditional-slice offset accessors. Each returns the byte offset of
   // the corresponding variable-length field. Offsets chain off of each

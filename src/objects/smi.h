@@ -87,6 +87,12 @@ class Smi : public AllStatic {
                         (32 - kSmiValueSize));
   }
 
+  // Inverse of From31BitPattern: recovers the original value in [0, 2^31-1] by
+  // masking off the MSB that From31BitPattern may have changed.
+  static inline constexpr uint32_t To31BitPattern(const Tagged<Object> object) {
+    return static_cast<uint32_t>(ToInt(object)) & 0x7FFFFFFFu;
+  }
+
   template <typename E>
   static inline constexpr Tagged<Smi> FromEnum(E value)
     requires std::is_enum_v<E>
