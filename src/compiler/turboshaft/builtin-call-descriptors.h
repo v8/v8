@@ -1510,7 +1510,7 @@ struct BuiltinCallDescriptor {
         Operator::kNoDeopt | Operator::kNoThrow;
     static constexpr OpEffects kEffects = base_effects.CanReadMemory()
                                               .CanAllocateWithoutIdentity()
-                                              .CanLeaveCurrentFunction();
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringNewWtf16 : public Descriptor<WasmStringNewWtf16> {
@@ -1524,7 +1524,7 @@ struct BuiltinCallDescriptor {
         Operator::kNoDeopt | Operator::kNoThrow;
     static constexpr OpEffects kEffects = base_effects.CanReadHeapMemory()
                                               .CanAllocateWithoutIdentity()
-                                              .CanLeaveCurrentFunction();
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringFromDataSegment
@@ -1539,7 +1539,7 @@ struct BuiltinCallDescriptor {
     static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
     // No "CanReadMemory" because data segments are immutable.
     static constexpr OpEffects kEffects =
-        base_effects.CanAllocateWithoutIdentity().RequiredWhenUnused();
+        base_effects.CanAllocateWithoutIdentity().CanThrowOrTrap();
   };
 
   struct WasmStringConst : public Descriptor<WasmStringConst> {
