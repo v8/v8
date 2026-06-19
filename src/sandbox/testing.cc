@@ -1523,6 +1523,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(WasmTableObject, raw_type_);
     fields[WASM_TABLE_OBJECT_TYPE]["trusted_dispatch_table"] =
         offsetof(WasmTableObject, trusted_dispatch_table_);
+    fields[WASM_TABLE_OBJECT_TYPE]["trusted_data"] =
+        offsetof(WasmTableObject, trusted_data_);
     fields[WASM_TAG_OBJECT_TYPE]["tag"] = offsetof(WasmTagObject, tag_);
     fields[WASM_GLOBAL_OBJECT_TYPE]["buffer"] =
         offsetof(WasmGlobalObject, buffer_);
