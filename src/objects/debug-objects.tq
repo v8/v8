@@ -73,7 +73,6 @@ extern class CoverageInfo extends HeapObject {
 @cppScope('StackFrameInfo')
 bitfield struct StackFrameInfoFlags extends uint31 {
   is_constructor: bool: 1 bit;
-  bytecode_offset_or_source_position: int32: 30 bit;
 }
 
 @cppObjectLayoutDefinition
@@ -87,6 +86,7 @@ extern class StackFrameInfo extends Struct {
   shared_or_script: SharedFunctionInfo|Script;
   function_name: String;
   flags: SmiTagged<StackFrameInfoFlags>;
+  bytecode_offset_or_source_position: Smi;
 }
 
 @cppObjectLayoutDefinition

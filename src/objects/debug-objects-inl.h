@@ -187,8 +187,12 @@ Tagged<Script> StackFrameInfo::script() const {
   return Cast<Script>(object);
 }
 
-BIT_FIELD_ACCESSORS(StackFrameInfo, flags, bytecode_offset_or_source_position,
-                    StackFrameInfo::BytecodeOffsetOrSourcePositionBits)
+int StackFrameInfo::bytecode_offset_or_source_position() const {
+  return bytecode_offset_or_source_position_.load().value();
+}
+void StackFrameInfo::set_bytecode_offset_or_source_position(int value) {
+  bytecode_offset_or_source_position_.store(this, Smi::FromInt(value));
+}
 BIT_FIELD_ACCESSORS(StackFrameInfo, flags, is_constructor,
                     StackFrameInfo::IsConstructorBit)
 

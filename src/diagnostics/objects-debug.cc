@@ -3903,6 +3903,7 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, shared_or_script_.load());
   Object::VerifyPointer(isolate, function_name_.load());
   CHECK(IsSmi(Tagged<Object>(flags_.load())));
+  CHECK(IsSmi(Tagged<Object>(bytecode_offset_or_source_position_.load())));
 }
 
 void StackTraceInfo::StackTraceInfoVerify(Isolate* isolate) {

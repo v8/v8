@@ -12,6 +12,9 @@
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 #include "src/objects/trusted-pointer.h"
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-limits.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -351,8 +354,6 @@ V8_OBJECT class StackFrameInfo : public Struct {
 
   // Bit positions in |flags|.
   using IsConstructorBit = base::BitField<bool, 0, 1, uint32_t>;
-  using BytecodeOffsetOrSourcePositionBits =
-      IsConstructorBit::Next<int32_t, 30>;
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -362,6 +363,14 @@ V8_OBJECT class StackFrameInfo : public Struct {
   TaggedMember<UnionOf<SharedFunctionInfo, Script>> shared_or_script_;
   TaggedMember<String> function_name_;
   TaggedMember<Smi> flags_;
+  TaggedMember<Smi> bytecode_offset_or_source_position_;
+#if V8_ENABLE_WEBASSEMBLY
+  // Wasm wire byte offsets are 0-indexed instruction positions within a module
+  // buffer of max size kV8MaxWasmModuleSize (1 GiB). The maximum possible
+  // offset is kV8MaxWasmModuleSize - 1, which fits exactly within a signed
+  // 31-bit Smi.
+  static_assert(wasm::kV8MaxWasmModuleSize - 1 <= Smi::kMaxValue);
+#endif  // V8_ENABLE_WEBASSEMBLY
 } V8_OBJECT_END;
 
 V8_OBJECT class StackTraceInfo : public Struct {

@@ -3730,6 +3730,8 @@ void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {
   os << "\n - shared_or_script: " << Brief(this->shared_or_script());
   os << "\n - function_name: " << Brief(this->function_name());
   os << "\n - flags: " << this->flags();
+  os << "\n - bytecode_offset_or_source_position: "
+     << this->bytecode_offset_or_source_position();
   os << "\n";
 }
 
