@@ -1292,13 +1292,18 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 
 Reduction JSNativeContextSpecialization::ReduceProxyAccess(
     Node* node, Node* value, ProxyFeedback const& feedback,
-    AccessMode access_mode, FeedbackSource const& source) {
+    AccessMode access_mode, FeedbackSource const& source, Node* key) {
   DCHECK_EQ(access_mode, AccessMode::kLoad);
 
   Node* context = NodeProperties::GetContextInput(node);
   FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
   Effect effect{NodeProperties::GetEffectInput(node)};
   Control control{NodeProperties::GetControlInput(node)};
+
+  // Ensure that {key} matches the specified name (if {key} is given).
+  if (key != nullptr) {
+    effect = BuildCheckEqualsName(feedback.name(), key, effect, &control);
+  }
 
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* lookup_start_object = receiver;
@@ -2789,7 +2794,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
     case ProcessedFeedback::kProxy:
       if (access_mode != AccessMode::kLoad) return NoChange();
       return ReduceProxyAccess(node, value, feedback->AsProxy(), access_mode,
-                               source);
+                               source, key);
     case ProcessedFeedback::kNamedAccess:
       return ReduceNamedAccess(node, value, feedback->AsNamedAccess(),
                                access_mode, source, key);

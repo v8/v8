@@ -113,7 +113,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceProxyAccess(Node* node, Node* value,
                               ProxyFeedback const& feedback,
                               AccessMode access_mode,
-                              FeedbackSource const& source);
+                              FeedbackSource const& source,
+                              Node* key = nullptr);
   Reduction ReduceHomomorphicAccess(
       Node* node, Node* value,
       HomomorphicPropertyAccessFeedback const& feedback, AccessMode access_mode,
