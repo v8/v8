@@ -154,7 +154,7 @@ V8_OBJECT class InstructionStream : public TrustedObject {
  private:
   friend class Factory;
 
-  class V8_NODISCARD WriteBarrierPromise {
+  V8_OBJECT_INNER_CLASS class V8_NODISCARD WriteBarrierPromise {
    public:
 #ifdef DEBUG
     explicit WriteBarrierPromise(Tagged<InstructionStream> host)
@@ -178,7 +178,7 @@ V8_OBJECT class InstructionStream : public TrustedObject {
     void RegisterAddress(Address address) {}
     void ResolveAddress(Address address) {}
 #endif
-  };
+  } V8_OBJECT_INNER_CLASS_END;
 
   // Migrate code from desc without flushing the instruction cache. This
   // function will not trigger any write barriers and the caller needs to call

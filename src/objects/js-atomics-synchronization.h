@@ -173,12 +173,12 @@ V8_OBJECT class JSAtomicsMutex : public JSSynchronizationPrimitive {
  public:
   // A non-copyable wrapper class that provides an RAII-style mechanism for
   // owning the `JSAtomicsMutex`.
-  class V8_NODISCARD LockGuardBase {
+  V8_OBJECT_INNER_CLASS class V8_NODISCARD LockGuardBase {
    public:
     LockGuardBase(const LockGuardBase&) = delete;
     LockGuardBase& operator=(const LockGuardBase&) = delete;
     inline ~LockGuardBase();
-    bool locked() const { return locked_ != 0; }
+    bool locked() const { return locked_; }
 
    protected:
     inline LockGuardBase(Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex,
@@ -187,28 +187,28 @@ V8_OBJECT class JSAtomicsMutex : public JSSynchronizationPrimitive {
    private:
     Isolate* isolate_;
     DirectHandle<JSAtomicsMutex> mutex_;
-    // uint32_t rather than bool to avoid trailing padding under V8_OBJECT's
-    // -Werror,-Wpadded.
-    uint32_t locked_;
-  };
+    bool locked_;
+  } V8_OBJECT_INNER_CLASS_END;
 
   // The mutex is attempted to be locked via `Lock` when a `LockGuard`
   // object is created, the lock will be acquired unless the timeout is reached.
   // If the mutex was acquired, then it is released when the `LockGuard` object
   // is destructed.
-  class V8_NODISCARD LockGuard final : public LockGuardBase {
+  V8_OBJECT_INNER_CLASS class V8_NODISCARD LockGuard final
+      : public LockGuardBase {
    public:
     inline LockGuard(Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex,
                      std::optional<base::TimeDelta> timeout = std::nullopt);
-  };
+  } V8_OBJECT_INNER_CLASS_END;
 
   // The mutex is attempted to be locked via `TryLock` when a `TryLockGuard`
   // object is created. If the mutex was acquired, then it is released when the
   // `TryLockGuard` object is destructed.
-  class V8_NODISCARD TryLockGuard final : public LockGuardBase {
+  V8_OBJECT_INNER_CLASS class V8_NODISCARD TryLockGuard final
+      : public LockGuardBase {
    public:
     inline TryLockGuard(Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex);
-  };
+  } V8_OBJECT_INNER_CLASS_END;
 
   DECL_PRINTER(JSAtomicsMutex)
   EXPORT_DECL_VERIFIER(JSAtomicsMutex)
