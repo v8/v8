@@ -1459,7 +1459,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kRecordWriteSaveFP:
     case Builtin::kRecordWriteIgnoreFP:
     case Builtin::kSetOrSetIteratorToList:
-    case Builtin::kStringAdd_CheckNone:
+    case Builtin::kStringAdd_NoMapCheck:
     case Builtin::kStringEqual:
     case Builtin::kStringIndexOf:
     case Builtin::kStringRepeat:

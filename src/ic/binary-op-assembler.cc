@@ -237,7 +237,7 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
         var_type_feedback = SmiConstant(BinaryOperationFeedback::kString);
         feedback_updater(var_type_feedback.value());
         var_result =
-            CallBuiltin(Builtin::kStringAdd_CheckNone, context(), lhs, rhs);
+            CallBuiltin(Builtin::kStringAdd_NoMapCheck, context(), lhs, rhs);
 
         Goto(&end);
 
@@ -259,7 +259,7 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
         feedback_updater(var_type_feedback.value());
         TNode<String> rhs_string =
             CAST(LoadJSPrimitiveWrapperValue(CAST(rhs_heap_object)));
-        var_result = CallBuiltin(Builtin::kStringAdd_CheckNone, context(), lhs,
+        var_result = CallBuiltin(Builtin::kStringAdd_NoMapCheck, context(), lhs,
                                  rhs_string);
         Goto(&end);
       }

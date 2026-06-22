@@ -2273,7 +2273,7 @@ class TurboshaftGraphBuildingInterface
         V<String> tail_string = ExternRefToString(args[1]);
         V<HeapObject> native_context = instance_cache_.native_context();
         V<String> result_value = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
+            BuiltinCallDescriptor::WasmStringAdd_NoMapCheck>(
             decoder, V<Context>::Cast(native_context),
             {head_string, tail_string}, CheckForException::kCatchInThisFrame);
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
@@ -2283,7 +2283,7 @@ class TurboshaftGraphBuildingInterface
         V<String> head_string = ExternRefToString(args[0]);
         V<String> tail_string = ExternRefToString(args[1]);
         V<String> result_value = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmStringAdd_CheckNone_Shared>(
+            BuiltinCallDescriptor::WasmStringAdd_NoMapCheck_Shared>(
             decoder, {head_string, tail_string},
             CheckForException::kCatchInThisFrame);
         result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
@@ -6284,7 +6284,7 @@ class TurboshaftGraphBuildingInterface
     // instructions trap, so any RangeError should bubble up to JS.
     V<NativeContext> native_context = instance_cache_.native_context();
     V<String> result_value = CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
+        BuiltinCallDescriptor::WasmStringAdd_NoMapCheck>(
         decoder, native_context,
         {V<String>::Cast(NullCheck(head)), V<String>::Cast(NullCheck(tail))});
     result->op = __ AnnotateWasmType(result_value, result->type);

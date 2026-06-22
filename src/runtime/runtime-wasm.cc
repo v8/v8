@@ -2877,7 +2877,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringHash) {
   return Smi::FromInt(static_cast<int>(hash));
 }
 
-RUNTIME_FUNCTION(Runtime_WasmStringAdd_CheckNone_Shared) {
+RUNTIME_FUNCTION(Runtime_WasmStringAdd_NoMapCheck_Shared) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
 

@@ -247,7 +247,7 @@ transitioning javascript builtin WebAssemblyStringConcat(
   try {
     const first = Cast<String>(firstArg) otherwise goto IllegalCast;
     const second = Cast<String>(secondArg) otherwise goto IllegalCast;
-    return StringAdd_CheckNone(first, second);
+    return StringAdd_NoMapCheck(first, second);
   } label IllegalCast deferred {
     Trap(context, MessageTemplate::kWasmTrapIllegalCast);
   }

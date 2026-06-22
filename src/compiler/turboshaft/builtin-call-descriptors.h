@@ -463,8 +463,8 @@ struct builtin : CallDescriptorBuilder {
     static constexpr OpEffects kEffects = base_effects.CanReadMemory();
   };
 
-  struct StringAdd_CheckNone : public Descriptor<StringAdd_CheckNone> {
-    static constexpr auto kFunction = Builtin::kStringAdd_CheckNone;
+  struct StringAdd_NoMapCheck : public Descriptor<StringAdd_NoMapCheck> {
+    static constexpr auto kFunction = Builtin::kStringAdd_NoMapCheck;
     struct Arguments : ArgumentsBase {
       ARG(V<String>, left)
       ARG(V<String>, right)
@@ -477,8 +477,9 @@ struct builtin : CallDescriptorBuilder {
         Operator::kNoDeopt | Operator::kNoWrite;
     // This will only write in a fresh object, so the writes are not visible
     // from Turboshaft, and CanAllocate is enough.
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
   struct StringEqual : public Descriptor<StringEqual> {
@@ -927,8 +928,9 @@ struct BuiltinCallDescriptor {
 
  public:
 #if V8_ENABLE_WEBASSEMBLY
-  struct WasmStringAdd_CheckNone : public Descriptor<WasmStringAdd_CheckNone> {
-    static constexpr auto kFunction = Builtin::kWasmStringAdd_CheckNone;
+  struct WasmStringAdd_NoMapCheck
+      : public Descriptor<WasmStringAdd_NoMapCheck> {
+    static constexpr auto kFunction = Builtin::kWasmStringAdd_NoMapCheck;
     using arguments_t = std::tuple<V<String>, V<String>>;
     using results_t = std::tuple<V<String>>;
 
@@ -938,13 +940,14 @@ struct BuiltinCallDescriptor {
         Operator::kNoDeopt | Operator::kNoWrite;
     // This will only write in a fresh object, so the writes are not visible
     // from Turboshaft, and CanAllocate is enough.
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
-  struct WasmStringAdd_CheckNone_Shared
-      : public Descriptor<WasmStringAdd_CheckNone_Shared> {
-    static constexpr auto kFunction = Builtin::kWasmStringAdd_CheckNone_Shared;
+  struct WasmStringAdd_NoMapCheck_Shared
+      : public Descriptor<WasmStringAdd_NoMapCheck_Shared> {
+    static constexpr auto kFunction = Builtin::kWasmStringAdd_NoMapCheck_Shared;
     using arguments_t = std::tuple<V<String>, V<String>>;
     using results_t = std::tuple<V<String>>;
 
@@ -954,8 +957,9 @@ struct BuiltinCallDescriptor {
         Operator::kNoDeopt | Operator::kNoWrite;
     // This will only write in a fresh object, so the writes are not visible
     // from Turboshaft, and CanAllocate is enough.
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
   struct WasmJSStringEqual : public Descriptor<WasmJSStringEqual> {

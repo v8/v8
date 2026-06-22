@@ -86,7 +86,7 @@ extern runtime WasmStringFromCodePoint(Context, Number, Smi): String;
 extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
 extern runtime WasmSubstringShared(Context, String, Smi, Smi): String;
-extern runtime WasmStringAdd_CheckNone_Shared(Context, String, String): String;
+extern runtime WasmStringAdd_NoMapCheck_Shared(Context, String, String): String;
 extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
     Undefined;
 
@@ -1340,16 +1340,16 @@ builtin ThrowDataViewOutOfBounds(): JSAny {
   runtime::WasmThrowRangeError(context, SmiConstant(error));
 }
 
-extern builtin WasmStringAdd_CheckNone(
+extern builtin WasmStringAdd_NoMapCheck(
     implicit context: Context)(String, String): String;
 
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
-  tail WasmStringAdd_CheckNone(a, b);
+  tail WasmStringAdd_NoMapCheck(a, b);
 }
 
-builtin WasmStringAdd_CheckNone_Shared(a: String, b: String): String {
-  tail runtime::WasmStringAdd_CheckNone_Shared(LoadContextFromFrame(), a, b);
+builtin WasmStringAdd_NoMapCheck_Shared(a: String, b: String): String {
+  tail runtime::WasmStringAdd_NoMapCheck_Shared(LoadContextFromFrame(), a, b);
 }
 
 extern builtin StringEqual(NoContext, String, String, intptr): Boolean;

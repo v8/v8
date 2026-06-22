@@ -137,7 +137,7 @@ constexpr Builtin Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
 constexpr Builtin Builtins::StringAdd(StringAddFlags flags) {
   switch (flags) {
     case STRING_ADD_CHECK_NONE:
-      return Builtin::kStringAdd_CheckNone;
+      return Builtin::kStringAdd_NoMapCheck;
     case STRING_ADD_CONVERT_LEFT:
       return Builtin::kStringAddConvertLeft;
     case STRING_ADD_CONVERT_RIGHT:

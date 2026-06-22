@@ -1502,8 +1502,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   ASM(DirectCEntry, CEntryDummy)                                               \
                                                                                \
   /* String helpers */                                                         \
-  TFS(StringAdd_CheckNone, NeedsContext::kYes, kLeft, kRight)                  \
-  IF_WASM(TFS, WasmStringAdd_CheckNone, NeedsContext::kYes, kLeft, kRight)     \
+  TFS(StringAdd_NoMapCheck, NeedsContext::kYes, kLeft, kRight)                 \
+  IF_WASM(TFS, WasmStringAdd_NoMapCheck, NeedsContext::kYes, kLeft, kRight)    \
   TFS(SubString, NeedsContext::kYes, kString, kFrom, kTo)                      \
                                                                                \
   /* Miscellaneous */                                                          \

@@ -1323,11 +1323,11 @@ operator '.length_uintptr' macro LoadStringLengthAsUintPtr(s: String): uintptr {
 extern operator '.length_uint32' macro LoadStringLengthAsWord32(String): uint32;
 extern operator '.length_smi' macro LoadStringLengthAsSmi(String): Smi;
 
-extern builtin StringAdd_CheckNone(
+extern builtin StringAdd_NoMapCheck(
     implicit context: Context)(String, String): String;
 operator '+' macro StringAdd(
     implicit context: Context)(a: String, b: String): String {
-  return StringAdd_CheckNone(a, b);
+  return StringAdd_NoMapCheck(a, b);
 }
 
 operator '==' macro PromiseStateEquals(

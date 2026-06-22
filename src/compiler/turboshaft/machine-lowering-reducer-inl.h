@@ -2977,7 +2977,7 @@ class MachineLoweringReducer : public Next {
   V<String> REDUCE(StringConcat)(V<Smi> length, V<String> left,
                                  V<String> right) {
     // TODO(nicohartmann@): Port StringBuilder once it is stable.
-    return __ template CallBuiltin<builtin::StringAdd_CheckNone>(
+    return __ template CallBuiltin<builtin::StringAdd_NoMapCheck>(
         __ NoContextConstant(), {.left = left, .right = right});
   }
 

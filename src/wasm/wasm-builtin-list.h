@@ -156,8 +156,8 @@ namespace v8::internal::wasm {
   V(WasmAnyConvertExtern)                                                      \
   V(WasmAnyConvertExternShared)                                                \
   V(WasmStringFromDataSegment)                                                 \
-  V(WasmStringAdd_CheckNone)                                                   \
-  V(WasmStringAdd_CheckNone_Shared)                                            \
+  V(WasmStringAdd_NoMapCheck)                                                  \
+  V(WasmStringAdd_NoMapCheck_Shared)                                           \
   V(DebugPrintWord32)                                                          \
   V(DebugPrintWord64)                                                          \
   V(DebugPrintFloat32)                                                         \

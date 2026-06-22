@@ -283,7 +283,7 @@ class NumberBuiltinsAssemblerTS
           // Fast path where both {lhs} and {rhs} are strings. Since {lhs} is a
           // string we no longer need an Oddball check.
           CombineFeedback(BinaryOperationFeedback::kString);
-          V<Object> result = CallBuiltin<builtin::StringAdd_CheckNone>(
+          V<Object> result = CallBuiltin<builtin::StringAdd_NoMapCheck>(
               context,
               {.left = V<String>::Cast(lhs), .right = V<String>::Cast(rhs)});
           GOTO(done, result);
@@ -300,7 +300,7 @@ class NumberBuiltinsAssemblerTS
           CombineFeedback(BinaryOperationFeedback::kStringOrStringWrapper);
           V<String> rhs_string = V<String>::Cast(LoadField(
               rhs_heap_object, AccessBuilderTS::ForJSPrimitiveWrapperValue()));
-          V<Object> result = CallBuiltin<builtin::StringAdd_CheckNone>(
+          V<Object> result = CallBuiltin<builtin::StringAdd_NoMapCheck>(
               context, {.left = V<String>::Cast(lhs), .right = rhs_string});
           GOTO(done, result);
         } ELSE {

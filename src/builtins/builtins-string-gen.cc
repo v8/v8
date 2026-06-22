@@ -690,7 +690,7 @@ TNode<String> StringBuiltinsAssembler::DerefIndirectString(
   return LoadObjectField<String>(string, offsetof(ThinString, actual_));
 }
 
-TF_BUILTIN(StringAdd_CheckNone, StringBuiltinsAssembler) {
+TF_BUILTIN(StringAdd_NoMapCheck, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);
   TNode<ContextOrEmptyContext> context =
@@ -999,7 +999,7 @@ TF_BUILTIN(WasmJSStringEqual, StringBuiltinsAssembler) {
   GenerateStringEqual(left, right, length);
 }
 
-TF_BUILTIN(WasmStringAdd_CheckNone, StringBuiltinsAssembler) {
+TF_BUILTIN(WasmStringAdd_NoMapCheck, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);
   TNode<ContextOrEmptyContext> context =
@@ -1391,7 +1391,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
              match_start_index, subject_string);
     const TNode<String> replacement_string =
         ToString_Inline(context, replacement);
-    var_result = CAST(CallBuiltin(Builtin::kStringAdd_CheckNone, context,
+    var_result = CAST(CallBuiltin(Builtin::kStringAdd_NoMapCheck, context,
                                   var_result.value(), replacement_string));
     Goto(&out);
   }
@@ -1402,7 +1402,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     const TNode<Object> replacement =
         GetSubstitution(context, subject_string, match_start_index,
                         match_end_index, replace_string);
-    var_result = CAST(CallBuiltin(Builtin::kStringAdd_CheckNone, context,
+    var_result = CAST(CallBuiltin(Builtin::kStringAdd_NoMapCheck, context,
                                   var_result.value(), replacement));
     Goto(&out);
   }
@@ -1413,7 +1413,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
         CallBuiltin(Builtin::kStringSubstring, context, subject_string,
                     SmiUntag(match_end_index), subject_length);
     const TNode<Object> result = CallBuiltin(
-        Builtin::kStringAdd_CheckNone, context, var_result.value(), suffix);
+        Builtin::kStringAdd_NoMapCheck, context, var_result.value(), suffix);
     Return(result);
   }
 }

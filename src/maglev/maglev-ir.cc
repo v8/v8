@@ -5996,14 +5996,14 @@ void StringSubstring::GenerateCode(MaglevAssembler* masm,
 }
 
 void StringConcat::SetValueLocationConstraints() {
-  using D = StringAdd_CheckNoneDescriptor;
+  using D = StringAdd_NoMapCheckDescriptor;
   UseFixed(LeftInput(), D::GetRegisterParameter(D::kLeft));
   UseFixed(RightInput(), D::GetRegisterParameter(D::kRight));
   DefineAsFixed(this, kReturnRegister0);
 }
 void StringConcat::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
-  __ CallBuiltin<Builtin::kStringAdd_CheckNone>(
+  __ CallBuiltin<Builtin::kStringAdd_NoMapCheck>(
       masm->native_context().object(),  // context
       LeftInput(),                      // left
       RightInput()                      // right

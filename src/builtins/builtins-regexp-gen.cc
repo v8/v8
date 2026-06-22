@@ -2180,7 +2180,7 @@ TNode<String> RegExpBuiltinsAssembler::AppendStringSlice(
   TNode<String> slice = CAST(CallBuiltin(Builtin::kSubString, context,
                                          from_string, slice_start, slice_end));
   return CAST(
-      CallBuiltin(Builtin::kStringAdd_CheckNone, context, to_string, slice));
+      CallBuiltin(Builtin::kStringAdd_NoMapCheck, context, to_string, slice));
 }
 
 TNode<String> RegExpBuiltinsAssembler::RegExpReplaceGlobalSimpleString(
@@ -2218,7 +2218,7 @@ TNode<String> RegExpBuiltinsAssembler::RegExpReplaceGlobalSimpleString(
           Label next(this);
           GotoIf(SmiEqual(replace_string_length, SmiConstant(0)), &next);
 
-          var_result = CAST(CallBuiltin(Builtin::kStringAdd_CheckNone, context,
+          var_result = CAST(CallBuiltin(Builtin::kStringAdd_NoMapCheck, context,
                                         var_result.value(), replace_string));
           Goto(&next);
 
