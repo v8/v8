@@ -33,7 +33,7 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-allocator-inl.h"
-#include "src/heap/evacuation-verifier-inl.h"
+#include "src/heap/evacuation-verifier.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-utils-inl.h"

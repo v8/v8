@@ -58,7 +58,7 @@
 #include "src/heap/conservative-stack-visitor-inl.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/ephemeron-remembered-set.h"
-#include "src/heap/evacuation-verifier-inl.h"
+#include "src/heap/evacuation-verifier.h"
 #include "src/heap/finalization-registry-cleanup-task.h"
 #include "src/heap/gc-callbacks.h"
 #include "src/heap/gc-tracer-inl.h"

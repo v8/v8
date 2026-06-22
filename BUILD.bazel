@@ -1825,7 +1825,6 @@ filegroup(
         "src/heap/evacuation-allocator-inl.h",
         "src/heap/evacuation-verifier.cc",
         "src/heap/evacuation-verifier.h",
-        "src/heap/evacuation-verifier-inl.h",
         "src/heap/factory.cc",
         "src/heap/factory.h",
         "src/heap/factory-base.cc",
