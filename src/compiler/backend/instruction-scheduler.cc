@@ -458,6 +458,9 @@ void InstructionScheduler::ComputeTotalLatencies() {
   }
 }
 
+#undef TRACE
+#undef TRACE_INST
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
