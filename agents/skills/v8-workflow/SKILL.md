@@ -36,7 +36,11 @@ development:
 
 ## 3. Available Tools
 
-- **[create_worktree.sh](../../scripts/create_worktree.sh)**: Automates the git
-  worktree isolation and setup process. Use this at the start of every new task.
+- **[create_worktree.sh](../../scripts/create_worktree.sh)**: Automates task
+  isolation and setup. Automatically detects whether the repository is in a
+  standard Git checkout (creating a Git worktree) or a Rift Btrfs workspace
+  (forking an isolated Btrfs subvolume). Use this at the start of every new
+  task.
 - **[cleanup_worktree.sh](../../scripts/cleanup_worktree.sh)**: Safely removes
-  task worktrees and prunes remnants once a CL is landed or abandoned.
+  task workspaces (Git worktrees or Rift subvolumes) and prunes remnants once a
+  CL is landed or abandoned.
