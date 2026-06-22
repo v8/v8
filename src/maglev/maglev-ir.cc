@@ -226,6 +226,26 @@ std::ostream& operator<<(std::ostream& os, const StringEqualInputMode mode) {
 
 bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
 
+ValueNode* ValueNode::UnwrapIdentitiesAndPhis() {
+  ValueNode* prev = nullptr;
+  ValueNode* node = this;
+  while (prev != node) {
+    prev = node;
+    node = node->UnwrapIdentities();
+    if (Phi* phi = node->TryCast<Phi>()) {
+      // We skip resumable loop phis since their single input could actually be
+      // defined within the loop itself.
+      if (phi->input_count() == 1 && !phi->is_exception_phi() &&
+          !(phi->is_loop_phi() && phi->merge_state()->is_resumable_loop())) {
+        // This is a Phi with a single input ==> replacing with the input
+        // itself.
+        node = phi->input_node(0);
+      }
+    }
+  }
+  return node;
+}
+
 bool Phi::is_unmerged_loop_phi() const {
   DCHECK(is_loop_phi());
   return merge_state()->is_unmerged_loop();

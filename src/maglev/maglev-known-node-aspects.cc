@@ -279,6 +279,58 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
   DestructivelyIntersect(loaded_context_slots_, other.loaded_context_slots_);
 }
 
+void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {
+  auto unwrap = [](ValueNode* node) -> ValueNode* {
+    return node == nullptr ? nullptr : node->UnwrapIdentitiesAndPhis();
+  };
+
+  // node_infos_ is keyed by value node.
+  NodeInfos remapped_infos(zone);
+  for (auto& entry : node_infos_) {
+    ValueNode* key = unwrap(entry.first);
+    auto it = remapped_infos.find(key);
+    if (it == remapped_infos.end()) {
+      remapped_infos.emplace(key, entry.second);
+    } else {
+      // A phi and its single input normalize to the same node; both entries
+      // then describe the same value, so combine their facts.
+      it->second.CombineSameValueFrom(entry.second);
+    }
+  }
+  node_infos_ = std::move(remapped_infos);
+
+  // Cached property loads: key -> object -> value. Only the object is a node
+  // key; values are left as-is (the merge already unwraps identities on value
+  // comparison, and available_expressions_ is not remapped at all).
+  auto remap_loaded_properties = [&](LoadedPropertyMap& map) {
+    LoadedPropertyMap remapped(zone);
+    for (auto& [property_key, objects] : map) {
+      ZoneMap<ValueNode*, ValueNode*> remapped_objects(zone);
+      for (auto& [object, value] : objects) {
+        remapped_objects[unwrap(object)] = value;
+      }
+      remapped.emplace(property_key, std::move(remapped_objects));
+    }
+    map = std::move(remapped);
+  };
+  remap_loaded_properties(loaded_properties_);
+  remap_loaded_properties(loaded_constant_properties_);
+
+  // Context slot loads: (context node, offset) -> value. Only the context node
+  // in the key is remapped.
+  auto remap_context_slots =
+      [&](ZoneMap<LoadedContextSlotsKey, ValueNode*>& m) {
+        ZoneMap<LoadedContextSlotsKey, ValueNode*> remapped(zone);
+        for (auto& [key, value] : m) {
+          remapped[LoadedContextSlotsKey{unwrap(std::get<0>(key)),
+                                         std::get<1>(key)}] = value;
+        }
+        m = std::move(remapped);
+      };
+  remap_context_slots(loaded_context_constants_);
+  remap_context_slots(loaded_context_slots_);
+}
+
 void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     compiler::JSHeapBroker* broker, LocalIsolate* local_isolate,
     ValueNode* context) {
