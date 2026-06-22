@@ -930,7 +930,7 @@ void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked(
   {
     Label found;
     Bind(&scalar_repeat);
-    DCHECK_GE(max_offset, cp_offset + character_count);
+    DCHECK_GE(max_offset, cp_offset + character_count - 1);
     CheckPosition(max_offset, on_failure);
     LoadCurrentCharacterUnchecked(cp_offset, character_count);
     __ And(w10, current_character(), both_mask);
