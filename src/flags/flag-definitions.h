@@ -608,9 +608,10 @@ DEFINE_BOOL_READONLY(local_off_stack_check,
 // stage them yet. Once sufficiently stable, they should be moved to
 // --future, --wasm-staging or a similar flag that indicates its readiness
 // for staging.
-DEFINE_BOOL(experimental_fuzzing, false,
-            "Implies all experimental pre-staged features that can already be "
-            "fuzzed but are not ready for staging yet.")
+DEFINE_EXPERIMENTAL_FEATURE(
+    experimental_fuzzing,
+    "Implies all experimental pre-staged features that can already be "
+    "fuzzed but are not ready for staging yet.")
 
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
