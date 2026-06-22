@@ -19,6 +19,7 @@
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/mutable-page.h"
 #include "src/heap/read-only-heap.h"
+#include "src/init/isolate-group.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/map.h"
@@ -798,24 +799,33 @@ void String::WriteToFlat(Tagged<String> source, SinkCharT* sink, uint32_t start,
 
     if (source->DispatchToSpecificType(absl::Overload{
             [&](Tagged<SeqOneByteString> str) {
+              SYNCHRONIZATION_POINT_FOR_TESTING(
+                  "StringWriteToFlatSeqOneByteString");
               CopyChars(sink, str->GetChars(no_gc, access_guard) + start,
                         length);
               return true;
             },
             [&](Tagged<SeqTwoByteString> str) {
+              SYNCHRONIZATION_POINT_FOR_TESTING(
+                  "StringWriteToFlatSeqTwoByteString");
               CopyChars(sink, str->GetChars(no_gc, access_guard) + start,
                         length);
               return true;
             },
             [&](Tagged<ExternalOneByteString> str) {
+              SYNCHRONIZATION_POINT_FOR_TESTING(
+                  "StringWriteToFlatExternalOneByteString");
               CopyChars(sink, str->GetChars() + start, length);
               return true;
             },
             [&](Tagged<ExternalTwoByteString> str) {
+              SYNCHRONIZATION_POINT_FOR_TESTING(
+                  "StringWriteToFlatExternalTwoByteString");
               CopyChars(sink, str->GetChars() + start, length);
               return true;
             },
             [&](Tagged<ConsString> cons_string) {
+              SYNCHRONIZATION_POINT_FOR_TESTING("StringWriteToFlatConsString");
               Tagged<String> first = cons_string->first();
               uint32_t boundary = first->length();
               // Here we explicitly use signed ints as the values can become
@@ -878,12 +888,15 @@ void String::WriteToFlat(Tagged<String> source, SinkCharT* sink, uint32_t start,
               return length == 0;
             },
             [&](Tagged<SlicedString> slice) {
+              SYNCHRONIZATION_POINT_FOR_TESTING(
+                  "StringWriteToFlatSlicedString");
               uint32_t offset = slice->offset();
               source = slice->parent();
               start += offset;
               return false;
             },
             [&](Tagged<ThinString> thin_string) {
+              SYNCHRONIZATION_POINT_FOR_TESTING("StringWriteToFlatThinString");
               source = thin_string->actual();
               return false;
             }})) {
