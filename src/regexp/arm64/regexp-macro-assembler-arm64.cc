@@ -753,7 +753,31 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
     int bounds_check_offset, Label* on_match, Label* on_no_match) {
   Label scalar_repeat;
 
+  Register table_reg = x13;
+  __ Mov(table_reg, Operand(table));
+
+  auto emit_scalar_check = [&]() {
+    CheckPosition(bounds_check_offset, on_no_match);
+    LoadCurrentCharacterUnchecked(cp_offset, 1);
+    Register index = w10;
+    if ((mode() != LATIN1) || (kTableMask != String::kMaxOneByteCharCode)) {
+      __ And(index, current_character(), kTableMask);
+      __ Add(index, index, OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
+    } else {
+      __ Add(index, current_character(),
+             OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
+    }
+    Register found_in_table = w11;
+    __ Ldrb(found_in_table, MemOperand(table_reg, index, UXTW));
+    __ Cbnz(found_in_table, on_match);
+    AdvanceCurrentPosition(advance_by);
+  };
+
   if (SkipUntilBitInTableUseSimd(advance_by)) {
+    // Scalar check for the first position to avoid SIMD setup overhead if we
+    // find a potential match immediately.
+    emit_scalar_check();
+
     DCHECK(!nibble_table_array.is_null());
     Label scalar;
     EmitSkipUntilBitInTableSimdHelper(
@@ -767,24 +791,8 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
   }
 
   // Scalar version.
-  Register table_reg = x9;
-  __ Mov(table_reg, Operand(table));
-
   Bind(&scalar_repeat);
-  CheckPosition(bounds_check_offset, on_no_match);
-  LoadCurrentCharacterUnchecked(cp_offset, 1);
-  Register index = w10;
-  if ((mode() != LATIN1) || (kTableMask != String::kMaxOneByteCharCode)) {
-    __ And(index, current_character(), kTableMask);
-    __ Add(index, index, OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
-  } else {
-    __ Add(index, current_character(),
-           OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
-  }
-  Register found_in_table = w11;
-  __ Ldrb(found_in_table, MemOperand(table_reg, index, UXTW));
-  __ Cbnz(found_in_table, on_match);
-  AdvanceCurrentPosition(advance_by);
+  emit_scalar_check();
   __ B(&scalar_repeat);
 }
 
