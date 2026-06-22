@@ -97,13 +97,19 @@ bool CollectionBarrier::TryRequestGC(RequestedGCKind kind) {
   if (shutdown_requested_) return false;
   auto already_requested = collection_request_.Set(kind);
 
+  // Each kind has its own timer, so start it even when a higher priority GC is
+  // already pending (in which case `already_requested` is true). Without
+  // starting it here, a thread requesting kMajor while kLastResort is already
+  // pending would leave major_timer_ unstarted and trip the timer CHECKs in
+  // AwaitCollectionBackground() / StopTimeToCollectionTimer().
+  auto& timer = GetTimerForCollectionRequest(kind);
+  if (!timer.IsStarted()) {
+    timer.Start();
+  }
+
   // The first thread that requests this kind of GC needs to activate the stack
   // guard and post the task.
   if (!already_requested) {
-    auto& timer = GetTimerForCollectionRequest(kind);
-    DCHECK(!timer.IsStarted());
-    timer.Start();
-
     Isolate* isolate = heap_->isolate();
     ExecutionAccess access(isolate);
     isolate->stack_guard()->RequestGC();
