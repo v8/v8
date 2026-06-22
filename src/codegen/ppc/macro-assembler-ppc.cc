@@ -3023,7 +3023,8 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
     if (mem.rb() == no_reg) {                                    \
       if (!is_int16(offset) || misaligned) {                     \
         /* cannot use d-form */                                  \
-        CHECK_NE(scratch, no_reg);                               \
+        UseScratchRegisterScope temps(this);                     \
+        Register scratch = temps.Acquire();                      \
         mov(scratch, Operand(offset));                           \
         rr_op(reg, MemOperand(mem.ra(), scratch));               \
       } else {                                                   \
@@ -3033,11 +3034,13 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
       if (offset == 0) {                                         \
         rr_op(reg, mem);                                         \
       } else if (is_int16(offset)) {                             \
-        CHECK_NE(scratch, no_reg);                               \
+        UseScratchRegisterScope temps(this);                     \
+        Register scratch = temps.Acquire();                      \
         addi(scratch, mem.rb(), Operand(offset));                \
         rr_op(reg, MemOperand(mem.ra(), scratch));               \
       } else {                                                   \
-        CHECK_NE(scratch, no_reg);                               \
+        UseScratchRegisterScope temps(this);                     \
+        Register scratch = temps.Acquire();                      \
         mov(scratch, Operand(offset));                           \
         add(scratch, scratch, mem.rb());                         \
         rr_op(reg, MemOperand(mem.ra(), scratch));               \
@@ -3082,10 +3085,9 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
   V(LoadU64WithUpdate, ldu, ldux) \
   V(StoreU64WithUpdate, stdu, stdux)
 
-#define MEM_OP_WITH_ALIGN_FUNCTION(name, ri_op, rr_op)           \
-  void MacroAssembler::name(Register reg, const MemOperand& mem, \
-                            Register scratch) {                  \
-    GenerateMemoryOperationWithAlign(reg, mem, ri_op, rr_op);    \
+#define MEM_OP_WITH_ALIGN_FUNCTION(name, ri_op, rr_op)             \
+  void MacroAssembler::name(Register reg, const MemOperand& mem) { \
+    GenerateMemoryOperationWithAlign(reg, mem, ri_op, rr_op);      \
   }
 MEM_OP_WITH_ALIGN_LIST(MEM_OP_WITH_ALIGN_FUNCTION)
 #undef MEM_OP_WITH_ALIGN_LIST

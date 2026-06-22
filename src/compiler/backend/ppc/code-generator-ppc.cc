@@ -1729,7 +1729,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
         default:
           __ StoreU64WithUpdate(i.InputRegister(1),
-                                MemOperand(sp, -kSystemPointerSize), r0);
+                                MemOperand(sp, -kSystemPointerSize));
           break;
       }
       frame_access_state()->IncreaseSPDelta(slots);
@@ -1752,8 +1752,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
       } else {
         __ StoreU64WithUpdate(i.InputRegister(0),
-                              MemOperand(sp, -num_slots * kSystemPointerSize),
-                              r0);
+                              MemOperand(sp, -num_slots * kSystemPointerSize));
       }
       break;
     }
