@@ -16458,7 +16458,10 @@ void MaglevGraphBuilder::ProcessMergePointPredecessors(
               merge_state.predecessor_count());
   }
 
-  if (merge_state.predecessor_count() == 1) return;
+  if (merge_state.predecessor_count() == 1) {
+    RegisterPhisWithGraphLabeller(merge_state);
+    return;
+  }
 
   // Set up edge-split.
   int predecessor_index = merge_state.predecessor_count() - 1;
