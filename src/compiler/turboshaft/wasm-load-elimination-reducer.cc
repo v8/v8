@@ -136,6 +136,9 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // We rely on having no raw "Store" operations operating on Wasm
         // objects at this point in the pipeline.
         // TODO(jkummerow): Is there any way to DCHECK that?
+      case Opcode::kMemoryCopy:
+      case Opcode::kMemoryFill:
+        // These should never operate on GC objects.
       case Opcode::kAssumeMap:
       case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:
