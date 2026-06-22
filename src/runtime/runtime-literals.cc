@@ -1027,6 +1027,7 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
                       .Build();
           current_slot++;
         }
+        it.UpdateProtector();
         Object::SetDataProperty(&it, value).Check();
       } else {
         value = InstantiateIfSharedFunctionInfo(
