@@ -9,8 +9,8 @@
 #include "include/cppgc/platform.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
-#include "src/heap/cppgc/gc-info-table.h"
-#include "src/heap/cppgc/platform.h"
+#include "src/heap/cppgc-internal/gc-info-table.h"
+#include "src/heap/cppgc-internal/platform.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

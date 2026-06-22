@@ -10,7 +10,7 @@
 
 #include "include/cppgc/type-traits.h"
 #include "src/execution/isolate.h"
-#include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
 #include "src/objects/objects.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator.h"

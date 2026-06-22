@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/page-memory.h"
+#include "src/heap/cppgc-internal/page-memory.h"
 
 #include <algorithm>
 
 #include "src/base/page-allocator.h"
-#include "src/heap/cppgc/platform.h"
+#include "src/heap/cppgc-internal/platform.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {

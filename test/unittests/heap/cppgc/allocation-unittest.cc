@@ -5,9 +5,9 @@
 #include "include/cppgc/allocation.h"
 
 #include "include/cppgc/visitor.h"
-#include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-config.h"
-#include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc-internal/globals.h"
+#include "src/heap/cppgc-internal/heap-config.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

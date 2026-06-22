@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
 
 #include <atomic>
 #include <memory>
@@ -11,7 +11,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc-internal/globals.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {

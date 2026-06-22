@@ -101,7 +101,7 @@
                   '|bazel/',
     },
     'cppgc': {
-      'filepath': 'src/heap/cppgc/' \
+      'filepath': 'src/heap/cppgc-internal/' \
                   '|src/heap/cppgc-js/' \
                   '|include/cppgc/' \
                   '|test/unittests/heap/cppgc/' \
