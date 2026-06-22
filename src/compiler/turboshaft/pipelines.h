@@ -202,10 +202,6 @@ class V8_EXPORT_PRIVATE Pipeline {
     BeginPhaseKind("V8.TurboshaftOptimize");
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-    // TODO(dlehmann,353475584): Once the Wasm-in-JS TS inlining MVP is feature-
-    // complete and cleaned-up, move its reducer into the beginning of the
-    // `MachineLoweringPhase` since we can reuse the `DataViewLoweringReducer`
-    // there and avoid a separate phase.
     if ((v8_flags.wasm_in_js_inlining_body ||
          v8_flags.wasm_in_js_inlining_wrapper) &&
         data_->turbolev_graph_has_inlineable_wasm_calls()) {
@@ -215,12 +211,10 @@ class V8_EXPORT_PRIVATE Pipeline {
       // These optimizations need a separate phase due to the analysis of the
       // input graph. They are also somewhat risky, so keep them behind a flag
       // at first.
-      if (v8_flags.wasm_in_js_inlining_opt) {
+      if (v8_flags.wasm_in_js_inlining_opt &&
+          data_->wasm_in_js_inlined_any_body()) {
         RUN_MAYBE_ABORT(turboshaft::WasmGCOptimizePhase);
       }
-
-      // We need the `WasmLoweringReducer` for lowering, e.g., `global.get` etc.
-      RUN_MAYBE_ABORT(turboshaft::WasmLoweringPhase);
     }
 #endif  // !V8_ENABLE_WEBASSEMBLY
 

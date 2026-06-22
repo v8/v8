@@ -495,6 +495,12 @@ class V8_EXPORT_PRIVATE PipelineData {
   void set_turbolev_graph_has_inlineable_wasm_calls() {
     turbolev_graph_has_inlineable_wasm_calls_ = true;
   }
+  bool wasm_in_js_inlined_any_body() const {
+    return wasm_in_js_inlined_any_body_;
+  }
+  void set_wasm_in_js_inlined_any_body() {
+    wasm_in_js_inlined_any_body_ = true;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool is_wasm() const {
@@ -582,6 +588,12 @@ class V8_EXPORT_PRIVATE PipelineData {
   // MachineLoweringPhase, we can get rid of this trick, since the
   // MachineLoweringPhase runs unconditionally anyways.
   bool turbolev_graph_has_inlineable_wasm_calls_ = false;
+  // {wasm_in_js_inlined_any_body_} is set to true if we successfully inlined
+  // at least one Wasm body during the WasmInJSInliningPhase. This is used to
+  // predicate the subsequent WasmGCOptimizePhase, avoiding running it if no
+  // Wasm body was inlined (e.g., if we only inlined JS-to-Wasm wrappers but
+  // bailed out of body inlining).
+  bool wasm_in_js_inlined_any_body_ = false;
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 
   WasmRevecAnalyzer* wasm_revec_analyzer_ = nullptr;

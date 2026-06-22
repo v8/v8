@@ -1166,6 +1166,7 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   emitting_decoder.Decode();
   DCHECK(emitting_decoder.ok());
   DCHECK(emitting_decoder.interface().result().success);
+  __ data() -> set_wasm_in_js_inlined_any_body();
   TRACE("- inlining Wasm function");
   return emitting_decoder.interface().result();
 }
