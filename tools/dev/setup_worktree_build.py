@@ -72,6 +72,8 @@ def get_shared_dirs(root_entries_file: Path) -> list[str]:
       "tools/luci-go",
       "test/wasm-js/tests",
       "test/wasm-spec-tests/tests",
+      "GEMINI.md",
+      ".agents",
   ]
   if root_entries_file.is_file():
     try:
