@@ -66,6 +66,7 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
 #include "src/objects/turbofan-types.h"
+#include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -1220,8 +1221,8 @@ class GraphEmitter : public Next {
     }
 #ifdef DEBUG
     if (v8_flags.turboshaft_trace_intermediate_reductions) {
-      std::cout << std::setw(Asm().intermediate_tracing_depth()) << ' ' << "["
-                << ReducerName() << "]: emitted " << op << "\n";
+      StdoutStream{} << std::setw(Asm().intermediate_tracing_depth()) << ' '
+                     << "[" << ReducerName() << "]: emitted " << op << "\n";
     }
     op_to_block_[result] = Asm().current_block();
     DCHECK(ValidInputs(result));

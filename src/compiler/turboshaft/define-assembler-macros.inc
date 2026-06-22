@@ -15,6 +15,8 @@
 
 #define V8_COMPILER_TURBOSHAFT_ASSEMBLER_MACROS_DEFINED 1
 
+#include "src/utils/ostreams.h"
+
 #if defined(__clang__) || !defined(V8_CC_GNU)
 #define NO_SHADOW                                    \
   _Pragma("GCC diagnostic push")                     \
@@ -193,7 +195,7 @@
       base::SmallVector<OperationStorageSlot, 32> storage;                    \
       operation##Op* op = CreateOperation<operation##Op>(storage, args...);   \
       PrintF("%*s", Asm().intermediate_tracing_depth(), "");                  \
-      std::cout << "[" << ReducerName() << "]: reducing " << *op << "\n";     \
+      StdoutStream{} << "[" << ReducerName() << "]: reducing " << *op << "\n";     \
     }                                                                         \
     Asm().intermediate_tracing_depth()++;                                     \
     decltype(CONCAT(CHECK_Reduce, operation)) result =                        \
@@ -214,7 +216,7 @@
                                               const operation##Op& op) {       \
     if (v8_flags.turboshaft_trace_intermediate_reductions) {                   \
       PrintF("%*s", Asm().intermediate_tracing_depth(), "");                   \
-      std::cout << "[" << ReducerName() << "]: @input-reducing " << op << "\n";\
+      StdoutStream{} << "[" << ReducerName() << "]: @input-reducing " << op << "\n";\
     }                                                                          \
     Asm().intermediate_tracing_depth()++;                                      \
     decltype(CONCAT(CHECK_ReduceInputGraph, operation)) result =               \

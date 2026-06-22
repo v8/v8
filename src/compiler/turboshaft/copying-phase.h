@@ -28,6 +28,7 @@
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
+#include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -500,11 +501,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     current_block_needs_variables_ =
         blocks_needing_variables_.Contains(input_block->index().id());
     if constexpr (trace_reduction) {
-      std::cout << "\nold " << PrintAsBlockHeader{*input_block} << "\n";
-      std::cout << "new "
-                << PrintAsBlockHeader{*MapToNewGraph(input_block),
-                                      Asm().output_graph().next_block_index()}
-                << "\n";
+      StdoutStream{} << "\nold " << PrintAsBlockHeader{*input_block} << "\n";
+      StdoutStream{}
+          << "new "
+          << PrintAsBlockHeader{*MapToNewGraph(input_block),
+                                Asm().output_graph().next_block_index()}
+          << "\n";
     }
     Block* new_block = MapToNewGraph(input_block);
     if (Asm().Bind(new_block)) {
@@ -758,7 +760,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       // Variables.
       ScopedModification<bool> set_true(&current_block_needs_variables_, true);
       if constexpr (trace_reduction) {
-        std::cout << "Inlining " << PrintAsBlockHeader{*input_block} << "\n";
+        StdoutStream{} << "Inlining " << PrintAsBlockHeader{*input_block}
+                       << "\n";
       }
       VisitBlockBody<CanHavePhis::kNo, ForCloning::kNo, trace_reduction>(
           input_block);
@@ -770,11 +773,13 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
                     Block* output_block) {
     DCHECK_EQ(output_block->PredecessorCount(), 1);
     if constexpr (trace_reduction) {
-      std::cout << "\nCloning old " << PrintAsBlockHeader{*input_block} << "\n";
-      std::cout << "As new "
-                << PrintAsBlockHeader{*output_block,
-                                      Asm().output_graph().next_block_index()}
-                << "\n";
+      StdoutStream{} << "\nCloning old " << PrintAsBlockHeader{*input_block}
+                     << "\n";
+      StdoutStream{}
+          << "As new "
+          << PrintAsBlockHeader{*output_block,
+                                Asm().output_graph().next_block_index()}
+          << "\n";
     }
 
     ScopedModification<bool> set_true(&current_block_needs_variables_, true);
@@ -787,18 +792,18 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   }
 
   void TraceReductionStart(OpIndex index) {
-    std::cout << "╭── o" << index.id() << ": "
-              << PaddingSpace{5 - CountDecimalDigits(index.id())}
-              << OperationPrintStyle{Asm().input_graph().Get(index), "#o"}
-              << "\n";
+    StdoutStream{} << "╭── o" << index.id() << ": "
+                   << PaddingSpace{5 - CountDecimalDigits(index.id())}
+                   << OperationPrintStyle{Asm().input_graph().Get(index), "#o"}
+                   << "\n";
   }
-  void TraceOperationSkipped() { std::cout << "╰─> skipped\n\n"; }
-  void TraceBlockUnreachable() { std::cout << "╰─> unreachable\n\n"; }
+  void TraceOperationSkipped() { StdoutStream{} << "╰─> skipped\n\n"; }
+  void TraceBlockUnreachable() { StdoutStream{} << "╰─> unreachable\n\n"; }
   void TraceReductionResult(Block* current_block, OpIndex first_output_index,
                             OpIndex new_index) {
     if (new_index < first_output_index) {
       // The operation was replaced with an already existing one.
-      std::cout << "╰─> #n" << new_index.id() << "\n";
+      StdoutStream{} << "╰─> #n" << new_index.id() << "\n";
     }
     bool before_arrow = new_index >= first_output_index;
     for (const Operation& op : Asm().output_graph().operations(
@@ -813,20 +818,21 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       } else {
         prefix = "   ";
       }
-      std::cout << prefix << " n" << index.id() << ": "
-                << PaddingSpace{5 - CountDecimalDigits(index.id())}
-                << OperationPrintStyle{Asm().output_graph().Get(index), "#n"}
-                << "\n";
+      StdoutStream{} << prefix << " n" << index.id() << ": "
+                     << PaddingSpace{5 - CountDecimalDigits(index.id())}
+                     << OperationPrintStyle{Asm().output_graph().Get(index),
+                                            "#n"}
+                     << "\n";
       if (op.IsBlockTerminator() && Asm().current_block() &&
           Asm().current_block() != current_block) {
         current_block = &Asm().output_graph().Get(
             BlockIndex(current_block->index().id() + 1));
-        std::cout << "new " << PrintAsBlockHeader{*current_block} << "\n";
+        StdoutStream{} << "new " << PrintAsBlockHeader{*current_block} << "\n";
       }
     }
-    std::cout << "\n";
+    StdoutStream{} << "\n";
   }
-  void TraceBlockFinished() { std::cout << "\n"; }
+  void TraceBlockFinished() { StdoutStream{} << "\n"; }
 
   // These functions take an operation from the old graph and use the assembler
   // to emit a corresponding operation in the new graph, translating inputs and
