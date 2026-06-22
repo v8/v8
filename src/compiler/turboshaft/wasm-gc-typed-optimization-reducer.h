@@ -169,10 +169,16 @@ class WasmGCTypedOptimizationReducer : public Next {
 
     if (v8_flags.wasm_assert_types && __ output_graph().block_count() == 1)
         [[unlikely]] {
-      // We are just starting the first block. The instance data parameter is
-      // needed for loading the RTT types for the type assertions. All
-      // parameters need to be emitted in the beginning of the first block.
-      instance_data_ = __ WasmInstanceDataParameter();
+      if (__ data()->is_wasm()) {
+        // We are just starting the first block. The instance data parameter is
+        // needed for loading the RTT types for the type assertions. All
+        // parameters need to be emitted in the beginning of the first block.
+        instance_data_ = __ WasmInstanceDataParameter();
+      } else if (!__ data()->wasm_instance().is_null()) {
+        // For Wasm-in-JS inlining, we use the compile-time constant instance
+        // from the pipeline data.
+        instance_data_ = __ HeapConstant(__ data()->wasm_instance());
+      }
     }
   }
 

@@ -1366,6 +1366,7 @@ class GraphBuildingNodeProcessor {
   JSWasmCallParameters* TryInlineWasmWrapper(
       maglev::CallKnownJSFunction* node,
       Tagged<WasmExportedFunctionData> function_data,
+      Handle<WasmTrustedInstanceData> instance_handle,
       wasm::NativeModule* native_module) {
     // LINT.IfChange(WasmWrapperInliningConditions)
 #define TRACE_WASM_INLINING(...)                  \
@@ -1411,10 +1412,11 @@ class GraphBuildingNodeProcessor {
       return nullptr;
     }
 
-    if (!__ data()->TrySetWasmModuleForInlining(native_module->module())) {
+    if (!__ data()->TrySetWasmInstanceForInlining(native_module->module(),
+                                                  instance_handle)) {
       TRACE_WASM_INLINING(
           "- not inlining: already inlining from "
-          "another Wasm module");
+          "another Wasm instance");
       return nullptr;
     }
 
@@ -1488,9 +1490,10 @@ class GraphBuildingNodeProcessor {
 
         // Keep the instance data (and thus the NativeModule) alive via a GC
         // root.
-        broker_->CanonicalPersistentHandle(instance_data);
-        wasm_call_params =
-            TryInlineWasmWrapper(node, function_data, native_module);
+        Handle<WasmTrustedInstanceData> instance_handle =
+            broker_->CanonicalPersistentHandle(instance_data);
+        wasm_call_params = TryInlineWasmWrapper(node, function_data,
+                                                instance_handle, native_module);
       }
     }
     // LINT.ThenChange(src/maglev/maglev-reducer-inl.h:WasmWrapperInliningConditions)

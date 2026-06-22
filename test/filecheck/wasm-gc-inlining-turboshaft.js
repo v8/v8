@@ -107,7 +107,7 @@
 // CHECK: Considering JS-to-Wasm wrapper for Wasm function [1] get of module {{0x[0-9a-f]+}} for inlining
 // CHECK-NEXT: - inlining wrapper
 // CHECK: Considering JS-to-Wasm wrapper for Wasm function [1] get of module {{0x[0-9a-f]+}} for inlining
-// CHECK-NEXT: - not inlining: already inlining from another Wasm module
+// CHECK-NEXT: - not inlining: already inlining from another Wasm instance
 // CHECK: Considering Wasm function [1] get of module {{0x[0-9a-f]+}} for inlining
 // CHECK-NEXT: - inlining Wasm function
 

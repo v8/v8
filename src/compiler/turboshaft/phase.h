@@ -55,6 +55,10 @@
     static_assert(TurboshaftPhase<Name##Phase>);                               \
   }
 
+namespace v8::internal {
+class WasmTrustedInstanceData;
+}
+
 namespace v8::internal::compiler {
 class RegisterAllocationData;
 class Schedule;
@@ -429,18 +433,31 @@ class V8_EXPORT_PRIVATE PipelineData {
 
   const wasm::WasmModule* wasm_module() const { return wasm_module_; }
 
-  bool TrySetWasmModuleForInlining(const wasm::WasmModule* module) {
+  // The Wasm instance data is only set during Wasm-in-JS inlining in the JS
+  // pipeline. In the Wasm pipeline, it is always null.
+  Handle<WasmTrustedInstanceData> wasm_instance() const {
+    DCHECK_EQ(pipeline_kind(), TurboshaftPipelineKind::kJS);
+    return wasm_instance_;
+  }
+
+  bool TrySetWasmInstanceForInlining(const wasm::WasmModule* module,
+                                     Handle<WasmTrustedInstanceData> instance) {
     // This is used during Wasm-in-JS body inlining in the JavaScript (!)
     // pipeline.
     DCHECK_EQ(pipeline_kind(), TurboshaftPipelineKind::kJS);
+    DCHECK(!instance.is_null());
 
-    // We should only ever inline functions from one Wasm module.
-    if (wasm_module_ == nullptr) {
+    // We should only ever inline functions from one Wasm instance (and thus
+    // one Wasm module) in a single JS compilation job.
+    if (wasm_instance_.is_null()) {
       // First Wasm call being inlined.
+      DCHECK_EQ(wasm_module_, nullptr);
       wasm_module_ = module;
+      wasm_instance_ = instance;
       return true;
-    } else if (wasm_module_ == module) {
-      // Another Wasm call to inline, but from the same module.
+    } else if (wasm_instance_.address() == instance.address()) {
+      // Another Wasm call to inline, but from the same instance.
+      DCHECK_EQ(wasm_module_, module);
       return true;
     }
     return false;
@@ -571,6 +588,9 @@ class V8_EXPORT_PRIVATE PipelineData {
   const wasm::FunctionSig* wasm_module_sig_ = nullptr;
   const wasm::CanonicalSig* wasm_canonical_sig_ = nullptr;
   const wasm::WasmModule* wasm_module_ = nullptr;
+  // The Wasm instance data of the inlined Wasm module. Set only during
+  // Wasm-in-JS inlining in the JS pipeline.
+  Handle<WasmTrustedInstanceData> wasm_instance_ = {};
   SharedFlag wasm_shared_ = SharedFlag::kNo;
   WasmShuffleAnalyzer* wasm_shuffle_analyzer_ = nullptr;
   // When creating the Turboshaft graph from Maglev for Turbolev, we record in
