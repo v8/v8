@@ -7642,7 +7642,6 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
         }
         builder()->SetPrivateField(context_reg, var->index(), depth, object,
                                    feedback_index(slot));
-        break;
       } else {
         builder()->SetKeyedProperty(object, key, feedback_index(slot),
                                     language_mode());
