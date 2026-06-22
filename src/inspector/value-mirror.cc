@@ -259,11 +259,12 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
   return description.toString();
 }
 
-v8::Local<v8::Function> deepBoundFunction(v8::Local<v8::Function> function) {
-  while (function->GetBoundFunction()->IsFunction()) {
-    function = function->GetBoundFunction().As<v8::Function>();
-  }
-  return function;
+bool isBuiltinGetter(v8::Local<v8::Function> function) {
+  // A bound function may forward to user code via its bound receiver or
+  // bound arguments even when the underlying target is a builtin, so it is
+  // never treated as a plain builtin getter.
+  if (function->GetBoundFunction()->IsFunction()) return false;
+  return function->ScriptId() == v8::UnboundScript::kNoScriptId;
 }
 
 v8::MaybeLocal<v8::Value> getErrorProperty(v8::Local<v8::Context> context,
@@ -293,12 +294,9 @@ v8::MaybeLocal<v8::Value> getErrorProperty(v8::Local<v8::Context> context,
     return object->Get(context, name);
   }
 
-  if (getDescriptor->IsFunction()) {
-    v8::Local<v8::Function> function = getDescriptor.As<v8::Function>();
-    if (deepBoundFunction(function)->ScriptId() !=
-        v8::UnboundScript::kNoScriptId) {
-      return v8::MaybeLocal<v8::Value>();
-    }
+  if (getDescriptor->IsFunction() &&
+      !isBuiltinGetter(getDescriptor.As<v8::Function>())) {
+    return v8::MaybeLocal<v8::Value>();
   }
 
   return object->Get(context, name);
@@ -1634,8 +1632,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
           }
           isAccessorProperty = getterMirror || setterMirror;
           if (name != "__proto__" && !getterFunction.IsEmpty() &&
-              deepBoundFunction(getterFunction)->ScriptId() ==
-                  v8::UnboundScript::kNoScriptId &&
+              isBuiltinGetter(getterFunction) &&
               !doesAttributeHaveObservableSideEffectOnGet(context, object,
                                                           v8Name)) {
             v8::TryCatch tryCatchFunction(isolate);
