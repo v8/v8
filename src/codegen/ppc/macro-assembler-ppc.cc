@@ -427,7 +427,7 @@ void MacroAssembler::EnforceStackAlignment() {
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
                                                        Register scratch1,
                                                        Register scratch2) {
-  LoadU32(scratch1, FieldMemOperand(code, Code::kFlagsOffset), scratch2);
+  LoadU32(scratch1, FieldMemOperand(code, Code::kFlagsOffset));
   TestBit(scratch1, Code::kMarkedForDeoptimizationBit, scratch2);
 }
 
@@ -636,7 +636,7 @@ void MacroAssembler::MultiPushF64AndV128(DoubleRegList dregs,
     // Check the comments under crrev.com/c/2645694 for more details.
     Label push_empty_simd, simd_pushed;
     Move(scratch1, ExternalReference::supports_simd_128_address());
-    LoadU8(scratch1, MemOperand(scratch1), scratch2);
+    LoadU8(scratch1, MemOperand(scratch1));
     cmpi(scratch1, Operand::Zero());  // If > 0 then simd is available.
     ble(&push_empty_simd);
     MultiPushV128(simd_regs, scratch1);
@@ -666,7 +666,7 @@ void MacroAssembler::MultiPopF64AndV128(DoubleRegList dregs,
   if (options().generating_embedded_builtin) {
     Label pop_empty_simd, simd_popped;
     Move(scratch1, ExternalReference::supports_simd_128_address());
-    LoadU8(scratch1, MemOperand(scratch1), scratch2);
+    LoadU8(scratch1, MemOperand(scratch1));
     cmpi(scratch1, Operand::Zero());  // If > 0 then simd is available.
     ble(&pop_empty_simd);
     MultiPopV128(simd_regs, scratch1);
@@ -754,7 +754,7 @@ void MacroAssembler::LoadTaggedFieldWithoutDecompressing(
     const Register& destination, const MemOperand& field_operand,
     const Register& scratch) {
   if (COMPRESS_POINTERS_BOOL) {
-    LoadU32(destination, field_operand, scratch);
+    LoadU32(destination, field_operand);
   } else {
     LoadU64(destination, field_operand, scratch);
   }
@@ -763,7 +763,7 @@ void MacroAssembler::LoadTaggedFieldWithoutDecompressing(
 void MacroAssembler::SmiUntag(Register dst, const MemOperand& src, RCBit rc,
                               Register scratch) {
   if (SmiValuesAre31Bits()) {
-    LoadU32(dst, src, scratch);
+    LoadU32(dst, src);
   } else {
     LoadU64(dst, src, scratch);
   }
@@ -781,7 +781,7 @@ void MacroAssembler::StoreTaggedField(const Register& value,
                                       const Register& scratch) {
   if (COMPRESS_POINTERS_BOOL) {
     RecordComment("[ StoreTagged");
-    StoreU32(value, dst_field_operand, scratch);
+    StoreU32(value, dst_field_operand);
     RecordComment("]");
   } else {
     StoreU64(value, dst_field_operand, scratch);
@@ -798,7 +798,7 @@ void MacroAssembler::DecompressTaggedSigned(Register destination,
 void MacroAssembler::DecompressTaggedSigned(Register destination,
                                             MemOperand field_operand) {
   RecordComment("[ DecompressTaggedSigned");
-  LoadU32(destination, field_operand, r0);
+  LoadU32(destination, field_operand);
   RecordComment("]");
 }
 
@@ -812,7 +812,7 @@ void MacroAssembler::DecompressTagged(Register destination, Register source) {
 void MacroAssembler::DecompressTagged(Register destination,
                                       MemOperand field_operand) {
   RecordComment("[ DecompressTagged");
-  LoadU32(destination, field_operand, r0);
+  LoadU32(destination, field_operand);
   add(destination, destination, kPtrComprCageBaseRegister);
   RecordComment("]");
 }
@@ -1191,12 +1191,11 @@ void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
           FieldMemOperand(code_target_address, Code::kInstructionStartOffset),
           scratch1);
   LoadU32(scratch1,
-          FieldMemOperand(code_target_address, Code::kInstructionSizeOffset),
-          scratch1);
+          FieldMemOperand(code_target_address, Code::kInstructionSizeOffset));
   add(scratch2, scratch1, scratch2);
-  LoadU32(kConstantPoolRegister,
-          FieldMemOperand(code_target_address, Code::kConstantPoolOffsetOffset),
-          scratch1);
+  LoadU32(
+      kConstantPoolRegister,
+      FieldMemOperand(code_target_address, Code::kConstantPoolOffsetOffset));
   add(kConstantPoolRegister, scratch2, kConstantPoolRegister);
 }
 
@@ -1522,7 +1521,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   ExternalReference debug_hook_active =
       ExternalReference::debug_hook_on_function_call_address(isolate());
   Move(r7, debug_hook_active);
-  LoadU8(r7, MemOperand(r7), r0);
+  LoadU8(r7, MemOperand(r7));
   extsb(r7, r7);
   CmpSmiLiteral(r7, Smi::zero(), r0);
   beq(&skip_hook);
@@ -2031,17 +2030,9 @@ void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
       r0);
 }
 
-void MacroAssembler::LoadCompressedMap(Register dst, Register object,
-                                       Register scratch) {
-  ASM_CODE_COMMENT(this);
-  LoadU32(dst, FieldMemOperand(object, offsetof(HeapObject, map_)), scratch);
-}
-
 void MacroAssembler::LoadCompressedMap(Register dst, Register object) {
   ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  LoadCompressedMap(dst, object, scratch);
+  LoadU32(dst, FieldMemOperand(object, offsetof(HeapObject, map_)));
 }
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
@@ -3001,7 +2992,8 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
         rip_op(reg, mem);                                                     \
       } else {                                                                \
         /* cannot use d-form */                                               \
-        CHECK_NE(scratch, no_reg);                                            \
+        UseScratchRegisterScope temps(this);                                  \
+        Register scratch = temps.Acquire();                                   \
         mov(scratch, Operand(offset));                                        \
         rr_op(reg, MemOperand(mem.ra(), scratch));                            \
       }                                                                       \
@@ -3009,11 +3001,13 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
       if (offset == 0) {                                                      \
         rr_op(reg, mem);                                                      \
       } else if (is_int16(offset)) {                                          \
-        CHECK_NE(scratch, no_reg);                                            \
+        UseScratchRegisterScope temps(this);                                  \
+        Register scratch = temps.Acquire();                                   \
         addi(scratch, mem.rb(), Operand(offset));                             \
         rr_op(reg, MemOperand(mem.ra(), scratch));                            \
       } else {                                                                \
-        CHECK_NE(scratch, no_reg);                                            \
+        UseScratchRegisterScope temps(this);                                  \
+        Register scratch = temps.Acquire();                                   \
         mov(scratch, Operand(offset));                                        \
         add(scratch, scratch, mem.rb());                                      \
         rr_op(reg, MemOperand(mem.ra(), scratch));                            \
@@ -3140,8 +3134,7 @@ MEM_OP_LIST(MEM_OP_FUNCTION)
   V(StoreF32, DoubleRegister, stfs, pstfs, stfsx)
 
 #define MEM_OP_PREFIXED_FUNCTION(name, result_t, ri_op, rip_op, rr_op) \
-  void MacroAssembler::name(result_t reg, const MemOperand& mem,       \
-                            Register scratch) {                        \
+  void MacroAssembler::name(result_t reg, const MemOperand& mem) {     \
     GenerateMemoryOperationPrefixed(reg, mem, ri_op, rip_op, rr_op);   \
   }
 MEM_OP_PREFIXED_LIST(MEM_OP_PREFIXED_FUNCTION)
@@ -3171,7 +3164,7 @@ MEM_OP_SIMD_LIST(MEM_OP_SIMD_FUNCTION)
 
 void MacroAssembler::LoadS8(Register dst, const MemOperand& mem,
                             Register scratch) {
-  LoadU8(dst, mem, scratch);
+  LoadU8(dst, mem);
   extsb(dst, dst);
 }
 
@@ -3189,16 +3182,31 @@ void MacroAssembler::LoadS8(Register dst, const MemOperand& mem,
                                 Register scratch) {                  \
     GenerateMemoryOperationRR(reg, mem, op);                         \
   }
+MEM_LE_OP_LIST(MEM_LE_OP_FUNCTION)
+#undef MEM_LE_OP_FUNCTION
 #else
-#define MEM_LE_OP_FUNCTION(name, op)                                 \
+// Little-endian: these are plain loads/stores. LoadU64/StoreU64 still take a
+// scratch register, so their wrappers forward it. LoadU32/U16 and StoreU32/U16
+// acquire the scratch internally, so their wrappers forward without it.
+#define MEM_LE_OP_FORWARD(name)                                      \
   void MacroAssembler::name##LE(Register reg, const MemOperand& mem, \
                                 Register scratch) {                  \
     name(reg, mem, scratch);                                         \
   }
+#define MEM_LE_OP_FORWARD_NOSCRATCH(name)                            \
+  void MacroAssembler::name##LE(Register reg, const MemOperand& mem, \
+                                Register scratch) {                  \
+    name(reg, mem);                                                  \
+  }
+MEM_LE_OP_FORWARD(LoadU64)
+MEM_LE_OP_FORWARD_NOSCRATCH(LoadU32)
+MEM_LE_OP_FORWARD_NOSCRATCH(LoadU16)
+MEM_LE_OP_FORWARD(StoreU64)
+MEM_LE_OP_FORWARD_NOSCRATCH(StoreU32)
+MEM_LE_OP_FORWARD_NOSCRATCH(StoreU16)
+#undef MEM_LE_OP_FORWARD
+#undef MEM_LE_OP_FORWARD_NOSCRATCH
 #endif
-
-MEM_LE_OP_LIST(MEM_LE_OP_FUNCTION)
-#undef MEM_LE_OP_FUNCTION
 #undef MEM_LE_OP_LIST
 
 void MacroAssembler::LoadS32LE(Register dst, const MemOperand& mem,
@@ -3217,7 +3225,7 @@ void MacroAssembler::LoadS16LE(Register dst, const MemOperand& mem,
   LoadU16LE(dst, mem, scratch);
   extsh(dst, dst);
 #else
-  LoadS16(dst, mem, scratch);
+  LoadS16(dst, mem);
 #endif
 }
 
@@ -3226,10 +3234,10 @@ void MacroAssembler::LoadF64LE(DoubleRegister dst, const MemOperand& mem,
 #ifdef V8_TARGET_BIG_ENDIAN
   LoadU64LE(scratch, mem, scratch2);
   push(scratch);
-  LoadF64(dst, MemOperand(sp), scratch2);
+  LoadF64(dst, MemOperand(sp));
   pop(scratch);
 #else
-  LoadF64(dst, mem, scratch);
+  LoadF64(dst, mem);
 #endif
 }
 
@@ -3238,32 +3246,32 @@ void MacroAssembler::LoadF32LE(DoubleRegister dst, const MemOperand& mem,
 #ifdef V8_TARGET_BIG_ENDIAN
   LoadU32LE(scratch, mem, scratch2);
   push(scratch);
-  LoadF32(dst, MemOperand(sp, 4), scratch2);
+  LoadF32(dst, MemOperand(sp, 4));
   pop(scratch);
 #else
-  LoadF32(dst, mem, scratch);
+  LoadF32(dst, mem);
 #endif
 }
 
 void MacroAssembler::StoreF64LE(DoubleRegister dst, const MemOperand& mem,
                                 Register scratch, Register scratch2) {
 #ifdef V8_TARGET_BIG_ENDIAN
-  StoreF64(dst, mem, scratch2);
+  StoreF64(dst, mem);
   LoadU64(scratch, mem, scratch2);
   StoreU64LE(scratch, mem, scratch2);
 #else
-  StoreF64(dst, mem, scratch);
+  StoreF64(dst, mem);
 #endif
 }
 
 void MacroAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
                                 Register scratch, Register scratch2) {
 #ifdef V8_TARGET_BIG_ENDIAN
-  StoreF32(dst, mem, scratch2);
-  LoadU32(scratch, mem, scratch2);
+  StoreF32(dst, mem);
+  LoadU32(scratch, mem);
   StoreU32LE(scratch, mem, scratch2);
 #else
-  StoreF32(dst, mem, scratch);
+  StoreF32(dst, mem);
 #endif
 }
 
@@ -4599,18 +4607,18 @@ void MacroAssembler::SwapFloat32(DoubleRegister src, MemOperand dst,
                                  DoubleRegister scratch) {
   DCHECK(!AreAliased(src, scratch));
   fmr(scratch, src);
-  LoadF32(src, dst, r0);
-  StoreF32(scratch, dst, r0);
+  LoadF32(src, dst);
+  StoreF32(scratch, dst);
 }
 
 void MacroAssembler::SwapFloat32(MemOperand src, MemOperand dst,
                                  DoubleRegister scratch_0,
                                  DoubleRegister scratch_1) {
   DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadF32(scratch_0, src, r0);
-  LoadF32(scratch_1, dst, r0);
-  StoreF32(scratch_0, dst, r0);
-  StoreF32(scratch_1, src, r0);
+  LoadF32(scratch_0, src);
+  LoadF32(scratch_1, dst);
+  StoreF32(scratch_0, dst);
+  StoreF32(scratch_1, src);
 }
 
 void MacroAssembler::SwapDouble(DoubleRegister src, DoubleRegister dst,
@@ -4626,18 +4634,18 @@ void MacroAssembler::SwapDouble(DoubleRegister src, MemOperand dst,
                                 DoubleRegister scratch) {
   DCHECK(!AreAliased(src, scratch));
   fmr(scratch, src);
-  LoadF64(src, dst, r0);
-  StoreF64(scratch, dst, r0);
+  LoadF64(src, dst);
+  StoreF64(scratch, dst);
 }
 
 void MacroAssembler::SwapDouble(MemOperand src, MemOperand dst,
                                 DoubleRegister scratch_0,
                                 DoubleRegister scratch_1) {
   DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadF64(scratch_0, src, r0);
-  LoadF64(scratch_1, dst, r0);
-  StoreF64(scratch_0, dst, r0);
-  StoreF64(scratch_1, src, r0);
+  LoadF64(scratch_0, src);
+  LoadF64(scratch_1, dst);
+  StoreF64(scratch_0, dst);
+  StoreF64(scratch_1, src);
 }
 
 void MacroAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
@@ -5028,7 +5036,7 @@ void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
 
 void MacroAssembler::JumpIfCodeIsTurbofanned(Register code, Register scratch,
                                              Label* if_turbofanned) {
-  LoadU32(scratch, FieldMemOperand(code, Code::kFlagsOffset), r0);
+  LoadU32(scratch, FieldMemOperand(code, Code::kFlagsOffset));
   TestBit(scratch, Code::kIsTurbofannedBit, r0);
   bne(if_turbofanned);
 }

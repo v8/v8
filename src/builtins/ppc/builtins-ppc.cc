@@ -104,8 +104,8 @@ void ResetSharedFunctionInfoAge(MacroAssembler* masm, Register sfi,
                                 Register scratch) {
   DCHECK(!AreAliased(sfi, scratch));
   __ mov(scratch, Operand(0));
-  __ StoreU16(scratch, FieldMemOperand(sfi, offsetof(SharedFunctionInfo, age_)),
-              no_reg);
+  __ StoreU16(scratch,
+              FieldMemOperand(sfi, offsetof(SharedFunctionInfo, age_)));
 }
 
 void ResetJSFunctionAge(MacroAssembler* masm, Register js_function,
@@ -118,20 +118,15 @@ void ResetJSFunctionAge(MacroAssembler* masm, Register js_function,
 }
 
 void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
-                                   Register feedback_vector, Register scratch1,
-                                   Register scratch2) {
-  DCHECK(!AreAliased(feedback_vector, scratch1));
-  __ LoadU8(
-      scratch1,
-      FieldMemOperand(feedback_vector, offsetof(FeedbackVector, osr_state_)),
-      scratch2);
+                                   Register feedback_vector, Register scratch) {
+  DCHECK(!AreAliased(feedback_vector, scratch));
+  __ LoadU8(scratch, FieldMemOperand(feedback_vector,
+                                     offsetof(FeedbackVector, osr_state_)));
   __ andi(
-      scratch1, scratch1,
+      scratch, scratch,
       Operand(static_cast<uint8_t>(~FeedbackVector::OsrUrgencyBits::kMask)));
-  __ StoreU8(
-      scratch1,
-      FieldMemOperand(feedback_vector, offsetof(FeedbackVector, osr_state_)),
-      scratch2);
+  __ StoreU8(scratch, FieldMemOperand(feedback_vector,
+                                      offsetof(FeedbackVector, osr_state_)));
 }
 
 }  // namespace
@@ -685,7 +680,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
   __ Move(scratch, debug_hook);
-  __ LoadU8(scratch, MemOperand(scratch), r0);
+  __ LoadU8(scratch, MemOperand(scratch));
   __ extsb(scratch, scratch);
   __ CmpSmiLiteral(scratch, Smi::zero(), r0);
   __ bne(&prepare_step_in_if_stepping);
@@ -1240,7 +1235,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     UseScratchRegisterScope inner_temps(masm);
     Register scratch = inner_temps.Acquire();
     __ AssertFeedbackVector(feedback_vector, scratch);
-    ResetFeedbackVectorOsrUrgency(masm, feedback_vector, scratch, r0);
+    ResetFeedbackVectorOsrUrgency(masm, feedback_vector, scratch);
   }
 
   // Increment invocation count for the function.
@@ -1249,13 +1244,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register invocation_count = inner_temps.Acquire();
     __ LoadU32(invocation_count,
                FieldMemOperand(feedback_vector,
-                               offsetof(FeedbackVector, invocation_count_)),
-               r0);
+                               offsetof(FeedbackVector, invocation_count_)));
     __ AddS32(invocation_count, invocation_count, Operand(1));
     __ StoreU32(invocation_count,
                 FieldMemOperand(feedback_vector,
-                                offsetof(FeedbackVector, invocation_count_)),
-                r0);
+                                offsetof(FeedbackVector, invocation_count_)));
   }
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
@@ -1408,18 +1401,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
 #ifndef V8_JITLESS
 
-  ResetFeedbackVectorOsrUrgency(masm, feedback_vector, scratch, r0);
+  ResetFeedbackVectorOsrUrgency(masm, feedback_vector, scratch);
 
   // Increment invocation count for the function.
-  __ LoadU32(r8,
-             FieldMemOperand(feedback_vector,
-                             offsetof(FeedbackVector, invocation_count_)),
-             r0);
+  __ LoadU32(r8, FieldMemOperand(feedback_vector,
+                                 offsetof(FeedbackVector, invocation_count_)));
   __ addi(r8, r8, Operand(1));
-  __ StoreU32(r8,
-              FieldMemOperand(feedback_vector,
-                              offsetof(FeedbackVector, invocation_count_)),
-              r0);
+  __ StoreU32(r8, FieldMemOperand(feedback_vector,
+                                  offsetof(FeedbackVector, invocation_count_)));
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
@@ -1493,10 +1482,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ SmiUntagField(r8, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                                        offsetof(BytecodeArray, length_)));
   __ sub(scratch, scratch, r8, LeaveOE, SetRC);
-  __ StoreU32(
-      scratch,
-      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
-      r0);
+  __ StoreU32(scratch,
+              FieldMemOperand(feedback_cell,
+                              offsetof(FeedbackCell, interrupt_budget_)));
   __ blt(&budget_interrupt);
   __ bind(&after_budget_check);
 
@@ -2805,7 +2793,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedField(
       r5, FieldMemOperand(r4, offsetof(JSBoundFunction, bound_arguments_)), r0);
-  __ LoadU32(r7, FieldMemOperand(r5, offsetof(FixedArray, length_)), r0);
+  __ LoadU32(r7, FieldMemOperand(r5, offsetof(FixedArray, length_)));
   __ CmpU32(r7, Operand(0), r0);
   __ beq(&no_bound_arguments);
   {

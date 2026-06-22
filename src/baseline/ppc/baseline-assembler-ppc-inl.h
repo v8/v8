@@ -167,7 +167,7 @@ void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
   __ LoadMap(map, object);
-  __ LoadU16(type, FieldMemOperand(map, offsetof(Map, instance_type_)), r0);
+  __ LoadU16(type, FieldMemOperand(map, offsetof(Map, instance_type_)));
   JumpIf(cc, type, Operand(instance_type), target);
 }
 
@@ -180,7 +180,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
   if (v8_flags.debug_code) {
     __ AssertMap(map);
   }
-  __ LoadU16(type, FieldMemOperand(map, offsetof(Map, instance_type_)), r0);
+  __ LoadU16(type, FieldMemOperand(map, offsetof(Map, instance_type_)));
   JumpIf(cc, type, Operand(instance_type), target);
 }
 
@@ -410,13 +410,13 @@ void BaselineAssembler::LoadTaggedSignedFieldAndUntag(Register output,
 void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
                                                   Register source, int offset) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadU16(output, FieldMemOperand(source, offset), r0);
+  __ LoadU16(output, FieldMemOperand(source, offset));
 }
 
 void BaselineAssembler::LoadWord8Field(Register output, Register source,
                                        int offset) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadU8(output, FieldMemOperand(source, offset), r0);
+  __ LoadU8(output, FieldMemOperand(source, offset));
 }
 
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
@@ -485,16 +485,14 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   LoadFeedbackCell(feedback_cell);
 
   Register interrupt_budget = scratch_scope.AcquireScratch();
-  __ LoadU32(
-      interrupt_budget,
-      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
-      r0);
+  __ LoadU32(interrupt_budget,
+             FieldMemOperand(feedback_cell,
+                             offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
   __ AddS32(interrupt_budget, interrupt_budget, Operand(weight), r0, SetRC);
-  __ StoreU32(
-      interrupt_budget,
-      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
-      r0);
+  __ StoreU32(interrupt_budget,
+              FieldMemOperand(feedback_cell,
+                              offsetof(FeedbackCell, interrupt_budget_)));
   if (skip_interrupt_label) {
     // Use compare flags set by add
     DCHECK_LT(weight, 0);
@@ -510,16 +508,14 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   LoadFeedbackCell(feedback_cell);
 
   Register interrupt_budget = scratch_scope.AcquireScratch();
-  __ LoadU32(
-      interrupt_budget,
-      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
-      r0);
+  __ LoadU32(interrupt_budget,
+             FieldMemOperand(feedback_cell,
+                             offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
   __ AddS32(interrupt_budget, interrupt_budget, weight, SetRC);
-  __ StoreU32(
-      interrupt_budget,
-      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
-      r0);
+  __ StoreU32(interrupt_budget,
+              FieldMemOperand(feedback_cell,
+                              offsetof(FeedbackCell, interrupt_budget_)));
   if (skip_interrupt_label) __ bge(skip_interrupt_label, cr0);
 }
 
@@ -590,7 +586,7 @@ void BaselineAssembler::IncrementSmi(MemOperand lhs) {
   if (SmiValuesAre31Bits()) {
     __ LoadS32(scratch, lhs, r0);
     __ AddS64(scratch, scratch, Operand(Smi::FromInt(1)));
-    __ StoreU32(scratch, lhs, r0);
+    __ StoreU32(scratch, lhs);
   } else {
     __ SmiUntag(scratch, lhs, LeaveRC, r0);
     __ AddS64(scratch, scratch, Operand(1));

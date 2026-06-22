@@ -160,8 +160,7 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
       __ Move(scratch, char_code);
       __ StoreU16(scratch,
                   FieldMemOperand(result_string,
-                                  OFFSET_OF_DATA_START(SeqTwoByteString)),
-                  r0);
+                                  OFFSET_OF_DATA_START(SeqTwoByteString)));
       if (reallocate_result) {
         __ Move(ToRegister(result()), result_string);
       }
@@ -1088,15 +1087,13 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register budget = temps.AcquireScratch();
-  __ LoadU32(
-      budget,
-      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
-      r0);
+  __ LoadU32(budget,
+             FieldMemOperand(feedback_cell,
+                             offsetof(FeedbackCell, interrupt_budget_)));
   __ SubS32(budget, budget, Operand(amount), r0);
-  __ StoreU32(
-      budget,
-      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
-      r0);
+  __ StoreU32(budget,
+              FieldMemOperand(feedback_cell,
+                              offsetof(FeedbackCell, interrupt_budget_)));
   ZoneLabelRef done(masm);
   __ CmpS32(budget, Operand(0), r0);
   __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, node, type, budget);

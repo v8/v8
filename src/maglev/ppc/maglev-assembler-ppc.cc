@@ -263,8 +263,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         __ AllocateTwoByteString(register_snapshot, result, 1);
         __ StoreU16(
             char_code,
-            FieldMemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)),
-            r0);
+            FieldMemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)));
         __ b(*done);
       },
       register_snapshot, done, result, char_code, scratch);
@@ -328,7 +327,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
     Register scratch = instance_type;
 
-    LoadU32(scratch, FieldMemOperand(string, offsetof(String, length_)), r0);
+    LoadU32(scratch, FieldMemOperand(string, offsetof(String, length_)));
     CmpS32(index, scratch);
     Check(lt, AbortReason::kUnexpectedValue);
   }
@@ -408,7 +407,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
            r0);
 
     if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt) {
-      LoadU16(result, MemOperand(string, scratch), r0);
+      LoadU16(result, MemOperand(string, scratch));
     } else {
       DCHECK_EQ(mode,
                 BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
@@ -417,7 +416,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
         string_backup = scratch2;
         Move(string_backup, string);
       }
-      LoadU16(result, MemOperand(string, scratch), r0);
+      LoadU16(result, MemOperand(string, scratch));
 
       Register first_code_point = scratch;
       AndU32(first_code_point, result, Operand(0xfc00));
@@ -425,7 +424,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       bne(*done);
 
       Register length = scratch;
-      LoadU32(length, FieldMemOperand(string, offsetof(String, length_)), r0);
+      LoadU32(length, FieldMemOperand(string, offsetof(String, length_)));
       AddS32(index, index, Operand(1));
       CmpS32(index, length);
       bge(*done);
@@ -435,7 +434,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       AddS32(index, index,
              Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag),
              r0);
-      LoadU16(second_code_point, MemOperand(string_backup, index), r0);
+      LoadU16(second_code_point, MemOperand(string_backup, index));
 
       // {index} is not needed at this point.
       Register scratch2 = index;
@@ -493,7 +492,7 @@ void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
 
   AddS64(scratch, string, index);
   LoadU8(result,
-         FieldMemOperand(scratch, OFFSET_OF_DATA_START(SeqOneByteString)), r0);
+         FieldMemOperand(scratch, OFFSET_OF_DATA_START(SeqOneByteString)));
 }
 
 void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {

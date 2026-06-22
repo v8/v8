@@ -961,7 +961,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                Label* if_turbofanned);
 
   void LoadMap(Register destination, Register object);
-  void LoadCompressedMap(Register dst, Register object, Register scratch);
   void LoadCompressedMap(Register dst, Register object);
 
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
@@ -1080,15 +1079,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTagged(Register destination, Register source);
   void DecompressTagged(const Register& destination, Tagged_t immediate);
 
-  void LoadF64(DoubleRegister dst, const MemOperand& mem,
-               Register scratch = no_reg);
-  void LoadF32(DoubleRegister dst, const MemOperand& mem,
-               Register scratch = no_reg);
+  void LoadF64(DoubleRegister dst, const MemOperand& mem);
+  void LoadF32(DoubleRegister dst, const MemOperand& mem);
 
-  void StoreF32(DoubleRegister src, const MemOperand& mem,
-                Register scratch = no_reg);
-  void StoreF64(DoubleRegister src, const MemOperand& mem,
-                Register scratch = no_reg);
+  void StoreF32(DoubleRegister src, const MemOperand& mem);
+  void StoreF64(DoubleRegister src, const MemOperand& mem);
 
   void LoadF32WithUpdate(DoubleRegister dst, const MemOperand& mem,
                          Register scratch = no_reg);
@@ -1101,18 +1096,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           Register scratch = no_reg);
 
   void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
-  void LoadU32(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadU32(Register dst, const MemOperand& mem);
   void LoadS32(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadS32(Register dst, Register src) { extsw(dst, src); }
-  void LoadU16(Register dst, const MemOperand& mem, Register scratch = no_reg);
-  void LoadS16(Register dst, const MemOperand& mem, Register scratch = no_reg);
-  void LoadU8(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadU16(Register dst, const MemOperand& mem);
+  void LoadS16(Register dst, const MemOperand& mem);
+  void LoadU8(Register dst, const MemOperand& mem);
   void LoadS8(Register dst, const MemOperand& mem, Register scratch = no_reg);
 
   void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
-  void StoreU32(Register src, const MemOperand& mem, Register scratch);
-  void StoreU16(Register src, const MemOperand& mem, Register scratch);
-  void StoreU8(Register src, const MemOperand& mem, Register scratch);
+  void StoreU32(Register src, const MemOperand& mem);
+  void StoreU16(Register src, const MemOperand& mem);
+  void StoreU8(Register src, const MemOperand& mem);
 
   void LoadU64WithUpdate(Register dst, const MemOperand& mem,
                          Register scratch = no_reg);
