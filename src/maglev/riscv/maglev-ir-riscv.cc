@@ -1019,7 +1019,7 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
     __ bind(&limit_not_zero);
   }
   Label index_no_oob;
-  __ MacroAssembler::Branch(&index_no_oob, ult, index, Operand(limit),
+  __ MacroAssembler::Branch(&index_no_oob, lt, index, Operand(limit),
                             Label::Distance::kNear);
   __ EmitEagerDeopt(this, DeoptimizeReason::kOutOfBounds);
 
