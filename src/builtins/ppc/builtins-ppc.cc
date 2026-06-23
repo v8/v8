@@ -3032,12 +3032,12 @@ struct SaveWasmParamsScope {
     __ MultiPush(gp_regs);
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
-    __ MultiPushF64AndV128(fp_regs, simd128_regs, scratch, r0);
+    __ MultiPushF64AndV128(fp_regs, simd128_regs, scratch);
   }
   ~SaveWasmParamsScope() {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
-    __ MultiPopF64AndV128(fp_regs, simd128_regs, scratch, r0);
+    __ MultiPopF64AndV128(fp_regs, simd128_regs, scratch);
     __ MultiPop(gp_regs);
   }
 
@@ -3185,7 +3185,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
     __ MultiPushF64AndV128(WasmDebugBreakFrameConstants::kPushedFpRegs,
                            WasmDebugBreakFrameConstants::kPushedSimd128Regs,
-                           scratch, r0);
+                           scratch);
 
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -3195,7 +3195,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     // Restore registers.
     __ MultiPopF64AndV128(WasmDebugBreakFrameConstants::kPushedFpRegs,
                           WasmDebugBreakFrameConstants::kPushedSimd128Regs,
-                          scratch, r0);
+                          scratch);
     __ MultiPop(WasmDebugBreakFrameConstants::kPushedGpRegs);
   }
   __ Ret();

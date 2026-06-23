@@ -443,7 +443,7 @@ inline void MaglevAssembler::StoreFixedDoubleArrayElement(
 inline void MaglevAssembler::LoadSignedField(Register result,
                                              MemOperand operand, int size) {
   if (size == 1) {
-    LoadS8(result, operand, r0);
+    LoadS8(result, operand);
   } else if (size == 2) {
     LoadS16(result, operand);
   } else {

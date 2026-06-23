@@ -571,17 +571,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPushDoubles(DoubleRegList dregs, Register location = sp);
   void MultiPopDoubles(DoubleRegList dregs, Register location = sp);
 
-  void MultiPushV128(Simd128RegList dregs, Register scratch,
-                     Register location = sp);
-  void MultiPopV128(Simd128RegList dregs, Register scratch,
-                    Register location = sp);
+  void MultiPushV128(Simd128RegList dregs, Register location = sp);
+  void MultiPopV128(Simd128RegList dregs, Register location = sp);
 
   void MultiPushF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
-                           Register scratch1, Register scratch2,
-                           Register location = sp);
+                           Register scratch, Register location = sp);
   void MultiPopF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
-                          Register scratch1, Register scratch2,
-                          Register location = sp);
+                          Register scratch, Register location = sp);
   void PushAll(RegList registers);
   void PopAll(RegList registers);
   void PushAll(DoubleRegList registers, int stack_slot_size = kDoubleSize);
@@ -596,15 +592,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Push caller saved registers on the stack, and return the number of bytes
   // stack pointer is adjusted.
-  int PushCallerSaved(SaveFPRegsMode fp_mode, Register scratch1,
-                      Register scratch2, Register exclusion1 = no_reg,
+  int PushCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
+                      Register exclusion1 = no_reg,
                       Register exclusion2 = no_reg,
                       Register exclusion3 = no_reg);
   // Restore caller saved registers from the stack, and return the number of
   // bytes stack pointer is adjusted.
-  int PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch1,
-                     Register scratch2, Register exclusion1 = no_reg,
-                     Register exclusion2 = no_reg,
+  int PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
+                     Register exclusion1 = no_reg, Register exclusion2 = no_reg,
                      Register exclusion3 = no_reg);
 
   // Load an object from the root table.
@@ -631,9 +626,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void SwapSimd128(Simd128Register src, Simd128Register dst,
                    Simd128Register scratch);
   void SwapSimd128(Simd128Register src, MemOperand dst,
-                   Simd128Register scratch1, Register scratch2);
+                   Simd128Register scratch);
   void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch1,
-                   Simd128Register scratch2, Register scratch3);
+                   Simd128Register scratch2);
 
   void ByteReverseU16(Register dst, Register val, Register scratch);
   void ByteReverseU32(Register dst, Register val, Register scratch);
@@ -1089,7 +1084,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadU16(Register dst, const MemOperand& mem);
   void LoadS16(Register dst, const MemOperand& mem);
   void LoadU8(Register dst, const MemOperand& mem);
-  void LoadS8(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadS8(Register dst, const MemOperand& mem);
 
   void StoreU64(Register src, const MemOperand& mem);
   void StoreU32(Register src, const MemOperand& mem);
@@ -1099,25 +1094,21 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadU64WithUpdate(Register dst, const MemOperand& mem);
   void StoreU64WithUpdate(Register src, const MemOperand& mem);
 
-  void LoadU64LE(Register dst, const MemOperand& mem, Register scratch);
-  void LoadU32LE(Register dst, const MemOperand& mem, Register scratch);
-  void LoadU16LE(Register dst, const MemOperand& mem, Register scratch);
-  void StoreU64LE(Register src, const MemOperand& mem, Register scratch);
-  void StoreU32LE(Register src, const MemOperand& mem, Register scratch);
-  void StoreU16LE(Register src, const MemOperand& mem, Register scratch);
+  void LoadU64LE(Register dst, const MemOperand& mem);
+  void LoadU32LE(Register dst, const MemOperand& mem);
+  void LoadU16LE(Register dst, const MemOperand& mem);
+  void StoreU64LE(Register src, const MemOperand& mem);
+  void StoreU32LE(Register src, const MemOperand& mem);
+  void StoreU16LE(Register src, const MemOperand& mem);
 
-  void LoadS32LE(Register dst, const MemOperand& mem, Register scratch);
-  void LoadS16LE(Register dst, const MemOperand& mem, Register scratch);
+  void LoadS32LE(Register dst, const MemOperand& mem);
+  void LoadS16LE(Register dst, const MemOperand& mem);
 
-  void LoadF64LE(DoubleRegister dst, const MemOperand& mem, Register scratch,
-                 Register scratch2);
-  void LoadF32LE(DoubleRegister dst, const MemOperand& mem, Register scratch,
-                 Register scratch2);
+  void LoadF64LE(DoubleRegister dst, const MemOperand& mem, Register scratch);
+  void LoadF32LE(DoubleRegister dst, const MemOperand& mem, Register scratch);
 
-  void StoreF32LE(DoubleRegister src, const MemOperand& mem, Register scratch,
-                  Register scratch2);
-  void StoreF64LE(DoubleRegister src, const MemOperand& mem, Register scratch,
-                  Register scratch2);
+  void StoreF32LE(DoubleRegister src, const MemOperand& mem, Register scratch);
+  void StoreF64LE(DoubleRegister src, const MemOperand& mem, Register scratch);
 
   // Simd Support.
 #define SIMD_BINOP_LIST(V) \
@@ -1362,70 +1353,52 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #undef PROTOTYPE_SIMD_EXT_ADD_PAIRWISE
 #undef SIMD_EXT_ADD_PAIRWISE_LIST
 
-  void LoadSimd128(Simd128Register dst, const MemOperand& mem,
-                   Register scratch);
-  void StoreSimd128(Simd128Register src, const MemOperand& mem,
-                    Register scratch);
-  void LoadSimd128LE(Simd128Register dst, const MemOperand& mem,
-                     Register scratch);
+  void LoadSimd128(Simd128Register dst, const MemOperand& mem);
+  void StoreSimd128(Simd128Register src, const MemOperand& mem);
+  void LoadSimd128LE(Simd128Register dst, const MemOperand& mem);
   void StoreSimd128LE(Simd128Register src, const MemOperand& mem,
-                      Register scratch1, Simd128Register scratch2);
-  void LoadSimd128Uint64(Simd128Register reg, const MemOperand& mem,
-                         Register scratch);
-  void LoadSimd128Uint32(Simd128Register reg, const MemOperand& mem,
-                         Register scratch);
-  void LoadSimd128Uint16(Simd128Register reg, const MemOperand& mem,
-                         Register scratch);
-  void LoadSimd128Uint8(Simd128Register reg, const MemOperand& mem,
-                        Register scratch);
-  void StoreSimd128Uint64(Simd128Register reg, const MemOperand& mem,
-                          Register scratch);
-  void StoreSimd128Uint32(Simd128Register reg, const MemOperand& mem,
-                          Register scratch);
-  void StoreSimd128Uint16(Simd128Register reg, const MemOperand& mem,
-                          Register scratch);
-  void StoreSimd128Uint8(Simd128Register reg, const MemOperand& mem,
-                         Register scratch);
+                      Simd128Register scratch);
+  void LoadSimd128Uint64(Simd128Register reg, const MemOperand& mem);
+  void LoadSimd128Uint32(Simd128Register reg, const MemOperand& mem);
+  void LoadSimd128Uint16(Simd128Register reg, const MemOperand& mem);
+  void LoadSimd128Uint8(Simd128Register reg, const MemOperand& mem);
+  void StoreSimd128Uint64(Simd128Register reg, const MemOperand& mem);
+  void StoreSimd128Uint32(Simd128Register reg, const MemOperand& mem);
+  void StoreSimd128Uint16(Simd128Register reg, const MemOperand& mem);
+  void StoreSimd128Uint8(Simd128Register reg, const MemOperand& mem);
   void LoadLane64LE(Simd128Register dst, const MemOperand& mem, int lane,
-                    Register scratch1, Simd128Register scratch2);
+                    Simd128Register scratch);
   void LoadLane32LE(Simd128Register dst, const MemOperand& mem, int lane,
-                    Register scratch1, Simd128Register scratch2);
+                    Simd128Register scratch);
   void LoadLane16LE(Simd128Register dst, const MemOperand& mem, int lane,
-                    Register scratch1, Simd128Register scratch2);
+                    Simd128Register scratch);
   void LoadLane8LE(Simd128Register dst, const MemOperand& mem, int lane,
-                   Register scratch1, Simd128Register scratch2);
+                   Simd128Register scratch);
   void StoreLane64LE(Simd128Register src, const MemOperand& mem, int lane,
-                     Register scratch1, Simd128Register scratch2);
+                     Simd128Register scratch);
   void StoreLane32LE(Simd128Register src, const MemOperand& mem, int lane,
-                     Register scratch1, Simd128Register scratch2);
+                     Simd128Register scratch);
   void StoreLane16LE(Simd128Register src, const MemOperand& mem, int lane,
-                     Register scratch1, Simd128Register scratch2);
+                     Simd128Register scratch);
   void StoreLane8LE(Simd128Register src, const MemOperand& mem, int lane,
-                    Register scratch1, Simd128Register scratch2);
-  void LoadAndSplat64x2LE(Simd128Register dst, const MemOperand& mem,
-                          Register scratch);
-  void LoadAndSplat32x4LE(Simd128Register dst, const MemOperand& mem,
-                          Register scratch);
-  void LoadAndSplat16x8LE(Simd128Register dst, const MemOperand& me,
-                          Register scratch);
-  void LoadAndSplat8x16LE(Simd128Register dst, const MemOperand& mem,
-                          Register scratch);
-  void LoadAndExtend32x2SLE(Simd128Register dst, const MemOperand& mem,
-                            Register scratch);
+                    Simd128Register scratch);
+  void LoadAndSplat64x2LE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndSplat32x4LE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndSplat16x8LE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndSplat8x16LE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndExtend32x2SLE(Simd128Register dst, const MemOperand& mem);
   void LoadAndExtend32x2ULE(Simd128Register dst, const MemOperand& mem,
                             Register scratch1, Simd128Register scratch2);
-  void LoadAndExtend16x4SLE(Simd128Register dst, const MemOperand& mem,
-                            Register scratch);
+  void LoadAndExtend16x4SLE(Simd128Register dst, const MemOperand& mem);
   void LoadAndExtend16x4ULE(Simd128Register dst, const MemOperand& mem,
                             Register scratch1, Simd128Register scratch2);
-  void LoadAndExtend8x8SLE(Simd128Register dst, const MemOperand& mem,
-                           Register scratch);
+  void LoadAndExtend8x8SLE(Simd128Register dst, const MemOperand& mem);
   void LoadAndExtend8x8ULE(Simd128Register dst, const MemOperand& mem,
                            Register scratch1, Simd128Register scratch2);
   void LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem,
-                     Register scratch1, Simd128Register scratch2);
+                     Simd128Register scratch);
   void LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem,
-                     Register scratch1, Simd128Register scratch2);
+                     Simd128Register scratch);
   void F64x2Splat(Simd128Register dst, DoubleRegister src, Register scratch);
   void F32x4Splat(Simd128Register dst, DoubleRegister src,
                   DoubleRegister scratch1, Register scratch2);

@@ -91,7 +91,7 @@ inline MemOperand GetInstanceDataOperand() {
 
 inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
                           const LiftoffAssembler::VarState& src,
-                          Register scratch1, Register scratch2) {
+                          Register scratch) {
   if (src.is_reg()) {
     switch (src.kind()) {
       case kI16:
@@ -110,26 +110,26 @@ inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
         assm->StoreF64(src.reg().fp(), dst);
         break;
       case kS128:
-        assm->StoreSimd128(src.reg().simd128(), dst, scratch1);
+        assm->StoreSimd128(src.reg().simd128(), dst);
         break;
       default:
         UNREACHABLE();
     }
   } else if (src.is_const()) {
     if (src.kind() == kI32) {
-      assm->mov(scratch2, Operand(src.i32_const()));
-      assm->StoreU32(scratch2, dst);
+      assm->mov(scratch, Operand(src.i32_const()));
+      assm->StoreU32(scratch, dst);
     } else {
-      assm->mov(scratch2, Operand(static_cast<int64_t>(src.i32_const())));
-      assm->StoreU64(scratch2, dst);
+      assm->mov(scratch, Operand(static_cast<int64_t>(src.i32_const())));
+      assm->StoreU64(scratch, dst);
     }
   } else if (value_kind_size(src.kind()) == 4) {
-    assm->LoadU32(scratch2, liftoff::GetStackSlot(src.offset()));
-    assm->StoreU32(scratch2, dst);
+    assm->LoadU32(scratch, liftoff::GetStackSlot(src.offset()));
+    assm->StoreU32(scratch, dst);
   } else {
     DCHECK_EQ(8, value_kind_size(src.kind()));
-    assm->LoadU64(scratch2, liftoff::GetStackSlot(src.offset()));
-    assm->StoreU64(scratch2, dst);
+    assm->LoadU64(scratch, liftoff::GetStackSlot(src.offset()));
+    assm->StoreU64(scratch, dst);
   }
 }
 
@@ -618,12 +618,12 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kI32Load8S:
     case LoadType::kI64Load8S:
-      LoadS8(dst.gp(), src_op, r0);
+      LoadS8(dst.gp(), src_op);
       break;
     case LoadType::kI32Load16U:
     case LoadType::kI64Load16U:
       if (is_load_mem) {
-        LoadU16LE(dst.gp(), src_op, r0);
+        LoadU16LE(dst.gp(), src_op);
       } else {
         LoadU16(dst.gp(), src_op);
       }
@@ -631,14 +631,14 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kI32Load16S:
     case LoadType::kI64Load16S:
       if (is_load_mem) {
-        LoadS16LE(dst.gp(), src_op, r0);
+        LoadS16LE(dst.gp(), src_op);
       } else {
         LoadS16(dst.gp(), src_op);
       }
       break;
     case LoadType::kI64Load32U:
       if (is_load_mem) {
-        LoadU32LE(dst.gp(), src_op, r0);
+        LoadU32LE(dst.gp(), src_op);
       } else {
         LoadU32(dst.gp(), src_op);
       }
@@ -646,39 +646,37 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kI32Load:
     case LoadType::kI64Load32S:
       if (is_load_mem) {
-        LoadS32LE(dst.gp(), src_op, r0);
+        LoadS32LE(dst.gp(), src_op);
       } else {
         LoadS32(dst.gp(), src_op);
       }
       break;
     case LoadType::kI64Load:
       if (is_load_mem) {
-        LoadU64LE(dst.gp(), src_op, r0);
+        LoadU64LE(dst.gp(), src_op);
       } else {
         LoadU64(dst.gp(), src_op);
       }
       break;
     case LoadType::kF32Load:
       if (is_load_mem) {
-        Register scratch2 = temps.Acquire();
-        LoadF32LE(dst.fp(), src_op, r0, scratch2);
+        LoadF32LE(dst.fp(), src_op, r0);
       } else {
         LoadF32(dst.fp(), src_op);
       }
       break;
     case LoadType::kF64Load:
       if (is_load_mem) {
-        Register scratch2 = temps.Acquire();
-        LoadF64LE(dst.fp(), src_op, r0, scratch2);
+        LoadF64LE(dst.fp(), src_op, r0);
       } else {
         LoadF64(dst.fp(), src_op);
       }
       break;
     case LoadType::kS128Load:
       if (is_load_mem) {
-        LoadSimd128LE(dst.simd128(), src_op, r0);
+        LoadSimd128LE(dst.simd128(), src_op);
       } else {
-        LoadSimd128(dst.simd128(), src_op, r0);
+        LoadSimd128(dst.simd128(), src_op);
       }
       break;
     default:
@@ -707,7 +705,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     case StoreType::kI32Store16:
     case StoreType::kI64Store16:
       if (is_store_mem) {
-        StoreU16LE(src.gp(), dst_op, r0);
+        StoreU16LE(src.gp(), dst_op);
       } else {
         StoreU16(src.gp(), dst_op);
       }
@@ -715,39 +713,37 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
       if (is_store_mem) {
-        StoreU32LE(src.gp(), dst_op, r0);
+        StoreU32LE(src.gp(), dst_op);
       } else {
         StoreU32(src.gp(), dst_op);
       }
       break;
     case StoreType::kI64Store:
       if (is_store_mem) {
-        StoreU64LE(src.gp(), dst_op, r0);
+        StoreU64LE(src.gp(), dst_op);
       } else {
         StoreU64(src.gp(), dst_op);
       }
       break;
     case StoreType::kF32Store:
       if (is_store_mem) {
-        Register scratch2 = GetUnusedRegister(kGpReg, pinned).gp();
-        StoreF32LE(src.fp(), dst_op, r0, scratch2);
+        StoreF32LE(src.fp(), dst_op, r0);
       } else {
         StoreF32(src.fp(), dst_op);
       }
       break;
     case StoreType::kF64Store:
       if (is_store_mem) {
-        Register scratch2 = GetUnusedRegister(kGpReg, pinned).gp();
-        StoreF64LE(src.fp(), dst_op, r0, scratch2);
+        StoreF64LE(src.fp(), dst_op, r0);
       } else {
         StoreF64(src.fp(), dst_op);
       }
       break;
     case StoreType::kS128Store: {
       if (is_store_mem) {
-        StoreSimd128LE(src.simd128(), dst_op, r0, kScratchSimd128Reg);
+        StoreSimd128LE(src.simd128(), dst_op, kScratchSimd128Reg);
       } else {
-        StoreSimd128(src.simd128(), dst_op, r0);
+        StoreSimd128(src.simd128(), dst_op);
       }
       break;
     }
@@ -1209,7 +1205,7 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
       break;
     }
     case kS128: {
-      LoadSimd128(dst.simd128(), MemOperand(fp, offset), r0);
+      LoadSimd128(dst.simd128(), MemOperand(fp, offset));
       break;
     }
     default:
@@ -1247,7 +1243,7 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
       break;
     }
     case kS128: {
-      StoreSimd128(src.simd128(), MemOperand(frame_pointer, offset), r0);
+      StoreSimd128(src.simd128(), MemOperand(frame_pointer, offset));
       break;
     }
     default:
@@ -1282,7 +1278,7 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
       break;
     }
     case kS128: {
-      LoadSimd128(dst.simd128(), MemOperand(sp, offset), r0);
+      LoadSimd128(dst.simd128(), MemOperand(sp, offset));
       break;
     }
     default:
@@ -1316,8 +1312,8 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
       StoreU64(scratch, liftoff::GetStackSlot(dst_offset));
       break;
     case kS128:
-      LoadSimd128(kScratchSimd128Reg, liftoff::GetStackSlot(src_offset), r0);
-      StoreSimd128(kScratchSimd128Reg, liftoff::GetStackSlot(dst_offset), r0);
+      LoadSimd128(kScratchSimd128Reg, liftoff::GetStackSlot(src_offset));
+      StoreSimd128(kScratchSimd128Reg, liftoff::GetStackSlot(dst_offset));
       break;
     default:
       UNREACHABLE();
@@ -1363,7 +1359,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
       StoreF64(reg.fp(), liftoff::GetStackSlot(offset));
       break;
     case kS128: {
-      StoreSimd128(reg.simd128(), liftoff::GetStackSlot(offset), r0);
+      StoreSimd128(reg.simd128(), liftoff::GetStackSlot(offset));
       break;
     }
     default:
@@ -1409,7 +1405,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
       LoadF64(reg.fp(), liftoff::GetStackSlot(offset));
       break;
     case kS128: {
-      LoadSimd128(reg.simd128(), liftoff::GetStackSlot(offset), r0);
+      LoadSimd128(reg.simd128(), liftoff::GetStackSlot(offset));
       break;
     }
     default:
@@ -2809,35 +2805,35 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   MachineType memtype = type.mem_type();
   if (transform == LoadTransformationKind::kExtend) {
     if (memtype == MachineType::Int8()) {
-      LoadAndExtend8x8SLE(dst.simd128(), src_op, r0);
+      LoadAndExtend8x8SLE(dst.simd128(), src_op);
     } else if (memtype == MachineType::Uint8()) {
       LoadAndExtend8x8ULE(dst.simd128(), src_op, r0, kScratchSimd128Reg);
     } else if (memtype == MachineType::Int16()) {
-      LoadAndExtend16x4SLE(dst.simd128(), src_op, r0);
+      LoadAndExtend16x4SLE(dst.simd128(), src_op);
     } else if (memtype == MachineType::Uint16()) {
       LoadAndExtend16x4ULE(dst.simd128(), src_op, r0, kScratchSimd128Reg);
     } else if (memtype == MachineType::Int32()) {
-      LoadAndExtend32x2SLE(dst.simd128(), src_op, r0);
+      LoadAndExtend32x2SLE(dst.simd128(), src_op);
     } else if (memtype == MachineType::Uint32()) {
       LoadAndExtend32x2ULE(dst.simd128(), src_op, r0, kScratchSimd128Reg);
     }
   } else if (transform == LoadTransformationKind::kZeroExtend) {
     if (memtype == MachineType::Int32()) {
-      LoadV32ZeroLE(dst.simd128(), src_op, r0, kScratchSimd128Reg);
+      LoadV32ZeroLE(dst.simd128(), src_op, kScratchSimd128Reg);
     } else {
       DCHECK_EQ(MachineType::Int64(), memtype);
-      LoadV64ZeroLE(dst.simd128(), src_op, r0, kScratchSimd128Reg);
+      LoadV64ZeroLE(dst.simd128(), src_op, kScratchSimd128Reg);
     }
   } else {
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
     if (memtype == MachineType::Int8()) {
-      LoadAndSplat8x16LE(dst.simd128(), src_op, r0);
+      LoadAndSplat8x16LE(dst.simd128(), src_op);
     } else if (memtype == MachineType::Int16()) {
-      LoadAndSplat16x8LE(dst.simd128(), src_op, r0);
+      LoadAndSplat16x8LE(dst.simd128(), src_op);
     } else if (memtype == MachineType::Int32()) {
-      LoadAndSplat32x4LE(dst.simd128(), src_op, r0);
+      LoadAndSplat32x4LE(dst.simd128(), src_op);
     } else if (memtype == MachineType::Int64()) {
-      LoadAndSplat64x2LE(dst.simd128(), src_op, r0);
+      LoadAndSplat64x2LE(dst.simd128(), src_op);
     }
   }
 }
@@ -2870,14 +2866,14 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
 
   if (trapping_load_pc) *trapping_load_pc = pc_offset();
   if (mem_type == MachineType::Int8()) {
-    LoadLane8LE(dst.simd128(), src_op, laneidx, r0, kScratchSimd128Reg);
+    LoadLane8LE(dst.simd128(), src_op, laneidx, kScratchSimd128Reg);
   } else if (mem_type == MachineType::Int16()) {
-    LoadLane16LE(dst.simd128(), src_op, laneidx, r0, kScratchSimd128Reg);
+    LoadLane16LE(dst.simd128(), src_op, laneidx, kScratchSimd128Reg);
   } else if (mem_type == MachineType::Int32()) {
-    LoadLane32LE(dst.simd128(), src_op, laneidx, r0, kScratchSimd128Reg);
+    LoadLane32LE(dst.simd128(), src_op, laneidx, kScratchSimd128Reg);
   } else {
     DCHECK_EQ(MachineType::Int64(), mem_type);
-    LoadLane64LE(dst.simd128(), src_op, laneidx, r0, kScratchSimd128Reg);
+    LoadLane64LE(dst.simd128(), src_op, laneidx, kScratchSimd128Reg);
   }
 }
 
@@ -2897,14 +2893,14 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
 
   MachineRepresentation rep = type.mem_rep();
   if (rep == MachineRepresentation::kWord8) {
-    StoreLane8LE(src.simd128(), dst_op, lane, r0, kScratchSimd128Reg);
+    StoreLane8LE(src.simd128(), dst_op, lane, kScratchSimd128Reg);
   } else if (rep == MachineRepresentation::kWord16) {
-    StoreLane16LE(src.simd128(), dst_op, lane, r0, kScratchSimd128Reg);
+    StoreLane16LE(src.simd128(), dst_op, lane, kScratchSimd128Reg);
   } else if (rep == MachineRepresentation::kWord32) {
-    StoreLane32LE(src.simd128(), dst_op, lane, r0, kScratchSimd128Reg);
+    StoreLane32LE(src.simd128(), dst_op, lane, kScratchSimd128Reg);
   } else {
     DCHECK_EQ(MachineRepresentation::kWord64, rep);
-    StoreLane64LE(src.simd128(), dst_op, lane, r0, kScratchSimd128Reg);
+    StoreLane64LE(src.simd128(), dst_op, lane, kScratchSimd128Reg);
   }
 }
 
@@ -3055,7 +3051,7 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   Register scratch = temps.Acquire();
   DoubleRegList fp_regs = regs.GetFpList();
   Simd128RegList simd_regs = regs.GetSimd128List();
-  MultiPushF64AndV128(fp_regs, simd_regs, scratch, r0);
+  MultiPushF64AndV128(fp_regs, simd_regs, scratch);
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
@@ -3063,7 +3059,7 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   Register scratch = temps.Acquire();
   DoubleRegList fp_regs = regs.GetFpList();
   Simd128RegList simd_regs = regs.GetSimd128List();
-  MultiPopF64AndV128(fp_regs, simd_regs, scratch, r0);
+  MultiPopF64AndV128(fp_regs, simd_regs, scratch);
   MultiPop(regs.GetGpList());
 }
 
@@ -3104,7 +3100,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
   int arg_offset = 0;
   for (const VarState& arg : args) {
     MemOperand dst{sp, arg_offset};
-    liftoff::StoreToMemory(this, dst, arg, r0, scratch);
+    liftoff::StoreToMemory(this, dst, arg, scratch);
     arg_offset += value_kind_size(arg.kind());
   }
   DCHECK_LE(arg_offset, stack_bytes);
@@ -3148,7 +3144,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
         LoadF64(result_reg->fp(), MemOperand(sp));
         break;
       case kS128:
-        LoadSimd128(result_reg->simd128(), MemOperand(sp), r0);
+        LoadSimd128(result_reg->simd128(), MemOperand(sp));
         break;
       default:
         UNREACHABLE();
@@ -3293,9 +3289,9 @@ void LiftoffStackSlots::Construct(int param_slots) {
           case kS128: {
             asm_->AllocateStackSpace(stack_decrement - kSimd128Size);
             asm_->LoadSimd128(kScratchSimd128Reg,
-                              liftoff::GetStackSlot(slot.src_offset_), r0);
+                              liftoff::GetStackSlot(slot.src_offset_));
             asm_->AddS64(sp, sp, Operand(-kSimd128Size));
-            asm_->StoreSimd128(kScratchSimd128Reg, MemOperand(sp), r0);
+            asm_->StoreSimd128(kScratchSimd128Reg, MemOperand(sp));
             break;
           }
           default:
@@ -3323,7 +3319,7 @@ void LiftoffStackSlots::Construct(int param_slots) {
             break;
           case kS128: {
             asm_->AddS64(sp, sp, Operand(-kSimd128Size), r0);
-            asm_->StoreSimd128(src.reg().simd128(), MemOperand(sp), r0);
+            asm_->StoreSimd128(src.reg().simd128(), MemOperand(sp));
             break;
           }
           default:

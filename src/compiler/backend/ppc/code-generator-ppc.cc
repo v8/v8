@@ -1015,7 +1015,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // kReturnRegister0 should have been saved before entering the stub.
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
-      int bytes = __ PushCallerSaved(fp_mode_, scratch, r0, kReturnRegister0);
+      int bytes = __ PushCallerSaved(fp_mode_, scratch, kReturnRegister0);
       DCHECK(IsAligned(bytes, kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
       frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
@@ -1031,7 +1031,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Don't overwrite the returned value.
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
-      int bytes = __ PopCallerSaved(fp_mode_, scratch, r0, kReturnRegister0);
+      int bytes = __ PopCallerSaved(fp_mode_, scratch, kReturnRegister0);
       frame_access_state()->IncreaseSPDelta(-(bytes / kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
       DCHECK(caller_registers_saved_);
@@ -1303,10 +1303,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadF32(i.OutputFloatRegister(), MemOperand(fp, offset));
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-          UseScratchRegisterScope temps(masm());
-          Register scratch = temps.Acquire();
-          __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, offset),
-                         scratch);
+          __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, offset));
         }
       } else {
         __ LoadU64(i.OutputRegister(), MemOperand(fp, offset));
@@ -1719,11 +1716,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                 MemOperand(sp, -kDoubleSize));
           break;
         case MachineRepresentation::kSimd128: {
-          UseScratchRegisterScope temps(masm());
-          Register scratch = temps.Acquire();
           __ addi(sp, sp, Operand(-kSimd128Size));
-          __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp),
-                          scratch);
+          __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp));
           break;
         }
         default:
@@ -1767,10 +1761,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       MemOperand(sp, slot * kSystemPointerSize));
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-          UseScratchRegisterScope temps(masm());
-          Register scratch = temps.Acquire();
           __ StoreSimd128(i.InputSimd128Register(0),
-                          MemOperand(sp, slot * kSystemPointerSize), scratch);
+                          MemOperand(sp, slot * kSystemPointerSize));
         }
       } else {
         __ StoreU64(i.InputRegister(0),
@@ -2029,9 +2021,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       MemOperand operand = i.MemoryOperand(&mode);
       bool is_atomic = i.InputInt32(2);
       DCHECK_EQ(mode, kMode_MRR);
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ LoadSimd128(result, operand, scratch);
+      __ LoadSimd128(result, operand);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2066,9 +2056,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool is_atomic = i.InputInt32(3);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(mode, kMode_MRR);
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ StoreSimd128(value, operand, scratch);
+      __ StoreSimd128(value, operand);
       if (is_atomic) __ sync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2541,18 +2529,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(S128Load16Lane, LoadLane16LE) \
   V(S128Load8Lane, LoadLane8LE)
 
-#define EMIT_SIMD_LOAD_LANE(name, op)                                  \
-  case kPPC_##name: {                                                  \
-    Simd128Register dst = i.OutputSimd128Register();                   \
-    DCHECK_EQ(dst, i.InputSimd128Register(0));                         \
-    AddressingMode mode = kMode_None;                                  \
-    size_t index = 1;                                                  \
-    MemOperand operand = i.MemoryOperand(&mode, &index);               \
-    DCHECK_EQ(mode, kMode_MRR);                                        \
-    UseScratchRegisterScope temps(masm());                             \
-    Register scratch = temps.Acquire();                                \
-    __ op(dst, operand, i.InputUint8(3), scratch, kScratchSimd128Reg); \
-    break;                                                             \
+#define EMIT_SIMD_LOAD_LANE(name, op)                         \
+  case kPPC_##name: {                                         \
+    Simd128Register dst = i.OutputSimd128Register();          \
+    DCHECK_EQ(dst, i.InputSimd128Register(0));                \
+    AddressingMode mode = kMode_None;                         \
+    size_t index = 1;                                         \
+    MemOperand operand = i.MemoryOperand(&mode, &index);      \
+    DCHECK_EQ(mode, kMode_MRR);                               \
+    __ op(dst, operand, i.InputUint8(3), kScratchSimd128Reg); \
+    break;                                                    \
   }
       SIMD_LOAD_LANE_LIST(EMIT_SIMD_LOAD_LANE)
 #undef EMIT_SIMD_LOAD_LANE
@@ -2564,17 +2550,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(S128Store16Lane, StoreLane16LE) \
   V(S128Store8Lane, StoreLane8LE)
 
-#define EMIT_SIMD_STORE_LANE(name, op)                                  \
-  case kPPC_##name: {                                                   \
-    AddressingMode mode = kMode_None;                                   \
-    size_t index = 1;                                                   \
-    MemOperand operand = i.MemoryOperand(&mode, &index);                \
-    DCHECK_EQ(mode, kMode_MRR);                                         \
-    UseScratchRegisterScope temps(masm());                              \
-    Register scratch = temps.Acquire();                                 \
-    __ op(i.InputSimd128Register(0), operand, i.InputUint8(3), scratch, \
-          kScratchSimd128Reg);                                          \
-    break;                                                              \
+#define EMIT_SIMD_STORE_LANE(name, op)                         \
+  case kPPC_##name: {                                          \
+    AddressingMode mode = kMode_None;                          \
+    size_t index = 1;                                          \
+    MemOperand operand = i.MemoryOperand(&mode, &index);       \
+    DCHECK_EQ(mode, kMode_MRR);                                \
+    __ op(i.InputSimd128Register(0), operand, i.InputUint8(3), \
+          kScratchSimd128Reg);                                 \
+    break;                                                     \
   }
       SIMD_STORE_LANE_LIST(EMIT_SIMD_STORE_LANE)
 #undef EMIT_SIMD_STORE_LANE
@@ -2586,15 +2570,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(S128Load16Splat, LoadAndSplat16x8LE) \
   V(S128Load8Splat, LoadAndSplat8x16LE)
 
-#define EMIT_SIMD_LOAD_SPLAT(name, op)                  \
-  case kPPC_##name: {                                   \
-    AddressingMode mode = kMode_None;                   \
-    MemOperand operand = i.MemoryOperand(&mode);        \
-    DCHECK_EQ(mode, kMode_MRR);                         \
-    UseScratchRegisterScope temps(masm());              \
-    Register scratch = temps.Acquire();                 \
-    __ op(i.OutputSimd128Register(), operand, scratch); \
-    break;                                              \
+#define EMIT_SIMD_LOAD_SPLAT(name, op)           \
+  case kPPC_##name: {                            \
+    AddressingMode mode = kMode_None;            \
+    MemOperand operand = i.MemoryOperand(&mode); \
+    DCHECK_EQ(mode, kMode_MRR);                  \
+    __ op(i.OutputSimd128Register(), operand);   \
+    break;                                       \
   }
       SIMD_LOAD_SPLAT(EMIT_SIMD_LOAD_SPLAT)
 #undef EMIT_SIMD_LOAD_SPLAT
@@ -2938,9 +2920,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   DCHECK_EQ(mode, kMode_MRR);
     case kPPC_S128Load8x8S: {
       PREP_LOAD_EXTEND()
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ LoadAndExtend8x8SLE(i.OutputSimd128Register(), operand, scratch);
+      __ LoadAndExtend8x8SLE(i.OutputSimd128Register(), operand);
       break;
     }
     case kPPC_S128Load8x8U: {
@@ -2953,9 +2933,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_S128Load16x4S: {
       PREP_LOAD_EXTEND()
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ LoadAndExtend16x4SLE(i.OutputSimd128Register(), operand, scratch);
+      __ LoadAndExtend16x4SLE(i.OutputSimd128Register(), operand);
       break;
     }
     case kPPC_S128Load16x4U: {
@@ -2968,9 +2946,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_S128Load32x2S: {
       PREP_LOAD_EXTEND()
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ LoadAndExtend32x2SLE(i.OutputSimd128Register(), operand, scratch);
+      __ LoadAndExtend32x2SLE(i.OutputSimd128Register(), operand);
       break;
     }
     case kPPC_S128Load32x2U: {
@@ -2983,18 +2959,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_S128Load32Zero: {
       PREP_LOAD_EXTEND()
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ LoadV32ZeroLE(i.OutputSimd128Register(), operand, scratch,
-                       kScratchSimd128Reg);
+      __ LoadV32ZeroLE(i.OutputSimd128Register(), operand, kScratchSimd128Reg);
       break;
     }
     case kPPC_S128Load64Zero: {
       PREP_LOAD_EXTEND()
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ LoadV64ZeroLE(i.OutputSimd128Register(), operand, scratch,
-                       kScratchSimd128Reg);
+      __ LoadV64ZeroLE(i.OutputSimd128Register(), operand, kScratchSimd128Reg);
       break;
     }
 #undef PREP_LOAD_EXTEND
@@ -3322,8 +3292,7 @@ void CodeGenerator::AssembleConstructFrame() {
           simd128_regs_to_save.set(reg);
         UseScratchRegisterScope temps(masm());
         Register scratch = temps.Acquire();
-        __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch,
-                               r0);
+        __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch);
         __ mov(WasmHandleStackOverflowDescriptor::GapRegister(),
                Operand(required_slots * kSystemPointerSize));
         __ AddS64(
@@ -3341,8 +3310,7 @@ void CodeGenerator::AssembleConstructFrame() {
         // safepoint here.
         ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
         RecordSafepoint(reference_map);
-        __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch,
-                              r0);
+        __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch);
         __ MultiPop(regs_to_save);
       } else {
         __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
@@ -3458,14 +3426,14 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     for (auto reg : wasm::kSimd128ParamRegisters) simd128_regs_to_save.set(reg);
     UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
-    __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch, r0);
+    __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch);
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ PrepareCallCFunction(1);
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     // Restore old FP. We don't need to restore old SP explicitly, because
     // it will be restored from FP in LeaveFrame before return.
     __ mr(fp, kReturnRegister0);
-    __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch, r0);
+    __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch);
     __ MultiPop(regs_to_save);
     __ bind(&done);
   }
@@ -3768,7 +3736,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsSimd128StackSlot());
         MemOperand dst = g.ToMemOperand(destination);
-        __ StoreSimd128(g.ToSimd128Register(source), dst, r0);
+        __ StoreSimd128(g.ToSimd128Register(source), dst);
       }
     } else {
       DoubleRegister src = g.ToDoubleRegister(source);
@@ -3797,7 +3765,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         MemOperand src = g.ToMemOperand(source);
-        __ LoadSimd128(g.ToSimd128Register(destination), src, r0);
+        __ LoadSimd128(g.ToSimd128Register(destination), src);
       }
     } else {
       LocationOperand* op = LocationOperand::cast(source);
@@ -3812,8 +3780,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         MemOperand src = g.ToMemOperand(source);
         MemOperand dst = g.ToMemOperand(destination);
-        __ LoadSimd128(kScratchSimd128Reg, src, r0);
-        __ StoreSimd128(kScratchSimd128Reg, dst, r0);
+        __ LoadSimd128(kScratchSimd128Reg, src);
+        __ StoreSimd128(kScratchSimd128Reg, dst);
       }
     }
   } else {
@@ -3876,13 +3844,12 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ SwapSimd128(src, g.ToSimd128Register(destination), kScratchSimd128Reg);
     } else {
       DCHECK(destination->IsSimd128StackSlot());
-      __ SwapSimd128(src, g.ToMemOperand(destination), kScratchSimd128Reg,
-                     scratch);
+      __ SwapSimd128(src, g.ToMemOperand(destination), kScratchSimd128Reg);
     }
   } else if (source->IsSimd128StackSlot()) {
     DCHECK(destination->IsSimd128StackSlot());
     __ SwapSimd128(g.ToMemOperand(source), g.ToMemOperand(destination),
-                   kScratchSimd128Reg, kScratchSimd128Reg2, scratch);
+                   kScratchSimd128Reg, kScratchSimd128Reg2);
 
   } else {
     UNREACHABLE();
