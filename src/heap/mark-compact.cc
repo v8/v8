@@ -87,6 +87,7 @@
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
 #include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-table.h"
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -5964,7 +5965,8 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
 void MarkCompactCollector::UpdatePointersInPointerTables() {
   // Process an entry of a pointer table, returning either the relocated object
   // or a null pointer if the object wasn't relocated.
-  auto process_entry = [&](Address content) -> Tagged<ExposedTrustedObject> {
+  const auto process_entry =
+      [](Address content) -> Tagged<ExposedTrustedObject> {
     Tagged<HeapObject> heap_obj = Cast<HeapObject>(Tagged<Object>(content));
     MapWord map_word = heap_obj->map_word(kRelaxedLoad);
     if (!map_word.IsForwardingAddress()) return {};
@@ -5974,38 +5976,21 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
   };
 
 #ifdef V8_ENABLE_SANDBOX
-  TrustedPointerTable* const tpt = &heap_->isolate()->trusted_pointer_table();
-  tpt->IterateActiveEntriesIn(
-      heap_->trusted_pointer_space(),
-      [&](TrustedPointerHandle handle, Address content) {
-        Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
-        if (!relocated_object.is_null()) {
-          DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
-          auto instance_type = relocated_object->map()->instance_type();
-          SharedFlag shared =
-              SharedFlag(HeapLayout::InAnySharedSpace(relocated_object));
-          auto tag = IndirectPointerTagFromInstanceType(instance_type, shared);
-          tpt->Set(handle, relocated_object.ptr(), tag);
-        }
-      });
-
-  TrustedPointerTable* const stpt =
-      &heap_->isolate()->shared_trusted_pointer_table();
-  stpt->IterateActiveEntriesIn(
-      heap_->isolate()->shared_trusted_pointer_space(),
-      [&](TrustedPointerHandle handle, Address content) {
-        Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
-        if (!relocated_object.is_null()) {
-          DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
-          auto instance_type = relocated_object->map()->instance_type();
-          SharedFlag shared =
-              SharedFlag(HeapLayout::InAnySharedSpace(relocated_object));
-          auto tag = IndirectPointerTagFromInstanceType(instance_type, shared);
-          DCHECK(IsSharedTrustedPointerType(tag));
-          stpt->Set(handle, relocated_object.ptr(), tag);
-        }
-      });
-
+  const auto process_table = [process_entry](
+                                 TrustedPointerTable& table,
+                                 TrustedPointerTable::Space* space) {
+    table.IterateActiveEntriesIn(space, [&](TrustedPointerHandle handle,
+                                            Address content) {
+      Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
+      if (relocated_object.is_null()) return;
+      DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
+      table.Update(handle, relocated_object.ptr());
+    });
+  };
+  process_table(heap_->isolate()->trusted_pointer_table(),
+                heap_->trusted_pointer_space());
+  process_table(heap_->isolate()->shared_trusted_pointer_table(),
+                heap_->isolate()->shared_trusted_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
 
   JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();

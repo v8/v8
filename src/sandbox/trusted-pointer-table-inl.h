@@ -151,6 +151,14 @@ void TrustedPointerTable::Set(TrustedPointerHandle handle, Address pointer,
   at(index).SetPointer(pointer, tag);
 }
 
+void TrustedPointerTable::Update(TrustedPointerHandle handle, Address pointer) {
+  DCHECK_NE(kNullTrustedPointerHandle, handle);
+  uint32_t index = HandleToIndex(handle);
+  const auto tag = at(index).GetTag();
+  Validate(pointer, tag);
+  at(index).SetPointer(pointer, tag);
+}
+
 TrustedPointerHandle TrustedPointerTable::AllocateAndInitializeEntry(
     Space* space, Address pointer, IndirectPointerTag tag,
     TrustedPointerPublishingScope* scope) {

@@ -162,6 +162,12 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   inline void Set(TrustedPointerHandle handle, Address pointer,
                   IndirectPointerTag tag);
 
+  // Sets the content of the entry referenced by the given handle. Will preserve
+  // the currently set tag.
+  //
+  // This method is atomic and can be called from background threads.
+  inline void Update(TrustedPointerHandle handle, Address pointer);
+
   // Allocates a new entry in the table and initialize it.
   //
   // This method is atomic and can be called from background threads.
