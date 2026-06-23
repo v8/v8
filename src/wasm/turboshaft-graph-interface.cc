@@ -60,6 +60,7 @@ using compiler::turboshaft::DidntThrowOp;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
 using EagerFrameState = compiler::turboshaft::EagerFrameState;
+using compiler::turboshaft::ArraySetOp;
 using compiler::turboshaft::Graph;
 using compiler::turboshaft::Label;
 using compiler::turboshaft::LoadOp;
@@ -77,6 +78,7 @@ using compiler::turboshaft::Simd128ConstantOp;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::StringOrNull;
 using compiler::turboshaft::StructGetOp;
+using compiler::turboshaft::StructSetOp;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::Tuple;
 using compiler::turboshaft::V;
@@ -5321,7 +5323,8 @@ class TurboshaftGraphBuildingInterface
                  field.field_imm.index,
                  struct_object.type.is_nullable() ? compiler::kWithNullCheck
                                                   : compiler::kWithoutNullCheck,
-                 {}, FieldImmediateToWriteBarrier(field));
+                 {}, FieldImmediateToWriteBarrier(field),
+                 StructSetOp::Kind::kAssign);
   }
 
   void StructAtomicSet(FullDecoder* decoder, const Value& struct_object,
@@ -5332,7 +5335,8 @@ class TurboshaftGraphBuildingInterface
                  field.field_imm.index,
                  struct_object.type.is_nullable() ? compiler::kWithNullCheck
                                                   : compiler::kWithoutNullCheck,
-                 memory_order, FieldImmediateToWriteBarrier(field));
+                 memory_order, FieldImmediateToWriteBarrier(field),
+                 StructSetOp::Kind::kAssign);
   }
 
   void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
@@ -5380,7 +5384,8 @@ class TurboshaftGraphBuildingInterface
       __ StructSet(struct_object.get<WasmStructNullable>(), new_value,
                    struct_type, field.struct_imm.index, field.field_imm.index,
                    compiler::kWithoutNullCheck, {},
-                   FieldImmediateToWriteBarrier(field));
+                   FieldImmediateToWriteBarrier(field),
+                   StructSetOp::Kind::kAssign);
       return;
     }
 
@@ -5434,11 +5439,11 @@ class TurboshaftGraphBuildingInterface
           {}));
       result->op = old_value;
       IF (__ Word64Equal(old_value, expected_value.get<Word64>())) {
-        __ StructSet(struct_object.get<WasmStructNullable>(),
-                     new_value.get<Word64>(), struct_type,
-                     field.struct_imm.index, field.field_imm.index,
-                     compiler::kWithoutNullCheck, {},
-                     FieldImmediateToWriteBarrier(field));
+        __ StructSet(
+            struct_object.get<WasmStructNullable>(), new_value.get<Word64>(),
+            struct_type, field.struct_imm.index, field.field_imm.index,
+            compiler::kWithoutNullCheck, {},
+            FieldImmediateToWriteBarrier(field), StructSetOp::Kind::kAssign);
       }
       return;
     }
@@ -5543,7 +5548,8 @@ class TurboshaftGraphBuildingInterface
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
                 imm.array_type->element_type(), {},
-                ArrayIndexImmediateToWriteBarrier(imm));
+                ArrayIndexImmediateToWriteBarrier(imm),
+                ArraySetOp::Kind::kAssign);
   }
 
   void ArrayAtomicSet(FullDecoder* decoder, const Value& array_obj,
@@ -5553,7 +5559,8 @@ class TurboshaftGraphBuildingInterface
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
                 imm.array_type->element_type(), memory_order,
-                ArrayIndexImmediateToWriteBarrier(imm));
+                ArrayIndexImmediateToWriteBarrier(imm),
+                ArraySetOp::Kind::kAssign);
   }
 
   void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
@@ -5597,7 +5604,8 @@ class TurboshaftGraphBuildingInterface
       DCHECK(new_value.valid() || __ generating_unreachable_operations());
       __ ArraySet(array_value, index.get<Word32>(), new_value,
                   imm.array_type->element_type(), {},
-                  ArrayIndexImmediateToWriteBarrier(imm));
+                  ArrayIndexImmediateToWriteBarrier(imm),
+                  ArraySetOp::Kind::kAssign);
       return;
     }
 
@@ -5647,7 +5655,8 @@ class TurboshaftGraphBuildingInterface
       IF (__ Word64Equal(old_value, expected_value.get<Word64>())) {
         __ ArraySet(array_value, index.get<Word32>(), new_value.get<Word64>(),
                     imm.array_type->element_type(), {},
-                    ArrayIndexImmediateToWriteBarrier(imm));
+                    ArrayIndexImmediateToWriteBarrier(imm),
+                    ArraySetOp::Kind::kAssign);
       }
       return;
     }
@@ -5735,7 +5744,8 @@ class TurboshaftGraphBuildingInterface
             V<Any> value = __ ArrayGet(src_array, src_index_loop,
                                        src_imm.array_type, true, {});
             __ ArraySet(dst_array, dst_index_loop, value, element_type, {},
-                        ArrayIndexImmediateToWriteBarrier(src_imm));
+                        ArrayIndexImmediateToWriteBarrier(src_imm),
+                        ArraySetOp::Kind::kAssign);
 
             IF_NOT (__ Uint32LessThan(src_index.get<Word32>(), src_index_loop))
               BREAK;
@@ -5751,7 +5761,8 @@ class TurboshaftGraphBuildingInterface
             V<Any> value = __ ArrayGet(src_array, src_index_loop,
                                        src_imm.array_type, true, {});
             __ ArraySet(dst_array, dst_index_loop, value, element_type, {},
-                        ArrayIndexImmediateToWriteBarrier(src_imm));
+                        ArrayIndexImmediateToWriteBarrier(src_imm),
+                        ArraySetOp::Kind::kAssign);
 
             IF_NOT (__ Uint32LessThan(src_index_loop, src_end_index)) BREAK;
 
@@ -5773,7 +5784,8 @@ class TurboshaftGraphBuildingInterface
                                  : compiler::kWithoutNullCheck);
     ArrayFillImpl(array_not_null, index.get<Word32>(), value.op,
                   length.get<Word32>(), imm.array_type,
-                  ArrayIndexImmediateToWriteBarrier(imm));
+                  ArrayIndexImmediateToWriteBarrier(imm),
+                  ArraySetOp::Kind::kAssign);
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
@@ -5794,7 +5806,7 @@ class TurboshaftGraphBuildingInterface
     // Initialize all elements.
     for (int i = 0; i < element_count; i++) {
       __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type, {},
-                  write_barrier);
+                  write_barrier, ArraySetOp::Kind::kInitialize);
     }
     result->op = array;
   }
@@ -9275,7 +9287,7 @@ class TurboshaftGraphBuildingInterface
     V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type, shared);
     // Initialize the elements.
     ArrayFillImpl(array, __ Word32Constant(0), initial_value, length,
-                  array_type, write_barrier);
+                  array_type, write_barrier, ArraySetOp::Kind::kInitialize);
     return array;
   }
 
@@ -9342,7 +9354,8 @@ class TurboshaftGraphBuildingInterface
                    compiler::kWithoutNullCheck, {},
                    in_old_space && field_is_ref && has_nondefault_args
                        ? kFullWriteBarrier
-                       : kNoWriteBarrier);
+                       : kNoWriteBarrier,
+                   StructSetOp::Kind::kInitialize);
     }
     // If this assert fails then initialization of padding field might be
     // necessary.
@@ -9362,7 +9375,7 @@ class TurboshaftGraphBuildingInterface
 
   void ArrayFillImpl(V<WasmArray> array, V<Word32> index, V<Any> value,
                      OpIndex length, const wasm::ArrayType* type,
-                     WriteBarrierKind write_barrier) {
+                     WriteBarrierKind write_barrier, ArraySetOp::Kind kind) {
     wasm::ValueType element_type = type->element_type();
 
     // Initialize the array. Use an external function for large arrays with
@@ -9393,7 +9406,7 @@ class TurboshaftGraphBuildingInterface
 
     WHILE(__ Uint32LessThan(current_index, __ Word32Add(index, length))) {
       __ ArraySet(array, current_index, value, type->element_type(), {},
-                  write_barrier);
+                  write_barrier, kind);
       current_index = __ Word32Add(current_index, 1);
     }
 

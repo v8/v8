@@ -293,7 +293,8 @@ class WasmLoweringReducer : public Next {
                             wasm::ModuleTypeIndex type_index, int field_index,
                             CheckForNull null_check,
                             std::optional<AtomicMemoryOrder> memory_order,
-                            WriteBarrierKind write_barrier) {
+                            WriteBarrierKind write_barrier,
+                            StructSetOp::Kind kind) {
     // TODO(rezvan): We do not support AcqRel memory order for non-memory
     // instructions currently.
     if (memory_order == AtomicMemoryOrder::kAcqRel) {
@@ -327,7 +328,8 @@ class WasmLoweringReducer : public Next {
     DCHECK_IMPLIES(write_barrier == kFullWriteBarrier,
                    type->field(field_index).is_ref());
     __ Store(object, value, store_kind, repr, write_barrier, memory_order,
-             field_offset(type, field_index));
+             field_offset(type, field_index), 0,
+             kind == StructSetOp::Kind::kInitialize);
 
     return OpIndex::Invalid();
   }
@@ -385,7 +387,8 @@ class WasmLoweringReducer : public Next {
   V<None> REDUCE(ArraySet)(V<WasmArrayNullable> array, V<Word32> index,
                            V<Any> value, wasm::ValueType element_type,
                            std::optional<AtomicMemoryOrder> memory_order,
-                           WriteBarrierKind write_barrier) {
+                           WriteBarrierKind write_barrier,
+                           ArraySetOp::Kind kind) {
     // TODO(rezvan): We do not support AcqRel memory order for non-memory
     // instructions currently.
     if (memory_order == AtomicMemoryOrder::kAcqRel) {
@@ -398,7 +401,8 @@ class WasmLoweringReducer : public Next {
     DCHECK_IMPLIES(write_barrier == kFullWriteBarrier, element_type.is_ref());
     __ Store(array, __ ChangeInt32ToIntPtr(index), value, store_kind,
              RepresentationFor(element_type, true), write_barrier, memory_order,
-             WasmArray::kHeaderSize, element_type.value_kind_size_log2());
+             WasmArray::kHeaderSize, element_type.value_kind_size_log2(),
+             kind == ArraySetOp::Kind::kInitialize);
     return {};
   }
 

@@ -5268,10 +5268,10 @@ class AssemblerOpInterface : public Next {
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
                  int field_index, CheckForNull null_check,
                  std::optional<AtomicMemoryOrder> memory_order,
-                 WriteBarrierKind write_barrier) {
+                 WriteBarrierKind write_barrier, StructSetOp::Kind kind) {
     ReduceIfReachableStructSet(object, value, OptionalV<EagerFrameState>{},
                                type, type_index, field_index, null_check,
-                               memory_order, write_barrier);
+                               memory_order, write_barrier, kind);
   }
 
   void StructSet(V<WasmStructNullable> object,
@@ -5279,10 +5279,10 @@ class AssemblerOpInterface : public Next {
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
                  int field_index, CheckForNull null_check,
                  std::optional<AtomicMemoryOrder> memory_order,
-                 WriteBarrierKind write_barrier) {
+                 WriteBarrierKind write_barrier, StructSetOp::Kind kind) {
     ReduceIfReachableStructSet(object, value, frame_state, type, type_index,
                                field_index, null_check, memory_order,
-                               write_barrier);
+                               write_barrier, kind);
   }
 
   V<Any> StructAtomicRMW(V<WasmStructNullable> object, V<Any> value,
@@ -5316,9 +5316,9 @@ class AssemblerOpInterface : public Next {
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
                 wasm::ValueType element_type,
                 std::optional<AtomicMemoryOrder> memory_order,
-                WriteBarrierKind write_barrier) {
+                WriteBarrierKind write_barrier, ArraySetOp::Kind kind) {
     ReduceIfReachableArraySet(array, index, value, element_type, memory_order,
-                              write_barrier);
+                              write_barrier, kind);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {

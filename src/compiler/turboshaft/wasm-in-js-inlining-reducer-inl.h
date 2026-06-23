@@ -772,7 +772,8 @@ class WasmInJsInliningInterface {
         field.struct_imm.struct_type, field.struct_imm.index,
         field.field_imm.index,
         struct_object.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck,
-        {}, wasm::FieldImmediateToWriteBarrier(field));
+        {}, wasm::FieldImmediateToWriteBarrier(field),
+        StructSetOp::Kind::kAssign);
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
@@ -793,7 +794,8 @@ class WasmInJsInliningInterface {
                             frame_state_);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
                 imm.array_type->element_type(), {},
-                wasm::ArrayIndexImmediateToWriteBarrier(imm));
+                wasm::ArrayIndexImmediateToWriteBarrier(imm),
+                ArraySetOp::Kind::kAssign);
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {

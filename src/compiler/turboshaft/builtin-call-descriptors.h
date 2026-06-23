@@ -1089,7 +1089,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanAllocate();
+    static constexpr OpEffects kEffects =
+        base_effects.CanAllocate().CanDoRawHeapAccess();
   };
 
   struct WasmGetOwnProperty : public Descriptor<WasmGetOwnProperty> {
