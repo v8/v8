@@ -120,6 +120,11 @@ CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
         isolate,
         info()->toplevel_compilation_unit()->shared_function_info().object());
   }
+  if (info()->is_tracing_enabled() || info()->trace_json_enabled()) {
+    // Warm up the CodeTracer on the main thread to avoid a data race if it is
+    // initialized on the background thread.
+    isolate->GetCodeTracer();
+  }
   SYNCHRONIZATION_POINT_FOR_TESTING("MaglevPrepareJob");
   EndPhaseKind();
   // TODO(v8:7700): Actual return codes.

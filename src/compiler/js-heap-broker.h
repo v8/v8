@@ -552,6 +552,14 @@ class V8_NODISCARD UnparkedScopeIfNeeded {
     }
   }
 
+  explicit UnparkedScopeIfNeeded(LocalIsolate* local_isolate,
+                                 bool extra_condition = true) {
+    if (extra_condition && local_isolate != nullptr &&
+        local_isolate->heap()->IsParked()) {
+      unparked_scope.emplace(local_isolate->heap());
+    }
+  }
+
  private:
   std::optional<UnparkedScope> unparked_scope;
 };

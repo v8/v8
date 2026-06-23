@@ -55,14 +55,14 @@ void PrintGraph(Graph* graph, bool condition, const char* message,
                 bool has_regalloc_data = false) {
   MaglevCompilationInfo* info = graph->compilation_info();
   if (V8_UNLIKELY(condition && info->is_tracing_enabled())) {
-    UnparkedScopeIfOnBackground unparked_scope(
-        graph->broker()->local_isolate()->heap());
+    compiler::UnparkedScopeIfNeeded unparked_scope(
+        graph->broker()->local_isolate());
     std::cout << "\n----- " << message << " -----" << std::endl;
     PrintGraph(std::cout, graph, has_regalloc_data);
   }
   if (V8_UNLIKELY(info->trace_json_enabled())) {
-    UnparkedScopeIfOnBackground unparked_scope(
-        graph->broker()->local_isolate()->heap());
+    compiler::UnparkedScopeIfNeeded unparked_scope(
+        graph->broker()->local_isolate());
     PrintMaglevGraphAsJSON(info, graph, message);
   }
 }
@@ -108,7 +108,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   }
 
   if (compilation_info->trace_json_enabled()) {
-    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
+    compiler::UnparkedScopeIfNeeded unparked_scope(local_isolate);
 
     Isolate* isolate = local_isolate->GetMainThreadIsolateUnsafe();
     Handle<SharedFunctionInfo> shared_info =
@@ -116,7 +116,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
             ->shared_function_info()
             .object();
     DirectHandle<Script> script =
-        direct_handle(Cast<Script>(shared_info->script()), isolate);
+        direct_handle(Cast<Script>(shared_info->script()), local_isolate);
 
     // TODO(dmercadier): this is opening JSON structures, but if we bail out
     // during compilation, we might never close them. We should use a RAII
@@ -131,7 +131,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   }
 
   {
-    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
+    compiler::UnparkedScopeIfNeeded unparked_scope(local_isolate);
 
     if (V8_UNLIKELY(v8_flags.maglev_print_bytecode &&
                     compilation_info->is_tracing_enabled())) {
@@ -246,7 +246,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                   "V8.Maglev.NodeProcessing");
       SYNCHRONIZATION_POINT_FOR_TESTING("MaglevNodeProcessing");
-      UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
+      compiler::UnparkedScopeIfNeeded unparked_scope(local_isolate);
       GraphMultiProcessor<DeadNodeSweepingProcessor,
                           ValueLocationConstraintProcessor,
                           MaxCallDepthProcessor, LiveRangeAndNextUseProcessor,
@@ -269,7 +269,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                  "After register allocation", /* has_regalloc_data */ true);
 #ifdef ENABLE_GDB_JIT_INTERFACE
       if (v8_flags.gdbjit_full && v8_flags.maglev_gdbjit) {
-        UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
+        compiler::UnparkedScopeIfNeeded unparked_scope(local_isolate);
         PrintGraphToFile(graph, true);
       }
 #endif
@@ -280,7 +280,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                 "V8.Maglev.CodeAssembly");
     SYNCHRONIZATION_POINT_FOR_TESTING("MaglevCodeAssembly");
-    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
+    compiler::UnparkedScopeIfNeeded unparked_scope(local_isolate);
     std::unique_ptr<MaglevCodeGenerator> code_generator =
         std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
                                               graph);
