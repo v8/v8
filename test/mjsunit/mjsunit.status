@@ -3281,6 +3281,10 @@
   'weakrefs/minor-gc-*': [SKIP],
 }],  # variant == scavenger_chaos_mode
 
+['variant == experimental_regexp', {
+  'regress/regress-503097371': [SKIP],
+}],  # variant == experimental_regexp
+
 ##############################################################################
 ['variant in [dumpling_test]', {
   # Dumpling is not enabled for wasm:
