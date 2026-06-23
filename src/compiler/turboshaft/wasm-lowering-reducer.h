@@ -175,15 +175,12 @@ class WasmLoweringReducer : public Next {
       GOTO(end_label, object);
 
       BIND(convert_to_heap_number_label);
-      V<Object> heap_number;
-      heap_number =
+      V<Object> heap_number =
           is_shared == SharedFlag::kYes
-              ? __ template CallWasmBuiltin<deprecated::BuiltinCallDescriptor::
-                                                WasmInt32ToSharedHeapNumber>(
-                    {int_value})
-              : __ template CallWasmBuiltin<
-                    deprecated::BuiltinCallDescriptor::WasmInt32ToHeapNumber>(
-                    {int_value});
+              ? __ template CallWasmBuiltin<
+                    builtin::WasmInt32ToSharedHeapNumber>({.value = int_value})
+              : __ template CallWasmBuiltin<builtin::WasmInt32ToHeapNumber>(
+                    {.value = int_value});
       GOTO(end_label, heap_number);
     }
 
@@ -529,11 +526,12 @@ class WasmLoweringReducer : public Next {
           shared_ == SharedFlag::kNo &&
           module_->function_is_shared(function_index) == SharedFlag::kYes;
 
-      V<WasmFuncRef> from_builtin;
-      from_builtin = __ template CallWasmBuiltin<
-          deprecated::BuiltinCallDescriptor::WasmRefFunc>(
-          {wasm_instance, __ Word32Constant(function_index),
-           __ Word32Constant(extract_shared_data ? 1 : 0)});
+      V<WasmFuncRef> from_builtin =
+          __ template CallWasmBuiltin<builtin::WasmRefFunc>(
+              {.wasm_instance = wasm_instance,
+               .function_index = __ Word32Constant(function_index),
+               .extract_shared_data =
+                   __ Word32Constant(extract_shared_data ? 1 : 0)});
 
       GOTO(done, from_builtin);
     } ELSE {

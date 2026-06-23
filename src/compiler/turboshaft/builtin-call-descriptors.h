@@ -818,6 +818,51 @@ struct builtin : CallDescriptorBuilder {
         Operator::kNoDeopt | Operator::kNoThrow;
     static constexpr OpEffects kEffects = base_effects.RequiredWhenUnused();
   };
+
+  struct WasmInt32ToHeapNumber : public Descriptor<WasmInt32ToHeapNumber> {
+    static constexpr auto kFunction = Builtin::kWasmInt32ToHeapNumber;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Word32>, value)
+    };
+    using returns_t = std::tuple<V<HeapNumber>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kPure;
+    static constexpr OpEffects kEffects =
+        base_effects.CanAllocateWithoutIdentity();
+  };
+
+  struct WasmInt32ToSharedHeapNumber
+      : public Descriptor<WasmInt32ToSharedHeapNumber> {
+    static constexpr auto kFunction = Builtin::kWasmInt32ToSharedHeapNumber;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Word32>, value)
+    };
+    using returns_t = std::tuple<V<HeapNumber>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kPure;
+    static constexpr OpEffects kEffects =
+        base_effects.CanAllocateWithoutIdentity();
+  };
+
+  struct WasmRefFunc : public Descriptor<WasmRefFunc> {
+    static constexpr auto kFunction = Builtin::kWasmRefFunc;
+    struct Arguments : ArgumentsBase {
+      ARG(V<WasmTrustedInstanceData>, wasm_instance)
+      ARG(V<Word32>, function_index)
+      ARG(V<Word32>, extract_shared_data)
+    };
+    using returns_t = std::tuple<V<WasmFuncRef>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoThrow;
+    // TODO(nicohartmann@): Use more precise effects.
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   struct LoadIC : public Descriptor<LoadIC> {
@@ -1042,43 +1087,6 @@ struct BuiltinCallDescriptor {
         base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
-  struct WasmInt32ToHeapNumber : public Descriptor<WasmInt32ToHeapNumber> {
-    static constexpr auto kFunction = Builtin::kWasmInt32ToHeapNumber;
-    using arguments_t = std::tuple<V<Word32>>;
-    using results_t = std::tuple<V<HeapNumber>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kPure;
-    static constexpr OpEffects kEffects =
-        base_effects.CanAllocateWithoutIdentity();
-  };
-
-  struct WasmInt32ToSharedHeapNumber
-      : public Descriptor<WasmInt32ToSharedHeapNumber> {
-    static constexpr auto kFunction = Builtin::kWasmInt32ToSharedHeapNumber;
-    using arguments_t = std::tuple<V<Word32>>;
-    using results_t = std::tuple<V<HeapNumber>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kPure;
-    static constexpr OpEffects kEffects =
-        base_effects.CanAllocateWithoutIdentity();
-  };
-
-  struct WasmRefFunc : public Descriptor<WasmRefFunc> {
-    static constexpr auto kFunction = Builtin::kWasmRefFunc;
-    using arguments_t =
-        std::tuple<V<WasmTrustedInstanceData>, V<Word32>, V<Word32>>;
-    using results_t = std::tuple<V<WasmFuncRef>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoThrow;
-    // TODO(nicohartmann@): Use more precise effects.
-    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
-  };
 
   struct WasmAllocateDescriptorStruct
       : public Descriptor<WasmAllocateDescriptorStruct> {

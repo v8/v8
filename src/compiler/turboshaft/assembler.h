@@ -3845,20 +3845,22 @@ class AssemblerOpInterface : public Next {
   // Wasm-into-JS), there is no Wasm jump table, so it dispatches to
   // CallBuiltin, which emits a direct call to the builtin's code object loaded
   // as a heap constant.
-  template <typename Descriptor>
-  detail::index_type_for_t<typename Descriptor::results_t> CallWasmBuiltin(
-      const typename Descriptor::arguments_t& args) {
+  template <typename Desc>
+  detail::index_type_for_t<typename Desc::returns_t> CallWasmBuiltin(
+      const typename Desc::Arguments& args) {
+    static_assert(!Desc::kNeedsContext,
+                  "Wasm builtins cannot require a context");
+    static_assert(!Desc::kCanTriggerLazyDeopt,
+                  "Wasm builtins cannot trigger lazy deoptimization");
     const bool is_wasm_in_js_inlining = !Asm().data()->is_wasm();
     if (is_wasm_in_js_inlining) {
       // We are in the JS pipeline. Wasm nodes are compiled within the JS
       // compiler, so there is no Wasm jump table. We use regular builtin
       // calls instead.
-      Isolate* isolate = Asm().data()->isolate();
-      DCHECK_NOT_NULL(isolate);
-      return CallBuiltin<Descriptor>(isolate, args);
+      return CallBuiltin<Desc>(args);
     } else {
       // Wasm pipeline: go through the jump table.
-      return WasmCallBuiltinThroughJumptable<Descriptor>(args);
+      return WasmCallBuiltinThroughJumptable<Desc>(args);
     }
   }
 
@@ -3960,6 +3962,9 @@ class AssemblerOpInterface : public Next {
   detail::index_type_for_t<typename Desc::returns_t>
   WasmCallBuiltinThroughJumptable(const typename Desc::Arguments& args) {
     static_assert(!Desc::kCanTriggerLazyDeopt);
+    // The Wasm jump table is only available when compiling with the regular
+    // Wasm pipeline, not when we are e.g. inlining Wasm-in-JS.
+    DCHECK(Asm().data()->is_wasm());
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3980,6 +3985,9 @@ class AssemblerOpInterface : public Next {
   WasmCallBuiltinThroughJumptable(V<Context> context,
                                   const typename Desc::Arguments& args) {
     static_assert(!Desc::kCanTriggerLazyDeopt);
+    // The Wasm jump table is only available when compiling with the regular
+    // Wasm pipeline, not when we are e.g. inlining Wasm-in-JS.
+    DCHECK(Asm().data()->is_wasm());
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
