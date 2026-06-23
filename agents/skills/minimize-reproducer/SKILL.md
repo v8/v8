@@ -51,24 +51,43 @@ Reduce the input JavaScript file systematically. Always work on a copy (e.g.,
   of the time), add a loop around the triggering logic to increase the failure
   probability to 100%.
 
-### 4. Special API Handling (e.g., Sandbox API)
+### 4. Wasm Minimization
 
-- **Offset Alignment:** Some APIs (like \`Sandbox.markForCorruptionOnAccess\`)
+WebAssembly reproductions often start as opaque `Uint8Array` blobs. Converting
+these to readable `WasmModuleBuilder` JS is critical for understanding and
+minimizing the logic.
+
+- **Convert Early with `wami`:** Use the `wami` tool to automatically generate
+  `WasmModuleBuilder` code from a Wasm binary. This is much less error-prone
+  than manual conversion.
+  - **Command:** `out/x64.release/wami --mjsunit input.wasm > poc.js`
+- **Handle `WasmModuleBuilder` Specifics:**
+  - **Recursive Types:** Be careful with recursive type definitions; ensure they
+    are correctly indexed.
+  - **Reference Types:** When specifying indices for heap types (e.g., in
+    `struct.get`), use `wasmRefNullType(typeIndex)` or similar helpers where the
+    builder expects a type object rather than a raw integer.
+  - **Signature Validation:** After conversion, verify that the module still
+    reproduces the original issue. `WasmModuleBuilder` might require minor
+    manual adjustments if the original binary had subtle validation errors.
+
+### 5. Special API Handling (e.g., Sandbox API)
+
+- **Offset Alignment:** Some APIs (like `Sandbox.markForCorruptionOnAccess`)
   require specific alignments (e.g., tagged-size-aligned offsets like 8, 12, or
   16).
 - **Object Context:** Ensure the object being manipulated (e.g., a String) is
-  large enough for the offset being targeted. Use \`%DebugPrint(obj)\` with
-  \`--allow-natives-syntax\` to inspect the internal structure.
+  large enough for the offset being targeted. Use `%DebugPrint(obj)` with
+  `--allow-natives-syntax` to inspect the internal structure.
 
-### 5. Clean and Polish
+### 6. Clean and Polish
 
-- **Rename Variables:** Obfuscated names like \`\_\_v_0\` should be renamed to
-  something descriptive like \`str\` or \`targetObj\`.
+- **Rename Variables:** Obfuscated names like `__v_0` should be renamed to
+  something descriptive like `str` or `targetObj`.
 - **Readability > Size:** A 20-line file that is easy to understand is better
   than a 10-line file that is completely cryptic.
-- **Self-Contained:** Ensure the final \`poc-min.js\` is completely
-  self-contained and does not rely on external fuzzer libraries unless strictly
-  necessary.
+- **Self-Contained:** Ensure the final `poc-min.js` is completely self-contained
+  and does not rely on external fuzzer libraries unless strictly necessary.
 
 ## Guidelines
 
