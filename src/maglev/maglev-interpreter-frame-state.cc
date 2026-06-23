@@ -497,7 +497,8 @@ void MergePointInterpreterFrameState::MergeLoop(
   DCHECK(is_unmerged_loop());
   predecessors_[predecessor_count_ - 1] = loop_end_block;
 
-  if (graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
+  if (graph->compilation_info()->is_turbolev() ||
+      graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
     backedge_known_node_aspects_ =
         loop_end_state.known_node_aspects()->Clone(graph->zone());
   }
@@ -582,7 +583,8 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     return false;
   }
 
-  if (graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
+  if (graph->compilation_info()->is_turbolev() ||
+      graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
     backedge_known_node_aspects_ =
         loop_end_state.known_node_aspects()->Clone(graph->zone());
   }
