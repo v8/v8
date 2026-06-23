@@ -696,6 +696,9 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
                                      DirectHandle<Object> value) {
   DCHECK(!Done());
   name = isolate_->factory()->InternalizeString(name);
+  // Synthetic variables are compiler-introduced and not exposed to the user, so
+  // they may carry values outside the JSAny type and must not be overwritten.
+  if (ScopeInfo::VariableIsSynthetic(*name)) return false;
   switch (Type()) {
     case ScopeTypeGlobal:
     case ScopeTypeWith:
@@ -1216,13 +1219,8 @@ bool ScopeIterator::SetContextExtensionValue(DirectHandle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(DirectHandle<String> variable_name,
                                             DirectHandle<Object> new_value) {
-  VariableLookupResult lookup_result;
-  int slot_index =
-      context_->scope_info()->ContextSlotIndex(*variable_name, &lookup_result);
+  int slot_index = context_->scope_info()->ContextSlotIndex(*variable_name);
   if (slot_index < 0) return false;
-  if (IsPrivateMethodOrAccessorVariableMode(lookup_result.mode)) {
-    return false;
-  }
   Context::Set(context_, slot_index, new_value, isolate_);
   return true;
 }
