@@ -115,6 +115,7 @@ uint16_t BytecodeArray::parameter_count_without_receiver() const {
 }
 
 void BytecodeArray::set_parameter_count(uint16_t number_of_parameters) {
+  DCHECK_GE(number_of_parameters, kJSArgcReceiverSlots);
   parameter_size_ = number_of_parameters;
 }
 

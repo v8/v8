@@ -249,6 +249,8 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
   }
 
   Check(bytecode->frame_size() >= 0, "Invalid bytecode array frame size");
+  Check(bytecode->parameter_count() >= kJSArgcReceiverSlots,
+        "Invalid bytecode array parameter count");
 
   // Finally perform lightweight verification for CFI. If we ever enable full
   // verification in production then we'd most likely want to avoid iterating

@@ -518,7 +518,7 @@ TEST_F(BytecodeVerifierTest, ParameterLoadOutOfBounds) {
       static_cast<uint8_t>(interpreter::Bytecode::kLdar), param_operand,
       static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
   constexpr int32_t kFrameSize = 32;
-  constexpr int32_t kParameterCount = 0;
+  constexpr int32_t kParameterCount = kJSArgcReceiverSlots;
 
   Handle<BytecodeArray> bc =
       MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,

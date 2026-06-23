@@ -61,7 +61,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
                              source_position_mode),
       register_optimizer_(nullptr),
       potentially_throwing_bytecode_count_(0) {
-  DCHECK_GE(parameter_count_, 0);
+  DCHECK_GE(parameter_count_, kJSArgcReceiverSlots);
   DCHECK_LE(parameter_count_, std::numeric_limits<uint16_t>::max());
   DCHECK_GE(local_register_count_, 0);
 
