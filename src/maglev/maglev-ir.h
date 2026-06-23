@@ -220,6 +220,7 @@ class ExceptionHandlerInfo;
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) \
   V(TransitionAndStoreArrayElement)     \
   V(TurbofanStaticAssert)               \
+  V(AssertPeeled)                       \
   V(AssumeMap)
 
 #define CONVERSION_NODE_LIST(V)         \
@@ -7714,6 +7715,14 @@ class TurbofanStaticAssert : public FixedInputNodeT<1, TurbofanStaticAssert> {
 
   DECLARE_INPUTS(Check)
   DECLARE_INPUT_TYPES(Tagged)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class AssertPeeled : public FixedInputNodeT<0, AssertPeeled> {
+ public:
+  explicit AssertPeeled(uint64_t bitfield) : Base(bitfield) {}
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

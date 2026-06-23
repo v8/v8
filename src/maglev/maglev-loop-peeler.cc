@@ -702,8 +702,15 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
       }
     }
     dst_block->nodes().reserve(block->nodes().size());
-    for (Node* node : block->nodes()) {
+    for (Node*& node : block->nodes()) {
       if (node == nullptr) continue;
+      // A %AssertPeeled marker asserts this loop is peeled, which is happening
+      // now: drop it from the original body (so it never reaches the Turbolev
+      // backend) and don't clone it into the peeled iteration.
+      if (node->Is<AssertPeeled>()) {
+        node = nullptr;
+        continue;
+      }
       if (IsSkippableInPeel(node)) continue;
       // Don't clone Identity nodes; fold each one away by mapping it to its
       // underlying value. That value may itself be defined earlier in the body

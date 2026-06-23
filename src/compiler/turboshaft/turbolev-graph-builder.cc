@@ -5672,6 +5672,13 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::AssertPeeled*,
+                                const maglev::ProcessingState&) {
+    // The loop peeler removes this marker when it peels the surrounding loop,
+    // so reaching it means the loop was not peeled.
+    FATAL("%%AssertPeeled: loop was not peeled");
+  }
+
   maglev::ProcessResult Process(maglev::MajorGCForCompilerTesting* node,
                                 const maglev::ProcessingState&) {
     __ MajorGCForCompilerTesting();

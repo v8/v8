@@ -2073,6 +2073,14 @@ RUNTIME_FUNCTION(Runtime_TurbofanStaticAssert) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_AssertPeeled) {
+  SealHandleScope shs(isolate);
+  // In Turbolev this is lowered to an AssertPeeled node that the loop peeler
+  // removes when it peels the surrounding loop, so we never reach this in
+  // compiled code once peeling fires.
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_IsBeingInterpreted) {
   SealHandleScope shs(isolate);
   // Always lowered to false in Turbofan, so we never get here in compiled code.

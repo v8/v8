@@ -5,16 +5,18 @@
 // Flags: --allow-natives-syntax --turbolev --turbofan
 // Flags: --turbolev-non-eager-loop-peeling
 
-// TODO(victorgomes): add a %assertPeeled intrinsic (modelled on
-// %TurbofanStaticAssert, which Turbolev already handles specially) that the
-// MaglevLoopPeeler strips from the graph when it actually peels a loop, and use
-// it in these tests to assert peeling fired instead of only checking results.
+// Peelable loops carry a %AssertPeeled() marker that the MaglevLoopPeeler strips
+// when it peels the loop. If peeling stops firing the marker survives to the
+// Turbolev backend and the compile fails, so these positively assert that
+// peeling happened instead of only checking results. Loops the peeler does not
+// peel yet omit the marker and carry a TODO(victorgomes) note instead.
 
 // Canonical counted for-loop: header is a BranchIfInt32Compare, backedge
 // JumpLoop. Exercises the peel-exit-merge (PEM) path (two-tail clone).
 function counted_loop(n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     s += i;
   }
   return s;
@@ -32,6 +34,7 @@ assertOptimized(counted_loop);
 function empty_loop(n) {
   let acc = 42;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     acc *= 2;
   }
   return acc;
@@ -51,6 +54,7 @@ function while_loop(n) {
   let i = 0;
   let r = 0;
   while (i < n) {
+    %AssertPeeled();
     r = r + i + 1;
     i++;
   }
@@ -70,6 +74,7 @@ assertOptimized(while_loop);
 function read_after_loop(n) {
   let i = 0;
   while (i < n) {
+    %AssertPeeled();
     i = i + 1;
   }
   return i;
@@ -88,6 +93,7 @@ assertOptimized(read_after_loop);
 function with_if_else(n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     if (i % 2 === 0) s += i;
     else s -= i;
   }
@@ -108,6 +114,7 @@ assertOptimized(with_if_else);
 function one_sided_update(n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     if (i > 3) s += i;
   }
   return s;
@@ -132,6 +139,7 @@ assertOptimized(one_sided_update);
 function header_load_bound(obj) {
   let s = 0;
   for (let i = 0; i < obj.lim; i++) {
+    %AssertPeeled();
     s += i;
   }
   return s;
@@ -153,6 +161,7 @@ assertOptimized(header_load_bound);
 function break_loop(n, threshold) {
   let s = 0;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     if (i > threshold) break;
     s += i;
   }
@@ -175,6 +184,7 @@ assertOptimized(break_loop);
 function break_returns_local(n) {
   let result = -1;
   for (let i = 0; i < n; i++) {
+    // TODO(victorgomes): not peeled yet (exit target has phis).
     if (i === 5) {
       result = i * 2;
       break;
@@ -199,6 +209,7 @@ assertOptimized(break_returns_local);
 function double_break(a, b, n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
+    // TODO(victorgomes): not peeled yet (exit target has phis).
     if (i === a) break;
     s += i;
     if (i === b) break;
@@ -225,6 +236,7 @@ function labelled_break_outer(n, m, threshold) {
   let s = 0;
   outer: for (let i = 0; i < n; i++) {
     inner: for (let j = 0; j < m; j++) {
+      // TODO(victorgomes): not peeled yet (exit target has phis).
       if (j === threshold) break outer;
       s += j;
     }
@@ -247,6 +259,7 @@ function labelled_continue_outer(n, m, skip) {
   let s = 0;
   outer: for (let i = 0; i < n; i++) {
     inner: for (let j = 0; j < m; j++) {
+      %AssertPeeled();
       if (j === skip) continue outer;
       s += j;
     }
@@ -268,6 +281,7 @@ assertOptimized(labelled_continue_outer);
 function labelled_continue_inner_only(n, skip) {
   let s = 0;
   inner: for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     if (i === skip) continue inner;
     s += i;
   }
@@ -289,7 +303,10 @@ assertOptimized(labelled_continue_inner_only);
 // frame state and crashes during turboshaft translation.
 function inlined_sum(n) {
   let s = 0;
-  for (let i = 0; i < n; i++) s += i;
+  for (let i = 0; i < n; i++) {
+    %AssertPeeled();
+    s += i;
+  }
   return s;
 }
 function caller_simple(n) {
@@ -313,7 +330,10 @@ assertOptimized(caller_simple);
 // registers.
 function inlined_many_args(a, b, c, n) {
   let s = a + b + c;
-  for (let i = 0; i < n; i++) s += i;
+  for (let i = 0; i < n; i++) {
+    %AssertPeeled();
+    s += i;
+  }
   return s;
 }
 function caller_many_args(n) {
@@ -334,7 +354,10 @@ assertOptimized(caller_many_args);
 // reached through two layers of inlined frames.
 function inlined_inner(n) {
   let s = 0;
-  for (let i = 0; i < n; i++) s += i;
+  for (let i = 0; i < n; i++) {
+    %AssertPeeled();
+    s += i;
+  }
   return s;
 }
 function inlined_middle(n) {
@@ -363,6 +386,7 @@ function nested_basic(n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
+      %AssertPeeled();
       s += j;
     }
   }
@@ -385,6 +409,7 @@ function nested_inner_sum_outer_uses(n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < i; j++) {
+      %AssertPeeled();
       s += j;
     }
   }
@@ -406,6 +431,7 @@ assertOptimized(nested_inner_sum_outer_uses);
 function continue_skip_evens(n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     if ((i & 1) === 0) continue;
     s += i;
   }
@@ -428,7 +454,10 @@ assertOptimized(continue_skip_evens);
 function double_it(x) { return x + x; }
 function calls_helper_in_loop(n) {
   let s = 0;
-  for (let i = 0; i < n; i++) s += double_it(i);
+  for (let i = 0; i < n; i++) {
+    %AssertPeeled();
+    s += double_it(i);
+  }
   return s;
 }
 %PrepareFunctionForOptimization(double_it);
@@ -450,6 +479,7 @@ assertOptimized(calls_helper_in_loop);
 function helper_with_break(n, t) {
   let s = 0;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     if (i > t) break;
     s += i;
   }
@@ -476,6 +506,7 @@ function helper_nested(n, m) {
   let s = 0;
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < m; j++) {
+      %AssertPeeled();
       s += i + j;
     }
   }
@@ -501,7 +532,10 @@ function compute_bound(x) { return x + 1; }
 function loop_with_helper_bound(n) {
   let lim = compute_bound(n);
   let s = 0;
-  for (let i = 0; i < lim; i++) s += i;
+  for (let i = 0; i < lim; i++) {
+    %AssertPeeled();
+    s += i;
+  }
   return s;
 }
 %PrepareFunctionForOptimization(compute_bound);
@@ -520,7 +554,7 @@ assertOptimized(loop_with_helper_bound);
 // minimal-body case.
 function empty_body(n) {
   let i = 0;
-  for (; i < n; i++);
+  for (; i < n; i++) %AssertPeeled();
   return i;
 }
 %PrepareFunctionForOptimization(empty_body);
@@ -539,6 +573,7 @@ function unused_phi(n) {
   let s = 0;
   let unused = 100;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     s += i;
     unused = unused * 2;  // Computed but discarded.
   }
@@ -560,6 +595,7 @@ function while_true_break(n) {
   let s = 0;
   let i = 0;
   while (true) {
+    %AssertPeeled();
     if (i >= n) break;
     s += i;
     i++;
@@ -580,6 +616,7 @@ assertOptimized(while_true_break);
 function bitwise_ops(n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     s = s ^ (i & 0xFF);
   }
   return s;
@@ -597,6 +634,7 @@ assertOptimized(bitwise_ops);
 function float_accumulator(n) {
   let s = 0.5;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     s = s + 1.5;
   }
   return s;
@@ -614,8 +652,14 @@ assertOptimized(float_accumulator);
 // must process them in sequence without state leak between candidates.
 function back_to_back_loops(n) {
   let s = 0;
-  for (let i = 0; i < n; i++) s += i;
-  for (let i = 0; i < n; i++) s += i * 2;
+  for (let i = 0; i < n; i++) {
+    // TODO(victorgomes): not peeled yet (body value used downstream).
+    s += i;
+  }
+  for (let i = 0; i < n; i++) {
+    %AssertPeeled();
+    s += i * 2;
+  }
   return s;
 }
 %PrepareFunctionForOptimization(back_to_back_loops);
@@ -634,7 +678,10 @@ function small_helper(x) { return x * 3; }
 function caller_calls_twice(n) {
   let pre = small_helper(n);
   let s = 0;
-  for (let i = 0; i < pre; i++) s += i;
+  for (let i = 0; i < pre; i++) {
+    %AssertPeeled();
+    s += i;
+  }
   return s;
 }
 %PrepareFunctionForOptimization(small_helper);
@@ -681,6 +728,7 @@ function recursive_phis(n) {
   let a = 1;
   let b = 1;
   for (let i = 0; i < n; i++) {
+    %AssertPeeled();
     let next = a + b;
     a = b;
     b = next;

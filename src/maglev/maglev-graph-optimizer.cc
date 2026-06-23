@@ -992,6 +992,11 @@ ProcessResult MaglevGraphOptimizer::VisitTurbofanStaticAssert(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitAssertPeeled(AssertPeeled*,
+                                                      const ProcessingState&) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitMajorGCForCompilerTesting(
     MajorGCForCompilerTesting*, const ProcessingState&) {
   return ProcessResult::kContinue;

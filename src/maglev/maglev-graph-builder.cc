@@ -12016,6 +12016,11 @@ ReduceResult MaglevGraphBuilder::VisitCallRuntime() {
           {current_interpreter_frame_.get(args[0])}));
       SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
       return ReduceResult::Done();
+    case Runtime::kAssertPeeled:
+      if (!is_turbolev()) break;
+      RETURN_IF_ABORT(AddNewNode<AssertPeeled>({}));
+      SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
+      return ReduceResult::Done();
     case Runtime::kNewFunctionContext:
       accumulator_scope_info_ =
           compilation_unit_->shared_function_info().scope_info(broker());
