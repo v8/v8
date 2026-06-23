@@ -486,6 +486,9 @@ std::optional<ValueNode*> MaglevReducer<BaseT>::TryGetConstantAlternative(
   const NodeInfo* info = known_node_aspects().TryGetInfoFor(node);
   if (info) {
     if (auto c = info->alternative().checked_value()) {
+      while (c->opcode() == Opcode::kCheckedInternalizedString) {
+        c = c->input(0).node();
+      }
       if (IsConstantNode(c->opcode())) {
         return c;
       }
