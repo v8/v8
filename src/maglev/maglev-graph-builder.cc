@@ -5363,9 +5363,11 @@ ReduceResult MaglevGraphBuilder::BuildLoadElements(
   }
 
   ValueNode* elements;
-  GET_VALUE_OR_ABORT(elements,
-                     BuildLoadTaggedField(object, offsetof(JSObject, elements_),
-                                          NodeType::kAnyHeapObject));
+  GET_VALUE_OR_ABORT(
+      elements,
+      BuildLoadTaggedField(object, offsetof(JSObject, elements_),
+                           NodeType::kAnyHeapObject,
+                           /*is_const=*/false, PropertyKey::Elements()));
   reducer_.RecordKnownProperty(object, PropertyKey::Elements(), elements, false,
                                compiler::AccessMode::kLoad);
   if (is_turbolev() && kind.has_value()) {
