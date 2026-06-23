@@ -41,6 +41,7 @@
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/weak-object-worklists.h"
 #include "src/heap/young-generation-marking-visitor.h"
+#include "src/init/isolate-group.h"
 #include "src/init/v8.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
@@ -364,6 +365,12 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
                                  bool should_keep_ages_unchanged) {
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterruptCheck = 1000;
+
+  const bool is_joining_thread = delegate->IsJoiningThread();
+  SYNCHRONIZATION_POINT_FOR_TESTING(is_joining_thread
+                                        ? "ConcurrentMarkerMajorMainThread"
+                                        : "ConcurrentMarkerMajorBgThread");
+
   uint8_t task_id = delegate->GetTaskId() + 1;
   TaskState* task_state = task_state_[task_id].get();
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
