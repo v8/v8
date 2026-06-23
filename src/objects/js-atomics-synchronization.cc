@@ -253,7 +253,7 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     Isolate* requester, std::atomic<StateT>* state,
     WaiterQueueNode* timed_out_waiter) {
   // First acquire the queue lock, which is itself a spinlock.
-  StateT current_state = state->load(std::memory_order_relaxed);
+  StateT current_state = state->load(std::memory_order_acquire);
   // There are no waiters, but the js mutex lock may be held by another thread.
   if (!HasWaitersField::decode(current_state)) return false;
 
@@ -389,13 +389,16 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
   DCHECK_NOT_NULL(waiter_head);
   WaiterQueueNode* old_head = WaiterQueueNode::Dequeue(&waiter_head);
 
+  // Notify the node before releasing the lock, so that there is no risk of a
+  // race between this notify and another thread timing out and clearing up the
+  // node.
+  old_head->Notify();
+
   // Release both the lock and the queue lock, and install the new waiter queue
   // head.
   StateT new_state = IsLockedField::update(current_state, false);
   new_state = SetWaiterQueueHead(requester, waiter_head, new_state);
   waiter_queue_lock_guard.set_new_state(new_state);
-
-  old_head->Notify();
 }
 
 // static
@@ -468,7 +471,7 @@ uint32_t JSAtomicsCondition::DequeueExplicit(
     Isolate* requester, DirectHandle<JSAtomicsCondition> cv,
     std::atomic<StateT>* state, const DequeueAction& action_under_lock) {
   // First acquire the queue lock, which is itself a spinlock.
-  StateT current_state = state->load(std::memory_order_relaxed);
+  StateT current_state = state->load(std::memory_order_acquire);
 
   if (!HasWaitersField::decode(current_state)) return 0;
   WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
