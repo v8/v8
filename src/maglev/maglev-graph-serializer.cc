@@ -24,6 +24,7 @@
 #include "src/objects/bytecode-array.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/feedback-vector.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/string-inl.h"
@@ -757,11 +758,11 @@ void JsonPrintAllBytecodeSources(std::ostream& os, MaglevCompilationInfo* info,
   DirectHandle<BytecodeArray> bytecode_array =
       info->toplevel_compilation_unit()->bytecode().object();
 
-  Handle<FeedbackVector> feedback_vector =
-      info->toplevel_compilation_unit()->feedback().object();
+  Tagged<FeedbackVector> feedback_vector =
+      info->toplevel_function()->feedback_vector();
 
   JsonPrintBytecodeSource(os, -1, info->function_name(), bytecode_array,
-                          *feedback_vector);
+                          feedback_vector);
 
   const auto& inlined = graph->inlined_functions();
   SourceIdAssigner id_assigner(graph->inlined_functions().size());
