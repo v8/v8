@@ -333,9 +333,6 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
 #if V8_STATIC_ROOTS_BOOL
   LoadCompressedMap(scratch1, destination);
   for (auto& [type, label] : cases) {
-    if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
-      continue;
-    }
     BranchInstanceTypeWithUniqueCompressedMap(label, eq, scratch1, scratch2,
                                               type);
   }
@@ -343,9 +340,6 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
   LoadMap(scratch1, destination);
   Lh(scratch1, FieldMemOperand(scratch1, offsetof(Map, instance_type_)));
   for (auto& [type, label] : cases) {
-    if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
-      continue;
-    }
     Branch(label, eq, scratch1, Operand(type));
   }
 #endif  // V8_STATIC_ROOTS_BOOL
