@@ -2373,6 +2373,24 @@ void MacroAssembler::Sd(Register rd, const MemOperand& rs, Trapper&& trapper) {
 }
 #endif
 
+void MacroAssembler::LoadHalf(FPURegister fd, const MemOperand& src,
+                              Trapper&& trapper) {
+  auto fn = [&](FPURegister target, const MemOperand& source) {
+    trapper(pc_offset());
+    flh(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(fd, src, fn);
+}
+
+void MacroAssembler::StoreHalf(FPURegister fs, const MemOperand& src,
+                               Trapper&& trapper) {
+  auto fn = [&](FPURegister value, const MemOperand& source) {
+    trapper(pc_offset());
+    fsh(value, source.rm(), source.offset());
+  };
+  AlignedStoreHelper(fs, src, fn);
+}
+
 void MacroAssembler::LoadFloat(FPURegister fd, const MemOperand& src,
                                Trapper&& trapper) {
   auto fn = [&](FPURegister target, const MemOperand& source) {

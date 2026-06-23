@@ -244,10 +244,10 @@ namespace compiler {
   V(RiscvI32x4Shl)                        \
   V(RiscvI32x4ShrS)                       \
   V(RiscvI32x4ShrU)                       \
-  V(RiscvFEq)                             \
-  V(RiscvFNe)                             \
-  V(RiscvFLt)                             \
-  V(RiscvFLe)                             \
+  V(RiscvVFEq)                            \
+  V(RiscvVFNe)                            \
+  V(RiscvVFLt)                            \
+  V(RiscvVFLe)                            \
   V(RiscvFMin)                            \
   V(RiscvFMax)                            \
   V(RiscvF64x2Sqrt)                       \
@@ -275,6 +275,13 @@ namespace compiler {
   V(RiscvF32x4Qfms)                       \
   V(RiscvF64x2Qfma)                       \
   V(RiscvF64x2Qfms)                       \
+  V(RiscvF16x8Splat)                      \
+  V(RiscvF16x8ExtractLane)                \
+  V(RiscvF16x8ReplaceLane)                \
+  V(RiscvF16x8Abs)                        \
+  V(RiscvF16x8Sqrt)                       \
+  V(RiscvF16x8Pmin)                       \
+  V(RiscvF16x8Pmax)                       \
   V(RiscvF32x4Pmin)                       \
   V(RiscvF32x4Pmax)                       \
   V(RiscvF32x4DemoteF64x2Zero)            \

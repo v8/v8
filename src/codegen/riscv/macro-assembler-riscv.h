@@ -998,6 +998,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Sw(rd, rs, std::forward<Trapper>(trapper));
   }
 #endif
+  void LoadHalf(
+      FPURegister fd, const MemOperand& src, Trapper&& trapper = [](int) {});
+  void StoreHalf(
+      FPURegister fs, const MemOperand& dst, Trapper&& trapper = [](int) {});
   void LoadFloat(
       FPURegister fd, const MemOperand& src, Trapper&& trapper = [](int){});
   void StoreFloat(

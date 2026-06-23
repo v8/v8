@@ -1672,10 +1672,6 @@
   # This often fails in debug mode because it is too slow.
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
-  # Needs FP16 support.
-  'wasm/simd-fp16': [SKIP],
-  'regress/wasm/regress-504612573': [SKIP],
-
   # Flush to zero is not supported yet.
   'd8/flush-denormals-flag': [SKIP],
   'd8/flush-denormals-helper': [SKIP],

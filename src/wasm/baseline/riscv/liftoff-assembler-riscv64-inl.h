@@ -385,6 +385,10 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kF64Load:
       LoadDouble(dst.fp(), src_op, trapper);
       break;
+    case LoadType::kF32LoadF16:
+      LoadHalf(dst.fp(), src_op, trapper);
+      fcvt_s_h(dst.fp(), dst.fp());
+      break;
     case LoadType::kS128Load: {
       VU.SetSimd128(E8);
       Register src_reg = src_op.offset() == 0 ? src_op.rm() : kScratchReg;
@@ -395,9 +399,6 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       vl(dst.simd128(), src_reg, 0, E8);
       break;
     }
-    case LoadType::kF32LoadF16:
-      UNIMPLEMENTED();
-      break;
     default:
       UNREACHABLE();
   }
@@ -432,6 +433,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kI64Store:
       Sd(src.gp(), dst_op, trapper);
+      break;
+    case StoreType::kF32StoreF16:
+      fcvt_h_s(kScratchDoubleReg, src.fp());
+      StoreHalf(kScratchDoubleReg, dst_op, trapper);
       break;
     case StoreType::kF32Store:
       StoreFloat(src.fp(), dst_op, trapper);
@@ -1115,6 +1120,9 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
       Ld(kScratchReg, src);
       Sd(kScratchReg, dst);
       break;
+    case kF16:
+      UNREACHABLE();
+      break;
     case kF32:
       LoadFloat(kScratchDoubleReg, src);
       StoreFloat(kScratchDoubleReg, dst);
@@ -1142,7 +1150,6 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
     case kI16:
     case kTop:
     case kBottom:
-    case kF16:
       UNREACHABLE();
   }
 }
@@ -2271,7 +2278,13 @@ void LiftoffStackSlots::Construct(int param_slots) {
   }
 }
 
-bool LiftoffAssembler::supports_f16_mem_access() { return false; }
+bool LiftoffAssembler::supports_f16_mem_access() {
+  if (CpuFeatures::IsSupported(ZVFH) && CpuFeatures::IsSupported(ZFH)) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
                                              Label* trap_label) {

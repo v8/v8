@@ -103,6 +103,7 @@ static CpuFeatureSet SimulatorFeatures() {
   features.Add(ZICFISS);
   features.Add(FPU);
   features.Add(ZFH);
+  features.Add(ZVFH);
   features.Add(ZFA);
   return features;
 }
