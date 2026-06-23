@@ -1712,11 +1712,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       switch (rep) {
         case MachineRepresentation::kFloat32:
           __ StoreF32WithUpdate(i.InputDoubleRegister(1),
-                                MemOperand(sp, -kSystemPointerSize), r0);
+                                MemOperand(sp, -kSystemPointerSize));
           break;
         case MachineRepresentation::kFloat64:
           __ StoreF64WithUpdate(i.InputDoubleRegister(1),
-                                MemOperand(sp, -kDoubleSize), r0);
+                                MemOperand(sp, -kDoubleSize));
           break;
         case MachineRepresentation::kSimd128: {
           UseScratchRegisterScope temps(masm());
@@ -1740,14 +1740,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
-          __ StoreF64WithUpdate(i.InputDoubleRegister(0),
-                                MemOperand(sp, -num_slots * kSystemPointerSize),
-                                r0);
+          __ StoreF64WithUpdate(
+              i.InputDoubleRegister(0),
+              MemOperand(sp, -num_slots * kSystemPointerSize));
         } else {
           DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
-          __ StoreF32WithUpdate(i.InputDoubleRegister(0),
-                                MemOperand(sp, -num_slots * kSystemPointerSize),
-                                r0);
+          __ StoreF32WithUpdate(
+              i.InputDoubleRegister(0),
+              MemOperand(sp, -num_slots * kSystemPointerSize));
         }
       } else {
         __ StoreU64WithUpdate(i.InputRegister(0),

@@ -2927,7 +2927,8 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
     if (mem.rb() == no_reg) {                           \
       if (!is_int16(offset)) {                          \
         /* cannot use d-form */                         \
-        CHECK_NE(scratch, no_reg);                      \
+        UseScratchRegisterScope temps(this);            \
+        Register scratch = temps.Acquire();             \
         mov(scratch, Operand(offset));                  \
         rr_op(reg, MemOperand(mem.ra(), scratch));      \
       } else {                                          \
@@ -2937,11 +2938,13 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
       if (offset == 0) {                                \
         rr_op(reg, mem);                                \
       } else if (is_int16(offset)) {                    \
-        CHECK_NE(scratch, no_reg);                      \
+        UseScratchRegisterScope temps(this);            \
+        Register scratch = temps.Acquire();             \
         addi(scratch, mem.rb(), Operand(offset));       \
         rr_op(reg, MemOperand(mem.ra(), scratch));      \
       } else {                                          \
-        CHECK_NE(scratch, no_reg);                      \
+        UseScratchRegisterScope temps(this);            \
+        Register scratch = temps.Acquire();             \
         mov(scratch, Operand(offset));                  \
         add(scratch, scratch, mem.rb());                \
         rr_op(reg, MemOperand(mem.ra(), scratch));      \
@@ -3103,10 +3106,9 @@ MEM_OP_WITH_ALIGN_PREFIXED_LIST(MEM_OP_WITH_ALIGN_PREFIXED_FUNCTION)
   V(StoreF64WithUpdate, DoubleRegister, stfdu, stfdux) \
   V(StoreF32WithUpdate, DoubleRegister, stfsu, stfsux)
 
-#define MEM_OP_FUNCTION(name, result_t, ri_op, rr_op)            \
-  void MacroAssembler::name(result_t reg, const MemOperand& mem, \
-                            Register scratch) {                  \
-    GenerateMemoryOperation(reg, mem, ri_op, rr_op);             \
+#define MEM_OP_FUNCTION(name, result_t, ri_op, rr_op)              \
+  void MacroAssembler::name(result_t reg, const MemOperand& mem) { \
+    GenerateMemoryOperation(reg, mem, ri_op, rr_op);               \
   }
 MEM_OP_LIST(MEM_OP_FUNCTION)
 #undef MEM_OP_LIST

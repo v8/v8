@@ -1076,15 +1076,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreF32(DoubleRegister src, const MemOperand& mem);
   void StoreF64(DoubleRegister src, const MemOperand& mem);
 
-  void LoadF32WithUpdate(DoubleRegister dst, const MemOperand& mem,
-                         Register scratch = no_reg);
-  void LoadF64WithUpdate(DoubleRegister dst, const MemOperand& mem,
-                         Register scratch = no_reg);
+  void LoadF32WithUpdate(DoubleRegister dst, const MemOperand& mem);
+  void LoadF64WithUpdate(DoubleRegister dst, const MemOperand& mem);
 
-  void StoreF32WithUpdate(DoubleRegister src, const MemOperand& mem,
-                          Register scratch = no_reg);
-  void StoreF64WithUpdate(DoubleRegister src, const MemOperand& mem,
-                          Register scratch = no_reg);
+  void StoreF32WithUpdate(DoubleRegister src, const MemOperand& mem);
+  void StoreF64WithUpdate(DoubleRegister src, const MemOperand& mem);
 
   void LoadU64(Register dst, const MemOperand& mem);
   void LoadU32(Register dst, const MemOperand& mem);
