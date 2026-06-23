@@ -34,7 +34,10 @@ class CppMarkingState final {
 
   void Publish() { marking_state_.Publish(); }
 
-  inline void MarkAndPush(void* instance);
+  V8_INLINE void MarkAndPush(void* instance) {
+    marking_state_.MarkAndPush(
+        cppgc::internal::HeapObjectHeader::FromObject(instance));
+  }
 
   bool IsLocalEmpty() const {
     return marking_state_.marking_worklist().IsLocalEmpty();
