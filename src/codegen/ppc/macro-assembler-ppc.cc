@@ -152,16 +152,15 @@ void MacroAssembler::LoadFromConstantsTable(Register destination,
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
   LoadTaggedField(destination,
                   FieldMemOperand(destination, FixedArray::OffsetOfElementAt(
-                                                   constant_index)),
-                  r0);
+                                                   constant_index)));
 }
 
 void MacroAssembler::LoadRootRelative(Register destination, int32_t offset) {
-  LoadU64(destination, MemOperand(kRootRegister, offset), r0);
+  LoadU64(destination, MemOperand(kRootRegister, offset));
 }
 
 void MacroAssembler::StoreRootRelative(int32_t offset, Register value) {
-  StoreU64(value, MemOperand(kRootRegister, offset), r0);
+  StoreU64(value, MemOperand(kRootRegister, offset));
 }
 
 void MacroAssembler::LoadRootRegisterOffset(Register destination,
@@ -331,7 +330,7 @@ void MacroAssembler::CallBuiltin(Builtin builtin, Condition cond) {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       Label skip;
-      LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
+      LoadU64(scratch, EntryFromBuiltinAsOperand(builtin));
       if (cond != al) b(NegateCondition(cond), &skip);
       Call(scratch);
       bind(&skip);
@@ -347,7 +346,7 @@ void MacroAssembler::CallBuiltin(Builtin builtin, Condition cond) {
         UseScratchRegisterScope temps(this);
         Register scratch = temps.Acquire();
         Label skip;
-        LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
+        LoadU64(scratch, EntryFromBuiltinAsOperand(builtin));
         if (cond != al) b(NegateCondition(cond), &skip);
         Call(scratch);
         bind(&skip);
@@ -378,7 +377,7 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       Label skip;
-      LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
+      LoadU64(scratch, EntryFromBuiltinAsOperand(builtin));
       if (cond != al) b(NegateCondition(cond), &skip, cr);
       Jump(scratch);
       bind(&skip);
@@ -394,7 +393,7 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
         UseScratchRegisterScope temps(this);
         Register scratch = temps.Acquire();
         Label skip;
-        LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
+        LoadU64(scratch, EntryFromBuiltinAsOperand(builtin));
         if (cond != al) b(NegateCondition(cond), &skip, cr);
         Jump(scratch);
         bind(&skip);
@@ -736,55 +735,51 @@ void MacroAssembler::LoadRoot(Register destination, RootIndex index,
     return;
   }
   LoadU64(destination,
-          MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)), r0);
+          MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
 }
 
 void MacroAssembler::LoadTaggedField(const Register& destination,
-                                     const MemOperand& field_operand,
-                                     const Register& scratch) {
+                                     const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
   if (COMPRESS_POINTERS_BOOL) {
     DecompressTagged(destination, field_operand);
   } else {
-    LoadU64(destination, field_operand, scratch);
+    LoadU64(destination, field_operand);
   }
 }
 
 void MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-    const Register& destination, const MemOperand& field_operand,
-    const Register& scratch) {
+    const Register& destination, const MemOperand& field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
     LoadU32(destination, field_operand);
   } else {
-    LoadU64(destination, field_operand, scratch);
+    LoadU64(destination, field_operand);
   }
 }
 
-void MacroAssembler::SmiUntag(Register dst, const MemOperand& src, RCBit rc,
-                              Register scratch) {
+void MacroAssembler::SmiUntag(Register dst, const MemOperand& src, RCBit rc) {
   if (SmiValuesAre31Bits()) {
     LoadU32(dst, src);
   } else {
-    LoadU64(dst, src, scratch);
+    LoadU64(dst, src);
   }
 
   SmiUntag(dst, rc);
 }
 
 void MacroAssembler::SmiUntagField(Register dst, const MemOperand& src,
-                                   RCBit rc, Register scratch) {
-  SmiUntag(dst, src, rc, scratch);
+                                   RCBit rc) {
+  SmiUntag(dst, src, rc);
 }
 
 void MacroAssembler::StoreTaggedField(const Register& value,
-                                      const MemOperand& dst_field_operand,
-                                      const Register& scratch) {
+                                      const MemOperand& dst_field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
     RecordComment("[ StoreTagged");
     StoreU32(value, dst_field_operand);
     RecordComment("]");
   } else {
-    StoreU64(value, dst_field_operand, scratch);
+    StoreU64(value, dst_field_operand);
   }
 }
 
@@ -825,12 +820,11 @@ void MacroAssembler::DecompressTagged(const Register& destination,
 }
 
 void MacroAssembler::LoadTaggedSignedField(Register destination,
-                                           MemOperand field_operand,
-                                           Register scratch) {
+                                           MemOperand field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
     DecompressTaggedSigned(destination, field_operand);
   } else {
-    LoadU64(destination, field_operand, scratch);
+    LoadU64(destination, field_operand);
   }
 }
 
@@ -1188,8 +1182,7 @@ void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
 
   LoadU64(scratch2,
-          FieldMemOperand(code_target_address, Code::kInstructionStartOffset),
-          scratch1);
+          FieldMemOperand(code_target_address, Code::kInstructionStartOffset));
   LoadU32(scratch1,
           FieldMemOperand(code_target_address, Code::kInstructionSizeOffset));
   add(scratch2, scratch1, scratch2);
@@ -1421,14 +1414,13 @@ void MacroAssembler::MovFromFloatParameter(const DoubleRegister dst) {
   Move(dst, d1);
 }
 
-void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind,
-                                    Register scratch) {
+void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {
   DCHECK(root_array_available());
   intptr_t offset = kind == StackLimitKind::kRealStackLimit
                         ? IsolateData::real_jslimit_offset()
                         : IsolateData::jslimit_offset();
   CHECK(is_int32(offset));
-  LoadU64(destination, MemOperand(kRootRegister, offset), scratch);
+  LoadU64(destination, MemOperand(kRootRegister, offset));
 }
 
 void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
@@ -1436,7 +1428,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  LoadStackLimit(scratch, StackLimitKind::kRealStackLimit, r0);
+  LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
   // Make scratch the space we have left. The stack might already be overflowed
   // here which will cause scratch to become negative.
   sub(scratch, sp, scratch);
@@ -1604,8 +1596,8 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
 
   LoadTaggedField(
       temp_reg,
-      FieldMemOperand(r4, offsetof(JSFunction, shared_function_info_)), r0);
-  LoadTaggedField(cp, FieldMemOperand(r4, offsetof(JSFunction, context_)), r0);
+      FieldMemOperand(r4, offsetof(JSFunction, shared_function_info_)));
+  LoadTaggedField(cp, FieldMemOperand(r4, offsetof(JSFunction, context_)));
   LoadU16(expected_reg,
           FieldMemOperand(
               temp_reg, offsetof(SharedFunctionInfo, formal_parameter_count_)));
@@ -1625,7 +1617,7 @@ void MacroAssembler::InvokeFunction(Register function,
   DCHECK_EQ(function, r4);
 
   // Get the function and setup the context.
-  LoadTaggedField(cp, FieldMemOperand(r4, offsetof(JSFunction, context_)), r0);
+  LoadTaggedField(cp, FieldMemOperand(r4, offsetof(JSFunction, context_)));
 
   InvokeFunctionCode(r4, no_reg, expected_parameter_count,
                      actual_parameter_count, type);
@@ -1977,12 +1969,12 @@ void MacroAssembler::Abort(AbortReason reason) {
 
 void MacroAssembler::LoadMap(Register destination, Register object) {
   LoadTaggedField(destination,
-                  FieldMemOperand(object, offsetof(HeapObject, map_)), r0);
+                  FieldMemOperand(object, offsetof(HeapObject, map_)));
 }
 
 void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
   LoadTaggedField(
-      dst, FieldMemOperand(closure, offsetof(JSFunction, feedback_cell_)), r0);
+      dst, FieldMemOperand(closure, offsetof(JSFunction, feedback_cell_)));
 }
 
 void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
@@ -1991,11 +1983,10 @@ void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
                                                 Label* fbv_undef) {
   Label done;
   LoadTaggedField(
-      dst, FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)), r0);
+      dst, FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
-  LoadTaggedField(scratch, FieldMemOperand(dst, offsetof(HeapObject, map_)),
-                  r0);
+  LoadTaggedField(scratch, FieldMemOperand(dst, offsetof(HeapObject, map_)));
   LoadU16(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   CmpS32(scratch, Operand(FEEDBACK_VECTOR_TYPE), r0);
   b(eq, &done);
@@ -2017,8 +2008,7 @@ void MacroAssembler::LoadInterpreterDataBytecodeArray(
     Register destination, Register interpreter_data) {
   LoadTaggedField(destination,
                   FieldMemOperand(interpreter_data,
-                                  offsetof(InterpreterData, bytecode_array_)),
-                  r0);
+                                  offsetof(InterpreterData, bytecode_array_)));
 }
 
 void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
@@ -2026,8 +2016,7 @@ void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
   LoadTaggedField(
       destination,
       FieldMemOperand(interpreter_data,
-                      offsetof(InterpreterData, interpreter_trampoline_)),
-      r0);
+                      offsetof(InterpreterData, interpreter_trampoline_)));
 }
 
 void MacroAssembler::LoadCompressedMap(Register dst, Register object) {
@@ -2040,9 +2029,8 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadTaggedField(
       dst,
       FieldMemOperand(
-          dst, offsetof(Map, constructor_or_back_pointer_or_native_context_)),
-      r0);
-  LoadTaggedField(dst, MemOperand(dst, Context::SlotOffset(index)), r0);
+          dst, offsetof(Map, constructor_or_back_pointer_or_native_context_)));
+  LoadTaggedField(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
 #ifdef V8_ENABLE_DEBUG_CODE
@@ -2389,7 +2377,7 @@ void MacroAssembler::CheckPageFlag(
   DCHECK(cc == ne || cc == eq);
   DCHECK(scratch != r0);
   ClearRightImm(scratch, object, Operand(kPageSizeBits));
-  LoadU64(scratch, MemOperand(scratch, MemoryChunk::FlagsOffset()), r0);
+  LoadU64(scratch, MemOperand(scratch, MemoryChunk::FlagsOffset()));
 
   mov(r0, Operand(mask));
   and_(r0, scratch, r0, SetRC);
@@ -3061,7 +3049,8 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
         rip_op(reg, mem);                                                     \
       } else {                                                                \
         /* cannot use d-form */                                               \
-        CHECK_NE(scratch, no_reg);                                            \
+        UseScratchRegisterScope temps(this);                                  \
+        Register scratch = temps.Acquire();                                   \
         mov(scratch, Operand(offset));                                        \
         rr_op(reg, MemOperand(mem.ra(), scratch));                            \
       }                                                                       \
@@ -3069,11 +3058,13 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
       if (offset == 0) {                                                      \
         rr_op(reg, mem);                                                      \
       } else if (is_int16(offset)) {                                          \
-        CHECK_NE(scratch, no_reg);                                            \
+        UseScratchRegisterScope temps(this);                                  \
+        Register scratch = temps.Acquire();                                   \
         addi(scratch, mem.rb(), Operand(offset));                             \
         rr_op(reg, MemOperand(mem.ra(), scratch));                            \
       } else {                                                                \
-        CHECK_NE(scratch, no_reg);                                            \
+        UseScratchRegisterScope temps(this);                                  \
+        Register scratch = temps.Acquire();                                   \
         mov(scratch, Operand(offset));                                        \
         add(scratch, scratch, mem.rb());                                      \
         rr_op(reg, MemOperand(mem.ra(), scratch));                            \
@@ -3099,8 +3090,7 @@ MEM_OP_WITH_ALIGN_LIST(MEM_OP_WITH_ALIGN_FUNCTION)
   V(StoreU64, std, pstd, stdx)
 
 #define MEM_OP_WITH_ALIGN_PREFIXED_FUNCTION(name, ri_op, rip_op, rr_op)       \
-  void MacroAssembler::name(Register reg, const MemOperand& mem,              \
-                            Register scratch) {                               \
+  void MacroAssembler::name(Register reg, const MemOperand& mem) {            \
     GenerateMemoryOperationWithAlignPrefixed(reg, mem, ri_op, rip_op, rr_op); \
   }
 MEM_OP_WITH_ALIGN_PREFIXED_LIST(MEM_OP_WITH_ALIGN_PREFIXED_FUNCTION)
@@ -3187,27 +3177,13 @@ void MacroAssembler::LoadS8(Register dst, const MemOperand& mem,
 MEM_LE_OP_LIST(MEM_LE_OP_FUNCTION)
 #undef MEM_LE_OP_FUNCTION
 #else
-// Little-endian: these are plain loads/stores. LoadU64/StoreU64 still take a
-// scratch register, so their wrappers forward it. LoadU32/U16 and StoreU32/U16
-// acquire the scratch internally, so their wrappers forward without it.
-#define MEM_LE_OP_FORWARD(name)                                      \
-  void MacroAssembler::name##LE(Register reg, const MemOperand& mem, \
-                                Register scratch) {                  \
-    name(reg, mem, scratch);                                         \
-  }
-#define MEM_LE_OP_FORWARD_NOSCRATCH(name)                            \
+#define MEM_LE_OP_FORWARD(name, op)                                  \
   void MacroAssembler::name##LE(Register reg, const MemOperand& mem, \
                                 Register scratch) {                  \
     name(reg, mem);                                                  \
   }
-MEM_LE_OP_FORWARD(LoadU64)
-MEM_LE_OP_FORWARD_NOSCRATCH(LoadU32)
-MEM_LE_OP_FORWARD_NOSCRATCH(LoadU16)
-MEM_LE_OP_FORWARD(StoreU64)
-MEM_LE_OP_FORWARD_NOSCRATCH(StoreU32)
-MEM_LE_OP_FORWARD_NOSCRATCH(StoreU16)
+MEM_LE_OP_LIST(MEM_LE_OP_FORWARD)
 #undef MEM_LE_OP_FORWARD
-#undef MEM_LE_OP_FORWARD_NOSCRATCH
 #endif
 #undef MEM_LE_OP_LIST
 
@@ -3217,7 +3193,7 @@ void MacroAssembler::LoadS32LE(Register dst, const MemOperand& mem,
   LoadU32LE(dst, mem, scratch);
   extsw(dst, dst);
 #else
-  LoadS32(dst, mem, scratch);
+  LoadS32(dst, mem);
 #endif
 }
 
@@ -3259,7 +3235,7 @@ void MacroAssembler::StoreF64LE(DoubleRegister dst, const MemOperand& mem,
                                 Register scratch, Register scratch2) {
 #ifdef V8_TARGET_BIG_ENDIAN
   StoreF64(dst, mem);
-  LoadU64(scratch, mem, scratch2);
+  LoadU64(scratch, mem);
   StoreU64LE(scratch, mem, scratch2);
 #else
   StoreF64(dst, mem);
@@ -4560,8 +4536,8 @@ void MacroAssembler::SwapP(Register src, MemOperand dst, Register scratch) {
     DCHECK(!AreAliased(src, dst.rb(), scratch));
   DCHECK(!AreAliased(src, scratch));
   mr(scratch, src);
-  LoadU64(src, dst, r0);
-  StoreU64(scratch, dst, r0);
+  LoadU64(src, dst);
+  StoreU64(scratch, dst);
 }
 
 void MacroAssembler::SwapP(MemOperand src, MemOperand dst, Register scratch_0,
@@ -4582,17 +4558,17 @@ void MacroAssembler::SwapP(MemOperand src, MemOperand dst, Register scratch_0,
       src = dst;
       dst = temp;
     }
-    LoadU64(scratch_1, dst, scratch_0);
+    LoadU64(scratch_1, dst);
     LoadU64(scratch_0, src);
     StoreU64(scratch_1, src);
-    StoreU64(scratch_0, dst, scratch_1);
+    StoreU64(scratch_0, dst);
   } else {
-    LoadU64(scratch_1, dst, scratch_0);
+    LoadU64(scratch_1, dst);
     push(scratch_1);
-    LoadU64(scratch_0, src, scratch_1);
-    StoreU64(scratch_0, dst, scratch_1);
+    LoadU64(scratch_0, src);
+    StoreU64(scratch_0, dst);
     pop(scratch_1);
-    StoreU64(scratch_1, src, scratch_0);
+    StoreU64(scratch_1, src);
   }
 }
 
@@ -4790,7 +4766,7 @@ void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
   LoadU64(destination,
-          FieldMemOperand(code_object, Code::kInstructionStartOffset), r0);
+          FieldMemOperand(code_object, Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {

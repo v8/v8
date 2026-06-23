@@ -989,8 +989,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           UseScratchRegisterScope temps(masm());
           Register scratch = temps.Acquire();
           __ LoadTaggedField(
-              scratch, FieldMemOperand(func, offsetof(JSFunction, context_)),
-              r0);
+              scratch, FieldMemOperand(func, offsetof(JSFunction, context_)));
           __ CmpS64(cp, scratch);
           __ Assert(eq, AbortReason::kWrongFunctionContext);
         }
@@ -1237,14 +1236,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         ool = zone()->New<OutOfLineRecordWrite>(
             this, object, offset, value, scratch0, scratch1, mode,
             DetermineStubCallMode(), &unwinding_info_writer_);
-        __ StoreTaggedField(value, MemOperand(object, offset), r0);
+        __ StoreTaggedField(value, MemOperand(object, offset));
       } else {
         DCHECK_EQ(kMode_MRR, addressing_mode);
         Register offset(i.InputRegister(1));
         ool = zone()->New<OutOfLineRecordWrite>(
             this, object, offset, value, scratch0, scratch1, mode,
             DetermineStubCallMode(), &unwinding_info_writer_);
-        __ StoreTaggedField(value, MemOperand(object, offset), r0);
+        __ StoreTaggedField(value, MemOperand(object, offset));
       }
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
@@ -1278,7 +1277,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 
-      __ StoreTaggedField(value, operand, r0);
+      __ StoreTaggedField(value, operand);
       break;
     }
     case kArchStoreIndirectSkippedWriteBarrier:
@@ -1310,7 +1309,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                          scratch);
         }
       } else {
-        __ LoadU64(i.OutputRegister(), MemOperand(fp, offset), r0);
+        __ LoadU64(i.OutputRegister(), MemOperand(fp, offset));
       }
       break;
     }
@@ -1775,7 +1774,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
       } else {
         __ StoreU64(i.InputRegister(0),
-                    MemOperand(sp, slot * kSystemPointerSize), r0);
+                    MemOperand(sp, slot * kSystemPointerSize));
       }
       break;
     }
@@ -3006,7 +3005,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(index);
       bool is_atomic = i.InputInt32(index + 1);
       if (is_atomic) __ lwsync();
-      __ StoreTaggedField(value, operand, r0);
+      __ StoreTaggedField(value, operand);
       if (is_atomic) __ sync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -3302,7 +3301,7 @@ void CodeGenerator::AssembleConstructFrame() {
       if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         UseScratchRegisterScope temps(masm());
         Register stack_limit = temps.Acquire();
-        __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit, r0);
+        __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
         __ AddS64(stack_limit, stack_limit,
                   Operand(required_slots * kSystemPointerSize), r0);
         __ CmpU64(sp, stack_limit);
@@ -3552,7 +3551,7 @@ AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
   int slot_id = frame_access_state()->GetSPSlotCount() - 1 + new_slots;
   AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
   if (source->IsFloatStackSlot() || source->IsDoubleStackSlot()) {
-    __ LoadU64(r0, g.ToMemOperand(source), r0);
+    __ LoadU64(r0, g.ToMemOperand(source));
     __ Push(r0);
     frame_access_state()->IncreaseSPDelta(new_slots);
   } else {
@@ -3573,7 +3572,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
     UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     __ Pop(scratch);
-    __ StoreU64(scratch, g.ToMemOperand(dest), r0);
+    __ StoreU64(scratch, g.ToMemOperand(dest));
   } else {
     int slot_id = frame_access_state()->GetSPSlotCount() - 1;
     AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
@@ -3662,18 +3661,18 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsRegister()) {
       __ Move(g.ToRegister(destination), src);
     } else {
-      __ StoreU64(src, g.ToMemOperand(destination), r0);
+      __ StoreU64(src, g.ToMemOperand(destination));
     }
   } else if (source->IsStackSlot()) {
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
     MemOperand src = g.ToMemOperand(source);
     if (destination->IsRegister()) {
-      __ LoadU64(g.ToRegister(destination), src, r0);
+      __ LoadU64(g.ToRegister(destination), src);
     } else {
       UseScratchRegisterScope temps(masm());
       Register temp = temps.Acquire();
-      __ LoadU64(temp, src, r0);
-      __ StoreU64(temp, g.ToMemOperand(destination), r0);
+      __ LoadU64(temp, src);
+      __ StoreU64(temp, g.ToMemOperand(destination));
     }
   } else if (source->IsConstant()) {
     Constant src = g.ToConstant(source);
@@ -3725,7 +3724,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           UNREACHABLE();  // TODO(dcarney): loading RPO constants on PPC.
       }
       if (destination->IsStackSlot()) {
-        __ StoreU64(dst, g.ToMemOperand(destination), r0);
+        __ StoreU64(dst, g.ToMemOperand(destination));
       }
     } else {
       DoubleRegister dst = destination->IsFPRegister()

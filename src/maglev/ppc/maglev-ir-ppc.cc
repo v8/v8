@@ -194,7 +194,7 @@ void ArgumentsLength::SetValueLocationConstraints() { DefineAsRegister(this); }
 void ArgumentsLength::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
   Register argc = ToRegister(result());
-  __ LoadU64(argc, MemOperand(fp, StandardFrameConstants::kArgCOffset), r0);
+  __ LoadU64(argc, MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ SubS64(argc, argc, Operand(1));  // Remove receiver.
 }
 
@@ -204,7 +204,7 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   Register length = ToRegister(result());
   Label done;
-  __ LoadU64(length, MemOperand(fp, StandardFrameConstants::kArgCOffset), r0);
+  __ LoadU64(length, MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ SubS32(length, length, Operand(formal_parameter_count() + 1), r0, SetRC);
   __ bge(&done);
   __ Move(length, 0);
@@ -1039,7 +1039,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     // real stack overflows on function entry.
     {
       Register stack_limit = scratch0;
-      __ LoadStackLimit(stack_limit, StackLimitKind::kInterruptStackLimit, r0);
+      __ LoadStackLimit(stack_limit, StackLimitKind::kInterruptStackLimit);
       __ CmpU64(sp, stack_limit);
       __ bgt(&next);
     }
@@ -1145,7 +1145,7 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // TODO(leszeks): Consider making this an input into Return to reuse the
   // incoming argc's register (if it's still valid).
   __ LoadU64(actual_params_size,
-             MemOperand(fp, StandardFrameConstants::kArgCOffset), r0);
+             MemOperand(fp, StandardFrameConstants::kArgCOffset));
 
   // Leave the frame.
   __ LeaveFrame(StackFrame::MAGLEV);

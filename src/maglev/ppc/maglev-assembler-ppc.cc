@@ -50,9 +50,9 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   // {size_in_bytes}.
   Register new_top = object;
   // Check if there is enough space.
-  __ LoadU64(object, __ ExternalReferenceAsOperand(top), r0);
+  __ LoadU64(object, __ ExternalReferenceAsOperand(top));
   __ AddS64(object, object, size_in_bytes);
-  __ LoadU64(scratch, __ ExternalReferenceAsOperand(limit), r0);
+  __ LoadU64(scratch, __ ExternalReferenceAsOperand(limit));
   __ CmpU64(new_top, scratch);
   // Otherwise call runtime.
   __ JumpToDeferredIf(kUnsignedGreaterThanEqual, AllocateSlow<T>,
@@ -228,7 +228,7 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
              RootIndex::kFirstSingleCharacterString)),
          r0);
   ShiftLeftU64(result, char_code, Operand(kSystemPointerSizeLog2));
-  LoadU64(result, MemOperand(table, result), r0);
+  LoadU64(result, MemOperand(table, result));
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
@@ -378,7 +378,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // register as well.
     Register second_string = instance_type;
     LoadU64(second_string,
-            FieldMemOperand(string, offsetof(ConsString, second_)), r0);
+            FieldMemOperand(string, offsetof(ConsString, second_)));
     CompareRoot(second_string, RootIndex::kempty_string);
     bne(deferred_runtime_call);
     LoadTaggedField(string,

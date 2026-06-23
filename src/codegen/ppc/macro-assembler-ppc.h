@@ -807,16 +807,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadIsolateField(Register dst, IsolateFieldId id);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
-  void Move(Register dst, const MemOperand& src) {
-    // TODO(johnyan): Use scratch register scope instead of r0.
-    LoadU64(dst, src, r0);
-  }
+  void Move(Register dst, const MemOperand& src) { LoadU64(dst, src); }
   // Loads a field containing smi value and untags it.
-  void SmiUntagField(Register dst, const MemOperand& src, RCBit rc = LeaveRC,
-                     Register scratch = r0);
+  void SmiUntagField(Register dst, const MemOperand& src, RCBit rc = LeaveRC);
 
-  void SmiUntag(Register dst, const MemOperand& src, RCBit rc = LeaveRC,
-                Register scratch = no_reg);
+  void SmiUntag(Register dst, const MemOperand& src, RCBit rc = LeaveRC);
   void SmiUntag(Register reg, RCBit rc = LeaveRC) { SmiUntag(reg, reg, rc); }
 
   void SmiUntag(Register dst, Register src, RCBit rc = LeaveRC) {
@@ -1057,18 +1052,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads a field containing any tagged value and decompresses it if necessary.
   void LoadTaggedField(const Register& destination,
-                       const MemOperand& field_operand,
-                       const Register& scratch = r0);
-  void LoadTaggedSignedField(Register destination, MemOperand field_operand,
-                             Register scratch = r0);
+                       const MemOperand& field_operand);
+  void LoadTaggedSignedField(Register destination, MemOperand field_operand);
   void LoadTaggedFieldWithoutDecompressing(const Register& destination,
-                                           const MemOperand& field_operand,
-                                           const Register& scratch = r0);
+                                           const MemOperand& field_operand);
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,
-                        const MemOperand& dst_field_operand,
-                        const Register& scratch = r0);
+                        const MemOperand& dst_field_operand);
 
   void Zero(const MemOperand& dest);
   void Zero(const MemOperand& dest1, const MemOperand& dest2);
@@ -1095,16 +1086,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreF64WithUpdate(DoubleRegister src, const MemOperand& mem,
                           Register scratch = no_reg);
 
-  void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadU64(Register dst, const MemOperand& mem);
   void LoadU32(Register dst, const MemOperand& mem);
-  void LoadS32(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadS32(Register dst, const MemOperand& mem);
   void LoadS32(Register dst, Register src) { extsw(dst, src); }
   void LoadU16(Register dst, const MemOperand& mem);
   void LoadS16(Register dst, const MemOperand& mem);
   void LoadU8(Register dst, const MemOperand& mem);
   void LoadS8(Register dst, const MemOperand& mem, Register scratch = no_reg);
 
-  void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
+  void StoreU64(Register src, const MemOperand& mem);
   void StoreU32(Register src, const MemOperand& mem);
   void StoreU16(Register src, const MemOperand& mem);
   void StoreU8(Register src, const MemOperand& mem);
@@ -1769,8 +1760,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void StackOverflowCheck(Register num_args, Register scratch,
                           Label* stack_overflow);
-  void LoadStackLimit(Register destination, StackLimitKind kind,
-                      Register scratch);
+  void LoadStackLimit(Register destination, StackLimitKind kind);
 
   // ---------------------------------------------------------------------------
   // Smi utilities

@@ -190,7 +190,7 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
-  __ LoadU64(tmp, operand, r0);
+  __ LoadU64(tmp, operand);
   JumpIfHelper(masm_, cc, value, tmp, target);
 }
 
@@ -216,7 +216,7 @@ void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  __ LoadTaggedField(scratch, operand, r0);
+  __ LoadTaggedField(scratch, operand);
   JumpIfHelper<COMPRESS_POINTERS_BOOL ? 32 : 64>(masm_, cc, value, scratch,
                                                  target);
 }
@@ -227,7 +227,7 @@ void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  __ LoadTaggedField(scratch, operand, r0);
+  __ LoadTaggedField(scratch, operand);
   JumpIfHelper<COMPRESS_POINTERS_BOOL ? 32 : 64>(masm_, cc, value, scratch,
                                                  target);
 }
@@ -250,7 +250,7 @@ void BaselineAssembler::Move(Register output, Tagged<TaggedIndex> value) {
 
 void BaselineAssembler::Move(MemOperand output, Register source) {
   ASM_CODE_COMMENT(masm_);
-  __ StoreU64(source, output, r0);
+  __ StoreU64(source, output);
 }
 
 void BaselineAssembler::Move(Register output, ExternalReference reference) {
@@ -391,13 +391,13 @@ void BaselineAssembler::Pop(T... registers) {
 void BaselineAssembler::LoadTaggedField(Register output, Register source,
                                         int offset) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadTaggedField(output, FieldMemOperand(source, offset), r0);
+  __ LoadTaggedField(output, FieldMemOperand(source, offset));
 }
 
 void BaselineAssembler::LoadTaggedSignedField(Register output, Register source,
                                               int offset) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadTaggedSignedField(output, FieldMemOperand(source, offset), r0);
+  __ LoadTaggedSignedField(output, FieldMemOperand(source, offset));
 }
 
 void BaselineAssembler::LoadTaggedSignedFieldAndUntag(Register output,
@@ -425,7 +425,7 @@ void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
   __ LoadSmiLiteral(tmp, value);
-  __ StoreTaggedField(tmp, FieldMemOperand(target, offset), r0);
+  __ StoreTaggedField(tmp, FieldMemOperand(target, offset));
 }
 
 void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
@@ -434,7 +434,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
   ASM_CODE_COMMENT(masm_);
   Register scratch = WriteBarrierDescriptor::SlotAddressRegister();
   DCHECK(!AreAliased(target, value, scratch));
-  __ StoreTaggedField(value, FieldMemOperand(target, offset), r0);
+  __ StoreTaggedField(value, FieldMemOperand(target, offset));
   __ RecordWriteField(target, offset, value, scratch, kLRHasNotBeenSaved,
                       SaveFPRegsMode::kIgnore);
 }
@@ -442,7 +442,7 @@ void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        int offset,
                                                        Register value) {
   ASM_CODE_COMMENT(masm_);
-  __ StoreTaggedField(value, FieldMemOperand(target, offset), r0);
+  __ StoreTaggedField(value, FieldMemOperand(target, offset));
 }
 
 void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
@@ -462,7 +462,7 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     // The entry references a CodeWrapper object. Unwrap it now.
     __ LoadTaggedField(
         scratch_and_result,
-        FieldMemOperand(scratch_and_result, offsetof(CodeWrapper, code_)), r0);
+        FieldMemOperand(scratch_and_result, offsetof(CodeWrapper, code_)));
 
     Register scratch = temps.AcquireScratch();
     __ TestCodeIsMarkedForDeoptimization(scratch_and_result, scratch, r0);
@@ -584,14 +584,14 @@ void BaselineAssembler::IncrementSmi(MemOperand lhs) {
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   if (SmiValuesAre31Bits()) {
-    __ LoadS32(scratch, lhs, r0);
+    __ LoadS32(scratch, lhs);
     __ AddS64(scratch, scratch, Operand(Smi::FromInt(1)));
     __ StoreU32(scratch, lhs);
   } else {
-    __ SmiUntag(scratch, lhs, LeaveRC, r0);
+    __ SmiUntag(scratch, lhs, LeaveRC);
     __ AddS64(scratch, scratch, Operand(1));
     __ SmiTag(scratch);
-    __ StoreU64(scratch, lhs, r0);
+    __ StoreU64(scratch, lhs);
   }
 }
 
