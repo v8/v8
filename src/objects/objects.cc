@@ -749,7 +749,10 @@ DirectHandle<String> Object::NoSideEffectsToString(Isolate* isolate,
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("[object ");
-  builder.AppendString(tag);
+  // This threshold must be sufficiently far below String::kMaxLength that
+  // the {builder}'s result can never exceed that limit.
+  constexpr int kMaxPrintedStringLength = 1000;
+  builder.AppendStringCapped(tag, kMaxPrintedStringLength);
   builder.AppendCharacter(']');
 
   return builder.Finish().ToHandleChecked();

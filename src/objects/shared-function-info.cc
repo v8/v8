@@ -502,7 +502,13 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendCStringLiteral(") {\n");
   builder.AppendString(source);
   builder.AppendCStringLiteral("\n}");
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  DirectHandle<String> result;
+  if (builder.Finish().To(&result)) {
+    return indirect_handle(result, isolate);
+  }
+  // This should be extremely rare (only when {source} is close to
+  // String::kMaxLength), but it is reachable.
+  return isolate->factory()->NewStringFromAsciiChecked("<too long to print>");
 }
 
 int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }

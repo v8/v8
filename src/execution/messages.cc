@@ -865,14 +865,7 @@ DirectHandle<String> BuildDefaultCallSite(Isolate* isolate,
     // This threshold must be sufficiently far below String::kMaxLength that
     // the {builder}'s result can never exceed that limit.
     constexpr int kMaxPrintedStringLength = 100;
-    if (string->length() <= kMaxPrintedStringLength) {
-      builder.AppendString(string);
-    } else {
-      string = isolate->factory()->NewProperSubString(string, 0,
-                                                      kMaxPrintedStringLength);
-      builder.AppendString(string);
-      builder.AppendCStringLiteral("<...>");
-    }
+    builder.AppendStringCapped(string, kMaxPrintedStringLength);
     builder.AppendCStringLiteral("\"");
   } else if (IsNull(*object)) {
     builder.AppendCStringLiteral(" null");

@@ -109,6 +109,10 @@ class IncrementalStringBuilder {
 
   void AppendString(DirectHandle<String> string);
 
+  // Appends {string} if its length is less than {max_length}, otherwise
+  // appends that prefix plus "<...>". Useful for error messages.
+  void AppendStringCapped(DirectHandle<String> string, uint32_t max_length);
+
   MaybeDirectHandle<String> Finish();
 
   V8_INLINE bool HasOverflowed() const { return overflowed_; }

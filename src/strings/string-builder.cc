@@ -357,5 +357,15 @@ void IncrementalStringBuilder::AppendString(DirectHandle<String> string) {
   Accumulate(string);
 }
 
+void IncrementalStringBuilder::AppendStringCapped(DirectHandle<String> string,
+                                                  uint32_t max_length) {
+  if (string->length() <= max_length) {
+    return AppendString(string);
+  }
+  string = isolate_->factory()->NewProperSubString(string, 0, max_length);
+  AppendString(string);
+  AppendCStringLiteral("<...>");
+}
+
 }  // namespace internal
 }  // namespace v8
