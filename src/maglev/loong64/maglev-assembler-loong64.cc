@@ -228,11 +228,35 @@ void MaglevAssembler::Prologue(Graph* graph) {
   }
 }
 
-// TODO(loong64): seems only implementabed on arm64
 void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
                                                  Label* eager_deopt_entry,
                                                  size_t lazy_deopt_count,
-                                                 Label* lazy_deopt_entry) {}
+                                                 Label* lazy_deopt_entry) {
+  // We do have to avoid getting the trampoline pool emitted in the middle
+  // of the deoptimization exits, because it destroys our ability to compute
+  // the deoptimization index based on the 'pc' and the offset of the start
+  // of the exits section.
+  size_t total_size = eager_deopt_count * Deoptimizer::kEagerDeoptExitSize +
+                      lazy_deopt_count * Deoptimizer::kLazyDeoptExitSize;
+  // Reserve space for deoptimization entries, each entry requires two
+  // instructions.
+  if (eager_deopt_count > 0) total_size += 2;
+  if (lazy_deopt_count > 0) total_size += 2;
+  BlockTrampolinePoolFor(static_cast<int>(total_size));
+
+  TemporaryRegisterScope scope(this);
+  Register scratch = scope.AcquireScratch();
+  if (eager_deopt_count > 0) {
+    bind(eager_deopt_entry);
+    LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Eager, scratch);
+    MacroAssembler::Jump(scratch);
+  }
+  if (lazy_deopt_count > 0) {
+    bind(lazy_deopt_entry);
+    LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Lazy, scratch);
+    MacroAssembler::Jump(scratch);
+  }
+}
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 Register char_code,

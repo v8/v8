@@ -2858,7 +2858,7 @@ TEST_F(MacroAssemblerTest, DeoptExitSizeIsFixed) {
     masm.bind(&before_exit);
     Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
     masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                               nullptr);
+                               &before_exit);
     CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
              kind == DeoptimizeKind::kLazy ? Deoptimizer::kLazyDeoptExitSize
                                            : Deoptimizer::kEagerDeoptExitSize);

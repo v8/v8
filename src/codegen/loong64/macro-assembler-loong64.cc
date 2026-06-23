@@ -5784,16 +5784,15 @@ void MacroAssembler::AssertNotDeoptimized() {
   bind(&not_deoptimized);
 }
 
-void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
-                                           DeoptimizeKind kind, Label* ret,
-                                           Label*) {
+void MacroAssembler::CallForDeoptimization(
+    Builtin target, int, Label* exit, DeoptimizeKind kind, Label* ret,
+    Label* jump_deoptimization_entry_label) {
   ASM_CODE_COMMENT(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Ld_d(scratch,
-       MemOperand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(target)));
-  Call(scratch);
+  // make sure the label is within bl's 26 bit range(near)
+  DCHECK_WITH_MSG(
+      is_near(jump_deoptimization_entry_label, OffsetSize::kOffset26),
+      "deopt exit is too far from deopt entry jump");
+  Call(jump_deoptimization_entry_label);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
                                             : Deoptimizer::kEagerDeoptExitSize);
