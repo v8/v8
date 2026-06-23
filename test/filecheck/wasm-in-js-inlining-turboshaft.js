@@ -889,7 +889,7 @@ const wasmExports2 = builder2.instantiate({}).exports;
 // CHECK: Considering JS-to-Wasm wrapper for Wasm function [{{[0-9]+}}] noop2 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining wrapper
 // CHECK-NEXT: Considering JS-to-Wasm wrapper for Wasm function [{{[0-9]+}}] multiModule of module {{.*}} for inlining
-// CHECK-NEXT: - not inlining: already inlining from another Wasm module
+// CHECK-NEXT: - not inlining: already inlining from another Wasm instance
 // CHECK: Considering Wasm function [{{[0-9]+}}] noop2 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
 // CHECK-NOT: Considering Wasm function [{{[0-9]+}}] multiModule of module {{.*}} for inlining

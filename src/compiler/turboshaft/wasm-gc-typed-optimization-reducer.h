@@ -169,10 +169,17 @@ class WasmGCTypedOptimizationReducer : public Next {
 
     if (v8_flags.wasm_assert_types && __ output_graph().block_count() == 1)
         [[unlikely]] {
-      // We are just starting the first block. The instance data parameter is
-      // needed for loading the RTT types for the type assertions. All
-      // parameters need to be emitted in the beginning of the first block.
-      instance_data_ = __ WasmInstanceDataParameter();
+      if (__ data()->is_wasm()) {
+        // We are just starting the first block. The instance data parameter is
+        // needed for loading the RTT types for the type assertions. All
+        // parameters need to be emitted in the beginning of the first block.
+        instance_data_ = __ WasmInstanceDataParameter();
+      } else {
+        // For Wasm-in-JS inlining, we use the compile-time constant instance
+        // from the pipeline data.
+        DCHECK(!__ data()->wasm_instance().is_null());
+        instance_data_ = __ HeapConstant(__ data()->wasm_instance());
+      }
     }
   }
 
@@ -195,8 +202,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     // If the type is uninhabited, then simply reaching this code path is a
     // type confusion.
     if (type.is_uninhabited()) {
-      __ template WasmCallBuiltinThroughJumptable<
-          builtin::WasmTypeAssertionFailed>({});
+      __ template CallWasmBuiltin<builtin::WasmTypeAssertionFailed>({});
       // Don't mark it as __ Unreachable() as that would require the caller to
       // handle the special case of reducing into unreachable code.
       return;
@@ -230,8 +236,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (type.AsNullable() == top_type) {
       // Only check for null (the lowering doesn't support it otherwise).
       IF (UNLIKELY(__ IsNull(object, top_type))) {
-        __ template WasmCallBuiltinThroughJumptable<
-            builtin::WasmTypeAssertionFailed>({});
+        __ template CallWasmBuiltin<builtin::WasmTypeAssertionFailed>({});
         __ Unreachable();
       }
     } else {
@@ -241,8 +246,7 @@ class WasmGCTypedOptimizationReducer : public Next {
           .from = top_type, .to = type, .exactness = exactness};
       V<Word32> is_valid = __ WasmTypeCheck(object, rtt, config);
       IF_NOT (LIKELY(is_valid)) {
-        __ template WasmCallBuiltinThroughJumptable<
-            builtin::WasmTypeAssertionFailed>({});
+        __ template CallWasmBuiltin<builtin::WasmTypeAssertionFailed>({});
         __ Unreachable();
       }
     }
