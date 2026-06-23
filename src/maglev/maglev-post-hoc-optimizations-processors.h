@@ -498,29 +498,34 @@ class DeadNodeSweepingProcessor {
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
-    if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
-                  (!NodeT::kProperties.is_required_when_unused() ||
-                   std::is_same_v<ArgumentsElements, NodeT>)) {
-      if (!node->is_used()) {
-        return ProcessResult::kRemove;
+    if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
+      if (V8_UNLIKELY(v8_flags.trace_maglev_escape_analysis) &&
+          IsSweepableDeadNode(node)) {
+        InlinedAllocation* object =
+            node->input(0).node()->template Cast<InlinedAllocation>();
+        std::cout << "* Removing store node " << PrintNodeLabel(node)
+                  << " to allocation " << PrintNodeLabel(object) << std::endl;
       }
-      return ProcessResult::kContinue;
     }
+
+    if (IsSweepableDeadNode(node)) return ProcessResult::kRemove;
+
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  static bool IsSweepableDeadNode(NodeT* node) {
+    if (IsDead(node)) return true;
 
     if constexpr (CanBeStoreToNonEscapedObject<NodeT>()) {
       if (InlinedAllocation* object =
               node->input(0).node()->template TryCast<InlinedAllocation>()) {
-        if (!object->HasEscaped()) {
-          if (v8_flags.trace_maglev_escape_analysis) {
-            std::cout << "* Removing store node " << PrintNodeLabel(node)
-                      << " to allocation " << PrintNodeLabel(object)
-                      << std::endl;
-          }
-          return ProcessResult::kRemove;
-        }
+        if (!object->HasBeenAnalysed()) return false;
+        if (!object->HasEscaped()) return true;
       }
     }
-    return ProcessResult::kContinue;
+
+    return false;
   }
 
  private:

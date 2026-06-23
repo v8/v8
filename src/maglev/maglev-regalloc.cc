@@ -376,7 +376,8 @@ void StraightForwardRegisterAllocator::PrintLiveRegs() const {
 
 void StraightForwardRegisterAllocator::AllocateRegisters() {
   if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_.reset(new MaglevPrintingVisitor(std::cout));
+    printing_visitor_.reset(
+        new MaglevPrintingVisitor(std::cout, graph_, MaglevPhase::kRegAlloc));
     printing_visitor_->PreProcessGraph(graph_);
   }
 

@@ -379,13 +379,13 @@ void MaglevInliner::PrintMaglevGraph(
     tracing_scope.stream() << "\n----- " << msg << " ";
     if (ref) tracing_scope.stream() << *ref;
     tracing_scope.stream() << "-----" << std::endl;
-    PrintGraph(tracing_scope.stream(), graph_);
+    PrintGraph(tracing_scope.stream(), graph_, MaglevPhase::kInlining);
   } else {
     // TODO(victorgomes): port maglev printing to use the code tracer?
     std::cout << "\n----- " << msg << " ";
     if (ref) std::cout << *ref;
     std::cout << "-----" << std::endl;
-    PrintGraph(std::cout, graph_);
+    PrintGraph(std::cout, graph_, MaglevPhase::kInlining);
   }
 }
 

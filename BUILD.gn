@@ -4809,6 +4809,7 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-loop-peeler.h",
       "src/maglev/maglev-map-inference.h",
       "src/maglev/maglev-node-type.h",
+      "src/maglev/maglev-phase.h",
       "src/maglev/maglev-phi-representation-selector.h",
       "src/maglev/maglev-pipeline-statistics.h",
       "src/maglev/maglev-post-hoc-optimizations-processors.h",

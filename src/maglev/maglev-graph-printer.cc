@@ -279,12 +279,13 @@ class LineCountingStream : public std::ostream, private std::streambuf {
   int current_line_;
 };
 
-MaglevPrintingVisitor::MaglevPrintingVisitor(std::ostream& os,
-                                             bool has_regalloc_data)
+MaglevPrintingVisitor::MaglevPrintingVisitor(std::ostream& os, Graph* graph,
+                                             MaglevPhase phase)
     : os_(os),
       counting_stream_(static_cast<LineCountingStream*>(&os)),
       os_for_additional_info_(new MaglevPrintingVisitorOstream(os_, &targets_)),
-      has_regalloc_data_(has_regalloc_data) {}
+      phase_(phase),
+      is_maglev_(!graph->compilation_info()->is_turbolev()) {}
 
 void MaglevPrintingVisitor::PreProcessGraph(Graph* graph) {
   os_ << "Graph\n\n";
@@ -294,7 +295,7 @@ void MaglevPrintingVisitor::PreProcessGraph(Graph* graph) {
       loop_headers_.insert(block->control_node()->Cast<JumpLoop>()->target());
     }
     if (max_node_id_ == kInvalidNodeId) {
-      if (has_regalloc_data_ && block->control_node()->has_id()) {
+      if (has_regalloc_data() && block->control_node()->has_id()) {
         max_node_id_ = block->control_node()->id();
       }
     } else {
@@ -841,8 +842,11 @@ void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
 
 ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
                                              const ProcessingState& state) {
+  if (!print_sweepable_dead_phis() && IsDead(phi)) {
+    return ProcessResult::kContinue;
+  }
   PrintVerticalArrows(os_, targets_);
-  PrintPaddedId(os_, max_node_id_, has_regalloc_data_, phi);
+  PrintPaddedId(os_, max_node_id_, has_regalloc_data(), phi);
   os_ << "φ";
   switch (phi->value_representation()) {
     case ValueRepresentation::kTagged:
@@ -879,7 +883,7 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
     }
     os_ << ")";
   }
-  if (has_regalloc_data_) {
+  if (has_regalloc_data()) {
     RegallocValueNodeInfo* node_info = phi->regalloc_info();
     if (phi->is_tagged() && !node_info->result().operand().IsUnallocated()) {
       if (phi->decompresses_tagged_result()) {
@@ -937,12 +941,12 @@ ProcessResult MaglevPrintingVisitor::Process(Node* node,
   MaybePrintEagerDeopt(os_, targets_, node, max_node_id_);
 
   PrintVerticalArrows(os_, targets_);
-  PrintPaddedId(os_, max_node_id_, has_regalloc_data_, node);
+  PrintPaddedId(os_, max_node_id_, has_regalloc_data(), node);
   if (node->properties().is_call()) {
     os_ << "🐢 ";
   }
   int line = counting_stream_ ? counting_stream_->current_line() : -1;
-  os_ << PrintNode(node, has_regalloc_data_) << "\n";
+  os_ << PrintNode(node, has_regalloc_data()) << "\n";
   if (counting_stream_) {
     GetCurrentGraphLabeller()->SetNodeLineNumber(node, line);
   }
@@ -972,7 +976,8 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
 
     PrintVerticalArrows(os_, targets_, {}, {target}, true);
     os_ << "◄─";
-    PrintPaddedId(os_, max_node_id_, has_regalloc_data_, control_node, "─", -2);
+    PrintPaddedId(os_, max_node_id_, has_regalloc_data(), control_node, "─",
+                  -2);
     std::replace(targets_.begin(), targets_.end(), target,
                  static_cast<BasicBlock*>(nullptr));
 
@@ -984,7 +989,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
     has_fallthrough |= !AddTargetIfNotNext(targets_, target, state.next_block(),
                                            &arrows_starting_here);
     PrintVerticalArrows(os_, targets_, arrows_starting_here);
-    PrintPaddedId(os_, max_node_id_, has_regalloc_data_, control_node,
+    PrintPaddedId(os_, max_node_id_, has_regalloc_data(), control_node,
                   has_fallthrough ? " " : "─");
 
   } else if (control_node->Is<BranchControlNode>()) {
@@ -999,7 +1004,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
     has_fallthrough |= !AddTargetIfNotNext(
         targets_, true_target, state.next_block(), &arrows_starting_here);
     PrintVerticalArrows(os_, targets_, arrows_starting_here);
-    PrintPaddedId(os_, max_node_id_, has_regalloc_data_, control_node, "─");
+    PrintPaddedId(os_, max_node_id_, has_regalloc_data(), control_node, "─");
   } else if (control_node->Is<Switch>()) {
     std::set<size_t> arrows_starting_here;
     for (int i = 0; i < control_node->Cast<Switch>()->size(); i++) {
@@ -1018,15 +1023,15 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
     }
 
     PrintVerticalArrows(os_, targets_, arrows_starting_here);
-    PrintPaddedId(os_, max_node_id_, has_regalloc_data_, control_node, "─");
+    PrintPaddedId(os_, max_node_id_, has_regalloc_data(), control_node, "─");
 
   } else {
     PrintVerticalArrows(os_, targets_);
-    PrintPaddedId(os_, max_node_id_, has_regalloc_data_, control_node);
+    PrintPaddedId(os_, max_node_id_, has_regalloc_data(), control_node);
   }
 
   int line = counting_stream_ ? counting_stream_->current_line() : -1;
-  os_ << PrintNode(control_node, has_regalloc_data_) << "\n";
+  os_ << PrintNode(control_node, has_regalloc_data()) << "\n";
   if (counting_stream_) {
     GetCurrentGraphLabeller()->SetNodeLineNumber(control_node, line);
   }
@@ -1043,12 +1048,13 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
       os_ << "  with gap moves:\n";
       int pid = state.block()->predecessor_id();
       for (Phi* phi : *target->phis()) {
+        if (!print_sweepable_dead_phis() && IsDead(phi)) continue;
         PrintVerticalArrows(os_, targets_);
         PrintPadding(os_, max_node_id_, -1);
         os_ << (has_fallthrough ? "│" : " ");
         os_ << "    - ";
         GetCurrentGraphLabeller()->PrintInput(os_, phi->input(pid),
-                                              has_regalloc_data_);
+                                              has_regalloc_data());
         os_ << " → " << GetCurrentGraphLabeller()->NodeId(phi) << ": φ";
         switch (phi->value_representation()) {
           case ValueRepresentation::kTagged:
@@ -1073,7 +1079,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
         }
         os_ << " "
             << (phi->owner().is_valid() ? phi->owner().ToString() : "VO");
-        if (has_regalloc_data_) {
+        if (has_regalloc_data()) {
           os_ << " " << phi->result().operand();
         }
         os_ << "\n";
@@ -1126,20 +1132,19 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
   return ProcessResult::kContinue;
 }
 
-void PrintGraph(std::ostream& os, Graph* const graph, bool has_regalloc_data) {
+void PrintGraph(std::ostream& os, Graph* const graph, MaglevPhase phase) {
   LineCountingStream counting_stream(os);
-  GraphProcessor<MaglevPrintingVisitor> printer(counting_stream,
-                                                has_regalloc_data);
+  GraphProcessor<MaglevPrintingVisitor> printer(counting_stream, graph, phase);
   printer.ProcessGraph(graph);
 }
 
-void PrintGraphToFile(Graph* const graph, bool has_regalloc_data) {
+void PrintGraphToFile(Graph* const graph, MaglevPhase phase) {
   std::string func_name = graph->compilation_info()->function_name();
   std::string filename = GetMaglevGraphFilename(
       func_name, graph->compilation_info()->optimization_id());
   std::ofstream file(filename);
   if (file.is_open()) {
-    PrintGraph(file, graph, has_regalloc_data);
+    PrintGraph(file, graph, phase);
   } else {
     std::cout << "Warning: Failed to open file " << filename << " for GDB JIT"
               << std::endl;

@@ -9,6 +9,7 @@
 #include <ostream>
 
 #include "src/handles/handles.h"
+#include "src/maglev/maglev-phase.h"
 
 namespace v8 {
 namespace internal {
@@ -45,7 +46,7 @@ class MaglevJsonFile : public std::ofstream {
 };
 
 void PrintMaglevGraphAsJSON(MaglevCompilationInfo* info, Graph* graph,
-                            const char* phase_name);
+                            MaglevPhase phase);
 
 void FinalizeMaglevLogging(Isolate* isolate, MaglevCompilationInfo* info,
                            Graph* graph, Handle<Code> code);

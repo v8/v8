@@ -9,6 +9,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -20,12 +21,14 @@ class Graph;
 // TODO(victorgomes): Add more verification.
 class MaglevGraphVerifier {
  public:
-  explicit MaglevGraphVerifier(MaglevCompilationInfo* compilation_info)
+  explicit MaglevGraphVerifier(MaglevCompilationInfo* compilation_info,
+                               bool verify_sweepable_dead_nodes = true)
       : seen_(compilation_info->zone()),
         defined_(compilation_info->zone()),
         def_block_(compilation_info->zone()),
         idom_(compilation_info->zone()),
-        rpo_number_(compilation_info->zone()) {
+        rpo_number_(compilation_info->zone()),
+        verify_sweepable_dead_nodes_(verify_sweepable_dead_nodes) {
     if (compilation_info->has_graph_labeller()) {
       graph_labeller_ = compilation_info->graph_labeller();
     }
@@ -60,6 +63,10 @@ class MaglevGraphVerifier {
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    if (!verify_sweepable_dead_nodes_ &&
+        DeadNodeSweepingProcessor::IsSweepableDeadNode(node)) {
+      return ProcessResult::kContinue;
+    }
     for (Input input : node->inputs()) {
       Opcode op = input.node()->opcode();
       CHECK_GE(op, kFirstOpcode);
@@ -238,6 +245,10 @@ class MaglevGraphVerifier {
   ZoneVector<BasicBlock*> idom_;
   ZoneVector<int> rpo_number_;
   BasicBlock* current_block_ = nullptr;
+  // AnyUseMarkingProcessor can leave the graph in an inconsistent state where
+  // some dead nodes are still in the graph but their dead inputs aren't. We
+  // just relax the "domination checks" part of the verification in that case.
+  bool verify_sweepable_dead_nodes_;
 };
 
 }  // namespace maglev

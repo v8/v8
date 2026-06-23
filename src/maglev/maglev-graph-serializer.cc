@@ -841,10 +841,10 @@ std::ostream& operator<<(std::ostream& os, const MaglevGraphAsJSON& ad) {
 }
 
 void PrintMaglevGraphAsJSON(MaglevCompilationInfo* info, Graph* graph,
-                            const char* phase_name) {
+                            MaglevPhase phase) {
   if (info->trace_json_enabled()) {
     MaglevJsonFile json_of(info, std::ios_base::app);
-    json_of << "{\"name\":\"" << phase_name
+    json_of << "{\"name\":\"" << PhaseName(phase)
             << "\",\"type\":\"maglev_graph\",\"data\":" << AsJSON(graph)
             << "},\n";
   }

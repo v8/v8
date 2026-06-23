@@ -11943,6 +11943,16 @@ constexpr inline int SizeOfNodeForOpcode(Opcode op) {
   UNREACHABLE();
 }
 
+template <typename NodeT>
+inline bool IsDead(NodeT* node) {
+  if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
+                (!NodeT::kProperties.is_required_when_unused() ||
+                 std::is_same_v<ArgumentsElements, NodeT>)) {
+    return !node->is_used();
+  }
+  return false;
+}
+
 template <typename Function>
 inline void NodeBase::ForAllInputsInRegallocAssignmentOrder(Function&& f) {
   auto iterate_inputs = [&](InputAllocationPolicy category) {
