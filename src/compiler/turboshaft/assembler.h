@@ -5577,9 +5577,19 @@ class AssemblerOpInterface : public Next {
 #endif  // V8_ENABLE_SIMD128
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  V<WasmTrustedInstanceData> WasmInstanceDataParameter() {
-    return Parameter(wasm::kWasmInstanceDataParameterIndex,
-                     RegisterRepresentation::Tagged());
+  // Retrieves the Wasm trusted instance data.
+  // - In the regular Wasm pipeline, this is passed as a function parameter.
+  // - In the JS pipeline (during Wasm-in-JS inlining), the JS function does not
+  //   receive the Wasm instance as a parameter. Instead, we use the
+  //   compile-time constant instance from the PipelineData and embed it.
+  V<WasmTrustedInstanceData> WasmInstanceData() {
+    if (Asm().data()->is_wasm()) {
+      return Parameter(wasm::kWasmInstanceDataParameterIndex,
+                       RegisterRepresentation::Tagged());
+    } else {
+      DCHECK(!Asm().data()->wasm_instance().is_null());
+      return HeapConstant(Asm().data()->wasm_instance());
+    }
   }
 
   OpIndex LoadStackPointer() { return ReduceIfReachableLoadStackPointer(); }
