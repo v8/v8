@@ -263,7 +263,6 @@ void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
   // reconsidered.
   current_.start_time = start_of_observable_pause_.value();
   current_.reduce_memory = heap_->ShouldReduceMemory();
-  current_.growing_mode = heap_->CurrentHeapGrowingMode();
   TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), phase_track_,
                   current_.start_time);
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ObservablePause",
@@ -355,6 +354,7 @@ void GCTracer::StartCycle(GarbageCollector collector,
   }
   current_.is_loading = heap_->IsLoading();
   current_.is_input_handling = heap_->IsInputHandling();
+  current_.growing_mode = heap_->CurrentHeapGrowingMode();
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     current_.old_generation_consumed_baseline =
