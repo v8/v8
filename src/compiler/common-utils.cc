@@ -6,7 +6,6 @@
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/heap/local-heap.h"
-#include "src/init/isolate-group.h"
 #include "src/objects/string-inl.h"
 
 namespace v8::internal::compiler::utils {
@@ -20,7 +19,6 @@ namespace v8::internal::compiler::utils {
 MaybeHandle<String> ConcatenateStrings(Handle<String> left,
                                        Handle<String> right,
                                        JSHeapBroker* broker) {
-  SYNCHRONIZATION_POINT_FOR_TESTING("ConcurrentConcatenateStrings");
   if (left->length() == 0) return right;
   if (right->length() == 0) return left;
 

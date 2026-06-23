@@ -10,7 +10,6 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-layout-inl.h"
-#include "src/init/isolate-group.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string.h"
@@ -109,14 +108,10 @@ void ExternalizeStringExtension::Externalize(
   }
   if (externalize_as_one_byte) {
     auto* resource = new OwningExternalOneByteStringResource(*string);
-    SYNCHRONIZATION_POINT_FOR_TESTING(
-        "ExternalizeStringExtensionMakeExternalOneByte");
     result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   } else {
     auto* resource = new OwningExternalStringResource(*string);
-    SYNCHRONIZATION_POINT_FOR_TESTING(
-        "ExternalizeStringExtensionMakeExternalTwoByte");
     result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   }
