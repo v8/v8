@@ -33,8 +33,8 @@ struct builtin : CallDescriptorBuilder {
   // void/never return types properly (e.g. in Torque), but they typically have
   // a JSAny dummy return type. Use Void/Never sentinels to express that in
   // Turboshaft's descriptors. We should find a better way to model this.
-  using Void = std::tuple<OpIndex>;
-  using Never = std::tuple<OpIndex>;
+  using Void = std::tuple<V<JSAny>>;
+  using Never = std::tuple<V<JSAny>>;
 
   template <typename Derived>
   struct Descriptor {

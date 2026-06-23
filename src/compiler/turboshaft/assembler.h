@@ -3966,16 +3966,12 @@ class AssemblerOpInterface : public Next {
     }
     auto arguments = builtin::ArgumentsToVector(args);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
-    auto result = Call(call_target, OptionalV<LazyFrameState>::Nullopt(),
-                       base::VectorOf(arguments),
-                       Desc::Create(StubCallMode::kCallWasmRuntimeStub,
-                                    Asm().output_graph().graph_zone()),
-                       Desc::kEffects);
-    if constexpr (requires { result_t::Cast(result); }) {
-      return result_t::CastIfNeeded(result);
-    } else {
-      return result;
-    }
+    return Call<typename result_t::type>(
+        call_target, OptionalV<LazyFrameState>::Nullopt(),
+        base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                     Asm().output_graph().graph_zone()),
+        Desc::kEffects);
   }
 
   template <typename Desc>
@@ -3991,12 +3987,12 @@ class AssemblerOpInterface : public Next {
     auto arguments = builtin::ArgumentsToVector(args);
     arguments.push_back(context);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
-    return result_t::CastIfNeeded(
-        Call(call_target, OptionalV<LazyFrameState>::Nullopt(),
-             base::VectorOf(arguments),
-             Desc::Create(StubCallMode::kCallWasmRuntimeStub,
-                          Asm().output_graph().graph_zone()),
-             Desc::kEffects));
+    return Call<typename result_t::type>(
+        call_target, OptionalV<LazyFrameState>::Nullopt(),
+        base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                     Asm().output_graph().graph_zone()),
+        Desc::kEffects);
   }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
