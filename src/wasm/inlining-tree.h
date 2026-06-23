@@ -502,9 +502,8 @@ void InliningTree::FullyExpand() {
       }
     }
 
-    if (!top->SmallEnoughToInline(initial_wire_byte_size,
-                                  inlined_wire_byte_count)) {
-      DCHECK_NE(top, this);
+    if (top != this && !top->SmallEnoughToInline(initial_wire_byte_size,
+                                                 inlined_wire_byte_count)) {
       if (v8_flags.trace_wasm_inlining) {
         PrintF("not enough inlining budget]\n");
       }
