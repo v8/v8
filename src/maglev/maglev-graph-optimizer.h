@@ -108,9 +108,6 @@ class MaglevGraphOptimizer {
   std::optional<Range> GetRange(ValueNode* node);
   bool IsRangeLessEqual(ValueNode* lhs, ValueNode* rhs);
 
-  // Iterates the deopt frames unwrapping its inputs, ie, removing Identity or
-  // ReturnedValue nodes.
-  void UnwrapDeoptFrames();
   void UnwrapInputs();
 
   template <typename NodeT>

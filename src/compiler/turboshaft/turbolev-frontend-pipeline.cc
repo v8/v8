@@ -271,6 +271,8 @@ struct PostHocPhase {
   DECL_TURBOLEV_PHASE_CONSTANTS(AnyUseMarking)
 
   bool Run(maglev::Graph* graph) {
+    // Unwrap deopt frames before escape analysis.
+    graph->UnwrapDeoptFrames();
     // Escape analysis.
     maglev::GraphMultiProcessor<maglev::ReturnedValueRepresentationSelector,
                                 maglev::AnyUseMarkingProcessor>

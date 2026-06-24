@@ -419,10 +419,6 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(
   TRACE(TraceColor::kDarkGreen << "Replacing " << PrintNodeLabel(current_value)
                                << " with a new node");
   current_value->ClearInputs();
-  // Unfortunately we cannot remove uses from deopt frames, since these could be
-  // shared with other nodes. But we can remove uses from Identity and
-  // ReturnedValue nodes.
-  current_value->UnwrapDeoptFrames();
   NodeT* new_node =
       current_value->OverwriteWith<NodeT>(std::forward<Args>(args)...);
   ReduceResult result = reducer_.SetNodeInputs(new_node, inputs);

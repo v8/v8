@@ -127,16 +127,6 @@ CallKnownBuiltin::CallKnownBuiltin(
   set_input(kNewTargetIndex, new_target);
 }
 
-void NodeBase::UnwrapDeoptFrames() {
-  // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
-  if (properties().has_eager_deopt_info()) {
-    eager_deopt_info()->Unwrap();
-  }
-  if (properties().can_lazy_deopt()) {
-    lazy_deopt_info()->Unwrap();
-  }
-}
-
 void NodeBase::ClearInputs() {
   for (Input input : inputs()) {
     input.clear();
@@ -180,11 +170,6 @@ void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
   DCHECK_GE(input_count(), 1);
   // Remove use of all inputs first.
   ClearInputs();
-  // Unfortunately we cannot remove uses from deopt frames, since these could be
-  // shared with other nodes. But we can remove uses from Identity and
-  // ReturnedValue nodes.
-  UnwrapDeoptFrames();
-
   set_opcode(Opcode::kIdentity);
   set_properties(StaticPropertiesForOpcode(Opcode::kIdentity));
   bitfield_ = InputCountField::update(bitfield_, 1);
@@ -203,11 +188,6 @@ void NodeBase::OverwriteWithReturnValue(ValueNode* node) {
   DCHECK_GE(input_count(), 1);
   // Remove use of all inputs first.
   ClearInputs();
-  // Unfortunately we cannot remove uses from deopt frames, since these could be
-  // shared with other nodes. But we can remove uses from Identity and
-  // ReturnedValue nodes.
-  UnwrapDeoptFrames();
-
   RegisterSnapshot registers = register_snapshot();
   set_opcode(Opcode::kReturnedValue);
   set_properties(StaticPropertiesForOpcode(Opcode::kReturnedValue));
