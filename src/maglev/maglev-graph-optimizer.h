@@ -147,6 +147,8 @@ class MaglevGraphOptimizer {
   ProcessResult ReplaceWith(std::initializer_list<ValueNode*> inputs,
                             Args&&...);
 
+  ProcessResult RemoveCurrentNode();
+
   template <Operation kOperation>
   std::optional<ProcessResult> TryFoldInt32Operation(ValueNode* node);
   template <Operation kOperation>
