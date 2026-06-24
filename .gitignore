@@ -139,13 +139,20 @@ compile_commands.json
 gccauses
 gcsuspects
 gtags.files
-jit-*.dump
 node_modules
 tags
+
+# Tracing and profiling output
 turbo*.cfg
 turbo*.dot
 turbo*.json
+maglev*.json
+v8_trace*.json
+jit-*.dump
+profile-wasm*
+*.heapsnapshot
 v8.ignition_dispatches_table.json
+
 bazel-bin
 bazel-out
 bazel-testlogs
