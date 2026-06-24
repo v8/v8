@@ -1530,7 +1530,7 @@ ReduceResult MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
       // kAlreadyTargetType, kNeedsCheck, and kImpossible, and handle
       // kImpossible by emitting an unconditional deopt, instead of having to
       // check after EnsureType whether its input now has type kNone or not.
-      EnsureType(value, allowed_input_type, &old_type);
+      RecordType(value, allowed_input_type, &old_type);
 
       // Check for the empty type first, so that we don't emit unsafe conversion
       // nodes below.
@@ -3166,7 +3166,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
         // TODO(victorgomes): This should actually be NodeType::kInt32, but we
         // don't have it. The idea here is that the value is either 0 or 1, so
         // we can cast Uint32 to Int32 without a check.
-        EnsureType(sign_bit, NodeType::kSmi);
+        RecordType(sign_bit, NodeType::kSmi);
         ValueNode* result;
         GET_VALUE_OR_ABORT(result,
                            AddNewNode<Int32Add>({shifted_quot, sign_bit}));
@@ -4995,7 +4995,7 @@ VirtualObject* MaglevReducer<BaseT>::CreateContext(
     vobj->set(Context::OffsetOfElementAt(index),
               GetRootConstant(RootIndex::kUndefinedValue));
   }
-  EnsureType(vobj, NodeType::kContext);
+  RecordType(vobj, NodeType::kContext);
   return vobj;
 }
 

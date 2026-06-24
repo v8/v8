@@ -345,14 +345,7 @@ class MaglevGraphBuilder {
   NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types) {
     return known_node_aspects().CheckTypes(broker(), node, types);
   }
-  bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
-    return known_node_aspects().EnsureType(broker(), node, type, old);
-  }
-  template <typename Function>
-  bool EnsureType(ValueNode* node, NodeType type, Function ensure_new_type) {
-    return known_node_aspects().EnsureType<Function>(broker(), node, type,
-                                                     ensure_new_type);
-  }
+
   NodeType GetType(ValueNode* node) { return reducer_.GetType(node); }
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
     return known_node_aspects().GetOrCreateInfoFor(broker(), node);

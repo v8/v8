@@ -670,9 +670,10 @@ MaybeReduceResult MaglevGraphOptimizer::EnsureType(ValueNode* node,
   if (IsEmptyNodeType(IntersectType(reducer_.GetType(node), type))) {
     return reducer_.EmitUnconditionalDeopt(reason);
   }
-  if (!known_node_aspects().EnsureType(broker(), node, type)) {
+  if (!reducer_.EnsureType(node, type)) {
     return {};
   }
+
   return ReduceResult::Done();
 }
 

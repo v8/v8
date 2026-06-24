@@ -570,21 +570,6 @@ class KnownNodeAspects {
     return false;
   }
 
-  template <typename Function>
-  bool EnsureType(compiler::JSHeapBroker* broker, ValueNode* node,
-                  NodeType type, Function ensure_new_type) {
-    if (node->StaticTypeIs(broker, type)) return true;
-    NodeInfo* known_info = GetOrCreateInfoFor(broker, node);
-    if (NodeTypeIs(known_info->type(), type)) return true;
-    ensure_new_type(known_info->type());
-    known_info->IntersectType(type);
-    if (NodeTypeIsUnstable(type)) {
-      known_info->set_node_type_is_unstable();
-      side_effects_require_invalidation_ = true;
-    }
-    return false;
-  }
-
   void Merge(const KnownNodeAspects& other, Zone* zone);
   void MergeForLoop(const KnownNodeAspects& backedge, Zone* zone);
 
