@@ -193,13 +193,13 @@ void RegExpMacroAssemblerPPC::Backtrack() {
 void RegExpMacroAssemblerPPC::Bind(Label* label) { __ bind(label); }
 
 void RegExpMacroAssemblerPPC::CheckCharacter(uint32_t c, Label* on_equal) {
-  __ CmpU64(current_character(), Operand(c), r0);
+  __ CmpU64(current_character(), Operand(c));
   BranchOrBacktrack(eq, on_equal);
 }
 
 void RegExpMacroAssemblerPPC::CheckCharacterGT(base::uc16 limit,
                                                Label* on_greater) {
-  __ CmpU64(current_character(), Operand(limit), r0);
+  __ CmpU64(current_character(), Operand(limit));
   BranchOrBacktrack(gt, on_greater);
 }
 
@@ -222,7 +222,7 @@ void RegExpMacroAssemblerPPC::CheckNotAtStart(int cp_offset,
 
 void RegExpMacroAssemblerPPC::CheckCharacterLT(base::uc16 limit,
                                                Label* on_less) {
-  __ CmpU64(current_character(), Operand(limit), r0);
+  __ CmpU64(current_character(), Operand(limit));
   BranchOrBacktrack(lt, on_less);
 }
 
@@ -444,7 +444,7 @@ void RegExpMacroAssemblerPPC::CheckNotBackReference(int start_reg,
 
 void RegExpMacroAssemblerPPC::CheckNotCharacter(unsigned c,
                                                 Label* on_not_equal) {
-  __ CmpU64(current_character(), Operand(c), r0);
+  __ CmpU64(current_character(), Operand(c));
   BranchOrBacktrack(ne, on_not_equal);
 }
 
@@ -455,7 +455,7 @@ void RegExpMacroAssemblerPPC::CheckCharacterAfterAnd(uint32_t c, uint32_t mask,
     __ and_(r3, current_character(), r0, SetRC);
   } else {
     __ and_(r3, current_character(), r0);
-    __ CmpU64(r3, Operand(c), r0, cr0);
+    __ CmpU64(r3, Operand(c), cr0);
   }
   BranchOrBacktrack(eq, on_equal, cr0);
 }
@@ -468,7 +468,7 @@ void RegExpMacroAssemblerPPC::CheckNotCharacterAfterAnd(unsigned c,
     __ and_(r3, current_character(), r0, SetRC);
   } else {
     __ and_(r3, current_character(), r0);
-    __ CmpU64(r3, Operand(c), r0, cr0);
+    __ CmpU64(r3, Operand(c), cr0);
   }
   BranchOrBacktrack(ne, on_not_equal, cr0);
 }
@@ -479,7 +479,7 @@ void RegExpMacroAssemblerPPC::CheckNotCharacterAfterMinusAnd(
   __ subi(r3, current_character(), Operand(minus));
   __ mov(r0, Operand(mask));
   __ and_(r3, r3, r0);
-  __ CmpU64(r3, Operand(c), r0);
+  __ CmpU64(r3, Operand(c));
   BranchOrBacktrack(ne, on_not_equal);
 }
 
@@ -488,7 +488,7 @@ void RegExpMacroAssemblerPPC::CheckCharacterInRange(base::uc16 from,
                                                     Label* on_in_range) {
   __ mov(r0, Operand(from));
   __ sub(r3, current_character(), r0);
-  __ CmpU64(r3, Operand(to - from), r0);
+  __ CmpU64(r3, Operand(to - from));
   BranchOrBacktrack(le, on_in_range);  // Unsigned lower-or-same condition.
 }
 
@@ -497,7 +497,7 @@ void RegExpMacroAssemblerPPC::CheckCharacterNotInRange(base::uc16 from,
                                                        Label* on_not_in_range) {
   __ mov(r0, Operand(from));
   __ sub(r3, current_character(), r0);
-  __ CmpU64(r3, Operand(to - from), r0);
+  __ CmpU64(r3, Operand(to - from));
   BranchOrBacktrack(gt, on_not_in_range);  // Unsigned higher condition.
 }
 
@@ -800,7 +800,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
       __ ble(&stack_limit_hit, cr0);
       // Check if there is room for the variable number of registers above
       // the stack limit.
-      __ CmpU64(r3, extra_space_for_variables, r0);
+      __ CmpU64(r3, extra_space_for_variables);
       __ bge(&stack_ok);
       // Exit with OutOfMemory exception. There is not enough space on the stack
       // for our working registers.
@@ -820,7 +820,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
     }
 
     // Allocate space on stack for registers.
-    __ AddS64(sp, sp, Operand(-num_registers_ * kSystemPointerSize), r0);
+    __ AddS64(sp, sp, Operand(-num_registers_ * kSystemPointerSize));
     // Load string end.
     __ LoadU64(end_of_input_address(),
                MemOperand(frame_pointer(), kInputEndOffset));
@@ -1083,14 +1083,14 @@ void RegExpMacroAssemblerPPC::GoTo(Label* to) { BranchOrBacktrack(al, to); }
 void RegExpMacroAssemblerPPC::IfRegisterGE(int reg, int comparand,
                                            Label* if_ge) {
   __ LoadU64(r3, register_location(reg));
-  __ CmpS64(r3, Operand(comparand), r0);
+  __ CmpS64(r3, Operand(comparand));
   BranchOrBacktrack(ge, if_ge);
 }
 
 void RegExpMacroAssemblerPPC::IfRegisterLT(int reg, int comparand,
                                            Label* if_lt) {
   __ LoadU64(r3, register_location(reg));
-  __ CmpS64(r3, Operand(comparand), r0);
+  __ CmpS64(r3, Operand(comparand));
   BranchOrBacktrack(lt, if_lt);
 }
 
@@ -1160,7 +1160,7 @@ void RegExpMacroAssemblerPPC::ReadStackPointerFromRegister(int reg) {
 
 void RegExpMacroAssemblerPPC::SetCurrentPositionFromEnd(int by) {
   Label after_position;
-  __ CmpS64(current_input_offset(), Operand(-by * char_size()), r0);
+  __ CmpS64(current_input_offset(), Operand(-by * char_size()));
   __ bge(&after_position);
   __ mov(current_input_offset(), Operand(-by * char_size()));
   // On RegExp code entry (where this operation is used), the character before
@@ -1320,7 +1320,7 @@ void RegExpMacroAssemblerPPC::CallCFunctionFromIrregexpCode(
 void RegExpMacroAssemblerPPC::CheckPosition(int cp_offset,
                                             Label* on_outside_input) {
   if (cp_offset >= 0) {
-    __ CmpS64(current_input_offset(), Operand(-cp_offset * char_size()), r0);
+    __ CmpS64(current_input_offset(), Operand(-cp_offset * char_size()));
     BranchOrBacktrack(ge, on_outside_input);
   } else {
     __ LoadU64(r4, MemOperand(frame_pointer(), kStringStartMinusOneOffset));

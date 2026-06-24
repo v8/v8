@@ -626,42 +626,41 @@ static inline bool is_wasm_on_be(bool IsWasm) {
 #endif
 
 #if V8_ENABLE_WEBASSEMBLY
-#define MAYBE_REVERSE_IF_WASM(dst, src, op, scratch, reset) \
-  if (is_wasm_on_be(info()->IsWasm())) {                    \
-    __ op(dst, src, scratch);                               \
-    if (reset) src = dst;                                   \
+#define MAYBE_REVERSE_IF_WASM(dst, src, op, reset) \
+  if (is_wasm_on_be(info()->IsWasm())) {           \
+    __ op(dst, src);                               \
+    if (reset) src = dst;                          \
   }
 #else
-#define MAYBE_REVERSE_IF_WASM(dst, src, op, scratch, reset)
+#define MAYBE_REVERSE_IF_WASM(dst, src, op, reset)
 #endif
 
 #define ASSEMBLE_ATOMIC_EXCHANGE(_type, reverse_op)                    \
   do {                                                                 \
     UseScratchRegisterScope temps(masm());                             \
-    Register scratch = temps.Acquire();                                \
     Register scratch2 = temps.Acquire();                               \
     Register val = i.InputRegister(2);                                 \
     Register dst = i.OutputRegister();                                 \
-    MAYBE_REVERSE_IF_WASM(scratch2, val, reverse_op, scratch, true);   \
+    MAYBE_REVERSE_IF_WASM(scratch2, val, reverse_op, true);            \
     __ AtomicExchange<_type>(                                          \
         MemOperand(i.InputRegister(0), i.InputRegister(1)), val, dst); \
-    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, scratch, false);       \
+    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, false);                \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(_type, reverse_op)                   \
-  do {                                                                        \
-    UseScratchRegisterScope temps(masm());                                    \
-    Register scratch = temps.Acquire();                                       \
-    Register scratch2 = temps.Acquire();                                      \
-    Register expected_val = i.InputRegister(2);                               \
-    Register new_val = i.InputRegister(3);                                    \
-    Register dst = i.OutputRegister();                                        \
-    MAYBE_REVERSE_IF_WASM(scratch2, expected_val, reverse_op, scratch, true); \
-    MAYBE_REVERSE_IF_WASM(r0, new_val, reverse_op, scratch, true);            \
-    __ AtomicCompareExchange<_type>(                                          \
-        MemOperand(i.InputRegister(0), i.InputRegister(1)), expected_val,     \
-        new_val, dst, scratch);                                               \
-    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, scratch, false);              \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(_type, reverse_op)               \
+  do {                                                                    \
+    UseScratchRegisterScope temps(masm());                                \
+    Register scratch = temps.Acquire();                                   \
+    Register scratch2 = temps.Acquire();                                  \
+    Register expected_val = i.InputRegister(2);                           \
+    Register new_val = i.InputRegister(3);                                \
+    Register dst = i.OutputRegister();                                    \
+    MAYBE_REVERSE_IF_WASM(scratch2, expected_val, reverse_op, true);      \
+    MAYBE_REVERSE_IF_WASM(r0, new_val, reverse_op, true);                 \
+    __ AtomicCompareExchange<_type>(                                      \
+        MemOperand(i.InputRegister(0), i.InputRegister(1)), expected_val, \
+        new_val, dst, scratch);                                           \
+    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, false);                   \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP_BYTE(bin_inst, _type)                          \
@@ -683,11 +682,11 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     break;                                                                   \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_BINOP(bin_inst, _type, reverse_op, scratch)           \
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, _type, reverse_op)                    \
   do {                                                                        \
     auto bin_op = [&](Register dst, Register lhs, Register rhs) {             \
       Register _lhs = lhs;                                                    \
-      MAYBE_REVERSE_IF_WASM(dst, _lhs, reverse_op, scratch, true);            \
+      MAYBE_REVERSE_IF_WASM(dst, _lhs, reverse_op, true);                     \
       if (std::is_signed_v<_type>) {                                          \
         switch (sizeof(_type)) {                                              \
           case 1:                                                             \
@@ -706,7 +705,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
         }                                                                     \
       }                                                                       \
       __ bin_inst(dst, _lhs, rhs);                                            \
-      MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, scratch, false);            \
+      MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, false);                     \
     };                                                                        \
     MemOperand dst_operand =                                                  \
         MemOperand(i.InputRegister(0), i.InputRegister(1));                   \
@@ -715,7 +714,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     __ AtomicOps<_type>(dst_operand, i.InputRegister(2), i.OutputRegister(),  \
                         scratch2, bin_op);                                    \
     MAYBE_REVERSE_IF_WASM(i.OutputRegister(), i.OutputRegister(), reverse_op, \
-                          scratch, false);                                    \
+                          false);                                             \
     break;                                                                    \
   } while (false)
 
@@ -771,13 +770,13 @@ void AdjustStackPointerForTailCall(
     if (pending_pushes != nullptr) {
       FlushPendingPushRegisters(masm, state, pending_pushes);
     }
-    masm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize), r0);
+    masm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize));
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
     if (pending_pushes != nullptr) {
       FlushPendingPushRegisters(masm, state, pending_pushes);
     }
-    masm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize), r0);
+    masm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize));
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -1192,9 +1191,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
         lhs_register = i.TempRegister(0);
-        UseScratchRegisterScope temps(masm());
-        Register scratch = temps.Acquire();
-        __ SubS64(lhs_register, sp, Operand(offset), scratch);
+        __ SubS64(lhs_register, sp, Operand(offset));
       }
 
       constexpr size_t kValueIndex = 0;
@@ -1223,9 +1220,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
         // does not support that for now.
-        UseScratchRegisterScope temps(masm());
-        Register scratch = temps.Acquire();
-        __ CmpS64(value, Operand(kClearedWeakHeapObjectLower32), scratch);
+        __ CmpS64(value, Operand(kClearedWeakHeapObjectLower32));
         __ Check(ne, AbortReason::kOperandIsCleared);
       }
 
@@ -1288,7 +1283,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
       __ AddS64(i.OutputRegister(), offset.from_stack_pointer() ? sp : fp,
-                Operand(offset.offset()), r0);
+                Operand(offset.offset()));
       break;
     }
     case kPPC_Peek: {
@@ -1426,7 +1421,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  LeaveOE, i.OutputRCBit());
         } else {
           __ AddS64(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1),
-                    r0, LeaveOE, i.OutputRCBit());
+                    LeaveOE, i.OutputRCBit());
         }
       }
       if (instr->arch_opcode() == kPPC_Add32) {
@@ -1453,7 +1448,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  LeaveOE, i.OutputRCBit());
         } else {
           __ SubS64(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1),
-                    r0, LeaveOE, i.OutputRCBit());
+                    LeaveOE, i.OutputRCBit());
         }
       }
       if (instr->arch_opcode() == kPPC_Sub32) {
@@ -2180,31 +2175,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 
-#define ATOMIC_BINOP_CASE(op, inst)                            \
-  case kPPC_Atomic##op##Int8:                                  \
-    ASSEMBLE_ATOMIC_BINOP_BYTE(inst, int8_t);                  \
-    __ extsb(i.OutputRegister(), i.OutputRegister());          \
-    break;                                                     \
-  case kPPC_Atomic##op##Uint8:                                 \
-    ASSEMBLE_ATOMIC_BINOP_BYTE(inst, uint8_t);                 \
-    break;                                                     \
-  case kPPC_Atomic##op##Int16:                                 \
-    ASSEMBLE_ATOMIC_BINOP(inst, int16_t, ByteReverseU16, r0);  \
-    __ extsh(i.OutputRegister(), i.OutputRegister());          \
-    break;                                                     \
-  case kPPC_Atomic##op##Uint16:                                \
-    ASSEMBLE_ATOMIC_BINOP(inst, uint16_t, ByteReverseU16, r0); \
-    break;                                                     \
-  case kPPC_Atomic##op##Int32:                                 \
-    ASSEMBLE_ATOMIC_BINOP(inst, int32_t, ByteReverseU32, r0);  \
-    __ extsw(i.OutputRegister(), i.OutputRegister());          \
-    break;                                                     \
-  case kPPC_Atomic##op##Uint32:                                \
-    ASSEMBLE_ATOMIC_BINOP(inst, uint32_t, ByteReverseU32, r0); \
-    break;                                                     \
-  case kPPC_Atomic##op##Int64:                                 \
-  case kPPC_Atomic##op##Uint64:                                \
-    ASSEMBLE_ATOMIC_BINOP(inst, uint64_t, ByteReverseU64, r0); \
+#define ATOMIC_BINOP_CASE(op, inst)                        \
+  case kPPC_Atomic##op##Int8:                              \
+    ASSEMBLE_ATOMIC_BINOP_BYTE(inst, int8_t);              \
+    __ extsb(i.OutputRegister(), i.OutputRegister());      \
+    break;                                                 \
+  case kPPC_Atomic##op##Uint8:                             \
+    ASSEMBLE_ATOMIC_BINOP_BYTE(inst, uint8_t);             \
+    break;                                                 \
+  case kPPC_Atomic##op##Int16:                             \
+    ASSEMBLE_ATOMIC_BINOP(inst, int16_t, ByteReverseU16);  \
+    __ extsh(i.OutputRegister(), i.OutputRegister());      \
+    break;                                                 \
+  case kPPC_Atomic##op##Uint16:                            \
+    ASSEMBLE_ATOMIC_BINOP(inst, uint16_t, ByteReverseU16); \
+    break;                                                 \
+  case kPPC_Atomic##op##Int32:                             \
+    ASSEMBLE_ATOMIC_BINOP(inst, int32_t, ByteReverseU32);  \
+    __ extsw(i.OutputRegister(), i.OutputRegister());      \
+    break;                                                 \
+  case kPPC_Atomic##op##Uint32:                            \
+    ASSEMBLE_ATOMIC_BINOP(inst, uint32_t, ByteReverseU32); \
+    break;                                                 \
+  case kPPC_Atomic##op##Int64:                             \
+  case kPPC_Atomic##op##Uint64:                            \
+    ASSEMBLE_ATOMIC_BINOP(inst, uint64_t, ByteReverseU64); \
     break;
       ATOMIC_BINOP_CASE(Add, add)
       ATOMIC_BINOP_CASE(Sub, sub)
@@ -3145,7 +3140,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
     cases[index] = GetLabel(i.InputRpo(index + 2));
   }
   Label* const table = AddJumpTable(cases);
-  __ CmpU64(input, Operand(case_count), r0);
+  __ CmpU64(input, Operand(case_count));
   __ bge(GetLabel(i.InputRpo(1)));
   UseScratchRegisterScope temps(masm());
   Register scratch = temps.Acquire();
@@ -3203,7 +3198,7 @@ void CodeGenerator::AssembleConstructFrame() {
           __ Push(r0, fp, kConstantPoolRegister);
           // Adjust FP to point to saved FP.
           __ SubS64(fp, sp,
-                    Operand(StandardFrameConstants::kConstantPoolOffset), r0);
+                    Operand(StandardFrameConstants::kConstantPoolOffset));
         } else {
           __ Push(r0, fp);
           __ mr(fp, sp);
@@ -3273,7 +3268,7 @@ void CodeGenerator::AssembleConstructFrame() {
         Register stack_limit = temps.Acquire();
         __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
         __ AddS64(stack_limit, stack_limit,
-                  Operand(required_slots * kSystemPointerSize), r0);
+                  Operand(required_slots * kSystemPointerSize));
         __ CmpU64(sp, stack_limit);
         __ bge(&done);
       }
@@ -3330,7 +3325,7 @@ void CodeGenerator::AssembleConstructFrame() {
     required_slots -= saves.Count();
     required_slots -= frame()->GetReturnSlotCount();
     required_slots -= (kDoubleSize / kSystemPointerSize) * saves_fp.Count();
-    __ AddS64(sp, sp, Operand(-required_slots * kSystemPointerSize), r0);
+    __ AddS64(sp, sp, Operand(-required_slots * kSystemPointerSize));
   }
 
   // Save callee-saved Double registers.
@@ -3367,7 +3362,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   const int returns = frame()->GetReturnSlotCount();
   if (returns != 0) {
     // Create space for returns.
-    __ AddS64(sp, sp, Operand(returns * kSystemPointerSize), r0);
+    __ AddS64(sp, sp, Operand(returns * kSystemPointerSize));
   }
 
   // Restore registers.
@@ -3412,8 +3407,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
                  MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
       __ CmpU64(
           scratch,
-          Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)),
-          r0);
+          Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
     }
     Label done;
     __ bne(&done);
@@ -3479,7 +3473,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
     if (parameter_slots > 1) {
       Label skip;
-      __ CmpS64(argc_reg, Operand(parameter_slots), r0);
+      __ CmpS64(argc_reg, Operand(parameter_slots));
       __ bgt(&skip);
       __ mov(argc_reg, Operand(parameter_slots));
       __ bind(&skip);

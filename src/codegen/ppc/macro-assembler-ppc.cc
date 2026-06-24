@@ -166,7 +166,7 @@ void MacroAssembler::LoadRootRegisterOffset(Register destination,
   if (offset == 0) {
     mr(destination, kRootRegister);
   } else {
-    AddS64(destination, kRootRegister, Operand(offset), destination);
+    AddS64(destination, kRootRegister, Operand(offset));
   }
 }
 
@@ -403,7 +403,7 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
 
 void MacroAssembler::Drop(int count) {
   if (count > 0) {
-    AddS64(sp, sp, Operand(count * kSystemPointerSize), r0);
+    AddS64(sp, sp, Operand(count * kSystemPointerSize));
   }
 }
 
@@ -841,7 +841,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so so offset must be a multiple of kSystemPointerSize.
   DCHECK(IsAligned(offset, kTaggedSize));
 
-  AddS64(slot_address, object, Operand(offset - kHeapObjectTag), r0);
+  AddS64(slot_address, object, Operand(offset - kHeapObjectTag));
   if (v8_flags.slow_debug_code) {
     Label ok;
     andi(r0, slot_address, Operand(kTaggedSize - 1));
@@ -1290,8 +1290,7 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   mtlr(r0);
   frame_ends = pc_offset();
   AddS64(sp, fp,
-         Operand(StandardFrameConstants::kCallerSPOffset + stack_adjustment),
-         r0);
+         Operand(StandardFrameConstants::kCallerSPOffset + stack_adjustment));
   mr(fp, scratch);
   return frame_ends;
 }
@@ -1361,8 +1360,7 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
 
   // Set the exit frame sp value to point just before the return address
   // location.
-  AddS64(r8, sp, Operand((kStackFrameExtraParamSlot + 1) * kSystemPointerSize),
-         r0);
+  AddS64(r8, sp, Operand((kStackFrameExtraParamSlot + 1) * kSystemPointerSize));
   StoreU64(r8, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
@@ -1866,7 +1864,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  CmpS32(in, Operand(kClearedWeakHeapObjectLower32), r0);
+  CmpS32(in, Operand(kClearedWeakHeapObjectLower32));
   beq(target_if_cleared);
 
   mov(r0, Operand(~kWeakHeapObjectMask));
@@ -1983,7 +1981,7 @@ void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
   // Check if feedback vector is valid.
   LoadTaggedField(scratch, FieldMemOperand(dst, offsetof(HeapObject, map_)));
   LoadU16(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
-  CmpS32(scratch, Operand(FEEDBACK_VECTOR_TYPE), r0);
+  CmpS32(scratch, Operand(FEEDBACK_VECTOR_TYPE));
   b(eq, &done);
 
   // Not valid, load undefined.
@@ -2230,8 +2228,7 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
     // Make stack end at alignment and make room for stack arguments
     // -- preserving original value of sp.
     mr(scratch, sp);
-    AddS64(sp, sp, Operand(-(stack_passed_arguments + 1) * kSystemPointerSize),
-           scratch);
+    AddS64(sp, sp, Operand(-(stack_passed_arguments + 1) * kSystemPointerSize));
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     ClearRightImm(sp, sp,
                   Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
@@ -2329,7 +2326,7 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
       // Using prefixed load may emit `nop` which then fails the check below.
       ld(sp, MemOperand(sp, stack_space * kSystemPointerSize));
     } else {
-      AddS64(sp, sp, Operand(stack_space * kSystemPointerSize), r0);
+      AddS64(sp, sp, Operand(stack_space * kSystemPointerSize));
     }
     // We assume that the move instruction uses kMaxSizeOfMoveAfterFastCall
     // bytes. When we patch in the deopt trampoline, we patch it in after the
@@ -2502,10 +2499,12 @@ void MacroAssembler::AddS64(Register dst, Register src, Register value, OEBit s,
 }
 
 void MacroAssembler::AddS64(Register dst, Register src, const Operand& value,
-                            Register scratch, OEBit s, RCBit r) {
+                            OEBit s, RCBit r) {
   if (is_int16(value.immediate()) && s == LeaveOE && r == LeaveRC) {
     addi(dst, src, value);
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     mov(scratch, value);
     add(dst, src, scratch, s, r);
   }
@@ -2517,10 +2516,12 @@ void MacroAssembler::SubS64(Register dst, Register src, Register value, OEBit s,
 }
 
 void MacroAssembler::SubS64(Register dst, Register src, const Operand& value,
-                            Register scratch, OEBit s, RCBit r) {
+                            OEBit s, RCBit r) {
   if (is_int16(value.immediate()) && s == LeaveOE && r == LeaveRC) {
     subi(dst, src, value);
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     mov(scratch, value);
     sub(dst, src, scratch, s, r);
   }
@@ -2533,8 +2534,8 @@ void MacroAssembler::AddS32(Register dst, Register src, Register value,
 }
 
 void MacroAssembler::AddS32(Register dst, Register src, const Operand& value,
-                            Register scratch, RCBit r) {
-  AddS64(dst, src, value, scratch, LeaveOE, r);
+                            RCBit r) {
+  AddS64(dst, src, value, LeaveOE, r);
   extsw(dst, dst, r);
 }
 
@@ -2545,16 +2546,18 @@ void MacroAssembler::SubS32(Register dst, Register src, Register value,
 }
 
 void MacroAssembler::SubS32(Register dst, Register src, const Operand& value,
-                            Register scratch, RCBit r) {
-  SubS64(dst, src, value, scratch, LeaveOE, r);
+                            RCBit r) {
+  SubS64(dst, src, value, LeaveOE, r);
   extsw(dst, dst, r);
 }
 
 void MacroAssembler::MulS64(Register dst, Register src, const Operand& value,
-                            Register scratch, OEBit s, RCBit r) {
+                            OEBit s, RCBit r) {
   if (is_int16(value.immediate()) && s == LeaveOE && r == LeaveRC) {
     mulli(dst, src, value);
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     mov(scratch, value);
     mulld(dst, src, scratch, s, r);
   }
@@ -2566,8 +2569,8 @@ void MacroAssembler::MulS64(Register dst, Register src, Register value, OEBit s,
 }
 
 void MacroAssembler::MulS32(Register dst, Register src, const Operand& value,
-                            Register scratch, OEBit s, RCBit r) {
-  MulS64(dst, src, value, scratch, s, r);
+                            OEBit s, RCBit r) {
+  MulS64(dst, src, value, s, r);
   extsw(dst, dst, r);
 }
 
@@ -2616,10 +2619,12 @@ void MacroAssembler::ModU32(Register dst, Register src, Register value) {
 }
 
 void MacroAssembler::AndU64(Register dst, Register src, const Operand& value,
-                            Register scratch, RCBit r) {
+                            RCBit r) {
   if (is_uint16(value.immediate()) && r == SetRC) {
     andi(dst, src, value);
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     mov(scratch, value);
     and_(dst, src, scratch, r);
   }
@@ -2631,10 +2636,12 @@ void MacroAssembler::AndU64(Register dst, Register src, Register value,
 }
 
 void MacroAssembler::OrU64(Register dst, Register src, const Operand& value,
-                           Register scratch, RCBit r) {
+                           RCBit r) {
   if (is_int16(value.immediate()) && r == LeaveRC) {
     ori(dst, src, value);
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     mov(scratch, value);
     orx(dst, src, scratch, r);
   }
@@ -2646,10 +2653,12 @@ void MacroAssembler::OrU64(Register dst, Register src, Register value,
 }
 
 void MacroAssembler::XorU64(Register dst, Register src, const Operand& value,
-                            Register scratch, RCBit r) {
+                            RCBit r) {
   if (is_int16(value.immediate()) && r == LeaveRC) {
     xori(dst, src, value);
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     mov(scratch, value);
     xor_(dst, src, scratch, r);
   }
@@ -2661,8 +2670,8 @@ void MacroAssembler::XorU64(Register dst, Register src, Register value,
 }
 
 void MacroAssembler::AndU32(Register dst, Register src, const Operand& value,
-                            Register scratch, RCBit r) {
-  AndU64(dst, src, value, scratch, r);
+                            RCBit r) {
+  AndU64(dst, src, value, r);
   extsw(dst, dst, r);
 }
 
@@ -2673,8 +2682,8 @@ void MacroAssembler::AndU32(Register dst, Register src, Register value,
 }
 
 void MacroAssembler::OrU32(Register dst, Register src, const Operand& value,
-                           Register scratch, RCBit r) {
-  OrU64(dst, src, value, scratch, r);
+                           RCBit r) {
+  OrU64(dst, src, value, r);
   extsw(dst, dst, r);
 }
 
@@ -2685,8 +2694,8 @@ void MacroAssembler::OrU32(Register dst, Register src, Register value,
 }
 
 void MacroAssembler::XorU32(Register dst, Register src, const Operand& value,
-                            Register scratch, RCBit r) {
-  XorU64(dst, src, value, scratch, r);
+                            RCBit r) {
+  XorU64(dst, src, value, r);
   extsw(dst, dst, r);
 }
 
@@ -2760,23 +2769,25 @@ void MacroAssembler::CmpS64(Register src1, Register src2, CRegister cr) {
   cmp(src1, src2, cr);
 }
 
-void MacroAssembler::CmpS64(Register src1, const Operand& src2,
-                            Register scratch, CRegister cr) {
+void MacroAssembler::CmpS64(Register src1, const Operand& src2, CRegister cr) {
   intptr_t value = src2.immediate();
   if (is_int16(value)) {
     cmpi(src1, src2, cr);
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     mov(scratch, src2);
     CmpS64(src1, scratch, cr);
   }
 }
 
-void MacroAssembler::CmpU64(Register src1, const Operand& src2,
-                            Register scratch, CRegister cr) {
+void MacroAssembler::CmpU64(Register src1, const Operand& src2, CRegister cr) {
   intptr_t value = src2.immediate();
   if (is_uint16(value)) {
     cmpli(src1, src2, cr);
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     mov(scratch, src2);
     CmpU64(src1, scratch, cr);
   }
@@ -2786,12 +2797,13 @@ void MacroAssembler::CmpU64(Register src1, Register src2, CRegister cr) {
   cmpl(src1, src2, cr);
 }
 
-void MacroAssembler::CmpS32(Register src1, const Operand& src2,
-                            Register scratch, CRegister cr) {
+void MacroAssembler::CmpS32(Register src1, const Operand& src2, CRegister cr) {
   intptr_t value = src2.immediate();
   if (is_int16(value)) {
     cmpwi(src1, src2, cr);
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     mov(scratch, src2);
     CmpS32(src1, scratch, cr);
   }
@@ -2801,14 +2813,15 @@ void MacroAssembler::CmpS32(Register src1, Register src2, CRegister cr) {
   cmpw(src1, src2, cr);
 }
 
-void MacroAssembler::CmpU32(Register src1, const Operand& src2,
-                            Register scratch, CRegister cr) {
+void MacroAssembler::CmpU32(Register src1, const Operand& src2, CRegister cr) {
   intptr_t value = src2.immediate();
   if (is_uint16(value)) {
     cmplwi(src1, src2, cr);
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     mov(scratch, src2);
-    cmplw(src1, scratch, cr);
+    CmpU32(src1, scratch, cr);
   }
 }
 
@@ -2868,7 +2881,7 @@ void MacroAssembler::CopySignF64(DoubleRegister dst, DoubleRegister lhs,
 void MacroAssembler::CmpSmiLiteral(Register src1, Tagged<Smi> smi,
                                    Register scratch, CRegister cr) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  CmpS32(src1, Operand(smi), scratch, cr);
+  CmpS32(src1, Operand(smi), cr);
 #else
   LoadSmiLiteral(scratch, smi);
   CmpS64(src1, scratch, cr);
@@ -2878,7 +2891,7 @@ void MacroAssembler::CmpSmiLiteral(Register src1, Tagged<Smi> smi,
 void MacroAssembler::CmplSmiLiteral(Register src1, Tagged<Smi> smi,
                                     Register scratch, CRegister cr) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  CmpU64(src1, Operand(smi), scratch, cr);
+  CmpU64(src1, Operand(smi), cr);
 #else
   LoadSmiLiteral(scratch, smi);
   CmpU64(src1, scratch, cr);
@@ -2888,7 +2901,7 @@ void MacroAssembler::CmplSmiLiteral(Register src1, Tagged<Smi> smi,
 void MacroAssembler::AddSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
                                    Register scratch) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  AddS64(dst, src, Operand(smi.ptr()), scratch);
+  AddS64(dst, src, Operand(smi.ptr()));
 #else
   LoadSmiLiteral(scratch, smi);
   add(dst, src, scratch);
@@ -2898,7 +2911,7 @@ void MacroAssembler::AddSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
 void MacroAssembler::SubSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
                                    Register scratch) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  AddS64(dst, src, Operand(-(static_cast<intptr_t>(smi.ptr()))), scratch);
+  AddS64(dst, src, Operand(-(static_cast<intptr_t>(smi.ptr()))));
 #else
   LoadSmiLiteral(scratch, smi);
   sub(dst, src, scratch);
@@ -2908,7 +2921,7 @@ void MacroAssembler::SubSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
 void MacroAssembler::AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
                                    Register scratch, RCBit rc) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  AndU64(dst, src, Operand(smi), scratch, rc);
+  AndU64(dst, src, Operand(smi), rc);
 #else
   LoadSmiLiteral(scratch, smi);
   and_(dst, src, scratch, rc);
@@ -4630,33 +4643,35 @@ void MacroAssembler::SwapSimd128(MemOperand src, MemOperand dst,
   StoreSimd128(scratch2, src);
 }
 
-void MacroAssembler::ByteReverseU16(Register dst, Register val,
-                                    Register scratch) {
+void MacroAssembler::ByteReverseU16(Register dst, Register val) {
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
     brh(dst, val);
     ZeroExtHalfWord(dst, dst);
     return;
   }
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   rlwinm(scratch, val, 8, 16, 23);
   rlwinm(dst, val, 24, 24, 31);
   orx(dst, scratch, dst);
   ZeroExtHalfWord(dst, dst);
 }
 
-void MacroAssembler::ByteReverseU32(Register dst, Register val,
-                                    Register scratch) {
+void MacroAssembler::ByteReverseU32(Register dst, Register val) {
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
     brw(dst, val);
     ZeroExtWord32(dst, dst);
     return;
   }
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   rotlwi(scratch, val, 8);
   rlwimi(scratch, val, 24, 0, 7);
   rlwimi(scratch, val, 24, 16, 23);
   ZeroExtWord32(dst, scratch);
 }
 
-void MacroAssembler::ByteReverseU64(Register dst, Register val, Register) {
+void MacroAssembler::ByteReverseU64(Register dst, Register val) {
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
     brd(dst, val);
     return;
@@ -4668,18 +4683,18 @@ void MacroAssembler::ByteReverseU64(Register dst, Register val, Register) {
 }
 
 void MacroAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
-  CmpS32(x, Operand(y), r0);
+  CmpS32(x, Operand(y));
   beq(dest);
 }
 
 void MacroAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
-  CmpS32(x, Operand(y), r0);
+  CmpS32(x, Operand(y));
   blt(dest);
 }
 
 void MacroAssembler::JumpIfUnsignedLessThan(Register x, int32_t y,
                                             Label* dest) {
-  CmpU32(x, Operand(y), r0);
+  CmpU32(x, Operand(y));
   blt(dest);
 }
 
@@ -4940,27 +4955,26 @@ void MacroAssembler::ClearByteU64(Register dst, int byte_idx) {
   rldicl(dst, dst, 64-shift, 0);
 }
 
-void MacroAssembler::ReverseBitsU64(Register dst, Register src,
-                                    Register scratch1, Register scratch2) {
+void MacroAssembler::ReverseBitsU64(Register dst, Register src) {
   ByteReverseU64(dst, src);
   for (int i = 0; i < 8; i++) {
-    ReverseBitsInSingleByteU64(dst, dst, scratch1, scratch2, i);
+    ReverseBitsInSingleByteU64(dst, dst, i);
   }
 }
 
-void MacroAssembler::ReverseBitsU32(Register dst, Register src,
-                                    Register scratch1, Register scratch2) {
-  ByteReverseU32(dst, src, scratch1);
+void MacroAssembler::ReverseBitsU32(Register dst, Register src) {
+  ByteReverseU32(dst, src);
   for (int i = 4; i < 8; i++) {
-    ReverseBitsInSingleByteU64(dst, dst, scratch1, scratch2, i);
+    ReverseBitsInSingleByteU64(dst, dst, i);
   }
 }
 
 // byte_idx=7 refers to least significant byte
 void MacroAssembler::ReverseBitsInSingleByteU64(Register dst, Register src,
-                                                Register scratch1,
-                                                Register scratch2,
                                                 int byte_idx) {
+  UseScratchRegisterScope temps(this);
+  Register scratch1 = temps.Acquire();
+  Register scratch2 = temps.Acquire();
   CHECK(0 <= byte_idx && byte_idx <= 7);
   int j = byte_idx;
   // zero all bits of scratch1
@@ -5240,9 +5254,9 @@ void MacroAssembler::Switch(Register scratch, Register value,
                             int num_labels) {
   Label fallthrough, jump_table;
   if (case_value_base != 0) {
-    SubS64(value, value, Operand(case_value_base), r0);
+    SubS64(value, value, Operand(case_value_base));
   }
-  CmpU64(value, Operand(num_labels), r0);
+  CmpU64(value, Operand(num_labels));
   bge(&fallthrough);
 
   int entry_size_log2 = 2;

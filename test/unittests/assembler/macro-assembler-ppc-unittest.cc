@@ -85,9 +85,7 @@ TEST_F(MacroAssemblerTest, ReverseBitsU64) {
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
-  __ Push(r4, r5);
-  __ ReverseBitsU64(r3, r3, r4, r5);
-  __ Pop(r4, r5);
+  __ ReverseBitsU64(r3, r3);
   __ Ret();
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);
@@ -113,9 +111,7 @@ TEST_F(MacroAssemblerTest, ReverseBitsU32) {
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
-  __ Push(r4, r5);
-  __ ReverseBitsU32(r3, r3, r4, r5);
-  __ Pop(r4, r5);
+  __ ReverseBitsU32(r3, r3);
   __ Ret();
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);

@@ -98,7 +98,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void AllocateStackSpace(int bytes) {
     DCHECK_GE(bytes, 0);
     if (bytes == 0) return;
-    AddS64(sp, sp, Operand(-bytes), r0);
+    AddS64(sp, sp, Operand(-bytes));
   }
 
   void AllocateStackSpace(Register bytes) { sub(sp, sp, bytes); }
@@ -145,17 +145,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
 
-  void CmpS64(Register src1, const Operand& src2, Register scratch,
-              CRegister cr = cr0);
+  void CmpS64(Register src1, const Operand& src2, CRegister cr = cr0);
   void CmpS64(Register src1, Register src2, CRegister cr = cr0);
-  void CmpU64(Register src1, const Operand& src2, Register scratch,
-              CRegister cr = cr0);
+  void CmpU64(Register src1, const Operand& src2, CRegister cr = cr0);
   void CmpU64(Register src1, Register src2, CRegister cr = cr0);
-  void CmpS32(Register src1, const Operand& src2, Register scratch,
-              CRegister cr = cr0);
+  void CmpS32(Register src1, const Operand& src2, CRegister cr = cr0);
   void CmpS32(Register src1, Register src2, CRegister cr = cr0);
-  void CmpU32(Register src1, const Operand& src2, Register scratch,
-              CRegister cr = cr0);
+  void CmpU32(Register src1, const Operand& src2, CRegister cr = cr0);
   void CmpU32(Register src1, Register src2, CRegister cr = cr0);
   void CompareTagged(Register src1, Register src2, CRegister cr = cr0) {
     if (COMPRESS_POINTERS_BOOL) {
@@ -165,7 +161,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     }
   }
 
-  void Cmp(Register dst, int32_t src) { CmpS32(dst, Operand(src), r0); }
+  void Cmp(Register dst, int32_t src) { CmpS32(dst, Operand(src)); }
 
   void CmpTagged(const Register& src1, const Register& src2) {
     CompareTagged(src1, src2);
@@ -183,34 +179,34 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void ResetRoundingMode();
 
   void AddS64(Register dst, Register src, const Operand& value,
-              Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
+              OEBit s = LeaveOE, RCBit r = LeaveRC);
   void AddS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
-  void AddS64(Register dst, Register src, int32_t imm, Register scratch = r0,
-              OEBit s = LeaveOE, RCBit r = LeaveRC) {
-    AddS64(dst, src, Operand(imm), scratch, s, r);
+  void AddS64(Register dst, Register src, int32_t imm, OEBit s = LeaveOE,
+              RCBit r = LeaveRC) {
+    AddS64(dst, src, Operand(imm), s, r);
   }
 
   void SubS64(Register dst, Register src, const Operand& value,
-              Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
-  void SubS64(Register dst, Register src, int32_t imm, Register scratch = r0,
-              OEBit s = LeaveOE, RCBit r = LeaveRC) {
-    SubS64(dst, src, Operand(imm), scratch, s, r);
+              OEBit s = LeaveOE, RCBit r = LeaveRC);
+  void SubS64(Register dst, Register src, int32_t imm, OEBit s = LeaveOE,
+              RCBit r = LeaveRC) {
+    SubS64(dst, src, Operand(imm), s, r);
   }
   void SubS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
   void AddS32(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = LeaveRC);
+              RCBit r = LeaveRC);
   void AddS32(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void SubS32(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = LeaveRC);
+              RCBit r = LeaveRC);
   void SubS32(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void MulS64(Register dst, Register src, const Operand& value,
-              Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
+              OEBit s = LeaveOE, RCBit r = LeaveRC);
   void MulS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
   void MulS32(Register dst, Register src, const Operand& value,
-              Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
+              OEBit s = LeaveOE, RCBit r = LeaveRC);
   void MulS32(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
   void DivS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
@@ -227,22 +223,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void ModU32(Register dst, Register src, Register value);
 
   void AndU64(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = SetRC);
+              RCBit r = SetRC);
   void AndU64(Register dst, Register src, Register value, RCBit r = SetRC);
-  void OrU64(Register dst, Register src, const Operand& value,
-             Register scratch = r0, RCBit r = SetRC);
+  void OrU64(Register dst, Register src, const Operand& value, RCBit r = SetRC);
   void OrU64(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void XorU64(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = SetRC);
+              RCBit r = SetRC);
   void XorU64(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void AndU32(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = SetRC);
+              RCBit r = SetRC);
   void AndU32(Register dst, Register src, Register value, RCBit r = SetRC);
-  void OrU32(Register dst, Register src, const Operand& value,
-             Register scratch = r0, RCBit r = SetRC);
+  void OrU32(Register dst, Register src, const Operand& value, RCBit r = SetRC);
   void OrU32(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void XorU32(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = SetRC);
+              RCBit r = SetRC);
   void XorU32(Register dst, Register src, Register value, RCBit r = LeaveRC);
 
   void ShiftLeftU64(Register dst, Register src, const Operand& value,
@@ -276,13 +270,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CountTrailingZerosU64(Register dst, Register src, RCBit r = LeaveRC);
 
   void ClearByteU64(Register dst, int byte_idx);
-  void ReverseBitsU64(Register dst, Register src, Register scratch1,
-                      Register scratch2);
-  void ReverseBitsU32(Register dst, Register src, Register scratch1,
-                      Register scratch2);
-  void ReverseBitsInSingleByteU64(Register dst, Register src,
-                                  Register scratch1, Register scratch2,
-                                  int byte_idx);
+  void ReverseBitsU64(Register dst, Register src);
+  void ReverseBitsU32(Register dst, Register src);
+  void ReverseBitsInSingleByteU64(Register dst, Register src, int byte_idx);
 
   void AddF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
               RCBit r = LeaveRC);
@@ -630,9 +620,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch1,
                    Simd128Register scratch2);
 
-  void ByteReverseU16(Register dst, Register val, Register scratch);
-  void ByteReverseU32(Register dst, Register val, Register scratch);
-  void ByteReverseU64(Register dst, Register val, Register = r0);
+  void ByteReverseU16(Register dst, Register val);
+  void ByteReverseU32(Register dst, Register val);
+  void ByteReverseU64(Register dst, Register val);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored in
@@ -1591,10 +1581,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     static_assert(LAST_TYPE <= 0xFFFF);
     if (use_unsigned_cmp) {
       LoadU16(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
-      CmpU64(type_reg, Operand(type), r0);
+      CmpU64(type_reg, Operand(type));
     } else {
       LoadS16(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
-      CmpS64(type_reg, Operand(type), r0);
+      CmpS64(type_reg, Operand(type));
     }
   }
   // Compare object type for heap object.  heap_object contains a non-Smi

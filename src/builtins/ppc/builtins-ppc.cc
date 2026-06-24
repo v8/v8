@@ -45,7 +45,7 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   // Verify that the code kind is baseline code via the CodeKind.
   __ LoadU32(scratch, FieldMemOperand(code, Code::kFlagsOffset));
   __ DecodeField<Code::KindField>(scratch);
-  __ CmpS64(scratch, Operand(static_cast<int>(CodeKind::BASELINE)), r0);
+  __ CmpS64(scratch, Operand(static_cast<int>(CodeKind::BASELINE)));
   __ Assert(eq, AbortReason::kExpectedBaselineData);
 }
 
@@ -67,7 +67,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
              FieldMemOperand(scratch1, offsetof(Map, instance_type_)));
 
 #ifndef V8_JITLESS
-  __ CmpS32(scratch1, Operand(CODE_TYPE), r0);
+  __ CmpS32(scratch1, Operand(CODE_TYPE));
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ b(ne, &not_baseline);
@@ -79,10 +79,10 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   }
 #endif  // !V8_JITLESS
 
-  __ CmpS32(scratch1, Operand(BYTECODE_ARRAY_TYPE), r0);
+  __ CmpS32(scratch1, Operand(BYTECODE_ARRAY_TYPE));
   __ b(eq, &done);
 
-  __ CmpS32(scratch1, Operand(INTERPRETER_DATA_TYPE), r0);
+  __ CmpS32(scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ b(ne, is_unavailable);
   __ LoadInterpreterDataBytecodeArray(data, data);
 
@@ -93,7 +93,7 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
                        intptr_t offset) {
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  __ AddS64(scratch, entry_address, Operand(offset), r0);
+  __ AddS64(scratch, entry_address, Operand(offset));
   __ mtlr(scratch);
 
   // "return" to the OSR entry point of the function.
@@ -156,7 +156,7 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   // the  stack unwinder thinks that we are still within the fast C call.
   if (v8_flags.debug_code) {
     __ LoadU64(scratch, __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
-    __ CmpU64(scratch, Operand::Zero(), r0);
+    __ CmpU64(scratch, Operand::Zero());
     __ Assert(ne, AbortReason::kFastCallFallbackInvalid);
   }
   __ mov(scratch, Operand::Zero());
@@ -2285,10 +2285,10 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
     Label done;
     __ LoadU64(r4, MemOperand(sp));  // receiver
-    __ CmpS64(r3, Operand(JSParameterCount(1)), r0);
+    __ CmpS64(r3, Operand(JSParameterCount(1)));
     __ blt(&done);
     __ LoadU64(r8, MemOperand(sp, kSystemPointerSize));  // thisArg
-    __ CmpS64(r3, Operand(JSParameterCount(2)), r0);
+    __ CmpS64(r3, Operand(JSParameterCount(2)));
     __ blt(&done);
     __ LoadU64(r5, MemOperand(sp, 2 * kSystemPointerSize));  // argArray
 
@@ -2333,7 +2333,7 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   // r3: actual number of arguments
   {
     Label done;
-    __ CmpS64(r3, Operand(JSParameterCount(0)), r0);
+    __ CmpS64(r3, Operand(JSParameterCount(0)));
     __ bne(&done);
     __ PushRoot(RootIndex::kUndefinedValue);
     __ addi(r3, r3, Operand(1));
@@ -2366,13 +2366,13 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ mr(r5, r4);
 
     Label done;
-    __ CmpS64(r3, Operand(JSParameterCount(1)), r0);
+    __ CmpS64(r3, Operand(JSParameterCount(1)));
     __ blt(&done);
     __ LoadU64(r4, MemOperand(sp, kSystemPointerSize));  // thisArg
-    __ CmpS64(r3, Operand(JSParameterCount(2)), r0);
+    __ CmpS64(r3, Operand(JSParameterCount(2)));
     __ blt(&done);
     __ LoadU64(r8, MemOperand(sp, 2 * kSystemPointerSize));  // argArray
-    __ CmpS64(r3, Operand(JSParameterCount(3)), r0);
+    __ CmpS64(r3, Operand(JSParameterCount(3)));
     __ blt(&done);
     __ LoadU64(r5, MemOperand(sp, 3 * kSystemPointerSize));  // argArray
 
@@ -2413,14 +2413,14 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
     Label done;
     __ mr(r7, r4);
-    __ CmpS64(r3, Operand(JSParameterCount(1)), r0);
+    __ CmpS64(r3, Operand(JSParameterCount(1)));
     __ blt(&done);
     __ LoadU64(r4, MemOperand(sp, kSystemPointerSize));  // thisArg
     __ mr(r6, r4);
-    __ CmpS64(r3, Operand(JSParameterCount(2)), r0);
+    __ CmpS64(r3, Operand(JSParameterCount(2)));
     __ blt(&done);
     __ LoadU64(r5, MemOperand(sp, 2 * kSystemPointerSize));  // argArray
-    __ CmpS64(r3, Operand(JSParameterCount(3)), r0);
+    __ CmpS64(r3, Operand(JSParameterCount(3)));
     __ blt(&done);
     __ LoadU64(r6, MemOperand(sp, 3 * kSystemPointerSize));  // argArray
     __ bind(&done);
@@ -2571,7 +2571,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ SmiTag(r7);
   __ Push(r7);
   // - adjust arg count
-  __ AddS64(r3, r3, Operand(SuperSpreadArgs::kNumExtraArgs - 1), r0);
+  __ AddS64(r3, r3, Operand(SuperSpreadArgs::kNumExtraArgs - 1));
 
   __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
@@ -2770,7 +2770,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   __ LoadTaggedField(
       r5, FieldMemOperand(r4, offsetof(JSBoundFunction, bound_arguments_)));
   __ LoadU32(r7, FieldMemOperand(r5, offsetof(FixedArray, length_)));
-  __ CmpU32(r7, Operand(0), r0);
+  __ CmpU32(r7, Operand(0));
   __ beq(&no_bound_arguments);
   {
     // ----------- S t a t e -------------
@@ -3645,7 +3645,7 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   Register scratch = r7;
   DCHECK(!AreAliased(scratch, target_stack));
   __ LoadU64(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
-  __ CmpU64(scratch, Operand(kNullAddress), r0);
+  __ CmpU64(scratch, Operand(kNullAddress));
   Label throw_;
   Label retire_and_throw;
   __ beq(&retire_and_throw);
@@ -3700,7 +3700,7 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   Register scratch = r7;
   DCHECK(!AreAliased(scratch, target_stack));
   __ LoadU64(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
-  __ CmpU64(scratch, Operand(kNullAddress), r0);
+  __ CmpU64(scratch, Operand(kNullAddress));
   Label throw_;
   Label retire_and_throw;
   __ beq(&retire_and_throw);
@@ -3767,7 +3767,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Pop(arg_buffer);
 
   Label ok;
-  __ CmpU64(target_stack, Operand(0), r0);
+  __ CmpU64(target_stack, Operand(0));
   __ bne(&ok);
   // No handler found.
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
@@ -3823,7 +3823,7 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
   }
 
   Label ok;
-  __ CmpU64(kReturnRegister0, Operand(0), r0);
+  __ CmpU64(kReturnRegister0, Operand(0));
   __ bne(&ok);
 
   // No handler found.
@@ -4260,7 +4260,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ LoadU8(scratch, __ AsMemOperand(IsolateFieldId::kIsOnCentralStackFlag));
-    __ CmpU32(scratch, Operand(0), r0);
+    __ CmpU32(scratch, Operand(0));
   }
 
   Label do_not_need_to_switch;
@@ -4313,7 +4313,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
 
   Label no_stack_change;
 
-  __ CmpU64(kOldSPRegister, Operand(0), r0);
+  __ CmpU64(kOldSPRegister, Operand(0));
   __ beq(&no_stack_change);
   __ Move(sp, kOldSPRegister);
 
@@ -4421,7 +4421,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     Label done;
     if (switch_to_central_stack) {
       Label no_stack_change;
-      __ CmpU64(kOldSPRegister, Operand(0), r0);
+      __ CmpU64(kOldSPRegister, Operand(0));
       __ beq(&no_stack_change);
       __ addi(r3, kOldSPRegister,
               Operand((kStackFrameExtraParamSlot + 1) * kSystemPointerSize));
@@ -4538,7 +4538,7 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   }
   Label call_runtime;
   // wasm_grow_stack returns zero if it cannot grow a stack.
-  __ CmpU64(kReturnRegister0, Operand(0), r0);
+  __ CmpU64(kReturnRegister0, Operand(0));
   __ beq(&call_runtime);
 
   // Calculate old FP - SP offset to adjust FP accordingly to new SP.
@@ -5194,7 +5194,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ pop(r0);
     __ mtlr(r0);
     Label end;
-    __ CmpU64(scratch, Operand::Zero(), r0);
+    __ CmpU64(scratch, Operand::Zero());
     __ beq(&end);
     __ Jump(scratch);
     __ bind(&end);

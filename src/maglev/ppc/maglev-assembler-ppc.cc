@@ -23,7 +23,7 @@ void SubSizeAndTagObject(MaglevAssembler* masm, Register object,
 void SubSizeAndTagObject(MaglevAssembler* masm, Register object,
                          int size_in_bytes) {
   DCHECK(is_int20(kHeapObjectTag - size_in_bytes));
-  __ AddS64(object, object, Operand(kHeapObjectTag - size_in_bytes), r0);
+  __ AddS64(object, object, Operand(kHeapObjectTag - size_in_bytes));
 }
 
 template <typename T>
@@ -111,8 +111,7 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   if (v8_flags.debug_code) {
     AddS64(scratch, sp,
            Operand(source_frame_size * kSystemPointerSize +
-                   StandardFrameConstants::kFixedFrameSizeFromFp),
-           r0);
+                   StandardFrameConstants::kFixedFrameSizeFromFp));
     CmpU64(scratch, fp);
     Assert(eq, AbortReason::kOsrUnexpectedStackSize);
   }
@@ -137,8 +136,7 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
     CHECK_LE(size_so_far, target_frame_size);
     if (size_so_far < target_frame_size) {
       SubS64(sp, sp,
-             Operand((target_frame_size - size_so_far) * kSystemPointerSize),
-             r0);
+             Operand((target_frame_size - size_so_far) * kSystemPointerSize));
     }
   }
 }
@@ -197,15 +195,14 @@ void MaglevAssembler::Prologue(Graph* graph) {
         Push(scratch);
       }
       SubS32(unroll_counter, unroll_counter, Operand(1));
-      CmpS32(unroll_counter, Operand(0), r0);
+      CmpS32(unroll_counter, Operand(0));
       bgt(&loop);
     }
   }
   if (graph->untagged_stack_slots() > 0) {
     // Extend rsp by the size of the remaining untagged part of the frame,
     // no need to initialise these.
-    SubS64(sp, sp, Operand(graph->untagged_stack_slots() * kSystemPointerSize),
-           r0);
+    SubS64(sp, sp, Operand(graph->untagged_stack_slots() * kSystemPointerSize));
   }
 }
 
@@ -219,14 +216,13 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 Register scratch) {
   DCHECK_NE(char_code, scratch);
   if (v8_flags.debug_code) {
-    CmpU32(char_code, Operand(String::kMaxOneByteCharCode), r0);
+    CmpU32(char_code, Operand(String::kMaxOneByteCharCode));
     Assert(le, AbortReason::kUnexpectedValue);
   }
   Register table = scratch;
   AddS64(table, kRootRegister,
          Operand(RootRegisterOffsetForRootIndex(
-             RootIndex::kFirstSingleCharacterString)),
-         r0);
+             RootIndex::kFirstSingleCharacterString)));
   ShiftLeftU64(result, char_code, Operand(kSystemPointerSizeLog2));
   LoadU64(result, MemOperand(table, result));
 }
@@ -242,7 +238,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
   if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
     AndU64(char_code, char_code, Operand(0xFFFF));
   }
-  CmpU32(char_code, Operand(String::kMaxOneByteCharCode), r0);
+  CmpU32(char_code, Operand(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       kUnsignedGreaterThan,
       [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
@@ -340,15 +336,14 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     Register representation = temps.AcquireScratch();
 
     // TODO(victorgomes): Add fast path for external strings.
-    AndU32(representation, instance_type, Operand(kStringRepresentationMask),
-           r0);
-    CmpS32(representation, Operand(kSeqStringTag), r0);
+    AndU32(representation, instance_type, Operand(kStringRepresentationMask));
+    CmpS32(representation, Operand(kSeqStringTag));
     beq(&seq_string);
-    AndU32(representation, representation, Operand(kConsStringTag), r0, SetRC);
+    AndU32(representation, representation, Operand(kConsStringTag), SetRC);
     beq(&cons_string, cr0);
-    CmpS32(representation, Operand(kSlicedStringTag), r0);
+    CmpS32(representation, Operand(kSlicedStringTag));
     beq(&sliced_string);
-    CmpS32(representation, Operand(kThinStringTag), r0);
+    CmpS32(representation, Operand(kThinStringTag));
     bne(deferred_runtime_call);
     // Fallthrough to thin string.
   }
@@ -389,8 +384,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   bind(&seq_string);
   {
     Label two_byte_string;
-    AndU32(instance_type, instance_type, Operand(kStringEncodingMask), r0);
-    CmpS32(instance_type, Operand(kTwoByteStringTag), r0);
+    AndU32(instance_type, instance_type, Operand(kStringEncodingMask));
+    CmpS32(instance_type, Operand(kTwoByteStringTag));
     beq(&two_byte_string);
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
@@ -403,8 +398,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     Register scratch = instance_type;
     ShiftLeftU64(scratch, index, Operand(1));
     AddS64(scratch, scratch,
-           Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag),
-           r0);
+           Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
 
     if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt) {
       LoadU16(result, MemOperand(string, scratch));
@@ -420,7 +414,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
       Register first_code_point = scratch;
       AndU32(first_code_point, result, Operand(0xfc00));
-      CmpS32(first_code_point, Operand(0xd800), r0);
+      CmpS32(first_code_point, Operand(0xd800));
       bne(*done);
 
       Register length = scratch;
@@ -432,19 +426,17 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       Register second_code_point = scratch;
       ShiftLeftU32(index, index, Operand(1));
       AddS32(index, index,
-             Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag),
-             r0);
+             Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
       LoadU16(second_code_point, MemOperand(string_backup, index));
 
       // {index} is not needed at this point.
       Register scratch2 = index;
-      AndU32(scratch2, second_code_point, Operand(0xfc00), r0);
-      CmpS32(scratch2, Operand(0xdc00), r0);
+      AndU32(scratch2, second_code_point, Operand(0xfc00));
+      CmpS32(scratch2, Operand(0xdc00));
       bne(*done);
 
       int surrogate_offset = 0x10000 - (0xd800 << 10) - 0xdc00;
-      AddS32(second_code_point, second_code_point, Operand(surrogate_offset),
-             r0);
+      AddS32(second_code_point, second_code_point, Operand(surrogate_offset));
       ShiftLeftU32(result, result, Operand(10));
       AddS32(result, result, second_code_point);
     }
@@ -545,14 +537,14 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
   JumpIf(ne, fail);
 
   // Check if {input} is -0.
-  CmpS32(dst, Operand::Zero(), r0);
+  CmpS32(dst, Operand::Zero());
   JumpIf(ne, &done);
 
   // In case of 0, we need to check the high bits for the IEEE -0 pattern.
   {
     MovDoubleToInt64(scratch, src);
     ShiftRightS64(scratch, scratch, Operand(63));
-    CmpS64(scratch, Operand::Zero(), r0);
+    CmpS64(scratch, Operand::Zero());
     JumpIf(lt, fail);
   }
 
@@ -580,14 +572,14 @@ void MaglevAssembler::TryTruncateDoubleToUint32(Register dst,
   JumpIf(ne, fail);
 
   // Check if {input} is -0.
-  CmpS32(dst, Operand::Zero(), r0);
+  CmpS32(dst, Operand::Zero());
   JumpIf(ne, &done);
 
   // In case of 0, we need to check the high bits for the IEEE -0 pattern.
   {
     MovDoubleToInt64(scratch, src);
     ShiftRightS64(scratch, scratch, Operand(63));
-    CmpS64(scratch, Operand(0), r0);
+    CmpS64(scratch, Operand(0));
     JumpIf(lt, fail);
   }
 

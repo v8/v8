@@ -165,7 +165,7 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   // Push the return address and frame pointer to complete the stack frame.
-  AddS64(sp, sp, Operand(-2 * kSystemPointerSize), r0);
+  AddS64(sp, sp, Operand(-2 * kSystemPointerSize));
   LoadU64(scratch, MemOperand(fp, kSystemPointerSize));
   StoreU64(scratch, MemOperand(sp, kSystemPointerSize));
   LoadU64(scratch, MemOperand(fp));
@@ -180,7 +180,7 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   }
 
   // Set the new stack and frame pointer.
-  AddS64(sp, fp, Operand(-stack_param_delta * kSystemPointerSize), r0);
+  AddS64(sp, fp, Operand(-stack_param_delta * kSystemPointerSize));
   Pop(r0, fp);
   mtlr(r0);
 }
@@ -239,7 +239,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     UseScratchRegisterScope temps(this);
     Register stack_limit = temps.Acquire();
     LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
-    AddS64(stack_limit, stack_limit, Operand(frame_size), r0);
+    AddS64(stack_limit, stack_limit, Operand(frame_size));
     CmpU64(sp, stack_limit);
     bge(&continuation);
   }
@@ -271,7 +271,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
 
   // Now allocate the stack space. Note that this might do more than just
   // decrementing the SP; consult {MacroAssembler::AllocateStackSpace}.
-  SubS64(sp, sp, Operand(frame_size), r0);
+  SubS64(sp, sp, Operand(frame_size));
 
   // Jump back to the start of the function, from {pc_offset()} to
   // right after the reserved space for the {__ sub(sp, sp, framesize)} (which
@@ -345,7 +345,7 @@ Register LiftoffAssembler::LoadOldFramePointer() {
   Label done, call_runtime;
   LoadU64(old_fp.gp(), MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
   CmpU64(old_fp.gp(),
-         Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)), r0);
+         Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
   beq(&call_runtime);
   mr(old_fp.gp(), fp);
   jmp(&done);
@@ -371,8 +371,7 @@ void LiftoffAssembler::CheckStackShrink() {
     Register scratch = temps.Acquire();
     LoadU64(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
     CmpU64(scratch,
-           Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)),
-           r0);
+           Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
   }
   Label done;
   bne(&done);
@@ -791,99 +790,93 @@ constexpr bool is_be = true;
 constexpr bool is_be = false;
 #endif
 
-#define ATOMIC_OP(instr)                                                 \
-  {                                                                      \
-    UseScratchRegisterScope temps(this);                                 \
-    Register scratch = temps.Acquire();                                  \
-    if (!i64_offset && offset_reg != no_reg) {                           \
-      ZeroExtWord32(scratch, offset_reg);                                \
-      offset_reg = scratch;                                              \
-    }                                                                    \
-                                                                         \
-    Register offset = r0;                                                \
-    if (offset_imm != 0) {                                               \
-      mov(offset, Operand(offset_imm));                                  \
-      if (offset_reg != no_reg) add(offset, offset, offset_reg);         \
-      mr(scratch, offset);                                               \
-      offset = scratch;                                                  \
-    } else if (offset_reg != no_reg) {                                   \
-      offset = offset_reg;                                               \
-    }                                                                    \
-                                                                         \
-    MemOperand dst = MemOperand(offset, dst_addr);                       \
-                                                                         \
-    switch (type.value()) {                                              \
-      case StoreType::kI32Store8:                                        \
-      case StoreType::kI64Store8: {                                      \
-        DCHECK_NULL(trapping_load_pc);                                   \
-        auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
-          instr(dst, lhs, rhs);                                          \
-        };                                                               \
-        AtomicOps<uint8_t>(dst, value.gp(), result.gp(), r0, op_func);   \
-        break;                                                           \
-      }                                                                  \
-      case StoreType::kI32Store16:                                       \
-      case StoreType::kI64Store16: {                                     \
-        DCHECK_NULL(trapping_load_pc);                                   \
-        auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
-          if (is_be) {                                                   \
-            Register scratch = GetRegisterThatIsNotOneOf(lhs, rhs, dst); \
-            push(scratch);                                               \
-            ByteReverseU16(dst, lhs, scratch);                           \
-            instr(dst, dst, rhs);                                        \
-            ByteReverseU16(dst, dst, scratch);                           \
-            pop(scratch);                                                \
-          } else {                                                       \
-            instr(dst, lhs, rhs);                                        \
-          }                                                              \
-        };                                                               \
-        AtomicOps<uint16_t>(dst, value.gp(), result.gp(), r0, op_func);  \
-        if (is_be) {                                                     \
-          ByteReverseU16(result.gp(), result.gp(), scratch);             \
-        }                                                                \
-        break;                                                           \
-      }                                                                  \
-      case StoreType::kI32Store:                                         \
-      case StoreType::kI64Store32: {                                     \
-        if (trapping_load_pc) *trapping_load_pc = pc_offset();           \
-        auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
-          if (is_be) {                                                   \
-            Register scratch = GetRegisterThatIsNotOneOf(lhs, rhs, dst); \
-            push(scratch);                                               \
-            ByteReverseU32(dst, lhs, scratch);                           \
-            instr(dst, dst, rhs);                                        \
-            ByteReverseU32(dst, dst, scratch);                           \
-            pop(scratch);                                                \
-          } else {                                                       \
-            instr(dst, lhs, rhs);                                        \
-          }                                                              \
-        };                                                               \
-        AtomicOps<uint32_t>(dst, value.gp(), result.gp(), r0, op_func);  \
-        if (is_be) {                                                     \
-          ByteReverseU32(result.gp(), result.gp(), scratch);             \
-        }                                                                \
-        break;                                                           \
-      }                                                                  \
-      case StoreType::kI64Store: {                                       \
-        if (trapping_load_pc) *trapping_load_pc = pc_offset();           \
-        auto op_func = [&](Register dst, Register lhs, Register rhs) {   \
-          if (is_be) {                                                   \
-            ByteReverseU64(dst, lhs);                                    \
-            instr(dst, dst, rhs);                                        \
-            ByteReverseU64(dst, dst);                                    \
-          } else {                                                       \
-            instr(dst, lhs, rhs);                                        \
-          }                                                              \
-        };                                                               \
-        AtomicOps<uint64_t>(dst, value.gp(), result.gp(), r0, op_func);  \
-        if (is_be) {                                                     \
-          ByteReverseU64(result.gp(), result.gp());                      \
-        }                                                                \
-        break;                                                           \
-      }                                                                  \
-      default:                                                           \
-        UNREACHABLE();                                                   \
-    }                                                                    \
+#define ATOMIC_OP(instr)                                                \
+  {                                                                     \
+    UseScratchRegisterScope temps(this);                                \
+    Register scratch = temps.Acquire();                                 \
+    if (!i64_offset && offset_reg != no_reg) {                          \
+      ZeroExtWord32(scratch, offset_reg);                               \
+      offset_reg = scratch;                                             \
+    }                                                                   \
+                                                                        \
+    Register offset = r0;                                               \
+    if (offset_imm != 0) {                                              \
+      mov(offset, Operand(offset_imm));                                 \
+      if (offset_reg != no_reg) add(offset, offset, offset_reg);        \
+      mr(scratch, offset);                                              \
+      offset = scratch;                                                 \
+    } else if (offset_reg != no_reg) {                                  \
+      offset = offset_reg;                                              \
+    }                                                                   \
+                                                                        \
+    MemOperand dst = MemOperand(offset, dst_addr);                      \
+                                                                        \
+    switch (type.value()) {                                             \
+      case StoreType::kI32Store8:                                       \
+      case StoreType::kI64Store8: {                                     \
+        DCHECK_NULL(trapping_load_pc);                                  \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
+          instr(dst, lhs, rhs);                                         \
+        };                                                              \
+        AtomicOps<uint8_t>(dst, value.gp(), result.gp(), r0, op_func);  \
+        break;                                                          \
+      }                                                                 \
+      case StoreType::kI32Store16:                                      \
+      case StoreType::kI64Store16: {                                    \
+        DCHECK_NULL(trapping_load_pc);                                  \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
+          if (is_be) {                                                  \
+            ByteReverseU16(dst, lhs);                                   \
+            instr(dst, dst, rhs);                                       \
+            ByteReverseU16(dst, dst);                                   \
+          } else {                                                      \
+            instr(dst, lhs, rhs);                                       \
+          }                                                             \
+        };                                                              \
+        AtomicOps<uint16_t>(dst, value.gp(), result.gp(), r0, op_func); \
+        if (is_be) {                                                    \
+          ByteReverseU16(result.gp(), result.gp());                     \
+        }                                                               \
+        break;                                                          \
+      }                                                                 \
+      case StoreType::kI32Store:                                        \
+      case StoreType::kI64Store32: {                                    \
+        if (trapping_load_pc) *trapping_load_pc = pc_offset();          \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
+          if (is_be) {                                                  \
+            ByteReverseU32(dst, lhs);                                   \
+            instr(dst, dst, rhs);                                       \
+            ByteReverseU32(dst, dst);                                   \
+          } else {                                                      \
+            instr(dst, lhs, rhs);                                       \
+          }                                                             \
+        };                                                              \
+        AtomicOps<uint32_t>(dst, value.gp(), result.gp(), r0, op_func); \
+        if (is_be) {                                                    \
+          ByteReverseU32(result.gp(), result.gp());                     \
+        }                                                               \
+        break;                                                          \
+      }                                                                 \
+      case StoreType::kI64Store: {                                      \
+        if (trapping_load_pc) *trapping_load_pc = pc_offset();          \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
+          if (is_be) {                                                  \
+            ByteReverseU64(dst, lhs);                                   \
+            instr(dst, dst, rhs);                                       \
+            ByteReverseU64(dst, dst);                                   \
+          } else {                                                      \
+            instr(dst, lhs, rhs);                                       \
+          }                                                             \
+        };                                                              \
+        AtomicOps<uint64_t>(dst, value.gp(), result.gp(), r0, op_func); \
+        if (is_be) {                                                    \
+          ByteReverseU64(result.gp(), result.gp());                     \
+        }                                                               \
+        break;                                                          \
+      }                                                                 \
+      default:                                                          \
+        UNREACHABLE();                                                  \
+    }                                                                   \
   }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
@@ -958,10 +951,9 @@ void LiftoffAssembler::AtomicExchange(
     case StoreType::kI64Store16: {
       DCHECK_NULL(trapping_load_pc);
       if (is_be) {
-        Register scratch2 = temps.Acquire();
-        ByteReverseU16(r0, value.gp(), scratch2);
+        ByteReverseU16(r0, value.gp());
         MacroAssembler::AtomicExchange<uint16_t>(dst, r0, result.gp());
-        ByteReverseU16(result.gp(), result.gp(), scratch2);
+        ByteReverseU16(result.gp(), result.gp());
       } else {
         MacroAssembler::AtomicExchange<uint16_t>(dst, value.gp(), result.gp());
       }
@@ -971,10 +963,9 @@ void LiftoffAssembler::AtomicExchange(
     case StoreType::kI64Store32: {
       if (trapping_load_pc) *trapping_load_pc = pc_offset();
       if (is_be) {
-        Register scratch2 = temps.Acquire();
-        ByteReverseU32(r0, value.gp(), scratch2);
+        ByteReverseU32(r0, value.gp());
         MacroAssembler::AtomicExchange<uint32_t>(dst, r0, result.gp());
-        ByteReverseU32(result.gp(), result.gp(), scratch2);
+        ByteReverseU32(result.gp(), result.gp());
       } else {
         MacroAssembler::AtomicExchange<uint32_t>(dst, value.gp(), result.gp());
       }
@@ -1076,15 +1067,11 @@ void LiftoffAssembler::AtomicCompareExchange(
     case StoreType::kI64Store16: {
       if (is_be) {
         Push(new_value.gp(), expected.gp());
-        Register scratch = GetRegisterThatIsNotOneOf(
-            new_value.gp(), expected.gp(), result.gp());
-        push(scratch);
-        ByteReverseU16(new_value.gp(), new_value.gp(), scratch);
-        ByteReverseU16(expected.gp(), expected.gp(), scratch);
-        pop(scratch);
+        ByteReverseU16(new_value.gp(), new_value.gp());
+        ByteReverseU16(expected.gp(), expected.gp());
         MacroAssembler::AtomicCompareExchange<uint16_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
-        ByteReverseU16(result.gp(), result.gp(), r0);
+        ByteReverseU16(result.gp(), result.gp());
         Pop(new_value.gp(), expected.gp());
       } else {
         MacroAssembler::AtomicCompareExchange<uint16_t>(
@@ -1096,15 +1083,11 @@ void LiftoffAssembler::AtomicCompareExchange(
     case StoreType::kI64Store32: {
       if (is_be) {
         Push(new_value.gp(), expected.gp());
-        Register scratch = GetRegisterThatIsNotOneOf(
-            new_value.gp(), expected.gp(), result.gp());
-        push(scratch);
-        ByteReverseU32(new_value.gp(), new_value.gp(), scratch);
-        ByteReverseU32(expected.gp(), expected.gp(), scratch);
-        pop(scratch);
+        ByteReverseU32(new_value.gp(), new_value.gp());
+        ByteReverseU32(expected.gp(), expected.gp());
         MacroAssembler::AtomicCompareExchange<uint32_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
-        ByteReverseU32(result.gp(), result.gp(), r0);
+        ByteReverseU32(result.gp(), result.gp());
         Pop(new_value.gp(), expected.gp());
       } else {
         MacroAssembler::AtomicCompareExchange<uint32_t>(
@@ -1446,7 +1429,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     mov(r4, Operand(size / kSystemPointerSize));
     mtctr(r4);
 
-    SubS64(r4, fp, Operand(start + size + kSystemPointerSize), r0);
+    SubS64(r4, fp, Operand(start + size + kSystemPointerSize));
     mov(r0, Operand::Zero());
 
     bind(&loop);
@@ -1675,7 +1658,7 @@ void LiftoffAssembler::DecrementMaxSteps(int32_t* max_steps_ptr,
   LoadS32(max_steps, MemOperand(addr));
 
   if (auto* steps_const = std::get_if<int32_t>(&steps)) {
-    SubS32(max_steps, max_steps, Operand(*steps_const), r0, SetRC);
+    SubS32(max_steps, max_steps, Operand(*steps_const), SetRC);
     StoreU32(max_steps, MemOperand(addr));
     blt(trap_label);
     return;
@@ -1699,7 +1682,7 @@ void LiftoffAssembler::DecrementMaxSteps(int32_t* max_steps_ptr,
   bind(&no_underflow);
 
   StoreU32(max_steps, MemOperand(addr));
-  CmpS32(max_steps, Operand(0), r0);
+  CmpS32(max_steps, Operand(0));
 
   // Now trap if the (possibly capped) result is negative.
   blt(trap_label);
@@ -1711,13 +1694,13 @@ void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
   Label cont;
 
   // Check for division by zero.
-  CmpS32(rhs, Operand::Zero(), r0);
+  CmpS32(rhs, Operand::Zero());
   b(eq, trap_div_by_zero);
 
   // Check for kMinInt / -1. This is unrepresentable.
-  CmpS32(rhs, Operand(-1), r0);
+  CmpS32(rhs, Operand(-1));
   bne(&cont);
-  CmpS32(lhs, Operand(kMinInt), r0);
+  CmpS32(lhs, Operand(kMinInt));
   b(eq, trap_div_unrepresentable);
 
   bind(&cont);
@@ -1726,7 +1709,7 @@ void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
 
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  CmpS32(rhs, Operand::Zero(), r0);
+  CmpS32(rhs, Operand::Zero());
   beq(trap_div_by_zero);
   DivU32(dst, lhs, rhs);
 }
@@ -1735,13 +1718,13 @@ void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
   Label cont, done, trap_div_unrepresentable;
   // Check for division by zero.
-  CmpS32(rhs, Operand::Zero(), r0);
+  CmpS32(rhs, Operand::Zero());
   beq(trap_div_by_zero);
 
   // Check kMinInt/-1 case.
-  CmpS32(rhs, Operand(-1), r0);
+  CmpS32(rhs, Operand(-1));
   bne(&cont);
-  CmpS32(lhs, Operand(kMinInt), r0);
+  CmpS32(lhs, Operand(kMinInt));
   beq(&trap_div_unrepresentable);
 
   // Continue noraml calculation.
@@ -1757,7 +1740,7 @@ void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
 
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  CmpS32(rhs, Operand::Zero(), r0);
+  CmpS32(rhs, Operand::Zero());
   beq(trap_div_by_zero);
   ModU32(dst, lhs, rhs);
 }
@@ -1803,13 +1786,13 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
   constexpr int64_t kMinInt64 = static_cast<int64_t>(1) << 63;
   Label cont;
   // Check for division by zero.
-  CmpS64(rhs.gp(), Operand::Zero(), r0);
+  CmpS64(rhs.gp(), Operand::Zero());
   beq(trap_div_by_zero);
 
   // Check for kMinInt / -1. This is unrepresentable.
-  CmpS64(rhs.gp(), Operand(-1), r0);
+  CmpS64(rhs.gp(), Operand(-1));
   bne(&cont);
-  CmpS64(lhs.gp(), Operand(kMinInt64), r0);
+  CmpS64(lhs.gp(), Operand(kMinInt64));
   beq(trap_div_unrepresentable);
 
   bind(&cont);
@@ -1820,7 +1803,7 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
 bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  CmpS64(rhs.gp(), Operand::Zero(), r0);
+  CmpS64(rhs.gp(), Operand::Zero());
   beq(trap_div_by_zero);
   // Do div.
   DivU64(dst.gp(), lhs.gp(), rhs.gp());
@@ -1837,13 +1820,13 @@ bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
   Label cont;
 
   // Check for division by zero.
-  CmpS64(rhs.gp(), Operand::Zero(), r0);
+  CmpS64(rhs.gp(), Operand::Zero());
   beq(trap_div_by_zero);
 
   // Check for kMinInt / -1. This is unrepresentable.
-  CmpS64(rhs.gp(), Operand(-1), r0);
+  CmpS64(rhs.gp(), Operand(-1));
   bne(&cont);
-  CmpS64(lhs.gp(), Operand(kMinInt64), r0);
+  CmpS64(lhs.gp(), Operand(kMinInt64));
   beq(&trap_div_unrepresentable);
 
   bind(&cont);
@@ -1859,7 +1842,7 @@ bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
 bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  CmpS64(rhs.gp(), Operand::Zero(), r0);
+  CmpS64(rhs.gp(), Operand::Zero());
   beq(trap_div_by_zero);
   ModU64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
@@ -2109,7 +2092,7 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
   } else {
     DCHECK_EQ(kind, kI32);
     CHECK(use_signed);
-    CmpS32(lhs, Operand::Zero(), r0);
+    CmpS32(lhs, Operand::Zero());
   }
 
   b(to_condition(cond), label);
@@ -2120,9 +2103,9 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
                                            const FreezeCacheState& frozen) {
   bool use_signed = is_signed(cond);
   if (use_signed) {
-    CmpS32(lhs, Operand(imm), r0);
+    CmpS32(lhs, Operand(imm));
   } else {
-    CmpU32(lhs, Operand(imm), r0);
+    CmpU32(lhs, Operand(imm));
   }
   b(to_condition(cond), label);
 }
@@ -2132,16 +2115,16 @@ void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
                                                const FreezeCacheState& frozen) {
   bool use_signed = is_signed(cond);
   if (use_signed) {
-    CmpS64(lhs, Operand(imm), r0);
+    CmpS64(lhs, Operand(imm));
   } else {
-    CmpU64(lhs, Operand(imm), r0);
+    CmpU64(lhs, Operand(imm));
   }
   b(to_condition(cond), label);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   Label done;
-  CmpS32(src, Operand(0), r0);
+  CmpS32(src, Operand(0));
   mov(dst, Operand(1));
   beq(&done);
   mov(dst, Operand::Zero());
@@ -3093,7 +3076,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
     ExternalReference ext_ref) {
   int size = RoundUp(stack_bytes, kSystemPointerSize);
 
-  SubS64(sp, sp, Operand(size), r0);
+  SubS64(sp, sp, Operand(size));
 
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
@@ -3150,7 +3133,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
         UNREACHABLE();
     }
   }
-  AddS64(sp, sp, Operand(size), r0);
+  AddS64(sp, sp, Operand(size));
 }
 
 void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
@@ -3237,7 +3220,7 @@ void LiftoffAssembler::CallBuiltin(Builtin builtin) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  SubS64(sp, sp, Operand(size), r0);
+  SubS64(sp, sp, Operand(size));
   mr(addr, sp);
 }
 
@@ -3282,7 +3265,7 @@ void LiftoffStackSlots::Construct(int param_slots) {
             asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
             asm_->LoadF64(kScratchDoubleReg,
                           liftoff::GetStackSlot(slot.src_offset_));
-            asm_->AddS64(sp, sp, Operand(-kSystemPointerSize), r0);
+            asm_->AddS64(sp, sp, Operand(-kSystemPointerSize));
             asm_->StoreF64(kScratchDoubleReg, MemOperand(sp));
             break;
           }
@@ -3310,15 +3293,15 @@ void LiftoffStackSlots::Construct(int param_slots) {
             asm_->push(src.reg().gp());
             break;
           case kF32:
-            asm_->AddS64(sp, sp, Operand(-kSystemPointerSize), r0);
+            asm_->AddS64(sp, sp, Operand(-kSystemPointerSize));
             asm_->StoreF32(src.reg().fp(), MemOperand(sp));
             break;
           case kF64:
-            asm_->AddS64(sp, sp, Operand(-kSystemPointerSize), r0);
+            asm_->AddS64(sp, sp, Operand(-kSystemPointerSize));
             asm_->StoreF64(src.reg().fp(), MemOperand(sp));
             break;
           case kS128: {
-            asm_->AddS64(sp, sp, Operand(-kSimd128Size), r0);
+            asm_->AddS64(sp, sp, Operand(-kSimd128Size));
             asm_->StoreSimd128(src.reg().simd128(), MemOperand(sp));
             break;
           }

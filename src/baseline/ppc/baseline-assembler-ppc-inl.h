@@ -133,9 +133,7 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  ScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
-  __ AndU64(r0, value, Operand(mask), scratch, SetRC);
+  __ AndU64(r0, value, Operand(mask), SetRC);
   __ b(to_condition(cc), target, cr0);
 }
 
@@ -143,9 +141,9 @@ void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
                                Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
   if (is_signed(cc)) {
-    __ CmpS64(lhs, rhs, r0);
+    __ CmpS64(lhs, rhs);
   } else {
-    __ CmpU64(lhs, rhs, r0);
+    __ CmpU64(lhs, rhs);
   }
   __ b(to_condition(cc), target);
 }
@@ -489,7 +487,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
              FieldMemOperand(feedback_cell,
                              offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
-  __ AddS32(interrupt_budget, interrupt_budget, Operand(weight), r0, SetRC);
+  __ AddS32(interrupt_budget, interrupt_budget, Operand(weight), SetRC);
   __ StoreU32(interrupt_budget,
               FieldMemOperand(feedback_cell,
                               offsetof(FeedbackCell, interrupt_budget_)));
