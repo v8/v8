@@ -218,6 +218,8 @@ Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
 }
 
 Isolate::ExceptionScope::~ExceptionScope() {
+  // Do not interrupt termination.
+  if (isolate_->is_execution_terminating()) return;
   isolate_->set_exception(*exception_);
 }
 
