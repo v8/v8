@@ -5843,10 +5843,8 @@ void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(OpIndex node) {
   X64OperandGenerator g(this);
   const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
-                               ? g.DefineAsRegister(node)
-                               : g.DefineSameAsFirst(node);
-  Emit(kX64I32x4ExtAddPairwiseI16x8S, dst, g.UseRegister(op.input()));
+  Emit(kX64I32x4ExtAddPairwiseI16x8S, g.DefineAsRegister(node),
+       g.UseRegister(op.input()));
 }
 
 void InstructionSelector::VisitI32x8ExtAddPairwiseI16x16S(OpIndex node) {
@@ -5865,10 +5863,8 @@ void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(OpIndex node) {
   X64OperandGenerator g(this);
   const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
-                               ? g.DefineAsRegister(node)
-                               : g.DefineSameAsFirst(node);
-  Emit(kX64I32x4ExtAddPairwiseI16x8U, dst, g.UseRegister(op.input()));
+  Emit(kX64I32x4ExtAddPairwiseI16x8U, g.DefineAsRegister(node),
+       g.UseRegister(op.input()));
 }
 
 void InstructionSelector::VisitI32x8ExtAddPairwiseI16x16U(OpIndex node) {
@@ -5908,10 +5904,8 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(OpIndex node) {
   X64OperandGenerator g(this);
   const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
   DCHECK_EQ(op.input_count, 1);
-  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
-                               ? g.DefineAsRegister(node)
-                               : g.DefineSameAsFirst(node);
-  Emit(kX64I16x8ExtAddPairwiseI8x16U, dst, g.UseRegister(op.input()));
+  Emit(kX64I16x8ExtAddPairwiseI8x16U, g.DefineAsRegister(node),
+       g.UseRegister(op.input()));
 }
 
 void InstructionSelector::VisitI16x16ExtAddPairwiseI8x32U(OpIndex node) {

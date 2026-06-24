@@ -139,6 +139,7 @@ using F13 = int(float*, int32_t*);
 using F14 = int(uint16_t*, int16_t*);
 using F15 = int(uint16_t*, uint16_t*);
 using F16 = int(double*, uint16_t*);
+using F17 = int(int8_t*, int8_t*, int16_t*);
 
 #define __ masm->
 
@@ -1900,6 +1901,54 @@ TEST_F(MacroAssemblerX64Test, F32x8Max) {
     f.Call(left, right, output);
     for (int i = 0; i < 8; i++) {
       CHECK_EQ(output[i], std::max(left[i], right[i]));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, I16x8ExtMulHighI8x16SWithDstAliasingSrc2) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const XMMRegister dst = xmm0;
+  const XMMRegister lhs = xmm1;
+  const XMMRegister tmp = xmm2;
+
+  __ movdqu(lhs, Operand(kCArgRegs[0], 0));
+  __ movdqu(dst, Operand(kCArgRegs[1], 0));
+  __ I16x8ExtMulHighS(dst, lhs, dst, tmp);
+  __ movdqu(Operand(kCArgRegs[2], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<F17>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<int8_t, 32>> test_cases = {
+      {0,  1,  2,  3,  4,  5,  6,  7,  8, 9,  10, 11,  12,  13, 14, 15,
+       -1, -2, -3, -4, -5, -6, -7, -8, 9, 10, 11, -12, -13, 14, 15, -16},
+      {1, 1,  1, 1,  1, 1,  1, 1,  127, 126, -128, -1, 64, -64, 3,  -3,
+       2, -2, 4, -4, 5, -5, 6, -6, 7,   -7,  8,    -8, 9,  -9,  10, -10}};
+
+  int8_t left[16];
+  int8_t right[16];
+  int16_t output[8];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 16; ++i) {
+      left[i] = arr[i];
+      right[i] = arr[i + 16];
+    }
+
+    f.Call(left, right, output);
+
+    for (int i = 0; i < 8; ++i) {
+      CHECK_EQ(static_cast<int16_t>(left[i + 8] * right[i + 8]), output[i]);
     }
   }
 }
