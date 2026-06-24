@@ -981,7 +981,7 @@
   'wasm/ffi': [SKIP],
 
   # Tests using %WasmTierUpFunction()
-  'regress/regress-372269618': [SKIP],
+  'regress/wasm/regress-372269618': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
   'regress/wasm/regress-13230': [SKIP],
   'regress/wasm/regress-13290': [SKIP],
