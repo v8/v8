@@ -285,8 +285,10 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
 // loop-invariant values the peeler cloned), invalidating only what the loop
 // body can change.
 void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
-                                    Zone* zone) {
-  if (side_effects_require_invalidation_) {
+                                    Zone* zone,
+                                    const LoopEffects* loop_effects) {
+  if (side_effects_require_invalidation_ &&
+      (loop_effects == nullptr || loop_effects->unstable_aspects_cleared)) {
     ZoneMap<ValueNode*, NodeInfo> cleared(zone);
     for (auto& entry : node_infos_) {
       cleared.emplace(entry.first,
@@ -318,24 +320,55 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
                lhs.effect_epoch >= effect_epoch_;
       });
 
+  const bool keep_invariant_loads =
+      loop_effects != nullptr && !loop_effects->unstable_aspects_cleared;
+  auto same_load = [](ValueNode* lhs, ValueNode* rhs) {
+    return lhs != nullptr && rhs != nullptr &&
+           lhs->UnwrapIdentities()->IsStructurallyEqualTo(
+               rhs->UnwrapIdentities());
+  };
+  auto merge_constant_properties =
+      [&](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs,
+          const ZoneMap<ValueNode*, ValueNode*>& rhs) {
+        DestructivelyIntersect(lhs, rhs,
+                               [&](ValueNode* obj, ValueNode* l, ValueNode* r) {
+                                 return l == r || same_load(l, r);
+                               });
+        return !lhs.empty();
+      };
   auto merge_loaded_properties =
-      [](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs,
-         const ZoneMap<ValueNode*, ValueNode*>& rhs) {
-        // Loaded properties are maps of maps, so just do the destructive
-        // intersection recursively.
-        DestructivelyIntersect(lhs, rhs);
+      [&](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs,
+          const ZoneMap<ValueNode*, ValueNode*>& rhs) {
+        const bool key_invariant =
+            keep_invariant_loads && !loop_effects->keys_cleared.contains(key);
+        DestructivelyIntersect(
+            lhs, rhs, [&](ValueNode* obj, ValueNode* l, ValueNode* r) {
+              return l == r || (key_invariant &&
+                                !loop_effects->objects_written.contains(obj) &&
+                                same_load(l, r));
+            });
         return !lhs.empty();
       };
   DestructivelyIntersect(loaded_constant_properties_,
                          backedge.loaded_constant_properties_,
-                         merge_loaded_properties);
+                         merge_constant_properties);
   DestructivelyIntersect(loaded_properties_, backedge.loaded_properties_,
                          merge_loaded_properties);
   DestructivelyIntersect(loaded_context_constants_,
-                         backedge.loaded_context_constants_);
+                         backedge.loaded_context_constants_,
+                         [&](auto key, ValueNode* l, ValueNode* r) {
+                           return l == r || same_load(l, r);
+                         });
   may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
       may_have_aliasing_contexts_, backedge.may_have_aliasing_contexts());
-  DestructivelyIntersect(loaded_context_slots_, backedge.loaded_context_slots_);
+  DestructivelyIntersect(
+      loaded_context_slots_, backedge.loaded_context_slots_,
+      [&](auto key, ValueNode* l, ValueNode* r) {
+        return l == r || (keep_invariant_loads &&
+                          !loop_effects->may_have_aliasing_contexts &&
+                          !loop_effects->context_slot_written.contains(key) &&
+                          same_load(l, r));
+      });
 }
 
 void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {

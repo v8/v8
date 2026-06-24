@@ -80,7 +80,8 @@ class RecomputeKnownNodeAspectsProcessor {
                 << TraceNewline{} << "## Backward KNA:" << TraceNewline{}
                 << *backedge_known_node_aspects);
       backedge_known_node_aspects->UnwrapIdentitiesAndPhisInKeys(zone());
-      known_node_aspects_->MergeForLoop(*backedge_known_node_aspects, zone());
+      known_node_aspects_->MergeForLoop(*backedge_known_node_aspects, zone(),
+                                        block->state()->loop_effects());
     } else if (block->has_state()) {
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
     } else if (block->is_edge_split_block()) {
