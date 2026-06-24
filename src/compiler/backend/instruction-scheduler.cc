@@ -29,9 +29,26 @@ namespace compiler {
     }                                                  \
   } while (false)
 
-InstructionScheduler::SchedulingQueue::SchedulingQueue(Zone* zone)
+void ResourceAllocation::PrintState() const {
+#define RESOURCE_NAME(resource) "- " #resource
+#define TRACE_UNITS(resource)     \
+  TRACE(RESOURCE_NAME(resource)); \
+  TRACE(": %d\n", GetFreeUnits(ArchInstResource::k##resource));
+
+  TRACE("Free Units:\n");
+#define DUMP_UNITS(resource) TRACE_UNITS(resource)
+  FOREACH_ARCH_RESOURCE(DUMP_UNITS)
+
+#undef DUMP_UNITS
+#undef TRACE_UNITS
+#undef RESOURCE_NAME
+}
+
+InstructionScheduler::SchedulingQueue::SchedulingQueue(
+    ResourceAllocation resource_table, Zone* zone)
     : ready_(zone),
       waiting_(zone),
+      resource_table_(resource_table),
       random_number_generator_(
           base::RandomNumberGenerator(v8_flags.random_seed)) {}
 
@@ -51,29 +68,57 @@ void InstructionScheduler::SchedulingQueue::Advance(int cycle) {
   auto it = std::partition(waiting_.begin(), waiting_.end(), IsReady);
   ready_.insert(ready_.end(), waiting_.begin(), it);
   waiting_.erase(waiting_.begin(), it);
+  resource_table().Reset();
 }
 
 InstructionScheduler::ScheduleGraphNode*
 InstructionScheduler::SchedulingQueue::PopBestCandidate(int cycle) {
   DCHECK(!IsEmpty());
 
-  if (ready_.empty()) return nullptr;
+  if (ready_.empty()) {
+    TRACE("Ready queue empty\n");
+    return nullptr;
+  }
+
+  if (v8_flags.trace_turbo_instruction_scheduling) {
+    TRACE("Ready instructions:\n");
+    for (auto& candidate : ready_) {
+      TRACE_INST(candidate->instruction());
+    }
+    resource_table().PrintState();
+  }
+
+  if (!CanIssue(ArchInstResource::kFetch)) {
+    TRACE("Can't fetch anymore\n");
+    return nullptr;
+  }
+
+  // Filter the ready queue to only look at instructions for which we can issue.
+  base::SmallVector<ScheduleGraphNode*, 4> issuable;
+  std::copy_if(ready_.begin(), ready_.end(), std::back_inserter(issuable),
+               [this](auto c) { return CanIssue(c); });
+
+  if (issuable.empty()) {
+    TRACE("None of ready queue can issue.\n");
+    return nullptr;
+  }
 
   if (V8_UNLIKELY(v8_flags.turbo_stress_instruction_scheduling)) {
     // Pop a random node from the queue to perform stress tests on the
     // scheduler.
-    auto candidate = ready_.begin();
+    auto candidate = issuable.begin();
     std::advance(candidate, random_number_generator_->NextInt(
-                                static_cast<int>(ready_.size())));
+                                static_cast<int>(issuable.size())));
     ScheduleGraphNode* result = *candidate;
-    ready_.erase(candidate);
+    ready_.erase(std::find(ready_.begin(), ready_.end(), result));
+    MarkIssue(result->resource());
     return result;
   }
 
   // Prioritize the instruction with the highest latency on the path to reach
   // the end of the graph.
-  auto best_candidate =
-      std::max_element(ready_.begin(), ready_.end(), [this](auto l, auto r) {
+  auto best_candidate = std::max_element(
+      issuable.begin(), issuable.end(), [this](auto l, auto r) {
         if (v8_flags.experimental_turbo_instruction_scheduling) {
           if (GetTotalLatency(l) == GetTotalLatency(r)) {
             // Tie-breaking strategies.
@@ -84,7 +129,7 @@ InstructionScheduler::SchedulingQueue::PopBestCandidate(int cycle) {
       });
 
   ScheduleGraphNode* result = *best_candidate;
-  ready_.erase(best_candidate);
+  ready_.erase(std::find(ready_.begin(), ready_.end(), result));
   if (v8_flags.trace_turbo_instruction_scheduling) {
     TRACE("Ready instructions:\n");
     for (auto& candidate : ready_) {
@@ -93,19 +138,20 @@ InstructionScheduler::SchedulingQueue::PopBestCandidate(int cycle) {
     TRACE("Selected:\n");
     TRACE_INST(result->instruction());
   }
-
+  MarkIssue(result->resource());
   return result;
 }
 
-InstructionScheduler::ScheduleGraphNode::ScheduleGraphNode(Zone* zone,
-                                                           Instruction* instr)
+InstructionScheduler::ScheduleGraphNode::ScheduleGraphNode(
+    Zone* zone, Instruction* instr, ArchInstResource resource)
     : instr_(instr),
       successors_(zone),
       data_successors_(zone),
       unscheduled_predecessors_count_(0),
       latency_(GetInstructionLatency(instr)),
       total_latency_(-1),
-      start_cycle_(-1) {}
+      start_cycle_(-1),
+      resource_(resource) {}
 
 void InstructionScheduler::ScheduleGraphNode::AddSuccessor(
     ScheduleGraphNode* node) {
@@ -124,7 +170,7 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
     : zone_(zone),
       sequence_(sequence),
       graph_(sequence->instructions().size(), zone),
-      ready_list_(zone),
+      ready_list_(GetResourceTable(), zone),
       last_side_effect_instr_(nullptr),
       pending_loads_(zone),
       last_deopt_or_trap_(nullptr),
@@ -155,7 +201,9 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
     return;
   }
 
-  ScheduleGraphNode* new_node = zone()->New<ScheduleGraphNode>(zone(), instr);
+  ArchInstResource resource = GetInstructionResource(instr);
+  ScheduleGraphNode* new_node =
+      zone()->New<ScheduleGraphNode>(zone(), instr, resource);
 
   // We should not have branches in the middle of a block.
   DCHECK_NE(instr->flags_mode(), kFlags_branch);
@@ -238,17 +286,22 @@ void InstructionScheduler::Schedule() {
   // Go through the ready list and schedule the instructions.
   int cycle = 0;
   while (!ready_list_.IsEmpty()) {
-    if (ScheduleGraphNode* candidate = ready_list_.PopBestCandidate(cycle)) {
-      sequence()->AddInstruction(candidate->instruction());
+    while (!ready_list_.IsReadyEmpty()) {
+      if (ScheduleGraphNode* candidate = ready_list_.PopBestCandidate(cycle)) {
+        sequence()->AddInstruction(candidate->instruction());
 
-      for (ScheduleGraphNode* successor : candidate->successors()) {
-        successor->DropUnscheduledPredecessor();
-        successor->set_start_cycle(
-            std::max(successor->start_cycle(), cycle + candidate->latency()));
+        for (ScheduleGraphNode* successor : candidate->successors()) {
+          successor->DropUnscheduledPredecessor();
+          successor->set_start_cycle(
+              std::max(successor->start_cycle(), cycle + candidate->latency()));
 
-        if (!successor->HasUnscheduledPredecessor()) {
-          ready_list_.AddNode(successor);
+          if (!successor->HasUnscheduledPredecessor()) {
+            ready_list_.AddNode(successor);
+          }
         }
+      } else {
+        // There's no candidate, so break update the cycle.
+        break;
       }
     }
     cycle++;
@@ -439,15 +492,7 @@ void InstructionScheduler::ComputeTotalLatencies() {
   for (ScheduleGraphNode* node : base::Reversed(graph_)) {
     int max_latency = 0;
 
-    // With experimental-turbo-instruction-scheduling we compute latencies
-    // using only data-dependent successors, this prevents side-effect chains
-    // from causing overly pessimistic latencies, such as stores waiting for a
-    // load even though the loaded data is not required.
-    ScheduleGraphNode::SuccessorList& successors =
-        v8_flags.experimental_turbo_instruction_scheduling
-            ? node->data_successors()
-            : node->successors();
-    for (ScheduleGraphNode* successor : successors) {
+    for (ScheduleGraphNode* successor : node->successors()) {
       DCHECK_NE(-1, successor->total_latency());
       if (successor->total_latency() > max_latency) {
         max_latency = successor->total_latency();
