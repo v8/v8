@@ -1576,6 +1576,7 @@ RUNTIME_FUNCTION(Runtime_GlobalPrint) {
     }
   }
 
+  CHECK_UNLESS_FUZZING(args.length() >= 1);
   if (!IsString(args[0])) {
     return args[0];
   }
