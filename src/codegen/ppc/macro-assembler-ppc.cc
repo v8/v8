@@ -3200,9 +3200,10 @@ void MacroAssembler::LoadS16LE(Register dst, const MemOperand& mem) {
 #endif
 }
 
-void MacroAssembler::LoadF64LE(DoubleRegister dst, const MemOperand& mem,
-                               Register scratch) {
+void MacroAssembler::LoadF64LE(DoubleRegister dst, const MemOperand& mem) {
 #ifdef V8_TARGET_BIG_ENDIAN
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   LoadU64LE(scratch, mem);
   push(scratch);
   LoadF64(dst, MemOperand(sp));
@@ -3212,9 +3213,10 @@ void MacroAssembler::LoadF64LE(DoubleRegister dst, const MemOperand& mem,
 #endif
 }
 
-void MacroAssembler::LoadF32LE(DoubleRegister dst, const MemOperand& mem,
-                               Register scratch) {
+void MacroAssembler::LoadF32LE(DoubleRegister dst, const MemOperand& mem) {
 #ifdef V8_TARGET_BIG_ENDIAN
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   LoadU32LE(scratch, mem);
   push(scratch);
   LoadF32(dst, MemOperand(sp, 4));
@@ -3224,9 +3226,10 @@ void MacroAssembler::LoadF32LE(DoubleRegister dst, const MemOperand& mem,
 #endif
 }
 
-void MacroAssembler::StoreF64LE(DoubleRegister dst, const MemOperand& mem,
-                                Register scratch) {
+void MacroAssembler::StoreF64LE(DoubleRegister dst, const MemOperand& mem) {
 #ifdef V8_TARGET_BIG_ENDIAN
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   StoreF64(dst, mem);
   LoadU64(scratch, mem);
   StoreU64LE(scratch, mem);
@@ -3235,9 +3238,10 @@ void MacroAssembler::StoreF64LE(DoubleRegister dst, const MemOperand& mem,
 #endif
 }
 
-void MacroAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
-                                Register scratch) {
+void MacroAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem) {
 #ifdef V8_TARGET_BIG_ENDIAN
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   StoreF32(dst, mem);
   LoadU32(scratch, mem);
   StoreU32LE(scratch, mem);

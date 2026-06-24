@@ -1104,11 +1104,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadS32LE(Register dst, const MemOperand& mem);
   void LoadS16LE(Register dst, const MemOperand& mem);
 
-  void LoadF64LE(DoubleRegister dst, const MemOperand& mem, Register scratch);
-  void LoadF32LE(DoubleRegister dst, const MemOperand& mem, Register scratch);
+  void LoadF64LE(DoubleRegister dst, const MemOperand& mem);
+  void LoadF32LE(DoubleRegister dst, const MemOperand& mem);
 
-  void StoreF32LE(DoubleRegister src, const MemOperand& mem, Register scratch);
-  void StoreF64LE(DoubleRegister src, const MemOperand& mem, Register scratch);
+  void StoreF32LE(DoubleRegister src, const MemOperand& mem);
+  void StoreF64LE(DoubleRegister src, const MemOperand& mem);
 
   // Simd Support.
 #define SIMD_BINOP_LIST(V) \

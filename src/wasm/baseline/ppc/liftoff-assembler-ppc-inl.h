@@ -660,14 +660,14 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kF32Load:
       if (is_load_mem) {
-        LoadF32LE(dst.fp(), src_op, r0);
+        LoadF32LE(dst.fp(), src_op);
       } else {
         LoadF32(dst.fp(), src_op);
       }
       break;
     case LoadType::kF64Load:
       if (is_load_mem) {
-        LoadF64LE(dst.fp(), src_op, r0);
+        LoadF64LE(dst.fp(), src_op);
       } else {
         LoadF64(dst.fp(), src_op);
       }
@@ -727,14 +727,14 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kF32Store:
       if (is_store_mem) {
-        StoreF32LE(src.fp(), dst_op, r0);
+        StoreF32LE(src.fp(), dst_op);
       } else {
         StoreF32(src.fp(), dst_op);
       }
       break;
     case StoreType::kF64Store:
       if (is_store_mem) {
-        StoreF64LE(src.fp(), dst_op, r0);
+        StoreF64LE(src.fp(), dst_op);
       } else {
         StoreF64(src.fp(), dst_op);
       }
