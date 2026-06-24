@@ -389,25 +389,32 @@ TEST_F(HeapSnapshotTest, StringProperties) {
   ASSERT_NE(nullptr, one_byte);
   EXPECT_EQ(3, GetIntEdge(one_byte, "length"));
   EXPECT_FALSE(GetBoolEdge(one_byte, "truncated").has_value());
+  EXPECT_FALSE(GetIntEdge(one_byte, "hash").has_value());
   EXPECT_FALSE(GetBoolEdge(one_byte, "two_byte_representation").has_value());
 
   ASSERT_NE(nullptr, two_byte);
   EXPECT_EQ(4, GetIntEdge(two_byte, "length"));
+  EXPECT_FALSE(GetIntEdge(two_byte, "hash").has_value());
   EXPECT_TRUE(GetBoolEdge(two_byte, "two_byte_representation").value());
 
   ASSERT_NE(nullptr, truncated);
   EXPECT_EQ(600, GetIntEdge(truncated, "length"));
   EXPECT_TRUE(GetBoolEdge(truncated, "truncated").value());
+  std::optional<int> hash = GetIntEdge(truncated, "hash");
+  EXPECT_TRUE(hash.has_value());
+  EXPECT_EQ(static_cast<int>(truncated_str->EnsureHash()), hash.value());
   EXPECT_EQ(512u, strlen(truncated->name()));
 
   ASSERT_NE(nullptr, cons);
   EXPECT_EQ(200, GetIntEdge(cons, "length"));
+  EXPECT_FALSE(GetIntEdge(cons, "hash").has_value());
   EXPECT_EQ(HeapEntry::kConsString, cons->type());
   EXPECT_TRUE(HasNamedEdge(*cons, "first"));
   EXPECT_TRUE(HasNamedEdge(*cons, "second"));
 
   ASSERT_NE(nullptr, sliced);
   EXPECT_EQ(15, GetIntEdge(sliced, "length"));
+  EXPECT_FALSE(GetIntEdge(sliced, "hash").has_value());
   EXPECT_EQ(HeapEntry::kSlicedString, sliced->type());
   EXPECT_TRUE(HasNamedEdge(*sliced, "parent"));
 }

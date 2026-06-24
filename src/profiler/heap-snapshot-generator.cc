@@ -45,6 +45,7 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/name-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
 #include "src/objects/slots-inl.h"
@@ -1732,6 +1733,8 @@ void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
   AddIntEdge(entry, HeapGraphEdge::kInternal, "length", string->length());
   if (names_->NeedsTruncation(string->length())) {
     AddBoolEdge(entry, HeapGraphEdge::kInternal, "truncated", true);
+    AddIntEdge(entry, HeapGraphEdge::kInternal, "hash",
+               static_cast<int>(string->EnsureHash()));
   }
   if (!string->IsOneByteRepresentation()) {
     AddBoolEdge(entry, HeapGraphEdge::kInternal, "two_byte_representation",
