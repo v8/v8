@@ -365,9 +365,15 @@ MaybeHandle<Code> BaselineCompiler::Build() {
   Factory::CodeBuilder code_builder(local_isolate_, desc, CodeKind::BASELINE);
   code_builder.set_bytecode_offset_table(bytecode_offset_table);
   if (shared_function_info_->HasInterpreterData(local_isolate_)) {
-    code_builder.set_interpreter_data(
-        handle(shared_function_info_->interpreter_data(local_isolate_),
-               local_isolate_));
+    // The SFI lives inside the sandbox and may have been mutated between the
+    // main-thread snapshot of |bytecode_| and this background-thread re-read.
+    // Refuse to bake a foreign InterpreterData (whose bytecode_array() does
+    // not match the snapshot) into the trusted Code object.
+    Handle<InterpreterData> interpreter_data(
+        shared_function_info_->interpreter_data(local_isolate_),
+        local_isolate_);
+    SBXCHECK_EQ(interpreter_data->bytecode_array(), *bytecode_);
+    code_builder.set_interpreter_data(interpreter_data);
   } else {
     code_builder.set_interpreter_data(bytecode_);
   }
