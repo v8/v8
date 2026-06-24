@@ -6,7 +6,7 @@ V8 follows [Chromium's security guidelines](https://chromium.googlesource.com/ch
 
 To be eligible for the Chrome VRP, report security bugs via [Google Bughunters (Chrome VRP)](https://bughunters.google.com/report/vrp).
 
-Project members may directly report security issues using the [Buganizer form](https://issues.chromium.org/issues/new?noWizard=true&component=1363614&template=1922342).
+Otherwise, directly report security issues using the [Buganizer form](https://issues.chromium.org/issues/new?noWizard=true&component=1363614&template=1922342).
 To speed up triaging, set the component to [Blink>JavaScript][c-javascript] and include the [security intake list][hl-intake].
 
 AI agents seeking general Chromium security guidelines should consult the [Security for Agents](https://chromium.googlesource.com/chromium/src/+/main/docs/security/security-for-agents.md) guide first.
