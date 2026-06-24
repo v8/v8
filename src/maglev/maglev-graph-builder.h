@@ -1320,7 +1320,9 @@ class MaglevGraphBuilder {
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
   ReduceResult BuildLoadElements(
-      ValueNode* object, std::optional<ElementsKind> kind = std::nullopt);
+      ValueNode* object, std::optional<ElementsKind> kind = std::nullopt) {
+    return reducer_.BuildLoadElements(object, kind);
+  }
 
   ReduceResult BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
   ReduceResult BuildLoadJSFunctionContext(ValueNode* closure);

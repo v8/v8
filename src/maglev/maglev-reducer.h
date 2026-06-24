@@ -1117,6 +1117,12 @@ class MaglevReducer {
                                           Function&& getValue);
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
+  ReduceResult BuildLoadElements(
+      ValueNode* object, std::optional<ElementsKind> kind = std::nullopt);
+
+  ReduceResult BuildAssumeMapForElements(ValueNode* elements,
+                                         ElementsKind kind);
+
   MaybeReduceResult TryReduceStringLength(ValueNode* string);
 
   ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,

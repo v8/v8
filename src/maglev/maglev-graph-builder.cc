@@ -5357,43 +5357,6 @@ ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
   return AddNewNode<CheckInt32Condition>({lhs, rhs}, condition, reason);
 }
 
-ReduceResult MaglevGraphBuilder::BuildLoadElements(
-    ValueNode* object, std::optional<ElementsKind> kind) {
-  ValueNode* known_elements = known_node_aspects().TryFindLoadedProperty(
-      object, PropertyKey::Elements());
-  if (known_elements) {
-    TRACE("  * Reusing non-constant [Elements] "
-          << PrintNodeLabel(known_elements) << ": "
-          << PrintNode(known_elements));
-    return known_elements;
-  }
-
-  ValueNode* elements;
-  GET_VALUE_OR_ABORT(
-      elements,
-      BuildLoadTaggedField(object, offsetof(JSObject, elements_),
-                           NodeType::kAnyHeapObject,
-                           /*is_const=*/false, PropertyKey::Elements()));
-  reducer_.RecordKnownProperty(object, PropertyKey::Elements(), elements, false,
-                               compiler::AccessMode::kLoad);
-  if (is_turbolev() && kind.has_value()) {
-    // We record a map hint for Turbolev so that LateEscapeAnalysis knows that
-    // we just loaded an elements array, which means that it can't alias with
-    // a property array.
-    // TODO(dmercadier): also record from which object this elements array came
-    // from, since 2 elements arrays for objects with different maps cannot
-    // alias.
-    const auto maps =
-        IsDoubleElementsKind(kind.value())
-            ? compiler::ZoneRefSet<Map>(broker()->fixed_double_array_map())
-            : compiler::ZoneRefSet<Map>({broker()->fixed_array_map(),
-                                         broker()->fixed_cow_array_map()},
-                                        zone());
-    RETURN_IF_ABORT(AddNewNode<AssumeMap>({elements}, maps));
-  }
-  return elements;
-}
-
 ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
     ValueNode* object, ElementsKind elements_kind) {
   DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind));

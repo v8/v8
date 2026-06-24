@@ -972,6 +972,52 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayIsArray(
   // TODO(dmercadier): consider supporting ObjectIsArray in Maglev.
   return {};
 }
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildLoadElements(
+    ValueNode* object, std::optional<ElementsKind> kind) {
+  ValueNode* known_elements = known_node_aspects().TryFindLoadedProperty(
+      object, PropertyKey::Elements());
+  if (known_elements) {
+    TRACE("  * Reusing non-constant [Elements] "
+          << PrintNodeLabel(known_elements) << ": "
+          << PrintNode(known_elements));
+    return known_elements;
+  }
+
+  ValueNode* elements;
+  GET_VALUE_OR_ABORT(
+      elements,
+      BuildLoadTaggedField(object, offsetof(JSObject, elements_),
+                           NodeType::kAnyHeapObject,
+                           /*is_const=*/false, PropertyKey::Elements()));
+  RecordKnownProperty(object, PropertyKey::Elements(), elements, false,
+                      compiler::AccessMode::kLoad);
+  if (is_turbolev() && kind.has_value()) {
+    // We record a map hint for Turbolev so that LateEscapeAnalysis knows that
+    // we just loaded an elements array, which means that it can't alias with
+    // a property array.
+    // TODO(dmercadier): also record from which object this elements array came
+    // from, since 2 elements arrays for objects with different maps cannot
+    // alias.
+    RETURN_IF_ABORT(BuildAssumeMapForElements(elements, kind.value()));
+  }
+  return elements;
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildAssumeMapForElements(
+    ValueNode* elements, ElementsKind kind) {
+  DCHECK(is_turbolev());
+  const auto maps =
+      IsDoubleElementsKind(kind)
+          ? compiler::ZoneRefSet<Map>({broker()->fixed_array_map(),
+                                       broker()->fixed_double_array_map()},
+                                      zone())
+          : compiler::ZoneRefSet<Map>(
+                {broker()->fixed_array_map(), broker()->fixed_cow_array_map()},
+                zone());
+  return AddNewNode<AssumeMap>({elements}, maps);
+}
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeAt(
@@ -1028,22 +1074,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeAt(
   }
 
   ValueNode* elements;
-  if (ValueNode* loaded_property = known_node_aspects().TryFindLoadedProperty(
-          receiver, PropertyKey::Elements())) {
-    elements = loaded_property;
-  } else {
-    GET_VALUE_OR_ABORT(elements, BuildLoadTaggedField(
-                                     receiver, offsetof(JSObject, elements_)));
-    RecordKnownProperty(receiver, PropertyKey::Elements(), elements, false,
-                        compiler::AccessMode::kLoad);
-    if (is_turbolev()) {
-      RETURN_IF_ABORT(AddNewNode<AssumeMap>(
-          {elements},
-          compiler::ZoneRefSet<Map>(IsDoubleElementsKind(elements_kind)
-                                        ? broker()->fixed_double_array_map()
-                                        : broker()->fixed_array_map())));
-    }
-  }
+  GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver, elements_kind));
 
   return Select(
       [&](auto& sg, auto* label) -> BranchResult {
