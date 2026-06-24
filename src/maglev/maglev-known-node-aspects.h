@@ -241,8 +241,13 @@ class NodeInfo {
   // being a node info that is the subset of information valid in both inputs.
   void MergeWith(const NodeInfo& other, Zone* zone,
                  bool& side_effects_require_invalidation) {
-    UnionType(other.type_);
     alternative_.MergeWith(other.alternative_);
+    MergeTypeAndMaps(other, zone, side_effects_require_invalidation);
+  }
+
+  void MergeTypeAndMaps(const NodeInfo& other, Zone* zone,
+                        bool& side_effects_require_invalidation) {
+    UnionType(other.type_);
     if (possible_maps_are_known_) {
       if (other.possible_maps_are_known_) {
         // Map sets are the set of _possible_ maps, so on a merge we need to
@@ -581,6 +586,7 @@ class KnownNodeAspects {
   }
 
   void Merge(const KnownNodeAspects& other, Zone* zone);
+  void MergeForLoop(const KnownNodeAspects& backedge, Zone* zone);
 
   // If IsCompatibleWithLoopHeader(other) returns true, it means that
   // Merge(other) would not remove any information from `this`.

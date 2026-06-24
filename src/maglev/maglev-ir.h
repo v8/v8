@@ -2295,6 +2295,8 @@ class NodeBase : public ZoneObject {
   // For GDB: Print any Node with `print node->Print()`.
   void Print() const;
 
+  bool IsStructurallyEqualTo(const NodeBase* other) const;
+
   EagerDeoptInfo* eager_deopt_info() {
     DCHECK(properties().has_eager_deopt_info());
     return reinterpret_cast<EagerDeoptInfo*>(deopt_info_address());

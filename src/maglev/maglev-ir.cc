@@ -579,6 +579,37 @@ void NodeBase::Print() const {
   std::cout << std::endl;
 }
 
+namespace {
+template <typename NodeT>
+bool SameOptionsAndInputs(const NodeBase* a, const NodeBase* b) {
+  if constexpr (Node::participate_in_cse(NodeBase::opcode_of<NodeT>)) {
+    if (a->Cast<NodeT>()->options() != b->Cast<NodeT>()->options()) {
+      return false;
+    }
+    for (int i = 0; i < a->input_count(); ++i) {
+      if (a->input_node(i) != b->input_node(i)) return false;
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+}  // namespace
+
+bool NodeBase::IsStructurallyEqualTo(const NodeBase* other) const {
+  if (this == other) return true;
+  if (opcode() != other->opcode()) return false;
+  if (input_count() != other->input_count()) return false;
+  switch (opcode()) {
+#define V(Name)         \
+  case Opcode::k##Name: \
+    return SameOptionsAndInputs<Name>(this, other);
+    NODE_BASE_LIST(V)
+#undef V
+  }
+  UNREACHABLE();
+}
+
 void ValueNode::SetHint(compiler::InstructionOperand hint) {
   DCHECK_EQ(state_, kRegallocInfo);
   auto node_info = regalloc_info();

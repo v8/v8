@@ -279,6 +279,65 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
   DestructivelyIntersect(loaded_context_slots_, other.loaded_context_slots_);
 }
 
+// Loop-header variant of Merge. The forward (LHS) predecessor dominates the
+// loop body, so its facts hold throughout the loop: keep them instead of
+// intersecting with the backedge by pointer equality (which drops the
+// loop-invariant values the peeler cloned), invalidating only what the loop
+// body can change.
+void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
+                                    Zone* zone) {
+  if (side_effects_require_invalidation_) {
+    ZoneMap<ValueNode*, NodeInfo> cleared(zone);
+    for (auto& entry : node_infos_) {
+      cleared.emplace(entry.first,
+                      NodeInfo::ClearUnstableMapsOnCopy{entry.second});
+    }
+    node_infos_ = std::move(cleared);
+    side_effects_require_invalidation_ = false;
+  }
+
+  if (effect_epoch_ != backedge.effect_epoch_) {
+    effect_epoch_ = std::max(effect_epoch_, backedge.effect_epoch_) + 1;
+  }
+  DestructivelyIntersect(
+      available_expressions_, backedge.available_expressions_,
+      [&](uint32_t hash, const AvailableExpression& lhs,
+          const AvailableExpression& rhs) {
+        DCHECK_IMPLIES(lhs.node == rhs.node,
+                       lhs.effect_epoch == rhs.effect_epoch);
+        DCHECK_NE(lhs.effect_epoch, kEffectEpochOverflow);
+        DCHECK_IMPLIES(
+            !lhs.node->Is<Identity>(),
+            Node::needs_epoch_check(lhs.node->opcode()) ==
+                (lhs.effect_epoch != kEffectEpochForPureInstructions));
+        ValueNode* rhs_value = rhs.node->TryCast<ValueNode>();
+        NodeBase* rhs_node =
+            rhs_value ? rhs_value->UnwrapIdentities() : rhs.node;
+        return !lhs.node->Is<Identity>() &&
+               lhs.node->IsStructurallyEqualTo(rhs_node) &&
+               lhs.effect_epoch >= effect_epoch_;
+      });
+
+  auto merge_loaded_properties =
+      [](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs,
+         const ZoneMap<ValueNode*, ValueNode*>& rhs) {
+        // Loaded properties are maps of maps, so just do the destructive
+        // intersection recursively.
+        DestructivelyIntersect(lhs, rhs);
+        return !lhs.empty();
+      };
+  DestructivelyIntersect(loaded_constant_properties_,
+                         backedge.loaded_constant_properties_,
+                         merge_loaded_properties);
+  DestructivelyIntersect(loaded_properties_, backedge.loaded_properties_,
+                         merge_loaded_properties);
+  DestructivelyIntersect(loaded_context_constants_,
+                         backedge.loaded_context_constants_);
+  may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
+      may_have_aliasing_contexts_, backedge.may_have_aliasing_contexts());
+  DestructivelyIntersect(loaded_context_slots_, backedge.loaded_context_slots_);
+}
+
 void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {
   auto unwrap = [](ValueNode* node) -> ValueNode* {
     return node == nullptr ? nullptr : node->UnwrapIdentitiesAndPhis();
