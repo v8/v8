@@ -9,9 +9,12 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/codegen/source-position.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/wasm-assembler-helpers.h"
+#include "src/handles/handles.h"
+#include "src/objects/shared-function-info.h"
 #include "src/wasm/turboshaft-graph-interface.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
@@ -22,7 +25,8 @@ struct WasmInlinedFunctionData {
   wasm::NativeModule* native_module = nullptr;
   uint32_t function_index = 0;
   V<EagerFrameState> js_caller_frame_state;
-  int inlining_id = 0;
+  Handle<SharedFunctionInfo> shared_fct_info;
+  SourcePosition call_pos;
 };
 
 struct WasmBodyInliningResult {
