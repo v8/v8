@@ -379,17 +379,18 @@ class PropertyDetails {
 
   int pointer() const { return DescriptorPointer::decode(value_); }
 
-  PropertyDetails set_pointer(int i) const {
+  V8_WARN_UNUSED_RESULT PropertyDetails set_pointer(int i) const {
     return PropertyDetails(value_, i);
   }
 
-  PropertyDetails set_cell_type(PropertyCellType type) const {
+  V8_WARN_UNUSED_RESULT PropertyDetails
+  set_cell_type(PropertyCellType type) const {
     PropertyDetails details = *this;
     details.value_ = PropertyCellTypeField::update(details.value_, type);
     return details;
   }
 
-  PropertyDetails set_index(int index) const {
+  V8_WARN_UNUSED_RESULT PropertyDetails set_index(int index) const {
     PropertyDetails details = *this;
     details.value_ = DictionaryStorageField::update(details.value_, index);
     return details;
@@ -399,13 +400,16 @@ class PropertyDetails {
     return DictionaryStorageField::is_valid(index);
   }
 
-  PropertyDetails CopyWithRepresentation(Representation representation) const {
+  V8_WARN_UNUSED_RESULT PropertyDetails
+  CopyWithRepresentation(Representation representation) const {
     return PropertyDetails(value_, representation);
   }
-  PropertyDetails CopyWithConstness(PropertyConstness constness) const {
+  V8_WARN_UNUSED_RESULT PropertyDetails
+  CopyWithConstness(PropertyConstness constness) const {
     return PropertyDetails(value_, constness);
   }
-  PropertyDetails CopyAddAttributes(PropertyAttributes new_attributes) const {
+  V8_WARN_UNUSED_RESULT PropertyDetails
+  CopyAddAttributes(PropertyAttributes new_attributes) const {
     new_attributes =
         static_cast<PropertyAttributes>(attributes() | new_attributes);
     return PropertyDetails(value_, new_attributes);
