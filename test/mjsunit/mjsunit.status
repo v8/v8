@@ -1084,7 +1084,7 @@
  }],  # has_wasm_interpreter and variant == jitless and arch == arm64
 
 ##############################################################################
-# --experimental-wasm-simd-opt, only supported on arm64
+# --future-wasm-simd-opt, only supported on arm64
 ['arch != arm64', {
   'wasm/half-shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],

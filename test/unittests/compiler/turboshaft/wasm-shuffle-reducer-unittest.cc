@@ -677,7 +677,7 @@ TEST_F(ReducerTest, ShuffleOfShuffleRepeatedIndexUpdatesAllDemandedBytes) {
   const Simd128ShuffleOp* reduced_inner =
       test.GetCapture("inner").GetAs<Simd128ShuffleOp>();
   ASSERT_TRUE(reduced_inner);
-  if (v8_flags.experimental_wasm_simd_opt) {
+  if (v8_flags.future_wasm_simd_opt) {
     EXPECT_EQ(reduced_inner->kind, Simd128ShuffleOp::Kind::kI8x1);
   } else {
     EXPECT_EQ(reduced_inner->kind, Simd128ShuffleOp::Kind::kI8x16);

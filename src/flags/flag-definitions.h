@@ -1824,14 +1824,17 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
 #if V8_TARGET_ARCH_ARM64
 DEFINE_BOOL(wasm_simd_opt, true, "enable optimizations for Webassembly SIMD")
 DEFINE_IMPLICATION(future, wasm_simd_opt)
-DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
+DEFINE_EXPERIMENTAL_FEATURE(future_wasm_simd_opt,
                             "enable extra optimizations for Webassembly SIMD")
+DEFINE_ALIAS_BOOL_WITH_COMMENT(
+    experimental_wasm_simd_opt, future_wasm_simd_opt,
+    TEMPORARY_WASM_ALIAS_COMMENT(future_wasm_simd_opt))
 DEFINE_EXPERIMENTAL_FEATURE(wasm_deinterleave_loads,
                             "enable deinterleaving loads for Webassembly SIMD")
 DEFINE_ALIAS_BOOL_WITH_COMMENT(
     experimental_wasm_deinterleave_loads, wasm_deinterleave_loads,
     TEMPORARY_WASM_ALIAS_COMMENT(wasm_deinterleave_loads))
-DEFINE_IMPLICATION(experimental_wasm_simd_opt, wasm_simd_opt)
+DEFINE_IMPLICATION(future_wasm_simd_opt, wasm_simd_opt)
 DEFINE_IMPLICATION(wasm_deinterleave_loads, wasm_simd_opt)
 #endif  // V8_TARGET_ARCH_ARM64
 
