@@ -30,6 +30,13 @@ void RegisterIfLabelled(Graph* graph, NodeBase* node) {
   }
 }
 
+void RegisterClonedNode(Graph* graph, NodeBase* clone, const NodeBase* src) {
+  if (graph->has_graph_labeller()) {
+    graph->graph_labeller()->RegisterNode(
+        clone, &graph->graph_labeller()->GetNodeProvenance(src));
+  }
+}
+
 int LoopHeaderBytecodeOffset(BasicBlock* block) {
   if (!block->has_state()) return -1;
   return block->state()->merge_offset();
@@ -698,7 +705,7 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
         }
         dst_block->state()->phis()->Add(clone_phi);
         ctx.value_map[phi] = clone_phi;
-        RegisterIfLabelled(graph_, clone_phi);
+        RegisterClonedNode(graph_, clone_phi, phi);
       }
     }
     dst_block->nodes().reserve(block->nodes().size());
@@ -728,7 +735,7 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
       if (auto* vn = cloned->TryCast<ValueNode>()) {
         ctx.value_map[node->Cast<ValueNode>()] = vn;
       }
-      RegisterIfLabelled(graph_, cloned);
+      RegisterClonedNode(graph_, cloned, node);
     }
     // Control nodes are cloned later, in CloneLoopBodyControl, because a
     // cloned control node may target blocks/merges not created yet.
@@ -1062,7 +1069,7 @@ void MaglevLoopPeeler::CloneLoopBodyControl(PeelContext& ctx) {
     if (block->is_edge_split_block()) {
       cloned_block->set_edge_split_block(cloned_block->predecessor());
     }
-    RegisterIfLabelled(graph_, cloned_control);
+    RegisterClonedNode(graph_, cloned_control, control);
   }
 }
 
