@@ -10224,7 +10224,7 @@ void Isolate::Initialize(Isolate* v8_isolate,
             .release();
   }
 
-  i_isolate->heap()->ConfigureHeap(params.constraints, cpp_heap);
+  i_isolate->heap()->ConfigureHeap(params.constraints, *cpp_heap);
   if (params.constraints.stack_limit() != nullptr) {
     uintptr_t limit =
         reinterpret_cast<uintptr_t>(params.constraints.stack_limit());
@@ -11233,6 +11233,15 @@ bool v8::Object::IsCodeLike(v8::Isolate* v8_isolate) const {
 }
 
 // static
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+MicrotaskQueue* MicrotaskQueue::New(Isolate* v8_isolate,
+                                    MicrotasksPolicy policy) {
+  auto* microtask_queue =
+      i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(v8_isolate));
+  microtask_queue->set_microtasks_policy(policy);
+  return microtask_queue;
+}
+#else
 std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* v8_isolate,
                                                     MicrotasksPolicy policy) {
   auto microtask_queue =
@@ -11241,6 +11250,7 @@ std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* v8_isolate,
   std::unique_ptr<MicrotaskQueue> ret(std::move(microtask_queue));
   return ret;
 }
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 MicrotasksScope::MicrotasksScope(Local<Context> v8_context,
                                  MicrotasksScope::Type type)

@@ -15,6 +15,7 @@
 
 #include "absl/functional/overload.h"
 #include "include/v8-callbacks.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
@@ -4654,6 +4655,13 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
     v->Synchronize(VisitorSynchronization::kEternalHandles);
 
     // Iterate over pending Microtasks stored in MicrotaskQueues.
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+    for (const auto& weak_ptr : isolate_->microtask_queues()) {
+      if (weak_ptr) {
+        weak_ptr->IterateMicrotasks(v);
+      }
+    }
+#else
     MicrotaskQueue* default_microtask_queue =
         isolate_->default_microtask_queue();
     if (default_microtask_queue) {
@@ -4663,6 +4671,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
         microtask_queue = microtask_queue->next();
       } while (microtask_queue != default_microtask_queue);
     }
+#endif  // V8_CPPGC_MICROTASK_QUEUE
     v->Synchronize(VisitorSynchronization::kMicroTasks);
 
     // Iterate over other strong roots (currently only identity maps and
@@ -4861,7 +4870,7 @@ size_t Heap::HeapSizeToSemiSpaceRatio(uint64_t physical_memory) {
 }
 
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
-                         v8::CppHeap* cpp_heap) {
+                         v8::CppHeap& cpp_heap) {
   CHECK(!configured_);
   physical_memory_ = constraints.physical_memory_size_in_bytes();
 
@@ -5057,13 +5066,11 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
 
   heap_profiler_ = std::make_unique<HeapProfiler>(this);
 
-  if (cpp_heap) {
-    AttachCppHeap(cpp_heap);
-    owning_cpp_heap_.reset(CppHeap::From(cpp_heap));
-    auto stack_start_marker = CppHeap::From(cpp_heap)->stack_start_marker();
-    if (stack_start_marker) {
-      stack_start_marker_ = stack_start_marker->stack_start();
-    }
+  AttachCppHeap(&cpp_heap);
+  owning_cpp_heap_.reset(CppHeap::From(&cpp_heap));
+  auto stack_start_marker = CppHeap::From(&cpp_heap)->stack_start_marker();
+  if (stack_start_marker) {
+    stack_start_marker_ = stack_start_marker->stack_start();
   }
 
   SetStackStart();
@@ -5095,7 +5102,11 @@ void Heap::GetFromRingBuffer(char* buffer) {
 
 void Heap::ConfigureHeapDefault() {
   v8::ResourceConstraints constraints;
-  ConfigureHeap(constraints, nullptr);
+  v8::CppHeap* cpp_heap =
+      v8::CppHeap::Create(i::V8::GetCurrentPlatform(), CppHeapCreateParams{{}})
+          .release();
+
+  ConfigureHeap(constraints, *cpp_heap);
 }
 
 namespace {

@@ -1039,6 +1039,7 @@ external_v8_defines = [
   "V8_USE_PERFETTO",
   "V8_USE_PERFETTO_JSON_EXPORT",
   "V8_USE_PERFETTO_SDK",
+  "V8_CPPGC_MICROTASK_QUEUE",
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
   "V8_ENABLE_DIRECT_HANDLE",
@@ -1096,6 +1097,9 @@ if (v8_use_perfetto_json_export) {
 }
 if (v8_use_perfetto_sdk) {
   enabled_external_v8_defines += [ "V8_USE_PERFETTO_SDK" ]
+}
+if (v8_cppgc_microtask_queue) {
+  enabled_external_v8_defines += [ "V8_CPPGC_MICROTASK_QUEUE" ]
 }
 if (v8_enable_map_packing) {
   enabled_external_v8_defines += [ "V8_MAP_PACKING" ]
@@ -3205,6 +3209,7 @@ generated_file("v8_generate_features_json") {
     v8_optimized_debug = v8_optimized_debug
     v8_random_seed = v8_random_seed
     v8_use_perfetto = v8_use_perfetto
+    v8_cppgc_microtask_queue = v8_cppgc_microtask_queue
     v8_use_siphash = v8_use_siphash
     v8_use_default_hasher_secret = v8_use_default_hasher_secret
   }

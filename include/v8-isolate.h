@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "cppgc/common.h"
+#include "cppgc/macros.h"
 #include "v8-array-buffer.h"       // NOLINT(build/include_directory)
 #include "v8-callbacks.h"          // NOLINT(build/include_directory)
 #include "v8-data.h"               // NOLINT(build/include_directory)
@@ -438,6 +439,8 @@ class V8_EXPORT Isolate {
    * automatically executed otherwise.
    */
   class V8_EXPORT V8_NODISCARD SuppressMicrotaskExecutionScope {
+    CPPGC_STACK_ALLOCATED();
+
    public:
     explicit SuppressMicrotaskExecutionScope(
         Isolate* isolate, MicrotaskQueue* microtask_queue = nullptr);

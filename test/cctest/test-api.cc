@@ -30614,28 +30614,51 @@ TEST(CodeLikeFunction) {
   ExpectInt32("new Function(new CodeLike())()", 7);
 }
 
+namespace {
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+template <typename T>
+T* GetRaw(T* ptr) {
+  return ptr;
+}
+#else
+template <typename T>
+T* GetRaw(const std::unique_ptr<T>& ptr) {
+  return ptr.get();
+}
+#endif  // V8_CPPGC_MICROTASK_QUEUE
+}  // namespace
+
 THREADED_TEST(MicrotaskQueueOfContext) {
+  // TODO(https://crbug.com/515252150): remove once the old Api is removed.
+  START_ALLOW_USE_DEPRECATED()
   auto microtask_queue = v8::MicrotaskQueue::New(CcTest::isolate());
+  END_ALLOW_USE_DEPRECATED()
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<Context> context = Context::New(
       CcTest::isolate(), nullptr, v8::MaybeLocal<ObjectTemplate>(),
       v8::MaybeLocal<Value>(), v8::DeserializeInternalFieldsCallback(),
-      microtask_queue.get());
-  CHECK_EQ(context->GetMicrotaskQueue(), microtask_queue.get());
+      GetRaw(microtask_queue));
+  CHECK_EQ(context->GetMicrotaskQueue(), GetRaw(microtask_queue));
 }
 
 THREADED_TEST(SetMicrotaskQueueOfContext) {
+  // TODO(https://crbug.com/515252150): remove once the old Api is removed.
+  START_ALLOW_USE_DEPRECATED()
   auto microtask_queue = v8::MicrotaskQueue::New(CcTest::isolate());
+  END_ALLOW_USE_DEPRECATED()
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<Context> context = Context::New(
       CcTest::isolate(), nullptr, v8::MaybeLocal<ObjectTemplate>(),
       v8::MaybeLocal<Value>(), v8::DeserializeInternalFieldsCallback(),
-      microtask_queue.get());
-  CHECK_EQ(context->GetMicrotaskQueue(), microtask_queue.get());
+      GetRaw(microtask_queue));
+  CHECK_EQ(context->GetMicrotaskQueue(), GetRaw(microtask_queue));
 
+  // TODO(https://crbug.com/515252150): remove once the old Api is removed.
+  START_ALLOW_USE_DEPRECATED()
   auto new_microtask_queue = v8::MicrotaskQueue::New(CcTest::isolate());
-  context->SetMicrotaskQueue(new_microtask_queue.get());
-  CHECK_EQ(context->GetMicrotaskQueue(), new_microtask_queue.get());
+  END_ALLOW_USE_DEPRECATED()
+  context->SetMicrotaskQueue(GetRaw(new_microtask_queue));
+  CHECK_EQ(context->GetMicrotaskQueue(), GetRaw(new_microtask_queue));
 }
 
 namespace {

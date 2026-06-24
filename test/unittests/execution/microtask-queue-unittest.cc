@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include "include/cppgc/persistent.h"
 #include "include/v8-data.h"
 #include "include/v8-external.h"
 #include "include/v8-function.h"
@@ -19,6 +20,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/visitors.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,6 +28,18 @@ namespace v8 {
 namespace internal {
 
 using Closure = std::function<void()>;
+
+template <typename T>
+T* GetRaw(const std::unique_ptr<T>& ptr) {
+  return ptr.get();
+}
+
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+template <typename T>
+T* GetRaw(const cppgc::Persistent<T>& ptr) {
+  return ptr.Get();
+}
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 void RunStdFunction(void* data) {
   std::unique_ptr<Closure> f(static_cast<Closure*>(data));
@@ -147,7 +161,7 @@ class MicrotaskQueueTest
     }
   }
 
-  MicrotaskQueue* microtask_queue() const { return microtask_queue_.get(); }
+  MicrotaskQueue* microtask_queue() const { return GetRaw(microtask_queue_); }
 
   void ClearTestMicrotaskQueue() {
     context()->DetachGlobal();
@@ -160,7 +174,11 @@ class MicrotaskQueueTest
   }
 
  private:
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+  cppgc::Persistent<MicrotaskQueue> microtask_queue_;
+#else
   std::unique_ptr<MicrotaskQueue> microtask_queue_;
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 };
 
 class RecordingVisitor : public RootVisitor {
@@ -229,6 +247,7 @@ TEST_P(MicrotaskQueueTest, BufferGrowth) {
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity + 2, count);
 }
 
+#ifndef V8_CPPGC_MICROTASK_QUEUE
 // MicrotaskQueue instances form a doubly linked list.
 TEST_P(MicrotaskQueueTest, InstanceChain) {
   ClearTestMicrotaskQueue();
@@ -258,6 +277,7 @@ TEST_P(MicrotaskQueueTest, InstanceChain) {
   EXPECT_EQ(default_mtq, mtq2->prev());
   EXPECT_EQ(mtq2.get(), default_mtq->prev());
 }
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 // Pending Microtasks in MicrotaskQueues are strong roots. Ensure they are
 // visited exactly once.
@@ -471,8 +491,14 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_ResolveThenableForeignThen) {
 
   {
     // Create a context with its own microtask queue.
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+    cppgc::Persistent<MicrotaskQueue> sub_microtask_queue =
+        MicrotaskQueue::New(isolate());
+#else
     std::unique_ptr<MicrotaskQueue> sub_microtask_queue =
         MicrotaskQueue::New(isolate());
+#endif  // V8_CPPGC_MICROTASK_QUEUE
+
     sub_microtask_queue->set_microtasks_policy(MicrotasksPolicy::kExplicit);
     Local<v8::Context> sub_context = v8::Context::New(
         v8_isolate(),
@@ -480,7 +506,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_ResolveThenableForeignThen) {
         /* global_template= */ MaybeLocal<ObjectTemplate>(),
         /* global_object= */ MaybeLocal<Value>(),
         /* internal_fields_deserializer= */ DeserializeInternalFieldsCallback(),
-        sub_microtask_queue.get());
+        GetRaw(sub_microtask_queue));
 
     {
       v8::Context::Scope scope(sub_context);
@@ -532,8 +558,13 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_ResolveThenableNativeThen) {
 
   {
     // Create a context with its own microtask queue.
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+    cppgc::Persistent<MicrotaskQueue> sub_microtask_queue =
+        MicrotaskQueue::New(isolate());
+#else
     std::unique_ptr<MicrotaskQueue> sub_microtask_queue =
         MicrotaskQueue::New(isolate());
+#endif
     sub_microtask_queue->set_microtasks_policy(MicrotasksPolicy::kExplicit);
     Local<v8::Context> sub_context = v8::Context::New(
         v8_isolate(),
@@ -541,7 +572,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_ResolveThenableNativeThen) {
         /* global_template= */ MaybeLocal<ObjectTemplate>(),
         /* global_object= */ MaybeLocal<Value>(),
         /* internal_fields_deserializer= */ DeserializeInternalFieldsCallback(),
-        sub_microtask_queue.get());
+        GetRaw(sub_microtask_queue));
 
     {
       v8::Context::Scope scope(sub_context);

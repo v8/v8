@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/heap/cppgc-internal/object-allocator.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -80,8 +81,9 @@ void StopTracing(Heap* heap, GarbageCollector collector,
     case GarbageCollector::MARK_COMPACTOR:
       if (heap->cpp_heap()) {
         using namespace cppgc::internal;
-        StatsCollector* stats_collector =
-            CppHeap::From(heap->cpp_heap())->stats_collector();
+        CppHeap* cpp_heap = CppHeap::From(heap->cpp_heap());
+        cpp_heap->object_allocator().ResetLinearAllocationBuffers();
+        StatsCollector* stats_collector = cpp_heap->stats_collector();
         stats_collector->NotifyMarkingStarted(
             CollectionType::kMajor, cppgc::Heap::MarkingType::kAtomic,
             MarkingConfig::IsForcedGC::kNotForced);

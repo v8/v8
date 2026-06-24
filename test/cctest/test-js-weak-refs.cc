@@ -4,6 +4,8 @@
 
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/cppgc-internal/object-allocator.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/js-objects.h"
@@ -122,8 +124,10 @@ class FakeAtomicPauseScope {
     tracer_->StopObservablePause(GarbageCollector::MARK_COMPACTOR,
                                  base::TimeTicks::Now());
     if (heap_->cpp_heap()) {
+      auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+      cpp_heap->object_allocator().ResetLinearAllocationBuffers();
       cppgc::internal::StatsCollector* stats_collector =
-          CppHeap::From(heap_->cpp_heap())->stats_collector();
+          cpp_heap->stats_collector();
       stats_collector->NotifyMarkingStarted(
           cppgc::internal::CollectionType::kMajor,
           cppgc::Heap::MarkingType::kAtomic,

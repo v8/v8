@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_ISOLATE_DATA_H_
 #define V8_EXECUTION_ISOLATE_DATA_H_
 
+#include "include/cppgc/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/constants-arch.h"
 #include "src/codegen/external-reference-table.h"
@@ -427,6 +428,7 @@ class IsolateData final {
   // Cache for EnqueueMicrotask: avoids the NativeContext → EPT →
   // MicrotaskQueue chain when the same NativeContext is seen repeatedly.
   // Set lazily by EnqueueMicrotask, cleared at the end of RunMicrotasks.
+  CPPGC_PLUGIN_IGNORE("Cache field, cleared manually")
   MicrotaskQueue* current_microtask_queue_ = nullptr;
   Tagged<Object> current_microtask_native_context_ = Smi::zero();
 

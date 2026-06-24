@@ -722,7 +722,7 @@ class Heap final {
   // ===========================================================================
 
   void ConfigureHeap(const v8::ResourceConstraints& constraints,
-                     v8::CppHeap* cpp_heap);
+                     v8::CppHeap& cpp_heap);
   void ConfigureHeapDefault();
 
   // Prepares the heap, setting up for deserialization.

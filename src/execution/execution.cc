@@ -4,6 +4,7 @@
 
 #include "src/execution/execution.h"
 
+#include "include/cppgc/macros.h"
 #include "src/api/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames.h"
@@ -36,6 +37,9 @@ DirectHandle<Object> NormalizeReceiver(Isolate* isolate,
 }
 
 struct InvokeParams {
+  CPPGC_STACK_ALLOCATED();
+
+ public:
   static InvokeParams SetUpForNew(
       Isolate* isolate, DirectHandle<Object> constructor,
       DirectHandle<Object> new_target,

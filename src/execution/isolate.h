@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "include/cppgc/persistent.h"
 #include "include/v8-context.h"
 #include "include/v8-internal.h"
 #include "include/v8-isolate.h"
@@ -519,7 +520,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(const intptr_t*, api_external_references, nullptr)                      \
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                     \
-  V(MicrotaskQueue*, default_microtask_queue, nullptr)                      \
   V(CodeTracer*, code_tracer, nullptr)                                      \
   V(PromiseRejectCallback, promise_reject_callback, nullptr)                \
   V(ExceptionPropagationCallback, exception_propagation_callback, nullptr)  \
@@ -1070,6 +1070,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void OnPromiseAfter(DirectHandle<JSPromise> promise);
   void OnStackTraceCaptured(DirectHandle<StackTraceInfo> stack_trace);
   void OnTerminationDuringRunMicrotasks();
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+  // Remove dead microtask queues from the list.
+  void CompactMicrotaskQueues();
+  void RegisterMicrotaskQueue(MicrotaskQueue* queue);
+
+  const std::vector<cppgc::WeakPersistent<MicrotaskQueue>>& microtask_queues()
+      const {
+    return microtask_queues_;
+  }
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.
@@ -1162,6 +1172,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   ISOLATE_INIT_LIST(GLOBAL_ACCESSOR)
 #undef GLOBAL_ACCESSOR
+
+  inline MicrotaskQueue* default_microtask_queue() const;
+  inline void set_default_microtask_queue(MicrotaskQueue* value);
 
   void SetDetailedSourcePositionsForProfiling(bool value) {
     if (value) {
@@ -2810,6 +2823,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #undef ISOLATE_FIELD_OFFSET
 #endif
+
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+  cppgc::Persistent<MicrotaskQueue> default_microtask_queue_;
+  // This list is used for visiting Microtask objects within live
+  // microtask queues during atomic pause.
+  std::vector<cppgc::WeakPersistent<MicrotaskQueue>> microtask_queues_;
+#else
+  MicrotaskQueue* default_microtask_queue_ = nullptr;
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   bool detailed_source_positions_for_profiling_;
   bool preprocessing_exception_ = false;

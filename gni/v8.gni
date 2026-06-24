@@ -91,6 +91,12 @@ declare_args() {
   # Use Perfetto SDK headers.
   v8_use_perfetto_sdk = false
 
+  # Enable definition of v8::MicrotaskQueue as a cppgc object.
+  # TODO(https://crbug.com/515252150): remove this flag once the old
+  # v8::MicrotaskQueue::New() returning std::unique_ptr<> gets through
+  # the V8 API deprecation process.
+  v8_cppgc_microtask_queue = false
+
   # Override global symbol level setting for v8.
   v8_symbol_level = symbol_level
 

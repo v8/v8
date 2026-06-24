@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/execution/microtask-queue.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/lookup-inl.h"
@@ -193,6 +194,14 @@ void Isolate::FireBeforeCallEnteredCallback() {
   for (auto& callback : before_call_entered_callbacks_) {
     callback(reinterpret_cast<v8::Isolate*>(this));
   }
+}
+
+MicrotaskQueue* Isolate::default_microtask_queue() const {
+  return default_microtask_queue_;
+}
+
+void Isolate::set_default_microtask_queue(MicrotaskQueue* value) {
+  default_microtask_queue_ = value;
 }
 
 Handle<JSGlobalObject> Isolate::global_object() {
