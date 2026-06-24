@@ -2121,10 +2121,8 @@ class NodeBase : public ZoneObject {
     return node;
   }
 
-  // TODO(victorgomes): We don't support cloning throwable nodes.
   template <class Derived>
   static Derived* CloneRaw(Derived* src, Zone* zone) {
-    static_assert(!Derived::kProperties.can_throw());
     static_assert(NodeBase::opcode_of<Derived> != Opcode::kPhi);
     // TODO(victorgomes): this prefix-size computation is duplicated with
     // Allocate(); hoist it into a shared helper so the two can't drift apart.

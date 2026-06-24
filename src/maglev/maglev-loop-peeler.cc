@@ -135,17 +135,31 @@ void RemapClonedDeoptInfo(NodeBase* src, NodeBase* clone, const ValueMap& vmap,
   }
 }
 
+void RemapClonedExceptionHandlerInfo(NodeBase* src, NodeBase* clone,
+                                     BasicBlock* dst_block) {
+  if (!clone->properties().can_throw()) return;
+  ExceptionHandlerInfo* src_info = src->exception_handler_info();
+  DCHECK(!src_info->HasExceptionHandler() || src_info->ShouldLazyDeopt());
+  if (src_info->ShouldLazyDeopt()) {
+    new (clone->exception_handler_info())
+        ExceptionHandlerInfo(ExceptionHandlerInfo::kLazyDeopt);
+  } else {
+    new (clone->exception_handler_info()) ExceptionHandlerInfo();
+  }
+  if (clone->Is<CallKnownJSFunction>()) {
+    dst_block->AddExceptionHandler(clone->exception_handler_info());
+  }
+}
+
 // Clone a single non-phi, non-control Node by raw byte copy; rewires its
 // inputs via vmap; for nodes carrying eager/lazy deopt info, also clones the
 // deopt frame chain in-place.
 Node* CloneNodeWithRemap(Node* src, const ValueMap& vmap, Zone* zone) {
-  DCHECK(!src->properties().can_throw());
   Node* clone = nullptr;
   switch (src->opcode()) {
 #define CLONE_CASE(Name)                                         \
   case Opcode::k##Name:                                          \
-    if constexpr (!Name::kProperties.can_throw() &&              \
-                  Opcode::k##Name != Opcode::kPhi) {             \
+    if constexpr (Opcode::k##Name != Opcode::kPhi) {             \
       clone = NodeBase::CloneRaw<Name>(src->Cast<Name>(), zone); \
     }                                                            \
     break;
@@ -361,10 +375,11 @@ std::optional<MaglevLoopPeeler::LoopInfo> MaglevLoopPeeler::BuildLoopInfo(
 
   // Classify out-of-body successor edges and collect exit edges.
   for (BasicBlock* b : loop.body) {
-    // TODO(victorgomes): Support throwable nodes.
-    if (!b->exception_handlers().is_empty()) {
+    // TODO(victorgomes): support a catch block inside the loop body; its
+    // exception merge state needs cloning support in CloneBodySubgraph.
+    if (b->has_state() && b->state()->is_exception_handler()) {
       TRACE_PEEL_SKIP("@" << header_offset
-                          << ": skip (body block has exception handlers)");
+                          << ": skip (catch block in loop body)");
       return std::nullopt;
     }
 
@@ -464,14 +479,18 @@ bool MaglevLoopPeeler::IsCloneable(const LoopInfo& loop) const {
     for (Node* node : block->nodes()) {
       if (node == nullptr) continue;
       if (IsSkippableInPeel(node)) continue;
-      // TODO(victorgomes): Support throwable nodes. A throwing node carries an
-      // attached exception handler / catch block; cloning it means cloning and
-      // re-wiring that handler too, which this first prototype doesn't do.
+      // TODO(victorgomes): support throwable nodes with a live catch block;
+      // cloning one means cloning/sharing the catch block and its exception
+      // merge state. Nodes with no live catch edge (no handler / lazy-deopt)
+      // are cloned; see RemapClonedExceptionHandlerInfo.
       if (node->properties().can_throw()) {
-        TRACE_PEEL_SKIP("@" << header_offset
-                            << ": skip (uncloneable throwable node "
-                            << OpcodeToString(node->opcode()) << ")");
-        return false;
+        ExceptionHandlerInfo* info = node->exception_handler_info();
+        if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
+          TRACE_PEEL_SKIP("@" << header_offset
+                              << ": skip (throwable node with live catch block "
+                              << OpcodeToString(node->opcode()) << ")");
+          return false;
+        }
       }
       if (NodeHasUntrackableSideState(node)) {
         TRACE_PEEL_SKIP("@" << header_offset << ": skip (uncloneable node "
@@ -731,6 +750,7 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
       }
       Node* cloned = CloneNodeWithRemap(node, ctx.value_map, zone());
       cloned->set_owner(dst_block);
+      RemapClonedExceptionHandlerInfo(node, cloned, dst_block);
       dst_block->nodes().push_back(cloned);
       if (auto* vn = cloned->TryCast<ValueNode>()) {
         ctx.value_map[node->Cast<ValueNode>()] = vn;
