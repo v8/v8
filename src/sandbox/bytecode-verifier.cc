@@ -132,7 +132,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
   interpreter::Register incoming_new_target_or_generator =
       bytecode->incoming_new_target_or_generator_register();
   if (incoming_new_target_or_generator.is_valid()) {
-    VerifyRegister(incoming_new_target_or_generator, false);
+    VerifyRegister(incoming_new_target_or_generator, true);
   }
 
   uint32_t constant_pool_length = bytecode->constant_pool()->ulength().value();
