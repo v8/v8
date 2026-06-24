@@ -24,7 +24,19 @@ Before starting any feature or bug fix, you MUST decide on a strategy:
 - **Issue Reset**: If starting a *new* task without a worktree, always ask
   before resetting the `git cl` issue.
 
-## 2. Environment Setup
+## 2. Path Management in Worktrees
+
+When using an isolated worktree (e.g., `worktrees/task-fix-10010110`), you MUST
+ensure that all file-modifying tools (`replace`, `write_file`, etc.) target the
+correct directory:
+
+- **Explicit Prefixing**: Always prefix `file_path` arguments with the worktree
+  directory. For example, use `worktrees/task-fix-10010110/src/wasm/...` instead
+  of `src/wasm/...`.
+- **Tool Context**: Be aware that relative paths starting with `src/` or `test/`
+  will default to the main repository's root, violating task isolation.
+
+## 3. Environment Setup
 
 Once the branch is ready, ensure your local environment is configured for V8
 development:
@@ -34,7 +46,7 @@ development:
 - **Output Directory**: Use standard V8 output directories (e.g.,
   `out/x64.debug`).
 
-## 3. Available Tools
+## 4. Available Tools
 
 - **[create_worktree.sh](../../scripts/create_worktree.sh)**: Automates task
   isolation and setup. Automatically detects whether the repository is in a
