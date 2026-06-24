@@ -36,4 +36,4 @@ function CreateWasmObjects() {
 }
 
 let objects = CreateWasmObjects();
-%TakeHeapSnapshot();
+%TakeHeapSnapshot("/dev/null");
