@@ -3030,19 +3030,15 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   MultiPush(regs.GetGpList());
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   DoubleRegList fp_regs = regs.GetFpList();
   Simd128RegList simd_regs = regs.GetSimd128List();
-  MultiPushF64AndV128(fp_regs, simd_regs, scratch);
+  MultiPushF64AndV128(fp_regs, simd_regs);
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   DoubleRegList fp_regs = regs.GetFpList();
   Simd128RegList simd_regs = regs.GetSimd128List();
-  MultiPopF64AndV128(fp_regs, simd_regs, scratch);
+  MultiPopF64AndV128(fp_regs, simd_regs);
   MultiPop(regs.GetGpList());
 }
 

@@ -565,9 +565,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPopV128(Simd128RegList dregs, Register location = sp);
 
   void MultiPushF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
-                           Register scratch, Register location = sp);
+                           Register location = sp);
   void MultiPopF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
-                          Register scratch, Register location = sp);
+                          Register location = sp);
   void PushAll(RegList registers);
   void PopAll(RegList registers);
   void PushAll(DoubleRegList registers, int stack_slot_size = kDoubleSize);
@@ -582,14 +582,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Push caller saved registers on the stack, and return the number of bytes
   // stack pointer is adjusted.
-  int PushCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
-                      Register exclusion1 = no_reg,
+  int PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
                       Register exclusion2 = no_reg,
                       Register exclusion3 = no_reg);
   // Restore caller saved registers from the stack, and return the number of
   // bytes stack pointer is adjusted.
-  int PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
-                     Register exclusion1 = no_reg, Register exclusion2 = no_reg,
+  int PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                     Register exclusion2 = no_reg,
                      Register exclusion3 = no_reg);
 
   // Load an object from the root table.

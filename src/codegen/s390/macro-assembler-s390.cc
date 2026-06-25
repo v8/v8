@@ -662,62 +662,18 @@ void MacroAssembler::MultiPopV128(DoubleRegList dregs, Register scratch,
 void MacroAssembler::MultiPushF64OrV128(DoubleRegList dregs, Register scratch,
                                         Register location) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (options().generating_embedded_builtin) {
-    Label push_doubles, simd_pushed;
-    Move(r1, ExternalReference::supports_simd_128_address());
-    LoadU8(r1, MemOperand(r1));
-    LoadAndTestP(r1, r1);  // If > 0 then simd is available.
-    ble(&push_doubles, Label::kNear);
-    // Save vector registers, don't save double registers anymore.
-    MultiPushV128(dregs, scratch);
-    b(&simd_pushed);
-    bind(&push_doubles);
-    // Simd not supported, only save double registers.
-    MultiPushDoubles(dregs);
-    // We still need to allocate empty space on the stack as if
-    // Simd rgeisters were saved (see kFixedFrameSizeFromFp).
-    lay(sp, MemOperand(sp, -(dregs.Count() * kDoubleSize)));
-    bind(&simd_pushed);
-  } else {
-    if (CpuFeatures::SupportsSimd128()) {
-      MultiPushV128(dregs, scratch);
-    } else {
-      MultiPushDoubles(dregs);
-      lay(sp, MemOperand(sp, -(dregs.Count() * kDoubleSize)));
-    }
-  }
+  MultiPushV128(dregs, scratch, location);
 #else
-  MultiPushDoubles(dregs);
+  MultiPushDoubles(dregs, location);
 #endif
 }
 
 void MacroAssembler::MultiPopF64OrV128(DoubleRegList dregs, Register scratch,
                                        Register location) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (options().generating_embedded_builtin) {
-    Label pop_doubles, simd_popped;
-    Move(r1, ExternalReference::supports_simd_128_address());
-    LoadU8(r1, MemOperand(r1));
-    LoadAndTestP(r1, r1);  // If > 0 then simd is available.
-    ble(&pop_doubles, Label::kNear);
-    // Pop vector registers, don't pop double registers anymore.
-    MultiPopV128(dregs, scratch);
-    b(&simd_popped);
-    bind(&pop_doubles);
-    // Simd not supported, only pop double registers.
-    lay(sp, MemOperand(sp, dregs.Count() * kDoubleSize));
-    MultiPopDoubles(dregs);
-    bind(&simd_popped);
-  } else {
-    if (CpuFeatures::SupportsSimd128()) {
-      MultiPopV128(dregs, scratch);
-    } else {
-      lay(sp, MemOperand(sp, dregs.Count() * kDoubleSize));
-      MultiPopDoubles(dregs);
-    }
-  }
+  MultiPopV128(dregs, scratch, location);
 #else
-  MultiPopDoubles(dregs);
+  MultiPopDoubles(dregs, location);
 #endif
 }
 

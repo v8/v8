@@ -1012,9 +1012,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == SaveFPRegsMode::kIgnore ||
              fp_mode_ == SaveFPRegsMode::kSave);
       // kReturnRegister0 should have been saved before entering the stub.
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      int bytes = __ PushCallerSaved(fp_mode_, scratch, kReturnRegister0);
+      int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
       DCHECK(IsAligned(bytes, kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
       frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
@@ -1028,9 +1026,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == SaveFPRegsMode::kIgnore ||
              fp_mode_ == SaveFPRegsMode::kSave);
       // Don't overwrite the returned value.
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      int bytes = __ PopCallerSaved(fp_mode_, scratch, kReturnRegister0);
+      int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
       frame_access_state()->IncreaseSPDelta(-(bytes / kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
       DCHECK(caller_registers_saved_);
@@ -3285,9 +3281,7 @@ void CodeGenerator::AssembleConstructFrame() {
         Simd128RegList simd128_regs_to_save;
         for (auto reg : wasm::kSimd128ParamRegisters)
           simd128_regs_to_save.set(reg);
-        UseScratchRegisterScope temps(masm());
-        Register scratch = temps.Acquire();
-        __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch);
+        __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save);
         __ mov(WasmHandleStackOverflowDescriptor::GapRegister(),
                Operand(required_slots * kSystemPointerSize));
         __ AddS64(
@@ -3305,7 +3299,7 @@ void CodeGenerator::AssembleConstructFrame() {
         // safepoint here.
         ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
         RecordSafepoint(reference_map);
-        __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch);
+        __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save);
         __ MultiPop(regs_to_save);
       } else {
         __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
@@ -3418,16 +3412,14 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
     Simd128RegList simd128_regs_to_save;
     for (auto reg : wasm::kSimd128ParamRegisters) simd128_regs_to_save.set(reg);
-    UseScratchRegisterScope temps(masm());
-    Register scratch = temps.Acquire();
-    __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch);
+    __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save);
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ PrepareCallCFunction(1);
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     // Restore old FP. We don't need to restore old SP explicitly, because
     // it will be restored from FP in LeaveFrame before return.
     __ mr(fp, kReturnRegister0);
-    __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch);
+    __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save);
     __ MultiPop(regs_to_save);
     __ bind(&done);
   }

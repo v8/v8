@@ -72,9 +72,8 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   return bytes;
 }
 
-int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
-                                    Register exclusion1, Register exclusion2,
-                                    Register exclusion3) {
+int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+                                    Register exclusion2, Register exclusion3) {
   int bytes = 0;
 
   RegList exclusions = {exclusion1, exclusion2, exclusion3};
@@ -83,19 +82,18 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
   bytes += list.Count() * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    MultiPushF64AndV128(kCallerSavedDoubles, kCallerSavedSimd128s, scratch);
+    MultiPushF64AndV128(kCallerSavedDoubles, kCallerSavedSimd128s);
     bytes += kStackSavedSavedFPSizeInBytes;
   }
 
   return bytes;
 }
 
-int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
-                                   Register exclusion1, Register exclusion2,
-                                   Register exclusion3) {
+int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+                                   Register exclusion2, Register exclusion3) {
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
-    MultiPopF64AndV128(kCallerSavedDoubles, kCallerSavedSimd128s, scratch);
+    MultiPopF64AndV128(kCallerSavedDoubles, kCallerSavedSimd128s);
     bytes += kStackSavedSavedFPSizeInBytes;
   }
 
@@ -621,65 +619,22 @@ void MacroAssembler::MultiPopV128(Simd128RegList simd_regs, Register location) {
 
 void MacroAssembler::MultiPushF64AndV128(DoubleRegList dregs,
                                          Simd128RegList simd_regs,
-                                         Register scratch, Register location) {
-  MultiPushDoubles(dregs);
+                                         Register location) {
+  MultiPushDoubles(dregs, location);
 #if V8_ENABLE_WEBASSEMBLY
-  if (options().generating_embedded_builtin) {
-    // V8 uses the same set of fp param registers as Simd param registers.
-    // As these registers are two different sets on ppc we must make
-    // sure to also save them when Simd is enabled.
-    // Check the comments under crrev.com/c/2645694 for more details.
-    Label push_empty_simd, simd_pushed;
-    Move(scratch, ExternalReference::supports_simd_128_address());
-    LoadU8(scratch, MemOperand(scratch));
-    cmpi(scratch, Operand::Zero());  // If > 0 then simd is available.
-    ble(&push_empty_simd);
-    MultiPushV128(simd_regs);
-    b(&simd_pushed);
-    bind(&push_empty_simd);
-    // We still need to allocate empty space on the stack even if we
-    // are not pushing Simd registers (see kFixedFrameSizeFromFp).
-    addi(sp, sp,
-         Operand(-static_cast<int8_t>(simd_regs.Count()) * kSimd128Size));
-    bind(&simd_pushed);
-  } else {
-    if (CpuFeatures::SupportsSimd128()) {
-      MultiPushV128(simd_regs);
-    } else {
-      addi(sp, sp,
-           Operand(-static_cast<int8_t>(simd_regs.Count()) * kSimd128Size));
-    }
-  }
+  MultiPushV128(simd_regs, location);
 #endif
 }
 
 void MacroAssembler::MultiPopF64AndV128(DoubleRegList dregs,
                                         Simd128RegList simd_regs,
-                                        Register scratch, Register location) {
+                                        Register location) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (options().generating_embedded_builtin) {
-    Label pop_empty_simd, simd_popped;
-    Move(scratch, ExternalReference::supports_simd_128_address());
-    LoadU8(scratch, MemOperand(scratch));
-    cmpi(scratch, Operand::Zero());  // If > 0 then simd is available.
-    ble(&pop_empty_simd);
-    MultiPopV128(simd_regs);
-    b(&simd_popped);
-    bind(&pop_empty_simd);
-    addi(sp, sp,
-         Operand(static_cast<int8_t>(simd_regs.Count()) * kSimd128Size));
-    bind(&simd_popped);
-  } else {
-    if (CpuFeatures::SupportsSimd128()) {
-      MultiPopV128(simd_regs);
-    } else {
-      addi(sp, sp,
-           Operand(static_cast<int8_t>(simd_regs.Count()) * kSimd128Size));
-    }
-  }
+  MultiPopV128(simd_regs, location);
 #endif
-  MultiPopDoubles(dregs);
+  MultiPopDoubles(dregs, location);
 }
+
 void MacroAssembler::PushAll(RegList registers) {
   if (registers.is_empty()) return;
   ASM_CODE_COMMENT(this);
@@ -957,11 +912,9 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
 void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
     Register object, Register value, SaveFPRegsMode fp_mode) {
   ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  PushCallerSaved(fp_mode, scratch);
+  PushCallerSaved(fp_mode);
   CallVerifySkippedWriteBarrierStub(object, value);
-  PopCallerSaved(fp_mode, scratch);
+  PopCallerSaved(fp_mode);
 }
 
 void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,

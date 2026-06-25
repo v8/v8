@@ -3030,14 +3030,10 @@ struct SaveWasmParamsScope {
              simd128_regs.Count());
 
     __ MultiPush(gp_regs);
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ MultiPushF64AndV128(fp_regs, simd128_regs, scratch);
+    __ MultiPushF64AndV128(fp_regs, simd128_regs);
   }
   ~SaveWasmParamsScope() {
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ MultiPopF64AndV128(fp_regs, simd128_regs, scratch);
+    __ MultiPopF64AndV128(fp_regs, simd128_regs);
     __ MultiPop(gp_regs);
   }
 
@@ -3049,8 +3045,6 @@ struct SaveWasmParamsScope {
 
 void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Register func_index = wasm::kLiftoffFrameSetupFunctionReg;
-  // TODO(miladfarca): Unify scratch register usage and remove extra scopes
-  // once `MultiPushF64AndV128` is refactored, check http://crrev.com/c/7844576.
   UseScratchRegisterScope temps(masm);
   Register vector = temps.Acquire();
   Label allocate_vector, done;
@@ -3180,12 +3174,9 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
     __ MultiPushF64AndV128(WasmDebugBreakFrameConstants::kPushedFpRegs,
-                           WasmDebugBreakFrameConstants::kPushedSimd128Regs,
-                           scratch);
+                           WasmDebugBreakFrameConstants::kPushedSimd128Regs);
 
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -3194,8 +3185,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Restore registers.
     __ MultiPopF64AndV128(WasmDebugBreakFrameConstants::kPushedFpRegs,
-                          WasmDebugBreakFrameConstants::kPushedSimd128Regs,
-                          scratch);
+                          WasmDebugBreakFrameConstants::kPushedSimd128Regs);
     __ MultiPop(WasmDebugBreakFrameConstants::kPushedGpRegs);
   }
   __ Ret();
