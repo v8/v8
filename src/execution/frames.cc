@@ -844,13 +844,6 @@ StackFrame::Type ComputeBuiltinFrameType(Tagged<GcSafeCode> code) {
     return StackFrame::INTERPRETED;
   } else if (code->is_baseline_leave_frame_builtin()) {
     return StackFrame::BASELINE;
-#if V8_ENABLE_WEBASSEMBLY
-  } else if (code->builtin_id() == Builtin::kWasmMethodWrapper) {
-    // Generated method wrappers are skipped in traces because they're not
-    // useful to see. {Summarize} won't give a result for them, so return a
-    // classification here that won't make us try.
-    return StackFrame::INTERNAL;
-#endif  // V8_ENABLE_WEBASSEMBLY
   } else if (code->is_turbofanned()) {
     // TODO(bmeurer): We treat frames for BUILTIN Code objects as
     // OptimizedJSFrame for now (all the builtins with JavaScript linkage are
