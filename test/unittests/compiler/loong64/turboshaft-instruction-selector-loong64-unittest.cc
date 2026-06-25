@@ -313,7 +313,6 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorShiftTest,
                          ::testing::ValuesIn(kShiftInstructions));
 
-#if 0
 TEST_F(TurboshaftInstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
   // The available shift operand range is `0 <= imm < 32`, but we also test
   // that immediates outside this range are handled properly (modulo-32).
@@ -447,7 +446,6 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64AndToClearBits) {
     EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(2)));
   }
 }
-#endif
 
 // ----------------------------------------------------------------------------
 // Logical instructions.
@@ -472,7 +470,6 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorLogicalTest,
                          ::testing::ValuesIn(kLogicalInstructions));
 
-#if 0
 TEST_F(TurboshaftInstructionSelectorTest, Word64XorMinusOneWithParameter) {
   {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
@@ -669,23 +666,21 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32SarWithWord32Shl) {
     ASSERT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
   }
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    OpIndex const p0 = m.Parameter(0);
-    OpIndex const r = m.Word32ShiftRightArithmetic(
-        m.Word32ShiftLeft(p0, m.Int32Constant(32)), m.Int32Constant(32));
-    m.Return(r);
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kLoong64Sll_w, s[0]->arch_opcode());
-    ASSERT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
-  }
 }
-#endif
+TEST_F(TurboshaftInstructionSelectorTest, Word32SarWithTruncateWord64ToWord32) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int64());
+  OpIndex const p0 = m.Parameter(0);
+  OpIndex const r = m.Word32ShiftRightArithmetic(m.TruncateWord64ToWord32(p0),
+                                                 m.Int32Constant(5));
+  m.Return(r);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kLoong64Sra_w, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+}
 // ----------------------------------------------------------------------------
 // MUL/DIV instructions.
 // ----------------------------------------------------------------------------

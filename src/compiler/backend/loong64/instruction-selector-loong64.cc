@@ -869,12 +869,117 @@ void InstructionSelector::VisitStore(OpIndex node) {
 void InstructionSelector::VisitTrappingStore(OpIndex node) { VisitStore(node); }
 
 void InstructionSelector::VisitWord32And(turboshaft::OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
+  Loong64OperandGenerator g(this);
+  const WordBinopOp& bitwise_and =
+      this->Get(node).Cast<Opmask::kWord32BitwiseAnd>();
+  const Operation& lhs = this->Get(bitwise_and.left());
+  int64_t constant_rhs;
+  const bool rhs_is_constant =
+      MatchSignedIntegralConstant(bitwise_and.right(), &constant_rhs);
+  if (lhs.Is<Opmask::kWord32ShiftRightLogical>() &&
+      CanCover(node, bitwise_and.left()) && rhs_is_constant) {
+    DCHECK(base::IsInRange(constant_rhs, std::numeric_limits<int32_t>::min(),
+                           std::numeric_limits<int32_t>::max()));
+    uint32_t mask = static_cast<uint32_t>(constant_rhs);
+    uint32_t mask_width = base::bits::CountPopulation(mask);
+    uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
+    if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
+      // The mask must be contiguous, and occupy the least-significant bits.
+      DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
+
+      // Select Bstrpick_w for And(Shr(x, imm), mask) where the mask is in the
+      // least significant bits.
+      const ShiftOp& lhs_shift = lhs.Cast<Opmask::kWord32ShiftRightLogical>();
+      if (int64_t constant;
+          MatchSignedIntegralConstant(lhs_shift.right(), &constant)) {
+        // Any shift value can match; int32 shifts use `value % 32`.
+        uint32_t lsb = constant & 0x1F;
+
+        // Bstrpick_w cannot extract bits past the register size, however since
+        // shifting the original value would have introduced some zeros we can
+        // still use Bstrpick_w with a smaller mask and the remaining bits will
+        // be zeros.
+        if (lsb + mask_width > 32) mask_width = 32 - lsb;
+
+        Emit(kLoong64Bstrpick_w, g.DefineAsRegister(node),
+             g.UseRegister(lhs_shift.left()), g.TempImmediate(lsb),
+             g.TempImmediate(mask_width));
+        return;
+      }
+      // Other cases fall through to the normal And operation.
+    }
+  }
+  if (rhs_is_constant) {
+    uint32_t mask = static_cast<uint32_t>(constant_rhs);
+    uint32_t shift = base::bits::CountPopulation(~mask);
+    uint32_t msb = base::bits::CountLeadingZeros32(~mask);
+    if (shift != 0 && shift != 32 && msb + shift == 32) {
+      // Insert zeros for (x >> K) << K => x & ~(2^K - 1) expression reduction
+      // and remove constant loading of inverted mask.
+      Emit(kLoong64Bstrins_w, g.DefineSameAsFirst(node),
+           g.UseRegister(bitwise_and.left()), g.TempImmediate(0),
+           g.TempImmediate(shift));
+      return;
+    }
+  }
   VisitBinop(this, node, kLoong64And32, true, kLoong64And32);
 }
 
 void InstructionSelector::VisitWord64And(OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
+  Loong64OperandGenerator g(this);
+  const WordBinopOp& bitwise_and = Get(node).Cast<Opmask::kWord64BitwiseAnd>();
+  const Operation& lhs = Get(bitwise_and.left());
+
+  if (uint64_t mask;
+      lhs.Is<Opmask::kWord64ShiftRightLogical>() &&
+      CanCover(node, bitwise_and.left()) &&
+      MatchUnsignedIntegralConstant(bitwise_and.right(), &mask)) {
+    uint64_t mask_width = base::bits::CountPopulation(mask);
+    uint64_t mask_msb = base::bits::CountLeadingZeros64(mask);
+    if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
+      // The mask must be contiguous, and occupy the least-significant bits.
+      DCHECK_EQ(0u, base::bits::CountTrailingZeros64(mask));
+
+      // Select Bstrpick_d for And(Shr(x, imm), mask) where the mask is in the
+      // least significant bits.
+      const ShiftOp& shift = lhs.Cast<ShiftOp>();
+      if (int64_t shift_by;
+          MatchSignedIntegralConstant(shift.right(), &shift_by)) {
+        // Any shift value can match; int64 shifts use `value % 64`.
+        uint32_t lsb = static_cast<uint32_t>(shift_by & 0x3F);
+
+        // Bstrpick_d cannot extract bits past the register size, however since
+        // shifting the original value would have introduced some zeros we can
+        // still use Bstrpick_d with a smaller mask and the remaining bits will
+        // be zeros.
+        if (lsb + mask_width > 64) mask_width = 64 - lsb;
+
+        if (lsb == 0 && mask_width == 64) {
+          Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(shift.left()));
+        } else {
+          Emit(kLoong64Bstrpick_d, g.DefineAsRegister(node),
+               g.UseRegister(shift.left()), g.TempImmediate(lsb),
+               g.TempImmediate(static_cast<int32_t>(mask_width)));
+        }
+        return;
+      }
+      // Other cases fall through to the normal And operation.
+    }
+  }
+  if (uint64_t constant_rhs;
+      MatchUnsignedIntegralConstant(bitwise_and.right(), &constant_rhs)) {
+    uint64_t shift = base::bits::CountPopulation(~constant_rhs);
+    uint64_t msb = base::bits::CountLeadingZeros64(~constant_rhs);
+    if (shift != 0 && shift < 32 && msb + shift == 64) {
+      // Insert zeros for (x >> K) << K => x & ~(2^K - 1) expression reduction
+      // and remove constant loading of inverted mask. Dins cannot insert bits
+      // past word size, so shifts smaller than 32 are covered.
+      Emit(kLoong64Bstrins_d, g.DefineSameAsFirst(node),
+           g.UseRegister(bitwise_and.left()), g.TempImmediate(0),
+           g.TempImmediate(shift));
+      return;
+    }
+  }
   VisitBinop(this, node, kLoong64And, true, kLoong64And);
 }
 
@@ -887,37 +992,169 @@ void InstructionSelector::VisitWord64Or(OpIndex node) {
 }
 
 void InstructionSelector::VisitWord32Xor(OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
+  const WordBinopOp& bitwise_xor =
+      this->Get(node).Cast<Opmask::kWord32BitwiseXor>();
+  const Operation& lhs = this->Get(bitwise_xor.left());
+  if (int64_t constant_rhs;
+      lhs.Is<Opmask::kWord32BitwiseOr>() &&
+      CanCover(node, bitwise_xor.left()) &&
+      MatchSignedIntegralConstant(bitwise_xor.right(), &constant_rhs) &&
+      constant_rhs == -1) {
+    const WordBinopOp& lhs_or = lhs.Cast<Opmask::kWord32BitwiseOr>();
+    if (int64_t constant;
+        !MatchSignedIntegralConstant(lhs_or.right(), &constant)) {
+      Loong64OperandGenerator g(this);
+      Emit(kLoong64Nor32, g.DefineAsRegister(node),
+           g.UseRegister(lhs_or.left()), g.UseRegister(lhs_or.right()));
+      return;
+    }
+  }
+  if (int64_t constant_rhs;
+      MatchSignedIntegralConstant(bitwise_xor.right(), &constant_rhs) &&
+      constant_rhs == -1) {
+    // Use Nor for bit negation and eliminate constant loading for xori.
+    Loong64OperandGenerator g(this);
+    Emit(kLoong64Nor32, g.DefineAsRegister(node),
+         g.UseRegister(bitwise_xor.left()), g.TempImmediate(0));
+    return;
+  }
   VisitBinop(this, node, kLoong64Xor32, true, kLoong64Xor32);
 }
 
 void InstructionSelector::VisitWord64Xor(OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
+  const WordBinopOp& bitwise_xor =
+      this->Get(node).Cast<Opmask::kWord64BitwiseXor>();
+  const Operation& lhs = this->Get(bitwise_xor.left());
+  if (int64_t constant_rhs;
+      lhs.Is<Opmask::kWord64BitwiseOr>() &&
+      CanCover(node, bitwise_xor.left()) &&
+      MatchSignedIntegralConstant(bitwise_xor.right(), &constant_rhs) &&
+      constant_rhs == -1) {
+    const WordBinopOp& lhs_or = lhs.Cast<Opmask::kWord64BitwiseOr>();
+    if (int64_t constant;
+        !MatchSignedIntegralConstant(lhs_or.right(), &constant)) {
+      Loong64OperandGenerator g(this);
+      Emit(kLoong64Nor, g.DefineAsRegister(node), g.UseRegister(lhs_or.left()),
+           g.UseRegister(lhs_or.right()));
+      return;
+    }
+  }
+  if (int64_t constant_rhs;
+      MatchSignedIntegralConstant(bitwise_xor.right(), &constant_rhs) &&
+      constant_rhs == -1) {
+    // Use Nor for bit negation and eliminate constant loading for xori.
+    Loong64OperandGenerator g(this);
+    Emit(kLoong64Nor, g.DefineAsRegister(node),
+         g.UseRegister(bitwise_xor.left()), g.TempImmediate(0));
+    return;
+  }
   VisitBinop(this, node, kLoong64Xor, true, kLoong64Xor);
 }
 
 void InstructionSelector::VisitWord32Shl(OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
+  const ShiftOp& shift_op = Get(node).Cast<ShiftOp>();
+  const Operation& lhs = Get(shift_op.left());
+  if (uint64_t constant_left;
+      lhs.Is<Opmask::kWord32BitwiseAnd>() && CanCover(node, shift_op.left()) &&
+      MatchUnsignedIntegralConstant(shift_op.right(), &constant_left)) {
+    uint32_t shift_by = static_cast<uint32_t>(constant_left);
+    if (base::IsInRange(shift_by, 1, 31)) {
+      const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+      // Match Word32Shl(Word32And(x, mask), imm) to Sll_w where the mask is
+      // contiguous, and the shift immediate non-zero.
+      if (uint64_t constant_right;
+          MatchUnsignedIntegralConstant(bitwise_and.right(), &constant_right)) {
+        uint32_t mask = static_cast<uint32_t>(constant_right);
+        uint32_t mask_width = base::bits::CountPopulation(mask);
+        uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
+        if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
+          DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
+          DCHECK_NE(0u, shift_by);
+          Loong64OperandGenerator g(this);
+          if ((shift_by + mask_width) >= 32) {
+            // If the mask is contiguous and reaches or extends beyond the top
+            // bit, only the shift is needed.
+            Emit(kLoong64Sll_w, g.DefineAsRegister(node),
+                 g.UseRegister(bitwise_and.left()), g.UseImmediate(shift_by));
+            return;
+          }
+        }
+      }
+    }
+  }
   VisitRRO(this, kLoong64Sll_w, node);
 }
 
 void InstructionSelector::VisitWord32Shr(OpIndex node) {
+  const ShiftOp& shift_op = Get(node).Cast<ShiftOp>();
+  const Operation& lhs = Get(shift_op.left());
+  if (uint64_t constant_right;
+      lhs.Is<Opmask::kWord32BitwiseAnd>() && CanCover(node, shift_op.left()) &&
+      MatchUnsignedIntegralConstant(shift_op.right(), &constant_right)) {
+    uint32_t lsb = constant_right & 0x1F;
+    const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+    uint32_t constant_bitmask;
+    if (MatchIntegralWord32Constant(bitwise_and.right(), &constant_bitmask) &&
+        constant_bitmask != 0) {
+      // Select Bstrpick_w for Shr(And(x, mask), imm) where the result of the
+      // mask is shifted into the least-significant bits.
+      uint32_t mask = (constant_bitmask >> lsb) << lsb;
+      unsigned mask_width = base::bits::CountPopulation(mask);
+      unsigned mask_msb = base::bits::CountLeadingZeros32(mask);
+      if ((mask_msb + mask_width + lsb) == 32) {
+        Loong64OperandGenerator g(this);
+        DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(mask));
+        Emit(kLoong64Bstrpick_w, g.DefineAsRegister(node),
+             g.UseRegister(bitwise_and.left()), g.TempImmediate(lsb),
+             g.TempImmediate(mask_width));
+        return;
+      }
+    }
+  }
   VisitRRO(this, kLoong64Srl_w, node);
 }
 
 void InstructionSelector::VisitWord32Sar(turboshaft::OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
+  const ShiftOp& shift = Get(node).Cast<ShiftOp>();
+  const Operation& lhs = Get(shift.left());
+  if (CanCover(node, shift.left())) {
+    Loong64OperandGenerator g(this);
+    if (lhs.Is<Opmask::kWord32ShiftLeft>()) {
+      const ShiftOp& bitwise_shl = lhs.Cast<ShiftOp>();
+      if (int64_t constant_right, right;
+          MatchSignedIntegralConstant(shift.right(), &constant_right) &&
+          MatchSignedIntegralConstant(bitwise_shl.right(), &right)) {
+        uint32_t sar = static_cast<uint32_t>(constant_right);
+        uint32_t shl = static_cast<uint32_t>(right);
+        if ((sar == shl) && (sar == 16)) {
+          Emit(kLoong64Ext_w_h, g.DefineAsRegister(node),
+               g.UseRegister(bitwise_shl.left()));
+          return;
+        } else if ((sar == shl) && (sar == 24)) {
+          Emit(kLoong64Ext_w_b, g.DefineAsRegister(node),
+               g.UseRegister(bitwise_shl.left()));
+          return;
+        }
+      }
+    } else if (lhs.Is<Opmask::kTruncateWord64ToWord32>()) {
+      Emit(kLoong64Sra_w, g.DefineAsRegister(node),
+           g.UseRegister(lhs.Cast<ChangeOp>().input()),
+           g.UseOperand(shift.right(), kLoong64Sra_w));
+      return;
+    }
+  }
   VisitRRO(this, kLoong64Sra_w, node);
 }
 
 void InstructionSelector::VisitWord64Shl(OpIndex node) {
   const ShiftOp& shift_op = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shift_op.left());
-  const Operation& rhs = this->Get(shift_op.right());
+  uint64_t shift_by;
+  const bool right_is_constant =
+      MatchUnsignedIntegralConstant(shift_op.right(), &shift_by);
   if ((lhs.Is<Opmask::kChangeInt32ToInt64>() ||
        lhs.Is<Opmask::kChangeUint32ToUint64>()) &&
-      rhs.Is<Opmask::kWord32Constant>()) {
-    int64_t shift_by = rhs.Cast<ConstantOp>().signed_integral();
+      right_is_constant) {
     if (base::IsInRange(shift_by, 32, 63) && CanCover(node, shift_op.left())) {
       Loong64OperandGenerator g(this);
       // There's no need to sign/zero-extend to 64-bit if we shift out the
@@ -928,11 +1165,60 @@ void InstructionSelector::VisitWord64Shl(OpIndex node) {
       return;
     }
   }
+  if (lhs.Is<Opmask::kWord64BitwiseAnd>() && right_is_constant) {
+    // Match Word64Shl(Word64And(x, mask), imm) to Sll_d where the mask is
+    // contiguous, and the shift immediate non-zero.
+    if (base::IsInRange(shift_by, 1, 63) && CanCover(node, shift_op.left())) {
+      const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+      if (uint64_t mask;
+          MatchUnsignedIntegralConstant(bitwise_and.right(), &mask)) {
+        uint32_t mask_width = base::bits::CountPopulation(mask);
+        uint32_t mask_msb = base::bits::CountLeadingZeros64(mask);
+        if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
+          DCHECK_EQ(0u, base::bits::CountTrailingZeros64(mask));
+          DCHECK_NE(0u, shift_by);
+
+          if ((shift_by + mask_width) >= 64) {
+            Loong64OperandGenerator g(this);
+            // If the mask is contiguous and reaches or extends beyond the top
+            // bit, only the shift is needed.
+            Emit(kLoong64Sll_d, g.DefineAsRegister(node),
+                 g.UseRegister(bitwise_and.left()), g.UseImmediate(shift_by));
+            return;
+          }
+        }
+      }
+    }
+  }
   VisitRRO(this, kLoong64Sll_d, node);
 }
 
 void InstructionSelector::VisitWord64Shr(OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
+  const ShiftOp& shift_op = Get(node).Cast<ShiftOp>();
+  const Operation& lhs = Get(shift_op.left());
+  if (uint64_t constant;
+      lhs.Is<Opmask::kWord64BitwiseAnd>() && CanCover(node, shift_op.left()) &&
+      MatchUnsignedIntegralConstant(shift_op.right(), &constant)) {
+    uint32_t lsb = constant & 0x3F;
+    const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+    uint64_t constant_and_rhs;
+    if (MatchIntegralWord64Constant(bitwise_and.right(), &constant_and_rhs) &&
+        constant_and_rhs != 0) {
+      // Select Bstrpick_d for Shr(And(x, mask), imm) where the result of the
+      // mask is shifted into the least-significant bits.
+      uint64_t mask = static_cast<uint64_t>(constant_and_rhs >> lsb) << lsb;
+      unsigned mask_width = base::bits::CountPopulation(mask);
+      unsigned mask_msb = base::bits::CountLeadingZeros64(mask);
+      if ((mask_msb + mask_width + lsb) == 64) {
+        Loong64OperandGenerator g(this);
+        DCHECK_EQ(lsb, base::bits::CountTrailingZeros64(mask));
+        Emit(kLoong64Bstrpick_d, g.DefineAsRegister(node),
+             g.UseRegister(bitwise_and.left()), g.TempImmediate(lsb),
+             g.TempImmediate(mask_width));
+        return;
+      }
+    }
+  }
   VisitRRO(this, kLoong64Srl_d, node);
 }
 
