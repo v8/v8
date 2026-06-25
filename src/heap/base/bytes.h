@@ -101,8 +101,7 @@ class SmoothedBytesAndDuration {
   const v8::base::TimeDelta decrease_decay_;
 };
 
-struct ByteSizeTag;
-using ByteSize = v8::base::StrongAlias<ByteSizeTag, size_t>;
+using ByteSize = v8::base::StrongAlias<struct ByteSizeTag, size_t>;
 
 }  // namespace heap::base
 

@@ -593,8 +593,8 @@ static const char* kPointerTableAddressSpaceName = "v8-pointer-table";
 // JavaScript Dispatch Table
 //
 // A JSDispatchHandle represents a 32-bit index into a JSDispatchTable.
-struct JSDispatchHandleAliasTag {};
-using JSDispatchHandle = base::StrongAlias<JSDispatchHandleAliasTag, uint32_t>;
+using JSDispatchHandle =
+    base::StrongAlias<struct JSDispatchHandleAliasTag, uint32_t>;
 
 constexpr JSDispatchHandle kNullJSDispatchHandle(0);
 
@@ -1750,8 +1750,7 @@ enum AllocationAlignment : uint8_t {
   kDoubleUnaligned
 };
 
-struct GCEpochTag;
-using GCEpoch = base::StrongAlias<GCEpochTag, uint32_t>;
+using GCEpoch = base::StrongAlias<struct GCEpochTag, uint32_t>;
 
 static constexpr GCEpoch kInitialGCEpoch = GCEpoch(0);
 

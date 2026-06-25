@@ -2564,8 +2564,7 @@ constexpr const char* ToString(Heap::HeapGrowingMode mode) {
 RIGHT_TRIMMABLE_ARRAY_LIST(DECL_RIGHT_TRIM)
 #undef DECL_RIGHT_TRIM
 
-struct HexAddressTag;
-using HexAddress = base::StrongAlias<HexAddressTag, Address>;
+using HexAddress = base::StrongAlias<struct HexAddressTag, Address>;
 
 using ByteSize = ::heap::base::ByteSize;
 
