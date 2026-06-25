@@ -190,7 +190,7 @@ class StackMemory {
   }
 
   static int JSGrowableStackLimitMarginKB() {
-    if (!v8_flags.experimental_wasm_growable_stacks) {
+    if (!v8_flags.wasm_growable_stacks) {
       return JSCentralStackLimitMarginKB();
     }
     // The limiting factor for this margin is the stack space used by outgoing

@@ -701,7 +701,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
 
   // If experimental PGO via files is enabled, load profile information now.
   std::unique_ptr<ProfileInformation> pgo_info;
-  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_from_file)) {
+  if (V8_UNLIKELY(v8_flags.wasm_pgo_from_file)) {
     pgo_info = LoadProfileFromFile(module.get(), bytes.as_vector());
   }
 
@@ -1594,7 +1594,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewUnownedNativeModule(
           enabled_features, detected_features, std::move(compile_imports),
           code_size_estimate, std::move(module));
   base::MutexGuard lock(&mutex_);
-  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_to_file)) {
+  if (V8_UNLIKELY(v8_flags.wasm_pgo_to_file)) {
     if (!native_modules_kept_alive_for_pgo) {
       native_modules_kept_alive_for_pgo =
           new std::vector<std::shared_ptr<NativeModule>>;

@@ -675,7 +675,7 @@ class BodyGen {
 
   template <ValueKind T>
   void try_block(DataRange* data) {
-    if (!v8_flags.experimental_wasm_legacy_eh) {
+    if (!v8_flags.wasm_legacy_eh) {
       Generate(ValueType::Primitive(T), data);
       return;
     }
@@ -1069,7 +1069,7 @@ class BodyGen {
 
     bool emit_acq_rel = false;
     uint8_t order_imm = 0;
-    if (is_atomic && v8_flags.experimental_wasm_acquire_release) {
+    if (is_atomic && v8_flags.wasm_acquire_release) {
       uint8_t acq_rel_randomness = data->get<uint8_t>();
       emit_acq_rel = acq_rel_randomness & 1;
       if (emit_acq_rel) {
@@ -1109,7 +1109,7 @@ class BodyGen {
 
   template <WasmOpcode Op, ValueKind... Args>
   void wide_arithmetic_op(DataRange* data) {
-    if (!v8_flags.experimental_wasm_wide_arithmetic) {
+    if (!v8_flags.wasm_wide_arithmetic) {
       GenerateI64(data);
       return;
     }
@@ -1490,7 +1490,7 @@ class BodyGen {
   void set_global(DataRange* data) { global_op<kVoid>(data); }
 
   void throw_or_rethrow(DataRange* data) {
-    if (!v8_flags.experimental_wasm_legacy_eh) {
+    if (!v8_flags.wasm_legacy_eh) {
       return;
     }
     bool rethrow = data->get<bool>();
@@ -1869,7 +1869,7 @@ class BodyGen {
   }
 
   bool array_atomic_get_helper(ValueType value_type, DataRange* data) {
-    if (!v8_flags.experimental_wasm_shared) {
+    if (!v8_flags.wasm_shared) {
       return false;
     }
 
@@ -1920,7 +1920,7 @@ class BodyGen {
 
   bool array_atomic_rmw_helper(WasmOpcode opcode, ValueType value_type,
                                DataRange* data) {
-    if (!v8_flags.experimental_wasm_shared) {
+    if (!v8_flags.wasm_shared) {
       return false;
     }
 
@@ -2121,7 +2121,7 @@ class BodyGen {
   }
 
   void array_atomic_set(DataRange* data) {
-    if (!v8_flags.experimental_wasm_shared) {
+    if (!v8_flags.wasm_shared) {
       return;
     }
 
@@ -2242,7 +2242,7 @@ class BodyGen {
   }
 
   bool struct_atomic_get_helper(ValueType value_type, DataRange* data) {
-    if (!v8_flags.experimental_wasm_shared) {
+    if (!v8_flags.wasm_shared) {
       return false;
     }
 
@@ -2292,7 +2292,7 @@ class BodyGen {
 
   bool struct_atomic_rmw_helper(WasmOpcode opcode, ValueType value_type,
                                 DataRange* data) {
-    if (!v8_flags.experimental_wasm_shared) {
+    if (!v8_flags.wasm_shared) {
       return false;
     }
     std::optional<std::pair<ModuleTypeIndex, uint32_t>> field =
@@ -2645,7 +2645,7 @@ class BodyGen {
   }
 
   void struct_atomic_set(DataRange* data) {
-    if (!v8_flags.experimental_wasm_shared) {
+    if (!v8_flags.wasm_shared) {
       return;
     }
 
@@ -4483,7 +4483,7 @@ class ModuleGen {
       // Can't have a descriptor if this is the last type in the recgroup or
       // the last struct type.
       bool can_have_descriptor =
-          v8_flags.experimental_wasm_custom_descriptors &&
+          v8_flags.wasm_custom_descriptors &&
           current_type_index != current_rec_group_end &&
           current_type_index < last_struct_type_index - 1;
       if (have_descriptor && !can_have_descriptor) {

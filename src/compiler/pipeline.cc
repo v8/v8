@@ -3086,7 +3086,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data, &linkage);
 
 #if defined(V8_ENABLE_WASM_SIMD256_REVEC) && defined(V8_TARGET_ARCH_X64)
-  if (v8_flags.experimental_wasm_revectorize) {
+  if (v8_flags.wasm_revectorize) {
     bool cpu_feature_support =
         CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2);
     if (cpu_feature_support && detected->has_simd()) {

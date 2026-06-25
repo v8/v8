@@ -371,7 +371,7 @@ class TurboshaftGraphBuildingInterface
     if (v8_flags.wasm_inlining) {
       if (mode_ == kRegular) {
         if (v8_flags.liftoff ||
-            (v8_flags.experimental_wasm_compilation_hints &&
+            (v8_flags.wasm_compilation_hints &&
              !decoder->module_->instruction_frequencies.empty())) {
           inlining_decisions_ = InliningTree::CreateRoot(
               decoder->zone_, decoder->module_, wire_bytes_, func_index_);
@@ -912,7 +912,7 @@ class TurboshaftGraphBuildingInterface
     }
     if (mode_ == kRegular || mode_ == kInlinedTailCall) {
       __ Return(__ Word32Constant(0), base::VectorOf(return_values),
-                v8_flags.experimental_wasm_growable_stacks);
+                v8_flags.wasm_growable_stacks);
     } else {
       // Do not add return values if we are in unreachable code.
       if (__ generating_unreachable_operations()) return;
@@ -5479,8 +5479,7 @@ class TurboshaftGraphBuildingInterface
   void WaitqueueNotify(FullDecoder* decoder, const Value& waitqueue,
                        const Value& max_waiters, Value* result) {
     // Use an explicit null check. This instruction is not performance critical.
-    if (!v8_flags.experimental_wasm_skip_null_checks &&
-        waitqueue.type.is_nullable()) {
+    if (!v8_flags.wasm_skip_null_checks && waitqueue.type.is_nullable()) {
       __ TrapIf(__ IsNull(waitqueue.get<Object>(), wasm::kWasmAnyRef),
                 TrapId::kTrapNullDereference);
     }
@@ -5957,7 +5956,7 @@ class TurboshaftGraphBuildingInterface
   }
 
   void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
-    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+    if (v8_flags.wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
@@ -5973,7 +5972,7 @@ class TurboshaftGraphBuildingInterface
 
   void RefCastDescEq(FullDecoder* decoder, const Value& object,
                      const Value& desc, Value* result) {
-    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+    if (v8_flags.wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
@@ -5986,7 +5985,7 @@ class TurboshaftGraphBuildingInterface
 
   void RefCastAbstract(FullDecoder* decoder, const Value& object, HeapType type,
                        Value* result, bool null_succeeds) {
-    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+    if (v8_flags.wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
@@ -9228,7 +9227,7 @@ class TurboshaftGraphBuildingInterface
   V<WasmArray> BoundsCheckArrayWithLength(V<WasmArrayNullable> array,
                                           V<Word32> index, V<Word32> length,
                                           compiler::CheckForNull null_check) {
-    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
+    if (V8_UNLIKELY(v8_flags.wasm_skip_bounds_checks)) {
       return V<WasmArray>::Cast(array);
     }
     V<Word32> array_length = __ ArrayLength(array, null_check);

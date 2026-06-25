@@ -106,7 +106,7 @@ class StackCheckLoweringReducer : public Next {
       // their callers checking the stack height instead.
       if (__ IsLeafFunction()) return V<None>::Invalid();
 
-      if (v8_flags.experimental_wasm_growable_stacks) {
+      if (v8_flags.wasm_growable_stacks) {
         // WasmStackCheck should be lowered by GrowableStacksReducer
         // in a special way.
         return Next::ReduceWasmStackCheck(trusted_instance_data, memory_start,

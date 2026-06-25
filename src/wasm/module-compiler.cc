@@ -1784,7 +1784,7 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
       status = WellKnownImport::kEnumName;                                     \
       detected->add_##feature();                                               \
       break;                                                                   \
-    } else if (V8_LIKELY(v8_flags.experimental_wasm_shared &&                  \
+    } else if (V8_LIKELY(v8_flags.wasm_shared &&                               \
                          sig ==                                                \
                              TypeCanonicalizer::                               \
                                  kPredefinedSigIndex_##shared_expected_sig)) { \
@@ -2570,7 +2570,7 @@ void AsyncCompileJob::FinishCompile(
 
   // If experimental PGO via files is enabled, load profile information now that
   // we have all wire bytes and know that the module is valid.
-  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_from_file)) {
+  if (V8_UNLIKELY(v8_flags.wasm_pgo_from_file)) {
     std::unique_ptr<ProfileInformation> pgo_info =
         LoadProfileFromFile(module, native_module->wire_bytes());
     if (pgo_info) {
@@ -4079,7 +4079,7 @@ void CompilationStateImpl::OnCompilationStopped(
   // Compilation hints enables eager compilation if there are
   // compilation-priority hints in the module, so it should be included here.
   DCHECK(!v8_flags.wasm_lazy_compilation ||
-         (v8_flags.experimental_wasm_compilation_hints &&
+         (v8_flags.wasm_compilation_hints &&
           !native_module_->module()->compilation_priorities.empty()));
 }
 

@@ -312,7 +312,7 @@ DirectHandle<JSObject> GetTypeForFunction(Isolate* isolate,
 
   // Now add the result types if needed.
   // With WasmFX, tags are allowed to have return types.
-  if (for_tag && !v8_flags.experimental_wasm_wasmfx) {
+  if (for_tag && !v8_flags.wasm_wasmfx) {
     DCHECK_EQ(sig->returns().size(), 0);
   } else {
     int result_index = 0;

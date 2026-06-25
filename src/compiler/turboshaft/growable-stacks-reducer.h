@@ -24,8 +24,7 @@ class GrowableStacksReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(GrowableStacks)
 
   GrowableStacksReducer() {
-    if (!__ data()->wasm_module_sig() ||
-        !v8_flags.experimental_wasm_growable_stacks) {
+    if (!__ data()->wasm_module_sig() || !v8_flags.wasm_growable_stacks) {
       // We are not compiling a wasm function if there is no signature.
       skip_reducer_ = true;
       return;

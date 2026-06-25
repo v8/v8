@@ -3625,7 +3625,7 @@ void Shell::ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void Shell::CreateWasmMemoryMapDescriptor(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
   DCHECK(i::ValidateCallbackInfo(info));
   String::Utf8Value file_name(isolate, info[0]);
   if (*file_name == nullptr) {
@@ -4795,7 +4795,7 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     file_template->Set(isolate, "exists",
                        FunctionTemplate::New(isolate, Shell::FileExists));
 #if V8_TARGET_OS_LINUX && V8_ENABLE_WEBASSEMBLY
-    if (i::v8_flags.experimental_wasm_memory_control) {
+    if (i::v8_flags.wasm_memory_control) {
       file_template->Set(
           isolate, "create_wasm_memory_map_descriptor",
           FunctionTemplate::New(isolate, Shell::CreateWasmMemoryMapDescriptor));

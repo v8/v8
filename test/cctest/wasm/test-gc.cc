@@ -395,7 +395,7 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
 }
 
 WASM_COMPILED_EXEC_TEST(WasmRefAsNonNullSkipCheck) {
-  FlagScope<bool> no_check(&v8_flags.experimental_wasm_skip_null_checks, true);
+  FlagScope<bool> no_check(&v8_flags.wasm_skip_null_checks, true);
   WasmGCTester tester(execution_tier);
   HeapType type = tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
   const ModuleTypeIndex type_index = type.ref_index();
@@ -569,8 +569,7 @@ WASM_COMPILED_EXEC_TEST(RefCast) {
 }
 
 WASM_COMPILED_EXEC_TEST(RefCastNoChecks) {
-  FlagScope<bool> scope(&v8_flags.experimental_wasm_assume_ref_cast_succeeds,
-                        true);
+  FlagScope<bool> scope(&v8_flags.wasm_assume_ref_cast_succeeds, true);
   WasmGCTester tester(execution_tier);
 
   HeapType supertype = tester.DefineStruct({F(kWasmI32, true)});
@@ -591,8 +590,7 @@ WASM_COMPILED_EXEC_TEST(RefCastNoChecks) {
 }
 
 WASM_COMPILED_EXEC_TEST(RefCastAbstractNoChecks) {
-  FlagScope<bool> scope(&v8_flags.experimental_wasm_assume_ref_cast_succeeds,
-                        true);
+  FlagScope<bool> scope(&v8_flags.wasm_assume_ref_cast_succeeds, true);
   WasmGCTester tester(execution_tier);
 
   HeapType struct_type = tester.DefineStruct({F(kWasmI32, true)});

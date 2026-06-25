@@ -9002,7 +9002,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
 Local<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::New(
     v8::Isolate* v8_isolate, WasmMemoryMapDescriptor::WasmFileDescriptor fd) {
 #if V8_ENABLE_WEBASSEMBLY
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
   v8::Local<v8::Object> wrapper =
       i::wasm::WasmMemoryMapDescriptor::NewFromFileDescriptor(v8_isolate, fd);
   return wrapper.As<WasmMemoryMapDescriptor>();
@@ -9019,7 +9019,7 @@ size_t WasmMemoryMapDescriptor::Map(v8::Isolate* v8_isolate,
                                     Local<WasmMemoryObject> memory,
                                     size_t offset) {
 #if V8_ENABLE_WEBASSEMBLY
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
 
   auto* descriptor =
       v8::Object::Unwrap<i::wasm::WasmMemoryMapDescriptor::kPointerTag,
@@ -9038,7 +9038,7 @@ size_t WasmMemoryMapDescriptor::Map(v8::Isolate* v8_isolate,
 bool WasmMemoryMapDescriptor::Unmap(v8::Isolate* v8_isolate,
                                     Local<Object> wasm_memory_map_descriptor) {
 #if V8_ENABLE_WEBASSEMBLY
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
   auto* descriptor =
       v8::Object::Unwrap<i::wasm::WasmMemoryMapDescriptor::kPointerTag,
                          i::wasm::WasmMemoryMapDescriptor>(

@@ -5340,7 +5340,7 @@ class AssemblerOpInterface : public Next {
   void WasmBoundsCheckArray(V<WasmArrayNullable> array, V<Word32> index,
                             wasm::ValueType array_type,
                             OptionalV<EagerFrameState> frame_state = {}) {
-    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
+    if (V8_UNLIKELY(v8_flags.wasm_skip_bounds_checks)) {
       if (array_type.is_nullable()) {
         __ AssertNotNull(array, frame_state, array_type,
                          TrapId::kTrapNullDereference);

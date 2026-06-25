@@ -1202,7 +1202,7 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
         : isolate(isolate) {
       // Enable all staged features.
 #define ENABLE_PRE_STAGED_AND_STAGED_FEATURES(feat, ...) \
-  v8_flags.experimental_wasm_##feat = true;
+  v8_flags.wasm_##feat = true;
       FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(
           ENABLE_PRE_STAGED_AND_STAGED_FEATURES)
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_PRE_STAGED_AND_STAGED_FEATURES)
@@ -1219,17 +1219,17 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
 
       // The "pure Wasm" part of this proposal is considered ready for
       // fuzzing, the JS-related part (prototypes etc) not yet.
-      v8_flags.experimental_wasm_custom_descriptors = true;
+      v8_flags.wasm_custom_descriptors = true;
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
       // Fuzz revectorization, which is otherwise still considered experimental.
-      v8_flags.experimental_wasm_revectorize = true;
+      v8_flags.wasm_revectorize = true;
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #if V8_TARGET_ARCH_ARM64
       // Fuzz the Wasm SIMD optimizations in Turboshaft for aarch64.
       v8_flags.experimental_wasm_simd_opt = true;
-      v8_flags.experimental_wasm_deinterleave_loads = true;
+      v8_flags.wasm_deinterleave_loads = true;
 #endif  // V8_TARGET_ARCH_ARM64
 
       // Enforce implications from enabling features.

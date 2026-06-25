@@ -813,7 +813,7 @@ void Map::MapVerify(Isolate* isolate) {
     }
     // For the time being, installing prototypes requires the "js interop" flag,
     // not just "custom descriptors".
-    CHECK_IMPLIES(!IsNull(prototype()), v8_flags.experimental_wasm_js_interop);
+    CHECK_IMPLIES(!IsNull(prototype()), v8_flags.wasm_js_interop);
   }
 #endif
 

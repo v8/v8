@@ -603,7 +603,7 @@ void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
   }
 
   // Experimental flags controls the generation of deinterleaving loads.
-  if (v8_flags.experimental_wasm_deinterleave_loads) {
+  if (v8_flags.wasm_deinterleave_loads) {
     auto* load_left = left.TryCast<LoadOp>();
     auto* load_right = right.TryCast<LoadOp>();
 

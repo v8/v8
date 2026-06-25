@@ -4310,7 +4310,7 @@ bool Isolate::IsWasmCustomDescriptorsEnabled(
     v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
     if (callback(api_context)) return true;
   }
-  return v8_flags.experimental_wasm_custom_descriptors;
+  return v8_flags.wasm_custom_descriptors;
 #else
   return false;
 #endif

@@ -1733,7 +1733,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // new WebAssembly.MemoryMapDescriptor(size) -> WebAssembly.MemoryMapDescriptor
 void WebAssemblyMemoryMapDescriptorImpl(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
   WasmJSApiScope js_api_scope{info, "WebAssembly.MemoryMapDescriptor()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   if (!info.IsConstructCall()) {
@@ -2565,7 +2565,7 @@ void WebAssemblyTableSetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // WebAssembly.MemoryMapDescriptor.map()
 void WebAssemblyMemoryMapDescriptorMapImpl(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
   WasmJSApiScope js_api_scope{info, "WebAssembly.MemoryMapDescriptor.map()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   auto* descriptor =
@@ -2606,7 +2606,7 @@ void WebAssemblyMemoryMapDescriptorMapImpl(
 // WebAssembly.MemoryMapDescriptor.unmap()
 void WebAssemblyMemoryMapDescriptorUnmapImpl(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
   WasmJSApiScope js_api_scope{info, "WebAssembly.MemoryMapDescriptor.unmap()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   auto* descriptor =
@@ -3636,7 +3636,7 @@ CompileTimeImports WasmJs::CompileTimeImportsFromArgument(
           }
         }
         if (enabled_features.has_custom_descriptors() &&
-            v8_flags.experimental_wasm_js_interop) {
+            v8_flags.wasm_js_interop) {
           if (builtin->IsEqualTo(base::CStrVector("js-prototypes"))) {
             result.Add(CompileTimeImport::kJsPrototypes);
             continue;

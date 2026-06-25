@@ -230,8 +230,8 @@ TEST_F(ApiWasmTest, WasmEnableDisableCustomDescriptors) {
       v8::Utils::OpenDirectHandle(*context_local);
   // Test enabling/disabling via flag.
   {
-    i::FlagScope<bool> flag_descriptors(
-        &i::v8_flags.experimental_wasm_custom_descriptors, true);
+    i::FlagScope<bool> flag_descriptors(&i::v8_flags.wasm_custom_descriptors,
+                                        true);
     EXPECT_TRUE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
 
     // When flag is on, callback return value has no effect.
@@ -247,8 +247,8 @@ TEST_F(ApiWasmTest, WasmEnableDisableCustomDescriptors) {
                     .has_custom_descriptors());
   }
   {
-    i::FlagScope<bool> flag_descriptors(
-        &i::v8_flags.experimental_wasm_custom_descriptors, false);
+    i::FlagScope<bool> flag_descriptors(&i::v8_flags.wasm_custom_descriptors,
+                                        false);
     EXPECT_FALSE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
 
     // Test enabling/disabling via callback.

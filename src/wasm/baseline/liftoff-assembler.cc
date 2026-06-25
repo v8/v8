@@ -982,7 +982,7 @@ void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
   VarState* slots = cache_state_.stack_state.end() - sig->return_count();
   LiftoffRegList pinned;
   Register old_fp = LoadOldFramePointer();
-  if (v8_flags.experimental_wasm_growable_stacks) {
+  if (v8_flags.wasm_growable_stacks) {
     pinned.set(LiftoffRegister(old_fp));
   }
   // Fill return frame slots first to ensure that all potential spills happen

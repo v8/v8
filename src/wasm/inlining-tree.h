@@ -269,7 +269,7 @@ void InliningTree::Inline() {
 
   // No feedback found. If the feature is enabled, populate
   // `function_calls_map_` based on compilation hints.
-  if (v8_flags.experimental_wasm_compilation_hints) {
+  if (v8_flags.wasm_compilation_hints) {
     auto instruction_frequencies_it =
         data_->module->instruction_frequencies.find(function_index_);
     if (instruction_frequencies_it ==

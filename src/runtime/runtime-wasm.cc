@@ -776,7 +776,7 @@ RUNTIME_FUNCTION(Runtime_WasmManagedObjectWait) {
   Tagged<HeapObject> waitqueue = Cast<HeapObject>(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  if (!v8_flags.experimental_wasm_skip_null_checks &&
+  if (!v8_flags.wasm_skip_null_checks &&
       (object == ReadOnlyRoots(isolate).wasm_null() ||
        waitqueue == ReadOnlyRoots(isolate).wasm_null())) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapNullDereference);
@@ -1330,7 +1330,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   target_stack->jmpbuf()->fp = kNullAddress;
   target_stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
   target_stack->jmpbuf()->is_on_central_stack = false;
-  if (v8_flags.experimental_wasm_wasmfx) {
+  if (v8_flags.wasm_wasmfx) {
     // For now JSPI does not use the WasmStackObject, and it is only set here
     // because it is expected by WasmFX.
     // TODO(thibaudm): We could consider using this object for JSPI too as an
@@ -1349,7 +1349,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   // Update the suspender state.
   Tagged<WasmSuspenderObject> active_suspender =
       isolate->isolate_data()->active_suspender();
-  if (v8_flags.experimental_wasm_wasmfx) {
+  if (v8_flags.wasm_wasmfx) {
     // The active suspender is about to become inactive. Record the currently
     // active stack (which may have changed due to WasmFX) for when we
     // return to this suspender.

@@ -494,7 +494,7 @@ void LateLoadEliminationAnalyzer::ProcessAtomicRMW(OpIndex op_idx,
   // operations. If the atomic operation is not operating on linear memory, we
   // need to invalidate it. TODO(mliedtke): Only invalidate the potentially
   // aliasing information.
-  if (!v8_flags.experimental_wasm_shared ||
+  if (!v8_flags.wasm_shared ||
       store.base_rep == RegisterRepresentation::WordPtr()) {
     TRACE(">> Skipping operation on linear memory");
     return;

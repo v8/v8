@@ -131,7 +131,7 @@ WASM_EXEC_TEST(I64MulUseOnlyLowWord) {
 
 #if V8_TARGET_ARCH_X64
 WASM_EXEC_TEST(I64MulWideS) {
-  i::v8_flags.experimental_wasm_wide_arithmetic = true;
+  i::v8_flags.wasm_wide_arithmetic = true;
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   const WasmGlobal* global = r.builder().AddGlobal(kWasmI64);
   r.Build({WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
@@ -151,7 +151,7 @@ WASM_EXEC_TEST(I64MulWideS) {
 }
 
 WASM_EXEC_TEST(I64MulWideU) {
-  i::v8_flags.experimental_wasm_wide_arithmetic = true;
+  i::v8_flags.wasm_wide_arithmetic = true;
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   const WasmGlobal* global = r.builder().AddGlobal(kWasmI64);
   r.Build({WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),

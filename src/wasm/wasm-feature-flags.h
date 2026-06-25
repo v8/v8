@@ -10,14 +10,17 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 // Each entry in this file generates a V8 command-line flag with the prefix
-// "--experimental-wasm-".
+// "--wasm-".
 //
 // For example, to enable "my_feature", pass
-// --experimental-wasm-my-feature to d8, or
-// --js-flags=--experimental-wasm-my-feature to Chrome.
+// --wasm-my-feature to d8, or
+// --js-flags=--wasm-my-feature to Chrome.
+//
+// For backward compatibility, the prefix "--experimental-wasm-" is also
+// supported as a temporary alias (to be dropped in V8 v15.3).
 //
 // To disable "my_feature", add the "--no-" prefix:
-// --no-experimental-wasm-my-feature.
+// --no-wasm-my-feature.
 //
 // See https://github.com/WebAssembly/proposals for an overview of current
 // WebAssembly proposals.

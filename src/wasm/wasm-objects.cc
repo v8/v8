@@ -2009,7 +2009,7 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
                                           num_supertypes, context);
   rtt->set_immediate_supertype_map(*rtt_parent);
 
-  if (v8_flags.experimental_wasm_js_interop && !IsSmi(*first_field) &&
+  if (v8_flags.wasm_js_interop && !IsSmi(*first_field) &&
       IsJSReceiver(Cast<HeapObject>(*first_field))) {
     DirectHandle<JSPrototype> prototype =
         direct_handle(Cast<JSReceiver>(*first_field), isolate);
@@ -3110,7 +3110,7 @@ inline bool CheckExpectedSharedness(Isolate* isolate,
                                     DirectHandle<Object> value,
                                     CanonicalValueType expected,
                                     const char** error_message) {
-  if (v8_flags.experimental_wasm_shared && (*value).IsHeapObject()) {
+  if (v8_flags.wasm_shared && (*value).IsHeapObject()) {
     Tagged<HeapObject> heap_obj = (*value).cast<HeapObject>();
     if (expected.is_shared() == SharedFlag::kYes &&
         !HeapLayout::InAnySharedSpace(heap_obj)) {
@@ -3129,8 +3129,8 @@ inline bool ConvertToSharedIfExpected(Isolate* isolate,
                                       DirectHandle<Object>* value,
                                       CanonicalValueType expected,
                                       const char** error_message) {
-  if (v8_flags.experimental_wasm_shared &&
-      expected.is_shared() == SharedFlag::kYes && (**value).IsHeapObject()) {
+  if (v8_flags.wasm_shared && expected.is_shared() == SharedFlag::kYes &&
+      (**value).IsHeapObject()) {
     Tagged<HeapObject> heap_obj = (**value).cast<HeapObject>();
     if (!HeapLayout::InAnySharedSpace(heap_obj)) {
       if (!Object::Share(isolate, *value, ShouldThrow::kDontThrow)

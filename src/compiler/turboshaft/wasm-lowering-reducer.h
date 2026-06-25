@@ -74,7 +74,7 @@ class WasmLoweringReducer : public Next {
                                   wasm::ValueType type, TrapId trap_id) {
     if (trap_id == TrapId::kTrapNullDereference) {
       // Skip the check altogether if null checks are turned off.
-      if (!v8_flags.experimental_wasm_skip_null_checks) {
+      if (!v8_flags.wasm_skip_null_checks) {
         if (null_check_strategy_ == NullCheckStrategy::kTrapHandler) {
           // To make sure load elimination sees consistent representations, we
           // load known fields of objects.
@@ -718,8 +718,7 @@ class WasmLoweringReducer : public Next {
   void RejectSharedWasmObjectsIfUnshared(V<HeapObject> object,
                                          WasmTypeCheckConfig config,
                                          Label<Word32>& result_label) {
-    if (!v8_flags.experimental_wasm_shared ||
-        config.to.is_shared() == SharedFlag::kYes ||
+    if (!v8_flags.wasm_shared || config.to.is_shared() == SharedFlag::kYes ||
         config.from.AsNullable() != wasm::kWasmAnyRef) {
       return;
     }
@@ -806,8 +805,7 @@ class WasmLoweringReducer : public Next {
   void TrapOnSharedWasmObjectsIfUnshared(
       V<HeapObject> object, WasmTypeCheckConfig config,
       OptionalV<EagerFrameState> frame_state) {
-    if (!v8_flags.experimental_wasm_shared ||
-        config.to.is_shared() == SharedFlag::kYes ||
+    if (!v8_flags.wasm_shared || config.to.is_shared() == SharedFlag::kYes ||
         config.from.AsNullable() != wasm::kWasmAnyRef) {
       return;
     }
@@ -841,7 +839,7 @@ class WasmLoweringReducer : public Next {
       // fails, because it's covered by the Smi check
       // or instance type check we'll do later.
       if (object_can_be_null && null_succeeds &&
-          !v8_flags.experimental_wasm_skip_null_checks) {
+          !v8_flags.wasm_skip_null_checks) {
         GOTO_IF(UNLIKELY(__ IsNull(object, config.from)), end_label);
       }
       if (to_kind == wasm::GenericKind::kI31) {
@@ -922,7 +920,7 @@ class WasmLoweringReducer : public Next {
       V<Word32> is_null = __ IsNull(object, wasm::kWasmAnyRef);
       if (config.to.is_nullable()) {
         GOTO_IF(UNLIKELY(is_null), end_label);
-      } else if (!v8_flags.experimental_wasm_skip_null_checks) {
+      } else if (!v8_flags.wasm_skip_null_checks) {
         __ TrapIf(is_null, frame_state, TrapId::kTrapIllegalCast);
       }
     }

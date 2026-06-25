@@ -132,7 +132,7 @@ class WasmCompilationHintsUnittest : public TestWithIsolateAndZone {};
 
 TEST_F(WasmCompilationHintsUnittest, RecoverCompilationHints) {
   const FlagScope<bool> compilation_hints_scope(
-      &v8_flags.experimental_wasm_compilation_hints, true);
+      &v8_flags.wasm_compilation_hints, true);
   const FlagScope<bool> wasm_generate_compilation_hints_scope(
       &v8_flags.wasm_generate_compilation_hints, true);
   const FlagScope<int> wasm_tiering_budget_scope(&v8_flags.wasm_tiering_budget,

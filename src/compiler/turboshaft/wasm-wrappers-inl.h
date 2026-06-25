@@ -474,7 +474,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
                          {}, native_context);
       __ Unreachable();
     }
-    if (v8_flags.experimental_wasm_wasmfx) {
+    if (v8_flags.wasm_wasmfx) {
       // Also check that potential inactive WasmFX stacks don't contain host
       // frames.
       OpIndex isolate = __ IsolateField(IsolateFieldId::kIsolateAddress);

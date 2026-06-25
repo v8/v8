@@ -395,8 +395,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
               __ Unreachable();
             }
           }
-          if (v8_flags.experimental_wasm_shared &&
-              type.is_shared() == SharedFlag::kYes) {
+          if (v8_flags.wasm_shared && type.is_shared() == SharedFlag::kYes) {
             Label<Object> done(&Asm());
             IF (__ IsSmi(input)) {
               GOTO(done, input);

@@ -54,9 +54,10 @@
 // mutable value. That's okay since the value always equals the default.
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
   {Flag::TYPE_##ftype, #nam, nullptr, &FLAGDEFAULT_##nam, cmt, false},
-#define FLAG_ALIAS(ftype, ctype, alias, nam)                       \
-  {Flag::TYPE_##ftype,  #alias, &v8_flags.nam, &FLAGDEFAULT_##nam, \
-   "alias for --" #nam, false},  // NOLINT(whitespace/indent)
+#define FLAG_ALIAS_WITH_COMMENT(ftype, ctype, alias, nam, cmt) \
+  {Flag::TYPE_##ftype, #alias, &v8_flags.nam, &FLAGDEFAULT_##nam, cmt, false},
+#define FLAG_ALIAS(ftype, ctype, alias, nam) \
+  FLAG_ALIAS_WITH_COMMENT(ftype, ctype, alias, nam, "alias for --" #nam)
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
@@ -130,6 +131,10 @@
 
 #ifndef FLAG_READONLY
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt)
+#endif
+
+#ifndef FLAG_ALIAS_WITH_COMMENT
+#define FLAG_ALIAS_WITH_COMMENT(ftype, ctype, alias, nam, cmt)
 #endif
 
 #ifndef FLAG_ALIAS
@@ -218,6 +223,8 @@
 #define DEFINE_SIZE_T(nam, def, cmt) FLAG(SIZE_T, size_t, nam, def, cmt)
 #define DEFINE_STRING(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
 #define DEFINE_ALIAS_BOOL(alias, nam) FLAG_ALIAS(BOOL, bool, alias, nam)
+#define DEFINE_ALIAS_BOOL_WITH_COMMENT(alias, nam, cmt) \
+  FLAG_ALIAS_WITH_COMMENT(BOOL, bool, alias, nam, cmt)
 #define DEFINE_ALIAS_INT(alias, nam) FLAG_ALIAS(INT, int, alias, nam)
 #define DEFINE_ALIAS_FLOAT(alias, nam) FLAG_ALIAS(FLOAT, double, alias, nam)
 #define DEFINE_ALIAS_SIZE_T(alias, nam) FLAG_ALIAS(SIZE_T, size_t, alias, nam)
@@ -236,6 +243,9 @@
 #else
 #define DEFINE_DEBUG_BOOL DEFINE_BOOL_READONLY
 #endif
+
+#define TEMPORARY_WASM_ALIAS_COMMENT(nam) \
+  "temporary alias for --" #nam " (to be dropped in V8 v15.3)"
 
 //
 // Flags in all modes.
@@ -1816,10 +1826,13 @@ DEFINE_BOOL(wasm_simd_opt, true, "enable optimizations for Webassembly SIMD")
 DEFINE_IMPLICATION(future, wasm_simd_opt)
 DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
                             "enable extra optimizations for Webassembly SIMD")
-DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_deinterleave_loads,
+DEFINE_EXPERIMENTAL_FEATURE(wasm_deinterleave_loads,
                             "enable deinterleaving loads for Webassembly SIMD")
+DEFINE_ALIAS_BOOL_WITH_COMMENT(
+    experimental_wasm_deinterleave_loads, wasm_deinterleave_loads,
+    TEMPORARY_WASM_ALIAS_COMMENT(wasm_deinterleave_loads))
 DEFINE_IMPLICATION(experimental_wasm_simd_opt, wasm_simd_opt)
-DEFINE_IMPLICATION(experimental_wasm_deinterleave_loads, wasm_simd_opt)
+DEFINE_IMPLICATION(wasm_deinterleave_loads, wasm_simd_opt)
 #endif  // V8_TARGET_ARCH_ARM64
 
 DEFINE_BOOL(turbolev, false,
@@ -1843,8 +1856,8 @@ DEFINE_BOOL(
 DEFINE_WEAK_IMPLICATION(future, typed_array_length_loading)
 
 #if V8_ENABLE_WEBASSEMBLY
-DEFINE_IMPLICATION(experimental_wasm_shared, shared_heap)
-DEFINE_IMPLICATION(experimental_wasm_shared, shared_strings)
+DEFINE_IMPLICATION(wasm_shared, shared_heap)
+DEFINE_IMPLICATION(wasm_shared, shared_strings)
 #endif
 
 DEFINE_BOOL(
@@ -2024,8 +2037,8 @@ DEFINE_INT(wasm_stack_switching_stack_size, V8_DEFAULT_STACK_SIZE_KB,
            "default size of stacks for wasm stack-switching (in kB)")
 // 1 will be rounded up to the smallest possible initial stack size, which
 // depends on the stack limit margin and the platform's page size.
-DEFINE_VALUE_IMPLICATION(experimental_wasm_growable_stacks,
-                         wasm_stack_switching_stack_size, 1)
+DEFINE_VALUE_IMPLICATION(wasm_growable_stacks,
+  wasm_stack_switching_stack_size, 1)
 DEFINE_BOOL(liftoff, true,
             "enable Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(liftoff_only, false,
@@ -2056,15 +2069,18 @@ DEFINE_INT(wasm_tier_mask_for_testing, 0,
 DEFINE_INT(wasm_debug_mask_for_testing, 0,
            "bitmask of declared(!) function indices to compile for debugging, "
            "only applies if the tier is Liftoff")
-// TODO(clemensb): Introduce experimental_wasm_pgo to read from a custom section
-// instead of from a local file.
-DEFINE_BOOL(
-    experimental_wasm_pgo_to_file, false,
+DEFINE_DEVELOPER_FLAG(
+    wasm_pgo_to_file,
     "experimental: dump Wasm PGO information to a local file (for testing)")
-DEFINE_NEG_IMPLICATION(experimental_wasm_pgo_to_file, single_threaded)
-DEFINE_BOOL(
-    experimental_wasm_pgo_from_file, false,
+DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_pgo_to_file, wasm_pgo_to_file,
+                               TEMPORARY_WASM_ALIAS_COMMENT(wasm_pgo_to_file))
+DEFINE_NEG_IMPLICATION(wasm_pgo_to_file, single_threaded)
+DEFINE_DEVELOPER_FLAG(
+    wasm_pgo_from_file,
     "experimental: read and use Wasm PGO data from a local file (for testing)")
+DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_pgo_from_file,
+                               wasm_pgo_from_file,
+                               TEMPORARY_WASM_ALIAS_COMMENT(wasm_pgo_from_file))
 
 DEFINE_BOOL(validate_asm, false,
             "validate asm.js modules and translate them to Wasm (deprecated)")
@@ -2123,11 +2139,14 @@ DEFINE_SIZE_T(wasm_deopts_per_function_limit, 10,
 // wasm::WasmEnabledFeatures for configurability.
 #include "src/wasm/wasm-feature-flags.h"
 
-#define DECL_WASM_FLAG(feat, desc, val) \
-  DEFINE_BOOL(experimental_wasm_##feat, val, "enable " desc " for Wasm")
-#define DECL_EXPERIMENTAL_WASM_FLAG(feat, desc, val)    \
-  DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_##feat, \
-                              "enable " desc " for Wasm")
+#define DECL_WASM_FLAG(feat, desc, val)                                 \
+  DEFINE_BOOL(wasm_##feat, val, "enable " desc " for Wasm")             \
+  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feat, wasm_##feat, \
+                                 TEMPORARY_WASM_ALIAS_COMMENT(wasm_##feat))
+#define DECL_EXPERIMENTAL_WASM_FLAG(feat, desc, val)                    \
+  DEFINE_EXPERIMENTAL_FEATURE(wasm_##feat, "enable " desc " for Wasm")  \
+  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feat, wasm_##feat, \
+                                 TEMPORARY_WASM_ALIAS_COMMENT(wasm_##feat))
 // Experimental wasm features imply --experimental and get the " (experimental)"
 // suffix.
 FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(DECL_EXPERIMENTAL_WASM_FLAG)
@@ -2140,34 +2159,45 @@ FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
 
 // Unsafe additions to the GC proposal for performance experiments.
 DEFINE_TEST_ONLY_FLAG(
-    experimental_wasm_assume_ref_cast_succeeds,
+    wasm_assume_ref_cast_succeeds,
     "assume ref.cast always succeeds and skip the related type check")
-DEFINE_TEST_ONLY_FLAG(experimental_wasm_ref_cast_nop,
+DEFINE_ALIAS_BOOL_WITH_COMMENT(
+    experimental_wasm_assume_ref_cast_succeeds, wasm_assume_ref_cast_succeeds,
+    TEMPORARY_WASM_ALIAS_COMMENT(wasm_assume_ref_cast_succeeds))
+DEFINE_TEST_ONLY_FLAG(wasm_ref_cast_nop,
                       "enable unsafe ref.cast_nop instruction")
+DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_ref_cast_nop,
+                               wasm_ref_cast_nop,
+                               TEMPORARY_WASM_ALIAS_COMMENT(wasm_ref_cast_nop))
 DEFINE_TEST_ONLY_FLAG(
-    experimental_wasm_skip_null_checks,
+    wasm_skip_null_checks,
     "skip null checks for call.ref and array and struct operations")
-DEFINE_TEST_ONLY_FLAG(experimental_wasm_skip_bounds_checks,
-                      "skip array bounds checks")
+DEFINE_ALIAS_BOOL_WITH_COMMENT(
+    experimental_wasm_skip_null_checks, wasm_skip_null_checks,
+    TEMPORARY_WASM_ALIAS_COMMENT(wasm_skip_null_checks))
+DEFINE_TEST_ONLY_FLAG(wasm_skip_bounds_checks, "skip array bounds checks")
+DEFINE_ALIAS_BOOL_WITH_COMMENT(
+    experimental_wasm_skip_bounds_checks, wasm_skip_bounds_checks,
+    TEMPORARY_WASM_ALIAS_COMMENT(wasm_skip_bounds_checks))
 
 // Experimental variants of the Custom Descriptors prototype implementation.
 DEFINE_EXPERIMENTAL_FEATURE(
-    experimental_wasm_js_interop,
-    "enable JS Interop part of Custom Descriptors proposal")
-DEFINE_IMPLICATION(experimental_wasm_js_interop,
-                   experimental_wasm_custom_descriptors)
+    wasm_js_interop, "enable JS Interop part of Custom Descriptors proposal")
+DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_js_interop, wasm_js_interop,
+                               TEMPORARY_WASM_ALIAS_COMMENT(wasm_js_interop))
+DEFINE_IMPLICATION(wasm_js_interop, wasm_custom_descriptors)
 DEFINE_BOOL(wasm_custom_descriptors_permitted, true,
             "Emergency off-switch for Custom Descriptors Origin Trial")
 
 #define WASM_PRE_STAGING_IMPLICATION(feat, desc, val) \
-  DEFINE_IMPLICATION(experimental_fuzzing, experimental_wasm_##feat)
+  DEFINE_IMPLICATION(experimental_fuzzing, wasm_##feat)
 FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(WASM_PRE_STAGING_IMPLICATION)
 #undef WASM_PRE_STAGING_IMPLICATION
 
 DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 
 #define WASM_STAGING_IMPLICATION(feat, desc, val) \
-  DEFINE_IMPLICATION(wasm_staging, experimental_wasm_##feat)
+  DEFINE_IMPLICATION(wasm_staging, wasm_##feat)
 FOREACH_WASM_STAGING_FEATURE_FLAG(WASM_STAGING_IMPLICATION)
 #undef WASM_STAGING_IMPLICATION
 
@@ -2290,9 +2320,11 @@ DEFINE_DEBUG_BOOL(trace_wasm_instances, false,
 // Flags for WASM SIMD256 revectorize
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 DEFINE_EXPERIMENTAL_FEATURE(
-    experimental_wasm_revectorize,
+    wasm_revectorize,
     "enable 128 to 256 bit revectorization for WebAssembly SIMD")
-DEFINE_WEAK_IMPLICATION(experimental_fuzzing, experimental_wasm_revectorize)
+DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_revectorize, wasm_revectorize,
+                               TEMPORARY_WASM_ALIAS_COMMENT(wasm_revectorize))
+DEFINE_WEAK_IMPLICATION(experimental_fuzzing, wasm_revectorize)
 DEFINE_DEVELOPER_FLAG(trace_wasm_revectorize, "trace wasm revectorize")
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
@@ -2455,10 +2487,8 @@ DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(trace_wasm_generate_compilation_hints,
                                       single_threaded)
 // Wasm compilation hints generation is incompatible with features that are not
 // implemented in liftoff yet.
-DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints,
-                       experimental_wasm_wasmfx)
-DEFINE_NEG_IMPLICATION(trace_wasm_generate_compilation_hints,
-                       experimental_wasm_wasmfx)
+DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints, wasm_wasmfx)
+DEFINE_NEG_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_wasmfx)
 // Wasm compilation hints generation is incompatible with the testing opcode
 // that bails out liftoff.
 DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints,
@@ -4307,8 +4337,8 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_delete_file)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_unwinding_info)
 // Experimental PGO/compilation-hints-generation flags.
 #if V8_ENABLE_WEBASSEMBLY
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_pgo_to_file)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_pgo_from_file)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_pgo_to_file)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_pgo_from_file)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_generate_compilation_hints)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
                        trace_wasm_generate_compilation_hints)
@@ -4330,13 +4360,10 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_code_traces)
 #if V8_ENABLE_DRUMBRAKE_TRACING
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_drumbrake_traces)
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
-                       experimental_wasm_assume_ref_cast_succeeds)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
-                       experimental_wasm_skip_null_checks)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_ref_cast_nop)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
-                       experimental_wasm_skip_bounds_checks)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_assume_ref_cast_succeeds)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_skip_null_checks)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_ref_cast_nop)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_skip_bounds_checks)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_unsafe_fast_api_wrapper)
 // Enabled-by-default flags that should not be disabled.
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
@@ -4455,6 +4482,7 @@ DEFINE_IMPLICATION(gdbjit, log)
 #undef FLAG_READONLY
 #undef FLAG
 #undef FLAG_ALIAS
+#undef FLAG_ALIAS_WITH_COMMENT
 
 #undef DEFINE_BOOL
 #undef DEFINE_MAYBE_BOOL
@@ -4478,9 +4506,12 @@ DEFINE_IMPLICATION(gdbjit, log)
 #undef DEFINE_REQUIREMENT
 #undef DEFINE_NOT_EXPLICITLY_SET_IMPLICATION
 #undef DEFINE_ALIAS_BOOL
+#undef DEFINE_ALIAS_BOOL_WITH_COMMENT
 #undef DEFINE_ALIAS_INT
 #undef DEFINE_ALIAS_STRING
 #undef DEFINE_ALIAS_FLOAT
+
+#undef TEMPORARY_WASM_ALIAS_COMMENT
 
 #undef FLAG_MODE_DECLARE
 #undef FLAG_MODE_DEFINE_DEFAULTS

@@ -301,7 +301,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
     Node* is_null = IsNull(object, wasm::kWasmAnyRef);
     if (config.to.is_nullable()) {
       gasm_.GotoIf(is_null, &end_label, BranchHint::kFalse);
-    } else if (!v8_flags.experimental_wasm_skip_null_checks) {
+    } else if (!v8_flags.wasm_skip_null_checks) {
       gasm_.TrapIf(is_null, TrapId::kTrapIllegalCast);
       UpdateSourcePosition(gasm_.effect(), node);
     }
@@ -397,7 +397,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
     // fails, because it's covered by the Smi check
     // or instance type check we'll do later.
     if (object_can_be_null && null_succeeds &&
-        !v8_flags.experimental_wasm_skip_null_checks) {
+        !v8_flags.wasm_skip_null_checks) {
       gasm_.GotoIf(IsNull(object, config.from), &end_label, BranchHint::kFalse);
     }
     if (to_kind == wasm::GenericKind::kI31) {
@@ -469,7 +469,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
   // after the map word. This will trap for null and be handled by the trap
   // handler.
   if (op_parameter.trap_id == TrapId::kTrapNullDereference) {
-    if (!v8_flags.experimental_wasm_skip_null_checks) {
+    if (!v8_flags.wasm_skip_null_checks) {
       // For supertypes of i31ref, we would need to check for i31ref anyway
       // before loading from the object, so we might as well just check directly
       // for null.

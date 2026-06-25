@@ -1236,7 +1236,7 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
     if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (in_shared_space && v8_flags.experimental_wasm_shared) [[unlikely]] {
+  if (in_shared_space && v8_flags.wasm_shared) [[unlikely]] {
     int instance_type = map->instance_type();
     if (instance_type == WASM_STRUCT_TYPE) {
       // The map of a shared wasm struct needs to be in the shared space.
@@ -1415,8 +1415,7 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
     // to shared values in weak collections. For now, disallow them as weak
     // collection keys.
 #if V8_ENABLE_WEBASSEMBLY
-    if (v8_flags.experimental_wasm_shared &&
-        (IsWasmStruct(obj) || IsWasmArray(obj)) &&
+    if (v8_flags.wasm_shared && (IsWasmStruct(obj) || IsWasmArray(obj)) &&
         HeapLayout::InAnySharedSpace(Cast<HeapObject>(obj))) {
       return false;
     }
