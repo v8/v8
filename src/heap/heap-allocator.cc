@@ -14,6 +14,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/large-page.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/normal-page.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-object.h"
@@ -28,6 +29,8 @@ HeapAllocator::HeapAllocator(LocalHeap* local_heap)
     : local_heap_(local_heap), heap_(local_heap->heap()) {}
 
 void HeapAllocator::Setup() {
+  max_regular_code_object_size_ = MemoryChunkLayout::MaxRegularCodeObjectSize();
+
   for (int i = FIRST_SPACE; i <= LAST_SPACE; ++i) {
     spaces_[i] = heap_->space(i);
   }
@@ -85,7 +88,7 @@ void HeapAllocator::SetReadOnlySpace(ReadOnlySpace* read_only_space) {
 AllocationResult HeapAllocator::AllocateRawLargeInternal(
     int size_in_bytes, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment, AllocationHint hint) {
-  DCHECK_GT(size_in_bytes, heap_->MaxRegularHeapObjectSize(allocation));
+  DCHECK_GT(size_in_bytes, MaxRegularHeapObjectSize(allocation));
   AllocationResult allocation_result;
   switch (allocation) {
     case AllocationType::kYoung:

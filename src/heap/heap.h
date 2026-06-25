@@ -1480,10 +1480,7 @@ class Heap final {
       const uint64_t overshoot_margin) const;
 
   // Return the maximum size objects can be before having to allocate them as
-  // large objects. This takes into account allocating in the code space for
-  // which the size of the allocatable space per V8 page may depend on the OS
-  // page size at runtime. You may use kMaxRegularHeapObjectSize as a constant
-  // instead if you know the allocation isn't in the code spaces.
+  // large objects.
   inline V8_EXPORT_PRIVATE int MaxRegularHeapObjectSize(
       AllocationType allocation);
 
@@ -2379,8 +2376,6 @@ class Heap final {
   int gc_callbacks_depth_ = 0;
 
   bool deserialization_complete_ = false;
-
-  int max_regular_code_object_size_ = 0;
 
   bool inline_allocation_enabled_ = true;
 

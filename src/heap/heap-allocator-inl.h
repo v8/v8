@@ -11,10 +11,11 @@
 #include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
-#include "src/heap/heap-inl.h"  // For MaxRegularHeapObjectSize().
+#include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/main-allocator-inl.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/read-only-spaces.h"
@@ -22,6 +23,15 @@
 
 namespace v8 {
 namespace internal {
+
+int HeapAllocator::MaxRegularHeapObjectSize(AllocationType allocation) const {
+  if (allocation == AllocationType::kCode) {
+    DCHECK_EQ(MemoryChunkLayout::MaxRegularCodeObjectSize(),
+              max_regular_code_object_size_);
+    return max_regular_code_object_size_;
+  }
+  return kMaxRegularHeapObjectSize;
+}
 
 PagedSpace* HeapAllocator::code_space() const {
   return static_cast<PagedSpace*>(spaces_[CODE_SPACE]);
@@ -109,7 +119,7 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
     local_heap_->Safepoint();
   }
 
-  const size_t large_object_threshold = heap_->MaxRegularHeapObjectSize(type);
+  const size_t large_object_threshold = MaxRegularHeapObjectSize(type);
   const bool large_object =
       static_cast<size_t>(size_in_bytes) > large_object_threshold;
 

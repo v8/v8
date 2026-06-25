@@ -307,8 +307,6 @@ Heap::Heap()
   }
 #endif
 
-  max_regular_code_object_size_ = MemoryChunkLayout::MaxRegularCodeObjectSize();
-
   set_native_contexts_list(Smi::zero());
 
   // Put a dummy entry in the remembered pages so we can find the list the
