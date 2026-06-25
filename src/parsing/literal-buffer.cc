@@ -46,8 +46,13 @@ void LiteralBuffer::ExpandBuffer() {
 }
 
 void LiteralBuffer::ExpandBufferTo(size_t min_size) {
-  size_t min_capacity =
-      std::max({kInitialCapacity, backing_store_.size(), min_size});
+  // Round up the min_size to the next even number. This prevents the buffer
+  // from acquiring an odd capacity, which can lead to a heap-buffer-overflow
+  // (out-of-bounds write) during in-place transition to two-byte mode when the
+  // buffer is at capacity minus one.
+  size_t min_capacity = RoundUp<2>(min_size);
+  min_capacity =
+      std::max({kInitialCapacity, backing_store_.size(), min_capacity});
   base::Vector<uint8_t> new_store =
       base::Vector<uint8_t>::New(NewCapacity(min_capacity));
   if (position_ > 0) {
