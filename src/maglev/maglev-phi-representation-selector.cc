@@ -120,9 +120,11 @@ BlockProcessResult MaglevPhiRepresentationSelector::PreProcessBasicBlock(
 bool MaglevPhiRepresentationSelector::CanHoistUntaggingTo(BasicBlock* block) {
   if (block->successors().size() != 1) return false;
   BasicBlock* next = block->successors()[0];
+  // A stateless successor is a peeled loop-header clone, never an edge-split.
+  DCHECK_IMPLIES(!next->has_state(), !next->is_edge_split_block());
   // To be able to hoist above resumable loops we would have to be able to
   // convert during resumption.
-  return !next->state()->is_resumable_loop();
+  return !next->has_state() || !next->state()->is_resumable_loop();
 }
 
 MaglevPhiRepresentationSelector::ProcessPhiResult
