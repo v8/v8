@@ -418,6 +418,63 @@ inline DirectHandle<InterceptorInfo> LookupIterator::GetInterceptor() const {
   return direct_handle(result, isolate_);
 }
 
+MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
+                                        DirectHandle<JSAny> object,
+                                        DirectHandle<Name> name) {
+  LookupIterator it(isolate, object, name);
+  if (!it.IsFound()) return it.factory()->undefined_value();
+  return GetProperty(&it);
+}
+
+MaybeHandle<Object> Object::GetElement(Isolate* isolate,
+                                       DirectHandle<JSAny> object,
+                                       uint32_t index) {
+  LookupIterator it(isolate, object, index);
+  if (!it.IsFound()) return it.factory()->undefined_value();
+  return GetProperty(&it);
+}
+
+MaybeDirectHandle<Object> Object::SetElement(Isolate* isolate,
+                                             DirectHandle<JSAny> object,
+                                             uint32_t index,
+                                             DirectHandle<Object> value,
+                                             ShouldThrow should_throw) {
+  LookupIterator it(isolate, object, index);
+  MAYBE_RETURN_NULL(
+      SetProperty(&it, value, StoreOrigin::kMaybeKeyed, Just(should_throw)));
+  return value;
+}
+
+MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
+                                                 DirectHandle<JSAny> object,
+                                                 DirectHandle<Name> name) {
+  return GetPropertyOrElement(isolate, object, PropertyKey(isolate, name));
+}
+
+MaybeDirectHandle<Object> Object::SetPropertyOrElement(
+    Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Name> name,
+    DirectHandle<Object> value, Maybe<ShouldThrow> should_throw,
+    StoreOrigin store_origin) {
+  return SetPropertyOrElement(isolate, object, PropertyKey(isolate, name),
+                              value, should_throw, store_origin);
+}
+
+MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
+                                                 DirectHandle<JSAny> object,
+                                                 PropertyKey key) {
+  LookupIterator it(isolate, object, key);
+  return GetProperty(&it);
+}
+
+MaybeDirectHandle<Object> Object::SetPropertyOrElement(
+    Isolate* isolate, DirectHandle<JSAny> object, PropertyKey key,
+    DirectHandle<Object> value, Maybe<ShouldThrow> should_throw,
+    StoreOrigin store_origin) {
+  LookupIterator it(isolate, object, key);
+  MAYBE_RETURN_NULL(SetProperty(&it, value, store_origin, should_throw));
+  return value;
+}
+
 }  // namespace internal
 }  // namespace v8
 
