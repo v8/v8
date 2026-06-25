@@ -131,9 +131,11 @@ void LookupIterator::NextInternal(Tagged<Map> orig_map,
       // know which question to ask, we assume the lookup succeeds.
       switch (state_) {
         // https://webidl.spec.whatwg.org/#dfn-named-property-visibility says a
-        // second interceptor on the prototype chain is invisible.
+        // second named interceptor on the prototype chain is invisible. This
+        // only applies to named interceptors, not indexed ones.
         case INTERCEPTOR:
-          continue;
+          if (!is_element) continue;
+          break;
         case ACCESS_CHECK: {
           // If an access check fails, we assume the lookup succeeds.
           if (HasAccess()) {

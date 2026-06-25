@@ -6320,6 +6320,17 @@ v8::Intercepted ShouldNamedGetterInterceptor(
   return v8::Intercepted::kYes;
 }
 
+v8::Intercepted ShouldIndexedGetterInterceptor(
+    uint32_t index, const v8::PropertyCallbackInfo<Value>& info) {
+  CheckReturnValue(info, FUNCTION_ADDR(ShouldIndexedGetterInterceptor));
+  auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
+  if (!data->should_intercept) return v8::Intercepted::kNo;
+  // Side effects are allowed only when the property is present or throws.
+  ApiTestFuzzer::Fuzz();
+  info.GetReturnValue().Set(v8_num(data->value));
+  return v8::Intercepted::kYes;
+}
+
 v8::Intercepted ShouldNamedSetterInterceptor(
     Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<Boolean>& info) {
@@ -6600,6 +6611,56 @@ THREADED_TEST(NonMaskingInterceptorOwnPropertyTransition) {
     });
   )");
   ExpectInt32("obj.prop", 139);
+}
+
+THREADED_TEST(NonMaskingIndexedInterceptorOwnProperty) {
+  LocalContext context;
+  auto isolate = context.isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  ShouldInterceptData obj_data;
+  obj_data.value = 239;
+  obj_data.should_intercept = true;
+
+  ShouldInterceptData proto_data;
+  proto_data.value = 153;
+  // The prototype's interceptor doesn't claim the property, so a regular get
+  // still falls through to the receiver's non-masking interceptor. Its mere
+  // presence is what must make the own-property lookup stop, though.
+  proto_data.should_intercept = false;
+
+  // Prototype object with a (masking) indexed interceptor.
+  auto proto_templ = v8::ObjectTemplate::New(isolate);
+  {
+    v8::IndexedPropertyHandlerConfiguration conf(
+        ShouldIndexedGetterInterceptor);
+    conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &proto_data);
+    proto_templ->SetHandler(conf);
+  }
+  auto proto = proto_templ->NewInstance(context.local()).ToLocalChecked();
+
+  // Receiver object with a non-masking indexed interceptor.
+  auto obj_templ = v8::ObjectTemplate::New(isolate);
+  {
+    v8::IndexedPropertyHandlerConfiguration conf(
+        ShouldIndexedGetterInterceptor);
+    conf.flags = v8::PropertyHandlerFlags::kNonMasking;
+    conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &obj_data);
+    obj_templ->SetHandler(conf);
+  }
+  auto obj = obj_templ->NewInstance(context.local()).ToLocalChecked();
+  obj->SetPrototype(context.local(), proto).FromJust();
+
+  context->Global()->Set(context.local(), v8_str("obj"), obj).FromJust();
+
+  // A second indexed interceptor on the prototype chain is *not* invisible (in
+  // contrast to named interceptors). An own-property lookup that skips the
+  // receiver's non-masking interceptor must not report the index as an own
+  // property of the receiver.
+  CHECK(!v8_run_bool("obj.hasOwnProperty(0);"));
+
+  // The non-masking interceptor still serves the value via a regular lookup.
+  ExpectInt32("obj[0]", 239);
 }
 
 namespace {
