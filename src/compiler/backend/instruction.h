@@ -110,6 +110,7 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
 
 #if defined(V8_TARGET_ARCH_X64)
   inline bool CanBeSimd128Register() const;
+  inline bool CanBeSimd128StackSlot() const;
 #endif
 
   template <typename SubKindOperand>
@@ -753,6 +754,20 @@ bool InstructionOperand::IsSimd256StackSlot() const {
          LocationOperand::cast(this)->representation() ==
              MachineRepresentation::kSimd256;
 }
+
+#if defined(V8_TARGET_ARCH_X64)
+bool InstructionOperand::CanBeSimd128StackSlot() const {
+  // IsSimd128StackSlot is called for multiple purposes. Use this function
+  // when we need to use a simd128 stack slot only. On x64, Simd256 and Simd128
+  // stack slots share identical base address for the lower 128 bits.
+  if (IsAnyStackSlot()) {
+    MachineRepresentation rep = LocationOperand::cast(this)->representation();
+    return rep == MachineRepresentation::kSimd128 ||
+           rep == MachineRepresentation::kSimd256;
+  }
+  return false;
+}
+#endif
 
 uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAnyLocationOperand()) {
