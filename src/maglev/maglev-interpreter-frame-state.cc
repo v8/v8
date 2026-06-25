@@ -337,6 +337,8 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
       [&](ValueNode* a, ValueNode* b) {
         return MergeVirtualObjectValue(graph, unmerged_aspects, a, b);
       });
+
+  DCHECK_NOT_NULL(unmerged->allocation());
   if (!maybe_result) {
     return unmerged->allocation()->ForceEscaping();
   }

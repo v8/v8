@@ -1614,6 +1614,7 @@ class MaglevFrameTranslationBuilder {
       // TODO(jgruber): Could we use the standard path below instead?
       return BuildHeapNumber(object);
     }
+    DCHECK_NOT_NULL(object->allocation());
     int dup_id =
         GetDuplicatedId(reinterpret_cast<intptr_t>(object->allocation()));
     if (dup_id != kNotDuplicated) {

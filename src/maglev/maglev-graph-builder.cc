@@ -4116,6 +4116,7 @@ namespace {
 
 bool VerifyIsNotEscaping(VirtualObjectList vos, InlinedAllocation* alloc) {
   for (VirtualObject* vo : vos) {
+    DCHECK_NOT_NULL(vo->allocation());
     if (vo->allocation() == alloc) continue;
     bool escaped = false;
     vo->ForEachSlot([&](ValueNode* nested_value, vobj::Field desc) -> bool {
