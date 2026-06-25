@@ -164,11 +164,8 @@ void StringStream::Add(base::Vector<const char> format,
       case 'e':
       case 'E': {
         double value = current.data_.u_double_;
-        int inf = std::isinf(value);
-        if (inf == -1) {
-          Add("-inf");
-        } else if (inf == 1) {
-          Add("inf");
+        if (std::isinf(value)) {
+          Add(value < 0 ? "-inf" : "inf");
         } else if (std::isnan(value)) {
           Add("nan");
         } else {
