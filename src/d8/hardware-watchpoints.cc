@@ -4,6 +4,8 @@
 
 #include "src/d8/hardware-watchpoints.h"
 
+#include "src/d8/memory-access-information.h"
+
 #ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 
 #include <sys/mman.h>
@@ -124,18 +126,16 @@ void SetNewWatchpoints() {
                      offsetof(struct user, u_debugreg[7]), dr7));
 }
 
-using reg_value_type = unsigned long long;  // NOLINT(runtime/int)
-
-void MutateRegister(reg_value_type* reg_ptr) {
+void MutateRegister(reg_value_type* reg_ptr,
+                    const MemoryAccessInformation& access_info) {
   // TODO(clemensb): Add API for specifying how to manipulate the value.
-  // TODO(clemensb): Make sure to only produce values that the specific
-  // instruction would have produced.
   // TODO(clemensb): Look into strategies used by AFL:
   // https://lcamtuf.blogspot.com/2014/08/binary-fuzzing-strategies-what-works.html.
   // TODO(clemensb): Unify with strategies used by Samuel's trap-based fuzzer
   // (https://crbug.com/361277236).
   uint64_t read_value = static_cast<uint64_t>(*reg_ptr);
   uint64_t new_value = read_value;
+  int bit_width = access_info.access_width * 8;
   switch (g_support.rng.NextInt(4)) {
     case 0:
       new_value += 10;
@@ -144,35 +144,34 @@ void MutateRegister(reg_value_type* reg_ptr) {
       new_value -= 10;
       break;
     case 2:
-      // Random bit flip.
-      new_value ^= uint64_t{1} << g_support.rng.NextInt(64);
+      // Random bit flip within the accessed width.
+      new_value ^= uint64_t{1} << g_support.rng.NextInt(bit_width);
       break;
     case 3:
       new_value = g_support.rng.NextInt64();
       break;
   }
-  // TODO(clemensb): Skip this truncation on 64-bit reads.
-  new_value = new_value & 0xffffffffu;
+  uint64_t mask =
+      (bit_width == 64) ? ~uint64_t{0} : ((uint64_t{1} << bit_width) - 1);
+  uint64_t mutated_bits = new_value & mask;
+
+  if (access_info.extension == MemoryAccessInformation::kSignExtend) {
+    uint64_t sign_bit = uint64_t{1} << (bit_width - 1);
+    if ((mutated_bits & sign_bit) != 0) {
+      mutated_bits |= ~mask;
+    }
+    new_value = mutated_bits;
+  } else if (access_info.extension == MemoryAccessInformation::kZeroExtend) {
+    new_value = mutated_bits;
+  } else {
+    new_value = (read_value & ~mask) | mutated_bits;
+  }
+
   TRACE("[debugger] Changing value in result register from %" PRIu64 "/%" PRIx64
         " to %" PRIu64 "/%" PRIx64 ".\n",
         read_value, read_value, new_value, new_value);
   *reg_ptr = static_cast<reg_value_type>(new_value);
 }
-
-// The result of `DisassemblePreviousInstruction`, describing the kind of memory
-// access observed.
-struct MemoryAccessInformation {
-  enum Kind { kRead, kWrite, kCmp, kCmpxchg };
-
-  Kind kind;
-
-  // For kRead kind, one of the two following fields will be set.
-
-  // Pointer into the `user_regs_struct`.
-  reg_value_type* result_reg = nullptr;
-  // Index of the XMM register (0-15) if it's an XMM register.
-  int xmm_reg_index = -1;
-};
 
 void DisassemblePreviousInstruction(struct user_regs_struct& regs,
                                     base::Vector<char> buffer) {
@@ -234,58 +233,13 @@ char* SkipToInstruction(char* disas) {
   return disas;
 }
 
-// Returns a pointer to the field in `regs` which was read before `regs.rip`.
-// This is used when a watchpoint is hit to figure out if it was a read or
-// write, and where the result of the read was stored.
-// On a write, this returns `nullptr`.
 MemoryAccessInformation GetMemoryAccessInformationFromPreviousInstruction(
     struct user_regs_struct& regs) {
   // Buffer for disassembled instruction.
   char buffer[64];
   DisassemblePreviousInstruction(regs, base::VectorOf(buffer));
   char* insn_pos = SkipToInstruction(buffer);
-
-  if (memcmp(insn_pos, "cmp", 3) == 0) {
-    if (memcmp(insn_pos, "cmpxchg", 7) == 0) {
-      return {.kind = MemoryAccessInformation::kCmpxchg};
-    }
-    return {.kind = MemoryAccessInformation::kCmp};
-  }
-  // TODO(clemensb): Implement more instructions if necessary.
-  if (memcmp(insn_pos, "mov", 3) != 0 && memcmp(insn_pos, "sub", 3) != 0 &&
-      memcmp(insn_pos, "add", 3) != 0 && memcmp(insn_pos, "vmov", 4) != 0) {
-    FATAL("Not a recognized instruction: %s\n", buffer);
-  }
-
-  // Find the position of the comma to figure out if the memory operand is
-  // on the LHS (read) or RHS (write).
-  char* space_pos = strchr(insn_pos + 3, ' ');
-  CHECK_NOT_NULL(space_pos);
-  char* comma_pos = strchr(space_pos + 1, ',');
-  CHECK_NOT_NULL(comma_pos);
-  bool mem_op_on_lhs = space_pos[1] == '[';
-  bool mem_op_on_rhs = comma_pos[1] == '[';
-  // Be extra careful to interpret the disassembly correctly.
-  CHECK_EQ(mem_op_on_lhs, comma_pos[-1] == ']');
-  CHECK_EQ(mem_op_on_rhs, space_pos[strlen(space_pos) - 1] == ']');
-  CHECK_EQ(mem_op_on_lhs, !mem_op_on_rhs);
-  if (mem_op_on_lhs) return {.kind = MemoryAccessInformation::kWrite};
-#define FIND_REG_NAME(name)                                                    \
-  if (memcmp(space_pos + 1, #name, strlen(#name)) == 0) {                      \
-    return {.kind = MemoryAccessInformation::kRead, .result_reg = &regs.name}; \
-  }
-  GENERAL_REGISTERS(FIND_REG_NAME)
-#undef FIND_REG_NAME
-
-  if (memcmp(space_pos + 1, "xmm", 3) == 0 ||
-      memcmp(space_pos + 1, "ymm", 3) == 0) {
-    int reg_num = atoi(space_pos + 4);
-    CHECK_LE(0, reg_num);
-    CHECK_LE(reg_num, 15);
-    return {.kind = MemoryAccessInformation::kRead, .xmm_reg_index = reg_num};
-  }
-
-  FATAL("Could not read register name: %s", buffer);
+  return ParseMemoryAccessInformationFromInstruction(insn_pos, regs);
 }
 
 void MutateReadValue(struct user_regs_struct& regs,
@@ -372,7 +326,7 @@ void MutateReadValue(struct user_regs_struct& regs,
   }
 
   CHECK_NOT_NULL(access_info.result_reg);
-  MutateRegister(access_info.result_reg);
+  MutateRegister(access_info.result_reg, access_info);
 
   CHECK_EQ(0, ptrace(PTRACE_SETREGS, g_support.d8_pid, /* unused addr = */ 0,
                      &regs));
@@ -437,7 +391,8 @@ void MutateFlagsAfterCmp(struct user_regs_struct& regs) {
                      &regs));
 }
 
-void MutateCmpxchgOutcome(struct user_regs_struct& regs) {
+void MutateCmpxchgOutcome(struct user_regs_struct& regs,
+                          const MemoryAccessInformation& access_info) {
   // `cmpxchg` is an atomic compare-and-swap instruction.
   // - If [mem] == rax: ZF = 1, [mem] = src.
   // - If [mem] != rax: ZF = 0, rax = [mem].
@@ -467,7 +422,7 @@ void MutateCmpxchgOutcome(struct user_regs_struct& regs) {
     // value. By mutating it, we simulate that a different value was read.
     TRACE("[debugger] cmpxchg: Simulating failure (was success).\n");
     regs.eflags &= ~kZF;
-    MutateRegister(&regs.rax);
+    MutateRegister(&regs.rax, access_info);
   } else {
     if (strategy == 1) {
       // Hardware reported failure (ZF=0), so `rax` was loaded with the current
@@ -489,7 +444,7 @@ void MutateCmpxchgOutcome(struct user_regs_struct& regs) {
       // This simulates that the comparison failed and loaded a
       // mutated/corrupted value into `rax` from memory.
       TRACE("[debugger] cmpxchg: Mutating rax on failure (keeping ZF=0).\n");
-      MutateRegister(&regs.rax);
+      MutateRegister(&regs.rax, access_info);
     }
   }
 
@@ -537,7 +492,7 @@ bool HandleWatchpoint(struct user_regs_struct& regs) {
       break;
 
     case MemoryAccessInformation::kCmpxchg:
-      MutateCmpxchgOutcome(regs);
+      MutateCmpxchgOutcome(regs, access_info);
       break;
   }
 
