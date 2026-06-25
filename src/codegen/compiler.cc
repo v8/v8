@@ -2109,9 +2109,8 @@ class ConstantPoolPointerForwarder {
     Tagged<ScopeInfo> scope_info;
     if (Is<SharedFunctionInfo>(info)) {
       Tagged<SharedFunctionInfo> old_sfi = Cast<SharedFunctionInfo>(info);
-      // Also record context-having own scope infos for SFIs.
-      if (!old_sfi->scope_info()->IsEmpty() &&
-          old_sfi->scope_info()->HasContext()) {
+      // Also record own scope infos for SFIs.
+      if (!old_sfi->scope_info()->IsEmpty()) {
         scope_info = old_sfi->scope_info();
       } else if (old_sfi->HasOuterScopeInfo()) {
         scope_info = old_sfi->GetOuterScopeInfo();
@@ -2614,18 +2613,9 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
-    if (maybe_new_info == maybe_old_info) {
-      if (sfis_without_scope_info_.contains(i) && maybe_old_info.IsWeak()) {
-        Tagged<SharedFunctionInfo> sfi =
-            Cast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak());
-        if (!sfi->scope_info()->IsEmpty()) {
-          forwarder.RecordScopeInfos(sfi);
-        }
-      }
-      continue;
-    }
     if (maybe_old_info.IsWeak()) {
-      if (Is<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())) {
+      if (maybe_new_info != maybe_old_info &&
+          Is<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())) {
         forwarder.set_has_shared_function_info_to_forward();
       }
       forwarder.RecordScopeInfos(maybe_old_info);
@@ -2650,7 +2640,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
       // that the old_sfi bytecode is dropped before we decide whether to
       // actually copy it.
       Tagged<SharedFunctionInfo> sfi = *new_compiled_data.new_sfi;
-      forwarder.InstallOwnScopeInfo(sfi);
+      forwarder.UpdateScopeInfo(sfi);
       if (new_compiled_data.new_sfi->HasBytecodeArray()) {
         forwarder.AddBytecodeArray(
             new_compiled_data.new_sfi->GetBytecodeArray(isolate));
