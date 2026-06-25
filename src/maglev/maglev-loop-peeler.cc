@@ -1388,11 +1388,6 @@ void MaglevLoopPeeler::SplicePeeledBlocks(PeelContext& ctx) {
 
 bool MaglevLoopPeeler::Run() {
   bool mutated = false;
-  // TODO(victorgomes): Should we support resumable generators?
-  if (graph_->has_resumable_generator()) {
-    TRACE_PEEL_SKIP("skip pass: graph has resumable generator");
-    return false;
-  }
 
   ResolveLoopHeader();
 
