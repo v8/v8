@@ -749,7 +749,14 @@ MaybeLocal<String> Shell::Source::ConvertToString(Isolate* isolate) const {
     return string_;
   }
   DCHECK_EQ(type_, Type::kFile);
-  return Shell::ReadFile(isolate, filename_);
+  MaybeLocal<String> result = Shell::ReadFile(isolate, filename_);
+  if (result.IsEmpty()) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    if (i_isolate->has_pending_message()) {
+      i_isolate->ReportPendingMessages();
+    }
+  }
+  return result;
 }
 
 template <class T>
@@ -771,6 +778,10 @@ MaybeLocal<T> Shell::CompileSource(Isolate* isolate, Local<Context> context,
       auto file_stream =
           std::make_unique<FileSourceStream>(isolate, source.filename());
       if (!file_stream->IsValid()) {
+        i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+        if (i_isolate->has_pending_message()) {
+          i_isolate->ReportPendingMessages();
+        }
         return MaybeLocal<T>();
       }
       source_stream = std::move(file_stream);
