@@ -189,6 +189,11 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   CSA_DCHECK(this, Word32BinaryNot(IsExecutionTerminating()));
 
   StoreRoot(RootIndex::kCurrentMicrotask, microtask);
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  SetupContinuationPreservedEmbedderData(microtask);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
   TNode<Map> microtask_map = LoadMap(microtask);
   TNode<Uint16T> microtask_type = LoadMapInstanceType(microtask_map);
 
@@ -221,10 +226,6 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         microtask, offsetof(CallableTask, context_));
     PrepareForContext(microtask_context, baseline_entered_context_count, &done);
 
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    SetupContinuationPreservedEmbedderData(microtask);
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-
     TNode<JSReceiver> callable = LoadObjectField<JSReceiver>(
         microtask, offsetof(CallableTask, callable_));
 
@@ -234,14 +235,15 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
       Call(microtask_context, callable, UndefinedConstant());
     }
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    ClearContinuationPreservedEmbedderData();
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
     Goto(&done);
 
     BIND(&if_exception);
     {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+      ClearContinuationPreservedEmbedderData();
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
       // Report unhandled microtask exceptions in respective native context.
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
@@ -261,10 +263,6 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Therefore we use the current context.
     TNode<Context> microtask_context = current_context;
 
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    SetupContinuationPreservedEmbedderData(microtask);
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-
     // If this turns out to become a bottleneck because of the calls
     // to C++ via CEntry, we can choose to speed them up using a
     // similar mechanism that we use for the CallApiFunction stub,
@@ -281,10 +279,6 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // bubble up to Execution::TryRunMicrotasks() to shut it down.
     CallRuntime(Runtime::kRunMicrotaskCallback, microtask_context,
                 microtask_callback, microtask_data);
-
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    ClearContinuationPreservedEmbedderData();
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
     Goto(&done);
   }
@@ -304,10 +298,6 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         microtask, offsetof(PromiseResolveThenableJobTask, then_));
     const TNode<Object> thenable = LoadObjectField(
         microtask, offsetof(PromiseResolveThenableJobTask, thenable_));
-
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    SetupContinuationPreservedEmbedderData(microtask);
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
     RunAllPromiseHooks(PromiseHookType::kBefore, microtask_context,
                        CAST(promise_to_resolve));
@@ -335,14 +325,14 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunAllPromiseHooks(PromiseHookType::kAfter, microtask_context,
                        CAST(promise_to_resolve));
 
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    ClearContinuationPreservedEmbedderData();
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-
     Goto(&done);
 
     BIND(&if_exception);
     {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+      ClearContinuationPreservedEmbedderData();
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
       // Report unhandled microtask exceptions in respective native context.
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
@@ -364,10 +354,6 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         LoadObjectField(microtask, offsetof(PromiseReactionJobTask, handler_));
     const TNode<HeapObject> promise_or_capability = CAST(LoadObjectField(
         microtask, offsetof(PromiseReactionJobTask, promise_or_capability_)));
-
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    SetupContinuationPreservedEmbedderData(microtask);
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
     // Run the promise before/debug hook if enabled.
     RunAllPromiseHooks(PromiseHookType::kBefore, microtask_context,
@@ -397,14 +383,14 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunAllPromiseHooks(PromiseHookType::kAfter, microtask_context,
                        promise_or_capability);
 
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    ClearContinuationPreservedEmbedderData();
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-
     Goto(&done);
 
     BIND(&if_exception);
     {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+      ClearContinuationPreservedEmbedderData();
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
       // Report unhandled microtask exceptions in respective native context.
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
@@ -426,10 +412,6 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         LoadObjectField(microtask, offsetof(PromiseReactionJobTask, handler_));
     const TNode<HeapObject> promise_or_capability = CAST(LoadObjectField(
         microtask, offsetof(PromiseReactionJobTask, promise_or_capability_)));
-
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    SetupContinuationPreservedEmbedderData(microtask);
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
     // Run the promise before/debug hook if enabled.
     RunAllPromiseHooks(PromiseHookType::kBefore, microtask_context,
@@ -459,14 +441,14 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunAllPromiseHooks(PromiseHookType::kAfter, microtask_context,
                        promise_or_capability);
 
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    ClearContinuationPreservedEmbedderData();
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-
     Goto(&done);
 
     BIND(&if_exception);
     {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+      ClearContinuationPreservedEmbedderData();
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
       // Report unhandled microtask exceptions in respective native context.
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
@@ -489,13 +471,8 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         GetCreationContextUnchecked(generator);
     PrepareForContext(microtask_context, baseline_entered_context_count, &done);
 
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    SetupContinuationPreservedEmbedderData(microtask);
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-
     TVARIABLE(Object, var_exception);
     Label if_exception(this, Label::kDeferred);
-    Label clear_cped_and_done(this);
     Label kind_async_function_await(this);
     TNode<Smi> kind = LoadObjectField<Smi>(microtask, Traits::kKindOffset);
     GotoIf(SmiEqual(kind, SmiConstant(AsyncResumeTask::kAsyncFunctionAwait)),
@@ -515,7 +492,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
       CallBuiltin(Builtin::kAsyncGeneratorResumeNext, microtask_context,
                   generator);
     }
-    Goto(&clear_cped_and_done);
+    Goto(&done);
 
     // kAsyncFunctionAwait: resume the async function with kNext.
     BIND(&kind_async_function_await);
@@ -527,16 +504,14 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
       CallBuiltin(Builtin::kResumeGeneratorTrampoline, microtask_context, value,
                   generator);
     }
-    Goto(&clear_cped_and_done);
-
-    BIND(&clear_cped_and_done);
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    ClearContinuationPreservedEmbedderData();
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     Goto(&done);
 
     BIND(&if_exception);
     {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+      ClearContinuationPreservedEmbedderData();
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
       Goto(&done);
@@ -547,6 +522,11 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   Unreachable();
 
   BIND(&done);
+  {
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+    ClearContinuationPreservedEmbedderData();
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  }
 }
 
 void MicrotaskQueueBuiltinsAssembler::IncrementFinishedMicrotaskCount(
