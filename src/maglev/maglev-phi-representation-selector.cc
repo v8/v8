@@ -1114,16 +1114,43 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     return ProcessResult::kContinue;
   }
 
-  // The graph builder inserts 3 kind of Tagged->Int32 conversions that can have
-  // heap number as input: CheckedTruncateNumberToInt32, which truncates its
-  // input (and deopts if it's not a HeapNumber), TruncateNumberToInt32, which
-  // truncates its input (assuming that it's indeed a HeapNumber) and
-  // CheckedSmiTag, which deopts on non-smi inputs. The first 2 cannot deopt if
-  // we have Float64 phi and will happily truncate it, but the 3rd one should
-  // deopt if it cannot be converted without loss of precision.
-  bool conversion_is_truncating_float64 =
-      old_untagging->Is<TruncateCheckedNumberOrOddballToInt32>() ||
-      old_untagging->Is<TruncateUnsafeNumberOrOddballToInt32>();
+  // To be safe, GetOpcodeForConversion (called below) always return a
+  // conversion that deopts when converting a non-int32 float64 to int32 (eg,
+  // when attempting to convert 3.35 to int32). However, some Float64->Int32 and
+  // HoleyFloat64->Int32 conversions are truncating, and thus don't care about
+  // loss of precision. For such cases, we set
+  // {conversion_is_truncating_float64} to true, which will cause
+  // GetOpcodeForConversion to return a truncating conversion that doesn't deopt
+  // when losing precision.
+  bool conversion_is_truncating_float64 = false;
+  if (old_untagging->Is<TruncateUnsafeNumberOrOddballToInt32>()) {
+    conversion_is_truncating_float64 = true;
+  } else if (old_untagging->Is<TruncateCheckedNumberOrOddballToInt32>()) {
+    if (from_repr == ValueRepresentation::kFloat64) {
+      // If {from_repr} is Float64, then the "CheckedNumber" part is
+      // guaranteed to pass and this operation just truncates its value to
+      // Int32.
+      conversion_is_truncating_float64 = true;
+    } else {
+      DCHECK_EQ(from_repr, ValueRepresentation::kHoleyFloat64);
+      const auto* truncate =
+          old_untagging->Cast<TruncateCheckedNumberOrOddballToInt32>();
+      // A HoleyFloat64 hole really means Undefined rather than the_hole:
+      // whenever it gets rematerialized, it will always be rematerialized as
+      // Undefined. So, we can use a truncating conversion as long as the
+      // original ConversionType was allowing truncating Undefined.
+      switch (truncate->conversion_type()) {
+        case TaggedToFloat64ConversionType::kOnlyNumber:
+        case TaggedToFloat64ConversionType::kNumberOrBoolean:
+          // Need to deopt for Hole/Undefined ==> not truncating.
+          break;
+        case TaggedToFloat64ConversionType::kNumberOrUndefined:
+        case TaggedToFloat64ConversionType::kNumberOrOddball:
+          conversion_is_truncating_float64 = true;
+          break;
+      }
+    }
+  }
 
   Opcode needed_conversion = GetOpcodeForConversion(
       from_repr, to_repr, conversion_is_truncating_float64);
