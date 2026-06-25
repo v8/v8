@@ -401,9 +401,8 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
     case kF32: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      Register scratch2 = temps.Acquire();
       mov(scratch, Operand(value.to_f32_boxed().get_bits()));
-      MovIntToFloat(reg.fp(), scratch, scratch2);
+      MovIntToFloat(reg.fp(), scratch);
       break;
     }
     case kF64: {
@@ -1901,7 +1900,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     }
     case kExprI32SConvertF64:
     case kExprI32SConvertF32: {
-      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0));
       fcmpu(src.fp(), kScratchDoubleReg);
       bunordered(trap);
 
@@ -1926,7 +1925,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     }
     case kExprI64SConvertF64:
     case kExprI64SConvertF32: {
-      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0));
       fcmpu(src.fp(), kScratchDoubleReg);
       bunordered(trap);
 
@@ -1939,7 +1938,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     }
     case kExprI64UConvertF64:
     case kExprI64UConvertF32: {
-      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0));
       fcmpu(src.fp(), kScratchDoubleReg);
       bunordered(trap);
 
@@ -1953,7 +1952,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI32SConvertSatF64:
     case kExprI32SConvertSatF32: {
       Label done, src_is_nan;
-      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0));
       fcmpu(src.fp(), kScratchDoubleReg);
       bunordered(&src_is_nan);
 
@@ -1971,7 +1970,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI32UConvertSatF64:
     case kExprI32UConvertSatF32: {
       Label done, src_is_nan;
-      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0));
       fcmpu(src.fp(), kScratchDoubleReg);
       bunordered(&src_is_nan);
 
@@ -1989,7 +1988,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI64SConvertSatF64:
     case kExprI64SConvertSatF32: {
       Label done, src_is_nan;
-      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0));
       fcmpu(src.fp(), kScratchDoubleReg);
       bunordered(&src_is_nan);
 
@@ -2007,7 +2006,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI64UConvertSatF64:
     case kExprI64UConvertSatF32: {
       Label done, src_is_nan;
-      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0));
       fcmpu(src.fp(), kScratchDoubleReg);
       bunordered(&src_is_nan);
 
@@ -2031,7 +2030,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprF32ReinterpretI32: {
-      MovIntToFloat(dst.fp(), src.gp(), r0);
+      MovIntToFloat(dst.fp(), src.gp());
       return true;
     }
     case kExprF64ReinterpretI64: {
@@ -2653,7 +2652,7 @@ void LiftoffAssembler::emit_f32x4_extract_lane(LiftoffRegister dst,
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   F32x4ExtractLane(dst.fp(), lhs.simd128(), imm_lane_idx, kScratchSimd128Reg,
-                   r0, scratch);
+                   scratch);
 }
 
 void LiftoffAssembler::emit_i64x2_extract_lane(LiftoffRegister dst,

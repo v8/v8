@@ -699,15 +699,11 @@ inline void MaglevAssembler::Move(Register dst, int32_t i) {
   mov(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
-  TemporaryRegisterScope scope(this);
-  Register scratch = scope.AcquireScratch();
-  MacroAssembler::LoadDoubleLiteral(dst, base::Double(n), scratch);
+  MacroAssembler::LoadDoubleLiteral(dst, base::Double(n));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
-  TemporaryRegisterScope scope(this);
-  Register scratch = scope.AcquireScratch();
   MacroAssembler::LoadDoubleLiteral(
-      dst, base::Double(base::bit_cast<uint64_t, Float64>(n)), scratch);
+      dst, base::Double(base::bit_cast<uint64_t, Float64>(n)));
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   MacroAssembler::Move(dst, obj);
@@ -796,7 +792,7 @@ inline void MaglevAssembler::ToUint8Clamped(Register result,
   fcmpu(value, value);
   // Set to 0 if NaN.
   bunordered(min);
-  MacroAssembler::LoadDoubleLiteral(scratch, base::Double(255.0), r0);
+  MacroAssembler::LoadDoubleLiteral(scratch, base::Double(255.0));
   fcmpu(value, scratch);
   JumpIf(ge, max);
   // if value in [0, 255], then round up to the nearest.
@@ -1305,7 +1301,7 @@ inline void MaglevAssembler::CompareIntPtrAndBranch(
 inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Tagged<Smi> value,
                                                  Condition cond, Label* target,
                                                  Label::Distance distance) {
-  CmpSmiLiteral(r1, value, r0);
+  CmpSmiLiteral(r1, value);
   JumpIf(cond, target);
 }
 
@@ -1341,7 +1337,7 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register reg,
                                                     Label* target,
                                                     Label::Distance distance) {
   if (COMPRESS_POINTERS_BOOL) {
-    CmpSmiLiteral(reg, value, r0);
+    CmpSmiLiteral(reg, value);
   } else {
     Move(r0, value);
     CmpS64(reg, r0);
@@ -1375,7 +1371,7 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register src1,
 
 inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
     DoubleRegister reg, Label* target, Label::Distance distance) {
-  LoadDoubleLiteral(kDoubleRegZero, base::Double(0.0), r0);
+  LoadDoubleLiteral(kDoubleRegZero, base::Double(0.0));
   fcmpu(kDoubleRegZero, reg);
   JumpIf(eq, target);
   JumpIf(unordered, target);  // NaN check
@@ -1385,7 +1381,7 @@ inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
     MemOperand operand, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   DoubleRegister scratchDouble = temps.AcquireScratchDouble();
-  LoadDoubleLiteral(kDoubleRegZero, base::Double(0.0), r0);
+  LoadDoubleLiteral(kDoubleRegZero, base::Double(0.0));
   LoadF64(scratchDouble, operand);
   fcmpu(kDoubleRegZero, scratchDouble);
   JumpIf(eq, target);

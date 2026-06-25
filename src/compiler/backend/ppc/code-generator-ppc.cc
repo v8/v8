@@ -1950,28 +1950,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_DoubleInsertLowWord32:
-      __ InsertDoubleLow(i.OutputDoubleRegister(), i.InputRegister(1), r0);
+      __ InsertDoubleLow(i.OutputDoubleRegister(), i.InputRegister(1));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kPPC_DoubleInsertHighWord32:
-      __ InsertDoubleHigh(i.OutputDoubleRegister(), i.InputRegister(1), r0);
+      __ InsertDoubleHigh(i.OutputDoubleRegister(), i.InputRegister(1));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kPPC_DoubleConstruct:
       __ MovInt64ComponentsToDouble(i.OutputDoubleRegister(),
-                                    i.InputRegister(0), i.InputRegister(1), r0);
+                                    i.InputRegister(0), i.InputRegister(1));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kPPC_BitcastFloat32ToInt32:
       __ MovFloatToInt(i.OutputRegister(), i.InputDoubleRegister(0),
                        kScratchDoubleReg);
       break;
-    case kPPC_BitcastInt32ToFloat32: {
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ MovIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0), scratch);
+    case kPPC_BitcastInt32ToFloat32:
+      __ MovIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
-    }
     case kPPC_BitcastDoubleToInt64:
       __ MovDoubleToInt64(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
@@ -2621,12 +2618,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
-      Register scratch2 = temps.Acquire();
       switch (lane_size) {
         case 32: {
           __ F32x4ExtractLane(i.OutputDoubleRegister(),
                               i.InputSimd128Register(0), i.InputInt8(1),
-                              kScratchSimd128Reg, scratch, scratch2);
+                              kScratchSimd128Reg, scratch);
           break;
         }
         case 64: {
@@ -3706,7 +3702,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                   ? base::Double(static_cast<double>(src.ToFloat32()))
                   : base::Double(src.ToFloat64());
 #endif
-      __ LoadDoubleLiteral(dst, value, r0);
+      __ LoadDoubleLiteral(dst, value);
       if (destination->IsDoubleStackSlot()) {
         __ StoreF64(dst, g.ToMemOperand(destination));
       } else if (destination->IsFloatStackSlot()) {

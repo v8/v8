@@ -403,7 +403,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     // precondition here is: if maybe_target_code is an InstructionStream
     // object, it must NOT be marked_for_deoptimization (callers must ensure
     // this).
-    __ CmpSmiLiteral(maybe_target_code, Smi::zero(), r0);
+    __ CmpSmiLiteral(maybe_target_code, Smi::zero());
     __ bne(&jump_to_optimized_code);
   }
 
@@ -414,7 +414,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   }
 
   // If the code object is null, just return to the caller.
-  __ CmpSmiLiteral(r3, Smi::zero(), r0);
+  __ CmpSmiLiteral(r3, Smi::zero());
   __ bne(&jump_to_optimized_code);
   __ Ret();
 
@@ -675,7 +675,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Move(scratch, debug_hook);
   __ LoadU8(scratch, MemOperand(scratch));
   __ extsb(scratch, scratch);
-  __ CmpSmiLiteral(scratch, Smi::zero(), r0);
+  __ CmpSmiLiteral(scratch, Smi::zero());
   __ bne(&prepare_step_in_if_stepping);
 
   // Flood function if we need to continue stepping in the suspended generator.
@@ -761,7 +761,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // undefined because generator functions are non-constructable.
     __ mr(r6, r4);
     __ mr(r4, r7);
-    __ JumpJSFunction(r4, r0);
+    __ JumpJSFunction(r4);
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -843,7 +843,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     // Save callee-saved double registers.
     __ MultiPushDoubles(kCalleeSavedDoubles);
     // Set up the reserved register for 0.0.
-    __ LoadDoubleLiteral(kDoubleRegZero, base::Double(0.0), r0);
+    __ LoadDoubleLiteral(kDoubleRegZero, base::Double(0.0));
 
     // Initialize the root register.
     // C calling convention. The first argument is passed in r3.
