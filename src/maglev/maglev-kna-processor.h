@@ -226,8 +226,9 @@ class RecomputeKnownNodeAspectsProcessor {
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
     return known_node_aspects().GetOrCreateInfoFor(broker(), node);
   }
-  bool EnsureType(ValueNode* node, NodeType type) {
-    return known_node_aspects().EnsureType(broker(), node, type);
+
+  void RecordType(ValueNode* node, NodeType type) {
+    known_node_aspects().EnsureType(broker(), node, type);
   }
 
   void Merge(BasicBlock* block) {
@@ -247,7 +248,7 @@ class RecomputeKnownNodeAspectsProcessor {
 
 #define PROCESS_CHECK(Type)                             \
   ProcessResult ProcessNode(Check##Type* node) {        \
-    EnsureType(node->input_node(0), NodeType::k##Type); \
+    RecordType(node->input_node(0), NodeType::k##Type); \
     return ProcessResult::kContinue;                    \
   }
   PROCESS_CHECK(Smi)
@@ -261,11 +262,11 @@ class RecomputeKnownNodeAspectsProcessor {
   ProcessResult ProcessNode(CheckNumber* node) {
     switch (node->mode()) {
       case Object::Conversion::kToNumber:
-        EnsureType(node->input_node(0), NodeType::kNumber);
+        RecordType(node->input_node(0), NodeType::kNumber);
         break;
       case Object::Conversion::kToNumeric:
         // Smi, HeapNumber or BigInt.
-        EnsureType(node->input_node(0), NodeType::kNumeric);
+        RecordType(node->input_node(0), NodeType::kNumeric);
         break;
     }
     return ProcessResult::kContinue;
@@ -445,6 +446,12 @@ class RecomputeKnownNodeAspectsProcessor {
                                          known_node_aspects());
     merger.UpdateKnownNodeAspects(node->ObjectInput().node(),
                                   known_node_aspects());
+    return ProcessResult::kContinue;
+  }
+
+  template <typename Derived>
+  ProcessResult ProcessNode(AssumeTypeT<Derived>* node) {
+    RecordType(node->input_node(0), node->asserted_type());
     return ProcessResult::kContinue;
   }
 

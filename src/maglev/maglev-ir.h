@@ -221,7 +221,11 @@ class ExceptionHandlerInfo;
   V(TransitionAndStoreArrayElement)     \
   V(TurbofanStaticAssert)               \
   V(AssertPeeled)                       \
-  V(AssumeMap)
+  V(AssumeMap)                          \
+  V(AssumeTaggedType)                   \
+  V(AssumeInt32Type)                    \
+  V(AssumeUint32Type)                   \
+  V(AssumeFloat64Type)
 
 #define CONVERSION_NODE_LIST(V)         \
   V(ChangeInt32ToFloat64)               \
@@ -7708,6 +7712,63 @@ class AssumeMap : public FixedInputNodeT<1, AssumeMap> {
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
   const compiler::ZoneRefSet<Map> maps_;
+};
+
+template <class Derived>
+class AssumeTypeT : public FixedInputNodeT<1, Derived> {
+ public:
+  using Base = FixedInputNodeT<1, Derived>;
+
+  explicit AssumeTypeT(uint64_t bitfield, NodeType type)
+      : Base(bitfield), asserted_type_(type) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Pure();
+
+  NodeType asserted_type() const { return asserted_type_; }
+  auto options() const { return std::tuple{asserted_type_}; }
+
+ private:
+  const NodeType asserted_type_;
+};
+
+class AssumeTaggedType : public AssumeTypeT<AssumeTaggedType> {
+ public:
+  using AssumeTypeT<AssumeTaggedType>::AssumeTypeT;
+
+  DECLARE_UNOP(Tagged)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class AssumeInt32Type : public AssumeTypeT<AssumeInt32Type> {
+ public:
+  using AssumeTypeT<AssumeInt32Type>::AssumeTypeT;
+
+  DECLARE_UNOP(Int32)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class AssumeUint32Type : public AssumeTypeT<AssumeUint32Type> {
+ public:
+  using AssumeTypeT<AssumeUint32Type>::AssumeTypeT;
+
+  DECLARE_UNOP(Uint32)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class AssumeFloat64Type : public AssumeTypeT<AssumeFloat64Type> {
+ public:
+  using AssumeTypeT<AssumeFloat64Type>::AssumeTypeT;
+
+  DECLARE_UNOP(Float64)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
 class TurbofanStaticAssert : public FixedInputNodeT<1, TurbofanStaticAssert> {

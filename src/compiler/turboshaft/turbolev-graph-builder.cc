@@ -5667,6 +5667,13 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  template <typename Derived>
+  maglev::ProcessResult Process(maglev::AssumeTypeT<Derived>* node,
+                                const maglev::ProcessingState&) {
+    // Turboshaft doesn't track node types.
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::TurbofanStaticAssert* node,
                                 const maglev::ProcessingState&) {
     V<Word32> condition = __ TaggedEqual(

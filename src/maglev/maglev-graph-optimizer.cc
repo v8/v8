@@ -989,6 +989,26 @@ ProcessResult MaglevGraphOptimizer::VisitAssumeMap(AssumeMap*,
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitAssumeTaggedType(
+    AssumeTaggedType*, const ProcessingState&) {
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitAssumeInt32Type(
+    AssumeInt32Type*, const ProcessingState&) {
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitAssumeUint32Type(
+    AssumeUint32Type*, const ProcessingState&) {
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitAssumeFloat64Type(
+    AssumeFloat64Type*, const ProcessingState&) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitTurbofanStaticAssert(
     TurbofanStaticAssert*, const ProcessingState&) {
   return ProcessResult::kContinue;

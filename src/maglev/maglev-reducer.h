@@ -1349,7 +1349,39 @@ class MaglevReducer {
   }
 
   void RecordType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
-    USE(EnsureType(node, type, old));
+    // For Turbolev, we insert an AssumeType node when recording a previously
+    // not-known type so that the GraphOptimizer (and in particular the KNA
+    // processor) can also be aware of this type when non-eagerly reoptimizing
+    // the graph later.
+    if (const bool already_known = EnsureType(node, type, old);
+        already_known || !is_turbolev()) {
+      return;
+    }
+    if (const auto* virtual_object = node->TryCast<VirtualObject>()) {
+      if (!virtual_object->allocation()) {
+        return;
+      }
+      node = virtual_object->allocation();
+    }
+
+    switch (node->value_representation()) {
+      case ValueRepresentation::kTagged:
+        AddNewNodeNoInputConversion<AssumeTaggedType>({node}, type);
+        break;
+      case ValueRepresentation::kInt32:
+        AddNewNodeNoInputConversion<AssumeInt32Type>({node}, type);
+        break;
+      case ValueRepresentation::kUint32:
+        AddNewNodeNoInputConversion<AssumeUint32Type>({node}, type);
+        break;
+      case ValueRepresentation::kFloat64:
+        AddNewNodeNoInputConversion<AssumeFloat64Type>({node}, type);
+        break;
+      default:
+        // If you ever run into the UNREACHABLE below, you might need to add a
+        // new `Assume` operation.
+        UNREACHABLE();
+    }
   }
 
   bool IsEmptyNodeType(NodeType type) {
