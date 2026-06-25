@@ -41,7 +41,7 @@
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/hole.h"
 #include "src/objects/instance-type-checker.h"
-#include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
+#include "src/objects/js-proxy.h"
 #include "src/objects/keys.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/map-word-inl.h"
@@ -178,7 +178,6 @@ DEF_CAST_TRAITS(JSAPIObjectWithEmbedderSlots)
 DEF_CAST_TRAITS(JSObjectWithEmbedderSlots)
 DEF_CAST_TRAITS(JSPrimitiveWrapper)
 DEF_CAST_TRAITS(JSPromise)
-DEF_CAST_TRAITS(JSProxy)
 DEF_CAST_TRAITS(JSRabGsabDataView)
 DEF_CAST_TRAITS(JSRawJson)
 DEF_CAST_TRAITS(JSReceiver)

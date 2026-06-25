@@ -5,6 +5,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

@@ -105,6 +105,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/managed-inl.h"

@@ -36,6 +36,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/megadom-handler.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"

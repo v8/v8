@@ -18,6 +18,7 @@
 #include "src/objects/elements-inl.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
