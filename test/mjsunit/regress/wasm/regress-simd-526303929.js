@@ -119,10 +119,10 @@ for (let i = 0; i < 512; i++) {
 
 // Compute expected values before the call overwrites memory.
 // Each i32 lane = original_i32_value + 1.
-const mem32 = new Int32Array(instance.exports.memory.buffer);
+const view = new DataView(instance.exports.memory.buffer);
 const expected = new Int32Array(128);  // 16 pairs * 4 lanes * 2 = 128 i32s
 for (let i = 0; i < 128; i++) {
-  expected[i] = mem32[i] + 1;
+  expected[i] = view.getInt32(i * 4, true) + 1;
 }
 
 // This should not crash with a DCHECK failure
@@ -131,5 +131,5 @@ assertEquals(42, result);
 
 // Verify the stored values are correct.
 for (let i = 0; i < 128; i++) {
-  assertEquals(expected[i], mem32[i]);
+  assertEquals(expected[i], view.getInt32(i * 4, true));
 }
