@@ -8435,13 +8435,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   }
 
   // Elide the callable check if the node is known callable.
-  if (!reducer_.EnsureType(callback, NodeType::kCallable)) {
+  if (!reducer_.CheckType(callback, NodeType::kCallable)) {
     // ThrowIfNotCallable is wrapped in a lazy_deopt_scope to make sure the
     // exception has the right call stack.
     const auto& lazy_deopt_frame_scope = get_lazy_deopt_scope(
         target, receiver, callback, this_arg, GetSmiConstant(0),
         GetSmiConstant(0), original_length);
     AddNewNodeNoInputConversion<ThrowIfNotCallable>({callback});
+    reducer_.RecordType(callback, NodeType::kCallable);
   }
 
   ValueNode* original_length_int32;
