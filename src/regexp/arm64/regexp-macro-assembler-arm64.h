@@ -63,6 +63,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
                            int bounds_check_offset, Label* on_match,
                            Label* on_no_match) override;
   bool SkipUntilBitInTableUseSimd(int advance_by) override;
+  bool SkipUntilCharAndUseSimd(int advance_by) override;
+  void SkipUntilCharAndSimd(int cp_offset, int advance_by, unsigned character,
+                            unsigned mask, int bounds_check_offset,
+                            Label* on_match, Label* on_no_match) override;
   void SkipUntilOneOfMasked(int cp_offset, int advance_by, unsigned both_chars,
                             unsigned both_mask, int max_offset, unsigned chars1,
                             unsigned mask1, unsigned chars2, unsigned mask2,

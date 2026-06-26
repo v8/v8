@@ -340,11 +340,21 @@ void RegExpMacroAssembler::SkipUntilCharAnd(int cp_offset, int advance_by,
                                             int bounds_check_offset,
                                             Label* on_match,
                                             Label* on_no_match) {
+  auto emit_scalar_check = [&]() {
+    LoadCurrentCharacter(cp_offset, on_no_match, true, 1, bounds_check_offset);
+    CheckCharacterAfterAnd(character, mask, on_match);
+    AdvanceCurrentPosition(advance_by);
+  };
+  if (SkipUntilCharAndUseSimd(advance_by)) {
+    // Scalar check for the first position to avoid SIMD setup overhead if we
+    // find a potential match immediately.
+    emit_scalar_check();
+    SkipUntilCharAndSimd(cp_offset, advance_by, character, mask,
+                         bounds_check_offset, on_match, on_no_match);
+  }
   Label loop;
   Bind(&loop);
-  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, bounds_check_offset);
-  CheckCharacterAfterAnd(character, mask, on_match);
-  AdvanceCurrentPosition(advance_by);
+  emit_scalar_check();
   GoTo(&loop);
 }
 

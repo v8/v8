@@ -803,6 +803,74 @@ bool RegExpMacroAssemblerARM64::SkipUntilBitInTableUseSimd(int advance_by) {
   return v8_flags.regexp_simd && advance_by * char_size() == 1;
 }
 
+bool RegExpMacroAssemblerARM64::SkipUntilCharAndUseSimd(int advance_by) {
+  return v8_flags.regexp_simd && advance_by == 1;
+}
+
+void RegExpMacroAssemblerARM64::SkipUntilCharAndSimd(
+    int cp_offset, int advance_by, unsigned character, unsigned mask,
+    int bounds_check_offset, Label* on_match, Label* on_no_match) {
+  Label scalar, simd_loop, found;
+  static constexpr int kVectorSize = 16;
+  const int kCharsPerVector = kVectorSize / char_size();
+
+  // Hoist bounds check.
+  static constexpr int kCheckPositionOffset = -1;
+  const int check_offset =
+      bounds_check_offset + kCharsPerVector + kCheckPositionOffset;
+  CheckPosition(check_offset, &scalar);
+
+  // Load constants.
+  VRegister char_vec = v0;
+  VRegister mask_vec = v1;
+  if (char_size() == 1) {
+    __ Movi(char_vec.V16B(), character & char_mask());
+    __ Movi(mask_vec.V16B(), mask & char_mask());
+  } else {
+    __ Movi(char_vec.V8H(), character & char_mask());
+    __ Movi(mask_vec.V8H(), mask & char_mask());
+  }
+
+  __ Bind(&simd_loop);
+  // Load next characters into vector.
+  VRegister input_vec = v2;
+  __ Add(x8, input_end(), Operand(current_input_offset(), SXTW));
+  __ Add(x8, x8, cp_offset * char_size());
+  __ Ld1(input_vec.V16B(), MemOperand(x8));
+
+  // Extract matched characters using mask.
+  VRegister temp_vec = v3;
+  __ And(temp_vec.V16B(), mask_vec.V16B(), input_vec.V16B());
+
+  // Compare characters.
+  if (char_size() == 1) {
+    __ Cmeq(temp_vec.V16B(), temp_vec.V16B(), char_vec.V16B());
+  } else {
+    __ Cmeq(temp_vec.V8H(), temp_vec.V8H(), char_vec.V8H());
+  }
+
+  // Narrow the result to 64 bit.
+  VRegister result_vec = v4;
+  __ Shrn(result_vec.V8B(), temp_vec.V8H(), 4 * char_size());
+  __ Umov(x9, result_vec.V1D(), 0);
+  __ Cbnz(x9, &found);
+
+  AdvanceCurrentPosition(kCharsPerVector);
+  CheckPosition(check_offset, &scalar);
+  __ B(&simd_loop);
+
+  // Match found. Calculate index and jump to on_match.
+  __ Bind(&found);
+  __ Rbit(x8, x9);
+  __ Clz(x8, x8);
+  __ Lsr(x8, x8, 2);
+  __ Add(current_input_offset(), current_input_offset(), w8);
+  LoadCurrentCharacterUnchecked(cp_offset, 1);
+  __ B(on_match);
+
+  __ Bind(&scalar);
+}
+
 void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked(
     int cp_offset, int advance_by, unsigned both_chars, unsigned both_mask,
     int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,

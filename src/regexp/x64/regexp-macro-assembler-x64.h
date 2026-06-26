@@ -59,6 +59,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
                            int bounds_check_offset, Label* on_match,
                            Label* on_no_match) override;
   bool SkipUntilBitInTableUseSimd(int advance_by) override;
+  bool SkipUntilCharAndUseSimd(int advance_by) override;
+  void SkipUntilCharAndSimd(int cp_offset, int advance_by, unsigned character,
+                            unsigned mask, int bounds_check_offset,
+                            Label* on_match, Label* on_no_match) override;
   void SkipUntilOneOfMasked(int cp_offset, int advance_by, unsigned both_chars,
                             unsigned both_mask, int max_offset, unsigned chars1,
                             unsigned mask1, unsigned chars2, unsigned mask2,
@@ -304,6 +308,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
       int cp_offset, int advance_by, Handle<ByteArray> nibble_table_handle,
       int bounds_check_offset, Label* scalar_fallback,
       base::FunctionRef<void(Register, Register)> on_match);
+  void SplatToXMM(XMMRegister dst, uint64_t splat_value, Register scratch);
+  void SplatCharactersToXMM(XMMRegister dst, uint32_t value,
+                            int character_count, Register scratch);
 
   Isolate* isolate() const { return masm_.isolate(); }
 

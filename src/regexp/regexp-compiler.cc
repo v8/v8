@@ -3001,7 +3001,6 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   constexpr uint32_t kNoChar = 0xffffffff;
   uint32_t char_one = kNoChar;
   uint32_t char_two = kNoChar;
-  bool use_simd = masm->SkipUntilBitInTableUseSimd(1);
   for (int i = min_lookahead; i <= max_lookahead; i++) {
     BoyerMoorePositionInfo* map = bitmaps_->at(i);
     if (map->map_count() == 0) {
@@ -3049,9 +3048,11 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
     return;
   }
 
-  if (found_single_position && !use_simd) {
-    // TODO(pthier): Add vectorized version. At that point we will want
-    // to remove the ' && !use_simd' above.
+  // TODO(pthier): Remove condition once all architectures that support SIMD for
+  // SkipUntilBitInTable also support SkipUntilCharAnd (RISCV missing).
+  const bool use_char_and_simd =
+      masm->SkipUntilCharAndUseSimd(1) || !masm->SkipUntilBitInTableUseSimd(1);
+  if (found_single_position && use_char_and_simd) {
     DCHECK(max_char_ > kSize);  // This means we will have to do the 'and'.
 
     Label cont;

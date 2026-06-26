@@ -56,6 +56,9 @@ class RegExpMacroAssemblerTracer : public RegExpMacroAssembler {
   bool SkipUntilBitInTableUseSimd(int advance_by) override {
     return assembler_->SkipUntilBitInTableUseSimd(advance_by);
   }
+  bool SkipUntilCharAndUseSimd(int advance_by) override {
+    return assembler_->SkipUntilCharAndUseSimd(advance_by);
+  }
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                            Handle<ByteArray> nibble_table, int advance_by,
                            int bounds_check_offset, Label* on_match,

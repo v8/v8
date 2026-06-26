@@ -134,6 +134,13 @@ class RegExpMacroAssembler {
                                 unsigned character, unsigned mask,
                                 int bounds_check_offset, Label* on_match,
                                 Label* on_no_match);
+  virtual bool SkipUntilCharAndUseSimd(int advance_by) { return false; }
+  virtual void SkipUntilCharAndSimd(int cp_offset, int advance_by,
+                                    unsigned character, unsigned mask,
+                                    int bounds_check_offset, Label* on_match,
+                                    Label* on_no_match) {
+    UNREACHABLE();
+  }
   virtual void SkipUntilChar(int cp_offset, int advance_by, unsigned character,
                              int bounds_check_offset, Label* on_match,
                              Label* on_no_match);
@@ -351,6 +358,10 @@ class RegExpMacroAssembler {
     static_assert(static_cast<int>(Mode::LATIN1) == sizeof(uint8_t));
     static_assert(static_cast<int>(Mode::UC16) == sizeof(uint16_t));
     return static_cast<int>(mode());
+  }
+
+  inline uint32_t char_mask() const {
+    return mode() == LATIN1 ? 0xffU : 0xffffU;
   }
 
   bool has_backtrack_limit() const;
