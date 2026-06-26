@@ -145,6 +145,7 @@ export class TurboshaftGraphPhase extends Phase {
       }
     }
     for (const block of this.blockIdToBlockMap) {
+      if (!block) continue;
       block.initCollapsedLabel();
     }
   }

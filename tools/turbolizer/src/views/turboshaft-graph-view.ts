@@ -820,6 +820,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
       const components = this.id.split(",");
       if (components[0] === "ob") {
         const from = view.graph.blockMap[components[1]];
+        if (!from) return;
         const x = from.getOutputX();
         const y = from.getHeight(view.nodesCustomDataShowed(), view.state?.compactView) + C.DEFAULT_NODE_BUBBLE_RADIUS;
         this.setAttribute("transform", `translate(${x},${y})`);
@@ -989,7 +990,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
 
   // Hotkeys handlers
   private selectAllNodes(): void {
-    this.nodeSelectionHandler.select(this.graph.nodeMap, true, false);
+    this.nodeSelectionHandler.select([...this.graph.nodes()], true, false);
     this.updateGraphVisibility();
   }
 
@@ -1009,7 +1010,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
 
     if (usedBlocks.size == 0) return;
 
-    for (const block of this.graph.blockMap) {
+    for (const block of this.graph.blocks()) {
       block.collapsed = !usedBlocks.has(block);
     }
 
