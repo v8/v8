@@ -49,13 +49,12 @@
 #include "src/objects/object-list-macros.h"
 #include "src/objects/object-predicates-inl.h"
 #include "src/objects/oddball-inl.h"
-#include "src/objects/property-details.h"
+#include "src/objects/property-details-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/regexp-match-info-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
-#include "src/objects/slots.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/tagged-impl-inl.h"
@@ -68,7 +67,6 @@
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/isolate-inl.h"
-#include "src/sandbox/isolate.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -81,20 +79,6 @@ template <typename T>
 class Managed;
 template <typename T>
 class TrustedManaged;
-
-PropertyDetails::PropertyDetails(Tagged<Smi> smi) { value_ = smi.value(); }
-
-Tagged<Smi> PropertyDetails::AsSmi() const {
-  // Ensure the upper 2 bits have the same value by sign extending it. This is
-  // necessary to be able to use the 31st bit of the property details.
-  int value = value_ << 1;
-  return Smi::FromInt(value >> 1);
-}
-
-int PropertyDetails::field_width_in_words() const {
-  DCHECK_EQ(location(), PropertyLocation::kField);
-  return 1;
-}
 
 // TODO(jkummerow): Most DEF_CAST_TRAITS(Foo) macro invocations should move to
 // wherever `IsFoo(Tagged<HeapObject>)` is defined.

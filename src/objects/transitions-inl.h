@@ -14,6 +14,7 @@
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/property-details-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 

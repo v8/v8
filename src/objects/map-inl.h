@@ -24,6 +24,7 @@
 #include "src/objects/literal-objects.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/object-predicates-inl.h"
+#include "src/objects/property-details-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"
 #include "src/objects/shared-function-info-inl.h"

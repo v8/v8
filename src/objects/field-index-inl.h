@@ -11,7 +11,7 @@
 #include "src/ic/handler-configuration.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/map-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/property-details-inl.h"
 #include "src/objects/tagged-field.h"
 
 namespace v8 {
