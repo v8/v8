@@ -676,7 +676,6 @@ TEST_F(BytecodeVerifierTest, WritingToSpecialRegister) {
                             "Invalid write to special register");
 }
 
-#if V8_ENABLE_WEBASSEMBLY
 class BytecodeVerifierForbiddenRuntimeFunctionTest
     : public BytecodeVerifierTest,
       public ::testing::WithParamInterface<Runtime::FunctionId> {};
@@ -711,11 +710,14 @@ TEST_P(BytecodeVerifierForbiddenRuntimeFunctionTest, Basic) {
                             "Disallowed runtime function");
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    BytecodeVerifierTest, BytecodeVerifierForbiddenRuntimeFunctionTest,
-    ::testing::Values(Runtime::kTrapHandlerThrowWasmError,
-                      Runtime::kWasmAllocateFeedbackVector));
+INSTANTIATE_TEST_SUITE_P(BytecodeVerifierTest,
+                         BytecodeVerifierForbiddenRuntimeFunctionTest,
+                         ::testing::Values(
+#if V8_ENABLE_WEBASSEMBLY
+                             Runtime::kTrapHandlerThrowWasmError,
+                             Runtime::kWasmAllocateFeedbackVector,
 #endif
+                             Runtime::kLoadLookupSlotForCall_Baseline));
 
 TEST_F(BytecodeVerifierTest, ExtraWideJumpLoopToOverflowedOffset) {
   Isolate* isolate = i_isolate();

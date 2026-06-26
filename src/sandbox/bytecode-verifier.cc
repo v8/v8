@@ -276,6 +276,12 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
   if (!v8_flags.fuzzing) return true;
 
   switch (id) {
+    case Runtime::kLoadLookupSlotForCall_Baseline:
+    case Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug:
+    case Runtime::kBytecodeBudgetInterrupt_Sparkplug:
+    case Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev:
+    case Runtime::kBytecodeBudgetInterrupt_Maglev:
+      return false;
 #if V8_ENABLE_WEBASSEMBLY
 #define CASE_WASM_INTRINSIC(Name, ...) case Runtime::k##Name:
 #define CASE_WASM_INTRINSIC_INLINE(Name, ...) case Runtime::kInline##Name:
