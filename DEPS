@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '749b66f8aea73f93b05f62b09dd752384415e514',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'af8df860bc33180269727bb1ff5e1bc4238a7020',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0d39be5a3f129cf1f35e7812108a2184e2193315',
   'buildtools/linux64': {
@@ -521,7 +521,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '6d4cc553beb96326ccdd3c539f67a1422acf1b5e',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'fd308f38c9977881d4495db0513b8c59f5921150',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '707a5590ce6eeaeb15aad07650345fad2ff6f430',
   'third_party/re2/src':
@@ -531,41 +531,41 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'ea0870c6945849fb7eba08f8248d0282482f0d46',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'f6e61282b0e736cc0a72ef83b6d211bb3ebccf81',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'faefd1b6fa9eeb033ad6fe60368ccb9bf908cbd0',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '334c64622860367b4990a1195082802dfb216c13',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '403633f02c7226e79260bb1e528490cbf3270b7f',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
     'objects': [
       {
-        'object_name': 'Linux_x64/rust-toolchain-b998449636a48e2c4a362809085b600a0174e1f2-1-llvmorg-23-init-19482-g53d18800.tar.xz',
-        'sha256sum': '4a6d0bf003de8074d30bc9f42a212fd714e6a35435976036c95b78a34a535080',
-        'size_bytes': 274809028,
-        'generation': 1781627372707023,
+        'object_name': 'Linux_x64/rust-toolchain-b998449636a48e2c4a362809085b600a0174e1f2-2-llvmorg-23-init-19482-g53d18800.tar.xz',
+        'sha256sum': '88db954bdbaea527bebf832758d6ff8193eb214877b4eef362e97701d64c0b54',
+        'size_bytes': 274790504,
+        'generation': 1782418940816837,
         'condition': 'host_os == "linux"',
       },
       {
-        'object_name': 'Mac/rust-toolchain-b998449636a48e2c4a362809085b600a0174e1f2-1-llvmorg-23-init-19482-g53d18800.tar.xz',
-        'sha256sum': 'f0b000767832e659d72785935c001c8e96f433c72d3cbe5215e43bbd47fb8faf',
-        'size_bytes': 262360932,
-        'generation': 1781627375014766,
+        'object_name': 'Mac/rust-toolchain-b998449636a48e2c4a362809085b600a0174e1f2-2-llvmorg-23-init-19482-g53d18800.tar.xz',
+        'sha256sum': '728aaa01b049cd5252915db4ed8a7492955b3d5d3939990f18e6b085cf8ad4ad',
+        'size_bytes': 262355184,
+        'generation': 1782418942567956,
         'condition': 'host_os == "mac" and host_cpu == "x64"',
       },
       {
-        'object_name': 'Mac_arm64/rust-toolchain-b998449636a48e2c4a362809085b600a0174e1f2-1-llvmorg-23-init-19482-g53d18800.tar.xz',
-        'sha256sum': '958f989ef4e9c43dd6713f076d96b15d717e0def04f40b52cb4b5ce98ece45ba',
-        'size_bytes': 246810984,
-        'generation': 1781627377394465,
+        'object_name': 'Mac_arm64/rust-toolchain-b998449636a48e2c4a362809085b600a0174e1f2-2-llvmorg-23-init-19482-g53d18800.tar.xz',
+        'sha256sum': '00a11ecce7cebc2ce777518e6e51a150d980dd5f41392200b65f543767536b56',
+        'size_bytes': 246777680,
+        'generation': 1782418944301166,
         'condition': 'host_os == "mac" and host_cpu == "arm64"',
       },
       {
-        'object_name': 'Win/rust-toolchain-b998449636a48e2c4a362809085b600a0174e1f2-1-llvmorg-23-init-19482-g53d18800.tar.xz',
-        'sha256sum': '9077b36a5df61a74620c9f1d6a36c13140646d72fb546d718e540579ff1da1ae',
-        'size_bytes': 416002544,
-        'generation': 1781627379956854,
+        'object_name': 'Win/rust-toolchain-b998449636a48e2c4a362809085b600a0174e1f2-2-llvmorg-23-init-19482-g53d18800.tar.xz',
+        'sha256sum': '482c5a8946869aae595adc7361b619e8af62dc002cd8f3a00b27fe59db4d74f3',
+        'size_bytes': 415939796,
+        'generation': 1782418946203516,
         'condition': 'host_os == "win"',
       },
     ],
