@@ -2365,14 +2365,12 @@ class AssemblerOpInterface : public Next {
         TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kBigInt));
   }
 
-  V<Word> TruncateJSPrimitiveToUntaggedOrDeopt(
+  V<Word32> TruncateJSPrimitiveToWord32OrDeopt(
       V<JSPrimitive> object, V<EagerFrameState> frame_state,
-      TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
-      TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement
-          input_requirement,
+      TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement input_requirement,
       const FeedbackSource& feedback) {
-    return ReduceIfReachableTruncateJSPrimitiveToUntaggedOrDeopt(
-        object, frame_state, kind, input_requirement, feedback);
+    return ReduceIfReachableTruncateJSPrimitiveToWord32OrDeopt(
+        object, frame_state, input_requirement, feedback);
   }
 
   V<Object> ConvertJSPrimitiveToObject(V<JSPrimitive> value,

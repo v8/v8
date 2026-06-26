@@ -255,7 +255,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(ConvertUntaggedToJSPrimitive)               \
   V(ConvertWordToSmiOrDeopt)                    \
   V(TruncateJSPrimitiveToUntagged)              \
-  V(TruncateJSPrimitiveToUntaggedOrDeopt)       \
+  V(TruncateJSPrimitiveToWord32OrDeopt)         \
   V(DoubleArrayMinMax)                          \
   V(EnsureWritableFastElements)                 \
   V(FastApiCall)                                \
@@ -5727,24 +5727,16 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
 
 DEFINE_MULTI_SWITCH_INTEGRAL(TruncateJSPrimitiveToUntaggedOp::UntaggedKind, 4)
 
-struct TruncateJSPrimitiveToUntaggedOrDeoptOp
-    : FixedArityOperationT<2, TruncateJSPrimitiveToUntaggedOrDeoptOp> {
-  enum class UntaggedKind : uint8_t {
-    kInt32,
-  };
+struct TruncateJSPrimitiveToWord32OrDeoptOp
+    : FixedArityOperationT<2, TruncateJSPrimitiveToWord32OrDeoptOp> {
   using InputRequirement =
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind;
-  UntaggedKind kind;
   InputRequirement input_requirement;
   FeedbackSource feedback;
 
   static constexpr OpEffects effects = OpEffects().CanDeopt();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    switch (kind) {
-      case UntaggedKind::kInt32:
         return RepVector<RegisterRepresentation::Word32()>();
-    }
-    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -5757,24 +5749,19 @@ struct TruncateJSPrimitiveToUntaggedOrDeoptOp
     return Base::input<EagerFrameState>(1);
   }
 
-  TruncateJSPrimitiveToUntaggedOrDeoptOp(V<JSPrimitive> input,
-                                         V<EagerFrameState> frame_state,
-                                         UntaggedKind kind,
-                                         InputRequirement input_requirement,
-                                         const FeedbackSource& feedback)
+  TruncateJSPrimitiveToWord32OrDeoptOp(V<JSPrimitive> input,
+                                       V<EagerFrameState> frame_state,
+                                       InputRequirement input_requirement,
+                                       const FeedbackSource& feedback)
       : Base(input, frame_state),
-        kind(kind),
         input_requirement(input_requirement),
         feedback(feedback) {}
   void Validate(const Graph& graph) const {
     DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
   }
 
-  auto options() const { return std::tuple{kind, input_requirement, feedback}; }
+  auto options() const { return std::tuple{input_requirement, feedback}; }
 };
-V8_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind);
 
 struct ConvertJSPrimitiveToObjectOp
     : FixedArityOperationT<3, ConvertJSPrimitiveToObjectOp> {

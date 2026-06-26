@@ -1851,14 +1851,10 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Word> REDUCE(TruncateJSPrimitiveToUntaggedOrDeopt)(
+  V<Word> REDUCE(TruncateJSPrimitiveToWord32OrDeopt)(
       V<JSPrimitive> input, V<EagerFrameState> frame_state,
-      TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
-      TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement
-          input_requirement,
+      TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement input_requirement,
       const FeedbackSource& feedback) {
-    DCHECK_EQ(kind,
-              TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32);
     Label<Word32> done(this);
     // In the Smi case, just convert to int32.
     GOTO_IF(LIKELY(__ ObjectIsSmi(input)), done,

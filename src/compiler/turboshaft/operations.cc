@@ -1590,16 +1590,6 @@ std::ostream& operator<<(
   UNREACHABLE();
 }
 
-std::ostream& operator<<(
-    std::ostream& os,
-    TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind) {
-  switch (kind) {
-    case TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32:
-      return os << "Int32";
-  }
-  UNREACHABLE();
-}
-
 std::ostream& operator<<(std::ostream& os, NewArrayOp::Kind kind) {
   switch (kind) {
     case NewArrayOp::Kind::kDouble:

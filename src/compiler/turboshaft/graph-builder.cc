@@ -1167,7 +1167,7 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kCheckedTruncateTaggedToWord32:
       DCHECK(dominating_frame_state.valid());
-      using IR = TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement;
+      using IR = TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement;
       IR input_requirement;
       switch (CheckTaggedInputParametersOf(node->op()).mode()) {
         case CheckTaggedInputMode::kAdditiveSafeInteger:
@@ -1183,10 +1183,8 @@ OpIndex GraphBuilder::Process(
           input_requirement = IR::kNumberOrOddball;
           break;
       }
-      return __ TruncateJSPrimitiveToUntaggedOrDeopt(
-          Map(node->InputAt(0)), dominating_frame_state,
-          TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32,
-          input_requirement,
+      return __ TruncateJSPrimitiveToWord32OrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state, input_requirement,
           CheckTaggedInputParametersOf(node->op()).feedback());
 
 #define CHANGE_OR_DEOPT_INT_CASE(kind)                                     \
