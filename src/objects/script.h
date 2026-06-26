@@ -414,6 +414,8 @@ V8_OBJECT class Script : public Struct {
 } V8_OBJECT_END;
 
 V8_EXPORT_PRIVATE const char* ToString(Script::Type type);
+V8_EXPORT_PRIVATE const char* ToString(Script::CompilationType type);
+V8_EXPORT_PRIVATE const char* ToString(Script::CompilationState type);
 
 }  // namespace internal
 }  // namespace v8

@@ -6,6 +6,7 @@
 
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/script-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator.h"
 #include "test/unittests/profiler/heap-snapshot-utils.h"
@@ -603,5 +604,99 @@ TEST_F(HeapSnapshotSharedHeapTest, MainIsolateSnapshot) {
 }
 #endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL &&
         // !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
+
+TEST_F(HeapSnapshotTest, ScriptMetadata) {
+  v8::HandleScope handle_scope(v8_isolate());
+
+  // Compile a script.
+  v8::Local<v8::String> source = NewString("var a = 1;");
+  v8::ScriptOrigin origin(NewString("test-script.js"));
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(context(), source, &origin).ToLocalChecked();
+  script->Run(context()).ToLocalChecked();
+
+  // Get internal Script object.
+  DirectHandle<JSFunction> fun =
+      i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*script));
+  DirectHandle<Script> i_script(i::Cast<i::Script>(fun->shared()->script()),
+                                i_isolate());
+
+  const char* bool_edges[] = {
+      "is_repl_mode",
+#if V8_ENABLE_WEBASSEMBLY
+      "break_on_entry",
+#endif
+      "produce_compile_hints",
+      "deserialized",
+      "origin_is_shared_cross_origin",
+      "origin_is_opaque",
+      "origin_is_wasm",
+      "origin_is_module",
+  };
+
+  // 1. Verify default values (mostly false, state is compiled).
+  {
+    HeapSnapshot* snapshot = TakeHeapSnapshot();
+    const HeapEntry* script_entry =
+        GetEntryFor(i_isolate(), snapshot, *i_script);
+    ASSERT_NE(nullptr, script_entry);
+
+    // Default state should be compiled.
+    std::optional<int> compilation_state =
+        GetIntEdge(script_entry, "compilation_state");
+    ASSERT_TRUE(compilation_state.has_value());
+    EXPECT_EQ(static_cast<int>(Script::CompilationState::kCompiled),
+              compilation_state.value());
+
+    const HeapGraphEdge* state_name_edge =
+        GetNamedEdge(*script_entry, "compilation_state_name");
+    ASSERT_NE(nullptr, state_name_edge);
+    EXPECT_EQ(std::string("compiled"), state_name_edge->to()->name());
+
+    // Defaults should be false.
+    for (const char* edge_name : bool_edges) {
+      std::optional<bool> val = GetBoolEdge(script_entry, edge_name);
+      ASSERT_TRUE(val.has_value()) << "Edge not found: " << edge_name;
+      EXPECT_FALSE(val.value()) << "Edge is true by default: " << edge_name;
+    }
+  }
+
+  // Set metadata flags.
+  i_script->set_compilation_state(Script::CompilationState::kInitial);
+  i_script->set_is_repl_mode(true);
+#if V8_ENABLE_WEBASSEMBLY
+  i_script->set_break_on_entry(true);
+#endif
+  i_script->set_produce_compile_hints(true);
+  i_script->set_deserialized(true);
+  i_script->set_origin_options(v8::ScriptOriginOptions(true, true, true, true));
+
+  // 2. Verify modified values (true, state is initial).
+  {
+    HeapSnapshot* snapshot = TakeHeapSnapshot();
+    const HeapEntry* script_entry =
+        GetEntryFor(i_isolate(), snapshot, *i_script);
+    ASSERT_NE(nullptr, script_entry);
+
+    // Verify compilation_state is "initial"
+    std::optional<int> compilation_state =
+        GetIntEdge(script_entry, "compilation_state");
+    ASSERT_TRUE(compilation_state.has_value());
+    EXPECT_EQ(static_cast<int>(Script::CompilationState::kInitial),
+              compilation_state.value());
+
+    const HeapGraphEdge* state_name_edge =
+        GetNamedEdge(*script_entry, "compilation_state_name");
+    ASSERT_NE(nullptr, state_name_edge);
+    EXPECT_EQ(std::string("initial"), state_name_edge->to()->name());
+
+    // Verify booleans are true.
+    for (const char* edge_name : bool_edges) {
+      std::optional<bool> val = GetBoolEdge(script_entry, edge_name);
+      ASSERT_TRUE(val.has_value()) << "Edge not found: " << edge_name;
+      EXPECT_TRUE(val.value()) << "Edge is false: " << edge_name;
+    }
+  }
+}
 
 }  // namespace v8::internal

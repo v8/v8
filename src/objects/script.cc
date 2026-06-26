@@ -31,6 +31,26 @@ const char* ToString(Script::Type type) {
   UNREACHABLE();
 }
 
+const char* ToString(Script::CompilationType type) {
+  switch (type) {
+    case Script::CompilationType::kHost:
+      return "host";
+    case Script::CompilationType::kEval:
+      return "eval";
+  }
+  UNREACHABLE();
+}
+
+const char* ToString(Script::CompilationState type) {
+  switch (type) {
+    case Script::CompilationState::kInitial:
+      return "initial";
+    case Script::CompilationState::kCompiled:
+      return "compiled";
+  }
+  UNREACHABLE();
+}
+
 template <typename IsolateT>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     DirectHandle<Script> script, IsolateT* isolate,
