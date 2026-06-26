@@ -2060,19 +2060,17 @@ class MachineLoweringReducer : public Next {
                        AccessBuilder::ForFixedArrayLengthPadding(),
                        __ Word32Constant(0));
 #endif
-    // TODO(nicohartmann@): Should finish initialization only after all elements
-    // have been initialized.
-    auto array = __ FinishInitialization(std::move(uninitialized_array));
 
     ScopedVar<WordPtr> index(this, 0);
 
     WHILE(__ UintPtrLessThan(index, length)) {
-      __ StoreNonArrayBufferElement(array, access, index, the_hole_value);
+      __ InitializeNonArrayBufferElement(uninitialized_array, access, index,
+                                         the_hole_value);
       // Advance the {index}.
       index = __ WordPtrAdd(index, 1);
     }
 
-    GOTO(done, array);
+    GOTO(done, __ FinishInitialization(std::move(uninitialized_array)));
 
     BIND(done, result);
     return result;

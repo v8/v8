@@ -3384,15 +3384,19 @@ class AssemblerOpInterface : public Next {
     return StoreElement(object, access, index, value, true);
   }
   template <typename Base>
-  void StoreNonArrayBufferElement(V<Base> object, const ElementAccess& access,
-                                  V<WordPtr> index, V<Any> value) {
-    return StoreElement(object, access, index, value, false);
+  void StoreNonArrayBufferElement(
+      V<Base> object, const ElementAccess& access, V<WordPtr> index,
+      V<Any> value, bool maybe_initializing_or_transitioning = false) {
+    return StoreElement(object, access, index, value, /*is_array_buffer*/ false,
+                        maybe_initializing_or_transitioning);
   }
 
   template <typename Class, typename T>
   void StoreElement(V<Class> object, const ElementAccessTS<Class, T>& access,
-                    ConstOrV<WordPtr> index, V<T> value) {
-    StoreElement(object, access, index, value, access.is_array_buffer_load);
+                    ConstOrV<WordPtr> index, V<T> value,
+                    bool maybe_initializing_or_transitioning = false) {
+    StoreElement(object, access, index, value, access.is_array_buffer_load,
+                 maybe_initializing_or_transitioning);
   }
 
   template <typename Class, typename T>
@@ -3400,7 +3404,8 @@ class AssemblerOpInterface : public Next {
                          const ElementAccessTS<Class, T>& access,
                          ConstOrV<WordPtr> index, V<T> value) {
     StoreElement(object.object(), access, index, value,
-                 access.is_array_buffer_load);
+                 access.is_array_buffer_load,
+                 /*maybe_initializing_or_transitioning*/ true);
   }
 
   // TODO(nicohartmann): Remove `InitializeArrayBufferElement` once fully
@@ -3411,13 +3416,14 @@ class AssemblerOpInterface : public Next {
                                     V<WordPtr> index, V<Any> value) {
     StoreArrayBufferElement(object.object(), access, index, value);
   }
-  // TODO(nicohartmann): Remove `InitializeNoneArrayBufferElement` once fully
+  // TODO(nicohartmann): Remove `InitializeNonArrayBufferElement` once fully
   // transitioned to `ElementAccess`.
   template <typename Base>
   void InitializeNonArrayBufferElement(Uninitialized<Base>& object,
                                        const ElementAccess& access,
                                        V<WordPtr> index, V<Any> value) {
-    StoreNonArrayBufferElement(object.object(), access, index, value);
+    StoreNonArrayBufferElement(object.object(), access, index, value,
+                               /*maybe_initializing_or_transitioning*/ true);
   }
 
 #if V8_STATIC_ROOTS_BOOL
@@ -5882,8 +5888,8 @@ class AssemblerOpInterface : public Next {
   // instead of StoreElement.
   template <typename Base>
   void StoreElement(V<Base> object, const ElementAccess& access,
-                    ConstOrV<WordPtr> index, V<Any> value,
-                    bool is_array_buffer) {
+                    ConstOrV<WordPtr> index, V<Any> value, bool is_array_buffer,
+                    bool maybe_initializing_or_transitioning = false) {
     if constexpr (is_taggable_v<Base>) {
       DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
     } else {
@@ -5895,7 +5901,8 @@ class AssemblerOpInterface : public Next {
     MemoryRepresentation rep =
         MemoryRepresentation::FromMachineType(access.machine_type);
     Store(object, resolve(index), value, kind, rep, access.write_barrier_kind,
-          access.header_size, rep.SizeInBytesLog2());
+          access.header_size, rep.SizeInBytesLog2(),
+          maybe_initializing_or_transitioning);
   }
 
   // BranchAndBind should be called from GotoIf/GotoIfNot. It will insert a
