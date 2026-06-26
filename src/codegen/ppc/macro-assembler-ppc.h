@@ -385,11 +385,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   template <class _type>
   void AtomicCompareExchange(MemOperand dst, Register old_value,
-                             Register new_value, Register output,
-                             Register scratch) {
+                             Register new_value, Register output) {
+    UseScratchRegisterScope temps(this);
     Label loop;
     Label exit;
     if (sizeof(_type) != 8) {
+      Register scratch = temps.Acquire();
       ExtendValue<_type>(scratch, old_value);
       old_value = scratch;
     }
@@ -597,10 +598,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadRoot(Register destination, RootIndex index, Condition cond);
   void LoadTaggedRoot(Register destination, RootIndex index);
 
-  void SwapP(Register src, Register dst, Register scratch);
-  void SwapP(Register src, MemOperand dst, Register scratch);
-  void SwapP(MemOperand src, MemOperand dst, Register scratch_0,
-             Register scratch_1);
+  void SwapP(Register src, Register dst);
+  void SwapP(Register src, MemOperand dst);
+  void SwapP(MemOperand src, MemOperand dst);
   void SwapFloat32(DoubleRegister src, DoubleRegister dst,
                    DoubleRegister scratch);
   void SwapFloat32(DoubleRegister src, MemOperand dst, DoubleRegister scratch);
@@ -718,7 +718,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
             Condition cond = al);
   void Call(Label* target);
 
-  void GetLabelAddress(Register dst, Label* target, Register scratch);
+  void GetLabelAddress(Register dst, Label* target);
 
   // Load the builtin given by the Smi in |builtin_index| into |target|.
   void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);
@@ -726,8 +726,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
 
   void LoadEntrypointFromJSDispatchTable(Register destination,
-                                         Register dispatch_handle,
-                                         Register scratch);
+                                         Register dispatch_handle);
 
   // Load the code entry point from the Code object.
   void LoadCodeInstructionStart(Register destination, Register code_object,
@@ -931,11 +930,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Switch(Register scrach, Register reg, int case_base_value,
               Label** labels, int num_labels);
 
-  void JumpIfCodeIsMarkedForDeoptimization(Register code, Register scratch,
+  void JumpIfCodeIsMarkedForDeoptimization(Register code,
                                            Label* if_marked_for_deoptimization);
 
-  void JumpIfCodeIsTurbofanned(Register code, Register scratch,
-                               Label* if_turbofanned);
+  void JumpIfCodeIsTurbofanned(Register code, Label* if_turbofanned);
 
   void LoadMap(Register destination, Register object);
   void LoadCompressedMap(Register dst, Register object);
@@ -980,7 +978,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads the constant pool pointer (kConstantPoolRegister).
   void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
-      Register code_target_address, Register scratch1, Register scratch2);
+      Register code_target_address);
   void AbortConstantPoolBuilding() {
 #ifdef DEBUG
     // Avoid DCHECK(!is_linked()) failure in ~Label()
@@ -1774,8 +1772,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     DecodeField<Field>(reg, reg, rc);
   }
 
-  void TestCodeIsMarkedForDeoptimization(Register code, Register scratch1,
-                                         Register scratch2);
+  void TestCodeIsMarkedForDeoptimization(Register code);
   Operand ClearedValue() const;
 
  private:

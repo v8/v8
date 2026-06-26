@@ -463,7 +463,7 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
         FieldMemOperand(scratch_and_result, offsetof(CodeWrapper, code_)));
 
     Register scratch = temps.AcquireScratch();
-    __ TestCodeIsMarkedForDeoptimization(scratch_and_result, scratch, r0);
+    __ TestCodeIsMarkedForDeoptimization(scratch_and_result);
     __ beq(on_result, cr0);
     __ mov(scratch, __ ClearedValue());
     StoreTaggedFieldNoWriteBarrier(
@@ -609,7 +609,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   DCHECK_NE(reg, r0);
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  __ GetLabelAddress(scratch, &jump_table, r0);
+  __ GetLabelAddress(scratch, &jump_table);
   __ AddS64(reg, reg, scratch);
   __ Jump(reg);
   __ b(&fallthrough);

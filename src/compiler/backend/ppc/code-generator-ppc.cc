@@ -651,15 +651,14 @@ static inline bool is_wasm_on_be(bool IsWasm) {
   do {                                                                    \
     UseScratchRegisterScope temps(masm());                                \
     Register scratch = temps.Acquire();                                   \
-    Register scratch2 = temps.Acquire();                                  \
     Register expected_val = i.InputRegister(2);                           \
     Register new_val = i.InputRegister(3);                                \
     Register dst = i.OutputRegister();                                    \
-    MAYBE_REVERSE_IF_WASM(scratch2, expected_val, reverse_op, true);      \
+    MAYBE_REVERSE_IF_WASM(scratch, expected_val, reverse_op, true);       \
     MAYBE_REVERSE_IF_WASM(r0, new_val, reverse_op, true);                 \
     __ AtomicCompareExchange<_type>(                                      \
         MemOperand(i.InputRegister(0), i.InputRegister(1)), expected_val, \
-        new_val, dst, scratch);                                           \
+        new_val, dst);                                                    \
     MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, false);                   \
   } while (false)
 
@@ -1060,7 +1059,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         UseScratchRegisterScope wasm_temps(masm());
         Register wasm_scratch = wasm_temps.Acquire();
         // Put the return address in a stack slot.
-        __ GetLabelAddress(wasm_scratch, &return_location, r0);
+        __ GetLabelAddress(wasm_scratch, &return_location);
         __ StoreU64(wasm_scratch,
                     MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         set_isolate_data_slots = SetIsolateDataSlots::kNo;
@@ -2079,22 +2078,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_EXCHANGE(uint64_t, ByteReverseU64);
       break;
     }
-    case kAtomicCompareExchangeInt8: {
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
+    case kAtomicCompareExchangeInt8:
       __ AtomicCompareExchange<int8_t>(
           MemOperand(i.InputRegister(0), i.InputRegister(1)),
-          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(), scratch);
+          i.InputRegister(2), i.InputRegister(3), i.OutputRegister());
       break;
-    }
-    case kPPC_AtomicCompareExchangeUint8: {
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
+    case kPPC_AtomicCompareExchangeUint8:
       __ AtomicCompareExchange<uint8_t>(
           MemOperand(i.InputRegister(0), i.InputRegister(1)),
-          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(), scratch);
+          i.InputRegister(2), i.InputRegister(3), i.OutputRegister());
       break;
-    }
     case kAtomicCompareExchangeInt16: {
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(int16_t, ByteReverseU16);
       __ extsh(i.OutputRegister(), i.OutputRegister());
@@ -3136,7 +3129,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ bge(GetLabel(i.InputRpo(1)));
   UseScratchRegisterScope temps(masm());
   Register scratch = temps.Acquire();
-  __ GetLabelAddress(scratch, table, r0);
+  __ GetLabelAddress(scratch, table);
   __ ShiftLeftU64(r0, input, Operand(kSystemPointerSizeLog2));
   __ LoadU64(scratch, MemOperand(scratch, r0));
   __ Jump(scratch);
@@ -3782,19 +3775,17 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
   PPCOperandConverter g(this, nullptr);
-  UseScratchRegisterScope temps(masm());
-  Register scratch = temps.Acquire();
   if (source->IsRegister()) {
     Register src = g.ToRegister(source);
     if (destination->IsRegister()) {
-      __ SwapP(src, g.ToRegister(destination), scratch);
+      __ SwapP(src, g.ToRegister(destination));
     } else {
       DCHECK(destination->IsStackSlot());
-      __ SwapP(src, g.ToMemOperand(destination), scratch);
+      __ SwapP(src, g.ToMemOperand(destination));
     }
   } else if (source->IsStackSlot()) {
     DCHECK(destination->IsStackSlot());
-    __ SwapP(g.ToMemOperand(source), g.ToMemOperand(destination), scratch, r0);
+    __ SwapP(g.ToMemOperand(source), g.ToMemOperand(destination));
   } else if (source->IsFloatRegister()) {
     DoubleRegister src = g.ToDoubleRegister(source);
     if (destination->IsFloatRegister()) {

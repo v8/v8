@@ -105,9 +105,9 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   return bytes;
 }
 
-void MacroAssembler::GetLabelAddress(Register dest, Label* target,
-                                     Register scratch) {
-  CHECK_NE(dest, scratch);
+void MacroAssembler::GetLabelAddress(Register dest, Label* target) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   BlockTrampolinePoolScope block_trampoline_pool(this);
 
   // This should be just a
@@ -419,11 +419,11 @@ void MacroAssembler::EnforceStackAlignment() {
   AndU64(sp, sp, Operand(frame_alignment_mask));
 }
 
-void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
-                                                       Register scratch1,
-                                                       Register scratch2) {
-  LoadU32(scratch1, FieldMemOperand(code, Code::kFlagsOffset));
-  TestBit(scratch1, Code::kMarkedForDeoptimizationBit, scratch2);
+void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadU32(scratch, FieldMemOperand(code, Code::kFlagsOffset));
+  TestBit(scratch, Code::kMarkedForDeoptimizationBit);
 }
 
 Operand MacroAssembler::ClearedValue() const {
@@ -1125,10 +1125,13 @@ void MacroAssembler::ConvertDoubleToUnsignedInt64(
 }
 
 void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
-    Register code_target_address, Register scratch1, Register scratch2) {
+    Register code_target_address) {
   // Builtins do not use the constant pool (see is_constant_pool_available).
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
 
+  UseScratchRegisterScope temps(this);
+  Register scratch1 = temps.Acquire();
+  Register scratch2 = temps.Acquire();
   LoadU64(scratch2,
           FieldMemOperand(code_target_address, Code::kInstructionStartOffset));
   LoadU32(scratch1,
@@ -2219,8 +2222,10 @@ int MacroAssembler::CallCFunction(ExternalReference function,
                                   SetIsolateDataSlots set_isolate_data_slots,
                                   bool has_function_descriptor,
                                   Label* return_label) {
-  Move(ip, function);
-  return CallCFunction(ip, num_reg_arguments, num_double_arguments,
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Move(scratch, function);
+  return CallCFunction(scratch, num_reg_arguments, num_double_arguments,
                        set_isolate_data_slots, has_function_descriptor,
                        return_label);
 }
@@ -2240,7 +2245,7 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     // Save the frame pointer and PC so that the stack layout remains iterable,
     // even without an ExitFrame which normally exists between JS and C frames.
     DCHECK(!AreAliased(r0, r26, function));
-    GetLabelAddress(r0, &get_pc, r26);
+    GetLabelAddress(r0, &get_pc);
     CHECK(root_array_available());
     StoreU64(r0,
              ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC));
@@ -4479,36 +4484,27 @@ void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
   bind(&not_ok);
 }
 
-void MacroAssembler::SwapP(Register src, Register dst, Register scratch) {
+void MacroAssembler::SwapP(Register src, Register dst) {
   if (src == dst) return;
-  DCHECK(!AreAliased(src, dst, scratch));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   mr(scratch, src);
   mr(src, dst);
   mr(dst, scratch);
 }
 
-void MacroAssembler::SwapP(Register src, MemOperand dst, Register scratch) {
-  if (dst.ra() != r0 && dst.ra().is_valid())
-    DCHECK(!AreAliased(src, dst.ra(), scratch));
-  if (dst.rb() != r0 && dst.rb().is_valid())
-    DCHECK(!AreAliased(src, dst.rb(), scratch));
-  DCHECK(!AreAliased(src, scratch));
+void MacroAssembler::SwapP(Register src, MemOperand dst) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   mr(scratch, src);
   LoadU64(src, dst);
   StoreU64(scratch, dst);
 }
 
-void MacroAssembler::SwapP(MemOperand src, MemOperand dst, Register scratch_0,
-                           Register scratch_1) {
-  if (src.ra() != r0 && src.ra().is_valid())
-    DCHECK(!AreAliased(src.ra(), scratch_0, scratch_1));
-  if (src.rb() != r0 && src.rb().is_valid())
-    DCHECK(!AreAliased(src.rb(), scratch_0, scratch_1));
-  if (dst.ra() != r0 && dst.ra().is_valid())
-    DCHECK(!AreAliased(dst.ra(), scratch_0, scratch_1));
-  if (dst.rb() != r0 && dst.rb().is_valid())
-    DCHECK(!AreAliased(dst.rb(), scratch_0, scratch_1));
-  DCHECK(!AreAliased(scratch_0, scratch_1));
+void MacroAssembler::SwapP(MemOperand src, MemOperand dst) {
+  UseScratchRegisterScope temps(this);
+  Register scratch_0 = temps.Acquire();
+  Register scratch_1 = temps.Acquire();
   if (is_int16(src.offset()) || is_int16(dst.offset())) {
     if (!is_int16(src.offset())) {
       // swap operand
@@ -4703,12 +4699,11 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-
-void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
-                                                       Register dispatch_handle,
-                                                       Register scratch) {
-  DCHECK(!AreAliased(destination, dispatch_handle, scratch));
+void MacroAssembler::LoadEntrypointFromJSDispatchTable(
+    Register destination, Register dispatch_handle) {
   ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
 
   Register index = destination;
   CHECK(root_array_available());
@@ -4719,7 +4714,6 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   AddS64(scratch, scratch, index);
   LoadU64(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
 }
-
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object,
@@ -4746,12 +4740,10 @@ void MacroAssembler::CallJSFunction(Register function_object,
                                     uint16_t argument_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = r0;
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   LoadU32(
       dispatch_handle,
       FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
-  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle);
   Call(code);
 }
 
@@ -4759,8 +4751,6 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
                                          uint16_t argument_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle_reg = r0;
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   mov(dispatch_handle_reg,
       Operand(dispatch_handle.value(), RelocInfo::JS_DISPATCH_HANDLE));
   // WARNING: This entrypoint load is only safe because we are storing a
@@ -4770,7 +4760,7 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   // invalidated by a compaction).
   // TODO(leszeks): Make this less of a footgun.
   static_assert(!JSDispatchTable::kSupportsCompaction);
-  LoadEntrypointFromJSDispatchTable(code, dispatch_handle_reg, scratch);
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle_reg);
   CHECK_EQ(argument_count,
            isolate()->js_dispatch_table().GetParameterCount(dispatch_handle));
   Call(code);
@@ -4780,12 +4770,10 @@ void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = r0;
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   LoadU32(
       dispatch_handle,
       FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
-  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle);
   Jump(code);
 }
 
@@ -4833,7 +4821,7 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   Register dest = target;
   Register scratch = r7;
   DCHECK(!AreAliased(r0, scratch, target));
-  GetLabelAddress(scratch, &return_label, r0);
+  GetLabelAddress(scratch, &return_label);
 
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // AIX/PPC64BE Linux uses a function descriptor. When calling C code be
@@ -4859,7 +4847,7 @@ void MacroAssembler::AssertNotDeoptimized(Register scratch) {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   LoadTaggedField(scratch,
                   MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  TestCodeIsMarkedForDeoptimization(scratch, scratch, r0);
+  TestCodeIsMarkedForDeoptimization(scratch);
   Assert(to_condition(kZero), AbortReason::kInvalidDeoptimizedCode);
 }
 
@@ -4965,16 +4953,17 @@ void MacroAssembler::ReverseBitsInSingleByteU64(Register dst, Register src,
 }
 
 void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
-    Register code, Register scratch, Label* if_marked_for_deoptimization) {
-  CHECK_NE(scratch, r0);
-  TestCodeIsMarkedForDeoptimization(code, scratch, r0);
+    Register code, Label* if_marked_for_deoptimization) {
+  TestCodeIsMarkedForDeoptimization(code);
   bne(if_marked_for_deoptimization);
 }
 
-void MacroAssembler::JumpIfCodeIsTurbofanned(Register code, Register scratch,
+void MacroAssembler::JumpIfCodeIsTurbofanned(Register code,
                                              Label* if_turbofanned) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   LoadU32(scratch, FieldMemOperand(code, Code::kFlagsOffset));
-  TestBit(scratch, Code::kIsTurbofannedBit, r0);
+  TestBit(scratch, Code::kIsTurbofannedBit);
   bne(if_turbofanned);
 }
 void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
@@ -4996,13 +4985,9 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
         scratch_and_result,
         FieldMemOperand(scratch_and_result, offsetof(CodeWrapper, code_)));
 
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.Acquire();
-    CHECK(!AreAliased(temp, scratch_and_result, r0));
-
-    JumpIfCodeIsMarkedForDeoptimization(scratch_and_result, temp, &clear_slot);
+    JumpIfCodeIsMarkedForDeoptimization(scratch_and_result, &clear_slot);
     if (min_opt_level == CodeKind::TURBOFAN_JS) {
-      JumpIfCodeIsTurbofanned(scratch_and_result, temp, on_result);
+      JumpIfCodeIsTurbofanned(scratch_and_result, on_result);
       b(&fallthrough);
     } else {
       b(on_result);
@@ -5231,7 +5216,7 @@ void MacroAssembler::Switch(Register scratch, Register value,
 
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
   DCHECK(!AreAliased(scratch, value, r0));
-  GetLabelAddress(scratch, &jump_table, r0);
+  GetLabelAddress(scratch, &jump_table);
   add(scratch, scratch, value);
   Jump(scratch);
 

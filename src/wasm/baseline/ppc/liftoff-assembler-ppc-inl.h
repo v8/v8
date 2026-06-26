@@ -1059,7 +1059,7 @@ void LiftoffAssembler::AtomicCompareExchange(
     case StoreType::kI32Store8:
     case StoreType::kI64Store8: {
       MacroAssembler::AtomicCompareExchange<uint8_t>(
-          dst, expected.gp(), new_value.gp(), result.gp(), r0);
+          dst, expected.gp(), new_value.gp(), result.gp());
       break;
     }
     case StoreType::kI32Store16:
@@ -1069,12 +1069,12 @@ void LiftoffAssembler::AtomicCompareExchange(
         ByteReverseU16(new_value.gp(), new_value.gp());
         ByteReverseU16(expected.gp(), expected.gp());
         MacroAssembler::AtomicCompareExchange<uint16_t>(
-            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+            dst, expected.gp(), new_value.gp(), result.gp());
         ByteReverseU16(result.gp(), result.gp());
         Pop(new_value.gp(), expected.gp());
       } else {
         MacroAssembler::AtomicCompareExchange<uint16_t>(
-            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+            dst, expected.gp(), new_value.gp(), result.gp());
       }
       break;
     }
@@ -1085,12 +1085,12 @@ void LiftoffAssembler::AtomicCompareExchange(
         ByteReverseU32(new_value.gp(), new_value.gp());
         ByteReverseU32(expected.gp(), expected.gp());
         MacroAssembler::AtomicCompareExchange<uint32_t>(
-            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+            dst, expected.gp(), new_value.gp(), result.gp());
         ByteReverseU32(result.gp(), result.gp());
         Pop(new_value.gp(), expected.gp());
       } else {
         MacroAssembler::AtomicCompareExchange<uint32_t>(
-            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+            dst, expected.gp(), new_value.gp(), result.gp());
       }
       break;
     }
@@ -1100,12 +1100,12 @@ void LiftoffAssembler::AtomicCompareExchange(
         ByteReverseU64(new_value.gp(), new_value.gp());
         ByteReverseU64(expected.gp(), expected.gp());
         MacroAssembler::AtomicCompareExchange<uint64_t>(
-            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+            dst, expected.gp(), new_value.gp(), result.gp());
         ByteReverseU64(result.gp(), result.gp());
         Pop(new_value.gp(), expected.gp());
       } else {
         MacroAssembler::AtomicCompareExchange<uint64_t>(
-            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+            dst, expected.gp(), new_value.gp(), result.gp());
       }
       break;
     }
