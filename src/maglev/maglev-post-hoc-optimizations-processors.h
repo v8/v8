@@ -90,6 +90,12 @@ class RecomputePhiUseHintsProcessor {
     return ProcessResult::kContinue;
   }
 
+  template <typename Derived>
+  ProcessResult Process(AssumeTypeT<Derived>* node,
+                        const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     DCHECK(!node->Is<Phi>());
     if (ValueNode* value_node = node->TryCast<ValueNode>()) {
