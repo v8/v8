@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-utils-inl.h"
-#include "src/objects/js-shared-array-inl.h"
+#include "src/objects/js-shared-array.h"
 
 namespace v8 {
 namespace internal {

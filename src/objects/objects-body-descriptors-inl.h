@@ -49,7 +49,6 @@
 #include "src/objects/synthetic-module.h"
 #include "src/objects/tagged-field.h"
 #include "src/objects/template-objects-inl.h"
-#include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions.h"
 #include "src/objects/turbofan-types-inl.h"
 #include "src/objects/turboshaft-types-inl.h"

@@ -15,7 +15,6 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/promise-inl.h"
-#include "src/objects/torque-defined-classes-inl.h"
 #include "src/strings/char-predicates.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/heap/heap-utils.h"

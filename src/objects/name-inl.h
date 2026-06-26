@@ -15,7 +15,7 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/oddball-predicates-inl.h"
-#include "src/objects/primitive-heap-object-inl.h"
+#include "src/objects/primitive-heap-object.h"
 #include "src/objects/string-forwarding-table.h"
 #include "src/objects/string.h"
 

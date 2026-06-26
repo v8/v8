@@ -5,7 +5,7 @@
 #include <unordered_set>
 
 #include "src/builtins/builtins-utils-inl.h"
-#include "src/objects/js-struct-inl.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/property-details.h"
 
 namespace v8 {

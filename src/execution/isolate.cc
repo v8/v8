@@ -96,7 +96,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-generator-inl.h"
-#include "src/objects/js-struct-inl.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"

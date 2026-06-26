@@ -11,7 +11,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/js-struct-inl.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

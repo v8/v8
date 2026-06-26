@@ -30,6 +30,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/js-shared-array.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/struct.h"
 #include "src/regexp/regexp.h"

@@ -30,7 +30,6 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/synthetic-module-inl.h"
-#include "src/objects/torque-defined-classes.h"
 #include "src/objects/visitors.h"
 
 namespace v8 {

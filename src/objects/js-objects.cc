@@ -52,8 +52,8 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-shadow-realm.h"
-#include "src/objects/js-shared-array-inl.h"
-#include "src/objects/js-struct-inl.h"
+#include "src/objects/js-shared-array.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/property-details.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"

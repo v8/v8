@@ -23,7 +23,6 @@
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/flags/flags.h"
 #include "src/objects/object-list-macros.h"
-#include "src/objects/torque-defined-classes.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/compilation-environment.h"
