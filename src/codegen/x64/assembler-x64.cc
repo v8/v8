@@ -234,9 +234,10 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #endif  // V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 }
 
-void CpuFeatures::PrintTarget() {}
-void CpuFeatures::PrintFeatures() {
+void CpuFeatures::PrintInformation() {
+  CpuFeatures::Probe(false);
   printf(
+      "CPU features: "
       "SSE3=%d SSSE3=%d SSE4_1=%d SSE4_2=%d SAHF=%d AVX=%d AVX2=%d AVX_VNNI=%d "
       "AVX_VNNI_INT8=%d "
       "FMA3=%d "

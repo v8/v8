@@ -117,16 +117,14 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 }
 
-void CpuFeatures::PrintTarget() {
-  const char* ppc_arch = nullptr;
-  ppc_arch = "ppc64";
-  printf("target %s\n", ppc_arch);
-}
-
-void CpuFeatures::PrintFeatures() {
-  printf("PPC_9_PLUS=%d\n", CpuFeatures::IsSupported(PPC_9_PLUS));
-  printf("PPC_10_PLUS=%d\n", CpuFeatures::IsSupported(PPC_10_PLUS));
-  printf("PPC_11_PLUS=%d\n", CpuFeatures::IsSupported(PPC_11_PLUS));
+void CpuFeatures::PrintInformation() {
+  CpuFeatures::Probe(false);
+  const char* ppc_arch = "ppc64";
+  printf("CPU target: %s\n", ppc_arch);
+  printf("CPU features: PPC_9_PLUS=%d PPC_10_PLUS=%d PPC_11_PLUS=%d\n",
+         CpuFeatures::IsSupported(PPC_9_PLUS),
+         CpuFeatures::IsSupported(PPC_10_PLUS),
+         CpuFeatures::IsSupported(PPC_11_PLUS));
 }
 
 Register ToRegister(int num) {

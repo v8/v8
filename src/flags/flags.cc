@@ -907,9 +907,7 @@ void FlagList::ReleaseDynamicAllocations() {
 
 // static
 void FlagList::PrintHelp() {
-  CpuFeatures::Probe(false);
-  CpuFeatures::PrintTarget();
-  CpuFeatures::PrintFeatures();
+  CpuFeatures::PrintInformation();
 
   StdoutStream os;
   os << "The following syntax for options is accepted (both '-' and '--' are "

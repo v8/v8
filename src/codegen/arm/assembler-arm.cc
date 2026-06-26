@@ -292,7 +292,8 @@ static bool IsEabiHardFloat() {
   UNREACHABLE();
 }
 
-void CpuFeatures::PrintTarget() {
+void CpuFeatures::PrintInformation() {
+  CpuFeatures::Probe(false);
   const char* arm_arch = nullptr;
   const char* arm_target_type = "";
   const char* arm_no_probe = "";
@@ -334,15 +335,15 @@ void CpuFeatures::PrintTarget() {
   arm_thumb = " thumb";
 #endif
 
-  printf("target%s%s %s%s%s %s\n", arm_target_type, arm_no_probe, arm_arch,
+  printf("CPU target:%s%s %s%s%s %s\n", arm_target_type, arm_no_probe, arm_arch,
          arm_fpu, arm_thumb, arm_float_abi);
-}
 
-void CpuFeatures::PrintFeatures() {
-  printf("ARMv8=%d ARMv7=%d VFPv3=%d VFP32DREGS=%d NEON=%d SUDIV=%d",
-         CpuFeatures::IsSupported(ARMv8), CpuFeatures::IsSupported(ARMv7),
-         CpuFeatures::IsSupported(VFPv3), CpuFeatures::IsSupported(VFP32DREGS),
-         CpuFeatures::IsSupported(NEON), CpuFeatures::IsSupported(SUDIV));
+  printf(
+      "CPU features: ARMv8=%d ARMv7=%d VFPv3=%d VFP32DREGS=%d NEON=%d "
+      "SUDIV=%d",
+      CpuFeatures::IsSupported(ARMv8), CpuFeatures::IsSupported(ARMv7),
+      CpuFeatures::IsSupported(VFPv3), CpuFeatures::IsSupported(VFP32DREGS),
+      CpuFeatures::IsSupported(NEON), CpuFeatures::IsSupported(SUDIV));
   bool eabi_hardfloat = IsEabiHardFloat();
   printf(" USE_EABI_HARDFLOAT=%d\n", eabi_hardfloat);
 }

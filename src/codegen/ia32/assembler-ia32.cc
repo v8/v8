@@ -168,9 +168,10 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 }
 
-void CpuFeatures::PrintTarget() {}
-void CpuFeatures::PrintFeatures() {
+void CpuFeatures::PrintInformation() {
+  CpuFeatures::Probe(false);
   printf(
+      "CPU features: "
       "SSE3=%d SSSE3=%d SSE4_1=%d AVX=%d AVX2=%d FMA3=%d BMI1=%d BMI2=%d "
       "LZCNT=%d "
       "POPCNT=%d ATOM=%d\n",

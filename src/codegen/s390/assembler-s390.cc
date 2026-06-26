@@ -287,24 +287,23 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 }
 
-void CpuFeatures::PrintTarget() {
+void CpuFeatures::PrintInformation() {
+  CpuFeatures::Probe(false);
   const char* s390_arch = "s390x";
-  PrintF("target %s\n", s390_arch);
-}
-
-void CpuFeatures::PrintFeatures() {
-  PrintF("FPU=%d\n", CpuFeatures::IsSupported(FPU));
-  PrintF("FPU_EXT=%d\n", CpuFeatures::IsSupported(FLOATING_POINT_EXT));
-  PrintF("GENERAL_INSTR=%d\n", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
-  PrintF("DISTINCT_OPS=%d\n", CpuFeatures::IsSupported(DISTINCT_OPS));
-  PrintF("VECTOR_FACILITY=%d\n", CpuFeatures::IsSupported(VECTOR_FACILITY));
-  PrintF("VECTOR_ENHANCE_FACILITY_1=%d\n",
+  PrintF("CPU target: %s\n", s390_arch);
+  PrintF("CPU features: ");
+  PrintF("FPU=%d ", CpuFeatures::IsSupported(FPU));
+  PrintF("FPU_EXT=%d ", CpuFeatures::IsSupported(FLOATING_POINT_EXT));
+  PrintF("GENERAL_INSTR=%d ", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
+  PrintF("DISTINCT_OPS=%d ", CpuFeatures::IsSupported(DISTINCT_OPS));
+  PrintF("VECTOR_FACILITY=%d ", CpuFeatures::IsSupported(VECTOR_FACILITY));
+  PrintF("VECTOR_ENHANCE_FACILITY_1=%d ",
          CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
-  PrintF("VECTOR_ENHANCE_FACILITY_2=%d\n",
+  PrintF("VECTOR_ENHANCE_FACILITY_2=%d ",
          CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2));
-  PrintF("VECTOR_ENHANCE_FACILITY_3=%d\n",
+  PrintF("VECTOR_ENHANCE_FACILITY_3=%d ",
          CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_3));
-  PrintF("MISC_INSTR_EXT2=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
+  PrintF("MISC_INSTR_EXT2=%d ", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
   PrintF("MISC_INSTR_EXT4=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT4));
 }
 

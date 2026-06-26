@@ -159,9 +159,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 }
 
-void CpuFeatures::PrintTarget() {}
-void CpuFeatures::PrintFeatures() {
-  printf("supports_simd_128=%d", CpuFeatures::SupportsSimd128());
+void CpuFeatures::PrintInformation() {
+  CpuFeatures::Probe(false);
+  printf("CPU features: supports_simd_128=%d", CpuFeatures::SupportsSimd128());
   if (CpuFeatures::SupportsSimd128()) {
     printf(", vlen=%u", CpuFeatures::vlen());
   }

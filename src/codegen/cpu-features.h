@@ -170,8 +170,7 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
     return vlen_;
   }
 
-  static void PrintTarget();
-  static void PrintFeatures();
+  static void PrintInformation();
 
  private:
   friend void V8_EXPORT_PRIVATE FlushInstructionCache(void*, size_t);

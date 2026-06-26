@@ -192,8 +192,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 }
 
-void CpuFeatures::PrintTarget() {}
-void CpuFeatures::PrintFeatures() {}
+void CpuFeatures::PrintInformation() {}
 
 // -----------------------------------------------------------------------------
 // CPURegList utilities.
