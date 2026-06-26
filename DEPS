@@ -108,7 +108,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:32.20260611.1.1',
+  'fuchsia_version': 'version:32.20260625.4.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3eaca0daff292385e19f46dbb4267fa54902c528',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '749b66f8aea73f93b05f62b09dd752384415e514',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0d39be5a3f129cf1f35e7812108a2184e2193315',
   'buildtools/linux64': {
@@ -341,7 +341,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9fe0a380ee56ac20c938cb0c0c35c9b4f7c73339',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '85f72e561f36bcf39f29f484259dc50ef50d3cb8',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '4b4120a6ca03bc594f3e3ce6a6c823bc1227ba3e',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -521,9 +521,9 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '264599eaa3f88c4e1e683bf29bb0a22213bcd32e',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '6d4cc553beb96326ccdd3c539f67a1422acf1b5e',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2144bfbab0ddef97071e904adaeac2fa802ab16c',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '707a5590ce6eeaeb15aad07650345fad2ff6f430',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '972a15cedd008d846f1a39b2e88ce48d7f166cbd',
   'third_party/requests': {
