@@ -2716,6 +2716,22 @@ class TurboshaftGraphBuildingInterface
                   const Value args[]) {
     feedback_slot_++;
     if (imm.index < decoder->module_->num_imported_functions) {
+      // Mirror CallDirect: a well-known import (e.g. a js-string builtin) in
+      // tail position can be lowered inline and its single result returned
+      // directly, instead of always going through a wasm-to-js bridge stub.
+      if (imm.sig->return_count() == 1) {
+        Value wki_return{nullptr, imm.sig->GetReturn(0)};
+        if (HandleWellKnownImport(decoder, imm, args, &wki_return)) {
+          if (mode_ == kRegular || mode_ == kInlinedTailCall) {
+            __ Return(__ Word32Constant(0), base::VectorOf({wki_return.op}),
+                      v8_flags.wasm_growable_stacks);
+          } else if (!__ generating_unreachable_operations()) {
+            return_phis_->AddInputForPhi(0, wki_return.op);
+            __ Goto(return_block_);
+          }
+          return;
+        }
+      }
       auto [target, implicit_arg] =
           BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
       BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args,
