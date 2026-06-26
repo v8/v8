@@ -9,7 +9,8 @@
 // when it peels the loop. If peeling stops firing the marker survives to the
 // Turbolev backend and the compile fails, so these positively assert that
 // peeling happened instead of only checking results. Loops the peeler does not
-// peel yet omit the marker and carry a TODO(victorgomes) note instead.
+// peel yet carry the inverse %AssertNotPeeled() marker (which fails the compile
+// if they ever start peeling) plus a TODO(victorgomes) note.
 
 // Canonical counted for-loop: header is a BranchIfInt32Compare, backedge
 // JumpLoop. Exercises the peel-exit-merge (PEM) path (two-tail clone).
@@ -185,6 +186,7 @@ function break_returns_local(n) {
   let result = -1;
   for (let i = 0; i < n; i++) {
     // TODO(victorgomes): not peeled yet (exit target has phis).
+    %AssertNotPeeled();
     if (i === 5) {
       result = i * 2;
       break;
@@ -210,6 +212,7 @@ function double_break(a, b, n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
     // TODO(victorgomes): not peeled yet (exit target has phis).
+    %AssertNotPeeled();
     if (i === a) break;
     s += i;
     if (i === b) break;
@@ -237,6 +240,7 @@ function labelled_break_outer(n, m, threshold) {
   outer: for (let i = 0; i < n; i++) {
     inner: for (let j = 0; j < m; j++) {
       // TODO(victorgomes): not peeled yet (exit target has phis).
+      %AssertNotPeeled();
       if (j === threshold) break outer;
       s += j;
     }
@@ -654,6 +658,7 @@ function back_to_back_loops(n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
     // TODO(victorgomes): not peeled yet (body value used downstream).
+    %AssertNotPeeled();
     s += i;
   }
   for (let i = 0; i < n; i++) {

@@ -550,6 +550,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ArrayBufferDetachForceWasm, 1, 1)                                    \
   F(ArrayIteratorProtector, 0, 1)                                        \
   F(ArraySpeciesProtector, 0, 1)                                         \
+  F(AssertNotPeeled, 0, 1)                                               \
   F(AssertPeeled, 0, 1)                                                  \
   F(BaselineOsr, -1, 1)                                                  \
   F(BenchMaglev, 2, 1)                                                   \

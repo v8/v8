@@ -137,6 +137,9 @@
   # This test should always fail: %AssertPeeled() in an unpeeled (outer) loop.
   'turbolev/assert-peeled-fail': [FAIL],
 
+  # This test should always fail: %AssertNotPeeled() in a peeled loop.
+  'turbolev/assert-not-peeled-fail': [FAIL],
+
   # This test variant makes only sense on arm.
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64]', SKIP]],
 
@@ -2980,6 +2983,8 @@
   'turbolev/static-assert-fail': [SKIP],
   # Maglev doesn't support %AssertPeeled.
   'turbolev/assert-peeled-fail': [SKIP],
+  # Maglev doesn't support %AssertNotPeeled.
+  'turbolev/assert-not-peeled-fail': [SKIP],
 }], # variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 
@@ -3215,6 +3220,7 @@
   'regress/regress-435630464-verification-failure': [SKIP],
   'turbolev/static-assert-fail': [SKIP],
   'turbolev/assert-peeled-fail': [SKIP],
+  'turbolev/assert-not-peeled-fail': [SKIP],
 
   # Negative tests are not supported, because we pass --no-fail.
   'bugs/*': [SKIP],

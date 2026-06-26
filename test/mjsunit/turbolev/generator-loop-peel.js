@@ -13,7 +13,9 @@
 // generator. As in the other peel tests, a peeled loop carries a %AssertPeeled()
 // marker the peeler strips; if peeling stops firing the marker survives to the
 // Turbolev backend and the compile fails. Loops that must NOT peel (a suspend
-// inside the loop, or a non-innermost loop) omit the marker.
+// inside the loop, or a non-innermost loop) carry the opposite %AssertNotPeeled()
+// marker: it survives to the backend as a no-op when the loop is left unpeeled,
+// but fails the compile if the peeler ever peels the loop.
 
 // async function with a non-resumable inner loop: the function is a resumable
 // generator but the loop has no await, so it is a peel candidate. This is the
@@ -44,10 +46,12 @@ async function async_await_before_loop(n) {
 
 // A non-resumable inner loop nested in a RESUMABLE outer loop (await in the
 // outer body). Only the innermost loop is a peel candidate; the resume edge for
-// the outer await targets the block after the await, never the inner loop.
+// the outer await targets the block after the await, never the inner loop. The
+// outer loop must not peel; the inner loop must.
 async function async_resumable_outer(n, m) {
   let s = 0;
   for (let i = 0; i < n; i++) {
+    %AssertNotPeeled();
     for (let j = 0; j < m; j++) {
       %AssertPeeled();
       s += j;
@@ -84,12 +88,13 @@ async function async_osr(n) {
 %PrepareFunctionForOptimization(async_osr);
 
 // MUST NOT PEEL: await inside the loop makes the loop itself resumable, so it is
-// never recorded as a peel candidate. No %AssertPeeled() marker; only the result
-// is checked. This must compile and run correctly (no whole-graph fallout from
-// the peeler running on the rest of the graph).
+// never recorded as a peel candidate. The %AssertNotPeeled() marker fails the
+// compile if it ever is. This must compile and run correctly (no whole-graph
+// fallout from the peeler running on the rest of the graph).
 async function async_await_in_loop(n) {
   let s = 0;
   for (let i = 0; i < n; i++) {
+    %AssertNotPeeled();
     s += i;
     await Promise.resolve();
   }

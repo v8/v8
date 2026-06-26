@@ -11989,7 +11989,12 @@ ReduceResult MaglevGraphBuilder::VisitCallRuntime() {
       return ReduceResult::Done();
     case Runtime::kAssertPeeled:
       if (!is_turbolev()) break;
-      RETURN_IF_ABORT(AddNewNode<AssertPeeled>({}));
+      RETURN_IF_ABORT(AddNewNode<AssertPeeled>({}, true));
+      SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
+      return ReduceResult::Done();
+    case Runtime::kAssertNotPeeled:
+      if (!is_turbolev()) break;
+      RETURN_IF_ABORT(AddNewNode<AssertPeeled>({}, false));
       SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
       return ReduceResult::Done();
     case Runtime::kNewFunctionContext:

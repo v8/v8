@@ -2081,6 +2081,14 @@ RUNTIME_FUNCTION(Runtime_AssertPeeled) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_AssertNotPeeled) {
+  SealHandleScope shs(isolate);
+  // In Turbolev this is lowered to an AssertPeeled node that fails compilation
+  // if the loop peeler peels the surrounding loop, so we never reach this in
+  // compiled code unless the loop was (correctly) left unpeeled.
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_IsBeingInterpreted) {
   SealHandleScope shs(isolate);
   // Always lowered to false in Turbofan, so we never get here in compiled code.

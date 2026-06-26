@@ -7784,10 +7784,20 @@ class TurbofanStaticAssert : public FixedInputNodeT<1, TurbofanStaticAssert> {
 
 class AssertPeeled : public FixedInputNodeT<0, AssertPeeled> {
  public:
-  explicit AssertPeeled(uint64_t bitfield) : Base(bitfield) {}
+  explicit AssertPeeled(uint64_t bitfield, bool expect_peeled)
+      : Base(ExpectPeeledField::update(bitfield, expect_peeled)) {}
+
+  constexpr bool expect_peeled() const {
+    return ExpectPeeledField::decode(bitfield());
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  auto options() const { return std::tuple{expect_peeled()}; }
+
+ private:
+  using ExpectPeeledField = NextBitField<bool, 1>;
 };
 
 class MajorGCForCompilerTesting
