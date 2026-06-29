@@ -70,6 +70,13 @@ for item in agents_src.iterdir():
     if not dest_sub.exists():
       create_symlink(sub_item, dest_sub)
 
+  if item.name == "skills":
+    shared_git_cl_helper = agents_src / "shared" / "skills" / "git-cl-helper"
+    if shared_git_cl_helper.exists():
+      dest_sub = dest_item / "git-cl-helper"
+      if not dest_sub.exists():
+        create_symlink(shared_git_cl_helper, dest_sub)
+
 gemini_md_path = repo_root / "GEMINI.md"
 if not gemini_md_path.exists():
   with gemini_md_path.open("w") as f:
