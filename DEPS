@@ -113,7 +113,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '009c3b60a1c149c0f4f241150c993b2032487829',
+  'partition_alloc_version': '0e08e2939ca77100e918d4dcdb4b39bc51ca1d9f',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
