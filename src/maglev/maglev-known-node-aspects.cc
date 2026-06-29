@@ -492,7 +492,7 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
   if (!node->is_transitioning()) return;
 
   if (NodeInfo* node_info = TryGetInfoFor(node->ValueInput().node())) {
-    if (node_info->possible_maps_are_known() &&
+    if (node_info->possible_maps_are_known() && !node_info->maps_are_stale() &&
         node_info->possible_maps().size() == 1) {
       compiler::MapRef old_map = node_info->possible_maps().at(0);
       auto MaybeAliases = [&](compiler::MapRef map) -> bool {
