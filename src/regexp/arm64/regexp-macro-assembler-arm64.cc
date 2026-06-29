@@ -871,6 +871,68 @@ void RegExpMacroAssemblerARM64::SkipUntilCharAndSimd(
   __ Bind(&scalar);
 }
 
+bool RegExpMacroAssemblerARM64::SkipUntilCharUseSimd(int advance_by) {
+  return v8_flags.regexp_simd && advance_by == 1;
+}
+
+void RegExpMacroAssemblerARM64::SkipUntilCharSimd(int cp_offset, int advance_by,
+                                                  unsigned character,
+                                                  int bounds_check_offset,
+                                                  Label* on_match,
+                                                  Label* on_no_match) {
+  Label scalar, simd_loop, found;
+  static constexpr int kVectorSize = 16;
+  const int kCharsPerVector = kVectorSize / char_size();
+
+  static constexpr int kCheckPositionOffset = -1;
+  const int check_offset =
+      bounds_check_offset + kCharsPerVector + kCheckPositionOffset;
+  DCHECK_GE(check_offset, 0);
+  CheckPosition(check_offset, &scalar);
+
+  VRegister char_vec = v0;
+  __ Mov(w11, character);
+  if (char_size() == 1) {
+    __ Dup(char_vec.V16B(), w11);
+  } else {
+    __ Dup(char_vec.V8H(), w11);
+  }
+
+  __ Bind(&simd_loop);
+  // Load next characters into vector.
+  VRegister input_vec = v1;
+  __ Add(x8, input_end(), Operand(current_input_offset(), SXTW));
+  __ Add(x8, x8, cp_offset * char_size());
+  __ Ld1(input_vec.V16B(), MemOperand(x8));
+
+  VRegister eq = v2;
+  if (char_size() == 1) {
+    __ Cmeq(eq.V16B(), input_vec.V16B(), char_vec.V16B());
+  } else {
+    __ Cmeq(eq.V8H(), input_vec.V8H(), char_vec.V8H());
+  }
+
+  // Narrow to 64 bits.
+  __ Shrn(eq.V8B(), eq.V8H(), 4 * char_size());
+  __ Umov(x9, eq.V1D(), 0);
+  __ Cbnz(x9, &found);
+
+  AdvanceCurrentPosition(kCharsPerVector);
+  CheckPosition(check_offset, &scalar);
+  __ B(&simd_loop);
+
+  __ Bind(&found);
+  __ Rbit(x8, x9);
+  __ Clz(x8, x8);
+  __ Lsr(x8, x8, 2);
+
+  __ Add(current_input_offset(), current_input_offset(), w8);
+  LoadCurrentCharacterUnchecked(cp_offset, 1);
+  __ B(on_match);
+
+  __ Bind(&scalar);
+}
+
 bool RegExpMacroAssemblerARM64::SkipUntilCharOrCharUseSimd(int advance_by) {
   return v8_flags.regexp_simd && advance_by == 1;
 }

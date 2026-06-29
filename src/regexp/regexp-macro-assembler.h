@@ -144,6 +144,13 @@ class RegExpMacroAssembler {
   virtual void SkipUntilChar(int cp_offset, int advance_by, unsigned character,
                              int bounds_check_offset, Label* on_match,
                              Label* on_no_match);
+  virtual bool SkipUntilCharUseSimd(int advance_by) { return false; }
+  virtual void SkipUntilCharSimd(int cp_offset, int advance_by,
+                                 unsigned character, int bounds_check_offset,
+                                 Label* on_match, Label* on_no_match) {
+    UNREACHABLE();
+  }
+
   virtual void SkipUntilCharOrChar(int cp_offset, int advance_by,
                                    unsigned char1, unsigned char2,
                                    int bounds_check_offset, Label* on_match,

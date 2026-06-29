@@ -879,6 +879,52 @@ void RegExpMacroAssemblerX64::SplatCharactersToXMM(XMMRegister dst,
   SplatToXMM(dst, val64, scratch);
 }
 
+bool RegExpMacroAssemblerX64::SkipUntilCharUseSimd(int advance_by) {
+  return v8_flags.regexp_simd && advance_by == 1;
+}
+
+void RegExpMacroAssemblerX64::SkipUntilCharSimd(int cp_offset, int advance_by,
+                                                unsigned character,
+                                                int bounds_check_offset,
+                                                Label* on_match,
+                                                Label* on_no_match) {
+  Label scalar, simd_loop, found;
+  static constexpr int kVectorSize = 16;
+  const int kCharsPerVector = kVectorSize / char_size();
+
+  static constexpr int kCheckPositionOffset = -1;
+  const int check_offset =
+      bounds_check_offset + kCharsPerVector + kCheckPositionOffset;
+  DCHECK_GE(check_offset, 0);
+  CheckPosition(check_offset, &scalar);
+
+  XMMRegister char_vec = xmm0;
+  SplatCharactersToXMM(char_vec, character, 1, r11);
+
+  __ bind(&simd_loop);
+  XMMRegister input_vec = xmm1;
+  __ Movdqu(input_vec, Operand(rsi, rdi, times_1, cp_offset * char_size()));
+  Pcmpeq(masm(), input_vec, input_vec, char_vec, char_size());
+
+  __ Pmovmskb(rax, input_vec);
+  __ testl(rax, rax);
+  __ j(not_zero, &found, Label::kNear);
+
+  AdvanceCurrentPosition(kCharsPerVector);
+  __ cmpl(rdi, Immediate(-check_offset * char_size()));
+  __ j(less, &simd_loop, Label::kNear);
+
+  __ jmp(&scalar, Label::kNear);
+
+  __ bind(&found);
+  __ bsfl(rax, rax);
+  __ addq(rdi, rax);
+  LoadCurrentCharacterUnchecked(cp_offset, 1);
+  __ jmp(on_match);
+
+  __ bind(&scalar);
+}
+
 bool RegExpMacroAssemblerX64::SkipUntilCharOrCharUseSimd(int advance_by) {
   return v8_flags.regexp_simd && advance_by == 1;
 }
