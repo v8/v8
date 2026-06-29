@@ -54,7 +54,10 @@ MemoryAccessInformation ParseMemoryAccessInformationFromInstruction(
     access_width = 8;
   }
 
-  if (memcmp(insn_pos, "cmp", 3) == 0 || memcmp(insn_pos, "test", 4) == 0) {
+  if (memcmp(insn_pos, "cmp", 3) == 0 || memcmp(insn_pos, "test", 4) == 0 ||
+      memcmp(insn_pos, "comi", 4) == 0 || memcmp(insn_pos, "ucomi", 5) == 0 ||
+      memcmp(insn_pos, "vcomi", 5) == 0 || memcmp(insn_pos, "vucomi", 6) == 0 ||
+      memcmp(insn_pos, "ptest", 5) == 0 || memcmp(insn_pos, "vptest", 6) == 0) {
     if (memcmp(insn_pos, "cmpxchg", 7) == 0) {
       return {.kind = MemoryAccessInformation::kCmpxchg,
               .result_reg = nullptr,
@@ -68,22 +71,62 @@ MemoryAccessInformation ParseMemoryAccessInformationFromInstruction(
             .access_width = access_width,
             .extension = extension};
   }
+
   // TODO(clemensb): Implement more instructions if necessary.
-  if (memcmp(insn_pos, "mov", 3) != 0 && memcmp(insn_pos, "sub", 3) != 0 &&
-      memcmp(insn_pos, "add", 3) != 0 && memcmp(insn_pos, "vmov", 4) != 0 &&
-      memcmp(insn_pos, "or", 2) != 0 && memcmp(insn_pos, "xor", 3) != 0 &&
-      memcmp(insn_pos, "and", 3) != 0) {
+  auto match_mnem = [&](std::initializer_list<const char*> prefixes) {
+    for (const char* prefix : prefixes) {
+      if (memcmp(insn_pos, prefix, strlen(prefix)) == 0) return true;
+    }
+    return false;
+  };
+  if (!match_mnem({"mov",    "sub",    "add",   "vmov", "or",     "xor",
+                   "and",    "vcmp",   "vpcmp", "pcmp", "vadd",   "vsub",
+                   "vmul",   "vdiv",   "padd",  "psub", "pmul",   "vor",
+                   "vxor",   "vand",   "por",   "pxor", "pand",   "vpbroadcast",
+                   "vpinsr", "vpextr", "vpmov", "pmov", "vshuf",  "pshuf",
+                   "vunpck", "punpck", "vpack", "pack", "vblend", "pblend"})) {
     FATAL("Not a recognized instruction: %s\n", insn_pos);
   }
 
-  const char* comma_pos = strchr(space_pos + 1, ',');
-  CHECK_NOT_NULL(comma_pos);
-  bool mem_op_on_lhs = space_pos[1] == '[';
-  bool mem_op_on_rhs = comma_pos[1] == '[';
-  // Be extra careful to interpret the disassembly correctly.
-  CHECK_EQ(mem_op_on_lhs, comma_pos[-1] == ']');
-  CHECK_EQ(mem_op_on_rhs, space_pos[strlen(space_pos) - 1] == ']');
-  CHECK_EQ(mem_op_on_lhs, !mem_op_on_rhs);
+  const char* comma1 = strchr(space_pos + 1, ',');
+  CHECK_NOT_NULL(comma1);
+  const char* comma2 = strchr(comma1 + 1, ',');
+  const char* comma3 = comma2 ? strchr(comma2 + 1, ',') : nullptr;
+  CHECK_NULL(comma3 ? strchr(comma3 + 1, ',') : nullptr);
+
+  bool mem_op_on_lhs = false;
+  if (comma2 == nullptr) {
+    // Two-operand instruction: op1, op2
+    bool mem_op1 = space_pos[1] == '[';
+    bool mem_op2 = comma1[1] == '[';
+    CHECK_EQ(mem_op1, comma1[-1] == ']');
+    CHECK_EQ(mem_op2, space_pos[strlen(space_pos) - 1] == ']');
+    CHECK_EQ(1, mem_op1 + mem_op2);
+    mem_op_on_lhs = mem_op1;
+  } else if (comma3 == nullptr) {
+    // Three-operand instruction: op1, op2, op3
+    bool mem_op1 = space_pos[1] == '[';
+    bool mem_op2 = comma1[1] == '[';
+    bool mem_op3 = comma2[1] == '[';
+    CHECK_EQ(mem_op1, comma1[-1] == ']');
+    CHECK_EQ(mem_op2, comma2[-1] == ']');
+    CHECK_EQ(mem_op3, space_pos[strlen(space_pos) - 1] == ']');
+    CHECK_EQ(1, mem_op1 + mem_op2 + mem_op3);
+    mem_op_on_lhs = mem_op1;
+  } else {
+    // Four-operand instruction: op1, op2, op3, op4
+    bool mem_op1 = space_pos[1] == '[';
+    bool mem_op2 = comma1[1] == '[';
+    bool mem_op3 = comma2[1] == '[';
+    bool mem_op4 = comma3[1] == '[';
+    CHECK_EQ(mem_op1, comma1[-1] == ']');
+    CHECK_EQ(mem_op2, comma2[-1] == ']');
+    CHECK_EQ(mem_op3, comma3[-1] == ']');
+    CHECK_EQ(mem_op4, space_pos[strlen(space_pos) - 1] == ']');
+    CHECK_EQ(1, mem_op1 + mem_op2 + mem_op3 + mem_op4);
+    mem_op_on_lhs = mem_op1;
+  }
+
   if (mem_op_on_lhs) {
     return {.kind = MemoryAccessInformation::kWrite,
             .result_reg = nullptr,
@@ -91,6 +134,7 @@ MemoryAccessInformation ParseMemoryAccessInformationFromInstruction(
             .access_width = access_width,
             .extension = extension};
   }
+
   const char* op = space_pos + 1;
   auto match_reg = [&](std::initializer_list<const char*> aliases) {
     for (const char* alias : aliases) {
