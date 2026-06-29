@@ -879,6 +879,67 @@ void RegExpMacroAssemblerX64::SplatCharactersToXMM(XMMRegister dst,
   SplatToXMM(dst, val64, scratch);
 }
 
+bool RegExpMacroAssemblerX64::SkipUntilCharOrCharUseSimd(int advance_by) {
+  return v8_flags.regexp_simd && advance_by == 1;
+}
+
+void RegExpMacroAssemblerX64::SkipUntilCharOrCharSimd(
+    int cp_offset, int advance_by, unsigned char1, unsigned char2,
+    int bounds_check_offset, Label* on_match, Label* on_no_match) {
+  Label scalar, simd_loop, found;
+  static constexpr int kVectorSize = 16;
+  const int kCharsPerVector = kVectorSize / char_size();
+
+  static constexpr int kCheckPositionOffset = -1;
+  const int check_offset =
+      bounds_check_offset + kCharsPerVector + kCheckPositionOffset;
+  CheckPosition(check_offset, &scalar);
+
+  XMMRegister char1_vec = xmm0;
+  XMMRegister char2_vec = xmm1;
+
+  SplatCharactersToXMM(char1_vec, char1, 1, r11);
+  SplatCharactersToXMM(char2_vec, char2, 1, r11);
+
+  __ bind(&simd_loop);
+  XMMRegister input_vec = xmm2;
+  __ Movdqu(input_vec, Operand(rsi, rdi, times_1, cp_offset * char_size()));
+
+  XMMRegister eq1 = xmm4;
+  XMMRegister eq2 = xmm3;
+
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(masm(), AVX);
+    Pcmpeq(masm(), eq1, input_vec, char1_vec, char_size());
+    Pcmpeq(masm(), eq2, input_vec, char2_vec, char_size());
+    __ Orps(eq1, eq1, eq2);
+  } else {
+    __ Movdqa(eq1, input_vec);
+    __ Movdqa(eq2, input_vec);
+    Pcmpeq(masm(), eq1, eq1, char1_vec, char_size());
+    Pcmpeq(masm(), eq2, eq2, char2_vec, char_size());
+    __ Por(eq1, eq2);
+  }
+
+  __ Pmovmskb(rax, eq1);
+  __ testl(rax, rax);
+  __ j(not_zero, &found, Label::kNear);
+
+  AdvanceCurrentPosition(kCharsPerVector);
+  __ cmpl(rdi, Immediate(-check_offset * char_size()));
+  __ j(less, &simd_loop, Label::kNear);
+
+  __ jmp(&scalar, Label::kNear);
+
+  __ bind(&found);
+  __ bsfl(rax, rax);
+  __ addq(rdi, rax);
+  LoadCurrentCharacterUnchecked(cp_offset, 1);
+  __ jmp(on_match);
+
+  __ bind(&scalar);
+}
+
 void RegExpMacroAssemblerX64::SkipUntilOneOfMasked(
     int cp_offset, int advance_by, unsigned both_chars, unsigned both_mask,
     int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,

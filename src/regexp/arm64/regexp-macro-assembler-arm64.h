@@ -76,6 +76,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   bool SkipUntilOneOfMasked3UseSimd(
       const SkipUntilOneOfMasked3Args& args) override;
   void SkipUntilOneOfMasked3(const SkipUntilOneOfMasked3Args& args) override;
+  bool SkipUntilCharOrCharUseSimd(int advance_by) override;
+  void SkipUntilCharOrCharSimd(int cp_offset, int advance_by, unsigned char1,
+                               unsigned char2, int bounds_check_offset,
+                               Label* on_match, Label* on_no_match) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.

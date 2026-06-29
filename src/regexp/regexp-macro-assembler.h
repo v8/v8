@@ -148,6 +148,13 @@ class RegExpMacroAssembler {
                                    unsigned char1, unsigned char2,
                                    int bounds_check_offset, Label* on_match,
                                    Label* on_no_match);
+  virtual bool SkipUntilCharOrCharUseSimd(int advance_by) { return false; }
+  virtual void SkipUntilCharOrCharSimd(int cp_offset, int advance_by,
+                                       unsigned char1, unsigned char2,
+                                       int bounds_check_offset, Label* on_match,
+                                       Label* on_no_match) {
+    UNREACHABLE();
+  }
   virtual void SkipUntilGtOrNotBitInTable(int cp_offset, int advance_by,
                                           unsigned character,
                                           Handle<ByteArray> table,

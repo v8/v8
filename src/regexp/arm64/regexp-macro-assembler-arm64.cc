@@ -871,6 +871,75 @@ void RegExpMacroAssemblerARM64::SkipUntilCharAndSimd(
   __ Bind(&scalar);
 }
 
+bool RegExpMacroAssemblerARM64::SkipUntilCharOrCharUseSimd(int advance_by) {
+  return v8_flags.regexp_simd && advance_by == 1;
+}
+
+void RegExpMacroAssemblerARM64::SkipUntilCharOrCharSimd(
+    int cp_offset, int advance_by, unsigned char1, unsigned char2,
+    int bounds_check_offset, Label* on_match, Label* on_no_match) {
+  Label scalar, simd_loop, found;
+  static constexpr int kVectorSize = 16;
+  const int kCharsPerVector = kVectorSize / char_size();
+
+  static constexpr int kCheckPositionOffset = -1;
+  const int check_offset =
+      bounds_check_offset + kCharsPerVector + kCheckPositionOffset;
+  CheckPosition(check_offset, &scalar);
+
+  VRegister char1_vec = v0;
+  VRegister char2_vec = v1;
+
+  __ Mov(w11, char1);
+  __ Mov(w12, char2);
+  if (char_size() == 1) {
+    __ Dup(char1_vec.V16B(), w11);
+    __ Dup(char2_vec.V16B(), w12);
+  } else {
+    __ Dup(char1_vec.V8H(), w11);
+    __ Dup(char2_vec.V8H(), w12);
+  }
+
+  __ Bind(&simd_loop);
+  // Load next characters into vector.
+  VRegister input_vec = v2;
+  __ Add(x8, input_end(), Operand(current_input_offset(), SXTW));
+  __ Add(x8, x8, cp_offset * char_size());
+  __ Ld1(input_vec.V16B(), MemOperand(x8));
+
+  VRegister eq1 = v4;
+  VRegister eq2 = v3;
+
+  if (char_size() == 1) {
+    __ Cmeq(eq1.V16B(), input_vec.V16B(), char1_vec.V16B());
+    __ Cmeq(eq2.V16B(), input_vec.V16B(), char2_vec.V16B());
+  } else {
+    __ Cmeq(eq1.V8H(), input_vec.V8H(), char1_vec.V8H());
+    __ Cmeq(eq2.V8H(), input_vec.V8H(), char2_vec.V8H());
+  }
+  __ Orr(eq1.V16B(), eq1.V16B(), eq2.V16B());
+
+  // Narrow to 64 bits.
+  __ Shrn(eq1.V8B(), eq1.V8H(), 4 * char_size());
+  __ Umov(x9, eq1.V1D(), 0);
+  __ Cbnz(x9, &found);
+
+  AdvanceCurrentPosition(kCharsPerVector);
+  CheckPosition(check_offset, &scalar);
+  __ B(&simd_loop);
+
+  __ Bind(&found);
+  __ Rbit(x8, x9);
+  __ Clz(x8, x8);
+  __ Lsr(x8, x8, 2);
+
+  __ Add(current_input_offset(), current_input_offset(), w8);
+  LoadCurrentCharacterUnchecked(cp_offset, 1);
+  __ B(on_match);
+
+  __ Bind(&scalar);
+}
+
 void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked(
     int cp_offset, int advance_by, unsigned both_chars, unsigned both_mask,
     int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,
