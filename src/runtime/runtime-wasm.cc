@@ -19,6 +19,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/dictionary-inl.h"
+#include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/object-list-macros.h"
@@ -1369,6 +1370,32 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
 
   // Stack limit will be updated in WasmReturnPromiseOnSuspendAsm builtin.
   return *suspender;
+}
+
+RUNTIME_FUNCTION(Runtime_WasmSuspended) {
+  HandleScope scope(isolate);
+  DirectHandle<JSPromise> awaited_promise(Cast<JSPromise>(args[0]), isolate);
+  DirectHandle<WasmSuspenderObject> suspender(
+      TrustedCast<WasmSuspenderObject>(args[1]), isolate);
+
+  DirectHandle<JSPromise> throwaway =
+      isolate->factory()->NewJSPromiseWithoutHook();
+  isolate->OnAsyncFunctionSuspended(throwaway, awaited_promise);
+  throwaway->set_has_handler(true);
+
+  if (isolate->debug()->is_active()) {
+    Tagged<Object> promise_obj = suspender->promise();
+    if (IsJSPromise(promise_obj)) {
+      DirectHandle<JSPromise> outer_promise(Cast<JSPromise>(promise_obj),
+                                            isolate);
+      Object::SetProperty(isolate, throwaway,
+                          isolate->factory()->promise_handled_by_symbol(),
+                          outer_promise, StoreOrigin::kMaybeKeyed,
+                          Just(ShouldThrow::kThrowOnError))
+          .Check();
+    }
+  }
+  return *throwaway;
 }
 
 // Helper function needed for the stress stack switching mode.

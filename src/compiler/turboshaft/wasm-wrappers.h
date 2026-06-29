@@ -13,6 +13,7 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/wasm-assembler-helpers.h"
+#include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/objects/shared-function-info.h"
 #include "src/wasm/turboshaft-graph-interface.h"
@@ -574,9 +575,27 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         this->GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
     auto* then_call_desc =
         GetBuiltinCallDescriptor(Builtin::kPerformPromiseThen, __ graph_zone());
-    base::SmallVector<OpIndex, 16> args{
-        promise, on_fulfilled, on_rejected,
-        __ template LoadRoot<RootIndex::kUndefinedValue>(), native_context};
+    V<WordPtr> isolate = __ IsolateField(IsolateFieldId::kIsolateAddress);
+    V<Word32> promise_hook_flags = __ Load(
+        isolate, LoadOp::Kind::RawAligned().NotLoadEliminable(),
+        MemoryRepresentation::Uint32(), Isolate::promise_hook_flags_offset());
+    // LINT.IfChange(PromiseHookFlags)
+    constexpr uint32_t kHookMask =
+        Isolate::PromiseHookFields::HasIsolatePromiseHook::kMask |
+        Isolate::PromiseHookFields::HasAsyncEventDelegate::kMask |
+        Isolate::PromiseHookFields::IsDebugActive::kMask;
+    // LINT.ThenChange(../../codegen/code-stub-assembler.cc:PromiseHookFlags)
+    V<Word32> needs_hook = __ Word32BitwiseAnd(promise_hook_flags, kHookMask);
+
+    ScopedVar<Object> var_throwaway(this, __ UndefinedConstant());
+    IF (UNLIKELY(needs_hook)) {
+      var_throwaway =
+          __ WasmCallRuntime(__ graph_zone(), Runtime::kWasmSuspended,
+                             {promise, suspender}, native_context);
+    }
+
+    base::SmallVector<OpIndex, 16> args{promise, on_fulfilled, on_rejected,
+                                        var_throwaway, native_context};
     __ Call(promise_then, OpIndex::Invalid(), base::VectorOf(args),
             then_call_desc);
 

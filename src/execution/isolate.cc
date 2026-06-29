@@ -903,9 +903,17 @@ bool IsBuiltinAsyncRejectHandler(Isolate* isolate, Tagged<HeapObject> object) {
 // rethrows the exception instead of catching it.
 bool IsBuiltinForwardingRejectHandler(Isolate* isolate,
                                       Tagged<HeapObject> object) {
-  return IsBuiltinFunction(isolate, object, Builtin::kPromiseCatchFinally) ||
-         IsBuiltinFunction(isolate, object,
-                           Builtin::kAsyncFromSyncIteratorCloseSyncAndRethrow);
+  if (IsBuiltinFunction(isolate, object, Builtin::kPromiseCatchFinally) ||
+      IsBuiltinFunction(isolate, object,
+                        Builtin::kAsyncFromSyncIteratorCloseSyncAndRethrow)) {
+    return true;
+  }
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsBuiltinFunction(isolate, object, Builtin::kWasmReject)) {
+    return true;
+  }
+#endif
+  return false;
 }
 
 MaybeHandle<JSGeneratorObject> TryGetAsyncGenerator(

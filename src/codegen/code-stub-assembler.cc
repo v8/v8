@@ -19335,6 +19335,7 @@ CodeStubAssembler::IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(
   return IsSetWord32(flags, mask);
 }
 
+// LINT.IfChange(PromiseHookFlags)
 TNode<BoolT> CodeStubAssembler::
     IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
         TNode<Uint32T> flags) {
@@ -19343,6 +19344,7 @@ TNode<BoolT> CodeStubAssembler::
                   Isolate::PromiseHookFields::IsDebugActive::kMask;
   return IsSetWord32(flags, mask);
 }
+// LINT.ThenChange(../compiler/turboshaft/wasm-wrappers.h:PromiseHookFlags)
 
 TNode<BoolT> CodeStubAssembler::NeedsAnyPromiseHooks(TNode<Uint32T> flags) {
   return Word32NotEqual(flags, Int32Constant(0));

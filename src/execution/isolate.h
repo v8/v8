@@ -1908,6 +1908,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return reinterpret_cast<Address>(&promise_hook_flags_);
   }
 
+  static constexpr int promise_hook_flags_offset() {
+    return offsetof(Isolate, promise_hook_flags_);
+  }
+
   Address promise_hook_address() {
     return reinterpret_cast<Address>(&promise_hook_);
   }
