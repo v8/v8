@@ -2440,11 +2440,16 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
   inputs[input_count++] = g.UseFixed(lhs, rax);
   int effect_level = this->GetEffectLevel(node);
   if (g.CanBeMemoryOperand(opcode, node, rhs, effect_level)) {
-    AddressingMode addressing_mode =
-        g.GetEffectiveAddressMemoryOperand(rhs, inputs, &input_count);
+    // TODO(524854780): Fix unsafe splits at instruction start position, then
+    // remove the kUseUniqueRegister constraint here.
+    AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
+        rhs, inputs, &input_count,
+        OperandGenerator::RegisterUseKind::kUseUniqueRegister);
     opcode |= AddressingModeField::encode(addressing_mode);
   } else {
-    inputs[input_count++] = g.Use(rhs);
+    // TODO(524854780): Fix unsafe splits at instruction start position, then
+    // switch to {g.Use(rhs)} here.
+    inputs[input_count++] = g.UseUnique(rhs);
   }
   DCHECK_GE(arraysize(inputs), input_count);
 
