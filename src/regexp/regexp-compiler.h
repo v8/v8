@@ -228,7 +228,13 @@ class BoyerMooreLookahead : public ZoneObject {
   void SetRest(int from_map) {
     for (int i = from_map; i < length_; i++) SetAll(i);
   }
-  void EmitSkipInstructions(RegExpMacroAssembler* masm);
+  // Emits a Boyer-Moore skip-scan prelude for the unanchored search, if
+  // profitable. Returns true iff code that owns the search was emitted: either
+  // a skip-scan, or an unconditional Fail() when some lookahead position can
+  // never match. In both cases the caller must not emit a competing scan over
+  // the same loop. Returns false iff nothing was emitted (PC unchanged) and the
+  // caller should fall back to another strategy.
+  bool EmitSkipInstructions(RegExpMacroAssembler* masm);
 
  private:
   // This is the value obtained by EatsAtLeast.  If we do not have at least this

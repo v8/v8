@@ -3501,6 +3501,7 @@ DEFINE_BOOL(
     regexp_jit_all, false,
     "compile all regexp patterns directly to native code, skipping the "
     "interpreter (equivalent to --regexp-tier-up --regexp-tier-up-ticks=0)")
+DEFINE_NEG_IMPLICATION(jitless, regexp_jit_all)
 DEFINE_IMPLICATION(regexp_jit_all, regexp_tier_up)
 // clang-format off
 DEFINE_VALUE_IMPLICATION(regexp_jit_all, regexp_tier_up_ticks, 0)
@@ -3511,6 +3512,9 @@ DEFINE_BOOL(regexp_results_cache, true, "enable the regexp results cache")
 DEFINE_BOOL(regexp_assemble_from_bytecode, true,
             "assemble regexp JIT-code from bytecode")
 DEFINE_NEG_NEG_IMPLICATION(regexp_tier_up, regexp_assemble_from_bytecode)
+DEFINE_BOOL(regexp_simd_in_rc, true,
+            "emit the SIMD scans directly in the regexp compiler, instead of "
+            "via the bytecode peephole pass")
 #ifdef ENABLE_DISASSEMBLER
 DEFINE_DEVELOPER_FLAG(trace_regexp_peephole_optimization,
                       "trace regexp bytecode peephole optimization")

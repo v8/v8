@@ -5,6 +5,8 @@
 #ifndef V8_REGEXP_REGEXP_NODES_H_
 #define V8_REGEXP_REGEXP_NODES_H_
 
+#include <optional>
+
 #include "src/codegen/label.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/zone/zone.h"
@@ -719,8 +721,41 @@ class ChoiceNode : public Node {
   void SetUpPreLoad(Compiler* compiler, Trace* current_trace,
                     PreloadState* preloads);
   void AssertGuardsMentionRegisters(Trace* trace);
+  // Sets *bm_scan_emitted iff a Boyer-Moore skip-scan was emitted as a
+  // straight-line prelude. Callers can use this to gate alternative scan-loop
+  // strategies that would otherwise conflict.
   int EmitOptimizedUnanchoredSearch(Compiler* compiler, Trace* trace,
-                                    SpecialLoopState* search_loop_state);
+                                    SpecialLoopState* search_loop_state,
+                                    bool* bm_scan_emitted);
+  // Shared structural gate for the inline SkipUntil* scan strategies below.
+  // Returns the body node of the implicit `.*?` lazy-star loop (alt 1 is an
+  // omnivorous Text re-entering this loop) for inspection, skipping past any
+  // EATS_AT_LEAST tags and at most one deferrable ActionNode wrapper (e.g.
+  // STORE_POSITION for capture 0). When *wrapper_out is provided it receives
+  // that wrapper (for callers that emit the body directly and must defer it).
+  // Returns nullptr if `this` is not that shape. The caller computes this once
+  // and passes the result into both EmitSkipUntil* strategies below.
+  Node* MatchLazyStarLoopBody(Compiler* compiler,
+                              ActionNode** wrapper_out = nullptr);
+  // Sibling of EmitOptimizedUnanchoredSearch for the SkipUntilOneOfMasked
+  // peephole pattern. `body`/`wrapper` come from MatchLazyStarLoopBody. If
+  // `body` is a 2-alt Choice of Texts whose first 4 chars yield useful
+  // QuickCheck details, emits the scan op dispatching directly to the two
+  // alternative bodies (with a back-edge re-checking alt 1 at the same
+  // position, mirroring the peephole) and returns the body-emission result;
+  // the caller propagates it and skips EmitChoices. Returns nullopt if `body`
+  // is not that shape, so the caller falls through to the BitInTable strategy.
+  V8_WARN_UNUSED_RESULT std::optional<EmitResult>
+  EmitSkipUntilOneOfMaskedSearch(Compiler* compiler, Trace* trace, Node* body,
+                                 ActionNode* wrapper);
+  // Sibling of EmitOptimizedUnanchoredSearch for the SkipUntilBitInTable
+  // peephole pattern. `body` comes from MatchLazyStarLoopBody. If it is a
+  // TextNode whose first element is a non-negated character class, emits the
+  // scan as a straight-line prelude; the caller unconditionally falls through
+  // to EmitChoices afterwards (which emits the body at the candidate position),
+  // so there is no need to report back whether the prelude fired.
+  void EmitSkipUntilBitInTableSearch(Compiler* compiler, Trace* trace,
+                                     Node* body);
   // Returns nullptr on failure.
   // TODO(jgruber): Consider wrapping the return value in EmitResult.
   V8_WARN_UNUSED_RESULT Trace* EmitFixedLengthLoop(
