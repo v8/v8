@@ -59,7 +59,7 @@
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
-#include "src/objects/templates.h"
+#include "src/objects/templates-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/bounded-size-inl.h"
@@ -105,7 +105,6 @@ DEF_CAST_TRAITS(EphemeronHashTable)
 DEF_CAST_TRAITS(FeedbackCell)
 DEF_CAST_TRAITS(FeedbackMetadata)
 DEF_CAST_TRAITS(FeedbackVector)
-DEF_CAST_TRAITS(FunctionTemplateInfo)
 DEF_CAST_TRAITS(FixedArrayBase)
 DEF_CAST_TRAITS(FixedArrayExact)
 DEF_CAST_TRAITS(Foreign)
@@ -193,7 +192,6 @@ DEF_CAST_TRAITS(NormalizedMapCache)
 DEF_CAST_TRAITS(NumberDictionary)
 DEF_CAST_TRAITS(ObjectHashSet)
 DEF_CAST_TRAITS(ObjectHashTable)
-DEF_CAST_TRAITS(ObjectTemplateInfo)
 DEF_CAST_TRAITS(ObjectTwoHashTable)
 DEF_CAST_TRAITS(OnHeapBasicBlockProfilerData)
 DEF_CAST_TRAITS(Hole)
@@ -302,9 +300,6 @@ DEF_CAST_TRAITS(JSTemporalInstant)
 HEAP_OBJECT_TRUSTED_TYPE_LIST(DEF_CAST_TRAITS)
 HOLE_LIST(DEF_CAST_TRAITS)
 
-#define IS_HELPER_DEF_STRUCT(NAME, Name, name) DEF_CAST_TRAITS(Name)
-STRUCT_LIST(IS_HELPER_DEF_STRUCT)
-#undef IS_HELPER_DEF_STRUCT
 
 DEF_CAST_TRAITS(AccessCheckNeeded)
 DEF_CAST_TRAITS(AlwaysSharedSpaceJSObject)

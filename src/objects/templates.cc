@@ -18,14 +18,16 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/objects/contexts.h"
+#include "src/heap/heap-inl.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
-#include "src/objects/objects.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/string-inl.h"
 
@@ -362,6 +364,115 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
         direct_handle(object->map(), isolate));
   }
   return object;
+}
+
+// static
+MaybeHandle<Object> TemplateInfo::ProbeInstantiationsCache(
+    Isolate* isolate, DirectHandle<NativeContext> native_context,
+    DirectHandle<TemplateInfo> info, CachingMode caching_mode) {
+  DCHECK(info->is_cacheable());
+
+  uint32_t serial_number = info->serial_number();
+  if (serial_number == kUninitializedSerialNumber) {
+    return {};
+  }
+
+  if (serial_number < kFastTemplateInstantiationsCacheSize) {
+    Tagged<FixedArray> fast_cache =
+        native_context->fast_template_instantiations_cache();
+    Tagged<Object> object = fast_cache->get(serial_number);
+    if (IsTheHole(object)) {
+      return {};
+    }
+    return handle(object, isolate);
+  }
+  Tagged<EphemeronHashTable> cache =
+      native_context->slow_template_instantiations_cache();
+  ReadOnlyRoots roots(isolate);
+  // Instead of detouring via Object::GetHash() load the hash directly.
+  uint32_t hash = info->GetHash();
+  InternalIndex entry = cache->FindEntry(roots, info, hash);
+  if (entry.is_found()) {
+    return handle(cache->ValueAt(entry), isolate);
+  }
+  return {};
+}
+
+// static
+void TemplateInfo::CacheTemplateInstantiation(
+    Isolate* isolate, DirectHandle<NativeContext> native_context,
+    DirectHandle<TemplateInfo> info, CachingMode caching_mode,
+    DirectHandle<Object> object) {
+  DCHECK(info->is_cacheable());
+
+  uint32_t serial_number = info->EnsureHasSerialNumber(isolate);
+
+  if (serial_number < kFastTemplateInstantiationsCacheSize) {
+    Handle<FixedArray> fast_cache =
+        handle(native_context->fast_template_instantiations_cache(), isolate);
+    fast_cache->set(serial_number, *object);
+    return;
+  }
+  Handle<EphemeronHashTable> cache =
+      handle(native_context->slow_template_instantiations_cache(), isolate);
+  if (caching_mode == CachingMode::kUnlimited ||
+      (cache->NumberOfElements() < kMaxTemplateInstantiationsCacheSize)) {
+    ReadOnlyRoots roots(isolate);
+    // Instead of detouring via Object::GetHash() load the hash directly.
+    uint32_t hash = info->GetHash();
+    auto new_cache =
+        EphemeronHashTable::Put(isolate, cache, info, object, hash);
+    if (*new_cache != *cache) {
+      native_context->set_slow_template_instantiations_cache(*new_cache);
+    }
+  }
+}
+
+// static
+void TemplateInfo::UncacheTemplateInstantiation(
+    Isolate* isolate, DirectHandle<NativeContext> native_context,
+    DirectHandle<TemplateInfo> info, CachingMode caching_mode) {
+  int serial_number = info->serial_number();
+  if (serial_number == kUninitializedSerialNumber) return;
+
+  if (serial_number < kFastTemplateInstantiationsCacheSize) {
+    Tagged<FixedArray> fast_cache =
+        native_context->fast_template_instantiations_cache();
+    DCHECK(!IsUndefined(fast_cache->get(serial_number)));
+    fast_cache->set(serial_number, ReadOnlyRoots{isolate}.the_hole_value(),
+                    SKIP_WRITE_BARRIER);
+    return;
+  }
+  Handle<EphemeronHashTable> cache =
+      handle(native_context->slow_template_instantiations_cache(), isolate);
+  // Instead of detouring via Object::GetHash() load the hash directly.
+  uint32_t hash = info->GetHash();
+  bool was_present = false;
+  auto new_cache =
+      EphemeronHashTable::Remove(isolate, cache, info, &was_present, hash);
+  DCHECK(was_present);
+  if (!new_cache.is_identical_to(cache)) {
+    native_context->set_slow_template_instantiations_cache(*new_cache);
+  }
+}
+
+bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
+  Tagged<Object> maybe_shared = shared_function_info();
+  if (IsSharedFunctionInfo(maybe_shared)) {
+    Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
+    return shared->BreakAtEntry(isolate);
+  }
+  return false;
+}
+
+uint32_t TemplateInfo::EnsureHasSerialNumber(Isolate* isolate) {
+  uint32_t serial_number = this->serial_number();
+  if (serial_number == kUninitializedSerialNumber) {
+    CHECK(!HeapLayout::InReadOnlySpace(this));
+    serial_number = isolate->heap()->GetNextTemplateSerialNumber();
+    set_serial_number(serial_number);
+  }
+  return serial_number;
 }
 
 }  // namespace v8::internal

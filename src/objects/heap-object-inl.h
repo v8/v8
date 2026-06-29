@@ -70,12 +70,14 @@ DEF_CAST_TRAITS(ExternalTwoByteString)
 DEF_CAST_TRAITS(FixedArray)
 DEF_CAST_TRAITS(FixedDoubleArray)
 DEF_CAST_TRAITS(FreeSpace)
+DEF_CAST_TRAITS(FunctionTemplateInfo)
 DEF_CAST_TRAITS(HeapNumber)
 DEF_CAST_TRAITS(InternalizedString)
 DEF_CAST_TRAITS(JSProxy)
 DEF_CAST_TRAITS(Map)
 DEF_CAST_TRAITS(Name)
 DEF_CAST_TRAITS(NameToIndexHashTable)
+DEF_CAST_TRAITS(ObjectTemplateInfo)
 DEF_CAST_TRAITS(PropertyArray)
 DEF_CAST_TRAITS(ScopeInfo)
 DEF_CAST_TRAITS(SeqOneByteString)
@@ -88,6 +90,13 @@ DEF_CAST_TRAITS(Symbol)
 DEF_CAST_TRAITS(ThinString)
 DEF_CAST_TRAITS(WeakArrayList)
 DEF_CAST_TRAITS(WeakFixedArray)
+
+// All Struct subclasses' cast traits only need an instance-type check, so they
+// live here (rather than objects-inl.h) for global visibility without forcing
+// dependents to depend on objects-inl.h.
+#define IS_HELPER_DEF_STRUCT(NAME, Name, name) DEF_CAST_TRAITS(Name)
+STRUCT_LIST(IS_HELPER_DEF_STRUCT)
+#undef IS_HELPER_DEF_STRUCT
 
 // Support writing "IsFoo(this)" for types where "Is<Foo>(this)" doesn't work.
 #define HEAPOBJECT_PTR_OVERLOAD(type, ...)      \

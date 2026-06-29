@@ -11,10 +11,11 @@
 #include "src/codegen/external-reference.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/api-callbacks.h"
-#include "src/objects/contexts-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
+#include "src/sandbox/external-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -300,15 +301,6 @@ bool FunctionTemplateInfo::instantiated() {
   return IsSharedFunctionInfo(shared_function_info());
 }
 
-inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
-  Tagged<Object> maybe_shared = shared_function_info();
-  if (IsSharedFunctionInfo(maybe_shared)) {
-    Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
-    return shared->BreakAtEntry(isolate);
-  }
-  return false;
-}
-
 Tagged<FunctionTemplateInfo> FunctionTemplateInfo::GetParent(Isolate* isolate) {
   Tagged<Object> parent = GetParentTemplate();
   return IsUndefined(parent) ? Tagged<FunctionTemplateInfo>{}
@@ -393,107 +385,7 @@ void TemplateInfo::set_serial_number(uint32_t value) {
       SerialNumberBits::update(template_info_flags(), value));
 }
 
-uint32_t TemplateInfo::EnsureHasSerialNumber(Isolate* isolate) {
-  uint32_t serial_number = this->serial_number();
-  if (serial_number == kUninitializedSerialNumber) {
-    CHECK(!HeapLayout::InReadOnlySpace(this));
-    serial_number = isolate->heap()->GetNextTemplateSerialNumber();
-    set_serial_number(serial_number);
-  }
-  return serial_number;
-}
-
 uint32_t TemplateInfo::GetHash() const { return SmiHash32(serial_number()); }
-
-// static
-MaybeHandle<Object> TemplateInfo::ProbeInstantiationsCache(
-    Isolate* isolate, DirectHandle<NativeContext> native_context,
-    DirectHandle<TemplateInfo> info, CachingMode caching_mode) {
-  DCHECK(info->is_cacheable());
-
-  uint32_t serial_number = info->serial_number();
-  if (serial_number == kUninitializedSerialNumber) {
-    return {};
-  }
-
-  if (serial_number < kFastTemplateInstantiationsCacheSize) {
-    Tagged<FixedArray> fast_cache =
-        native_context->fast_template_instantiations_cache();
-    Tagged<Object> object = fast_cache->get(serial_number);
-    if (IsTheHole(object)) {
-      return {};
-    }
-    return handle(object, isolate);
-  }
-  Tagged<EphemeronHashTable> cache =
-      native_context->slow_template_instantiations_cache();
-  ReadOnlyRoots roots(isolate);
-  // Instead of detouring via Object::GetHash() load the hash directly.
-  uint32_t hash = info->GetHash();
-  InternalIndex entry = cache->FindEntry(roots, info, hash);
-  if (entry.is_found()) {
-    return handle(cache->ValueAt(entry), isolate);
-  }
-  return {};
-}
-
-// static
-void TemplateInfo::CacheTemplateInstantiation(
-    Isolate* isolate, DirectHandle<NativeContext> native_context,
-    DirectHandle<TemplateInfo> info, CachingMode caching_mode,
-    DirectHandle<Object> object) {
-  DCHECK(info->is_cacheable());
-
-  uint32_t serial_number = info->EnsureHasSerialNumber(isolate);
-
-  if (serial_number < kFastTemplateInstantiationsCacheSize) {
-    Handle<FixedArray> fast_cache =
-        handle(native_context->fast_template_instantiations_cache(), isolate);
-    fast_cache->set(serial_number, *object);
-    return;
-  }
-  Handle<EphemeronHashTable> cache =
-      handle(native_context->slow_template_instantiations_cache(), isolate);
-  if (caching_mode == CachingMode::kUnlimited ||
-      (cache->NumberOfElements() < kMaxTemplateInstantiationsCacheSize)) {
-    ReadOnlyRoots roots(isolate);
-    // Instead of detouring via Object::GetHash() load the hash directly.
-    uint32_t hash = info->GetHash();
-    auto new_cache =
-        EphemeronHashTable::Put(isolate, cache, info, object, hash);
-    if (*new_cache != *cache) {
-      native_context->set_slow_template_instantiations_cache(*new_cache);
-    }
-  }
-}
-
-// static
-void TemplateInfo::UncacheTemplateInstantiation(
-    Isolate* isolate, DirectHandle<NativeContext> native_context,
-    DirectHandle<TemplateInfo> info, CachingMode caching_mode) {
-  int serial_number = info->serial_number();
-  if (serial_number == kUninitializedSerialNumber) return;
-
-  if (serial_number < kFastTemplateInstantiationsCacheSize) {
-    Tagged<FixedArray> fast_cache =
-        native_context->fast_template_instantiations_cache();
-    DCHECK(!IsUndefined(fast_cache->get(serial_number)));
-    fast_cache->set(serial_number, ReadOnlyRoots{isolate}.the_hole_value(),
-                    SKIP_WRITE_BARRIER);
-    return;
-  }
-  Handle<EphemeronHashTable> cache =
-      handle(native_context->slow_template_instantiations_cache(), isolate);
-  // Instead of detouring via Object::GetHash() load the hash directly.
-  uint32_t hash = info->GetHash();
-  bool was_present = false;
-  auto new_cache =
-      EphemeronHashTable::Remove(isolate, cache, info, &was_present, hash);
-  DCHECK(was_present);
-  if (!new_cache.is_identical_to(cache)) {
-    native_context->set_slow_template_instantiations_cache(*new_cache);
-  }
-}
 
 Tagged<UnionOf<String, Undefined>> FunctionTemplateInfo::class_name() const {
   return class_name_.load();

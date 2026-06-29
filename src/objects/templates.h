@@ -58,7 +58,7 @@ V8_OBJECT class TemplateInfo : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(serial_number, uint32_t)
 
   // Initializes serial number if necessary and returns it.
-  inline uint32_t EnsureHasSerialNumber(Isolate* isolate);
+  uint32_t EnsureHasSerialNumber(Isolate* isolate);
 
   inline uint32_t GetHash() const;
 
@@ -81,16 +81,16 @@ V8_OBJECT class TemplateInfo : public HeapObject {
         ProbeInstantiationsCache(isolate, native_context, info, caching_mode));
   }
 
-  inline static MaybeHandle<Object> ProbeInstantiationsCache(
+  static MaybeHandle<Object> ProbeInstantiationsCache(
       Isolate* isolate, DirectHandle<NativeContext> native_context,
       DirectHandle<TemplateInfo> info, CachingMode caching_mode);
 
-  inline static void CacheTemplateInstantiation(
+  static void CacheTemplateInstantiation(
       Isolate* isolate, DirectHandle<NativeContext> native_context,
       DirectHandle<TemplateInfo> info, CachingMode caching_mode,
       DirectHandle<Object> object);
 
-  inline static void UncacheTemplateInstantiation(
+  static void UncacheTemplateInstantiation(
       Isolate* isolate, DirectHandle<NativeContext> native_context,
       DirectHandle<TemplateInfo> info, CachingMode caching_mode);
 
