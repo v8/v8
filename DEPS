@@ -96,7 +96,7 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:ed2a73266f1d9a0aeeebc3e1e07045848a62254e',
+  'gn_version': 'git_revision:e331ddb6e93389abfc75c611690bb82f5274029e',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8edf031b7f329916f82f99e0b27e8e265760cbae',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6bb98d0865c859a763b390c583fe7670516ce08d',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0d39be5a3f129cf1f35e7812108a2184e2193315',
   'buildtools/linux64': {
@@ -341,7 +341,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9fe0a380ee56ac20c938cb0c0c35c9b4f7c73339',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '90c5d5ff8fd4729a0e17a0e516ba00f40a073217',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '265cc6a83652bac5cb8ceb59741bc288ebe6b312',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
