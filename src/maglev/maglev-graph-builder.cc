@@ -16259,7 +16259,10 @@ void MaglevGraphBuilder::OsrPrewalk() {
     previous_fallsthrough = fallsthrough;
   }
 
-  DCHECK(is_reachable[entrypoint_]);
+  if (!is_reachable[entrypoint_]) {
+    should_abort_compilation_ = true;
+    return;
+  }
   if (!previous_fallsthrough) {
     auto it = saved_states.find(entrypoint_);
     if (it != saved_states.end()) {
@@ -16285,6 +16288,7 @@ void MaglevGraphBuilder::OsrPrewalk() {
 
 void MaglevGraphBuilder::BuildBody() {
   OsrPrewalk();
+  if (should_abort_compilation_) return;
   int position = 0;
   while (!source_position_iterator_.done() &&
          source_position_iterator_.code_offset() < entrypoint_) {
