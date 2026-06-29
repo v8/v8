@@ -3122,6 +3122,11 @@ LiveRange* LinearScanAllocator::AssignRegisterOnReload(LiveRange* range,
   if (new_end != range->End()) {
     TRACE("Found new end for %d:%d at %d\n", range->TopLevel()->vreg(),
           range->relative_id(), new_end.value());
+    // Shift the split position to the last gap position. This is to ensure that
+    // if a connecting move is needed, that move coincides with the start of the
+    // range that it defines.
+    new_end = new_end.IsGapPosition() ? new_end : new_end.FullStart().End();
+    DCHECK_GT(new_end, range->Start());
     LiveRange* tail = SplitRangeAt(range, new_end);
     AddToUnhandled(tail);
   }
@@ -4105,8 +4110,6 @@ void LinearScanAllocator::FindFreeRegistersForRange(
       }
     }
   }
-  // Also block registers that may lead to unsafe connecting moves.
-  BlockRegistersForUnsafeSplits(range, positions);
 }
 
 // High-level register allocation summary:
@@ -4202,94 +4205,6 @@ int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
   return reg;
 }
 
-// This function detects and prevents "unsafe splits" that can cause register
-// clobbering.
-//
-// An unsafe split occurs when:
-// 1. A live range 'current' is split at instruction start (position 4*N + 2).
-// 2. The allocator is considering assigning the second half of the split
-//    (current) to a register 'R'.
-// 3. Another input to the same instruction ('input_range') is already assigned
-//    to 'R' and ends at instruction start (position 4*N + 2).
-//
-// Because 'input_range' ends at 4*N + 2 and 'current' starts at 4*N + 2, their
-// lifetime intervals are semi-open and do not formally overlap. The allocator
-// would normally think it is safe to assign both to 'R'.
-//
-// However, because 'current' is a split child, we must insert a connecting
-// move (e.g., 'R = pred_R') at the preceding gap position (gap end, 4*N + 1)
-// to transfer the value from its predecessor. This connecting move will
-// overwrite 'R' at 4*N + 1, clobbering the value of 'input_range' before the
-// instruction can read it at 4*N + 2.
-//
-//
-// Positions:        | 4*N (Gap Start) | 4*N+1 (Gap End) | 4*N+2 (Inst Start) |
-// ------------------|-----------------|-----------------|--------------------|
-// pred/current      |(pred_R)=========|================>|(R)================>
-// connecting move   |                 |     R = pred_R  | (executed at 4*N+1)
-//                   |                 |                 |
-// input_range [R]   |(R)===============================>| (read at 4*N+2)
-//                                              |
-//                                              v
-//                                       !!! CLOBBER !!!
-//                   Connecting move "R = pred_R" overwrites R at 4*N+1.
-//                   When instruction executes at 4*N+2, input_range reads
-//                   corrupted value from R.
-//
-// To prevent this, we check all inputs of the instruction at
-// 'current->Start()'. If any input is in a register 'R' and ends at the
-// instruction start, and we would need a connecting move to transition
-// 'current' into 'R' (because its predecessor is in a different register or
-// spilled), we block 'R' for 'current' by setting 'free_until[R] = start'. This
-// forces the allocator to choose a different register for 'current' or spill
-// it, avoiding the clobber.
-void LinearScanAllocator::BlockRegistersForUnsafeSplits(
-    LiveRange* current, base::Vector<LifetimePosition> free_until,
-    base::Vector<LifetimePosition> block_pos) {
-  LifetimePosition start = current->Start();
-  // We only care about instruction start position.
-  if (!start.IsInstructionPosition() || !start.IsStart()) return;
-
-  // Get the predecessor of current in the split chain.
-  LifetimePosition prev_pos = LifetimePosition::FromInt(start.value() - 1);
-  LiveRange* pred = current->TopLevel()->GetChildCovers(prev_pos);
-  if (pred == nullptr) return;
-  int pred_reg = pred->HasRegisterAssigned() ? pred->assigned_register()
-                                             : kUnassignedRegister;
-
-  int instr_idx = start.ToInstructionIndex();
-  const Instruction* instr = code()->InstructionAt(instr_idx);
-
-  // Check all inputs of this instruction.
-  for (size_t i = 0; i < instr->InputCount(); ++i) {
-    const InstructionOperand* op = instr->InputAt(i);
-    if (!op->IsUnallocated()) continue;
-
-    int vreg = UnallocatedOperand::cast(op)->virtual_register();
-    TopLevelLiveRange* input_range = data()->live_ranges()[vreg];
-    if (input_range == nullptr) continue;
-
-    // Find the child of input_range that is active just before the instruction.
-    LiveRange* child = input_range->GetChildCovers(prev_pos);
-    if (child == nullptr) continue;
-    if (!child->HasRegisterAssigned()) continue;
-    if (child->End() != start) continue;
-    int reg = child->assigned_register();
-    // Check if we need a connecting move.
-    if (pred_reg == reg) continue;
-    // Block this register!
-    free_until[reg] = std::min(free_until[reg], start);
-    if (block_pos.size() > 0) {
-      block_pos[reg] = std::min(block_pos[reg], start);
-    }
-    TRACE(
-        "UnsafeSplit: Blocking register %s for vreg %d at %d due to "
-        "unsafe split of input vreg %d (pred_reg=%s)\n",
-        RegisterName(reg), current->TopLevel()->vreg(), start.value(), vreg,
-        pred_reg == kUnassignedRegister ? "spill" : RegisterName(pred_reg));
-  }
-}
-
 bool LinearScanAllocator::TryAllocateFreeReg(
     LiveRange* current, base::Vector<const LifetimePosition> free_until_pos) {
   // Compute register hint, if such exists.
@@ -4311,8 +4226,13 @@ bool LinearScanAllocator::TryAllocateFreeReg(
   if (pos < current->End()) {
     // Register reg is available at the range start but becomes blocked before
     // the range end. Split current before the position where it becomes
-    // blocked.
-    LiveRange* tail = SplitRangeAt(current, pos);
+    // blocked. Shift the split position to the last gap position. This is to
+    // ensure that if a connecting move is needed, that move coincides with the
+    // start of the range that it defines. See crbug.com/1182985.
+    LifetimePosition gap_pos =
+        pos.IsGapPosition() ? pos : pos.FullStart().End();
+    if (gap_pos <= current->Start()) return false;
+    LiveRange* tail = SplitRangeAt(current, gap_pos);
     AddToUnhandled(tail);
 
     // Try to allocate preferred register once more.
@@ -4433,9 +4353,6 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current,
       }
     }
   }
-
-  // Block registers to avoid unsafe splits.
-  BlockRegistersForUnsafeSplits(current, use_pos, block_pos);
 
   // Compute register hint if it exists.
   int hint_reg = kUnassignedRegister;

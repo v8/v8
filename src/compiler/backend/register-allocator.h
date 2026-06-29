@@ -1562,9 +1562,6 @@ class LinearScanAllocator final : public RegisterAllocator {
   LiveRange* AssignRegisterOnReload(LiveRange* range, int reg);
   void ReloadLiveRanges(RangeRegisterSmallMap const& to_be_live,
                         LifetimePosition position);
-  void BlockRegistersForUnsafeSplits(
-      LiveRange* current, base::Vector<LifetimePosition> free_until,
-      base::Vector<LifetimePosition> block_pos = {});
 
   void UpdateDeferredFixedRanges(SpillMode spill_mode, InstructionBlock* block);
   bool BlockIsDeferredOrImmediatePredecessorIsNotDeferred(
