@@ -123,6 +123,11 @@ class MaglevGraphOptimizer {
       ValueNode* node, UseRepresentation repr,
       std::optional<TaggedToFloat64ConversionType> conversion_type);
 
+  // Records the untagged input of a tagging conversion as the matching
+  // untagged alternative of `tagged`, so a later untagging use can reuse it.
+  template <ValueRepresentation kRepresentation>
+  void RegisterUntaggedAlternative(ValueNode* tagged);
+
   void PreProcessNode(Node*, const ProcessingState& state);
   void PostProcessNode(Node*);
 

@@ -2232,25 +2232,51 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedNumberOrOddballToUint8Clamped(
   return ProcessResult::kContinue;
 }
 
+template <ValueRepresentation kRepresentation>
+void MaglevGraphOptimizer::RegisterUntaggedAlternative(ValueNode* tagged) {
+  ValueNode* input = tagged->input_node(0);
+  DCHECK_EQ(input->value_representation(), kRepresentation);
+  auto& alternative =
+      known_node_aspects().GetOrCreateInfoFor(broker(), tagged)->alternative();
+  switch (kRepresentation) {
+    case ValueRepresentation::kInt32:
+      if (!alternative.int32()) alternative.set_int32(input);
+      break;
+    case ValueRepresentation::kFloat64:
+      if (!alternative.float64()) alternative.set_float64(input);
+      break;
+    case ValueRepresentation::kHoleyFloat64:
+      if (!alternative.holey_float64()) alternative.set_holey_float64(input);
+      break;
+    case ValueRepresentation::kTagged:
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+}
+
 ProcessResult MaglevGraphOptimizer::VisitInt32ToNumber(
     Int32ToNumber* node, const ProcessingState& state) {
   if (node->conversion_mode() != NumberConversionMode::kForceHeapNumber) {
     REPLACE_AND_RETURN_IF_DONE(
         TrySmiTag<UnsafeSmiTagInt32>(node->ValueInput()));
-  } else {
-    // TODO(b/424157317): Optimize.
   }
+  RegisterUntaggedAlternative<ValueRepresentation::kInt32>(node);
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitUint32ToNumber(
     Uint32ToNumber* node, const ProcessingState& state) {
+  // No untagged alternative slot for uint32, so nothing to register.
   REPLACE_AND_RETURN_IF_DONE(TrySmiTag<UnsafeSmiTagUint32>(node->ValueInput()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitIntPtrToNumber(
     IntPtrToNumber* node, const ProcessingState& state) {
+  // No untagged alternative slot for intptr, so nothing to register.
   REPLACE_AND_RETURN_IF_DONE(TrySmiTag<UnsafeSmiTagIntPtr>(node->ValueInput()));
   return ProcessResult::kContinue;
 }
@@ -2283,13 +2309,13 @@ ProcessResult MaglevGraphOptimizer::VisitIntPtrToBoolean(
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64ToTagged(
     Float64ToTagged* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  RegisterUntaggedAlternative<ValueRepresentation::kFloat64>(node);
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToTagged(
     HoleyFloat64ToTagged* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  RegisterUntaggedAlternative<ValueRepresentation::kHoleyFloat64>(node);
   return ProcessResult::kContinue;
 }
 
