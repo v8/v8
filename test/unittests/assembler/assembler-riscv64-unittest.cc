@@ -4993,6 +4993,119 @@ TEST_F(AssemblerRISCV64Test, RISCV_UTEST_WasmRvvS128const) {
   }
 }
 
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_FP16_Round) {
+  if (!CpuFeatures::IsSupported(RVV)) return;
+
+  uint16_t result[kMaxElements] = {0};
+
+  auto test_round = [&result](float input_f, float expected_f,
+                              FPURoundingMode mode) {
+    Float16 input_f16 = Float16::FromFloat32(input_f);
+    Float16 expected_f16 = Float16::FromFloat32(expected_f);
+    auto fn = [&result, mode](MacroAssembler& assm) {
+      __ Push(kScratchReg);
+      __ VU.set(t0, zero_reg, VSew::E16, m1);
+      __ vmv_vx(v1, a0);  // src data in v1 (test dst==src case)
+      __ vmv_vx(v2, a0);  // v_scratch
+      switch (mode) {
+        case RNE:
+          __ Round(v1, v1, kScratchReg, v2);
+          break;
+        case RTZ:
+          __ Trunc(v1, v1, kScratchReg, v2);
+          break;
+        case RDN:
+          __ Floor(v1, v1, kScratchReg, v2);
+          break;
+        case RUP:
+          __ Ceil(v1, v1, kScratchReg, v2);
+          break;
+        default:
+          UNREACHABLE();
+      }
+      __ Pop(kScratchReg);
+      __ vmv_xs(a0, v1);
+      __ li(a3, Operand(int64_t(result)));
+      __ vs(v1, a3, 0, E16);
+    };
+    auto res = GenAndRunTest<uint32_t, uint32_t>(input_f16.get_bits(), fn);
+    for (unsigned i = 0; i < CpuFeatures::vlen() / 16; i++) {
+      CHECK_EQ(expected_f16.get_bits(), result[i]);
+      result[i] = 0;
+    }
+    CHECK_EQ(expected_f16.get_bits(), static_cast<uint16_t>(res));
+  };
+
+  // Round (RNE)
+  test_round(1.5f, 2.0f, RNE);
+  test_round(2.5f, 2.0f, RNE);
+  test_round(-1.5f, -2.0f, RNE);
+  // Trunc (RTZ)
+  test_round(1.5f, 1.0f, RTZ);
+  test_round(-1.5f, -1.0f, RTZ);
+  // Floor (RDN)
+  test_round(1.5f, 1.0f, RDN);
+  test_round(-1.5f, -2.0f, RDN);
+  // Ceil (RUP)
+  test_round(1.5f, 2.0f, RUP);
+  test_round(-1.5f, -1.0f, RUP);
+  // Integers / zero
+  test_round(3.0f, 3.0f, RNE);
+  test_round(-3.0f, -3.0f, RTZ);
+  test_round(0.0f, 0.0f, RDN);
+  test_round(-0.0f, -0.0f, RUP);
+
+  // Infinities and NaN (same result regardless of rounding mode)
+  auto test_special = [&result](float input_f, auto check_fn) {
+    Float16 f16 = Float16::FromFloat32(input_f);
+    for (int mode = 0; mode < 4; mode++) {
+      FPURoundingMode frm = static_cast<FPURoundingMode>(mode);
+      auto fn = [&result, frm](MacroAssembler& assm) {
+        __ Push(kScratchReg);
+        __ VU.set(t0, zero_reg, VSew::E16, m1);
+        __ vmv_vx(v1, a0);
+        __ vmv_vx(v2, a0);
+        switch (frm) {
+          case RNE:
+            __ Round(v1, v1, kScratchReg, v2);
+            break;
+          case RTZ:
+            __ Trunc(v1, v1, kScratchReg, v2);
+            break;
+          case RDN:
+            __ Floor(v1, v1, kScratchReg, v2);
+            break;
+          case RUP:
+            __ Ceil(v1, v1, kScratchReg, v2);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        __ Pop(kScratchReg);
+        __ vmv_xs(a0, v1);
+        __ li(a3, Operand(int64_t(result)));
+        __ vs(v1, a3, 0, E16);
+      };
+      auto res = GenAndRunTest<uint32_t, uint32_t>(f16.get_bits(), fn);
+      check_fn(res);
+      for (unsigned i = 0; i < CpuFeatures::vlen() / 16; i++) {
+        check_fn(result[i]);
+        result[i] = 0;
+      }
+    }
+  };
+
+  test_special(1.0f / 0.0f, [](uint16_t val) {
+    CHECK_EQ(Float16::FromFloat32(1.0f / 0.0f).get_bits(), val);
+  });
+  test_special(-1.0f / 0.0f, [](uint16_t val) {
+    CHECK_EQ(Float16::FromFloat32(-1.0f / 0.0f).get_bits(), val);
+  });
+  test_special(std::numeric_limits<float>::quiet_NaN(), [](uint16_t val) {
+    CHECK(std::isnan(Float16::FromBits(val).ToFloat32()));
+  });
+}
+
 #undef UTEST_VCPOP_M_WITH_WIDTH
 
 #undef __

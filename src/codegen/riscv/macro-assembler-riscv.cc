@@ -3591,13 +3591,13 @@ void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
 // rounded result; this differs from behavior of RISCV fcvt instructions (which
 // round out-of-range values to the nearest max or min value), therefore special
 // handling is needed by NaN, +/-Infinity, +/-0
-void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
-                                 VRegister v_scratch, FPURoundingMode frm,
-                                 bool keep_nan_same) {
+template <int kMantissaBits, int kExponentBits, int kExponentBias>
+void MacroAssembler::RoundHelperImpl(VRegister dst, VRegister src,
+                                     Register scratch, VRegister v_scratch,
+                                     FPURoundingMode frm, bool keep_nan_same) {
   // if src is NaN/+-Infinity/+-Zero or if the exponent is larger than # of bits
   // in mantissa, the result is the same as src, so move src to dest  (to avoid
   // generating another branch)
-
   // If real exponent (i.e., scratch2 - kFloatExponentBias) is greater than
   // kFloat32MantissaBits, it means the floating-point value has no fractional
   // part, thus the input is already rounded, jump to done. Note that, NaN and
@@ -3605,27 +3605,19 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   // they also satisfy (scratch2 - kFloatExponentBias >= kFloatMantissaBits),
   // and JS round semantics specify that rounding of NaN (Infinity) returns NaN
   // (Infinity), so NaN and Infinity are considered rounded value too.
-  int32_t sew = VU.sew_bits();
-  DCHECK((sew == 32) || (sew == 64));
-  const int kFloatMantissaBits =
-      sew == 32 ? kFloat32MantissaBits : kFloat64MantissaBits;
-  const int kFloatExponentBits =
-      sew == 32 ? kFloat32ExponentBits : kFloat64ExponentBits;
-  const int kFloatExponentBias =
-      sew == 32 ? kFloat32ExponentBias : kFloat64ExponentBias;
-
-  // slli(rt, rs, 64 - (pos + size));
-  // if (sign_extend) {
-  //   srai(rt, rt, 64 - size);
-  // } else {
-  //   srli(rt, rt, 64 - size);
-  // }
+  static_assert(kMantissaBits + kExponentBits + 1 == 16 ||
+                kMantissaBits + kExponentBits + 1 == 32 ||
+                kMantissaBits + kExponentBits + 1 == 64);
+  constexpr int sew = kMantissaBits + kExponentBits + 1;
+  DCHECK_NE(dst, v0);
+  DCHECK_NE(src, v0);
+  DCHECK_NE(v_scratch, v0);
   vmv_vx(v_scratch, zero_reg);
-  li(scratch, 64 - kFloatMantissaBits - kFloatExponentBits);
+  li(scratch, 64 - kMantissaBits - kExponentBits);
   vsll_vx(v_scratch, src, scratch);
-  li(scratch, 64 - kFloatExponentBits);
+  li(scratch, 64 - kExponentBits);
   vsrl_vx(v_scratch, v_scratch, scratch);
-  li(scratch, kFloatExponentBias + kFloatMantissaBits);
+  li(scratch, kExponentBias + kMantissaBits);
   vmslt_vx(v0, v_scratch, scratch);
   VU.set(frm);
   vmv_vv(dst, src);
@@ -3634,7 +3626,6 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   }
   vfcvt_x_f_v(dst, src, MaskType::Mask);
   vfcvt_f_x_v(dst, dst, MaskType::Mask);
-
   // A special handling is needed if the input is a very small positive/negative
   // number that rounds to zero. JS semantics requires that the rounded result
   // retains the sign of the input, so a very small positive (negative)
@@ -3645,9 +3636,12 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
     vfsngj_vv(dst, dst, src);
   }
   if (!keep_nan_same) {
-    vmfeq_vv(v0, src, src);
-    vnot_vv(v0, v0);
-    if (sew == 32) {
+    // Use a scratch VRegister for NaN comparison to avoid corrupting v0.
+    vmfeq_vv(kSimd128ScratchReg3, src, src);
+    vnot_vv(v0, kSimd128ScratchReg3);
+    if constexpr (sew == 16) {
+      fmv_h_x(kScratchDoubleReg, zero_reg);
+    } else if constexpr (sew == 32) {
       fmv_w_x(kScratchDoubleReg, zero_reg);
     } else {
 #ifdef V8_TARGET_ARCH_RISCV64
@@ -3660,6 +3654,27 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   }
   if (frm != RNE) {
     VU.set(RNE);
+  }
+}
+
+void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
+                                 VRegister v_scratch, FPURoundingMode frm,
+                                 bool keep_nan_same) {
+  int32_t sew = VU.sew_bits();
+  DCHECK((sew == 16) || (sew == 32) || (sew == 64));
+  switch (sew) {
+    case 16:
+      return RoundHelperImpl<kFloat16MantissaBits, kFloat16ExponentBits,
+                             kFloat16ExponentBias>(dst, src, scratch, v_scratch,
+                                                   frm, keep_nan_same);
+    case 32:
+      return RoundHelperImpl<kFloat32MantissaBits, kFloat32ExponentBits,
+                             kFloat32ExponentBias>(dst, src, scratch, v_scratch,
+                                                   frm, keep_nan_same);
+    default:
+      return RoundHelperImpl<kFloat64MantissaBits, kFloat64ExponentBits,
+                             kFloat64ExponentBias>(dst, src, scratch, v_scratch,
+                                                   frm, keep_nan_same);
   }
 }
 

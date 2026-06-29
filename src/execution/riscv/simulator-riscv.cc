@@ -953,38 +953,38 @@ struct type_sew_t<128> {
   RVV_VI_VFP_LOOP_END                                                      \
   rvv_trace_vd();
 
-#define RVV_VFSGNJ_VV_VF_LOOP(BODY16, BODY32, BODY64)                      \
-  RVV_VI_VFP_LOOP_BASE                                                     \
-  switch (rvv_vsew()) {                                                    \
-    case E16: {                                                            \
-      uint16_t& vd = Rvvelt<uint16_t>(rvv_vd_reg(), i, true);              \
-      Float16 vs1 = Float16::FromBits(Rvvelt<uint16_t>(rvv_vs1_reg(), i)); \
-      Float16 vs2 = Float16::FromBits(Rvvelt<uint16_t>(rvv_vs2_reg(), i)); \
-      Float16 hs1 = hrs1_boxed();                                          \
-      BODY16;                                                              \
-      break;                                                               \
-    }                                                                      \
-    case E32: {                                                            \
-      uint32_t& vd = Rvvelt<uint32_t>(rvv_vd_reg(), i, true);              \
-      uint32_t vs1 = Rvvelt<uint32_t>(rvv_vs1_reg(), i);                   \
-      uint32_t vs2 = Rvvelt<uint32_t>(rvv_vs2_reg(), i);                   \
-      Float32 fs1 = get_fpu_register_Float32(rs1_reg());                   \
-      BODY32;                                                              \
-      break;                                                               \
-    }                                                                      \
-    case E64: {                                                            \
-      uint64_t& vd = Rvvelt<uint64_t>(rvv_vd_reg(), i, true);              \
-      uint64_t vs1 = Rvvelt<uint64_t>(rvv_vs1_reg(), i);                   \
-      uint64_t vs2 = Rvvelt<uint64_t>(rvv_vs2_reg(), i);                   \
-      Float64 fs1 = get_fpu_register_Float64(rs1_reg());                   \
-      BODY64;                                                              \
-      break;                                                               \
-    }                                                                      \
-    default:                                                               \
-      require(0);                                                          \
-      break;                                                               \
-  }                                                                        \
-  RVV_VI_VFP_LOOP_END                                                      \
+#define RVV_VFSGNJ_VV_VF_LOOP(BODY16, BODY32, BODY64)         \
+  RVV_VI_VFP_LOOP_BASE                                        \
+  switch (rvv_vsew()) {                                       \
+    case E16: {                                               \
+      uint16_t& vd = Rvvelt<uint16_t>(rvv_vd_reg(), i, true); \
+      uint16_t vs1 = Rvvelt<uint16_t>(rvv_vs1_reg(), i);      \
+      uint16_t vs2 = Rvvelt<uint16_t>(rvv_vs2_reg(), i);      \
+      Float16 hs1 = hrs1_boxed();                             \
+      BODY16;                                                 \
+      break;                                                  \
+    }                                                         \
+    case E32: {                                               \
+      uint32_t& vd = Rvvelt<uint32_t>(rvv_vd_reg(), i, true); \
+      uint32_t vs1 = Rvvelt<uint32_t>(rvv_vs1_reg(), i);      \
+      uint32_t vs2 = Rvvelt<uint32_t>(rvv_vs2_reg(), i);      \
+      Float32 fs1 = get_fpu_register_Float32(rs1_reg());      \
+      BODY32;                                                 \
+      break;                                                  \
+    }                                                         \
+    case E64: {                                               \
+      uint64_t& vd = Rvvelt<uint64_t>(rvv_vd_reg(), i, true); \
+      uint64_t vs1 = Rvvelt<uint64_t>(rvv_vs1_reg(), i);      \
+      uint64_t vs2 = Rvvelt<uint64_t>(rvv_vs2_reg(), i);      \
+      Float64 fs1 = get_fpu_register_Float64(rs1_reg());      \
+      BODY64;                                                 \
+      break;                                                  \
+    }                                                         \
+    default:                                                  \
+      require(0);                                             \
+      break;                                                  \
+  }                                                           \
+  RVV_VI_VFP_LOOP_END                                         \
   rvv_trace_vd();
 
 #define RVV_VI_VFP_VF_LOOP_WIDEN(BODY32, vs2_is_widen)                         \
@@ -8414,7 +8414,9 @@ void Simulator::DecodeRvvFVV() {
     case RO_V_VFSGNJ_VV:
       RVV_VFSGNJ_VV_VF_LOOP(
           {
-            vd = fsgnj16(vs2, vs1, false, false).get_bits();
+            vd = fsgnj16(Float16::FromBits(vs2), Float16::FromBits(vs1), false,
+                         false)
+                     .get_bits();
             USE(hs1);
           },
           {
@@ -8433,7 +8435,9 @@ void Simulator::DecodeRvvFVV() {
     case RO_V_VFSGNJN_VV:
       RVV_VFSGNJ_VV_VF_LOOP(
           {
-            vd = fsgnj16(vs2, vs1, true, false).get_bits();
+            vd = fsgnj16(Float16::FromBits(vs2), Float16::FromBits(vs1), true,
+                         false)
+                     .get_bits();
             USE(hs1);
           },
           {
@@ -8452,7 +8456,9 @@ void Simulator::DecodeRvvFVV() {
     case RO_V_VFSGNJX_VV:
       RVV_VFSGNJ_VV_VF_LOOP(
           {
-            vd = fsgnj16(vs2, vs1, false, true).get_bits();
+            vd = fsgnj16(Float16::FromBits(vs2), Float16::FromBits(vs1), false,
+                         true)
+                     .get_bits();
             USE(hs1);
           },
           {
@@ -8758,7 +8764,7 @@ void Simulator::DecodeRvvFVF() {
     case RO_V_VFSGNJ_VF:
       RVV_VFSGNJ_VV_VF_LOOP(
           {
-            vd = fsgnj16(vs2, hs1, false, false).get_bits();
+            vd = fsgnj16(Float16::FromBits(vs2), hs1, false, false).get_bits();
             USE(vs1);
           },
           {
@@ -8773,7 +8779,7 @@ void Simulator::DecodeRvvFVF() {
     case RO_V_VFSGNJN_VF:
       RVV_VFSGNJ_VV_VF_LOOP(
           {
-            vd = fsgnj16(vs2, hs1, true, false).get_bits();
+            vd = fsgnj16(Float16::FromBits(vs2), hs1, true, false).get_bits();
             USE(vs1);
           },
           {
@@ -8788,7 +8794,7 @@ void Simulator::DecodeRvvFVF() {
     case RO_V_VFSGNJX_VF:
       RVV_VFSGNJ_VV_VF_LOOP(
           {
-            vd = fsgnj16(vs2, hs1, false, true).get_bits();
+            vd = fsgnj16(Float16::FromBits(vs2), hs1, false, true).get_bits();
             USE(vs1);
           },
           {
@@ -8856,7 +8862,7 @@ void Simulator::DecodeRvvFVF() {
               }
               alu_out = std::numeric_limits<float>::quiet_NaN();
             }
-            vd = alu_out;
+            vd = Float16::FromFloat32(alu_out).get_bits();
           },
           {
             auto fn = [this](float frs1, float frs2) {

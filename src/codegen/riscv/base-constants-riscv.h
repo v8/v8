@@ -607,6 +607,9 @@ enum MemoryOdering {
   PSIORW = PSI | PSO | PSR | PSW
 };
 
+const int kFloat16ExponentBias = 15;
+const int kFloat16MantissaBits = 10;
+const int kFloat16ExponentBits = 5;
 const int kFloat32ExponentBias = 127;
 const int kFloat32MantissaBits = 23;
 const int kFloat32ExponentBits = 8;

@@ -2000,6 +2000,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void RoundFloat(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
                   FPURoundingMode mode);
 #endif
+  template <int kMantissaBits, int kExponentBits, int kExponentBias>
+  void RoundHelperImpl(VRegister dst, VRegister src, Register scratch,
+                       VRegister v_scratch, FPURoundingMode frm,
+                       bool keep_nan_same);
+
   void RoundHelper(VRegister dst, VRegister src, Register scratch,
                    VRegister v_scratch, FPURoundingMode frm,
                    bool keep_nan_same = true);
