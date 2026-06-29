@@ -107,7 +107,7 @@ let deopt_obj_i32 = {
   valueOf() { %DeoptimizeFunction(test_i32_obj); return 1; }
 };
 function test_i32_obj(arg) { return instance.exports.wasm_i32_arg(arg); }
-// CHECK: [bailout (kind: deopt-eager, reason: not a Number): begin. deoptimizing {{.*}} <JSFunction test_i32_obj {{.*}}>
+// CHECK: [bailout (kind: deopt-eager, reason: not a heap number): begin. deoptimizing {{.*}} <JSFunction test_i32_obj {{.*}}>
 // CHECK-NOT: deopt-lazy
 optimize_and_call(test_i32_obj, deopt_obj_i32, 42);
 

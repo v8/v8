@@ -264,31 +264,32 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
       V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
     DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
+    if (is_inlining_into_js_) {
+      // When inlining into JS, emit a "high-level" JS conversion to allow
+      // further optimizations. These are lowered in the MachineLoweringPhase
+      // in the JS pipeline.
+      // Also, this makes sure we eagerly deopt for values that are not Smi or
+      // HeapNumber to avoid calling conversion builtins that may throw
+      // (crbug.com/498709150).
+      return __ TruncateJSPrimitiveToWord32OrDeopt(
+          V<JSPrimitive>::Cast(value), caller_frame_state.value(),
+          TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement::kNumber,
+          FeedbackSource{});
+    }
+
     // We expect most integers at runtime to be Smis, so it is important for
     // wrapper performance that Smi conversion be inlined.
     ScopedVar<Word32> result(this, V<Word32>::Invalid());
     IF (LIKELY(__ IsSmi(value))) {
       result = __ UntagSmi(V<Smi>::Cast(value));
     } ELSE {
-      if (caller_frame_state.valid()) {
-        // When inlining JS-to-Wasm wrappers, eagerly deopt for values that
-        // are not Smi or HeapNumber to avoid calling conversion builtins
-        // that may throw (crbug.com/498709150).
-        V<Map> map = LoadMap(value);
-        __ DeoptimizeIfNot(__ IsHeapNumberMap(map), caller_frame_state.value(),
-                           DeoptimizeReason::kNotANumber,
-                           compiler::FeedbackSource{});
-        result = __ JSTruncateFloat64ToWord32(
-            HeapNumberToFloat64(V<HeapNumber>::Cast(value)));
-      } else {
-        result = CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
-            Builtin::kWasmTaggedNonSmiToInt32, Operator::kNoProperties, value,
-            context);
-        // The source position here is needed for asm.js, see the comment on
-        // the source position of the call to JavaScript in the wasm-to-js
-        // wrapper.
-        __ output_graph().source_positions()[result] = SourcePosition(1);
-      }
+      result = CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
+          Builtin::kWasmTaggedNonSmiToInt32, Operator::kNoProperties, value,
+          context);
+      // The source position here is needed for asm.js, see the comment on
+      // the source position of the call to JavaScript in the wasm-to-js
+      // wrapper.
+      __ output_graph().source_positions()[result] = SourcePosition(1);
     }
     return result;
   }
