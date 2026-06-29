@@ -159,7 +159,7 @@ if not options.renderer_cmd_prefix:
     flag_value = getattr(options, perf_option)
     if flag_value:
       flag_name = perf_option.replace("_", "-")
-      renderer_cmd_prefix.append(f"--{flag_name}={flag_value}")
+      renderer_cmd_prefix.append(f"--perf-{flag_name}={flag_value}")
   renderer_cmd_prefix.append(f"--perf-data-dir={options.perf_data_dir}")
 
   options.renderer_cmd_prefix = shlex.join(renderer_cmd_prefix)
