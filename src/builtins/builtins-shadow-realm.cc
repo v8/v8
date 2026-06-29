@@ -188,6 +188,9 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
 
   if (result.is_null()) {
     DCHECK(isolate->has_exception());
+    if (isolate->is_execution_terminating()) {
+      return ReadOnlyRoots(isolate).exception();
+    }
     Handle<Object> exception(isolate->exception(), isolate);
     isolate->clear_internal_exception();
     if (is_parse_failed) {

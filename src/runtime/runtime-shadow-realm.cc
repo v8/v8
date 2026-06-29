@@ -45,6 +45,10 @@ RUNTIME_FUNCTION(Runtime_ShadowRealmThrow) {
   int message_id_smi = args.smi_value_at(0);
   DirectHandle<Object> value = args.at(1);
 
+  if (isolate->is_execution_terminating()) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+
   MessageTemplate message_id = MessageTemplateFromInt(message_id_smi);
 
   DirectHandle<String> string = Object::NoSideEffectsToString(isolate, value);
