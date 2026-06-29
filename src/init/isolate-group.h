@@ -14,6 +14,7 @@
 #include <string_view>
 
 #include "absl/container/flat_hash_set.h"
+#include "include/v8config.h"
 #include "src/base/logging.h"
 #include "src/base/once.h"
 #include "src/base/page-allocator.h"
@@ -369,7 +370,14 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   bool WaitUntilBlockedForTesting(std::string_view synchronization_point,
                                   base::TimeDelta timeout, bool& timed_out);
   // Called when the synchronization point is reached; blocks if it was armed.
-  void DoSynchronizationPointForTesting(std::string_view synchronization_point);
+  V8_INLINE void DoSynchronizationPointForTesting(
+      std::string_view synchronization_point) {
+    if (!any_synchronization_point_for_testing_.load(std::memory_order_relaxed))
+        [[likely]] {
+      return;
+    }
+    DoSynchronizationPointForTestingSlow(synchronization_point);
+  }
 
  private:
   friend class base::LeakyObject<IsolateGroup>;
@@ -399,6 +407,9 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static IsolateGroup* current_non_inlined();
   static void set_current_non_inlined(IsolateGroup* group);
 #endif
+
+  void DoSynchronizationPointForTestingSlow(
+      std::string_view synchronization_point);
 
   struct SynchronizationPointDataForTesting {
     base::ConditionVariable cv;

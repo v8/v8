@@ -798,13 +798,8 @@ bool IsolateGroup::WaitUntilBlockedForTesting(
   return success;
 }
 
-void IsolateGroup::DoSynchronizationPointForTesting(
+void IsolateGroup::DoSynchronizationPointForTestingSlow(
     std::string_view synchronization_point) {
-  if (!any_synchronization_point_for_testing_.load(std::memory_order_relaxed))
-      [[likely]] {
-    return;
-  }
-
   // Safe: map elements are never removed, so the pointer is stable.
   SynchronizationPointDataForTesting* data = nullptr;
   {
