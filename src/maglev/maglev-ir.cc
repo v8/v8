@@ -226,12 +226,13 @@ std::ostream& operator<<(std::ostream& os, const StringEqualInputMode mode) {
 
 bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
 
-ValueNode* ValueNode::UnwrapIdentitiesAndPhis() {
+namespace {
+template <typename UnwrapFunction>
+ValueNode* UnwrapSinglePhis(ValueNode* node, UnwrapFunction&& unwrap) {
   ValueNode* prev = nullptr;
-  ValueNode* node = this;
   while (prev != node) {
     prev = node;
-    node = node->UnwrapIdentities();
+    node = unwrap(node);
     if (Phi* phi = node->TryCast<Phi>()) {
       // We skip resumable loop phis since their single input could actually be
       // defined within the loop itself.
@@ -244,6 +245,16 @@ ValueNode* ValueNode::UnwrapIdentitiesAndPhis() {
     }
   }
   return node;
+}
+}  // namespace
+
+ValueNode* ValueNode::UnwrapIdentitiesAndPhis() {
+  return UnwrapSinglePhis(
+      this, [](ValueNode* node) { return node->UnwrapIdentities(); });
+}
+
+ValueNode* ValueNode::UnwrapForDeopt() {
+  return UnwrapSinglePhis(this, [](ValueNode* node) { return node->Unwrap(); });
 }
 
 bool Phi::is_unmerged_loop_phi() const {

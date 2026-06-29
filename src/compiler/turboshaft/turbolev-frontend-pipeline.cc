@@ -354,6 +354,7 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   if (rerun_postoptimizer_phase) {
     Run<PostOptimizerPhase>(nullptr);
   }
+  graph_->UnwrapDeoptFrames();
   if (v8_flags.turbolev_untagged_phis) {
     Run<PhiUntaggingPhase>();
   }
