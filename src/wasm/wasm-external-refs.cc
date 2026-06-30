@@ -55,6 +55,10 @@
 
 namespace v8::internal::wasm {
 
+#if V8_TARGET_OS_WIN
+thread_local uintptr_t central_stack_limit = 0;
+#endif
+
 using base::ReadUnalignedValue;
 using base::WriteUnalignedValue;
 
@@ -1045,7 +1049,7 @@ V8_INLINE void ResumeStack(Isolate* isolate, wasm::StackMemory* from,
   DCHECK(!to->jmpbuf()->is_on_central_stack);
 #if V8_TARGET_OS_WIN
   if (from->jmpbuf()->is_on_central_stack) {
-    base::Stack::SaveStackLimit();
+    central_stack_limit = base::Stack::GetCommittedStackLimit();
   }
   base::Stack::SetCurrentThreadStackBounds(to->limit(), to->base());
 #endif
@@ -1059,7 +1063,7 @@ V8_INLINE void SuspendStack(Isolate* isolate, wasm::StackMemory* from,
   DCHECK(!from->jmpbuf()->is_on_central_stack);
 #if V8_TARGET_OS_WIN
   if (to->jmpbuf()->is_on_central_stack) {
-    base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+    base::Stack::SetCurrentThreadStackBounds(central_stack_limit,
                                              base::Stack::GetStackStart());
   } else {
     base::Stack::SetCurrentThreadStackBounds(to->limit(), to->base());
@@ -1073,7 +1077,7 @@ V8_INLINE void ReturnStack(Isolate* isolate, wasm::StackMemory* from,
       from, to, kNullAddress, kNullAddress, kNullAddress);
 #if V8_TARGET_OS_WIN
   if (to->jmpbuf()->is_on_central_stack) {
-    base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+    base::Stack::SetCurrentThreadStackBounds(central_stack_limit,
                                              base::Stack::GetStackStart());
   } else {
     base::Stack::SetCurrentThreadStackBounds(to->limit(), to->base());
@@ -1369,7 +1373,7 @@ intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
   stack_guard->SetStackLimitForStackSwitching(
       thread_local_top->central_stack_limit_);
 #if V8_TARGET_OS_WIN
-  base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+  base::Stack::SetCurrentThreadStackBounds(central_stack_limit,
                                            base::Stack::GetStackStart());
 #endif
 
@@ -1399,7 +1403,7 @@ void switch_from_the_central_stack(Isolate* isolate) {
 #if V8_TARGET_OS_WIN
   // The Windows stack limit may have changed after running on the central
   // stack, record it.
-  base::Stack::SaveStackLimit();
+  central_stack_limit = base::Stack::GetCommittedStackLimit();
   wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
   base::Stack::SetCurrentThreadStackBounds(active_stack->limit(),
                                            active_stack->base());
@@ -1416,7 +1420,7 @@ intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
   stack_guard->SetStackLimitForStackSwitching(
       thread_local_top->central_stack_limit_);
 #if V8_TARGET_OS_WIN
-  base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+  base::Stack::SetCurrentThreadStackBounds(central_stack_limit,
                                            base::Stack::GetStackStart());
 #endif
   thread_local_top->is_on_central_stack_flag_ = true;
@@ -1435,7 +1439,7 @@ void switch_from_the_central_stack_for_js(Isolate* isolate) {
 #if V8_TARGET_OS_WIN
   // The Windows stack limit may have changed after running on the central
   // stack, record it.
-  base::Stack::SaveStackLimit();
+  central_stack_limit = base::Stack::GetCommittedStackLimit();
   base::Stack::SetCurrentThreadStackBounds(stack->limit(), stack->base());
 #endif
 }

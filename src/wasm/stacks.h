@@ -181,17 +181,9 @@ class StackMemory {
   Tagged<WasmFuncRef> func_ref() const { return func_ref_; }
   static int func_ref_offset() { return OFFSET_OF(StackMemory, func_ref_); }
 
-  static int JSCentralStackLimitMarginKB() {
-#if defined(DEBUG) || defined(V8_USE_ADDRESS_SANITIZER)
-    return 80;
-#else
-    return 40;
-#endif
-  }
-
   static int JSGrowableStackLimitMarginKB() {
     if (!v8_flags.wasm_growable_stacks) {
-      return JSCentralStackLimitMarginKB();
+      return V8_STACK_LIMIT_MARGIN_KB;
     }
     // The limiting factor for this margin is the stack space used by outgoing
     // stack parameters in wasm. They can take up to 16KB (1000 simd
