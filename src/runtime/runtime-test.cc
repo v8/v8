@@ -18,6 +18,7 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
 #include "src/common/globals.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug-evaluate.h"
@@ -2879,8 +2880,8 @@ RUNTIME_FUNCTION(Runtime_BlockAt) {
   DirectHandle<String> phase_name = args.at<String>(0);
   base::TimeDelta timeout =
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
-  isolate->isolate_group()->SetBlockAtSynchronizationPointForTesting(
-      phase_name->ToStdString(), timeout);
+  SynchronizationPointSupport::Get()->RequestBlockAt(phase_name->ToStdString(),
+                                                     timeout);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -2891,8 +2892,8 @@ RUNTIME_FUNCTION(Runtime_Resume) {
   DCHECK_EQ(1, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   DirectHandle<String> phase_name = args.at<String>(0);
-  bool resumed = isolate->isolate_group()->ResumeSynchronizationPointForTesting(
-      phase_name->ToStdString());
+  bool resumed =
+      SynchronizationPointSupport::Get()->Resume(phase_name->ToStdString());
   if (!resumed) {
     return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
         "No thread is currently blocked at this synchronization point"));
@@ -2913,7 +2914,7 @@ RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
 
   bool timed_out = false;
-  bool blocked = isolate->isolate_group()->WaitUntilBlockedForTesting(
+  bool blocked = SynchronizationPointSupport::Get()->WaitUntilBlocked(
       phase_name->ToStdString(), timeout, timed_out);
   if (!blocked) {
     return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(

@@ -4,25 +4,17 @@
 
 #include "src/init/isolate-group.h"
 
-#include <atomic>
-#include <cinttypes>
 #include <memory>
-#include <tuple>
 
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/once.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/time.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/isolate.h"
-#include "src/execution/thread-id.h"
 #include "src/heap/code-range.h"
-#include "src/heap/local-heap-inl.h"
-#include "src/heap/local-heap.h"
 #include "src/heap/memory-pool.h"
-#include "src/heap/parked-scope.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/init/v8.h"
@@ -734,110 +726,6 @@ IsolateGroup::GetSandboxedArrayBufferAllocator() {
 OptimizingCompileTaskExecutor*
 IsolateGroup::optimizing_compile_task_executor() {
   return optimizing_compile_task_executor_.get();
-}
-
-void IsolateGroup::SetBlockAtSynchronizationPointForTesting(
-    std::string synchronization_point, base::TimeDelta timeout) {
-  any_synchronization_point_for_testing_ = true;
-  base::MutexGuard lock(&synchronization_point_mutex_for_testing_);
-  auto& data =
-      synchronization_point_data_for_testing_[std::move(synchronization_point)];
-  if (!data) {
-    data = std::make_unique<SynchronizationPointDataForTesting>();
-  }
-  data->block_requested = true;
-  data->block_requester_thread = ThreadId::Current();
-  data->block_timeout = timeout;
-}
-
-bool IsolateGroup::ResumeSynchronizationPointForTesting(
-    std::string_view synchronization_point) {
-  base::MutexGuard lock(&synchronization_point_mutex_for_testing_);
-  auto it = synchronization_point_data_for_testing_.find(synchronization_point);
-  if (it == synchronization_point_data_for_testing_.end()) return false;
-  auto* data = it->second.get();
-  if (!data->block_requested) return false;
-  data->block_requested = false;
-  data->cv.NotifyAll();
-  return true;
-}
-
-bool IsolateGroup::WaitUntilBlockedForTesting(
-    std::string_view synchronization_point, base::TimeDelta timeout,
-    bool& timed_out) {
-  bool success = false;
-  auto wait_loop = [this, synchronization_point, timeout, &timed_out,
-                    &success]() {
-    base::MutexGuard lock(&synchronization_point_mutex_for_testing_);
-    auto it =
-        synchronization_point_data_for_testing_.find(synchronization_point);
-    if (it == synchronization_point_data_for_testing_.end()) return;
-    auto* data = it->second.get();
-    if (!data->block_requested && data->blocked_threads == 0) return;
-
-    const base::TimeTicks start = base::TimeTicks::Now();
-    while (data->blocked_threads == 0) {
-      const base::TimeDelta remaining =
-          start + timeout - base::TimeTicks::Now();
-      if (remaining <= base::TimeDelta()) {
-        timed_out = true;
-        return;
-      }
-      std::ignore = data->cv.WaitFor(&synchronization_point_mutex_for_testing_,
-                                     remaining);
-    }
-    success = true;
-  };
-
-  LocalHeap* local_heap = LocalHeap::Current();
-  if (local_heap && local_heap->IsRunning()) {
-    local_heap->ExecuteWhileParked(wait_loop);
-  } else {
-    wait_loop();
-  }
-  return success;
-}
-
-void IsolateGroup::DoSynchronizationPointForTestingSlow(
-    std::string_view synchronization_point) {
-  // Safe: map elements are never removed, so the pointer is stable.
-  SynchronizationPointDataForTesting* data = nullptr;
-  {
-    base::MutexGuard lock(&synchronization_point_mutex_for_testing_);
-    auto it =
-        synchronization_point_data_for_testing_.find(synchronization_point);
-    if (it == synchronization_point_data_for_testing_.end()) return;
-    data = it->second.get();
-    if (!data->block_requested) return;
-    if (data->block_requester_thread == ThreadId::Current()) {
-      base::OS::PrintError(
-          "Warning: ignoring self-deadlock at synchronization point '%.*s'\n",
-          static_cast<int>(synchronization_point.length()),
-          synchronization_point.data());
-      return;
-    }
-  }
-
-  base::TimeTicks start = base::TimeTicks::Now();
-  base::MutexGuard lock(&synchronization_point_mutex_for_testing_);
-  ++data->blocked_threads;
-  data->cv.NotifyAll();
-  while (data->block_requested) {
-    base::TimeDelta remaining =
-        start + data->block_timeout - base::TimeTicks::Now();
-    if (remaining <= base::TimeDelta()) break;
-    std::ignore =
-        data->cv.WaitFor(&synchronization_point_mutex_for_testing_, remaining);
-  }
-  --data->blocked_threads;
-
-  if (data->block_requested) {
-    base::OS::PrintError(
-        "Warning: Synchronization point '%.*s' timed out after %" PRId64
-        " ms. Resuming automatically.\n",
-        static_cast<int>(synchronization_point.length()),
-        synchronization_point.data(), data->block_timeout.InMilliseconds());
-  }
 }
 
 }  // namespace internal

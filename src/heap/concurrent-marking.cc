@@ -12,6 +12,7 @@
 #include "include/v8config.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/base-page.h"
@@ -41,7 +42,6 @@
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/weak-object-worklists.h"
 #include "src/heap/young-generation-marking-visitor.h"
-#include "src/init/isolate-group.h"
 #include "src/init/v8.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
@@ -367,9 +367,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   int kObjectsUntilInterruptCheck = 1000;
 
   const bool is_joining_thread = delegate->IsJoiningThread();
-  SYNCHRONIZATION_POINT_FOR_TESTING(is_joining_thread
-                                        ? "ConcurrentMarkerMajorMainThread"
-                                        : "ConcurrentMarkerMajorBgThread");
+  SYNCHRONIZATION_POINT(is_joining_thread ? "ConcurrentMarkerMajorMainThread"
+                                          : "ConcurrentMarkerMajorBgThread");
 
   uint8_t task_id = delegate->GetTaskId() + 1;
   TaskState* task_state = task_state_[task_id].get();

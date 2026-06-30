@@ -7,11 +7,11 @@
 #include <iomanip>
 
 #include "src/base/logging.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-heap.h"
-#include "src/init/isolate-group.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
@@ -305,7 +305,7 @@ auto TurbolevFrontendPipeline::Run(Args&&... args) {
                                                  Phase::kCounterMode);
 #endif
   Phase phase;
-  SYNCHRONIZATION_POINT_FOR_TESTING(Phase::synchronization_point_name());
+  SYNCHRONIZATION_POINT(Phase::synchronization_point_name());
   bool result = phase.Run(graph_, std::forward<Args>(args)...);
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
     PrintMaglevGraph(Phase::phase);

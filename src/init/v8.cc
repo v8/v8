@@ -16,6 +16,7 @@
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/common/code-memory-access.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
@@ -174,6 +175,8 @@ base::AbortMode ChooseAbortMode() {
 void V8::Initialize() {
   AdvanceStartupState(V8StartupState::kV8Initializing);
   CHECK(platform_);
+
+  SynchronizationPointSupport::Initialize();
 
   // Setting `g_abort_mode` needs to happen before `EnforceFlagImplications` so
   // it can apply to flag contradictions.

@@ -8,6 +8,7 @@
 #include "src/ast/ast.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
@@ -16,7 +17,6 @@
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/read-only-heap.h"
-#include "src/init/isolate-group.h"
 #include "src/logging/log.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/instance-type.h"
@@ -1021,7 +1021,7 @@ Handle<String> FactoryBase<Impl>::NewConsString(DirectHandle<String> left,
                                                 DirectHandle<String> right,
                                                 int length, bool one_byte,
                                                 AllocationType allocation) {
-  SYNCHRONIZATION_POINT_FOR_TESTING("NewConsString");
+  SYNCHRONIZATION_POINT("NewConsString");
   DCHECK_GE(length, ConsString::kMinLength);
   DCHECK_LE(length, String::kMaxLength);
 

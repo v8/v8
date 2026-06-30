@@ -13,6 +13,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
@@ -36,7 +37,6 @@
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/zapping.h"
-#include "src/init/isolate-group.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/instance-type.h"
@@ -178,8 +178,8 @@ class Sweeper::MajorSweeperJob final : public JobTask {
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(sweeper_->heap_->isolate());
-    SYNCHRONIZATION_POINT_FOR_TESTING(is_main_thread ? "MajorSweeperMainThread"
-                                                     : "MajorSweeperBgThread");
+    SYNCHRONIZATION_POINT(is_main_thread ? "MajorSweeperMainThread"
+                                         : "MajorSweeperBgThread");
 
     DCHECK(sweeper_->major_sweeping_in_progress());
     const int offset = delegate->GetTaskId();
@@ -259,8 +259,8 @@ class Sweeper::MinorSweeperJob final : public JobTask {
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(sweeper_->heap_->isolate());
-    SYNCHRONIZATION_POINT_FOR_TESTING(is_main_thread ? "MinorSweeperMainThread"
-                                                     : "MinorSweeperBgThread");
+    SYNCHRONIZATION_POINT(is_main_thread ? "MinorSweeperMainThread"
+                                         : "MinorSweeperBgThread");
 
     if (!concurrent_sweeper.ConcurrentSweepSpace(delegate)) return;
     concurrent_sweeper.ConcurrentSweepPromotedPages(delegate);

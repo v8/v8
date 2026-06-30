@@ -10,6 +10,7 @@
 #include "src/base/small-vector.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate-utils.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/handles-inl.h"
@@ -139,7 +140,7 @@ void String::MakeThin(IsolateT* isolate,
   DisallowGarbageCollection no_gc;
   DCHECK_NE(this, internalized);
 
-  SYNCHRONIZATION_POINT_FOR_TESTING("MakeThinString");
+  SYNCHRONIZATION_POINT("MakeThinString");
 
   Tagged<Map> initial_map = map(kAcquireLoad);
   StringShape initial_shape(initial_map);
@@ -352,7 +353,7 @@ bool String::MakeExternal(Isolate* isolate,
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
   DisallowGarbageCollection no_gc;
 
-  SYNCHRONIZATION_POINT_FOR_TESTING("MakeExternalTwoByteString");
+  SYNCHRONIZATION_POINT("MakeExternalTwoByteString");
 
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
@@ -445,7 +446,7 @@ bool String::MakeExternal(Isolate* isolate,
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
   DisallowGarbageCollection no_gc;
 
-  SYNCHRONIZATION_POINT_FOR_TESTING("MakeExternalOneByteString");
+  SYNCHRONIZATION_POINT("MakeExternalOneByteString");
 
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.

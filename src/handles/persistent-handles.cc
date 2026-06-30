@@ -4,10 +4,10 @@
 
 #include "src/handles/persistent-handles.h"
 
+#include "src/common/synchronization-point-support.h"
 #include "src/handles/handle-scope-implementer-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/safepoint.h"
-#include "src/init/isolate-group.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -115,7 +115,7 @@ void PersistentHandlesList::Add(PersistentHandles* persistent_handles) {
 }
 
 void PersistentHandlesList::Remove(PersistentHandles* persistent_handles) {
-  SYNCHRONIZATION_POINT_FOR_TESTING("RemovePersistentHandles");
+  SYNCHRONIZATION_POINT("RemovePersistentHandles");
   base::MutexGuard guard(&persistent_handles_mutex_);
   if (persistent_handles->next_) {
     persistent_handles->next_->prev_ = persistent_handles->prev_;
@@ -129,7 +129,7 @@ void PersistentHandlesList::Remove(PersistentHandles* persistent_handles) {
 
 void PersistentHandlesList::Iterate(RootVisitor* visitor, Isolate* isolate) {
   isolate->heap()->safepoint()->AssertActive();
-  SYNCHRONIZATION_POINT_FOR_TESTING("IteratePersistentHandles");
+  SYNCHRONIZATION_POINT("IteratePersistentHandles");
   // Use the lock here because PersistentHandles could be dropped from threads
   // without a LocalHeap.
   base::MutexGuard guard(&persistent_handles_mutex_);
