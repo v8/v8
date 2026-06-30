@@ -454,15 +454,6 @@ bool MaglevLoopPeeler::IsCloneable(const LoopInfo& loop) const {
   DCHECK(loop.preheader->control_node()->Is<Jump>() ||
          loop.preheader->control_node()->Is<CheckpointedJump>());
 
-  // TODO(victorgomes): support an edge-split pre-header. Retargeting it to the
-  // (stateless) cloned header leaves an edge-split block whose successor isn't
-  // a merge, which breaks the edge-split walk in the KNA recompute during the
-  // post-peel PostOptimizerPhase. Bail for now.
-  if (loop.preheader->is_edge_split_block()) {
-    TRACE_PEEL_SKIP("@" << header_offset
-                        << ": skip (pre-header is an edge-split block)");
-    return false;
-  }
 
   // Collect every value defined in the loop body so the walk further below can
   // reject any body value that is used outside the body (peeling would break
@@ -682,9 +673,12 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
   // Allocate one cloned block per body block, in RPO order.
   for (BasicBlock* block : ctx.loop.body) {
     if (block == ctx.loop.header()) {
-      BasicBlock* cloned_block =
-          zone()->New<BasicBlock>(/* state */ nullptr, zone());
-      cloned_block->set_predecessor(ctx.loop.preheader);
+      BasicBlock** preds = zone()->AllocateArray<BasicBlock*>(1);
+      preds[0] = ctx.loop.preheader;
+      MergePointInterpreterFrameState* state =
+          MergePointInterpreterFrameState::NewForPeel(
+              block->state()->unit(), *block->state(), preds, 1);
+      BasicBlock* cloned_block = zone()->New<BasicBlock>(state, zone());
       ctx.block_map[block] = cloned_block;
     } else if (block->is_merge_block()) {
       int predecessor_count = block->predecessor_count();
