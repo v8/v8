@@ -1606,19 +1606,20 @@ void MacroAssembler::IsObjectType(Register object, Register scratch1,
 }
 
 void MacroAssembler::CompareObjectTypeRange(Register object, Register map,
-                                            Register type_reg, Register scratch,
+                                            Register type_reg,
                                             InstanceType lower_limit,
                                             InstanceType upper_limit) {
   ASM_CODE_COMMENT(this);
   LoadMap(map, object);
-  CompareInstanceTypeRange(map, type_reg, scratch, lower_limit, upper_limit);
+  CompareInstanceTypeRange(map, type_reg, lower_limit, upper_limit);
 }
 
-void MacroAssembler::CompareRange(Register value, Register scratch,
-                                  unsigned lower_limit, unsigned higher_limit) {
+void MacroAssembler::CompareRange(Register value, unsigned lower_limit,
+                                  unsigned higher_limit) {
   ASM_CODE_COMMENT(this);
   DCHECK_LT(lower_limit, higher_limit);
-  CHECK_NE(value, scratch);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   if (lower_limit != 0) {
     mov(scratch, Operand(lower_limit));
     sub(scratch, value, scratch);
@@ -1630,12 +1631,11 @@ void MacroAssembler::CompareRange(Register value, Register scratch,
 }
 
 void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
-                                              Register scratch,
                                               InstanceType lower_limit,
                                               InstanceType higher_limit) {
   DCHECK_LT(lower_limit, higher_limit);
   LoadU16(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
-  CompareRange(type_reg, scratch, lower_limit, higher_limit);
+  CompareRange(type_reg, lower_limit, higher_limit);
 }
 
 void MacroAssembler::CompareTaggedRoot(const Register& obj, RootIndex index) {
@@ -1686,11 +1686,10 @@ void MacroAssembler::MaxF64(DoubleRegister dst, DoubleRegister lhs,
   bind(&done);
 }
 
-void MacroAssembler::JumpIfIsInRange(Register value, Register scratch,
-                                     unsigned lower_limit,
+void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
                                      unsigned higher_limit,
                                      Label* on_in_range) {
-  CompareRange(value, scratch, lower_limit, higher_limit);
+  CompareRange(value, lower_limit, higher_limit);
   ble(on_in_range);
 }
 
@@ -2004,10 +2003,9 @@ void MacroAssembler::AssertMap(Register object) {
   ASM_CODE_COMMENT(this);
   TestIfSmi(object, r0);
   Check(ne, AbortReason::kOperandIsNotAMap);
-  Push(object);
-  LoadMap(object, object);
-  CompareInstanceType(object, object, MAP_TYPE);
-  Pop(object);
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+  CompareObjectType(object, temp, temp, MAP_TYPE);
   Check(eq, AbortReason::kOperandIsNotAMap);
 }
 
@@ -2046,11 +2044,11 @@ void MacroAssembler::AssertFunction(Register object) {
     static_assert(kSmiTag == 0);
     TestIfSmi(object, r0);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
-    push(object);
-    LoadMap(object, object);
-    CompareInstanceTypeRange(object, object, r0, FIRST_JS_FUNCTION_TYPE,
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.Acquire();
+    LoadMap(temp, object);
+    CompareInstanceTypeRange(temp, temp, FIRST_JS_FUNCTION_TYPE,
                              LAST_JS_FUNCTION_TYPE);
-    pop(object);
     Check(le, AbortReason::kOperandIsNotAFunction);
   }
 }
@@ -2061,11 +2059,11 @@ void MacroAssembler::AssertCallableFunction(Register object) {
   static_assert(kSmiTag == 0);
   TestIfSmi(object, r0);
   Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
-  push(object);
-  LoadMap(object, object);
-  CompareInstanceTypeRange(object, object, r0, FIRST_CALLABLE_JS_FUNCTION_TYPE,
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+  LoadMap(temp, object);
+  CompareInstanceTypeRange(temp, temp, FIRST_CALLABLE_JS_FUNCTION_TYPE,
                            LAST_CALLABLE_JS_FUNCTION_TYPE);
-  pop(object);
   Check(le, AbortReason::kOperandIsNotACallableFunction);
 }
 
@@ -2074,9 +2072,9 @@ void MacroAssembler::AssertBoundFunction(Register object) {
     static_assert(kSmiTag == 0);
     TestIfSmi(object, r0);
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, cr0);
-    push(object);
-    CompareObjectType(object, object, object, JS_BOUND_FUNCTION_TYPE);
-    pop(object);
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.Acquire();
+    CompareObjectType(object, temp, temp, JS_BOUND_FUNCTION_TYPE);
     Check(eq, AbortReason::kOperandIsNotABoundFunction);
   }
 }
@@ -2086,28 +2084,23 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   TestIfSmi(object, r0);
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, cr0);
 
-  // Load map
-  Register map = object;
-  push(object);
-  LoadMap(map, object);
-
   // Check if JSGeneratorObject
-  Register instance_type = object;
-  CompareInstanceTypeRange(map, instance_type, r0,
-                           FIRST_JS_GENERATOR_OBJECT_TYPE,
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+  LoadMap(temp, object);
+  CompareInstanceTypeRange(temp, temp, FIRST_JS_GENERATOR_OBJECT_TYPE,
                            LAST_JS_GENERATOR_OBJECT_TYPE);
-  // Restore generator object to register and perform assertion
-  pop(object);
   Check(le, AbortReason::kOperandIsNotAGeneratorObject);
 }
 
-void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
-                                                     Register scratch) {
+void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
   if (v8_flags.debug_code) {
     Label done_checking;
     AssertNotSmi(object);
     CompareRoot(object, RootIndex::kUndefinedValue);
     beq(&done_checking);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     LoadMap(scratch, object);
     CompareInstanceType(scratch, scratch, ALLOCATION_SITE_TYPE);
     Assert(eq, AbortReason::kExpectedUndefinedOrCell);
@@ -2115,12 +2108,13 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
   }
 }
 
-void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
-                                 Register tmp, AbortReason abort_reason) {
+void MacroAssembler::AssertJSAny(Register object, AbortReason abort_reason) {
   if (!v8_flags.debug_code) return;
 
   ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(object, map_tmp, tmp));
+  UseScratchRegisterScope temps(this);
+  Register map_tmp = temps.Acquire();
+  Register tmp = temps.Acquire();
   Label ok;
 
   JumpIfSmi(object, &ok);
@@ -5149,8 +5143,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
       __ Cmp(return_value, kNotInterceptedSentinel);
       __ beq(&ok);
     }
-    __ AssertJSAny(return_value, scratch, scratch2,
-                   AbortReason::kAPICallReturnedInvalidObject);
+    __ AssertJSAny(return_value, AbortReason::kAPICallReturnedInvalidObject);
     __ bind(&ok);
   }
 

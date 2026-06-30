@@ -895,7 +895,7 @@ inline void MaglevAssembler::JumpIfObjectTypeInRange(Register heap_object,
                                                      Label::Distance distance) {
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  CompareObjectTypeRange(heap_object, scratch, scratch, r0, lower_limit,
+  CompareObjectTypeRange(heap_object, scratch, scratch, lower_limit,
                          higher_limit);
   JumpIf(kUnsignedLessThanEqual, target, distance);
 }
@@ -905,7 +905,7 @@ inline void MaglevAssembler::JumpIfObjectTypeNotInRange(
     Label* target, Label::Distance distance) {
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  CompareObjectTypeRange(heap_object, scratch, scratch, r0, lower_limit,
+  CompareObjectTypeRange(heap_object, scratch, scratch, lower_limit,
                          higher_limit);
   JumpIf(kUnsignedGreaterThan, target, distance);
 }
@@ -917,7 +917,7 @@ inline void MaglevAssembler::AssertObjectTypeInRange(Register heap_object,
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   AssertNotSmi(heap_object);
-  CompareObjectTypeRange(heap_object, scratch, scratch, r0, lower_limit,
+  CompareObjectTypeRange(heap_object, scratch, scratch, lower_limit,
                          higher_limit);
   Assert(kUnsignedLessThanEqual, reason);
 }
@@ -929,7 +929,7 @@ inline void MaglevAssembler::BranchOnObjectTypeInRange(
     bool fallthrough_when_false) {
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  CompareObjectTypeRange(heap_object, scratch, scratch, r0, lower_limit,
+  CompareObjectTypeRange(heap_object, scratch, scratch, lower_limit,
                          higher_limit);
   Branch(kUnsignedLessThanEqual, if_true, true_distance, fallthrough_when_true,
          if_false, false_distance, fallthrough_when_false);
@@ -964,10 +964,8 @@ inline void MaglevAssembler::CompareInstanceType(Register map,
 inline Condition MaglevAssembler::CompareInstanceTypeRange(
     Register map, Register instance_type_out, InstanceType lower_limit,
     InstanceType higher_limit) {
-  TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
-  MacroAssembler::CompareInstanceTypeRange(map, instance_type_out, scratch,
-                                           lower_limit, higher_limit);
+  MacroAssembler::CompareInstanceTypeRange(map, instance_type_out, lower_limit,
+                                           higher_limit);
   return kUnsignedLessThanEqual;
 }
 

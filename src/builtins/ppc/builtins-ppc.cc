@@ -515,7 +515,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ lwz(r7, FieldMemOperand(r7, offsetof(SharedFunctionInfo, flags_)));
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r7);
   __ JumpIfIsInRange(
-      r7, r0, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      r7, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
       &not_create_implicit_receiver);
 
@@ -1696,7 +1696,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     __ subi(r7, r7, Operand(kSystemPointerSize));
     __ LoadU64(r5, MemOperand(r7));
   } else {
-    __ AssertUndefinedOrAllocationSite(r5, r8);
+    __ AssertUndefinedOrAllocationSite(r5);
   }
 
   if (mode == InterpreterPushArgsMode::kArrayFunction) {
@@ -1869,7 +1869,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   Label not_create_implicit_receiver;
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r5);
   __ JumpIfIsInRange(
-      r5, r0, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      r5, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
       &not_create_implicit_receiver);
   NewImplicitReceiver(masm);
@@ -2194,13 +2194,12 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
                          std::optional<RootIndex> error_string_root) {
   Register map = r7;
   Register instance_type = r8;
-  Register scratch = r9;
-  DCHECK(!AreAliased(argc, target, map, instance_type, scratch));
+  DCHECK(!AreAliased(argc, target, map, instance_type));
 
   Label non_callable, class_constructor;
   __ JumpIfSmi(target, &non_callable);
   __ LoadMap(map, target);
-  __ CompareInstanceTypeRange(map, instance_type, scratch,
+  __ CompareInstanceTypeRange(map, instance_type,
                               FIRST_CALLABLE_JS_FUNCTION_TYPE,
                               LAST_CALLABLE_JS_FUNCTION_TYPE);
   __ TailCallBuiltin(Builtins::CallFunction(mode), le);
@@ -2930,8 +2929,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   Register target = r4;
   Register map = r7;
   Register instance_type = r8;
-  Register scratch = r9;
-  DCHECK(!AreAliased(r3, target, map, instance_type, scratch));
+  DCHECK(!AreAliased(r3, target, map, instance_type));
 
   // Check if target is a Smi.
   Label non_constructor, non_proxy;
@@ -2948,8 +2946,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   }
 
   // Dispatch based on instance type.
-  __ CompareInstanceTypeRange(map, instance_type, scratch,
-                              FIRST_JS_FUNCTION_TYPE, LAST_JS_FUNCTION_TYPE);
+  __ CompareInstanceTypeRange(map, instance_type, FIRST_JS_FUNCTION_TYPE,
+                              LAST_JS_FUNCTION_TYPE);
   __ TailCallBuiltin(Builtin::kConstructFunction, le);
 
   // Only dispatch to bound functions after checking whether they are
