@@ -96,14 +96,14 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:e331ddb6e93389abfc75c611690bb82f5274029e',
+  'gn_version': 'git_revision:1d86777e7f2562a86ecea77d1809ac4f82bb5bfe',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:7ea15ed68d4aa12fc4aaa50f5446e8549e8f1ce0',
+  'siso_version': 'git_revision:24b80aff540b202a88417f9f93b0dc86229eca7a',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -142,7 +142,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-internal
   # and whatever else without interference from each other.
-  'agents_internal_revision': '31b193a56ee3629667181ad54a8d8221f98f3105',
+  'agents_internal_revision': 'd9f3ed297f387e1d0c53ed30a68d065f6853ccbe',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-public
   # and whatever else without interference from each other.
@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6bb98d0865c859a763b390c583fe7670516ce08d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '209acdce39f494f75c6dc8e65e4eeb6f01c6d45c',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0d39be5a3f129cf1f35e7812108a2184e2193315',
   'buildtools/linux64': {
@@ -339,9 +339,9 @@ deps = {
   'third_party/libpfm4/src':
     Var('chromium_url') + '/external/git.code.sf.net/p/perfmon2/libpfm4.git' + '@' + '6870a9f00412830ceaa7e4384bb92ee323e2a28f',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9fe0a380ee56ac20c938cb0c0c35c9b4f7c73339',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '6de9f6eebca9aefbb32383a92baa9bf0f59f1457',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '265cc6a83652bac5cb8ceb59741bc288ebe6b312',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '9a821f4e58bbb7f6701f9951d087f8750f523647',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -521,7 +521,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'c6375c00767e604216425a3f097ea78925674f10',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'ec4b996c753b3e301b183736f54566239b0df68d',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '20c5c5a9f850af0936d00fd39faee1a32686c143',
   'third_party/re2/src':
@@ -533,9 +533,9 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'f6e61282b0e736cc0a72ef83b6d211bb3ebccf81',
   'tools/win':
-    Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'faefd1b6fa9eeb033ad6fe60368ccb9bf908cbd0',
+    Var('chromium_url') + '/chromium/src/tools/win' + '@' + '45843c2c1e993427751e2a07f904db069dc26ad6',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '403633f02c7226e79260bb1e528490cbf3270b7f',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'ea940b730222702313c9bd4f5081e3adbc4c1070',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
