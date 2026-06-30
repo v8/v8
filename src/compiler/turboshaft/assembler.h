@@ -3489,7 +3489,7 @@ class AssemblerOpInterface : public Next {
   // provided; the return value is the potentially-updated value.
   // Returns a V<Tuple<WordPtr, WordPtr>> when *both* {memory_start} and
   // {memory_size} are provided.
-  V<Any> WasmStackCheck(
+  V<AnyOrNone> WasmStackCheck(
       WasmStackCheckOp::Kind kind,
       OptionalV<WasmTrustedInstanceData> trusted_instance_data = {},
       OptionalV<WordPtr> memory_start = {},

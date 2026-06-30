@@ -37,9 +37,8 @@ class GrowableStacksReducer : public Next {
 #endif
   }
 
-  // Returns V<None> because it's not used for loop back edge stack checks;
-  // must be typed V<Any> for compatibility with other reducers.
-  V<Any> REDUCE(WasmStackCheck)(
+  // Returns V<None> because it's not used for loop back edge stack checks.
+  V<None> REDUCE(WasmStackCheck)(
       OptionalV<WasmTrustedInstanceData> trusted_instance_data,
       OptionalV<WordPtr> memory_start, OptionalV<WordPtr> memory_size,
       WasmStackCheckOp::Kind kind) {

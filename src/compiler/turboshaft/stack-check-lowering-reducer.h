@@ -84,7 +84,7 @@ class StackCheckLoweringReducer : public Next {
 #ifdef V8_ENABLE_WEBASSEMBLY
   // Returns V<None> or V<WordPtr> or V<Tuple<WordPtr, WordPtr>> depending on
   // inputs.
-  V<Any> REDUCE(WasmStackCheck)(
+  V<AnyOrNone> REDUCE(WasmStackCheck)(
       OptionalV<WasmTrustedInstanceData> trusted_instance_data,
       OptionalV<WordPtr> memory_start, OptionalV<WordPtr> memory_size,
       WasmStackCheckOp::Kind kind) {
@@ -168,11 +168,11 @@ class StackCheckLoweringReducer : public Next {
       }
     }
     if (memory_start.valid() && memory_size.valid()) {
-      return __ MakeTuple(new_mem_start.Get(), new_mem_size.Get());
+      return __ MakeTuple(new_mem_start, new_mem_size);
     } else if (memory_start.valid()) {
-      return new_mem_start.Get();
+      return new_mem_start;
     } else if (memory_size.valid()) {
-      return new_mem_size.Get();
+      return new_mem_size;
     }
     return V<None>::Invalid();
   }
