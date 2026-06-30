@@ -757,21 +757,26 @@ void V8Debugger::BreakpointConditionEvaluated(
 }
 
 void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
-                                    int id, bool isBlackboxed) {
+                                    int id, bool isBlackboxed,
+                                    int skipFrameCount) {
+  const int kDontSkipFrames = 0;
   // Async task events from Promises are given misaligned pointers to prevent
   // from overlapping with other Blink task identifiers.
   void* task = reinterpret_cast<void*>(id * 2 + 1);
   switch (type) {
     case v8::debug::kDebugPromiseThen:
-      asyncTaskScheduledForStack(toStringView("Promise.then"), task, false);
+      asyncTaskScheduledForStack(toStringView("Promise.then"), task, false,
+                                 kDontSkipFrames);
       if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugPromiseCatch:
-      asyncTaskScheduledForStack(toStringView("Promise.catch"), task, false);
+      asyncTaskScheduledForStack(toStringView("Promise.catch"), task, false,
+                                 kDontSkipFrames);
       if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugPromiseFinally:
-      asyncTaskScheduledForStack(toStringView("Promise.finally"), task, false);
+      asyncTaskScheduledForStack(toStringView("Promise.finally"), task, false,
+                                 kDontSkipFrames);
       if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugWillHandle:
@@ -783,7 +788,8 @@ void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
       asyncTaskFinishedForStepping(task);
       break;
     case v8::debug::kDebugAwait:
-      asyncTaskScheduledForStack(toStringView("await"), task, false, true);
+      asyncTaskScheduledForStack(toStringView("await"), task, false,
+                                 skipFrameCount);
       break;
     case v8::debug::kDebugStackTraceCaptured:
       asyncStackTraceCaptured(id);
@@ -1142,8 +1148,9 @@ V8StackTraceId V8Debugger::storeCurrentStackTrace(
   int contextGroupId = currentContextGroupId();
   if (!contextGroupId) return V8StackTraceId();
 
+  const int kDontSkipFrames = 0;
   std::shared_ptr<AsyncStackTrace> asyncStack =
-      AsyncStackTrace::capture(this, toString16(description));
+      AsyncStackTrace::capture(this, toString16(description), kDontSkipFrames);
   if (!asyncStack) return V8StackTraceId();
 
   uintptr_t id = AsyncStackTrace::store(this, asyncStack);
@@ -1196,7 +1203,8 @@ void V8Debugger::externalAsyncTaskFinished(const V8StackTraceId& parent) {
 
 void V8Debugger::asyncTaskScheduled(const StringView& taskName, void* task,
                                     bool recurring) {
-  asyncTaskScheduledForStack(taskName, task, recurring);
+  const int kDontSkipFrames = 0;
+  asyncTaskScheduledForStack(taskName, task, recurring, kDontSkipFrames);
   asyncTaskCandidateForStepping(task);
 }
 
@@ -1229,7 +1237,7 @@ void AddTraceDataWithSample(v8::Isolate* isolate,
 
 void V8Debugger::asyncTaskScheduledForStack(const StringView& taskName,
                                             void* task, bool recurring,
-                                            bool skipTopFrame) {
+                                            int skipFrameCount) {
 #ifdef V8_USE_PERFETTO
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
               "v8::Debugger::AsyncTaskScheduled", "taskName",
@@ -1242,7 +1250,7 @@ void V8Debugger::asyncTaskScheduledForStack(const StringView& taskName,
   if (!m_maxAsyncCallStackDepth) return;
   v8::HandleScope scope(m_isolate);
   std::shared_ptr<AsyncStackTrace> asyncStack =
-      AsyncStackTrace::capture(this, toString16(taskName), skipTopFrame);
+      AsyncStackTrace::capture(this, toString16(taskName), skipFrameCount);
   if (asyncStack) {
     m_asyncTaskStacks[task] = asyncStack;
     if (recurring) m_recurringTasks.insert(task);

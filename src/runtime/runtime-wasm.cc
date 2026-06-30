@@ -1372,6 +1372,25 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   return *suspender;
 }
 
+namespace {
+int GetWasmFrameCount(Isolate* isolate, Tagged<WasmSuspenderObject> suspender) {
+  int count = 0;
+  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+    StackFrame* frame = it.frame();
+    if (frame->is_wasm()) {
+      count++;
+      DCHECK(suspender->stack()->Contains(frame->sp()));
+    } else if (frame->is_javascript()) {
+      // By construction, the first JS frame must be the JSPI entry point and is
+      // outside of the captured stack. Stop the count.
+      DCHECK(!suspender->stack()->Contains(frame->sp()));
+      break;
+    }
+  }
+  return count;
+}
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_WasmSuspended) {
   HandleScope scope(isolate);
   DirectHandle<JSPromise> awaited_promise(Cast<JSPromise>(args[0]), isolate);
@@ -1380,7 +1399,9 @@ RUNTIME_FUNCTION(Runtime_WasmSuspended) {
 
   DirectHandle<JSPromise> throwaway =
       isolate->factory()->NewJSPromiseWithoutHook();
-  isolate->OnAsyncFunctionSuspended(throwaway, awaited_promise);
+  int skip_frame_count = GetWasmFrameCount(isolate, *suspender);
+  isolate->OnAsyncFunctionSuspended(throwaway, awaited_promise,
+                                    skip_frame_count);
   throwaway->set_has_handler(true);
 
   if (isolate->debug()->is_active()) {

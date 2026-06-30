@@ -7662,7 +7662,8 @@ void Isolate::RunPromiseHook(PromiseHookType type,
 }
 
 void Isolate::OnAsyncFunctionSuspended(DirectHandle<JSPromise> promise,
-                                       DirectHandle<JSPromise> parent) {
+                                       DirectHandle<JSPromise> parent,
+                                       int skip_frame_count) {
   DCHECK(!promise->has_async_task_id());
   RunAllPromiseHooks(PromiseHookType::kInit, promise, parent);
   if (HasAsyncEventDelegate()) {
@@ -7670,8 +7671,8 @@ void Isolate::OnAsyncFunctionSuspended(DirectHandle<JSPromise> promise,
     current_async_task_id_ =
         JSPromise::GetNextAsyncTaskId(current_async_task_id_);
     promise->set_async_task_id(current_async_task_id_);
-    async_event_delegate_->AsyncEventOccurred(debug::kDebugAwait,
-                                              promise->async_task_id(), false);
+    async_event_delegate_->AsyncEventOccurred(
+        debug::kDebugAwait, promise->async_task_id(), false, skip_frame_count);
   }
 }
 
@@ -7706,9 +7707,10 @@ void Isolate::OnPromiseThen(DirectHandle<JSPromise> promise) {
         current_async_task_id_ =
             JSPromise::GetNextAsyncTaskId(current_async_task_id_);
         promise->set_async_task_id(current_async_task_id_);
-        async_event_delegate_->AsyncEventOccurred(action_type.FromJust(),
-                                                  promise->async_task_id(),
-                                                  debug()->IsBlackboxed(info));
+        const int kDontSkipFrames = 0;
+        async_event_delegate_->AsyncEventOccurred(
+            action_type.FromJust(), promise->async_task_id(),
+            debug()->IsBlackboxed(info), kDontSkipFrames);
       }
       return;
     }
@@ -7720,8 +7722,10 @@ void Isolate::OnPromiseBefore(DirectHandle<JSPromise> promise) {
                  factory()->undefined_value());
   if (HasAsyncEventDelegate()) {
     if (promise->has_async_task_id()) {
-      async_event_delegate_->AsyncEventOccurred(
-          debug::kDebugWillHandle, promise->async_task_id(), false);
+      const int kDontSkipFrames = 0;
+      async_event_delegate_->AsyncEventOccurred(debug::kDebugWillHandle,
+                                                promise->async_task_id(), false,
+                                                kDontSkipFrames);
     }
   }
 }
@@ -7731,16 +7735,20 @@ void Isolate::OnPromiseAfter(DirectHandle<JSPromise> promise) {
                  factory()->undefined_value());
   if (HasAsyncEventDelegate()) {
     if (promise->has_async_task_id()) {
-      async_event_delegate_->AsyncEventOccurred(
-          debug::kDebugDidHandle, promise->async_task_id(), false);
+      const int kDontSkipFrames = 0;
+      async_event_delegate_->AsyncEventOccurred(debug::kDebugDidHandle,
+                                                promise->async_task_id(), false,
+                                                kDontSkipFrames);
     }
   }
 }
 
 void Isolate::OnStackTraceCaptured(DirectHandle<StackTraceInfo> stack_trace) {
   if (HasAsyncEventDelegate()) {
+    const int kDontSkipFrames = 0;
     async_event_delegate_->AsyncEventOccurred(debug::kDebugStackTraceCaptured,
-                                              stack_trace->id(), false);
+                                              stack_trace->id(), false,
+                                              kDontSkipFrames);
   }
 }
 

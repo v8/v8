@@ -36,7 +36,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:82)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 (anonymous) (test_framework.js:0:0)
 
@@ -55,9 +54,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:86)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:82)
--- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 (anonymous) (test_framework.js:0:0)
 
@@ -93,7 +89,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:82)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 (anonymous) (test_framework.js:0:0)
 
@@ -110,9 +105,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:86)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:82)
--- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 (anonymous) (test_framework.js:0:0)
 
@@ -208,7 +200,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:82)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 (anonymous) (test_framework.js:0:0)
 
@@ -231,7 +222,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:82)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 (anonymous) (test_framework.js:0:0)
 
@@ -247,7 +237,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:82)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 (anonymous) (test_framework.js:0:0)
 
@@ -276,9 +265,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:86)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:82)
--- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 (anonymous) (test_framework.js:0:0)
 
@@ -301,9 +287,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:86)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:82)
--- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 (anonymous) (test_framework.js:0:0)
 
@@ -319,9 +302,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:86)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:82)
--- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 (anonymous) (test_framework.js:0:0)
 
@@ -409,7 +389,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:82)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 thread1 (test.js:55:17)
 testStackSwitching (test.js:65:36)
@@ -433,7 +412,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:82)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 thread2 (test.js:58:17)
 testStackSwitching (test.js:65:47)
@@ -487,9 +465,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:86)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:82)
--- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 thread1 (test.js:55:17)
 testStackSwitching (test.js:65:36)
@@ -513,9 +488,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:86)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:82)
--- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 thread2 (test.js:58:17)
 testStackSwitching (test.js:65:47)
@@ -562,7 +534,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:82)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 testCatch (test.js:116:10)
 (anonymous) (test_framework.js:0:0)
@@ -607,7 +578,6 @@ js_func (test.js:24:17)
 $wrappedWasm (wasm://wasm/2a184bf2:0:71)
 $threeTimes (wasm://wasm/2a184bf2:0:82)
 -- await --
-$threeTimes (wasm://wasm/2a184bf2:0:78)
 wrapperFunc (test.js:35:14)
 testDontCatch (test.js:125:2)
 (anonymous) (test_framework.js:0:0)

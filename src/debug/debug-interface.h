@@ -358,7 +358,7 @@ class AsyncEventDelegate {
  public:
   virtual ~AsyncEventDelegate() = default;
   virtual void AsyncEventOccurred(debug::DebugAsyncActionType type, int id,
-                                  bool is_blackboxed) = 0;
+                                  bool is_blackboxed, int skip_frame_count) = 0;
 };
 
 V8_EXPORT_PRIVATE void SetAsyncEventDelegate(Isolate* isolate,

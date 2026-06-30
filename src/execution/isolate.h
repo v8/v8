@@ -1064,7 +1064,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Async function and promise instrumentation support.
   void OnAsyncFunctionSuspended(DirectHandle<JSPromise> promise,
-                                DirectHandle<JSPromise> parent);
+                                DirectHandle<JSPromise> parent,
+                                int skip_frame_count);
   void OnPromiseThen(DirectHandle<JSPromise> promise);
   void OnPromiseBefore(DirectHandle<JSPromise> promise);
   void OnPromiseAfter(DirectHandle<JSPromise> promise);

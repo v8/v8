@@ -930,7 +930,8 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
   // parent).
   DirectHandle<JSPromise> throwaway =
       isolate->factory()->NewJSPromiseWithoutHook();
-  isolate->OnAsyncFunctionSuspended(throwaway, promise);
+  const int kSkipFrameCount = 1;
+  isolate->OnAsyncFunctionSuspended(throwaway, promise, kSkipFrameCount);
 
   // The Promise will be thrown away and not handled, but it
   // shouldn't trigger unhandled reject events as its work is done

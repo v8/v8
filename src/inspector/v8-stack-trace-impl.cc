@@ -399,7 +399,7 @@ StackFrame* V8StackTraceImpl::StackFrameIterator::frame() {
 
 // static
 std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
-    V8Debugger* debugger, const String16& description, bool skipTopFrame) {
+    V8Debugger* debugger, const String16& description, int skipFrameCount) {
   DCHECK(debugger);
 
   int maxStackSize = debugger->maxCallStackSizeToCapture();
@@ -418,8 +418,9 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
     v8::Local<v8::StackTrace> v8StackTrace = v8::StackTrace::CurrentStackTrace(
         isolate, maxStackSize, stackTraceOptions);
     frames = toFramesVector(debugger, v8StackTrace, maxStackSize);
-    if (skipTopFrame && !frames.empty()) {
-      frames.erase(frames.begin());
+    if (skipFrameCount > 0 && !frames.empty()) {
+      int to_skip = std::min(skipFrameCount, static_cast<int>(frames.size()));
+      frames.erase(frames.begin(), frames.begin() + to_skip);
     }
 
     debugger->asyncParentFor(v8StackTrace->GetID(), &asyncParent,
