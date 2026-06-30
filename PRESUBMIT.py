@@ -582,6 +582,7 @@ def _CommonChecks(input_api, output_api):
       input_api.canned_checks.CheckOwnersFormat,
       input_api.canned_checks.CheckOwners,
       _CheckCommitMessageBugEntry,
+      _CheckLandOnChromiumBranch,
       input_api.canned_checks.CheckPatchFormatted,
       _CheckGenderNeutralInLicenses,
       _V8PresubmitChecks,
@@ -637,6 +638,44 @@ def _CheckCommitMessageBugEntry(input_api, output_api):
     elif not re.match(r'\w+[:\/]\d+', bug):
       results.append(bogus_bug_msg.format(bug))
   return [output_api.PresubmitError(r) for r in results]
+
+
+def _CheckLandOnChromiumBranch(input_api, output_api):
+  """Check that CLs landing on chromium branches have a reason."""
+  if not input_api.gerrit:
+    return []
+
+  try:
+    if input_api.change.issue and hasattr(input_api.gerrit, 'GetDestRef'):
+      target_branch = input_api.gerrit.GetDestRef(input_api.change.issue)
+    else:
+      target_branch = input_api.gerrit.branch
+  except Exception:
+    return []
+
+  if not target_branch:
+    return []
+  if not target_branch.startswith('refs/'):
+    target_branch = 'refs/heads/%s' % target_branch
+  if not target_branch.startswith('refs/heads/chromium/'):
+    return []
+
+  description = input_api.change.FullDescriptionText()
+  if input_api.re.search(r'^LAND_ON_CHROMIUM_BRANCH=.+', description,
+                         input_api.re.MULTILINE):
+    return []
+
+  return [
+      output_api.PresubmitError(
+          'You are about to land a commit on a chromium branch. Note this is '
+          'valid for cherry-picks on Canary, Dev or Mini branches only. If your '
+          'cherry-pick targets such a branch, you can bypass this warning by '
+          'adding LAND_ON_CHROMIUM_BRANCH=<reason> to the CL description. If your '
+          'commit is intended for a release channel (Beta, Stable or Extended), '
+          'please use the appropriate branch named refs/branch-heads/XX.X. The '
+          'branch number follows the Chromium milestone name divided by 10, '
+          'e.g. M123 -> refs/branch-heads/12.3')
+  ]
 
 
 def _CheckJSONFiles(input_api, output_api):
