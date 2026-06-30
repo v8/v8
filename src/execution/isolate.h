@@ -1055,7 +1055,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void set_console_delegate(debug::ConsoleDelegate* delegate) {
     console_delegate_ = delegate;
   }
-  debug::ConsoleDelegate* console_delegate() { return console_delegate_; }
+  debug::ConsoleDelegate* console_delegate() { return console_delegate_.Get(); }
 
   void set_async_event_delegate(debug::AsyncEventDelegate* delegate) {
     async_event_delegate_ = delegate;
@@ -2916,7 +2916,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   CancelableTaskManager* cancelable_task_manager_ = nullptr;
 
-  debug::ConsoleDelegate* console_delegate_ = nullptr;
+  cppgc::Persistent<debug::ConsoleDelegate> console_delegate_;
 
   debug::AsyncEventDelegate* async_event_delegate_ = nullptr;
   uint32_t promise_hook_flags_ = 0;

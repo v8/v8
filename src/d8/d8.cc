@@ -27,6 +27,7 @@
 #include "third_party/vtune/v8-vtune.h"
 #endif
 
+#include "include/cppgc/allocation.h"
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-data.h"
@@ -6178,8 +6179,9 @@ void SourceGroup::ExecuteInThread() {
 
   {
     Isolate::Scope isolate_scope(isolate);
-    D8Console console(isolate);
-    Shell::Initialize(isolate, &console, false);
+    D8Console* console = cppgc::MakeGarbageCollected<D8Console>(
+        isolate->GetCppHeap()->GetAllocationHandle(), isolate);
+    Shell::Initialize(isolate, console, false);
     PerIsolateData data(isolate);
 
     for (int i = 0; i < Shell::options.stress_runs; ++i) {
@@ -6511,8 +6513,9 @@ void Worker::ExecuteInThread() {
 
   {
     Isolate::Scope isolate_scope(isolate_);
-    D8Console console(isolate_);
-    Shell::Initialize(isolate_, &console, false);
+    D8Console* console = cppgc::MakeGarbageCollected<D8Console>(
+        isolate_->GetCppHeap()->GetAllocationHandle(), isolate_);
+    Shell::Initialize(isolate_, console, false);
     PerIsolateData data(isolate_);
 
     CHECK(context_.IsEmpty());
@@ -7928,8 +7931,9 @@ int Shell::Main(int argc, char* argv[]) {
 
   {
     Isolate::Scope scope(isolate);
-    D8Console console(isolate);
-    Initialize(isolate, &console);
+    D8Console* console = cppgc::MakeGarbageCollected<D8Console>(
+        isolate->GetCppHeap()->GetAllocationHandle(), isolate);
+    Initialize(isolate, console);
     PerIsolateData data(isolate);
 
     if (i::v8_flags.sandbox_trap_fuzzing) {
@@ -8014,8 +8018,9 @@ int Shell::Main(int argc, char* argv[]) {
               i::v8_flags.hash_seed = i::v8_flags.hash_seed ^ 1337;
               {
                 Isolate::Scope isolate_scope(isolate2);
-                D8Console console2(isolate2);
-                Initialize(isolate2, &console2);
+                D8Console* console2 = cppgc::MakeGarbageCollected<D8Console>(
+                    isolate2->GetCppHeap()->GetAllocationHandle(), isolate2);
+                Initialize(isolate2, console2);
                 PerIsolateData data2(isolate2);
 
                 result = RunMain(isolate2, false);

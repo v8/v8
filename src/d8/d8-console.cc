@@ -62,7 +62,7 @@ std::optional<std::string> GetTimerLabel(
 D8Console::D8Console(Isolate* isolate)
     : isolate_(isolate), origin_(base::TimeTicks::Now()) {}
 
-D8Console::~D8Console() { DisposeProfiler(); }
+D8Console::~D8Console() { CHECK(!profiler_); }
 
 void D8Console::DisposeProfiler() {
   if (profiler_) {

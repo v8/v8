@@ -633,6 +633,7 @@ void TaskInfo::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void V8Console::Trace(cppgc::Visitor* visitor) const {
   visitor->Trace(m_taskTemplate);
   visitor->Trace(m_consoleTemplate);
+  v8::debug::ConsoleDelegate::Trace(visitor);
   v8::Object::Wrappable::Trace(visitor);
 }
 

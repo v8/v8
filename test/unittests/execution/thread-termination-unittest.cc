@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "include/cppgc/allocation.h"
 #include "include/v8-data.h"
 #include "include/v8-external.h"
 #include "include/v8-function.h"
@@ -616,7 +617,13 @@ TEST_F(ThreadTerminationTest, TerminateAndTryCall) {
   CHECK(!isolate()->IsExecutionTerminating());
 }
 
-class ConsoleImpl : public debug::ConsoleDelegate {
+class ConsoleImpl : public cppgc::GarbageCollected<ConsoleImpl>,
+                    public debug::ConsoleDelegate {
+ public:
+  void Trace(cppgc::Visitor* visitor) const override {
+    debug::ConsoleDelegate::Trace(visitor);
+  }
+
  private:
   void Log(const debug::ConsoleCallArguments& info,
            const debug::ConsoleContext&) override {
@@ -626,8 +633,9 @@ class ConsoleImpl : public debug::ConsoleDelegate {
 
 TEST_F(ThreadTerminationTest, TerminateConsole) {
   i::v8_flags.allow_natives_syntax = true;
-  ConsoleImpl console_impl;
-  debug::SetConsoleDelegate(isolate(), &console_impl);
+  ConsoleImpl* console_impl = cppgc::MakeGarbageCollected<ConsoleImpl>(
+      isolate()->GetCppHeap()->GetAllocationHandle());
+  debug::SetConsoleDelegate(isolate(), console_impl);
   HandleScope scope(isolate());
   Local<ObjectTemplate> global = CreateGlobalTemplate(
       isolate(), TerminateCurrentThread, DoLoopCancelTerminate);
@@ -690,8 +698,9 @@ TEST_F(ThreadTerminationTest, TerminationClearArrayJoinStack) {
     EXPECT_THAT(RunJS("a[0] = 1; Join();"), testing::IsString("1"));
   }
   {
-    ConsoleImpl console_impl;
-    debug::SetConsoleDelegate(isolate(), &console_impl);
+    ConsoleImpl* console_impl = cppgc::MakeGarbageCollected<ConsoleImpl>(
+        isolate()->GetCppHeap()->GetAllocationHandle());
+    debug::SetConsoleDelegate(isolate(), console_impl);
     HandleScope middle_scope(isolate());
     Local<Context> context = Context::New(isolate(), nullptr, global_template);
     Context::Scope context_scope(context);
