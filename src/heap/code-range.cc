@@ -588,8 +588,15 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
     // Builtins should start at a page boundary, see
     // platform-embedded-file-writer-mac.cc. If it's not the case (e.g. if the
     // embedded builtins are not coming from the binary), fall back to copying.
-    if (IsAligned(reinterpret_cast<uintptr_t>(embedded_blob_code),
-                  commit_page_size)) {
+    bool source_is_remappable = IsAligned(
+        reinterpret_cast<uintptr_t>(embedded_blob_code), commit_page_size);
+#if defined(V8_OS_LINUX)
+    // On Linux, RemapPages is destructive unless the source is a
+    // file-backed mapping, so only remap when the embedded blob is the one
+    // embedded in the binary (and hence file-backed).
+    source_is_remappable &= Isolate::CurrentEmbeddedBlobIsBinaryEmbedded();
+#endif
+    if (source_is_remappable) {
       bool ok = base::OS::RemapPages(embedded_blob_code, code_size,
                                      embedded_blob_code_copy,
                                      base::OS::MemoryPermission::kReadExecute);
