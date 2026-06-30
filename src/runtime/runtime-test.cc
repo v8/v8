@@ -2874,6 +2874,8 @@ RUNTIME_FUNCTION(Runtime_AllocateHeapNumberWithValue) {
 // This is primarily used for deterministically testing race conditions.
 RUNTIME_FUNCTION(Runtime_BlockAt) {
   HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.allow_natives_syntax ||
+                       v8_flags.allow_natives_for_differential_fuzzing);
   DCHECK_EQ(2, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   CHECK_UNLESS_FUZZING(IsSmi(args[1]));
@@ -2889,6 +2891,8 @@ RUNTIME_FUNCTION(Runtime_BlockAt) {
 // blocked by %BlockAt at the specified synchronization point.
 RUNTIME_FUNCTION(Runtime_Resume) {
   HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.allow_natives_syntax ||
+                       v8_flags.allow_natives_for_differential_fuzzing);
   DCHECK_EQ(1, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   DirectHandle<String> phase_name = args.at<String>(0);
@@ -2906,6 +2910,8 @@ RUNTIME_FUNCTION(Runtime_Resume) {
 // provided in milliseconds.
 RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
   HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.allow_natives_syntax ||
+                       v8_flags.allow_natives_for_differential_fuzzing);
   DCHECK_EQ(2, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   CHECK_UNLESS_FUZZING(IsSmi(args[1]));
