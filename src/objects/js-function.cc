@@ -580,6 +580,9 @@ MaybeDirectHandle<Object> JSWrappedFunction::Create(
   // 8. If result is an Abrupt Completion, throw a TypeError exception.
   if (is_abrupt.IsNothing()) {
     DCHECK(isolate->has_exception());
+    if (isolate->is_execution_terminating()) {
+      return {};
+    }
     DirectHandle<Object> exception(isolate->exception(), isolate);
     isolate->clear_exception();
 

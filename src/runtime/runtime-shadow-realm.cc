@@ -48,6 +48,9 @@ RUNTIME_FUNCTION(Runtime_ShadowRealmThrow) {
   if (isolate->is_execution_terminating()) {
     return ReadOnlyRoots(isolate).exception();
   }
+  if (IsTerminationException(*value)) {
+    return isolate->ReThrow(*value);
+  }
 
   MessageTemplate message_id = MessageTemplateFromInt(message_id_smi);
 
