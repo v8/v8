@@ -202,7 +202,7 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
 
     auto iter_count = GetIterationCount(loop_header);
     return iter_count.IsExact() &&
-           iter_count.exact_count() < kMaxLoopIterationsForFullUnrolling;
+           iter_count.exact_count() <= kMaxLoopIterationsForFullUnrolling;
   }
 
   bool ShouldPartiallyUnrollLoop(const Block* loop_header) const {
