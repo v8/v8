@@ -3,6 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Script to non-interactively edit/update the Gerrit CL description for the current branch.
 # It enforces commit description line-length formatting (max 78 chars) and code formatting.
 

@@ -3,6 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 MODE="$1"
 CHECK_MODE="$2"
 PATCH_MSG="${3:-Update patchset}"
@@ -113,7 +115,6 @@ fi
 
 # Guardrail: Ensure gm.py release checks pass if check requested
 if [ "$CHECK_MODE" = "check" ]; then
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   V8_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
   ARCH=$(uname -m)
