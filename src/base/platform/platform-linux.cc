@@ -246,7 +246,9 @@ bool OS::RemapPages(const void* address, size_t size, void* new_address,
       CHECK_EQ(result, new_address);
       CHECK_EQ(0, mprotect(new_address, size, protection));
       // If a remap faultily involves an anonymous mapping, the source will have
-      // been zero'd.
+      // been zero'd. Short sanity check in non-debug mode.
+      CHECK_EQ(0, memcmp(address, new_address, sizeof(uint64_t)));
+      // Long-form sanity check in debug mode.
       DCHECK_EQ(0, memcmp(address, new_address, size));
       return true;
     }
