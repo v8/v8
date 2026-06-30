@@ -3208,7 +3208,6 @@ filegroup(
             "src/wasm/string-builder.h",
             "src/wasm/string-builder-multiline.h",
             "src/wasm/struct-types.h",
-            "src/wasm/sync-streaming-decoder.cc",
             "src/wasm/turboshaft-graph-interface.cc",
             "src/wasm/turboshaft-graph-interface.h",
             "src/wasm/turboshaft-graph-interface-inl.h",

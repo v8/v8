@@ -1984,9 +1984,6 @@ DEFINE_BOOL(
     "print off-heap memory consumption per module and engine when they die")
 DEFINE_DEBUG_BOOL(trace_wasm_serialization, false,
                   "trace serialization/deserialization")
-DEFINE_BOOL(wasm_async_compilation, true,
-            "enable actual asynchronous compilation for WebAssembly.compile")
-DEFINE_NEG_IMPLICATION(single_threaded, wasm_async_compilation)
 DEFINE_BOOL(wasm_test_streaming, false,
             "use streaming compilation instead of async compilation for tests")
 DEFINE_BOOL(wasm_native_module_cache, true, "enable the native module cache")

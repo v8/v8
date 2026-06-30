@@ -6515,7 +6515,6 @@ v8_cluster_source_set("v8_base_without_compiler") {
       "src/wasm/pgo.cc",
       "src/wasm/stacks.cc",
       "src/wasm/streaming-decoder.cc",
-      "src/wasm/sync-streaming-decoder.cc",
       "src/wasm/value-type.cc",
       "src/wasm/wasm-code-manager.cc",
       "src/wasm/wasm-code-pointer-table.cc",

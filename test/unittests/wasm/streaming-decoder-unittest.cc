@@ -667,7 +667,6 @@ class EmptyResolver : public CompilationResultResolver {
 using WasmStreamingCompilationTest = TestWithNativeContext;
 
 TEST_F(WasmStreamingCompilationTest, ContextDisposeDuringValidation) {
-  FlagScope<bool> async_compilation(&v8_flags.wasm_async_compilation, true);
   FlagScope<bool> lazy_compilation(&v8_flags.wasm_lazy_compilation, true);
 
   std::shared_ptr<EmptyResolver> resolver = std::make_shared<EmptyResolver>();

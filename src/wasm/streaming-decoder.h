@@ -83,13 +83,8 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
 // of {OnBytesReceived}, and extracts the bytes which belong to section payloads
 // and function bodies.
 //
-// There are two main implementations:
-// 1. {AsyncStreamingDecoder} (in streaming-decoder.cc): The default
-//    implementation used when --wasm-async-compilation is enabled. It uses an
-//    {AsyncStreamingProcessor} to drive an {AsyncCompileJob}.
-// 2. {SyncStreamingDecoder} (in sync-streaming-decoder.cc): A fallback used
-//    when --no-wasm-async-compilation is set. It buffers all bytes and
-//    performs compilation synchronously when {Finish} is called.
+// The only implementation is {AsyncStreamingDecoder} (in streaming-decoder.cc).
+// It uses an {AsyncStreamingProcessor} to drive an {AsyncCompileJob}.
 class V8_EXPORT_PRIVATE StreamingDecoder {
  public:
   virtual ~StreamingDecoder() = default;
@@ -134,11 +129,6 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   static std::unique_ptr<StreamingDecoder> CreateAsyncStreamingDecoder(
       std::unique_ptr<StreamingProcessor> processor);
-
-  static std::unique_ptr<StreamingDecoder> CreateSyncStreamingDecoder(
-      WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
-      const char* api_method_name_for_errors,
-      std::shared_ptr<CompilationResultResolver> resolver);
 
  protected:
   const std::shared_ptr<std::string> url_ = std::make_shared<std::string>();

@@ -2,6 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-test-streaming --no-wasm-async-compilation
+// Flags: --wasm-test-streaming --single-threaded
 
 d8.file.execute('test/mjsunit/wasm/streaming-api.js');

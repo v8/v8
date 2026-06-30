@@ -223,20 +223,21 @@ class CompileResolver : public CompilationResultResolver {
   Isolate* i_isolate = CcTest::i_isolate();                             \
   RunCompile_##name(&platform, i_isolate);
 
-#define COMPILE_TEST(name)                                                     \
-  void RunCompile_##name(test::MockPlatform*, i::Isolate*);                    \
-  TEST_WITH_PLATFORM(Sync##name, test::MockPlatform) {                         \
-    i::FlagScope<bool> sync_scope(&i::v8_flags.wasm_async_compilation, false); \
-    RUN_COMPILE(name);                                                         \
-  }                                                                            \
-                                                                               \
-  TEST_WITH_PLATFORM(Async##name, test::MockPlatform) { RUN_COMPILE(name); }   \
-                                                                               \
-  TEST_WITH_PLATFORM(Streaming##name, test::MockPlatform) {                    \
-    i::FlagScope<bool> streaming_scope(&i::v8_flags.wasm_test_streaming,       \
-                                       true);                                  \
-    RUN_COMPILE(name);                                                         \
-  }                                                                            \
+#define COMPILE_TEST(name)                                                   \
+  void RunCompile_##name(test::MockPlatform*, i::Isolate*);                  \
+  TEST_WITH_PLATFORM(Sync##name, test::MockPlatform) {                       \
+    i::FlagScope<bool> single_threaded_scope(&i::v8_flags.single_threaded,   \
+                                             true);                          \
+    RUN_COMPILE(name);                                                       \
+  }                                                                          \
+                                                                             \
+  TEST_WITH_PLATFORM(Async##name, test::MockPlatform) { RUN_COMPILE(name); } \
+                                                                             \
+  TEST_WITH_PLATFORM(Streaming##name, test::MockPlatform) {                  \
+    i::FlagScope<bool> streaming_scope(&i::v8_flags.wasm_test_streaming,     \
+                                       true);                                \
+    RUN_COMPILE(name);                                                       \
+  }                                                                          \
   void RunCompile_##name(test::MockPlatform* platform, i::Isolate* isolate)
 
 class MetricsRecorder : public v8::metrics::Recorder {
@@ -304,8 +305,7 @@ COMPILE_TEST(TestEventMetrics) {
 
   CHECK_EQ(1, recorder->module_decoded_.size());
   CHECK(recorder->module_decoded_.back().success);
-  CHECK_EQ(i::v8_flags.wasm_async_compilation,
-           recorder->module_decoded_.back().async);
+  CHECK(recorder->module_decoded_.back().async);
   CHECK_EQ(i::v8_flags.wasm_test_streaming,
            recorder->module_decoded_.back().streamed);
   CHECK_EQ(buffer.size(),
@@ -315,8 +315,7 @@ COMPILE_TEST(TestEventMetrics) {
 
   CHECK_EQ(1, recorder->module_compiled_.size());
   CHECK(recorder->module_compiled_.back().success);
-  CHECK_EQ(i::v8_flags.wasm_async_compilation,
-           recorder->module_compiled_.back().async);
+  CHECK(recorder->module_compiled_.back().async);
   CHECK_EQ(i::v8_flags.wasm_test_streaming,
            recorder->module_compiled_.back().streamed);
   CHECK(!recorder->module_compiled_.back().cached);
