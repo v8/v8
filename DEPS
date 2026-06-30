@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '209acdce39f494f75c6dc8e65e4eeb6f01c6d45c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7ee2d04aa27670da5a2a8c596e18a2e0bf54b533',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0d39be5a3f129cf1f35e7812108a2184e2193315',
   'buildtools/linux64': {
@@ -531,11 +531,11 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'f6e61282b0e736cc0a72ef83b6d211bb3ebccf81',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '44c7f73ccb4859be1909acdaf73823b941100a52',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '45843c2c1e993427751e2a07f904db069dc26ad6',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'ea940b730222702313c9bd4f5081e3adbc4c1070',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'b7175eca7006542aceb3a8e97a84cfd8ffd2a8e4',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -583,7 +583,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '8b3aa8a1cd7585c0c4c67351481227b046a662a0',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '87b5008339057d77c0323472183178030bb4df41',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '11bca2880d9bd1b734469c4bb86e912a4afaadbd',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '418c65786fdf6fc5f10cb008c252c2b12c4713a6',
   'third_party/abseil-cpp': {
