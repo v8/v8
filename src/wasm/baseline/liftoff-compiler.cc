@@ -6139,6 +6139,16 @@ class LiftoffCompiler {
     CODE_COMMENT("-- landing pad --");
     __ bind(handler.get());
     __ ExceptionHandler();
+    if (V8_UNLIKELY(for_debugging_)) {
+      // Any pending OSR target was computed for the call's return continuation
+      // and is stale on the exception path; clear it so we keep executing the
+      // catch body in this code object.
+      // We might miss breakpoint updates by staying in the old code.
+      // TODO(thibaudm): Get the exception handler address in the new code and
+      // jump to it. Maybe by using a second OSR slot on top of kOSRTargetSlot,
+      // specifically for exceptional returns.
+      __ ResetOSRTarget();
+    }
     __ PushException();
     handlers_.push_back({std::move(handler), handler_offset});
     Control* current_try =
