@@ -49,15 +49,13 @@
 // printing / etc in the flag parser code.
 #elif defined(FLAG_MODE_META)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  {Flag::TYPE_##ftype, #nam, &v8_flags.nam, &FLAGDEFAULT_##nam, cmt, false},
+  {Flag::TYPE_##ftype, &v8_flags.nam, &FLAGDEFAULT_##nam, false},
 // Readonly flags don't pass the value pointer since the struct expects a
 // mutable value. That's okay since the value always equals the default.
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  {Flag::TYPE_##ftype, #nam, nullptr, &FLAGDEFAULT_##nam, cmt, false},
-#define FLAG_ALIAS_WITH_COMMENT(ftype, ctype, alias, nam, cmt) \
-  {Flag::TYPE_##ftype, #alias, &v8_flags.nam, &FLAGDEFAULT_##nam, cmt, false},
-#define FLAG_ALIAS(ftype, ctype, alias, nam) \
-  FLAG_ALIAS_WITH_COMMENT(ftype, ctype, alias, nam, "alias for --" #nam)
+  {Flag::TYPE_##ftype, nullptr, &FLAGDEFAULT_##nam, false},
+// Aliases are not allocated in the meta data table.
+#define FLAG_ALIAS_WITH_COMMENT(ftype, ctype, alias, nam, cmt)
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
@@ -109,16 +107,21 @@
   }                                                         \
   DEFINE_VALUE_IMPLICATION(whenflag, thenflag, false)
 
-// We apply a generic macro to the full flags.
+// We apply a generic macro to the flags.
 #elif defined(FLAG_MODE_APPLY)
 
-#define FLAG_FULL FLAG_MODE_APPLY
+#define FLAG_FULL(ftype, ctype, nam, def, cmt) \
+  FLAG_MODE_APPLY(ctype, nam, , cmt)
 
-// We apply a generic macro to the flag names.
-#elif defined(FLAG_MODE_APPLY_NAME)
+#if defined(FLAG_MODE_INCLUDE_READONLY)
+#define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
+  FLAG_MODE_APPLY(ctype, nam, , cmt)
+#endif
 
-#define FLAG_FULL(ftype, ctype, nam, def, cmt) FLAG_MODE_APPLY_NAME(nam)
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt) FLAG_MODE_APPLY_NAME(nam)
+#if defined(FLAG_MODE_INCLUDE_ALIASES)
+#define FLAG_ALIAS_WITH_COMMENT(ftype, ctype, alias, nam, cmt) \
+  FLAG_MODE_APPLY(ctype, alias, nam, cmt)
+#endif
 
 #else
 #error No mode supplied when including flags.defs
@@ -138,7 +141,8 @@
 #endif
 
 #ifndef FLAG_ALIAS
-#define FLAG_ALIAS(ftype, ctype, alias, nam)
+#define FLAG_ALIAS(ftype, ctype, alias, nam) \
+  FLAG_ALIAS_WITH_COMMENT(ftype, ctype, alias, nam, nullptr)
 #endif
 
 #ifndef DEFINE_VALUE_IMPLICATION
@@ -244,8 +248,8 @@
 #define DEFINE_DEBUG_BOOL DEFINE_BOOL_READONLY
 #endif
 
-#define TEMPORARY_WASM_ALIAS_COMMENT(nam) \
-  "temporary alias for --" #nam " (to be dropped in V8 v15.3)"
+#define TEMPORARY_WASM_ALIAS_COMMENT \
+  "temporary alias, to be dropped in V8 v15.3"
 
 //
 // Flags in all modes.
@@ -1826,14 +1830,13 @@ DEFINE_BOOL(wasm_simd_opt, true, "enable optimizations for Webassembly SIMD")
 DEFINE_IMPLICATION(future, wasm_simd_opt)
 DEFINE_EXPERIMENTAL_FEATURE(future_wasm_simd_opt,
                             "enable extra optimizations for Webassembly SIMD")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(
-    experimental_wasm_simd_opt, future_wasm_simd_opt,
-    TEMPORARY_WASM_ALIAS_COMMENT(future_wasm_simd_opt))
+DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_simd_opt, future_wasm_simd_opt,
+                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_EXPERIMENTAL_FEATURE(wasm_deinterleave_loads,
                             "enable deinterleaving loads for Webassembly SIMD")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(
-    experimental_wasm_deinterleave_loads, wasm_deinterleave_loads,
-    TEMPORARY_WASM_ALIAS_COMMENT(wasm_deinterleave_loads))
+DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_deinterleave_loads,
+                               wasm_deinterleave_loads,
+                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_IMPLICATION(future_wasm_simd_opt, wasm_simd_opt)
 DEFINE_IMPLICATION(wasm_deinterleave_loads, wasm_simd_opt)
 #endif  // V8_TARGET_ARCH_ARM64
@@ -2076,14 +2079,13 @@ DEFINE_DEVELOPER_FLAG(
     wasm_pgo_to_file,
     "experimental: dump Wasm PGO information to a local file (for testing)")
 DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_pgo_to_file, wasm_pgo_to_file,
-                               TEMPORARY_WASM_ALIAS_COMMENT(wasm_pgo_to_file))
+                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_NEG_IMPLICATION(wasm_pgo_to_file, single_threaded)
 DEFINE_DEVELOPER_FLAG(
     wasm_pgo_from_file,
     "experimental: read and use Wasm PGO data from a local file (for testing)")
 DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_pgo_from_file,
-                               wasm_pgo_from_file,
-                               TEMPORARY_WASM_ALIAS_COMMENT(wasm_pgo_from_file))
+                               wasm_pgo_from_file, TEMPORARY_WASM_ALIAS_COMMENT)
 
 DEFINE_BOOL(validate_asm, false,
             "validate asm.js modules and translate them to Wasm (deprecated)")
@@ -2145,11 +2147,11 @@ DEFINE_SIZE_T(wasm_deopts_per_function_limit, 10,
 #define DECL_WASM_FLAG(feat, desc, val)                                 \
   DEFINE_BOOL(wasm_##feat, val, "enable " desc " for Wasm")             \
   DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feat, wasm_##feat, \
-                                 TEMPORARY_WASM_ALIAS_COMMENT(wasm_##feat))
+                                 TEMPORARY_WASM_ALIAS_COMMENT)
 #define DECL_EXPERIMENTAL_WASM_FLAG(feat, desc, val)                    \
   DEFINE_EXPERIMENTAL_FEATURE(wasm_##feat, "enable " desc " for Wasm")  \
   DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feat, wasm_##feat, \
-                                 TEMPORARY_WASM_ALIAS_COMMENT(wasm_##feat))
+                                 TEMPORARY_WASM_ALIAS_COMMENT)
 // Experimental wasm features imply --experimental and get the " (experimental)"
 // suffix.
 FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(DECL_EXPERIMENTAL_WASM_FLAG)
@@ -2164,30 +2166,29 @@ FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
 DEFINE_TEST_ONLY_FLAG(
     wasm_assume_ref_cast_succeeds,
     "assume ref.cast always succeeds and skip the related type check")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(
-    experimental_wasm_assume_ref_cast_succeeds, wasm_assume_ref_cast_succeeds,
-    TEMPORARY_WASM_ALIAS_COMMENT(wasm_assume_ref_cast_succeeds))
+DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_assume_ref_cast_succeeds,
+                               wasm_assume_ref_cast_succeeds,
+                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_TEST_ONLY_FLAG(wasm_ref_cast_nop,
                       "enable unsafe ref.cast_nop instruction")
 DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_ref_cast_nop,
-                               wasm_ref_cast_nop,
-                               TEMPORARY_WASM_ALIAS_COMMENT(wasm_ref_cast_nop))
+                               wasm_ref_cast_nop, TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_TEST_ONLY_FLAG(
     wasm_skip_null_checks,
     "skip null checks for call.ref and array and struct operations")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(
-    experimental_wasm_skip_null_checks, wasm_skip_null_checks,
-    TEMPORARY_WASM_ALIAS_COMMENT(wasm_skip_null_checks))
+DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_skip_null_checks,
+                               wasm_skip_null_checks,
+                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_TEST_ONLY_FLAG(wasm_skip_bounds_checks, "skip array bounds checks")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(
-    experimental_wasm_skip_bounds_checks, wasm_skip_bounds_checks,
-    TEMPORARY_WASM_ALIAS_COMMENT(wasm_skip_bounds_checks))
+DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_skip_bounds_checks,
+                               wasm_skip_bounds_checks,
+                               TEMPORARY_WASM_ALIAS_COMMENT)
 
 // Experimental variants of the Custom Descriptors prototype implementation.
 DEFINE_EXPERIMENTAL_FEATURE(
     wasm_js_interop, "enable JS Interop part of Custom Descriptors proposal")
 DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_js_interop, wasm_js_interop,
-                               TEMPORARY_WASM_ALIAS_COMMENT(wasm_js_interop))
+                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_IMPLICATION(wasm_js_interop, wasm_custom_descriptors)
 DEFINE_BOOL(wasm_custom_descriptors_permitted, true,
             "Emergency off-switch for Custom Descriptors Origin Trial")
@@ -2326,7 +2327,7 @@ DEFINE_EXPERIMENTAL_FEATURE(
     wasm_revectorize,
     "enable 128 to 256 bit revectorization for WebAssembly SIMD")
 DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_revectorize, wasm_revectorize,
-                               TEMPORARY_WASM_ALIAS_COMMENT(wasm_revectorize))
+                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_WEAK_IMPLICATION(experimental_fuzzing, wasm_revectorize)
 DEFINE_DEVELOPER_FLAG(trace_wasm_revectorize, "trace wasm revectorize")
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC

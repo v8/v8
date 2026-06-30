@@ -330,97 +330,147 @@ constexpr size_t kNumFlags = arraysize(flags);
 
 base::Vector<Flag> Flags() { return base::ArrayVector(flags); }
 
-consteval std::array<int, kNumFlags> GetSortedFlagIndices() {
-  constexpr const char* kFlagNames[] = {
-#define FLAG_MODE_APPLY_NAME(nam) #nam,
-#define FLAG_ALIAS(ftype, ctype, alias, nam) #alias,
-#define FLAG_ALIAS_WITH_COMMENT(ftype, ctype, alias, nam, cmt) #alias,
+namespace {
+
+// Metadata for every flag (including aliases).
+struct FlagMetadata {
+  // The name of the flag (primary or alias).
+  const char* name;
+  // The description of the flag.
+  const char* comment;
+  // Index of the primary flag in the global 'flags' array (skipping aliases).
+  int flag_index;
+  // Index of the primary flag in this 'kFlagsMetadata' array.
+  int canonical_index;
+};
+
+constexpr auto kFlagsMetadata = []() {
+  struct RawMetadata {
+    const char* name;
+    const char* primary;
+    const char* comment;
+  };
+  constexpr RawMetadata raw[] = {
+#define FLAG_MODE_APPLY(ctype, nam, primary, cmt) {#nam, #primary, cmt},
+#define FLAG_MODE_INCLUDE_READONLY
+#define FLAG_MODE_INCLUDE_ALIASES
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
-#undef FLAG_ALIAS
-#undef FLAG_ALIAS_WITH_COMMENT
-#undef FLAG_MODE_APPLY_NAME
+#undef FLAG_MODE_INCLUDE_ALIASES
+#undef FLAG_MODE_INCLUDE_READONLY
+#undef FLAG_MODE_APPLY
   };
 
-  static_assert(arraysize(kFlagNames) == kNumFlags);
+  constexpr size_t kNumFlagsPlusAliases = arraysize(raw);
+  std::array<FlagMetadata, kNumFlagsPlusAliases> metadata{};
 
-  std::array<int, kNumFlags> indices{};
-  for (size_t i = 0; i < kNumFlags; ++i) {
+  // First pass: identify and initialize primary flags.
+  int next_flag_index = 0;
+  for (size_t i = 0; i < kNumFlagsPlusAliases; ++i) {
+    if (raw[i].primary[0] != '\0') continue;  // Skip aliases.
+    metadata[i] = {raw[i].name, raw[i].comment, next_flag_index++,
+                   static_cast<int>(i)};
+  }
+
+  // Second pass: initialize aliases by finding their primary flag.
+  for (size_t i = 0; i < kNumFlagsPlusAliases; ++i) {
+    if (raw[i].primary[0] == '\0') continue;  // Skip primary flags.
+    int primary_index = -1;
+    for (size_t j = 0; j < kNumFlagsPlusAliases; ++j) {
+      if (raw[j].primary[0] != '\0') continue;  // Skip aliases.
+      if (FlagHelpers::FlagNamesCmp(raw[j].name, raw[i].primary) == 0) {
+        primary_index = static_cast<int>(j);
+        break;
+      }
+    }
+    DCHECK_NE(-1, primary_index);
+    metadata[i] = {raw[i].name, raw[i].comment,
+                   metadata[primary_index].flag_index,
+                   static_cast<int>(primary_index)};
+  }
+
+  return metadata;
+}();
+
+// Number of flags plus aliases.
+constexpr size_t kNumAllFlags = kFlagsMetadata.size();
+
+// Pre-computed tables for efficient flag management.
+constexpr std::array<int, kNumAllFlags> kSortedFlagIndices = []() {
+  std::array<int, kNumAllFlags> indices{};
+  for (size_t i = 0; i < kNumAllFlags; ++i) {
     indices[i] = static_cast<int>(i);
   }
-  std::sort(indices.begin(), indices.end(), [&](int i, int j) {
-    return FlagHelpers::FlagNamesCmp(kFlagNames[i], kFlagNames[j]) < 0;
+  std::sort(indices.begin(), indices.end(), [](int i, int j) {
+    return FlagHelpers::FlagNamesCmp(kFlagsMetadata[i].name,
+                                     kFlagsMetadata[j].name) < 0;
   });
   return indices;
-}
+}();
 
-struct FlagNameGreater {
-  bool operator()(const Flag* a, const char* b) const {
-    return FlagHelpers::FlagNamesCmp(a->name(), b) > 0;
-  }
-};
-
-// Optimized look-up of flags by name using binary search. Works only for flags
-// that can be found. If the looked-up flag might not exit in the list, an
-// additional name check of the returned flag is required.
-class FlagMapByName {
- public:
-  FlagMapByName() {
-    constexpr std::array<int, kNumFlags> sorted_indices =
-        GetSortedFlagIndices();
-    for (size_t i = 0; i < kNumFlags; ++i) {
-      flags_[i] = &flags[sorted_indices[i]];
+// Maps a primary flag's index in the 'flags' array to its index in the
+// 'kFlagsMetadata' array.
+constexpr std::array<int, kNumFlags> kPrimaryToAllIndices = []() {
+  std::array<int, kNumFlags> indices{};
+  for (size_t i = 0; i < kNumAllFlags; ++i) {
+    if (static_cast<int>(i) == kFlagsMetadata[i].canonical_index) {
+      indices[kFlagsMetadata[i].flag_index] = static_cast<int>(i);
     }
   }
+  return indices;
+}();
 
-  // Returns the greatest flag whose name is less than or equal to the given
-  // name (lexicographically). This allows for finding the right flag even if
-  // there is a suffix, as in the case of implications, e.g. "max_opt < 3".
-  Flag* GetFlag(const char* name) {
-    auto it = std::lower_bound(flags_.rbegin(), flags_.rend(), name,
-                               FlagNameGreater());
-    if (it == flags_.rend()) return nullptr;
-    return *it;
+}  // namespace
+
+const char* Flag::name() const {
+  size_t index = this - flags;
+  DCHECK_LT(index, kNumFlags);
+  return kFlagsMetadata[kPrimaryToAllIndices[index]].name;
+}
+
+const char* Flag::comment() const {
+  size_t index = this - flags;
+  DCHECK_LT(index, kNumFlags);
+  return kFlagsMetadata[kPrimaryToAllIndices[index]].comment;
+}
+
+Flag* FindFlagByPointer(const void* ptr) {
+  for (Flag& flag : flags) {
+    if (flag.PointsTo(ptr)) return &flag;
   }
+  return nullptr;
+}
 
- private:
-  std::array<Flag*, kNumFlags> flags_;
-};
-
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(FlagMapByName, GetFlagMap)
+// Optimized look-up of flags by name using binary search. Returns the canonical
+// flag for a given name, or nullptr if no flag matches. If 'allow_suffix' is
+// true, it allows for suffixes as used in implications, e.g. "max_opt < 3".
+Flag* GetFlagByName(const char* name, bool allow_suffix) {
+  auto it = std::upper_bound(
+      kSortedFlagIndices.begin(), kSortedFlagIndices.end(), name,
+      [](const char* name, int idx) {
+        return FlagHelpers::FlagNamesCmp(name, kFlagsMetadata[idx].name) < 0;
+      });
+  if (it == kSortedFlagIndices.begin()) return nullptr;
+  int idx = *(--it);
+  const char* found_name = kFlagsMetadata[idx].name;
+  if (allow_suffix) {
+    if (!FlagHelpers::EqualNameWithSuffix(found_name, name)) return nullptr;
+  } else {
+    if (!FlagHelpers::EqualNames(found_name, name)) return nullptr;
+  }
+  return &flags[kFlagsMetadata[idx].flag_index];
+}
 
 // This should be used to look up flags that we know were defined.
 // It allows for suffixes used in implications, e.g. "max_opt < 3",
 Flag* FindImplicationFlagByName(const char* name) {
-  Flag* flag = GetFlagMap()->GetFlag(name);
-  CHECK(flag != nullptr);
-  DCHECK(FlagHelpers::EqualNameWithSuffix(flag->name(), name));
+  Flag* flag = GetFlagByName(name, true);
+  CHECK_NOT_NULL(flag);
   return flag;
 }
 
 // This can be used to look up flags that might not exist (e.g. invalid command
 // line flags).
-Flag* FindFlagByName(const char* name) {
-  Flag* flag = GetFlagMap()->GetFlag(name);
-  // GetFlag returns an invalid lower bound for flags not in the list. So
-  // we need to verify the name again.
-  if (flag != nullptr && FlagHelpers::EqualNames(flag->name(), name)) {
-    return flag;
-  }
-#ifdef DEBUG
-  // Ensure the flag is not in the global list.
-  for (size_t i = 0; i < kNumFlags; ++i) {
-    DCHECK(!FlagHelpers::EqualNames(name, flags[i].name()));
-  }
-#endif
-  return nullptr;
-}
-
-Flag* FindFlagByPointer(const void* ptr) {
-  for (size_t i = 0; i < kNumFlags; ++i) {
-    if (flags[i].PointsTo(ptr)) return &flags[i];
-  }
-  return nullptr;
-}
+Flag* FindFlagByName(const char* name) { return GetFlagByName(name, false); }
 
 static const char* Type2String(Flag::FlagType type) {
   switch (type) {
@@ -919,10 +969,23 @@ void FlagList::PrintHelp() {
         "  --            (captures all remaining args in JavaScript)\n\n";
   os << "Options:\n";
 
-  for (const Flag& f : flags) {
-    os << "  " << FlagName{f.name()} << " (" << f.comment() << ")\n"
-       << "        type: " << Type2String(f.type()) << "  default: " << f
-       << "\n";
+  for (const FlagMetadata& entry : kFlagsMetadata) {
+    Flag* f = &flags[entry.flag_index];
+    os << "  " << FlagName{entry.name};
+    const FlagMetadata& canonical_entry = kFlagsMetadata[entry.canonical_index];
+    if (&entry != &canonical_entry) {
+      os << " (alias for " << FlagName{canonical_entry.name};
+      if (entry.comment && entry.comment[0] != '\0') {
+        os << ", " << entry.comment;
+      }
+      os << ")\n";
+    } else {
+      if (entry.comment && entry.comment[0] != '\0') {
+        os << " (" << entry.comment << ")";
+      }
+      os << "\n        type: " << Type2String(f->type()) << "  default: " << *f
+         << "\n";
+    }
   }
   os.flush();
 }
@@ -1062,12 +1125,13 @@ class ImplicationProcessor {
 
     // For each flag, alias with a mutable reference so that implications don't
     // need the v8_flags prefix.
-#define FLAG_MODE_APPLY_NAME(name) \
-  auto& name = v8_flags.name;      \
-  USE(name);
+#define FLAG_MODE_APPLY(ctype, nam, primary, cmt) \
+  auto& nam = v8_flags.nam;                       \
+  USE(nam);
+#define FLAG_MODE_INCLUDE_READONLY
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
-#undef FLAG_MODE_APPLY_NAME
-
+#undef FLAG_MODE_INCLUDE_READONLY
+#undef FLAG_MODE_APPLY
 #define FLAG_MODE_DEFINE_IMPLICATIONS
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
