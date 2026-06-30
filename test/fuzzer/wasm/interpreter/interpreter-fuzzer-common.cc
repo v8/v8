@@ -94,7 +94,8 @@ WasmInterpretationResult FastInterpretWasmModule(
     std::vector<WasmValue>& rets) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
-  const WasmFunction* func = &instance->module()->functions[function_index];
+  const WasmFunction* func =
+      &instance->trusted_data(isolate)->module()->functions[function_index];
 
   CHECK(func->exported);
   // This would normally be handled by export wrappers.
@@ -173,8 +174,8 @@ Handle<JSFunction> GenerateJSFunction(Isolate* isolate) {
 MaybeDirectHandle<WasmTableObject> GenerateWasmTable(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t table_index) {
-  const WasmTable& table =
-      module_object->native_module()->module()->tables[table_index];
+  Managed<NativeModule>::Ptr native_module = module_object->native_module();
+  const WasmTable& table = native_module->module()->tables[table_index];
 
   uint32_t table_initial = 10;
   uint32_t table_maximum = 30;
@@ -220,8 +221,8 @@ Handle<JSObject> CreateImportObjectInternal(
   for (size_t index = 0;
        index < module_object->native_module()->module()->import_table.size();
        ++index) {
-    const WasmImport& import =
-        module_object->native_module()->module()->import_table[index];
+    Managed<NativeModule>::Ptr native_module = module_object->native_module();
+    const WasmImport& import = native_module->module()->import_table[index];
 
     Handle<String> module_name = ExtractUtf8StringFromModuleBytes(
         isolate, module_object->native_module()->wire_bytes(),
@@ -275,7 +276,7 @@ Handle<JSObject> CreateImportObjectInternal(
         // Global
         const uint32_t offset = 0;
         const WasmGlobal& global =
-            module_object->native_module()->module()->globals[import.index];
+            native_module->module()->globals[import.index];
         DirectHandle<WasmTrustedInstanceData> trusted_data =
             WasmTrustedInstanceData::New(
                 isolate, module_object,
@@ -417,16 +418,17 @@ void RunInstance(Isolate* isolate, std::mt19937_64 rand_generator,
                  DirectHandle<WasmInstanceObject> instance) {
   wasm::WasmInterpreterThread* thread =
       wasm::WasmInterpreterThread::GetCurrentInterpreterThread(isolate);
-  size_t num_exports = instance->module()->export_table.size();
+  const WasmModule* wasm_module = instance->trusted_data(isolate)->module();
+  size_t num_exports = wasm_module->export_table.size();
   Address prev_fp = reinterpret_cast<Address>(__builtin_frame_address(0));
   for (size_t i = 0; i < num_exports; ++i) {
-    WasmExport exp = instance->module()->export_table[i];
+    WasmExport exp = wasm_module->export_table[i];
 
     if (exp.kind != kExternalFunction) continue;
-    WasmFunction wfn = instance->module()->functions[exp.index];
+    WasmFunction wfn = wasm_module->functions[exp.index];
 
     std::vector<WasmValue> arguments = FastMakeDefaultInterpreterArguments(
-        isolate, instance->module(), wfn.sig, rand_generator);
+        isolate, wasm_module, wfn.sig, rand_generator);
     std::vector<WasmValue> retvals(wfn.sig->return_count());
 
     // Allocate space on stack for the synthetic frame
