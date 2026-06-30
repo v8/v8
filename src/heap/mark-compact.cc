@@ -4818,7 +4818,9 @@ void Evacuator::EvacuatePage(MutablePage* page) {
                  static_cast<void*>(this), static_cast<void*>(page),
                  chunk->InNewSpace(), page->will_be_promoted(),
                  page->is_executable(),
-                 heap_->new_space()->IsPromotionCandidate(page),
+                 (heap_->new_space() && chunk->InNewSpace())
+                     ? heap_->new_space()->IsPromotionCandidate(page)
+                     : false,
                  saved_live_bytes, evacuation_time, success);
   }
 }
