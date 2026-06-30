@@ -1838,6 +1838,9 @@
   # JSON.parse is not supported with --shared-string-table and multiple isolates
   'shared-memory/regress-crbug-1395117': [SKIP],
 
+  # Synchronization point tests don't play well with multiple isolates.
+  'compiler/regress-519664497': [SKIP],
+
 }],  # 'isolates'
 
 ##############################################################################
