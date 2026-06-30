@@ -1675,7 +1675,7 @@ class LiftoffAssembler : public MacroAssembler {
   CacheState* cache_state() { return &cache_state_; }
   const CacheState* cache_state() const { return &cache_state_; }
 
-  bool did_bailout() { return bailout_reason_ != kSuccess; }
+  bool did_bailout() { return bailout_reason_ != kNoReason; }
   LiftoffBailoutReason bailout_reason() const { return bailout_reason_; }
   const char* bailout_detail() const { return bailout_detail_; }
 
@@ -1704,7 +1704,7 @@ class LiftoffAssembler : public MacroAssembler {
   int max_used_spill_offset_ = StaticStackFrameSize();
   // The amount of memory needed for register spills in OOL code.
   int ool_spill_space_size_ = 0;
-  LiftoffBailoutReason bailout_reason_ = kSuccess;
+  LiftoffBailoutReason bailout_reason_ = kNoReason;
   const char* bailout_detail_ = nullptr;
 };
 

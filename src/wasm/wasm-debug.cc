@@ -274,7 +274,10 @@ class DebugInfoImpl {
                        .dead_breakpoint = dead_breakpoint});
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
-    if (!result.succeeded()) FATAL("Liftoff compilation failed");
+    if (!result.succeeded()) {
+      FATAL("Liftoff compilation failed: %s",
+            LiftoffBailoutReasonToString(result.bailout_reason));
+    }
     DCHECK_EQ(generate_debug_sidetable, debug_sidetable != nullptr);
 
     DCHECK_NULL(result.assumptions);

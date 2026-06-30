@@ -829,7 +829,7 @@ class LiftoffCompiler {
     }
   }
 
-  bool did_bailout() const { return bailout_reason_ != kSuccess; }
+  bool did_bailout() const { return bailout_reason_ != kNoReason; }
   LiftoffBailoutReason bailout_reason() const { return bailout_reason_; }
 
   void GetCode(CodeDesc* desc) {
@@ -862,7 +862,7 @@ class LiftoffCompiler {
 
   void unsupported(FullDecoder* decoder, LiftoffBailoutReason reason,
                    const char* detail) {
-    DCHECK_NE(kSuccess, reason);
+    DCHECK_NE(kNoReason, reason);
     if (did_bailout()) return;
     bailout_reason_ = reason;
     TRACE("unsupported: %s\n", detail);
@@ -11142,7 +11142,7 @@ class LiftoffCompiler {
   DebugSideTableBuilder* const debug_sidetable_builder_;
   base::OwnedVector<ValueType> stack_value_types_for_debugging_;
   const ForDebugging for_debugging_;
-  LiftoffBailoutReason bailout_reason_ = kSuccess;
+  LiftoffBailoutReason bailout_reason_ = kNoReason;
   const int func_index_;
   // For both OOL code lists, the OutOfLineCode objects themselves are placed
   // in the zone directly, to prevent them from moving, so that pointers to
@@ -11308,12 +11308,16 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   })();
   static_assert(kCheckedHistograms == 1);
 
-  // Register the bailout reason (can also be {kSuccess}).
+  // Register the bailout reason (can also be {kNoReason}).
   compiler_options.counter_updates->AddSample(
       &Counters::liftoff_bailout_reasons,
       static_cast<int>(compiler->bailout_reason()));
 
-  if (compiler->did_bailout()) return WasmCompilationResult{};
+  if (compiler->did_bailout()) {
+    WasmCompilationResult result;
+    result.bailout_reason = compiler->bailout_reason();
+    return result;
+  }
 
   WasmCompilationResult result;
   compiler->GetCode(&result.code_desc);

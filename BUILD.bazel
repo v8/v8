@@ -3152,6 +3152,7 @@ filegroup(
             "src/wasm/baseline/liftoff-assembler.h",
             "src/wasm/baseline/liftoff-assembler-defs.h",
             "src/wasm/baseline/liftoff-assembler-inl.h",
+            "src/wasm/baseline/liftoff-bailout-reasons.h",
             "src/wasm/baseline/liftoff-compiler.cc",
             "src/wasm/baseline/liftoff-compiler.h",
             "src/wasm/baseline/liftoff-register.h",

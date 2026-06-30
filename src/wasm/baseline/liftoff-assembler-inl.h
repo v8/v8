@@ -193,8 +193,8 @@ void LiftoffAssembler::emit_ptrsize_set_cond(Condition condition, Register dst,
 
 void LiftoffAssembler::bailout(LiftoffBailoutReason reason,
                                const char* detail) {
-  DCHECK_NE(kSuccess, reason);
-  if (bailout_reason_ != kSuccess) return;
+  DCHECK_NE(kNoReason, reason);
+  if (bailout_reason_ != kNoReason) return;
   AbortCompilation();
   bailout_reason_ = reason;
   bailout_detail_ = detail;
