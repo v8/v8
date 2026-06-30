@@ -3696,6 +3696,71 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldLogicalNot(ValueNode* input) {
 
   return {};
 }
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestTypeOf(
+    ValueNode* value, interpreter::TestTypeOfFlags::LiteralFlag literal) {
+  // TODO(v8:7700): Add a branch version of TestTypeOf that does not need to
+  // materialise the boolean value.
+  const auto node_type = GetType(value);
+  if (node_type == NodeType::kNone) {
+    return BuildAbort(AbortReason::kUnreachable);
+  }
+
+  const auto check_type = [&](NodeType match_type,
+                              NodeType can_be_type) -> MaybeReduceResult {
+    if (NodeTypeIs(node_type, match_type)) {
+      return GetBooleanConstant(true);
+    }
+    if (!NodeTypeCanBe(node_type, can_be_type)) {
+      return GetBooleanConstant(false);
+    }
+    return MaybeReduceResult::Fail();
+  };
+
+  using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
+  switch (literal) {
+    case LiteralFlag::kNumber:
+      return check_type(NodeType::kNumber, NodeType::kNumber);
+    case LiteralFlag::kString:
+      return check_type(NodeType::kString, NodeType::kString);
+    case LiteralFlag::kSymbol:
+      return check_type(NodeType::kSymbol, NodeType::kSymbol);
+    case LiteralFlag::kBoolean:
+      return check_type(NodeType::kBoolean, NodeType::kBoolean);
+    case LiteralFlag::kBigInt:
+      return check_type(NodeType::kBigInt, NodeType::kBigInt);
+
+    case LiteralFlag::kUndefined:
+      return check_type(NodeType::kUndefined,
+                        UnionType(NodeType::kUndefined, NodeType::kJSReceiver));
+
+    case LiteralFlag::kFunction:
+      return check_type(NodeType::kJSFunction, NodeType::kCallable);
+
+    case LiteralFlag::kObject: {
+      constexpr NodeType kObjectTypes = UnionType(
+          NodeType::kNull,
+          UnionType(NodeType::kJSArray, UnionType(NodeType::kStringWrapper,
+                                                  NodeType::kJSDataView)));
+      if (NodeTypeIs(node_type, kObjectTypes)) {
+        return GetBooleanConstant(true);
+      }
+      if (!NodeTypeCanBe(node_type,
+                         UnionType(NodeType::kJSReceiver, NodeType::kNull)) ||
+          NodeTypeIs(node_type, NodeType::kCallable)) {
+        return GetBooleanConstant(false);
+      }
+      return {};
+    }
+
+    case LiteralFlag::kOther:
+      return GetBooleanConstant(false);
+  }
+
+  UNREACHABLE();
+}
+
 template <typename BaseT>
 bool MaglevReducer<BaseT>::IsTheHoleConstant(ValueNode* node) {
   if (node != nullptr) {

@@ -1336,6 +1336,9 @@ class MaglevReducer {
 
   MaybeReduceResult TryFoldLogicalNot(ValueNode* input);
 
+  MaybeReduceResult TryFoldTestTypeOf(
+      ValueNode* input, interpreter::TestTypeOfFlags::LiteralFlag literal);
+
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
     return known_node_aspects().CheckType(broker(), node, type, old);
   }
