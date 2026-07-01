@@ -278,8 +278,9 @@
   'es6/big-weakmap': [PASS, HEAVY, ['lower_limits_mode', SKIP]],
 
   # TODO(thibaudm): Register allocation struggles with the function in this
-  # test, which has the maximum allowed number of parameters.
-  'regress/regress-crbug-724153': [SLOW],
+  # test, which has the maximum allowed number of parameters. The same is true
+  # for the scheduler when using TSAN.
+  'regress/regress-crbug-724153': [SLOW, ['tsan', SKIP]],
 
   # BUG(https://crbug.com/420932895): Very slow in many configurations.
   'random-bit-correlations': [PASS, ['mode == debug or simulator_run', SKIP]],
