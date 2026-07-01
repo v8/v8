@@ -4974,3 +4974,42 @@ py_test(
         "nosan",
     ],
 )
+
+py_test(
+    name = "icu/intl",
+    size = "medium",
+    srcs = [
+        "test/intl/testcfg.py",
+        "tools/predictable_wrapper.py",
+        "tools/run-tests.py",
+    ] + glob(["tools/testrunner/**/*.py"]),
+    args = [
+        "--no-sorting",
+        "--nopresubmit",
+        "--variant=google3",
+        "--outdir icu",
+        "--verbose",
+    ] + select({
+        "@v8//bazel/config:v8_target_arm64": [
+            "--arch=arm64",
+        ],
+        "@v8//bazel/config:v8_target_x64": [
+            "--arch=x64",
+        ],
+        "//conditions:default": [],
+    }) + [
+        "intl",
+    ],
+    data = [
+        "test",
+        ":icu/d8",
+        ":icu/v8_build_config",
+        "//testing/pybase",
+    ] + glob(["test/**"]) + glob(["tools/**/*.js"]) + glob(["tools/**/*.mjs"]),
+    main = "tools/run-tests.py",
+    tags = [
+        # Disable sanitizers, as they don't work in general in V8.
+        "nosan",
+    ],
+)
+
