@@ -29,7 +29,7 @@ Note that V8 defaults to disabling these mitigations on platforms where it is as
 
 ### The V8 Sandbox
 
-For modern versions of V8, the [V8 Sandbox](/docs/sandbox) is a significant security feature designed to prevent memory corruption within the V8 heap from leading to arbitrary code execution or access to memory outside the sandbox. While primarily focused on memory safety, it also provides a robust boundary for untrusted code execution.
+For modern versions of V8, the [V8 Sandbox](/docs/sandbox/architecture) is a significant security feature designed to prevent memory corruption within the V8 heap from leading to arbitrary code execution or access to memory outside the sandbox. While primarily focused on memory safety, it also provides a robust boundary for untrusted code execution.
 
 ### Sandbox untrusted execution in a separate process
 

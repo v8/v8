@@ -12,7 +12,7 @@ WebAssembly is implemented in V8 in three parts:
 
 The rest of this document focuses on the TurboFan pipeline, walking through how to add a new Wasm instruction and implement it in TurboFan.
 
-At a high level, Wasm instructions are compiled into a TurboFan graph, and we rely on the TurboFan pipeline to compile the graph into (ultimately) machine code. For more on TurboFan, check out the [V8 docs](/docs/turbofan).
+At a high level, Wasm instructions are compiled into a TurboFan graph, and we rely on the TurboFan pipeline to compile the graph into (ultimately) machine code. For more on TurboFan, check out the [V8 docs](/docs/compiler/turbofan/compiler-turbofan).
 
 ## Opcodes/Instructions
 

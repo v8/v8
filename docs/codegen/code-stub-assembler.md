@@ -33,7 +33,7 @@ V8 now uses a domain-specific language called **Torque** for writing many of its
 *   **Torque** provides a higher-level, more readable syntax with strong typing.
 *   **CSA** is the underlying implementation layer that Torque generates.
 
-For more details on Torque, see the [Torque documentation](../torque.md).
+For more details on Torque, see the [Torque documentation](../torque/user-manual.md).
 
 ## File Structure
 *   `src/codegen/code-stub-assembler.h`: Header file defining the CSA interface.

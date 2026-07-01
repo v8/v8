@@ -43,7 +43,7 @@ Alternatively, you can generate a breakpoint instruction in the generated code:
 
 Natively, breakpoint instructions cause the program to halt with a `SIGTRAP` signal, allowing you to debug the issue with gdb. However, if running with a simulator, a breakpoint instruction in generated code will instead drop you into the simulator debugger.
 
-You can generate a breakpoint in multiple ways by using `DebugBreak()` from [Torque](/docs/torque-builtins), from the [CodeStubAssembler](/docs/csa-builtins), as a node in a [TurboFan](/docs/turbofan) pass, or directly using an assembler.
+You can generate a breakpoint in multiple ways by using `DebugBreak()` from [Torque](/docs/builtins/torque-tutorial), from the [CodeStubAssembler](/docs/codegen/csa-tutorial), as a node in a [TurboFan](/docs/compiler/turbofan/compiler-turbofan) pass, or directly using an assembler.
 
 Here we focus on debugging low-level native code, so let's look at the assembler method:
 
@@ -51,7 +51,7 @@ Here we focus on debugging low-level native code, so let's look at the assembler
 TurboAssembler::DebugBreak();
 ```
 
-Let's say we have a jitted function called `add` compiled with [TurboFan](/docs/turbofan) and we'd like to break at the start. Given a `test.js` example:
+Let's say we have a jitted function called `add` compiled with [TurboFan](/docs/compiler/turbofan/compiler-turbofan) and we'd like to break at the start. Given a `test.js` example:
 
 { #test.js }
 
