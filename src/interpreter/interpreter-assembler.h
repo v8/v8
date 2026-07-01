@@ -147,6 +147,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   RegListNodePair GetRegisterListAtOperandIndex(int operand_index);
   TNode<Object> LoadRegisterFromRegisterList(const RegListNodePair& reg_list,
                                              int index);
+  void StoreRegisterFromRegisterList(TNode<Object> value,
+                                     const RegListNodePair& reg_list,
+                                     TNode<IntPtrT> index);
   TNode<IntPtrT> RegisterLocationInRegisterList(const RegListNodePair& reg_list,
                                                 int index);
 

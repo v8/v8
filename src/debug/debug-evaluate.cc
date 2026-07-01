@@ -444,6 +444,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kLdaGlobalInsideTypeof:
     case Bytecode::kLdaLookupSlotInsideTypeof:
     case Bytecode::kGetIterator:
+    case Bytecode::kArrayDestructure:
     // Arithmetics.
     case Bytecode::kAdd:
     case Bytecode::kAddSmi:

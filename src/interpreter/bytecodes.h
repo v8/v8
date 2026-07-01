@@ -499,6 +499,8 @@ namespace interpreter {
   /* Iterator protocol operations */                                           \
   V(GetIterator, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,    \
     OperandType::kFeedbackSlot, OperandType::kFeedbackSlot)                    \
+  V(ArrayDestructure, ImplicitRegisterUse::kReadAndClobberAccumulator,         \
+    OperandType::kRegOutList, OperandType::kRegCount)                          \
                                                                                \
   /* Debugger */                                                               \
   V(Debugger, ImplicitRegisterUse::kClobberAccumulator)                        \

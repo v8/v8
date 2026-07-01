@@ -781,6 +781,31 @@ size_t hash_value(ForOfNextParameters const& p) {
   return FeedbackSource::Hash()(p.callFeedback());
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         ArrayDestructureParameters const& p) {
+  return os << p.count() << ", " << p.first_reg();
+}
+
+bool operator==(ArrayDestructureParameters const& lhs,
+                ArrayDestructureParameters const& rhs) {
+  return lhs.count() == rhs.count() && lhs.first_reg() == rhs.first_reg();
+}
+
+bool operator!=(ArrayDestructureParameters const& lhs,
+                ArrayDestructureParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+ArrayDestructureParameters const& ArrayDestructureParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSArrayDestructure, op->opcode());
+  return OpParameter<ArrayDestructureParameters>(op);
+}
+
+size_t hash_value(ArrayDestructureParameters const& p) {
+  return base::hash_combine(p.count(), p.first_reg());
+}
+
 size_t hash_value(ForInMode const& mode) { return static_cast<uint8_t>(mode); }
 
 std::ostream& operator<<(std::ostream& os, ForInMode const& mode) {
@@ -1260,6 +1285,14 @@ const Operator* JSOperatorBuilder::ForInPrepare(
       "JSForInPrepare",                            // name
       2, 1, 1, 3, 1, 1,                            // counts
       ForInParameters{feedback, mode});            // parameter
+}
+
+const Operator* JSOperatorBuilder::ArrayDestructure(int count, int first_reg) {
+  return zone()->New<Operator1<ArrayDestructureParameters>>(   // --
+      IrOpcode::kJSArrayDestructure, Operator::kNoProperties,  // opcode
+      "JSArrayDestructure",                                    // name
+      1, 1, 1, count, 1, 2,                                    // counts
+      ArrayDestructureParameters(count, first_reg));           // parameter
 }
 
 const Operator* JSOperatorBuilder::GeneratorStore(int register_count) {

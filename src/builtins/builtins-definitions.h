@@ -784,6 +784,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
       ForOfNextLoadValueEagerDeoptContinuation)                                \
   TFC(ForOfNextLoadValueLazyDeoptContinuation,                                 \
       ForOfNextLoadValueLazyDeoptContinuation)                                 \
+  TFC(ArrayDestructureLazyDeoptContinuation,                                   \
+      ArrayDestructureLazyDeoptContinuation)                                   \
                                                                                \
   /* Global object */                                                          \
   CPP(GlobalDecodeURI, kDontAdaptArgumentsSentinel)                            \
@@ -875,6 +877,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
                                                                                \
   /* IterableToList */                                                         \
   TFS(IterableToList, NeedsContext::kYes, kIterable, kIteratorFn)              \
+  TFS(ArrayDestructure, NeedsContext::kYes, kReceiver, kCount)                 \
   TFS(IterableToFixedArray, NeedsContext::kYes, kIterable, kIteratorFn)        \
   TFS(IterableToListWithSymbolLookup, NeedsContext::kYes, kIterable)           \
   TFS(IterableToFixedArrayWithSymbolLookupSlow, NeedsContext::kYes, kIterable) \
@@ -1143,7 +1146,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFJ(StringPrototypeSplit, kDontAdaptArgumentsSentinel)                       \
   CPP(StringRaw, kDontAdaptArgumentsSentinel)                                  \
   /*SELECT_TSA_LEVEL(IGNORE_BUILTIN, TFC_TSA, IGNORE_BUILTIN, ToString,        \
-   * ToString)*/                                                               \
+    ToString)*/                                                                \
                                                                                \
   /* Symbol */                                                                 \
   CPP(SymbolConstructor, kDontAdaptArgumentsSentinel)                          \

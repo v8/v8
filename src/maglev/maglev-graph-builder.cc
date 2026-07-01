@@ -13390,6 +13390,30 @@ ReduceResult MaglevGraphBuilder::VisitCreateArrayFromIterable() {
                         Builtin::kIterableToListWithSymbolLookup>({iterable}));
 }
 
+ReduceResult MaglevGraphBuilder::VisitArrayDestructure() {
+  ValueNode* receiver = GetAccumulator();
+  uint32_t count = iterator_.GetRegisterCountOperand(1);
+  ValueNode* count_node = GetSmiConstant(count);
+  interpreter::RegisterList outputs = iterator_.GetRegisterListOperand(0);
+  ValueNode* result;
+  {
+    LazyDeoptFrameScope lazy_deopt_scope(
+        this, Builtin::kArrayDestructureLazyDeoptContinuation, {},
+        base::VectorOf<ValueNode*>(
+            {GetSmiConstant(outputs.first_register().index()), count_node}));
+    GET_VALUE_OR_ABORT(
+        result, BuildCallBuiltinWithTaggedInputs<Builtin::kArrayDestructure>(
+                    {receiver, count_node}));
+  }
+  for (uint32_t i = 0; i < count; ++i) {
+    ValueNode* element = AddNewNodeNoInputConversion<LoadTaggedField>(
+        {result}, FixedArray::OffsetOfElementAt(i), NodeType::kUnknown, false,
+        PropertyKey::None());
+    StoreRegister(outputs[i], element);
+  }
+  return ReduceResult::Done();
+}
+
 ReduceResult MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   FeedbackSlot slot_index = GetSlotOperand(0);
   compiler::FeedbackSource feedback_source(feedback(), slot_index);

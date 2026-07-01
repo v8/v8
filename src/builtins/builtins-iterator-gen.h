@@ -72,6 +72,12 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
                std::function<void(TNode<Object>)> func,
                std::initializer_list<compiler::CodeAssemblerVariable*>
                    merged_variables = {});
+  void Iterate(TNode<Context> context, TNode<JSAny> iterable,
+               TNode<Object> iterable_fn,
+               std::function<TNode<BoolT>()> condition,
+               std::function<void(TNode<Object>)> func,
+               std::initializer_list<compiler::CodeAssemblerVariable*>
+                   merged_variables = {});
 
   // https://tc39.es/ecma262/#sec-iterabletolist
   // Build a JSArray by iterating over {iterable} using {iterator_fn},
@@ -96,6 +102,9 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
                           TVariable<JSArray>* var_result, Label* slow);
   TNode<JSArray> FastIterableToList(TNode<Context> context,
                                     TNode<JSAny> iterable, Label* slow);
+
+  TNode<FixedArray> ArrayDestructure(TNode<Context> context,
+                                     TNode<Object> receiver, TNode<Smi> count);
 
   void StoreRegister(TNode<Smi> reg, TNode<Object> value);
 };

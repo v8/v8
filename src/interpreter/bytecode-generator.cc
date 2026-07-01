@@ -5492,6 +5492,73 @@ Expression* BytecodeGenerator::GetDestructuringDefaultValue(
 void BytecodeGenerator::BuildDestructuringArrayAssignment(
     ArrayLiteral* pattern, Token::Value op,
     LookupHoistingMode lookup_hoisting_mode) {
+  // A pattern can use the fast destructuring bytecode if the feature flag is
+  // enabled and all targets are simple variable assignments (possibly
+  // initialized with defaults) or holes, without spread elements, and without
+  // property assignments that could trigger observable side effects.
+  bool can_use_destructure_bytecode = v8_flags.array_destructure_bytecode;
+  if (can_use_destructure_bytecode) {
+    for (Expression* target : *pattern->values()) {
+      if (target->IsSpread()) {
+        can_use_destructure_bytecode = false;
+        break;
+      }
+      if (target->IsTheHoleLiteral()) {
+        continue;
+      }
+      Expression* inner_target = target;
+      // Strip default value initializer (e.g. `x = 4`) to inspect the target
+      // LHS.
+      GetDestructuringDefaultValue(&inner_target);
+      if (!inner_target->IsVariableProxy()) {
+        can_use_destructure_bytecode = false;
+        break;
+      }
+    }
+  }
+
+  if (can_use_destructure_bytecode) {
+    RegisterAllocationScope allocation_scope(this);
+    Register rhs;
+    if (!execution_result()->IsEffect()) {
+      rhs = register_allocator()->NewRegister();
+      builder()->StoreAccumulatorInRegister(rhs);
+    }
+    int count = pattern->values()->length();
+    // TODO(leszeks): If all the targets are registers that all happen to be
+    // sequential (likely with sequential local variables like in `let [x,y] =
+    // a`), write into those directly instead of allocating a temporary
+    // RegisterList.
+    RegisterList outputs = register_allocator()->NewRegisterList(count);
+    if (count > 0) {
+      Expression* first_target = pattern->values()->at(0);
+      // Strip default value initializer so the debugger inspector steps
+      // precisely on the target variable LHS.
+      GetDestructuringDefaultValue(&first_target);
+      builder()->SetExpressionPosition(first_target);
+    }
+    builder()->ArrayDestructure(outputs, count);
+    for (int i = 0; i < count; ++i) {
+      Expression* target = pattern->values()->at(i);
+      if (target->IsTheHoleLiteral()) continue;
+      Expression* default_value = GetDestructuringDefaultValue(&target);
+      builder()->SetExpressionPosition(target);
+      AssignmentLhsData lhs_data = PrepareAssignmentLhs(target);
+      builder()->LoadAccumulatorWithRegister(outputs[i]);
+      if (default_value) {
+        BytecodeLabel do_assignment;
+        builder()->JumpIfNotUndefined(&do_assignment);
+        VisitInHoleCheckElisionScopeForAccumulatorValue(default_value);
+        builder()->Bind(&do_assignment);
+      }
+      BuildAssignment(lhs_data, op, lookup_hoisting_mode);
+    }
+    if (!execution_result()->IsEffect()) {
+      builder()->LoadAccumulatorWithRegister(rhs);
+    }
+    return;
+  }
+
   RegisterAllocationScope scope(this);
 
   Register value = register_allocator()->NewRegister();

@@ -302,6 +302,17 @@ TNode<Object> InterpreterAssembler::LoadRegisterFromRegisterList(
   return LoadFullTagged(location);
 }
 
+void InterpreterAssembler::StoreRegisterFromRegisterList(
+    TNode<Object> value, const RegListNodePair& reg_list,
+    TNode<IntPtrT> index) {
+  CSA_DCHECK(this, UintPtrGreaterThan(ChangeUint32ToWord(reg_list.reg_count()),
+                                      Unsigned(index)));
+  TNode<IntPtrT> location = Signed(
+      IntPtrSub(reg_list.base_reg_location(), RegisterFrameOffset(index)));
+  StoreFullTaggedNoWriteBarrier(ReinterpretCast<RawPtrT>(location),
+                                IntPtrConstant(0), value);
+}
+
 TNode<IntPtrT> InterpreterAssembler::RegisterLocationInRegisterList(
     const RegListNodePair& reg_list, int index) {
   CSA_DCHECK(this,

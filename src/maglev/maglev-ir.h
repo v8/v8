@@ -1939,6 +1939,7 @@ class LazyDeoptInfo : public DeoptInfo {
           case Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation:
           case Builtin::kForOfNextLoadDoneLazyDeoptContinuation:
           case Builtin::kForOfNextLoadValueLazyDeoptContinuation:
+          case Builtin::kArrayDestructureLazyDeoptContinuation:
             return true;
           default:
             return false;

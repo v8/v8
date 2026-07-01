@@ -826,6 +826,14 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Any());
       break;
+    case IrOpcode::kJSArrayDestructure:
+      CheckValueInputIs(node, 0, Type::Any());
+      if (node->op()->ValueOutputCount() > 0) {
+        CheckTypeIs(node, Type::Any());
+      } else {
+        CheckNotTyped(node);
+      }
+      break;
     case IrOpcode::kJSDefineKeyedOwnPropertyInLiteral:
     case IrOpcode::kJSStoreInArrayLiteral:
       CheckNotTyped(node);

@@ -987,6 +987,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ArrayDestructure(
+    RegisterList outputs, int count) {
+  OutputArrayDestructure(outputs, count);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForOfNext(Register object,
                                                       Register next,
                                                       int call_slot) {

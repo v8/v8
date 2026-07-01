@@ -26,6 +26,7 @@ namespace internal {
   V(AddStringConstantInternalizeWithVector)                     \
   V(AddStringConstantInternalizeTrampoline)                     \
   V(Allocate)                                                   \
+  V(ArrayDestructureLazyDeoptContinuation)                      \
   V(CallApiCallbackGeneric)                                     \
   V(CallApiCallbackOptimized)                                   \
   V(CallApiGetter)                                              \
@@ -1841,6 +1842,22 @@ class ForOfNextResultDeoptContinuationDescriptor final
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
                                     MachineType::AnyTagged())  // kResultObject
   DECLARE_DESCRIPTOR(ForOfNextResultDeoptContinuationDescriptor)
+
+  static constexpr auto registers();
+};
+
+class ArrayDestructureLazyDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          ArrayDestructureLazyDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kFirstReg, kCount, kResult)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // return value
+                                    MachineType::AnyTagged(),  // kFirstReg
+                                    MachineType::AnyTagged(),  // kCount
+                                    MachineType::AnyTagged())  // kResult
+  DECLARE_DESCRIPTOR(ArrayDestructureLazyDeoptContinuationDescriptor)
 
   static constexpr auto registers();
 };

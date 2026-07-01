@@ -734,6 +734,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(JSForInPrepare)
       CASE(JSForOfNext)
       CASE(JSGetIterator)
+      CASE(JSArrayDestructure)
       CASE(JSLoadMessage)
       CASE(JSStoreMessage)
       CASE(JSLoadModule)

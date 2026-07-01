@@ -272,6 +272,9 @@ DEFINE_BOOL(experimental, false,
   FLAG(BOOL, bool, nam, false, cmt " (experimental)") \
   DEFINE_IMPLICATION(nam, experimental)
 
+DEFINE_EXPERIMENTAL_FEATURE(array_destructure_bytecode,
+                            "enable experimental ArrayDestructure bytecode")
+
 // Test-only flags that expose unsafe and/or unsupported configurations.
 DEFINE_BOOL(test_only_unsafe, false,
             "Indicates that V8 is running in an unsupported and unsafe "

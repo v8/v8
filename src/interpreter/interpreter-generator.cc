@@ -3412,6 +3412,38 @@ IGNITION_HANDLER(GetIterator, InterpreterAssembler) {
   Dispatch();
 }
 
+// ArrayDestructure <reglist> <regcount>
+//
+// Destructures the object in the accumulator into registers starting at
+// <reglist>.
+IGNITION_HANDLER(ArrayDestructure, InterpreterAssembler) {
+  TNode<Object> receiver = GetAccumulator();
+  TNode<Context> context = GetContext();
+  RegListNodePair outputs = GetRegisterListAtOperandIndex(0);
+  TNode<Uint32T> count = Unsigned(outputs.reg_count());
+  TNode<Smi> count_smi = SmiFromUint32(count);
+
+  TNode<FixedArray> result = CAST(
+      CallBuiltin(Builtin::kArrayDestructure, context, receiver, count_smi));
+
+  TVARIABLE(Uint32T, var_i, Uint32Constant(0));
+  Label loop(this, &var_i), after_loop(this);
+  Goto(&loop);
+  BIND(&loop);
+  {
+    TNode<Uint32T> i = var_i.value();
+    GotoIf(Uint32GreaterThanOrEqual(i, count), &after_loop);
+    TNode<IntPtrT> index = Signed(ChangeUint32ToWord(i));
+    TNode<Object> val = LoadFixedArrayElement(result, index);
+    StoreRegisterFromRegisterList(val, outputs, index);
+    var_i = Uint32Add(i, Uint32Constant(1));
+    Goto(&loop);
+  }
+  BIND(&after_loop);
+  ClobberAccumulator(UndefinedConstant());
+  Dispatch();
+}
+
 // Wide
 //
 // Prefix bytecode indicating next bytecode has wide (16-bit) operands.
