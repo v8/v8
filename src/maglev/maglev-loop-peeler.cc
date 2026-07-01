@@ -501,13 +501,6 @@ bool MaglevLoopPeeler::IsCloneable(const LoopInfo& loop) const {
                             << ": skip (unsupported switch control node)");
         return false;
       }
-      if (control->Is<TerminalControlNode>()) {
-        // TODO(victorgomes): Support TerminalControlNode (Return, Deopt, etc.)
-        // in loop peeling.
-        TRACE_PEEL_SKIP("@" << header_offset
-                            << ": skip (unsupported terminal control node)");
-        return false;
-      }
       // This is not the backedge, and the loop is innermost.
       DCHECK(!control->Is<JumpLoop>());
     }
@@ -981,6 +974,7 @@ void MaglevLoopPeeler::CloneLoopBodyControl(PeelContext& ctx) {
     break;
       CONDITIONAL_CONTROL_NODE_LIST(CLONE_CONTROL_CASE)
       UNCONDITIONAL_CONTROL_NODE_LIST(CLONE_CONTROL_CASE)
+      TERMINAL_CONTROL_NODE_LIST(CLONE_CONTROL_CASE)
 #undef CLONE_CONTROL_CASE
       default:
         UNREACHABLE();
@@ -1042,6 +1036,8 @@ void MaglevLoopPeeler::CloneLoopBodyControl(PeelContext& ctx) {
         clone_uc->set_target(cloned_exit.target);
         clone_uc->set_predecessor_id(cloned_exit.predecessor_id);
       }
+    } else if (control->Is<TerminalControlNode>()) {
+      // Terminal control nodes have no successors, nothing to retarget.
     } else {
       UNREACHABLE();
     }
