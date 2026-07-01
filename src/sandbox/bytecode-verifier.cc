@@ -281,6 +281,7 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
     case Runtime::kBytecodeBudgetInterrupt_Sparkplug:
     case Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev:
     case Runtime::kBytecodeBudgetInterrupt_Maglev:
+    case Runtime::kPatchLoadICUninitializedBaseline:
       return false;
 #if V8_ENABLE_WEBASSEMBLY
 #define CASE_WASM_INTRINSIC(Name, ...) case Runtime::k##Name:
