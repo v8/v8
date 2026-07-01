@@ -226,6 +226,8 @@ class TurboshaftGraphBuildingInterface
     kInlinedTailCall
   };
 
+  enum class CheckForException { kNo, kCatchInThisFrame, kCatchInParentFrame };
+
   using ValidationTag = wasm::ValidationTag;
   using FullDecoder =
       WasmFullDecoder<ValidationTag, TurboshaftGraphBuildingInterface>;
@@ -1716,10 +1718,11 @@ class TurboshaftGraphBuildingInterface
 
 #if V8_INTL_SUPPORT
   V<String> CallStringToLowercase(FullDecoder* decoder, V<String> string,
-                                  V<Context> context) {
+                                  V<Context> context,
+                                  CheckForException check_for_exception) {
     OpIndex result = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringToLowerCaseIntl>(
-        decoder, context, {string}, CheckForException::kCatchInThisFrame);
+        decoder, context, {string}, check_for_exception);
     return result;
   }
 #endif
@@ -1732,61 +1735,67 @@ class TurboshaftGraphBuildingInterface
   }
 
   void ThrowDataViewTypeError(FullDecoder* decoder, V<Object> dataview,
-                              DataViewOp op_type) {
+                              DataViewOp op_type,
+                              CheckForException check_for_exception) {
     SetDataViewOpForErrorMessage(op_type);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::ThrowDataViewTypeError>(
-        decoder, {V<JSDataView>::Cast(dataview)},
-        CheckForException::kCatchInThisFrame);
+        decoder, {V<JSDataView>::Cast(dataview)}, check_for_exception);
     __ Unreachable();
   }
 
-  void ThrowDataViewOutOfBoundsError(FullDecoder* decoder, DataViewOp op_type) {
+  void ThrowDataViewOutOfBoundsError(FullDecoder* decoder, DataViewOp op_type,
+                                     CheckForException check_for_exception) {
     SetDataViewOpForErrorMessage(op_type);
     CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::ThrowDataViewOutOfBounds>(
-        decoder, {}, CheckForException::kCatchInThisFrame);
+        BuiltinCallDescriptor::ThrowDataViewOutOfBounds>(decoder, {},
+                                                         check_for_exception);
     __ Unreachable();
   }
 
-  void ThrowDataViewDetachedError(FullDecoder* decoder, DataViewOp op_type) {
+  void ThrowDataViewDetachedError(FullDecoder* decoder, DataViewOp op_type,
+                                  CheckForException check_for_exception) {
     SetDataViewOpForErrorMessage(op_type);
     CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::ThrowDataViewDetachedError>(
-        decoder, {}, CheckForException::kCatchInThisFrame);
+        BuiltinCallDescriptor::ThrowDataViewDetachedError>(decoder, {},
+                                                           check_for_exception);
     __ Unreachable();
   }
 
   void DataViewRangeCheck(FullDecoder* decoder, V<WordPtr> left,
-                          V<WordPtr> right, DataViewOp op_type) {
+                          V<WordPtr> right, DataViewOp op_type,
+                          CheckForException check_for_exception) {
     IF (UNLIKELY(__ IntPtrLessThan(left, right))) {
-      ThrowDataViewOutOfBoundsError(decoder, op_type);
+      ThrowDataViewOutOfBoundsError(decoder, op_type, check_for_exception);
     }
   }
 
   void DataViewBoundsCheck(FullDecoder* decoder, V<WordPtr> left,
-                           V<WordPtr> right, DataViewOp op_type) {
+                           V<WordPtr> right, DataViewOp op_type,
+                           CheckForException check_for_exception) {
     IF (UNLIKELY(__ IntPtrLessThan(left, right))) {
-      ThrowDataViewDetachedError(decoder, op_type);
+      ThrowDataViewDetachedError(decoder, op_type, check_for_exception);
     }
   }
 
   void DataViewDetachedBufferCheck(FullDecoder* decoder, V<Object> dataview,
-                                   DataViewOp op_type) {
+                                   DataViewOp op_type,
+                                   CheckForException check_for_exception) {
     TypedArrayAccessMode access_mode = IsDataViewSetOp(op_type)
                                            ? TypedArrayAccessMode::kWrite
                                            : TypedArrayAccessMode::kRead;
 
     IF (UNLIKELY(__ ArrayBufferNotValid(V<JSArrayBufferView>::Cast(dataview),
                                         access_mode))) {
-      ThrowDataViewDetachedError(decoder, op_type);
+      ThrowDataViewDetachedError(decoder, op_type, check_for_exception);
     }
   }
 
   V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Object> dataview,
-                                   DataViewOp op_type) {
+                                   DataViewOp op_type,
+                                   CheckForException check_for_exception) {
     DCHECK_EQ(op_type, DataViewOp::kByteLength);
     return GetDataViewByteLength(decoder, dataview, __ IntPtrConstant(0),
-                                 op_type);
+                                 op_type, check_for_exception);
   }
 
   // Converts a Smi or HeapNumber to an intptr. The input is not validated.
@@ -1833,7 +1842,8 @@ class TurboshaftGraphBuildingInterface
   // is length-tracking or non-length-tracking, getting the byte length has to
   // be handled differently.
   V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Object> dataview,
-                                   V<WordPtr> offset, DataViewOp op_type) {
+                                   V<WordPtr> offset, DataViewOp op_type,
+                                   CheckForException check_for_exception) {
     Label<WordPtr> done_label(&asm_);
     Label<> type_error_label(&asm_);
 
@@ -1845,9 +1855,11 @@ class TurboshaftGraphBuildingInterface
     //  - growable SharedArrayBuffers, non-length-tracking
     IF (LIKELY(__ HasInstanceType(dataview, InstanceType::JS_DATA_VIEW_TYPE))) {
       if (op_type != DataViewOp::kByteLength) {
-        DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type);
+        DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type,
+                           check_for_exception);
       }
-      DataViewDetachedBufferCheck(decoder, dataview, op_type);
+      DataViewDetachedBufferCheck(decoder, dataview, op_type,
+                                  check_for_exception);
       V<WordPtr> view_byte_length = __ LoadField<WordPtr>(
           dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
       GOTO(done_label, view_byte_length);
@@ -1860,9 +1872,11 @@ class TurboshaftGraphBuildingInterface
                     dataview, InstanceType::JS_RAB_GSAB_DATA_VIEW_TYPE)),
                 type_error_label);
     if (op_type != DataViewOp::kByteLength) {
-      DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type);
+      DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type,
+                         check_for_exception);
     }
-    DataViewDetachedBufferCheck(decoder, dataview, op_type);
+    DataViewDetachedBufferCheck(decoder, dataview, op_type,
+                                check_for_exception);
 
     V<Word32> bit_field = __ LoadField<Word32>(
         dataview, AccessBuilder::ForJSArrayBufferViewBitField());
@@ -1889,14 +1903,14 @@ class TurboshaftGraphBuildingInterface
           final_length = __ WordPtrSub(buffer_byte_length, view_byte_offset);
         }
         DataViewBoundsCheck(decoder, buffer_byte_length, view_byte_offset,
-                            op_type);
+                            op_type, check_for_exception);
         GOTO(done_label, final_length);
       } ELSE {
         V<WordPtr> view_byte_length = __ LoadField<WordPtr>(
             dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
         DataViewBoundsCheck(decoder, buffer_byte_length,
                             __ WordPtrAdd(view_byte_offset, view_byte_length),
-                            op_type);
+                            op_type, check_for_exception);
 
         GOTO(done_label, view_byte_length);
       }
@@ -1916,25 +1930,28 @@ class TurboshaftGraphBuildingInterface
     __ Unreachable();
 
     BIND(type_error_label);
-    ThrowDataViewTypeError(decoder, dataview, op_type);
+    ThrowDataViewTypeError(decoder, dataview, op_type, check_for_exception);
 
     BIND(done_label, final_view_byte_length);
     return final_view_byte_length;
   }
 
   V<WordPtr> GetDataViewDataPtr(FullDecoder* decoder, V<Object> dataview,
-                                V<WordPtr> offset, DataViewOp op_type) {
-    V<WordPtr> view_byte_length =
-        GetDataViewByteLength(decoder, dataview, offset, op_type);
+                                V<WordPtr> offset, DataViewOp op_type,
+                                CheckForException check_for_exception) {
+    V<WordPtr> view_byte_length = GetDataViewByteLength(
+        decoder, dataview, offset, op_type, check_for_exception);
     V<WordPtr> view_byte_length_minus_size =
         __ WordPtrSub(view_byte_length, GetTypeSize(op_type));
-    DataViewRangeCheck(decoder, view_byte_length_minus_size, offset, op_type);
+    DataViewRangeCheck(decoder, view_byte_length_minus_size, offset, op_type,
+                       check_for_exception);
     return __ LoadField<WordPtr>(
         dataview, compiler::AccessBuilder::ForJSDataViewDataPointer());
   }
 
   OpIndex DataViewGetter(FullDecoder* decoder, const Value args[],
-                         DataViewOp op_type) {
+                         DataViewOp op_type,
+                         CheckForException check_for_exception) {
     V<Object> dataview = args[0].get<Object>();
     V<WordPtr> offset = __ ChangeInt32ToIntPtr(args[1].get<Word32>());
     V<Word32> is_little_endian =
@@ -1942,14 +1959,15 @@ class TurboshaftGraphBuildingInterface
             ? __ Word32Constant(1)
             : args[2].get<Word32>();
 
-    V<WordPtr> data_ptr =
-        GetDataViewDataPtr(decoder, dataview, offset, op_type);
+    V<WordPtr> data_ptr = GetDataViewDataPtr(decoder, dataview, offset, op_type,
+                                             check_for_exception);
     return __ LoadDataViewElement(dataview, data_ptr, offset, is_little_endian,
                                   GetExternalArrayType(op_type));
   }
 
   void DataViewSetter(FullDecoder* decoder, const Value args[],
-                      DataViewOp op_type) {
+                      DataViewOp op_type,
+                      CheckForException check_for_exception) {
     V<Object> dataview = args[0].get<Object>();
     V<WordPtr> offset = __ ChangeInt32ToIntPtr(args[1].get<Word32>());
     V<Word32> value = args[2].get<Word32>();
@@ -1958,8 +1976,8 @@ class TurboshaftGraphBuildingInterface
             ? __ Word32Constant(1)
             : args[3].get<Word32>();
 
-    V<WordPtr> data_ptr =
-        GetDataViewDataPtr(decoder, dataview, offset, op_type);
+    V<WordPtr> data_ptr = GetDataViewDataPtr(decoder, dataview, offset, op_type,
+                                             check_for_exception);
     __ StoreDataViewElement(dataview, data_ptr, offset, value, is_little_endian,
                             GetExternalArrayType(op_type));
   }
@@ -1978,7 +1996,8 @@ class TurboshaftGraphBuildingInterface
   }
 
   void WellKnown_FastApi(FullDecoder* decoder, const CallFunctionImmediate& imm,
-                         const Value args[], Value returns[]) {
+                         const Value args[], Value returns[],
+                         CheckForException check_for_exception) {
     uint32_t func_index = imm.index;
     V<Object> receiver = args[0].get<Object>();
     // TODO(14616): Fix this.
@@ -2161,8 +2180,8 @@ class TurboshaftGraphBuildingInterface
     IF_NOT (LIKELY(__ TaggedEqual(exception,
                                   __ LoadRoot<RootIndex::kTheHoleValue>()))) {
       CallBuiltinThroughJumptable<
-          BuiltinCallDescriptor::WasmPropagateException>(
-          decoder, {}, CheckForException::kCatchInThisFrame);
+          BuiltinCallDescriptor::WasmPropagateException>(decoder, {},
+                                                         check_for_exception);
     }
 
     if (callback_sig->return_count() > 0) {
@@ -2211,7 +2230,8 @@ class TurboshaftGraphBuildingInterface
 
   bool HandleWellKnownImport(FullDecoder* decoder,
                              const CallFunctionImmediate& imm,
-                             const Value args[], Value returns[]) {
+                             const Value args[], Value returns[],
+                             CheckForException check_for_exception) {
     uint32_t index = imm.index;
     if (!decoder->module_) return false;  // Only needed for tests.
     const WellKnownImportsList& well_known_imports =
@@ -2271,7 +2291,7 @@ class TurboshaftGraphBuildingInterface
         V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringAdd_NoMapCheck>(
             decoder, V<Context>::Cast(native_context),
-            {head_string, tail_string}, CheckForException::kCatchInThisFrame);
+            {head_string, tail_string}, check_for_exception);
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         break;
       }
@@ -2280,8 +2300,7 @@ class TurboshaftGraphBuildingInterface
         V<String> tail_string = ExternRefToString(args[1]);
         V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringAdd_NoMapCheck_Shared>(
-            decoder, {head_string, tail_string},
-            CheckForException::kCatchInThisFrame);
+            decoder, {head_string, tail_string}, check_for_exception);
         result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
         break;
       }
@@ -2438,7 +2457,7 @@ class TurboshaftGraphBuildingInterface
         V<String> result_value =
             CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmIntToString>(
                 decoder, {args[0].get<Word32>(), args[1].op},
-                CheckForException::kCatchInThisFrame);
+                check_for_exception);
         result = AnnotateAsString(result_value, returns[0].type);
         break;
       }
@@ -2472,7 +2491,7 @@ class TurboshaftGraphBuildingInterface
           IF (__ IsNull(string, args[0].type)) {
             CallBuiltinThroughJumptable<
                 BuiltinCallDescriptor::ThrowIndexOfCalledOnNull>(
-                decoder, {}, CheckForException::kCatchInThisFrame);
+                decoder, {}, check_for_exception);
             __ Unreachable();
           }
         }
@@ -2514,12 +2533,13 @@ class TurboshaftGraphBuildingInterface
           IF (__ IsNull(string, args[0].type)) {
             CallBuiltinThroughJumptable<
                 BuiltinCallDescriptor::ThrowToLowerCaseCalledOnNull>(
-                decoder, {}, CheckForException::kCatchInThisFrame);
+                decoder, {}, check_for_exception);
             __ Unreachable();
           }
         }
         V<String> result_value = CallStringToLowercase(
-            decoder, string, instance_cache_.native_context());
+            decoder, string, instance_cache_.native_context(),
+            check_for_exception);
         result = __ AnnotateWasmType(result_value, kWasmRefString);
         break;
 #else
@@ -2536,7 +2556,8 @@ class TurboshaftGraphBuildingInterface
         }
         V<String> string = args[0].get<String>();
         V<String> result_value = CallStringToLowercase(
-            decoder, string, instance_cache_.native_context());
+            decoder, string, instance_cache_.native_context(),
+            check_for_exception);
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         break;
 #else
@@ -2547,70 +2568,90 @@ class TurboshaftGraphBuildingInterface
       // DataView related imports.
       // Note that we don't support DataView imports for resizable ArrayBuffers.
       case WKI::kDataViewGetBigInt64: {
-        result = DataViewGetter(decoder, args, DataViewOp::kGetBigInt64);
+        result = DataViewGetter(decoder, args, DataViewOp::kGetBigInt64,
+                                check_for_exception);
         break;
       }
       case WKI::kDataViewGetBigUint64:
-        result = DataViewGetter(decoder, args, DataViewOp::kGetBigUint64);
+        result = DataViewGetter(decoder, args, DataViewOp::kGetBigUint64,
+                                check_for_exception);
         break;
       case WKI::kDataViewGetFloat32:
-        result = DataViewGetter(decoder, args, DataViewOp::kGetFloat32);
+        result = DataViewGetter(decoder, args, DataViewOp::kGetFloat32,
+                                check_for_exception);
         break;
       case WKI::kDataViewGetFloat64:
-        result = DataViewGetter(decoder, args, DataViewOp::kGetFloat64);
+        result = DataViewGetter(decoder, args, DataViewOp::kGetFloat64,
+                                check_for_exception);
         break;
       case WKI::kDataViewGetInt8:
-        result = DataViewGetter(decoder, args, DataViewOp::kGetInt8);
+        result = DataViewGetter(decoder, args, DataViewOp::kGetInt8,
+                                check_for_exception);
         break;
       case WKI::kDataViewGetInt16:
-        result = DataViewGetter(decoder, args, DataViewOp::kGetInt16);
+        result = DataViewGetter(decoder, args, DataViewOp::kGetInt16,
+                                check_for_exception);
         break;
       case WKI::kDataViewGetInt32:
-        result = DataViewGetter(decoder, args, DataViewOp::kGetInt32);
+        result = DataViewGetter(decoder, args, DataViewOp::kGetInt32,
+                                check_for_exception);
         break;
       case WKI::kDataViewGetUint8:
-        result = DataViewGetter(decoder, args, DataViewOp::kGetUint8);
+        result = DataViewGetter(decoder, args, DataViewOp::kGetUint8,
+                                check_for_exception);
         break;
       case WKI::kDataViewGetUint16:
-        result = DataViewGetter(decoder, args, DataViewOp::kGetUint16);
+        result = DataViewGetter(decoder, args, DataViewOp::kGetUint16,
+                                check_for_exception);
         break;
       case WKI::kDataViewGetUint32:
-        result = DataViewGetter(decoder, args, DataViewOp::kGetUint32);
+        result = DataViewGetter(decoder, args, DataViewOp::kGetUint32,
+                                check_for_exception);
         break;
       case WKI::kDataViewSetBigInt64:
-        DataViewSetter(decoder, args, DataViewOp::kSetBigInt64);
+        DataViewSetter(decoder, args, DataViewOp::kSetBigInt64,
+                       check_for_exception);
         break;
       case WKI::kDataViewSetBigUint64:
-        DataViewSetter(decoder, args, DataViewOp::kSetBigUint64);
+        DataViewSetter(decoder, args, DataViewOp::kSetBigUint64,
+                       check_for_exception);
         break;
       case WKI::kDataViewSetFloat32:
-        DataViewSetter(decoder, args, DataViewOp::kSetFloat32);
+        DataViewSetter(decoder, args, DataViewOp::kSetFloat32,
+                       check_for_exception);
         break;
       case WKI::kDataViewSetFloat64:
-        DataViewSetter(decoder, args, DataViewOp::kSetFloat64);
+        DataViewSetter(decoder, args, DataViewOp::kSetFloat64,
+                       check_for_exception);
         break;
       case WKI::kDataViewSetInt8:
-        DataViewSetter(decoder, args, DataViewOp::kSetInt8);
+        DataViewSetter(decoder, args, DataViewOp::kSetInt8,
+                       check_for_exception);
         break;
       case WKI::kDataViewSetInt16:
-        DataViewSetter(decoder, args, DataViewOp::kSetInt16);
+        DataViewSetter(decoder, args, DataViewOp::kSetInt16,
+                       check_for_exception);
         break;
       case WKI::kDataViewSetInt32:
-        DataViewSetter(decoder, args, DataViewOp::kSetInt32);
+        DataViewSetter(decoder, args, DataViewOp::kSetInt32,
+                       check_for_exception);
         break;
       case WKI::kDataViewSetUint8:
-        DataViewSetter(decoder, args, DataViewOp::kSetUint8);
+        DataViewSetter(decoder, args, DataViewOp::kSetUint8,
+                       check_for_exception);
         break;
       case WKI::kDataViewSetUint16:
-        DataViewSetter(decoder, args, DataViewOp::kSetUint16);
+        DataViewSetter(decoder, args, DataViewOp::kSetUint16,
+                       check_for_exception);
         break;
       case WKI::kDataViewSetUint32:
-        DataViewSetter(decoder, args, DataViewOp::kSetUint32);
+        DataViewSetter(decoder, args, DataViewOp::kSetUint32,
+                       check_for_exception);
         break;
       case WKI::kDataViewByteLength: {
         V<Object> dataview = args[0].get<Object>();
-        V<WordPtr> view_byte_length =
-            GetDataViewByteLength(decoder, dataview, DataViewOp::kByteLength);
+        V<WordPtr> view_byte_length = GetDataViewByteLength(
+            decoder, dataview, DataViewOp::kByteLength, check_for_exception);
         if constexpr (Is64()) {
           result =
               __ ChangeInt64ToFloat64(__ ChangeIntPtrToInt64(view_byte_length));
@@ -2660,7 +2701,7 @@ class TurboshaftGraphBuildingInterface
 
         // Fast API calls.
       case WKI::kFastAPICall: {
-        WellKnown_FastApi(decoder, imm, args, returns);
+        WellKnown_FastApi(decoder, imm, args, returns, check_for_exception);
         result = returns[0].op;
         break;
       }
@@ -2679,7 +2720,8 @@ class TurboshaftGraphBuildingInterface
                   const Value args[], Value returns[]) {
     feedback_slot_++;
     if (imm.index < decoder->module_->num_imported_functions) {
-      if (HandleWellKnownImport(decoder, imm, args, returns)) {
+      if (HandleWellKnownImport(decoder, imm, args, returns,
+                                CheckForException::kCatchInThisFrame)) {
         return;
       }
       auto [target, implicit_arg] =
@@ -2716,7 +2758,12 @@ class TurboshaftGraphBuildingInterface
       // directly, instead of always going through a wasm-to-js bridge stub.
       if (imm.sig->return_count() == 1) {
         Value wki_return{nullptr, imm.sig->GetReturn(0)};
-        if (HandleWellKnownImport(decoder, imm, args, &wki_return)) {
+        CheckForException check_for_exception =
+            (mode_ == kRegular || mode_ == kInlinedTailCall)
+                ? CheckForException::kNo
+                : CheckForException::kCatchInParentFrame;
+        if (HandleWellKnownImport(decoder, imm, args, &wki_return,
+                                  check_for_exception)) {
           if (mode_ == kRegular || mode_ == kInlinedTailCall) {
             __ Return(__ Word32Constant(0), base::VectorOf({wki_return.op}),
                       v8_flags.wasm_growable_stacks);
@@ -6758,8 +6805,6 @@ class TurboshaftGraphBuildingInterface
 #endif
   };
 
-  enum class CheckForException { kNo, kCatchInThisFrame, kCatchInParentFrame };
-
  private:
   // Holds phi inputs for a specific block. These include SSA values, stack
   // merge values, and cached fields from the instance..
@@ -8785,8 +8830,6 @@ class TurboshaftGraphBuildingInterface
       CheckForException check_for_exception = CheckForException::kNo)
     requires(!Descriptor::kNeedsContext)
   {
-    DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
-
     V<WordPtr> callee =
         __ RelocatableWasmBuiltinCallTarget(Descriptor::kFunction);
     base::SmallVector<OpIndex, 16> arguments;
@@ -8807,8 +8850,6 @@ class TurboshaftGraphBuildingInterface
       CheckForException check_for_exception = CheckForException::kNo)
     requires Descriptor::kNeedsContext
   {
-    DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
-
     V<WordPtr> callee =
         __ RelocatableWasmBuiltinCallTarget(Descriptor::kFunction);
     base::SmallVector<OpIndex, 16> arguments;
@@ -8829,8 +8870,6 @@ class TurboshaftGraphBuildingInterface
       CheckForException check_for_exception = CheckForException::kNo)
     requires(!Descriptor::kNeedsContext)
   {
-    DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
-
     V<WordPtr> callee = GetBuiltinPointerTarget(Descriptor::kFunction);
     base::SmallVector<OpIndex, 16> arguments;
     for (OpIndex arg : args) arguments.push_back(arg);
