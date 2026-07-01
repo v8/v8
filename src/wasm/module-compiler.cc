@@ -3309,6 +3309,13 @@ void AsyncStreamingProcessor::OnFinishedStream(
     constexpr size_t kCodeSizeEstimate = 0;
     std::tie(final_native_module, cache_hit) =
         job_->GetOrCreateNativeModule(std::move(module), kCodeSizeEstimate);
+    if (!cache_hit) {
+      // Modules without code sections are not initialized via the normal path
+      // (as {ProcessCodeSectionHeader} is never called). Thus initialize
+      // compilation progress here.
+      Impl(final_native_module->compilation_state())
+          ->InitializeCompilationProgress(nullptr);
+    }
   } else {
     final_native_module->SetWireBytes(std::move(job_->bytes_copy_));
   }
