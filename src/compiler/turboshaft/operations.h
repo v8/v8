@@ -8870,7 +8870,8 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   V(F16x8Ne)                                       \
   V(F16x8Lt)                                       \
   V(F16x8Le)                                       \
-  V(I32x4AddPairwise)
+  V(I32x4AddPairwise)                              \
+  V(I32x4DotI8x16S)
 
 #define FOREACH_SIMD_128_BINARY_OPCODE(V)     \
   FOREACH_SIMD_128_BINARY_MANDATORY_OPCODE(V) \

@@ -5522,6 +5522,18 @@ void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
   }
 }
 
+void InstructionSelector::VisitI32x4DotI8x16S(OpIndex node) {
+  DCHECK(CpuFeatures::IsSupported(DOTPROD));
+  Arm64OperandGenerator g(this);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  InstructionOperand left = g.UseUniqueRegister(op.left());
+  InstructionOperand right = g.UseUniqueRegister(op.right());
+  InstructionOperand acc = g.TempSimd128Register();
+  Emit(kArm64S128Const, acc, g.UseImmediate(0), g.UseImmediate(0),
+       g.UseImmediate(0), g.UseImmediate(0));
+  Emit(kArm64I32x4DotI8x16AddS, g.DefineSameAsInput(node, 2), left, right, acc);
+}
+
 void VisitDot(InstructionSelector* selector, OpIndex node, int lane_size) {
   Arm64OperandGenerator g(selector);
   const Simd128BinopOp& op = selector->Cast<Simd128BinopOp>(node);
@@ -6145,6 +6157,32 @@ void InstructionSelector::VisitI32x4Add(OpIndex node) {
                  this, node, LaneSize::kL32)) {
     return;
   } else {
+    Arm64OperandGenerator g(this);
+    const Simd128BinopOp& binop = Get(node).Cast<Simd128BinopOp>();
+    if (CanCover(node, binop.left())) {
+      if (auto dot = Get(binop.left()).TryCast<Simd128BinopOp>()) {
+        if (dot->kind == Simd128BinopOp::Kind::kI32x4DotI8x16S) {
+          InstructionOperand left = g.UseRegister(dot->left());
+          InstructionOperand right = g.UseRegister(dot->right());
+          InstructionOperand acc = g.UseRegister(binop.right());
+          Emit(kArm64I32x4DotI8x16AddS, g.DefineSameAsInput(node, 2), left,
+               right, acc);
+          return;
+        }
+      }
+    }
+    if (CanCover(node, binop.right())) {
+      if (auto dot = Get(binop.right()).TryCast<Simd128BinopOp>()) {
+        if (dot->kind == Simd128BinopOp::Kind::kI32x4DotI8x16S) {
+          InstructionOperand left = g.UseRegister(dot->left());
+          InstructionOperand right = g.UseRegister(dot->right());
+          InstructionOperand acc = g.UseRegister(binop.left());
+          Emit(kArm64I32x4DotI8x16AddS, g.DefineSameAsInput(node, 2), left,
+               right, acc);
+          return;
+        }
+      }
+    }
     VISIT_SIMD_ADD(I32x4, I16x8, LaneSize::kL32)
   }
 }

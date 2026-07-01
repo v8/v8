@@ -17,6 +17,37 @@ struct FuzzBinopOp {
   bool use_positive_opcode;
 };
 
+struct FuzzExtMulPairwiseOp {
+  WasmOpcode extmul_opcode;
+  WasmOpcode pairwise_opcode;
+  uint8_t local_lhs;
+  uint8_t local_rhs;
+};
+
+struct FuzzExtMulPairwiseTree {
+  WasmOpcode add_opcode;
+  FuzzExtMulPairwiseOp left_branch;
+  FuzzExtMulPairwiseOp right_branch;
+  WasmOpcode final_binop_opcode;
+  uint8_t final_rhs_local;
+  bool use_root_add_again;
+  WasmOpcode root_add_reuse_binop_opcode;
+};
+
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+struct AVXSupport {
+  bool previous_;
+  explicit AVXSupport(bool allow) : previous_(CpuFeatures::IsSupported(AVX)) {
+    if (!allow) CpuFeatures::SetUnsupported(AVX);
+  }
+  ~AVXSupport() {
+    if (previous_) {
+      CpuFeatures::SetSupported(AVX);
+    }
+  }
+};
+#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+
 #define MAX_NUM_FUZZ_BINOP_NODES 6
 
 class SimdCrossCompilerDeterminismTest
@@ -40,6 +71,10 @@ class SimdCrossCompilerDeterminismTest
   void Test32x4BinopTree(WasmOpcode opcode, WasmOpcode additional_opcode,
                          Simd128 input,
                          std::vector<FuzzBinopOp> random_binop_ops);
+
+  void TestExtMulPairwiseTree(std::array<Simd128, 4> inputs,
+                              FuzzExtMulPairwiseTree tree,
+                              int preconsumed_liftoff_regs, bool allow_avx);
 
   static constexpr int kMaxPreconsumedLiftoffRegs =
       kFpCacheRegList.GetNumRegsSet();
@@ -307,6 +342,101 @@ class SimdCrossCompilerDeterminismTest
     // Read result from memory.
     return reinterpret_cast<int32_t*>(memory)[0];
   }
+
+  template <typename Config>
+  Simd128 GetExtMulPairwiseTreeResult(TestExecutionTier tier,
+                                      std::array<Simd128, 4> inputs,
+                                      FuzzExtMulPairwiseTree tree,
+                                      int preconsumed_liftoff_regs = 0) {
+    // Instantiate a runner with some memory for storing dynamic inputs and the
+    // result.
+    CommonWasmRunner<void> runner(isolate(), tier);
+    Simd128* memory = runner.builder().AddMemoryElems<Simd128>(4);
+
+    uint8_t locals_start = runner.AllocateLocals(5, kWasmS128);
+    auto locals_idx = [locals_start](uint8_t offset) -> uint8_t {
+      return static_cast<uint8_t>(locals_start + offset);
+    };
+
+    // Build the bytecode.
+    // Note: `kMaxBytecodeSize` is big enough to hold all bytes we generate
+    // below across all configuration. If the DCHECK below fails, increase it as
+    // necessary.
+    constexpr size_t kMaxBytecodeSize = 150 + 19 * kMaxPreconsumedLiftoffRegs;
+    base::SmallVector<uint8_t, kMaxBytecodeSize> bytecode;
+
+    // Preconsume some registers.
+    DCHECK_LE(preconsumed_liftoff_regs, kMaxPreconsumedLiftoffRegs);
+    DCHECK_IMPLIES(tier != TestExecutionTier::kLiftoff,
+                   preconsumed_liftoff_regs == 0);
+    for (int i = 0; i < preconsumed_liftoff_regs; ++i) {
+      bytecode.insert(bytecode.end(), {WASM_SIMD_CONSTANT(Simd128{}.bytes())});
+    }
+
+    bytecode.insert(bytecode.end(),
+                    Config::template GetInput<0>(memory, inputs[0]));
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(0)});
+    bytecode.insert(bytecode.end(),
+                    Config::template GetInput<1>(memory, inputs[1]));
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(1)});
+    bytecode.insert(bytecode.end(),
+                    Config::template GetInput<2>(memory, inputs[2]));
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(2)});
+    bytecode.insert(bytecode.end(),
+                    Config::template GetInput<3>(memory, inputs[3]));
+    bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(3)});
+
+    // Push the memory index for the final store.
+    bytecode.insert(bytecode.end(), {WASM_ZERO});
+
+    // The extmul opcodes, their inputs, and extadd_pairwise opcode are fuzzed.
+    auto emit_extmul_pairwise = [&](FuzzExtMulPairwiseOp op) {
+      bytecode.insert(bytecode.end(),
+                      {kExprLocalGet, locals_idx(op.local_lhs)});
+      bytecode.insert(bytecode.end(),
+                      {kExprLocalGet, locals_idx(op.local_rhs)});
+      bytecode.insert(bytecode.end(), {WASM_SIMD_OP(op.extmul_opcode)});
+      bytecode.insert(bytecode.end(), {WASM_SIMD_OP(op.pairwise_opcode)});
+    };
+
+    emit_extmul_pairwise(tree.left_branch);
+    emit_extmul_pairwise(tree.right_branch);
+
+    // We also fuzz the root add.
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(tree.add_opcode)});
+
+    // Sometimes we insert an extra user of the add, so keep it in a local.
+    if (tree.use_root_add_again) {
+      bytecode.insert(bytecode.end(), {kExprLocalTee, locals_idx(4)});
+    }
+    bytecode.insert(bytecode.end(),
+                    {kExprLocalGet, locals_idx(tree.final_rhs_local)});
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(tree.final_binop_opcode)});
+
+    // The extra user of the add.
+    if (tree.use_root_add_again) {
+      bytecode.insert(bytecode.end(), {kExprLocalGet, locals_idx(4)});
+      bytecode.insert(bytecode.end(),
+                      {WASM_SIMD_OP(tree.root_add_reuse_binop_opcode)});
+    }
+
+    // Store the result in memory.
+    bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprS128StoreMem),
+                                     ZERO_ALIGNMENT, ZERO_OFFSET});
+
+    // Explicitly return (ignoring left-over constants pushed above).
+    bytecode.push_back(kExprReturn);
+
+    // Compile.
+    DCHECK_GE(kMaxBytecodeSize, bytecode.size());
+    runner.Build(base::VectorOf(bytecode));
+
+    // Call Wasm.
+    runner.Call();
+
+    // Read result from memory.
+    return memory[0];
+  }
 };
 
 template <typename Size>
@@ -321,8 +451,7 @@ void SimdCrossCompilerDeterminismTest::TestTernOp(WasmOpcode opcode,
                                                   int preconsumed_liftoff_regs,
                                                   bool allow_avx) {
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-  bool disable_avx = !allow_avx && CpuFeatures::IsSupported(AVX);
-  if (disable_avx) CpuFeatures::SetUnsupported(AVX);
+  AVXSupport avx_support(allow_avx);
 #endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 
   // Remember all values from all configurations.
@@ -350,10 +479,6 @@ void SimdCrossCompilerDeterminismTest::TestTernOp(WasmOpcode opcode,
       // - all inputs dynamic
       GetTernOpResult<InputLocations<kDynamic, kDynamic, kDynamic>>(
           TestExecutionTier::kTurbofan, opcode, inputs)};
-
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-  if (disable_avx) CpuFeatures::SetSupported(AVX);
-#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 
   ASSERT_TRUE(AllResultsEqual<Simd128>(base::VectorOf(results)))
       << absl::StrFormat("Operation %s on inputs %v, %v, %v\n",
@@ -437,6 +562,115 @@ V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestTernOp)
         fuzztest::Arbitrary<bool>())
     .WithSeeds(kTernOpSeeds);
 
+void SimdCrossCompilerDeterminismTest::TestExtMulPairwiseTree(
+    std::array<Simd128, 4> inputs, FuzzExtMulPairwiseTree tree,
+    int preconsumed_liftoff_regs, bool allow_avx) {
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  AVXSupport avx_support(allow_avx);
+#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+
+  // Remember all values from all configurations.
+  Simd128 results[] = {
+      // Liftoff does not special-handle SIMD constants, so we only test this
+      // one Liftoff mode (but with a dynamic amount of preconsumed registers).
+      GetExtMulPairwiseTreeResult<
+          InputLocations<kConstant, kConstant, kConstant, kConstant>>(
+          TestExecutionTier::kLiftoff, inputs, tree, preconsumed_liftoff_regs),
+
+      // Different Turbofan configs, embedding inputs as constants or having
+      // dynamic inputs.
+      // - all inputs constant
+      GetExtMulPairwiseTreeResult<
+          InputLocations<kConstant, kConstant, kConstant, kConstant>>(
+          TestExecutionTier::kTurbofan, inputs, tree),
+      // - first two inputs constant, rest dynamic
+      GetExtMulPairwiseTreeResult<
+          InputLocations<kConstant, kConstant, kDynamic, kDynamic>>(
+          TestExecutionTier::kTurbofan, inputs, tree),
+      // - first two inputs dynamic, rest constant
+      GetExtMulPairwiseTreeResult<
+          InputLocations<kDynamic, kDynamic, kConstant, kConstant>>(
+          TestExecutionTier::kTurbofan, inputs, tree),
+      // - all inputs dynamic
+      GetExtMulPairwiseTreeResult<
+          InputLocations<kDynamic, kDynamic, kDynamic, kDynamic>>(
+          TestExecutionTier::kTurbofan, inputs, tree)};
+
+  ASSERT_TRUE(AllResultsEqual<Simd128>(base::VectorOf(results)))
+      << absl::StrFormat(
+             "ExtMulPairwiseTree pattern on inputs %v, %v, %v, and %v\n",
+             inputs[0], inputs[1], inputs[2], inputs[3])
+      << "Different results for different configs: "
+      << PrintCollection(base::VectorOf(results));
+}
+
+inline fuzztest::Domain<FuzzExtMulPairwiseTree> ExtMulPairwiseTree() {
+  constexpr std::array kExtMulOps = {
+      kExprI16x8ExtMulLowI8x16S, kExprI16x8ExtMulHighI8x16S,
+      kExprI16x8ExtMulLowI8x16U, kExprI16x8ExtMulHighI8x16U,
+      kExprI32x4ExtMulLowI16x8S, kExprI32x4ExtMulHighI16x8S,
+      kExprI32x4ExtMulLowI16x8U, kExprI32x4ExtMulHighI16x8U};
+
+  constexpr std::array kExtAddPairwiseOps = {
+      kExprI16x8ExtAddPairwiseI8x16S, kExprI16x8ExtAddPairwiseI8x16U,
+      kExprI32x4ExtAddPairwiseI16x8S, kExprI32x4ExtAddPairwiseI16x8U};
+
+  constexpr std::array kExtMulPairwiseRootAddOps = {
+      kExprI16x8Add, kExprI32x4Add, kExprI64x2Add};
+
+  constexpr std::array kExtMulPairwiseFinalBinOps = {
+      kExprS128And,  kExprS128Or,   kExprS128Xor,  kExprI8x16Add,
+      kExprI8x16Sub, kExprI16x8Add, kExprI16x8Sub, kExprI32x4Add,
+      kExprI32x4Sub, kExprI64x2Add, kExprI64x2Sub};
+
+  return fuzztest::Map(
+      [](WasmOpcode add_opcode, WasmOpcode left_extmul_opcode,
+         WasmOpcode left_pairwise_opcode, uint8_t left_lhs, uint8_t left_rhs,
+         WasmOpcode right_extmul_opcode, WasmOpcode right_pairwise_opcode,
+         uint8_t right_lhs, uint8_t right_rhs, WasmOpcode final_binop_opcode,
+         uint8_t final_rhs_local, bool use_root_add_again,
+         WasmOpcode root_add_reuse_binop_opcode) {
+        auto make_branch = [](WasmOpcode extmul_opcode,
+                              WasmOpcode pairwise_opcode, uint8_t local_lhs,
+                              uint8_t local_rhs) {
+          return FuzzExtMulPairwiseOp{extmul_opcode, pairwise_opcode, local_lhs,
+                                      local_rhs};
+        };
+        return FuzzExtMulPairwiseTree{
+            add_opcode,
+            make_branch(left_extmul_opcode, left_pairwise_opcode, left_lhs,
+                        left_rhs),
+            make_branch(right_extmul_opcode, right_pairwise_opcode, right_lhs,
+                        right_rhs),
+            final_binop_opcode,
+            final_rhs_local,
+            use_root_add_again,
+            root_add_reuse_binop_opcode};
+      },
+      fuzztest::ElementOf<WasmOpcode>(kExtMulPairwiseRootAddOps),
+      fuzztest::ElementOf<WasmOpcode>(kExtMulOps),
+      fuzztest::ElementOf<WasmOpcode>(kExtAddPairwiseOps),
+      fuzztest::InRange<uint8_t>(0, 3), fuzztest::InRange<uint8_t>(0, 3),
+      fuzztest::ElementOf<WasmOpcode>(kExtMulOps),
+      fuzztest::ElementOf<WasmOpcode>(kExtAddPairwiseOps),
+      fuzztest::InRange<uint8_t>(0, 3), fuzztest::InRange<uint8_t>(0, 3),
+      fuzztest::ElementOf<WasmOpcode>(kExtMulPairwiseFinalBinOps),
+      fuzztest::InRange<uint8_t>(0, 3), fuzztest::Arbitrary<bool>(),
+      fuzztest::ElementOf<WasmOpcode>(kExtMulPairwiseFinalBinOps));
+}
+
+V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestExtMulPairwiseTree)
+    .WithDomains(
+        // inputs
+        fuzztest::ArrayOf<4>(ArbitrarySimd()),
+        // tree
+        ExtMulPairwiseTree(),
+        // preconsumed_liftoff_regs
+        fuzztest::InRange(
+            0, SimdCrossCompilerDeterminismTest::kMaxPreconsumedLiftoffRegs),
+        // allow_avx
+        fuzztest::Arbitrary<bool>());
+
 void SimdCrossCompilerDeterminismTest::TestShuffleTree(
     WasmOpcode binop, WasmOpcode unop, std::array<Simd128, 4> inputs,
     std::array<uint8_t, kSimd128Size> shuffle0,
@@ -447,8 +681,7 @@ void SimdCrossCompilerDeterminismTest::TestShuffleTree(
     std::array<uint8_t, kSimd128Size> shuffle5, int preconsumed_liftoff_regs,
     bool allow_avx) {
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-  bool disable_avx = !allow_avx && CpuFeatures::IsSupported(AVX);
-  if (disable_avx) CpuFeatures::SetUnsupported(AVX);
+  AVXSupport avx_support(allow_avx);
 #endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 
   // Remember all values from all configurations.
@@ -472,10 +705,6 @@ void SimdCrossCompilerDeterminismTest::TestShuffleTree(
           InputLocations<kDynamic, kDynamic, kDynamic, kDynamic, kDynamic>>(
           TestExecutionTier::kTurbofan, binop, unop, inputs, shuffle0, shuffle1,
           shuffle2, shuffle3, shuffle4, shuffle5)};
-
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-  if (disable_avx) CpuFeatures::SetSupported(AVX);
-#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 
   ASSERT_TRUE(AllResultsEqual<Simd128>(base::VectorOf(results)))
       << absl::StrFormat("Shuffles: %v, %v, %v, %v, %vand %v\n",

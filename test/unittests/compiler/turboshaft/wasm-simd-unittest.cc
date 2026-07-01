@@ -233,6 +233,61 @@ TEST_F(WasmSimdTest, AddPairwiseMulI8Dot) {
 #endif
 }
 
+#ifdef V8_TARGET_ARCH_ARM64
+TEST_F(WasmSimdTest, AddExtMulPairwiseToI8x16DotProduct) {
+  const RegisterRepresentation simd128 = RegisterRepresentation::Simd128();
+  base::SmallVector<RegisterRepresentation, 2> reps = {simd128, simd128};
+  auto test = CreateFromGraph(base::VectorOf(reps), [](auto& Asm) {
+    V<Simd128> left = Asm.template GetParameter<Simd128>(0);
+    V<Simd128> right = Asm.template GetParameter<Simd128>(1);
+
+    V<Simd128> ext_mul_low = __ Simd128Binop(
+        left, right, Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S);
+    V<Simd128> ext_mul_high = __ Simd128Binop(
+        left, right, Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S);
+    V<Simd128> pairwise_low = __ Simd128Unary(
+        ext_mul_low, Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S);
+    V<Simd128> pairwise_high = __ Simd128Unary(
+        ext_mul_high, Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S);
+
+    V<Simd128> add =
+        Asm.Capture(__ Simd128Binop(pairwise_low, pairwise_high,
+                                    Simd128BinopOp::Kind::kI32x4Add),
+                    "add");
+    __ Return(add);
+  });
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+  constexpr uint8_t expected_shuffle[kSimd128Size] = {
+      0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15,
+  };
+
+  const Simd128BinopOp* dot = test.GetCapture("add").GetFirst<Simd128BinopOp>();
+  EXPECT_TRUE(dot);
+  if (CpuFeatures::IsSupported(DOTPROD)) {
+    EXPECT_EQ(Simd128BinopOp::Kind::kI32x4DotI8x16S, dot->kind);
+    const Simd128ShuffleOp* shuffle_left =
+        test.graph().Get(dot->left()).TryCast<Simd128ShuffleOp>();
+    const Simd128ShuffleOp* shuffle_right =
+        test.graph().Get(dot->right()).TryCast<Simd128ShuffleOp>();
+    EXPECT_TRUE(shuffle_left);
+    EXPECT_TRUE(shuffle_right);
+    EXPECT_EQ(Simd128ShuffleOp::Kind::kI8x16, shuffle_left->kind);
+    EXPECT_EQ(Simd128ShuffleOp::Kind::kI8x16, shuffle_right->kind);
+    EXPECT_TRUE(std::equal(std::begin(expected_shuffle),
+                           std::end(expected_shuffle),
+                           std::begin(shuffle_left->shuffle)));
+    EXPECT_TRUE(std::equal(std::begin(expected_shuffle),
+                           std::end(expected_shuffle),
+                           std::begin(shuffle_right->shuffle)));
+  } else {
+    EXPECT_EQ(Simd128BinopOp::Kind::kI32x4Add, dot->kind);
+  }
+}
+#endif  // V8_TARGET_ARCH_ARM64
+
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 
 TEST_F(WasmSimdTest, Simd256Extract128Lane_ConstantFolding) {

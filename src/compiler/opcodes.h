@@ -1058,6 +1058,7 @@
   IF_SIMD128(V, I32x4Abs)                    \
   IF_SIMD128(V, I32x4BitMask)                \
   IF_SIMD128(V, I32x4DotI16x8S)              \
+  IF_SIMD128(V, I32x4DotI8x16S)              \
   IF_SIMD128(V, I32x4AddPairwise)            \
   IF_SIMD128(V, I32x4ExtMulLowI16x8S)        \
   IF_SIMD128(V, I32x4ExtMulHighI16x8S)       \
