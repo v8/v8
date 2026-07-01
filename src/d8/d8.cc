@@ -6921,7 +6921,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                FlagMatches("--memory-corruption-via-watchpoints", &argv[i])) {
       // The tracing flag also implies enabling the API.
       options.memory_corruption_via_watchpoints = true;
-      options.trace_memory_corruption_via_watchpoints = enable_tracing;
+      if (enable_tracing) {
+        options.trace_memory_corruption_via_watchpoints = true;
+      }
       // Imply --expose-memory-corruption-api.
       i::v8_flags.expose_memory_corruption_api = true;
 #endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
