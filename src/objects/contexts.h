@@ -805,7 +805,13 @@ V8_OBJECT class NativeContext : public Context {
                      ReleaseStoreTag);
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+  static constexpr int kMicrotaskQueueSlotSize = kCppHeapPointerSlotSize;
+  DECL_CPP_POINTER_ACCESSORS(microtask_queue, MicrotaskQueue*)
+#else
+  static constexpr int kMicrotaskQueueSlotSize = kExternalPointerSlotSize;
   DECL_EXTERNAL_POINTER_ACCESSORS(microtask_queue, MicrotaskQueue*)
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   inline void synchronized_set_script_context_table(
       Tagged<ScriptContextTable> script_context_table);
@@ -853,7 +859,7 @@ V8_OBJECT class NativeContext : public Context {
   V(kEndOfNativeContextFieldsOffset, 0)                                     \
   V(kEndOfTaggedFieldsOffset, 0)                                            \
   /* Raw data. */                                                           \
-  V(kMicrotaskQueueOffset, kSystemPointerSize)                              \
+  V(kMicrotaskQueueOffset, kMicrotaskQueueSlotSize)                         \
   /* Total size. */                                                         \
   V(kSize, 0)
 
@@ -873,6 +879,11 @@ V8_OBJECT class NativeContext : public Context {
 #endif
 
  private:
+  // TODO(ishell): define fields using TaggedMember<T> and CppHeapMember<T>
+  // once the latter is available.
+  // TaggedMember<Object> elements_[Context::NATIVE_CONTEXT_SLOTS];
+  // CppHeapMember<MicrotaskQueue> microtask_queue_;
+
   static_assert(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
                 Internals::kNativeContextEmbedderDataOffset);
 } V8_OBJECT_END;

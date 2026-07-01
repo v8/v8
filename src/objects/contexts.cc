@@ -758,7 +758,7 @@ static_assert(NativeContext::kMicrotaskQueueOffset ==
               Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS));
 static_assert(NativeContext::kSize ==
               (Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS) +
-               kSystemPointerSize));
+               NativeContext::kMicrotaskQueueSlotSize));
 
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 void NativeContext::RunPromiseHook(PromiseHookType type,

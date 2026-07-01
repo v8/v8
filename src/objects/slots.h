@@ -433,6 +433,12 @@ class CppHeapPointerSlot
   inline Address load() const;
 
 #endif  // V8_COMPRESS_POINTERS
+
+  using RawContent = CppHeapPointer_t;
+  inline RawContent GetAndClearContentForSerialization(
+      const DisallowGarbageCollection& no_gc);
+  inline void RestoreContentAfterSerialization(
+      RawContent content, const DisallowGarbageCollection& no_gc);
 };
 
 // An IndirectPointerSlot instance describes a 32-bit field ("slot") containing

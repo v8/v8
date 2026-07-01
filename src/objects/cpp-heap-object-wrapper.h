@@ -12,8 +12,11 @@
 
 namespace v8::internal {
 
+class NativeContext;
+
 // Object types that can have a cpp heap object pointer field.
-using CppHeapPointerWrapperObjectT = UnionOf<JSObject, CppHeapExternalObject>;
+using CppHeapPointerWrapperObjectT =
+    UnionOf<JSObject, CppHeapExternalObject, NativeContext>;
 
 // Helper union that doesn't actually exist as type. Used to get and set the cpp
 // heap pointer for objects that are associated with one. Use by value.

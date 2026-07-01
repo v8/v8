@@ -1107,7 +1107,7 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> realm =
-      Local<Context>::New(isolate, data->realms_[data->realm_current_]);
+      Local<Context>::New(isolate, data->realms_[data->realm_current_].context);
   Context::Scope context_scope(realm);
   Local<Context> context(isolate->GetCurrentContext());
   ScriptOrigin origin = CreateScriptOrigin(isolate, name, ScriptType::kClassic);
@@ -1724,7 +1724,8 @@ void Shell::ModuleResolutionSuccessCallback(
           .ToLocalChecked());
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+  Local<Context> realm =
+      data->realms_[data->realm_current_].context.Get(isolate);
   Context::Scope context_scope(realm);
 
   resolver->Resolve(realm, namespace_or_source).ToChecked();
@@ -1744,7 +1745,8 @@ void Shell::ModuleResolutionFailureCallback(
           .As<Promise::Resolver>());
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+  Local<Context> realm =
+      data->realms_[data->realm_current_].context.Get(isolate);
   Context::Scope context_scope(realm);
 
   DCHECK_EQ(info.Length(), 1);
@@ -2068,7 +2070,8 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
   {
     PerIsolateData* data = PerIsolateData::Get(isolate);
-    Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+    Local<Context> realm =
+        data->realms_[data->realm_current_].context.Get(isolate);
     Context::Scope context_scope(realm);
 
     std::string absolute_path =
@@ -2179,7 +2182,7 @@ bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
   HandleScope handle_scope(isolate);
   PerIsolateData* isolate_data = PerIsolateData::Get(isolate);
   Local<Context> realm =
-      isolate_data->realms_[isolate_data->realm_current_].Get(isolate);
+      isolate_data->realms_[isolate_data->realm_current_].context.Get(isolate);
   Context::Scope context_scope(realm);
   TryCatch try_catch(isolate);
 
@@ -2209,8 +2212,7 @@ bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
   return true;
 }
 
-PerIsolateData::PerIsolateData(Isolate* isolate)
-    : isolate_(isolate), realms_(nullptr) {
+PerIsolateData::PerIsolateData(Isolate* isolate) : isolate_(isolate) {
   isolate->SetData(0, this);
   if (i::v8_flags.expose_async_hooks) {
     async_hooks_wrapper_ = new AsyncHooks(isolate);
@@ -2349,11 +2351,10 @@ PerIsolateData::RealmScope::RealmScope(Isolate* isolate,
   CHECK_EQ(0, reinterpret_cast<i::Isolate*>(isolate)
                   ->default_microtask_queue()
                   ->size());
-  data_->realm_count_ = 1;
   data_->realm_current_ = 0;
   data_->realm_switch_ = 0;
-  data_->realms_ = new Global<Context>[1];
-  data_->realms_[0].Reset(data_->isolate_, context);
+  data_->realms_.clear();
+  data_->realms_.emplace_back(data_->isolate_, context);
 }
 
 PerIsolateData::RealmScope::~RealmScope() {
@@ -2363,14 +2364,13 @@ PerIsolateData::RealmScope::~RealmScope() {
       ->default_microtask_queue()
       ->ClearMicrotasks();
   // Drop realms to avoid keeping them alive.
-  data_->realm_count_ = 0;
-  delete[] data_->realms_;
+  data_->realms_.clear();
 }
 
 PerIsolateData::ExplicitRealmScope::ExplicitRealmScope(PerIsolateData* data,
                                                        int index)
     : data_(data), index_(index) {
-  realm_ = Local<Context>::New(data->isolate_, data->realms_[index_]);
+  realm_ = Local<Context>::New(data->isolate_, data->realms_[index_].context);
   realm_->Enter();
   previous_index_ = data->realm_current_;
   data->realm_stack_.push_back(previous_index_);
@@ -2389,8 +2389,8 @@ Local<Context> PerIsolateData::ExplicitRealmScope::context() const {
 }
 
 int PerIsolateData::RealmFind(Local<Context> context) {
-  for (int i = 0; i < realm_count_; ++i) {
-    if (realms_[i] == context) return i;
+  for (size_t i = 0; i < realms_.size(); ++i) {
+    if (realms_[i].context == context) return static_cast<int>(i);
   }
   return -1;
 }
@@ -2404,7 +2404,8 @@ int PerIsolateData::RealmIndexOrThrow(
   }
   int index =
       info[arg_offset]->Int32Value(isolate->GetCurrentContext()).FromMaybe(-1);
-  if (index < 0 || index >= realm_count_ || realms_[index].IsEmpty()) {
+  if (index < 0 || static_cast<size_t>(index) >= realms_.size() ||
+      realms_[index].context.IsEmpty()) {
     ThrowError(isolate, "Invalid realm index");
     return -1;
   }
@@ -2720,8 +2721,8 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 bool Shell::ValidateRealmIndex(Isolate* isolate, PerIsolateData* data,
                                int index) {
-  if (index >= 0 && index < data->realm_count_ &&
-      !data->realms_[index].IsEmpty()) {
+  if (index >= 0 && static_cast<size_t>(index) < data->realms_.size() &&
+      !data->realms_[index].context.IsEmpty()) {
     return true;
   }
   ThrowError(isolate, "Invalid realm index");
@@ -2752,7 +2753,7 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   int index = data->RealmIndexOrThrow(info, 0);
   if (index == -1) return;
   Local<Object> global =
-      Local<Context>::New(isolate, data->realms_[index])->Global();
+      Local<Context>::New(isolate, data->realms_[index].context)->Global();
   // Sanity check that v8::Context::Global() returned global proxy.
   CHECK(IsJSGlobalProxy(*Utils::OpenDirectHandle(*global)));
   info.GetReturnValue().Set(global);
@@ -2760,7 +2761,7 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 MaybeLocal<Context> Shell::CreateRealm(
     const v8::FunctionCallbackInfo<v8::Value>& info, int index,
-    v8::MaybeLocal<Value> global_object) {
+    v8::MaybeLocal<Value> global_object, bool create_own_microtask_queue) {
   DCHECK(i::ValidateCallbackInfo(info));
   const char* kGlobalHandleLabel = "d8::realm";
   Isolate* isolate = info.GetIsolate();
@@ -2768,28 +2769,47 @@ MaybeLocal<Context> Shell::CreateRealm(
 
   TryCatch try_catch(isolate);
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  if (index < 0) {
-    Global<Context>* old_realms = data->realms_;
-    index = data->realm_count_;
-    data->realms_ = new Global<Context>[++data->realm_count_];
-    for (int i = 0; i < index; ++i) {
-      Global<Context>& realm = data->realms_[i];
-      realm.Reset(isolate, old_realms[i]);
-      if (!realm.IsEmpty()) {
-        realm.AnnotateStrongRetainer(kGlobalHandleLabel);
-      }
-      old_realms[i].Reset();
-    }
-    delete[] old_realms;
-  }
+
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
+
+  v8::MicrotaskQueue* microtask_queue = nullptr;
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+  if (create_own_microtask_queue) {
+    microtask_queue = v8::MicrotaskQueue::New(isolate);
+  }
+#else
+  std::unique_ptr<v8::MicrotaskQueue> new_mq;
+  if (create_own_microtask_queue) {
+    START_ALLOW_USE_DEPRECATED()
+    new_mq = v8::MicrotaskQueue::New(isolate);
+    END_ALLOW_USE_DEPRECATED()
+    microtask_queue = new_mq.get();
+  }
+#endif  // V8_CPPGC_MICROTASK_QUEUE
+
   Local<Context> context =
-      Context::New(isolate, nullptr, global_template, global_object);
+      Context::New(isolate, nullptr, global_template, global_object,
+                   DeserializeInternalFieldsCallback(), microtask_queue);
   if (context.IsEmpty()) return MaybeLocal<Context>();
   DCHECK(!try_catch.HasCaught());
   InitializeModuleEmbedderData(context);
-  data->realms_[index].Reset(isolate, context);
-  data->realms_[index].AnnotateStrongRetainer(kGlobalHandleLabel);
+
+  if (index < 0) {
+    index = static_cast<int>(data->realms_.size());
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+    data->realms_.emplace_back(isolate, context);
+#else
+    data->realms_.emplace_back(isolate, context, std::move(new_mq));
+#endif
+  } else {
+    data->realms_[index].context.Reset(isolate, context);
+#ifndef V8_CPPGC_MICROTASK_QUEUE
+    data->realms_[index].microtask_queue = std::move(new_mq);
+#endif
+  }
+
+  data->realms_[index].context.AnnotateStrongRetainer(kGlobalHandleLabel);
+
   info.GetReturnValue().Set(index);
   return context;
 }
@@ -2799,8 +2819,11 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  Local<Context> context = data->realms_[index].Get(isolate);
-  data->realms_[index].Reset();
+  Local<Context> context = data->realms_[index].context.Get(isolate);
+  data->realms_[index].context.Reset();
+#ifndef V8_CPPGC_MICROTASK_QUEUE
+  data->realms_[index].microtask_queue.reset();
+#endif
   context->DetachGlobal();
   // ContextDisposedNotification expects the disposed context to be entered.
   v8::Context::Scope scope(context);
@@ -2821,7 +2844,20 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  CreateRealm(info, -1, v8::MaybeLocal<Value>());
+  bool create_own_microtask_queue = false;
+  if (info.Length() > 0 && info[0]->IsObject()) {
+    Local<Object> realm_options = info[0].As<Object>();
+    Local<Context> context = info.GetIsolate()->GetCurrentContext();
+    Local<Value> value;
+    if (realm_options
+            ->Get(context, String::NewFromUtf8Literal(
+                               info.GetIsolate(), "create_own_microtask_queue"))
+            .ToLocal(&value)) {
+      create_own_microtask_queue = value->BooleanValue(info.GetIsolate());
+    }
+  }
+
+  CreateRealm(info, -1, v8::MaybeLocal<Value>(), create_own_microtask_queue);
 }
 
 // Realm.createAllowCrossRealmAccess() creates a new realm with the same
@@ -2858,7 +2894,8 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // realm we are currently switching to.
   if (!ValidateRestrictedRealmIndex(isolate, data, index)) return;
 
-  Local<Context> context = Local<Context>::New(isolate, data->realms_[index]);
+  Local<Context> context =
+      Local<Context>::New(isolate, data->realms_[index].context);
   v8::Local<Value> global = context->Global();
   CHECK(!global.IsEmpty());
 
@@ -2880,7 +2917,8 @@ void Shell::RealmNavigateSameOrigin(
   // realm we are currently switching to.
   if (!ValidateRestrictedRealmIndex(isolate, data, index)) return;
 
-  Local<Context> context = Local<Context>::New(isolate, data->realms_[index]);
+  Local<Context> context =
+      Local<Context>::New(isolate, data->realms_[index].context);
   v8::Local<Value> global = context->Global();
   context->DetachGlobal();
   CHECK(!global.IsEmpty());
@@ -2904,7 +2942,8 @@ void Shell::RealmDetachGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!ValidateRestrictedRealmIndex(isolate, data, index)) return;
 
   HandleScope scope(isolate);
-  Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
+  Local<Context> realm =
+      Local<Context>::New(isolate, data->realms_[index].context);
   realm->DetachGlobal();
 }
 

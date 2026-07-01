@@ -416,6 +416,9 @@ constexpr CppHeapPointerHandle kNullCppHeapPointerHandle = 0;
 constexpr uint64_t kCppHeapPointerMarkBit = 1ULL;
 constexpr uint64_t kCppHeapPointerTagShift = 1;
 constexpr uint64_t kCppHeapPointerPayloadShift = 16;
+constexpr uint64_t kCppHeapPointerTagMask =
+    ((1ULL << (kCppHeapPointerPayloadShift - kCppHeapPointerTagShift)) - 1)
+    << kCppHeapPointerTagShift;
 
 #ifdef V8_COMPRESS_POINTERS
 // CppHeapPointers use a dedicated pointer table. These constants control the
@@ -1021,7 +1024,8 @@ class Internals {
   static const int kHandleScopeImplementerSize =
       11 * kApiSystemPointerSize + kHandleScopeDataSize;
 
-  // ExternalPointerTable and TrustedPointerTable layout guarantees.
+  // ExternalPointerTable, CppHeapPointerTable and TrustedPointerTable layout
+  // guarantees.
   static const int kExternalEntityTableBasePointerOffset = 0;
   static const int kSegmentedTableSegmentPoolSize = 4;
   static const int kExternalEntityTableSize =

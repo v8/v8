@@ -3165,6 +3165,7 @@ action("v8_dump_build_config") {
     "wasm_random_fuzzers=$v8_wasm_random_fuzzers",
     "memory_corruption_api=$v8_enable_memory_corruption_api",
     "lower_limits_mode=$v8_lower_limits_mode",
+    "cppgc_microtask_queue=$v8_cppgc_microtask_queue",
 
     # Please add new switches also in `build_config_content` in `bazel/defs.bzl`
     # so that the switches also work for tests triggered by bazel.

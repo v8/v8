@@ -95,7 +95,7 @@ struct CppHeapPointerTableEntry {
     using TagType = CppHeapPointerTag;
     static constexpr uint64_t kMarkBit = kCppHeapPointerMarkBit;
     static constexpr uint64_t kTagShift = kCppHeapPointerTagShift;
-    static constexpr uint64_t kTagMask = 0xfffe;
+    static constexpr uint64_t kTagMask = kCppHeapPointerTagMask;
     static constexpr uint64_t kPayloadShift = kCppHeapPointerPayloadShift;
     static constexpr uint64_t kPayloadMask = ~0ULL;
     static constexpr TagType kFreeEntryTag = CppHeapPointerTag::kFreeEntryTag;

@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/common/globals.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/casting.h"
 #include "src/objects/fixed-array-inl.h"
@@ -19,6 +20,7 @@
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
+#include "src/sandbox/cppheap-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -301,9 +303,42 @@ Tagged<Map> Context::GetInitialJSArrayMap(ElementsKind kind) const {
   return Cast<Map>(initial_js_array_map);
 }
 
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+MicrotaskQueue* NativeContext::microtask_queue() const {
+  i::IsolateForPointerCompression isolate = Isolate::Current();
+  return microtask_queue(isolate);
+}
+
+MicrotaskQueue* NativeContext::microtask_queue(
+    IsolateForPointerCompression isolate) const {
+  return reinterpret_cast<MicrotaskQueue*>(
+      ReadCppHeapPointerField<CppHeapPointerTag::kMicrotaskQueueTag,
+                              CppHeapPointerTag::kMicrotaskQueueTag>(
+          kMicrotaskQueueOffset, isolate));
+}
+
+void NativeContext::set_microtask_queue(IsolateForPointerCompression isolate,
+                                        MicrotaskQueue* queue) {
+  WriteLazilyInitializedCppHeapPointerField(
+      kMicrotaskQueueOffset, isolate, reinterpret_cast<Address>(queue),
+      CppHeapPointerTag::kMicrotaskQueueTag);
+  WriteBarrier::ForCppHeapPointer(Tagged<NativeContext>(this),
+                                  RawCppHeapPointerField(kMicrotaskQueueOffset),
+                                  queue);
+}
+
+void NativeContext::init_microtask_queue(IsolateForPointerCompression isolate,
+                                         MicrotaskQueue* queue) {
+  SetupLazilyInitializedCppHeapPointerField(kMicrotaskQueueOffset);
+  if (queue) {
+    set_microtask_queue(isolate, queue);
+  }
+}
+#else
 EXTERNAL_POINTER_ACCESSORS(NativeContext, microtask_queue, MicrotaskQueue*,
                            kMicrotaskQueueOffset,
                            kNativeContextMicrotaskQueueTag)
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 bool NativeContext::HasSameSecurityTokenAs(Tagged<NativeContext> that) const {
   return this == that || this->security_token() == that->security_token();

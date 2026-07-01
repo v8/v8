@@ -339,6 +339,29 @@ void CppHeapPointerSlot::init() const {
 #endif  // !V8_COMPRESS_POINTERS
 }
 
+CppHeapPointerSlot::RawContent
+CppHeapPointerSlot::GetAndClearContentForSerialization(
+    const DisallowGarbageCollection& no_gc) {
+#ifdef V8_COMPRESS_POINTERS
+  CppHeapPointerHandle content = Relaxed_LoadHandle();
+  Release_StoreHandle(kNullCppHeapPointerHandle);
+#else
+  Address content = ReadMaybeUnalignedValue<Address>(address());
+  WriteMaybeUnalignedValue<Address>(address(), kNullAddress);
+#endif  // V8_CPPGC_MICROTASK_QUEUE
+  return content;
+}
+
+void CppHeapPointerSlot::RestoreContentAfterSerialization(
+    CppHeapPointerSlot::RawContent content,
+    const DisallowGarbageCollection& no_gc) {
+#ifdef V8_COMPRESS_POINTERS
+  Release_StoreHandle(content);
+#else
+  WriteMaybeUnalignedValue<Address>(address(), content);
+#endif  // V8_CPPGC_MICROTASK_QUEUE
+}
+
 Tagged<Object> IndirectPointerSlot::load(IsolateForSandbox isolate) const {
   return Relaxed_Load(isolate);
 }

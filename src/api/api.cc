@@ -7214,7 +7214,7 @@ void Context::SetMicrotaskQueue(v8::MicrotaskQueue* queue) {
   Utils::ApiCheck(impl->EnteredContextCount() == 0,
                   "v8::Context::SetMicrotaskQueue()",
                   "Cannot set Microtask Queue with an entered context");
-  auto* mq = static_cast<const i::MicrotaskQueue*>(queue);
+  auto* mq = static_cast<i::MicrotaskQueue*>(queue);
   context->set_microtask_queue(i_isolate, mq);
   // Invalidate the EnqueueMicrotask cache if it references this context.
   if (i_isolate->current_microtask_native_context() == *context) {

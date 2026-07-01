@@ -42,25 +42,42 @@ class V8_NODISCARD SanitizeNativeContextScope final {
       DCHECK(microtask_queue->DebugMicrotasksScopeDepthIsZero());
     }
 #endif
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+    microtask_queue_pointer_ =
+        native_context
+            ->RawCppHeapPointerField(NativeContext::kMicrotaskQueueOffset)
+            .GetAndClearContentForSerialization(no_gc);
+#else
     microtask_queue_external_pointer_ =
         native_context
             ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset,
                                       kNativeContextMicrotaskQueueTag)
             .GetAndClearContentForSerialization(no_gc);
+#endif  // V8_CPPGC_MICROTASK_QUEUE
   }
 
   ~SanitizeNativeContextScope() {
     // Restore saved fields.
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+    native_context_
+        ->RawCppHeapPointerField(NativeContext::kMicrotaskQueueOffset)
+        .RestoreContentAfterSerialization(microtask_queue_pointer_, no_gc_);
+#else
     native_context_
         ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset,
                                   kNativeContextMicrotaskQueueTag)
         .RestoreContentAfterSerialization(microtask_queue_external_pointer_,
                                           no_gc_);
+#endif  // V8_CPPGC_MICROTASK_QUEUE
   }
 
  private:
   Tagged<NativeContext> native_context_;
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+  CppHeapPointerSlot::RawContent microtask_queue_pointer_;
+#else
   ExternalPointerSlot::RawContent microtask_queue_external_pointer_;
+#endif  // V8_CPPGC_MICROTASK_QUEUE
   const DisallowGarbageCollection& no_gc_;
 };
 

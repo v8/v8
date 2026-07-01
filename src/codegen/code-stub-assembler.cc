@@ -1983,6 +1983,46 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 #endif  // V8_ENABLE_SANDBOX
 }
 
+TNode<RawPtrT> CodeStubAssembler::LoadCppHeapPointerFromObject(
+    TNode<HeapObject> object, TNode<IntPtrT> offset, CppHeapPointerTag tag) {
+#ifdef V8_COMPRESS_POINTERS
+  // 1. Get the table.
+  TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
+      Load(MachineType::Pointer(),
+           IsolateField(IsolateFieldId::kCppHeapPointerTable),
+           UintPtrConstant(Internals::kExternalEntityTableBasePointerOffset)));
+
+  // 2. Load the handle.
+  TNode<CppHeapPointerHandleT> handle =
+      LoadObjectField<CppHeapPointerHandleT>(object, offset);
+
+  // 3. Get index from handle.
+  TNode<Uint32T> index =
+      Word32Shr(handle, UniqueUint32Constant(kCppHeapPointerIndexShift));
+  TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
+      ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
+
+  // 4. Load the entry.
+  TNode<IntPtrT> entry = Load<IntPtrT>(table, table_offset);
+
+  // 5. Check the tag.
+  // actual_tag = (entry & kCppHeapPointerTagMask)
+  TNode<IntPtrT> actual_tag =
+      WordAnd(entry, IntPtrConstant(kCppHeapPointerTagMask));
+  // expected_tag_shifted = tag << kCppHeapPointerTagShift
+  TNode<IntPtrT> expected_tag_shifted =
+      IntPtrConstant(static_cast<intptr_t>(tag) << kCppHeapPointerTagShift);
+  CSA_SBXCHECK(this, WordEqual(actual_tag, expected_tag_shifted));
+
+  // 6. Extract the pointer.
+  // pointer = entry >> kCppHeapPointerPayloadShift
+  return ReinterpretCast<RawPtrT>(
+      WordShr(entry, IntPtrConstant(kCppHeapPointerPayloadShift)));
+#else
+  return LoadObjectField<RawPtrT>(object, offset);
+#endif  // V8_COMPRESS_POINTERS
+}
+
 void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
     TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
     Label* if_empty, Label* if_default,

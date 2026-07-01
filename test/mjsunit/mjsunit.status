@@ -368,6 +368,11 @@
 }],
 
 ################################################################################
+['not cppgc_microtask_queue', {
+  'sandbox/regress/regress-508092629': [SKIP],
+}],
+
+################################################################################
 ['not lower_limits_mode', {
   # Skip tests that's supposed to run only in lower_limits_mode.
   'lower_limits_mode/*': [SKIP],

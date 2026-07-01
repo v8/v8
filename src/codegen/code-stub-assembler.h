@@ -1005,6 +1005,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     TNode<RawPtrT> pointer,
                                     ExternalPointerTag tag);
 
+  //
+  // CppHeapPointerT-related functionality.
+  //
+
+  // Load a CppHeap pointer value from an object.
+  TNode<RawPtrT> LoadCppHeapPointerFromObject(TNode<HeapObject> object,
+                                              int offset,
+                                              CppHeapPointerTag tag) {
+    return LoadCppHeapPointerFromObject(object, IntPtrConstant(offset), tag);
+  }
+
+  TNode<RawPtrT> LoadCppHeapPointerFromObject(TNode<HeapObject> object,
+                                              TNode<IntPtrT> offset,
+                                              CppHeapPointerTag tag);
+
   // Load a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.

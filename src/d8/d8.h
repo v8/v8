@@ -19,6 +19,7 @@
 #include "include/v8-data.h"
 #include "include/v8-external.h"
 #include "include/v8-isolate.h"
+#include "include/v8-microtask-queue.h"
 #include "include/v8-script.h"
 #include "include/v8-value-serializer.h"
 #include "src/base/once.h"
@@ -307,6 +308,26 @@ class Worker : public std::enable_shared_from_this<Worker> {
   Global<Context> context_;
 };
 
+struct Realm {
+  Global<Context> context;
+#ifndef V8_CPPGC_MICROTASK_QUEUE
+  std::unique_ptr<v8::MicrotaskQueue> microtask_queue;
+#endif
+
+  Realm() = default;
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+  Realm(Isolate* isolate, const Global<Context>& ctx) : context(isolate, ctx) {}
+  Realm(Isolate* isolate, Local<Context> ctx) : context(isolate, ctx) {}
+#else
+  Realm(Isolate* isolate, const Global<Context>& ctx,
+        std::unique_ptr<v8::MicrotaskQueue> mq = nullptr)
+      : context(isolate, ctx), microtask_queue(std::move(mq)) {}
+  Realm(Isolate* isolate, Local<Context> ctx,
+        std::unique_ptr<v8::MicrotaskQueue> mq = nullptr)
+      : context(isolate, ctx), microtask_queue(std::move(mq)) {}
+#endif
+};
+
 class PerIsolateData {
  public:
   explicit PerIsolateData(Isolate* isolate);
@@ -374,10 +395,9 @@ class PerIsolateData {
   friend class Shell;
   friend class RealmScope;
   Isolate* isolate_;
-  int realm_count_;
   int realm_current_;
   int realm_switch_;
-  Global<Context>* realms_;
+  std::vector<Realm> realms_;
   Global<Value> realm_shared_;
   bool ignore_unhandled_promises_;
   std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
@@ -938,7 +958,8 @@ class Shell : public i::AllStatic {
 
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& info, int index,
-      v8::MaybeLocal<Value> global_object);
+      v8::MaybeLocal<Value> global_object,
+      bool create_own_microtask_queue = false);
   static void DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
                            int index);
 

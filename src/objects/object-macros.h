@@ -643,6 +643,17 @@
   EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, offset, \
                                                   tag)
 
+// Host objects in ReadOnlySpace can't define the isolate-less accessor.
+#define DECL_CPP_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type) \
+  inline type name(i::IsolateForPointerCompression isolate) const;  \
+  inline void init_##name(i::IsolateForPointerCompression isolate,  \
+                          type initial_value);                      \
+  inline void set_##name(i::IsolateForPointerCompression isolate, type value);
+
+#define DECL_CPP_POINTER_ACCESSORS(name, type) \
+  inline type name() const;                    \
+  DECL_CPP_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type)
+
 #define DECL_TRUSTED_POINTER_GETTERS(name, type)                             \
   /* Trusted pointers currently always have release-acquire semantics. */    \
   /* However, we still expose explicit release-acquire accessors so it */    \

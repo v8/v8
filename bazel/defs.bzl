@@ -590,6 +590,7 @@ def build_config_content(cpu, icu):
         ("local_off_stack_check", "false"),
         ("lower_limits_mode", "false"),
         ("memory_corruption_api", "false"),
+        ("cppgc_microtask_queue", "false"),
         ("mips_arch_variant", '""'),
         ("mips_use_msa", "false"),
         ("msan", "false"),

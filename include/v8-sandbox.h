@@ -60,6 +60,7 @@ enum class CppHeapPointerTag : uint16_t {
   kTagForTesting,
   kInspectorV8ConsoleTag,
   kInspectorTaskInfoTag,
+  kMicrotaskQueueTag,
   kWasmMemoryMapDescriptorTag,
   kLastV8InternalTag,
 
