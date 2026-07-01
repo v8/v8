@@ -134,3 +134,13 @@
   assertEquals(2, return_called);
   assertOptimized(f);
 })();
+
+(function TestIteratorNotExhausted() {
+  const map = new Map([[1, 'a'], [2, 'b'], [3, 'c']]);
+  const iter = map.values();
+  const [first] = iter;
+  assertEquals('a', first);
+  assertEquals({ value: 'b', done: false }, iter.next());
+  assertEquals({ value: 'c', done: false }, iter.next());
+  assertEquals({ value: undefined, done: true }, iter.next());
+})();

@@ -631,36 +631,21 @@ TNode<FixedArray> IteratorBuiltinsAssembler::ArrayDestructure(
   TNode<JSAny> iterable = CAST(receiver);
   TNode<IntPtrT> count = PositiveSmiUntag(count_smi);
   TVARIABLE(FixedArray, var_result, EmptyFixedArrayConstant());
-  Label done(this), slow_path(this), copy_fast(this), fast_array(this),
-      fast_iterable_to_list(this);
-  TVARIABLE(JSArray, var_fast_result);
+  Label done(this), slow_path(this), fast_array(this);
 
   // Fast path conditions:
   // 1. Not forced to slow path (e.g. via flags or stress modes).
   // 2. Debug is not active (to allow debugger stepping hook checks).
-  // 3. The iterable is either a fast JSArray with unmodified iteration
-  // protocols
-  //    (IsFastJSArrayWithNoCustomIteration /
-  //    IsFastJSArrayForReadWithNoCustomIteration), or a fast iterable
-  //    convertible to list via FastIterableToList.
+  // 3. The iterable is a fast JSArray with unmodified iteration
+  //    protocols (IsFastJSArrayWithNoCustomIteration /
+  //    IsFastJSArrayForReadWithNoCustomIteration).
   GotoIfForceSlowPath(&slow_path);
   GotoIf(IsDebugActive(), &slow_path);
   Branch(Word32Or(IsFastJSArrayWithNoCustomIteration(context, iterable),
                   IsFastJSArrayForReadWithNoCustomIteration(context, iterable)),
-         &fast_array, &fast_iterable_to_list);
+         &fast_array, &slow_path);
 
   BIND(&fast_array);
-  var_fast_result = CAST(iterable);
-  Goto(&copy_fast);
-
-  BIND(&fast_iterable_to_list);
-  // TODO(leszeks): This iterates the whole fast iterable, which is not
-  // incorrect (not observable) but inefficient if we only need the first N
-  // entries.
-  FastIterableToList(context, iterable, &var_fast_result, &slow_path);
-  Goto(&copy_fast);
-
-  BIND(&copy_fast);
   {
     GotoIf(WordEqual(count, IntPtrConstant(0)), &done);
     TNode<FixedArray> allocated_result =
@@ -669,7 +654,7 @@ TNode<FixedArray> IteratorBuiltinsAssembler::ArrayDestructure(
                             IntPtrConstant(0), count,
                             RootIndex::kUndefinedValue);
     var_result = allocated_result;
-    TNode<JSArray> list = var_fast_result.value();
+    TNode<JSArray> list = CAST(iterable);
     TNode<FixedArrayBase> elements = LoadElements(list);
     TNode<IntPtrT> length = PositiveSmiUntag(CAST(LoadJSArrayLength(list)));
     TNode<IntPtrT> copy_len = IntPtrMin(count, length);
