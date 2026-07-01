@@ -808,7 +808,8 @@ bool Linkage::ParameterHasSecondaryLocation(int index) const {
            IsTaggedReg(loc, kContextRegister);
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (incoming_->IsAnyWasmFunctionCall()) {
+  if (incoming_->IsAnyWasmFunctionCall() || incoming_->IsWasmImportWrapper() ||
+      incoming_->IsWasmCapiFunction()) {
     LinkageLocation loc = GetParameterLocation(index);
     return IsTaggedReg(loc, kWasmImplicitArgRegister);
   }
@@ -838,7 +839,8 @@ LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
 #if V8_ENABLE_WEBASSEMBLY
   static const int kWasmInstanceDataSlot =
       3 + StandardFrameConstants::kCPSlotCount;
-  if (incoming_->IsAnyWasmFunctionCall()) {
+  if (incoming_->IsAnyWasmFunctionCall() || incoming_->IsWasmImportWrapper() ||
+      incoming_->IsWasmCapiFunction()) {
     DCHECK(IsTaggedReg(loc, kWasmImplicitArgRegister));
     return LinkageLocation::ForCalleeFrameSlot(kWasmInstanceDataSlot,
                                                MachineType::AnyTagged());
