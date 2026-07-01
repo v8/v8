@@ -327,8 +327,12 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
         return shared_native_module;
       }
     }
-    // TODO(11858): This deadlocks in predictable mode, because there is only a
-    // single thread.
+    // If we are in single-threaded or predictable mode, we cannot wait for
+    // other jobs to finish, since the current thread is the only one that
+    // could make progress. We return nullptr instead, which will cause the
+    // current job to compile the module again. The redundant result will be
+    // de-duplicated in {UpdateNativeModuleCache}.
+    if (v8_flags.predictable || v8_flags.single_threaded) return nullptr;
     cache_cv_.Wait(&mutex_);
   }
 }
