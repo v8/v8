@@ -921,28 +921,40 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(OpIndex node) {
   V(I16x8)                \
   V(I8x16)
 
-#define SIMD_UNOP_LIST2(V)             \
-  V(F32x4Splat, kRiscvVfmvVf, E32)     \
-  V(I8x16Neg, kRiscvVnegVv, E8)        \
-  V(I16x8Neg, kRiscvVnegVv, E16)       \
-  V(I32x4Neg, kRiscvVnegVv, E32)       \
-  V(I64x2Neg, kRiscvVnegVv, E64)       \
-  V(I8x16Splat, kRiscvVmv, E8)         \
-  V(I16x8Splat, kRiscvVmv, E16)        \
-  V(I32x4Splat, kRiscvVmv, E32)        \
-  V(I64x2Splat, kRiscvVmv, E64)        \
-  V(F32x4Neg, kRiscvVfnegVv, E32)      \
-  V(F64x2Neg, kRiscvVfnegVv, E64)      \
-  V(F16x8Neg, kRiscvVfnegVv, E16)      \
-  V(F64x2Splat, kRiscvVfmvVf, E64)     \
-  V(I32x4AllTrue, kRiscvVAllTrue, E32) \
-  V(I16x8AllTrue, kRiscvVAllTrue, E16) \
-  V(I8x16AllTrue, kRiscvVAllTrue, E8)  \
-  V(I64x2AllTrue, kRiscvVAllTrue, E64) \
-  V(I64x2Abs, kRiscvVAbs, E64)         \
-  V(I32x4Abs, kRiscvVAbs, E32)         \
-  V(I16x8Abs, kRiscvVAbs, E16)         \
-  V(I8x16Abs, kRiscvVAbs, E8)
+#define SIMD_UNOP_LIST2(V)                    \
+  V(F32x4Splat, kRiscvVfmvVf, E32)            \
+  V(I8x16Neg, kRiscvVnegVv, E8)               \
+  V(I16x8Neg, kRiscvVnegVv, E16)              \
+  V(I32x4Neg, kRiscvVnegVv, E32)              \
+  V(I64x2Neg, kRiscvVnegVv, E64)              \
+  V(I8x16Splat, kRiscvVmv, E8)                \
+  V(I16x8Splat, kRiscvVmv, E16)               \
+  V(I32x4Splat, kRiscvVmv, E32)               \
+  V(I64x2Splat, kRiscvVmv, E64)               \
+  V(F32x4Neg, kRiscvVfnegVv, E32)             \
+  V(F64x2Neg, kRiscvVfnegVv, E64)             \
+  V(F16x8Neg, kRiscvVfnegVv, E16)             \
+  V(F64x2Splat, kRiscvVfmvVf, E64)            \
+  V(I32x4AllTrue, kRiscvVAllTrue, E32)        \
+  V(I16x8AllTrue, kRiscvVAllTrue, E16)        \
+  V(I8x16AllTrue, kRiscvVAllTrue, E8)         \
+  V(I64x2AllTrue, kRiscvVAllTrue, E64)        \
+  V(I64x2Abs, kRiscvVAbs, E64)                \
+  V(I32x4Abs, kRiscvVAbs, E32)                \
+  V(I16x8Abs, kRiscvVAbs, E16)                \
+  V(I8x16Abs, kRiscvVAbs, E8)                 \
+  V(F64x2Ceil, kRiscvVFCeil, E64)             \
+  V(F32x4Ceil, kRiscvVFCeil, E32)             \
+  V(F16x8Ceil, kRiscvVFCeil, E16)             \
+  V(F64x2Floor, kRiscvVFFloor, E64)           \
+  V(F32x4Floor, kRiscvVFFloor, E32)           \
+  V(F16x8Floor, kRiscvVFFloor, E16)           \
+  V(F64x2Trunc, kRiscvVFTrunc, E64)           \
+  V(F32x4Trunc, kRiscvVFTrunc, E32)           \
+  V(F16x8Trunc, kRiscvVFTrunc, E16)           \
+  V(F64x2NearestInt, kRiscvVFNearestInt, E64) \
+  V(F32x4NearestInt, kRiscvVFNearestInt, E32) \
+  V(F16x8NearestInt, kRiscvVFNearestInt, E16)
 
 #define SIMD_UNOP_LIST(V)                                       \
   V(F64x2Abs, kRiscvF64x2Abs)                                   \
@@ -950,19 +962,11 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(OpIndex node) {
   V(F64x2ConvertLowI32x4S, kRiscvF64x2ConvertLowI32x4S)         \
   V(F64x2ConvertLowI32x4U, kRiscvF64x2ConvertLowI32x4U)         \
   V(F64x2PromoteLowF32x4, kRiscvF64x2PromoteLowF32x4)           \
-  V(F64x2Ceil, kRiscvF64x2Ceil)                                 \
-  V(F64x2Floor, kRiscvF64x2Floor)                               \
-  V(F64x2Trunc, kRiscvF64x2Trunc)                               \
-  V(F64x2NearestInt, kRiscvF64x2NearestInt)                     \
   V(F32x4SConvertI32x4, kRiscvF32x4SConvertI32x4)               \
   V(F32x4UConvertI32x4, kRiscvF32x4UConvertI32x4)               \
   V(F32x4Abs, kRiscvF32x4Abs)                                   \
   V(F32x4Sqrt, kRiscvF32x4Sqrt)                                 \
   V(F32x4DemoteF64x2Zero, kRiscvF32x4DemoteF64x2Zero)           \
-  V(F32x4Ceil, kRiscvF32x4Ceil)                                 \
-  V(F32x4Floor, kRiscvF32x4Floor)                               \
-  V(F32x4Trunc, kRiscvF32x4Trunc)                               \
-  V(F32x4NearestInt, kRiscvF32x4NearestInt)                     \
   V(I32x4RelaxedTruncF32x4S, kRiscvI32x4SConvertF32x4)          \
   V(I32x4RelaxedTruncF32x4U, kRiscvI32x4UConvertF32x4)          \
   V(I32x4RelaxedTruncF64x2SZero, kRiscvI32x4TruncSatF64x2SZero) \
@@ -1088,7 +1092,7 @@ void InstructionSelector::VisitF16x8Min(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionCode opcode = kRiscvFMin | EncodeElementWidth(E16);
+  InstructionCode opcode = kRiscvVFMin | EncodeElementWidth(E16);
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
        g.UseRegister(op.input(1)));
 }
@@ -1096,7 +1100,7 @@ void InstructionSelector::VisitF16x8Max(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionCode opcode = kRiscvFMax | EncodeElementWidth(E16);
+  InstructionCode opcode = kRiscvVFMax | EncodeElementWidth(E16);
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
        g.UseRegister(op.input(1)));
 }
@@ -1135,10 +1139,6 @@ void InstructionSelector::VisitF16x8Le(OpIndex node) {
 
 // Still unimplemented F16x8 ops (no Liftoff support).
 #define UNIMPLEMENTED_SIMD_FP16_OP_LIST(V) \
-  V(F16x8Floor)                            \
-  V(F16x8Ceil)                             \
-  V(F16x8Trunc)                            \
-  V(F16x8NearestInt)                       \
   V(F16x8SConvertI16x8)                    \
   V(F16x8UConvertI16x8)                    \
   V(I16x8SConvertF16x8)                    \
@@ -1288,7 +1288,7 @@ void InstructionSelector::VisitF32x4Min(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionCode opcode = kRiscvFMin | EncodeElementWidth(E32);
+  InstructionCode opcode = kRiscvVFMin | EncodeElementWidth(E32);
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
        g.UseRegister(op.input(1)));
 }
@@ -1297,7 +1297,7 @@ void InstructionSelector::VisitF32x4Max(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionCode opcode = kRiscvFMax | EncodeElementWidth(E32);
+  InstructionCode opcode = kRiscvVFMax | EncodeElementWidth(E32);
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
        g.UseRegister(op.input(1)));
 }
@@ -1306,7 +1306,7 @@ void InstructionSelector::VisitF64x2Min(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionCode opcode = kRiscvFMin | EncodeElementWidth(E64);
+  InstructionCode opcode = kRiscvVFMin | EncodeElementWidth(E64);
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
        g.UseRegister(op.input(1)));
 }
@@ -1315,7 +1315,7 @@ void InstructionSelector::VisitF64x2Max(OpIndex node) {
   RiscvOperandGenerator g(this);
   const Operation& op = this->Get(node);
   DCHECK_EQ(op.input_count, 2);
-  InstructionCode opcode = kRiscvFMax | EncodeElementWidth(E64);
+  InstructionCode opcode = kRiscvVFMax | EncodeElementWidth(E64);
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
        g.UseRegister(op.input(1)));
 }

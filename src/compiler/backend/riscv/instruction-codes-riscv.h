@@ -248,8 +248,8 @@ namespace compiler {
   V(RiscvVFNe)                            \
   V(RiscvVFLt)                            \
   V(RiscvVFLe)                            \
-  V(RiscvFMin)                            \
-  V(RiscvFMax)                            \
+  V(RiscvVFMin)                           \
+  V(RiscvVFMax)                           \
   V(RiscvF64x2Sqrt)                       \
   V(RiscvF64x2ConvertLowI32x4S)           \
   V(RiscvF64x2ConvertLowI32x4U)           \
@@ -258,10 +258,10 @@ namespace compiler {
   V(RiscvF64x2ReplaceLane)                \
   V(RiscvF64x2Pmin)                       \
   V(RiscvF64x2Pmax)                       \
-  V(RiscvF64x2Ceil)                       \
-  V(RiscvF64x2Floor)                      \
-  V(RiscvF64x2Trunc)                      \
-  V(RiscvF64x2NearestInt)                 \
+  V(RiscvVFCeil)                          \
+  V(RiscvVFFloor)                         \
+  V(RiscvVFTrunc)                         \
+  V(RiscvVFNearestInt)                    \
   V(RiscvI64x2SplatI32Pair)               \
   V(RiscvI64x2ExtractLane)                \
   V(RiscvI64x2ReplaceLane)                \
@@ -285,10 +285,6 @@ namespace compiler {
   V(RiscvF32x4Pmin)                       \
   V(RiscvF32x4Pmax)                       \
   V(RiscvF32x4DemoteF64x2Zero)            \
-  V(RiscvF32x4Ceil)                       \
-  V(RiscvF32x4Floor)                      \
-  V(RiscvF32x4Trunc)                      \
-  V(RiscvF32x4NearestInt)                 \
   V(RiscvI32x4SConvertI16x8Low)           \
   V(RiscvI32x4UConvertI16x8Low)           \
   V(RiscvI16x8SConvertI8x16High)          \

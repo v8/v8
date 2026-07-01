@@ -3417,8 +3417,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&done);
       break;
     }
-    case kRiscvF64x2NearestInt: {
-      __ VU.SetSimd128(E64);
+    case kRiscvVFNearestInt: {
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.SetSimd128(sew);
       __ Round(i.OutputSimd128Register(), i.InputSimd128Register(0),
                kScratchReg, kSimd128ScratchReg);
       break;
@@ -3463,8 +3464,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmerge_vi(i.OutputSimd128Register(), -1, kSimd128ScratchReg);
       break;
     }
-    case kRiscvF64x2Trunc: {
-      __ VU.SetSimd128(E64);
+    case kRiscvVFTrunc: {
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.SetSimd128(sew);
       __ Trunc(i.OutputSimd128Register(), i.InputSimd128Register(0),
                kScratchReg, kSimd128ScratchReg);
       break;
@@ -3479,14 +3481,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vfabs_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kRiscvF64x2Ceil: {
-      __ VU.SetSimd128(E64);
+    case kRiscvVFCeil: {
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.SetSimd128(sew);
       __ Ceil(i.OutputSimd128Register(), i.InputSimd128Register(0), kScratchReg,
               kSimd128ScratchReg);
       break;
     }
-    case kRiscvF64x2Floor: {
-      __ VU.SetSimd128(E64);
+    case kRiscvVFFloor: {
+      auto sew = DecodeElementWidth(opcode);
+      __ VU.SetSimd128(sew);
       __ Floor(i.OutputSimd128Register(), i.InputSimd128Register(0),
                kScratchReg, kSimd128ScratchReg);
       break;
@@ -3499,7 +3503,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                     i.InputSimd128Register(0));
       break;
     }
-    case kRiscvFMin: {
+    case kRiscvVFMin: {
       auto sew = DecodeElementWidth(opcode);
       __ VU.SetSimd128(sew);
       // Detect NaNs. Simply compare the vector to itself. Only non-NaNs will
@@ -3541,7 +3545,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_vv(i.OutputSimd128Register(), result);
       break;
     }
-    case kRiscvFMax: {
+    case kRiscvVFMax: {
       auto sew = DecodeElementWidth(opcode);
       __ VU.SetSimd128(sew);
       // Detect NaNs. Simply compare the vector to itself. Only non-NaNs will
@@ -3664,18 +3668,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vfmv_fs(i.OutputDoubleRegister(), kSimd128ScratchReg);
       break;
     }
-    case kRiscvF32x4Trunc: {
-      __ VU.SetSimd128(E32);
-      __ Trunc(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               kScratchReg, kSimd128ScratchReg);
-      break;
-    }
-    case kRiscvF32x4NearestInt: {
-      __ VU.SetSimd128(E32);
-      __ Round(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               kScratchReg, kSimd128ScratchReg);
-      break;
-    }
     case kRiscvF32x4DemoteF64x2Zero: {
       __ VU.SetSimd128Half(E32);
       __ vfncvt_f_f_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
@@ -3693,18 +3685,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvF16x8Abs: {
       __ VU.SetSimd128(E16);
       __ vfabs_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kRiscvF32x4Ceil: {
-      __ VU.SetSimd128(E32);
-      __ Ceil(i.OutputSimd128Register(), i.InputSimd128Register(0), kScratchReg,
-              kSimd128ScratchReg);
-      break;
-    }
-    case kRiscvF32x4Floor: {
-      __ VU.SetSimd128(E32);
-      __ Floor(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               kScratchReg, kSimd128ScratchReg);
       break;
     }
     case kRiscvF32x4UConvertI32x4: {
