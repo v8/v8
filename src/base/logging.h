@@ -163,19 +163,6 @@ enum class OOMType {
   DCHECK_WITH_MSG_AND_LOC(condition, #condition, loc)
 #define DCHECK(condition) DCHECK_WITH_MSG(condition, #condition)
 
-// Helper macro for binary operators.
-// Don't use this macro directly in your code, use CHECK_EQ et al below.
-#define CHECK_OP(name, op, lhs, rhs)                                      \
-  do {                                                                    \
-    if (std::string* _msg = ::v8::base::Check##name##Impl<                \
-            typename ::v8::base::pass_value_or_ref<decltype(lhs)>::type,  \
-            typename ::v8::base::pass_value_or_ref<decltype(rhs)>::type>( \
-            (lhs), (rhs), #lhs " " #op " " #rhs)) {                       \
-      FATAL("Check failed: %s.", _msg->c_str());                          \
-      delete _msg;                                                        \
-    }                                                                     \
-  } while (false)
-
 #define DCHECK_OP(name, op, lhs, rhs)                                     \
   do {                                                                    \
     if (std::string* _msg = ::v8::base::Check##name##Impl<                \
@@ -189,9 +176,27 @@ enum class OOMType {
 
 #else
 
-// Make all CHECK functions discard their log strings to reduce code
-// bloat for official release builds.
+// DCHECKs are compiled out in non-debug builds.
+#define DCHECK_WITH_MSG(condition, msg) void(0);
 
+#endif
+
+// Helper macro for binary operators.
+// Don't use this macro directly in your code, use CHECK_EQ et al below.
+#if V8_LOGGING_LEVEL > 1
+// Include the actual values of lhs and rhs for logging level > 1.
+#define CHECK_OP(name, op, lhs, rhs)                                      \
+  do {                                                                    \
+    if (std::string* _msg = ::v8::base::Check##name##Impl<                \
+            typename ::v8::base::pass_value_or_ref<decltype(lhs)>::type,  \
+            typename ::v8::base::pass_value_or_ref<decltype(rhs)>::type>( \
+            (lhs), (rhs), #lhs " " #op " " #rhs)) {                       \
+      FATAL("Check failed: %s.", _msg->c_str());                          \
+      delete _msg;                                                        \
+    }                                                                     \
+  } while (false)
+#else
+// Otherwise only include static information.
 #define CHECK_OP(name, op, lhs, rhs)                                         \
   do {                                                                       \
     bool _cmp = ::v8::base::Cmp##name##Impl<                                 \
@@ -200,9 +205,6 @@ enum class OOMType {
                                                                      (rhs)); \
     CHECK_WITH_MSG(_cmp, #lhs " " #op " " #rhs);                             \
   } while (false)
-
-#define DCHECK_WITH_MSG(condition, msg) void(0);
-
 #endif
 
 namespace detail {
