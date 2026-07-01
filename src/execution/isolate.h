@@ -2405,7 +2405,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns true when this isolate supports allocation in shared spaces.
   bool has_shared_space() const { return shared_space_isolate_.value(); }
 
-  GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
+  GlobalSafepoint* global_safepoint() const {
+    return isolate_group()->global_safepoint();
+  }
 
 #if V8_ENABLE_DRUMBRAKE
   void initialize_wasm_execution_timer();
@@ -2988,9 +2990,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   TrustedPointerTable::Space* shared_trusted_pointer_space_ = nullptr;
 #endif  // V8_ENABLE_SANDBOX
 
-  // Used to track and safepoint all client isolates attached to this shared
-  // isolate.
-  std::unique_ptr<GlobalSafepoint> global_safepoint_;
   // Client isolates list managed by GlobalSafepoint.
   Isolate* global_safepoint_prev_client_isolate_ = nullptr;
   Isolate* global_safepoint_next_client_isolate_ = nullptr;

@@ -17,6 +17,7 @@
 #include "src/heap/memory-pool.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
+#include "src/heap/safepoint.h"
 #include "src/init/v8.h"
 #include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
@@ -364,6 +365,9 @@ void IsolateGroup::AddIsolate(Isolate* isolate) {
   optimizing_compile_task_executor_->EnsureStarted();
 
   if (v8_flags.shared_heap) {
+    if (!global_safepoint_) {
+      global_safepoint_ = std::make_unique<GlobalSafepoint>(this);
+    }
     if (has_shared_space_isolate()) {
       isolate->owns_shareable_data_ = false;
     } else {

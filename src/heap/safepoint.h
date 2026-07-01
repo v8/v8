@@ -20,6 +20,7 @@ namespace v8 {
 namespace internal {
 
 class Heap;
+class IsolateGroup;
 class IsolateSafepointScope;
 class LocalHeap;
 class PerClientSafepointData;
@@ -184,10 +185,12 @@ class V8_NODISCARD IsolateSafepointScope {
 // of the shared isolate.
 class GlobalSafepoint final {
  public:
-  explicit GlobalSafepoint(Isolate* isolate);
+  explicit GlobalSafepoint(IsolateGroup* group);
 
   void AppendClient(Isolate* client);
   void RemoveClient(Isolate* client);
+
+  V8_EXPORT_PRIVATE Isolate* shared_space_isolate() const;
 
   template <typename Callback>
   void IterateClientIsolates(Callback callback) {
@@ -202,7 +205,9 @@ class GlobalSafepoint final {
 
   template <typename Callback>
   void IterateSharedSpaceAndClientIsolates(Callback callback) {
-    callback(shared_space_isolate_);
+    Isolate* shared_isolate = shared_space_isolate();
+    DCHECK_NOT_NULL(shared_isolate);
+    callback(shared_isolate);
     IterateClientIsolates(callback);
   }
 
@@ -216,7 +221,7 @@ class GlobalSafepoint final {
   void EnterGlobalSafepointScope(Isolate* initiator);
   void LeaveGlobalSafepointScope(Isolate* initiator);
 
-  Isolate* const shared_space_isolate_;
+  IsolateGroup* const group_;
   // RecursiveMutex is needed since we need to support nested
   // GlobalSafepointScopes.
   base::RecursiveMutex clients_mutex_;
@@ -234,7 +239,6 @@ class V8_NODISCARD GlobalSafepointScope {
 
  private:
   Isolate* const initiator_;
-  Isolate* const shared_space_isolate_;
 };
 
 enum class SafepointKind { kIsolate, kGlobal };

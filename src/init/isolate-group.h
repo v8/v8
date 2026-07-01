@@ -124,6 +124,7 @@ class PABackedSandboxedArrayBufferAllocator
 #endif  // V8_ENABLE_SANDBOX
 
 class CodeRange;
+class GlobalSafepoint;
 class Isolate;
 class OptimizingCompileTaskExecutor;
 class ReadOnlyHeap;
@@ -272,6 +273,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     shared_space_isolate_ = isolate;
   }
 
+  GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
+
   OptimizingCompileTaskExecutor* optimizing_compile_task_executor();
 
   ReadOnlyHeap* shared_read_only_heap() const { return shared_read_only_heap_; }
@@ -406,6 +409,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   std::unique_ptr<ReadOnlyArtifacts> read_only_artifacts_;
   ReadOnlyHeap* shared_read_only_heap_ = nullptr;
   Isolate* shared_space_isolate_ = nullptr;
+  // Used to track and safepoint all isolates in this isolate group.
+  std::unique_ptr<GlobalSafepoint> global_safepoint_;
   std::unique_ptr<OptimizingCompileTaskExecutor>
       optimizing_compile_task_executor_;
 

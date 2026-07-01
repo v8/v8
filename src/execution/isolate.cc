@@ -5026,11 +5026,11 @@ void Isolate::Deinit() {
     global_safepoint()->AssertNoClientsOnTearDown();
   }
 
-  if (has_shared_space() && !is_shared_space_isolate()) {
+  if (GlobalSafepoint* safepoint = global_safepoint();
+      safepoint && this != safepoint->shared_space_isolate()) {
     IgnoreLocalGCRequests ignore_gc_requests(heap());
-    main_thread_local_heap()->ExecuteMainThreadWhileParked([this]() {
-      shared_space_isolate()->global_safepoint()->clients_mutex_.Lock();
-    });
+    main_thread_local_heap()->ExecuteMainThreadWhileParked(
+        [safepoint]() { safepoint->clients_mutex_.Lock(); });
   }
 
 #ifdef DEBUG
@@ -5134,12 +5134,11 @@ void Isolate::Deinit() {
   heap_.TearDownWithSharedHeap();
   DumpAndResetBuiltinsProfileData();
 
-  // Detach from the shared heap isolate and then unlock the mutex.
-  if (has_shared_space() && !is_shared_space_isolate()) {
-    GlobalSafepoint* global_safepoint =
-        this->shared_space_isolate()->global_safepoint();
-    global_safepoint->RemoveClient(this);
-    global_safepoint->clients_mutex_.Unlock();
+  // Detach from the isolate group and then unlock the mutex.
+  if (GlobalSafepoint* safepoint = global_safepoint();
+      safepoint && this != safepoint->shared_space_isolate()) {
+    safepoint->RemoveClient(this);
+    safepoint->clients_mutex_.Unlock();
   }
 
   shared_space_isolate_.reset();
@@ -6164,10 +6163,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   interpreter_ = new interpreter::Interpreter(this);
   bigint_processor_ = bigint::Processor::New(new BigIntPlatform(this));
 
-  if (is_shared_space_isolate()) {
-    global_safepoint_ = std::make_unique<GlobalSafepoint>(this);
-  }
-
   if (v8_flags.lazy_compile_dispatcher) {
     lazy_compile_dispatcher_ = std::make_unique<LazyCompileDispatcher>(
         this, V8::GetCurrentPlatform(), v8_flags.stack_size);
@@ -6215,10 +6210,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // during deserialization.
   std::optional<base::RecursiveMutexGuard> clients_guard;
 
-  if (use_shared_space_isolate && !is_shared_space_isolate()) {
-    clients_guard.emplace(
-        &use_shared_space_isolate->global_safepoint()->clients_mutex_);
-    use_shared_space_isolate->global_safepoint()->AppendClient(this);
+  if (GlobalSafepoint* safepoint = global_safepoint();
+      safepoint && this != safepoint->shared_space_isolate()) {
+    clients_guard.emplace(&safepoint->clients_mutex_);
+    safepoint->AppendClient(this);
   }
 
   shared_space_isolate_ = use_shared_space_isolate;
