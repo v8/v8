@@ -8002,7 +8002,7 @@ uint32_t WasmBytecodeGenerator::ScanConstInstructions() {
   const FunctionSig* sig = wasm_code_->function->sig;
   WasmDecoder<Decoder::NoValidationTag> decoder(
       &zone, module_, WasmEnabledFeatures::All(), &detected, sig,
-      SharedFlag::kNo,  // is_shared
+      SharedFlag{false},  // is_shared
       wasm_code_->start, wasm_code_->end);
 
   const uint8_t* pc = wasm_code_->start + wasm_code_->locals.encoded_size;

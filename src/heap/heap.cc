@@ -28,6 +28,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
+#include "src/base/strong-alias.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
@@ -185,7 +186,7 @@ class Heap::AllocationTrackerForDebugging final
       allocations_count_.fetch_add(1, std::memory_order_relaxed);
       if (allocations_count_ % v8_flags.trace_allocation_stack_interval == 0) {
         heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise,
-                                     AllowAllocation::kNo);
+                                     AllowAllocation{false});
       }
     }
   }
@@ -1338,14 +1339,14 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   }
 
   const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
-                                            ? PerformHeapLimitCheck::kNo
-                                            : PerformHeapLimitCheck::kYes;
+                                            ? PerformHeapLimitCheck{false}
+                                            : PerformHeapLimitCheck{true};
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
     current_gc_flags_ = gc_flags;
     CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
                    perform_heap_limit_check,
-                   PerformIneffectiveMarkCompactCheck::kNo);
+                   PerformIneffectiveMarkCompactCheck{false});
     DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
 
     // As long as we are at or above the heap limit, we need another GC to
@@ -1641,13 +1642,12 @@ void Heap::CollectGarbage(
     }
   }
 
-  if (perform_heap_limit_check == PerformHeapLimitCheck::kYes) {
+  if (perform_heap_limit_check) {
     CheckHeapLimitReached();
   }
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
-    if (check_ineffective_mark_compact ==
-        PerformIneffectiveMarkCompactCheck::kYes) {
+    if (check_ineffective_mark_compact) {
       CheckIneffectiveMarkCompact(
           OldGenerationConsumedBytes(), GlobalConsumedBytes(),
           tracer()->AverageMarkCompactMutatorUtilization());
@@ -2146,7 +2146,7 @@ void Heap::PerformRequestedGC(LocalHeap* local_heap) {
   if (*requested_gc == RequestedGCKind::kMajor) {
     CollectAllGarbage(current_gc_flags_,
                       GarbageCollectionReason::kBackgroundAllocationFailure,
-                      kNoGCCallbackFlags, PerformHeapLimitCheck::kYes);
+                      kNoGCCallbackFlags, PerformHeapLimitCheck{true});
   } else {
     CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
   }
@@ -2982,7 +2982,7 @@ void CreateFillerObjectAtImpl(const WritableFreeSpace& free_space, Heap* heap,
   } else if (size == 2 * kTaggedSize) {
     HeapObject::SetFillerMap(free_space,
                              roots.unchecked_two_pointer_filler_map());
-    if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
+    if (clear_memory_mode) {
       free_space.ClearTagged<kTaggedSize>((size / kTaggedSize) - 1);
     }
     // Ensure the filler map is properly initialized.
@@ -2991,7 +2991,7 @@ void CreateFillerObjectAtImpl(const WritableFreeSpace& free_space, Heap* heap,
     DCHECK_GT(size, 2 * kTaggedSize);
     HeapObject::SetFillerMap(free_space, roots.unchecked_free_space_map());
     FreeSpace::SetSize(free_space, size, kRelaxedStore);
-    if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
+    if (clear_memory_mode) {
       free_space.ClearTagged<2 * kTaggedSize>((size / kTaggedSize) - 2);
     }
 
@@ -3022,9 +3022,9 @@ void Heap::CreateFillerObjectAtBackground(const WritableFreeSpace& free_space) {
   // TODO(leszeks): Verify that no slots need to be recorded.
   // Do not verify whether slots are cleared here: the concurrent thread is not
   // allowed to access the main thread's remembered set.
-  CreateFillerObjectAtRaw(free_space,
-                          ClearFreedMemoryMode::kDontClearFreedMemory,
-                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
+  CreateFillerObjectAtRaw(free_space, ClearFreedMemoryMode{false},
+                          ClearRecordedSlots{false},
+                          VerifyNoSlotsRecorded{false});
 }
 
 void Heap::CreateFillerObjectAt(Address addr, int size,
@@ -3041,14 +3041,15 @@ void Heap::CreateFillerObjectAt(Address addr, int size,
     WritableFreeSpace free_space =
         WritableFreeSpace::ForNonExecutableMemory(addr, size);
     CreateFillerObjectAtRaw(free_space, clear_memory_mode,
-                            ClearRecordedSlots::kNo,
-                            VerifyNoSlotsRecorded::kYes);
+                            ClearRecordedSlots{false},
+                            VerifyNoSlotsRecorded{true});
     return;
   }
   WritableJitPage jit_page(addr, size);
   WritableFreeSpace free_space = jit_page.FreeRange(addr, size);
   CreateFillerObjectAtRaw(free_space, clear_memory_mode,
-                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kYes);
+                          ClearRecordedSlots{false},
+                          VerifyNoSlotsRecorded{true});
 }
 
 void Heap::CreateFillerObjectAtRaw(
@@ -3062,9 +3063,9 @@ void Heap::CreateFillerObjectAtRaw(
   if (size == 0) return;
   CreateFillerObjectAtImpl(free_space, this, clear_memory_mode);
   Address addr = free_space.Address();
-  if (clear_slots_mode == ClearRecordedSlots::kYes) {
+  if (clear_slots_mode) {
     ClearRecordedSlotRange(addr, addr + size);
-  } else if (verify_no_slots_recorded == VerifyNoSlotsRecorded::kYes) {
+  } else if (verify_no_slots_recorded) {
     VerifyNoNeedToClearSlots(addr, addr + size);
   }
 }
@@ -3223,21 +3224,21 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   Address new_start = old_start + bytes_to_trim;
 
   auto clear_recorded_slots = MayContainRecordedSlots(object)
-                                  ? ClearRecordedSlots::kYes
-                                  : ClearRecordedSlots::kNo;
+                                  ? ClearRecordedSlots{true}
+                                  : ClearRecordedSlots{false};
 
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
   CreateFillerObjectAtRaw(
       WritableFreeSpace::ForNonExecutableMemory(old_start, bytes_to_trim),
-      ClearFreedMemoryMode::kClearFreedMemory, clear_recorded_slots,
-      VerifyNoSlotsRecorded::kYes);
+      ClearFreedMemoryMode{true}, clear_recorded_slots,
+      VerifyNoSlotsRecorded{true});
 
   // The length field of FixedArray is a uint32, therefore we need to ensure
   // that its new location is not in any of the remembered sets.
   Address new_header_end = new_start + 2 * kTaggedSize;
-  if (clear_recorded_slots == ClearRecordedSlots::kYes) {
+  if (clear_recorded_slots) {
 #if DEBUG
     // Left trimming cannot happen during incremental marking
     MutablePage* page = MutablePage::FromHeapObject(isolate(), object);
@@ -3335,7 +3336,7 @@ void Heap::RightTrimArray(Tagged<Array> object, uint32_t new_capacity_raw,
   if (!HeapLayout::InAnyLargeSpace(object)) {
     NotifyObjectSizeChange(
         object, old_size, old_size - bytes_to_trim,
-        clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+        clear_slots ? ClearRecordedSlots{true} : ClearRecordedSlots{false});
     if (!v8_flags.black_allocated_pages) {
       Tagged<HeapObject> filler = HeapObject::FromAddress(new_end);
       // Clear the mark bits of the black area that belongs now to the filler.
@@ -3867,7 +3868,7 @@ void Heap::NotifyObjectLayoutChange(
     InvalidateRecordedSlots invalidate_recorded_slots,
     InvalidateExternalPointerSlots invalidate_external_pointer_slots,
     int new_size) {
-  if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes) {
+  if (invalidate_recorded_slots) {
     const bool may_contain_recorded_slots = MayContainRecordedSlots(object);
     MutablePage* const page = MutablePage::FromHeapObject(isolate(), object);
     // Do not remove the recorded slot in the map word as this one can never be
@@ -3909,9 +3910,9 @@ void Heap::NotifyObjectLayoutChange(
   // records addresses of fields that index into the external pointer table. As
   // such, it needs to be informed when such a field is invalidated.
   if (invalidate_external_pointer_slots ==
-      InvalidateExternalPointerSlots::kYes) {
+      InvalidateExternalPointerSlots{true}) {
     // Currently, the only time this function receives
-    // InvalidateExternalPointerSlots::kYes is when an external string
+    // InvalidateExternalPointerSlots{true} is when an external string
     // transitions to a thin string.  If this ever changed to happen for array
     // buffer extension slots, we would have to run the invalidator in
     // pointer-compression-but-no-sandbox configurations as well.
@@ -3961,14 +3962,13 @@ void Heap::NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
   const LocalHeap* current = LocalHeap::TryGetCurrent();
   DCHECK_IMPLIES(!current, gc_state() == MARK_COMPACT);
   const bool is_non_main_thread = current && !current->is_main_thread();
-  DCHECK_IMPLIES(is_non_main_thread,
-                 clear_recorded_slots == ClearRecordedSlots::kNo);
+  DCHECK_IMPLIES(is_non_main_thread, !clear_recorded_slots);
 
   const auto verify_no_slots_recorded = !is_non_main_thread
-                                            ? VerifyNoSlotsRecorded::kYes
-                                            : VerifyNoSlotsRecorded::kNo;
+                                            ? VerifyNoSlotsRecorded{true}
+                                            : VerifyNoSlotsRecorded{false};
 
-  const auto clear_memory_mode = ClearFreedMemoryMode::kDontClearFreedMemory;
+  const auto clear_memory_mode = ClearFreedMemoryMode{false};
 
   const Address filler = object.address() + new_size;
   const int filler_size = old_size - new_size;

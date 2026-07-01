@@ -10,6 +10,7 @@
 #include "include/v8-internal.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
@@ -2298,8 +2299,7 @@ void InstructionSelector::VisitCall(
   }
 
   // Pass label of exception handler block.
-  bool lazy_deopt_on_throw =
-      call_op.descriptor->lazy_deopt_on_throw == LazyDeoptOnThrow::kYes;
+  bool lazy_deopt_on_throw = call_op.descriptor->lazy_deopt_on_throw.value();
   if (exception_handler) {
     flags |= CallDescriptor::kHasExceptionHandler;
     buffer.instruction_args.push_back(g.Label(exception_handler));

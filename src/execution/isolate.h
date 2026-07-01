@@ -26,6 +26,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform-posix.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr.h"
@@ -965,9 +966,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                   should_include_frame_callback = nullptr);
   void PrintStack(StringStream* accumulator,
                   PrintStackMode mode = kPrintStackVerbose,
-                  AllowAllocation allow_allocation = AllowAllocation::kYes);
+                  AllowAllocation allow_allocation = AllowAllocation{true});
   void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose,
-                  AllowAllocation allow_allocation = AllowAllocation::kYes);
+                  AllowAllocation allow_allocation = AllowAllocation{true});
 
   // Prints minimal stack trace without allocating on the V8 heap (native
   // allocations are allowed). Used for printing the JS stack on OOM errors.

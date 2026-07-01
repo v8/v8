@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-iterator-gen.h"
@@ -269,7 +270,7 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
           a_ = processor(this, value.value(), index);
         }
       },
-      incr, LoopUnrollingMode::kNo, advance_mode);
+      incr, kNoLoopUnrolling, advance_mode);
 }
 
 TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
@@ -2111,7 +2112,7 @@ class SlowBoilerplateCloneAssembler : public CodeStubAssembler {
     VariableList loop_vars({&current_allocation_site}, zone());
     BuildFastLoop<IntPtrT>(loop_vars, IntPtrConstant(0),
                            Signed(ChangeUint32ToWord(length)), loop_body, 1,
-                           LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+                           kLoopUnrolling, IndexAdvanceMode::kPost);
     Goto(done);
   }
 };
@@ -2314,7 +2315,7 @@ TF_BUILTIN(CreateObjectFromSlowBoilerplateHelper,
     VariableList loop_vars({&current_allocation_site}, zone());
     BuildFastLoop<IntPtrT>(loop_vars, IntPtrConstant(JSObject::kHeaderSize),
                            instance_size, loop_body, kTaggedSize,
-                           LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+                           kLoopUnrolling, IndexAdvanceMode::kPost);
   }
 
   // Elements:

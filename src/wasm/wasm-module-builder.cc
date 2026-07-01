@@ -484,7 +484,7 @@ ModuleTypeIndex WasmModuleBuilder::ForceAddSignature(
     const FunctionSig* sig, bool is_final, ModuleTypeIndex supertype) {
   ModuleTypeIndex index{static_cast<uint32_t>(types_.size())};
   signature_map_.emplace(*sig, index);
-  types_.emplace_back(sig, supertype, is_final, SharedFlag::kNo);
+  types_.emplace_back(sig, supertype, is_final, SharedFlag{false});
   return index;
 }
 
@@ -508,14 +508,14 @@ ModuleTypeIndex WasmModuleBuilder::AddStructType(StructType* type,
                                                  bool is_final,
                                                  ModuleTypeIndex supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.emplace_back(type, supertype, is_final, SharedFlag::kNo);
+  types_.emplace_back(type, supertype, is_final, SharedFlag{false});
   return ModuleTypeIndex{index};
 }
 
 ModuleTypeIndex WasmModuleBuilder::AddArrayType(ArrayType* type, bool is_final,
                                                 ModuleTypeIndex supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.emplace_back(type, supertype, is_final, SharedFlag::kNo);
+  types_.emplace_back(type, supertype, is_final, SharedFlag{false});
   return ModuleTypeIndex{index};
 }
 
@@ -706,7 +706,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
         buffer->write_u8(kWasmSubtypeCode);
         buffer->write_u8(0);
       }
-      if (type.is_shared == SharedFlag::kYes) {
+      if (type.is_shared) {
         buffer->write_u8(kSharedFlagCode);
       }
       if (type.is_descriptor()) {

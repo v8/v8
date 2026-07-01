@@ -344,7 +344,7 @@ void StringBuiltinsAssembler::StringEqual_FastLoop(
           // advanced along loop's {var_index}.
           Increment(&rhs_ptr, kChunk);
         },
-        kChunk, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+        kChunk, kLoopUnrolling, IndexAdvanceMode::kPost);
   } else {
     BuildFastLoop<RawPtrT>(
         vars, lhs_data, lhs_end,
@@ -357,7 +357,7 @@ void StringBuiltinsAssembler::StringEqual_FastLoop(
           // advanced along loop's {var_index}.
           Increment(&rhs_ptr, kChunk);
         },
-        kChunk, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+        kChunk, kLoopUnrolling, IndexAdvanceMode::kPost);
   }
   Goto(if_equal);
 }
@@ -395,7 +395,7 @@ void StringBuiltinsAssembler::StringEqual_Loop(
         // advanced along loop's {var_index}.
         Increment(&rhs_ptr, ElementSizeInBytes(rhs_type.representation()));
       },
-      ElementSizeInBytes(lhs_type.representation()), LoopUnrollingMode::kNo,
+      ElementSizeInBytes(lhs_type.representation()), kNoLoopUnrolling,
       IndexAdvanceMode::kPost);
 
   // All characters are checked and no difference was found, so the strings
@@ -1579,7 +1579,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
           // be safe to skip the write barriers.
           StoreFixedArrayElement(elements, index, entry);
         },
-        1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+        1, kNoLoopUnrolling, IndexAdvanceMode::kPost);
 
     TNode<Map> array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, context);
     result_array = AllocateJSArray(array_map, elements, length_smi);
@@ -1945,7 +1945,7 @@ void StringBuiltinsAssembler::CopyStringCharacters(
           Increment(&current_to_offset, to_increment);
         }
       },
-      from_increment, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+      from_increment, kLoopUnrolling, IndexAdvanceMode::kPost);
 }
 // LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
@@ -2038,8 +2038,8 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
       var_bits = Word32Or(var_bits.value(), c);
     };
     BuildFastLoop<IntPtrT>(vars, var_cursor, var_cursor.value(), end_offset,
-                           one_char_loop, sizeof(uint16_t),
-                           LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+                           one_char_loop, sizeof(uint16_t), kNoLoopUnrolling,
+                           IndexAdvanceMode::kPost);
     GotoIf(Uint32GreaterThan(var_bits.value(), Uint32Constant(0xFF)), &twobyte);
     // Fallthrough: only one-byte characters in the to-be-copied range.
     {

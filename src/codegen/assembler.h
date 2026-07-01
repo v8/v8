@@ -46,6 +46,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/memory.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/code-comments.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/external-reference.h"
@@ -187,7 +188,8 @@ class HeapNumberRequest {
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 
-enum class CodeObjectRequired { kNo, kYes };
+using CodeObjectRequired =
+    base::StrongAlias<struct CodeObjectRequiredTag, bool>;
 
 enum class BuiltinCallJumpMode {
   // The builtin entry point address is embedded into the instruction stream as

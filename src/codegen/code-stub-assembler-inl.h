@@ -10,6 +10,7 @@
 
 #include <functional>
 
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/common/globals.h"
@@ -127,7 +128,7 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
     TNode<PropertyArray> property_array = AllocatePropertyArray(length);
     FillPropertyArrayWithUndefined(property_array, IntPtrConstant(0), length);
     CopyPropertyArrayValues(source_property_array, property_array, length,
-                            SKIP_WRITE_BARRIER, DestroySource::kNo);
+                            SKIP_WRITE_BARRIER, DestroySource{false});
     var_properties = property_array;
   }
 
@@ -209,7 +210,7 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
             StoreObjectFieldNoWriteBarrier(target, result_offset, field);
           }
         },
-        kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+        kTaggedSize, kLoopUnrolling, IndexAdvanceMode::kPost);
   };
 
   if (!target_is_new) {

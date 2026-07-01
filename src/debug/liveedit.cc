@@ -10,6 +10,7 @@
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/source-position-table.h"
@@ -544,7 +545,7 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
   } else {
     success =
         parsing::ParseProgram(parse_info, script, outer_scope_info, isolate,
-                              parsing::ReportStatisticsMode::kYes);
+                              parsing::ReportStatisticsMode{true});
     if (!success) {
       // Throw the parser error.
       parse_info->pending_error_handler()->PrepareErrors(

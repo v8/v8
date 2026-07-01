@@ -103,7 +103,7 @@ class FastApiCallLoweringReducer : public Next {
               __ graph_zone(), builder.Get(),
               frame_state.valid() ? CallDescriptor::kNeedsFrameState
                                   : CallDescriptor::kNoFlags),
-          CanThrow::kYes, LazyDeoptOnThrow::kNo, __ graph_zone());
+          CanThrow{true}, LazyDeoptOnThrow{false}, __ graph_zone());
       OpIndex c_call_result = WrapFastCall(call_descriptor, callee, frame_state,
                                            context, base::VectorOf(args));
 
@@ -124,7 +124,7 @@ class FastApiCallLoweringReducer : public Next {
       BIND(trigger_exception);
       if (frame_state.valid()) {
         __ template CallRuntime<typename runtime::PropagateException>(
-            frame_state, context, {}, LazyDeoptOnThrow::kNo);
+            frame_state, context, {}, LazyDeoptOnThrow{false});
       } else {
 #if V8_ENABLE_WEBASSEMBLY
         using Desc = deprecated::BuiltinCallDescriptor::WasmPropagateException;
@@ -446,8 +446,8 @@ class FastApiCallLoweringReducer : public Next {
     OpIndex handle = __ Call(
         allocate_and_initialize_young_external_pointer_table_entry,
         {isolate_ptr, pointer},
-        TSCallDescriptor::Create(call_descriptor, CanThrow::kNo,
-                                 LazyDeoptOnThrow::kNo, __ graph_zone()));
+        TSCallDescriptor::Create(call_descriptor, CanThrow{false},
+                                 LazyDeoptOnThrow{false}, __ graph_zone()));
     __ InitializeField(
         external, AccessBuilder::ForJSExternalObjectPointerHandle(), handle);
 #else

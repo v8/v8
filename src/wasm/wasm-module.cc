@@ -376,7 +376,7 @@ DirectHandle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
     JSObject::AddProperty(isolate, object, maximum_string, max, NONE);
   }
   JSObject::AddProperty(isolate, object, shared_string,
-                        factory->ToBoolean(shared == SharedFlag::kYes), NONE);
+                        factory->ToBoolean(shared.value()), NONE);
 
   JSObject::AddProperty(
       isolate, object, address_string,
@@ -616,7 +616,7 @@ DirectHandle<JSArray> GetCustomSections(
     size_t size = section.payload.length();
     MaybeDirectHandle<JSArrayBuffer> result =
         isolate->factory()->NewJSArrayBufferAndBackingStore(
-            size, InitializedFlag::kUninitialized);
+            size, InitializedFlag{false});
     DirectHandle<JSArrayBuffer> array_buffer;
     if (!result.ToHandle(&array_buffer)) {
       thrower->RangeError("out of memory allocating custom section data");

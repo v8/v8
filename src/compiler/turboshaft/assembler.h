@@ -1437,7 +1437,7 @@ class ReducerBase : public Next {
     V<Any> raw_call =
         Next::ReduceCall(callee, frame_state, arguments, descriptor, effects);
     bool has_catch_block = false;
-    if (descriptor->can_throw == CanThrow::kYes ||
+    if (descriptor->can_throw ||
         !Asm().effect_handlers_for_next_call().empty()) {
       // TODO(nicohartmann@): Unfortunately, we have many descriptors where
       // effects are not set consistently with {can_throw}. We should fix those
@@ -3680,7 +3680,7 @@ class AssemblerOpInterface : public Next {
   detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
       Isolate* isolate, FrameStateForCall frame_state, V<Context> context,
       const typename Descriptor::arguments_t& args,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo)
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false})
     requires(Descriptor::kNeedsFrameState && Descriptor::kNeedsContext)
   {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
@@ -3736,7 +3736,7 @@ class AssemblerOpInterface : public Next {
   detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
       Isolate* isolate, FrameStateForCall frame_state,
       const typename Descriptor::arguments_t& args,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo)
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false})
     requires(Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext)
   {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
@@ -3914,7 +3914,7 @@ class AssemblerOpInterface : public Next {
     requires(!Desc::kNeedsContext && Desc::kCanTriggerLazyDeopt)
   detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
       OptionalV<LazyFrameState> frame_state, const Desc::Arguments& args,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false}) {
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3938,7 +3938,7 @@ class AssemblerOpInterface : public Next {
   detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
       OptionalV<LazyFrameState> frame_state, V<Context> context,
       const Desc::Arguments& args,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false}) {
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -4059,7 +4059,7 @@ class AssemblerOpInterface : public Next {
   typename Desc::returns_t CallRuntime(V<Context> context,
                                        const Desc::Arguments& args) {
     return CallRuntimeImpl<Desc>(OptionalV<LazyFrameState>::Nullopt(), context,
-                                 args, LazyDeoptOnThrow::kNo);
+                                 args, LazyDeoptOnThrow{false});
   }
 
   V<Any> CallBuiltinImpl(Isolate* isolate, Builtin builtin,
@@ -4086,7 +4086,7 @@ class AssemblerOpInterface : public Next {
 
     return Call<Object>(
         stub_code, frame_state, arguments,
-        TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
+        TSCallDescriptor::Create(call_descriptor, CanThrow{true},
                                  lazy_deopt_on_throw, graph_zone));
   }
 
@@ -4189,8 +4189,8 @@ class AssemblerOpInterface : public Next {
             __ graph_zone(), f, fun->nargs, Operator::kNoProperties,
             CallDescriptor::kNoFlags);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kYes,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        call_descriptor, compiler::CanThrow{true},
+        compiler::LazyDeoptOnThrow{false}, __ graph_zone());
     return __ Call(centry_stub, OpIndex::Invalid(), base::VectorOf(centry_args),
                    ts_call_descriptor);
   }
@@ -4581,7 +4581,7 @@ class AssemblerOpInterface : public Next {
     DCHECK_EQ(call_descriptor->NeedsFrameState(), frame_state.valid());
 
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, can_throw, LazyDeoptOnThrow::kNo, graph_zone);
+        call_descriptor, can_throw, LazyDeoptOnThrow{false}, graph_zone);
 
     OpIndex callee = Asm().HeapConstant(callable.code());
 
@@ -4850,7 +4850,7 @@ class AssemblerOpInterface : public Next {
                              V<Context> context,
                              StringToCaseIntlOp::Kind kind) {
     return ReduceIfReachableStringToCaseIntl(string, frame_state, context, kind,
-                                             LazyDeoptOnThrow::kNo);
+                                             LazyDeoptOnThrow{false});
   }
   V<String> StringToLowerCaseIntl(V<String> string,
                                   V<LazyFrameState> frame_state,

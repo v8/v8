@@ -9,6 +9,7 @@
 
 #include "src/base/export-template.h"
 #include "src/base/strings.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/code-kind.h"
@@ -144,7 +145,7 @@ class FactoryBase {
 
   // Allocates a protected fixed array in trusted space, initialized with zeros.
   Handle<ProtectedFixedArray> NewProtectedFixedArray(
-      uint32_t length, SharedFlag shared = SharedFlag::kNo);
+      uint32_t length, SharedFlag shared = SharedFlag{false});
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.

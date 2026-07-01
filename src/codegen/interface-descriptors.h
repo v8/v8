@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/base/logging.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/register.h"
 #include "src/codegen/tnode.h"
@@ -3250,15 +3251,15 @@ DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Float32, MachineType::Float32)
 DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Float64, MachineType::Float64)
 #undef DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR
 
-#define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, DoesNeedContext, ...)            \
-  class Name##Descriptor                                                     \
-      : public StaticCallInterfaceDescriptor<Name##Descriptor> {             \
-   public:                                                                   \
-    INTERNAL_DESCRIPTOR()                                                    \
-    SANDBOXING_MODE(kSandboxed)                                              \
-    DEFINE_PARAMETERS(__VA_ARGS__)                                           \
-    static constexpr bool kNoContext = DoesNeedContext == NeedsContext::kNo; \
-    DECLARE_DEFAULT_DESCRIPTOR(Name##Descriptor)                             \
+#define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, DoesNeedContext, ...) \
+  class Name##Descriptor                                          \
+      : public StaticCallInterfaceDescriptor<Name##Descriptor> {  \
+   public:                                                        \
+    INTERNAL_DESCRIPTOR()                                         \
+    SANDBOXING_MODE(kSandboxed)                                   \
+    DEFINE_PARAMETERS(__VA_ARGS__)                                \
+    static constexpr bool kNoContext = !DoesNeedContext;          \
+    DECLARE_DEFAULT_DESCRIPTOR(Name##Descriptor)                  \
   };
 BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DEFINE_TFS_BUILTIN_DESCRIPTOR

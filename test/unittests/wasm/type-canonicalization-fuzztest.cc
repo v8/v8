@@ -71,7 +71,7 @@ struct RefType {
 
   void Print(std::ostream& os) const {
     if (nullable) os << "null ";
-    if (shared == SharedFlag::kYes) os << "shared ";
+    if (shared) os << "shared ";
     if (index_in_recgroup.has_value()) {
       os << "recref " << index_in_recgroup.value();
     } else {
@@ -174,10 +174,10 @@ struct StructType {
       mutabilities[i] = field_types[i].mutability;
     }
     bool is_descriptor = false;  // TODO(403372470): Add support.
-    // TODO(42204563): Add support for SharedFlag::kYes.
+    // TODO(42204563): Add support for SharedFlag{true}.
     builder->AddStructType(
         zone->New<wasm::StructType>(field_count, kNoOffsets, reps, mutabilities,
-                                    is_descriptor, SharedFlag::kNo),
+                                    is_descriptor, SharedFlag{false}),
         kNotFinal, kNoSupertype);
   }
 
@@ -379,7 +379,7 @@ static fuzztest::Domain<test::Module> ArbitraryModule() {
       // TODO(clemensb): Support shared types; the bit currently gets lost in
       // the module builder.
       /* shared */
-      fuzztest::Just(SharedFlag::kNo),  // fuzztest::Arbitrary<bool>(),
+      fuzztest::Just(SharedFlag{false}),  // fuzztest::Arbitrary<bool>(),
       /* nullability */
       fuzztest::ElementOf({Nullability::kNullable, Nullability::kNonNullable}));
 

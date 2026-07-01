@@ -17,6 +17,7 @@
 #include "src/base/flags.h"
 #include "src/base/hashmap.h"
 #include "src/base/pointer-with-payload.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
@@ -2205,7 +2206,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       IdentifierT name = ParseAndClassifyIdentifier(token);
       ClassifyParameter(name, beg_pos, end_position());
       ExpressionT result =
-          impl()->ExpressionFromIdentifier(name, beg_pos, InferName::kNo);
+          impl()->ExpressionFromIdentifier(name, beg_pos, InferName{false});
       parsing_scope.SetInitializers(0, peek_position());
       next_arrow_function_info_.scope = parsing_scope.ValidateAndCreateScope();
       next_arrow_function_info_.function_literal_id =

@@ -12,6 +12,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/string-format.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
@@ -2185,9 +2186,7 @@ std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind) {
 #if V8_ENABLE_WEBASSEMBLY
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
-  os << '[' << array_type->element_type()
-     << ", is_shared: " << (is_shared == SharedFlag::kYes ? "true" : "false")
-     << "]";
+  os << '[' << array_type->element_type() << ", " << is_shared << ']';
 }
 
 void WasmAllocateStructOp::PrintOptions(std::ostream& os) const {

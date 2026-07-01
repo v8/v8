@@ -7,7 +7,7 @@
 // Flags: --allow-natives-syntax
 
 // When a JS-to-Wasm wrapper call is inside a try/catch, Maglev emits
-// LazyDeoptOnThrow::kYes on the call. The conversion builtins (e.g.,
+// LazyDeoptOnThrow{true} on the call. The conversion builtins (e.g.,
 // BigIntToI64) can throw for wrong types, but previously the inlined wrapper
 // didn't attach a frame state to these builtin calls. This meant the
 // deoptimizer couldn't find deoptimization info when walking the stack after

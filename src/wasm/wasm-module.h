@@ -14,6 +14,7 @@
 #include <optional>
 
 #include "src/base/platform/mutex.h"
+#include "src/base/strong-alias.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
@@ -102,7 +103,7 @@ struct WasmGlobal {
     // `tagged_globals_buffer` or `untagged_globals_buffer`.
     uint32_t index_in_buffer;
   };
-  SharedFlag shared = SharedFlag::kNo;
+  SharedFlag shared = SharedFlag{false};
   bool imported = false;
   bool exported = false;
   bool initializer_ends_with_struct_new = false;
@@ -146,7 +147,7 @@ struct WasmMemory {
   // Maximum declared size of the memory in 64k pages. The actual memory size at
   // runtime is capped at {kV8MaxWasmMemory32Pages} / {kV8MaxWasmMemory64Pages}.
   uint64_t maximum_pages = 0;
-  SharedFlag is_shared = SharedFlag::kNo;
+  SharedFlag is_shared = SharedFlag{false};
   bool has_maximum_pages = false;
   AddressType address_type = AddressType::kI32;
   bool imported = false;
@@ -168,8 +169,7 @@ struct WasmMemory {
     // Memories that can't grow have no reason to move.
     // Trap handler enabled memories never move.
     // Shared memories can only be grown in-place.
-    return can_grow() && bounds_checks != kTrapHandler &&
-           is_shared == SharedFlag::kNo;
+    return can_grow() && bounds_checks != kTrapHandler && !is_shared;
   }
 };
 
@@ -194,11 +194,11 @@ struct WasmDataSegment {
         source(source) {}
 
   static WasmDataSegment PassiveForTesting() {
-    return WasmDataSegment{false, SharedFlag::kNo, 0, {}, {}};
+    return WasmDataSegment{false, SharedFlag{false}, 0, {}, {}};
   }
 
   bool active = true;     // true if copied automatically during instantiation.
-  SharedFlag shared = SharedFlag::kNo;
+  SharedFlag shared = SharedFlag{false};
   uint32_t memory_index;  // memory index (if active).
   ConstantExpression dest_addr;  // destination memory address (if active).
   WireBytesRef source;           // start offset in the module bytes.
@@ -244,7 +244,7 @@ struct WasmElemSegment {
   // Default constructor. Constucts an invalid segment.
   WasmElemSegment()
       : status(kStatusActive),
-        shared(SharedFlag::kNo),
+        shared(SharedFlag{false}),
         type(kWasmBottom),
         table_index(0),
         element_type(kFunctionIndexElements),
@@ -467,7 +467,7 @@ struct TypeDefinition {
   ModuleTypeIndex describes{kNoType};
   Kind kind = kFunction;
   bool is_final = false;
-  SharedFlag is_shared = SharedFlag::kNo;
+  SharedFlag is_shared = SharedFlag{false};
   uint8_t subtyping_depth = 0;
 };
 
@@ -653,7 +653,7 @@ struct WasmTable {
   uint64_t maximum_size = 0;
   bool has_maximum_size = false;
   AddressType address_type = AddressType::kI32;
-  SharedFlag shared = SharedFlag::kNo;
+  SharedFlag shared = SharedFlag{false};
   bool imported = false;
   bool exported = false;
   ConstantExpression initial_value = {};

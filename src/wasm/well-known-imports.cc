@@ -195,10 +195,10 @@ WellKnownImportsList::UpdateResult WellKnownImportsList::Update(
         statuses_[j].store(WellKnownImport::kGeneric,
                            std::memory_order_relaxed);
       }
-      return UpdateResult::kFoundIncompatibility;
+      return kFoundIncompatibility;
     }
   }
-  return UpdateResult::kOK;
+  return kOK;
 }
 
 void WellKnownImportsList::Initialize(

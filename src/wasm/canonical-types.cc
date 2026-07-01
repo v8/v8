@@ -156,7 +156,7 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
       ValueType::Primitive(NumericKind::kI32).raw_bit_field());
   CanonicalType canonical{reinterpret_cast<const CanonicalSig*>(sig),
                           CanonicalTypeIndex{kNoSuperType}, kFinal,
-                          SharedFlag::kNo};
+                          SharedFlag{false}};
   base::MutexGuard guard(&mutex_);
   if (V8_UNLIKELY(canonical_supertypes_.size() == kMaxCanonicalTypes)) {
     auto oom_detail = base::FormattedString{}
@@ -245,12 +245,12 @@ void TypeCanonicalizer::AddPredefinedTypes() {
   static constexpr std::tuple<CanonicalTypeIndex, CanonicalValueType,
                               SharedFlag>
       kPredefinedArrayTypes[] = {
-          {kPredefinedArrayI8Index, {kWasmI8}, SharedFlag::kNo},
-          {kPredefinedArrayI8SharedIndex, {kWasmI8}, SharedFlag::kYes},
-          {kPredefinedArrayI16Index, {kWasmI16}, SharedFlag::kNo},
-          {kPredefinedArrayI16SharedIndex, {kWasmI16}, SharedFlag::kYes},
-          {kPredefinedArrayExternRefIndex, {kWasmExternRef}, SharedFlag::kNo},
-          {kPredefinedArrayFuncRefIndex, {kWasmFuncRef}, SharedFlag::kNo}};
+          {kPredefinedArrayI8Index, {kWasmI8}, SharedFlag{false}},
+          {kPredefinedArrayI8SharedIndex, {kWasmI8}, SharedFlag{true}},
+          {kPredefinedArrayI16Index, {kWasmI16}, SharedFlag{false}},
+          {kPredefinedArrayI16SharedIndex, {kWasmI16}, SharedFlag{true}},
+          {kPredefinedArrayExternRefIndex, {kWasmExternRef}, SharedFlag{false}},
+          {kPredefinedArrayFuncRefIndex, {kWasmFuncRef}, SharedFlag{false}}};
   canonical_types_.reserve(kNumberOfPredefinedTypes, &zone_);
   for (auto [index, element_type, sharedness] : kPredefinedArrayTypes) {
     DCHECK_GT(kNumberOfPredefinedTypes, index.index);
@@ -269,21 +269,21 @@ void TypeCanonicalizer::AddPredefinedTypes() {
   static constexpr CanonicalValueType kSharedExternRef = kWasmSharedExternRef;
   static constexpr CanonicalValueType kI32 = kWasmI32;
   static constexpr CanonicalValueType kA8 = CanonicalValueType::RefNull(
-      kPredefinedArrayI8Index, SharedFlag::kNo, RefTypeKind::kArray);
+      kPredefinedArrayI8Index, SharedFlag{false}, RefTypeKind::kArray);
   static constexpr CanonicalValueType kAS8 = CanonicalValueType::RefNull(
-      kPredefinedArrayI8SharedIndex, SharedFlag::kYes, RefTypeKind::kArray);
+      kPredefinedArrayI8SharedIndex, SharedFlag{true}, RefTypeKind::kArray);
   static constexpr CanonicalValueType kA16 = CanonicalValueType::RefNull(
-      kPredefinedArrayI16Index, SharedFlag::kNo, RefTypeKind::kArray);
+      kPredefinedArrayI16Index, SharedFlag{false}, RefTypeKind::kArray);
   static constexpr CanonicalValueType kAS16 = CanonicalValueType::RefNull(
-      kPredefinedArrayI16SharedIndex, SharedFlag::kYes, RefTypeKind::kArray);
+      kPredefinedArrayI16SharedIndex, SharedFlag{true}, RefTypeKind::kArray);
   static constexpr CanonicalValueType kN8 = CanonicalValueType::Ref(
-      kPredefinedArrayI8Index, SharedFlag::kNo, RefTypeKind::kArray);
+      kPredefinedArrayI8Index, SharedFlag{false}, RefTypeKind::kArray);
   static constexpr CanonicalValueType kNS8 = CanonicalValueType::Ref(
-      kPredefinedArrayI8SharedIndex, SharedFlag::kYes, RefTypeKind::kArray);
+      kPredefinedArrayI8SharedIndex, SharedFlag{true}, RefTypeKind::kArray);
   static constexpr CanonicalValueType kAE = CanonicalValueType::RefNull(
-      kPredefinedArrayExternRefIndex, SharedFlag::kNo, RefTypeKind::kArray);
+      kPredefinedArrayExternRefIndex, SharedFlag{false}, RefTypeKind::kArray);
   static constexpr CanonicalValueType kAF = CanonicalValueType::RefNull(
-      kPredefinedArrayFuncRefIndex, SharedFlag::kNo, RefTypeKind::kArray);
+      kPredefinedArrayFuncRefIndex, SharedFlag{false}, RefTypeKind::kArray);
 
   static constexpr CanonicalValueType kReps_e_i[] = {kRefExtern, kI32};
   static constexpr CanonicalValueType kReps_t_i[] = {kSharedRefExtern, kI32};
@@ -358,7 +358,7 @@ void TypeCanonicalizer::AddPredefinedTypes() {
     CanonicalSig* type =
         zone_.New<CanonicalSig>(return_count, parameter_count, reps, index);
     AddPredefinedSingletonGroup(
-        index, CanonicalType(type, kNoSuper, kFinal, SharedFlag::kNo));
+        index, CanonicalType(type, kNoSuper, kFinal, SharedFlag{false}));
   }
 }
 

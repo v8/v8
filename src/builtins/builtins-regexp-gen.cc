@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
@@ -557,7 +558,7 @@ RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
                               smi_value);
           Increment(&var_to_offset, kTaggedSize);
         },
-        kInt32Size, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+        kInt32Size, kLoopUnrolling, IndexAdvanceMode::kPost);
   }
 
   return var_match_info.value();
@@ -2087,8 +2088,8 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::RegExpExecInternal_Batched(
             var_start_of_last_match = start;
             var_last_index = end;
           },
-          inner_loop_increment, LoopUnrollingMode::kYes,
-          IndexAdvanceMode::kPost, IndexAdvanceDirection::kUp);
+          inner_loop_increment, kLoopUnrolling, IndexAdvanceMode::kPost,
+          IndexAdvanceDirection::kUp);
     }
 
     GotoIf(

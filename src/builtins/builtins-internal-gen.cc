@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "src/api/api.h"
+#include "src/base/strong-alias.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
@@ -1125,7 +1126,7 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
                       BranchIfSameValue(key, property, &skip, &continue_label);
                       Bind(&continue_label);
                     },
-                    1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+                    1, kNoLoopUnrolling, IndexAdvanceMode::kPost);
               }
 
               CallBuiltin(Builtin::kCreateDataProperty, context, target, key,

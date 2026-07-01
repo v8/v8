@@ -1,9 +1,9 @@
 In file included from tools/gcmole/gcmole-test.cc:5:
-In file included from ./src/execution/isolate.h:36:
+In file included from ./src/execution/isolate.h:37:
 In file included from ./src/execution/isolate-data.h:14:
 In file included from ./src/execution/thread-local-top.h:14:
 In file included from ./src/objects/contexts.h:10:
-In file included from ./src/execution/frames.h:22:
+In file included from ./src/execution/frames.h:23:
 In file included from ./src/wasm/stacks.h:17:
 ./src/objects/visitors.h:<number>:<number>: warning: Possibly stale variable due to GCs.
       |     VisitPointer(host, value);

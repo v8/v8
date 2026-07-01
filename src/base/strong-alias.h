@@ -152,6 +152,21 @@ std::ostream& operator<<(std::ostream& stream,
   return stream << alias.value();
 }
 
+template <typename T>
+struct is_strong_alias : std::false_type {};
+
+template <typename TagType, typename UnderlyingType>
+struct is_strong_alias<StrongAlias<TagType, UnderlyingType>> : std::true_type {
+};
+
+template <typename T>
+static constexpr bool is_strong_alias_v = is_strong_alias<T>::value;
+
+template <typename TagType, typename UnderlyingType>
+V8_INLINE size_t hash_value(const StrongAlias<TagType, UnderlyingType>& v) {
+  return std::hash<UnderlyingType>()(v.value());
+}
+
 }  // namespace v8::base
 
 template <typename TagType, typename UnderlyingType>

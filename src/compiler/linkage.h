@@ -9,6 +9,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/machine-type.h"
@@ -416,7 +417,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int parameter_count,
       Operator::Properties properties, CallDescriptor::Flags flags,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo);
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false});
 
   // |js_parameter_count| must include BuiltinArguments::kNumExtraArgs and
   // receiver.

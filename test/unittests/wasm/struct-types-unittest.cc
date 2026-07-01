@@ -13,23 +13,23 @@ namespace struct_types_unittest {
 class StructTypesTest : public TestWithZone {};
 
 TEST_F(StructTypesTest, Empty) {
-  StructType::Builder<Zone> builder(this->zone(), 0, false, SharedFlag::kNo);
+  StructType::Builder<Zone> builder(this->zone(), 0, false, SharedFlag{false});
   StructType* type = builder.Build();
   EXPECT_EQ(0u, type->total_fields_size());
 
   StructType::Builder<Zone> shared_builder(this->zone(), 0, false,
-                                           SharedFlag::kYes);
+                                           SharedFlag{true});
   StructType* shared_type = builder.Build();
   EXPECT_EQ(0u, shared_type->total_fields_size());
 
   StructType::Builder<Zone> desc_builder(this->zone(), 0, true,
-                                         SharedFlag::kNo);
+                                         SharedFlag{false});
   StructType* desc_type = desc_builder.Build();
   EXPECT_EQ(uint32_t{kTaggedSize}, desc_type->total_fields_size());
 }
 
 TEST_F(StructTypesTest, OneField) {
-  StructType::Builder<Zone> builder(this->zone(), 1, false, SharedFlag::kNo);
+  StructType::Builder<Zone> builder(this->zone(), 1, false, SharedFlag{false});
   builder.AddField(kWasmI32, true);
   StructType* type = builder.Build();
   uint32_t expected = std::max(kUInt32Size, kTaggedSize);
@@ -37,7 +37,7 @@ TEST_F(StructTypesTest, OneField) {
   EXPECT_EQ(0u, type->field_offset(0));
 
   StructType::Builder<Zone> desc_builder(this->zone(), 1, true,
-                                         SharedFlag::kNo);
+                                         SharedFlag{false});
   desc_builder.AddField(kWasmI32, true);
   StructType* desc_type = desc_builder.Build();
   EXPECT_EQ(uint32_t{kTaggedSize + std::max(kUInt32Size, kTaggedSize)},
@@ -46,7 +46,7 @@ TEST_F(StructTypesTest, OneField) {
 }
 
 TEST_F(StructTypesTest, Packing) {
-  StructType::Builder<Zone> builder(this->zone(), 5, false, SharedFlag::kNo);
+  StructType::Builder<Zone> builder(this->zone(), 5, false, SharedFlag{false});
   builder.AddField(kWasmI64, true);
   builder.AddField(kWasmI8, true);
   builder.AddField(kWasmI32, true);
@@ -62,7 +62,7 @@ TEST_F(StructTypesTest, Packing) {
 }
 
 TEST_F(StructTypesTest, CopyingOffsets) {
-  StructType::Builder<Zone> builder(this->zone(), 5, false, SharedFlag::kNo);
+  StructType::Builder<Zone> builder(this->zone(), 5, false, SharedFlag{false});
   builder.AddField(kWasmI64, true);
   builder.AddField(kWasmI8, true);
   builder.AddField(kWasmI32, true);
@@ -71,7 +71,7 @@ TEST_F(StructTypesTest, CopyingOffsets) {
   StructType* type = builder.Build();
 
   StructType::Builder<Zone> copy_builder(this->zone(), type->field_count(),
-                                         false, SharedFlag::kNo);
+                                         false, SharedFlag{false});
   for (uint32_t i = 0; i < type->field_count(); i++) {
     copy_builder.AddField(type->field(i), type->mutability(i),
                           type->field_offset(i));
@@ -86,7 +86,7 @@ TEST_F(StructTypesTest, CopyingOffsets) {
 }
 
 TEST_F(StructTypesTest, SharedStruct) {
-  StructType::Builder<Zone> builder(this->zone(), 4, false, SharedFlag::kYes);
+  StructType::Builder<Zone> builder(this->zone(), 4, false, SharedFlag{true});
   builder.AddField(kWasmI8, true);
   builder.AddField(kWasmI64, true);
   builder.AddField(kWasmI16, true);

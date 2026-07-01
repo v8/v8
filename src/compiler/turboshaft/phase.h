@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "src/base/contextual.h"
+#include "src/base/strong-alias.h"
 #include "src/base/template-meta-programming/functional.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -597,7 +598,7 @@ class V8_EXPORT_PRIVATE PipelineData {
   // The Wasm instance data of the inlined Wasm module. Set only during
   // Wasm-in-JS inlining in the JS pipeline.
   Handle<WasmTrustedInstanceData> wasm_instance_ = {};
-  SharedFlag wasm_shared_ = SharedFlag::kNo;
+  SharedFlag wasm_shared_ = SharedFlag{false};
   WasmShuffleAnalyzer* wasm_shuffle_analyzer_ = nullptr;
   // When creating the Turboshaft graph from Maglev for Turbolev, we record in
   // {turbolev_graph_has_inlineable_wasm_calls_} whether there are inlineable

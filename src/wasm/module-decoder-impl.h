@@ -702,8 +702,8 @@ class ModuleDecoderImpl : public Decoder {
       module_->has_shared_part = true;
       consume_bytes(1, " shared", tracer_);
       TypeDefinition type =
-          consume_describing_type(current_type_index, SharedFlag::kYes);
-      DCHECK(type.is_shared == SharedFlag::kYes || failed());
+          consume_describing_type(current_type_index, SharedFlag{true});
+      DCHECK(type.is_shared || failed());
       if (V8_UNLIKELY(type.kind == TypeDefinition::kFunction ||
                       type.kind == TypeDefinition::kCont)) {
         // TODO(42204563): Support shared functions/continuations.
@@ -712,7 +712,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       return type;
     } else {
-      return consume_describing_type(current_type_index, SharedFlag::kNo);
+      return consume_describing_type(current_type_index, SharedFlag{false});
     }
   }
 
@@ -809,8 +809,7 @@ class ModuleDecoderImpl : public Decoder {
           for (uint32_t j = 0; j < count; j++) {
             value_type_reader::Populate(&storage[j], module);
             ValueType type = storage[j];
-            if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
-                            type.is_shared() == SharedFlag::kNo)) {
+            if (V8_UNLIKELY(is_shared && !type.is_shared())) {
               DCHECK(enabled_features_.has_shared());
               uint32_t retcount =
                   static_cast<uint32_t>(type_def.function_sig->return_count());
@@ -836,8 +835,7 @@ class ModuleDecoderImpl : public Decoder {
           for (uint32_t j = 0; j < count; j++) {
             value_type_reader::Populate(&storage[j], module);
             ValueType type = storage[j];
-            if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
-                            type.is_shared() == SharedFlag::kNo)) {
+            if (V8_UNLIKELY(is_shared && !type.is_shared())) {
               errorf(pc_,
                      "Type %u: shared struct must have shared field types, "
                      "actual type for field %d is %s",
@@ -880,8 +878,7 @@ class ModuleDecoderImpl : public Decoder {
                   ->element_type_writable_ptr(),
               module);
           ValueType type = type_def.array_type->element_type();
-          if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
-                          type.is_shared() == SharedFlag::kNo)) {
+          if (V8_UNLIKELY(is_shared && !type.is_shared())) {
             errorf(pc_,
                    "Type %u: shared array must have shared element type, "
                    "actual element type is %s",
@@ -902,8 +899,7 @@ class ModuleDecoderImpl : public Decoder {
                    i, module_->heap_type(contfun_typeid).name().c_str());
             return;
           }
-          if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
-                          contfun_type.is_shared == SharedFlag::kNo)) {
+          if (V8_UNLIKELY(is_shared && !contfun_type.is_shared)) {
             errorf(pc_,
                    "Type %u: shared cont type must refer to a shared signature,"
                    " actual type is %s",
@@ -1038,12 +1034,11 @@ class ModuleDecoderImpl : public Decoder {
         const uint32_t start_table_import_index =
             static_cast<uint32_t>(module_->tables.size());
         consume_table_flags(&table_template);
-        DCHECK_IMPLIES(table_template.shared == SharedFlag::kYes,
+        DCHECK_IMPLIES(table_template.shared,
                        enabled_features_.has_shared() || !ok());
-        if (table_template.shared == SharedFlag::kYes &&
-            enabled_features_.has_shared()) {
+        if (table_template.shared && enabled_features_.has_shared()) {
           module_->has_shared_part = true;
-          if (V8_UNLIKELY(type.is_shared() == SharedFlag::kNo)) {
+          if (V8_UNLIKELY(!type.is_shared())) {
             errorf(type_position,
                    "Shared table %i must have shared element type, actual "
                    "type %s",
@@ -1113,8 +1108,7 @@ class ModuleDecoderImpl : public Decoder {
         ValueType type = consume_value_type(module_.get());
         auto [mutability, shared] = consume_global_flags();
         if (V8_UNLIKELY(failed())) break;
-        if (V8_UNLIKELY(shared == SharedFlag::kYes &&
-                        type.is_shared() == SharedFlag::kNo)) {
+        if (V8_UNLIKELY(shared && !type.is_shared())) {
           error("shared imported global must have shared type");
           break;
         }
@@ -1133,7 +1127,7 @@ class ModuleDecoderImpl : public Decoder {
               .imported = true});
           module_->num_imported_globals++;
 
-          if (shared == SharedFlag::kYes) module_->has_shared_part = true;
+          if (shared) module_->has_shared_part = true;
           if (mutability) module_->num_imported_mutable_globals++;
           if (tracer_) tracer_->NextLine();
         }
@@ -1293,11 +1287,10 @@ class ModuleDecoderImpl : public Decoder {
       table->type = table_type;
 
       consume_table_flags(table);
-      DCHECK_IMPLIES(table->shared == SharedFlag::kYes,
-                     enabled_features_.has_shared() || !ok());
-      if (table->shared == SharedFlag::kYes && enabled_features_.has_shared()) {
+      DCHECK_IMPLIES(table->shared, enabled_features_.has_shared() || !ok());
+      if (table->shared && enabled_features_.has_shared()) {
         module_->has_shared_part = true;
-        if (V8_UNLIKELY(table_type.is_shared() == SharedFlag::kNo)) {
+        if (V8_UNLIKELY(!table_type.is_shared())) {
           errorf(
               type_position,
               "Shared table %i must have shared element type, actual type %s",
@@ -1374,8 +1367,7 @@ class ModuleDecoderImpl : public Decoder {
       ValueType type = consume_value_type(module_.get());
       auto [mutability, shared] = consume_global_flags();
       if (V8_UNLIKELY(failed())) return;
-      if (V8_UNLIKELY(shared == SharedFlag::kYes &&
-                      type.is_shared() == SharedFlag::kNo)) {
+      if (V8_UNLIKELY(shared && !type.is_shared())) {
         CHECK(enabled_features_.has_shared());
         errorf(pos, "Shared global %i must have shared type, actual type %s",
                i + imported_globals, type.name().c_str());
@@ -1393,7 +1385,7 @@ class ModuleDecoderImpl : public Decoder {
           .index_in_buffer = 0,  // set later in CalculateGlobalOffsets
           .shared = shared,
           .initializer_ends_with_struct_new = ends_with_struct_new});
-      if (shared == SharedFlag::kYes) module_->has_shared_part = true;
+      if (shared) module_->has_shared_part = true;
     }
   }
 
@@ -2474,7 +2466,7 @@ class ModuleDecoderImpl : public Decoder {
     bool is_valid() const { return (flags & ~0x7) == 0; }
     bool has_maximum() const { return flags & 0x1; }
     SharedFlag is_shared() const {
-      return (flags & 0x2) ? SharedFlag::kYes : SharedFlag::kNo;
+      return (flags & 0x2) ? SharedFlag{true} : SharedFlag{false};
     }
     bool is_64bit() const { return flags & 0x4; }
     AddressType address_type() const {
@@ -2494,7 +2486,7 @@ class ModuleDecoderImpl : public Decoder {
              limits_type == kMemory ? "memory" : "table", limits.flags);
     }
 
-    if (limits.is_shared() == SharedFlag::kYes) {
+    if (limits.is_shared()) {
       if constexpr (limits_type == kMemory) {
         // V8 does not support shared memory without a maximum.
         if (V8_UNLIKELY(!limits.has_maximum())) {
@@ -2511,7 +2503,7 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     if (tracer_) {
-      if (limits.is_shared() == SharedFlag::kYes) {
+      if (limits.is_shared()) {
         tracer_->Description(" shared");
       }
       if (limits.is_64bit()) {
@@ -2540,7 +2532,7 @@ class ModuleDecoderImpl : public Decoder {
     memory->is_shared = limits.is_shared();
     memory->address_type = limits.address_type();
 
-    if (memory->is_shared == SharedFlag::kYes) {
+    if (memory->is_shared) {
       detected_features_->add_shared_memory();
     }
     if (memory->is_memory64()) detected_features_->add_memory64();
@@ -2550,7 +2542,7 @@ class ModuleDecoderImpl : public Decoder {
     uint8_t flags = consume_u8("global flags");
     if (V8_UNLIKELY(flags & ~0b11)) {
       errorf(pc() - 1, "invalid global flags 0x%x", flags);
-      return {false, SharedFlag::kNo};
+      return {false, SharedFlag{false}};
     }
     bool mutability = flags & 0b1;
     bool shared = flags & 0b10;
@@ -2561,12 +2553,12 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (V8_UNLIKELY(shared && !enabled_features_.has_shared())) {
       errorf(pc() - 1, "invalid global flags 0x%x", flags);
-      return {false, SharedFlag::kNo};
+      return {false, SharedFlag{false}};
     }
     if (shared) {
       // TODO(42204563): Support shared globals.
       error(pc() - 1, "shared globals are not supported yet");
-      return {false, SharedFlag::kNo};
+      return {false, SharedFlag{false}};
     }
     return {mutability, SharedFlag(shared)};
   }
@@ -2688,8 +2680,7 @@ class ModuleDecoderImpl : public Decoder {
             type = type.AsExact();
           }
           TYPE_CHECK(type)
-          if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
-                          type.is_shared() == SharedFlag::kNo)) {
+          if (V8_UNLIKELY(is_shared && !type.is_shared())) {
             error(pc(), "ref.func does not have a shared type");
             return {};
           }
@@ -2712,8 +2703,7 @@ class ModuleDecoderImpl : public Decoder {
         value_type_reader::Populate(&type, module);
         if (V8_LIKELY(lookahead(1 + length, kExprEnd))) {
           TYPE_CHECK(ValueType::RefNull(type))
-          if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
-                          type.is_shared() == SharedFlag::kNo)) {
+          if (V8_UNLIKELY(is_shared && !type.is_shared())) {
             error(pc(), "ref.null does not have a shared type");
             return {};
           }
@@ -2955,18 +2945,17 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     SharedFlag is_shared = SharedFlag(flag & kSharedFlag);
-    if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
-                    !enabled_features_.has_shared())) {
+    if (V8_UNLIKELY(is_shared && !enabled_features_.has_shared())) {
       errorf(pos, "illegal flag value %u", flag);
       return {};
     }
-    if (V8_UNLIKELY(is_shared == SharedFlag::kYes)) {
+    if (V8_UNLIKELY(is_shared)) {
       // TODO(42204563): Support shared element segments.
       error(pos, "shared element segments are not supported yet.");
       return {};
     }
 
-    if (is_shared == SharedFlag::kYes) module_->has_shared_part = true;
+    if (is_shared) module_->has_shared_part = true;
 
     const WasmElemSegment::Status status =
         (flag & kNonActiveMask) ? (flag & kHasTableIndexOrIsDeclarativeMask)
@@ -3105,21 +3094,20 @@ class ModuleDecoderImpl : public Decoder {
 
     SharedFlag is_shared = SharedFlag(flag & 0b1000);
 
-    if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
-                    !enabled_features_.has_shared())) {
+    if (V8_UNLIKELY(is_shared && !enabled_features_.has_shared())) {
       errorf(pos, "illegal flag value %u.", flag);
       return {};
     }
-    if (V8_UNLIKELY(is_shared == SharedFlag::kYes)) {
+    if (V8_UNLIKELY(is_shared)) {
       // TODO(42204563): Support shared data segments.
       error(pos, "shared data segments are not supported yet.");
       return {};
     }
 
-    if (is_shared == SharedFlag::kYes) module_->has_shared_part = true;
+    if (is_shared) module_->has_shared_part = true;
 
     if (tracer_) {
-      if (is_shared == SharedFlag::kYes) tracer_->Description(" shared");
+      if (is_shared) tracer_->Description(" shared");
       tracer_->NextLine();
     }
 

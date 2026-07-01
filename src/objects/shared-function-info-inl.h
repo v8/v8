@@ -12,6 +12,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
@@ -1169,8 +1170,8 @@ void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
 
   // We are basically trimming that object to its supertype, so recorded slots
   // within the object don't need to be invalidated.
-  heap->NotifyObjectLayoutChange(data, no_gc, InvalidateRecordedSlots::kNo,
-                                 InvalidateExternalPointerSlots::kNo);
+  heap->NotifyObjectLayoutChange(data, no_gc, InvalidateRecordedSlots{false},
+                                 InvalidateExternalPointerSlots{false});
   static_assert(sizeof(UncompiledDataWithoutPreparseData) <
                 sizeof(UncompiledDataWithPreparseData));
   static_assert(sizeof(UncompiledDataWithoutPreparseData) ==
@@ -1181,7 +1182,7 @@ void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
   DCHECK_LE(sizeof(UncompiledDataWithPreparseData), old_size);
   heap->NotifyObjectSizeChange(data, old_size,
                                sizeof(UncompiledDataWithoutPreparseData),
-                               ClearRecordedSlots::kYes);
+                               ClearRecordedSlots{true});
 
   // Swap the map.
   data->set_map(heap->isolate(),

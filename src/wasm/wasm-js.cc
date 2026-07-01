@@ -1697,7 +1697,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::SharedFlag shared = i::SharedFlag(value->BooleanValue(isolate));
 
   // Throw TypeError if shared is true, and the descriptor has no "maximum".
-  if (shared == i::SharedFlag::kYes && !maybe_maximum.has_value()) {
+  if (shared && !maybe_maximum.has_value()) {
     thrower.TypeError("If shared is true, maximum property should be defined.");
     return;
   }
@@ -2291,15 +2291,15 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
                           trusted_instance_data->dispatch_table_for_imports()
                               ->implicit_arg(func_index)),
                       i_isolate),
-        i::SharedFlag::kNo);
+        i::SharedFlag{false});
   }
 
   i::DirectHandle<i::WasmInternalFunction> internal =
       i_isolate->factory()->NewWasmInternalFunction(
-          implicit_arg, func_index, i::SharedFlag::kNo,
+          implicit_arg, func_index, i::SharedFlag{false},
           trusted_instance_data->GetCallTarget(func_index), sig);
   i::DirectHandle<i::WasmFuncRef> func_ref =
-      i_isolate->factory()->NewWasmFuncRef(internal, rtt, i::SharedFlag::kNo);
+      i_isolate->factory()->NewWasmFuncRef(internal, rtt, i::SharedFlag{false});
   if (func_index < num_imported_functions) {
     i::TrustedCast<i::WasmImportData>(implicit_arg)->set_call_origin(*internal);
   }
@@ -2691,7 +2691,7 @@ void WebAssemblyMemoryToFixedLengthBufferImpl(
 
   i::DirectHandle<i::JSArrayBuffer> buffer =
       i::WasmMemoryObject::ChangeArrayBufferResizability(
-          i_isolate, receiver, i::ResizableFlag::kNotResizable);
+          i_isolate, receiver, i::ResizableFlag{false});
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
@@ -2709,7 +2709,7 @@ void WebAssemblyMemoryToResizableBufferImpl(
 
   i::DirectHandle<i::JSArrayBuffer> buffer =
       i::WasmMemoryObject::ChangeArrayBufferResizability(
-          i_isolate, receiver, i::ResizableFlag::kResizable);
+          i_isolate, receiver, i::ResizableFlag{true});
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 

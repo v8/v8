@@ -893,7 +893,7 @@ DirectHandle<String> RenderCallSite(Isolate* isolate,
     ReusableUnoptimizedCompileState reusable_state(isolate);
     ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     if (parsing::ParseAny(&info, location->shared(), isolate,
-                          parsing::ReportStatisticsMode::kNo)) {
+                          parsing::ReportStatisticsMode{false})) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location->shared()->IsUserJavaScript());
       DirectHandle<String> str =
@@ -959,7 +959,7 @@ Tagged<Object> ErrorUtils::ThrowSpreadArgError(Isolate* isolate,
     ReusableUnoptimizedCompileState reusable_state(isolate);
     ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     if (parsing::ParseAny(&info, location.shared(), isolate,
-                          parsing::ReportStatisticsMode::kNo)) {
+                          parsing::ReportStatisticsMode{false})) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript(),
                           CallPrinter::SpreadErrorInArgsHint::kErrorInArgs);
@@ -1040,7 +1040,7 @@ Tagged<Object> ErrorUtils::ThrowLoadFromNullOrUndefined(
     ReusableUnoptimizedCompileState reusable_state(isolate);
     ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     if (parsing::ParseAny(&info, location.shared(), isolate,
-                          parsing::ReportStatisticsMode::kNo)) {
+                          parsing::ReportStatisticsMode{false})) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       DirectHandle<String> str =

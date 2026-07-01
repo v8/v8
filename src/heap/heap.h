@@ -143,15 +143,19 @@ class TrustedRange;
 class TrustedSpace;
 class WeakObjectRetainer;
 
-enum class ClearRecordedSlots { kYes, kNo };
+using ClearRecordedSlots =
+    base::StrongAlias<struct ClearRecordedSlotsTag, bool>;
 
 enum class SlotClearingMode { kCheckSweeping, kUnconditional };
 
-enum class InvalidateRecordedSlots { kYes, kNo };
+using InvalidateRecordedSlots =
+    base::StrongAlias<struct InvalidateRecordedSlotsTag, bool>;
 
-enum class InvalidateExternalPointerSlots { kYes, kNo };
+using InvalidateExternalPointerSlots =
+    base::StrongAlias<struct InvalidateExternalPointerSlotsTag, bool>;
 
-enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
+using ClearFreedMemoryMode =
+    base::StrongAlias<struct ClearFreedMemoryModeTag, bool>;
 
 enum class SkipRoot {
   kExternalStringTable,
@@ -476,8 +480,7 @@ class Heap final {
   // are recorded in this free memory.
   V8_EXPORT_PRIVATE void CreateFillerObjectAt(
       Address addr, int size,
-      ClearFreedMemoryMode clear_memory_mode =
-          ClearFreedMemoryMode::kDontClearFreedMemory,
+      ClearFreedMemoryMode clear_memory_mode = ClearFreedMemoryMode{false},
       std::optional<AllocationType> allocation_type = {});
 
   // Initialize a filler object at a specific address. Unlike
@@ -982,16 +985,16 @@ class Heap final {
       AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
       PerformHeapLimitCheck check_heap_limit_reached =
-          PerformHeapLimitCheck::kYes,
+          PerformHeapLimitCheck{true},
       PerformIneffectiveMarkCompactCheck check_ineffective_mark_compact =
-          PerformIneffectiveMarkCompactCheck::kYes);
+          PerformIneffectiveMarkCompactCheck{true});
 
   // Performs a full garbage collection.
   V8_EXPORT_PRIVATE void CollectAllGarbage(
       GCFlags gc_flags, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
-      PerformHeapLimitCheck check_heap_limit_reached =
-          PerformHeapLimitCheck::kYes);
+      PerformHeapLimitCheck check_heap_limit_reached = PerformHeapLimitCheck{
+          true});
 
   // Last hope garbage collection. Will try to free as much memory as possible
   // with multiple rounds of garbage collection.
@@ -1143,7 +1146,7 @@ class Heap final {
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
   // By default recorded slots in the object are invalidated. Pass
-  // InvalidateRecordedSlots::kNo if this is not necessary or to perform this
+  // InvalidateRecordedSlots{false} if this is not necessary or to perform this
   // manually.
   // If the object contains external pointer slots, then these need to be
   // invalidated as well if a GC marker may have observed them previously. To
@@ -1841,7 +1844,8 @@ class Heap final {
   void CreateInternalAccessorInfoObjects();
   void CreateInitialMutableObjects();
 
-  enum class VerifyNoSlotsRecorded { kYes, kNo };
+  using VerifyNoSlotsRecorded =
+      base::StrongAlias<struct VerifyNoSlotsRecordedTag, bool>;
 
   // Creates a filler object in the specified memory area. This method is the
   // internal method used by all CreateFillerObjectAtXXX-methods.

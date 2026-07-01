@@ -86,10 +86,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         __ graph_zone(), Descriptor(), 0, CallDescriptor::kNoFlags, properties,
         StubCallMode::kCallBuiltinPointer);
     compiler::CanThrow can_throw = (properties & Operator::kNoThrow)
-                                       ? compiler::CanThrow::kNo
-                                       : compiler::CanThrow::kYes;
+                                       ? compiler::CanThrow{false}
+                                       : compiler::CanThrow{true};
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, can_throw, compiler::LazyDeoptOnThrow::kNo,
+        call_descriptor, can_throw, compiler::LazyDeoptOnThrow{false},
         __ graph_zone());
     V<WordPtr> call_target = GetTargetForBuiltinCall(name);
     return __ Call(call_target, {args...}, ts_call_descriptor);
@@ -336,9 +336,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         GetBigIntToI64CallDescriptor(/*needs_frame_state=*/false);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor,
-        caller_frame_state.valid() ? compiler::CanThrow::kNo
-                                   : compiler::CanThrow::kYes,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        caller_frame_state.valid() ? compiler::CanThrow{false}
+                                   : compiler::CanThrow{true},
+        compiler::LazyDeoptOnThrow{false}, __ graph_zone());
     OpIndex call_args[] = {input, context};
     return __ Call(target, {}, base::VectorOf(call_args), ts_call_descriptor);
   }
@@ -397,7 +397,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
               __ Unreachable();
             }
           }
-          if (v8_flags.wasm_shared && type.is_shared() == SharedFlag::kYes) {
+          if (v8_flags.wasm_shared && type.is_shared()) {
             Label<Object> done(&Asm());
             IF (__ IsSmi(input)) {
               GOTO(done, input);

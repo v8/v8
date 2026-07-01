@@ -1109,7 +1109,7 @@ RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
   // may still be useful for fuzzers for causing interesting confusion.
   wasm::ValueType t = module->has_type(type_index)
                           ? wasm::ValueType::Ref(module->heap_type(type_index))
-                          : wasm::ValueType::Ref(type_index, SharedFlag::kNo,
+                          : wasm::ValueType::Ref(type_index, SharedFlag{false},
                                                  wasm::RefTypeKind::kStruct);
   return Smi::FromInt(t.raw_bit_field());
 }

@@ -176,7 +176,7 @@ class WasmLoweringReducer : public Next {
 
       BIND(convert_to_heap_number_label);
       V<Object> heap_number =
-          is_shared == SharedFlag::kYes
+          is_shared
               ? __ template CallWasmBuiltin<
                     builtin::WasmInt32ToSharedHeapNumber>({.value = int_value})
               : __ template CallWasmBuiltin<builtin::WasmInt32ToHeapNumber>(
@@ -466,17 +466,16 @@ class WasmLoweringReducer : public Next {
     Uninitialized<WasmArray> a = __ template Allocate<WasmArray>(
         __ ChangeUint32ToUintPtr(
             __ Word32Add(padded_length, WasmArray::kHeaderSize)),
-        is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
-                                      : AllocationType::kYoung,
-        is_shared == SharedFlag::kYes ? kDoubleUnaligned : kTaggedAligned);
+        is_shared ? AllocationType::kSharedOld : AllocationType::kYoung,
+        is_shared ? kDoubleUnaligned : kTaggedAligned);
 
     // TODO(14108): The map and empty fixed array initialization should be an
     // immutable store.
-    __ InitializeField(a,
-                       AccessBuilder::ForMap(is_shared == SharedFlag::kYes
-                                                 ? compiler::kMapWriteBarrier
-                                                 : compiler::kNoWriteBarrier),
-                       rtt);
+    __ InitializeField(
+        a,
+        AccessBuilder::ForMap(is_shared ? compiler::kMapWriteBarrier
+                                        : compiler::kNoWriteBarrier),
+        rtt);
     __ InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        __ template LoadRoot<RootIndex::kEmptyFixedArray>());
     __ InitializeField(a, AccessBuilder::ForWasmArrayLength(), length);
@@ -493,18 +492,15 @@ class WasmLoweringReducer : public Next {
     int size = WasmStruct::Size(struct_type);
     Uninitialized<WasmStruct> s = __ template Allocate<WasmStruct>(
         size,
-        struct_type->is_shared() == SharedFlag::kYes
-            ? AllocationType::kSharedOld
-            : AllocationType::kYoung,
-        struct_type->is_shared() == SharedFlag::kYes ? kDoubleAligned
-                                                     : kTaggedAligned);
+        struct_type->is_shared() ? AllocationType::kSharedOld
+                                 : AllocationType::kYoung,
+        struct_type->is_shared() ? kDoubleAligned : kTaggedAligned);
     // Objects allocated into old-space need a write barrier for initialization.
-    __ InitializeField(
-        s,
-        AccessBuilder::ForMap(struct_type->is_shared() == SharedFlag::kYes
-                                  ? compiler::kMapWriteBarrier
-                                  : compiler::kNoWriteBarrier),
-        rtt);
+    __ InitializeField(s,
+                       AccessBuilder::ForMap(struct_type->is_shared()
+                                                 ? compiler::kMapWriteBarrier
+                                                 : compiler::kNoWriteBarrier),
+                       rtt);
     __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        __ template LoadRoot<RootIndex::kEmptyFixedArray>());
     // Note: Struct initialization isn't finished here, the user defined fields
@@ -523,8 +519,7 @@ class WasmLoweringReducer : public Next {
     Label<WasmFuncRef> done(&Asm());
     IF (UNLIKELY(__ IsSmi(maybe_func_ref))) {
       bool extract_shared_data =
-          shared_ == SharedFlag::kNo &&
-          module_->function_is_shared(function_index) == SharedFlag::kYes;
+          !shared_ && module_->function_is_shared(function_index);
 
       V<WasmFuncRef> from_builtin =
           __ template CallWasmBuiltin<builtin::WasmRefFunc>(
@@ -718,7 +713,7 @@ class WasmLoweringReducer : public Next {
   void RejectSharedWasmObjectsIfUnshared(V<HeapObject> object,
                                          WasmTypeCheckConfig config,
                                          Label<Word32>& result_label) {
-    if (!v8_flags.wasm_shared || config.to.is_shared() == SharedFlag::kYes ||
+    if (!v8_flags.wasm_shared || config.to.is_shared() ||
         config.from.AsNullable() != wasm::kWasmAnyRef) {
       return;
     }
@@ -805,7 +800,7 @@ class WasmLoweringReducer : public Next {
   void TrapOnSharedWasmObjectsIfUnshared(
       V<HeapObject> object, WasmTypeCheckConfig config,
       OptionalV<EagerFrameState> frame_state) {
-    if (!v8_flags.wasm_shared || config.to.is_shared() == SharedFlag::kYes ||
+    if (!v8_flags.wasm_shared || config.to.is_shared() ||
         config.from.AsNullable() != wasm::kWasmAnyRef) {
       return;
     }

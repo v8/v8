@@ -8,6 +8,7 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 #include "src/base/strings.h"
+#include "src/base/strong-alias.h"
 #include "src/base/vector.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
@@ -109,7 +110,7 @@ class StackMemory;
 }  // namespace wasm
 #endif
 
-enum class InitializedFlag : uint8_t;
+using InitializedFlag = base::StrongAlias<struct InitializedFlagTag, bool>;
 
 enum FunctionMode {
   kWithNameBit = 1 << 0,
@@ -955,7 +956,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   MaybeHandle<JSArrayBuffer> NewJSArrayBufferAndBackingStore(
       size_t byte_length, size_t max_byte_length, InitializedFlag initialized,
-      ResizableFlag resizable = ResizableFlag::kNotResizable,
+      ResizableFlag resizable = ResizableFlag{false},
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<JSArrayBuffer> NewJSSharedArrayBuffer(

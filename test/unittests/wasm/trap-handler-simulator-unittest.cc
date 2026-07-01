@@ -150,8 +150,8 @@ class SimulatorTrapHandlerTestWithCodegen : public SimulatorTrapHandlerTest {
   }
 
   std::unique_ptr<TestingAssemblerBuffer> buffer_{AllocateAssemblerBuffer()};
-  MacroAssembler masm_{i_isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
-                       buffer_->CreateView()};
+  MacroAssembler masm_{i_isolate(), AssemblerOptions{},
+                       CodeObjectRequired{false}, buffer_->CreateView()};
   uint32_t crash_offset_{0};
   uint32_t recovery_offset_{0};
 };

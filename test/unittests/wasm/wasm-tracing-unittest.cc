@@ -120,12 +120,12 @@ class WasmTracingTest : public TestWithContextAndZone {
     ValueType i32 = ValueType::Primitive(kI32);
     builder.AddGlobal(i32, true, WasmInitExpr::DefaultValue(i32));
 
-    StructType::Builder<Zone> type_builder(zone(), 1, false, SharedFlag::kNo);
+    StructType::Builder<Zone> type_builder(zone(), 1, false, SharedFlag{false});
     type_builder.AddField(i32, true);
     StructType* struct_type = type_builder.Build();
     ModuleTypeIndex struct_type_index =
         builder.AddStructType(struct_type, false);
-    ValueType struct_ref = ValueType::Ref(struct_type_index, SharedFlag::kNo,
+    ValueType struct_ref = ValueType::Ref(struct_type_index, SharedFlag{false},
                                           RefTypeKind::kStruct);
     builder.AddGlobal(struct_ref, true,
                       WasmInitExpr::StructNewDefault(struct_type_index));

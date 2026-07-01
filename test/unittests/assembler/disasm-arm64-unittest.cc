@@ -52,7 +52,7 @@ using DisasmArm64Test = TestWithIsolate;
   uint8_t* buf = static_cast<uint8_t*>(malloc(INSTR_SIZE));                   \
   uint32_t encoding = 0;                                                      \
   MacroAssembler* assm =                                                      \
-      new MacroAssembler((isolate()), v8::internal::CodeObjectRequired::kYes, \
+      new MacroAssembler((isolate()), v8::internal::CodeObjectRequired{true}, \
                          ExternalAssemblerBuffer(buf, INSTR_SIZE));           \
   Decoder<DispatchingDecoderVisitor>* decoder =                               \
       new Decoder<DispatchingDecoderVisitor>();                               \

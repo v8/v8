@@ -66,11 +66,11 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
 constexpr size_t kMaxByteSizedLeb128 = 127;
 
 HeapType FuncHeapType(ModuleTypeIndex index) {
-  return HeapType::Index(index, SharedFlag::kNo, RefTypeKind::kFunction);
+  return HeapType::Index(index, SharedFlag{false}, RefTypeKind::kFunction);
 }
 
 HeapType ContHeapType(ModuleTypeIndex index) {
-  return HeapType::Index(index, SharedFlag::kNo, RefTypeKind::kCont);
+  return HeapType::Index(index, SharedFlag{false}, RefTypeKind::kCont);
 }
 
 using F = std::pair<ValueType, bool>;
@@ -88,14 +88,14 @@ class TestModuleBuilder {
   uint8_t AddGlobal(ValueType type, bool mutability = true) {
     // TODO(14616): Extend this to shared globals.
     mod.globals.push_back(
-        {type, mutability, {}, {0}, SharedFlag::kNo, false, false});
+        {type, mutability, {}, {0}, SharedFlag{false}, false, false});
     CHECK_LE(mod.globals.size(), kMaxByteSizedLeb128);
     return static_cast<uint8_t>(mod.globals.size() - 1);
   }
   ModuleTypeIndex AddSignature(const FunctionSig* sig,
                                ModuleTypeIndex supertype = kNoSuperType) {
     const bool is_final = true;
-    mod.AddSignatureForTesting(sig, supertype, is_final, SharedFlag::kNo);
+    mod.AddSignatureForTesting(sig, supertype, is_final, SharedFlag{false});
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return ModuleTypeIndex{static_cast<uint8_t>(mod.types.size() - 1)};
@@ -104,7 +104,7 @@ class TestModuleBuilder {
     const bool is_final = true;
     ModuleTypeIndex funIndex = AddSignature(sig);
     mod.AddContTypeForTesting(mod.signature_storage.New<ContType>(funIndex),
-                              kNoSuperType, is_final, SharedFlag::kNo);
+                              kNoSuperType, is_final, SharedFlag{false});
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return ModuleTypeIndex{static_cast<uint8_t>(mod.types.size() - 1)};
   }
@@ -144,7 +144,7 @@ class TestModuleBuilder {
 
   HeapType AddStruct(std::initializer_list<F> fields,
                      ModuleTypeIndex supertype = kNoSuperType,
-                     SharedFlag is_shared = SharedFlag::kNo) {
+                     SharedFlag is_shared = SharedFlag{false}) {
     StructType::Builder<WasmModuleSignatureStorage> type_builder(
         &mod.signature_storage, static_cast<uint32_t>(fields.size()), false,
         is_shared);
@@ -163,7 +163,7 @@ class TestModuleBuilder {
   }
 
   HeapType AddArray(ValueType type, bool mutability,
-                    SharedFlag is_shared = SharedFlag::kNo) {
+                    SharedFlag is_shared = SharedFlag{false}) {
     ArrayType* array = mod.signature_storage.New<ArrayType>(type, mutability);
     const bool is_final = true;
     mod.AddArrayTypeForTesting(array, kNoSuperType, is_final, is_shared);
@@ -190,7 +190,7 @@ class TestModuleBuilder {
   uint8_t AddPassiveElementSegment(wasm::ValueType type) {
     // TODO(14616): Extend this to shared segments.
     mod.elem_segments.emplace_back(WasmElemSegment::kStatusPassive,
-                                   SharedFlag::kNo, type,
+                                   SharedFlag{false}, type,
                                    WasmElemSegment::kExpressionElements, 0, 0);
     return static_cast<uint8_t>(mod.elem_segments.size() - 1);
   }
@@ -198,7 +198,7 @@ class TestModuleBuilder {
   uint8_t AddDeclarativeElementSegment() {
     // TODO(14616): Extend this to shared segments.
     mod.elem_segments.emplace_back(WasmElemSegment::kStatusDeclarative,
-                                   SharedFlag::kNo, kWasmFuncRef,
+                                   SharedFlag{false}, kWasmFuncRef,
                                    WasmElemSegment::kExpressionElements, 0, 0);
     return static_cast<uint8_t>(mod.elem_segments.size() - 1);
   }
@@ -294,7 +294,7 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
 
     // Validate the code.
     // TODO(14616): Extend this to shared functions.
-    FunctionBody body(sig, 0, code.begin(), code.end(), SharedFlag::kNo);
+    FunctionBody body(sig, 0, code.begin(), code.end(), SharedFlag{false});
     WasmDetectedFeatures unused_detected_features;
     DecodeResult result =
         ValidateFunctionBody(this->zone(), enabled_features_, module,
@@ -3318,7 +3318,7 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
   uint8_t code[] = {WASM_NOP, WASM_END};
 
   for (size_t i = 0; i < arraysize(code); ++i) {
-    FunctionBody body(sigs.v_v(), 0, code, code + i, SharedFlag::kNo);
+    FunctionBody body(sigs.v_v(), 0, code, code + i, SharedFlag{false});
     WasmDetectedFeatures unused_detected_features;
     DecodeResult result =
         ValidateFunctionBody(this->zone(), WasmEnabledFeatures::All(), module,
@@ -3658,10 +3658,10 @@ TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
 ValueType ref(HeapType type) { return ValueType::Ref(type); }
 ValueType refNull(HeapType type) { return ValueType::RefNull(type); }
 ValueType shRef(GenericKind kind) {
-  return ValueType::Generic(kind, kNonNullable, SharedFlag::kYes);
+  return ValueType::Generic(kind, kNonNullable, SharedFlag{true});
 }
 ValueType shRefNull(GenericKind kind) {
-  return ValueType::Generic(kind, kNullable, SharedFlag::kYes);
+  return ValueType::Generic(kind, kNullable, SharedFlag{true});
 }
 
 TEST_F(FunctionBodyDecoderTest, StructOrArrayNewDefault) {
@@ -5208,7 +5208,7 @@ class WasmOpcodeLengthTest : public TestWithZone {
     // TODO(14616): Extend this to shared functions.
     WasmDecoder<Decoder::FullValidationTag> decoder(
         this->zone(), nullptr, WasmEnabledFeatures::None(), &detected_features,
-        nullptr, SharedFlag::kNo, code, code + sizeof(code), 0);
+        nullptr, SharedFlag{false}, code, code + sizeof(code), 0);
     WasmDecoder<Decoder::FullValidationTag>::OpcodeLength(&decoder, code);
     EXPECT_TRUE(decoder.failed());
   }
@@ -5234,7 +5234,7 @@ class WasmOpcodeLengthTest : public TestWithZone {
     // TODO(14616): Extend this to shared functions.
     WasmDecoder<Decoder::FullValidationTag> decoder(
         this->zone(), nullptr, WasmEnabledFeatures::All(), &detected, nullptr,
-        SharedFlag::kNo, bytes, bytes + sizeof(bytes), 0);
+        SharedFlag{false}, bytes, bytes + sizeof(bytes), 0);
     WasmDecoder<Decoder::FullValidationTag>::OpcodeLength(&decoder, bytes);
     EXPECT_TRUE(decoder.ok())
         << opcode << " aka " << WasmOpcodes::OpcodeName(opcode) << ": "
@@ -5518,8 +5518,9 @@ class LocalDeclDecoderTest : public TestWithZone {
                         const uint8_t* end) {
     WasmModule module;
     // TODO(14616): Extend this to shared functions.
-    return ValidateAndDecodeLocalDeclsForTesting(
-        enabled_features_, decls, &module, SharedFlag::kNo, start, end, zone());
+    return ValidateAndDecodeLocalDeclsForTesting(enabled_features_, decls,
+                                                 &module, SharedFlag{false},
+                                                 start, end, zone());
   }
 };
 
@@ -5641,9 +5642,9 @@ TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {
   const uint8_t* end = nullptr;
   LocalDeclEncoder local_decls(zone());
 
-  local_decls.AddLocals(1,
-                        ValueType::RefNull(ModuleTypeIndex{0}, SharedFlag::kNo,
-                                           RefTypeKind::kStruct));
+  local_decls.AddLocals(
+      1, ValueType::RefNull(ModuleTypeIndex{0}, SharedFlag{false},
+                            RefTypeKind::kStruct));
   BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, end);
   EXPECT_FALSE(result);
@@ -6170,14 +6171,14 @@ TEST_F(FunctionBodyDecoderTest, WasmResume) {
   // sig1: [] -> [ref $ct] where $ct : cont [] -> [i32]
   FunctionSig* sig1 = FunctionSig::Build(
       zone(),
-      {ValueType::Ref(cont_i_v_index, SharedFlag::kNo, RefTypeKind::kCont)},
+      {ValueType::Ref(cont_i_v_index, SharedFlag{false}, RefTypeKind::kCont)},
       {});
   ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
   // sig2: [] -> [i32, ref null $ct] where $ct : cont [i32] -> [i32]
   FunctionSig* sig2 = FunctionSig::Build(
       zone(),
       {kWasmI32,
-       ValueType::Ref(cont_i_i_index, SharedFlag::kNo, RefTypeKind::kCont)},
+       ValueType::Ref(cont_i_i_index, SharedFlag{false}, RefTypeKind::kCont)},
       {});
   ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
   uint8_t func_index = builder.AddFunction(sig_index);
@@ -6231,22 +6232,22 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeNegative) {
   ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
   // sig1: [] -> [ref $ct] where $ct : cont [i32] -> [i32]
   FunctionSig* sig1 = FunctionSig::Build(
-      zone(), {ValueType::Ref(cont_index, SharedFlag::kNo, RefTypeKind::kCont)},
-      {});
+      zone(),
+      {ValueType::Ref(cont_index, SharedFlag{false}, RefTypeKind::kCont)}, {});
   ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
   // sig2: [] -> [f64, ref $ct] where $ct : cont [i32] -> [i32]
   FunctionSig* sig2 = FunctionSig::Build(
       zone(),
       {kWasmF64,
-       ValueType::Ref(cont_index, SharedFlag::kNo, RefTypeKind::kCont)},
+       ValueType::Ref(cont_index, SharedFlag{false}, RefTypeKind::kCont)},
       {});
   ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
   // sig3: [] -> [ref $ct] where $ct : cont [] -> [f32]
-  FunctionSig* sig3 =
-      FunctionSig::Build(zone(),
-                         {ValueType::Ref(cont_index_bad_return, SharedFlag::kNo,
-                                         RefTypeKind::kCont)},
-                         {});
+  FunctionSig* sig3 = FunctionSig::Build(
+      zone(),
+      {ValueType::Ref(cont_index_bad_return, SharedFlag{false},
+                      RefTypeKind::kCont)},
+      {});
   ModuleTypeIndex sig3_index = builder.AddSignature(sig3);
   uint8_t func_index = builder.AddFunction(sig_index);
 
@@ -6346,13 +6347,13 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrow) {
   FunctionSig* sig1 = FunctionSig::Build(
       zone(),
       {kWasmI32,
-       ValueType::Ref(cont1_index, SharedFlag::kNo, RefTypeKind::kCont)},
+       ValueType::Ref(cont1_index, SharedFlag{false}, RefTypeKind::kCont)},
       {});
   ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
   // sig2: [] -> [ref $ct] where $ct : cont [] -> [i32]
   FunctionSig* sig2 = FunctionSig::Build(
       zone(),
-      {ValueType::Ref(cont2_index, SharedFlag::kNo, RefTypeKind::kCont)}, {});
+      {ValueType::Ref(cont2_index, SharedFlag{false}, RefTypeKind::kCont)}, {});
   ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
   uint8_t ex_tag = builder.AddTag(sigs.v_i());
   uint8_t func_index = builder.AddFunction(sig_index);
@@ -6414,13 +6415,13 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRef) {
   FunctionSig* sig1 = FunctionSig::Build(
       zone(),
       {kWasmI32,
-       ValueType::Ref(cont1_index, SharedFlag::kNo, RefTypeKind::kCont)},
+       ValueType::Ref(cont1_index, SharedFlag{false}, RefTypeKind::kCont)},
       {});
   ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
   // sig2: [] -> [ref $ct] where $ct : cont [] -> [i32]
   FunctionSig* sig2 = FunctionSig::Build(
       zone(),
-      {ValueType::Ref(cont2_index, SharedFlag::kNo, RefTypeKind::kCont)}, {});
+      {ValueType::Ref(cont2_index, SharedFlag{false}, RefTypeKind::kCont)}, {});
   ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
   uint8_t func_index = builder.AddFunction(sig_index);
 
@@ -6467,14 +6468,14 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
   uint8_t tag_i_i = builder.AddTag(sigs.i_i());
   // sig1: [] -> [ref $ct] where $ct : cont [i32] -> [i32]
   FunctionSig* sig1 = FunctionSig::Build(
-      zone(), {ValueType::Ref(cont_index, SharedFlag::kNo, RefTypeKind::kCont)},
-      {});
+      zone(),
+      {ValueType::Ref(cont_index, SharedFlag{false}, RefTypeKind::kCont)}, {});
   ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
   // sig2: [] -> [f64, ref $ct] where $ct : cont [i32] -> [i32]
   FunctionSig* sig2 = FunctionSig::Build(
       zone(),
       {kWasmF64,
-       ValueType::Ref(cont_index, SharedFlag::kNo, RefTypeKind::kCont)},
+       ValueType::Ref(cont_index, SharedFlag{false}, RefTypeKind::kCont)},
       {});
   ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
 
@@ -6540,8 +6541,8 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRefNegative) {
   uint8_t tag_i_i = builder.AddTag(sigs.i_i());
   // sig1: [] -> [ref $ct] where $ct : cont [i32] -> [i32]
   FunctionSig* sig1 = FunctionSig::Build(
-      zone(), {ValueType::Ref(cont_index, SharedFlag::kNo, RefTypeKind::kCont)},
-      {});
+      zone(),
+      {ValueType::Ref(cont_index, SharedFlag{false}, RefTypeKind::kCont)}, {});
   ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
 
   ExpectFailure(
@@ -6599,7 +6600,7 @@ TEST_F(FunctionBodyDecoderTest, WasmSwitch) {
   FunctionSig* ct1_sig = FunctionSig::Build(
       zone(), {kWasmF64},
       {kWasmI32,
-       ValueType::RefNull(ct2_index, SharedFlag::kNo, RefTypeKind::kCont)});
+       ValueType::RefNull(ct2_index, SharedFlag{false}, RefTypeKind::kCont)});
 
   ModuleTypeIndex ct1_index = builder.AddCont(ct1_sig);
 
@@ -6625,13 +6626,13 @@ TEST_F(FunctionBodyDecoderTest, WasmSwitchNegative) {
   FunctionSig* ct1_sig = FunctionSig::Build(
       zone(), {kWasmF64},
       {kWasmI32,
-       ValueType::RefNull(ct2_index, SharedFlag::kNo, RefTypeKind::kCont)});
+       ValueType::RefNull(ct2_index, SharedFlag{false}, RefTypeKind::kCont)});
 
   ModuleTypeIndex ct1_index = builder.AddCont(ct1_sig);
   ModuleTypeIndex ct3_index = builder.AddCont(FunctionSig::Build(
       zone(), {kWasmI32},
       {kWasmI32,
-       ValueType::RefNull(ct1_index, SharedFlag::kNo, RefTypeKind::kCont)}));
+       ValueType::RefNull(ct1_index, SharedFlag{false}, RefTypeKind::kCont)}));
   uint8_t func_index = builder.AddFunction(ct1_sig);
 
   module = builder.module();
@@ -6722,8 +6723,7 @@ std::string PrintAtomicGetInvalidParams(
                                    : element_type.name();
   std::replace(elem_type_name.begin(), elem_type_name.end(), ' ', '_');
   return std::string(mutability ? "mutable_" : "immutable_") +
-         (shared == SharedFlag::kYes ? "shared_" : "unshared_") +
-         elem_type_name;
+         (shared ? "shared_" : "unshared_") + elem_type_name;
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -6731,13 +6731,13 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::Values(kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
                           IndependentHeapType{GenericKind::kExtern, kNullable,
-                                              SharedFlag::kYes},
+                                              SharedFlag{true}},
                           IndependentHeapType{GenericKind::kFunc, kNullable,
-                                              SharedFlag::kYes},
+                                              SharedFlag{true}},
                           IndependentHeapType{GenericKind::kNoCont, kNullable,
-                                              SharedFlag::kYes},
+                                              SharedFlag{true}},
                           IndependentHeapType{GenericKind::kExn, kNonNullable,
-                                              SharedFlag::kYes}),
+                                              SharedFlag{true}}),
         ::testing::Values(true, false), ::testing::Values(true, false)),
     PrintAtomicGetInvalidParams);
 
@@ -6819,8 +6819,7 @@ std::string PrintAtomicGetPackedInvalidParams(
                                    ? element_type.generic_heaptype_name()
                                    : element_type.name();
   std::replace(elem_type_name.begin(), elem_type_name.end(), ' ', '_');
-  return (shared == SharedFlag::kYes ? "shared_" : "unshared_") +
-         elem_type_name;
+  return (shared ? "shared_" : "unshared_") + elem_type_name;
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -6828,18 +6827,18 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::Values(kWasmF32, kWasmF64, kWasmS128, kWasmI32, kWasmI64,
                           IndependentHeapType{GenericKind::kAny, kNullable,
-                                              SharedFlag::kYes},
+                                              SharedFlag{true}},
                           IndependentHeapType{GenericKind::kExtern, kNullable,
-                                              SharedFlag::kYes},
+                                              SharedFlag{true}},
                           IndependentHeapType{GenericKind::kFunc, kNullable,
-                                              SharedFlag::kYes},
+                                              SharedFlag{true}},
                           IndependentHeapType{GenericKind::kNoCont, kNullable,
-                                              SharedFlag::kYes},
+                                              SharedFlag{true}},
                           IndependentHeapType{GenericKind::kExn, kNonNullable,
-                                              SharedFlag::kYes},
+                                              SharedFlag{true}},
                           IndependentHeapType{GenericKind::kI31, kNullable,
-                                              SharedFlag::kYes}),
-        ::testing::Values(SharedFlag::kYes, SharedFlag::kNo)),
+                                              SharedFlag{true}}),
+        ::testing::Values(SharedFlag{true}, SharedFlag{false})),
     PrintAtomicGetPackedInvalidParams);
 
 TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Struct) {
@@ -6896,17 +6895,17 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(
             kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
             IndependentHeapType{GenericKind::kExtern, kNullable,
-                                SharedFlag::kYes},
+                                SharedFlag{true}},
             IndependentHeapType{GenericKind::kEq, kNonNullable,
-                                SharedFlag::kYes},
-            IndependentHeapType{GenericKind::kAny, kNullable, SharedFlag::kYes},
+                                SharedFlag{true}},
+            IndependentHeapType{GenericKind::kAny, kNullable, SharedFlag{true}},
             IndependentHeapType{GenericKind::kFunc, kNullable,
-                                SharedFlag::kYes},
+                                SharedFlag{true}},
             IndependentHeapType{GenericKind::kNoCont, kNullable,
-                                SharedFlag::kYes},
-            IndependentHeapType{GenericKind::kExn, kNullable, SharedFlag::kYes},
+                                SharedFlag{true}},
+            IndependentHeapType{GenericKind::kExn, kNullable, SharedFlag{true}},
             IndependentHeapType{GenericKind::kI31, kNullable,
-                                SharedFlag::kYes}),
+                                SharedFlag{true}}),
         ::testing::Values(true, false), ::testing::Values(true, false)),
     PrintAtomicGetInvalidParams);
 
@@ -7023,20 +7022,20 @@ TEST_F(FunctionBodyDecoderTest, MemoryOrder) {
   WASM_FEATURE_SCOPE(shared);
 
   HeapType struct_i32_heaptype =
-      builder.AddStruct({F(kWasmI32, true)}, kNoSuperType, SharedFlag::kYes);
+      builder.AddStruct({F(kWasmI32, true)}, kNoSuperType, SharedFlag{true});
   ModuleTypeIndex struct_i32_index = struct_i32_heaptype.ref_index();
   ValueType struct_i32 = ValueType::Ref(struct_i32_heaptype);
   HeapType struct_i16_heaptype =
-      builder.AddStruct({F(kWasmI16, true)}, kNoSuperType, SharedFlag::kYes);
+      builder.AddStruct({F(kWasmI16, true)}, kNoSuperType, SharedFlag{true});
   ModuleTypeIndex struct_i16_index = struct_i16_heaptype.ref_index();
   ValueType struct_i16 = ValueType::Ref(struct_i16_heaptype);
 
   HeapType array_i32_heaptype =
-      builder.AddArray(kWasmI32, true, SharedFlag::kYes);
+      builder.AddArray(kWasmI32, true, SharedFlag{true});
   ModuleTypeIndex array_i32_index = array_i32_heaptype.ref_index();
   ValueType array_i32 = ValueType::Ref(array_i32_heaptype);
   HeapType array_i16_heaptype =
-      builder.AddArray(kWasmI16, true, SharedFlag::kYes);
+      builder.AddArray(kWasmI16, true, SharedFlag{true});
   ModuleTypeIndex array_i16_index = array_i16_heaptype.ref_index();
   ValueType array_i16 = ValueType::Ref(array_i16_heaptype);
 
@@ -7170,7 +7169,7 @@ TEST_F(FunctionBodyDecoderTest, Waitqueue) {
   WASM_FEATURE_SCOPE(shared);
 
   HeapType struct_heaptype =
-      builder.AddStruct({F(kWasmI32, true)}, kNoSuperType, SharedFlag::kYes);
+      builder.AddStruct({F(kWasmI32, true)}, kNoSuperType, SharedFlag{true});
   ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
 
   ExpectFailure(&impl::kSig_v_v,

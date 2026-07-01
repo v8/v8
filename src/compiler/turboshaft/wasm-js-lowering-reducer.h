@@ -55,8 +55,8 @@ class WasmJSLoweringReducer : public Next {
         trap, Asm().graph_zone(), StubCallMode::kCallBuiltinPointer,
         needs_frame_state, Operator::kNoProperties);
     const TSCallDescriptor* ts_descriptor =
-        TSCallDescriptor::Create(tf_descriptor, CanThrow::kYes,
-                                 LazyDeoptOnThrow::kNo, Asm().graph_zone());
+        TSCallDescriptor::Create(tf_descriptor, CanThrow{true},
+                                 LazyDeoptOnThrow{false}, Asm().graph_zone());
 
     V<LazyFrameState> new_frame_state =
         CreateFrameStateForStackTrace(frame_state.value());

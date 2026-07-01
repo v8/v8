@@ -40,7 +40,7 @@ struct builtin : CallDescriptorBuilder {
   struct Descriptor {
     static const TSCallDescriptor* Create(
         StubCallMode call_mode, Zone* zone,
-        LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo,
+        LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false},
         bool caller_can_deopt = true) {
       CallInterfaceDescriptor interface_descriptor =
           Builtins::CallInterfaceDescriptorFor(Derived::kFunction);
@@ -56,7 +56,7 @@ struct builtin : CallDescriptorBuilder {
 #endif  // DEBUG
       bool can_throw = !(Derived::kProperties & Operator::kNoThrow);
       return TSCallDescriptor::Create(
-          descriptor, can_throw ? CanThrow::kYes : CanThrow::kNo,
+          descriptor, can_throw ? CanThrow{true} : CanThrow{false},
           lazy_deopt_on_throw, zone);
     }
 
@@ -891,7 +891,7 @@ struct BuiltinCallDescriptor {
   struct Descriptor {
     static const TSCallDescriptor* Create(
         StubCallMode call_mode, Zone* zone,
-        LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo,
+        LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow{false},
         bool compiling_builtins = false) {
       CallInterfaceDescriptor interface_descriptor =
           Builtins::CallInterfaceDescriptorFor(Derived::kFunction);
@@ -907,7 +907,7 @@ struct BuiltinCallDescriptor {
 #endif  // DEBUG
       bool can_throw = !(Derived::kProperties & Operator::kNoThrow);
       return TSCallDescriptor::Create(
-          descriptor, can_throw ? CanThrow::kYes : CanThrow::kNo,
+          descriptor, can_throw ? CanThrow{true} : CanThrow{false},
           lazy_deopt_on_throw, zone);
     }
 

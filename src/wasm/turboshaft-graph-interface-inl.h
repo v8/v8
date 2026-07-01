@@ -49,8 +49,8 @@ auto WasmGraphBuilderBase<Assembler>::BuildChangeInt64ToBigInt(
           Operator::kNoProperties,   // properties
           stub_mode);
   const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-      call_descriptor, compiler::CanThrow::kNo, compiler::LazyDeoptOnThrow::kNo,
-      __ graph_zone());
+      call_descriptor, compiler::CanThrow{false},
+      compiler::LazyDeoptOnThrow{false}, __ graph_zone());
   if constexpr (Is64()) {
     return V<BigInt>::Cast(__ Call(target, {input}, ts_call_descriptor));
   }
@@ -165,8 +165,8 @@ inline auto WasmGraphBuilderBase<Assembler>::CallC(
   const CallDescriptor* call_descriptor =
       compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), sig);
   const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-      call_descriptor, compiler::CanThrow::kNo, compiler::LazyDeoptOnThrow::kNo,
-      __ graph_zone());
+      call_descriptor, compiler::CanThrow{false},
+      compiler::LazyDeoptOnThrow{false}, __ graph_zone());
   return __ Call(function, OpIndex::Invalid(), base::VectorOf(args),
                  ts_call_descriptor);
 }

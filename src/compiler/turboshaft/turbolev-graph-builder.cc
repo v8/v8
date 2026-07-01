@@ -13,6 +13,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
+#include "src/base/strong-alias.h"
 #include "src/base/vector.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -1541,7 +1542,7 @@ class GraphBuildingNodeProcessor {
       SetMap(node, __ Call(V<CallTarget>::Cast(callee), frame_state,
                            base::VectorOf(arguments),
                            TSCallDescriptor::Create(
-                               descriptor, CanThrow::kYes, lazy_deopt_on_throw,
+                               descriptor, CanThrow{true}, lazy_deopt_on_throw,
                                graph_zone(), wasm_call_params)));
     }
 
@@ -1631,7 +1632,7 @@ class GraphBuildingNodeProcessor {
 
     return __ Call<Type>(
         stub_code, frame_state, base::VectorOf(arguments),
-        TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
+        TSCallDescriptor::Create(call_descriptor, CanThrow{true},
                                  lazy_deopt_on_throw, graph_zone()));
   }
   maglev::ProcessResult Process(maglev::CallBuiltin* node,
@@ -1720,13 +1721,12 @@ class GraphBuildingNodeProcessor {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state_value, node->lazy_deopt_info());
       frame_state = frame_state_value;
     }
-    DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
-                   frame_state.has_value());
+    DCHECK_IMPLIES(lazy_deopt_on_throw, frame_state.has_value());
 
     BAILOUT_IF_TOO_MANY_ARGUMENTS_FOR_CALL(arguments.size());
     V<Any> call_idx =
         __ Call(c_entry_stub, frame_state, base::VectorOf(arguments),
-                TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
+                TSCallDescriptor::Create(call_descriptor, CanThrow{true},
                                          lazy_deopt_on_throw, graph_zone()));
     SetMapMaybeMultiReturn(node, call_idx);
 
@@ -1751,8 +1751,7 @@ class GraphBuildingNodeProcessor {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state_value, node->lazy_deopt_info());
       frame_state = frame_state_value;
     }
-    DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
-                   frame_state.has_value());
+    DCHECK_IMPLIES(lazy_deopt_on_throw, frame_state.has_value());
 
     base::SmallVector<OpIndex, 4> arguments;
     if (node->has_input()) {
@@ -1765,7 +1764,7 @@ class GraphBuildingNodeProcessor {
 
     arguments.push_back(native_context());
     __ Call(c_entry_stub, frame_state, base::VectorOf(arguments),
-            TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
+            TSCallDescriptor::Create(call_descriptor, CanThrow{true},
                                      lazy_deopt_on_throw, graph_zone()));
 
     // Throw is a block terminator in Maglev but not in Turboshaft (because it's
@@ -6860,10 +6859,10 @@ class GraphBuildingNodeProcessor {
   }
 
   LazyDeoptOnThrow ShouldLazyDeoptOnThrow(maglev::NodeBase* node) {
-    if (!node->properties().can_throw()) return LazyDeoptOnThrow::kNo;
+    if (!node->properties().can_throw()) return LazyDeoptOnThrow{false};
     const maglev::ExceptionHandlerInfo* info = node->exception_handler_info();
-    if (info->ShouldLazyDeopt()) return LazyDeoptOnThrow::kYes;
-    return LazyDeoptOnThrow::kNo;
+    if (info->ShouldLazyDeopt()) return LazyDeoptOnThrow{true};
+    return LazyDeoptOnThrow{false};
   }
 
   class ThrowingScope {

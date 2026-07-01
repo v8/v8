@@ -599,7 +599,7 @@ BUILTIN(Uint8ArrayFromBase64) {
 
   MaybeDirectHandle<JSArrayBuffer> result_buffer =
       isolate->factory()->NewJSArrayBufferAndBackingStore(
-          output_length, InitializedFlag::kUninitialized);
+          output_length, InitializedFlag{false});
   if (!result_buffer.ToHandle(&buffer)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kOutOfMemory,
@@ -918,7 +918,7 @@ BUILTIN(Uint8ArrayFromHex) {
 
   MaybeDirectHandle<JSArrayBuffer> result_buffer =
       isolate->factory()->NewJSArrayBufferAndBackingStore(
-          output_length, InitializedFlag::kUninitialized);
+          output_length, InitializedFlag{false});
 
   if (!result_buffer.ToHandle(&buffer)) {
     THROW_NEW_ERROR_RETURN_FAILURE(

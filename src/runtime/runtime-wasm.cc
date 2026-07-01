@@ -615,7 +615,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   // We don't need to care about exactness of the import here, because that
   // has already been validated (hence no kLinkError can happen here).
   wasm::CanonicalValueType expected_type = wasm::CanonicalValueType::Ref(
-      sig->index(), SharedFlag::kNo, wasm::RefTypeKind::kFunction);
+      sig->index(), SharedFlag{false}, wasm::RefTypeKind::kFunction);
   wasm::ResolvedWasmImport resolved({}, -1, callable, expected_type, sig,
                                     wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
@@ -1165,7 +1165,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
 
   Tagged<WasmTypeInfo> type_info = rtt->wasm_type_info();
   wasm::CanonicalValueType element_type = type_info->element_type();
-  AllocationType allocation = type_info->type().is_shared() == SharedFlag::kYes
+  AllocationType allocation = type_info->type().is_shared()
                                   ? AllocationType::kSharedOld
                                   : AllocationType::kYoung;
 

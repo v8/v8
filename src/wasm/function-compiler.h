@@ -28,7 +28,9 @@ namespace v8::internal::wasm {
 class NativeModule;
 struct WasmFunction;
 
-enum class Validation : bool { kAlreadyValidated, kMustValidate };
+using Validation = base::StrongAlias<struct ValidationFlagTag, bool>;
+constexpr Validation kAlreadyValidated{false};
+constexpr Validation kMustValidate{true};
 
 // Stores assumptions that a Wasm compilation job made while executing,
 // so they can be checked for continued validity when the job finishes.

@@ -8,6 +8,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -541,7 +542,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     {
       HandleScope handle_scope(i_isolate);
       uint8_t buffer[i::Assembler::kDefaultBufferSize];
-      MacroAssembler masm(i_isolate, v8::internal::CodeObjectRequired::kYes,
+      MacroAssembler masm(i_isolate, v8::internal::CodeObjectRequired{true},
                           ExternalAssemblerBuffer(buffer, sizeof(buffer)));
 #if V8_TARGET_ARCH_ARM64
       // Arm64 requires stack alignment.

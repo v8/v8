@@ -315,7 +315,7 @@ class MjsunitNamesProvider {
       PrintTypeIndex(out, type.ref_index(), mode);
       return;
     }
-    if (type.is_shared() == SharedFlag::kYes && mode == kEmitWireBytes) {
+    if (type.is_shared() && mode == kEmitWireBytes) {
       out << "kWasmSharedTypeForm, ";
     }
     switch (type.generic_kind()) {
@@ -338,7 +338,7 @@ class MjsunitNamesProvider {
   bool CanUseShorthand(ValueType type) {
     DCHECK(type.is_ref());
     if (type.has_index()) return false;
-    if (type.is_shared() == SharedFlag::kYes) return false;
+    if (type.is_shared()) return false;
     if (type.is_exact()) return false;
 
     switch (type.generic_kind()) {
@@ -402,7 +402,7 @@ class MjsunitNamesProvider {
     if (mode == kEmitObjects) {
       out << ")";
       if (type.is_exact()) out << ".exact()";
-      if (type.is_shared() == SharedFlag::kYes) out << ".shared()";
+      if (type.is_shared()) out << ".shared()";
     }
   }
 
@@ -1377,7 +1377,7 @@ class MjsunitModuleDis {
           names()->PrintTypeVariableName(out_, supertype);
         }
         if (is_final) out_ << ", final: true";
-        if (is_shared == SharedFlag::kYes) out_ << ", shared: true";
+        if (is_shared) out_ << ", shared: true";
         if (type.has_descriptor()) {
           out_ << ", descriptor: ";
           names()->PrintTypeVariableName(out_, type.descriptor);
@@ -1393,8 +1393,7 @@ class MjsunitModuleDis {
         out_ << "builder.addArray(";
         names()->PrintValueType(out_, array_type->element_type(), kEmitObjects);
         bool immutable = !array_type->mutability();
-        if (immutable || supertype != kNoSuperType || is_final ||
-            is_shared == SharedFlag::kYes) {
+        if (immutable || supertype != kNoSuperType || is_final || is_shared) {
           out_ << ", {";
           bool need_comma = false;
           if (immutable) {
@@ -1412,7 +1411,7 @@ class MjsunitModuleDis {
             out_ << "final: true";
             need_comma = true;
           }
-          if (is_shared == SharedFlag::kYes) {
+          if (is_shared) {
             if (need_comma) out_ << ", ";
             out_ << "shared: true";
             need_comma = true;
@@ -1433,10 +1432,10 @@ class MjsunitModuleDis {
           } else {
             out_ << "kNoSuperType";
           }
-          if (!is_final || is_shared == SharedFlag::kYes) {
+          if (!is_final || is_shared) {
             out_ << (is_final ? ", true" : ", false");
           }
-          if (is_shared == SharedFlag::kYes) out_ << ", true";
+          if (is_shared) out_ << ", true";
         }
         out_ << ");";
         out_.NextLine(0);
@@ -1485,8 +1484,7 @@ class MjsunitModuleDis {
             out_ << "undefined, ";
           }
           names()->PrintValueType(out_, table.type, kEmitObjects);
-          out_ << ", /*shared*/ "
-               << (table.shared == SharedFlag::kYes ? "true" : "false");
+          out_ << ", /*shared*/ " << (table.shared ? "true" : "false");
           if (table.is_table64()) out_ << ", true";
           break;
         }
@@ -1496,10 +1494,10 @@ class MjsunitModuleDis {
           out_ << "', '" << V(imported.field_name) << "', ";
           const WasmGlobal& global = module_->globals[imported.index];
           names()->PrintValueType(out_, global.type, kEmitObjects);
-          if (global.mutability || global.shared == SharedFlag::kYes) {
+          if (global.mutability || global.shared) {
             out_ << ", " << (global.mutability ? "true" : "false");
           }
-          if (global.shared == SharedFlag::kYes) out_ << ", true";
+          if (global.shared) out_ << ", true";
           break;
         }
         case kExternalMemory: {
@@ -1513,7 +1511,7 @@ class MjsunitModuleDis {
           } else {
             out_ << "undefined, ";
           }
-          out_ << (memory.is_shared == SharedFlag::kYes ? "true" : "false");
+          out_ << (memory.is_shared ? "true" : "false");
           if (memory.is_memory64()) out_ << ", true";
           break;
         }
@@ -1611,7 +1609,7 @@ class MjsunitModuleDis {
       } else {
         out_ << ", undefined";
       }
-      if (memory.is_shared == SharedFlag::kYes) {
+      if (memory.is_shared) {
         out_ << ", true";
       }
       out_ << ");";
@@ -1640,7 +1638,7 @@ class MjsunitModuleDis {
         out_ << ", " << uint32_t{data[j]};
       }
       out_ << "]";
-      if (segment.shared == SharedFlag::kYes) out_ << ", true";
+      if (segment.shared) out_ << ", true";
       out_ << ");";
       out_.NextLine(0);
     }
@@ -1665,7 +1663,7 @@ class MjsunitModuleDis {
       out_ << " = builder.addGlobal(";
       names()->PrintValueType(out_, global.type, kEmitObjects);
       out_ << ", " << (global.mutability ? "true" : "false") << ", ";
-      out_ << (global.shared == SharedFlag::kYes ? "true" : "false") << ", ";
+      out_ << (global.shared ? "true" : "false") << ", ";
       DecodeAndAppendInitExpr(global.init, global.type);
       if (!kMaintainExportOrder && global.exported) {
         out_ << ").exportAs('";
@@ -1697,10 +1695,10 @@ class MjsunitModuleDis {
       if (table.initial_value.is_set()) {
         out_ << ", ";
         DecodeAndAppendInitExpr(table.initial_value, table.type);
-      } else if (table.shared == SharedFlag::kYes) {
+      } else if (table.shared) {
         out_ << ", undefined";
       }
-      if (table.shared == SharedFlag::kYes) out_ << ", true";
+      if (table.shared) out_ << ", true";
       if (!kMaintainExportOrder && table.exported) {
         out_ << ").exportAs('";
         PrintExportName(kExternalTable, i);
@@ -1751,7 +1749,7 @@ class MjsunitModuleDis {
         out_ << ", ";
         names()->PrintValueType(out_, segment.type, kEmitObjects);
       }
-      if (segment.shared == SharedFlag::kYes) out_ << ", true";
+      if (segment.shared) out_ << ", true";
       out_ << ");";
       out_.NextLine(0);
     }
@@ -1922,7 +1920,7 @@ class MjsunitModuleDis {
         const uint8_t* end = start + ref.length();
         auto sig = FixedSizeSignature<ValueType>::Returns(expected);
         WasmDetectedFeatures detected;
-        MjsunitFunctionDis d(&zone_, module_, 0, SharedFlag::kNo, &detected,
+        MjsunitFunctionDis d(&zone_, module_, 0, SharedFlag{false}, &detected,
                              &sig, start, end, ref.offset(), &mjsunit_names_,
                              Indentation{0, 0});
         d.DecodeGlobalInitializer(out_);

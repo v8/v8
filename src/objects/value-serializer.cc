@@ -2213,9 +2213,8 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
   }
   MaybeDirectHandle<JSArrayBuffer> result =
       isolate_->factory()->NewJSArrayBufferAndBackingStore(
-          byte_length, max_byte_length, InitializedFlag::kUninitialized,
-          is_resizable ? ResizableFlag::kResizable
-                       : ResizableFlag::kNotResizable);
+          byte_length, max_byte_length, InitializedFlag{false},
+          is_resizable ? ResizableFlag{true} : ResizableFlag{false});
   DirectHandle<JSArrayBuffer> array_buffer;
   if (!result.ToHandle(&array_buffer)) return result;
 

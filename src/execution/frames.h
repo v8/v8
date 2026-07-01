@@ -10,6 +10,7 @@
 #include "include/v8-initialization.h"
 #include "src/base/bounds.h"
 #include "src/base/small-vector.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/handler-table.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/assert-scope.h"
@@ -385,9 +386,9 @@ class StackFrame {
 
   // Printing support.
   enum PrintMode { OVERVIEW, DETAILS };
-  virtual void Print(
-      StringStream* accumulator, PrintMode mode, int index,
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const;
+  virtual void Print(StringStream* accumulator, PrintMode mode, int index,
+                     AllowAllocation allow_allocation = AllowAllocation{
+                         true}) const;
 
   Isolate* isolate() const { return isolate_; }
 
@@ -670,7 +671,7 @@ class CommonFrame : public StackFrame {
   // The functions are ordered bottom-to-top (i.e. summaries.last() is the
   // top-most activation; caller comes before callee).
   virtual FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const;
+      AllowAllocation allow_allocation = AllowAllocation{true}) const;
 
   static CommonFrame* cast(StackFrame* frame) {
     // It is always safe to cast to common.
@@ -750,8 +751,8 @@ class CommonFrameWithJSLinkage : public CommonFrame {
   virtual bool IsConstructor() const;
 
   // Summarize Frame
-  FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
+                               true}) const override;
 
  protected:
   inline explicit CommonFrameWithJSLinkage(StackFrameIteratorBase* iterator);
@@ -793,9 +794,9 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
   void Iterate(RootVisitor* v) const override;
 
   // Printing support.
-  void Print(
-      StringStream* accumulator, PrintMode mode, int index,
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  void Print(StringStream* accumulator, PrintMode mode, int index,
+             AllowAllocation allow_allocation = AllowAllocation{
+                 true}) const override;
 
   // Return a list with {SharedFunctionInfo} objects of this frame.
   virtual void GetFunctions(
@@ -958,13 +959,13 @@ class BuiltinExitFrame : public ExitFrame {
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
 
-  void Print(
-      StringStream* accumulator, PrintMode mode, int index,
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  void Print(StringStream* accumulator, PrintMode mode, int index,
+             AllowAllocation allow_allocation = AllowAllocation{
+                 true}) const override;
 
   // Summarize Frame
-  FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
+                               true}) const override;
 
  protected:
   inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
@@ -994,7 +995,7 @@ class ApiCallbackExitFrame : public ExitFrame {
   // Returns an empty handle if allow_allocation is kNever and instantiation
   // would be required.
   DirectHandle<JSFunction> GetFunction(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const;
+      AllowAllocation allow_allocation = AllowAllocation{true}) const;
 
   DirectHandle<FunctionTemplateInfo> GetFunctionTemplateInfo() const;
 
@@ -1005,13 +1006,13 @@ class ApiCallbackExitFrame : public ExitFrame {
 
   inline Tagged<Object> context() const override;
 
-  void Print(
-      StringStream* accumulator, PrintMode mode, int index,
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  void Print(StringStream* accumulator, PrintMode mode, int index,
+             AllowAllocation allow_allocation = AllowAllocation{
+                 true}) const override;
 
   // Summarize Frame
-  FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override {
+  FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
+                               true}) const override {
     return SummarizeApiFrame(false, allow_allocation);
   }
 
@@ -1048,13 +1049,13 @@ class ApiConstructExitFrame : public ApiCallbackExitFrame {
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
 
-  void Print(
-      StringStream* accumulator, PrintMode mode, int index,
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  void Print(StringStream* accumulator, PrintMode mode, int index,
+             AllowAllocation allow_allocation = AllowAllocation{
+                 true}) const override;
 
   // Summarize Frame
-  FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override {
+  FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
+                               true}) const override {
     return SummarizeApiFrame(true, allow_allocation);
   }
 
@@ -1081,8 +1082,8 @@ class ApiAccessorExitFrame : public ExitFrame {
   inline Tagged<Object> holder() const;
 
   // Summarize Frame
-  FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
+                               true}) const override;
 
   static ApiAccessorExitFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_api_named_accessor_exit() ||
@@ -1109,9 +1110,9 @@ class ApiNamedAccessorExitFrame : public ApiAccessorExitFrame {
   // GC support.
   void Iterate(RootVisitor* v) const override;
 
-  void Print(
-      StringStream* accumulator, PrintMode mode, int index,
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  void Print(StringStream* accumulator, PrintMode mode, int index,
+             AllowAllocation allow_allocation = AllowAllocation{
+                 true}) const override;
 
   static ApiNamedAccessorExitFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_api_named_accessor_exit());
@@ -1134,9 +1135,9 @@ class ApiIndexedAccessorExitFrame : public ApiAccessorExitFrame {
  public:
   Type type() const override { return API_INDEXED_ACCESSOR_EXIT; }
 
-  void Print(
-      StringStream* accumulator, PrintMode mode, int index,
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  void Print(StringStream* accumulator, PrintMode mode, int index,
+             AllowAllocation allow_allocation = AllowAllocation{
+                 true}) const override;
 
   static ApiIndexedAccessorExitFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_api_indexed_accessor_exit());
@@ -1160,8 +1161,8 @@ class StubFrame : public TypedFrame {
   // TurboFan stub frames are supported.
   int LookupExceptionHandlerInTable();
 
-  FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
+                               true}) const override;
 
  protected:
   inline explicit StubFrame(StackFrameIteratorBase* iterator);
@@ -1178,8 +1179,8 @@ class OptimizedJSFrame : public JavaScriptFrame {
   void GetFunctions(
       std::vector<Tagged<SharedFunctionInfo>>* functions) const override;
 
-  FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
+                               true}) const override;
 
   Tagged<DeoptimizationData> GetDeoptimizationData(Tagged<Code> code,
                                                    int* deopt_index) const;
@@ -1233,8 +1234,8 @@ class UnoptimizedJSFrame : public JavaScriptFrame {
   inline void SetFeedbackVector(Tagged<FeedbackVector> feedback_vector);
 
   // Build a list with summaries for this frame including all inlined frames.
-  FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
+                               true}) const override;
 
   static UnoptimizedJSFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_unoptimized_js());
@@ -1385,9 +1386,9 @@ class WasmFrame : public TypedFrame {
   Type type() const override { return WASM; }
 
   // Printing support.
-  void Print(
-      StringStream* accumulator, PrintMode mode, int index,
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  void Print(StringStream* accumulator, PrintMode mode, int index,
+             AllowAllocation allow_allocation = AllowAllocation{
+                 true}) const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable();
@@ -1413,8 +1414,8 @@ class WasmFrame : public TypedFrame {
   bool at_to_number_conversion() const;
   bool is_inspectable() const;
 
-  FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
+                               true}) const override;
 
   static WasmFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm()
@@ -1474,12 +1475,12 @@ class WasmInterpreterEntryFrame final : public WasmFrame {
   void Iterate(RootVisitor* v) const override;
 
   // Printing support.
-  void Print(
-      StringStream* accumulator, PrintMode mode, int index,
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  void Print(StringStream* accumulator, PrintMode mode, int index,
+             AllowAllocation allow_allocation = AllowAllocation{
+                 true}) const override;
 
-  FrameSummaries Summarize(
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  FrameSummaries Summarize(AllowAllocation allow_allocation = AllowAllocation{
+                               true}) const override;
 
   // Determine the code for the frame.
   Tagged<HeapObject> unchecked_code() const override;
@@ -1517,9 +1518,9 @@ class WasmDebugBreakFrame final : public TypedFrame {
   // GC support.
   void Iterate(RootVisitor* v) const override;
 
-  void Print(
-      StringStream* accumulator, PrintMode mode, int index,
-      AllowAllocation allow_allocation = AllowAllocation::kYes) const override;
+  void Print(StringStream* accumulator, PrintMode mode, int index,
+             AllowAllocation allow_allocation = AllowAllocation{
+                 true}) const override;
 
   static WasmDebugBreakFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm_debug_break());

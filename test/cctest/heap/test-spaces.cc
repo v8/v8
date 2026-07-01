@@ -34,6 +34,7 @@
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-result.h"
 #include "src/heap/factory.h"
@@ -316,8 +317,7 @@ TEST(SemiSpaceNewSpace) {
       heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize(),
       heap->InitialSemiSpaceSize());
   MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
-                          MainAllocator::IsNewGeneration::kYes,
-                          &allocation_info);
+                          MainAllocator::kNewGeneration, &allocation_info);
   CHECK(new_space->MaximumCapacity());
 
   size_t successful_allocations = 0;
@@ -350,8 +350,7 @@ TEST(PagedNewSpace) {
       heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize(),
       heap->InitialSemiSpaceSize());
   MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
-                          MainAllocator::IsNewGeneration::kYes,
-                          &allocation_info);
+                          MainAllocator::kNewGeneration, &allocation_info);
   GrowNewSpaceToMaximumCapacity(heap);
 
   size_t successful_allocations = 0;
@@ -386,8 +385,7 @@ TEST(OldSpace) {
 
   auto old_space = std::make_unique<OldSpace>(heap);
   MainAllocator allocator(heap->main_thread_local_heap(), old_space.get(),
-                          MainAllocator::IsNewGeneration::kNo,
-                          &allocation_info);
+                          MainAllocator::kOldGeneration, &allocation_info);
   const int obj_size = kMaxRegularHeapObjectSize;
 
   size_t successful_allocations = 0;

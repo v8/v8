@@ -43,6 +43,7 @@
 #include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
+#include "src/base/strong-alias.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/vector.h"
@@ -4289,7 +4290,7 @@ std::shared_ptr<v8::BackingStore> v8::ArrayBuffer::GetBackingStore() {
   auto self = Utils::OpenDirectHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
   if (!backing_store) {
-    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag::kNo);
+    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag{false});
   }
   std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
   return std::static_pointer_cast<v8::BackingStore>(bs_base);
@@ -4307,7 +4308,7 @@ std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
   auto self = Utils::OpenDirectHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
   if (!backing_store) {
-    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag::kYes);
+    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag{true});
   }
   std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
   return std::static_pointer_cast<v8::BackingStore>(bs_base);
@@ -6477,8 +6478,9 @@ size_t V8::GetWasmMemoryReservationSizeInBytes(WasmMemoryType type,
 #if V8_TRAP_HANDLER_SUPPORTED
   if (!is_memory64 || i::v8_flags.wasm_memory64_trap_handling) {
     return i::BackingStore::GetWasmReservationSize(
-        /* has_guard_regions */ true, byte_capacity,
-        /* is_wasm_memory64 */ is_memory64);
+        i::HasGuardRegions{true}, byte_capacity,
+        is_memory64 ? i::WasmMemoryFlag::kWasmMemory64
+                    : i::WasmMemoryFlag::kWasmMemory32);
   }
 #endif  // V8_TRAP_HANDLER_SUPPORTED
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -9165,9 +9167,9 @@ i::InitializedFlag GetInitializedFlag(
     BackingStoreInitializationMode initialization_mode) {
   switch (initialization_mode) {
     case BackingStoreInitializationMode::kUninitialized:
-      return i::InitializedFlag::kUninitialized;
+      return i::InitializedFlag{false};
     case BackingStoreInitializationMode::kZeroInitialized:
-      return i::InitializedFlag::kZeroInitialized;
+      return i::InitializedFlag{true};
   }
   UNREACHABLE();
 }
@@ -9248,7 +9250,7 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
   }
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   std::unique_ptr<i::BackingStoreBase> backing_store =
-      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kNo,
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag{false},
                                 GetInitializedFlag(initialization_mode));
   if (!backing_store) {
     if (on_failure == BackingStoreOnFailureMode::kOutOfMemory) {
@@ -9291,7 +9293,7 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
 
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::WrapAllocation(data, byte_length, deleter, deleter_data,
-                                      i::SharedFlag::kNo);
+                                      i::SharedFlag{false});
   return std::unique_ptr<v8::BackingStore>(
       static_cast<v8::BackingStore*>(backing_store.release()));
 }
@@ -9319,7 +9321,7 @@ std::unique_ptr<BackingStore> v8::ArrayBuffer::NewResizableBackingStore(
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::TryAllocateAndPartiallyCommitMemory(
           nullptr, byte_length, max_byte_length, page_size, initial_pages,
-          max_pages, i::WasmMemoryFlag::kNotWasm, i::SharedFlag::kNo);
+          max_pages, i::WasmMemoryFlag::kNotWasm, i::SharedFlag{false});
   if (!backing_store) {
     i::V8::FatalProcessOutOfMemory(nullptr,
                                    "v8::ArrayBuffer::NewResizableBackingStore");
@@ -9571,7 +9573,7 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
 
   std::unique_ptr<i::BackingStore> backing_store =
-      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kYes,
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag{true},
                                 GetInitializedFlag(initialization_mode));
 
   if (!backing_store) {
@@ -9592,7 +9594,7 @@ MaybeLocal<SharedArrayBuffer> v8::SharedArrayBuffer::MaybeNew(
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
 
   std::unique_ptr<i::BackingStore> backing_store =
-      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kYes,
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag{true},
                                 GetInitializedFlag(initialization_mode));
 
   if (!backing_store) return {};
@@ -9637,7 +9639,7 @@ std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
   }
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   std::unique_ptr<i::BackingStoreBase> backing_store =
-      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kYes,
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag{true},
                                 GetInitializedFlag(initialization_mode));
   if (!backing_store) {
     if (on_failure == BackingStoreOnFailureMode::kOutOfMemory) {
@@ -9658,7 +9660,7 @@ std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
   CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::WrapAllocation(data, byte_length, deleter, deleter_data,
-                                      i::SharedFlag::kYes);
+                                      i::SharedFlag{true});
   return std::unique_ptr<v8::BackingStore>(
       static_cast<v8::BackingStore*>(backing_store.release()));
 }

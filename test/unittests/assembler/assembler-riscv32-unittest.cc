@@ -1081,7 +1081,7 @@ TEST_F(AssemblerRISCV32Test, RISCV9) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label exit, exit2, exit3;
 
   __ Branch(&exit, ge, a0, Operand(zero_reg));
@@ -1453,7 +1453,7 @@ TEST_F(AssemblerRISCV32Test, TARGET_ADDR) {
   uint32_t buffer[2] = {0x01234837,   // lui     a6,0x1234
                         0x56780813};  // addi    a6,a6,1383
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
   Address res = __ target_constant_address_at(static_cast<Address>(addr));
@@ -1468,7 +1468,7 @@ TEST_F(AssemblerRISCV32Test, SET_TARGET_ADDR) {
   uint32_t buffer[6] = {0x091ab37,  0x2b330213, 0x00b21213,
                         0x62626213, 0x00621213, 0x02b26213};
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
   __ set_target_value_at(static_cast<Address>(addr), 0xba987654L, nullptr,
@@ -1769,7 +1769,7 @@ TEST_F(AssemblerRISCV32Test, li_estimate) {
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   for (auto p : immediates) {
     Label a;
     assm.bind(&a);

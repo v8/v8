@@ -2303,7 +2303,7 @@ void CallFunctionWithStackPointerChecks(Isolate* isolate,
           CSA_CHECK(
               &m, m.TaggedEqual(result, MakeConstantNode(m, expected_result)));
         },
-        1, CodeStubAssembler::LoopUnrollingMode::kNo,
+        1, CodeStubAssembler::kNoLoopUnrolling,
         CodeStubAssembler::IndexAdvanceMode::kPost);
 
 #ifdef V8_CC_GNU

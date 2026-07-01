@@ -15,6 +15,7 @@
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/base/numbers/double.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
 #include "src/common/globals.h"
@@ -2257,7 +2258,7 @@ RUNTIME_FUNCTION(Runtime_StringToCString) {
   DirectHandle<JSArrayBuffer> result =
       isolate->factory()
           ->NewJSArrayBufferAndBackingStore(output_length,
-                                            InitializedFlag::kUninitialized)
+                                            InitializedFlag{false})
           .ToHandleChecked();
   memcpy(result->backing_store(), bytes.get(), output_length);
   return *result;
@@ -2275,7 +2276,7 @@ RUNTIME_FUNCTION(Runtime_StringUtf8Value) {
   DirectHandle<JSArrayBuffer> result =
       isolate->factory()
           ->NewJSArrayBufferAndBackingStore(value.length(),
-                                            InitializedFlag::kUninitialized)
+                                            InitializedFlag{false})
           .ToHandleChecked();
   memcpy(result->backing_store(), *value, value.length());
   return *result;
@@ -2682,8 +2683,7 @@ RUNTIME_FUNCTION(Runtime_GetBytecode) {
   int length = bytecode_array->length();
   Handle<JSArrayBuffer> bytecode_buffer =
       isolate->factory()
-          ->NewJSArrayBufferAndBackingStore(length,
-                                            InitializedFlag::kUninitialized)
+          ->NewJSArrayBufferAndBackingStore(length, InitializedFlag{false})
           .ToHandleChecked();
   memcpy(
       bytecode_buffer->backing_store(),
@@ -2707,8 +2707,7 @@ RUNTIME_FUNCTION(Runtime_GetBytecode) {
   size_t ht_length = static_cast<size_t>(handler_table->ulength().value());
   Handle<JSArrayBuffer> handler_table_buffer =
       isolate->factory()
-          ->NewJSArrayBufferAndBackingStore(ht_length,
-                                            InitializedFlag::kUninitialized)
+          ->NewJSArrayBufferAndBackingStore(ht_length, InitializedFlag{false})
           .ToHandleChecked();
   memcpy(handler_table_buffer->backing_store(), handler_table->begin(),
          ht_length);

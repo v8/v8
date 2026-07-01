@@ -192,7 +192,7 @@ V8_OBJECT class WasmModuleObject : public JSObject {
   // property lookup anyway.)
   static DirectHandle<String> ExtractUtf8StringFromModuleBytes(
       Isolate*, base::Vector<const uint8_t> wire_bytes, wasm::WireBytesRef,
-      InternalizeString, SharedFlag shared = SharedFlag::kNo);
+      InternalizeString, SharedFlag shared = SharedFlag{false});
 
   TaggedMember<Managed<wasm::NativeModule>> managed_native_module_;
   TaggedMember<Script> script_;

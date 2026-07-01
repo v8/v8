@@ -188,15 +188,16 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     DCHECK(input.type.is_reference_to(wasm::GenericKind::kExtern) ||
            input.type.is_reference_to(wasm::GenericKind::kNoExtern));
     wasm::ValueType result_type = wasm::ValueType::Generic(
-        wasm::GenericKind::kAny, input.type.nullability(), SharedFlag::kNo);
+        wasm::GenericKind::kAny, input.type.nullability(), SharedFlag{false});
     Node* internalized = gasm_.WasmAnyConvertExtern(input.node);
     return TypeNode(internalized, result_type);
   }
 
   Value ParseExternConvertAny(Value input) {
     DCHECK(input.type.is_ref());
-    wasm::ValueType result_type = wasm::ValueType::Generic(
-        wasm::GenericKind::kExtern, input.type.nullability(), SharedFlag::kNo);
+    wasm::ValueType result_type =
+        wasm::ValueType::Generic(wasm::GenericKind::kExtern,
+                                 input.type.nullability(), SharedFlag{false});
     Node* internalized = gasm_.WasmExternConvertAny(input.node);
     return TypeNode(internalized, result_type);
   }
@@ -269,7 +270,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
       wasm::ValueType result_type = wasm::ValueType::Generic(
           wasm::GenericKind::kArray,
           null_succeeds ? wasm::kNullable : wasm::kNonNullable,
-          SharedFlag::kNo);
+          SharedFlag{false});
       Node* type_guard =
           graph->NewNode(mcgraph_->common()->TypeGuard(
                              Type::Wasm(result_type, module_, graph->zone())),
@@ -308,7 +309,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
            wasm::IsHeapSubtypeOf(
                input.type.heap_type(),
                wasm::IndependentHeapType{wasm::GenericKind::kArray,
-                                         wasm::kNullable, SharedFlag::kYes},
+                                         wasm::kNullable, SharedFlag{true}},
                module_));
     const CheckForNull null_check =
         input.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;

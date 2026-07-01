@@ -181,7 +181,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       return;
     }
 
-    if (type.is_shared() == SharedFlag::kYes) {
+    if (type.is_shared()) {
       // TODO(mliedtke): Extend this for shared types.
       return;
     }

@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
@@ -156,7 +157,9 @@ class MainAllocator {
   struct InGCTag {};
   static constexpr InGCTag kInGC{};
 
-  enum class IsNewGeneration { kNo, kYes };
+  using IsNewGeneration = base::StrongAlias<struct IsNewGenerationTag, bool>;
+  static constexpr IsNewGeneration kNewGeneration{true};
+  static constexpr IsNewGeneration kOldGeneration{false};
 
   // Use this constructor on main/background threads. `allocation_info` can be
   // used for allocation support in generated code (currently new and old

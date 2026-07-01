@@ -750,7 +750,7 @@ TF_BUILTIN(ArrayDestructureLazyDeoptContinuation, IteratorBuiltinsAssembler) {
             IntPtrAdd(ReinterpretCast<IntPtrT>(caller_fp), offset));
         StoreFullTaggedNoWriteBarrier(target_addr, IntPtrConstant(0), val);
       },
-      1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+      1, kNoLoopUnrolling, IndexAdvanceMode::kPost);
 
   Return(result);
 }

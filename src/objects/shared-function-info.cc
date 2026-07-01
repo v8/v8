@@ -8,6 +8,7 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
@@ -355,8 +356,7 @@ Handle<String> SharedFunctionInfo::DebugName(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
     AllowAllocation allow_allocation) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (shared->HasWasmExportedFunctionData(isolate) &&
-      allow_allocation == AllowAllocation::kYes) {
+  if (shared->HasWasmExportedFunctionData(isolate) && allow_allocation) {
     return isolate->factory()
         ->NewStringFromUtf8(base::CStrVector(shared->DebugNameCStr().get()))
         .ToHandleChecked();

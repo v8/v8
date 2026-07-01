@@ -147,8 +147,8 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   DirectHandle<WasmFuncRef> func_ref =
       WasmTrustedInstanceData::GetOrCreateFuncRef(
           isolate_,
-          function_is_shared == SharedFlag::kYes ? shared_trusted_instance_data_
-                                                 : trusted_instance_data_,
+          function_is_shared ? shared_trusted_instance_data_
+                             : trusted_instance_data_,
           function_index);
   result->runtime_value = WasmValue(func_ref, type);
 }
@@ -159,8 +159,7 @@ void ConstantExpressionInterface::GlobalGet(FullDecoder* decoder, Value* result,
   const WasmGlobal& global = module_->globals[imm.index];
   DCHECK(!global.mutability);
   DirectHandle<WasmTrustedInstanceData> data =
-      global.shared == SharedFlag::kYes ? shared_trusted_instance_data_
-                                        : trusted_instance_data_;
+      global.shared ? shared_trusted_instance_data_ : trusted_instance_data_;
   result->runtime_value = data->GetGlobalValue(isolate_, global);
 }
 
@@ -208,7 +207,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   DirectHandle<WasmStruct> obj;
   if (type.is_descriptor()) {
     // TODO(14616): Support shared custom descriptors.
-    if (type.is_shared == SharedFlag::kYes) UNIMPLEMENTED();
+    if (type.is_shared) UNIMPLEMENTED();
     DirectHandle<Object> first_field =
         struct_type->first_field_can_be_prototype()
             ? args[0].runtime_value.to_ref()
@@ -219,8 +218,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
     // Pretenure, because we expect values in globals to be long-lived.
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
-        type.is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
-                                           : AllocationType::kOld);
+        type.is_shared ? AllocationType::kSharedOld : AllocationType::kOld);
   }
   {
     DisallowGarbageCollection no_gc;  // Must initialize fields first.
@@ -318,7 +316,7 @@ void ConstantExpressionInterface::StructNewDefault(
   DirectHandle<WasmStruct> obj;
   if (type.is_descriptor()) {
     // TODO(14616): Implement shared custom descriptors.
-    if (type.is_shared == SharedFlag::kYes) UNIMPLEMENTED();
+    if (type.is_shared) UNIMPLEMENTED();
     DirectHandle<Object> first_field(Smi::zero(), isolate_);
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
                                                       rtt, first_field);
@@ -326,8 +324,7 @@ void ConstantExpressionInterface::StructNewDefault(
     // Pretenure, because we expect values in globals to be long-lived.
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
-        type.is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
-                                           : AllocationType::kOld);
+        type.is_shared ? AllocationType::kSharedOld : AllocationType::kOld);
   }
 
   {
@@ -391,9 +388,8 @@ void ConstantExpressionInterface::ArrayNewImpl(
     error_ = MessageTemplate::kWasmTrapArrayTooLarge;
     return;
   }
-  AllocationType allocation = imm.shared == SharedFlag::kYes
-                                  ? AllocationType::kSharedOld
-                                  : AllocationType::kOld;
+  AllocationType allocation =
+      imm.shared ? AllocationType::kSharedOld : AllocationType::kOld;
   result->runtime_value = WasmValue(
       isolate_->factory()->NewWasmArray(
           imm.array_type->element_type(), length.runtime_value.to_u32(),
@@ -416,9 +412,8 @@ void ConstantExpressionInterface::ArrayNewFixed(
   for (size_t i = 0; i < length_imm.index; i++) {
     element_values[i] = elements[i].runtime_value;
   }
-  AllocationType allocation = array_imm.shared == SharedFlag::kYes
-                                  ? AllocationType::kSharedOld
-                                  : AllocationType::kOld;
+  AllocationType allocation =
+      array_imm.shared ? AllocationType::kSharedOld : AllocationType::kOld;
   result->runtime_value =
       WasmValue(isolate_->factory()->NewWasmArrayFromElements(
                     array_imm.array_type, element_values, rtt, allocation),
@@ -455,9 +450,8 @@ void ConstantExpressionInterface::ArrayNewSegment(
   CanonicalValueType element_type = rtt->wasm_type_info()->element_type();
   CanonicalValueType result_type =
       rtt->wasm_type_info()->type().AsExactIfEnabled(decoder->enabled_);
-  AllocationType allocation = array_imm.shared == SharedFlag::kYes
-                                  ? AllocationType::kSharedOld
-                                  : AllocationType::kOld;
+  AllocationType allocation =
+      array_imm.shared ? AllocationType::kSharedOld : AllocationType::kOld;
   if (element_type.is_numeric()) {
     uint32_t length_in_bytes =
         length * array_imm.array_type->element_type().value_kind_size();
@@ -549,8 +543,8 @@ DirectHandle<WasmTrustedInstanceData>
 ConstantExpressionInterface::GetTrustedInstanceDataForTypeIndex(
     ModuleTypeIndex index) {
   SharedFlag type_is_shared = module_->type(index).is_shared;
-  return type_is_shared == SharedFlag::kYes ? shared_trusted_instance_data_
-                                            : trusted_instance_data_;
+  return type_is_shared ? shared_trusted_instance_data_
+                        : trusted_instance_data_;
 }
 
 }  // namespace wasm

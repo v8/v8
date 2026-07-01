@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 
 #include "src/base/logging.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
@@ -98,7 +99,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   MaglevAssembler(Isolate* isolate, Zone* zone,
                   MaglevCodeGenState* code_gen_state)
-      : MacroAssembler(isolate, zone, CodeObjectRequired::kNo),
+      : MacroAssembler(isolate, zone, CodeObjectRequired{false}),
         code_gen_state_(code_gen_state) {}
 
   static constexpr RegList GetAllocatableRegisters() {

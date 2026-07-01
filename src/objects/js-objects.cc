@@ -9,6 +9,7 @@
 
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api-natives.h"
+#include "src/base/strong-alias.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
@@ -617,8 +618,8 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
     if (IsJSFunction(*maybe_constructor)) {
       DirectHandle<JSFunction> constructor =
           Cast<JSFunction>(maybe_constructor);
-      DirectHandle<String> name =
-          JSFunction::GetDebugName(isolate, constructor, AllowAllocation::kNo);
+      DirectHandle<String> name = JSFunction::GetDebugName(
+          isolate, constructor, AllowAllocation{false});
       if (name->length() != 0 &&
           !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
         return std::make_pair(indirect_handle(constructor, isolate), name);
@@ -642,7 +643,7 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
         isolate, receiver, isolate->factory()->to_string_tag_symbol(), current,
         LookupIterator::OWN_SKIP_INTERCEPTOR);
     auto maybe_to_string_tag =
-        JSReceiver::GetDataProperty(&it_to_string_tag, AllowAllocation::kNo);
+        JSReceiver::GetDataProperty(&it_to_string_tag, AllowAllocation{false});
     if (IsString(*maybe_to_string_tag)) {
       return std::make_pair(MaybeHandle<JSFunction>(),
                             Cast<String>(maybe_to_string_tag));
@@ -679,12 +680,12 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
           isolate, receiver, isolate->factory()->constructor_string(), current,
           LookupIterator::OWN_SKIP_INTERCEPTOR);
       auto maybe_constructor =
-          JSReceiver::GetDataProperty(&it_constructor, AllowAllocation::kNo);
+          JSReceiver::GetDataProperty(&it_constructor, AllowAllocation{false});
       if (IsJSFunction(*maybe_constructor)) {
         auto constructor = Cast<JSFunction>(maybe_constructor);
         auto name = SharedFunctionInfo::DebugName(
             isolate, direct_handle(constructor->shared(), isolate),
-            AllowAllocation::kNo);
+            AllowAllocation{false});
 
         if (name->length() != 0 &&
             !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
@@ -3395,7 +3396,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
 
   if (instance_size_delta > 0) {
     heap->NotifyObjectSizeChange(*object, old_instance_size, new_instance_size,
-                                 ClearRecordedSlots::kYes);
+                                 ClearRecordedSlots{true});
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -3495,7 +3496,7 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
 
   if (instance_size_delta > 0) {
     heap->NotifyObjectSizeChange(*object, old_instance_size, new_instance_size,
-                                 ClearRecordedSlots::kYes);
+                                 ClearRecordedSlots{true});
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -6063,7 +6064,7 @@ void JSMessageObject::InitializeSourcePositions(
       Cast<SharedFunctionInfo>(message->shared_info()), isolate);
   IsCompiledScope is_compiled_scope;
   SharedFunctionInfo::EnsureBytecodeArrayAvailable(
-      isolate, shared_info, &is_compiled_scope, CreateSourcePositions::kYes);
+      isolate, shared_info, &is_compiled_scope, CreateSourcePositions{true});
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
   DCHECK(shared_info->HasBytecodeArray());
   int position = shared_info->abstract_code(isolate)->SourcePosition(

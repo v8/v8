@@ -97,7 +97,7 @@ struct Input {
 #define CHECK_PARSE_PROGRAM(info, script, isolate)                        \
   do {                                                                    \
     if (!i::parsing::ParseProgram((info), script, (isolate),              \
-                                  parsing::ReportStatisticsMode::kYes)) { \
+                                  parsing::ReportStatisticsMode{true})) { \
       FAIL_WITH_PENDING_PARSER_ERROR((info), (script), (isolate));        \
     }                                                                     \
                                                                           \
@@ -108,7 +108,7 @@ struct Input {
 #define CHECK_PARSE_FUNCTION(info, shared, isolate)                        \
   do {                                                                     \
     if (!i::parsing::ParseFunction((info), (shared), (isolate),            \
-                                   parsing::ReportStatisticsMode::kYes)) { \
+                                   parsing::ReportStatisticsMode{true})) { \
       FAIL_WITH_PENDING_PARSER_ERROR(                                      \
           (info), handle(Cast<Script>((shared)->script()), (isolate)),     \
           (isolate));                                                      \
@@ -260,7 +260,7 @@ class ParsingTest : public TestWithContextAndZone {
       i::ParseInfo info(isolate, compile_flags, &compile_state,
                         &reusable_state);
       if (!i::parsing::ParseProgram(&info, script, isolate,
-                                    parsing::ReportStatisticsMode::kYes)) {
+                                    parsing::ReportStatisticsMode{true})) {
         info.pending_error_handler()->PrepareErrors(isolate,
                                                     info.ast_value_factory());
         info.pending_error_handler()->ReportErrors(isolate, script);
@@ -4974,7 +4974,7 @@ TEST_F(ParsingTest, BasicImportAttributesParsing) {
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
       CHECK(!i::parsing::ParseProgram(&info, script, isolate,
-                                      parsing::ReportStatisticsMode::kYes));
+                                      parsing::ReportStatisticsMode{true}));
       CHECK(info.pending_error_handler()->has_pending_error());
     }
   }
@@ -5025,7 +5025,7 @@ TEST_F(ParsingTest, ImportAttributesParsingErrors) {
     flags.set_is_module(true);
     i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK(!i::parsing::ParseProgram(&info, script, isolate,
-                                    parsing::ReportStatisticsMode::kYes));
+                                    parsing::ReportStatisticsMode{true}));
     CHECK(info.pending_error_handler()->has_pending_error());
   }
 }
@@ -8186,7 +8186,7 @@ TEST_F(ParsingTest, BasicImportExportParsing) {
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
       CHECK(!i::parsing::ParseProgram(&info, script, isolate,
-                                      parsing::ReportStatisticsMode::kYes));
+                                      parsing::ReportStatisticsMode{true}));
       CHECK(info.pending_error_handler()->has_pending_error());
     }
   }
@@ -8319,7 +8319,7 @@ TEST_F(ParsingTest, ImportExportParsingErrors) {
     flags.set_is_module(true);
     i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK(!i::parsing::ParseProgram(&info, script, isolate,
-                                    parsing::ReportStatisticsMode::kYes));
+                                    parsing::ReportStatisticsMode{true}));
     CHECK(info.pending_error_handler()->has_pending_error());
   }
 }
@@ -8356,7 +8356,7 @@ TEST_F(ParsingTest, ModuleTopLevelFunctionDecl) {
     flags.set_is_module(true);
     i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
     CHECK(!i::parsing::ParseProgram(&info, script, isolate,
-                                    parsing::ReportStatisticsMode::kYes));
+                                    parsing::ReportStatisticsMode{true}));
     CHECK(info.pending_error_handler()->has_pending_error());
   }
 }

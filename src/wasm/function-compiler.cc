@@ -48,7 +48,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   // In the rare case when we create both a Liftoff and a Turbofan compilation
   // task up front, we currently validate twice; this is not expected to occur
   // in production.
-  if (validation_ == Validation::kMustValidate) {
+  if (validation_ == kMustValidate) {
     Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};
     if (ValidateFunctionBody(&validation_zone, env->enabled_features,
                              env->module, detected, func_body)
@@ -183,7 +183,7 @@ void WasmCompilationUnit::CompileWasmFunction(NativeModule* native_module,
   DCHECK_LE(native_module->num_imported_functions(), function->func_index);
   DCHECK_LT(function->func_index, native_module->num_functions());
   WasmCompilationUnit unit(function->func_index, tier, kNotForDebugging,
-                           Validation::kAlreadyValidated);
+                           kAlreadyValidated);
   CompilationEnv env = CompilationEnv::ForModule(native_module);
   base::FlushDenormalsScope disable_denormals(
       tier == ExecutionTier::kTurbofan &&

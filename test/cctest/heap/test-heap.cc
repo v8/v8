@@ -32,6 +32,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
@@ -2426,7 +2427,7 @@ TEST(HeapNumberAlignment) {
   HandleScope sc(isolate);
 
   const auto required_alignment = HeapObject::RequiredAlignment(
-      kNotInSharedSpace, *factory->heap_number_map());
+      InSharedSpace{false}, *factory->heap_number_map());
   const int maximum_misalignment =
       Heap::GetMaximumFillToAlign(required_alignment);
 
@@ -4673,7 +4674,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
 
 static DirectHandle<InstructionStream> DummyOptimizedCode(Isolate* isolate) {
   uint8_t buffer[i::Assembler::kDefaultBufferSize];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   CodeDesc desc;
 #if V8_TARGET_ARCH_ARM64
@@ -7262,7 +7263,7 @@ TEST(Regress9701) {
   for (int i = 0; i < 1000; i++) {
     HandleScope scope(heap->isolate());
     CcTest::i_isolate()->factory()->NewJSArrayBufferAndBackingStore(
-        64 * KB, InitializedFlag::kZeroInitialized);
+        64 * KB, InitializedFlag{true});
   }
   int mark_sweep_count_after = heap->ms_count();
   // We expect only scavenges, no full GCs.
@@ -7511,7 +7512,7 @@ TEST(Regress10900) {
   Heap* heap = isolate->heap();
   HandleScope handle_scope(isolate);
   uint8_t buffer[i::Assembler::kDefaultBufferSize];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
 #if V8_TARGET_ARCH_ARM64
   UseScratchRegisterScope temps(&masm);

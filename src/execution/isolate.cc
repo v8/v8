@@ -33,6 +33,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/strong-alias.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/bigint/bigint.h"
@@ -1529,7 +1530,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
 template <typename Visitor>
 void VisitStack(Isolate* isolate, Visitor* visitor,
                 StackTrace::StackTraceOptions options = StackTrace::kDetailed,
-                AllowAllocation allow_allocation = AllowAllocation::kYes) {
+                AllowAllocation allow_allocation = AllowAllocation{true}) {
   DisallowJavascriptExecution no_js(isolate);
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
@@ -2149,7 +2150,7 @@ size_t Isolate::CurrentScriptData(
 
   CurrentScriptDataStackVisitor visitor(this, frame_data);
   // CurrentScriptData should only expose frames from the same origin.
-  VisitStack(this, &visitor, StackTrace::kDetailed, AllowAllocation::kNo);
+  VisitStack(this, &visitor, StackTrace::kDetailed, AllowAllocation{false});
   return visitor.FrameCount();
 }
 
@@ -2209,9 +2210,10 @@ void Isolate::PrintStack(FILE* out, PrintStackMode mode,
   }
 }
 
-static void PrintFrames(
-    Isolate* isolate, StringStream* accumulator, StackFrame::PrintMode mode,
-    AllowAllocation allow_allocation = AllowAllocation::kYes) {
+static void PrintFrames(Isolate* isolate, StringStream* accumulator,
+                        StackFrame::PrintMode mode,
+                        AllowAllocation allow_allocation = AllowAllocation{
+                            true}) {
   StackFrameIterator it(isolate);
   for (int i = 0; !it.done(); it.Advance()) {
     it.frame()->Print(accumulator, mode, i++, allow_allocation);
@@ -2350,7 +2352,7 @@ std::string Isolate::BuildMinimalStack(size_t max_length) {
           v8::StackTrace::kExposeFramesAcrossSecurityOrigins);
 
   MinimalStackPrinter printer(max_length);
-  VisitStack(this, &printer, stackTraceOptions, AllowAllocation::kNo);
+  VisitStack(this, &printer, stackTraceOptions, AllowAllocation{false});
   return printer.Build();
 }
 
@@ -4416,7 +4418,7 @@ bool Isolate::IsBuiltinTableHandleLocation(Address* handle_location) {
 }
 
 void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
-  if (destructor->shared_ == SharedFlag::kYes && !is_shared_space_isolate()) {
+  if (destructor->shared_ && !is_shared_space_isolate()) {
     shared_space_isolate()->RegisterManagedPtrDestructor(destructor);
     return;
   }
@@ -4424,7 +4426,7 @@ void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
   base::MutexGuard lock(&managed_ptr_destructors_mutex_);
   DCHECK_NULL(destructor->prev_);
   DCHECK_NULL(destructor->next_);
-  ManagedPtrDestructor** list = destructor->shared_ == SharedFlag::kYes
+  ManagedPtrDestructor** list = destructor->shared_
                                     ? &shared_managed_ptr_destructors_head_
                                     : &managed_ptr_destructors_head_;
   if (*list) {
@@ -4435,7 +4437,7 @@ void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
 }
 
 void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
-  if (destructor->shared_ == SharedFlag::kYes && !is_shared_space_isolate()) {
+  if (destructor->shared_ && !is_shared_space_isolate()) {
     shared_space_isolate()->UnregisterManagedPtrDestructor(destructor);
     return;
   }
@@ -4444,7 +4446,7 @@ void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
   if (destructor->prev_) {
     destructor->prev_->next_ = destructor->next_;
   } else {
-    ManagedPtrDestructor** list = destructor->shared_ == SharedFlag::kYes
+    ManagedPtrDestructor** list = destructor->shared_
                                       ? &shared_managed_ptr_destructors_head_
                                       : &managed_ptr_destructors_head_;
     DCHECK_EQ(destructor, *list);

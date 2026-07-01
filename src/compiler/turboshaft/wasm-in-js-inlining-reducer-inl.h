@@ -690,7 +690,7 @@ class WasmInJsInliningInterface {
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const wasm::GlobalIndexImmediate& imm) {
     SharedFlag shared = decoder->module_->globals[imm.index].shared;
-    if (shared == SharedFlag::kYes) {
+    if (shared) {
       return Bailout(decoder);
     }
     result->op = __ GlobalGet(trusted_instance_data_, imm.global);
@@ -699,7 +699,7 @@ class WasmInJsInliningInterface {
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const wasm::GlobalIndexImmediate& imm) {
     SharedFlag shared = decoder->module_->globals[imm.index].shared;
-    if (shared == SharedFlag::kYes) {
+    if (shared) {
       return Bailout(decoder);
     }
     __ GlobalSet(trusted_instance_data_, value.op, imm.global);
@@ -818,7 +818,7 @@ class WasmInJsInliningInterface {
   // new, common reducer.
   void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
     ValueType target = result->type;
-    if (target.is_shared() == SharedFlag::kYes) {
+    if (target.is_shared()) {
       return Bailout(decoder);
     }
     if (v8_flags.wasm_assume_ref_cast_succeeds) {
@@ -1085,19 +1085,19 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   // TODO(42204563): Support shared-everything proposal (at some point, or
   // possibly never).
   SharedFlag is_shared = module->type(func.sig_index).is_shared;
-  if (is_shared == SharedFlag::kYes) {
+  if (is_shared) {
     TRACE("- not inlining: shared everything is not supported");
     return WasmBodyInliningResult::Failed();
   }
 
   const bool has_current_catch_block = __ current_catch_block();
-  if (lazy_deopt_on_throw == LazyDeoptOnThrow::kYes) {
+  if (lazy_deopt_on_throw) {
     // Maglev either emits a catch block or uses lazy deopt on throw, but never
     // both.
     DCHECK(!has_current_catch_block);
     // TODO(mliedtke,dlehmann): Support lazy deopts in Wasm in order to allow
-    // inlining calls that have LazyDeoptOnThrow::kYes.
-    TRACE("- not inlining: call marked with LazyDeoptOnThrow::kYes");
+    // inlining calls that have LazyDeoptOnThrow{true}.
+    TRACE("- not inlining: call marked with LazyDeoptOnThrow{true}");
     return WasmBodyInliningResult::Failed();
   }
 

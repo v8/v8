@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/embedder-data-slot.h"
@@ -330,7 +331,7 @@ V8_OBJECT class JSReceiver : public HeapObject {
                                                DirectHandle<Name> name);
   V8_EXPORT_PRIVATE static Handle<Object> GetDataProperty(
       LookupIterator* it,
-      AllowAllocation allow_allocation = AllowAllocation::kYes);
+      AllowAllocation allow_allocation = AllowAllocation{true});
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.

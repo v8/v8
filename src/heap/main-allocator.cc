@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/execution/vm-state.h"
@@ -27,7 +28,7 @@ namespace internal {
 
 constexpr MainAllocator::BlackAllocation MainAllocator::ComputeBlackAllocation(
     MainAllocator::IsNewGeneration is_new_generation) {
-  if (is_new_generation == IsNewGeneration::kYes) {
+  if (is_new_generation == kNewGeneration) {
     return BlackAllocation::kAlwaysDisabled;
   }
   if (v8_flags.sticky_mark_bits) {

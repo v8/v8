@@ -1585,14 +1585,16 @@ constexpr const char* ToString(AllocationType kind) {
   UNREACHABLE();
 }
 
-enum class AllowAllocation : uint8_t { kYes, kNo };
+using AllowAllocation = base::StrongAlias<struct AllowAllocationTag, bool>;
 
 inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
   return os << ToString(type);
 }
 
-enum class PerformHeapLimitCheck { kYes, kNo };
-enum class PerformIneffectiveMarkCompactCheck { kYes, kNo };
+using PerformHeapLimitCheck =
+    base::StrongAlias<struct PerformHeapLimitCheckTag, bool>;
+using PerformIneffectiveMarkCompactCheck =
+    base::StrongAlias<struct PerformIneffectiveMarkCompactCheckTag, bool>;
 
 enum class RequestedGCKind : uint8_t { kMajor = 1, kLastResort = 1 << 1 };
 
@@ -2993,10 +2995,10 @@ inline std::ostream& operator<<(std::ostream& os, ConcurrencyMode mode) {
   return os << ToString(mode);
 }
 
-enum class SharedFlag : bool { kNo = false, kYes = true };
+using SharedFlag = base::StrongAlias<struct SharedFlagTag, bool>;
 
 inline std::ostream& operator<<(std::ostream& os, SharedFlag shared) {
-  return os << (shared == SharedFlag::kYes ? "shared" : "not shared");
+  return os << (shared ? "shared" : "non-shared");
 }
 
 // An architecture independent representation of the sets of registers available
@@ -3129,7 +3131,7 @@ enum class StubCallMode {
   kCallBuiltinPointer,
 };
 
-enum class NeedsContext { kYes, kNo };
+using NeedsContext = base::StrongAlias<struct NeedsContextTag, bool>;
 
 constexpr int kInvalidInfoId = -1;
 constexpr int kFunctionLiteralIdTopLevel = 0;
@@ -3139,9 +3141,9 @@ constexpr int kSwissNameDictionaryInitialCapacity = 4;
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;
 
-enum class AdaptArguments { kYes, kNo };
-constexpr AdaptArguments kAdapt = AdaptArguments::kYes;
-constexpr AdaptArguments kDontAdapt = AdaptArguments::kNo;
+using AdaptArguments = base::StrongAlias<struct AdaptArgumentsTag, bool>;
+constexpr AdaptArguments kAdapt = AdaptArguments{true};
+constexpr AdaptArguments kDontAdapt = AdaptArguments{false};
 
 constexpr int kJSArgcReceiverSlots = 1;
 constexpr uint16_t kDontAdaptArgumentsSentinel = 0;

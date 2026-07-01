@@ -434,14 +434,12 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   const int return_count = function->result_size;
   const char* debug_name = function->name;
 
-  if (lazy_deopt_on_throw == LazyDeoptOnThrow::kNo &&
-      !Linkage::NeedsFrameStateInput(function_id)) {
+  if (!lazy_deopt_on_throw && !Linkage::NeedsFrameStateInput(function_id)) {
     flags = static_cast<CallDescriptor::Flags>(
         flags & ~CallDescriptor::kNeedsFrameState);
   }
 
-  DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
-                 flags & CallDescriptor::kNeedsFrameState);
+  DCHECK_IMPLIES(lazy_deopt_on_throw, flags & CallDescriptor::kNeedsFrameState);
 
   CallDescriptor* descriptor =
       GetCEntryStubCallDescriptor<StackArgumentOrder::kDefault>(

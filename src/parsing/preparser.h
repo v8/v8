@@ -1507,9 +1507,10 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::FromIdentifier(name);
   }
 
-  PreParserExpression ExpressionFromIdentifier(
-      const PreParserIdentifier& name, int start_position,
-      InferName infer = InferName::kYes) {
+  PreParserExpression ExpressionFromIdentifier(const PreParserIdentifier& name,
+                                               int start_position,
+                                               InferName infer = InferName{
+                                                   true}) {
     expression_scope()->NewVariable(name.string_, start_position);
     return PreParserExpression::FromIdentifier(name);
   }

@@ -72,7 +72,7 @@ struct ManagedPtrDestructor
   ManagedPtrDestructor* next_ = nullptr;
   void* shared_ptr_ptr_ = nullptr;
   void (*destructor_)(void* shared_ptr) = nullptr;
-  SharedFlag shared_ = SharedFlag::kNo;
+  SharedFlag shared_ = SharedFlag{false};
   Address* global_handle_location_ = nullptr;
   V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounter external_memory_accounter_;
 

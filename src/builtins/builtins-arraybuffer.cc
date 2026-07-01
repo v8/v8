@@ -61,32 +61,29 @@ TryAllocateBackingStore(Isolate* isolate, SharedFlag shared,
     return {nullptr, MessageTemplate::kInvalidArrayBufferLength};
   }
 
-  switch (resizable) {
-    case ResizableFlag::kNotResizable:
-      backing_store =
-          BackingStore::Allocate(isolate, byte_length, shared, initialized);
-      break;
-    case ResizableFlag::kResizable:
-      if (!TryNumberToSize(*max_length, &max_byte_length) ||
-          max_byte_length > max_allocatable) {
-        return {nullptr, MessageTemplate::kInvalidArrayBufferMaxLength};
-      }
-      if (byte_length > max_byte_length) {
-        return {nullptr, MessageTemplate::kInvalidArrayBufferMaxLength};
-      }
+  if (!resizable) {
+    backing_store =
+        BackingStore::Allocate(isolate, byte_length, shared, initialized);
+  } else {
+    if (!TryNumberToSize(*max_length, &max_byte_length) ||
+        max_byte_length > max_allocatable) {
+      return {nullptr, MessageTemplate::kInvalidArrayBufferMaxLength};
+    }
+    if (byte_length > max_byte_length) {
+      return {nullptr, MessageTemplate::kInvalidArrayBufferMaxLength};
+    }
 
-      size_t page_size, initial_pages, max_pages;
-      const auto maybe_range_error =
-          JSArrayBuffer::GetResizableBackingStorePageConfigurationImpl(
-              isolate, byte_length, max_byte_length, &page_size, &initial_pages,
-              &max_pages);
-      if (maybe_range_error.has_value()) {
-        return {nullptr, maybe_range_error.value()};
-      }
-      backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
-          isolate, byte_length, max_byte_length, page_size, initial_pages,
-          max_pages, WasmMemoryFlag::kNotWasm, shared);
-      break;
+    size_t page_size, initial_pages, max_pages;
+    const auto maybe_range_error =
+        JSArrayBuffer::GetResizableBackingStorePageConfigurationImpl(
+            isolate, byte_length, max_byte_length, &page_size, &initial_pages,
+            &max_pages);
+    if (maybe_range_error.has_value()) {
+      return {nullptr, maybe_range_error.value()};
+    }
+    backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
+        isolate, byte_length, max_byte_length, page_size, initial_pages,
+        max_pages, WasmMemoryFlag::kNotWasm, shared);
   }
 
   // Range errors bailed out earlier; only the failing allocation needs to be
@@ -109,9 +106,8 @@ Tagged<Object> ConstructBuffer(Isolate* isolate,
   // the AB before throwing a possible error as the creation is observable.
   const SharedFlag shared =
       SharedFlag(*target != target->native_context()->array_buffer_fun());
-  const ResizableFlag resizable = max_length.is_null()
-                                      ? ResizableFlag::kNotResizable
-                                      : ResizableFlag::kResizable;
+  const ResizableFlag resizable =
+      max_length.is_null() ? ResizableFlag{false} : ResizableFlag{true};
   // BackingStore allocation may GC which is not observable itself.
   auto [backing_store, range_error] = TryAllocateBackingStore(
       isolate, shared, resizable, length, max_length, initialized);
@@ -182,7 +178,7 @@ BUILTIN(ArrayBufferConstructor) {
     }
   }
   return ConstructBuffer(isolate, target, new_target, number_length,
-                         number_max_length, InitializedFlag::kZeroInitialized);
+                         number_max_length, InitializedFlag{true});
 }
 
 // This is a helper to construct an ArrayBuffer with uinitialized memory.
@@ -194,7 +190,7 @@ BUILTIN(ArrayBufferConstructor_DoNotInitialize) {
                                   isolate);
   DirectHandle<Object> length = args.atOrUndefined(isolate, 1);
   return ConstructBuffer(isolate, target, target, length, {},
-                         InitializedFlag::kUninitialized);
+                         InitializedFlag{false});
 }
 
 static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
@@ -701,12 +697,12 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
     //    IsResizableArrayBuffer(arrayBuffer) is true, then
     //   a. Let newMaxByteLength be arrayBuffer.[[ArrayBufferMaxByteLength]].
     new_max_byte_length = array_buffer->max_byte_length();
-    resizable = ResizableFlag::kResizable;
+    resizable = ResizableFlag{true};
   } else {
     // 7. Else,
     //   a. Let newMaxByteLength be empty.
     new_max_byte_length = new_byte_length;
-    resizable = ResizableFlag::kNotResizable;
+    resizable = ResizableFlag{false};
   }
 
   // 8. If arrayBuffer.[[ArrayBufferDetachKey]] is not undefined, throw a
@@ -732,17 +728,16 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
     //    newMaxByteLength).
     //
     // Nothing to do for steps 10-14.
-    result_buffer = isolate->factory()
-                        ->NewJSArrayBufferAndBackingStore(
-                            0, new_max_byte_length,
-                            InitializedFlag::kUninitialized, resizable)
-                        .ToHandleChecked();
+    result_buffer =
+        isolate->factory()
+            ->NewJSArrayBufferAndBackingStore(0, new_max_byte_length,
+                                              InitializedFlag{false}, resizable)
+            .ToHandleChecked();
   } else {
     // Case 2: We can reuse the same BackingStore.
     auto from_backing_store = array_buffer->GetBackingStore();
     if (from_backing_store && !from_backing_store->is_resizable_by_js() &&
-        resizable == ResizableFlag::kNotResizable &&
-        new_byte_length == array_buffer->GetByteLength()) {
+        !resizable && new_byte_length == array_buffer->GetByteLength()) {
       // TODO(syg): Consider realloc when the default ArrayBuffer allocator's
       // Reallocate does better than copy.
       //
@@ -768,8 +763,8 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
       DirectHandle<JSArrayBuffer> new_buffer;
       MaybeDirectHandle<JSArrayBuffer> result =
           isolate->factory()->NewJSArrayBufferAndBackingStore(
-              new_byte_length, new_max_byte_length,
-              InitializedFlag::kUninitialized, resizable);
+              new_byte_length, new_max_byte_length, InitializedFlag{false},
+              resizable);
       if (!result.ToHandle(&new_buffer)) {
         THROW_NEW_ERROR_RETURN_FAILURE(
             isolate,

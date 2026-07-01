@@ -34,7 +34,7 @@ class AssumptionsJournal;
 struct CompilationEnv;
 struct FunctionBody;
 class TurboshaftGraphBuildingInterface;
-enum class Validation : bool;
+using Validation = base::StrongAlias<struct ValidationFlagTag, bool>;
 class WasmDetectedFeatures;
 class WasmFunctionCoverageData;
 struct WasmModule;

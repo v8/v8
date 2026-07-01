@@ -36,7 +36,7 @@ function warmUpAndOptimize(fn, warmUpValues) {
 }
 
 ////////////////////////////////////////////////////////////////////////////
-// Direct calls (no try/catch) — LazyDeoptOnThrow::kYes
+// Direct calls (no try/catch) — LazyDeoptOnThrow{true}
 // Values that don't match the expected type cause eager deopt (i32/f32/f64)
 // or a thrown exception (i64 BigIntToI64 with frame state).
 
@@ -156,7 +156,7 @@ function warmUpAndOptimize(fn, warmUpValues) {
 })();
 
 ///////////////////////////////////////////////////////////////////
-// Inside try/catch — LazyDeoptOnThrow::kNo (catch handler present)
+// Inside try/catch — LazyDeoptOnThrow{false} (catch handler present)
 // Same deopt behavior but exceptions are caught.
 
 // CHECK-LABEL: testI32TryCatch

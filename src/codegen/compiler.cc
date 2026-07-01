@@ -14,6 +14,7 @@
 #include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/time.h"
+#include "src/base/strong-alias.h"
 #include "src/baseline/baseline.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
@@ -1596,7 +1597,7 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   VMState<BYTECODE_COMPILER> state(isolate);
   if (parse_info->literal() == nullptr &&
       !parsing::ParseProgram(parse_info, script, maybe_outer_scope_info,
-                             isolate, parsing::ReportStatisticsMode::kYes)) {
+                             isolate, parsing::ReportStatisticsMode{true})) {
     FailWithException(isolate, script, parse_info,
                       Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     return MaybeHandle<SharedFunctionInfo>();
@@ -2987,7 +2988,7 @@ bool Compiler::CollectSourcePositions(
   // Parse and update ParseInfo with the results. Don't update parsing
   // statistics since we've already parsed the code before.
   if (!parsing::ParseAny(&parse_info, shared_info, isolate,
-                         parsing::ReportStatisticsMode::kNo)) {
+                         parsing::ReportStatisticsMode{false})) {
     // Parsing failed probably as a result of stack exhaustion.
     bytecode->SetSourcePositionsFailedToCollect();
     return FailAndClearException(isolate);
@@ -3057,7 +3058,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   // Set up parse info.
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info);
-  if (create_source_positions_flag == CreateSourcePositions::kYes) {
+  if (create_source_positions_flag) {
     flags.set_collect_source_positions(true);
   }
 
@@ -3085,7 +3086,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
 
   // Parse and update ParseInfo with the results.
   if (!parsing::ParseAny(&parse_info, shared_info, isolate,
-                         parsing::ReportStatisticsMode::kYes)) {
+                         parsing::ReportStatisticsMode{true})) {
     return FailWithException(isolate, script, &parse_info, flag);
   }
   parse_info.literal()->set_shared_function_info(shared_info);

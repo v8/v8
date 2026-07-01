@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/ast/ast.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-stub-assembler-inl.h"
@@ -2643,7 +2644,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     // the write barrier.
     CopyPropertyArrayValues(var_properties.value(), new_properties,
                             var_length.value(), SKIP_WRITE_BARRIER,
-                            DestroySource::kYes);
+                            DestroySource{true});
 
     TNode<Int32T> new_capacity_int32 = TruncateIntPtrToInt32(new_capacity);
     TNode<Int32T> new_length_and_hash_int32 =

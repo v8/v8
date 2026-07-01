@@ -73,7 +73,7 @@ TEST_F(AssemblerLoong64Test, LA0) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Addition.
   __ addi_d(a2, a0, 0xC);
@@ -94,7 +94,7 @@ TEST_F(AssemblerLoong64Test, LA1) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label L, C;
 
   __ ori(a1, a0, 0);
@@ -127,7 +127,7 @@ TEST_F(AssemblerLoong64Test, LA2) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label exit, error;
 
@@ -173,7 +173,7 @@ TEST_F(AssemblerLoong64Test, LA3) {
   // Test 32bit calculate instructions.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label exit, error;
 
@@ -301,7 +301,7 @@ TEST_F(AssemblerLoong64Test, LA4) {
   // Test 64bit calculate instructions.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label exit, error;
 
@@ -419,7 +419,7 @@ TEST_F(AssemblerLoong64Test, LA4) {
 TEST_F(AssemblerLoong64Test, LA5) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label exit, error;
 
@@ -534,7 +534,7 @@ TEST_F(AssemblerLoong64Test, LA6) {
   // Test loads and stores instruction.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct T {
     int64_t si1;
@@ -651,7 +651,7 @@ TEST_F(AssemblerLoong64Test, LA6) {
 TEST_F(AssemblerLoong64Test, LA7) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct T {
     int64_t si1;
@@ -783,7 +783,7 @@ TEST_F(AssemblerLoong64Test, LA7) {
 TEST_F(AssemblerLoong64Test, LDPTR_STPTR) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   int64_t test[10];
 
@@ -858,7 +858,7 @@ TEST_F(AssemblerLoong64Test, LA8) {
     int32_t result_rotri_w_31;
   };
   T t;
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ Ld_w(a4, MemOperand(a0, offsetof(T, input)));
 
@@ -1055,7 +1055,7 @@ TEST_F(AssemblerLoong64Test, LA9) {
   };
 
   T t;
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ Ld_d(a4, MemOperand(a0, offsetof(T, input)));
 
@@ -1216,7 +1216,7 @@ TEST_F(AssemblerLoong64Test, LA10) {
   // Test 32bit bit operation instructions.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct T {
     int64_t si1;
@@ -1369,7 +1369,7 @@ TEST_F(AssemblerLoong64Test, LA11) {
   // Test 64bit bit operation instructions.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct T {
     int64_t si1;
@@ -1564,7 +1564,7 @@ uint64_t AssemblerLoong64Test::run_beq(int64_t value1, int64_t value2,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block, L;
   __ li(a2, 0l);
@@ -1638,7 +1638,7 @@ uint64_t AssemblerLoong64Test::run_bne(int64_t value1, int64_t value2,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block, L;
   __ li(a2, 0l);
@@ -1712,7 +1712,7 @@ uint64_t AssemblerLoong64Test::run_blt(int64_t value1, int64_t value2,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block, L;
   __ li(a2, 0l);
@@ -1787,7 +1787,7 @@ uint64_t AssemblerLoong64Test::run_bge(uint64_t value1, uint64_t value2,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block, L;
   __ li(a2, 0l);
@@ -1861,7 +1861,7 @@ uint64_t AssemblerLoong64Test::run_bltu(int64_t value1, int64_t value2,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block, L;
   __ li(a2, 0l);
@@ -1935,7 +1935,7 @@ uint64_t AssemblerLoong64Test::run_bgeu(int64_t value1, int64_t value2,
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block, L;
   __ li(a2, 0l);
@@ -2008,7 +2008,7 @@ uint64_t AssemblerLoong64Test::run_beqz(int64_t value, int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block, L;
   __ li(a2, 0l);
@@ -2081,7 +2081,7 @@ uint64_t AssemblerLoong64Test::run_bnez_b(int64_t value, int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block, L;
   __ li(a2, 0l);
@@ -2153,7 +2153,7 @@ uint64_t AssemblerLoong64Test::run_bl(int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block;
   __ li(a2, 0l);
@@ -2225,7 +2225,7 @@ TEST_F(AssemblerLoong64Test, PCADD) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label exit, error;
   __ Push(ra);
@@ -2339,7 +2339,7 @@ uint64_t AssemblerLoong64Test::run_jirl(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block;
   __ li(a2, 0l);
@@ -2438,7 +2438,7 @@ TEST_F(AssemblerLoong64Test, LA12) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Double precision floating point instructions.
   __ Fld_d(f8, MemOperand(a0, offsetof(T, a)));
@@ -2551,7 +2551,7 @@ TEST_F(AssemblerLoong64Test, LA13) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   // Float precision floating point instructions.
   __ Fld_s(f8, MemOperand(a0, offsetof(T, a)));
@@ -2636,7 +2636,7 @@ TEST_F(AssemblerLoong64Test, LA13) {
 TEST_F(AssemblerLoong64Test, FCMP_COND) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     double dTrue;
@@ -3030,7 +3030,7 @@ TEST_F(AssemblerLoong64Test, FCMP_COND) {
 TEST_F(AssemblerLoong64Test, FCVT) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     float fcvt_d_s_in;
@@ -3095,7 +3095,7 @@ TEST_F(AssemblerLoong64Test, FCVT) {
 TEST_F(AssemblerLoong64Test, FFINT) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     int32_t ffint_s_w_in;
@@ -3180,7 +3180,7 @@ TEST_F(AssemblerLoong64Test, FFINT) {
 TEST_F(AssemblerLoong64Test, FTINT) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     double a;
@@ -3287,7 +3287,7 @@ TEST_F(AssemblerLoong64Test, FTINT) {
 TEST_F(AssemblerLoong64Test, FTINTRM) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     double a;
@@ -3355,7 +3355,7 @@ TEST_F(AssemblerLoong64Test, FTINTRM) {
 TEST_F(AssemblerLoong64Test, FTINTRP) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     double a;
@@ -3423,7 +3423,7 @@ TEST_F(AssemblerLoong64Test, FTINTRP) {
 TEST_F(AssemblerLoong64Test, FTINTRZ) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     double a;
@@ -3491,7 +3491,7 @@ TEST_F(AssemblerLoong64Test, FTINTRZ) {
 TEST_F(AssemblerLoong64Test, FTINTRNE) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     double a;
@@ -3606,7 +3606,7 @@ TEST_F(AssemblerLoong64Test, FTINTRNE) {
 TEST_F(AssemblerLoong64Test, FRINT) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     double a;
@@ -3813,7 +3813,7 @@ TEST_F(AssemblerLoong64Test, FMOV) {
   const int kTableLength = 7;
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     double a;
@@ -3885,7 +3885,7 @@ TEST_F(AssemblerLoong64Test, LA14) {
   };
   T t;
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   __ Fld_d(f8, MemOperand(a0, offsetof(T, a)));
   __ Fld_d(f9, MemOperand(a0, offsetof(T, b)));
@@ -3943,7 +3943,7 @@ uint64_t AssemblerLoong64Test::run_bceqz(int fcc_value, int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block, L;
   __ li(a2, 0);
@@ -4023,7 +4023,7 @@ uint64_t AssemblerLoong64Test::run_bcnez(int fcc_value, int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label main_block, L;
   __ li(a2, 0);
@@ -4103,7 +4103,7 @@ TEST_F(AssemblerLoong64Test, jump_tables1) {
   // Test jump tables with forward jumps.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -4163,7 +4163,7 @@ TEST_F(AssemblerLoong64Test, jump_tables2) {
   // Test jump tables with backward jumps.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -4225,7 +4225,7 @@ TEST_F(AssemblerLoong64Test, jump_tables3) {
   // Test jump tables with backward jumps and embedded heap objects.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 512;
   Handle<Object> values[kNumCases];
@@ -4300,7 +4300,7 @@ uint64_t AssemblerLoong64Test::run_li_macro(int64_t imm, LiFlags mode,
                                             int32_t num_instr) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   Label code_start;
   __ bind(&code_start);
@@ -4395,7 +4395,7 @@ TEST_F(AssemblerLoong64Test, li_macro) {
 TEST_F(AssemblerLoong64Test, FMIN_FMAX) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     double a;
@@ -4477,7 +4477,7 @@ TEST_F(AssemblerLoong64Test, FMINA_FMAXA) {
   const int kTableLength = 23;
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   const double dnan = std::numeric_limits<double>::quiet_NaN();
   const double dinf = std::numeric_limits<double>::infinity();
   const double dminf = -std::numeric_limits<double>::infinity();
@@ -4566,7 +4566,7 @@ TEST_F(AssemblerLoong64Test, FMINA_FMAXA) {
 TEST_F(AssemblerLoong64Test, FADD) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     double a;
@@ -4632,7 +4632,7 @@ TEST_F(AssemblerLoong64Test, FSUB) {
   const int kTableLength = 12;
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     float a;
@@ -4702,7 +4702,7 @@ TEST_F(AssemblerLoong64Test, FMUL) {
   const int kTableLength = 4;
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     float a;
@@ -4758,7 +4758,7 @@ TEST_F(AssemblerLoong64Test, FMUL) {
 TEST_F(AssemblerLoong64Test, FDIV) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct Test {
     double dOp1;
@@ -4855,7 +4855,7 @@ TEST_F(AssemblerLoong64Test, FDIV) {
 TEST_F(AssemblerLoong64Test, FABS) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     double a;
@@ -4948,7 +4948,7 @@ template <typename T, typename F>
 void AssemblerLoong64Test::helper_fmadd_fmsub_fnmadd_fnmsub(F func) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   T x = std::sqrt(static_cast<T>(2.0));
   T y = std::sqrt(static_cast<T>(3.0));
@@ -5059,7 +5059,7 @@ TEST_F(AssemblerLoong64Test, FSQRT_FRSQRT_FRECIP) {
   const double sqrt2_d = sqrt(2);
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
 
   struct TestFloat {
     float a;
@@ -5172,7 +5172,7 @@ TEST_F(AssemblerLoong64Test, Trampoline) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   Label done;
   size_t nr_calls = kMaxBranchOffset / kInstrSize + 5;
 

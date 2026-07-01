@@ -94,8 +94,8 @@ TEST_F(ManagedTest, DisposeCausesDestruction2) {
         i_isolate, 0, std::make_shared<DeleteCounter>(&deleted1)));
   }
   DeleteCounter* d2 = new DeleteCounter(&deleted2);
-  ManagedPtrDestructor* destructor =
-      new ManagedPtrDestructor(0, d2, DeleteCounter::Deleter, SharedFlag::kNo);
+  ManagedPtrDestructor* destructor = new ManagedPtrDestructor(
+      0, d2, DeleteCounter::Deleter, SharedFlag{false});
   i_isolate->RegisterManagedPtrDestructor(destructor);
 
   isolate->Exit();

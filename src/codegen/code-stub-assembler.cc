@@ -12,6 +12,7 @@
 #include "include/v8-internal.h"
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/tnode.h"
@@ -5269,7 +5270,7 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(TNode<IntPtrT> start_address,
         UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, current,
                                   value);
       },
-      kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+      kTaggedSize, kLoopUnrolling, IndexAdvanceMode::kPost);
 }
 
 void CodeStubAssembler::MakeFixedArrayCOW(TNode<FixedArray> array) {
@@ -6143,7 +6144,7 @@ void CodeStubAssembler::FillPropertyArrayWithUndefined(
         StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                             value);
       },
-      LoopUnrollingMode::kYes);
+      kLoopUnrolling);
 }
 
 template <typename TIndex>
@@ -6169,7 +6170,7 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
           [this](TNode<HeapObject> array, TNode<IntPtrT> offset) {
             StoreDoubleHole(array, offset);
           },
-          LoopUnrollingMode::kYes);
+          kLoopUnrolling);
     } else {
       DCHECK_EQ(value_root_index, RootIndex::kUndefinedValue);
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
@@ -6178,7 +6179,7 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
           [this](TNode<HeapObject> array, TNode<IntPtrT> offset) {
             StoreDoubleUndefined(array, offset);
           },
-          LoopUnrollingMode::kYes);
+          kLoopUnrolling);
 #else
       UNREACHABLE();
 #endif
@@ -6191,7 +6192,7 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
           StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                               value);
         },
-        LoopUnrollingMode::kYes);
+        kLoopUnrolling);
   }
 }
 
@@ -6413,16 +6414,14 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
       {
         // Make a loop for the stores.
         BuildFastArrayForEach(elements, kind, begin, end, loop_body,
-                              LoopUnrollingMode::kYes,
-                              ForEachDirection::kForward);
+                              kLoopUnrolling, ForEachDirection::kForward);
         Goto(&finished);
       }
 
       BIND(&iterate_backward);
       {
         BuildFastArrayForEach(elements, kind, begin, end, loop_body,
-                              LoopUnrollingMode::kYes,
-                              ForEachDirection::kReverse);
+                              kLoopUnrolling, ForEachDirection::kReverse);
         Goto(&finished);
       }
     }
@@ -6506,7 +6505,7 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
               Store(dst_elements, delta_offset, element);
             }
           },
-          LoopUnrollingMode::kYes, ForEachDirection::kForward);
+          kLoopUnrolling, ForEachDirection::kForward);
       Goto(&finished);
     }
     BIND(&finished);
@@ -6533,7 +6532,7 @@ void CodeStubAssembler::CopyRange(TNode<HeapObject> dst_object, int dst_offset,
           StoreObjectField(dst_object, current_dst_offset, value);
         }
       },
-      1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+      1, kLoopUnrolling, IndexAdvanceMode::kPost);
 }
 
 template <typename TIndex>
@@ -6741,7 +6740,7 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
 
   bool needs_write_barrier = barrier_mode == UPDATE_WRITE_BARRIER;
 
-  if (destroy_source == DestroySource::kNo) {
+  if (!destroy_source) {
     // PropertyArray may contain mutable HeapNumbers, which will be cloned on
     // the heap, requiring a write barrier.
     needs_write_barrier = true;
@@ -6755,7 +6754,7 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
           TNode<HeapObject> array, TNode<IntPtrT> offset) {
         TNode<AnyTaggedT> value = Load<AnyTaggedT>(array, offset);
 
-        if (destroy_source == DestroySource::kNo) {
+        if (!destroy_source) {
           value = CloneIfMutablePrimitive(CAST(value));
         }
 
@@ -6766,11 +6765,11 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
                               value);
         }
       },
-      LoopUnrollingMode::kYes);
+      kLoopUnrolling);
 
 #ifdef DEBUG
   // Zap {from_array} if the copying above has made it invalid.
-  if (destroy_source == DestroySource::kYes) {
+  if (destroy_source) {
     Label did_zap(this);
     GotoIf(IsEmptyFixedArray(from_array), &did_zap);
     FillPropertyArrayWithUndefined(CAST(from_array), start, property_count);
@@ -7050,7 +7049,7 @@ TNode<Word32T> CodeStubAssembler::TruncateTaggedToWord32(TNode<Context> context,
   TVARIABLE(Word32T, var_result);
   Label done(this);
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumber>(
-      context, value, &done, &var_result, IsKnownTaggedPointer::kNo, {});
+      context, value, &done, &var_result, IsKnownTaggedPointer{false}, {});
   BIND(&done);
   return var_result.value();
 }
@@ -7062,7 +7061,7 @@ void CodeStubAssembler::TaggedToWord32OrBigInt(
     TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
-      context, value, if_number, var_word32, IsKnownTaggedPointer::kNo, {},
+      context, value, if_number, var_word32, IsKnownTaggedPointer{false}, {},
       if_bigint, if_bigint64, var_maybe_bigint);
 }
 
@@ -7074,7 +7073,7 @@ void CodeStubAssembler::TaggedToWord32OrBigIntWithFeedback(
     TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint, const FeedbackValues& feedback) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
-      context, value, if_number, var_word32, IsKnownTaggedPointer::kNo,
+      context, value, if_number, var_word32, IsKnownTaggedPointer{false},
       feedback, if_bigint, if_bigint64, var_maybe_bigint);
 }
 
@@ -7086,7 +7085,7 @@ void CodeStubAssembler::TaggedPointerToWord32OrBigIntWithFeedback(
     TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint, const FeedbackValues& feedback) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
-      context, pointer, if_number, var_word32, IsKnownTaggedPointer::kYes,
+      context, pointer, if_number, var_word32, IsKnownTaggedPointer{true},
       feedback, if_bigint, if_bigint64, var_maybe_bigint);
 }
 
@@ -7107,7 +7106,7 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
   }
   Label loop(this, loop_vars);
   Label if_exception(this, Label::kDeferred);
-  if (is_known_tagged_pointer == IsKnownTaggedPointer::kNo) {
+  if (!is_known_tagged_pointer) {
     GotoIf(TaggedIsNotSmi(value), &loop);
 
     // {value} is a Smi.
@@ -11733,7 +11732,7 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
         *var_name_index = name_index;
         GotoIf(TaggedEqual(candidate_name, unique_name), if_found);
       },
-      -Array::kEntrySize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPre);
+      -Array::kEntrySize, kLoopUnrolling, IndexAdvanceMode::kPre);
   Goto(if_not_found);
 }
 
@@ -12086,8 +12085,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
         }
         BIND(&next_iteration);
       },
-      DescriptorArray::kEntrySize, LoopUnrollingMode::kNo,
-      IndexAdvanceMode::kPost);
+      DescriptorArray::kEntrySize, kNoLoopUnrolling, IndexAdvanceMode::kPost);
 
   if (mode == kEnumerationOrder) {
     Label done(this);
@@ -15201,7 +15199,7 @@ void CodeStubAssembler::BuildFastLoop(
   // possible to force the loop header check at the end of the loop and branch
   // forward to it from the pre-header). The extra branch is slower in the
   // case that the loop actually iterates.
-  if (unrolling_mode == LoopUnrollingMode::kNo) {
+  if (unrolling_mode == kNoLoopUnrolling) {
     TNode<BoolT> first_check = UintPtrOrSmiEqual(var_index.value(), end_index);
     int32_t first_check_val;
     if (TryToInt32Constant(first_check, &first_check_val)) {
@@ -15225,7 +15223,7 @@ void CodeStubAssembler::BuildFastLoop(
   } else {
     // Check if there are at least two elements between start_index and
     // end_index.
-    DCHECK_EQ(unrolling_mode, LoopUnrollingMode::kYes);
+    DCHECK_EQ(unrolling_mode, kLoopUnrolling);
     switch (advance_direction) {
       case IndexAdvanceDirection::kUp:
         CSA_DCHECK(this, UintPtrOrSmiLessThanOrEqual(start_index, end_index));
@@ -15393,7 +15391,7 @@ void CodeStubAssembler::InitializeFieldsWithRoot(TNode<HeapObject> object,
         StoreNoWriteBarrier(MachineRepresentation::kTagged, object, current,
                             root_value);
       },
-      -kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPre);
+      -kTaggedSize, kLoopUnrolling, IndexAdvanceMode::kPre);
 }
 
 // LINT.IfChange
@@ -19150,7 +19148,7 @@ void CodeStubArguments::ForEach(
             assembler_->CAST(assembler_->LoadFullTagged(current));
         body(arg);
       },
-      increment, CodeStubAssembler::LoopUnrollingMode::kNo,
+      increment, CodeStubAssembler::kNoLoopUnrolling,
       CodeStubAssembler::IndexAdvanceMode::kPost);
 }
 
@@ -20605,7 +20603,7 @@ CodeStubAssembler::AllocateSwissNameDictionaryWithCapacity(
         UnsafeStoreNoWriteBarrier(MachineRepresentation::kWord32, current,
                                   empty32);
       },
-      sizeof(uint32_t), LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+      sizeof(uint32_t), kLoopUnrolling, IndexAdvanceMode::kPost);
 
   Comment("Initialize the data table.");
 
@@ -20699,7 +20697,7 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
           TNode<Object> table_field = LoadObjectField(original, offset);
           StoreObjectField(table, offset, table_field);
         },
-        kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+        kTaggedSize, kLoopUnrolling, IndexAdvanceMode::kPost);
   }
 
   Comment("Copy the meta table");
@@ -20769,7 +20767,7 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
               IntPtrAdd(details_table_offset_minus_tag.value(),
                         IntPtrConstant(kOneByteSize));
         },
-        kOneByteSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+        kOneByteSize, kNoLoopUnrolling, IndexAdvanceMode::kPost);
   }
 
   Comment("CopySwissNameDictionary ]");
@@ -21105,7 +21103,7 @@ TNode<ArrayList> CodeStubAssembler::AllocateArrayList(TNode<Uint32T> capacity) {
               IntPtrAdd(TimesTaggedSize(index), offset_of_first_element);
           StoreObjectFieldNoWriteBarrier(array, offset, UndefinedConstant());
         },
-        1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+        1, kLoopUnrolling, IndexAdvanceMode::kPost);
 
     result = UncheckedCast<ArrayList>(array);
 

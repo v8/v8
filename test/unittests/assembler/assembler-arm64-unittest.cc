@@ -121,7 +121,7 @@ namespace internal {
   CHECK_NOT_NULL(isolate);                                                    \
   auto owned_buf =                                                            \
       AllocateAssemblerBuffer(buf_size, nullptr, JitPermission::kNoJit);      \
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,        \
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},        \
                       ExternalAssemblerBuffer(owned_buf->start(), buf_size)); \
   Decoder<DispatchingDecoderVisitor>* decoder =                               \
       new Decoder<DispatchingDecoderVisitor>();                               \
@@ -179,7 +179,7 @@ namespace internal {
   HandleScope scope(isolate);                                          \
   CHECK_NOT_NULL(isolate);                                             \
   auto owned_buf = AllocateAssemblerBuffer(buf_size);                  \
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes, \
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true}, \
                       owned_buf->CreateView());                        \
   HandleScope handle_scope(isolate);                                   \
   Handle<Code> code;                                                   \

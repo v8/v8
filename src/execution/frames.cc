@@ -12,6 +12,7 @@
 #include "src/api/api-arguments.h"
 #include "src/api/api-natives.h"
 #include "src/base/bits.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/maglev-safepoint-table.h"
@@ -1324,7 +1325,7 @@ DirectHandle<JSFunction> ApiCallbackExitFrame::GetFunction(
   if (IsJSFunction(maybe_function)) {
     return DirectHandle<JSFunction>::FromSlot(target_slot().location());
   }
-  if (allow_allocation == AllowAllocation::kNo) {
+  if (!allow_allocation) {
     // Instantiation would allocate, return empty handle.
     return {};
   }
@@ -3110,7 +3111,7 @@ FrameSummaries OptimizedJSFrame::Summarize(
     // heap allocation site in Turbofan. Heap allocation sites do not have a
     // DeoptimizationEntry in general. Instead of crashing we simply report here
     // just one frame.
-    if (code->is_maglevved() || allow_allocation == AllowAllocation::kNo) {
+    if (code->is_maglevved() || !allow_allocation) {
       DirectHandle<AbstractCode> abstract_code(
           Cast<AbstractCode>(function()->shared()->GetBytecodeArray(isolate())),
           isolate());
@@ -3268,7 +3269,7 @@ FrameSummaries OptimizedJSFrame::SummarizeFull(
       Tagged<Object> receiver_obj = translated_values->GetRawValue();
       DirectHandle<Object> receiver;
       if (receiver_obj == ReadOnlyRoots(isolate()).arguments_marker() &&
-          allow_allocation == AllowAllocation::kNo) {
+          !allow_allocation) {
         // Calling GetValue() would definitely trigger allocation but with
         // `never_allocate` allocations are not allowed. Simply pick `undefined`
         // as receiver instead even though it is off. `never_allocate` is
@@ -4087,7 +4088,7 @@ void PrintFunctionSource(StringStream* accumulator,
 void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
                             int index, AllowAllocation allow_allocation) const {
   DirectHandle<SharedFunctionInfo> shared(function()->shared(), isolate());
-  if (allow_allocation != AllowAllocation::kNo) {
+  if (allow_allocation) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);
   }
 

@@ -853,7 +853,7 @@ TEST_F(AssemblerX64Test, AssemblerX64SSE) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   uint8_t buffer[256];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
@@ -886,7 +886,7 @@ TEST_F(AssemblerX64Test, AssemblerX64SSE3) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   uint8_t buffer[256];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&masm, SSE3);
@@ -917,7 +917,7 @@ TEST_F(AssemblerX64Test, AssemblerX64FMA_sd) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   uint8_t buffer[1024];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&masm, FMA3);
@@ -1139,7 +1139,7 @@ TEST_F(AssemblerX64Test, AssemblerX64FMA_ss) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   uint8_t buffer[1024];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&masm, FMA3);
@@ -1756,7 +1756,7 @@ TEST_F(AssemblerX64Test, AssemblerX64BMI1) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   uint8_t buffer[1024];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&masm, BMI1);
@@ -1944,7 +1944,7 @@ TEST_F(AssemblerX64Test, AssemblerX64LZCNT) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   uint8_t buffer[256];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&masm, LZCNT);
@@ -2002,7 +2002,7 @@ TEST_F(AssemblerX64Test, AssemblerX64POPCNT) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   uint8_t buffer[256];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&masm, POPCNT);
@@ -2060,7 +2060,7 @@ TEST_F(AssemblerX64Test, AssemblerX64BMI2) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   uint8_t buffer[2048];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope fscope(&masm, BMI2);
@@ -2320,7 +2320,7 @@ TEST_F(AssemblerX64Test, AssemblerX64JumpTables1) {
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -2366,7 +2366,7 @@ TEST_F(AssemblerX64Test, AssemblerX64JumpTables2) {
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -2432,7 +2432,7 @@ TEST_F(AssemblerX64Test, AssemblerX64vmovups) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   uint8_t buffer[256];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
     CpuFeatureScope avx_scope(&masm, AVX);

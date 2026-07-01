@@ -6,6 +6,7 @@
 #define V8_OBJECTS_HEAP_OBJECT_H_
 
 #include "src/base/macros.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/objects/casting.h"
 #include "src/objects/instance-type.h"
@@ -55,7 +56,7 @@ struct ObjectTraits {
   using BodyDescriptor = typename T::BodyDescriptor;
 };
 
-enum InSharedSpace : bool { kInSharedSpace = true, kNotInSharedSpace = false };
+using InSharedSpace = base::StrongAlias<struct InSharedSpaceTag, bool>;
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.

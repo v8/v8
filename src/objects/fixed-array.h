@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/fixed-array-base.h"
@@ -376,9 +377,10 @@ V8_OBJECT class ProtectedFixedArray
   // Allocate a new ProtectedFixedArray of the given capacity, initialized with
   // Smi::zero().
   template <class IsolateT>
-  static inline Handle<ProtectedFixedArray> New(
-      IsolateT* isolate, uint32_t capacity,
-      SharedFlag shared = SharedFlag::kNo);
+  static inline Handle<ProtectedFixedArray> New(IsolateT* isolate,
+                                                uint32_t capacity,
+                                                SharedFlag shared = SharedFlag{
+                                                    false});
 
   DECL_PRINTER(ProtectedFixedArray)
   DECL_VERIFIER(ProtectedFixedArray)

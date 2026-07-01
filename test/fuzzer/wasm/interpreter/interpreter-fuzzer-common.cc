@@ -259,7 +259,7 @@ Handle<JSObject> CreateImportObjectInternal(
       }
       case kExternalMemory: {
         // Memory
-        SharedFlag shared = SharedFlag::kNo;
+        SharedFlag shared = SharedFlag{false};
         int memory_initial = 1;
         int memory_maximum = 32;
         DirectHandle<WasmMemoryObject> memory_obj;
@@ -281,7 +281,7 @@ Handle<JSObject> CreateImportObjectInternal(
             WasmTrustedInstanceData::New(
                 isolate, module_object,
                 module_object->native_module().as_shared_ptr(),
-                SharedFlag::kNo);
+                SharedFlag{false});
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
             WasmGlobalObject::New(isolate, trusted_data,
                                   MaybeHandle<WasmGlobalObject::BufferType>(),

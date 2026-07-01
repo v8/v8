@@ -7,6 +7,7 @@
 
 #include <ostream>
 
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/objects/js-objects.h"
@@ -23,18 +24,13 @@ enum class StackCheckKind : uint8_t {
   kWasm,
 };
 
-enum class CanThrow : uint8_t { kNo, kYes };
-enum class LazyDeoptOnThrow : uint8_t { kNo, kYes };
+using CanThrow = base::StrongAlias<struct CanThrowTag, bool>;
+using LazyDeoptOnThrow = base::StrongAlias<struct LazyDeoptOnThrowTag, bool>;
 
 inline std::ostream& operator<<(std::ostream& os,
                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
-  switch (lazy_deopt_on_throw) {
-    case LazyDeoptOnThrow::kYes:
-      return os << "LazyDeoptOnThrow";
-    case LazyDeoptOnThrow::kNo:
-      return os << "DoNOTLazyDeoptOnThrow";
-  }
-  UNREACHABLE();
+  return os << (lazy_deopt_on_throw ? "LazyDeoptOnThrow"
+                                    : "DoNOTLazyDeoptOnThrow");
 }
 
 inline std::ostream& operator<<(std::ostream& os, StackCheckKind kind) {

@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
@@ -1647,8 +1648,9 @@ class MachineLoweringReducer : public Next {
             builder.AddParam(MachineType::TaggedPointer());
             auto desc = Linkage::GetSimplifiedCDescriptor(__ graph_zone(),
                                                           builder.Get());
-            auto ts_desc = TSCallDescriptor::Create(
-                desc, CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone());
+            auto ts_desc = TSCallDescriptor::Create(desc, CanThrow{false},
+                                                    LazyDeoptOnThrow{false},
+                                                    __ graph_zone());
             OpIndex callee = __ ExternalConstant(
                 ExternalReference::string_to_array_index_function());
             // NOTE: String::ToArrayIndex() currently returns int32_t.
@@ -2541,7 +2543,7 @@ class MachineLoweringReducer : public Next {
           // therefore safe to cast the EagerFrameState to a LazyFrameState.
           auto lazy_fs = V<LazyFrameState>::Cast(OpIndex(frame_state));
           __ template CallRuntime<runtime::TerminateExecution>(
-              lazy_fs, __ NoContextConstant(), {}, LazyDeoptOnThrow::kNo);
+              lazy_fs, __ NoContextConstant(), {}, LazyDeoptOnThrow{false});
           __ Unreachable();
         }
 
@@ -3998,7 +4000,7 @@ class MachineLoweringReducer : public Next {
           try_string_to_index_or_lookup_existing, {isolate_ptr, value},
           TSCallDescriptor::Create(
               Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get()),
-              CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone())));
+              CanThrow{false}, LazyDeoptOnThrow{false}, __ graph_zone())));
 
       // Now see if the results match.
       __ DeoptimizeIfNot(__ TaggedEqual(expected, value_internalized),
@@ -4697,7 +4699,7 @@ class MachineLoweringReducer : public Next {
         callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNoFlags, Operator::kFoldable | Operator::kNoThrow);
     auto ts_descriptor = TSCallDescriptor::Create(
-        descriptor, CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone());
+        descriptor, CanThrow{false}, LazyDeoptOnThrow{false}, __ graph_zone());
     return __ Call(__ HeapConstant(callable.code()),
                    V<LazyFrameState>::Invalid(), base::VectorOf(args),
                    ts_descriptor);

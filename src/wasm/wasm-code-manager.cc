@@ -1473,7 +1473,7 @@ void NativeModule::UpdateWellKnownImports(
   base::RecursiveMutexGuard lock(&allocation_mutex_);
   WellKnownImportsList::UpdateResult result =
       module_->type_feedback.well_known_imports.Update(entries);
-  if (result == WellKnownImportsList::UpdateResult::kFoundIncompatibility) {
+  if (result == WellKnownImportsList::kFoundIncompatibility) {
     RemoveCompiledCode(NativeModule::RemoveFilter::kRemoveTurbofanCode);
   }
 }

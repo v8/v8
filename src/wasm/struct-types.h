@@ -11,6 +11,7 @@
 
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-module.h"
@@ -77,15 +78,14 @@ class StructTypeBase : public ZoneObject {
   uint32_t Align(uint32_t offset, uint32_t alignment, SharedFlag is_shared) {
     return RoundUp(
         offset,
-        std::min(alignment, static_cast<uint32_t>(is_shared == SharedFlag::kYes
-                                                      ? kDoubleSize
-                                                      : kTaggedSize)));
+        std::min(alignment,
+                 static_cast<uint32_t>(is_shared ? kDoubleSize : kTaggedSize)));
   }
 
   void InitializeOffsets() {
     if (field_count() == 0) return;
     DCHECK(!offsets_initialized_);
-    if (is_descriptor() && is_shared() == SharedFlag::kYes) {
+    if (is_descriptor() && is_shared()) {
       // TODO(42204563, 403372470): Implement shared custom descriptors and
       // update the offset calculation for the first field.
       UNIMPLEMENTED();

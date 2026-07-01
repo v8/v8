@@ -85,13 +85,13 @@ class WasmGCTester {
                         ModuleTypeIndex supertype = kNoSuperType,
                         bool is_final = false) {
     StructType::Builder<Zone> type_builder(
-        &zone_, static_cast<uint32_t>(fields.size()), false, SharedFlag::kNo);
+        &zone_, static_cast<uint32_t>(fields.size()), false, SharedFlag{false});
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
     return HeapType::Index(
         builder_.AddStructType(type_builder.Build(), is_final, supertype),
-        SharedFlag::kNo, RefTypeKind::kStruct);
+        SharedFlag{false}, RefTypeKind::kStruct);
   }
 
   HeapType DefineArray(ValueType element_type, bool mutability,
@@ -100,14 +100,14 @@ class WasmGCTester {
     return HeapType::Index(
         builder_.AddArrayType(zone_.New<ArrayType>(element_type, mutability),
                               is_final, supertype),
-        SharedFlag::kNo, RefTypeKind::kArray);
+        SharedFlag{false}, RefTypeKind::kArray);
   }
 
   HeapType DefineSignature(FunctionSig* sig,
                            ModuleTypeIndex supertype = kNoSuperType,
                            bool is_final = false) {
     return HeapType::Index(builder_.ForceAddSignature(sig, is_final, supertype),
-                           SharedFlag::kNo, RefTypeKind::kFunction);
+                           SharedFlag{false}, RefTypeKind::kFunction);
   }
 
   uint8_t DefineTable(ValueType type, uint32_t min_size, uint32_t max_size) {
@@ -1234,7 +1234,7 @@ WASM_COMPILED_EXEC_TEST(NewDefault) {
   tester.builder()->StartRecursiveTypeGroup();
   HeapType struct_heaptype = tester.DefineStruct(
       {F(wasm::kWasmI32, true), F(wasm::kWasmF64, true),
-       F(ValueType::RefNull(ModuleTypeIndex{0}, SharedFlag::kNo,
+       F(ValueType::RefNull(ModuleTypeIndex{0}, SharedFlag{false},
                             RefTypeKind::kStruct),
          true)});
   tester.builder()->EndRecursiveTypeGroup();
@@ -1503,7 +1503,7 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
       tester.DefineFunction(tester.sigs.i_v(), {}, {WASM_I32V(42), kExprEnd});
   const ModuleTypeIndex sig_index{0};
   HeapType sig =
-      HeapType::Index(sig_index, SharedFlag::kNo, RefTypeKind::kFunction);
+      HeapType::Index(sig_index, SharedFlag{false}, RefTypeKind::kFunction);
 
   HeapType other_sig = tester.DefineSignature(tester.sigs.d_d());
   const ModuleTypeIndex other_sig_index = other_sig.ref_index();
@@ -1585,11 +1585,11 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
 // Test that calling a function expecting any ref accepts the abstract null
 // type argument (nullref, nullfuncref, nullexternref).
 WASM_COMPILED_EXEC_TEST(CallAbstractNullTypeImplicitConversion) {
-  HeapType struct0 = HeapType::Index(ModuleTypeIndex{0}, SharedFlag::kNo,
+  HeapType struct0 = HeapType::Index(ModuleTypeIndex{0}, SharedFlag{false},
                                      RefTypeKind::kStruct);
-  HeapType array1 =
-      HeapType::Index(ModuleTypeIndex{1}, SharedFlag::kNo, RefTypeKind::kArray);
-  HeapType func2 = HeapType::Index(ModuleTypeIndex{2}, SharedFlag::kNo,
+  HeapType array1 = HeapType::Index(ModuleTypeIndex{1}, SharedFlag{false},
+                                    RefTypeKind::kArray);
+  HeapType func2 = HeapType::Index(ModuleTypeIndex{2}, SharedFlag{false},
                                    RefTypeKind::kFunction);
   const struct {
     ValueType super_type;
@@ -1716,7 +1716,7 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
       tester.DefineFunction(tester.sigs.v_v(), {}, {kExprEnd});
   ModuleTypeIndex sig_index{2};
   HeapType sig =
-      HeapType::Index(sig_index, SharedFlag::kNo, RefTypeKind::kFunction);
+      HeapType::Index(sig_index, SharedFlag{false}, RefTypeKind::kFunction);
 
   // This is just so func_index counts as "declared".
   tester.AddGlobal(ValueType::RefNull(sig), false,

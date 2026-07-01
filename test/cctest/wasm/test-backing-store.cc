@@ -22,7 +22,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
     HandleScope scope(isolate);
     MaybeHandle<JSArrayBuffer> result =
         isolate->factory()->NewJSArrayBufferAndBackingStore(
-            kWasmPageSize, InitializedFlag::kZeroInitialized);
+            kWasmPageSize, InitializedFlag{true});
     Handle<JSArrayBuffer> buffer = result.ToHandleChecked();
 
     // Embedder requests contents.
@@ -46,7 +46,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     MaybeDirectHandle<WasmMemoryObject> result = WasmMemoryObject::New(
-        isolate, 1, 1, SharedFlag::kNo, wasm::AddressType::kI32);
+        isolate, 1, 1, SharedFlag{false}, wasm::AddressType::kI32);
     DirectHandle<WasmMemoryObject> memory_object = result.ToHandleChecked();
     DirectHandle<JSArrayBuffer> buffer =
         WasmMemoryObject::GetArrayBuffer(isolate, memory_object);
@@ -76,7 +76,7 @@ TEST(BackingStore_Reclaim) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   for (int i = 0; i < 256; ++i) {
     auto backing_store = BackingStore::AllocateWasmMemory(
-        isolate, 1, 1, WasmMemoryFlag::kWasmMemory32, SharedFlag::kNo);
+        isolate, 1, 1, WasmMemoryFlag::kWasmMemory32, SharedFlag{false});
     CHECK(backing_store);
   }
 }

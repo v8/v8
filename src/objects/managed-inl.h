@@ -34,9 +34,8 @@ DirectHandle<Managed<CppType>> Managed<CppType>::From(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       detail::Destructor<CppType>, shared);
   destructor->external_memory_accounter_.Increase(
-      reinterpret_cast<v8::Isolate*>(shared == SharedFlag::kYes
-                                         ? isolate->shared_space_isolate()
-                                         : isolate),
+      reinterpret_cast<v8::Isolate*>(shared ? isolate->shared_space_isolate()
+                                            : isolate),
       estimated_size);
   DirectHandle<Managed<CppType>> handle =
       Cast<Managed<CppType>>(isolate->factory()->NewForeign<kTag>(
@@ -60,9 +59,8 @@ DirectHandle<TrustedManaged<CppType>> TrustedManaged<CppType>::From(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       detail::Destructor<CppType>, shared);
   destructor->external_memory_accounter_.Increase(
-      reinterpret_cast<v8::Isolate*>(shared == SharedFlag::kYes
-                                         ? isolate->shared_space_isolate()
-                                         : isolate),
+      reinterpret_cast<v8::Isolate*>(shared ? isolate->shared_space_isolate()
+                                            : isolate),
       estimated_size);
   DirectHandle<TrustedManaged<CppType>> handle =
       TrustedCast<TrustedManaged<CppType>>(

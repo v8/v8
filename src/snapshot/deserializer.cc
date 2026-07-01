@@ -7,6 +7,7 @@
 #include <inttypes.h>
 
 #include "src/base/logging.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/reloc-info-inl.h"
 #include "src/common/assert-scope.h"
@@ -578,8 +579,8 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
       DCHECK_IMPLIES(bs,
                      buffer->is_resizable_by_js() == bs->is_resizable_by_js());
       ResizableFlag resizable = bs && bs->is_resizable_by_js()
-                                    ? ResizableFlag::kResizable
-                                    : ResizableFlag::kNotResizable;
+                                    ? ResizableFlag{true}
+                                    : ResizableFlag{false};
       buffer->Setup(shared, resizable, bs, main_thread_isolate(),
                     buffer->views());
     }
@@ -825,7 +826,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   //       previously allocated object has a valid size (see `Allocate`).
 
   const InSharedSpace in_shared_space =
-      IsSharedAllocationType(allocation) ? kInSharedSpace : kNotInSharedSpace;
+      InSharedSpace{IsSharedAllocationType(allocation)};
   Tagged<HeapObject> raw_obj =
       Allocate(allocation, size_in_bytes,
                HeapObject::RequiredAlignment(in_shared_space, *map));
@@ -1400,9 +1401,9 @@ int Deserializer<IsolateT>::ReadOffHeapBackingStore(
 
   std::unique_ptr<BackingStore> backing_store;
   if (data == kOffHeapBackingStore) {
-    backing_store = BackingStore::Allocate(main_thread_isolate(), byte_length,
-                                           SharedFlag::kNo,
-                                           InitializedFlag::kUninitialized);
+    backing_store =
+        BackingStore::Allocate(main_thread_isolate(), byte_length,
+                               SharedFlag{false}, InitializedFlag{false});
   } else {
     uint32_t max_byte_length = source_.GetUint32();
     size_t page_size, initial_pages, max_pages;
@@ -1414,7 +1415,7 @@ int Deserializer<IsolateT>::ReadOffHeapBackingStore(
     USE(result);
     backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
         main_thread_isolate(), byte_length, max_byte_length, page_size,
-        initial_pages, max_pages, WasmMemoryFlag::kNotWasm, SharedFlag::kNo);
+        initial_pages, max_pages, WasmMemoryFlag::kNotWasm, SharedFlag{false});
   }
   CHECK_NOT_NULL(backing_store);
   source_.CopyRaw(backing_store->buffer_start(), byte_length);

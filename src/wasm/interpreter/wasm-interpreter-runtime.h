@@ -206,7 +206,7 @@ class WasmInterpreterRuntime {
   struct ArrayNewResult {
     DirectHandle<WasmArray> array;
     const ArrayType* type;
-    bool is_shared;
+    SharedFlag is_shared;
     // True when the array was allocated in a space that requires a
     // generational/shared write barrier for ref-typed element stores
     // (i.e. any old-space allocation). For young-space allocations the

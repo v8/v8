@@ -14,6 +14,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/pointer-with-payload.h"
 #include "src/base/small-vector.h"
+#include "src/base/strong-alias.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
 #include "src/parsing/import-attributes.h"
@@ -815,10 +816,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return proxy;
   }
 
-  V8_INLINE VariableProxy* ExpressionFromIdentifier(
-      const AstRawString* name, int start_position,
-      InferName infer = InferName::kYes) {
-    if (infer == InferName::kYes) {
+  V8_INLINE VariableProxy* ExpressionFromIdentifier(const AstRawString* name,
+                                                    int start_position,
+                                                    InferName infer = InferName{
+                                                        true}) {
+    if (infer) {
       fni_.PushVariableName(name);
     }
     return expression_scope()->NewVariable(name, start_position);

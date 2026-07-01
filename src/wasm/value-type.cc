@@ -40,7 +40,7 @@ static_assert(kWasmBottom.is_none_or_bottom());
 static_assert(kWasmNullRef.is_none_or_bottom());
 static_assert(kWasmRefNone.is_none_or_bottom());
 static_assert(ValueType::Generic(GenericKind::kNone, kNullable,
-                                 SharedFlag::kYes)
+                                 SharedFlag{true})
                   .is_none_or_bottom());
 
 ValueTypeCode ValueTypeBase::value_type_code_numeric() const {
@@ -78,7 +78,7 @@ ValueTypeCode ValueTypeBase::value_type_code_generic() const {
 std::string ValueTypeBase::generic_heaptype_name() const {
   DCHECK(is_generic());
   std::ostringstream buf;
-  if (is_shared() == SharedFlag::kYes) buf << "shared ";
+  if (is_shared()) buf << "shared ";
   switch (generic_kind()) {
 #define GENERIC_CASE(kind, code, typekind, name) \
   case GenericKind::k##kind:                     \
@@ -99,24 +99,19 @@ void PrintGenericHeaptypeName(std::ostringstream& buf, ValueTypeBase type) {
     if (kind == GenericKind::kNone) {
       // The code below would produce "noneref", and we need to keep it
       // that way for "(ref none)", so we need this special case.
-      buf << (type.is_shared() == SharedFlag::kYes ? "(shared nullref)"
-                                                   : "nullref");
+      buf << (type.is_shared() ? "(shared nullref)" : "nullref");
       return;
     } else if (kind == GenericKind::kNoExn) {
-      buf << (type.is_shared() == SharedFlag::kYes ? "(shared nullexnref)"
-                                                   : "nullexnref");
+      buf << (type.is_shared() ? "(shared nullexnref)" : "nullexnref");
       return;
     } else if (kind == GenericKind::kNoExtern) {
-      buf << (type.is_shared() == SharedFlag::kYes ? "(shared nullexternref)"
-                                                   : "nullexternref");
+      buf << (type.is_shared() ? "(shared nullexternref)" : "nullexternref");
       return;
     } else if (kind == GenericKind::kNoFunc) {
-      buf << (type.is_shared() == SharedFlag::kYes ? "(shared nullfuncref)"
-                                                   : "nullfuncref");
+      buf << (type.is_shared() ? "(shared nullfuncref)" : "nullfuncref");
       return;
     } else if (kind == GenericKind::kNoCont) {
-      buf << (type.is_shared() == SharedFlag::kYes ? "(shared nullcontref)"
-                                                   : "nullcontref");
+      buf << (type.is_shared() ? "(shared nullcontref)" : "nullcontref");
       return;
     }
   }
@@ -149,19 +144,15 @@ std::string ValueTypeBase::name() const {
       if (kind == GenericKind::kNone) {
         // The code below would produce "noneref", and we need to keep it
         // that way for "(ref none)", so we need this special case.
-        return is_shared() == SharedFlag::kYes ? "(shared nullref)" : "nullref";
+        return is_shared() ? "(shared nullref)" : "nullref";
       } else if (kind == GenericKind::kNoExn) {
-        return is_shared() == SharedFlag::kYes ? "(shared nullexnref)"
-                                               : "nullexnref";
+        return is_shared() ? "(shared nullexnref)" : "nullexnref";
       } else if (kind == GenericKind::kNoExtern) {
-        return is_shared() == SharedFlag::kYes ? "(shared nullexternref)"
-                                               : "nullexternref";
+        return is_shared() ? "(shared nullexternref)" : "nullexternref";
       } else if (kind == GenericKind::kNoFunc) {
-        return is_shared() == SharedFlag::kYes ? "(shared nullfuncref)"
-                                               : "nullfuncref";
+        return is_shared() ? "(shared nullfuncref)" : "nullfuncref";
       } else if (kind == GenericKind::kNoCont) {
-        return is_shared() == SharedFlag::kYes ? "(shared nullcontref)"
-                                               : "nullcontref";
+        return is_shared() ? "(shared nullcontref)" : "nullcontref";
       }
     }
     bool shorthand =

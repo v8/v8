@@ -851,7 +851,7 @@ class InstanceBuilder {
   Zone init_expr_zone_;
 
   DirectHandle<WasmTrustedInstanceData> trusted_data(SharedFlag shared) const {
-    return shared == SharedFlag::kYes ? shared_trusted_data_ : trusted_data_;
+    return shared ? shared_trusted_data_ : trusted_data_;
   }
 
   std::string ImportName(uint32_t index) {
@@ -1100,7 +1100,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   //--------------------------------------------------------------------------
   TRACE("New module instantiation for %p\n", native_module_.get());
   trusted_data_ = WasmTrustedInstanceData::New(
-      isolate_, untrusted_module_object_, native_module_, SharedFlag::kNo);
+      isolate_, untrusted_module_object_, native_module_, SharedFlag{false});
   bool shared = module_->has_shared_part;
   if (shared) {
     // For now, allocate the shared part in non-shared space. We do not need it
@@ -1108,7 +1108,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
     // TODO(42204563): This will change once we introduce shared globals,
     // tables, or functions.
     shared_trusted_data_ = WasmTrustedInstanceData::New(
-        isolate_, untrusted_module_object_, native_module_, SharedFlag::kNo);
+        isolate_, untrusted_module_object_, native_module_, SharedFlag{false});
     trusted_data_->set_shared_part(*shared_trusted_data_);
   }
 
@@ -1123,7 +1123,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
       // Use an empty JSArrayBuffer for degenerate asm.js modules.
       MaybeDirectHandle<JSArrayBuffer> new_buffer =
           isolate_->factory()->NewJSArrayBufferAndBackingStore(
-              0, InitializedFlag::kUninitialized);
+              0, InitializedFlag{false});
       if (!new_buffer.ToHandle(&buffer)) {
         thrower_->RangeError("Out of memory: asm.js memory");
         return {};
@@ -1185,7 +1185,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
     /* if (shared) {
       MaybeDirectHandle<JSArrayBuffer> shared_result =
           isolate_->factory()->NewJSArrayBufferAndBackingStore(
-              untagged_globals_buffer_size, InitializedFlag::kZeroInitialized,
+              untagged_globals_buffer_size, InitializedFlag{true},
               AllocationType::kSharedOld);
 
       if (!shared_result.ToHandle(&shared_untagged_globals_)) {
@@ -1286,10 +1286,8 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
               ? DirectHandle<HeapObject>{isolate_->factory()->wasm_null()}
               : DirectHandle<HeapObject>{isolate_->factory()->null_value()},
           table.address_type, &dispatch_table);
-      (table.shared == SharedFlag::kYes ? shared_tables : tables)
-          ->set(i, *table_obj);
-      (table.shared == SharedFlag::kYes ? shared_dispatch_tables
-                                        : dispatch_tables)
+      (table.shared ? shared_tables : tables)->set(i, *table_obj);
+      (table.shared ? shared_dispatch_tables : dispatch_tables)
           ->set(i, *dispatch_table);
       if (i == 0) {
         trusted_data(table.shared)->set_dispatch_table0(*dispatch_table);
@@ -1323,17 +1321,15 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
              : DirectHandle<FixedArray>();
   for (uint32_t index = 0; index < module_->types.size(); index++) {
     SharedFlag map_is_shared = module_->types[index].is_shared;
-    CreateMapForType(
-        isolate_, module_, ModuleTypeIndex{index},
-        map_is_shared == SharedFlag::kYes ? shared_maps : non_shared_maps);
+    CreateMapForType(isolate_, module_, ModuleTypeIndex{index},
+                     map_is_shared ? shared_maps : non_shared_maps);
   }
   trusted_data_->set_managed_object_maps(*non_shared_maps);
   if (shared) shared_trusted_data_->set_managed_object_maps(*shared_maps);
 #if DEBUG
   for (uint32_t i = 0; i < module_->types.size(); i++) {
     DirectHandle<FixedArray> maps =
-        module_->types[i].is_shared == SharedFlag::kYes ? shared_maps
-                                                        : non_shared_maps;
+        module_->types[i].is_shared ? shared_maps : non_shared_maps;
     Tagged<Object> o = maps->get(i);
     DCHECK(IsMap(o));
     Tagged<Map> map = Cast<Map>(o);
@@ -1400,8 +1396,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
       // uninitialized.
       bool is_declarative = module_->elem_segments[i].status ==
                             WasmElemSegment::kStatusDeclarative;
-      (module_->elem_segments[i].shared == SharedFlag::kYes ? shared_elements
-                                                            : elements)
+      (module_->elem_segments[i].shared ? shared_elements : elements)
           ->set(i, is_declarative
                        ? Cast<Object>(*isolate_->factory()->empty_fixed_array())
                        : *isolate_->factory()->undefined_value());
@@ -2427,12 +2422,12 @@ bool InstanceBuilder::ProcessImportedMemories(
         return false;
       }
     }
-    if ((memory->is_shared == SharedFlag::kYes) != backing_store->is_shared()) {
+    if (memory->is_shared != SharedFlag{backing_store->is_shared()}) {
       thrower_->LinkError(
           "%s: mismatch in shared state of memory, declared = %d, imported = "
           "%d",
-          ImportName(import_index).c_str(),
-          memory->is_shared == SharedFlag::kYes, backing_store->is_shared());
+          ImportName(import_index).c_str(), memory->is_shared.value(),
+          backing_store->is_shared());
       return false;
     }
 
@@ -2446,9 +2441,8 @@ bool InstanceBuilder::ProcessImportedMemories(
 template <typename T>
 T* InstanceBuilder::GetRawUntaggedGlobalPtr(const WasmGlobal& global) {
   DCHECK(!global.type.is_ref());
-  DirectHandle<ByteArray> buffer = global.shared == SharedFlag::kYes
-                                       ? shared_untagged_globals_
-                                       : untagged_globals_;
+  DirectHandle<ByteArray> buffer =
+      global.shared ? shared_untagged_globals_ : untagged_globals_;
   return reinterpret_cast<T*>(
       buffer->address() + ByteArray::OffsetOfElementAt(global.index_in_buffer));
 }
@@ -2465,8 +2459,7 @@ void InstanceBuilder::InitGlobals() {
     if (MaybeMarkError(result, thrower_)) return;
 
     if (global.type.is_ref()) {
-      (global.shared == SharedFlag::kYes ? shared_tagged_globals_
-                                         : tagged_globals_)
+      (global.shared ? shared_tagged_globals_ : tagged_globals_)
           ->set(global.index_in_buffer, *to_value(result).to_ref());
     } else {
       to_value(result).CopyTo(GetRawUntaggedGlobalPtr<uint8_t>(global));
@@ -2831,7 +2824,7 @@ ValueOrError ConsumeElementSegmentEntry(
   auto sig = FixedSizeSignature<ValueType>::Returns(segment.type);
   // TODO(14616): Consider shared element segments.
   FunctionBody body(&sig, decoder.pc_offset(), decoder.pc(), decoder.end(),
-                    SharedFlag::kNo);
+                    SharedFlag{false});
   WasmDetectedFeatures detected;
   ValueOrError result;
   {
@@ -2871,8 +2864,7 @@ std::optional<MessageTemplate> InitializeElementSegment(
   SharedFlag shared =
       trusted_instance_data->module()->elem_segments[segment_index].shared;
   DirectHandle<WasmTrustedInstanceData> data =
-      shared == SharedFlag::kYes ? shared_trusted_instance_data
-                                 : trusted_instance_data;
+      shared ? shared_trusted_instance_data : trusted_instance_data;
   if (!IsUndefined(data->element_segments()->get(segment_index))) return {};
 
   const NativeModule* native_module = data->native_module();
@@ -2906,9 +2898,8 @@ std::optional<MessageTemplate> InitializeElementSegment(
       DirectHandle<WasmFuncRef> value =
           WasmTrustedInstanceData::GetOrCreateFuncRef(
               isolate,
-              function_is_shared == SharedFlag::kYes
-                  ? shared_trusted_instance_data
-                  : trusted_instance_data,
+              function_is_shared ? shared_trusted_instance_data
+                                 : trusted_instance_data,
               function_index, precreate_external_functions);
       result->set(static_cast<int>(i), *value);
     }

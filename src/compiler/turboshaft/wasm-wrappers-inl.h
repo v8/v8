@@ -157,8 +157,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
     return result;
   }
 
-  if (type.is_reference_to(GenericKind::kAny) &&
-      type.is_shared() == SharedFlag::kYes) {
+  if (type.is_reference_to(GenericKind::kAny) && type.is_shared()) {
     ScopedVar<Object> result(this, OpIndex::Invalid());
     if (type.is_nullable()) {
       IF (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
@@ -199,13 +198,12 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCallWasmFromWrapper(
   // was triggered from AssembleOutputGraphCheckException, and we don't need to
   // lazy-deoptimize. Otherwise we use the LazyDeoptOnThrow value from the call
   // descriptor of the Call we are inlining.
-  DCHECK_IMPLIES(lazy_deopt_on_throw == compiler::LazyDeoptOnThrow::kYes,
-                 !__ current_catch_block());
+  DCHECK_IMPLIES(lazy_deopt_on_throw, !__ current_catch_block());
   const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
       compiler::GetWasmCallDescriptor(
           __ graph_zone(), sig, compiler::WasmCallKind::kWasmIndirectFunction,
           needs_frame_state),
-      compiler::CanThrow::kYes, lazy_deopt_on_throw, __ graph_zone());
+      compiler::CanThrow{true}, lazy_deopt_on_throw, __ graph_zone());
 
   OpIndex call = __ Call(callee, frame_state, base::VectorOf(args), descriptor,
                          OpEffects().CanCallAnything());
@@ -264,8 +262,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
   DCHECK_EQ(is_inlining_into_js_, js_context.valid());
   DCHECK_EQ(is_inlining_into_js_, lazy_frame_state.valid());
   DCHECK_IMPLIES(!is_inlining_into_js_, arguments.empty());
-  DCHECK_IMPLIES(!is_inlining_into_js_,
-                 lazy_deopt_on_throw == compiler::LazyDeoptOnThrow::kNo);
+  DCHECK_IMPLIES(!is_inlining_into_js_, !lazy_deopt_on_throw);
   // We only need a `caller_frame_state` if there actually are arguments to
   // convert.
   const int wasm_param_count = static_cast<int>(sig_->parameter_count());
@@ -385,9 +382,9 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
 template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper() {
   DCHECK(!is_inlining_into_js_);
-  V<Any> result =
-      BuildJSToWasmWrapper(OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
-                           compiler::LazyDeoptOnThrow::kNo, OpIndex::Invalid());
+  V<Any> result = BuildJSToWasmWrapper(
+      OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
+      compiler::LazyDeoptOnThrow{false}, OpIndex::Invalid());
   if (result.valid()) {  // Invalid signature.
     __ Return(result);
   }
@@ -501,8 +498,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
       auto call_descriptor = compiler::Linkage::GetJSCallDescriptor(
           __ graph_zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
       const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-          call_descriptor, compiler::CanThrow::kYes,
-          compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+          call_descriptor, compiler::CanThrow{true},
+          compiler::LazyDeoptOnThrow{false}, __ graph_zone());
 
       // Determine receiver at runtime.
       args[0] =
@@ -536,8 +533,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
           CallDescriptor::kNoFlags, Operator::kNoProperties,
           StubCallMode::kCallBuiltinPointer);
       const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-          call_descriptor, compiler::CanThrow::kYes,
-          compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+          call_descriptor, compiler::CanThrow{true},
+          compiler::LazyDeoptOnThrow{false}, __ graph_zone());
 
       // The native_context is sufficient here, because all kind of callables
       // which depend on the context provide their own context. The context
@@ -627,7 +624,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   base::Vector<OpIndex> returns =
       __ phase_zone() -> template AllocateVector<OpIndex>(sig_->return_count());
   BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, args, returns, {},
-                           compiler::LazyDeoptOnThrow::kNo);
+                           compiler::LazyDeoptOnThrow{false});
 
   auto [size, alignment] = GetBufferSizeAndAlignmentFor(sig_->returns());
   // The stack is not freed immediately on return, so the pointer stays valid
@@ -719,8 +716,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
         interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
         Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kYes,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        call_descriptor, compiler::CanThrow{true},
+        compiler::LazyDeoptOnThrow{false}, __ graph_zone());
     OpIndex rethrow_call_target =
         GetTargetForBuiltinCall(Builtin::kWasmRethrowExplicitContext);
     V<Context> context = __ Load(incoming_params[0], LoadOp::Kind::TaggedBase(),
@@ -787,7 +784,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
       compiler::GetWasmCallDescriptor(
           __ graph_zone(), sig_, compiler::WasmCallKind::kWasmIndirectFunction,
           false),
-      compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
+      compiler::CanThrow{true}, compiler::LazyDeoptOnThrow{false},
       __ graph_zone());
 
   Block* catch_block = __ NewBlock();

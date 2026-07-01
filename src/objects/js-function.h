@@ -483,7 +483,7 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
   // debug name.
   static DirectHandle<String> GetDebugName(
       Isolate* isolate, DirectHandle<JSFunction> function,
-      AllowAllocation allow_allocation = AllowAllocation::kYes);
+      AllowAllocation allow_allocation = AllowAllocation{true});
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).

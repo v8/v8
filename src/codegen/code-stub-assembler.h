@@ -11,6 +11,7 @@
 
 #include "src/base/functional/function-ref.h"
 #include "src/base/macros.h"
+#include "src/base/strong-alias.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/heap-object-list.h"
 #include "src/codegen/tnode.h"
@@ -2388,18 +2389,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                       TNode<IntPtrT> from_index,
                                       TNode<IntPtrT> to_index);
 
-  enum class DestroySource { kNo, kYes };
+  using DestroySource = base::StrongAlias<struct DestroySourceTag, bool>;
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].
   void IncrementCallCount(TNode<FeedbackVector> feedback_vector,
                           TNode<UintPtrT> slot_id);
 
-  // Specify DestroySource::kYes if {from_array} is being supplanted by
+  // Specify DestroySource{true} if {from_array} is being supplanted by
   // {to_array}. This offers a slight performance benefit by simply copying the
   // array word by word. The source may be destroyed at the end of this macro.
   //
-  // Otherwise, specify DestroySource::kNo for operations where an Object is
+  // Otherwise, specify DestroySource{false} for operations where an Object is
   // being cloned, to ensure that mutable HeapNumbers are unique between the
   // source and cloned object.
   void CopyPropertyArrayValues(TNode<HeapObject> from_array,
@@ -4033,7 +4034,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum class IndexAdvanceMode { kPre, kPost };
   enum class IndexAdvanceDirection { kUp, kDown };
-  enum class LoopUnrollingMode { kNo, kYes };
+  using LoopUnrollingMode =
+      base::StrongAlias<struct LoopUnrollingModeTag, bool>;
+  static constexpr LoopUnrollingMode kNoLoopUnrolling{false};
+  static constexpr LoopUnrollingMode kLoopUnrolling{true};
 
   template <typename TIndex>
   using FastLoopBody = std::function<void(TNode<TIndex> index)>;
@@ -5013,7 +5017,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Context> context, TNode<HeapObject> input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
-  enum IsKnownTaggedPointer { kNo, kYes };
+  using IsKnownTaggedPointer =
+      base::StrongAlias<struct IsKnownTaggedPointerTag, bool>;
   template <Object::Conversion conversion>
   void TaggedToWord32OrBigIntImpl(
       TNode<Context> context, TNode<Object> value, Label* if_number,

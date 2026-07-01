@@ -335,10 +335,12 @@ bool FindNameSection(Decoder* decoder) {
   return true;
 }
 
-enum class EmptyNames : bool { kAllow, kSkip };
+using EmptyNames = base::StrongAlias<struct EmptyNamesTag, bool>;
+constexpr EmptyNames kAllowNames{true};
+constexpr EmptyNames kSkipNames{false};
 
 void DecodeNameMapInternal(NameMap& target, Decoder& decoder,
-                           EmptyNames empty_names = EmptyNames::kSkip) {
+                           EmptyNames empty_names = kSkipNames) {
   uint32_t count = decoder.consume_u32v("names count");
   for (uint32_t i = 0; i < count; i++) {
     uint32_t index = decoder.consume_u32v("index");
@@ -346,7 +348,7 @@ void DecodeNameMapInternal(NameMap& target, Decoder& decoder,
         consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8, "name");
     if (!decoder.ok()) break;
     if (index > NameMap::kMaxKey) continue;
-    if (empty_names == EmptyNames::kSkip && name.is_empty()) continue;
+    if (empty_names == kSkipNames && name.is_empty()) continue;
     if (!validate_utf8(&decoder, name)) continue;
     target.Put(index, name);
   }
@@ -355,7 +357,7 @@ void DecodeNameMapInternal(NameMap& target, Decoder& decoder,
 
 void DecodeNameMap(NameMap& target, Decoder& decoder,
                    uint32_t subsection_payload_length,
-                   EmptyNames empty_names = EmptyNames::kSkip) {
+                   EmptyNames empty_names = kSkipNames) {
   if (target.is_set()) {
     decoder.consume_bytes(subsection_payload_length);
     return;
@@ -400,7 +402,7 @@ void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
       continue;
     }
     // We need to allow empty function names for spec-conformant stack traces.
-    DecodeNameMapInternal(names, decoder, EmptyNames::kAllow);
+    DecodeNameMapInternal(names, decoder, kAllowNames);
     // The spec allows only one occurrence of each subsection. We could be
     // more permissive and allow repeated subsections; in that case we'd
     // have to delay calling {target.FinishInitialization()} on the function

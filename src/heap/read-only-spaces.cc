@@ -11,6 +11,7 @@
 #include "src/base/build_config.h"
 #include "src/base/logging.h"
 #include "src/base/numerics/safe_conversions.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
@@ -425,7 +426,7 @@ AllocationResult ReadOnlySpace::AllocateRawUnmappableAllocation(
   int filler_size = base::checked_cast<int>(allocation_start - top_);
   Address filler_address = AllocateRawUnaligned(filler_size).ToAddress();
   heap()->CreateFillerObjectAt(filler_address, filler_size,
-                               ClearFreedMemoryMode::kClearFreedMemory);
+                               ClearFreedMemoryMode{true});
 
   CHECK_EQ(allocation_start, top_);
   CHECK_LE(

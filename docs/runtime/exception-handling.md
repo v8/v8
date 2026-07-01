@@ -60,7 +60,7 @@ Sparkplug shares the `BytecodeArray` with Ignition and therefore reuses the same
 
 In optimized code (Maglev and TurboFan), V8 sometimes uses a mechanism called **Lazy Deopt on Throw** for certain calls.
 
-Instead of generating complex exception handling code (catch blocks) in the optimized code itself, V8 can mark a call descriptor with `LazyDeoptOnThrow::kYes`.
+Instead of generating complex exception handling code (catch blocks) in the optimized code itself, V8 can mark a call descriptor with `LazyDeoptOnThrow{true}`.
 
 **How it works:**
 1.  **Sentinel Handler**: In the return-address-based handler table, instead of mapping to a real handler offset, the entry for that call maps to a special sentinel value (`kLazyDeoptOnThrowSentinel` which is -1).

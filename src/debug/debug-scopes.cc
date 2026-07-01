@@ -318,9 +318,10 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   const bool parse_result =
       flags.is_toplevel()
           ? parsing::ParseProgram(info_.get(), script, maybe_outer_scope,
-                                  isolate_, parsing::ReportStatisticsMode::kNo)
+                                  isolate_,
+                                  parsing::ReportStatisticsMode{false})
           : parsing::ParseFunction(info_.get(), shared_info, isolate_,
-                                   parsing::ReportStatisticsMode::kNo);
+                                   parsing::ReportStatisticsMode{false});
 
   if (parse_result) {
     DeclarationScope* literal_scope = info_->literal()->scope();

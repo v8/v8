@@ -9,6 +9,7 @@
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/strong-alias.h"
 #include "src/base/virtual-address-space.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
@@ -151,7 +152,7 @@ void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Factory* factory = reinterpret_cast<Isolate*>(isolate)->factory();
   std::unique_ptr<BackingStore> memory = BackingStore::WrapAllocation(
       reinterpret_cast<void*>(sandbox->base() + offset), size,
-      v8::BackingStore::EmptyDeleter, nullptr, SharedFlag::kNo);
+      v8::BackingStore::EmptyDeleter, nullptr, SharedFlag{false});
   if (!memory) {
     isolate->ThrowError("Out of memory: MemoryView backing store");
     return;

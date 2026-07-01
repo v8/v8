@@ -6,6 +6,7 @@
 
 #include "src/base/functional/function-ref.h"
 #include "src/base/logging.h"
+#include "src/base/strong-alias.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/allocation-result.h"
@@ -44,7 +45,7 @@ void HeapAllocator::Setup() {
         v8_flags.sticky_mark_bits
             ? static_cast<SpaceWithLinearArea*>(heap_->sticky_space())
             : static_cast<SpaceWithLinearArea*>(heap_->new_space()),
-        MainAllocator::IsNewGeneration::kYes, new_allocation_info);
+        MainAllocator::kNewGeneration, new_allocation_info);
   }
 
   if (local_heap_->is_main_thread()) {
@@ -60,23 +61,23 @@ void HeapAllocator::Setup() {
           ? &heap_->isolate()->isolate_data()->old_allocation_info()
           : nullptr;
   old_space_allocator_.emplace(local_heap_, heap_->old_space(),
-                               MainAllocator::IsNewGeneration::kNo,
+                               MainAllocator::kOldGeneration,
                                old_allocation_info);
 
   trusted_space_allocator_.emplace(local_heap_, heap_->trusted_space(),
-                                   MainAllocator::IsNewGeneration::kNo);
+                                   MainAllocator::kOldGeneration);
   code_space_allocator_.emplace(local_heap_, heap_->code_space(),
-                                MainAllocator::IsNewGeneration::kNo);
+                                MainAllocator::kOldGeneration);
 
   if (heap_->isolate()->has_shared_space()) {
     shared_space_allocator_.emplace(local_heap_,
                                     heap_->shared_allocation_space(),
-                                    MainAllocator::IsNewGeneration::kNo);
+                                    MainAllocator::kOldGeneration);
     shared_lo_space_ = heap_->shared_lo_allocation_space();
 
     shared_trusted_space_allocator_.emplace(
         local_heap_, heap_->shared_trusted_allocation_space(),
-        MainAllocator::IsNewGeneration::kNo);
+        MainAllocator::kOldGeneration);
     shared_trusted_lo_space_ = heap_->shared_trusted_lo_allocation_space();
   }
 }
@@ -538,8 +539,8 @@ bool HeapAllocator::CollectGarbageAndRetryAllocation(
     CustomAllocationFunction allocate, AllocationType allocation,
     GarbageCollectionReason gc_reason) {
   const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
-                                            ? PerformHeapLimitCheck::kNo
-                                            : PerformHeapLimitCheck::kYes;
+                                            ? PerformHeapLimitCheck{false}
+                                            : PerformHeapLimitCheck{true};
 
   for (int i = 0; i < 2; i++) {
     if (allocation != AllocationType::kYoung &&

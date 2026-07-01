@@ -12,6 +12,7 @@
 #include <ostream>
 
 #include "src/base/hashing.h"
+#include "src/base/strong-alias.h"
 #include "src/base/vector.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/signature.h"
@@ -89,15 +90,12 @@ static constexpr int kCharWidthBailoutSentinel = 3;
 
 enum class NullCheckStrategy { kExplicit, kTrapHandler };
 
-enum class EnforceBoundsCheck : bool {  // --
-  kNeedsBoundsCheck = true,
-  kCanOmitBoundsCheck = false
-};
+using EnforceBoundsCheck =
+    base::StrongAlias<struct EnforceBoundsCheckTag, bool>;
+constexpr EnforceBoundsCheck kNeedsBoundsCheck{true};
+constexpr EnforceBoundsCheck kCanOmitBoundsCheck{false};
 
-enum class AlignmentCheck : bool {  // --
-  kYes = true,
-  kNo = false,
-};
+using AlignmentCheck = base::StrongAlias<struct AlignmentCheckTag, bool>;
 
 enum class BoundsCheckResult {
   // Dynamically checked (using 1-2 conditional branches).

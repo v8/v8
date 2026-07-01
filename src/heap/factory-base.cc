@@ -6,6 +6,7 @@
 
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
+#include "src/base/strong-alias.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/synchronization-point-support.h"
@@ -651,13 +652,10 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   raw->CalculateConstructAsBuiltin();
   raw->set_kind(kind);
 
-  switch (adapt) {
-    case AdaptArguments::kYes:
-      raw->set_formal_parameter_count(JSParameterCount(len));
-      break;
-    case AdaptArguments::kNo:
-      raw->DontAdaptArguments();
-      break;
+  if (adapt) {
+    raw->set_formal_parameter_count(JSParameterCount(len));
+  } else {
+    raw->DontAdaptArguments();
   }
   raw->set_length(len);
 

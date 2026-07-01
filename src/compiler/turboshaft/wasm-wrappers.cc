@@ -30,8 +30,8 @@ const TSCallDescriptor* GetBuiltinCallDescriptor(Builtin name, Zone* zone) {
           compiler::CallDescriptor::kNoFlags,  // flags
           compiler::Operator::kNoProperties,   // properties
           StubCallMode::kCallBuiltinPointer);  // stub call mode
-  return TSCallDescriptor::Create(call_desc, compiler::CanThrow::kNo,
-                                  compiler::LazyDeoptOnThrow::kNo, zone);
+  return TSCallDescriptor::Create(call_desc, compiler::CanThrow{false},
+                                  compiler::LazyDeoptOnThrow{false}, zone);
 }
 
 void BuildWasmWrapper(PipelineData* data, Graph& graph,

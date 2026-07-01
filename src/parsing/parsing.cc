@@ -25,12 +25,8 @@ namespace {
 void MaybeReportStatistics(ParseInfo* info, DirectHandle<Script> script,
                            Isolate* isolate, Parser* parser,
                            ReportStatisticsMode mode) {
-  switch (mode) {
-    case ReportStatisticsMode::kYes:
-      parser->UpdateStatistics(isolate, script);
-      break;
-    case ReportStatisticsMode::kNo:
-      break;
+  if (mode) {
+    parser->UpdateStatistics(isolate, script);
   }
 }
 

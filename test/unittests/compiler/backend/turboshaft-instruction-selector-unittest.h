@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/base/strong-alias.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -294,7 +295,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     static const TSCallDescriptor* MakeSimpleTSCallDescriptor(
         Zone* zone, MachineSignature* msig) {
       return TSCallDescriptor::Create(MakeSimpleCallDescriptor(zone, msig),
-                                      CanThrow::kYes, LazyDeoptOnThrow::kNo,
+                                      CanThrow{true}, LazyDeoptOnThrow{false},
                                       zone);
     }
 

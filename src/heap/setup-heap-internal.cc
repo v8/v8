@@ -961,7 +961,7 @@ void Heap::StaticRootsEnsureAllocatedSize(DirectHandle<HeapObject> obj,
             filler_size, AllocationType::kReadOnly, AllocationOrigin::kRuntime,
             AllocationAlignment::kTaggedAligned);
     CreateFillerObjectAt(filler.address(), filler_size,
-                         ClearFreedMemoryMode::kClearFreedMemory);
+                         ClearFreedMemoryMode{true});
 
     CHECK_EQ(filler.address(), obj->address() + obj_size);
     CHECK_EQ(filler.address() + filler->Size(), obj->address() + required);
@@ -1776,7 +1776,7 @@ void Heap::CreateInitialMutableObjects() {
         *ProtectedWeakFixedArray::New(isolate_, 0));
 #ifdef V8_ENABLE_WEBASSEMBLY
     set_empty_wasm_dispatch_table(*isolate_->factory()->NewWasmDispatchTable(
-        0, wasm::kWasmFuncRef, SharedFlag::kNo));
+        0, wasm::kWasmFuncRef, SharedFlag{false}));
 #endif
   }
 }

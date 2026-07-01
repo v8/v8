@@ -70,7 +70,7 @@ bool CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
     base::Vector<const uint8_t> func_code =
         wire_bytes_accessor.GetFunctionBytes(&func);
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
-                           func_code.end(), SharedFlag::kNo);
+                           func_code.end(), SharedFlag{false});
     auto result = ExecuteLiftoffCompilation(
         &env, func_body,
         LiftoffOptions{.func_index = static_cast<int>(func.func_index),

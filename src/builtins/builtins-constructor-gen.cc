@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/ast/ast.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins-call-gen.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-inl.h"
@@ -437,7 +438,7 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
                                          init_value);
           offset = IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize));
         },
-        1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+        1, kLoopUnrolling, IndexAdvanceMode::kPost);
 
     Label done(this);
     GotoIf(IntPtrEqual(offset.value(), size), &done);
@@ -461,7 +462,7 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
         [=, this](TNode<IntPtrT> offset) {
           StoreObjectFieldNoWriteBarrier(function_context, offset, undefined);
         },
-        kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+        kTaggedSize, kLoopUnrolling, IndexAdvanceMode::kPost);
     return function_context;
   }
 }
@@ -746,7 +747,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
             TNode<Object> field = LoadObjectField(boilerplate, offset);
             StoreObjectFieldNoWriteBarrier(copy, offset, field);
           },
-          kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+          kTaggedSize, kLoopUnrolling, IndexAdvanceMode::kPost);
       CopyMutableHeapNumbersInObject(copy, offset.value(), instance_size);
       Goto(&done_init);
     }
@@ -796,7 +797,7 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
         }
         BIND(&continue_loop);
       },
-      kTaggedSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
+      kTaggedSize, kNoLoopUnrolling, IndexAdvanceMode::kPost);
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

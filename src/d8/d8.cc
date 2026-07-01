@@ -1082,7 +1082,7 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
     i::Handle<i::Script> script = parse_info.CreateScript(
         i_isolate, str, i::kNullMaybeHandle, ScriptOriginOptions());
     if (!i::parsing::ParseProgram(&parse_info, script, i_isolate,
-                                  i::parsing::ReportStatisticsMode::kYes)) {
+                                  i::parsing::ReportStatisticsMode{true})) {
       parse_info.pending_error_handler()->PrepareErrors(
           i_isolate, parse_info.ast_value_factory());
       parse_info.pending_error_handler()->ReportErrors(i_isolate, script);

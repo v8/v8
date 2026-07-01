@@ -19,6 +19,7 @@
 #include "src/base/bounds.h"
 #include "src/base/memory.h"
 #include "src/base/numbers/double.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
@@ -1189,9 +1190,7 @@ WriteBarrierModeScope HeapObject::GetWriteBarrierMode(
 // static
 AllocationAlignment HeapObject::RequiredAlignment(AllocationSpace space,
                                                   Tagged<Map> map) {
-  return RequiredAlignment(
-      IsAnyWritableSharedSpace(space) ? kInSharedSpace : kNotInSharedSpace,
-      map);
+  return RequiredAlignment(InSharedSpace{IsAnyWritableSharedSpace(space)}, map);
 }
 
 // static
@@ -1232,9 +1231,7 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
 }
 
 bool HeapObject::CheckRequiredAlignment() const {
-  const InSharedSpace in_shared_space = HeapLayout::InWritableSharedSpace(this)
-                                            ? kInSharedSpace
-                                            : kNotInSharedSpace;
+  const InSharedSpace in_shared_space{HeapLayout::InWritableSharedSpace(this)};
   AllocationAlignment alignment =
       HeapObject::RequiredAlignment(in_shared_space, map());
   CHECK_EQ(0, Heap::GetFillToAlign(address(), alignment));

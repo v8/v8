@@ -585,7 +585,7 @@ class HexDumpModuleDis : public ITracer {
     uint32_t offset = decoder_.pc_offset();
     const WasmModule* module = module_;
     if (!module) module = decoder_.shared_module().get();
-    ExtendedFunctionDis d(&zone_, module, 0, SharedFlag::kNo, &detected, &sig,
+    ExtendedFunctionDis d(&zone_, module, 0, SharedFlag{false}, &detected, &sig,
                           start, end, offset, wire_bytes_, names_);
     d.HexdumpConstantExpression(out_);
     total_bytes_ += static_cast<size_t>(end - start);
@@ -976,7 +976,7 @@ class FormatConverter {
       if (type.has_descriptor()) num_has_descriptor++;
       if (type.is_descriptor()) num_is_descriptor++;
       if (type.is_final) num_final++;
-      if (type.is_shared == SharedFlag::kYes) num_shared++;
+      if (type.is_shared) num_shared++;
       Count(type.subtyping_depth, depths);
       switch (type.kind) {
         case TypeDefinition::kFunction:

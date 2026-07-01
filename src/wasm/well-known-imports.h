@@ -12,6 +12,7 @@
 #include <atomic>
 #include <memory>
 
+#include "src/base/strong-alias.h"
 #include "src/base/vector.h"
 
 namespace v8::internal::wasm {
@@ -138,7 +139,9 @@ inline bool IsCompileTimeImport(WellKnownImport wki) {
 
 class WellKnownImportsList {
  public:
-  enum class UpdateResult : bool { kFoundIncompatibility, kOK };
+  using UpdateResult = base::StrongAlias<struct UpdateResultTag, bool>;
+  static constexpr UpdateResult kFoundIncompatibility{false};
+  static constexpr UpdateResult kOK{true};
 
   WellKnownImportsList() = default;
 

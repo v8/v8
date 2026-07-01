@@ -1141,8 +1141,7 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
   DCHECK_LT(func_index, native_module->num_functions());
   WasmCompilationUnit baseline_unit{
       func_index, tiers.baseline_tier,
-      is_in_debug_state ? kForDebugging : kNotForDebugging,
-      Validation::kAlreadyValidated};
+      is_in_debug_state ? kForDebugging : kNotForDebugging, kAlreadyValidated};
   CompilationEnv env = CompilationEnv::ForModule(native_module);
   WasmDetectedFeatures detected_features;
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
@@ -1171,8 +1170,7 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
   const bool lazy_module = IsLazyModule(module);
   if (lazy_module && tiers.baseline_tier < tiers.top_tier) {
     WasmCompilationUnit tiering_unit{func_index, tiers.top_tier,
-                                     kNotForDebugging,
-                                     Validation::kAlreadyValidated};
+                                     kNotForDebugging, kAlreadyValidated};
     compilation_state->CommitTopTierCompilationUnit(tiering_unit);
   }
 }
@@ -1531,8 +1529,7 @@ void TriggerTierUp(Isolate* isolate,
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   WasmCompilationUnit tiering_unit{func_index, ExecutionTier::kTurbofan,
-                                   kNotForDebugging,
-                                   Validation::kAlreadyValidated};
+                                   kNotForDebugging, kAlreadyValidated};
 
   const WasmModule* module = native_module->module();
   int priority;
@@ -3158,7 +3155,7 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
   DCHECK_NOT_NULL(job_->new_native_module_);
   auto* compilation_state = Impl(job_->new_native_module_->compilation_state());
   bool compiled = compilation_state->InitializeCompilationUnitForSingleFunction(
-      compilation_unit_builder_.get(), func_index, Validation::kMustValidate);
+      compilation_unit_builder_.get(), func_index, kMustValidate);
 
   if (!compiled) {
     if (!validate_functions_job_handle_) {
@@ -3568,7 +3565,7 @@ void CompilationStateImpl::ApplyPgoInfoLate(ProfileInformation* pgo_info) {
     // TODO(clemensb): Avoid scheduling both a Liftoff and a TurboFan unit, or
     // prioritize Liftoff when executing the units.
     builder.AddTopTierUnit(func_index, ExecutionTier::kLiftoff,
-                           Validation::kAlreadyValidated);
+                           kAlreadyValidated);
   }
 
   // Functions that were tiered up during PGO generation are eagerly compiled to
@@ -3591,7 +3588,7 @@ void CompilationStateImpl::ApplyPgoInfoLate(ProfileInformation* pgo_info) {
     // Set top tier to TurboFan and schedule a compilation unit.
     progress = RequiredTopTierField::update(progress, ExecutionTier::kTurbofan);
     builder.AddTopTierUnit(func_index, ExecutionTier::kTurbofan,
-                           Validation::kAlreadyValidated);
+                           kAlreadyValidated);
   }
   builder.Commit();
 }
@@ -3711,7 +3708,7 @@ void CompilationStateImpl::InitializeCompilationUnits(
     int end = start + module->num_declared_functions;
     for (int func_index = start; func_index < end; ++func_index) {
       InitializeCompilationUnitForSingleFunction(builder.get(), func_index,
-                                                 Validation::kAlreadyValidated);
+                                                 kAlreadyValidated);
     }
   }
   builder->Commit();
@@ -4205,7 +4202,7 @@ void CompilationStateImpl::TierUpAllFunctions() {
     WasmCode* code = native_module_->GetCode(func_index);
     if (!code || !code->is_turbofan()) {
       builder.AddTopTierUnit(func_index, ExecutionTier::kTurbofan,
-                             Validation::kAlreadyValidated);
+                             kAlreadyValidated);
     }
   }
   builder.Commit();

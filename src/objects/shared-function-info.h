@@ -10,6 +10,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/base/macros.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
@@ -55,7 +56,8 @@ class ValueType;
 
 // Defines whether the source positions should be created during function
 // compilation.
-enum class CreateSourcePositions { kNo, kYes };
+using CreateSourcePositions =
+    base::StrongAlias<struct CreateSourcePositionsTag, bool>;
 
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
@@ -609,7 +611,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   std::unique_ptr<char[]> DebugNameCStr() const;
   static Handle<String> DebugName(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
-      AllowAllocation allow_allocation = AllowAllocation::kYes);
+      AllowAllocation allow_allocation = AllowAllocation{true});
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
@@ -838,7 +840,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   static void EnsureBytecodeArrayAvailable(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
       IsCompiledScope* is_compiled_scope,
-      CreateSourcePositions flag = CreateSourcePositions::kNo);
+      CreateSourcePositions flag = CreateSourcePositions{false});
 
   inline bool CanCollectSourcePosition(Isolate* isolate);
   static void EnsureSourcePositionsAvailable(

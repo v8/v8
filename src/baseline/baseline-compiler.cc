@@ -11,6 +11,7 @@
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/numerics/clamped_math.h"
+#include "src/base/strong-alias.h"
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-assembler.h"
 #include "src/builtins/builtins-constructor.h"
@@ -304,7 +305,7 @@ BaselineCompiler::BaselineCompiler(
       masm_(
           local_isolate->GetMainThreadIsolateUnsafe(), &zone_,
           BaselineAssemblerOptions(local_isolate->GetMainThreadIsolateUnsafe()),
-          CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
+          CodeObjectRequired{false}, AllocateBuffer(bytecode)),
       basm_(&masm_),
       iterator_(bytecode_),
       allow_sparkplug_plus_(v8_flags.sparkplug_plus &&
@@ -533,7 +534,7 @@ void BaselineCompiler::PreVisitSingleBytecode() {
   switch (iterator().current_bytecode()) {
     case interpreter::Bytecode::kJumpLoop:
       EnsureLabel(iterator().GetJumpTargetOffset(),
-                  MarkAsIndirectJumpTarget::kYes);
+                  MarkAsIndirectJumpTarget{true});
       break;
     default:
       break;
