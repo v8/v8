@@ -37,7 +37,7 @@ Address StackMemory::limit() const {
 void* StackMemory::jslimit() const {
   return (active_segment_ ? active_segment_->limit_ : limit_) +
          (owned_ ? StackMemory::JSGrowableStackLimitMarginKB() * KB
-                 : V8_STACK_LIMIT_MARGIN_KB * KB);
+                 : StackMemory::JSCentralStackLimitMarginKB() * KB);
 }
 
 StackMemory::StackMemory() : owned_(true) {

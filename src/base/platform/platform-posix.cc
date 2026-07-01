@@ -1486,38 +1486,14 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
 #endif  // V8_OS_ZOS
 }
 
-// static
-Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
-#if V8_OS_ZOS
-  return nullptr;
-#elif V8_OS_OPENBSD
-  stack_t stack;
-  int error = pthread_stackseg_np(pthread_self(), &stack);
-  if (error) {
-    DCHECK(MainThreadIsCurrentThread());
-    return nullptr;
-  }
-  return stack.ss_sp;
-#else
-  pthread_attr_t attr;
-  int error = pthread_getattr_np(pthread_self(), &attr);
-  if (error) {
-    DCHECK(MainThreadIsCurrentThread());
-    return nullptr;
-  }
-  void* base;
-  size_t size;
-  error = pthread_attr_getstack(&attr, &base, &size);
-  CHECK(!error);
-  pthread_attr_destroy(&attr);
-  return base;
-#endif  // V8_OS_ZOS
-}
-
 #endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) &&
         // !defined(_AIX) && !defined(V8_OS_SOLARIS)
 
+// static
+void Stack::SaveStackLimit() { UNREACHABLE(); }
 
+// static
+Stack::StackSlot Stack::GetStackLimit() { UNREACHABLE(); }
 
 // static
 void Stack::SetCurrentThreadStackBounds(uintptr_t, uintptr_t) { UNREACHABLE(); }
