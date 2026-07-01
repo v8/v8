@@ -331,27 +331,19 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   if (v8_flags.turbolev_non_eager_inlining) {
     if (!Run<InlinerPhase>()) return {};
   }
-  // TODO(victorgomes): Re-evaluate pipeline. Running the PostOptimizerPhase
-  // before the Truncation phase would make sense to make truncations better
-  // based on the optimizations that loop peeling enabled.
-  bool rerun_postoptimizer_phase = false;
   if (v8_flags.turbolev_non_eager_loop_peeling) {
     if (Run<LoopPeelerPhase>()) {
-      rerun_postoptimizer_phase = true;
+      Run<PostOptimizerPhase>(nullptr);
     }
   }
   if (v8_flags.maglev_truncation && graph_->may_have_truncation()) {
     Run<TruncationPhase>();
-    rerun_postoptimizer_phase = true;
   }
   if (graph_->compilation_info()->flags().enable_truncated_int32_phis) {
     // This only needs to run unless we have accurate usage hints.
     // TODO(turbolev): sort out perf problems blocking
     // https://chromium-review.git.corp.google.com/c/v8/v8/+/7595239 from
     // landing.
-    rerun_postoptimizer_phase = true;
-  }
-  if (rerun_postoptimizer_phase) {
     Run<PostOptimizerPhase>(nullptr);
   }
   graph_->UnwrapDeoptFrames();
