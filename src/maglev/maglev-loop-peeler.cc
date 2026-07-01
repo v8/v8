@@ -501,6 +501,15 @@ bool MaglevLoopPeeler::IsCloneable(const LoopInfo& loop) const {
                             << ": skip (unsupported switch control node)");
         return false;
       }
+      if (control->Is<Throw>() &&
+          control->exception_handler_info()->HasExceptionHandler() &&
+          !control->exception_handler_info()->ShouldLazyDeopt()) {
+        // TODO(victorgomes): Support live catch blocks.
+        TRACE_PEEL_SKIP("@"
+                        << header_offset
+                        << ": skip (unsupported throw with live catch block)");
+        return false;
+      }
       // This is not the backedge, and the loop is innermost.
       DCHECK(!control->Is<JumpLoop>());
     }
