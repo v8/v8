@@ -71,9 +71,7 @@ class GrowableStacksReducer : public Next {
           __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmGrowableStackGuard);
       auto param_slots_size = __ IntPtrConstant(
           call_descriptor_->ParameterSlotCount() * kSystemPointerSize);
-      __ Call(
-          builtin, {param_slots_size}, ts_stub_call_descriptor,
-          OpEffects().CanReadMemory().RequiredWhenUnused().CanThrowOrTrap());
+      __ Call(builtin, {param_slots_size}, ts_stub_call_descriptor);
     }
 
     return V<None>::Invalid();
