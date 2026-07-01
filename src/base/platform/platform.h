@@ -685,13 +685,12 @@ class V8_BASE_EXPORT Stack {
 
   // Gets the start of the stack of the current thread.
   static StackSlot GetStackStart();
+  // Gets the lowest address that the stack can grow to.
+  static StackSlot GetReservedStackLimit();
 
   // On Windows, the TEB's StackLimit changes during execution as the stack
-  // grows. So do not cache it like we do for the stack start, but expose
-  // functions to explicitly save it and restore it as needed. Used by wasm JSPI
-  // / stack switching to switch to and from the central stack.
-  static void SaveStackLimit();
-  static StackSlot GetStackLimit();
+  // grows. Expose a function to get it.
+  static StackSlot GetCommittedStackLimit();
 
   // Sets the TEB's StackLimit and StackBase on Windows.
   static void SetCurrentThreadStackBounds(uintptr_t limit, uintptr_t base);
@@ -741,8 +740,9 @@ class V8_BASE_EXPORT Stack {
  private:
   // Return the current thread stack start pointer.
   static StackSlot GetStackStartUnchecked();
-  static Stack::StackSlot ObtainCurrentThreadStackStart();
-  static Stack::StackSlot ObtainCurrentThreadStackLimit();
+  static StackSlot ObtainCurrentThreadStackStart();
+  // Lowest address that the stack can grow to.
+  static StackSlot ObtainCurrentThreadStackReservedLimit();
 
   friend class heap::base::Stack;
 };

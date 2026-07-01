@@ -172,10 +172,16 @@ namespace internal {
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL false
 #endif
 
+// V8_DEFAULT_STACK_SIZE_KB is the default stack size for JS/Wasm.
+// V8_STACK_LIMIT_MARGIN_KB is an extra safety headroom between the JS/Wasm
+// stack limit and the estimated system stack limit. It is needed to safely run
+// C++ code or builtins without stack checks when JS/Wasm is close to the stack
+// limit.
 #if V8_TARGET_ARCH_ARM
 // Set stack limit lower for ARM than for other architectures because stack
 // allocating MacroAssembler takes 120K bytes.  See issue crbug.com/405338
 #define V8_DEFAULT_STACK_SIZE_KB 864
+#define V8_STACK_LIMIT_MARGIN_KB 160
 #elif V8_TARGET_ARCH_IA32
 // As of crrev.com/c/2461589, Chrome creates some threads (at least worker
 // pools threads, maybe others) on 32-bit Windows with only 512 KB of stack
@@ -185,6 +191,7 @@ namespace internal {
 // Rationale behind the specific value: leave the same 40 KB of slack as
 // the 984 KB limit we used on systems with 1 MB stack size.
 #define V8_DEFAULT_STACK_SIZE_KB 472
+#define V8_STACK_LIMIT_MARGIN_KB 40
 #elif V8_USE_ADDRESS_SANITIZER
 // ASan makes C++ frames consume more stack, so V8 should leave more stack
 // space available in case a C++ call happens. ClusterFuzz found a case where
@@ -192,10 +199,12 @@ namespace internal {
 // crbug.com/1486275); to be more robust towards future CF reports we'll
 // use an even lower limit.
 #define V8_DEFAULT_STACK_SIZE_KB 960
+#define V8_STACK_LIMIT_MARGIN_KB 64
 #else
 // Slightly less than 1MB, since Windows' default stack size for
 // the main execution thread is 1MB.
 #define V8_DEFAULT_STACK_SIZE_KB 984
+#define V8_STACK_LIMIT_MARGIN_KB 40
 #endif
 
 // Helper macros to enable handling of direct C calls in the simulator.
