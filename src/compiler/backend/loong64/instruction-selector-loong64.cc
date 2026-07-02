@@ -1296,12 +1296,80 @@ void InstructionSelector::VisitWord32Popcnt(OpIndex node) { UNREACHABLE(); }
 void InstructionSelector::VisitWord64Popcnt(OpIndex node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitInt32Add(OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
+  Loong64OperandGenerator g(this);
+  const WordBinopOp& add = this->Get(node).Cast<WordBinopOp>();
+  const Operation& rhs = Get(add.right());
+  const Operation& lhs = Get(add.left());
+  // Select Alsl_w for (left + (left_of_right << imm)).
+  if (rhs.Is<Opmask::kWord32ShiftLeft>() && CanCover(node, add.right())) {
+    const ShiftOp& shift = rhs.Cast<ShiftOp>();
+    if (int32_t shift_value, constant_left;
+        MatchIntegralWord32Constant(shift.right(), &shift_value) &&
+        !MatchIntegralWord32Constant(add.left(), &constant_left)) {
+      if (shift_value >= 1 && shift_value <= 4) {
+        Emit(kLoong64Alsl_w, g.DefineAsRegister(node),
+             g.UseRegister(shift.left()), g.UseRegister(add.left()),
+             g.TempImmediate(shift_value));
+        return;
+      }
+    }
+  }
+
+  // Select Alsl_w for ((left_of_left << imm) + right).
+  if (lhs.Is<Opmask::kWord32ShiftLeft>() && CanCover(node, add.left())) {
+    const ShiftOp& shift = lhs.Cast<ShiftOp>();
+    if (int32_t shift_value, constant_right;
+        MatchIntegralWord32Constant(shift.right(), &shift_value) &&
+        !MatchIntegralWord32Constant(add.right(), &constant_right)) {
+      if (shift_value >= 1 && shift_value <= 4) {
+        Emit(kLoong64Alsl_w, g.DefineAsRegister(node),
+             g.UseRegister(shift.left()), g.UseRegister(add.right()),
+             g.TempImmediate(shift_value));
+        return;
+      }
+    }
+  }
   VisitBinop(this, node, kLoong64Add_w, true, kLoong64Add_w);
 }
 
 void InstructionSelector::VisitInt64Add(OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
+  Loong64OperandGenerator g(this);
+  const WordBinopOp& add = this->Get(node).Cast<WordBinopOp>();
+  const Operation& rhs = Get(add.right());
+  const Operation& lhs = Get(add.left());
+
+  // Select Alsl_d for (left + (left_of_right << imm)).
+  if (rhs.Is<Opmask::kWord64ShiftLeft>() && CanCover(node, add.right())) {
+    const ShiftOp& shift = rhs.Cast<ShiftOp>();
+    if (int64_t shift_imm, constant_left;
+        MatchIntegralWord64Constant(shift.right(), &shift_imm) &&
+        !MatchIntegralWord64Constant(add.left(), &constant_left)) {
+      int32_t shift_value = static_cast<int32_t>(shift_imm);
+
+      if (shift_value >= 1 && shift_value <= 4) {
+        Emit(kLoong64Alsl_d, g.DefineAsRegister(node),
+             g.UseRegister(shift.left()), g.UseRegister(add.left()),
+             g.TempImmediate(shift_value));
+        return;
+      }
+    }
+  }
+
+  // Select Alsl_d for ((left_of_left << imm) + right).
+  if (lhs.Is<Opmask::kWord64ShiftLeft>() && CanCover(node, add.left())) {
+    const ShiftOp& shift = lhs.Cast<ShiftOp>();
+    if (int64_t shift_imm, constant_right;
+        MatchIntegralWord64Constant(shift.right(), &shift_imm) &&
+        !MatchIntegralWord64Constant(add.right(), &constant_right)) {
+      int32_t shift_value = static_cast<int32_t>(shift_imm);
+      if (shift_value >= 1 && shift_value <= 4) {
+        Emit(kLoong64Alsl_d, g.DefineAsRegister(node),
+             g.UseRegister(shift.left()), g.UseRegister(add.right()),
+             g.TempImmediate(shift_value));
+        return;
+      }
+    }
+  }
   VisitBinop(this, node, kLoong64Add_d, true, kLoong64Add_d);
 }
 
@@ -1314,7 +1382,34 @@ void InstructionSelector::VisitInt64Sub(OpIndex node) {
 }
 
 void InstructionSelector::VisitInt32Mul(OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
+  Loong64OperandGenerator g(this);
+  const WordBinopOp& mul = Get(node).Cast<WordBinopOp>();
+  if (int32_t constant_right;
+      MatchIntegralWord32Constant(mul.right(), &constant_right) &&
+      constant_right > 0) {
+    uint32_t value = static_cast<uint32_t>(constant_right);
+    if (base::bits::IsPowerOfTwo(value)) {
+      Emit(kLoong64Sll_w | AddressingModeField::encode(kMode_None),
+           g.DefineAsRegister(node), g.UseRegister(mul.left()),
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value)));
+      return;
+    }
+    if (base::bits::IsPowerOfTwo(value - 1)) {
+      Emit(kLoong64Alsl_w, g.DefineAsRegister(node), g.UseRegister(mul.left()),
+           g.UseRegister(mul.left()),
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value - 1)));
+      return;
+    }
+    if (base::bits::IsPowerOfTwo(value + 1)) {
+      InstructionOperand temp = g.TempRegister();
+      Emit(kLoong64Sll_w | AddressingModeField::encode(kMode_None), temp,
+           g.UseRegister(mul.left()),
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value + 1)));
+      Emit(kLoong64Sub_w | AddressingModeField::encode(kMode_None),
+           g.DefineAsRegister(node), temp, g.UseRegister(mul.left()));
+      return;
+    }
+  }
   VisitBinop(this, node, kLoong64Mul_w, true, kLoong64Mul_w);
 }
 
@@ -1335,8 +1430,37 @@ void InstructionSelector::VisitUint64MulHigh(OpIndex node) {
 }
 
 void InstructionSelector::VisitInt64Mul(OpIndex node) {
-  // TODO(LOONG_dev): May could be optimized like in Turbofan.
-  VisitBinop(this, node, kLoong64Mul_d, true, kLoong64Mul_d);
+  Loong64OperandGenerator g(this);
+  const WordBinopOp& mul = Get(node).Cast<WordBinopOp>();
+  if (int64_t constant_right;
+      MatchIntegralWord64Constant(mul.right(), &constant_right) &&
+      constant_right > 0) {
+    uint64_t value = static_cast<uint64_t>(constant_right);
+    if (base::bits::IsPowerOfTwo(value)) {
+      Emit(kLoong64Sll_d | AddressingModeField::encode(kMode_None),
+           g.DefineAsRegister(node), g.UseRegister(mul.left()),
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value)));
+      return;
+    }
+    if (base::bits::IsPowerOfTwo(value - 1)) {
+      // Alsl_d macro will handle the shifting value out of bound cases.
+      Emit(kLoong64Alsl_d, g.DefineAsRegister(node), g.UseRegister(mul.left()),
+           g.UseRegister(mul.left()),
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value - 1)));
+      return;
+    }
+    if (base::bits::IsPowerOfTwo(value + 1)) {
+      InstructionOperand temp = g.TempRegister();
+      Emit(kLoong64Sll_d | AddressingModeField::encode(kMode_None), temp,
+           g.UseRegister(mul.left()),
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value + 1)));
+      Emit(kLoong64Sub_d | AddressingModeField::encode(kMode_None),
+           g.DefineAsRegister(node), temp, g.UseRegister(mul.left()));
+      return;
+    }
+  }
+  Emit(kLoong64Mul_d, g.DefineAsRegister(node), g.UseRegister(mul.left()),
+       g.UseRegister(mul.right()));
 }
 
 void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {

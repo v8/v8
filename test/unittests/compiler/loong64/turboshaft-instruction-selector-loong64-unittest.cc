@@ -871,49 +871,221 @@ TEST_F(TurboshaftInstructionSelectorTest,
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }
-
-TEST_F(TurboshaftInstructionSelectorTest, CombineShiftsWithMul) {
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    m.Return(m.Word32Mul(
-        m.Word64ShiftRightArithmetic(m.Parameter(0), m.Int32Constant(32)),
-        m.Word64ShiftRightArithmetic(m.Parameter(0), m.Int32Constant(32))));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kLoong64Mulh_d, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-    ASSERT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
-  }
-}
-
-TEST_F(TurboshaftInstructionSelectorTest, CombineShiftsWithDivMod) {
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    m.Return(m.Int32Div(
-        m.Word64ShiftRightArithmetic(m.Parameter(0), m.Int32Constant(32)),
-        m.Word64ShiftRightArithmetic(m.Parameter(0), m.Int32Constant(32))));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kLoong64Div_d, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-    ASSERT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
-  }
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    m.Return(m.Int32Mod(
-        m.Word64ShiftRightArithmetic(m.Parameter(0), m.Int32Constant(32)),
-        m.Word64ShiftRightArithmetic(m.Parameter(0), m.Int32Constant(32))));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kLoong64Mod_d, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-    ASSERT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
-  }
-}
 #endif
+
+TEST_F(TurboshaftInstructionSelectorTest, Word32AddWithShl) {
+  // left + (left_of_right << imm)
+  TRACED_FORRANGE(int32_t, k, 1, 4) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    OpIndex const shl = m.Word32ShiftLeft(m.Parameter(0), m.Int32Constant(k));
+    m.Return(m.Word32Add(m.Parameter(1), shl));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Alsl_w, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+  }
+  TRACED_FORRANGE(int32_t, k, 1, 4) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    OpIndex const shl = m.Word32ShiftLeft(m.Parameter(0), m.Int32Constant(k));
+    m.Return(m.Word32Add(shl, m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Alsl_w, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64AddWithShl) {
+  // left + (left_of_right << imm)
+  TRACED_FORRANGE(int64_t, k, 1, 4) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                    MachineType::Int64());
+    OpIndex const shl = m.Word64ShiftLeft(m.Parameter(0), m.Int32Constant(k));
+    m.Return(m.Word64Add(m.Parameter(1), shl));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Alsl_d, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+  }
+  TRACED_FORRANGE(int64_t, k, 1, 4) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                    MachineType::Int64());
+    OpIndex const shl = m.Word64ShiftLeft(m.Parameter(0), m.Int32Constant(k));
+    m.Return(m.Word64Add(shl, m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Alsl_d, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word32MulWithImmediate) {
+  // x * (2^k) -> x << k
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    m.Return(m.Word32Mul(m.Parameter(0), m.Int32Constant(1 << k)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Sll_w, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // (2^k) * x -> x << k
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    m.Return(m.Word32Mul(m.Int32Constant(1 << k), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Sll_w, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // x * (2^k + 1) -> (x << k) + x
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    m.Return(m.Word32Mul(m.Parameter(0), m.Int32Constant((1 << k) + 1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Alsl_w, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // (2^k + 1) * x -> (x << k) + 1
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    m.Return(m.Word32Mul(m.Int32Constant((1 << k) + 1), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Alsl_w, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // x * (2^k - 1) -> (x << k) - x
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    if (k == 1 || k == 2) continue;
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    m.Return(m.Word32Mul(m.Parameter(0), m.Int32Constant((1 << k) - 1)));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kLoong64Sll_w, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(kLoong64Sub_w, s[1]->arch_opcode());
+    ASSERT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[1]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(0)));
+  }
+  // (2^k - 1) * x -> (x << k) - x
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    if (k == 1 || k == 2) continue;
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    m.Return(m.Word32Mul(m.Parameter(0), m.Int32Constant((1 << k) - 1)));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kLoong64Sll_w, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(kLoong64Sub_w, s[1]->arch_opcode());
+    ASSERT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[1]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(0)));
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWithImmediate) {
+  // x * (2^k) -> x << k
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    m.Return(m.Word64Mul(m.Parameter(0), m.Int64Constant(int64_t{1} << k)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Sll_d, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // (2^k) * x -> x << k
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    m.Return(m.Word64Mul(m.Int64Constant(int64_t{1} << k), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Sll_d, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // x * (2^k + 1) -> (x << k) + x
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    m.Return(
+        m.Word64Mul(m.Parameter(0), m.Int64Constant((int64_t{1} << k) + 1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Alsl_d, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // (2^k + 1) * x -> (x << k) + 1
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    m.Return(
+        m.Word64Mul(m.Int64Constant((int64_t{1} << k) + 1), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kLoong64Alsl_d, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // x * (2^k - 1) -> (x << k) - x
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    if (k == 1 || k == 2) continue;
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    m.Return(
+        m.Word64Mul(m.Parameter(0), m.Int64Constant((int64_t{1} << k) - 1)));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kLoong64Sll_d, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(kLoong64Sub_d, s[1]->arch_opcode());
+    ASSERT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[1]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(0)));
+  }
+  // (2^k - 1) * x -> (x << k) - x
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    if (k == 1 || k == 2) continue;
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    m.Return(
+        m.Word64Mul(m.Parameter(0), m.Int64Constant((int64_t{1} << k) - 1)));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kLoong64Sll_d, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(kLoong64Sub_d, s[1]->arch_opcode());
+    ASSERT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[1]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(0)));
+  }
+}
 
 TEST_F(TurboshaftInstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
   // For each case, test that the conversion is merged into the load
