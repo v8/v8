@@ -65,19 +65,19 @@ links {
 links {
   name: "Branch Coverage"
   links {
-    text: "beta"
-    url: "/p/v8/g/br.beta"
-    alt: "Beta"
+    text: "15.1"
+    url: "/p/v8/g/15.1"
+    alt: "15.1"
   }
   links {
-    text: "stable"
-    url: "/p/v8/g/br.stable"
-    alt: "Stable"
+    text: "15.0"
+    url: "/p/v8/g/15.0"
+    alt: "15.0"
   }
   links {
-    text: "extended"
-    url: "/p/v8/g/br.extended"
-    alt: "Extended stable"
+    text: "15.0-extended"
+    url: "/p/v8/g/15.0-extended"
+    alt: "15.0-extended"
   }
   links {
     text: "readme"

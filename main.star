@@ -5,6 +5,7 @@
 
 lucicfg.check_version("1.33.7", "Please update depot_tools")
 
+load("//definitions.star", "BETA", "EXTENDED", "STABLE")
 load(
     "//lib/acls.star",
     "tryserver_acls",
@@ -202,9 +203,9 @@ pool(
     name = "pools/ci",
     bucket_realms = [
         "ci",
-        "ci.br.beta",
-        "ci.br.stable",
-        "ci.br.extended",
+        "ci." + BETA,
+        "ci." + STABLE,
+        "ci." + EXTENDED + "-extended",
     ],
     users = V8_SERVICE_ACCOUNTS,
     groups = LED_GROUPS,
@@ -296,9 +297,9 @@ bucket(
     led_config = led_config([V8_TRY_ACCOUNT]),
 )
 bucket(name = "try.triggered", acls = tryserver_acls)
-bucket(name = "ci.br.beta", acls = waterfall_acls)
-bucket(name = "ci.br.stable", acls = waterfall_acls)
-bucket(name = "ci.br.extended", acls = waterfall_acls)
+bucket(name = "ci." + BETA, acls = waterfall_acls)
+bucket(name = "ci." + STABLE, acls = waterfall_acls)
+bucket(name = "ci." + EXTENDED + "-extended", acls = waterfall_acls)
 
 bucket(name = "crossbench.try", acls = tryserver_acls, led_config = led_config([V8_TRY_ACCOUNT], groups = ["project-v8-tryjob-access"] + LED_GROUPS))
 

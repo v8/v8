@@ -1,55 +1,55 @@
 links {
-  name: "Beta coverage"
+  name: "15.1 coverage (beta)"
   links {
-    text: "beta"
-    url: "/p/v8/g/br.beta"
-    alt: "Beta Main"
+    text: "15.1"
+    url: "/p/v8/g/15.1"
+    alt: "15.1 Main"
   }
   links {
-    text: "beta.memory"
-    url: "/p/v8/g/br.beta.memory"
-    alt: "Beta Memory"
+    text: "15.1.memory"
+    url: "/p/v8/g/15.1.memory"
+    alt: "15.1 Memory"
   }
   links {
-    text: "beta.ports"
-    url: "/p/v8/g/br.beta.ports"
-    alt: "Beta Ports"
-  }
-}
-links {
-  name: "Stable coverage"
-  links {
-    text: "stable"
-    url: "/p/v8/g/br.stable"
-    alt: "Stable Main"
-  }
-  links {
-    text: "stable.memory"
-    url: "/p/v8/g/br.stable.memory"
-    alt: "Stable Memory"
-  }
-  links {
-    text: "stable.ports"
-    url: "/p/v8/g/br.stable.ports"
-    alt: "Stable Ports"
+    text: "15.1.ports"
+    url: "/p/v8/g/15.1.ports"
+    alt: "15.1 Ports"
   }
 }
 links {
-  name: "Extended coverage"
+  name: "15.0 coverage (stable)"
   links {
-    text: "extended"
-    url: "/p/v8/g/br.extended"
-    alt: "Extended Main"
+    text: "15.0"
+    url: "/p/v8/g/15.0"
+    alt: "15.0 Main"
   }
   links {
-    text: "extended.memory"
-    url: "/p/v8/g/br.extended.memory"
-    alt: "Extended Memory"
+    text: "15.0.memory"
+    url: "/p/v8/g/15.0.memory"
+    alt: "15.0 Memory"
   }
   links {
-    text: "extended.ports"
-    url: "/p/v8/g/br.extended.ports"
-    alt: "Extended Ports"
+    text: "15.0.ports"
+    url: "/p/v8/g/15.0.ports"
+    alt: "15.0 Ports"
+  }
+}
+links {
+  name: "15.0-extended coverage (extended)"
+  links {
+    text: "15.0-extended"
+    url: "/p/v8/g/15.0-extended"
+    alt: "15.0-extended Main"
+  }
+  links {
+    text: "15.0-extended.memory"
+    url: "/p/v8/g/15.0-extended.memory"
+    alt: "15.0-extended Memory"
+  }
+  links {
+    text: "15.0-extended.ports"
+    url: "/p/v8/g/15.0-extended.ports"
+    alt: "15.0-extended Ports"
   }
 }
 links {
@@ -62,13 +62,13 @@ links {
 }
 
 console_groups {
-  console_ids: "v8/br.beta"
-  console_ids: "v8/br.beta.memory"
-  console_ids: "v8/br.beta.ports"
-  console_ids: "v8/br.stable"
-  console_ids: "v8/br.stable.memory"
-  console_ids: "v8/br.stable.ports"
-  console_ids: "v8/br.extended"
-  console_ids: "v8/br.extended.memory"
-  console_ids: "v8/br.extended.ports"
+  console_ids: "v8/15.1"
+  console_ids: "v8/15.1.memory"
+  console_ids: "v8/15.1.ports"
+  console_ids: "v8/15.0"
+  console_ids: "v8/15.0.memory"
+  console_ids: "v8/15.0.ports"
+  console_ids: "v8/15.0-extended"
+  console_ids: "v8/15.0-extended.memory"
+  console_ids: "v8/15.0-extended.ports"
 }

@@ -2,11 +2,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//definitions.star", "versions")
+load("//definitions.star", "BETA", "EXTENDED", "STABLE")
 
 V8_ICON = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico"
 
 def _to_int_tuple(version_str):
+    if "-" in version_str:
+        version_str = version_str.split("-")[0]
     return [int(n) for n in version_str.split(".")]
 
 def branch_descriptor(
@@ -18,7 +20,7 @@ def branch_descriptor(
         has_console_name_prefix = True,
         version = None):
     if version_tag:
-        version = _to_int_tuple(versions.get(version_tag, version))
+        version = _to_int_tuple(version_tag)
         version_str = "%s\\.%s" % (version[0], version[1])
         refs = [ref % version_str for ref in refs]
     return struct(
@@ -76,24 +78,24 @@ branch_descriptors = [
         has_console_name_prefix = False,
     ),  # main
     branch_descriptor(
-        "ci.br.beta",
-        "v8-trigger-br-beta",
+        "ci." + BETA,
+        "v8-trigger-br-" + BETA,
         ["refs/branch-heads/%s"],
-        version_tag = "beta",
+        version_tag = BETA,
         priority = 50,
     ),
     branch_descriptor(
-        "ci.br.stable",
-        "v8-trigger-br-stable",
+        "ci." + STABLE,
+        "v8-trigger-br-" + STABLE,
         ["refs/branch-heads/%s"],
-        version_tag = "stable",
+        version_tag = STABLE,
         priority = 50,
     ),
     branch_descriptor(
-        "ci.br.extended",
-        "v8-trigger-br-extended",
+        "ci." + EXTENDED + "-extended",
+        "v8-trigger-br-" + EXTENDED + "-extended",
         ["refs/branch-heads/%s"],
-        version_tag = "extended",
+        version_tag = EXTENDED + "-extended",
         priority = 50,
     ),
 ]
