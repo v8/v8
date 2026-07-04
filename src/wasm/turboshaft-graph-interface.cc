@@ -2222,7 +2222,7 @@ class TurboshaftGraphBuildingInterface
     auto [target, implicit_arg] =
         BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
     BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns,
-                  compiler::kWasmIndirectFunction);
+                  compiler::kWasmIndirectFunction, check_for_exception);
     if (sig->return_count()) {
       __ SetVariable(result_var, returns[0].op);
     }
