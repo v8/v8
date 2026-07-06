@@ -10,9 +10,9 @@ Builder coverage for Beta/Stable/Extended branches is organized in the following
  - [15.0.main](https://ci.chromium.org/p/v8/g/15.0/console)
  - [15.0.memory](https://ci.chromium.org/p/v8/g/15.0.memory/console)
  - [15.0.ports](https://ci.chromium.org/p/v8/g/15.0.ports/console)
- - [15.0-extended.main](https://ci.chromium.org/p/v8/g/15.0-extended/console)
- - [15.0-extended.memory](https://ci.chromium.org/p/v8/g/15.0-extended.memory/console)
- - [15.0-extended.ports](https://ci.chromium.org/p/v8/g/15.0-extended.ports/console)
+ - [14.9.main](https://ci.chromium.org/p/v8/g/14.9/console)
+ - [14.9.memory](https://ci.chromium.org/p/v8/g/14.9.memory/console)
+ - [14.9.ports](https://ci.chromium.org/p/v8/g/14.9.ports/console)
 
 These consoles are the beta/stable/extended branch counterparts of the [main](https://ci.chromium.org/p/v8/g/main/console), [memory](https://ci.chromium.org/p/v8/g/memory/console) and [ports](https://ci.chromium.org/p/v8/g/ports/console) consoles for the main branch.
 

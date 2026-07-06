@@ -7,8 +7,6 @@ load("//definitions.star", "BETA", "EXTENDED", "STABLE")
 V8_ICON = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico"
 
 def _to_int_tuple(version_str):
-    if "-" in version_str:
-        version_str = version_str.split("-")[0]
     return [int(n) for n in version_str.split(".")]
 
 def branch_descriptor(
@@ -92,10 +90,10 @@ branch_descriptors = [
         priority = 50,
     ),
     branch_descriptor(
-        "ci." + EXTENDED + "-extended",
-        "v8-trigger-br-" + EXTENDED + "-extended",
+        "ci." + EXTENDED,
+        "v8-trigger-br-" + EXTENDED,
         ["refs/branch-heads/%s"],
-        version_tag = EXTENDED + "-extended",
+        version_tag = EXTENDED,
         priority = 50,
     ),
 ]

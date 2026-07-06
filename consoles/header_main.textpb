@@ -75,9 +75,9 @@ links {
     alt: "15.0"
   }
   links {
-    text: "15.0-extended"
-    url: "/p/v8/g/15.0-extended"
-    alt: "15.0-extended"
+    text: "14.9"
+    url: "/p/v8/g/14.9"
+    alt: "14.9"
   }
   links {
     text: "readme"

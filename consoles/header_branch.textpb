@@ -35,21 +35,21 @@ links {
   }
 }
 links {
-  name: "15.0-extended coverage (extended)"
+  name: "14.9 coverage (extended)"
   links {
-    text: "15.0-extended"
-    url: "/p/v8/g/15.0-extended"
-    alt: "15.0-extended Main"
+    text: "14.9"
+    url: "/p/v8/g/14.9"
+    alt: "14.9 Main"
   }
   links {
-    text: "15.0-extended.memory"
-    url: "/p/v8/g/15.0-extended.memory"
-    alt: "15.0-extended Memory"
+    text: "14.9.memory"
+    url: "/p/v8/g/14.9.memory"
+    alt: "14.9 Memory"
   }
   links {
-    text: "15.0-extended.ports"
-    url: "/p/v8/g/15.0-extended.ports"
-    alt: "15.0-extended Ports"
+    text: "14.9.ports"
+    url: "/p/v8/g/14.9.ports"
+    alt: "14.9 Ports"
   }
 }
 links {
@@ -68,7 +68,7 @@ console_groups {
   console_ids: "v8/15.0"
   console_ids: "v8/15.0.memory"
   console_ids: "v8/15.0.ports"
-  console_ids: "v8/15.0-extended"
-  console_ids: "v8/15.0-extended.memory"
-  console_ids: "v8/15.0-extended.ports"
+  console_ids: "v8/14.9"
+  console_ids: "v8/14.9.memory"
+  console_ids: "v8/14.9.ports"
 }

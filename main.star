@@ -205,7 +205,7 @@ pool(
         "ci",
         "ci." + BETA,
         "ci." + STABLE,
-        "ci." + EXTENDED + "-extended",
+        "ci." + EXTENDED,
     ],
     users = V8_SERVICE_ACCOUNTS,
     groups = LED_GROUPS,
@@ -299,7 +299,7 @@ bucket(
 bucket(name = "try.triggered", acls = tryserver_acls)
 bucket(name = "ci." + BETA, acls = waterfall_acls)
 bucket(name = "ci." + STABLE, acls = waterfall_acls)
-bucket(name = "ci." + EXTENDED + "-extended", acls = waterfall_acls)
+bucket(name = "ci." + EXTENDED, acls = waterfall_acls)
 
 bucket(name = "crossbench.try", acls = tryserver_acls, led_config = led_config([V8_TRY_ACCOUNT], groups = ["project-v8-tryjob-access"] + LED_GROUPS))
 
