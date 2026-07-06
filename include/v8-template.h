@@ -107,7 +107,7 @@ class V8_EXPORT Template : public Data {
       PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
-  V8_DEPRECATED("Use AccessorNameSetterCallbackV2 setter instead")
+  V8_DEPRECATE_SOON("Use AccessorNameSetterCallbackV2 setter instead")
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter, Local<Value> data = Local<Value>(),
@@ -763,7 +763,7 @@ struct NamedPropertyHandlerConfiguration {
       NamedPropertySetterCallbackV2 value) {
     return value;
   }
-  V8_DEPRECATED("Use NamedPropertySetterCallbackV2 setter instead")
+  V8_DEPRECATE_SOON("Use NamedPropertySetterCallbackV2 setter instead")
   static NamedPropertySetterCallbackV2 ConvertSetter(
       NamedPropertySetterCallback value) {
     return NamedPropertySetterCallbackV2(value);
@@ -776,7 +776,7 @@ struct NamedPropertyHandlerConfiguration {
       NamedPropertyDefinerCallbackV2 value) {
     return value;
   }
-  V8_DEPRECATED("Use NamedPropertyDefinerCallbackV2 definer instead")
+  V8_DEPRECATE_SOON("Use NamedPropertyDefinerCallbackV2 definer instead")
   static NamedPropertyDefinerCallbackV2 ConvertDefiner(
       NamedPropertyDefinerCallback value) {
     return NamedPropertyDefinerCallbackV2(value);
@@ -894,7 +894,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertySetterCallback value) {
     return value;
   }
-  V8_DEPRECATED("Use IndexedPropertySetterCallback setter instead")
+  V8_DEPRECATE_SOON("Use IndexedPropertySetterCallback setter instead")
   static IndexedPropertySetterCallback ConvertSetter(
       IndexedPropertySetterCallbackV2 value) {
     return IndexedPropertySetterCallback(value);
@@ -907,7 +907,7 @@ struct IndexedPropertyHandlerConfiguration {
       IndexedPropertyDefinerCallback value) {
     return value;
   }
-  V8_DEPRECATED("Use IndexedPropertyDefinerCallback definer instead")
+  V8_DEPRECATE_SOON("Use IndexedPropertyDefinerCallback definer instead")
   static IndexedPropertyDefinerCallback ConvertDefiner(
       IndexedPropertyDefinerCallbackV2 value) {
     return IndexedPropertyDefinerCallback(value);
