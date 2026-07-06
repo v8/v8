@@ -113,7 +113,7 @@ luci.cq_group(
         acl.entry(
             [acl.CQ_COMMITTER],
             groups = [
-                "project-v8-submit-access",
+                "project-chromium-submit-access",
             ],
         ),
     ],
