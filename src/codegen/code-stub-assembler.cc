@@ -9790,6 +9790,21 @@ TNode<String> CodeStubAssembler::TryMatchPreallocatedNumberString(
 }
 // LINT.ThenChange(/src/heap/factory-base.cc:CheckPreallocatedNumberStrings)
 
+TNode<String> CodeStubAssembler::LookupTwoCharOneByteString(TNode<Uint8T> c1,
+                                                            TNode<Uint8T> c2) {
+  // Index = c1 * kTwoCharStringTableLimit + c2 = c1 * 127 + c2
+  //       = (c1 << 7) - c1 + c2
+  TNode<IntPtrT> c1_word = Signed(ChangeUint32ToWord(c1));
+  TNode<IntPtrT> index =
+      IntPtrAdd(IntPtrSub(WordShl(c1_word, IntPtrConstant(7)), c1_word),
+                Signed(ChangeUint32ToWord(c2)));
+
+  TNode<FixedArray> table =
+      CAST(LoadRoot(RootIndex::kTwoCharOneByteStringTable));
+
+  return CAST(UnsafeLoadFixedArrayElement(table, index));
+}
+
 TNode<IntPtrT> CodeStubAssembler::DoubleStringCacheEntryToOffset(
     TNode<Word32T> entry) {
   TNode<IntPtrT> entry_index;

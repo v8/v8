@@ -27,7 +27,8 @@ STATIC_ROOT_CONFIGURATIONS = {
             "v8_enable_pointer_compression_shared_cage": "true",
             "v8_enable_webassembly": "true",
             "v8_enable_i18n_support": "true",
-            "dcheck_always_on": "false"
+            "dcheck_always_on": "false",
+            "cc_wrapper": '"ccache"',
         }
     },
     "intl-nowasm": {
@@ -38,7 +39,8 @@ STATIC_ROOT_CONFIGURATIONS = {
             "v8_enable_pointer_compression_shared_cage": "true",
             "v8_enable_webassembly": "false",
             "v8_enable_i18n_support": "true",
-            "dcheck_always_on": "false"
+            "dcheck_always_on": "false",
+            "cc_wrapper": '"ccache"',
         }
     },
     "nointl-wasm": {
@@ -49,7 +51,8 @@ STATIC_ROOT_CONFIGURATIONS = {
             "v8_enable_pointer_compression_shared_cage": "true",
             "v8_enable_webassembly": "true",
             "v8_enable_i18n_support": "false",
-            "dcheck_always_on": "false"
+            "dcheck_always_on": "false",
+            "cc_wrapper": '"ccache"',
         }
     },
     "nointl-nowasm": {
@@ -60,7 +63,8 @@ STATIC_ROOT_CONFIGURATIONS = {
             "v8_enable_pointer_compression_shared_cage": "true",
             "v8_enable_webassembly": "false",
             "v8_enable_i18n_support": "false",
-            "dcheck_always_on": "false"
+            "dcheck_always_on": "false",
+            "cc_wrapper": '"ccache"',
         }
     },
 }

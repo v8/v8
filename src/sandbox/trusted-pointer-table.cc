@@ -5,8 +5,12 @@
 #include "src/sandbox/trusted-pointer-table.h"
 
 #include "src/execution/isolate.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/read-only-heap.h"
+#include "src/heap/read-only-spaces.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/trusted-object-inl.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
 
 #ifdef V8_ENABLE_SANDBOX
@@ -16,11 +20,23 @@ namespace internal {
 
 void TrustedPointerTable::SetUpFromReadOnlyArtifacts(
     Space* read_only_space, const ReadOnlyArtifacts* artifacts) {
+  // Rebuild this isolate's read-only TPT segment by walking the exposed
+  // trusted objects in the (shared) read-only heap. Everything an entry needs
+  // is derivable from the object itself: the value is its address, the tag
+  // comes from its instance type, and the handle is its self indirect pointer.
+  // Iterating in object (address) order reproduces the same handle allocation
+  // order as the initial deserialization, which the CHECK_EQ below enforces.
   UnsealReadOnlySegmentScope unseal_scope(this);
-  for (const auto& registry_entry : artifacts->trusted_pointer_registry()) {
+  ReadOnlyHeapObjectIterator it(artifacts->read_only_heap());
+  for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+    if (!IsExposedTrustedObject(o)) continue;
+    SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(o));
+    IndirectPointerTag tag =
+        IndirectPointerTagFromInstanceType(o->map()->instance_type(), shared);
+    Tagged<ExposedTrustedObject> exposed = TrustedCast<ExposedTrustedObject>(o);
     TrustedPointerHandle handle = AllocateAndInitializeEntry(
-        read_only_space, registry_entry.value, registry_entry.tag, nullptr);
-    CHECK_EQ(handle, registry_entry.handle);
+        read_only_space, exposed.ptr(), tag, nullptr);
+    CHECK_EQ(handle, exposed->self_indirect_pointer_handle());
   }
 }
 

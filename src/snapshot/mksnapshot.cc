@@ -98,9 +98,9 @@ class SnapshotFileWriter {
 
   static void WriteSnapshotFileData(FILE* fp,
                                     v8::base::Vector<const uint8_t> blob) {
-    fprintf(
-        fp,
-        "alignas(kPointerAlignment) static const uint8_t blob_data[] = {\n");
+    fprintf(fp,
+            "alignas(kTargetMinimumOSPageSize) static const uint8_t"
+            " blob_data[] = {\n");
     WriteBinaryContentsAsCArray(fp, blob);
     fprintf(fp, "};\n");
     fprintf(fp, "static const int blob_size = %d;\n", blob.length());

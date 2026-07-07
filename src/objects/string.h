@@ -530,6 +530,14 @@ V8_OBJECT class String : public Name {
   static const uint32_t kMaxUtf16CodeUnitU = kMaxUtf16CodeUnit;
   static const base::uc32 kMaxCodePoint = 0x10ffff;
 
+  // Two-character one-byte string table dimensions.
+  // Covers character codes 0-126. The table has 127^2 entries indexed by
+  // c1*127 + c2. Character 127 (DEL) is excluded to keep the table size
+  // under kMaxRegularHeapObjectSize.
+  static constexpr int kTwoCharStringTableLimit = 127;
+  static constexpr int kTwoCharStringTableSize =
+      kTwoCharStringTableLimit * kTwoCharStringTableLimit;
+
   // Maximal string length.
   // The max length is different on 32 and 64 bit platforms. Max length for
   // 32-bit platforms is ~268.4M chars. On 64-bit platforms, max length is

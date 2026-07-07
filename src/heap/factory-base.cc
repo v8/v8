@@ -770,6 +770,11 @@ Handle<CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
 template <typename Impl>
 Handle<String> FactoryBase<Impl>::MakeOrFindTwoCharacterString(uint16_t c1,
                                                                uint16_t c2) {
+  if (std::max(c1, c2) < String::kTwoCharStringTableLimit) {
+    // Look up in the pre-allocated two-character one-byte string table.
+    int index = c1 * String::kTwoCharStringTableLimit + c2;
+    return handle(Cast<String>(two_char_string_table()->get(index)), isolate());
+  }
   if ((c1 | c2) <= unibrow::Latin1::kMaxChar) {
     uint8_t buffer[] = {static_cast<uint8_t>(c1), static_cast<uint8_t>(c2)};
     return InternalizeString(base::Vector<const uint8_t>(buffer, 2));

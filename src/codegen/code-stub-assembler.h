@@ -3190,6 +3190,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<String> TryMatchPreallocatedNumberString(TNode<Int32T> value,
                                                  Label* bailout);
 
+  // Look up a two-character one-byte string in the preallocated table.
+  // Both characters must be < String::kTwoCharStringTableLimit (127).
+  TNode<String> LookupTwoCharOneByteString(TNode<Uint8T> c1, TNode<Uint8T> c2);
+
   // Convert a Non-Number object to a Number.
   TNode<Number> NonNumberToNumber(
       TNode<Context> context, TNode<HeapObject> input,

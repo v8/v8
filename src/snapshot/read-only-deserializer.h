@@ -5,12 +5,22 @@
 #ifndef V8_SNAPSHOT_READ_ONLY_DESERIALIZER_H_
 #define V8_SNAPSHOT_READ_ONLY_DESERIALIZER_H_
 
+#include <vector>
+
 #include "src/snapshot/deserializer.h"
 
 namespace v8 {
 namespace internal {
 
 class SnapshotData;
+
+// Describes a range of objects on a page that need post-processing after
+// deserialization.
+struct PostProcessRange {
+  uint32_t page_index;
+  uint32_t first_offset;  // Offset from page area_start of first object.
+  uint32_t end_offset;    // Offset from page area_start past last object.
+};
 
 // Deserializes the read-only blob and creates the read-only roots table.
 class ReadOnlyDeserializer final : public Deserializer<Isolate> {
@@ -21,7 +31,7 @@ class ReadOnlyDeserializer final : public Deserializer<Isolate> {
   void DeserializeIntoIsolate();
 
  private:
-  void PostProcessNewObjects();
+  void PostProcessNewObjects(const std::vector<PostProcessRange>& ranges);
 };
 
 }  // namespace internal

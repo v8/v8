@@ -4,6 +4,9 @@
 
 #include "src/snapshot/shared-heap-serializer.h"
 
+#include <vector>
+
+#include "src/common/ptr-compr-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/read-only-serializer.h"
@@ -108,27 +111,12 @@ bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
 }
 
 void SharedHeapSerializer::SerializeStringTable(StringTable* string_table) {
-  // A StringTable is serialized as:
-  //
-  //   N : int
-  //   string 1
-  //   string 2
-  //   ...
-  //   string N
-  //
-  // Notably, the hashmap structure, including empty and deleted elements, is
-  // not serialized.
-
-  sink_.PutUint30(string_table->NumberOfElements(),
-                  "String table number of elements");
-
-  // Custom RootVisitor which walks the string table, but only serializes the
-  // string entries. This is an inline class to be able to access the non-public
-  // SerializeObject method.
-  class SharedHeapSerializerStringTableVisitor : public RootVisitor {
+  // Iterate the string table and collect non-RO strings for serialization.
+  // Non-RO strings need to be serialized separately because their addresses
+  // are not stable across isolates.
+  class NonRoStringCollector : public RootVisitor {
    public:
-    explicit SharedHeapSerializerStringTableVisitor(
-        SharedHeapSerializer* serializer)
+    explicit NonRoStringCollector(SharedHeapSerializer* serializer)
         : serializer_(serializer) {}
 
     void VisitRootPointers(Root root, const char* description,
@@ -145,18 +133,92 @@ void SharedHeapSerializer::SerializeStringTable(StringTable* string_table) {
         Tagged<Object> obj = current.load(isolate);
         if (IsHeapObject(obj)) {
           DCHECK(IsInternalizedString(obj));
-          serializer_->SerializeObject(handle(Cast<HeapObject>(obj), isolate),
-                                       SlotType::kAnySlot);
+          if (!ReadOnlyHeap::Contains(Cast<HeapObject>(obj))) {
+            non_ro_strings.push_back(handle(Cast<HeapObject>(obj), isolate));
+          }
         }
       }
     }
 
+    std::vector<Handle<HeapObject>> non_ro_strings;
+
    private:
     SharedHeapSerializer* serializer_;
   };
+  NonRoStringCollector collector(this);
+  string_table->IterateElements(&collector);
 
-  SharedHeapSerializerStringTableVisitor string_table_visitor(this);
-  isolate()->string_table()->IterateElements(&string_table_visitor);
+#ifdef V8_COMPRESS_POINTERS
+  // With pointer compression, the StringTable is serialized as a blob
+  // containing the raw hash table data:
+  //
+  //   capacity : Uint30
+  //   number_of_ro_elements : Uint30
+  //   number_of_deleted_elements : Uint30
+  //   elements[0..capacity-1] : Tagged_t[]
+  //   number_of_non_ro_strings : Uint30
+  //   non_ro_strings[0..n-1] : serialized object references
+  //
+  // The elements array contains compressed pointers (cage offsets) to strings
+  // in RO space (stable with static roots), or sentinel values (Smi 0 for
+  // empty, Smi 1 for deleted). Non-RO strings are replaced with deleted
+  // markers in the blob and serialized separately as object references.
+  //
+  // For deserialization:
+  // - No-rehash case: the blob is memcpy'd directly into a new hash table.
+  // - Rehash case: the blob is iterated to load pointers to RO strings, which
+  //   are then inserted into a fresh hash table.
+  // - Both cases: Non-RO strings are then inserted into the table.
+
+  int capacity;
+  int number_of_elements;
+  const Tagged_t* elements;
+  string_table->GetSerializedData(&capacity, &number_of_elements, &elements);
+
+  // Make a copy of the elements array so we can modify it.
+  std::vector<Tagged_t> elements_copy(elements, elements + capacity);
+  // Zap non-RO string entries in the copy.
+  int number_of_non_ro = static_cast<int>(collector.non_ro_strings.size());
+  for (int i = 0; i < capacity; i++) {
+    Tagged_t raw = elements_copy[i];
+    if (HAS_SMI_TAG(raw)) continue;  // empty or deleted
+    Tagged<Object> obj =
+        Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(raw));
+    if (!ReadOnlyHeap::Contains(Cast<HeapObject>(obj))) {
+      elements_copy[i] = V8HeapCompressionScheme::CompressObject(
+          StringTable::deleted_element().ptr());
+    }
+  }
+
+  // Count deleted entries in the blob. This includes both the newly zapped
+  // non-RO entries and any pre-existing deleted entries from GC.
+  Tagged_t deleted_tag = V8HeapCompressionScheme::CompressObject(
+      StringTable::deleted_element().ptr());
+  int number_of_deleted = 0;
+  for (int i = 0; i < capacity; i++) {
+    if (elements_copy[i] == deleted_tag) number_of_deleted++;
+  }
+
+  int number_of_ro_elements = number_of_elements - number_of_non_ro;
+  sink_.PutUint30(capacity, "String table capacity");
+  sink_.PutUint30(number_of_ro_elements, "String table number of RO elements");
+  sink_.PutUint30(number_of_deleted, "String table number of deleted elements");
+  // Align to Tagged_t size so the elements array is properly aligned.
+  while (!IsAligned(sink_.Position(), sizeof(Tagged_t))) {
+    sink_.Put(kNop, "String table alignment padding");
+  }
+  sink_.PutRaw(reinterpret_cast<const uint8_t*>(elements_copy.data()),
+               capacity * sizeof(Tagged_t), "String table elements");
+#endif  // V8_COMPRESS_POINTERS
+
+  // Serialize non-RO strings. Without pointer compression, RO strings are
+  // added to the string table at runtime by iterating the read-only heap,
+  // so only non-RO strings need to be serialized.
+  sink_.PutUint30(static_cast<int>(collector.non_ro_strings.size()),
+                  "Number of non-RO strings");
+  for (Handle<HeapObject> obj : collector.non_ro_strings) {
+    SerializeObject(obj, SlotType::kAnySlot);
+  }
 }
 
 void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
