@@ -240,7 +240,8 @@ def grantInvocationCreator(realms, users):
         ])
 
 grantInvocationCreator(["try", "try.triggered", "crossbench.try"], [V8_TRY_ACCOUNT])
-grantInvocationCreator(["ci", "ci-hp"], [V8_CI_ACCOUNT, V8_PGO_ACCOUNT])
+grantInvocationCreator(["ci-hp"], [V8_PGO_ACCOUNT])
+grantInvocationCreator(["ci"], [V8_CI_ACCOUNT])
 
 luci.logdog(gs_bucket = "chromium-luci-logdog")
 
