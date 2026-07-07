@@ -2675,7 +2675,7 @@ class RepresentationSelector {
             Type::BigInt(), Type::NumberOrOddball(), graph()->zone())));
         VisitInputs<T>(node);
         // TODO(bmeurer): Optimize somewhat based on input type?
-        if (truncation.IsUsedAsWord32()) {
+        if (truncation.IsUsedAsWord32() && !truncation.check_safe_integer()) {
           SetOutput<T>(node, MachineRepresentation::kWord32);
           if (lower<T>())
             lowering->DoJSToNumberOrNumericTruncatesToWord32(node, this);
@@ -4334,7 +4334,8 @@ class RepresentationSelector {
           if (lower<T>()) {
             ChangeOp(node, simplified()->StringToNumber());
           }
-        } else if (truncation.IsUsedAsWord32()) {
+        } else if (truncation.IsUsedAsWord32() &&
+                   !truncation.check_safe_integer()) {
           if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                          MachineRepresentation::kWord32);
