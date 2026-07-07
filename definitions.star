@@ -1,3 +1,1 @@
-BETA = "15.1"
-STABLE = "15.0"
-EXTENDED = "14.9"
+ACTIVE_BRANCHES = ["15.1", "15.0", "14.9"]

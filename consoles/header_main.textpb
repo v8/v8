@@ -63,7 +63,7 @@ links {
 }
 
 links {
-  name: "Branch Coverage"
+  name: "Branches"
   links {
     text: "15.1"
     url: "/p/v8/g/15.1"

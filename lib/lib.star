@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//definitions.star", "BETA", "EXTENDED", "STABLE")
+load("//definitions.star", "ACTIVE_BRANCHES")
 
 V8_ICON = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico"
 
@@ -75,27 +75,15 @@ branch_descriptors = [
         priority = 30,  # default
         has_console_name_prefix = False,
     ),  # main
+] + [
     branch_descriptor(
-        "ci." + BETA,
-        "v8-trigger-br-" + BETA,
+        "ci." + version,
+        "v8-trigger-br-" + version,
         ["refs/branch-heads/%s"],
-        version_tag = BETA,
+        version_tag = version,
         priority = 50,
-    ),
-    branch_descriptor(
-        "ci." + STABLE,
-        "v8-trigger-br-" + STABLE,
-        ["refs/branch-heads/%s"],
-        version_tag = STABLE,
-        priority = 50,
-    ),
-    branch_descriptor(
-        "ci." + EXTENDED,
-        "v8-trigger-br-" + EXTENDED,
-        ["refs/branch-heads/%s"],
-        version_tag = EXTENDED,
-        priority = 50,
-    ),
+    )
+    for version in ACTIVE_BRANCHES
 ]
 
 NAMING_CONVENTION_EXCLUDED_BUILDERS = [

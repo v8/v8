@@ -1,5 +1,5 @@
 links {
-  name: "15.1 coverage (beta)"
+  name: "15.1"
   links {
     text: "15.1"
     url: "/p/v8/g/15.1"
@@ -17,7 +17,7 @@ links {
   }
 }
 links {
-  name: "15.0 coverage (stable)"
+  name: "15.0"
   links {
     text: "15.0"
     url: "/p/v8/g/15.0"
@@ -35,7 +35,7 @@ links {
   }
 }
 links {
-  name: "14.9 coverage (extended)"
+  name: "14.9"
   links {
     text: "14.9"
     url: "/p/v8/g/14.9"
