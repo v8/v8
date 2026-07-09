@@ -2,6 +2,103 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+load("//definitions.star", "ACTIVE_BRANCHES")
+
+def add_branch_headers(ctx):
+    """
+    This callback adds branch-related links and console groups to the headers
+    of all consoles in `luci-milo.cfg`.
+    """
+    milo = ctx.output["luci-milo.cfg"]
+
+    # Define common links for main headers.
+    main_consoles_links = [
+        dict(text = "main", url = "/p/v8/g/main", alt = "Main V8 Console"),
+        dict(text = "memory", url = "/p/v8/g/memory", alt = "Memory V8 Console"),
+        dict(text = "ports", url = "/p/v8/g/ports", alt = "Ports V8 Console"),
+        dict(text = "integration", url = "/p/v8/g/integration", alt = "V8 Integration Console"),
+        dict(text = "experiments", url = "/p/v8/g/experiments", alt = "Experiments V8 Console"),
+        dict(text = "clusterfuzz", url = "/p/v8/g/clusterfuzz", alt = "Clusterfuzz V8 Console"),
+        dict(text = "chromium", url = "/p/v8/g/chromium", alt = "Chromium V8 Console"),
+    ]
+    controls_links = [
+        dict(text = "tree status", url = "https://v8-status.appspot.com/"),
+        dict(text = "roll status", url = "https://autoroll.skia.org/r/v8-chromium-autoroll"),
+    ]
+    lkgr_links = [
+        dict(text = "status", url = "https://storage.cloud.google.com/chromium-v8/lkgr-status/v8-lkgr-status.html"),
+    ]
+    readme_links = [
+        dict(text = "readme", url = "https://chromium.googlesource.com/v8/v8/+/infra/config/docs/branch-covarage.md", alt = "readme"),
+    ]
+
+    # Define branch links for the "Branches" group.
+    branch_links = []
+    for v in ACTIVE_BRANCHES:
+        branch_links.append(dict(
+            text = v,
+            url = "/p/v8/g/" + v,
+            alt = v,
+        ))
+
+    # Define detailed branch links for branch console headers.
+    detailed_branch_groups = []
+    for v in ACTIVE_BRANCHES:
+        detailed_branch_groups.append(dict(
+            name = v,
+            links = [
+                dict(text = v, url = "/p/v8/g/" + v, alt = v + " Main"),
+                dict(text = v + ".memory", url = "/p/v8/g/" + v + ".memory", alt = v + " Memory"),
+                dict(text = v + ".ports", url = "/p/v8/g/" + v + ".ports", alt = v + " Ports"),
+            ],
+        ))
+
+    # Define console groups.
+    main_console_ids = ["v8/memory", "v8/ports", "v8/clusterfuzz", "v8/integration", "v8/experiments"]
+    branch_console_ids = []
+    for v in ACTIVE_BRANCHES:
+        branch_console_ids.extend([
+            "v8/" + v,
+            "v8/" + v + ".memory",
+            "v8/" + v + ".ports",
+        ])
+
+    main_console_groups = [dict(console_ids = main_console_ids)]
+    branch_console_groups = [dict(console_ids = branch_console_ids)]
+
+    EXCLUDED_CONSOLES = ["tryserver", "pgo", "crossbench", "tools"]
+
+    for console in milo.consoles:
+        if console.id in EXCLUDED_CONSOLES or "-headless" in console.id:
+            # These consoles don't have the dynamic branch headers.
+            continue
+
+        # Determine if this is a branch console or a main console.
+        is_branch_console = False
+        for v in ACTIVE_BRANCHES:
+            if console.id == v or console.id.startswith(v + "."):
+                is_branch_console = True
+                break
+
+        if is_branch_console:
+            console.header = dict(
+                links = detailed_branch_groups + [dict(name = "README", links = readme_links)],
+                console_groups = branch_console_groups,
+            )
+        else:
+            # Main consoles.
+            console.header = dict(
+                tree_status_host = "v8-status.appspot.com",
+                links = [
+                    dict(name = "Consoles", links = main_consoles_links),
+                    dict(name = "Controls", links = controls_links),
+                    dict(name = "LKGR", links = lkgr_links),
+                    dict(name = "Branches", links = branch_links),
+                    dict(name = "README", links = readme_links),
+                ],
+                console_groups = main_console_groups,
+            )
+
 def consoles_map(ctx):
     """
     Returns a mapping of console ID to console config.
@@ -319,3 +416,5 @@ lucicfg.generator(scheduled_builder_cleanup)
 lucicfg.generator(collect_sherriffed_non_tree_closer_builders)
 
 lucicfg.generator(build_lkgr_list)
+
+lucicfg.generator(add_branch_headers)

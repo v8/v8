@@ -383,7 +383,6 @@ def console_view(
     add_console(
         name = name,
         favicon = V8_ICON,
-        header = header or "//consoles/header_main.textpb",
     )
 
     if add_headless:
@@ -393,10 +392,8 @@ def console_view(
         add_console(
             name = name + "-builders",
             favicon = V8_ICON,
-            header = header or "//consoles/header_main.textpb",
         )
         add_console(
             name = name + "-testers",
             favicon = V8_ICON,
-            header = header or "//consoles/header_main.textpb",
         )

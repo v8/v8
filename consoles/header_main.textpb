@@ -63,22 +63,7 @@ links {
 }
 
 links {
-  name: "Branches"
-  links {
-    text: "15.1"
-    url: "/p/v8/g/15.1"
-    alt: "15.1"
-  }
-  links {
-    text: "15.0"
-    url: "/p/v8/g/15.0"
-    alt: "15.0"
-  }
-  links {
-    text: "14.9"
-    url: "/p/v8/g/14.9"
-    alt: "14.9"
-  }
+  name: "README"
   links {
     text: "readme"
     url: "https://chromium.googlesource.com/v8/v8/+/infra/config/docs/branch-covarage.md"

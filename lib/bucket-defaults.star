@@ -10,7 +10,10 @@ load(
 defaults_ci = {
     "executable": "recipe:v8",
     "swarming_tags": ["vpython:native-python-wrapper"],
-    "dimensions": {"host_class": "default"},
+    "dimensions": {
+        "host_class": "default",
+        "pool": "luci.v8.ci",
+    },
     "service_account": "v8-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
     "execution_timeout": 7200,
     "build_numbers": True,
@@ -21,9 +24,6 @@ defaults_ci_hp = {
     "dimensions": {"os": "Linux", "pool": "luci.v8.highly-privileged"},
     "resultdb_bq_table_prefix": "ci_hp",
 }
-
-defaults_ci_br = dict(defaults_ci)
-defaults_ci_br["dimensions"]["pool"] = "luci.v8.ci"
 
 defaults_try = {
     "executable": "recipe:v8",
@@ -66,7 +66,4 @@ bucket_defaults = {
     "crossbench.try": defaults_crossbench_try,
     "try": defaults_try,
     "try.triggered": defaults_triggered,
-    "ci.br.beta": defaults_ci_br,
-    "ci.br.stable": defaults_ci_br,
-    "ci.br.extended": defaults_ci_br,
 }
