@@ -83,6 +83,11 @@ V8_OBJECT class SourceTextModule : public Module {
             DirectHandleVector<JSMessageObject>>
   GetStalledTopLevelAwaitMessages(Isolate* isolate);
 
+  // https://tc39.es/proposal-defer-import-eval/#sec-IsModuleSCCEvaluated
+  // This function checks if the Strongly Connected Component (SCC) that the
+  // module participates is evaluated.
+  static bool IsModuleSCCEvaluated(Handle<SourceTextModule> module);
+
   static void GatherAsynchronousTransitiveDependencies(
       Isolate* isolate, Handle<Module> module,
       UnorderedModuleSet* evaluation_set,
