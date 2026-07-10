@@ -136,13 +136,6 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         DirectHandle<JSAny> lookup_start_object,
                         Configuration configuration = DEFAULT);
 
-  // Special case for lookup of the |error_stack_trace| private symbol in
-  // prototype chain (usually private symbols are limited to
-  // OWN_SKIP_INTERCEPTOR lookups).
-  inline LookupIterator(Isolate* isolate, Configuration configuration,
-                        DirectHandle<JSAny> receiver,
-                        DirectHandle<Symbol> name);
-
   void Restart() {
     InterceptorState state = InterceptorState::kUninitialized;
     IsElement() ? RestartInternal<true>(state) : RestartInternal<false>(state);
