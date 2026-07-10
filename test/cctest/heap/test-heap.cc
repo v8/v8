@@ -3933,39 +3933,13 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
         "} catch (e) {                "
         "  error = e;                 "
         "}                            ";
-    static const char* source3 =
-        "var error = null;            "
-        /* Normal Error */
-        "try {                        "
-        /* as prototype */
-        "  throw new Error();         "
-        "} catch (e) {                "
-        "  error = {};                "
-        "  error.__proto__ = e;       "
-        "}                            ";
-    static const char* source4 =
-        "var error = null;            "
-        /* Stack overflow */
-        "try {                        "
-        /* as prototype   */
-        "  (function f() { f(); })(); "
-        "} catch (e) {                "
-        "  error = {};                "
-        "  error.__proto__ = e;       "
-        "}                            ";
     static const char* getter = "error.stack";
     static const char* setter = "error.stack = 0";
 
     ReleaseStackTraceDataTest(isolate, source1, setter);
     ReleaseStackTraceDataTest(isolate, source2, setter);
-    // We do not test source3 and source4 with setter, since the setter is
-    // supposed to (untypically) write to the receiver, not the holder.  This is
-    // to emulate the behavior of a data property.
-
     ReleaseStackTraceDataTest(isolate, source1, getter);
     ReleaseStackTraceDataTest(isolate, source2, getter);
-    ReleaseStackTraceDataTest(isolate, source3, getter);
-    ReleaseStackTraceDataTest(isolate, source4, getter);
   }
   isolate->Dispose();
 }

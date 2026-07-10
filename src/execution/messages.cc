@@ -699,8 +699,8 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
     // is accessed the first time.
     //
     // If |recv| was not constructed with %Error%, use the "message" property.
-    LookupIterator it(isolate, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR,
-                      recv, isolate->factory()->error_message_symbol());
+    LookupIterator it(isolate, recv, isolate->factory()->error_message_symbol(),
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
     Handle<Object> result = JSReceiver::GetDataProperty(&it);
     if (it.IsFound() && IsUndefined(*result)) {
       msg = msg_default;
@@ -1133,9 +1133,9 @@ bool ErrorUtils::HasErrorStackSymbolOwnProperty(Isolate* isolate,
 // static
 ErrorUtils::StackPropertyLookupResult ErrorUtils::GetErrorStackProperty(
     Isolate* isolate, DirectHandle<JSReceiver> maybe_error_object) {
-  LookupIterator it(isolate, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR,
-                    maybe_error_object,
-                    isolate->factory()->error_stack_symbol());
+  LookupIterator it(isolate, maybe_error_object,
+                    isolate->factory()->error_stack_symbol(),
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
   Handle<Object> result = JSReceiver::GetDataProperty(&it);
 
   if (!it.IsFound()) {

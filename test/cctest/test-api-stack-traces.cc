@@ -672,7 +672,7 @@ TEST(RethrowBogusErrorStackTrace) {
   v8::HandleScope scope(isolate);
   const char* source =
       "var e = {__proto__: new Error()} \n"
-      "throw e;                         \n";
+      "throw e.__proto__;               \n";
   isolate->AddMessageListener(RethrowBogusErrorStackTraceHandler);
   isolate->SetCaptureStackTraceForUncaughtExceptions(true);
   CompileRun(source);
