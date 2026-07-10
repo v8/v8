@@ -66,7 +66,7 @@ links {
   name: "README"
   links {
     text: "readme"
-    url: "https://chromium.googlesource.com/v8/v8/+/infra/config/docs/branch-covarage.md"
+    url: "https://chromium.googlesource.com/v8/v8/+/infra/config/docs/branch-coverage.md"
     alt: "readme"
   }
 }

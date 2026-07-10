@@ -29,7 +29,7 @@ def add_branch_headers(ctx):
         dict(text = "status", url = "https://storage.cloud.google.com/chromium-v8/lkgr-status/v8-lkgr-status.html"),
     ]
     readme_links = [
-        dict(text = "readme", url = "https://chromium.googlesource.com/v8/v8/+/infra/config/docs/branch-covarage.md", alt = "readme"),
+        dict(text = "readme", url = "https://chromium.googlesource.com/v8/v8/+/infra/config/docs/branch-coverage.md", alt = "readme"),
     ]
 
     # Define branch links for the "Branches" group.
