@@ -52,7 +52,7 @@ class StreamTester {
     i::Isolate* i_isolate = CcTest::i_isolate();
 
     stream_ = GetWasmEngine()->StartStreamingCompilation(
-        WasmEnabledFeatures::All(), CompileTimeImports{},
+        WasmEnabledFeatures::FromIsolate(i_isolate), CompileTimeImports{},
         "WebAssembly.compileStreaming()", test_resolver_);
     stream_->InitializeIsolateSpecificInfo(i_isolate);
   }

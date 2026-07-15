@@ -294,12 +294,14 @@ std::vector<std::shared_ptr<NativeModule>>* native_modules_kept_alive_for_pgo;
 
 std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
+    WasmEnabledFeatures enabled_features,
     const CompileTimeImports& compile_imports) {
   if (!v8_flags.wasm_native_module_cache) return nullptr;
   if (origin != kWasmOrigin) return nullptr;
   base::MutexGuard lock(&mutex_);
   size_t prefix_hash = PrefixHash(wire_bytes);
-  NativeModuleCache::Key key{prefix_hash, compile_imports, wire_bytes};
+  NativeModuleCache::Key key{prefix_hash, enabled_features, compile_imports,
+                             wire_bytes};
   while (true) {
     auto it = map_.find(key);
     if (it == map_.end()) {
@@ -333,26 +335,29 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
 }
 
 bool NativeModuleCache::GetStreamingCompilationOwnership(
-    size_t prefix_hash, const CompileTimeImports& compile_imports) {
+    size_t prefix_hash, WasmEnabledFeatures enabled_features,
+    const CompileTimeImports& compile_imports) {
   if (!v8_flags.wasm_native_module_cache) return true;
   base::MutexGuard lock(&mutex_);
-  auto it = map_.lower_bound(Key{prefix_hash, compile_imports, {}});
+  auto it =
+      map_.lower_bound(Key{prefix_hash, enabled_features, compile_imports, {}});
   if (it != map_.end() && it->first.prefix_hash == prefix_hash) {
     DCHECK_IMPLIES(!it->first.bytes.empty(),
                    PrefixHash(it->first.bytes) == prefix_hash);
     return false;
   }
-  Key key{prefix_hash, compile_imports, {}};
+  Key key{prefix_hash, enabled_features, compile_imports, {}};
   DCHECK(!map_.contains(key));
   map_.emplace(key, std::nullopt);
   return true;
 }
 
 void NativeModuleCache::StreamingCompilationFailed(
-    size_t prefix_hash, const CompileTimeImports& compile_imports) {
+    size_t prefix_hash, WasmEnabledFeatures enabled_features,
+    const CompileTimeImports& compile_imports) {
   if (!v8_flags.wasm_native_module_cache) return;
   base::MutexGuard lock(&mutex_);
-  Key key{prefix_hash, compile_imports, {}};
+  Key key{prefix_hash, enabled_features, compile_imports, {}};
   map_.erase(key);
   cache_cv_.NotifyAll();
 }
@@ -367,8 +372,9 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
   size_t prefix_hash = PrefixHash(native_module->wire_bytes());
   base::MutexGuard lock(&mutex_);
   const CompileTimeImports& compile_imports = native_module->compile_imports();
-  map_.erase(Key{prefix_hash, compile_imports, {}});
-  const Key key{prefix_hash, compile_imports, wire_bytes};
+  WasmEnabledFeatures enabled_features = native_module->enabled_features();
+  map_.erase(Key{prefix_hash, enabled_features, compile_imports, {}});
+  const Key key{prefix_hash, enabled_features, compile_imports, wire_bytes};
   auto it = map_.find(key);
   if (it != map_.end()) {
     if (it->second.has_value()) {
@@ -403,7 +409,8 @@ void NativeModuleCache::Erase(NativeModule* native_module) {
   if (native_module->wire_bytes().empty()) return;
   base::MutexGuard lock(&mutex_);
   size_t prefix_hash = PrefixHash(native_module->wire_bytes());
-  map_.erase(Key{prefix_hash, native_module->compile_imports(),
+  map_.erase(Key{prefix_hash, native_module->enabled_features(),
+                 native_module->compile_imports(),
                  native_module->wire_bytes()});
   cache_cv_.NotifyAll();
 }
@@ -1639,12 +1646,13 @@ void WasmEngine::UseNativeModuleInIsolate(NativeModule* native_module,
 
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
+    WasmEnabledFeatures enabled_features,
     const CompileTimeImports& compile_imports) {
   TRACE_EVENT1("v8.wasm", "wasm.GetNativeModuleFromCache", "wire_bytes",
                wire_bytes.size());
   std::shared_ptr<NativeModule> native_module =
-      native_module_cache_.MaybeGetNativeModule(origin, wire_bytes,
-                                                compile_imports);
+      native_module_cache_.MaybeGetNativeModule(
+          origin, wire_bytes, enabled_features, compile_imports);
   if (native_module) {
     // Create a marker in the trace.
     TRACE_EVENT0("v8.wasm", "CacheHit");
@@ -1667,10 +1675,11 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
 }
 
 bool WasmEngine::GetStreamingCompilationOwnership(
-    size_t prefix_hash, const CompileTimeImports& compile_imports) {
+    size_t prefix_hash, WasmEnabledFeatures enabled_features,
+    const CompileTimeImports& compile_imports) {
   TRACE_EVENT0("v8.wasm", "wasm.GetStreamingCompilationOwnership");
-  if (native_module_cache_.GetStreamingCompilationOwnership(prefix_hash,
-                                                            compile_imports)) {
+  if (native_module_cache_.GetStreamingCompilationOwnership(
+          prefix_hash, enabled_features, compile_imports)) {
     return true;
   }
   // This is only a marker, not for tracing execution time. There should be a
@@ -1681,8 +1690,10 @@ bool WasmEngine::GetStreamingCompilationOwnership(
 }
 
 void WasmEngine::StreamingCompilationFailed(
-    size_t prefix_hash, const CompileTimeImports& compile_imports) {
-  native_module_cache_.StreamingCompilationFailed(prefix_hash, compile_imports);
+    size_t prefix_hash, WasmEnabledFeatures enabled_features,
+    const CompileTimeImports& compile_imports) {
+  native_module_cache_.StreamingCompilationFailed(prefix_hash, enabled_features,
+                                                  compile_imports);
 }
 
 void WasmEngine::FreeNativeModule(NativeModule* native_module) {
