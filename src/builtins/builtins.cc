@@ -741,6 +741,8 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     // but are allowed to be installed into JSFunctions.
     case Builtin::kJSToWasmWrapper:
     case Builtin::kWasmPromising:
+    case Builtin::kWasmResume:
+    case Builtin::kWasmReject:
 #if V8_ENABLE_DRUMBRAKE
     case Builtin::kJSToWasmInterpreterWrapper:
 #endif
@@ -750,8 +752,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     // These are core JS builtins which are instantiated lazily.
     case Builtin::kWasmConstructorWrapper:
     case Builtin::kWasmMethodWrapper:
-    case Builtin::kWasmResume:
-    case Builtin::kWasmReject:
     // Well known import functions.
     case Builtin::kWebAssemblyStringCast:
     case Builtin::kWebAssemblyStringTest:

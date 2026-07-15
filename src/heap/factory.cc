@@ -2575,7 +2575,7 @@ Factory::NewSharedFunctionInfoForWasmExportedFunction(
 
 DirectHandle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmResume(
     DirectHandle<WasmResumeData> data) {
-  return NewSharedFunctionInfo({}, data, Builtin::kNoBuiltinId, 0, kDontAdapt);
+  return NewSharedFunctionInfo({}, data, Builtin::kNoBuiltinId, 1, kAdapt);
 }
 
 DirectHandle<SharedFunctionInfo>

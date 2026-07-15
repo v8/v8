@@ -322,6 +322,8 @@ bool Builtins::IsJSTrampoline(Builtin builtin) {
 #ifdef V8_ENABLE_WEBASSEMBLY
     case Builtin::kJSToWasmWrapper:
     case Builtin::kWasmPromising:
+    case Builtin::kWasmResume:
+    case Builtin::kWasmReject:
 #if V8_ENABLE_DRUMBRAKE
     case Builtin::kJSToWasmInterpreterWrapper:
 #endif
