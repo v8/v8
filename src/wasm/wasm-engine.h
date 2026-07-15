@@ -190,7 +190,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   MaybeDirectHandle<WasmModuleObject> SyncCompile(
       Isolate* isolate, WasmEnabledFeatures enabled,
       CompileTimeImports compile_imports, ErrorThrower* thrower,
-      base::OwnedVector<const uint8_t> bytes);
+      base::OwnedVector<const uint8_t> bytes,
+      // Optional source URL; needed when recompiling on flags mismatch
+      // to preserve the original URL.
+      base::Vector<const char> source_url = {});
 
   // Synchronously instantiate the given Wasm module with the given imports.
   // If the module represents an asm.js module, then the supplied {memory}
