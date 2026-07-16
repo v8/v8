@@ -3927,7 +3927,6 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
     ValueNode* object, ValueNode* object_map,
     base::Vector<const compiler::MapRef> maps, MaglevSubGraphBuilder* sub_graph,
     std::optional<MaglevSubGraphBuilder::Label>& if_not_matched,
-    PossibleMaps& already_compared_maps,
     std::optional<int> future_bind_offset) {
   GetOrCreateInfoFor(object);
   KnownMapsMerger<base::Vector<const compiler::MapRef>> merger(broker(), zone(),
@@ -3954,9 +3953,6 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
   // TODO(pthier): Handle map migrations.
   std::optional<MaglevSubGraphBuilder::Label> map_matched;
   const compiler::ZoneRefSet<Map>& relevant_maps = merger.intersect_set();
-  for (compiler::MapRef map : relevant_maps) {
-    already_compared_maps.insert(map, zone());
-  }
   if (relevant_maps.size() > 1) {
     map_matched.emplace(sub_graph, static_cast<int>(relevant_maps.size()));
     for (size_t map_index = 1; map_index < relevant_maps.size(); map_index++) {
@@ -5948,11 +5944,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   ValueNode* object_map;
   GET_VALUE_OR_ABORT(object_map, BuildLoadMap(object));
 
-  // Maps ruled out by the map compares emitted so far. Only tracked while no
-  // arm has transitioned elements kinds, since a transition rewrites the map.
-  PossibleMaps already_compared_maps;
-  bool can_narrow_maps = true;
-
   // TODO(pthier): We could do better here than just emitting code for each map,
   // as many different maps can produce the exact samce code (e.g. TypedArray
   // access for Uint16/Uint32/Int16/Int32/...).
@@ -5980,12 +5971,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
         map_check_result = BuildTransitionElementsKindAndCompareMaps(
             object, object_map, access_info.transition_sources(),
             transition_target, &sub_graph, check_next_map);
-        can_narrow_maps = false;
       } else {
         map_check_result = BuildCompareMaps(
             object, object_map,
             base::VectorOf(access_info.lookup_start_object_maps()), &sub_graph,
-            check_next_map, already_compared_maps);
+            check_next_map);
       }
     }
     if (map_check_result.IsDoneWithAbort()) {
@@ -6044,12 +6034,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
     }
     if (check_next_map.has_value()) {
       sub_graph.Bind(&*check_next_map);
-      // Every map compared so far failed to match, so drop them from the known
-      // maps.
-      if (can_narrow_maps) {
-        known_node_aspects().NarrowPossibleMaps(zone(), broker(), object,
-                                                already_compared_maps);
-      }
     } else if (i != access_info_count - 1) {
       // The map check will always succeed, so we do not need to try other
       // options.
@@ -6171,7 +6155,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
   }
 
   std::optional<MaglevSubGraphBuilder::Label> check_next_map;
-  PossibleMaps already_compared_maps;
   for (int i = 0; i < access_info_count; i++) {
     // Reset the state before generating the next polymorphic arm, in case
     // FindContinuationForPolymorphicPropertyLoad or a continuation in the
@@ -6183,10 +6166,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     if (check_next_map.has_value()) {
       sub_graph.Bind(&*check_next_map);
       check_next_map.reset();
-      // Reaching this arm means every map compared so far did not match, so
-      // they can be dropped from the known maps.
-      known_node_aspects().NarrowPossibleMaps(
-          zone(), broker(), lookup_start_object, already_compared_maps);
     }
 
     compiler::PropertyAccessInfo const& access_info = access_infos[i];
@@ -6199,10 +6178,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     } else {
       std::optional<int> future_bind_offset;
       if (continuation) future_bind_offset = iterator_.current_offset();
-      map_check_result =
-          BuildCompareMaps(lookup_start_object, lookup_start_object_map,
-                           base::VectorOf(maps), &sub_graph, check_next_map,
-                           already_compared_maps, future_bind_offset);
+      map_check_result = BuildCompareMaps(
+          lookup_start_object, lookup_start_object_map, base::VectorOf(maps),
+          &sub_graph, check_next_map, future_bind_offset);
     }
     if (map_check_result.IsDoneWithAbort()) {
       DCHECK_NE(i, number_map_index_for_smi);

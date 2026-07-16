@@ -788,24 +788,6 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
   return true;
 }
 
-void KnownNodeAspects::NarrowPossibleMaps(Zone* zone,
-                                          compiler::JSHeapBroker* broker,
-                                          ValueNode* object,
-                                          const PossibleMaps& excluded_maps) {
-  NodeInfo* info = TryGetInfoFor(object);
-  if (info == nullptr || !info->possible_maps_are_known()) return;
-  PossibleMaps remaining = info->possible_maps();
-  for (compiler::MapRef map : excluded_maps) {
-    remaining.remove(map, zone);
-  }
-  if (remaining.is_empty()) return;
-  if (remaining.size() == info->possible_maps().size()) return;
-  KnownMapsMerger<PossibleMaps> merger(broker, zone, remaining);
-  merger.IntersectWithKnownNodeAspects(object, *this);
-  if (merger.intersect_set().is_empty()) return;
-  merger.UpdateKnownNodeAspects(object, *this);
-}
-
 SmallZoneVector<KnownNodeAspects::LoadedContextSlotsKey, 8>
 KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
                                               int offset, ValueNode* value) {

@@ -1167,7 +1167,6 @@ class MaglevGraphBuilder {
       base::Vector<const compiler::MapRef> maps,
       MaglevSubGraphBuilder* sub_graph,
       std::optional<MaglevSubGraphBuilder::Label>& if_not_matched,
-      PossibleMaps& compared_maps,
       std::optional<int> future_bind_offset = std::nullopt);
   ReduceResult BuildTransitionElementsKindAndCompareMaps(
       ValueNode* heap_object, ValueNode* object_map,

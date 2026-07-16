@@ -550,9 +550,6 @@ class KnownNodeAspects {
     return false;
   }
 
-  void NarrowPossibleMaps(Zone* zone, compiler::JSHeapBroker* broker,
-                          ValueNode* object, const PossibleMaps& excluded_maps);
-
   void Merge(const KnownNodeAspects& other, Zone* zone);
   void MergeForLoop(const KnownNodeAspects& backedge, Zone* zone,
                     const LoopEffects* loop_effects);
