@@ -26207,6 +26207,56 @@ TEST(FutexInterruption) {
   timeout_thread.Join();
 }
 
+namespace {
+class ReentrantWaitThread : public v8::base::Thread {
+ public:
+  explicit ReentrantWaitThread(v8::Isolate* isolate)
+      : Thread(Options("ReentrantWaitThread")), isolate_(isolate) {}
+
+  static void InterruptCallback(v8::Isolate* isolate, void* data) {
+    v8::HandleScope scope(isolate);
+    v8::TryCatch try_catch(isolate);
+    CompileRun(
+        "var sab2 = new SharedArrayBuffer(4);"
+        "var i32a2 = new Int32Array(sab2);"
+        "Atomics.wait(i32a2, 0, 0, 10);");
+
+    CHECK(try_catch.HasCaught());
+    v8::String::Utf8Value exception_msg(isolate, try_catch.Exception());
+    CHECK_NOT_NULL(strstr(*exception_msg, "cannot be called in this context"));
+  }
+
+  void Run() override {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+    // Wait until main thread enters WaitSyncImpl and marks node->waiting_ =
+    // true
+    while (!i_isolate->futex_wait_list_node()->IsWaiting()) {
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
+    }
+    isolate_->RequestInterrupt(InterruptCallback, nullptr);
+  }
+
+ private:
+  v8::Isolate* isolate_;
+};
+}  // namespace
+
+TEST(FutexReentrantWait) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  ReentrantWaitThread thread(isolate);
+  CHECK(thread.Start());
+
+  CompileRun(
+      "var ab = new SharedArrayBuffer(4);"
+      "var i32a = new Int32Array(ab);"
+      "Atomics.wait(i32a, 0, 0, 500);");
+
+  thread.Join();
+}
+
 TEST(StackCheckTermination) {
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = CcTest::i_isolate();
