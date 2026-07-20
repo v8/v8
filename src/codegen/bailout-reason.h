@@ -156,10 +156,8 @@ namespace internal {
   TERMINAL_TURBOFAN_BAILOUT_MESSAGES_LIST(V)                                 \
   V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change")  \
   V(kConcurrentMapDeprecation, "Maps became deprecated during optimization") \
-  V(kFunctionBeingDebugged, "Function is being debugged")                    \
   V(kDetachedNativeContext, "The native context is detached")                \
-  V(kCancelled, "Job got cancelled")                                         \
-  V(kLiveEdit, "LiveEdit")
+  V(kCancelled, "Job got cancelled")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
 enum class BailoutReason : uint8_t {
