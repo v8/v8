@@ -1294,6 +1294,7 @@ bool MapRef::CanInlineElementAccess() const {
   if (!IsJSObjectMap()) return false;
   if (is_access_check_needed()) return false;
   if (has_indexed_interceptor()) return false;
+  if (instance_type() == JS_DETACHED_TYPED_ARRAY_TYPE) return false;
   ElementsKind kind = elements_kind();
   if (IsFastElementsKind(kind)) return true;
   if (IsTypedArrayElementsKind(kind) &&
