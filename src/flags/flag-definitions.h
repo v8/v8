@@ -2965,6 +2965,10 @@ DEFINE_BOOL(enable_apx_f_cmovcc, false,
 DEFINE_IMPLICATION(enable_apx_f_setzucc, enable_apx_f)
 DEFINE_IMPLICATION(enable_apx_f_cmovcc, enable_apx_f)
 #endif
+#ifdef V8_ENABLE_AVX10_1
+DEFINE_BOOL(enable_avx10_1, false,
+            "enable use of AVX10.1 instructions if available")
+#endif
 DEFINE_STRING(arm_arch, ARM_ARCH_DEFAULT,
               "generate instructions for the selected ARM architecture if "
               "available: armv6, armv7, armv7+sudiv or armv8")

@@ -88,6 +88,15 @@ bool OSHasAPXFSupport() {
 }
 #endif  // V8_ENABLE_APX_F
 
+#ifdef V8_ENABLE_AVX10_1
+bool OSHasAVX10Support() {
+  // The OS must enable saving of the opmask, ZMM_Hi256, and Hi16_ZMM
+  // state (in addition to SSE and AVX).
+  uint64_t feature_mask = xgetbv(0);  // XCR_XFEATURE_ENABLED_MASK
+  return (feature_mask & 0xe6) == 0xe6;
+}
+#endif  // V8_ENABLE_AVX10_1
+
 #endif  // V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
 }  // namespace
@@ -153,6 +162,9 @@ static constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 #ifdef __APX_F__
   features.Add(APX_F);
 #endif
+#ifdef __AVX10_1_512__
+  features.Add(AVX10_1);
+#endif
 
   return features;
 }
@@ -200,6 +212,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_apx_f() && cpu.has_osxsave() && OSHasAPXFSupport())
     SetSupported(APX_F);
 #endif  // V8_ENABLE_APX_F
+#ifdef V8_ENABLE_AVX10_1
+  if (cpu.has_avx10_1() && cpu.has_osxsave() && OSHasAVX10Support()) {
+    SetSupported(AVX10_1);
+  }
+#endif  // V8_ENABLE_AVX10_1
 
   // Ensure that supported cpu features make sense. E.g. it is wrong to support
   // AVX but not SSE4_2, if we have --enable-avx and --no-enable-sse4-2, the
@@ -220,6 +237,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #ifdef V8_ENABLE_APX_F
   if (!v8_flags.enable_apx_f) SetUnsupported(APX_F);
 #endif  // V8_ENABLE_APX_F
+#ifdef V8_ENABLE_AVX10_1
+  if (!v8_flags.enable_avx10_1 || !IsSupported(AVX2)) SetUnsupported(AVX10_1);
+#endif  // V8_ENABLE_AVX10_1
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -247,6 +267,7 @@ void CpuFeatures::PrintInformation() {
       "LZCNT=%d "
       "POPCNT=%d "
       "APX_F=%d "
+      "AVX10_1=%d "
       "ATOM=%d\n",
       CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSSE3),
       CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(SSE4_2),
@@ -256,7 +277,7 @@ void CpuFeatures::PrintInformation() {
       CpuFeatures::IsSupported(F16C), CpuFeatures::IsSupported(BMI1),
       CpuFeatures::IsSupported(BMI2), CpuFeatures::IsSupported(LZCNT),
       CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(APX_F),
-      CpuFeatures::IsSupported(INTEL_ATOM));
+      CpuFeatures::IsSupported(AVX10_1), CpuFeatures::IsSupported(INTEL_ATOM));
 }
 
 // -----------------------------------------------------------------------------
