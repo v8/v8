@@ -49,7 +49,7 @@ in_category(
         executable = "recipe:chromium_integration",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
-        notifies = ["sheriffs", "blink tree closer", "infra-failure"],
+        notifies = ["sheriffs", "infra-failure"],
         barrier = BARRIER.LKGR_ONLY,
     ),
     integration_builder(
