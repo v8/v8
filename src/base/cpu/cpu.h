@@ -146,6 +146,8 @@ class V8_BASE_EXPORT CPU final {
   bool has_zbs() const { return has_zbs_; }
   bool has_zfa() const { return has_zfa_; }
   bool has_rvc() const { return has_rvc_; }
+  bool has_zfh() const { return has_zfh_; }
+  bool has_zvfh() const { return has_zvfh_; }
   enum class RV_MMU_MODE {
     kRiscvSV39,
     kRiscvSV48,
@@ -233,6 +235,8 @@ class V8_BASE_EXPORT CPU final {
   bool has_zbb_ = false;
   bool has_zbs_ = false;
   bool has_zfa_ = false;
+  bool has_zfh_ = false;
+  bool has_zvfh_ = false;
   bool has_rvc_ = false;
   bool has_lsx_ = false;
   bool has_lasx_ = false;
