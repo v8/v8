@@ -195,14 +195,14 @@ def pool(*, name, users = None, groups = None, projects = None, bucket_realms = 
 pool(
     name = "@root",
     bucket_realms = ["@root"],
-    users = V8_SERVICE_ACCOUNTS,
+    users = [V8_CI_ACCOUNT, V8_PGO_ACCOUNT],
     groups = "google/v8-infra-users-highly-privileged@twosync.google.com",
 )
 
 pool(
     name = "pools/ci",
     bucket_realms = ["ci"] + ["ci." + v for v in ACTIVE_BRANCHES],
-    users = V8_SERVICE_ACCOUNTS,
+    users = [V8_CI_ACCOUNT, V8_PGO_ACCOUNT],
     groups = LED_GROUPS,
     projects = "emscripten-releases",
 )
