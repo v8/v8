@@ -2902,6 +2902,19 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
       DirectHandle<JSFunction> function(frame->function(), isolate_);
       DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate_);
 
+      // If the top frame is optimized, deoptimize it. A debugger pause can
+      // execute arbitrary JS (e.g. via evaluation or inspector listeners),
+      // which can modify heap state (like detaching typed arrays). We must
+      // deoptimize the execution stack to discard any load-eliminated values
+      // (like backing store pointers or array lengths) that could be
+      // invalidated. We only need to deoptimize the topmost frame because any
+      // caller frames are at a call site, which acts as a memory serialization
+      // barrier, forcing them to reload all heap state upon return anyway.
+      if (frame->is_optimized()) {
+        Deoptimizer::DeoptimizeFunction(*function,
+                                        LazyDeoptimizeReason::kDebugger);
+      }
+
       // kScheduled breaks are triggered by the stack check. While we could
       // pause here, the JSFunction didn't have time yet to create and push
       // it's context. Instead, we step into the function and pause at the
