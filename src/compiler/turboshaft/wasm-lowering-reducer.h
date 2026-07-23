@@ -93,8 +93,8 @@ class WasmLoweringReducer : public Next {
           } else if (wasm::IsSubtypeOf(type.AsNonShared(), wasm::kWasmFuncRef,
                                        module_)) {
             __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
-                    MemoryRepresentation::TaggedSigned(),
-                    offsetof(WasmInternalFunction, function_index_));
+                    MemoryRepresentation::AnyTagged(),
+                    offsetof(WasmFuncRef, trusted_internal_));
           } else {
             __ TrapIf(__ IsNull(object, type), frame_state, trap_id);
           }
