@@ -4550,9 +4550,6 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   if (V8_LIKELY(use_result)) {
     function->SetTieringInProgress(isolate, false,
                                    job->compilation_info()->osr_offset());
-    if (!IsOSR(osr_offset)) {
-      function->UpdateCode(isolate, shared->GetCode(isolate));
-    }
   }
 }
 
