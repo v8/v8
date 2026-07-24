@@ -53,6 +53,8 @@ namespace maglev {
 
 namespace {
 
+constexpr uint32_t kMaxStackSlots = 4 * KB / kSystemPointerSize;
+
 void PrintGraph(Graph* graph, bool condition, MaglevPhase phase) {
   MaglevCompilationInfo* info = graph->compilation_info();
   if (V8_UNLIKELY(condition && info->is_tracing_enabled())) {
@@ -277,6 +279,15 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       }
 #endif
     }
+  }
+
+  // The prologue grows the frame with a single stack pointer decrement, before
+  // FunctionEntryStackCheck runs. A frame no larger than the smallest OS page
+  // cannot step over a guard page, so bail out rather than emit an unchecked
+  // stack pointer jump of arbitrary size.
+  if (graph->tagged_stack_slots() + graph->untagged_stack_slots() >
+      kMaxStackSlots) {
+    return false;
   }
 
   {
