@@ -40,7 +40,8 @@
   V(sign_extension_ops)                  \
   V(jspi)                                \
   V(exnref)                              \
-  V(branch_hinting)
+  V(branch_hinting)                      \
+  V(gc_allocation)
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \
