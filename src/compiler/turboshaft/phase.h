@@ -288,20 +288,6 @@ class V8_EXPORT_PRIVATE PipelineData {
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK_EQ(assembler_options_.is_wasm,
               info()->IsWasm() || info()->IsWasmBuiltin());
-    if (graph_component_.has_value()) {
-      for (const Operation& op : graph().AllOperations()) {
-        if (const FrameStateOp* frame_state = op.TryCast<FrameStateOp>()) {
-          const FrameStateInfo& info = frame_state->data->frame_state_info;
-          if (info.type() == FrameStateType::kLiftoffFunction &&
-              info.function_info()) {
-            size_t liftoff_size =
-                info.function_info()->wasm_liftoff_frame_size();
-            cg.max_unoptimized_frame_height =
-                std::max(cg.max_unoptimized_frame_height, liftoff_size);
-          }
-        }
-      }
-    }
 #endif
     std::optional<OsrHelper> osr_helper;
     if (cg.osr_helper) osr_helper = *cg.osr_helper;
