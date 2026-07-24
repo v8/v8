@@ -47,12 +47,14 @@ namespace internal {
 namespace maglev {
 
 class CallArguments;
+class MaglevGraphBuilder;
 
 template <typename ReducerT>
 class MapInference;
 
 struct CatchBlockDetails {
   BasicBlockRef* ref = nullptr;
+  MaglevGraphBuilder* handler_builder = nullptr;
   bool exception_handler_was_used = false;
   bool block_already_exists = false;
   int deopt_frame_distance = 0;

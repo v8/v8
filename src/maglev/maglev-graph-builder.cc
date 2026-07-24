@@ -7926,10 +7926,12 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   CatchBlockDetails catch_block_details = GetCurrentTryCatchBlock();
   if (catch_block_details.ref &&
       catch_block_details.exception_handler_was_used) {
-    if (IsInsideTryBlock()) {
+    if (MaglevGraphBuilder* handler = catch_block_details.handler_builder) {
       // Merge the current state into the handler state.
-      GetCatchBlockFrameState()->MergeThrow(
-          graph(), is_tracing(), current_interpreter_frame_, compilation_unit_);
+      handler->GetCatchBlockFrameState()->MergeThrow(
+          graph(), is_tracing(), handler->current_interpreter_frame(),
+          *current_interpreter_frame_.known_node_aspects(),
+          handler->compilation_unit());
     }
     catch_block_details.deopt_frame_distance++;
   }
@@ -16923,7 +16925,7 @@ CatchBlockDetails MaglevGraphBuilder::GetCurrentTryCatchBlock() {
   if (IsInsideTryBlock()) {
     // Inside a try-block.
     int offset = catch_block_stack_.top().handler;
-    return {&jump_targets_[offset],
+    return {&jump_targets_[offset], this,
             merge_states_[offset]->exception_handler_was_used(), false, 0};
   }
   if (!is_inline()) {
@@ -16941,8 +16943,8 @@ CatchBlockDetails MaglevGraphBuilder::GetTryCatchBlockForNonEagerInlining(
           : 0;
   // Since this CatchBlockDetails is stored in a non-eager call site,
   // the catch block will already exist by the time inlining is attempted.
-  return {info->catch_block_ref_address(), !info->ShouldLazyDeopt(), true,
-          deopt_frame_distance};
+  return {info->catch_block_ref_address(), nullptr, !info->ShouldLazyDeopt(),
+          true, deopt_frame_distance};
 }
 
 ReduceResult MaglevGraphBuilder::GetTaggedValue(
@@ -17258,12 +17260,12 @@ void MaglevGraphBuilder::AttachExceptionHandlerInfo(NodeBase* node) {
 
     current_block()->AddExceptionHandler(node->exception_handler_info());
 
-    if (IsInsideTryBlock()) {
+    if (MaglevGraphBuilder* handler = catch_block.handler_builder) {
       // Merge the current state into the handler state.
-      auto state = GetCatchBlockFrameState();
-      DCHECK_NOT_NULL(state);
-      state->MergeThrow(graph(), is_tracing(), current_interpreter_frame_,
-                        compilation_unit_);
+      handler->GetCatchBlockFrameState()->MergeThrow(
+          graph(), is_tracing(), handler->current_interpreter_frame(),
+          *current_interpreter_frame_.known_node_aspects(),
+          handler->compilation_unit());
     }
   } else {
     // Patch no exception handler marker.

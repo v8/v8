@@ -363,7 +363,8 @@ class MergePointInterpreterFrameState {
   // Merges an unmerged framestate into a possibly merged framestate at the
   // start of the target catchblock.
   void MergeThrow(Graph* graph, bool is_tracing,
-                  const InterpreterFrameState& builder_frame,
+                  const InterpreterFrameState& handler_frame,
+                  const KnownNodeAspects& known_node_aspects,
                   const MaglevCompilationUnit* handler_unit);
 
   // Merges a dead framestate (e.g. one which has been early terminated with a

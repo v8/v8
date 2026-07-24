@@ -632,15 +632,13 @@ const LoopEffects* MergePointInterpreterFrameState::loop_effects() {
 }
 
 void MergePointInterpreterFrameState::MergeThrow(
-    Graph* graph, bool is_tracing, const InterpreterFrameState& builder_frame,
+    Graph* graph, bool is_tracing, const InterpreterFrameState& handler_frame,
+    const KnownNodeAspects& known_node_aspects,
     const MaglevCompilationUnit* handler_unit) {
   // We don't count total predecessors on exception handlers, but we do want to
   // special case the first predecessor so we do count predecessors_so_far
   DCHECK_EQ(predecessor_count_, 0);
   DCHECK(is_exception_handler());
-
-  const KnownNodeAspects& known_node_aspects =
-      *builder_frame.known_node_aspects();
 
   const MaglevCompilationInfo* info = handler_unit->info();
   TRACE(TraceColor::kInfo << "Merging into exception handler @" << this);
@@ -656,18 +654,18 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   frame_state_.ForEachParameter(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(graph, is_tracing, value, builder_frame.get(reg), reg,
+        PrintBeforeMerge(graph, is_tracing, value, handler_frame.get(reg), reg,
                          known_node_aspects_);
         value = MergeValue(graph, reg, known_node_aspects, value,
-                           builder_frame.get(reg), nullptr);
+                           handler_frame.get(reg), nullptr);
         PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
       });
   frame_state_.ForEachLocal(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(graph, is_tracing, value, builder_frame.get(reg), reg,
+        PrintBeforeMerge(graph, is_tracing, value, handler_frame.get(reg), reg,
                          known_node_aspects_);
         value = MergeValue(graph, reg, known_node_aspects, value,
-                           builder_frame.get(reg), nullptr);
+                           handler_frame.get(reg), nullptr);
         PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
       });
 
@@ -677,11 +675,11 @@ void MergePointInterpreterFrameState::MergeThrow(
   // were handled differently, we could avoid emitting a Phi here.
   ValueNode*& context = frame_state_.context(*handler_unit);
   PrintBeforeMerge(graph, is_tracing, context,
-                   builder_frame.get(catch_block_context_register_),
+                   handler_frame.get(catch_block_context_register_),
                    catch_block_context_register_, known_node_aspects_);
   context = MergeValue(
       graph, catch_block_context_register_, known_node_aspects, context,
-      builder_frame.get(catch_block_context_register_), nullptr);
+      handler_frame.get(catch_block_context_register_), nullptr);
   PrintAfterMerge(graph, is_tracing, context, known_node_aspects_);
 
   predecessors_so_far_++;
