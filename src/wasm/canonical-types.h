@@ -132,9 +132,12 @@ class TypeCanonicalizer {
   V8_EXPORT_PRIVATE size_t GetCurrentNumberOfTypes() const;
 
   // Prepares wasm for the provided canonical type index. This reserves enough
-  // space in the canonical rtts and the JSToWasm wrappers on the isolate roots.
-  V8_EXPORT_PRIVATE static void PrepareForCanonicalTypeId(
-      Isolate* isolate, CanonicalTypeIndex id);
+  // space in the canonical rtts on the isolate roots. If {shared}, it also
+  // reserves enough space in the shared canonical rtts of the shared space
+  // isolate.
+  V8_EXPORT_PRIVATE static void PrepareForCanonicalTypeId(Isolate* isolate,
+                                                          CanonicalTypeIndex id,
+                                                          SharedFlag shared);
   // Reset the canonical rtts and JSToWasm wrappers on the isolate roots for
   // testing purposes (in production cases canonical type ids are never freed).
   V8_EXPORT_PRIVATE static void ClearWasmCanonicalTypesForTesting(
