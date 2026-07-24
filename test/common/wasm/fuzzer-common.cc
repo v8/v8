@@ -474,9 +474,8 @@ MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
   constexpr base::Vector<const char> kNoSourceUrl;
   DirectHandle<Script> script =
       GetWasmEngine()->GetOrCreateScript(isolate, native_module, kNoSourceUrl);
-  TypeCanonicalizer::PrepareForCanonicalTypeId(
-      isolate, module->MaxCanonicalTypeIndex(),
-      SharedFlag{module->has_shared_part});
+  TypeCanonicalizer::PrepareForCanonicalTypeId(isolate,
+                                               module->MaxCanonicalTypeIndex());
   return WasmModuleObject::New(isolate, std::move(native_module), script);
 }
 

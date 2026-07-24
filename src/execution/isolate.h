@@ -759,12 +759,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &boilerplate_migration_access_;
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  base::Mutex* wasm_shared_canonical_types_mutex() {
-    return &wasm_shared_canonical_types_mutex_;
-  }
-#endif
-
   ReadOnlyArtifacts* read_only_artifacts() const {
     ReadOnlyArtifacts* artifacts = isolate_group()->read_only_artifacts();
     DCHECK_NOT_NULL(artifacts);
@@ -2438,7 +2432,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   SimulatorData* simulator_data() { return simulator_data_; }
 #endif
 
-#if V8_ENABLE_WEBASSEMBLY
+#ifdef V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack();
   std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks() {
     return wasm_stacks_;
@@ -3013,8 +3007,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Stack size set with ResourceConstraints or Isolate::SetStackLimit, in
   // bytes. This is initialized with value of --stack-size.
   size_t stack_size_;
-#if V8_ENABLE_WEBASSEMBLY
-  base::Mutex wasm_shared_canonical_types_mutex_;
+#ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
   std::vector<std::unique_ptr<wasm::StackMemory>> wasm_stacks_;
 #if V8_ENABLE_DRUMBRAKE
@@ -3022,7 +3015,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_ENABLE_DRUMBRAKE
   wasm::WasmOrphanedGlobalHandle* wasm_orphaned_handle_ = nullptr;
   wasm::StackPool stack_pool_;
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif
 
   // Enables the host application to provide a mechanism for recording a
   // predefined set of data as crash keys to be used in postmortem debugging

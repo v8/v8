@@ -266,8 +266,7 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
 
 void TestingModuleBuilder::InitializeWrapperCache() {
   TypeCanonicalizer::PrepareForCanonicalTypeId(
-      isolate_, module_->MaxCanonicalTypeIndex(),
-      SharedFlag{module_->has_shared_part});
+      isolate_, module_->MaxCanonicalTypeIndex());
   DirectHandle<FixedArray> maps = isolate_->factory()->NewFixedArray(
       static_cast<int>(module_->types.size()));
   for (uint32_t index = 0; index < module_->types.size(); index++) {
