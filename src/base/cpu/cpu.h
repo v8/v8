@@ -33,6 +33,9 @@ class V8_BASE_EXPORT CPU final {
  public:
   CPU();
 
+  // Get a lazily allocated instance of CPU as a fast path.
+  static const CPU& GetInstance();
+
   // x86 CPUID information
   const char* vendor() const { return vendor_; }
   int stepping() const { return stepping_; }

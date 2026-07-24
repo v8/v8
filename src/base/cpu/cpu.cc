@@ -223,4 +223,9 @@ CPU::CPU() {
   DetectFeatures();
 }
 
+const CPU& CPU::GetInstance() {
+  static const CPU cpu;
+  return cpu;
+}
+
 }  // namespace v8::base
