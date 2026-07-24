@@ -47,6 +47,9 @@ namespace internal {
 namespace maglev {
 
 namespace {
+
+constexpr uint32_t kMaxStackSlots = 4 * KB / kSystemPointerSize;
+
 void PrintGraph(Graph* graph, bool condition, const char* message,
                 bool has_regalloc_data = false) {
   if (V8_UNLIKELY(condition &&
@@ -202,6 +205,15 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       PrintGraph(graph, v8_flags.print_maglev_graph,
                  "After register allocation", /* has_regalloc_data */ true);
     }
+  }
+
+  // The prologue grows the frame with a single stack pointer decrement, before
+  // FunctionEntryStackCheck runs. A frame no larger than the smallest OS page
+  // cannot step over a guard page, so bail out rather than emit an unchecked
+  // stack pointer jump of arbitrary size.
+  if (graph->tagged_stack_slots() + graph->untagged_stack_slots() >
+      kMaxStackSlots) {
+    return false;
   }
 
   {
