@@ -207,6 +207,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         ],
     "jitless":
         kIncompatibleFlagsForNoTurbofan + [
+            "--no-jitless",
             "--track-field-types",
             "--sparkplug",
             "--concurrent-sparkplug",
@@ -218,6 +219,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
             "--script-context-cells",
         ],
     "nooptimization": [
+        "--no-disable-optimizing-compilers",
         "--turbofan",
         "--turboshaft",
         "--wasm-in-js-inlining-body",
