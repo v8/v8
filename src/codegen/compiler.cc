@@ -1281,7 +1281,7 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
     CompilerTracer::TraceStartMaglevCompile(isolate, function, job->is_osr(),
                                             mode);
     CompilationJob::Status status = job->PrepareJob(isolate);
-    CHECK_EQ(status, CompilationJob::SUCCEEDED);  // TODO(v8:7700): Use status.
+    if (status != CompilationJob::SUCCEEDED) return {};
   }
 
   if (IsSynchronous(mode)) {

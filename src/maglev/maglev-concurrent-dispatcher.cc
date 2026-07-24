@@ -113,7 +113,20 @@ MaglevCompilationJob::MaglevCompilationJob(
 
 MaglevCompilationJob::~MaglevCompilationJob() = default;
 
+CompilationJob::Status MaglevCompilationJob::AbortOptimization(
+    Isolate* isolate, BailoutReason reason) {
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  bailout_reason_ = reason;
+  DirectHandle<SharedFunctionInfo> shared(function()->shared(), isolate);
+  shared->DisableOptimization(isolate, reason);
+  return UpdateState(FAILED, State::kFailed);
+}
+
 CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
+  if (function()->shared()->GetBytecodeArray(isolate)->length() >
+      v8_flags.max_optimized_bytecode_size) {
+    return AbortOptimization(isolate, BailoutReason::kFunctionTooBig);
+  }
   BeginPhaseKind("V8.MaglevPrepareJob");
   if (info()->collect_source_positions()) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(
