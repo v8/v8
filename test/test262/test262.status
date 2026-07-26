@@ -1194,4 +1194,14 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'language/statements/await-using/initializer-Symbol.asyncDispose-disposed-at-end-of-imported-module': [SKIP],
+  'language/statements/await-using/initializer-Symbol.dispose-disposed-at-end-of-imported-module': [SKIP],
+  'language/statements/using/initializer-disposed-at-end-of-imported-module': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
