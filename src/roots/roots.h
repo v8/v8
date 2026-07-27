@@ -448,6 +448,9 @@ class RootVisitor;
   V(HeapObject, locals_block_list_cache, DebugLocalsBlockListCache)         \
   IF_WASM(V, WeakFixedArray, js_to_wasm_wrappers, JSToWasmWrappers)         \
   IF_WASM(V, WeakFixedArray, wasm_canonical_rtts, WasmCanonicalRtts)        \
+  /* Only updated/used on the shared-space isolate */                       \
+  IF_WASM(V, WeakFixedArray, wasm_shared_canonical_rtts,                    \
+          WasmSharedCanonicalRtts)                                          \
   /* Internal SharedFunctionInfos */                                        \
   V(FunctionTemplateInfo, error_stack_getter_fun_template,                  \
     ErrorStackGetterSharedFun)                                              \

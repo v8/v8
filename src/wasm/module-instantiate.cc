@@ -13,6 +13,7 @@
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/handles/handle-scope-implementer-inl.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
 #include "src/numbers/conversions-inl.h"
@@ -69,6 +70,31 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   }
 
   const TypeDefinition type = module->type(type_index);
+
+  Isolate* shared_space_isolate;
+  // Another thread may cause shared GC while holding this mutex. We have to use
+  // a safepoint-aware MutexGuard here, otherwise the GC might wait forever on
+  // this blocked thread.
+  std::optional<ParkedMutexGuard> lock;
+  if (type.is_shared) {
+    shared_space_isolate = isolate->shared_space_isolate();
+    lock.emplace(isolate->main_thread_local_isolate(),
+                 shared_space_isolate->wasm_shared_canonical_types_mutex());
+    DirectHandle<WeakFixedArray> shared_canonical_rtts(
+        shared_space_isolate->heap()->wasm_shared_canonical_rtts(), isolate);
+    DCHECK_GT(shared_canonical_rtts->ulength().value(),
+              canonical_type_index.index);
+    Tagged<MaybeObject> maybe_shared_canonical_map =
+        shared_canonical_rtts->get(canonical_type_index.index);
+    if (!maybe_shared_canonical_map.IsCleared()) {
+      canonical_rtts->set(canonical_type_index.index,
+                          maybe_shared_canonical_map);
+      maps->set(type_index.index,
+                maybe_shared_canonical_map.GetHeapObjectAssumeWeak());
+      return;
+    }
+  }
+
   int num_supertypes = type.subtyping_depth;
   DirectHandle<Map> rtt_parent;
   ModuleTypeIndex supertype = module->supertype(type_index);
@@ -77,9 +103,10 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
     // create maps in order, so the supertype map must exist already.
     DCHECK_LT(supertype.index, type_index.index);
     DCHECK(IsMap(maps->get(supertype.index)));
-    DCHECK(num_supertypes == module->type(supertype).subtyping_depth + 1);
+    DCHECK_EQ(num_supertypes, module->type(supertype).subtyping_depth + 1);
     rtt_parent = direct_handle(Cast<Map>(maps->get(supertype.index)), isolate);
   }
+
   DirectHandle<Map> map;
   switch (type.kind) {
     case TypeDefinition::kStruct: {
@@ -102,6 +129,10 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   }
   canonical_rtts->set(canonical_type_index.index, MakeWeak(*map));
   maps->set(type_index.index, *map);
+  if (type.is_shared) {
+    shared_space_isolate->heap()->wasm_shared_canonical_rtts()->set(
+        canonical_type_index.index, MakeWeak(*map));
+  }
 }
 
 namespace {
@@ -1184,7 +1215,8 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
     // Make sure all canonical indices have been set.
     DCHECK(module_->MaxCanonicalTypeIndex().valid());
     TypeCanonicalizer::PrepareForCanonicalTypeId(
-        isolate_, module_->MaxCanonicalTypeIndex());
+        isolate_, module_->MaxCanonicalTypeIndex(),
+        SharedFlag{module_->has_shared_part});
   }
   DirectHandle<FixedArray> managed_object_maps =
       isolate_->factory()->NewFixedArray(
