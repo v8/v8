@@ -273,6 +273,8 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
                          merge_loaded_properties);
   DestructivelyIntersect(loaded_properties_, other.loaded_properties_,
                          merge_loaded_properties);
+  DestructivelyIntersect(loaded_tagged_keyed_properties_,
+                         other.loaded_tagged_keyed_properties_);
   DestructivelyIntersect(loaded_context_constants_,
                          other.loaded_context_constants_);
   may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
@@ -380,6 +382,8 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
                          merge_constant_properties);
   DestructivelyIntersect(loaded_properties_, backedge.loaded_properties_,
                          merge_loaded_properties);
+  DestructivelyIntersect(loaded_tagged_keyed_properties_,
+                         backedge.loaded_tagged_keyed_properties_);
   DestructivelyIntersect(loaded_context_constants_,
                          backedge.loaded_context_constants_,
                          [&](auto key, ValueNode* l, ValueNode* r) {
@@ -433,6 +437,14 @@ void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {
   };
   remap_loaded_properties(loaded_properties_);
   remap_loaded_properties(loaded_constant_properties_);
+
+  {
+    ZoneMap<std::pair<ValueNode*, ValueNode*>, ValueNode*> remapped(zone);
+    for (auto& [key, value] : loaded_tagged_keyed_properties_) {
+      remapped[{unwrap(key.first), unwrap(key.second)}] = value;
+    }
+    loaded_tagged_keyed_properties_ = std::move(remapped);
+  }
 
   // Context slot loads: (context node, offset) -> value. Only the context node
   // in the key is remapped.
@@ -601,6 +613,7 @@ void KnownNodeAspects::ClearUnstableNodeAspects(bool is_tracing_enabled) {
   // to not change (and we added a dependency on this), so we don't have to
   // clear those.
   loaded_properties_.clear();
+  loaded_tagged_keyed_properties_.clear();
   loaded_context_slots_.clear();
   may_have_aliasing_contexts_ = KnownNodeAspects::ContextSlotLoadsAlias::kNone;
 }
@@ -615,6 +628,7 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
                                    LoopEffects* loop_effects, Zone* zone)
     : loaded_constant_properties_(other.loaded_constant_properties_),
       loaded_properties_(zone),
+      loaded_tagged_keyed_properties_(zone),
       loaded_context_constants_(other.loaded_context_constants_),
       loaded_context_slots_(zone),
       available_expressions_(zone),

@@ -114,6 +114,7 @@ class RecomputeKnownNodeAspectsProcessor {
 
     if (block->is_exception_handler_block()) {
       known_node_aspects_->ClearAvailableExpressions();
+      known_node_aspects_->ClearTaggedKeyedProperties();
     }
 
     // We might now have more accurate types for phi inputs; recompute the phi
@@ -391,6 +392,12 @@ class RecomputeKnownNodeAspectsProcessor {
           zone(), node->is_const(), node->property_key());
       props_for_key[node->ValueInput().node()] = node;
     }
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(LoadFixedArrayElement* node) {
+    known_node_aspects().RecordTaggedKeyedProperty(
+        node->ElementsInput().node(), node->IndexInput().node(), node);
     return ProcessResult::kContinue;
   }
 

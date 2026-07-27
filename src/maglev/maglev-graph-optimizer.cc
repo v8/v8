@@ -1945,6 +1945,13 @@ ProcessResult MaglevGraphOptimizer::VisitLoadFixedArrayElement(
         reducer_.TryBuildLoadFixedArrayElementConstantIndex(
             node->ElementsInput().node(), cst.value(), node->load_type()));
   }
+  if (LoadFixedArrayElement* cached =
+          known_node_aspects().TryFindTaggedKeyedProperty(
+              node->ElementsInput().node(), node->IndexInput().node())) {
+    if (cached != node && cached->load_type() == node->load_type()) {
+      return ReplaceWith(cached);
+    }
+  }
   return ProcessResult::kContinue;
 }
 

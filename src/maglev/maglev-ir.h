@@ -720,6 +720,17 @@ constexpr bool IsElementsArrayWrite(Opcode opcode) {
   return opcode == Opcode::kMaybeGrowFastElements ||
          opcode == Opcode::kEnsureWritableFastElements;
 }
+// Writes that cannot mutate the payload of an existing FixedArray:
+// double-array stores write a FixedDoubleArray (a heap object cannot be
+// both), and elements-kind transitions write the object's map/elements
+// fields and, when the representation changes, copy into a freshly
+// allocated backing store.
+constexpr bool PreservesTaggedKeyedProperties(Opcode opcode) {
+  return opcode == Opcode::kStoreFixedDoubleArrayElement ||
+         opcode == Opcode::kStoreFixedHoleyDoubleArrayElement ||
+         opcode == Opcode::kTransitionElementsKind ||
+         opcode == Opcode::kTransitionElementsKindOrCheckMap;
+}
 constexpr bool IsTypedArrayStore(Opcode opcode) {
   return opcode == Opcode::kStoreIntTypedArrayElement ||
          opcode == Opcode::kStoreDoubleTypedArrayElement ||

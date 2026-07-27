@@ -437,6 +437,7 @@ class KnownNodeAspects {
   void ClearAll() {
     loaded_constant_properties_.clear();
     loaded_properties_.clear();
+    loaded_tagged_keyed_properties_.clear();
     loaded_context_constants_.clear();
     loaded_context_slots_.clear();
     available_expressions_.clear();
@@ -629,6 +630,31 @@ class KnownNodeAspects {
     return false;
   }
 
+  // Cache of LoadFixedArrayElement results keyed by (elements, index). Any
+  // write that does not pass PreservesTaggedKeyedProperties clears it.
+  LoadFixedArrayElement* TryFindTaggedKeyedProperty(ValueNode* elements,
+                                                    ValueNode* index) {
+    auto it = loaded_tagged_keyed_properties_.find(
+        {elements->UnwrapIdentities(), index->UnwrapIdentities()});
+    if (it == loaded_tagged_keyed_properties_.end()) return nullptr;
+    return it->second->UnwrapIdentities()->TryCast<LoadFixedArrayElement>();
+  }
+  void RecordTaggedKeyedProperty(ValueNode* elements, ValueNode* index,
+                                 LoadFixedArrayElement* load) {
+    std::pair<ValueNode*, ValueNode*> key{elements->UnwrapIdentities(),
+                                          index->UnwrapIdentities()};
+    auto it = loaded_tagged_keyed_properties_.find(key);
+    if (it != loaded_tagged_keyed_properties_.end()) {
+      it->second = load;
+      return;
+    }
+    if (loaded_tagged_keyed_properties_.size() >= kMaxTaggedKeyedProperties) {
+      return;
+    }
+    loaded_tagged_keyed_properties_.emplace(key, load);
+  }
+  void ClearTaggedKeyedProperties() { loaded_tagged_keyed_properties_.clear(); }
+
   void increment_effect_epoch() {
     if (effect_epoch_ < kEffectEpochOverflow) effect_epoch_++;
   }
@@ -765,6 +791,10 @@ class KnownNodeAspects {
 
     increment_effect_epoch();
 
+    if constexpr (!PreservesTaggedKeyedProperties(Node::opcode_of<NodeT>)) {
+      loaded_tagged_keyed_properties_.clear();
+    }
+
     if constexpr (Node::opcode_of<NodeT> == Opcode::kMaybeGrowFastElements) {
       if (ClearLoadedPropertiesForKey(broker->length_string())) {
         if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
@@ -808,6 +838,7 @@ class KnownNodeAspects {
   explicit KnownNodeAspects(Zone* zone)
       : loaded_constant_properties_(zone),
         loaded_properties_(zone),
+        loaded_tagged_keyed_properties_(zone),
         loaded_context_constants_(zone),
         loaded_context_slots_(zone),
         available_expressions_(zone),
@@ -880,6 +911,12 @@ class KnownNodeAspects {
   LoadedPropertyMap loaded_constant_properties_;
   // Flushed after side-effecting calls.
   LoadedPropertyMap loaded_properties_;
+  // (elements, index) -> LoadFixedArrayElement. Flushed by any write that
+  // does not pass PreservesTaggedKeyedProperties. Bounded by
+  // kMaxTaggedKeyedProperties, since the map is copied at every clone.
+  static constexpr size_t kMaxTaggedKeyedProperties = 100;
+  ZoneMap<std::pair<ValueNode*, ValueNode*>, ValueNode*>
+      loaded_tagged_keyed_properties_;
   // Unconditionally valid across side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants_;
   // Flushed after side-effecting calls.

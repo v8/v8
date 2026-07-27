@@ -171,11 +171,25 @@ ReduceResult MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
       hash, inputs, std::forward<Args>(args)...);
   if (node) return node;
 
+  if constexpr (Node::opcode_of<NodeT> == Opcode::kLoadFixedArrayElement) {
+    if (LoadFixedArrayElement* cached =
+            known_node_aspects().TryFindTaggedKeyedProperty(inputs[0],
+                                                            inputs[1])) {
+      if (cached->options() ==
+          std::forward_as_tuple(std::forward<Args>(args)...)) {
+        return cached;
+      }
+    }
+  }
+
   node =
       NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
   SetNodeInputsNoConversion(node, inputs);
   DCHECK_EQ(node->options(), std::tuple{std::forward<Args>(args)...});
   known_node_aspects().AddExpression(hash, node);
+  if constexpr (Node::opcode_of<NodeT> == Opcode::kLoadFixedArrayElement) {
+    known_node_aspects().RecordTaggedKeyedProperty(inputs[0], inputs[1], node);
+  }
   return AttachExtraInfoAndAddToGraph(node);
 }
 
