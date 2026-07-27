@@ -2026,23 +2026,25 @@ class MachineOptimizationReducer : public Next {
           // Mixed logical/arithmetic: skip for safety.
         }
       }
-      if (rep == WordRepresentation::Word32() &&
-          SupportedOperations::word32_shift_is_safe()) {
-        // Remove the explicit 'and' with 0x1F if the shift provided by the
-        // machine instruction matcher_.Matches that required by JavaScript.
-        if (V<Word32> a, b; matcher_.MatchBitwiseAnd(
-                right, &a, &b, WordRepresentation::Word32())) {
-#if defined(__clang__)
-          static_assert(0x1f == WordRepresentation::Word32().bit_width() - 1);
-#endif
-          if (uint32_t b_value;
-              matcher_.MatchIntegralWord32Constant(b, &b_value) &&
-              b_value == 0x1f) {
-            return __ Shift(left, a, kind, rep);
-          }
-        }
+    }
+    // Drop an explicit mask of the shift amount when the machine instruction
+    // masks it the same way anyway:  x << (y & 31)  =>  x << y.  Any mask that
+    // keeps the low five bits works, not just 0x1f exactly: the extra bits it
+    // leaves set are discarded by the machine's own masking.
+    if (rep == WordRepresentation::Word32() &&
+        SupportedOperations::word32_shift_is_safe()) {
+      constexpr uint64_t kShiftMask =
+          WordRepresentation::Word32().bit_width() - 1;
+      static_assert(kShiftMask == 0x1f);
+      V<Word32> amount;
+      uint64_t mask;
+      if (matcher_.MatchBitwiseAndWithConstant(right, &amount, &mask,
+                                               WordRepresentation::Word32()) &&
+          (mask & kShiftMask) == kShiftMask) {
+        return __ Shift(left, amount, kind, rep);
       }
     }
+
     return Next::ReduceShift(left, right, kind, rep);
   }
 

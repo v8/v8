@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -254,6 +255,72 @@ TEST_F(MachineOptimizationReducerTest,
   }
   EXPECT_TRUE(found_ror);
   EXPECT_GE(reachable_ors, 8);
+}
+
+namespace {
+// SupportedOperations is initialized by the Assembler constructor. These tests
+// query it before building their graph, so initialize it explicitly.
+bool Word32ShiftIsSafe() {
+  SupportedOperations::Initialize();
+  return SupportedOperations::word32_shift_is_safe();
+}
+}  // namespace
+
+// A mask of the shift amount that the machine instruction applies anyway is
+// redundant and should be dropped, whether or not it is exactly 0x1f.
+TEST_F(MachineOptimizationReducerTest, DropRedundantShiftAmountMask) {
+  if (!Word32ShiftIsSafe()) return;
+
+  const RegisterRepresentation rep32 = RegisterRepresentation::Word32();
+  base::SmallVector<RegisterRepresentation, 2> reps = {rep32, rep32};
+  for (uint32_t mask : {0x1fu, 0x3fu, 0xffffffffu}) {
+    auto test = CreateFromGraph(base::VectorOf(reps), [mask](auto& t) {
+      auto value = t.template GetParameter<Word32>(0);
+      auto amount = t.template GetParameter<Word32>(1);
+      V<Word32> masked = V<Word32>::Cast(t.Asm().WordBinop(
+          amount, t.Asm().Word32Constant(mask), WordBinopOp::Kind::kBitwiseAnd,
+          WordRepresentation::Word32()));
+      t.Asm().Return(
+          t.Capture(t.Asm().Shift(value, masked, ShiftOp::Kind::kShiftLeft,
+                                  WordRepresentation::Word32()),
+                    "shift"));
+    });
+
+    test.Run<MachineOptimizationReducer>();
+
+    const ShiftOp* shift = test.GetCapturedAs<ShiftOp>("shift");
+    ASSERT_NE(shift, nullptr);
+    EXPECT_FALSE(test.graph()
+                     .Get(shift->right())
+                     .template Is<Opmask::kWord32BitwiseAnd>());
+  }
+}
+
+// A mask that clears bits the machine would have honoured must be kept.
+TEST_F(MachineOptimizationReducerTest, KeepNarrowingShiftAmountMask) {
+  if (!Word32ShiftIsSafe()) return;
+
+  const RegisterRepresentation rep32 = RegisterRepresentation::Word32();
+  base::SmallVector<RegisterRepresentation, 2> reps = {rep32, rep32};
+  auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
+    auto value = t.template GetParameter<Word32>(0);
+    auto amount = t.template GetParameter<Word32>(1);
+    V<Word32> masked = V<Word32>::Cast(t.Asm().WordBinop(
+        amount, t.Asm().Word32Constant(0x0f), WordBinopOp::Kind::kBitwiseAnd,
+        WordRepresentation::Word32()));
+    t.Asm().Return(
+        t.Capture(t.Asm().Shift(value, masked, ShiftOp::Kind::kShiftLeft,
+                                WordRepresentation::Word32()),
+                  "shift"));
+  });
+
+  test.Run<MachineOptimizationReducer>();
+
+  const ShiftOp* shift = test.GetCapturedAs<ShiftOp>("shift");
+  ASSERT_NE(shift, nullptr);
+  EXPECT_TRUE(test.graph()
+                  .Get(shift->right())
+                  .template Is<Opmask::kWord32BitwiseAnd>());
 }
 
 }  // namespace v8::internal::compiler::turboshaft
