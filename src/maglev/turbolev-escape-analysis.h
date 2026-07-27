@@ -122,6 +122,13 @@ struct EscapeAnalysisData {
   Candidates candidates;
 
   FieldValuesTable field_values;
+
+  // Number of predecessor snapshots that were merged to create the current
+  // snapshot. This is the predecessor count of the current block, except when
+  // visiting a loop header for the 1st time, where the backedge predecessor
+  // hasn't been visited yet and thus has no snapshot.
+  int merged_predecessor_count = 0;
+
   ZoneAbslFlatHashMap<NodeBase*, Snapshot> snapshots;
   ZoneAbslFlatHashMap<ObjectField, Key> keys_mappings;
 

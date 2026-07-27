@@ -871,7 +871,11 @@ class CandidateAnalyzer {
   void ProcessPhi(Phi* phi) {
     // TODO(dmercadier): enable merging escape analysis candidates when they
     // flow into Phis.
-    for (int i = 0; i < phi->input_count(); i++) {
+    // When visiting a loop header for the 1st time, the backedge predecessor
+    // has no snapshot yet, and thus no value to look up: its inputs are handled
+    // by CheckLoopPhiInvalidation when reaching the JumpLoop instead.
+    DCHECK_LE(data_.merged_predecessor_count, phi->input_count());
+    for (int i = 0; i < data_.merged_predecessor_count; i++) {
       ValueNode* input = phi->input_node(i);
       // Note the `, i` in the call to MarkAsEscapedIfCandidate: this is the
       // reason for this overload: not all Phi inputs dominate the current block
@@ -1018,6 +1022,7 @@ class FieldValuesTracker : public CandidateAnalyzer {
     });
 
     int predecessor_count = static_cast<int>(predecessors_snapshots.size());
+    data_.merged_predecessor_count = predecessor_count;
 
     std::optional<MergePointInterpreterFrameState*> state;
     DCHECK_IMPLIES(predecessor_count > 1, block->has_state());
