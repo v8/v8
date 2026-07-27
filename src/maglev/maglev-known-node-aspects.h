@@ -1042,6 +1042,12 @@ class KnownMapsMerger {
 
   NodeType node_type() const { return node_type_; }
 
+  bool RequestedMapsAdmitSmis() const {
+    return std::any_of(
+        requested_maps_.begin(), requested_maps_.end(),
+        [](compiler::MapRef map) { return map.IsHeapNumberMap(); });
+  }
+
  private:
   compiler::JSHeapBroker* broker_;
   Zone* zone_;
@@ -1054,12 +1060,6 @@ class KnownMapsMerger {
   NodeType node_type_ = EmptyNodeType();
 
   Zone* zone() const { return zone_; }
-
-  bool RequestedMapsAdmitSmis() const {
-    return std::any_of(
-        requested_maps_.begin(), requested_maps_.end(),
-        [](compiler::MapRef map) { return map.IsHeapNumberMap(); });
-  }
 
   void InsertMap(compiler::MapRef map) {
     if (map.is_migration_target()) {

@@ -2424,8 +2424,11 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
 
-  // If the known maps are the subset of the maps to check, we are done.
-  if (merger.known_maps_are_subset_of_requested_maps()) {
+  // If the known maps are the subset of the maps to check and the check cannot
+  // fail on a Smi, we are done.
+  if (merger.known_maps_are_subset_of_requested_maps() &&
+      (NodeTypeIs(GetType(object), NodeType::kAnyHeapObject) ||
+       merger.RequestedMapsAdmitSmis())) {
     // The node type of known_info can get out of sync with the possible maps.
     // For instance after merging with an effectively dead branch (i.e., check
     // contradicting all possible maps).
