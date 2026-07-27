@@ -320,6 +320,21 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
       }
       return;
     }
+    case Opcode::kHoleyFloat64Constant: {
+      Float64 float64_value = value->Cast<HoleyFloat64Constant>()->value();
+      if (float64_value.is_undefined_or_hole_nan()) {
+        LoadRoot(dst, RootIndex::kUndefinedValue);
+        return;
+      }
+      double double_value = float64_value.get_scalar();
+      int smi_value;
+      if (DoubleToSmiInteger(double_value, &smi_value)) {
+        Move(dst, Smi::FromInt(smi_value));
+      } else {
+        MoveHeapNumber(dst, double_value);
+      }
+      return;
+    }
     default:
       break;
     }
