@@ -346,13 +346,11 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
                    Address handle_location);
 
   // Evacuate the specified entry from one space to another, updating the handle
-  // location in place.
-  //
-  // This method is not atomic and can be called only when the mutator is
-  // paused.
-  inline void Evacuate(Space* from_space, Space* to_space,
-                       ExternalPointerHandle handle, Address handle_location,
-                       EvacuateMarkMode mode);
+  // location in place and returning the valid evacuated handle.
+  inline ExternalPointerHandle Evacuate(Space* from_space, Space* to_space,
+                                        ExternalPointerHandle handle,
+                                        Address handle_location,
+                                        EvacuateMarkMode mode);
 
   // Evacuate all segments from from_space to to_space, leaving from_space empty
   // with an empty free list.  Then free unmarked entries, finishing compaction
