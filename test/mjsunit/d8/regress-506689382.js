@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --enable-tracing --trace-path=test/mjsunit/d8/regress-506689382-v8-trace.json --trace-config=test/mjsunit/d8/regress-506689382-trace-config.json
+// Flags: --enable-tracing --trace-path=test/mjsunit/d8/v8_trace_506689382.json --trace-config=test/mjsunit/d8/regress-506689382-trace-config.json
 // Resources: test/mjsunit/d8/regress-506689382-trace-config.json
 
 'use strict';
