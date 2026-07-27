@@ -320,9 +320,6 @@ class RecomputeKnownNodeAspectsProcessor {
   V(CheckedFloat64ToInt32, int32, Number)                                  \
   V(CheckedHoleyFloat64ToInt32, int32, Number)                             \
   V(CheckedNumberToInt32, int32, Number)                                   \
-  /* TODO(victorgomes): pass node->conversion_type() rather than always */ \
-  /* NumberOrOddball for CheckedNumberOrOddballToFloat64. */               \
-  V(CheckedNumberOrOddballToFloat64, float64, NumberOrOddball)             \
   V(CheckedNumberToFloat64, float64, Number)                               \
   V(CheckedHoleyFloat64ToFloat64, float64, Number)                         \
   V(ChangeInt32ToFloat64, float64, Number)                                 \
@@ -333,6 +330,10 @@ class RecomputeKnownNodeAspectsProcessor {
 
   SAFE_CONVERSION_LIST(DECLARE_ProcessNode)
 #undef DECLARE_ProcessNode
+
+  ProcessResult ProcessNode(CheckedNumberOrOddballToFloat64* node);
+  ProcessResult ProcessNode(UnsafeNumberOrOddballToFloat64* node);
+  ProcessResult ProcessNode(HoleyFloat64ToSilencedFloat64* node);
 
 // TODO(victorgomes): Ideally we would like to check we already know the type,
 // but currently we cannot. The issue is that if the GraphBuilder emits a
@@ -360,9 +361,12 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_UNSAFE_CONV(UnsafeFloat64ToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(UnsafeHoleyFloat64ToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(ChangeIntPtrToFloat64, float64, Number)
-  PROCESS_UNSAFE_CONV(UnsafeNumberOrOddballToFloat64, float64, NumberOrOddball)
   PROCESS_UNSAFE_CONV(UnsafeNumberToFloat64, float64, Number)
-  PROCESS_UNSAFE_CONV(HoleyFloat64ToSilencedFloat64, float64, Number)
+  // Note: NumberOrOddball->Float64 conversions (such as
+  // UnsafeNumberOrOddballToFloat64 and HoleyFloat64ToSilencedFloat64) lose
+  // oddball identity and are promoted to float64 alternative by explicit
+  // handlers if and only if KNA has statically proven the input is strictly
+  // NodeType::kNumber without oddballs.
 #undef PROCESS_UNSAFE_CONV
 
   ProcessResult ProcessNode(CheckMaps* node) {

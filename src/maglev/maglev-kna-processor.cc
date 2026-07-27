@@ -92,6 +92,44 @@ SAFE_CONVERSION_LIST(DEFINE_PROCESS_SAFE_CONV)
 
 #undef DEFINE_PROCESS_SAFE_CONV
 
+ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(
+    CheckedNumberOrOddballToFloat64* node) {
+  NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));
+  info->IntersectType(
+      GetAllowedTypeFromConversionType(node->conversion_type()));
+  if (!info->alternative().float64() &&
+      NodeTypeIs(info->type(), NodeType::kNumber)) {
+    info->alternative().set_float64(node);
+  }
+  if (info->type() == NodeType::kNone) {
+    ReduceResult result =
+        reducer_.EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
+    CHECK(result.IsDoneWithAbort());
+    return ProcessResult::kTruncateBlock;
+  }
+  return ProcessResult::kContinue;
+}
+
+ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(
+    UnsafeNumberOrOddballToFloat64* node) {
+  NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));
+  if (!info->alternative().float64() &&
+      NodeTypeIs(info->type(), NodeType::kNumber)) {
+    info->alternative().set_float64(node);
+  }
+  return ProcessResult::kContinue;
+}
+
+ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(
+    HoleyFloat64ToSilencedFloat64* node) {
+  NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));
+  if (!info->alternative().float64() &&
+      NodeTypeIs(info->type(), NodeType::kNumber)) {
+    info->alternative().set_float64(node);
+  }
+  return ProcessResult::kContinue;
+}
+
 template ReduceResult
     MaglevReducer<RecomputeKnownNodeAspectsProcessor>::EmitUnconditionalDeopt(
         DeoptimizeReason);
