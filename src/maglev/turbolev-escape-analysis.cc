@@ -1170,12 +1170,6 @@ class FieldValuesTracker : public CandidateAnalyzer {
     if (JumpLoop* jump_loop = block->control_node()->TryCast<JumpLoop>()) {
       BasicBlock* loop_header = jump_loop->target();
 
-      DCHECK_GT(data_.loop_stack.size(), 1);
-      DCHECK_EQ(data_.loop_stack.back().header, loop_header);
-      bool has_escaped_candidate =
-          data_.loop_stack.back().has_escaped_candidate;
-      data_.loop_stack.pop_back();
-
       // Loop phis backedges need to be patched in 2 situations:
       //
       //   - this is a loop with multiple forward edges that was requiring Phis
@@ -1194,7 +1188,18 @@ class FieldValuesTracker : public CandidateAnalyzer {
       // the inputs of a Phi. So, changing the backedge input of loop phis
       // will not lead to making any different decision when revisiting the
       // loop.
+      //
+      // Also note that PatchLoopPhisBackedges needs to be called before popping
+      // the current loop from `data_.loop_stack` to ensure that if
+      // `MarkAsEscaped(alloc)` is called inside it, it will find the current
+      // loop on the stack if needed.
       PatchLoopPhisBackedges(loop_header, snapshot);
+
+      DCHECK_GT(data_.loop_stack.size(), 1);
+      DCHECK_EQ(data_.loop_stack.back().header, loop_header);
+      bool has_escaped_candidate =
+          data_.loop_stack.back().has_escaped_candidate;
+      data_.loop_stack.pop_back();
 
       auto prev_header_phis = new_phis().find(loop_header);
       if (prev_header_phis != new_phis().end()) {
@@ -1248,6 +1253,29 @@ class FieldValuesTracker : public CandidateAnalyzer {
       }
 
       ValueNode* backedge_val = field_values().Get(key);
+
+      if (InlinedAllocation* backedge_alloc =
+              data_.TryGetCandidateInlinedAllocation(backedge_val)) {
+        // The backedge is an allocation that flows into a newly created loop
+        // phi (which will be turned into a regular phi during the Elider
+        // phase). We need to mark it as escaping. Note however that this
+        // doesn't need to trigger a revisit of the loop: within the loop, 1)
+        // any decisions make on the fact that {backedge_alloc} can be elided
+        // still holds since it only escapes after the loop and 2) we never make
+        // decisions based on the inputs of Phis, so the fact that the backedge
+        // of {phi} is now escaping doesn't invalidate any decision made in the
+        // loop.
+#ifdef DEBUG
+        bool needed_revisit_before =
+            data_.loop_stack.back().has_escaped_candidate;
+#endif
+        data_.MarkAsEscaped(backedge_alloc);
+        // Calling MarkAsEscaped should not have marked the current loop as
+        // needing to be revisited.
+        DCHECK_EQ(needed_revisit_before,
+                  data_.loop_stack.back().has_escaped_candidate);
+      }
+
       DCHECK_NOT_NULL(backedge_val);
       TRACE(">> Updating loop phi backedge: "
             << PRINT_NODE(phi) << " backedge "
