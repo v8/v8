@@ -1023,9 +1023,6 @@ void Heap::PublishMainThreadPendingAllocations() {
 }
 
 void Heap::DeoptMarkedAllocationSites() {
-  // TODO(hpayer): If iterating over the allocation sites list becomes a
-  // performance issue, use a cache data structure in heap instead.
-
   ForeachAllocationSite(
       allocation_sites_list(), [this](Tagged<AllocationSite> site) {
         if (site->deopt_dependent_code()) {

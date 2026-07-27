@@ -6231,7 +6231,6 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   Isolate* isolate = heap->isolate();
   if (!isolate->serializer_enabled()) return;
 
-  // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   DirectHandle<FixedArray> array_small =
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
@@ -6263,7 +6262,6 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   Isolate* isolate = heap->isolate();
   if (!isolate->serializer_enabled()) return;
 
-  // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   DirectHandle<FixedArray> array_small =
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
