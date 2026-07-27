@@ -129,7 +129,8 @@ class MaglevGraphOptimizer {
 
   std::optional<Range> GetRange(ValueNode* node);
   bool IsRangeLessEqual(ValueNode* lhs, ValueNode* rhs);
-  void RecordBoundsCheckRefinement(ValueNode* index, ValueNode* length);
+  void RecordBoundsCheckRefinement(AssertCondition condition, ValueNode* index,
+                                   ValueNode* length);
 
   void UnwrapInputs();
 

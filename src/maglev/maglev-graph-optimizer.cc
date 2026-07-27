@@ -459,8 +459,9 @@ std::optional<Range> MaglevGraphOptimizer::GetRange(ValueNode* node) {
   return refined.is_empty() ? range : refined;
 }
 
-void MaglevGraphOptimizer::RecordBoundsCheckRefinement(ValueNode* index,
-                                                       ValueNode* length) {
+void MaglevGraphOptimizer::RecordBoundsCheckRefinement(
+    AssertCondition condition, ValueNode* index, ValueNode* length) {
+  if (condition != AssertCondition::kUnsignedLessThan) return;
   if (!ranges_) return;
   if (IsConstantNode(index->opcode())) return;
   Range length_range = ranges_->Get(reducer_.current_block(), length);
@@ -880,7 +881,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckInt32Condition(
     }
   }
 
-  RecordBoundsCheckRefinement(lhs, rhs);
+  RecordBoundsCheckRefinement(node->condition(), lhs, rhs);
   return ProcessResult::kContinue;
 }
 
