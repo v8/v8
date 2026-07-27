@@ -1224,9 +1224,6 @@ class FieldValuesTracker : public CandidateAnalyzer {
       } else {
         // Discarding temporary snapshot.
         if (!field_values().IsSealed()) field_values().Seal();
-        // Discarding the backedge's snapshot, so that if we're currently in a
-        // nested loop, we can still revisit it if we revisit the outer loop.
-        block_snapshots_.erase(block);
       }
     }
 
