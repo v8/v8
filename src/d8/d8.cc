@@ -546,8 +546,7 @@ class PAInSandboxAllocator final : public v8::Allocator {
     constexpr auto new_flags =
         flags | partition_alloc::AllocFlags::kNoOverrideHooks |
         partition_alloc::AllocFlags::kNoMemoryToolOverride;
-    return partition_.root()->AllocInline<new_flags>(length,
-                                                     "PAInSandboxAllocator");
+    return partition_.root()->Alloc<new_flags>(length, "PAInSandboxAllocator");
   }
 
   partition_alloc::PartitionAllocator partition_;
