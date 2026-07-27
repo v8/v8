@@ -731,6 +731,14 @@ void Isolate::UnregisterTryCatchHandler(v8::TryCatch* that) {
   SimulatorStack::UnregisterJSStackComparableAddress(this);
 }
 
+void Isolate::MarkTryCatchInternal(v8::TryCatch* that) {
+  that->SetIsInternal(true);
+}
+
+bool Isolate::IsInternalTryCatch(v8::TryCatch* that) {
+  return that->IsInternal();
+}
+
 DirectHandle<String> Isolate::StackTraceString() {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
@@ -3482,7 +3490,9 @@ Isolate::CatchType PredictExceptionCatchAtFrame(
       // The exception has been externally caught if and only if there is an
       // external handler which is on top of the top-most JS_ENTRY handler.
       if (external_handler != kNullAddress &&
-          !iterator.isolate()->try_catch_handler()->IsVerbose()) {
+          !iterator.isolate()->try_catch_handler()->IsVerbose() &&
+          !Isolate::IsInternalTryCatch(
+              iterator.isolate()->try_catch_handler())) {
         if (entry_handler == kNullAddress || entry_handler > external_handler) {
           return Isolate::CAUGHT_BY_EXTERNAL;
         }
@@ -3526,7 +3536,9 @@ Isolate::CatchType PredictExceptionCatchAtFrame(
 Isolate::CatchType Isolate::PredictExceptionCatcher() {
   if (TopExceptionHandlerType(Tagged<Object>()) ==
       ExceptionHandlerType::kExternalTryCatch) {
-    return CAUGHT_BY_EXTERNAL;
+    if (!try_catch_handler()->IsInternal()) {
+      return CAUGHT_BY_EXTERNAL;
+    }
   }
 
   // Search for an exception handler by performing a full walk over the stack.

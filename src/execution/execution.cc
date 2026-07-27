@@ -563,6 +563,7 @@ MaybeDirectHandle<Object> InvokeWithTryCatch(Isolate* isolate,
   v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
   catcher.SetVerbose(false);
   catcher.SetCaptureMessage(false);
+  Isolate::MarkTryCatchInternal(&catcher);
 
   maybe_result = Invoke(isolate, params);
 

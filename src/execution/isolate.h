@@ -1157,6 +1157,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void RegisterTryCatchHandler(v8::TryCatch* that);
   void UnregisterTryCatchHandler(v8::TryCatch* that);
+  static void MarkTryCatchInternal(v8::TryCatch* that);
+  static bool IsInternalTryCatch(v8::TryCatch* that);
 
   char* ArchiveThread(char* to);
   char* RestoreThread(char* from);

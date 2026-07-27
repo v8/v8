@@ -3007,6 +3007,7 @@ using TryCatchIsVerboseField = v8::base::BitField<bool, 0, 1, uint8_t>;
 using TryCatchCanContinueField = TryCatchIsVerboseField::Next<bool, 1>;
 using TryCatchCaptureMessageField = TryCatchCanContinueField::Next<bool, 1>;
 using TryCatchRethrowField = TryCatchCaptureMessageField::Next<bool, 1>;
+using TryCatchIsInternalField = TryCatchRethrowField::Next<bool, 1>;
 }  // namespace
 
 v8::TryCatch::TryCatch(v8::Isolate* v8_isolate)
@@ -3015,7 +3016,8 @@ v8::TryCatch::TryCatch(v8::Isolate* v8_isolate)
       flags_(TryCatchIsVerboseField::encode(false) |
              TryCatchCanContinueField::encode(true) |
              TryCatchCaptureMessageField::encode(true) |
-             TryCatchRethrowField::encode(false)) {
+             TryCatchRethrowField::encode(false) |
+             TryCatchIsInternalField::encode(false)) {
   ResetInternal();
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ = static_cast<internal::Address>(
@@ -3159,6 +3161,14 @@ bool v8::TryCatch::rethrow() const {
 
 void v8::TryCatch::set_rethrow(bool value) {
   flags_ = TryCatchRethrowField::update(flags_, value);
+}
+
+bool v8::TryCatch::IsInternal() const {
+  return TryCatchIsInternalField::decode(flags_);
+}
+
+void v8::TryCatch::SetIsInternal(bool value) {
+  flags_ = TryCatchIsInternalField::update(flags_, value);
 }
 
 // --- M e s s a g e ---
