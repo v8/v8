@@ -2053,6 +2053,8 @@ DEFINE_BOOL(stress_wasm_stack_switching, false,
             "with a regular (non-JSPI) export")
 DEFINE_INT(wasm_stack_switching_stack_size, V8_DEFAULT_STACK_SIZE_KB,
            "default size of stacks for wasm stack-switching (in kB)")
+DEFINE_INT(wasm_stack_pool_capacity_mb, 500,
+           "default capacity for the wasm stack pool in MB, -1 for unlimited")
 // 1 will be rounded up to the smallest possible initial stack size, which
 // depends on the stack limit margin and the platform's page size.
 DEFINE_VALUE_IMPLICATION(wasm_growable_stacks,

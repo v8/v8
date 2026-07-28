@@ -331,9 +331,6 @@ class StackPool {
  private:
   std::vector<std::unique_ptr<StackMemory>> freelist_;
   size_t size_ = 0;
-  // If the next finished stack would move the total size above this limit, the
-  // stack is freed instead of being added to the free list.
-  static constexpr int kMaxSize = 4 * MB;
 };
 
 using WasmFXArgBufferCallback =

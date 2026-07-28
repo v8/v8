@@ -241,7 +241,9 @@ bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {
 }
 
 std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {
-  while (size_ > kMaxSize) {
+  while (v8_flags.wasm_stack_pool_capacity_mb >= 0 &&
+         size_ >
+             static_cast<size_t>(v8_flags.wasm_stack_pool_capacity_mb) * MB) {
     size_ -= freelist_.back()->allocated_size();
     freelist_.pop_back();
   }
