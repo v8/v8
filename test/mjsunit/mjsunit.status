@@ -277,6 +277,9 @@
   # Disabled since v8_flags.always_use_string_forwarding_table is now READONLY.
   'string-forwarding-table': [SKIP],
 
+  # Requires a large --wasm-max-code-space-size-mb.
+  'regress/wasm/regress-538378084': [PASS, ['arch not in (x64, ia32) or no_simd_hardware', SKIP]],
+
   # Slow tests in the lower_limits_mode.
   # The lower limits makes EphemeronHashTables more inefficient by making hashes
   # collide more. This tests adds many objects to a WeakMap and that is very
