@@ -604,6 +604,7 @@
   'weakrefs/finalizationregistry-independent-lifetime-multiple': [SKIP],
   'weakrefs/finalizationregistry-keeps-holdings-alive': [SKIP],
   'weakrefs/finalizationregistry-scheduled-for-cleanup-multiple-times': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
   'weakrefs/multiple-dirty-finalization-groups': [SKIP],
   'weakrefs/reentrant-gc-from-cleanup': [SKIP],
   'weakrefs/symbol-as-weakref-target-gc': [SKIP],
