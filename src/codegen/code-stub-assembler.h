@@ -5285,6 +5285,12 @@ class ToDirectStringAssembler : public CodeStubAssembler {
     return TryToSequential(PTR_TO_STRING, if_bailout);
   }
 
+  // Jumps to {if_bailout} if the direct string's map changed since the last
+  // TryToDirect, i.e. if a GC thinned it or swapped in an external resource.
+  // Callers must re-check across an allocation before using string(),
+  // PointerToData() or PointerToString().
+  void BailIfTransitioned(Label* if_bailout);
+
   TNode<BoolT> IsOneByte();
 
   TNode<String> string() { return var_string_.value(); }

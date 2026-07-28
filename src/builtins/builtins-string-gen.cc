@@ -1575,6 +1575,11 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
     TNode<FixedArray> elements =
         CAST(AllocateFixedArray(PACKED_ELEMENTS, length));
+    // The allocation above may have internalized a shared subject, forwarding
+    // it to a ThinString or freeing an external resource, which would leave
+    // the pointer below pointing at unrelated heap data.
+    to_direct.BailIfTransitioned(&fill_thehole_and_call_runtime);
+
     // Don't allocate anything while {string_data} is live!
     TNode<RawPtrT> string_data =
         to_direct.PointerToData(&fill_thehole_and_call_runtime);

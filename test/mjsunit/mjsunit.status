@@ -2764,6 +2764,8 @@
   'regress/regress-526275356': [SKIP],
   'regress/regress-526275356-2': [SKIP],
   'regress/regress-537813778': [SKIP],
+  'regress/regress-538529872': [SKIP],
+  'regress/regress-538529872-2': [SKIP],
   'regress/wasm/regress-536581698': [SKIP],
   'turboshaft/regress-523436017': [SKIP],
   # We need this here because it needs --fuzzing, and in that case we do not

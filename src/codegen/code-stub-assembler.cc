@@ -9780,6 +9780,17 @@ TNode<String> ToDirectStringAssembler::ToDirect() {
   return var_string_.value();
 }
 
+void ToDirectStringAssembler::BailIfTransitioned(Label* if_bailout) {
+#if V8_STATIC_ROOTS_BOOL
+  GotoIfNot(TaggedEqual(LoadMap(var_string_.value()), var_map_.value()),
+            if_bailout);
+#else
+  GotoIfNot(Word32Equal(LoadInstanceType(var_string_.value()),
+                        var_instance_type_.value()),
+            if_bailout);
+#endif
+}
+
 TNode<BoolT> ToDirectStringAssembler::IsOneByte() {
 #if V8_STATIC_ROOTS_BOOL
   return IsOneByteStringMap(var_map_.value());
