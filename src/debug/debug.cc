@@ -2911,8 +2911,8 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
       // caller frames are at a call site, which acts as a memory serialization
       // barrier, forcing them to reload all heap state upon return anyway.
       if (frame->is_optimized()) {
-        Deoptimizer::DeoptimizeFunction(*function,
-                                        LazyDeoptimizeReason::kDebugger);
+        Deoptimizer::DeoptimizeFunction(
+            *function, LazyDeoptimizeReason::kDebugger, frame->LookupCode());
       }
 
       // kScheduled breaks are triggered by the stack check. While we could
@@ -3434,7 +3434,8 @@ void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
                                 int inlined_frame_index) {
   if (frame->is_optimized()) {
     Deoptimizer::DeoptimizeFunction(frame->function(),
-                                    LazyDeoptimizeReason::kDebugger);
+                                    LazyDeoptimizeReason::kDebugger,
+                                    frame->LookupCode());
   }
 
   thread_local_.restart_frame_id_ = frame->id();
