@@ -22,6 +22,7 @@
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/object-predicates-inl.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots.h"

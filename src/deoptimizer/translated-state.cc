@@ -30,6 +30,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string.h"
 

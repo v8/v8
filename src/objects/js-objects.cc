@@ -55,6 +55,7 @@
 #include "src/objects/js-shadow-realm.h"
 #include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-details.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"

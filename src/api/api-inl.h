@@ -17,7 +17,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/foreign-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/object-conversions-inl.h"
 
 namespace v8 {
 

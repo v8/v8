@@ -57,6 +57,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"

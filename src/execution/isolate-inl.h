@@ -12,7 +12,6 @@
 #include "src/objects/contexts-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/lookup-inl.h"
-#include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/regexp-match-info.h"

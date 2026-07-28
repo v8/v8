@@ -41,6 +41,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/code.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/profiler/tick-sample.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/unicode-inl.h"

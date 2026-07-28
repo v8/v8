@@ -82,6 +82,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/map-updater.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/synthetic-module-inl.h"

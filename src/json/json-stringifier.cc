@@ -20,6 +20,7 @@
 #include "src/objects/js-raw-json-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table.h"

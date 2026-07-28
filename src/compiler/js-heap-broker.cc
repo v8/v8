@@ -23,6 +23,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/megadom-handler-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-cell.h"
 

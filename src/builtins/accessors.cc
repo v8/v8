@@ -22,6 +22,7 @@
 #include "src/objects/js-function.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/prototype.h"
 

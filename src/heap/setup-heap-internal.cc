@@ -39,6 +39,7 @@
 #include "src/objects/map.h"
 #include "src/objects/megadom-handler.h"
 #include "src/objects/microtask.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table.h"

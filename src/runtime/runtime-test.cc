@@ -37,6 +37,7 @@
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/sandbox/bytecode-verifier.h"
 #include "src/utils/utils.h"

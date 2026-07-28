@@ -47,6 +47,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
 #include "src/objects/slots-inl.h"

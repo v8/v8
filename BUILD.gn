@@ -4481,6 +4481,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/module.h",
     "src/objects/name-inl.h",
     "src/objects/name.h",
+    "src/objects/object-conversions-inl.h",
     "src/objects/object-list-macros.h",
     "src/objects/object-macros-undef.h",
     "src/objects/object-macros.h",

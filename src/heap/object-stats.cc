@@ -25,6 +25,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/prototype-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/templates.h"

@@ -27,7 +27,6 @@
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/hole.h"
 #include "src/objects/instance-type-inl.h"
-#include "src/objects/objects-inl.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"

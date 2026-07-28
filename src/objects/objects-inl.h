@@ -611,24 +611,6 @@ DEF_HEAP_OBJECT_PREDICATE(IsAccessCheckNeeded) {
 }
 
 // static
-double Object::NumberValue(Tagged<Number> obj) {
-  DCHECK(IsNumber(obj));
-  return IsSmi(obj) ? static_cast<double>(UncheckedCast<Smi>(obj).value())
-                    : UncheckedCast<HeapNumber>(obj)->value();
-}
-// TODO(leszeks): Remove in favour of Tagged<Number>
-// static
-double Object::NumberValue(Tagged<Object> obj) {
-  return NumberValue(Cast<Number>(obj));
-}
-double Object::NumberValue(Tagged<HeapNumber> obj) {
-  return NumberValue(Cast<Number>(obj));
-}
-double Object::NumberValue(Tagged<Smi> obj) {
-  return NumberValue(Cast<Number>(obj));
-}
-
-// static
 template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 Maybe<double> Object::IntegerValue(Isolate* isolate, HandleType<T> input) {
@@ -741,21 +723,6 @@ bool Object::FitsRepresentation(Tagged<Object> obj,
     return false;
   }
   return true;
-}
-
-// static
-bool Object::ToUint32(Tagged<Object> obj, uint32_t* value) {
-  if (IsSmi(obj)) {
-    int num = Smi::ToInt(obj);
-    if (num < 0) return false;
-    *value = static_cast<uint32_t>(num);
-    return true;
-  }
-  if (IsHeapNumber(obj)) {
-    double num = Cast<HeapNumber>(obj)->value();
-    return DoubleToUint32IfEqualToSelf(num, value);
-  }
-  return false;
 }
 
 // static
@@ -961,40 +928,6 @@ inline bool IsCustomElementsReceiverInstanceType(InstanceType instance_type) {
 // dependency.
 bool IsCustomElementsReceiverMap(Tagged<Map> map) {
   return IsCustomElementsReceiverInstanceType(map->instance_type());
-}
-
-// static
-bool Object::ToArrayLength(Tagged<Object> obj, uint32_t* index) {
-  return Object::ToUint32(obj, index);
-}
-
-// static
-bool Object::ToArrayIndex(Tagged<Object> obj, uint32_t* index) {
-  return Object::ToUint32(obj, index) && *index != kMaxUInt32;
-}
-
-// static
-bool Object::ToIntegerIndex(Tagged<Object> obj, size_t* index) {
-  if (IsSmi(obj)) {
-    int num = Smi::ToInt(obj);
-    if (num < 0) return false;
-    *index = static_cast<size_t>(num);
-    return true;
-  }
-  if (IsHeapNumber(obj)) {
-    double num = Cast<HeapNumber>(obj)->value();
-    if (!(num >= 0)) return false;  // Negation to catch NaNs.
-    constexpr double max =
-        std::min(kMaxSafeInteger,
-                 // The maximum size_t is reserved as "invalid" sentinel.
-                 static_cast<double>(std::numeric_limits<size_t>::max() - 1));
-    if (num > max) return false;
-    size_t result = static_cast<size_t>(num);
-    if (num != result) return false;  // Conversion lost fractional precision.
-    *index = result;
-    return true;
-  }
-  return false;
 }
 
 WriteBarrierModeScope HeapObject::GetWriteBarrierMode(

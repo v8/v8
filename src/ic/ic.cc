@@ -38,6 +38,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/megadom-handler.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
 #include "src/runtime/runtime.h"

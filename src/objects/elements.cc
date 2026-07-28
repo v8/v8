@@ -23,6 +23,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-shared-array.h"
 #include "src/objects/keys.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots.h"

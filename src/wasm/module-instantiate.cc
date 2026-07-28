@@ -19,6 +19,7 @@
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/managed.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/sandbox/trusted-pointer-scope.h"
 #include "src/tracing/trace-event.h"

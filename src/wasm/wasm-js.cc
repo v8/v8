@@ -27,6 +27,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"

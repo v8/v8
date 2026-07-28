@@ -43,6 +43,7 @@
 #include "src/objects/js-disposable-stack.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-details.h"

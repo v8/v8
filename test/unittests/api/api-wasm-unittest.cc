@@ -14,6 +14,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"

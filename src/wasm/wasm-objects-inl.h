@@ -26,6 +26,7 @@
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/managed.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/object-predicates-inl.h"
 #include "src/objects/pod-array-inl.h"
 #include "src/objects/slots-inl.h"

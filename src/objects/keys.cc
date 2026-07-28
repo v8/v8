@@ -20,6 +20,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-descriptor.h"

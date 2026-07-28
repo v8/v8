@@ -32,6 +32,7 @@
 #include "src/objects/js-temporal-objects.h"
 #endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "src/objects/property-descriptor.h"

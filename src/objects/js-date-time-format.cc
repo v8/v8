@@ -25,6 +25,7 @@
 #include "temporal_rs/Instant.hpp"
 #endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/option-utils.h"
 #include "unicode/calendar.h"
 #include "unicode/dtitvfmt.h"

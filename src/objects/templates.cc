@@ -27,6 +27,7 @@
 #include "src/objects/managed-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/string-inl.h"

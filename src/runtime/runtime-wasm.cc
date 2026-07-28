@@ -22,6 +22,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"

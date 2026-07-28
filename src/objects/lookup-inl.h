@@ -18,7 +18,7 @@
 #include "src/objects/internal-index.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/property-details.h"
 
 namespace v8 {

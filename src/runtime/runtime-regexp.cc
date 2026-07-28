@@ -15,6 +15,7 @@
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/regexp/regexp.h"
 #include "src/strings/string-builder-inl.h"

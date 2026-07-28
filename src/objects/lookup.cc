@@ -23,6 +23,7 @@
 #include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #include "src/objects/map-updater.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-details.h"
 #include "src/objects/struct-inl.h"

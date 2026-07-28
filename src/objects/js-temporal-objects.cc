@@ -22,6 +22,7 @@
 #include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-temporal-zoneinfo64.h"
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "src/objects/property-descriptor.h"
