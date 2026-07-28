@@ -94,38 +94,6 @@ namespace heap {
 static const int kPretenureCreationCount =
     PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-static void VerifyStoredPrototypeMap(Isolate* isolate,
-                                     int stored_map_context_index,
-                                     int stored_ctor_context_index) {
-  DirectHandle<Context> context = isolate->native_context();
-
-  DirectHandle<Map> this_map(
-      Cast<Map>(context->GetNoCell(stored_map_context_index)), isolate);
-
-  DirectHandle<JSFunction> fun(
-      Cast<JSFunction>(context->GetNoCell(stored_ctor_context_index)), isolate);
-  DirectHandle<JSObject> proto(Cast<JSObject>(fun->initial_map()->prototype()),
-                               isolate);
-  DirectHandle<Map> that_map(proto->map(), isolate);
-
-  CHECK(proto->HasFastProperties());
-  CHECK_EQ(*this_map, *that_map);
-}
-
-// Checks that critical maps stored on the context (mostly used for fast-path
-// checks) are unchanged after initialization.
-TEST(ContextMaps) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
-
-  VerifyStoredPrototypeMap(isolate,
-                           Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
-                           Context::STRING_FUNCTION_INDEX);
-  VerifyStoredPrototypeMap(isolate, Context::REGEXP_PROTOTYPE_MAP_INDEX,
-                           Context::REGEXP_FUNCTION_INDEX);
-}
-
 TEST(InitialObjects) {
   LocalContext env;
   HandleScope scope(CcTest::i_isolate());

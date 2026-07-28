@@ -8,6 +8,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/codegen/compiler.h"
+#include "src/objects/contexts.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -155,6 +156,33 @@ TEST_F(ObjectWithIsolate, DictionaryGrowth) {
   dict = NumberDictionary::New(isolate(), 1);
   dict = NumberDictionary::EnsureCapacity(isolate(), dict, 30);
   CHECK_EQ(64, dict->Capacity());
+}
+
+TEST_F(TestWithNativeContext, ContextMaps) {
+  auto VerifyFunctionPrototypeMap = [this](int stored_map_context_index,
+                                           int stored_ctor_context_index) {
+    DirectHandle<Context> context = native_context();
+
+    DirectHandle<Map> this_map(
+        Cast<Map>(context->GetNoCell(stored_map_context_index)), i_isolate());
+
+    DirectHandle<JSFunction> fun(
+        Cast<JSFunction>(context->GetNoCell(stored_ctor_context_index)),
+        i_isolate());
+    DirectHandle<JSObject> proto(
+        Cast<JSObject>(fun->initial_map()->prototype()), i_isolate());
+    DirectHandle<Map> that_map(proto->map(), i_isolate());
+
+    EXPECT_TRUE(proto->HasFastProperties());
+    EXPECT_EQ(*this_map, *that_map);
+  };
+
+  VerifyFunctionPrototypeMap(Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
+                             Context::STRING_FUNCTION_INDEX);
+  VerifyFunctionPrototypeMap(Context::REGEXP_PROTOTYPE_MAP_INDEX,
+                             Context::REGEXP_FUNCTION_INDEX);
+  VerifyFunctionPrototypeMap(Context::OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX,
+                             Context::OBJECT_FUNCTION_INDEX);
 }
 
 TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
