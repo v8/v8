@@ -124,7 +124,7 @@ CompilationJob::Status MaglevCompilationJob::AbortOptimization(
 
 CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
   if (function()->shared()->GetBytecodeArray(isolate)->length() >
-      v8_flags.max_optimized_bytecode_size) {
+      v8_flags.max_maglev_optimized_bytecode_size) {
     return AbortOptimization(isolate, BailoutReason::kFunctionTooBig);
   }
   BeginPhaseKind("V8.MaglevPrepareJob");
