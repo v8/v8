@@ -11,6 +11,7 @@
 
 #include <atomic>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
@@ -398,7 +399,12 @@ class V8_EXPORT_PRIVATE WasmInterpreterThreadMap {
   void NotifyIsolateDisposal(Isolate* isolate);
 
  private:
-  typedef absl::flat_hash_map<int, std::unique_ptr<WasmInterpreterThread>>
+  // The map is process-global and shared by all isolates. A single OS thread
+  // can be time-shared by multiple isolates (e.g. an embedder that multiplexes
+  // isolates on one thread via v8::Locker), so entries must be keyed by both
+  // the OS thread id and the isolate.
+  typedef absl::flat_hash_map<std::pair<int, Isolate*>,
+                              std::unique_ptr<WasmInterpreterThread>>
       ThreadInterpreterMap;
   ThreadInterpreterMap map_;
   base::Mutex mutex_;

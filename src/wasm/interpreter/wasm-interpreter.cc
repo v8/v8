@@ -261,14 +261,18 @@ WasmInterpreterThreadMap* WasmInterpreterThread::thread_interpreter_map_s =
 WasmInterpreterThread* WasmInterpreterThreadMap::GetCurrentInterpreterThread(
     Isolate* isolate) {
   const int current_thread_id = ThreadId::Current().ToInteger();
+  // Key by both the OS thread id and the isolate: the same OS thread can run
+  // wasm for different isolates over time (v8::Locker multiplexing), and each
+  // isolate needs its own WasmInterpreterThread so that isolate_,
+  // reference_stack_ and stack_mem_ are never reused across isolates.
+  const std::pair<int, Isolate*> key(current_thread_id, isolate);
   {
     base::MutexGuard guard(&mutex_);
 
-    auto it = map_.find(current_thread_id);
+    auto it = map_.find(key);
     if (it == map_.end()) {
-      map_[current_thread_id] =
-          std::make_unique<WasmInterpreterThread>(isolate);
-      it = map_.find(current_thread_id);
+      map_[key] = std::make_unique<WasmInterpreterThread>(isolate);
+      it = map_.find(key);
     }
     return it->second.get();
   }
