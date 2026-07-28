@@ -4223,7 +4223,7 @@ void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
   ASM_CODE_COMMENT(this);
   DCHECK_NE(dst_object, dst_slot);
   // If `offset` is a register, it cannot overlap with `object`.
-  DCHECK_IMPLIES(!offset.IsImmediate(), offset.reg() != object);
+  DCHECK_IMPLIES(!offset.IsImmediate(), !offset.reg().Aliases(object));
 
   // If the slot register does not overlap with the object register, we can
   // overwrite it.
@@ -4237,19 +4237,19 @@ void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
 
   // If the destination object register does not overlap with the offset
   // register, we can overwrite it.
-  if (offset.IsImmediate() || (offset.reg() != dst_object)) {
+  if (offset.IsImmediate() || !offset.reg().Aliases(dst_object)) {
     Mov(dst_object, dst_slot);
     Add(dst_slot, dst_slot, offset);
     return;
   }
 
-  DCHECK_EQ(dst_object, offset.reg());
+  DCHECK(dst_object.Aliases(offset.reg()));
 
   // We only have `dst_slot` and `dst_object` left as distinct registers so we
   // have to swap them. We write this as a add+sub sequence to avoid using a
   // scratch register.
-  Add(dst_slot, dst_slot, dst_object);
-  Sub(dst_object, dst_slot, dst_object);
+  Add(dst_slot, dst_slot, offset);
+  Sub(dst_object, dst_slot, offset);
 }
 
 // If lr_status is kLRHasBeenSaved, lr will be clobbered.
