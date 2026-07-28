@@ -642,6 +642,10 @@ class MaglevGraphBuilder {
     return reducer_.GetCheckType(type);
   }
 
+  ReduceResult BuildAbort(AbortReason reason) {
+    return reducer_.BuildAbort(reason);
+  }
+
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
   std::optional<Float64> TryGetFloat64OrHoleyFloat64Constant(

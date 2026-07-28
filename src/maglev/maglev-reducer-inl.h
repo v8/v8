@@ -478,6 +478,12 @@ ReduceResult MaglevReducer<BaseT>::BuildStoreTaggedField(
     ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
     PropertyKey property_key, MaybeAssignedFlag maybe_assigned) {
   DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
+
+  // Unfortunately we need to check for empty types this late. If you think we
+  // can detect them earlier, have a look at
+  // test/mjsunit/maglev/regress-538884561-2.js.
+  ABORT_IF_EMPTY_TYPE(value);
+
   if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
     if (!IsInitializing(store_mode)) {
       base_->TryBuildStoreTaggedFieldToAllocation(object, value, offset);
@@ -510,6 +516,12 @@ ReduceResult MaglevReducer<BaseT>::BuildStoreTaggedFieldNoWriteBarrier(
     ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
     PropertyKey property_key) {
   DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
+
+  // Unfortunately we need to check for empty types this late. If you think we
+  // can detect them earlier, have a look at
+  // test/mjsunit/maglev/regress-538884561-2.js.
+  ABORT_IF_EMPTY_TYPE(value);
+
   DCHECK(CanElideWriteBarrier(object, value));
   if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
     if (!IsInitializing(store_mode)) {

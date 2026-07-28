@@ -4214,6 +4214,12 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
   // TODO(victorgomes): Support storing element to a virtual object. If we
   // modify the elements array, we need to modify the original object to point
   // to the new elements array.
+
+  // Unfortunately we need to check for empty types this late. If you think we
+  // can detect them earlier, have a look at
+  // test/mjsunit/maglev/regress-538884561-2.js.
+  ABORT_IF_EMPTY_TYPE(value);
+
   if (CanElideWriteBarrier(elements, value)) {
     return AddNewNode<StoreFixedArrayElementNoWriteBarrier>(
         {elements, index, value});
@@ -8479,6 +8485,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
   ValueNode* executing_constant =
       GetSmiConstant(JSGeneratorObject::kGeneratorExecuting);
   ValueNode* next_constant = GetSmiConstant(JSGeneratorObject::kNext);
+
+  // If any of the constants have an empty type, we're in dead code, and the
+  // write barrier elision logic inside StoreTaggedFieldNoWriteBarrier will be
+  // confused. Bail out now. Ideally, this would be done inside
+  // BuildStoreTaggedFieldNoWriteBarrier, but in the code below we want to
+  // assert there won't be deopts after we've called into user code, and we have
+  // no way to distinguish an abort (reducer_.BuildAbort()) from a deopt.
+  ABORT_IF_EMPTY_TYPE(closed_constant);
+  ABORT_IF_EMPTY_TYPE(executing_constant);
+  ABORT_IF_EMPTY_TYPE(next_constant);
 
   MaglevSubGraphBuilder::Label generator_already_closed(&subgraph, 1);
   MaglevSubGraphBuilder::Label generator_finished(&subgraph, 1);

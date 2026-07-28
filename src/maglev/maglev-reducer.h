@@ -280,6 +280,11 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     DCHECK_NOT_NULL(variable);               \
   } while (false)
 
+#define ABORT_IF_EMPTY_TYPE(node)                 \
+  if (IsEmptyNodeType(GetType(node))) {           \
+    return BuildAbort(AbortReason::kUnreachable); \
+  }
+
 template <typename BaseT>
 concept ReducerBaseWithKNA = requires(BaseT* b) { b->known_node_aspects(); };
 
