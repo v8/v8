@@ -2384,6 +2384,8 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
 
 Tagged<WasmArray> Factory::NewWasmArrayUninitialized(
     uint32_t length, DirectHandle<Map> map, AllocationType allocation) {
+  DCHECK_LE(length, static_cast<uint32_t>(WasmArray::MaxLength(
+                        WasmArray::DecodeElementSizeFromMap(*map))));
   const bool is_shared = allocation == AllocationType::kSharedOld;
   DCHECK_EQ(is_shared, HeapLayout::InAnySharedSpace(*map));
   Tagged<HeapObject> raw =

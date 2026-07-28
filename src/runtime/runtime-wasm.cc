@@ -2681,6 +2681,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
   int32_t shared = args.smi_value_at(1);
   uint32_t length = MeasureWtf8(isolate, string);
+  constexpr int kElemSize = wasm::kWasmI8.value_kind_size();
+  if (length > static_cast<uint32_t>(WasmArray::MaxLength(kElemSize))) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapArrayTooLarge);
+  }
   wasm::WasmValue initial_value(int8_t{0});
   Tagged<WeakFixedArray> rtts = isolate->heap()->wasm_canonical_rtts();
   // This function can only get called from Wasm code, so we can safely assume
