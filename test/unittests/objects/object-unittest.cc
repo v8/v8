@@ -185,6 +185,24 @@ TEST_F(TestWithNativeContext, ContextMaps) {
                              Context::OBJECT_FUNCTION_INDEX);
 }
 
+TEST_F(TestWithNativeContext, InitialObjects) {
+  // Initial ArrayIterator prototype.
+  EXPECT_EQ(native_context()->initial_array_iterator_prototype(),
+            *RunJS<JSObject>("[][Symbol.iterator]().__proto__"));
+  // Initial Array prototype.
+  EXPECT_EQ(native_context()->initial_array_prototype(),
+            *RunJS<JSObject>("Array.prototype"));
+  // Initial Generator prototype.
+  EXPECT_EQ(native_context()->initial_generator_prototype(),
+            *RunJS<JSObject>("(function*(){}).__proto__.prototype"));
+  // Initial Iterator prototype.
+  EXPECT_EQ(native_context()->initial_iterator_prototype(),
+            *RunJS<JSObject>("[][Symbol.iterator]().__proto__.__proto__"));
+  // Initial Object prototype.
+  EXPECT_EQ(native_context()->initial_object_prototype(),
+            *RunJS<JSObject>("Object.prototype"));
+}
+
 TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
   // Check that the empty_function has a properly set up ScopeInfo.
   DirectHandle<JSFunction> function = RunJS<JSFunction>("(function(){})");

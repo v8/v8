@@ -94,29 +94,6 @@ namespace heap {
 static const int kPretenureCreationCount =
     PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-TEST(InitialObjects) {
-  LocalContext env;
-  HandleScope scope(CcTest::i_isolate());
-  DirectHandle<Context> context = v8::Utils::OpenDirectHandle(*env);
-  // Initial ArrayIterator prototype.
-  CHECK_EQ(context->initial_array_iterator_prototype(),
-           *v8::Utils::OpenDirectHandle(
-               *CompileRun("[][Symbol.iterator]().__proto__")));
-  // Initial Array prototype.
-  CHECK_EQ(context->initial_array_prototype(),
-           *v8::Utils::OpenDirectHandle(*CompileRun("Array.prototype")));
-  // Initial Generator prototype.
-  CHECK_EQ(context->initial_generator_prototype(),
-           *v8::Utils::OpenDirectHandle(
-               *CompileRun("(function*(){}).__proto__.prototype")));
-  // Initial Iterator prototype.
-  CHECK_EQ(context->initial_iterator_prototype(),
-           *v8::Utils::OpenDirectHandle(
-               *CompileRun("[][Symbol.iterator]().__proto__.__proto__")));
-  // Initial Object prototype.
-  CHECK_EQ(context->initial_object_prototype(),
-           *v8::Utils::OpenDirectHandle(*CompileRun("Object.prototype")));
-}
 
 
 static bool WeakPointerCleared = false;
