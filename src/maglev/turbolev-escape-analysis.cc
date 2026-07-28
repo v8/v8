@@ -1005,7 +1005,8 @@ class FieldValuesTracker : public CandidateAnalyzer {
     return BlockProcessResult::kContinue;
   }
 
-  bool CreateSnapshotFor(BasicBlock* block) {
+  bool CreateSnapshotFor(BasicBlock* block,
+                         bool is_loop_fixpoint_check = false) {
     TRACE("> CreateSnapshotFor " << BLOCK_ID(block));
     DCHECK(field_values().IsSealed());
     base::SmallVector<Snapshot, 4> predecessors_snapshots;
@@ -1087,25 +1088,35 @@ class FieldValuesTracker : public CandidateAnalyzer {
       // Trying to find an already-created Phi for this field. If we find it, we
       // reuse it, for 2 reasons:
       //
-      //   - termination: if there is already a Phi for this field, then it's
-      //     guaranteed to already have the right values (cf comment below), and
-      //     thus we don't need to trigger a revisit of the loop. Creating a
-      //     branch new phi would trigger loop revisits for ever (since it
-      //     always set {need_revisit} to true).
+      //   - performance (always): we avoid reallocating a new phi.
       //
-      //   - performance: we avoid reallocating a new phi.
+      //   - correctness / termination (when {is_loop_fixpoint_check} is true):
+      //     if there is already a Phi for this field, we reuse it and do not
+      //     trigger a revisit of the loop. Creating a brand new phi would
+      //     trigger loop revisits forever (since it always sets {need_revisit}
+      //     to true).
+      //
+      // Note that when {is_loop_fixpoint_check} is false (for example, when an
+      // outer loop revisits an inner loop), the forward-edge predecessors of
+      // the inner loop header may have changed across outer-loop iterations.
+      // Therefore, we update any changed inputs on the reused Phi to match the
+      // incoming predecessors.
       for (auto [phi, other_key] : old_phis_) {
         if (other_key != key) continue;
-#ifdef DEBUG
-        // Forward edges shouldn't have changed, and PatchLoopPhisBackedges
-        // should have already patched the backedge. So, if we find a phi, its
-        // inputs should already have the correct values.
         DCHECK_EQ(phi->input_count(), predecessors.size());
+        bool any_input_changed = false;
         for (int i = 0; i < phi->input_count(); i++) {
-          DCHECK_EQ(phi->input_node(i), predecessors[i]);
+          if (phi->input_node(i) != predecessors[i]) {
+            DCHECK(!is_loop_fixpoint_check);
+            phi->change_input(i, predecessors[i]);
+            any_input_changed = true;
+          }
         }
-#endif
+        DCHECK_IMPLIES(is_loop_fixpoint_check, !any_input_changed);
         RegisterNewPhi(phi, block, key);
+        if (any_input_changed) {
+          CandidateAnalyzer::ProcessPhi(phi);
+        }
         return phi;
       }
 
@@ -1212,7 +1223,7 @@ class FieldValuesTracker : public CandidateAnalyzer {
       // and recomputing it afterwards.
       bool needs_revisit = has_escaped_candidate ||
                            CheckLoopPhiInvalidation(loop_header) ||
-                           CreateSnapshotFor(loop_header);
+                           CreateSnapshotFor(loop_header, true);
       if (needs_revisit) {
         TRACE("> Will revisit loop");
         // Discarding temporary snapshot.
