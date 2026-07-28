@@ -1177,6 +1177,33 @@ void RecordMaglevFunctionCompilation(Isolate* isolate,
       isolate, LogEventListener::CodeTag::kFunction, script, shared,
       feedback_vector, code, code->kind(), time_taken_ms);
 }
+
+// A bailout on a property of the function itself repeats on every attempt.
+// Recording it stops the tiering manager from picking Maglev again, so the
+// function tiers up to Turbofan instead of recompiling Maglev forever.
+void MaybeMarkMaglevCompilationFailed(DirectHandle<JSFunction> function,
+                                      BytecodeOffset osr_offset,
+                                      BailoutReason reason) {
+  // The bit lives on the SharedFunctionInfo, so an OSR-only bailout must not
+  // disable Maglev for the regular entry point too.
+  if (IsOSR(osr_offset)) return;
+  switch (reason) {
+    case BailoutReason::kMaglevGraphBuildingFailed:
+      function->shared()->set_maglev_compilation_failed(true);
+      break;
+    default:
+      break;
+  }
+}
+
+void AbortMaglevCompilationJob(Isolate* isolate,
+                               DirectHandle<JSFunction> function,
+                               BytecodeOffset osr_offset,
+                               BailoutReason reason) {
+  CompilerTracer::TraceAbortedMaglevCompile(isolate, function, reason);
+  MaybeMarkMaglevCompilationFailed(function, osr_offset, reason);
+  function->SetTieringInProgress(isolate, false, osr_offset);
+}
 #endif  // V8_ENABLE_MAGLEV
 
 MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
@@ -1228,6 +1255,12 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
         job->ExecuteJob(isolate->counters()->runtime_call_stats(),
                         isolate->main_thread_local_isolate());
     if (status == CompilationJob::FAILED) {
+      // Synchronous compilation never sets tiering_in_progress, so unlike
+      // FinalizeMaglevCompilationJob this must not reset it.
+      CompilerTracer::TraceAbortedMaglevCompile(isolate, function,
+                                                job->bailout_reason_);
+      MaybeMarkMaglevCompilationFailed(function, osr_offset,
+                                       job->bailout_reason_);
       return {};
     }
     CHECK_EQ(status, CompilationJob::SUCCEEDED);
@@ -4542,24 +4575,26 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
   DirectHandle<JSFunction> function = job->function();
   BytecodeOffset osr_offset = job->osr_offset();
 
+  if (job->state() == CompilationJob::State::kFailed) {
+    AbortMaglevCompilationJob(isolate, function, osr_offset,
+                              job->bailout_reason_);
+    return;
+  }
+  DCHECK_EQ(job->state(), CompilationJob::State::kReadyToFinalize);
+
   if (function->ActiveTierIsTurbofan(isolate) && !job->is_osr()) {
-    function->SetTieringInProgress(isolate, false, osr_offset);
-    CompilerTracer::TraceAbortedMaglevCompile(isolate, function,
-                                              BailoutReason::kCancelled);
+    AbortMaglevCompilationJob(isolate, function, osr_offset,
+                              BailoutReason::kCancelled);
     return;
   }
   // Discard code compiled for a discarded native context without finalization.
   if (function->native_context()->IsDetached()) {
-    CompilerTracer::TraceAbortedMaglevCompile(
-        isolate, function, BailoutReason::kDetachedNativeContext);
+    AbortMaglevCompilationJob(isolate, function, osr_offset,
+                              BailoutReason::kDetachedNativeContext);
     return;
   }
 
   const CompilationJob::Status status = job->FinalizeJob(isolate);
-
-  // TODO(v8:7700): Use the result and check if job succeed
-  // when all the bytecodes are implemented.
-  USE(status);
 
   if (status == CompilationJob::SUCCEEDED) {
     DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
@@ -4595,11 +4630,11 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     CompilerTracer::TraceFinishMaglevCompile(
         isolate, function, job->is_osr(), job->prepare_in_ms(),
         job->execute_in_ms(), job->finalize_in_ms());
+    function->SetTieringInProgress(isolate, false, osr_offset);
   } else {
-    CompilerTracer::TraceAbortedMaglevCompile(isolate, function,
-                                              job->bailout_reason_);
+    AbortMaglevCompilationJob(isolate, function, osr_offset,
+                              job->bailout_reason_);
   }
-  function->SetTieringInProgress(isolate, false, osr_offset);
 #endif
 }
 
