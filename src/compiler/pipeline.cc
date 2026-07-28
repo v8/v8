@@ -3503,6 +3503,9 @@ std::ostream& operator<<(std::ostream& out, const InstructionRangesAsJSON& s) {
   return out;
 }
 
+#undef RUN_MAYBE_ABORT
+#undef PIPELINE_RUN_MAYBE_ABORT
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
