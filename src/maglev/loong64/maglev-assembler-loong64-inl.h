@@ -532,10 +532,13 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
 inline MemOperand MaglevAssembler::TypedArrayElementOperand(
     Register data_pointer, Register index, int element_size) {
   const int shift = ShiftFromScale(element_size);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  Bstrpick_d(scratch, index, 31, 0);
   if (shift == 0) {
-    Add_d(data_pointer, data_pointer, index);
+    Add_d(data_pointer, data_pointer, scratch);
   } else {
-    Alsl_d(data_pointer, index, data_pointer, shift);
+    Alsl_d(data_pointer, scratch, data_pointer, shift);
   }
   return MemOperand(data_pointer, 0);
 }
@@ -560,11 +563,16 @@ inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
                                                     int offset) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  // Int32 inputs are sign-extended on loong64; ensure the index contributes a
+  // non-negative offset to the 64-bit element address.
+  Bstrpick_d(scratch, index, 31, 0);
   const int shift = ShiftFromScale(scale);
   if (shift == 0) {
-    Add_d(result, object, index);
+    Add_d(result, object, scratch);
   } else {
-    Alsl_d(result, index, object, shift);
+    Alsl_d(result, scratch, object, shift);
   }
   LoadTaggedField(result, FieldMemOperand(result, offset));
 }
@@ -611,7 +619,10 @@ void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
     CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
                           AbortReason::kUnexpectedNegativeValue);
   }
-  Alsl_d(result, index, array, kTaggedSizeLog2);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  Bstrpick_d(scratch, index, 31, 0);
+  Alsl_d(result, scratch, array, kTaggedSizeLog2);
   MacroAssembler::LoadTaggedFieldWithoutDecompressing(
       result, FieldMemOperand(result, OFFSET_OF_DATA_START(FixedArray)));
 }
@@ -627,7 +638,8 @@ void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
   }
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  Alsl_d(scratch, index, array, kDoubleSizeLog2);
+  Bstrpick_d(scratch, index, 31, 0);
+  Alsl_d(scratch, scratch, array, kDoubleSizeLog2);
   Fld_d(result, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
 
@@ -635,7 +647,8 @@ inline void MaglevAssembler::StoreFixedDoubleArrayElement(
     Register array, Register index, DoubleRegister value) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  Alsl_d(scratch, index, array, kDoubleSizeLog2);
+  Bstrpick_d(scratch, index, 31, 0);
+  Alsl_d(scratch, scratch, array, kDoubleSizeLog2);
   Fst_d(value, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
 
@@ -672,8 +685,11 @@ inline void MaglevAssembler::SetSlotAddressForTaggedField(Register slot_reg,
 inline void MaglevAssembler::SetSlotAddressForFixedArrayElement(
     Register slot_reg, Register object, Register index) {
   DCHECK(!AreAliased(slot_reg, index));
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
   Add_d(slot_reg, object, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
-  Alsl_d(slot_reg, index, slot_reg, kTaggedSizeLog2);
+  Bstrpick_d(scratch, index, 31, 0);
+  Alsl_d(slot_reg, scratch, slot_reg, kTaggedSizeLog2);
 }
 
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
@@ -686,7 +702,8 @@ inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
     Register array, Register index, Register value) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  Alsl_d(scratch, index, array, kTaggedSizeLog2);
+  Bstrpick_d(scratch, index, 31, 0);
+  Alsl_d(scratch, scratch, array, kTaggedSizeLog2);
   MacroAssembler::StoreTaggedField(
       value, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
