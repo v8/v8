@@ -1016,12 +1016,14 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   if (current_code_space_.size() < static_cast<size_t>(code_size)) {
     // Allocate the next code space. Don't allocate more than 90% of
     // {kMaxCodeSpaceSize}, to leave some space for jump tables.
+    // Perform the division first to avoid overflow.
     size_t max_reservation = RoundUp<kCodeAlignment>(
-        v8_flags.wasm_max_code_space_size_mb * MB * 9 / 10);
+        v8_flags.wasm_max_code_space_size_mb * MB / 10 * 9);
     size_t code_space_size = std::min(max_reservation, remaining_code_size_);
     std::tie(current_code_space_, current_jump_tables_) =
         native_module_->AllocateForDeserializedCode(code_space_size);
     DCHECK_EQ(current_code_space_.size(), code_space_size);
+    CHECK_LE(code_size, current_code_space_.size());
     CHECK(current_jump_tables_.is_valid());
   }
 

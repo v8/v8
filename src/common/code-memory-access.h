@@ -282,6 +282,7 @@ class V8_EXPORT ThreadIsolation {
     base::Address StartOfAllocationAt(base::Address inner_pointer);
     std::pair<base::Address, JitAllocation&> AllocationContaining(
         base::Address addr);
+    base::Address EndOfLastAllocation();
 
     bool Empty() const { return jit_page_->allocations_.empty(); }
     void Shrink(class JitPage* tail);
