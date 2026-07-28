@@ -227,10 +227,18 @@ V8_NOINLINE Tagged<Code> BuildWithMacroAssembler(
   masm.GetCode(isolate->main_thread_local_isolate(), &desc,
                MacroAssembler::kNoSafepointTable, handler_table_offset);
 
+  int parameter_count = 0;
+#if V8_ENABLE_WEBASSEMBLY
+  if (builtin == Builtin::kWasmResume || builtin == Builtin::kWasmReject) {
+    parameter_count = Builtins::GetFormalParameterCount(builtin);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   DirectHandle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
           .set_self_reference(masm.CodeObject())
           .set_builtin(builtin)
+          .set_parameter_count(parameter_count)
           .Build();
 #if defined(V8_OS_WIN64)
   isolate->SetBuiltinUnwindData(builtin, masm.GetUnwindInfo());
