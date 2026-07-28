@@ -10913,8 +10913,8 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
 }
 
 void Isolate::ContextDisposedNotification(ContextDependants dependants) {
-  // TODO(mlippautz): Replace implementation with the old version of
-  // ContextDisposedNotification() that still has a return parameter.
+  // TODO(mlippautz): Move implementation here once the deprecated version of
+  // ContextDisposedNotification() with the return parameter is removed.
   START_ALLOW_USE_DEPRECATED()
   ContextDisposedNotification(dependants == ContextDependants::kSomeDependants);
   END_ALLOW_USE_DEPRECATED()

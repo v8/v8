@@ -1510,7 +1510,7 @@ class V8_EXPORT Isolate {
    * The optional parameter |dependant_context| specifies whether the disposed
    * context was depending on state from other contexts or not.
    */
-  V8_DEPRECATE_SOON("Use version that passes ContextDependants.")
+  V8_DEPRECATED("Use version that passes ContextDependants.")
   int ContextDisposedNotification(bool dependant_context = true);
 
   /**
