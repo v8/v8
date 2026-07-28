@@ -1393,7 +1393,8 @@ void Debug::PrepareStepOnThrow() {
     if (last_step_action() == StepInto) {
       // Deoptimize frame to ensure calls are checked for step-in.
       Deoptimizer::DeoptimizeFunction(frame->function(),
-                                      LazyDeoptimizeReason::kDebugger);
+                                      LazyDeoptimizeReason::kDebugger,
+                                      frame->LookupCode());
     }
     FrameSummaries summaries = frame->Summarize();
     for (size_t i = summaries.size(); i != 0; i--, current_frame_count--) {
@@ -1596,7 +1597,8 @@ void Debug::PrepareStep(StepAction step_action) {
         if (last_step_action() == StepInto) {
           // Deoptimize frame to ensure calls are checked for step-in.
           Deoptimizer::DeoptimizeFunction(js_frame->function(),
-                                          LazyDeoptimizeReason::kDebugger);
+                                          LazyDeoptimizeReason::kDebugger,
+                                          js_frame->LookupCode());
         }
         HandleScope inner_scope(isolate_);
         std::vector<Handle<SharedFunctionInfo>> infos;
