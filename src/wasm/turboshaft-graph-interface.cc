@@ -2155,6 +2155,7 @@ class TurboshaftGraphBuildingInterface
     OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
                               base::VectorOf(inputs), ts_call_descriptor);
     BuildSwitchBackFromCentralStack(old_sp, old_limit);
+    instance_cache_.ReloadCachedMemory();
 
 #if DEBUG
     // Reset the context again after the call, to make sure nobody is using the
