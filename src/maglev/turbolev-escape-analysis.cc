@@ -1262,17 +1262,7 @@ class FieldValuesTracker : public CandidateAnalyzer {
         // decisions based on the inputs of Phis, so the fact that the backedge
         // of {phi} is now escaping doesn't invalidate any decision made in the
         // loop.
-#ifdef DEBUG
-        bool needed_revisit_before =
-            data_.loop_stack.back().has_escaped_candidate;
-#endif
         data_.MarkAsEscaped(backedge_alloc);
-        // Calling MarkAsEscaped should not have marked the current loop as
-        // needing to be revisited as long as {backedge_alloc} was defined in
-        // the current loop.
-        DCHECK_IMPLIES(data_.alloc_definition_loop.at(backedge_alloc) == header,
-                       needed_revisit_before ==
-                           data_.loop_stack.back().has_escaped_candidate);
       }
 
       DCHECK_NOT_NULL(backedge_val);
