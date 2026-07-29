@@ -84,7 +84,10 @@ size_t YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
   const int object_size =
       static_cast<int>(Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(
           map, object, maybe_object_size));
-  PretenuringHandler::UpdateAllocationSite(
+  PretenuringHandler::UpdateAllocationSite<
+      marking_mode == YoungGenerationMarkingVisitationMode::kConcurrent
+          ? PretenuringHandler::kForConcurrentGC
+          : PretenuringHandler::kForGC>(
       isolate_->heap(), map, object, object_size, local_pretenuring_feedback_);
   return object_size;
 }
