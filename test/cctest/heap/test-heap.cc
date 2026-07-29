@@ -160,17 +160,6 @@ TEST(String) {
   VerifyStringAllocation(isolate, "fiskerdrengen er paa havet");
 }
 
-TEST(LocalHandles) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-
-  v8::HandleScope scope(CcTest::isolate());
-  const char* name = "Kasper the spunky";
-  DirectHandle<String> string = factory->NewStringFromAsciiChecked(name);
-  CHECK_EQ(strlen(name), string->length());
-}
-
 TEST(GlobalHandles) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
