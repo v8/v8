@@ -461,6 +461,7 @@ v8_source_set("v8_unittests_sources") {
     "profiler/circular-queue-unittest.cc",
     "profiler/strings-storage-unittest.cc",
     "regexp/regexp-unittest.cc",
+    "regress/regress-536271629-unittest.cc",
     "regress/regress-crbug-1041240-unittest.cc",
     "regress/regress-crbug-1056054-unittest.cc",
     "regress/regress-crbug-938251-unittest.cc",
