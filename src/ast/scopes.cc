@@ -2904,6 +2904,12 @@ void Scope::AllocateScopeInfosRecursively(
     CHECK_EQ(scope_info_->scope_type(), scope_type_);
     CHECK_EQ(scope_info_->HasContext(), NeedsContext());
     CHECK_EQ(scope_info_->ContextLength(), num_heap_slots_);
+    if (is_function_scope()) {
+      DeclarationScope* function_scope = AsDeclarationScope();
+      CHECK_EQ(scope_info_->HasSimpleParameters(),
+               function_scope->has_simple_parameters());
+      CHECK_EQ(scope_info_->ParameterCount(), function_scope->num_parameters());
+    }
 #ifdef DEBUG
     // Consume the scope info.
     it->second = {};
