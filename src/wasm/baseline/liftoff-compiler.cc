@@ -11490,15 +11490,6 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       code->for_debugging() == kForStepping
           ? base::ArrayVector(kSteppingBreakpoints)
           : base::Vector<const int>{};
-  WasmFunctionCoverageData* coverage_data = nullptr;
-  if (V8_UNLIKELY(v8_flags.wasm_code_coverage)) {
-    DCHECK_NOT_NULL(env.module_coverage_data);
-    int declared_function_index =
-        code->index() - native_module->module()->num_imported_functions;
-    coverage_data = env.module_coverage_data->GetFunctionCoverageData(
-        declared_function_index);
-    DCHECK_NOT_NULL(coverage_data);
-  }
   WasmFullDecoder<Decoder::NoValidationTag, LiftoffCompiler> decoder(
       &zone, native_module->module(), env.enabled_features, &detected,
       func_body, call_descriptor, &env, &zone,
@@ -11507,7 +11498,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       LiftoffOptions{.func_index = code->index(),
                      .for_debugging = code->for_debugging(),
                      .breakpoints = breakpoints},
-      coverage_data);
+      nullptr);
   decoder.Decode();
   DCHECK(decoder.ok());
   DCHECK(!decoder.interface().did_bailout());
