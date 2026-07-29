@@ -8229,8 +8229,9 @@ class ProcessWasmArgument
  public:
   explicit ProcessWasmArgument(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::TaggedValue();
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::TaggedValue() |
+                                              OpProperties::NotIdempotent();
 
   DECLARE_INPUTS(Value)
   DECLARE_INPUT_TYPES(Tagged)
