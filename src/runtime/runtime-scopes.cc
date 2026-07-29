@@ -552,7 +552,7 @@ DirectHandle<JSObject> NewSloppyArguments(Isolate* isolate,
                                           T parameters,
                                           uint32_t argument_count) {
   CHECK(!IsDerivedConstructor(callee->shared()->kind()));
-  DCHECK(callee->shared()->has_simple_parameters());
+  CHECK(callee->shared()->has_simple_parameters());
   DirectHandle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
 
