@@ -100,8 +100,7 @@ V8_WARN_UNUSED_RESULT bool CheckMarkedForManualOptimization(
     PrintF(
         " should be prepared for optimization with "
         "%%PrepareFunctionForOptimization before  "
-        "%%OptimizeFunctionOnNextCall / %%OptimizeMaglevOnNextCall / "
-        "%%OptimizeOsr ");
+        "%%OptimizeFunctionOnNextCall / %%OptimizeMaglevOnNextCall");
     return false;
   }
   return true;
@@ -745,10 +744,15 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   CHECK_UNLESS_FUZZING(!function->shared()->all_optimization_disabled());
 
-  // If we're fuzzing, allow having not marked the function for manual
-  // optimization (if the steps below succeed).
-  if (!v8_flags.fuzzing) {
-    CHECK(CheckMarkedForManualOptimization(isolate, *function));
+  if (!v8_flags.fuzzing &&
+      !ManualOptimizationTable::IsMarkedForManualOptimization(isolate,
+                                                              *function)) {
+    PrintF("Warning: Function ");
+    ShortPrint(*function);
+    PrintF(
+        " might have to be prepared for optimization with "
+        "%%PrepareFunctionForOptimization before  "
+        "%%OptimizeOsr");
   }
 
   if (function->HasAvailableOptimizedCode(isolate) &&
