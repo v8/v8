@@ -3026,7 +3026,7 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
     unobserved_context_slot_stores_[key] = store;
   } else {
     if (known_node_aspects().may_have_aliasing_contexts() !=
-        KnownNodeAspects::ContextSlotLoadsAlias::kYes) {
+        KnownNodeAspects::ContextSlotLoadsAlias::kAlways) {
       auto last_store = unobserved_context_slot_stores_.find(key);
       if (last_store != unobserved_context_slot_stores_.end()) {
         MarkNodeDead(last_store->second);

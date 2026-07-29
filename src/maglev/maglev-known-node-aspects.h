@@ -442,7 +442,7 @@ class KnownNodeAspects {
     loaded_context_slots_.clear();
     available_expressions_.clear();
     side_effects_require_invalidation_ = false;
-    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kNone;
+    may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kNever;
     node_infos_.clear();
     virtual_objects_ = {};
   }
@@ -716,10 +716,10 @@ class KnownNodeAspects {
   }
 
   enum class ContextSlotLoadsAlias : uint8_t {
-    kNone,
+    kNever,
     kOnlyLoadsRelativeToCurrentContext,
     kOnlyLoadsRelativeToConstant,
-    kYes,
+    kAlways,
   };
   ContextSlotLoadsAlias may_have_aliasing_contexts() const {
     return may_have_aliasing_contexts_;
@@ -727,9 +727,9 @@ class KnownNodeAspects {
   static ContextSlotLoadsAlias ContextSlotLoadsAliasMerge(
       ContextSlotLoadsAlias m1, ContextSlotLoadsAlias m2) {
     if (m1 == m2) return m1;
-    if (m1 == ContextSlotLoadsAlias::kNone) return m2;
-    if (m2 == ContextSlotLoadsAlias::kNone) return m1;
-    return ContextSlotLoadsAlias::kYes;
+    if (m1 == ContextSlotLoadsAlias::kNever) return m2;
+    if (m2 == ContextSlotLoadsAlias::kNever) return m1;
+    return ContextSlotLoadsAlias::kAlways;
   }
   struct ContextStoreResult {
     enum Type {
@@ -843,7 +843,7 @@ class KnownNodeAspects {
         loaded_context_slots_(zone),
         available_expressions_(zone),
         side_effects_require_invalidation_(false),
-        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNone),
+        may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNever),
         effect_epoch_(0),
         node_infos_(zone),
         virtual_objects_() {}

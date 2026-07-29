@@ -522,18 +522,28 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
                          });
   may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
       may_have_aliasing_contexts_, backedge.may_have_aliasing_contexts());
+  const bool context_stores_may_alias =
+      may_have_aliasing_contexts_ != ContextSlotLoadsAlias::kNever;
   std::optional<IgnoreListCursor<LoadedContextSlotsKey>> slot_written;
   if (keep_invariant_loads && !loop_effects->may_have_aliasing_contexts) {
     slot_written.emplace(loop_effects->context_slot_written);
   }
+  auto context_slot_invariant = [&](const LoadedContextSlotsKey& key) {
+    if (!slot_written.has_value()) return false;
+    if (slot_written->Contains(key)) return false;
+    if (context_stores_may_alias &&
+        loop_effects->WritesContextSlotOffset(std::get<int>(key))) {
+      return false;
+    }
+    return true;
+  };
   // TODO(victorgomes): Like loaded_properties_ above, an invariant forward
   // context slot could be kept without a backedge witness.
-  DestructivelyIntersect(loaded_context_slots_, backedge.loaded_context_slots_,
-                         [&](auto key, ValueNode* l, ValueNode* r) {
-                           return l == r || (slot_written.has_value() &&
-                                             !slot_written->Contains(key) &&
-                                             same_load(l, r));
-                         });
+  DestructivelyIntersect(
+      loaded_context_slots_, backedge.loaded_context_slots_,
+      [&](auto key, ValueNode* l, ValueNode* r) {
+        return l == r || (context_slot_invariant(key) && same_load(l, r));
+      });
 }
 
 void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {
@@ -599,7 +609,7 @@ void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {
 void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     compiler::JSHeapBroker* broker, LocalIsolate* local_isolate,
     ValueNode* context) {
-  if (may_have_aliasing_contexts_ == ContextSlotLoadsAlias::kYes) return;
+  if (may_have_aliasing_contexts_ == ContextSlotLoadsAlias::kAlways) return;
 
   while (true) {
     if (auto load_prev_ctxt = context->TryCast<LoadContextSlotNoCells>()) {
@@ -636,26 +646,26 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       USE(load);
       DCHECK(load->offset() == offsetof(JSFunction, context_) ||
              load->offset() == offsetof(JSGeneratorObject, context_));
-      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
       DCHECK(NodeTypeIs(GetTypeUnchecked(broker, context), NodeType::kContext));
       break;
     }
     case Opcode::kCallRuntime:
       DCHECK(NodeTypeIs(GetTypeUnchecked(broker, context), NodeType::kContext));
-      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
       break;
     case Opcode::kGeneratorRestoreRegister:
-      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
       break;
     case Opcode::kPhi:
-      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
       break;
     default:
       // This DCHECK only shows which kind of nodes can be a context, even if
       // this DCHECK fails, it is always safe to set aliasing context mode to
-      // kYes.
+      // kAlways.
       DCHECK(false);
-      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
       break;
   }
 }
@@ -750,7 +760,7 @@ void KnownNodeAspects::ClearUnstableNodeAspects(bool is_tracing_enabled) {
   loaded_properties_.clear();
   loaded_tagged_keyed_properties_.clear();
   loaded_context_slots_.clear();
-  may_have_aliasing_contexts_ = KnownNodeAspects::ContextSlotLoadsAlias::kNone;
+  may_have_aliasing_contexts_ = KnownNodeAspects::ContextSlotLoadsAlias::kNever;
 }
 
 KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(
@@ -769,7 +779,7 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       available_expressions_(zone),
       side_effects_require_invalidation_(false),
       may_have_aliasing_contexts_(
-          KnownNodeAspects::ContextSlotLoadsAlias::kNone),
+          KnownNodeAspects::ContextSlotLoadsAlias::kNever),
       effect_epoch_(other.effect_epoch_),
       node_infos_(zone),
       virtual_objects_(other.virtual_objects_) {
@@ -829,9 +839,9 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
     }
     if (!loaded_context_slots_.empty()) {
       if (loop_effects->may_have_aliasing_contexts) {
-        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
       } else {
-        DCHECK_EQ(may_have_aliasing_contexts_, ContextSlotLoadsAlias::kNone);
+        DCHECK_EQ(may_have_aliasing_contexts_, ContextSlotLoadsAlias::kNever);
         may_have_aliasing_contexts_ = other.may_have_aliasing_contexts();
       }
     }
@@ -857,10 +867,11 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
 
   // Analysis state can change with loads.
   if (!loop_header.loaded_context_slots_.empty() &&
-      loop_header.may_have_aliasing_contexts() != ContextSlotLoadsAlias::kYes &&
+      loop_header.may_have_aliasing_contexts() !=
+          ContextSlotLoadsAlias::kAlways &&
       loop_header.may_have_aliasing_contexts() !=
           may_have_aliasing_contexts() &&
-      may_have_aliasing_contexts() != ContextSlotLoadsAlias::kNone) {
+      may_have_aliasing_contexts() != ContextSlotLoadsAlias::kNever) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible "
                    "loop_header.may_have_aliasing_contexts\n";
@@ -955,7 +966,7 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
   SmallZoneVector<LoadedContextSlotsKey, 8> aliased_slots_(graph->zone());
   UpdateMayHaveAliasingContexts(graph->broker(),
                                 graph->broker()->local_isolate(), context);
-  if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::kYes) {
+  if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::kAlways) {
     for (auto& cache : loaded_context_slots_) {
       int cached_offset = std::get<int>(cache.first);
       ValueNode* cached_context = std::get<ValueNode*>(cache.first);

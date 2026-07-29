@@ -686,6 +686,11 @@ struct LoopEffects {
   bool unstable_aspects_cleared = false;
   bool elements_kind_transitioned = false;
   bool may_have_aliasing_contexts = false;
+  bool WritesContextSlotOffset(int offset) const {
+    return std::any_of(
+        context_slot_written.begin(), context_slot_written.end(),
+        [offset](const auto& key) { return std::get<int>(key) == offset; });
+  }
   void Merge(const LoopEffects* other) {
     if (!unstable_aspects_cleared) {
       unstable_aspects_cleared = other->unstable_aspects_cleared;
