@@ -370,7 +370,8 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
                                      ? ExpressionScopeT::kLexicalDeclaration
                                      : ExpressionScopeT::kVarDeclaration),
         mode_(mode),
-        names_(names) {}
+        names_(names),
+        scope_(parser->scope()) {}
 
   VariableDeclarationParsingScope(const VariableDeclarationParsingScope&) =
       delete;
@@ -381,10 +382,9 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
     VariableKind kind = NORMAL_VARIABLE;
     bool was_added;
     Variable* var = this->parser()->DeclareVariable(
-        name, kind, mode_, Variable::DefaultInitializationFlag(mode_),
-        this->parser()->scope(), &was_added, pos);
-    if (was_added &&
-        this->parser()->scope()->num_var() > kMaxNumFunctionLocals) {
+        name, kind, mode_, Variable::DefaultInitializationFlag(mode_), scope_,
+        &was_added, pos);
+    if (was_added && scope_->num_var() > kMaxNumFunctionLocals) {
       this->parser()->ReportMessage(MessageTemplate::kTooManyVariables);
     }
     if (names_) names_->Add(name, this->parser()->zone());
@@ -428,6 +428,7 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
 
   VariableMode mode_;
   ZonePtrList<const AstRawString>* names_;
+  Scope* scope_;
 };
 
 template <typename Types>
