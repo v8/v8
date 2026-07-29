@@ -198,18 +198,24 @@ void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
   // VirtualObjects should never be add to the Maglev graph.
   DCHECK(!node->Is<VirtualObject>());
   graph_->increment_total_nodes();
-  if (current_block_position_.is_at_end()) {
+  if (V8_UNLIKELY(HasPendingSplice())) {
+    BasicBlock* exit = pending_splice().exit;
+    DCHECK_NOT_NULL(exit);
+    exit->nodes().push_back(node);
+    node->set_owner(exit);
+  } else if (current_block_position_.is_at_end()) {
     if (V8_UNLIKELY(add_new_node_mode_ == AddNewNodeMode::kUnbuffered)) {
       current_block_->nodes().push_back(node);
     } else {
       new_nodes_at_end_.push_back(node);
     }
+    node->set_owner(current_block());
   } else {
     DCHECK_EQ(add_new_node_mode_, AddNewNodeMode::kBuffered);
     new_nodes_at_.push_back(
         std::make_pair(current_block_position_.index(), node));
+    node->set_owner(current_block());
   }
-  node->set_owner(current_block());
   if (node->properties().can_throw()) period_added_throwing_node_ = true;
   if (V8_UNLIKELY(has_graph_labeller())) RegisterNode(node);
   TRACE(TraceNewNode{node});
