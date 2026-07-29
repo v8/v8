@@ -23,9 +23,11 @@
 #include "include/v8-isolate.h"
 #include "include/v8-object.h"
 #include "src/base/bounded-page-allocator.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/factory.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
@@ -40,6 +42,7 @@
 #include "src/heap/trusted-range.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/instruction-stream-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -1429,6 +1432,43 @@ TEST_F(HeapTest, CheckCrashKeysAreReportedInOOM) {
       { heap()->FatalProcessOutOfMemory("CheckCrashKeysAreReportedInOOM"); },
       "Reached end of test.");
   g_crash_key_store_for_oom = nullptr;
+}
+
+TEST_F(HeapTest, FindCodeForInnerPointer) {
+#define __ assm.
+
+  Assembler assm(i_isolate()->allocator(), AssemblerOptions{});
+
+  __ nop();  // supported on all architectures
+
+  CodeDesc desc;
+  assm.GetCode(i_isolate(), &desc);
+  DirectHandle<InstructionStream> code(
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING)
+          .Build()
+          ->instruction_stream(),
+      i_isolate());
+  EXPECT_TRUE(IsInstructionStream(*code));
+
+  Tagged<HeapObject> obj = Cast<HeapObject>(*code);
+  Address obj_addr = obj.address();
+
+  for (int i = 0; i < obj->Size(); i += kTaggedSize) {
+    Tagged<Code> lookup_result = heap()->FindCodeForInnerPointer(obj_addr + i);
+    EXPECT_EQ(*code, lookup_result->instruction_stream());
+  }
+
+  DirectHandle<InstructionStream> copy(
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING)
+          .Build()
+          ->instruction_stream(),
+      i_isolate());
+  Tagged<HeapObject> obj_copy = Cast<HeapObject>(*copy);
+  Tagged<Code> not_right = heap()->FindCodeForInnerPointer(
+      obj_copy.address() + obj_copy->Size() / 2);
+  EXPECT_NE(not_right->instruction_stream(), *code);
+  EXPECT_EQ(not_right->instruction_stream(), *copy);
+#undef __
 }
 
 }  // namespace internal
