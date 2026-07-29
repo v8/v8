@@ -146,8 +146,8 @@ v8_flag(name = "v8_enable_snapshot_code_comments")
 v8_flag(name = "v8_enable_snapshot_native_code_counters")
 
 v8_flag(
-  name = "v8_enable_static_roots",
-  default = True,
+    name = "v8_enable_static_roots",
+    default = True,
 )
 
 v8_flag(name = "v8_enable_trace_maps")
@@ -550,16 +550,16 @@ v8_config(
         ],
         "//conditions:default": [],
     }) + select({
-        "@v8//bazel/config:asan_enabled" : [ "V8_USE_ADDRESS_SANITIZER" ],
+        "@v8//bazel/config:asan_enabled": ["V8_USE_ADDRESS_SANITIZER"],
         "//conditions:default": [],
     }) + select({
-        "@v8//bazel/config:hwasan_enabled" : [ "V8_USE_HWADDRESS_SANITIZER" ],
+        "@v8//bazel/config:hwasan_enabled": ["V8_USE_HWADDRESS_SANITIZER"],
         "//conditions:default": [],
     }) + select({
-        "@v8//bazel/config:msan_enabled" : [ "V8_USE_MEMORY_SANITIZER" ],
+        "@v8//bazel/config:msan_enabled": ["V8_USE_MEMORY_SANITIZER"],
         "//conditions:default": [],
     }) + select({
-        "@v8//bazel/config:ubsan_enabled" : [ "V8_USE_UNDEFINED_BEHAVIOR_SANITIZER" ],
+        "@v8//bazel/config:ubsan_enabled": ["V8_USE_UNDEFINED_BEHAVIOR_SANITIZER"],
         "//conditions:default": [],
     }) + select(
         {
@@ -578,7 +578,7 @@ v8_config(
                 "V8_ENABLE_SPARKPLUG_PLUS",
             ],
             "@v8//bazel/config:v8_target_s390x": [
-                "V8_TARGET_ARCH_S390X"
+                "V8_TARGET_ARCH_S390X",
             ],
             "@v8//bazel/config:v8_target_riscv64": [
                 # NOTE: Bazel rules for riscv64 weren't tested on a real system.
@@ -587,7 +587,7 @@ v8_config(
             ],
             "@v8//bazel/config:v8_target_ppc64le": [
                 # NOTE: Bazel rules for ppc64le weren't tested on a real system.
-                "V8_TARGET_ARCH_PPC64"
+                "V8_TARGET_ARCH_PPC64",
             ],
         },
         no_match_error = "Please specify a target cpu supported by v8",
@@ -657,11 +657,10 @@ v8_config(
         "//conditions:default": [],
     }) + select({
         "v8_drumbrake_bounds_checks": [
-            "V8_DRUMBRAKE_BOUNDS_CHECKS"
+            "V8_DRUMBRAKE_BOUNDS_CHECKS",
         ],
         "//conditions:default": [],
     }),
-
     deps = [":default"],
 )
 
@@ -1326,7 +1325,7 @@ filegroup(
             "src/wasm/wasm-objects.tq",
         ],
         ":is_v8_enable_drumbrake": [
-            "src/wasm/wasm-interpreter-objects.tq"
+            "src/wasm/wasm-interpreter-objects.tq",
         ],
         "//conditions:default": [],
     }),
@@ -3270,7 +3269,6 @@ filegroup(
             "src/wasm/wasm-value.h",
             "src/wasm/well-known-imports.cc",
             "src/wasm/well-known-imports.h",
-
             "src/wasm/wasm-wrapper-cache-inl.h",
             "third_party/utf8-decoder/generalized-utf8-decoder.h",
         ],
@@ -4022,10 +4020,10 @@ filegroup(
         "//conditions:default": [],
     }) + select({
         ":enable_drumbrake_x64": [
-            "src/wasm/interpreter/x64/interpreter-builtins-x64.cc"
+            "src/wasm/interpreter/x64/interpreter-builtins-x64.cc",
         ],
         ":enable_drumbrake_arm64": [
-            "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc"
+            "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc",
         ],
         "//conditions:default": [],
     }),
@@ -4172,27 +4170,27 @@ filegroup(
 )
 
 v8_library(
-  name = "lib_dragonbox",
-  srcs = ["third_party/dragonbox/src/include/dragonbox/dragonbox.h"],
-  hdrs = [
-    "third_party/dragonbox/src/include/dragonbox/dragonbox.h",
-  ],
-  includes = [
-    "third_party/dragonbox/src/include",
-  ],
+    name = "lib_dragonbox",
+    srcs = ["third_party/dragonbox/src/include/dragonbox/dragonbox.h"],
+    hdrs = [
+        "third_party/dragonbox/src/include/dragonbox/dragonbox.h",
+    ],
+    includes = [
+        "third_party/dragonbox/src/include",
+    ],
 )
 
 v8_library(
-  name = "lib_fp16",
-  srcs = ["third_party/fp16/src/include/fp16.h"],
-  hdrs = [
-    "third_party/fp16/src/include/fp16/fp16.h",
-    "third_party/fp16/src/include/fp16/bitcasts.h",
-    "third_party/fp16/src/include/fp16/macros.h",
-  ],
-  includes = [
-    "third_party/fp16/src/include",
-  ],
+    name = "lib_fp16",
+    srcs = ["third_party/fp16/src/include/fp16.h"],
+    hdrs = [
+        "third_party/fp16/src/include/fp16/fp16.h",
+        "third_party/fp16/src/include/fp16/bitcasts.h",
+        "third_party/fp16/src/include/fp16/macros.h",
+    ],
+    includes = [
+        "third_party/fp16/src/include",
+    ],
 )
 
 filegroup(
@@ -4662,10 +4660,10 @@ cc_library(
 )
 
 cc_library(
-  name = "simdutf",
-  srcs = ["third_party/simdutf/simdutf.cpp"],
-  hdrs = ["third_party/simdutf/simdutf.h"],
-  copts = select({
+    name = "simdutf",
+    srcs = ["third_party/simdutf/simdutf.cpp"],
+    hdrs = ["third_party/simdutf/simdutf.h"],
+    copts = select({
         "@v8//bazel/config:is_clang": ["-std=c++20"],
         "@v8//bazel/config:is_gcc": ["-std=gnu++2a"],
         "@v8//bazel/config:is_windows": ["/std:c++20"],
