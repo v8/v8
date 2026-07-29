@@ -3369,9 +3369,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       const int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
       VectorFormat format = VectorFormatFillQ(lane_size);
       if (instr->InputAt(1)->IsImmediate()) {
-        __ Sshr(i.OutputSimd128Register().Format(format),
-                i.InputSimd128Register(0).Format(format),
-                i.InputIntFromLaneSize(1, lane_size));
+        int shift = i.InputIntFromLaneSize(1, lane_size);
+        if (shift == lane_size - 1) {
+          __ Cmlt(i.OutputSimd128Register().Format(format),
+                  i.InputSimd128Register(0).Format(format), 0);
+        } else {
+          __ Sshr(i.OutputSimd128Register().Format(format),
+                  i.InputSimd128Register(0).Format(format), shift);
+        }
       } else {
         UseScratchRegisterScope temps(masm());
         VRegister tmp = temps.AcquireQ();

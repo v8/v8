@@ -668,6 +668,7 @@
   'turboshaft-test-branch-combine/*': [SKIP],
   'turboshaft-test-compare-combine/*': [SKIP],
   'turboshaft-test-select-combine/*': [SKIP],
+  'turboshaft-test-simd-shift/*': [SKIP],
 
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
   'test-heap-profiler/WeakReference': [SKIP],
