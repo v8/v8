@@ -166,8 +166,8 @@ V8_OBJECT class ScopeInfo : public HeapObject {
 
   V8_EXPORT_PRIVATE bool HasInferredFunctionName() const;
 
-  void SetFunctionName(Tagged<UnionOf<Smi, String>> name);
-  void SetInferredFunctionName(Tagged<String> name);
+  V8_EXPORT_PRIVATE void SetFunctionName(Tagged<UnionOf<Smi, String>> name);
+  V8_EXPORT_PRIVATE void SetInferredFunctionName(Tagged<String> name);
 
   // Does this scope belong to a function?
   bool HasPositionInfo() const;
