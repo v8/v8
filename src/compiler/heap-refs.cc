@@ -348,7 +348,13 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
     }
 
     if (field_index.is_inobject()) {
+      // The main thread can store into this field while we read it. The race is
+      // benign: the snapshot protocol keeps the load in bounds, and
+      // OwnConstantDataPropertyDependency revalidates the value on the main
+      // thread.
+      TSAN_IGNORE_READS_BEGIN;
       constant = holder.object()->RawInobjectPropertyAt(map, field_index);
+      TSAN_IGNORE_READS_END;
       if (!constant.has_value()) {
         TRACE_BROKER_MISSING(
             broker, "Constant field in " << holder << " is unsafe to read");
