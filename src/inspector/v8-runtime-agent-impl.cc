@@ -973,8 +973,9 @@ void V8RuntimeAgentImpl::bindingCallback(
 
 void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
                                     const String16& name) {
+  int contextId = context->contextId();
   auto it = m_activeBindings.find(name);
-  if (it != m_activeBindings.end() && it->second.count(context->contextId())) {
+  if (it != m_activeBindings.end() && it->second.count(contextId)) {
     return;
   }
   v8::HandleScope handles(m_inspector->isolate());
@@ -988,12 +989,13 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
           .ToLocal(&functionValue)) {
     v8::Maybe<bool> success = global->Set(localContext, v8Name, functionValue);
     USE(success);
-    if (it == m_activeBindings.end()) {
-      m_activeBindings.emplace(name,
-                               std::unordered_set<int>(context->contextId()));
-    } else {
-      m_activeBindings.at(name).insert(context->contextId());
+
+    // The context might have been destroyed during the Set() call due to
+    // re-entrant JS.
+    if (!m_inspector->getContext(m_session->contextGroupId(), contextId)) {
+      return;
     }
+    m_activeBindings[name].insert(contextId);
   }
 }
 
@@ -1062,6 +1064,8 @@ void V8RuntimeAgentImpl::bindingCalled(const String16& name,
 }
 
 void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
+  int contextGroupId = context->contextGroupId();
+  int contextId = context->contextId();
   const String16 contextName = context->humanReadableName();
   if (!m_enabled) return;
 
@@ -1070,6 +1074,7 @@ void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
   if (globalBindings) {
     for (size_t i = 0; i < globalBindings->size(); ++i) {
       addBinding(context, globalBindings->at(i).first);
+      if (!m_inspector->getContext(contextGroupId, contextId)) return;
     }
   }
 
@@ -1081,6 +1086,7 @@ void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
     if (bindings) {
       for (size_t i = 0; i < bindings->size(); ++i) {
         addBinding(context, bindings->at(i).first);
+        if (!m_inspector->getContext(contextGroupId, contextId)) return;
       }
     }
   }
