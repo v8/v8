@@ -22,6 +22,7 @@
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/wasm-compiler-definitions.h"
+#include "src/execution/frame-constants.h"
 #include "src/flags/flags.h"
 #include "src/objects/object-list-macros.h"
 #include "src/trap-handler/trap-handler.h"
@@ -7165,6 +7166,18 @@ class TurboshaftGraphBuildingInterface
     // stack check.
     CHECK_NE(liftoff_frame_size_,
              FunctionTypeFeedback::kUninitializedLiftoffFrameSize);
+
+    int parameter_stack_slots = 0;
+    class DummyResultCollector {
+     public:
+      void AddParamAt(size_t index, LinkageLocation location) {}
+      void AddReturnAt(size_t index, LinkageLocation location) {}
+    } result_collector;
+    wasm::IterateSignatureImpl(decoder->sig_, false, result_collector, nullptr,
+                               &parameter_stack_slots, nullptr, nullptr);
+
+    liftoff_frame_size_ += parameter_stack_slots * kSystemPointerSize +
+                           CommonFrameConstants::kFixedFrameSizeAboveFp;
     return liftoff_frame_size_;
   }
 
