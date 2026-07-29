@@ -976,7 +976,8 @@ bool IC::TryHealMonomorphicIC(const MaybeObjectHandle& handler) {
   // The map/handler is already in the feedback, but we missed in baseline.
   // This means the baseline code was out of sync (still uninitialized).
   // We patch it to the monomorphic handler.
-  MaybePatchCode(FeedbackNexus::ic_handler(*feedback_handler, kind()));
+  MaybePatchCode(FeedbackNexus::ic_handler(*feedback_handler, kind(),
+                                           *lookup_start_object_map()));
   return true;
 }
 
@@ -994,7 +995,8 @@ void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
     case UNINITIALIZED: {
       UpdateMonomorphicIC(handler, name);
       if (v8_flags.sparkplug_plus) {
-        Builtin ic_handler = FeedbackNexus::ic_handler(*handler, kind());
+        Builtin ic_handler = FeedbackNexus::ic_handler(
+            *handler, kind(), *lookup_start_object_map());
         MaybePatchCode(ic_handler);
       }
       break;
@@ -3289,7 +3291,11 @@ RUNTIME_FUNCTION(Runtime_PatchLoadICUninitializedBaseline) {
 
   // Get target builtin's address.
   FeedbackNexus nexus(isolate, vector, vector_slot);
-  Builtin target_builtin = nexus.ic_handler();
+  Builtin target_builtin = Builtin::kLoadICGenericBaseline;
+  if (IsHeapObject(*receiver)) {
+    Tagged<Map> receiver_map = Cast<HeapObject>(receiver)->map();
+    target_builtin = nexus.ic_handler(receiver_map);
+  }
   DCHECK(target_builtin > Builtin::kFirstLoadICHandler &&
          target_builtin <= Builtin::kLastLoadICHandler);
   Address target = Builtins::EntryOf(target_builtin, isolate);
