@@ -501,7 +501,7 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT("v8", "V8.DeoptimizeCode");
   function->ResetIfCodeFlushed(isolate);
-  if (code.is_null()) code = function->code(isolate);
+  DCHECK(!code.is_null());
 
   if (CodeKindCanDeoptimize(code->kind())) {
     // Mark the code for deoptimization and unlink any functions that also
