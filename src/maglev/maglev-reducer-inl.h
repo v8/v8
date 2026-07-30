@@ -198,7 +198,14 @@ void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
   // VirtualObjects should never be add to the Maglev graph.
   DCHECK(!node->Is<VirtualObject>());
   graph_->increment_total_nodes();
-  if (V8_UNLIKELY(HasPendingSplice())) {
+  // ~Subgraph() restores current_block() to the block before the splice so that
+  // sequential sibling subgraphs within the same reduced node can chain onto
+  // the pending splice (see comment in ~Subgraph()). Therefore, when emitting a
+  // regular node after a subgraph has finished (active_subgraph_ == nullptr),
+  // route it to pending_splice().exit->nodes() so it lands after the splice.
+  // When inside an active subgraph (active_subgraph_ != nullptr), add nodes to
+  // current_block() as usual.
+  if (V8_UNLIKELY(HasPendingSplice() && active_subgraph_ == nullptr)) {
     BasicBlock* exit = pending_splice().exit;
     DCHECK_NOT_NULL(exit);
     exit->nodes().push_back(node);
