@@ -783,6 +783,16 @@ class KnownNodeAspects {
                                         : loaded_context_constants_.empty();
   }
 
+  static bool BuiltinInvalidatesKNA(Builtin builtin) {
+    switch (builtin) {
+      // TODO(victorgomes): Add more builtins to the list!
+      case Builtin::kCloneFastJSArray:
+        return false;
+      default:
+        return true;
+    }
+  }
+
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node, compiler::JSHeapBroker* broker,
                               bool is_tracing_enabled) {
@@ -793,6 +803,10 @@ class KnownNodeAspects {
 
     if constexpr (!PreservesTaggedKeyedProperties(Node::opcode_of<NodeT>)) {
       loaded_tagged_keyed_properties_.clear();
+    }
+
+    if constexpr (Node::opcode_of<NodeT> == Opcode::kCallBuiltin) {
+      if (!BuiltinInvalidatesKNA(node->builtin())) return;
     }
 
     if constexpr (Node::opcode_of<NodeT> == Opcode::kMaybeGrowFastElements) {

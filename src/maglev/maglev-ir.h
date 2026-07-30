@@ -10547,6 +10547,7 @@ class CallBuiltin : public VarargsValueNodeT<0, CallBuiltin> {
   V(ArrayPrototypeSplice, NodeType::kJSReceiver)                         \
   V(ArrayUnshift, NodeType::kNumber)                                     \
   V(ArrayBufferIsView, NodeType::kBoolean)                               \
+  V(CloneFastJSArray, NodeType::kJSArray)                                \
   V(ObjectAssign, NodeType::kJSReceiver)                                 \
   V(ObjectCreate, NodeType::kAnyHeapObject)                              \
   V(ObjectIs, NodeType::kBoolean)                                        \
