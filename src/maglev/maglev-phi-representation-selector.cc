@@ -78,6 +78,7 @@ MaglevPhiRepresentationSelector::MaglevPhiRepresentationSelector(Graph* graph)
 
 BlockProcessResult MaglevPhiRepresentationSelector::PreProcessBasicBlock(
     BasicBlock* block) {
+  DCHECK(!block->IsUnreachable());
   BasicBlock* old_block = reducer_.current_block();
   reducer_.set_current_block(block);
   PreparePhiTaggings(old_block, block);

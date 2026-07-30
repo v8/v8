@@ -257,9 +257,17 @@ struct PhiUntaggingPhase {
   DECL_TURBOLEV_PHASE_CONSTANTS(PhiUntagging)
 
   PhaseResult Run(maglev::Graph* graph) {
-    maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector> processor(
-        graph);
+    maglev::ReachableExceptionHandlerTracker tracker(graph);
+    maglev::MaglevPhiRepresentationSelector representation_selector(graph);
+    maglev::GraphMultiProcessor<maglev::ReachableExceptionHandlerTracker&,
+                                maglev::MaglevPhiRepresentationSelector&>
+        processor(tracker, representation_selector);
     processor.ProcessGraph(graph);
+
+    if (graph->may_have_unreachable_blocks()) {
+      graph->RemoveUnreachableBlocks();
+    }
+
     return PhaseResult::kContinue;
   }
 };
