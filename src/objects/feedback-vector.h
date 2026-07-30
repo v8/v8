@@ -986,9 +986,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   InlineCacheState ic_state() const;
   static Builtin ic_handler(Tagged<MaybeObject> feedback_extra,
-                            FeedbackSlotKind kind,
-                            Tagged<Map> lookup_start_object_map);
-  Builtin ic_handler(Tagged<Map> lookup_start_object_map) const;
+                            FeedbackSlotKind kind);
+  Builtin ic_handler() const;
 
   bool IsUninitialized() const {
     return ic_state() == InlineCacheState::UNINITIALIZED;
