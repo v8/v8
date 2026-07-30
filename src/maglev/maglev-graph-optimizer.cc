@@ -28,6 +28,32 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+namespace {
+
+DeoptFrame* GetDeoptFrameForLazyDeoptHelper(
+    Zone* zone, MaglevReducer<MaglevGraphOptimizer>::LazyDeoptFrameScope* scope,
+    DeoptFrame* parent) {
+  if (scope == nullptr) return parent;
+  DeoptFrame* new_parent =
+      GetDeoptFrameForLazyDeoptHelper(zone, scope->parent(), parent);
+  return zone->New<DeoptFrame>(scope->data(), new_parent);
+}
+
+}  // namespace
+
+std::tuple<DeoptFrame*, interpreter::Register, int>
+MaglevGraphOptimizer::GetDeoptFrameForLazyDeopt(bool can_throw) {
+  CHECK(current_node()->properties().can_lazy_deopt());
+  auto [frame, result_location, result_size] =
+      current_node()->lazy_deopt_info()->GetFrameForCloning();
+
+  if (reducer_.current_lazy_deopt_scope() != nullptr) {
+    frame = GetDeoptFrameForLazyDeoptHelper(
+        graph()->zone(), reducer_.current_lazy_deopt_scope(), frame);
+  }
+  return {frame, result_location, result_size};
+}
+
 #define RETURN_IF_SUCCESS(res) \
   do {                         \
     auto _res = (res);         \
@@ -1506,8 +1532,9 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
     Builtin builtin_id = shared.builtin_id();
     if (MaglevGraphBuilder::IsReducibleBuiltin(builtin_id)) {
       CallArguments args(node);
-      MaybeReduceResult reduction = reducer_.TryReduceBuiltin(
-          builtin_id, *target_function, args, node->feedback());
+      MaybeReduceResult reduction =
+          reducer_.TryReduceBuiltin(builtin_id, node->ContextInput().node(),
+                                    *target_function, args, node->feedback());
       if (reduction.IsDoneWithAbort()) {
         return ProcessResult::kTruncateBlock;
       }
@@ -1709,7 +1736,8 @@ ProcessResult MaglevGraphOptimizer::VisitCallKnownBuiltin(
 
   CallArguments args(node);
   MaybeReduceResult reduction = reducer_.TryReduceBuiltin(
-      node->builtin_id(), *target_function, args, node->feedback_source());
+      node->builtin_id(), node->ContextInput().node(), *target_function, args,
+      node->feedback_source());
   if (!reduction.IsDone()) return ProcessResult::kContinue;
   if (reduction.IsDoneWithAbort()) {
     return ProcessResult::kTruncateBlock;

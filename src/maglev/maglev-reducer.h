@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_REDUCER_H_
 
 #include <algorithm>
+#include <concepts>
 #include <initializer_list>
 #include <optional>
 #include <utility>
@@ -309,8 +310,10 @@ concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
 };
 
 template <typename BaseT>
-concept ReducerBaseWithLazyDeoptScope =
-    requires { typename BaseT::LazyDeoptFrameScope; };
+concept ReducerBaseWithDeoptFrameScopeHooks = requires(BaseT* b) {
+  b->OnBeginDeoptFrameScope();
+  b->OnEndDeoptFrameScope();
+};
 
 template <typename NodeT, typename BaseT>
 concept ReducerBaseWithEffectTracking = requires(BaseT* b) {
@@ -676,6 +679,36 @@ inline bool operator==(const BasicBlockPosition& lhs,
 template <typename BaseT>
 class MaglevReducer {
  public:
+  // Pushes a continuation deopt frame onto the current lazy deopt frame
+  // chain: nodes created while the scope is live get their lazy deopt frame
+  // wrapped with this continuation. The frame data construction is shared
+  // across reducer bases; the caller passes everything the frame needs (bases
+  // may additionally implement the ReducerBaseWithDeoptFrameScopeHooks
+  // hooks).
+  class V8_NODISCARD LazyDeoptFrameScope {
+   public:
+    LazyDeoptFrameScope(MaglevReducer* reducer, ValueNode* context,
+                        Builtin continuation,
+                        compiler::OptionalJSFunctionRef maybe_js_target = {},
+                        base::Vector<ValueNode* const> parameters = {});
+    LazyDeoptFrameScope(MaglevReducer* reducer, ValueNode* context,
+                        ValueNode* receiver, const MaglevCompilationUnit& unit,
+                        SourcePosition position);
+    ~LazyDeoptFrameScope();
+
+    LazyDeoptFrameScope* parent() const { return parent_; }
+    const DeoptFrame::FrameData& data() const { return data_; }
+
+   private:
+    MaglevReducer* reducer_;
+    DeoptFrame::FrameData data_;
+    LazyDeoptFrameScope* parent_;
+  };
+
+  LazyDeoptFrameScope* current_lazy_deopt_scope() const {
+    return current_lazy_deopt_scope_;
+  }
+
   MaglevReducer(BaseT* base, Graph* graph,
                 MaglevCompilationUnit* compilation_unit = nullptr)
       : base_(base),
@@ -1170,7 +1203,8 @@ class MaglevReducer {
   CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
 
 #define DECLARE_BUILTIN_REDUCER(Name, ...)                          \
-  MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \
+  MaybeReduceResult TryReduce##Name(ValueNode* context,             \
+                                    compiler::JSFunctionRef target, \
                                     CallArguments& args);
   MAGLEV_REDUCER_BUILTIN(DECLARE_BUILTIN_REDUCER)
 #undef DECLARE_BUILTIN_REDUCER
@@ -1182,15 +1216,16 @@ class MaglevReducer {
       compiler::JSFunctionRef target, CallArguments& args,
       JSDate::FieldIndex field);
 
-  MaybeReduceResult DoTryReduceMathRound(CallArguments& args,
+  MaybeReduceResult DoTryReduceMathRound(ValueNode* context,
+                                         CallArguments& args,
                                          Float64Round::Kind kind);
   template <typename Int32Binop, typename Float64Binop>
   MaybeReduceResult TryReduceMathMinMax(CallArguments& args,
                                         Int32Binop&& int32_case,
                                         Float64Binop&& float64_case);
   MaybeReduceResult TryReduceBuiltin(
-      Builtin builtin_id, compiler::JSFunctionRef target, CallArguments& args,
-      const compiler::FeedbackSource& feedback_source);
+      Builtin builtin_id, ValueNode* context, compiler::JSFunctionRef target,
+      CallArguments& args, const compiler::FeedbackSource& feedback_source);
 
   template <typename LoadNode>
   MaybeReduceResult TryBuildLoadDataView(const CallArguments& args,
@@ -1713,6 +1748,7 @@ class MaglevReducer {
 
   bool period_added_throwing_node_ = false;
 
+  LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
   compiler::FeedbackSource current_speculation_feedback_ = {};
   SpeculationMode current_speculation_mode_ =
       SpeculationMode::kDisallowSpeculation;

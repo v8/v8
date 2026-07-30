@@ -14,7 +14,10 @@
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
 #include "src/base/logging.h"
+#include "src/builtins/builtins.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/common/scoped-modification.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/maglev/maglev-cse.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -40,6 +43,80 @@
 namespace v8 {
 namespace internal {
 namespace maglev {
+
+inline void DebugVerifyBuiltinDeoptFrame(
+    const DeoptFrame::FrameData& data,
+    compiler::ContinuationFrameStateMode mode) {
+#ifdef DEBUG
+  DCHECK_EQ(data.tag(), DeoptFrame::FrameType::kBuiltinContinuationFrame);
+  const DeoptFrame::BuiltinContinuationFrameData& frame =
+      data.get<DeoptFrame::BuiltinContinuationFrameData>();
+  if (frame.maybe_js_target) {
+    int stack_parameter_count =
+        Builtins::GetStackParameterCount(frame.builtin_id);
+    DCHECK_EQ(stack_parameter_count,
+              frame.parameters.length() +
+                  compiler::DeoptimizerParameterCountFor(mode));
+  } else {
+    CallInterfaceDescriptor descriptor =
+        Builtins::CallInterfaceDescriptorFor(frame.builtin_id);
+    DCHECK_EQ(descriptor.GetParameterCount(),
+              frame.parameters.length() +
+                  compiler::DeoptimizerParameterCountFor(mode));
+  }
+#endif
+}
+
+template <typename BaseT>
+MaglevReducer<BaseT>::LazyDeoptFrameScope::LazyDeoptFrameScope(
+    MaglevReducer* reducer, ValueNode* context, Builtin continuation,
+    compiler::OptionalJSFunctionRef maybe_js_target,
+    base::Vector<ValueNode* const> parameters)
+    : reducer_(reducer),
+      data_(DeoptFrame::BuiltinContinuationFrameData{
+          continuation,
+          parameters.empty() ? base::Vector<ValueNode*>{}
+                             : reducer->zone()->CloneVector(parameters),
+          context, maybe_js_target}),
+      parent_(reducer->current_lazy_deopt_scope_) {
+  if constexpr (ReducerBaseWithDeoptFrameScopeHooks<BaseT>) {
+    reducer->base_->OnBeginDeoptFrameScope();
+  }
+  if (!parameters.empty()) {
+    if (InlinedAllocation* receiver =
+            parameters[0]->TryCast<InlinedAllocation>()) {
+      // We escape the first argument, since the builtin continuation call can
+      // trigger a stack iteration, which expects the receiver to be a
+      // materialized object.
+      receiver->ForceEscaping();
+    }
+  }
+  DebugVerifyBuiltinDeoptFrame(data_,
+                               compiler::ContinuationFrameStateMode::LAZY);
+  reducer->current_lazy_deopt_scope_ = this;
+}
+
+template <typename BaseT>
+MaglevReducer<BaseT>::LazyDeoptFrameScope::LazyDeoptFrameScope(
+    MaglevReducer* reducer, ValueNode* context, ValueNode* receiver,
+    const MaglevCompilationUnit& unit, SourcePosition position)
+    : reducer_(reducer),
+      data_(DeoptFrame::ConstructInvokeStubFrameData{unit, position, receiver,
+                                                     context}),
+      parent_(reducer->current_lazy_deopt_scope_) {
+  if constexpr (ReducerBaseWithDeoptFrameScopeHooks<BaseT>) {
+    reducer->base_->OnBeginDeoptFrameScope();
+  }
+  reducer->current_lazy_deopt_scope_ = this;
+}
+
+template <typename BaseT>
+MaglevReducer<BaseT>::LazyDeoptFrameScope::~LazyDeoptFrameScope() {
+  reducer_->current_lazy_deopt_scope_ = parent_;
+  if constexpr (ReducerBaseWithDeoptFrameScopeHooks<BaseT>) {
+    reducer_->base_->OnEndDeoptFrameScope();
+  }
+}
 
 template <typename BaseT>
 template <typename NodeT, typename Function, typename... Args>
@@ -1000,7 +1077,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryWithArrayIterationArgs(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayIncludes(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryWithArrayIterationArgs(
       "Array.prototype.includes", args,
       [&](ElementsKind elements_kind, ValueNode* elements,
@@ -1032,7 +1109,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayIncludes(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayIndexOf(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryWithArrayIterationArgs(
       "Array.prototype.indexOf", args,
       [&](ElementsKind elements_kind, ValueNode* elements,
@@ -1064,7 +1141,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayIndexOf(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayIsArray(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() == 0) return GetBooleanConstant(false);
 
   ValueNode* node = args[0];
@@ -1154,7 +1231,7 @@ ReduceResult MaglevReducer<BaseT>::BuildAssumeMapForElements(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeAt(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryWithFastArrayElements(
       "Array.prototype.at", args,
       [&](ElementsKind elements_kind, ValueNode* elements, ValueNode* length) {
@@ -1241,7 +1318,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeAt(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeEntries(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
   if (!CheckType(receiver, NodeType::kJSReceiver)) {
@@ -1252,7 +1329,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeEntries(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeKeys(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
   if (!CheckType(receiver, NodeType::kJSReceiver)) {
@@ -1263,7 +1340,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeKeys(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeValues(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
   if (!CheckType(receiver, NodeType::kJSReceiver)) {
@@ -2748,8 +2825,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
           ConvertReceiverMode::kNotNullOrUndefined, {callable_node, object});
       ValueNode* call_result;
       {
-        typename BaseT::LazyDeoptFrameScope continuation_scope(
-            base_, Builtin::kToBooleanLazyDeoptContinuation);
+        LazyDeoptFrameScope continuation_scope(
+            this, context, Builtin::kToBooleanLazyDeoptContinuation);
 
         if (has_instance_field->IsJSFunction()) {
           GET_VALUE_OR_ABORT(call_result,
@@ -2802,7 +2879,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOfWithFeedback(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceFunctionPrototypeHasInstance(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   // We can't reduce Function#hasInstance when there is no receiver function.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     return {};
@@ -2825,7 +2902,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceFunctionPrototypeHasInstance(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceObjectPrototypeIsPrototypeOf(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
     return {};
   }
@@ -2961,7 +3038,7 @@ ReduceResult MaglevReducer<BaseT>::BuildSameValue(ValueNode* lhs,
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceObjectIs(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return BuildSameValue(GetValueOrUndefined(args[0]),
                         GetValueOrUndefined(args[1]));
 }
@@ -4413,7 +4490,7 @@ ReduceResult MaglevReducer<BaseT>::BuildFloat64Sign(ValueNode* value) {
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathSqrt(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 1) {
     return GetRootConstant(RootIndex::kNanValue);
   }
@@ -4428,7 +4505,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathSqrt(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathMax(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() == 0) {
     return GetConstant(broker()->minus_infinity_value());
   }
@@ -4451,7 +4528,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathMax(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathMin(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() == 0) {
     return GetConstant(broker()->infinity_value());
   }
@@ -4512,7 +4589,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathMinMax(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathAbs(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() == 0) {
     return GetRootConstant(RootIndex::kNanValue);
   }
@@ -4557,7 +4634,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathAbs(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathSign(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() == 0) {
     return GetRootConstant(RootIndex::kNanValue);
   }
@@ -4607,25 +4684,25 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathSign(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathCeil(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return DoTryReduceMathRound(args, Float64Round::Kind::kCeil);
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return DoTryReduceMathRound(context, args, Float64Round::Kind::kCeil);
 }
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathFloor(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return DoTryReduceMathRound(args, Float64Round::Kind::kFloor);
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return DoTryReduceMathRound(context, args, Float64Round::Kind::kFloor);
 }
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathRound(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return DoTryReduceMathRound(args, Float64Round::Kind::kNearest);
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return DoTryReduceMathRound(context, args, Float64Round::Kind::kNearest);
 }
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::DoTryReduceMathRound(
-    CallArguments& args, Float64Round::Kind kind) {
+    ValueNode* context, CallArguments& args, Float64Round::Kind kind) {
   if (args.count() == 0) {
     return GetRootConstant(RootIndex::kNanValue);
   }
@@ -4655,26 +4732,22 @@ MaybeReduceResult MaglevReducer<BaseT>::DoTryReduceMathRound(
     return AddNewNode<Float64Round>({float64_value}, kind);
   }
   if (!CanSpeculateCall()) return {};
-  if constexpr (ReducerBaseWithLazyDeoptScope<BaseT>) {
-    typename BaseT::LazyDeoptFrameScope continuation_scope(
-        base_, Float64Round::continuation(kind));
-    ToNumberOrNumeric* conversion;
-    GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
-                                       {arg}, Object::Conversion::kToNumber));
-    // TODO(victorgomes): rely on automatic input conversion here rather than
-    // calling UncheckedNumberToFloat64 manually.
-    ValueNode* float64_value;
-    GET_VALUE_OR_ABORT(float64_value,
-                       AddNewNode<UnsafeNumberToFloat64>({conversion}));
-    return AddNewNode<Float64Round>({float64_value}, kind);
-  } else {
-    return {};
-  }
+  LazyDeoptFrameScope continuation_scope(this, context,
+                                         Float64Round::continuation(kind));
+  ToNumberOrNumeric* conversion;
+  GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
+                                     {arg}, Object::Conversion::kToNumber));
+  // TODO(victorgomes): rely on automatic input conversion here rather than
+  // calling UncheckedNumberToFloat64 manually.
+  ValueNode* float64_value;
+  GET_VALUE_OR_ABORT(float64_value,
+                     AddNewNode<UnsafeNumberToFloat64>({conversion}));
+  return AddNewNode<Float64Round>({float64_value}, kind);
 }
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathTrunc(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 1) {
     return GetRootConstant(RootIndex::kNanValue);
   }
@@ -4695,7 +4768,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathTrunc(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathClz32(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 1) {
     return GetInt32Constant(32);
   }
@@ -4734,26 +4807,22 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathClz32(
     return {};
   }
 
-  if constexpr (ReducerBaseWithLazyDeoptScope<BaseT>) {
-    typename BaseT::LazyDeoptFrameScope continuation_scope(
-        base_, Float64CountLeadingZeros::continuation());
-    ToNumberOrNumeric* conversion;
-    GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
-                                       {arg}, Object::Conversion::kToNumber));
-    // TODO(victorgomes): rely on automatic input conversion here rather than
-    // calling UnsafeNumberToFloat64 manually.
-    ValueNode* float64_value;
-    GET_VALUE_OR_ABORT(float64_value,
-                       AddNewNode<UnsafeNumberToFloat64>({conversion}));
-    return AddNewNode<Float64CountLeadingZeros>({float64_value});
-  } else {
-    return {};
-  }
+  LazyDeoptFrameScope continuation_scope(
+      this, context, Float64CountLeadingZeros::continuation());
+  ToNumberOrNumeric* conversion;
+  GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
+                                     {arg}, Object::Conversion::kToNumber));
+  // TODO(victorgomes): rely on automatic input conversion here rather than
+  // calling UnsafeNumberToFloat64 manually.
+  ValueNode* float64_value;
+  GET_VALUE_OR_ABORT(float64_value,
+                     AddNewNode<UnsafeNumberToFloat64>({conversion}));
+  return AddNewNode<Float64CountLeadingZeros>({float64_value});
 }
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathImul(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() == 0) {
     return GetInt32Constant(0);
   }
@@ -4774,7 +4843,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathImul(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathFround(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 1) {
     return GetRootConstant(RootIndex::kNanValue);
   }
@@ -5047,52 +5116,52 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildStoreDataView(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetInt8(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
       args, ExternalArrayType::kExternalInt8Array);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetInt8(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
       args, ExternalArrayType::kExternalInt8Array,
       [&](ValueNode* value) { return value ? value : GetInt32Constant(0); });
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetInt16(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
       args, ExternalArrayType::kExternalInt16Array);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetInt16(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
       args, ExternalArrayType::kExternalInt16Array,
       [&](ValueNode* value) { return value ? value : GetInt32Constant(0); });
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetInt32(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
       args, ExternalArrayType::kExternalInt32Array);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetInt32(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
       args, ExternalArrayType::kExternalInt32Array,
       [&](ValueNode* value) { return value ? value : GetInt32Constant(0); });
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetFloat64(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadDoubleDataViewElement>(
       args, ExternalArrayType::kExternalFloat64Array);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetFloat64(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildStoreDataView<StoreDoubleDataViewElement>(
       args, ExternalArrayType::kExternalFloat64Array, [&](ValueNode* value) {
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
@@ -5110,7 +5179,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetFloat64(
 #define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)       \
   template <typename BaseT>                                                \
   MaybeReduceResult MaglevReducer<BaseT>::TryReduce##MathName(             \
-      compiler::JSFunctionRef target, CallArguments& args) {               \
+      ValueNode* context, compiler::JSFunctionRef target,                  \
+      CallArguments& args) {                                               \
     if (args.count() < 1) {                                                \
       return GetRootConstant(RootIndex::kNanValue);                        \
     }                                                                      \
@@ -5131,7 +5201,8 @@ IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
 #define MATH_BINARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)      \
   template <typename BaseT>                                                \
   MaybeReduceResult MaglevReducer<BaseT>::TryReduce##MathName(             \
-      compiler::JSFunctionRef target, CallArguments& args) {               \
+      ValueNode* context, compiler::JSFunctionRef target,                  \
+      CallArguments& args) {                                               \
     if (args.count() < 2) {                                                \
       if (args.count() == 1 && !CheckType(args[0], NodeType::kNumber)) {   \
         return {};                                                         \
@@ -5227,7 +5298,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetField(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetTime(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   auto prologue_result = TryReduceDatePrototypeGetFieldPrologue(target, args);
   if (!prologue_result.IsDoneWithoutPayload()) return prologue_result;
 
@@ -5239,37 +5310,37 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetTime(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetFullYear(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceDatePrototypeGetField(target, args, JSDate::kYear);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetMonth(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceDatePrototypeGetField(target, args, JSDate::kMonth);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetDate(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceDatePrototypeGetField(target, args, JSDate::kDay);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetDay(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceDatePrototypeGetField(target, args, JSDate::kWeekday);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetHours(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceDatePrototypeGetField(target, args, JSDate::kHour);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetMinutes(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceDatePrototypeGetField(target, args, JSDate::kMinute);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetSeconds(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceDatePrototypeGetField(target, args, JSDate::kSecond);
 }
 
@@ -5277,7 +5348,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetSeconds(
 template <typename BaseT>
 MaybeReduceResult
 MaglevReducer<BaseT>::TryReduceStringPrototypeLocaleCompareIntl(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 1 || args.count() > 3) return {};
 
   LocalFactory* factory = local_isolate()->factory();
@@ -5332,14 +5403,14 @@ MaglevReducer<BaseT>::TryReduceStringPrototypeLocaleCompareIntl(
 template <typename BaseT>
 MaybeReduceResult
 MaglevReducer<BaseT>::TryReduceGetContinuationPreservedEmbedderData(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   return AddNewNode<GetContinuationPreservedEmbedderData>({});
 }
 
 template <typename BaseT>
 MaybeReduceResult
 MaglevReducer<BaseT>::TryReduceSetContinuationPreservedEmbedderData(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() == 0) return {};
 
   RETURN_IF_ABORT(AddNewNode<SetContinuationPreservedEmbedderData>({args[0]}));
@@ -5913,7 +5984,7 @@ VirtualObject* MaglevReducer<BaseT>::CreateJSStringIterator(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReducePromisePrototypeThen(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
   if (args.mode() != CallArguments::kDefault) return {};
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
@@ -5988,9 +6059,9 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReducePromisePrototypeThen(
   GET_VALUE_OR_ABORT(result_promise, BuildInlinedAllocation(
                                          result_vobj, AllocationType::kYoung));
 
-  ValueNode* context = GetConstant(broker()->target_native_context());
+  ValueNode* native_context = GetConstant(broker()->target_native_context());
   return BuildCallBuiltin<Builtin::kPerformPromiseThen>(
-      context, {receiver, on_fulfilled, on_rejected, result_promise});
+      native_context, {receiver, on_fulfilled, on_rejected, result_promise});
 }
 
 // Like JSNativeContextSpecialization::ReduceJSResolvePromise: returns true
@@ -6051,7 +6122,7 @@ bool MaglevReducer<BaseT>::CanElideResolvePromiseThenLookup(ValueNode* value) {
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceRegExpPrototypeTest(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
   if (v8_flags.force_slow_path) return {};
 
@@ -6149,7 +6220,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceRegExpPrototypeTest(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReducePromiseResolveTrampoline(
-    compiler::JSFunctionRef target, CallArguments& args) {
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   // Ports JSCallReducer::ReducePromiseResolveTrampoline combined with
   // JSNativeContextSpecialization::ReduceJSPromiseResolve: Promise.resolve
   // on the %Promise% constructor itself, with a value that provably has no
@@ -6215,8 +6286,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReducePromiseResolveTrampoline(
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
-    Builtin builtin_id, compiler::JSFunctionRef target, CallArguments& args,
-    const compiler::FeedbackSource& feedback_source) {
+    Builtin builtin_id, ValueNode* context, compiler::JSFunctionRef target,
+    CallArguments& args, const compiler::FeedbackSource& feedback_source) {
   if (args.mode() != CallArguments::kDefault) {
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
     // directly if arguments list is an array.
@@ -6243,9 +6314,9 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
 
   MaybeReduceResult result;
   switch (builtin_id) {
-#define CASE(Name, ...)                     \
-  case Builtin::k##Name:                    \
-    result = TryReduce##Name(target, args); \
+#define CASE(Name, ...)                              \
+  case Builtin::k##Name:                             \
+    result = TryReduce##Name(context, target, args); \
     break;
     MAGLEV_REDUCER_BUILTIN(CASE)
 #undef CASE
