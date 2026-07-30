@@ -685,6 +685,9 @@ DEFINE_NEG_IMPLICATION(maglev_as_top_tier, turbolev)
 
 DEFINE_BOOL(maglev_inlining, true,
             "enable inlining in the maglev optimizing compiler")
+DEFINE_BOOL(
+    maglev_disable_builtin_reducers, false,
+    "disable eager builtin reducers in the maglev graph builder (for testing)")
 DEFINE_BOOL(maglev_loop_peeling, true,
             "enable loop peeling in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_optimistic_peeled_loops, true,

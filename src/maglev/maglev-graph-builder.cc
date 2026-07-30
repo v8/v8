@@ -10837,6 +10837,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
 MaybeReduceResult MaglevGraphBuilder::TryReduceBuiltin(
     compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {
+  if (V8_UNLIKELY(v8_flags.maglev_disable_builtin_reducers)) return {};
   if (args.mode() != CallArguments::kDefault) {
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
     // directly if arguments list is an array.
