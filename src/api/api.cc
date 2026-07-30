@@ -156,7 +156,6 @@
 #include "src/utils/version.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/base/fpu.h"
 #include "src/debug/debug-wasm-objects.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/streaming-decoder.h"
@@ -9043,16 +9042,17 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-namespace {
-MaybeLocal<WasmModuleObject> CompileWasmModuleImpl(
+MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
+    Isolate* v8_isolate, std::span<const uint8_t> wire_bytes) {
+  return Compile(v8_isolate, wire_bytes, CompileOptions{});
+}
+
+MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
     Isolate* v8_isolate, std::span<const uint8_t> wire_bytes,
-    i::wasm::CompileTimeImports compile_imports) {
-  // Mirror the JS `WebAssembly.Module` constructor, which disables denormal
-  // floats at compile time when the host FPU flushes them.
-  if (base::FPU::GetFlushDenormals()) {
-    compile_imports.Add(i::wasm::CompileTimeImport::kDisableDenormalFloats);
-  }
+    const CompileOptions& options) {
+#if V8_ENABLE_WEBASSEMBLY
+  i::wasm::CompileTimeImports compile_imports =
+      i::wasm::CompileTimeImportsFromOptions(options);
   base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(wire_bytes);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   // We don't check for `IsWasmCodegenAllowed` here, because this function is
@@ -9065,42 +9065,13 @@ MaybeLocal<WasmModuleObject> CompileWasmModuleImpl(
         i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
     maybe_compiled = i::wasm::GetWasmEngine()->SyncCompile(
         i_isolate, enabled_features, std::move(compile_imports), &thrower,
-        std::move(bytes));
+        std::move(bytes),
+        base::Vector<const char>(options.source_url.data(),
+                                 options.source_url.size()));
   }
   CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_exception());
   if (maybe_compiled.is_null()) return {};
   return Utils::ToLocal(maybe_compiled.ToHandleChecked());
-}
-}  // namespace
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
-    Isolate* v8_isolate, std::span<const uint8_t> wire_bytes) {
-#if V8_ENABLE_WEBASSEMBLY
-  return CompileWasmModuleImpl(v8_isolate, wire_bytes,
-                               i::wasm::CompileTimeImports{});
-#else
-  Utils::ApiCheck(false, "WasmModuleObject::Compile",
-                  "WebAssembly support is not enabled");
-  UNREACHABLE();
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
-
-MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
-    Isolate* v8_isolate, std::span<const uint8_t> wire_bytes,
-    const CompileTimeImports& compile_imports) {
-#if V8_ENABLE_WEBASSEMBLY
-  i::wasm::CompileTimeImports imports;
-  using Builtins = CompileTimeImports::Builtins;
-  if (compile_imports.builtins & Builtins::kJsString) {
-    imports.Add(i::wasm::CompileTimeImport::kJsString);
-  }
-  if (compile_imports.imported_string_constants_module != nullptr) {
-    imports.constants_module() =
-        compile_imports.imported_string_constants_module;
-    imports.Add(i::wasm::CompileTimeImport::kStringConstants);
-  }
-  return CompileWasmModuleImpl(v8_isolate, wire_bytes, std::move(imports));
 #else
   Utils::ApiCheck(false, "WasmModuleObject::Compile",
                   "WebAssembly support is not enabled");

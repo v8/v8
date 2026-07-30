@@ -239,11 +239,16 @@ class WasmModuleCompilation::Impl {
   const std::shared_ptr<i::wasm::StreamingDecoder> streaming_decoder_;
 };
 
-// TODO(clemensb): Pass enabled features and compile time imports.
-WasmModuleCompilation::WasmModuleCompilation()
-    : impl_(std::make_unique<Impl>(WasmEnabledFeatures::FromFlags(),
-                                   CompileTimeImports{})) {
+// TODO(clemensb): Pass enabled features.
+WasmModuleCompilation::WasmModuleCompilation(const CompileOptions& options)
+    : impl_(std::make_unique<Impl>(
+          WasmEnabledFeatures::FromFlags(),
+          i::wasm::CompileTimeImportsFromOptions(options))) {
   TRACE_EVENT("v8.wasm", "wasm.ModuleCompilation");
+  if (!options.source_url.empty()) {
+    impl_->SetUrl(
+        base::VectorOf(options.source_url.data(), options.source_url.size()));
+  }
 }
 
 WasmModuleCompilation::~WasmModuleCompilation() = default;
@@ -3575,6 +3580,27 @@ void WasmJs::InstallMemoryControl(Isolate* isolate,
                         constructor_handle, DONT_ENUM);
   context->set_wasm_memory_map_descriptor_constructor(*constructor_handle);
 }
+
+namespace wasm {
+CompileTimeImports CompileTimeImportsFromOptions(
+    const v8::WasmModuleObject::CompileOptions& options) {
+  CompileTimeImports result;
+  using Builtins = v8::WasmModuleObject::CompileOptions::Builtins;
+  if (options.builtins & Builtins::kJsString) {
+    result.Add(CompileTimeImport::kJsString);
+  }
+  if (options.imported_string_constants_module != nullptr) {
+    result.constants_module() = options.imported_string_constants_module;
+    result.Add(CompileTimeImport::kStringConstants);
+  }
+  // Mirror the JS `WebAssembly.Module` constructor, which disables denormal
+  // floats at compile time when the host FPU flushes them.
+  if (base::FPU::GetFlushDenormals()) {
+    result.Add(CompileTimeImport::kDisableDenormalFloats);
+  }
+  return result;
+}
+}  // namespace wasm
 
 // static
 CompileTimeImports WasmJs::CompileTimeImportsFromArgument(
