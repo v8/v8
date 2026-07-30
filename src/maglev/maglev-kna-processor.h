@@ -518,6 +518,12 @@ class RecomputeKnownNodeAspectsProcessor {
     return RecordType(node->input_node(0), node->asserted_type());
   }
 
+  ProcessResult ProcessNode(CheckInt32IsSmi* node) {
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));
+    info->IntersectType(NodeType::kSmi);
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult ProcessNode(Node* node) { return ProcessResult::kContinue; }
 };
 
