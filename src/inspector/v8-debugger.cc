@@ -501,15 +501,14 @@ void V8Debugger::handleProgramBreak(
   m_externalAsyncTaskPauseRequested = false;
   m_taskWithScheduledBreakPauseRequested = false;
 
-  bool scheduledOOMBreak = m_scheduledOOMBreak;
-  DCHECK(scheduledOOMBreak ==
-         breakReasons.contains(v8::debug::BreakReason::kOOM));
+  bool isOOMBreak = breakReasons.contains(v8::debug::BreakReason::kOOM);
+  DCHECK(!isOOMBreak || m_scheduledOOMBreak);
   bool hasAgents = false;
 
   m_inspector->forEachSession(
       contextGroupId,
-      [&scheduledOOMBreak, &hasAgents](V8InspectorSessionImpl* session) {
-        if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
+      [isOOMBreak, &hasAgents](V8InspectorSessionImpl* session) {
+        if (session->debuggerAgent()->acceptsPause(isOOMBreak)) {
           hasAgents = true;
         }
       });
@@ -528,8 +527,8 @@ void V8Debugger::handleProgramBreak(
   m_inspector->forEachSession(
       contextGroupId,
       [&pausedContext, &exception, &breakpointIds, &exceptionType, &isUncaught,
-       &scheduledOOMBreak, &breakReasons](V8InspectorSessionImpl* session) {
-        if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
+       isOOMBreak, &breakReasons](V8InspectorSessionImpl* session) {
+        if (session->debuggerAgent()->acceptsPause(isOOMBreak)) {
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), exception,
               breakpointIds, exceptionType, isUncaught, breakReasons);
@@ -556,8 +555,10 @@ void V8Debugger::handleProgramBreak(
                                 }
                               });
 
-  if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();
-  m_scheduledOOMBreak = false;
+  if (isOOMBreak) {
+    if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();
+    m_scheduledOOMBreak = false;
+  }
 }
 
 namespace {
