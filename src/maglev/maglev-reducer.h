@@ -1209,6 +1209,12 @@ class MaglevReducer {
   MAGLEV_REDUCER_BUILTIN(DECLARE_BUILTIN_REDUCER)
 #undef DECLARE_BUILTIN_REDUCER
 
+  // Reduces a TypedArray construct (not call — calling a TypedArray
+  // constructor without new throws) to Builtin::kCreateTypedArray.
+  MaybeReduceResult TryReduceTypedArrayConstructor(
+      ValueNode* context, compiler::JSFunctionRef target, ValueNode* new_target,
+      CallArguments& args);
+
   // Returns kDoneWithoutPayload if checks passed successfully.
   MaybeReduceResult TryReduceDatePrototypeGetFieldPrologue(
       compiler::JSFunctionRef target, CallArguments& args);

@@ -12949,9 +12949,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
           reducer_.CreateJSStringWrapper(value), AllocationType::kYoung);
     }
     case Builtin::kPromiseConstructor:
-    case Builtin::kTypedArrayConstructor:
       // TODO(victorgomes): specialize more known constants builtin targets.
       break;
+    case Builtin::kTypedArrayConstructor: {
+      LazyDeoptFrameScope construct(
+          &reducer_, GetContext(), GetRootConstant(RootIndex::kTheHoleValue),
+          *compilation_unit(), GetCurrentSourcePosition());
+      RETURN_IF_DONE(reducer_.TryReduceTypedArrayConstructor(
+          GetContext(), target_function, new_target, args));
+      break;
+    }
     default:
       break;
   }

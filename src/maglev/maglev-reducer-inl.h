@@ -6285,6 +6285,31 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReducePromiseResolveTrampoline(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceTypedArrayConstructor(
+    ValueNode* context, compiler::JSFunctionRef target, ValueNode* new_target,
+    CallArguments& args) {
+  DCHECK_NOT_NULL(new_target);
+  ValueNode* target_node = GetConstant(target);
+  ValueNode* arg0 =
+      args[0] ? args[0] : GetRootConstant(RootIndex::kUndefinedValue);
+  ValueNode* arg1 =
+      args[1] ? args[1] : GetRootConstant(RootIndex::kUndefinedValue);
+  ValueNode* arg2 =
+      args[2] ? args[2] : GetRootConstant(RootIndex::kUndefinedValue);
+
+  // The caller (the construct dispatch) is responsible for pushing the
+  // construct-stub deopt frame scope.
+  DCHECK_NOT_NULL(current_lazy_deopt_scope());
+  LazyDeoptFrameScope continuation(
+      this, context, Builtin::kGenericLazyDeoptContinuation, target,
+      base::VectorOf<ValueNode* const>(
+          {GetRootConstant(RootIndex::kTheHoleValue)}));
+  return BuildCallBuiltinWithTaggedInputs<Builtin::kCreateTypedArray>(
+      GetConstant(broker()->target_native_context()),
+      {target_node, new_target, arg0, arg1, arg2});
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
     Builtin builtin_id, ValueNode* context, compiler::JSFunctionRef target,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {
