@@ -2909,9 +2909,10 @@ class FastSmiOrObjectElementsAccessor
         Subclass::EnsureFillRangeCapacity(isolate, receiver, start, end));
 
     if (IsSmi(*obj_value)) {
-      MemsetTagged(Cast<FixedArray>(receiver->elements())
-                       ->RawFieldOfElementAt(static_cast<uint32_t>(start)),
-                   *obj_value, end - start);
+      Relaxed_MemsetTagged(
+          Cast<FixedArray>(receiver->elements())
+              ->RawFieldOfElementAt(static_cast<uint32_t>(start)),
+          *obj_value, end - start);
       return MaybeDirectHandle<Object>(receiver);
     }
 
