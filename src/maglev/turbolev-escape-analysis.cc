@@ -1214,8 +1214,8 @@ class FieldValuesTracker : public CandidateAnalyzer {
 
       auto prev_header_phis = new_phis().find(loop_header);
       if (prev_header_phis != new_phis().end()) {
-        old_phis_.swap(*prev_header_phis->second);
-        DCHECK(prev_header_phis->second->empty());
+        old_phis_ = std::move(*prev_header_phis->second);
+        prev_header_phis->second->clear();
       }
 
       // TODO(dmercadier): we could try to reuse the snapshot created by
