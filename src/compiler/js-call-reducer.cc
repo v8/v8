@@ -7203,7 +7203,15 @@ Reduction JSCallReducer::ReduceGeneratorPrototypeNext(Node* node) {
     return NoChange();
   }
 
-  // The following is to rule out cross-realm generator next inlining.
+  // Don't inline Generator.prototype.next across native contexts.
+  HeapObjectMatcher m(n.target());
+  if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
+    JSFunctionRef function = m.Ref(broker()).AsJSFunction();
+    if (!function.native_context(broker()).equals(native_context())) {
+      return NoChange();
+    }
+  }
+
   MapInference inference(broker(), receiver, effect);
   bool can_use_static_maps = false;
   if (inference.HaveMaps() &&

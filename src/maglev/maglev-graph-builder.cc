@@ -8465,10 +8465,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
 
+  // Don't inline Generator.prototype.next across native contexts.
+  if (target.native_context(broker()) != broker()->target_native_context()) {
+    return {};
+  }
+
   ValueNode* receiver = args.receiver();
   if (!receiver) return {};
 
-  // The following is to rule out cross-realm generator next inlining.
   MapInference inference(this, receiver);
   auto possible_maps = inference.TryGetPossibleMaps();
   bool can_use_static_maps = false;
@@ -8482,9 +8486,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
       compiler::OptionalObjectRef ctor = map.GetConstructor(broker());
       if (!ctor.has_value() || !ctor->IsJSFunction() ||
           !ctor->AsJSFunction().native_context(broker()).equals(
-              target.native_context(broker())) ||
-          !target.native_context(broker()).equals(
-              broker()->target_native_context())) {
+              target.native_context(broker()))) {
         return {};
       }
     }
