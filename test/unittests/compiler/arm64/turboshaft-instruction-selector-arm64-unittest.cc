@@ -157,7 +157,7 @@ const MachInst2 kDPFlagSetInstructions[] = {
      MachineType::Int32()},
     {TSBinop::kWord32Add, "Word32Add", kArm64Cmn32, MachineType::Int32()},
     {TSBinop::kWord32Sub, "Int32Sub", kArm64Cmp32, MachineType::Int32()},
-    {TSBinop::kWord64BitwiseAnd, "Word64BitwiseAnd", kArm64Tst,
+    {TSBinop::kWord64BitwiseAnd, "Word64BitwiseAnd", kArm64Tst32,
      MachineType::Int64()}};
 
 // ARM64 arithmetic with overflow instructions.
@@ -1088,9 +1088,9 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32AndBranchWithImmediateOnRight) {
 }
 
 TEST_F(TurboshaftInstructionSelectorTest, Word64AndBranchWithImmediateOnRight) {
-  TRACED_FOREACH(int64_t, imm, kLogical64Immediates) {
+  TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
     // Skip the cases where the instruction selector would use tbz/tbnz.
-    if (base::bits::CountPopulation(static_cast<uint64_t>(imm)) == 1) continue;
+    if (base::bits::CountPopulation(static_cast<uint32_t>(imm)) == 1) continue;
 
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
     Block *a = m.NewBlock(), *b = m.NewBlock();
@@ -1103,9 +1103,10 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64AndBranchWithImmediateOnRight) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
   }
@@ -1170,9 +1171,9 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32AndBranchWithImmediateOnLeft) {
 }
 
 TEST_F(TurboshaftInstructionSelectorTest, Word64AndBranchWithImmediateOnLeft) {
-  TRACED_FOREACH(int64_t, imm, kLogical64Immediates) {
+  TRACED_FOREACH(int32_t, imm, kLogical32Immediates) {
     // Skip the cases where the instruction selector would use tbz/tbnz.
-    if (base::bits::CountPopulation(static_cast<uint64_t>(imm)) == 1) continue;
+    if (base::bits::CountPopulation(static_cast<uint32_t>(imm)) == 1) continue;
 
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
     Block *a = m.NewBlock(), *b = m.NewBlock();
@@ -1185,9 +1186,10 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64AndBranchWithImmediateOnLeft) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
     ASSERT_LE(1U, s[0]->InputCount());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
@@ -1308,7 +1310,7 @@ const TestAndBranch kTestAndBranchMatchers64[] = {
         return m.TruncateWord64ToWord32(
             m.Word64BitwiseAnd(x, m.Int64Constant(mask)));
       },
-      "if (x and mask)", kArm64TestAndBranch, MachineType::Int64()},
+      "if (x and mask)", kArm64TestAndBranch32, MachineType::Int64()},
      kNotEqual},
     {{[](TurboshaftInstructionSelectorTest::StreamBuilder& m, OpIndex x,
          uint64_t mask) -> V<Word32> {
@@ -1378,11 +1380,20 @@ TEST_F(TurboshaftInstructionSelectorTest,
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
-    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-    EXPECT_EQ(4U, s[0]->InputCount());
-    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
+    // Only bits 0-31 can be encoded as an immediate to tbz/tbnz instructions.
+    // For higher bits the bit will never be set. As this eliminates the branch,
+    // such optimization should have happened prior to instruction selection.
+    if (bit < 32) {
+      EXPECT_EQ(kArm64TestAndBranch32, s[0]->arch_opcode());
+      EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+      EXPECT_EQ(4U, s[0]->InputCount());
+      EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+      EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
+    } else {
+      EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+      EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+      EXPECT_EQ(4U, s[0]->InputCount());
+    }
   }
 }
 
@@ -1428,9 +1439,17 @@ TEST_F(TurboshaftInstructionSelectorTest, TestAndBranch64AndWhenCanCoverFalse) {
 
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
-    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(4U, s[0]->InputCount());
+    // Only bits 0-31 can be encoded as an immediate to tbz/tbnz instructions.
+    // For higher bits the bit will never be set. As this eliminates the branch,
+    // such optimization should have happened prior to instruction selection.
+    if (bit < 32) {
+      EXPECT_EQ(kArm64TestAndBranch32, s[0]->arch_opcode());
+      EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+      EXPECT_EQ(4U, s[0]->InputCount());
+    } else {
+      EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+      EXPECT_EQ(4U, s[0]->InputCount());
+    }
   }
 }
 

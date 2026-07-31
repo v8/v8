@@ -4366,10 +4366,12 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
   ConsumeEqualZero(&user, &value, cont);
 
   // Remove Word64->Word32 truncation.
+  bool needs_truncation = false;
   if (V<Word64> value64;
       MatchTruncateWord64ToWord32(value, &value64) && CanCover(user, value)) {
     user = value;
     value = value64;
+    needs_truncation = true;
   }
 
   // Try to match bit checks to create TBZ/TBNZ instructions.
@@ -4404,12 +4406,13 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
 
     if (const WordBinopOp* value_binop = value_op.TryCast<WordBinopOp>()) {
       TestAndBranchMatcherTurboshaft matcher(this, *value_binop);
-      if (matcher.Matches()) {
+      if (matcher.Matches() && (!needs_truncation || matcher.bit() < 32)) {
         // If the mask has only one bit set, we can use tbz/tbnz.
         DCHECK((cont->condition() == kEqual) ||
                (cont->condition() == kNotEqual));
         InstructionCode opcode = value_binop->rep.MapTaggedToWord() ==
-                                         RegisterRepresentation::Word32()
+                                             RegisterRepresentation::Word32() ||
+                                         needs_truncation
                                      ? kArm64TestAndBranch32
                                      : kArm64TestAndBranch;
         Arm64OperandGenerator gen(this);
@@ -4537,7 +4540,10 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
       }
       return VisitWordCompare(this, value, kArm64Tst32, cont, kLogical32Imm);
     } else if (value_op.Is<Opmask::kWord64BitwiseAnd>()) {
-      return VisitWordCompare(this, value, kArm64Tst, cont, kLogical64Imm);
+      InstructionCode opcode = needs_truncation ? kArm64Tst32 : kArm64Tst;
+      ImmediateMode immediate_mode =
+          needs_truncation ? kLogical32Imm : kLogical64Imm;
+      return VisitWordCompare(this, value, opcode, cont, immediate_mode);
     } else if (value_op.Is<Opmask::kWord32BitwiseOr>()) {
       if (TryMatchConditionalCompareChain(this, zone(), value, cont)) {
         return;
