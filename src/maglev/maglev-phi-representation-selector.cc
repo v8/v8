@@ -1772,14 +1772,25 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
   // Setting up new snapshot
   predecessors_.clear();
 
+  bool is_eager_maglev = !graph_->compilation_info()->is_turbolev() &&
+                         !v8_flags.maglev_non_eager_inlining;
+  auto get_predecessor_snapshot = [&](BasicBlock* pred) {
+    CHECK_NOT_NULL(pred);
+    CHECK(!pred->is_dead());
+    if (is_eager_maglev) {
+      CHECK_LT(pred->id(), new_block->id());
+    }
+    CHECK(snapshots_.contains(pred->id()));
+    return snapshots_.at(pred->id());
+  };
+
   if (!new_block->is_merge_block()) {
-    BasicBlock* pred = new_block->predecessor();
-    predecessors_.push_back(snapshots_.at(pred->id()));
+    predecessors_.push_back(get_predecessor_snapshot(new_block->predecessor()));
   } else {
     int skip_backedge = new_block->is_loop();
     for (int i = 0; i < new_block->predecessor_count() - skip_backedge; i++) {
-      BasicBlock* pred = new_block->predecessor_at(i);
-      predecessors_.push_back(snapshots_.at(pred->id()));
+      predecessors_.push_back(
+          get_predecessor_snapshot(new_block->predecessor_at(i)));
     }
   }
 
