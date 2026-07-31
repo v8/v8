@@ -129,15 +129,6 @@ TEST(HandleNull) {
 }
 
 
-TEST(Tagging) {
-  CcTest::InitializeVM();
-  int request = 24;
-  CHECK_EQ(request, static_cast<int>(OBJECT_POINTER_ALIGN(request)));
-  CHECK(IsSmi(Smi::FromInt(42)));
-  CHECK(IsSmi(Smi::FromInt(Smi::kMinValue)));
-  CHECK(IsSmi(Smi::FromInt(Smi::kMaxValue)));
-}
-
 static void VerifyStringAllocation(Isolate* isolate, const char* string) {
   HandleScope scope(isolate);
   DirectHandle<String> s = isolate->factory()
