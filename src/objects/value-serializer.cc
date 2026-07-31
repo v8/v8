@@ -189,6 +189,9 @@ enum class SerializationTag : uint8_t {
   kArrayBuffer = 'B',
   // Immutable array buffer. byteLength:uint32_t, then raw data.
   kImmutableArrayBuffer = 'C',
+  // Shared immutable array buffer (zero-copy for postMessage).
+  // backingStoreID:uint32_t
+  kSharedImmutableArrayBuffer = 'E',
   // Resizable array buffer. byteLength:uint32_t, maxLength:uint32_t, raw data.
   kResizableArrayBuffer = '~',
   // Array buffer (transferred). transferID:uint32_t
@@ -299,13 +302,22 @@ enum class WasmMemoryArrayBufferTag : uint8_t {
 }  // namespace
 
 ValueSerializer::ValueSerializer(Isolate* isolate,
-                                 v8::ValueSerializer::Delegate* delegate)
+                                 v8::ValueSerializer::SharedImmutableArrayBuffer
+                                     share_immutable_array_buffer)
+    : ValueSerializer(isolate, nullptr, share_immutable_array_buffer) {}
+
+ValueSerializer::ValueSerializer(Isolate* isolate,
+                                 v8::ValueSerializer::Delegate* delegate,
+                                 v8::ValueSerializer::SharedImmutableArrayBuffer
+                                     share_immutable_array_buffer)
     : isolate_(isolate),
       delegate_(delegate),
       zone_(isolate->allocator(), ZONE_NAME),
       id_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
-      array_buffer_transfer_map_(isolate->heap(),
-                                 ZoneAllocationPolicy(&zone_)) {
+      array_buffer_transfer_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
+      share_immutable_array_buffer_(
+          share_immutable_array_buffer ==
+          v8::ValueSerializer::SharedImmutableArrayBuffer::kEnabled) {
   if (delegate_) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
     has_custom_host_objects_ = delegate_->HasCustomHostObject(v8_isolate);
@@ -313,6 +325,9 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
 }
 
 ValueSerializer::~ValueSerializer() {
+  DCHECK_IMPLIES(!buffer_ && !out_of_memory_ && share_immutable_array_buffer_ &&
+                     v8_flags.js_postmessage_share_immutable_arraybuffer,
+                 shared_immutable_backing_stores_.empty());
   if (buffer_) {
     if (delegate_) {
       delegate_->FreeBufferMemory(buffer_);
@@ -1062,9 +1077,25 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   }
 
   if (array_buffer->is_immutable()) {
-    // TODO(olivf): Since the AB is not mutable we could share the backing
-    // store in postMessage. Needs a ForStorage flag for the ValueSerializer to
-    // know when sharing is possible.
+    if (share_immutable_array_buffer_ &&
+        v8_flags.js_postmessage_share_immutable_arraybuffer) {
+      auto backing_store = array_buffer->GetBackingStore();
+      CHECK(backing_store);
+      uint32_t id = 0;
+      auto it =
+          std::find(shared_immutable_backing_stores_.begin(),
+                    shared_immutable_backing_stores_.end(), backing_store);
+      if (it != shared_immutable_backing_stores_.end()) {
+        id = static_cast<uint32_t>(it -
+                                   shared_immutable_backing_stores_.begin());
+      } else {
+        id = static_cast<uint32_t>(shared_immutable_backing_stores_.size());
+        shared_immutable_backing_stores_.push_back(backing_store);
+      }
+      WriteTag(SerializationTag::kSharedImmutableArrayBuffer);
+      WriteVarint<uint32_t>(id);
+      return ThrowIfOutOfMemory();
+    }
     WriteTag(SerializationTag::kImmutableArrayBuffer);
   } else {
     WriteTag(SerializationTag::kArrayBuffer);
@@ -1741,6 +1772,9 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
       return ReadJSArrayBuffer(SharedFlag{false}, ResizableFlag{false},
                                /*is_immutable*/ true);
     }
+    case SerializationTag::kSharedImmutableArrayBuffer: {
+      return ReadSharedImmutableJSArrayBuffer();
+    }
     case SerializationTag::kArrayBufferTransfer: {
       return ReadTransferredJSArrayBuffer();
     }
@@ -2238,6 +2272,29 @@ ValueDeserializer::ReadTransferredJSArrayBuffer() {
   }
   DirectHandle<JSArrayBuffer> array_buffer(
       Cast<JSArrayBuffer>(transfer_map->ValueAt(index)), isolate_);
+  AddObjectWithID(id, array_buffer);
+  return array_buffer;
+}
+
+MaybeDirectHandle<JSArrayBuffer>
+ValueDeserializer::ReadSharedImmutableJSArrayBuffer() {
+  uint32_t id = next_id_++;
+  uint32_t backing_store_id;
+  if (!ReadVarint<uint32_t>().To(&backing_store_id)) {
+    return MaybeDirectHandle<JSArrayBuffer>();
+  }
+  if (backing_store_id >= shared_immutable_backing_stores_.size()) {
+    return MaybeDirectHandle<JSArrayBuffer>();
+  }
+  std::shared_ptr<BackingStore> backing_store =
+      shared_immutable_backing_stores_[backing_store_id];
+  if (!backing_store) {
+    return MaybeDirectHandle<JSArrayBuffer>();
+  }
+  CHECK(!backing_store->is_resizable_by_js());
+  DirectHandle<JSArrayBuffer> array_buffer =
+      isolate_->factory()->NewJSArrayBuffer(std::move(backing_store));
+  array_buffer->MakeImmutable(isolate_);
   AddObjectWithID(id, array_buffer);
   return array_buffer;
 }

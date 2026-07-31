@@ -435,6 +435,9 @@ DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, js_shipping)
 
 DEFINE_IMPLICATION(js_import_bytes, js_immutable_arraybuffer)
 
+DEFINE_BOOL(js_postmessage_share_immutable_arraybuffer, true,
+            "share immutable array buffers in postMessage instead of copying")
+
 DEFINE_BOOL(builtin_subclassing, true,
             "subclassing support in built-in methods")
 

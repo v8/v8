@@ -7512,7 +7512,8 @@ class Serializer : public ValueSerializer::Delegate {
  public:
   explicit Serializer(Isolate* isolate)
       : isolate_(isolate),
-        serializer_(isolate, this),
+        serializer_(isolate, this,
+                    ValueSerializer::SharedImmutableArrayBuffer::kEnabled),
         current_memory_usage_(0) {}
 
   Serializer(const Serializer&) = delete;
@@ -7540,6 +7541,8 @@ class Serializer : public ValueSerializer::Delegate {
     std::pair<uint8_t*, size_t> pair = serializer_.Release();
     data_->data_.reset(pair.first);
     data_->size_ = pair.second;
+    data_->shared_immutable_backing_stores_ =
+        serializer_.ReleaseSharedImmutableBackingStores();
     return Just(true);
   }
 
@@ -7689,6 +7692,8 @@ class Deserializer : public ValueDeserializer::Delegate {
         deserializer_(isolate, data->data(), data->size(), this),
         data_(std::move(data)) {
     deserializer_.SetSupportsLegacyWireFormat(true);
+    deserializer_.SetSharedImmutableBackingStores(
+        data_->shared_immutable_backing_stores());
   }
 
   Deserializer(const Deserializer&) = delete;

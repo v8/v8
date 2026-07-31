@@ -51,7 +51,16 @@ enum class SerializationTag : uint8_t;
  */
 class ValueSerializer {
  public:
-  ValueSerializer(Isolate* isolate, v8::ValueSerializer::Delegate* delegate);
+  explicit ValueSerializer(
+      Isolate* isolate,
+      v8::ValueSerializer::SharedImmutableArrayBuffer
+          share_immutable_array_buffer =
+              v8::ValueSerializer::SharedImmutableArrayBuffer::kDisabled);
+  ValueSerializer(
+      Isolate* isolate, v8::ValueSerializer::Delegate* delegate,
+      v8::ValueSerializer::SharedImmutableArrayBuffer
+          share_immutable_array_buffer =
+              v8::ValueSerializer::SharedImmutableArrayBuffer::kDisabled);
   ~ValueSerializer();
   ValueSerializer(const ValueSerializer&) = delete;
   ValueSerializer& operator=(const ValueSerializer&) = delete;
@@ -98,6 +107,11 @@ class ValueSerializer {
    * The default is not to treat ArrayBufferViews as host objects.
    */
   void SetTreatArrayBufferViewsAsHostObjects(bool mode);
+
+  std::vector<std::shared_ptr<BackingStore>>
+  ReleaseSharedImmutableBackingStores() {
+    return std::move(shared_immutable_backing_stores_);
+  }
 
  private:
   // Managing allocations of the internal buffer.
@@ -196,6 +210,9 @@ class ValueSerializer {
 
   // The conveyor used to keep shared objects alive.
   SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
+
+  bool share_immutable_array_buffer_ = false;
+  std::vector<std::shared_ptr<BackingStore>> shared_immutable_backing_stores_;
 };
 
 /*
@@ -244,6 +261,11 @@ class ValueDeserializer {
    */
   void TransferArrayBuffer(uint32_t transfer_id,
                            DirectHandle<JSArrayBuffer> array_buffer);
+
+  void SetSharedImmutableBackingStores(
+      std::vector<std::shared_ptr<BackingStore>> stores) {
+    shared_immutable_backing_stores_ = std::move(stores);
+  }
 
   /*
    * Publicly exposed wire format writing methods.
@@ -307,6 +329,8 @@ class ValueDeserializer {
       bool is_immutable) V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer()
       V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSArrayBuffer> ReadSharedImmutableJSArrayBuffer()
+      V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSArrayBufferView> ReadJSArrayBufferView(
       DirectHandle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
   bool ValidateJSArrayBufferViewFlags(
@@ -348,6 +372,8 @@ class ValueDeserializer {
 
   // The conveyor used to keep shared objects alive.
   const SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
+
+  std::vector<std::shared_ptr<BackingStore>> shared_immutable_backing_stores_;
 };
 
 }  // namespace internal
