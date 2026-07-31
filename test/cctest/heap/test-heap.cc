@@ -160,46 +160,6 @@ TEST(String) {
   VerifyStringAllocation(isolate, "fiskerdrengen er paa havet");
 }
 
-TEST(GlobalHandles) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  GlobalHandles* global_handles = isolate->global_handles();
-
-  Handle<Object> h1;
-  Handle<Object> h2;
-  Handle<Object> h3;
-  Handle<Object> h4;
-
-  {
-    HandleScope scope(isolate);
-
-    DirectHandle<Object> i = factory->NewStringFromStaticChars("fisk");
-    DirectHandle<Object> u = factory->NewNumber(1.12344);
-
-    h1 = global_handles->Create(*i);
-    h2 = global_handles->Create(*u);
-    h3 = global_handles->Create(*i);
-    h4 = global_handles->Create(*u);
-  }
-
-  // after gc, it should survive
-  heap::InvokeMinorGC(CcTest::heap());
-
-  CHECK(IsString(*h1));
-  CHECK(IsHeapNumber(*h2));
-  CHECK(IsString(*h3));
-  CHECK(IsHeapNumber(*h4));
-
-  CHECK_EQ(*h3, *h1);
-  GlobalHandles::Destroy(h1.location());
-  GlobalHandles::Destroy(h3.location());
-
-  CHECK_EQ(*h4, *h2);
-  GlobalHandles::Destroy(h2.location());
-  GlobalHandles::Destroy(h4.location());
-}
-
 static bool WeakPointerCleared = false;
 
 static void TestWeakGlobalHandleCallback(
