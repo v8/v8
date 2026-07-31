@@ -1015,21 +1015,23 @@ void MacroAssembler::PopLR(Register scratch) {
 
 void MacroAssembler::PushCommonFrame(Register marker_reg) {
   int fp_delta = 0;
-  mflr(r0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  mflr(scratch);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     if (marker_reg.is_valid()) {
-      Push(r0, fp, kConstantPoolRegister, marker_reg);
+      Push(scratch, fp, kConstantPoolRegister, marker_reg);
       fp_delta = 2;
     } else {
-      Push(r0, fp, kConstantPoolRegister);
+      Push(scratch, fp, kConstantPoolRegister);
       fp_delta = 1;
     }
   } else {
     if (marker_reg.is_valid()) {
-      Push(r0, fp, marker_reg);
+      Push(scratch, fp, marker_reg);
       fp_delta = 1;
     } else {
-      Push(r0, fp);
+      Push(scratch, fp);
       fp_delta = 0;
     }
   }
@@ -1038,21 +1040,23 @@ void MacroAssembler::PushCommonFrame(Register marker_reg) {
 
 void MacroAssembler::PushStandardFrame(Register function_reg) {
   int fp_delta = 0;
-  mflr(r0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  mflr(scratch);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     if (function_reg.is_valid()) {
-      Push(r0, fp, kConstantPoolRegister, cp, function_reg);
+      Push(scratch, fp, kConstantPoolRegister, cp, function_reg);
       fp_delta = 3;
     } else {
-      Push(r0, fp, kConstantPoolRegister, cp);
+      Push(scratch, fp, kConstantPoolRegister, cp);
       fp_delta = 2;
     }
   } else {
     if (function_reg.is_valid()) {
-      Push(r0, fp, cp, function_reg);
+      Push(scratch, fp, cp, function_reg);
       fp_delta = 2;
     } else {
-      Push(r0, fp, cp);
+      Push(scratch, fp, cp);
       fp_delta = 1;
     }
   }
@@ -1066,9 +1070,11 @@ void MacroAssembler::RestoreFrameStateForTailCall() {
             MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
     set_constant_pool_available(false);
   }
-  LoadU64(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadU64(scratch, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
   LoadU64(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  mtlr(r0);
+  mtlr(scratch);
 }
 
 void MacroAssembler::CanonicalizeNaN(const DoubleRegister dst,
@@ -1259,7 +1265,8 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+  Register scratch1 = temps.Acquire();
+  Register scratch2 = temps.Acquire();
   // r3: preserved
   // r4: preserved
   // r5: preserved
@@ -1267,17 +1274,17 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   // Drop the execution stack down to the frame pointer and restore
   // the caller's state.
   int frame_ends;
-  LoadU64(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-  LoadU64(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  LoadU64(scratch2, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  LoadU64(scratch1, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     LoadU64(kConstantPoolRegister,
             MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
   }
-  mtlr(r0);
+  mtlr(scratch2);
   frame_ends = pc_offset();
   AddS64(sp, fp,
          Operand(StandardFrameConstants::kCallerSPOffset + stack_adjustment));
-  mr(fp, scratch);
+  mr(fp, scratch1);
   return frame_ends;
 }
 
