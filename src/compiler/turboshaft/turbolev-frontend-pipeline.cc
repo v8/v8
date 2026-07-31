@@ -401,20 +401,20 @@ auto TurbolevFrontendPipeline::Run(Args&&... args) {
   Phase phase;
   SYNCHRONIZATION_POINT(Phase::synchronization_point_name());
   PhaseResult result = phase.Run(graph_, std::forward<Args>(args)...);
-  if (V8_UNLIKELY(ShouldPrintMaglevGraph(Phase::phase))) {
-    PrintMaglevGraph(Phase::phase);
-  }
-  if (compilation_info_->trace_json_enabled()) {
-    maglev::PrintMaglevGraphAsJSON(compilation_info_.get(), graph_,
-                                   Phase::phase);
-  }
-#ifdef DEBUG
   if (result == PhaseResult::kContinue) {
+    if (V8_UNLIKELY(ShouldPrintMaglevGraph(Phase::phase))) {
+      PrintMaglevGraph(Phase::phase);
+    }
+    if (compilation_info_->trace_json_enabled()) {
+      maglev::PrintMaglevGraphAsJSON(compilation_info_.get(), graph_,
+                                     Phase::phase);
+    }
+#ifdef DEBUG
     maglev::GraphProcessor<maglev::MaglevGraphVerifier> verifier(
         compilation_info_.get(), Phase::phase);
     verifier.ProcessGraph(graph_);
-  }
 #endif
+  }
   return result;
 }
 
