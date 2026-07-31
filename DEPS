@@ -96,7 +96,7 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:4c57ddcb664d8e432c4edbd864017e1d1cee709d',
+  'gn_version': 'git_revision:4a060c55dcc5380837a8684949b74400e929b85e',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -108,12 +108,12 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:32.20260723.5.1',
+  'fuchsia_version': 'version:33.20260730.5.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'd7aeed15f395f59cf998dce0682e2b3a9ce938d3',
+  'partition_alloc_version': 'ad56996fecb8731dec9d9137430b91b0906e8137',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bc30139545fd53075720282a215d52afab39572d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8cfa312efc088fce7b349855cbbd5fa00cd12fb3',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0d8a204ff274ee12fa9ace5e3ffd8e5fbcb54926',
   'buildtools/linux64': {
@@ -257,7 +257,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '1653a52cef43e9fa0b90f60c870b6136301a3246',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b3849c5cbdef5d9b7ade12445b5d6298b548c547',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -275,7 +275,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9f755996d3ff258aaf750cb0d21bdc8322254137',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e051c661c3785286de8623547e3a1574b989a428',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -535,7 +535,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '45843c2c1e993427751e2a07f904db069dc26ad6',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '4262744817a7a084bd1a1e28adb11637daa27fbb',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'a7261f5465e69eeace24a9d818f77dff33ca8196',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
