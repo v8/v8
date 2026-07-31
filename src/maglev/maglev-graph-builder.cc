@@ -8468,9 +8468,51 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
   ValueNode* receiver = args.receiver();
   if (!receiver) return {};
 
-  RETURN_IF_ABORT(BuildCheckInstanceType(receiver, NodeType::kJSGeneratorObject,
-                                         JS_GENERATOR_OBJECT_TYPE,
-                                         JS_GENERATOR_OBJECT_TYPE));
+  // The following is to rule out cross-realm generator next inlining.
+  MapInference inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
+  bool can_use_static_maps = false;
+  if (possible_maps && !possible_maps->is_empty()) {
+    can_use_static_maps = true;
+    for (compiler::MapRef map : *possible_maps) {
+      if (map.instance_type() != JS_GENERATOR_OBJECT_TYPE) {
+        can_use_static_maps = false;
+        break;
+      }
+      compiler::OptionalObjectRef ctor = map.GetConstructor(broker());
+      if (!ctor.has_value() || !ctor->IsJSFunction() ||
+          !ctor->AsJSFunction().native_context(broker()).equals(
+              target.native_context(broker())) ||
+          !target.native_context(broker()).equals(
+              broker()->target_native_context())) {
+        return {};
+      }
+    }
+  }
+
+  if (can_use_static_maps) {
+    RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
+  } else {
+    RETURN_IF_ABORT(BuildCheckInstanceType(
+        receiver, NodeType::kJSGeneratorObject, JS_GENERATOR_OBJECT_TYPE,
+        JS_GENERATOR_OBJECT_TYPE));
+
+    ValueNode* context;
+    GET_VALUE_OR_ABORT(
+        context,
+        BuildLoadTaggedField(receiver, offsetof(JSGeneratorObject, context_)));
+    ValueNode* context_map;
+    GET_VALUE_OR_ABORT(context_map, BuildLoadMap(context));
+    ValueNode* native_context;
+    GET_VALUE_OR_ABORT(
+        native_context,
+        BuildLoadTaggedField(
+            context_map,
+            offsetof(Map, constructor_or_back_pointer_or_native_context_)));
+    RETURN_IF_ABORT(BuildCheckValueByReference(native_context,
+                                               target.native_context(broker()),
+                                               DeoptimizeReason::kWrongValue));
+  }
 
   ValueNode* continuation;
   GET_VALUE_OR_ABORT(continuation,
