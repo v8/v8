@@ -890,7 +890,7 @@ DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 
 
 #ifdef V8_TARGET_ARCH_64_BIT
-DEFINE_BOOL(additive_safe_int_feedback, true,
+DEFINE_BOOL(additive_safe_int_feedback, false,
             "Enable the use of AdditiveSafeInteger feedback")
 DEFINE_BOOL(turbolev_additive_safe_int_feedback, true,
             "Enable the use of AdditiveSafeInteger feedback for Turbolev")
