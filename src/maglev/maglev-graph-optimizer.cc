@@ -633,6 +633,12 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
         known_node_aspects().GetOrCreateInfoFor(broker(), node);
     auto& alternative = node_info->alternative();
     if (ValueNode* alt = alternative.get(use_repr)) return alt;
+    // If `node` is itself tagging an untagged value, convert that value
+    // directly instead of untagging the tagged result.
+    if (node->is_conversion()) {
+      return GetUntaggedValueWithRepresentation(node->input_node(0), use_repr,
+                                                conversion_type);
+    }
     return {};
   }
   // TODO(victorgomes): The GetXXX functions may emit a conversion node that
