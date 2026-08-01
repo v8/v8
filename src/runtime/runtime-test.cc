@@ -1857,6 +1857,25 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   return isolate->heap()->ToBoolean(result);
 }
 
+// Returns true iff the regexp cannot match a string starting with |c|,
+// according to the quick-check filters.  Lets tests assert that a filter was
+// actually built, which exec results alone cannot show.
+RUNTIME_FUNCTION(Runtime_RegexpQuickCheckRejects) {
+  SealHandleScope shs(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsJSRegExp(args[0]));
+  CHECK_UNLESS_FUZZING(IsString(args[1]));
+  auto regexp = args.at<JSRegExp>(0);
+  auto string = args.at<String>(1);
+  CHECK_UNLESS_FUZZING(string->length() == 1);
+  if (!regexp->has_data()) return ReadOnlyRoots(isolate).false_value();
+  DisallowGarbageCollection no_gc;
+  String::FlatContent content = string->GetFlatContent(no_gc);
+  if (!content.IsOneByte()) return ReadOnlyRoots(isolate).false_value();
+  return isolate->heap()->ToBoolean(
+      regexp->data(isolate)->QuickCheckRejects(content.ToOneByteVector(), 0));
+}
+
 RUNTIME_FUNCTION(Runtime_RegexpTypeTag) {
   HandleScope shs(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);

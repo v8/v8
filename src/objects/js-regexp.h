@@ -6,9 +6,11 @@
 #define V8_OBJECTS_JS_REGEXP_H_
 
 #include <optional>
+#include <utility>
 
 #include "include/v8-regexp.h"
 #include "src/base/bit-field.h"
+#include "src/base/vector.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-array.h"
 #include "src/objects/trusted-object.h"
@@ -193,6 +195,28 @@ V8_OBJECT class RegExpData : public ExposedTrustedObject {
     EXPERIMENTAL,  // Compiled to use the experimental linear time engine.
   };
 
+  // The first-character bitset covers the latin-1 range, one bit per character.
+  static constexpr int kQuickCheckBitsetChars = 256;
+  static constexpr int kQuickCheckBitsetBitsPerWord = 32;
+  static constexpr int kQuickCheckBitsetWords =
+      kQuickCheckBitsetChars / kQuickCheckBitsetBitsPerWord;
+
+  // Where |c| lives in the bitset: which word to load, and which bit to test
+  // in it.  For 'a' (97) that is word 3, bit 1.
+  static constexpr std::pair<int, uint32_t> QuickCheckBitsetBit(uint8_t c) {
+    return {c / kQuickCheckBitsetBitsPerWord,
+            uint32_t{1} << (c % kQuickCheckBitsetBitsPerWord)};
+  }
+
+  // Flags not exposed to JS, stored separately from flags_ above.
+  // TODO(jgruber): Merge these into flags_, which has spare bits.
+  enum InternalFlag : uint32_t {
+    // Set if either quick-check filter was built.  Most regexps get neither,
+    // so this lets the exec path skip straight past both with one test
+    // instead of loading the subject and running the bitset check to find out.
+    kHasQuickCheck = 1 << 0,
+  };
+
   inline Type type_tag() const;
   inline void set_type_tag(Type);
 
@@ -217,6 +241,18 @@ V8_OBJECT class RegExpData : public ExposedTrustedObject {
   inline uint32_t quick_check_value() const;
   inline void set_quick_check_value(uint32_t value);
 
+  inline void set_quick_check_reject_bitset_word(int index, uint32_t value);
+
+  inline uint32_t internal_flags() const;
+  inline void set_internal_flags(uint32_t value);
+
+  inline void clear_quick_check();
+
+  // True iff the quick-check filters prove that no match can begin at
+  // |subject[index]|.  |subject| must be one-byte and flat.  Mirrored by
+  // RegExpExecInternal in builtins-regexp-gen.cc; keep the two in sync.
+  bool QuickCheckRejects(base::Vector<const uint8_t> subject, int index) const;
+
   inline int capture_count() const;
 
   static constexpr bool TypeSupportsCaptures(Type t) {
@@ -237,6 +273,19 @@ V8_OBJECT class RegExpData : public ExposedTrustedObject {
   TaggedMember<RegExpDataWrapper> wrapper_;
   uint32_t quick_check_mask_;
   uint32_t quick_check_value_;
+  // One bit per latin-1 character.  Set means no match can begin with that
+  // character; clear means "maybe".
+  //
+  // TODO(jgruber): Move the quick-check fields down to IrRegExpData.  Only
+  // Irregexp ever fills them in, so ATOM data pays 40 bytes for nothing.
+  // EXPERIMENTAL data is already an IrRegExpData, but shares the exec path's
+  // check with IRREGEXP and does not fill the fields in either, so the fields
+  // stay dead there whichever class they live on.
+  uint32_t quick_check_reject_bitset_[kQuickCheckBitsetWords];
+  uint32_t internal_flags_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
 } V8_OBJECT_END;
 
 V8_OBJECT class RegExpDataWrapper : public Struct {

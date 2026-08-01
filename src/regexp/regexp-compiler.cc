@@ -4,6 +4,7 @@
 
 #include "src/regexp/regexp-compiler.h"
 
+#include <algorithm>
 #include <optional>
 #include <string_view>
 
@@ -348,6 +349,7 @@ Compiler::CompilationResult Compiler::Assemble(
     return CompilationResult::RegExpTooBig();
   };
 
+  const Flags flags_before_emit = flags_;
   ZoneVector<Node*> work_list(zone());
   work_list_ = &work_list;
   Label fail;
@@ -387,30 +389,13 @@ Compiler::CompilationResult Compiler::Assemble(
     return ReportError();
   }
 
+  // Restore initial flags for processing below.
+  set_flags(flags_before_emit);
+
   DirectHandle<HeapObject> code = macro_assembler_->GetCode(re_data, flags_);
   work_list_ = nullptr;
 
-#ifdef V8_TARGET_LITTLE_ENDIAN
-  // Generate a bitmask of valid characters for fast rejection.
-  // Skip for multiline regexps as match attempts are less likely to be
-  // rejected early based on the first few characters.
-  constexpr bool kPossiblyAtStart = false;
-  constexpr int kMinChars = 1;
-  constexpr int kMaxChars = 4;
-  int eats_at_least = start->EatsAtLeast(kPossiblyAtStart);
-  if (one_byte_ && eats_at_least >= kMinChars && !IsMultiline(flags_)) {
-    int chars = std::min(eats_at_least, kMaxChars);
-    QuickCheckDetails quick_check(chars);
-    start->GetQuickCheckDetails(&quick_check, this, 0, kPossiblyAtStart,
-                                Node::kRecursionBudget);
-
-    if (!quick_check.cannot_match()) {
-      quick_check.Rationalize(one_byte_);
-      re_data->set_quick_check_mask(quick_check.mask());
-      re_data->set_quick_check_value(quick_check.value());
-    }
-  }
-#endif
+  ComputeQuickCheckFilters(start, re_data);
   return {code, next_register_};
 }
 
@@ -3008,6 +2993,252 @@ void AppendClassRangesMatchSet(ClassRanges* cr, Zone* node_zone, Zone* zone,
   ZoneList<CharacterRange> negated(positive.length() + 1, zone);
   CharacterRange::Negate(&positive, &negated, zone);
   for (int i = 0; i < negated.length(); i++) out->Add(negated.at(i), zone);
+}
+
+// Collects FIRST(start): a superset of the characters that can begin a match,
+// so a character absent from it can be rejected without running the engine.
+//
+// Superset, never subset: a character omitted here is one the filter wrongly
+// rejects, turning a real match into null.  A node we cannot analyze must
+// therefore give up the whole filter by returning false, never add nothing,
+// which reads as "this node matches nothing".  Budget exhaustion likewise.
+//
+// TryBuildFirstCharacterTable computes a similar set, but its Boyer-Moore map
+// indexes 128 entries modulo 128 and widens negated classes to SetAll, so
+// latin-1 characters alias.  Harmless there, where the body re-checks in full;
+// fatal here, where nothing does.
+//
+// TODO(jgruber): Unify the two by having TryBuildFirstCharacterTable project
+// this set onto its 128-entry table.  That direction works now that atoms
+// carry their case closure, but needs a benchmark run: the two disagree on
+// when to bail, and the table's selectivity heuristic is tuned against the
+// wider Boyer-Moore sets.
+class FirstCharacterSetBuilder {
+ public:
+  FirstCharacterSetBuilder(Compiler* compiler, Zone* zone,
+                           ZoneList<CharacterRange>* out)
+      : compiler_(compiler), zone_(zone), out_(out) {}
+
+  bool Build(Node* start) { return AddNode(start, 0); }
+
+ private:
+  static constexpr int kBudget = 500;
+
+  bool AddNode(Node* node, int depth) {
+    if (node == nullptr) return false;
+    if (depth > Compiler::kMaxRecursion) return false;
+    if (--budget_ < 0) return false;
+
+    if (AssertionNode* assertion = node->AsAssertionNode()) {
+      // Zero-width, so it cannot change which character is consumed first.
+      return AddNode(assertion->on_success(), depth + 1);
+    }
+    if (ActionNode* action = node->AsActionNode()) {
+      return AddAction(action, depth);
+    }
+    if (ChoiceNode* choice = node->AsChoiceNode()) {
+      return AddChoice(choice, depth);
+    }
+    if (TextNode* text = node->AsTextNode()) return AddText(text);
+    if (EndNode* end = node->AsEndNode()) {
+      // A backtrack always fails, so contributing nothing is exact rather than
+      // a guess.  Worth distinguishing: a one-byte compile turns any class
+      // that cannot match latin-1 into a backtrack, so giving up here would
+      // lose the [abc] filter in /(?=[\u{1F600}])[abc]/u.
+      if (end->IsBacktrack()) return true;
+      // Any other end matches without consuming.
+      return false;
+    }
+    // BackReferenceNode matches previously captured text, unknown at compile
+    // time.  UnanchoredAdvance moves the position.
+    DCHECK(node->AsBackReferenceNode() != nullptr ||
+           node->AsUnanchoredAdvanceNode() != nullptr);
+    return false;
+  }
+
+  bool AddAction(ActionNode* action, int depth) {
+    switch (action->action_type()) {
+      // Pure bookkeeping: no effect on the first consumed character.
+      case ActionNode::STORE_POSITION:
+      case ActionNode::CLEAR_CAPTURES:
+      case ActionNode::SET_REGISTER_FOR_LOOP:
+      case ActionNode::INCREMENT_REGISTER:
+      case ActionNode::EATS_AT_LEAST:
+        return AddNode(action->on_success(), depth + 1);
+      // Reached when the body matched without consuming, as in /^(?=a*)b/, so
+      // the continuation is what supplies the first character.  on_success()
+      // is that continuation.
+      case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
+        return AddNode(action->on_success(), depth + 1);
+      case ActionNode::BEGIN_POSITIVE_SUBMATCH:
+        // on_success() is the lookaround body, success_node()->on_success()
+        // the continuation after it.  A lookahead body has to match at the
+        // position, so its set is the tighter answer; a lookbehind body reads
+        // leftwards, so that walk gives up and the continuation answers
+        // instead, [a-c] in /(?<=x)[a-c]/.  The position is restored either
+        // way, so the continuation is what consumes at it.  A failed body walk
+        // may have left entries in out_, and we keep them: extra entries only
+        // widen the set, which weakens the filter rather than breaking it.
+        if (AddNode(action->on_success(), depth + 1)) return true;
+        return AddNode(action->success_node()->on_success(), depth + 1);
+      case ActionNode::BEGIN_NEGATIVE_SUBMATCH:
+        // The body has to fail, so it contributes nothing and only the
+        // continuation constrains: /(?!x)[a-c]/ still starts with [a-c].
+        // on_success() is the choice node below, which walks just that.
+        return AddNode(action->on_success(), depth + 1);
+      // Downstream characters follow the new flags, not the ones we hold, so
+      // every path through a modifier group gives up.  Groups off the walked
+      // path still leak their flags into the analysis, which is what
+      // materializes class ranges -- but AddText reads those same materialized
+      // ranges, so the set stays a superset of what the engine accepts.
+      case ActionNode::MODIFY_FLAGS:
+      // Both fail or move the position depending on runtime state.
+      case ActionNode::EMPTY_MATCH_CHECK:
+      case ActionNode::RESTORE_POSITION:
+        return false;
+    }
+    UNREACHABLE();
+  }
+
+  bool AddChoice(ChoiceNode* choice, int depth) {
+    // A negative lookaround's first alternative must *fail*, so it says nothing
+    // about what can start a match; only the continue branch does.
+    if (NegativeLookaroundChoiceNode* negative =
+            choice->AsNegativeLookaroundChoiceNode()) {
+      return AddNode(negative->continue_node(), depth + 1);
+    }
+    // The match can go down any alternative, so the answer is their union and
+    // one that gives up sinks the rest.  Guards decide whether an alternative
+    // is taken, not which character it consumes, so guarded ones count too.
+    DCHECK(!choice->alternatives()->is_empty());
+    for (GuardedAlternative& alt : *choice->alternatives()) {
+      if (!AddNode(alt.node(), depth + 1)) return false;
+    }
+    return true;
+  }
+
+  bool AddText(TextNode* text) {
+    // A backward-matching node consumes to the left of the position, so its
+    // characters are not the match's first.
+    if (text->read_backward()) return false;
+    if (text->elements()->is_empty()) return false;
+    // Only the first element can supply the first character.
+    TextElement& elm = text->elements()->at(0);
+    if (elm.text_type() == TextElement::CLASS_RANGES) {
+      // Class ranges have their case equivalents materialized during analysis
+      // (TextNode::MakeCaseIndependent), so the listed ranges are complete.
+      AppendClassRangesMatchSet(elm.class_ranges(), text->zone(), zone_, out_);
+      return true;
+    }
+    DCHECK_EQ(elm.text_type(), TextElement::ATOM);
+    base::Vector<const base::uc16> data = elm.atom()->data();
+    if (data.empty()) return false;
+    const base::uc16 c = data[0];
+    if (!IsIgnoreCase(compiler_->flags())) {
+      out_->Add(CharacterRange::Singleton(c), zone_);
+      return true;
+    }
+    // Atoms keep the character as written and only get their case variants at
+    // emission time, so add the same closure emission uses.
+    unibrow::uchar letters[4];
+    int length = GetCaseIndependentLetters(compiler_->isolate(), c, compiler_,
+                                           letters, 4);
+    // Zero variants means none fit the subject encoding.  Unlike a backtrack,
+    // that is a gap in our knowledge rather than a proof of no match, so give
+    // up instead of contributing the empty set.
+    if (length == 0) return false;
+    for (int i = 0; i < length; i++) {
+      out_->Add(CharacterRange::Singleton(letters[i]), zone_);
+    }
+    return true;
+  }
+
+  Compiler* const compiler_;
+  Zone* const zone_;
+  ZoneList<CharacterRange>* const out_;
+  int budget_ = kBudget;
+};
+
+// Appends FIRST(start) to |out| and returns true, or returns false if the set
+// is not statically known.  On false |out| may hold a partial set and must not
+// be used.  See FirstCharacterSetBuilder for the soundness contract.
+bool ComputeFirstCharacterSet(Node* start, Compiler* compiler, Zone* zone,
+                              ZoneList<CharacterRange>* out) {
+  FirstCharacterSetBuilder builder(compiler, zone, out);
+  if (!builder.Build(start)) return false;
+  CharacterRange::Canonicalize(out);
+  return true;
+}
+
+// The mask keeps only bits all four candidate characters agree on, so an
+// alternation over dissimilar characters erodes it; the bitset is exact but
+// covers one character.  Neither dominates, so store both and let the runtime
+// chain them.
+//
+// Skip for multiline regexps as match attempts are less likely to be rejected
+// early based on the first few characters.
+void Compiler::ComputeQuickCheckFilters(Node* start,
+                                        DirectHandle<RegExpData> re_data) {
+  // Both filters describe the character at the match position, so they say
+  // nothing unless the match has to start there.  Otherwise PreprocessRegExp
+  // prepended the `.*?` search loop and every walk below hits it and returns
+  // "anything goes"; answer that up front rather than rediscovering it.
+  if (has_search_prefix()) return;
+
+  constexpr bool kPossiblyAtStart = false;
+  constexpr int kMinChars = 1;
+  constexpr int kMaxChars = 4;
+  int eats_at_least = start->EatsAtLeast(kPossiblyAtStart);
+  if (!one_byte() || eats_at_least < kMinChars || IsMultiline(flags())) {
+    return;
+  }
+
+  bool has_filter = false;
+
+  // Little-endian only: the mask is compared against four characters loaded as
+  // one word, so byte order matters.  The bitset below indexes by character
+  // value instead and works everywhere.
+#ifdef V8_TARGET_LITTLE_ENDIAN
+  int chars = std::min(eats_at_least, kMaxChars);
+  QuickCheckDetails quick_check(chars);
+  start->GetQuickCheckDetails(&quick_check, this, 0, kPossiblyAtStart,
+                              Node::kRecursionBudget);
+  if (!quick_check.cannot_match()) {
+    quick_check.Rationalize(one_byte());
+    if (quick_check.mask() != 0) {
+      re_data->set_quick_check_mask(quick_check.mask());
+      re_data->set_quick_check_value(quick_check.value());
+      has_filter = true;
+    }
+  }
+#endif
+
+  // Store the inverse of the collected set, since the exec path rejects on a
+  // set bit.  A pattern that can start with anything inverts to all zeroes,
+  // which rejects nothing and so does not count as a filter.
+  ZoneList<CharacterRange> first_set(2, zone());
+  if (ComputeFirstCharacterSet(start, this, zone(), &first_set)) {
+    uint32_t accept[RegExpData::kQuickCheckBitsetWords] = {};
+    for (const CharacterRange& range : first_set) {
+      base::uc32 to = std::min<base::uc32>(
+          range.to(), RegExpData::kQuickCheckBitsetChars - 1);
+      for (base::uc32 c = range.from(); c <= to; c++) {
+        auto [word, bit] = RegExpData::QuickCheckBitsetBit(c);
+        accept[word] |= bit;
+      }
+    }
+    bool rejects_anything = false;
+    for (int i = 0; i < RegExpData::kQuickCheckBitsetWords; i++) {
+      re_data->set_quick_check_reject_bitset_word(i, ~accept[i]);
+      rejects_anything |= ~accept[i] != 0;
+    }
+    has_filter |= rejects_anything;
+  }
+
+  if (has_filter) {
+    re_data->set_internal_flags(re_data->internal_flags() |
+                                RegExpData::kHasQuickCheck);
+  }
 }
 
 // Returns true iff every character in |ranges| (canonical) is in
@@ -6325,6 +6556,7 @@ Node* Compiler::PreprocessRegExp(CompileData* data, bool is_one_byte) {
     // Add a .*? at the beginning, outside the body capture, unless
     // this expression is anchored at the beginning or sticky.
     TRACE_GRAPH("* Add .*? at beginning of unanchored, non-sticky RegExp");
+    has_search_prefix_ = true;
     Node* loop_node = Quantifier::ToNode(
         0, Tree::kInfinity, false,
         zone()->New<ClassRanges>(StandardCharacterSet::kEverything), this,

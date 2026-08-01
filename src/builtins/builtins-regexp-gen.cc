@@ -705,31 +705,83 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     BIND(&next);
   }
 
-  // Fast-reject via (chars & mask) == value, using up to a 4-character
-  // mask precomputed during RegExp compilation.
+  // Throw out attempts that cannot match without entering the engine, using
+  // two filters built during compilation: (chars & mask) == value over the
+  // next four characters, and a bitset of what a match can start with.  A
+  // regexp may have either, both, or neither, and running both rejects more
+  // than either does alone.  This is RegExpData::QuickCheckRejects in CSA.
   {
-    Label proceed(this);
+    Label try_bitset(this), proceed(this);
+
+    // Most regexps have neither filter; see RegExpData::kHasQuickCheck.
+    TNode<Uint32T> internal_flags =
+        LoadObjectField<Uint32T>(data, offsetof(RegExpData, internal_flags_));
+    GotoIf(Word32Equal(Word32And(internal_flags,
+                                 Uint32Constant(RegExpData::kHasQuickCheck)),
+                       Int32Constant(0)),
+           &proceed);
 
     GotoIfNot(to_direct.IsOneByte(), &proceed);
 
-    TNode<Uint32T> mask =
-        LoadObjectField<Uint32T>(data, offsetof(RegExpData, quick_check_mask_));
-    GotoIf(Word32Equal(mask, Int32Constant(0)), &proceed);
-
-    TNode<IntPtrT> remaining = IntPtrSub(int_string_length, int_last_index);
-    GotoIf(IntPtrLessThan(remaining, IntPtrConstant(kUInt32Size / kCharSize)),
-           &proceed);
-
-    TNode<Uint32T> expected = LoadObjectField<Uint32T>(
-        data, offsetof(RegExpData, quick_check_value_));
-
     TNode<IntPtrT> actual_index = IntPtrAdd(int_last_index, to_direct.offset());
+    TNode<IntPtrT> remaining = IntPtrSub(int_string_length, int_last_index);
     TNode<RawPtrT> string_data = to_direct.PointerToData(&proceed);
 
-    TNode<Uint32T> loaded_word = Load<Uint32T>(string_data, actual_index);
+    // Mask first.
+    {
+      TNode<Uint32T> mask = LoadObjectField<Uint32T>(
+          data, offsetof(RegExpData, quick_check_mask_));
+      GotoIf(Word32Equal(mask, Int32Constant(0)), &try_bitset);
 
-    TNode<Word32T> masked_chars = Word32And(loaded_word, mask);
-    Branch(Word32Equal(masked_chars, expected), &proceed, &out);
+      // Four characters have to be left to read four.  The bitset reads only
+      // one, so a shorter tail skips ahead to it rather than giving up.
+      GotoIf(IntPtrLessThan(remaining, IntPtrConstant(kUInt32Size / kCharSize)),
+             &try_bitset);
+
+      TNode<Uint32T> expected = LoadObjectField<Uint32T>(
+          data, offsetof(RegExpData, quick_check_value_));
+
+      TNode<Uint32T> loaded_word = Load<Uint32T>(string_data, actual_index);
+
+      TNode<Word32T> masked_chars = Word32And(loaded_word, mask);
+      Branch(Word32Equal(masked_chars, expected), &try_bitset, &out);
+    }
+
+    // A set bit means "no match can start with this character", so a regexp
+    // without a bitset has all zeroes and falls through on its own.  Reads a
+    // single character, so unlike the mask it works on a short tail too.
+    BIND(&try_bitset);
+    {
+      GotoIf(IntPtrEqual(remaining, IntPtrConstant(0)), &proceed);
+
+      TNode<Uint32T> c = Load<Uint8T>(string_data, actual_index);
+
+      // RegExpData::QuickCheckBitsetBit open-coded, since CSA cannot call it:
+      // 'a' (97) is word 3, bit 1, so load at byte offset 12 and test 1 << 1.
+      // This offset is computed rather than constant, and |data| is a trusted
+      // object, so the bitset has to cover every value the load above can
+      // produce.  It does: |c| is a byte, and the bitset has a bit per byte.
+      static_assert(RegExpData::kQuickCheckBitsetChars ==
+                    1 << (kUInt8Size * kBitsPerByte));
+      static_assert(RegExpData::kQuickCheckBitsetBitsPerWord ==
+                    kInt32Size * kBitsPerByte);
+      constexpr int kBitsPerWordLog2 = kInt32SizeLog2 + kBitsPerByteLog2;
+      TNode<IntPtrT> word_index = Signed(
+          WordShr(ChangeUint32ToWord(c), IntPtrConstant(kBitsPerWordLog2)));
+      TNode<IntPtrT> word_offset =
+          WordShl(word_index, IntPtrConstant(kInt32SizeLog2));
+      TNode<Uint32T> word = LoadObjectField<Uint32T>(
+          data, IntPtrAdd(IntPtrConstant(
+                              offsetof(RegExpData, quick_check_reject_bitset_)),
+                          word_offset));
+
+      TNode<Uint32T> bit = Word32Shl(
+          Uint32Constant(1),
+          Word32And(
+              c, Uint32Constant(RegExpData::kQuickCheckBitsetBitsPerWord - 1)));
+      Branch(Word32Equal(Word32And(word, bit), Int32Constant(0)), &proceed,
+             &out);
+    }
 
     BIND(&proceed);
   }

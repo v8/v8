@@ -669,6 +669,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(RegexpHasBytecode, 2, 1)                                             \
   F(RegexpHasNativeCode, 2, 1)                                           \
   F(RegexpIsUnmodified, 1, 1)                                            \
+  F(RegexpQuickCheckRejects, 2, 1)                                       \
   F(RegexpTypeTag, 1, 1)                                                 \
   F(Resume, 1, 1)                                                        \
   F(RunningInSimulator, 0, 1)                                            \

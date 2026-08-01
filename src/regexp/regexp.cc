@@ -1311,11 +1311,25 @@ std::optional<int> RegExpImpl::IrregexpExec(
     }
   }
 
+  const bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
+  const bool had_code = regexp_data->has_code(is_one_byte);
   int output_register_count =
       RegExpImpl::IrregexpPrepare(isolate, regexp_data, subject);
   if (output_register_count < 0) {
     DCHECK(isolate->has_exception());
     return {};
+  }
+
+  // The call above is what fills in the filters, so this exec already passed
+  // the builtin's check while they were still empty.  Check it here instead,
+  // so that the exec which compiles rejects like every later one.
+  if (!had_code && regexp_data->has_code(is_one_byte)) {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent content = subject->GetFlatContent(no_gc);
+    if (content.IsOneByte() && regexp_data->QuickCheckRejects(
+                                   content.ToOneByteVector(), previous_index)) {
+      return 0;
+    }
   }
 
   // TODO(jgruber): Consider changing these into DCHECKs once we're convinced
