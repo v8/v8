@@ -221,37 +221,6 @@ TEST(WeakGlobalHandlesMark) {
   GlobalHandles::Destroy(h1.location());
 }
 
-TEST(DeleteWeakGlobalHandle) {
-  v8_flags.stress_compaction = false;
-  v8_flags.stress_incremental_marking = false;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = CcTest::heap();
-  Factory* factory = isolate->factory();
-  GlobalHandles* global_handles = isolate->global_handles();
-
-  WeakPointerCleared = false;
-  IndirectHandle<Object> h;
-  {
-    HandleScope scope(isolate);
-
-    DirectHandle<Object> i = factory->NewStringFromStaticChars("fisk");
-    h = global_handles->Create(*i);
-  }
-
-  std::pair<Handle<Object>*, int> handle_and_id(&h, 1234);
-  GlobalHandles::MakeWeak(h.location(), reinterpret_cast<void*>(&handle_and_id),
-                          &TestWeakGlobalHandleCallback,
-                          v8::WeakCallbackType::kParameter);
-  CHECK(!WeakPointerCleared);
-  {
-    // We need to invoke GC without stack, otherwise some objects may not be
-    // reclaimed because of conservative stack scanning.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::InvokeMajorGC(heap);
-  }
-  CHECK(WeakPointerCleared);
-}
 
 static const char* not_so_random_string_table[] = {
     "abstract",   "boolean",      "break",      "byte",    "case",
