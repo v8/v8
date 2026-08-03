@@ -1584,44 +1584,23 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   DCHECK(!type.has_index());  // The JS API can't express type indices.
   i::wasm::CanonicalValueType canonical_type{type};
-  i::DirectHandle<i::WasmDispatchTable> dispatch_table;
-  i::DirectHandle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
-      i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(), type,
-      canonical_type, initial, maybe_maximum.has_value(),
-      maybe_maximum.value_or(0) /* note: unused if previous param is false */,
-      DefaultReferenceValue(i_isolate, type), address_type, &dispatch_table);
-
-  // The infrastructure for `new Foo` calls allocates an object, which is
-  // available here as {info.This()}. We're going to discard this object
-  // and use {table_obj} instead, but it does have the correct prototype,
-  // which we must harvest from it. This makes a difference when the JS
-  // constructor function wasn't {WebAssembly.Table} directly, but some
-  // subclass: {table_obj} has {WebAssembly.Table}'s prototype at this
-  // point, so we must overwrite that with the correct prototype for {Foo}.
-  if (!TransferPrototype(i_isolate, table_obj,
-                         Utils::OpenDirectHandle(*info.This()))) {
-    return js_api_scope.AssertException();
-  }
+  i::DirectHandle<i::Object> initial_value;
 
   if (initial > 0 && info.Length() >= 2 && !info[1]->IsUndefined()) {
     i::DirectHandle<i::Object> element = Utils::OpenDirectHandle(*info[1]);
     const char* error_message;
-    if (!i::WasmTableObject::JSToWasmElement(i_isolate, table_obj, element,
-                                             &error_message)
-             .ToHandle(&element)) {
+    if (!i::wasm::JSToWasmObject(i_isolate, element, canonical_type,
+                                 &error_message)
+             .ToHandle(&initial_value)) {
       thrower.TypeError(
           "Argument 2 must be undefined or a value of type compatible "
           "with the type of the new table: %s.",
           error_message);
       return;
     }
-    for (uint32_t index = 0; index < initial; ++index) {
-      i::WasmTableObject::Set(i_isolate, table_obj, dispatch_table, index,
-                              element);
-    }
-  } else if (initial > 0) {
-    DCHECK_EQ(type, table_obj->unsafe_type());
-    if (type.is_abstract_ref()) {
+  } else {
+    initial_value = DefaultReferenceValue(i_isolate, type);
+    if (initial > 0 && type.is_abstract_ref()) {
       switch (type.generic_kind()) {
         case i::wasm::GenericKind::kString:
           thrower.TypeError(
@@ -1637,6 +1616,26 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       }
     }
   }
+
+  i::DirectHandle<i::WasmDispatchTable> dispatch_table;
+  i::DirectHandle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
+      i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(), type,
+      canonical_type, initial, maybe_maximum.has_value(),
+      maybe_maximum.value_or(0) /* note: unused if previous param is false */,
+      initial_value, address_type, &dispatch_table);
+
+  // The infrastructure for `new Foo` calls allocates an object, which is
+  // available here as {info.This()}. We're going to discard this object
+  // and use {table_obj} instead, but it does have the correct prototype,
+  // which we must harvest from it. This makes a difference when the JS
+  // constructor function wasn't {WebAssembly.Table} directly, but some
+  // subclass: {table_obj} has {WebAssembly.Table}'s prototype at this
+  // point, so we must overwrite that with the correct prototype for {Foo}.
+  if (!TransferPrototype(i_isolate, table_obj,
+                         Utils::OpenDirectHandle(*info.This()))) {
+    return js_api_scope.AssertException();
+  }
+
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
   return_value.Set(Utils::ToLocal(i::Cast<i::JSObject>(table_obj)));
 }

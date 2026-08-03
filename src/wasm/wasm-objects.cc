@@ -197,6 +197,41 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
   return base::Vector<const uint8_t>::cast(name);
 }
 
+namespace {
+void UpdateDispatchTableMultiple(Isolate* isolate,
+                                 DirectHandle<WasmDispatchTable> dispatch_table,
+                                 int start_index, int count,
+                                 DirectHandle<Object> external) {
+  if (WasmExportedFunction::IsWasmExportedFunction(*external)) {
+    auto exported_function = Cast<WasmExportedFunction>(external);
+    auto func_data = exported_function->shared()->wasm_exported_function_data();
+    DirectHandle<WasmTrustedInstanceData> target_instance_data(
+        func_data->instance_data(), isolate);
+    int func_index = func_data->function_index();
+    const wasm::WasmModule* module = target_instance_data->module();
+    SBXCHECK_BOUNDS(func_index, module->functions.size());
+    auto* wasm_function = module->functions.data() + func_index;
+    for (int i = 0; i < count; ++i) {
+      WasmTableObject::UpdateDispatchTable(isolate, dispatch_table,
+                                           start_index + i, wasm_function,
+                                           target_instance_data
+#if V8_ENABLE_DRUMBRAKE
+                                           ,
+                                           func_index
+#endif  // V8_ENABLE_DRUMBRAKE
+      );
+    }
+  } else {
+    DCHECK(WasmCapiFunction::IsWasmCapiFunction(*external));
+    for (int i = 0; i < count; ++i) {
+      WasmTableObject::UpdateDispatchTable(isolate, dispatch_table,
+                                           start_index + i,
+                                           Cast<WasmCapiFunction>(external));
+    }
+  }
+}
+}  // namespace
+
 DirectHandle<WasmTableObject> WasmTableObject::New(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
     wasm::ValueType type, wasm::CanonicalValueType canonical_type,
@@ -215,6 +250,17 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
       is_function_table
           ? isolate->factory()->NewWasmDispatchTable(initial, canonical_type)
           : isolate->factory()->empty_wasm_dispatch_table();
+
+  if (is_function_table && initial > 0 && IsWasmFuncRef(*initial_value)) {
+    DirectHandle<Object> external =
+        WasmInternalFunction::GetOrCreateExternal(direct_handle(
+            Cast<WasmFuncRef>(*initial_value)->internal(isolate), isolate));
+
+    // The entries array was filled with *initial_value above, so this loop
+    // only has to do the dispatch-table half.
+    UpdateDispatchTableMultiple(isolate, dispatch_table, 0,
+                                static_cast<int>(initial), external);
+  }
 
   DirectHandle<UnionOf<Undefined, Number, BigInt>> max =
       isolate->factory()->undefined_value();
@@ -356,27 +402,8 @@ void WasmTableObject::SetFunctionTableEntry(
   DirectHandle<Object> external = WasmInternalFunction::GetOrCreateExternal(
       direct_handle(Cast<WasmFuncRef>(*entry)->internal(isolate), isolate));
 
-  if (WasmExportedFunction::IsWasmExportedFunction(*external)) {
-    auto exported_function = Cast<WasmExportedFunction>(external);
-    auto func_data = exported_function->shared()->wasm_exported_function_data();
-    DirectHandle<WasmTrustedInstanceData> target_instance_data(
-        func_data->instance_data(), isolate);
-    int func_index = func_data->function_index();
-    const WasmModule* module = target_instance_data->module();
-    SBXCHECK_BOUNDS(func_index, module->functions.size());
-    auto* wasm_function = module->functions.data() + func_index;
-    UpdateDispatchTable(isolate, dispatch_table, entry_index, wasm_function,
-                        target_instance_data
-#if V8_ENABLE_DRUMBRAKE
-                        ,
-                        func_index
-#endif  // V8_ENABLE_DRUMBRAKE
-    );
-  } else {
-    DCHECK(WasmCapiFunction::IsWasmCapiFunction(*external));
-    UpdateDispatchTable(isolate, dispatch_table, entry_index,
-                        Cast<WasmCapiFunction>(external));
-  }
+  UpdateDispatchTableMultiple(isolate, dispatch_table, entry_index, 1,
+                              external);
   table->entries()->set(entry_index, *entry);
 }
 
