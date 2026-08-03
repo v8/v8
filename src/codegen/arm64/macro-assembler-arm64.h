@@ -2050,9 +2050,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {
-    static const int shift = Field::kShift;
-    static const int setbits = CountSetBits(Field::kMask, 32);
-    Ubfx(dst, src, shift, setbits);
+    static constexpr int shift = Field::kShift;
+    static constexpr uint64_t mask =
+        static_cast<uint64_t>(Field::kMask) >> shift;
+    if constexpr ((mask & (mask + 1)) == 0) {
+      static const int setbits = CountSetBits(Field::kMask, 32);
+      Ubfx(dst, src, shift, setbits);
+    } else {
+      if constexpr (shift != 0) {
+        Lsr(dst, src, shift);
+        And(dst, dst, mask);
+      } else {
+        And(dst, src, mask);
+      }
+    }
   }
 
   template <typename Field>

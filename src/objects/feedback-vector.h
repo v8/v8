@@ -304,10 +304,10 @@ V8_OBJECT class FeedbackVector : public HeapObject {
  public:
   // Bit positions in |osr_state|.
   using OsrUrgencyBits = base::BitField<uint32_t, 0, 3, uint8_t>;
-  using MaybeHasMaglevOsrCodeBit = OsrUrgencyBits::Next<bool, 1>;
-  using MaybeHasTurbofanOsrCodeBit = MaybeHasMaglevOsrCodeBit::Next<bool, 1>;
+  using MaybeHasTurbofanOsrCodeBit = OsrUrgencyBits::Next<bool, 1>;
+  using MaybeHasMaglevOsrCodeBit = MaybeHasTurbofanOsrCodeBit::Next<bool, 1>;
   using DontUseTheseBitsUnlessBeneficialBits =
-      MaybeHasTurbofanOsrCodeBit::Next<uint32_t, 3>;
+      MaybeHasMaglevOsrCodeBit::Next<uint32_t, 3>;
   // Bit positions in |flags|.
   using TieringInProgressBit = base::BitField<bool, 0, 1, uint16_t>;
   using OsrTieringInProgressBit = TieringInProgressBit::Next<bool, 1>;
