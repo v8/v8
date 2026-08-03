@@ -341,7 +341,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'ec7ac638dae6f39c950d4606809b81fdca815a19',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '50ad4d201981eee77b5f52fd53860b54c88cc662',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '300662227a83ae5cbb2404c5fdea344f896e18a1',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -583,7 +583,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '42c2f19a14d33b4ed327ab898fe7b652013aa740',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e8d258331cf0ee12d0e962a61b729c1390030018',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a8bff11b4b458a442fa38e53bef9903852d0d303',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '418c65786fdf6fc5f10cb008c252c2b12c4713a6',
   'third_party/abseil-cpp': {
