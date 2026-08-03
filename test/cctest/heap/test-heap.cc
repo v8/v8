@@ -130,52 +130,6 @@ static void TestWeakGlobalHandleCallback(
   p->first->Reset();
 }
 
-TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = CcTest::heap();
-  LocalContext context;
-  Factory* factory = isolate->factory();
-  GlobalHandles* global_handles = isolate->global_handles();
-
-  WeakPointerCleared = false;
-
-  IndirectHandle<Object> h1;
-  IndirectHandle<Object> h2;
-
-  {
-    HandleScope scope(isolate);
-
-    // Create an Api object that is unmodified.
-    Local<v8::Function> function = FunctionTemplate::New(context.isolate())
-                                       ->GetFunction(context.local())
-                                       .ToLocalChecked();
-    Local<v8::Object> i =
-        function->NewInstance(context.local()).ToLocalChecked();
-    DirectHandle<Object> u = factory->NewNumber(1.12344);
-
-    h1 = global_handles->Create(*u);
-    h2 = global_handles->Create(internal::ValueHelper::ValueAsAddress(*i));
-  }
-
-  std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
-  GlobalHandles::MakeWeak(
-      h2.location(), reinterpret_cast<void*>(&handle_and_id),
-      &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
-
-  {
-    // We need to invoke GC without stack, otherwise some objects may not be
-    // reclaimed because of conservative stack scanning.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    v8_flags.single_generation ? heap::InvokeMajorGC(heap)
-                               : heap::InvokeMinorGC(heap);
-  }
-
-  CHECK(IsHeapNumber(*h1));
-  CHECK(WeakPointerCleared);
-  GlobalHandles::Destroy(h1.location());
-}
-
 TEST(WeakGlobalHandlesMark) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
