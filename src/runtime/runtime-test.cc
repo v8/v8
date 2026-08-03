@@ -2465,6 +2465,12 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
         feedback_value.slot_kind_ = out.str();
         out << ":" << it.GetEmbeddedOperationHint<BinaryOperationFeedback>();
         feedback_value.details_ = out.str();
+      } else if (interpreter::Bytecodes::IsUnaryOpWithEmbeddedFeedback(
+                     bytecode)) {
+        out << "UnaryOp";
+        feedback_value.slot_kind_ = out.str();
+        out << ":" << it.GetEmbeddedOperationHint<BinaryOperationFeedback>();
+        feedback_value.details_ = out.str();
       } else {
         UNREACHABLE();
       }

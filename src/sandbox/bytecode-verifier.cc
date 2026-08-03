@@ -299,6 +299,8 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
     case Runtime::kPatchCompareOpBaselineCodeAndThrow:
     case Runtime::kPatchBinopBaselineCode:
     case Runtime::kPatchBinopBaselineCodeAndThrow:
+    case Runtime::kPatchUnaryOpBaselineCode:
+    case Runtime::kPatchUnaryOpBaselineCodeAndThrow:
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
       return false;
 #if V8_ENABLE_WEBASSEMBLY

@@ -1592,10 +1592,13 @@ void JSFunction::ClearAllTypeFeedbackInfoForTesting(Isolate* isolate) {
               it.current_bytecode())) {
         continue;
       }
-      bytecode_array->set(
-          it.GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex) +
-              kHeapObjectTag - BytecodeArray::kHeaderSize,
-          kUninitializedEmbeddedFeedback);
+      int operand_index = interpreter::Bytecodes::IsUnaryOpWithEmbeddedFeedback(
+                              it.current_bytecode())
+                              ? kUnaryEmbeddedFeedbackOperandIndex
+                              : kEmbeddedFeedbackOperandIndex;
+      bytecode_array->set(it.GetEmbeddedFeedbackOffset(operand_index) +
+                              kHeapObjectTag - BytecodeArray::kHeaderSize,
+                          kUninitializedEmbeddedFeedback);
     }
   }
 }

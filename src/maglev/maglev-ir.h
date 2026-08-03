@@ -3269,7 +3269,7 @@ class DeadValue : public FixedInputValueNodeT<0, DeadValue> {
 };
 
 template <class Derived, Operation kOperation>
-class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
+class UnaryWithEmbeddedFeedbackNode : public FixedInputValueNodeT<1, Derived> {
   using Base = FixedInputValueNodeT<1, Derived>;
 
  public:
@@ -3277,17 +3277,17 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
   static constexpr OpProperties kProperties = OpProperties::JSCall();
   DECLARE_UNOP(Tagged)
 
-  compiler::FeedbackSource feedback() const { return feedback_; }
+  compiler::EmbeddedFeedbackSource feedback() const { return feedback_; }
 
  protected:
-  explicit UnaryWithFeedbackNode(uint64_t bitfield,
-                                 const compiler::FeedbackSource& feedback)
+  explicit UnaryWithEmbeddedFeedbackNode(
+      uint64_t bitfield, const compiler::EmbeddedFeedbackSource& feedback)
       : Base(bitfield), feedback_(feedback) {}
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 
-  const compiler::FeedbackSource feedback_;
+  const compiler::EmbeddedFeedbackSource feedback_;
 };
 
 template <class Derived, Operation kOperation>
@@ -3312,18 +3312,6 @@ class BinaryWithEmbeddedFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   const compiler::EmbeddedFeedbackSource feedback_;
 };
 
-#define DEF_OPERATION_WITH_FEEDBACK_NODE(Name, Super, OpName)         \
-  class Name : public Super<Name, Operation::k##OpName> {             \
-    using Base = Super<Name, Operation::k##OpName>;                   \
-                                                                      \
-   public:                                                            \
-    Name(uint64_t bitfield, const compiler::FeedbackSource& feedback) \
-        : Base(bitfield, feedback) {}                                 \
-    int MaxCallStackArgs() const { return 0; }                        \
-    void SetValueLocationConstraints();                               \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);      \
-  };
-
 #define DEF_OPERATION_WITH_EMBEDDED_FEEDBACK_NODE(Name, Super, OpName)        \
   class Name : public Super<Name, Operation::k##OpName> {                     \
     using Base = Super<Name, Operation::k##OpName>;                           \
@@ -3336,8 +3324,9 @@ class BinaryWithEmbeddedFeedbackNode : public FixedInputValueNodeT<2, Derived> {
     void GenerateCode(MaglevAssembler*, const ProcessingState&);              \
   };
 
-#define DEF_UNARY_WITH_FEEDBACK_NODE(Name) \
-  DEF_OPERATION_WITH_FEEDBACK_NODE(Generic##Name, UnaryWithFeedbackNode, Name)
+#define DEF_UNARY_WITH_FEEDBACK_NODE(Name)   \
+  DEF_OPERATION_WITH_EMBEDDED_FEEDBACK_NODE( \
+      Generic##Name, UnaryWithEmbeddedFeedbackNode, Name)
 #define DEF_BINARY_WITH_EMBEDDED_FEEDBACK_NODE(Name) \
   DEF_OPERATION_WITH_EMBEDDED_FEEDBACK_NODE(         \
       Generic##Name, BinaryWithEmbeddedFeedbackNode, Name)
@@ -3348,7 +3337,6 @@ COMPARISON_OPERATION_LIST(DEF_BINARY_WITH_EMBEDDED_FEEDBACK_NODE)
 
 #undef DEF_UNARY_WITH_FEEDBACK_NODE
 #undef DEF_BINARY_WITH_EMBEDDED_FEEDBACK_NODE
-#undef DEF_OPERATION_WITH_FEEDBACK_NODE
 #undef DEF_OPERATION_WITH_EMBEDDED_FEEDBACK_NODE
 
 // Number of bits needed to encode an Operation in a node's bitfield.

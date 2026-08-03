@@ -530,19 +530,23 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::UnaryOperation(Token::Value op,
                                                            int feedback_slot) {
   switch (op) {
     case Token::kInc:
-      OutputInc(feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputInc(kUninitializedEmbeddedFeedback);
       break;
     case Token::kDec:
-      OutputDec(feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputDec(kUninitializedEmbeddedFeedback);
       break;
     case Token::kAdd:
       OutputToNumber(feedback_slot);
       break;
     case Token::kSub:
-      OutputNegate(feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputNegate(kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitNot:
-      OutputBitwiseNot(feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputBitwiseNot(kUninitializedEmbeddedFeedback);
       break;
     default:
       UNREACHABLE();

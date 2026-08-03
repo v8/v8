@@ -169,6 +169,18 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define GENERATE_BUILTIN_TYPED_BITWISE_HANDLER(V, OP) \
   TYPED_BINOP_HANDLER_HELPER(V, OP, None)             \
   TYPED_BINOP_HANDLER_HELPER(V, OP, SignedSmall)
+
+#define TYPED_UNOP_HANDLER_HELPER(V, OPERATION, TYPE) \
+  V(OPERATION##_##TYPE##_Baseline, UnaryOp_WithEmbeddedFeedbackOffset)
+
+#define GENERATE_BUILTIN_TYPED_UNOP_HANDLER(V, OP) \
+  TYPED_UNOP_HANDLER_HELPER(V, OP, None)           \
+  TYPED_UNOP_HANDLER_HELPER(V, OP, SignedSmall)
+
+#define GENERATE_BUILTIN_TYPED_NEGATE_HANDLER(V)    \
+  TYPED_UNOP_HANDLER_HELPER(V, Negate, None)        \
+  TYPED_UNOP_HANDLER_HELPER(V, Negate, SignedSmall) \
+  TYPED_UNOP_HANDLER_HELPER(V, Negate, Number)
 #endif
 
 /* Tiering related builtins
@@ -1058,14 +1070,22 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(GreaterThanOrEqual_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)   \
                                                                                \
   /* Unary ops with feedback collection */                                     \
-  TFC(BitwiseNot_Baseline, UnaryOp_Baseline)                                   \
-  TFC(Decrement_Baseline, UnaryOp_Baseline)                                    \
-  TFC(Increment_Baseline, UnaryOp_Baseline)                                    \
-  TFC(Negate_Baseline, UnaryOp_Baseline)                                       \
-  IF_TSA(TFC_TSA, TFC, BitwiseNot_WithFeedback, UnaryOp_WithFeedback)          \
-  TFC(Decrement_WithFeedback, UnaryOp_WithFeedback)                            \
-  TFC(Increment_WithFeedback, UnaryOp_WithFeedback)                            \
-  TFC(Negate_WithFeedback, UnaryOp_WithFeedback)                               \
+  TFC(BitwiseNot_Generic_Baseline, UnaryOp_WithEmbeddedFeedbackOffset)         \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_UNOP_HANDLER, TFC, BitwiseNot)      \
+  IF_SPARKPLUG_PLUS(TFC, BitwiseNotAndTryPatchCode, UnaryOpAndTryPatchCode)    \
+  TFC(Decrement_Generic_Baseline, UnaryOp_WithEmbeddedFeedbackOffset)          \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_UNOP_HANDLER, TFC, Decrement)       \
+  IF_SPARKPLUG_PLUS(TFC, DecrementAndTryPatchCode, UnaryOpAndTryPatchCode)     \
+  TFC(Increment_Generic_Baseline, UnaryOp_WithEmbeddedFeedbackOffset)          \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_UNOP_HANDLER, TFC, Increment)       \
+  IF_SPARKPLUG_PLUS(TFC, IncrementAndTryPatchCode, UnaryOpAndTryPatchCode)     \
+  TFC(Negate_Generic_Baseline, UnaryOp_WithEmbeddedFeedbackOffset)             \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_NEGATE_HANDLER, TFC)                \
+  IF_SPARKPLUG_PLUS(TFC, NegateAndTryPatchCode, UnaryOpAndTryPatchCode)        \
+  IF_TSA(TFC_TSA, TFC, BitwiseNot_WithFeedback, UnaryOp_WithEmbeddedFeedback)  \
+  TFC(Decrement_WithFeedback, UnaryOp_WithEmbeddedFeedback)                    \
+  TFC(Increment_WithFeedback, UnaryOp_WithEmbeddedFeedback)                    \
+  TFC(Negate_WithFeedback, UnaryOp_WithEmbeddedFeedback)                       \
                                                                                \
   /* Object */                                                                 \
   TFJ(ObjectAssign, kDontAdaptArgumentsSentinel)                               \

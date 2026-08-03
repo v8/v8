@@ -728,6 +728,11 @@ DEFINE_TYPED_OP_CHECKER(BitwiseAnd, None, SignedSmall)
 DEFINE_TYPED_OP_CHECKER(ShiftLeft, None, SignedSmall)
 DEFINE_TYPED_OP_CHECKER(ShiftRight, None, SignedSmall)
 DEFINE_TYPED_OP_CHECKER(ShiftRightLogical, None, SignedSmall)
+// Unary op typed-stub families.
+DEFINE_TYPED_OP_CHECKER(Increment, None, SignedSmall)
+DEFINE_TYPED_OP_CHECKER(Decrement, None, SignedSmall)
+DEFINE_TYPED_OP_CHECKER(Negate, None, Number)
+DEFINE_TYPED_OP_CHECKER(BitwiseNot, None, SignedSmall)
 #undef DEFINE_TYPED_OP_CHECKER
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 

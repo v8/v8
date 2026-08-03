@@ -1536,10 +1536,12 @@ using Float64NodeFor = typename Float64NodeForHelper<kOperation>::type;
 
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::BuildGenericUnaryOperationNode() {
-  FeedbackSlot slot_index = GetSlotOperand(0);
   ValueNode* value = GetAccumulator();
   return SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
-      {value}, compiler::FeedbackSource{feedback(), slot_index}));
+      {value}, compiler::EmbeddedFeedbackSource{
+                   indirect_handle(iterator_.bytecode_array(), local_isolate()),
+                   iterator_.GetEmbeddedFeedbackOffset(
+                       kUnaryEmbeddedFeedbackOperandIndex)}));
 }
 
 template <Operation kOperation>
@@ -1772,8 +1774,8 @@ constexpr bool BigIntBinaryOperationHasBuiltin(Operation operation) {
 
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::VisitUnaryOperation() {
-  FeedbackNexus nexus = FeedbackNexusForOperand(0);
-  BinaryOperationHint feedback_hint = nexus.GetBinaryOperationFeedback();
+  BinaryOperationHint feedback_hint =
+      iterator_.GetEmbeddedOperationHint<BinaryOperationFeedback>();
   switch (feedback_hint) {
     case BinaryOperationHint::kNone:
       return reducer_.EmitUnconditionalDeopt(

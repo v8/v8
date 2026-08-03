@@ -950,7 +950,10 @@ constexpr int kFeedbackIsEmbedded = -1;
 // byteocode, indicating an uninitialized state.
 constexpr int kUninitializedEmbeddedFeedback = 0;
 
-// The bytecode operand index for embedded feedback.
+// The bytecode operand indices for embedded feedback. Unary bytecodes only
+// have a single operand (the embedded feedback itself), while binary and
+// compare bytecodes carry the embedded feedback as their second operand.
+constexpr int kUnaryEmbeddedFeedbackOperandIndex = 0;
 constexpr int kEmbeddedFeedbackOperandIndex = 1;
 
 // These constants are internal duplicates for v8::Intercepted enum values.
@@ -2958,6 +2961,14 @@ enum class CachedTieringDecision : int32_t {
 #define TYPED_EXP_STUB_LIST(V, ...) \
   V(None, ##__VA_ARGS__)            \
   V(Number, ##__VA_ARGS__)
+
+#define TYPED_UNARY_STUB_LIST(V, ...) \
+  V(None, ##__VA_ARGS__)              \
+  V(SignedSmall, ##__VA_ARGS__)
+
+#define TYPED_NEGATE_STUB_LIST(V, ...)    \
+  TYPED_UNARY_STUB_LIST(V, ##__VA_ARGS__) \
+  V(Number, ##__VA_ARGS__)
 #else
 #define IF_SPARKPLUG_PLUS(V, ...)
 
@@ -2968,6 +2979,8 @@ enum class CachedTieringDecision : int32_t {
 #define TYPED_ADD_STUB_LIST(V, ...)
 #define TYPED_EXP_STUB_LIST(V, ...)
 #define TYPED_BITWISE_BINOP_STUB_LIST(V, ...)
+#define TYPED_UNARY_STUB_LIST(V, ...)
+#define TYPED_NEGATE_STUB_LIST(V, ...)
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 enum class SpeculationMode {

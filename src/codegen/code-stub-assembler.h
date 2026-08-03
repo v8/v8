@@ -4287,13 +4287,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               Builtin fallback_builtin);
 
   void GenerateStringAdd(TNode<Object> lhs, TNode<Object> rhs,
-                         TNode<UintPtrT> feedback_offset,
-                         Builtin fallback_builtin);
+                         TNode<UintPtrT> feedback_offset);
 
   void GenerateBinaryOpAndTryPatchCode(Operation op, TNode<Object> lhs,
                                        TNode<Object> rhs,
                                        TNode<Int32T> current_type_feedback,
                                        TNode<UintPtrT> feedback_offset);
+
+  void GenerateSmiUnaryOp(Operation op, TNode<Object> value,
+                          TNode<UintPtrT> feedback_offset,
+                          Builtin fallback_builtin);
+
+  void GenerateNumberNegate(TNode<Object> value,
+                            TNode<UintPtrT> feedback_offset);
+
+  void GenerateUnaryOpAndTryPatchCode(Operation op, TNode<Object> value,
+                                      TNode<Int32T> current_type_feedback,
+                                      TNode<UintPtrT> feedback_offset);
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
   TNode<Boolean> Equal(TNode<Object> lhs, TNode<Object> rhs,

@@ -141,7 +141,9 @@ constexpr bool CanTriggerGC(T... properties) {
   IF_SPARKPLUG_PLUS(F, PatchCompareOpBaselineCode, 4, 1)         \
   IF_SPARKPLUG_PLUS(F, PatchCompareOpBaselineCodeAndThrow, 4, 1) \
   IF_SPARKPLUG_PLUS(F, PatchBinopBaselineCode, 4, 1)             \
-  IF_SPARKPLUG_PLUS(F, PatchBinopBaselineCodeAndThrow, 4, 1)
+  IF_SPARKPLUG_PLUS(F, PatchBinopBaselineCodeAndThrow, 4, 1)     \
+  IF_SPARKPLUG_PLUS(F, PatchUnaryOpBaselineCode, 4, 1)           \
+  IF_SPARKPLUG_PLUS(F, PatchUnaryOpBaselineCodeAndThrow, 4, 1)
 
 // TODO(olivf): Unify the Maglev/TF variants into one runtime function and pass
 // the optimization tier as an argument.

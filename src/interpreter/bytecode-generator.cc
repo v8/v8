@@ -4481,7 +4481,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void BytecodeGenerator::BuildFillArrayWithIterator(
     IteratorRecord iterator, Register array, Register index, Register value,
     FeedbackSlot next_value_slot, FeedbackSlot next_done_slot,
-    FeedbackSlot index_slot, FeedbackSlot element_slot) {
+    FeedbackSlot element_slot) {
   DCHECK(array.is_valid());
   DCHECK(index.is_valid());
   DCHECK(value.is_valid());
@@ -4507,7 +4507,7 @@ void BytecodeGenerator::BuildFillArrayWithIterator(
       .StoreInArrayLiteral(array, index, feedback_index(element_slot))
       // index++
       .LoadAccumulatorWithRegister(index)
-      .UnaryOperation(Token::kInc, feedback_index(index_slot))
+      .UnaryOperation(Token::kInc, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(index);
   loop_builder.BindContinueTarget();
 }
@@ -4623,7 +4623,6 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
   }
 
   // Now build insertions for the remaining elements from current to end.
-  SharedFeedbackSlot index_slot(feedback_spec(), FeedbackSlotKind::kBinaryOp);
   SharedFeedbackSlot length_slot(
       feedback_spec(), feedback_spec()->GetStoreICSlot(LanguageMode::kStrict));
   for (; current != end; ++current) {
@@ -4638,11 +4637,10 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
       Register value = register_allocator()->NewRegister();
       FeedbackSlot next_value_load_slot = feedback_spec()->AddLoadICSlot();
       FeedbackSlot next_done_load_slot = feedback_spec()->AddLoadICSlot();
-      FeedbackSlot real_index_slot = index_slot.Get();
       FeedbackSlot real_element_slot = element_slot.Get();
       BuildFillArrayWithIterator(iterator, array, index, value,
                                  next_value_load_slot, next_done_load_slot,
-                                 real_index_slot, real_element_slot);
+                                 real_element_slot);
     } else if (!subexpr->IsTheHoleLiteral()) {
       // literal[index++] = subexpr
       VisitForAccumulatorValue(subexpr);
@@ -4653,7 +4651,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
       // Only increase the index if we are not the last element.
       if (current + 1 != end) {
         builder()
-            ->UnaryOperation(Token::kInc, feedback_index(index_slot.Get()))
+            ->UnaryOperation(Token::kInc, kFeedbackIsEmbedded)
             .StoreAccumulatorInRegister(index);
       }
     } else {
@@ -4662,7 +4660,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
       auto length = ast_string_constants()->length_string();
       builder()
           ->LoadAccumulatorWithRegister(index)
-          .UnaryOperation(Token::kInc, feedback_index(index_slot.Get()))
+          .UnaryOperation(Token::kInc, kFeedbackIsEmbedded)
           .StoreAccumulatorInRegister(index)
           .SetNamedProperty(array, length, feedback_index(length_slot.Get()),
                             LanguageMode::kStrict);
@@ -5665,10 +5663,9 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
           // Fill the array with the iterator.
           FeedbackSlot element_slot =
               feedback_spec()->AddStoreInArrayLiteralICSlot();
-          FeedbackSlot index_slot = feedback_spec()->AddBinaryOpICSlot();
           BuildFillArrayWithIterator(iterator, array, index, next_result,
                                      next_value_load_slot, next_done_load_slot,
-                                     index_slot, element_slot);
+                                     element_slot);
 
           builder()->Bind(&is_done);
           // Assign the array to the LHS.
@@ -7410,12 +7407,16 @@ void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       VisitDelete(expr);
       break;
     case Token::kAdd:
-    case Token::kSub:
-    case Token::kBitNot:
       VisitForAccumulatorValue(expr->expression());
       builder()->SetExpressionPosition(expr);
       builder()->UnaryOperation(
           expr->op(), feedback_index(feedback_spec()->AddBinaryOpICSlot()));
+      break;
+    case Token::kSub:
+    case Token::kBitNot:
+      VisitForAccumulatorValue(expr->expression());
+      builder()->SetExpressionPosition(expr);
+      builder()->UnaryOperation(expr->op(), kFeedbackIsEmbedded);
       break;
     default:
       UNREACHABLE();
@@ -7628,9 +7629,9 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Save result for postfix expressions.
-  FeedbackSlot count_slot = feedback_spec()->AddBinaryOpICSlot();
   if (is_postfix) {
+    // Save result for postfix expressions.
+    FeedbackSlot count_slot = feedback_spec()->AddBinaryOpICSlot();
     old_value = register_allocator()->NewRegister();
     // Convert old value into a number before saving it.
     // TODO(ignition): Think about adding proper PostInc/PostDec bytecodes
@@ -7641,7 +7642,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Perform +1/-1 operation.
-  builder()->UnaryOperation(expr->op(), feedback_index(count_slot));
+  builder()->UnaryOperation(expr->op(), kFeedbackIsEmbedded);
 
   // Store the value.
   builder()->SetExpressionPosition(expr);

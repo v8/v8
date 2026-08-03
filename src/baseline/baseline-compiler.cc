@@ -1471,25 +1471,60 @@ void BaselineCompiler::VisitShiftRightLogicalSmi() {
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 #undef VISIT_TYPED_BINARY_OPERATION
 
+// Inc/Dec/Negate/BitwiseNot are single-operand bytecodes; the embedded
+// feedback lives at kUnaryEmbeddedFeedbackOperandIndex (unlike binop/compare
+// bytecodes, which use kEmbeddedFeedbackOperandIndex).
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define TYPED_UNOP_CASE(type, name)                              \
+  case BinaryOperationFeedback::Type::k##type:                   \
+    CallBuiltin<Builtin::k##name##_##type##_Baseline>(           \
+        kInterpreterAccumulatorRegister, feedback_index_offset); \
+    break;
+
+#define VISIT_TYPED_UNARY_OPERATION(TypedStubList, Name)                 \
+  using Feedback = BinaryOperationFeedback;                              \
+  auto feedback_index_offset = iterator().GetEmbeddedFeedbackOffset(     \
+      kUnaryEmbeddedFeedbackOperandIndex);                               \
+  if (allow_sparkplug_plus_) {                                           \
+    switch (Feedback::DecodeTypeIndex(static_cast<Feedback::TypeIndex>(  \
+        EmbeddedFeedback(kUnaryEmbeddedFeedbackOperandIndex)))) {        \
+      TypedStubList(TYPED_UNOP_CASE, Name) default                       \
+          : CallBuiltin<Builtin::k##Name##_Generic_Baseline>(            \
+                kInterpreterAccumulatorRegister, feedback_index_offset); \
+      break;                                                             \
+    }                                                                    \
+  } else {                                                               \
+    CallBuiltin<Builtin::k##Name##_Generic_Baseline>(                    \
+        kInterpreterAccumulatorRegister, feedback_index_offset);         \
+  }
+#else
+#define VISIT_TYPED_UNARY_OPERATION(TypedStubList, Name)             \
+  auto feedback_index_offset = iterator().GetEmbeddedFeedbackOffset( \
+      kUnaryEmbeddedFeedbackOperandIndex);                           \
+  CallBuiltin<Builtin::k##Name##_Generic_Baseline>(                  \
+      kInterpreterAccumulatorRegister, feedback_index_offset);
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
 void BaselineCompiler::VisitInc() {
-  CallBuiltin<Builtin::kIncrement_Baseline>(kInterpreterAccumulatorRegister,
-                                            FeedbackSlot(0));
+  VISIT_TYPED_UNARY_OPERATION(TYPED_UNARY_STUB_LIST, Increment);
 }
 
 void BaselineCompiler::VisitDec() {
-  CallBuiltin<Builtin::kDecrement_Baseline>(kInterpreterAccumulatorRegister,
-                                            FeedbackSlot(0));
+  VISIT_TYPED_UNARY_OPERATION(TYPED_UNARY_STUB_LIST, Decrement);
 }
 
 void BaselineCompiler::VisitNegate() {
-  CallBuiltin<Builtin::kNegate_Baseline>(kInterpreterAccumulatorRegister,
-                                         FeedbackSlot(0));
+  VISIT_TYPED_UNARY_OPERATION(TYPED_NEGATE_STUB_LIST, Negate);
 }
 
 void BaselineCompiler::VisitBitwiseNot() {
-  CallBuiltin<Builtin::kBitwiseNot_Baseline>(kInterpreterAccumulatorRegister,
-                                             FeedbackSlot(0));
+  VISIT_TYPED_UNARY_OPERATION(TYPED_UNARY_STUB_LIST, BitwiseNot);
 }
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+#undef TYPED_UNOP_CASE
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+#undef VISIT_TYPED_UNARY_OPERATION
 
 void BaselineCompiler::VisitToBooleanLogicalNot() {
   SelectBooleanConstant(kInterpreterAccumulatorRegister,

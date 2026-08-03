@@ -24,6 +24,7 @@
 #include "src/heap/heap-inl.h"  // For MutablePage. TODO(jkummerow): Drop.
 #include "src/heap/mutable-page.h"
 #include "src/ic/binary-op-assembler.h"
+#include "src/ic/unary-op-assembler.h"
 #include "src/logging/counters.h"
 #include "src/numbers/integer-literal-inl.h"
 #include "src/numbers/math-random.h"
@@ -16955,8 +16956,7 @@ void CodeStubAssembler::GenerateNumberBinaryOp(Operation op, TNode<Object> lhs,
 }
 
 void CodeStubAssembler::GenerateStringAdd(TNode<Object> lhs, TNode<Object> rhs,
-                                          TNode<UintPtrT> feedback_offset,
-                                          Builtin fallback_builtin) {
+                                          TNode<UintPtrT> feedback_offset) {
   Label fallback(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(lhs), &fallback);
@@ -16973,10 +16973,11 @@ void CodeStubAssembler::GenerateStringAdd(TNode<Object> lhs, TNode<Object> rhs,
 
   BIND(&fallback);
   {
-    TailCallBuiltin(fallback_builtin, LoadContextFromBaseline(), lhs, rhs,
-                    Int32Constant(static_cast<int32_t>(
-                        BinaryOperationFeedback::TypeIndex::kString)),
-                    feedback_offset);
+    TailCallBuiltin(
+        Builtin::kAddAndTryPatchCode, LoadContextFromBaseline(), lhs, rhs,
+        Int32Constant(
+            static_cast<int32_t>(BinaryOperationFeedback::TypeIndex::kString)),
+        feedback_offset);
   }
 }
 
@@ -17068,6 +17069,149 @@ void CodeStubAssembler::GenerateBinaryOpAndTryPatchCode(
     new_feedback = CombineEmbeddedFeedback<BinaryOperationFeedback>(
         current_type_feedback, feedback_index.value());
     TailCallRuntime(Runtime::kPatchBinopBaselineCodeAndThrow,
+                    NoContextConstant(), SmiFromInt32(new_feedback.value()),
+                    var_exception.value(), bytecode_array,
+                    ChangeUintPtrToTagged(feedback_offset));
+  }
+}
+
+void CodeStubAssembler::GenerateSmiUnaryOp(Operation op, TNode<Object> value,
+                                           TNode<UintPtrT> feedback_offset,
+                                           Builtin fallback_builtin) {
+  Label fallback(this, Label::kDeferred);
+  GotoIfNot(TaggedIsSmi(value), &fallback);
+  TNode<Smi> smi = CAST(value);
+
+  switch (op) {
+    case Operation::kIncrement:
+      Return(TrySmiAdd(smi, SmiConstant(1), &fallback));
+      break;
+    case Operation::kDecrement:
+      Return(TrySmiAdd(smi, SmiConstant(-1), &fallback));
+      break;
+    case Operation::kNegate:
+      // 0 negates to -0; kMinValue overflows. Both bail so feedback widens
+      // correctly.
+      GotoIf(SmiEqual(smi, SmiConstant(0)), &fallback);
+      GotoIf(SmiEqual(smi, SmiConstant(Smi::kMinValue)), &fallback);
+      Return(SmiSub(SmiConstant(0), smi));
+      break;
+    case Operation::kBitwiseNot: {
+      TNode<Object> result =
+          ChangeInt32ToTagged(Word32BitwiseNot(SmiToInt32(smi)));
+      // On 32-bit Smi builds the result may not fit a Smi; bail if so.
+      GotoIfNot(TaggedIsSmi(result), &fallback);
+      Return(result);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  BIND(&fallback);
+  {
+    TailCallBuiltin(fallback_builtin, LoadContextFromBaseline(), value,
+                    Int32Constant(static_cast<int32_t>(
+                        BinaryOperationFeedback::TypeIndex::kSignedSmall)),
+                    feedback_offset);
+  }
+}
+
+void CodeStubAssembler::GenerateNumberNegate(TNode<Object> value,
+                                             TNode<UintPtrT> feedback_offset) {
+  Label fallback(this, Label::kDeferred), do_float(this);
+  TVARIABLE(Float64T, var_float);
+
+  Label if_smi(this);
+  GotoIf(TaggedIsSmi(value), &if_smi);
+  GotoIfNot(IsHeapNumber(CAST(value)), &fallback);
+  var_float = LoadHeapNumberValue(CAST(value));
+  Goto(&do_float);
+
+  BIND(&if_smi);
+  {
+    TNode<Smi> smi = CAST(value);
+    Label if_zero(this), if_min(this);
+    GotoIf(SmiEqual(smi, SmiConstant(0)), &if_zero);
+    GotoIf(SmiEqual(smi, SmiConstant(Smi::kMinValue)), &if_min);
+    Return(SmiSub(SmiConstant(0), smi));
+
+    BIND(&if_zero);
+    Return(MinusZeroConstant());
+
+    BIND(&if_min);
+    var_float = SmiToFloat64(smi);
+    Goto(&do_float);
+  }
+
+  BIND(&do_float);
+  Return(AllocateHeapNumberWithValue(Float64Neg(var_float.value())));
+
+  BIND(&fallback);
+  {
+    TailCallBuiltin(
+        Builtin::kNegateAndTryPatchCode, LoadContextFromBaseline(), value,
+        Int32Constant(
+            static_cast<int32_t>(BinaryOperationFeedback::TypeIndex::kNumber)),
+        feedback_offset);
+  }
+}
+
+void CodeStubAssembler::GenerateUnaryOpAndTryPatchCode(
+    Operation op, TNode<Object> value, TNode<Int32T> current_type_feedback,
+    TNode<UintPtrT> feedback_offset) {
+  TVARIABLE(Smi, var_type_feedback,
+            SmiConstant(BinaryOperationFeedback::kNone));
+  TVARIABLE(Object, var_exception);
+  TVARIABLE(Object, var_result);
+  TVARIABLE(Uint8T, new_feedback);
+  TVARIABLE(Int32T, feedback_index);
+
+  auto bytecode_array = LoadBytecodeArrayFromBaseline();
+  Label if_exception(this, Label::kDeferred);
+  {
+    ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+    UnaryOpAssembler unary_asm(state());
+    auto context = LoadContextFromBaseline();
+    auto record_feedback = [&](TNode<Smi> feedback) {
+      var_type_feedback = feedback;
+    };
+    switch (op) {
+      case Operation::kIncrement:
+        var_result = unary_asm.Generate_IncrementWithFeedback(context, value,
+                                                              record_feedback);
+        break;
+      case Operation::kDecrement:
+        var_result = unary_asm.Generate_DecrementWithFeedback(context, value,
+                                                              record_feedback);
+        break;
+      case Operation::kNegate:
+        var_result = unary_asm.Generate_NegateWithFeedback(context, value,
+                                                           record_feedback);
+        break;
+      case Operation::kBitwiseNot:
+        var_result = unary_asm.Generate_BitwiseNotWithFeedback(context, value,
+                                                               record_feedback);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  feedback_index = EncodeEmbeddedFeedback<BinaryOperationFeedback>(
+      var_type_feedback.value());
+  new_feedback = CombineEmbeddedFeedback<BinaryOperationFeedback>(
+      current_type_feedback, feedback_index.value());
+  TailCallRuntime(Runtime::kPatchUnaryOpBaselineCode, NoContextConstant(),
+                  SmiFromInt32(new_feedback.value()), var_result.value(),
+                  bytecode_array, ChangeUintPtrToTagged(feedback_offset));
+
+  BIND(&if_exception);
+  {
+    feedback_index = EncodeEmbeddedFeedback<BinaryOperationFeedback>(
+        var_type_feedback.value());
+    new_feedback = CombineEmbeddedFeedback<BinaryOperationFeedback>(
+        current_type_feedback, feedback_index.value());
+    TailCallRuntime(Runtime::kPatchUnaryOpBaselineCodeAndThrow,
                     NoContextConstant(), SmiFromInt32(new_feedback.value()),
                     var_exception.value(), bytecode_array,
                     ChangeUintPtrToTagged(feedback_offset));

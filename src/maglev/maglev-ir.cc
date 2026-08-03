@@ -1526,20 +1526,21 @@ constexpr Builtin BuiltinFor(Operation operation) {
 }  // namespace
 
 template <class Derived, Operation kOperation>
-void UnaryWithFeedbackNode<Derived, kOperation>::SetValueLocationConstraints() {
-  using D = UnaryOp_WithFeedbackDescriptor;
+void UnaryWithEmbeddedFeedbackNode<Derived,
+                                   kOperation>::SetValueLocationConstraints() {
+  using D = UnaryOp_WithEmbeddedFeedbackDescriptor;
   UseFixed(ValueInput(), D::GetRegisterParameter(D::kValue));
   DefineAsFixed(this, kReturnRegister0);
 }
 
 template <class Derived, Operation kOperation>
-void UnaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
+void UnaryWithEmbeddedFeedbackNode<Derived, kOperation>::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   __ CallBuiltin<BuiltinFor(kOperation)>(
       masm->native_context().object(),  // context
       ValueInput(),                     // value
-      feedback().index(),               // feedback slot
-      feedback().vector                 // feedback vector
+      feedback().offset_,               // feedback offset
+      feedback().bytecode_array_        // bytecode array
   );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
