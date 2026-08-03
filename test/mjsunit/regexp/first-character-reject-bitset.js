@@ -96,11 +96,12 @@ check(/^ä/i, 'x', null);
 
 // Characters whose unicode case-fold partner is ASCII (U+212A KELVIN -> k/K,
 // U+017F LONG S -> s/S) must not cause the ASCII partner to be rejected.
-check(/^K/iu, 'k', 'k', 0);
-check(/^K/iu, 'K', 'K', 0);
-check(/^K/iu, 'x', null);
-check(/^ſ/iu, 's', 's', 0);
-check(/^ſ/iu, 'q', null);
+// Escaped: both are hard to tell from their ASCII partner in source.
+check(/^\u212a/iu, 'k', 'k', 0);
+check(/^\u212a/iu, 'K', 'K', 0);
+check(/^\u212a/iu, 'x', null);
+check(/^\u017f/iu, 's', 's', 0);
+check(/^\u017f/iu, 'q', null);
 
 // Non-unicode /i folds through a different path than /iu above, and a sticky
 // pattern reaches the leading atom without an anchor in front of it.

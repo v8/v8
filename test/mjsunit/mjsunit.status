@@ -1192,6 +1192,7 @@
   # Case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [FAIL],
   'es7/regexp-ui-word': [FAIL],
+  'regexp/first-character-reject-bitset': [FAIL],
   'regress/regress-5036': [FAIL],
 
   # Desugaring regexp property class relies on ICU. Anything goes as long as we
