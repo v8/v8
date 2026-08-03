@@ -40,6 +40,7 @@
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/trusted-range.h"
+#include "src/objects/bytecode-array-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/instruction-stream-inl.h"
@@ -47,6 +48,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "test/common/noop-bytecode-verifier.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -1469,6 +1471,88 @@ TEST_F(HeapTest, FindCodeForInnerPointer) {
   EXPECT_NE(not_right->instruction_stream(), *code);
   EXPECT_EQ(not_right->instruction_stream(), *copy);
 #undef __
+}
+
+TEST_F(HeapTest, BytecodeArray) {
+  if (!v8_flags.compact) return;
+  if (v8_flags.precise_object_pinning) return;
+  static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
+  static const int kRawBytesSize = sizeof(kRawBytes);
+  static const int32_t kFrameSize = 32;
+  static const uint16_t kParameterCount = 2;
+  static const uint16_t kMaxArguments = 0;
+
+  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope(isolate());
+  Factory* factory = i_isolate()->factory();
+  HandleScope scope(i_isolate());
+
+  SimulateFullSpace(heap()->trusted_space());
+
+  IndirectHandle<TrustedFixedArray> constant_pool =
+      factory->NewTrustedFixedArray(5);
+  for (int i = 0; i < 5; i++) {
+    IndirectHandle<Object> number = factory->NewHeapNumber(i);
+    constant_pool->set(i, *number);
+  }
+
+  IndirectHandle<TrustedByteArray> handler_table =
+      factory->NewTrustedByteArray(3);
+
+  // Allocate and initialize BytecodeArray
+  IndirectHandle<BytecodeArray> array = factory->NewBytecodeArray(
+      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, kMaxArguments,
+      constant_pool, handler_table);
+
+  EXPECT_TRUE(IsBytecodeArray(*array));
+
+#ifdef V8_ENABLE_SANDBOX
+  // BytecodeArrays are not exposed to the sandbox ("published") immediately
+  // after allocation. Instead, this only happens once the bytecode has been
+  // verified. This way, we ensure that we only execute safe bytecode.
+  EXPECT_FALSE(array->IsPublished(i_isolate()));
+  NoOpBytecodeVerifier::Verify(i_isolate(), array);
+  EXPECT_TRUE(array->IsPublished(i_isolate()));
+#endif  // V8_ENABLE_SANDBOX
+
+  EXPECT_EQ(array->length(), (int)sizeof(kRawBytes));
+  EXPECT_EQ(array->frame_size(), kFrameSize);
+  EXPECT_EQ(array->parameter_count(), kParameterCount);
+  EXPECT_EQ(array->constant_pool(), *constant_pool);
+  EXPECT_EQ(array->handler_table(), *handler_table);
+  EXPECT_LE(array->address(), array->GetFirstBytecodeAddress());
+  EXPECT_GE(array->address() + array->BytecodeArraySize(),
+            array->GetFirstBytecodeAddress() + array->length());
+  for (int i = 0; i < kRawBytesSize; i++) {
+    EXPECT_EQ(Memory<uint8_t>(array->GetFirstBytecodeAddress() + i),
+              kRawBytes[i]);
+    EXPECT_EQ(array->get(i), kRawBytes[i]);
+  }
+
+  Tagged<TrustedFixedArray> old_constant_pool_address = *constant_pool;
+
+  // Perform a full garbage collection and force the constant pool to be on an
+  // evacuation candidate.
+  i::MutablePage::FromHeapObject(isolate(), *constant_pool)
+      ->set_forced_evacuation_candidate_for_testing(true);
+  {
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+
+  // BytecodeArray should survive.
+  EXPECT_EQ(array->length(), kRawBytesSize);
+  EXPECT_EQ(array->frame_size(), kFrameSize);
+  for (int i = 0; i < kRawBytesSize; i++) {
+    EXPECT_EQ(array->get(i), kRawBytes[i]);
+    EXPECT_EQ(Memory<uint8_t>(array->GetFirstBytecodeAddress() + i),
+              kRawBytes[i]);
+  }
+
+  // Constant pool should have been migrated.
+  EXPECT_EQ(array->constant_pool().ptr(), constant_pool->ptr());
+  EXPECT_NE(array->constant_pool().ptr(), old_constant_pool_address.ptr());
 }
 
 }  // namespace internal
