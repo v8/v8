@@ -381,7 +381,19 @@ MaglevGraphOptimizer::MaglevGraphOptimizer(
     : reducer_(this, graph),
       kna_processor_(kna_processor),
       ranges_(ranges),
-      block_range_refinements_(graph->zone()) {}
+      block_range_refinements_(graph->zone()),
+      removed_identities_(graph->zone()) {}
+
+void MaglevGraphOptimizer::PostProcessGraph(Graph* graph) {
+  // Only drop the Identity's forwarding use when nothing references it
+  // anymore, otherwise the unwrapped node would be left without a use and
+  // could be swept by dead node elimination.
+  for (Identity* identity : removed_identities_) {
+    if (identity->is_used()) continue;
+    identity->input_node(0)->remove_use();
+  }
+  removed_identities_.clear();
+}
 
 BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
     BasicBlock* block) {
@@ -1394,14 +1406,18 @@ ProcessResult MaglevGraphOptimizer::VisitTransitionAndStoreArrayElement(
 
 ProcessResult MaglevGraphOptimizer::VisitIdentity(
     Identity* node, const ProcessingState& state) {
-  // If a non-eager inlined function returns a tagged value, we substitute the
-  // call with an Identity. The node is then removed from the graph here. All
-  // references to it will be removed in this graph optimizer pass.
+  // If a non-eager inlined function returns a tagged value, the call is
+  // substituted with an Identity. The node is then removed from the graph here.
+  // All references to it will be removed in this graph optimizer pass, except
+  // frame state uses. The forwarding use can thus only be dropped once it is
+  // certain that no frame state references this Identity, which is done lazily
+  // at the end of the pass.
   //
-  // Unlike RemoveCurrentNode(), we must not clear the input here: the Identity
-  // stays a valid forwarding stub (UnwrapIdentities walks input(0)) until every
-  // remaining user has been revisited, so we only drop our use of the input.
-  node->input_node(0)->remove_use();
+  // TODO(b/542023485): This is only needed because use counts are an
+  // overapproximation. Once they are exact, this can simply return kContinue
+  // and let dead node elimination sweep the Identity once its use count reaches
+  // zero, which makes the deferral below unnecessary.
+  removed_identities_.push_back(node);
   return ProcessResult::kRemove;
 }
 

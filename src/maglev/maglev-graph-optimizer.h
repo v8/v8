@@ -30,7 +30,7 @@ class MaglevGraphOptimizer {
       NodeRanges* ranges = nullptr);
 
   void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph);
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block);
   BlockProcessResult PostProcessBasicBlock(BasicBlock* block);
   void PostPhiProcessing() {}
@@ -117,6 +117,10 @@ class MaglevGraphOptimizer {
   // the block, it only records entry/exit block ranges. We use a separate map
   // for refinements done in the middle of the block.
   ZoneMap<ValueNode*, Range> block_range_refinements_;
+
+  // Identities removed from the graph, whose forwarding use is dropped in
+  // PostProcessGraph. See VisitIdentity.
+  ZoneVector<Identity*> removed_identities_;
 
   NodeBase* current_node_;
 
