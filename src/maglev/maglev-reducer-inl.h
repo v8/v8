@@ -988,9 +988,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryWithArrayIterationArgs(
                         adjusted, AddNewNode<Int32Add>({length, from_index}));
                     return BuildInt32Max(adjusted, GetInt32Constant(0));
                   },
-                  [&]() -> ReduceResult {
-                    return BuildInt32Min(from_index, length);
-                  }));
+                  [&]() -> ReduceResult { return from_index; }));
         }
 
         return Reducer(elements_kind, elements, search_element, length,
