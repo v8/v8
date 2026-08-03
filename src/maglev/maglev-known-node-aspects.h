@@ -336,6 +336,13 @@ class NodeInfo {
     }
 #endif
     IntersectType(possible_type);
+#ifdef DEBUG
+    DCHECK_IMPLIES(
+        !possible_maps_.is_empty() && NodeTypeCanBe(type_, NodeType::kSmi),
+        std::any_of(
+            possible_maps_.begin(), possible_maps_.end(),
+            [](compiler::MapRef map) { return map.IsHeapNumberMap(); }));
+#endif
     return !IsEmptyNodeType(type_);
   }
 
@@ -1016,7 +1023,9 @@ class KnownMapsMerger {
           // approximation. This filtering is done to avoid creating
           // non-sensical types later (e.g. if we think only a non-string map
           // is possible, after a string check).
-          if (IsInstanceOfNodeType(possible_map, type, broker_)) {
+          if (IsInstanceOfNodeType(possible_map, type, broker_) ||
+              (possible_map.IsHeapNumberMap() &&
+               NodeTypeCanBe(type, NodeType::kSmi))) {
             InsertMap(possible_map);
           }
         } else {
@@ -1026,12 +1035,6 @@ class KnownMapsMerger {
       if (intersect_set_.is_empty()) {
         // TODO(marja): Refactor to return false here explicitly.
         node_type_ = EmptyNodeType();
-      } else if (RequestedMapsAdmitSmis()) {
-        // Smis pass a map check against the HeapNumber map, so the check does
-        // not prove that the object is a heap object. InsertMap accounts for
-        // this, but the HeapNumber map might have been filtered out above (or
-        // might not be a known possible map at all), so re-apply it here.
-        node_type_ = maglev::UnionType(node_type_, NodeType::kSmi);
       }
     } else {
       // A missing entry here means the universal set, i.e., we don't know
