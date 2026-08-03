@@ -2607,11 +2607,12 @@ class MachineLoweringReducer : public Next {
         HeapObjectRef ref = MakeRef(broker_, cst->handle());
         if (ref.IsString()) {
           StringRef str = ref.AsString();
-          if (str.IsSeqString()) {
+          MapRef map = str.map(broker_);
+          if (map.IsSeqStringMap()) {
             V<Map> dynamic_map = __ LoadMapField(string);
-            Handle<Map> expected_map = str.map(broker_).object();
+            Handle<Map> expected_map = map.object();
             IF (__ TaggedEqual(dynamic_map, __ HeapConstant(expected_map))) {
-              bool one_byte = str.IsOneByteRepresentation();
+              bool one_byte = map.IsOneByteStringMap();
               GOTO(done,
                    LoadFromSeqString(string, pos, __ Word32Constant(one_byte)));
             }
