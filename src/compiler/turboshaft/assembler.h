@@ -4029,7 +4029,7 @@ class AssemblerOpInterface : public Next {
                      lazy_deopt_on_throw, !compiling_builtins);
     return returns_t::CastIfNeeded(
         Call(CEntryStubConstant(isolate, result_size), frame_state,
-             base::VectorOf(arguments), desc));
+             base::VectorOf(arguments), desc, Desc::kEffects));
   }
 
   template <typename Desc>
