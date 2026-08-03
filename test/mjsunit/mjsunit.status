@@ -3504,4 +3504,11 @@
   'compiler/concurrent-string-ext-seq': [SKIP],
   'regress/regress-511263221': [SKIP],
 }],  # not test_only_sync_points
+
+##############################################################################
+['not sandbox', {
+  # Requires V8 sandbox to be enabled (relies on external pointer table index layout
+  # and fails in-place externalization without sandbox on 64-bit pointer compression builds).
+  'regress/regress-539212794': [SKIP],
+}],  # not sandbox
 ]
