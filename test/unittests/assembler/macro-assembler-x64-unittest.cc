@@ -2739,6 +2739,42 @@ TEST_F(MacroAssemblerX64Test, I64x2ShrS_SignReplication_63) {
   CHECK_LT(size_63, size_other);
 }
 
+TEST_F(MacroAssemblerX64Test, I8x16ShrS_SignReplication_7) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+
+  // Expected Optimal Codegen for I8x16ShrS with shift count 7:
+  //   - x64: instruction sequence: pxor/vpxor + pcmpgtb/vpcmpgtb +
+  //   (if necessary based on register choices) movaps/vmovaps
+  auto run_test = [this, isolate](uint8_t shift) {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
+                        buffer->CreateView());
+    masm.movdqu(xmm0, Operand(kCArgRegs[0], 0));
+    masm.I8x16ShrS(xmm0, xmm0, shift, xmm1);
+    masm.movdqu(Operand(kCArgRegs[1], 0), xmm0);
+    masm.ret(0);
+
+    CodeDesc desc;
+    masm.GetCode(isolate, &desc);
+
+    // Run and assert correctness
+    buffer->MakeExecutable();
+    using F = int(int8_t*, int8_t*);
+    auto f = GeneratedCode<F>::FromBuffer(i_isolate(), buffer->start());
+    int8_t input[16] = {1,  -2,  127, -128, 0,  -1,  42, -42,
+                        10, -20, 30,  -40,  50, -60, 70, -80};
+    int8_t output[16] = {0};
+    f.Call(input, output);
+    for (int i = 0; i < 16; ++i) {
+      CHECK_EQ(output[i], static_cast<int8_t>(input[i] >> shift));
+    }
+    return desc.instr_size;
+  };
+
+  CHECK_LT(run_test(7), run_test(3));
+}
+
 #undef __
 
 }  // namespace test_macro_assembler_x64

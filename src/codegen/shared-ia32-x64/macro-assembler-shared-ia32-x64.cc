@@ -476,10 +476,25 @@ void SharedMacroAssemblerBase::I8x16Shl(XMMRegister dst, XMMRegister src1,
 void SharedMacroAssemblerBase::I8x16ShrS(XMMRegister dst, XMMRegister src1,
                                          uint8_t src2, XMMRegister tmp) {
   ASM_CODE_COMMENT(this);
-  // Unpack bytes into words, do word (16-bit) shifts, and repack.
   DCHECK_NE(dst, tmp);
-  uint8_t shift = truncate_to_int3(src2) + 8;
+  DCHECK_NE(src1, tmp);
+  uint8_t shift = truncate_to_int3(src2);
+  // Optimization for shift == 7, replicating the sign bit across the vector.
+  // This is a common pattern for sign extension.
+  if (shift == 7) {
+    if (dst == src1) {
+      Pxor(tmp, tmp);
+      Pcmpgtb(tmp, src1);
+      Movaps(dst, tmp);
+    } else {
+      Pxor(dst, dst);
+      Pcmpgtb(dst, src1);
+    }
+    return;
+  }
 
+  // Unpack bytes into words, do word (16-bit) shifts, and repack.
+  shift += 8;
   Punpckhbw(tmp, src1);
   Punpcklbw(dst, src1);
   Psraw(tmp, shift);
