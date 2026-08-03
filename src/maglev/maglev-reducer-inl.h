@@ -694,7 +694,7 @@ ReduceResult MaglevReducer<BaseT>::ConvertForField(
 }
 
 template <typename BaseT>
-void MaglevReducer<BaseT>::BuildInitializeStore_Tagged(
+ReduceResult MaglevReducer<BaseT>::BuildInitializeStore_Tagged(
     vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
     ValueNode* value, StoreTaggedMode store_mode,
     MaybeAssignedFlag maybe_assigned) {
@@ -703,10 +703,8 @@ void MaglevReducer<BaseT>::BuildInitializeStore_Tagged(
   // Intercept stores of constant map objects here.
   if (desc.offset == offsetof(HeapObject, map_)) {
     if (auto map = TryGetConstant<Map>(value)) {
-      ReduceResult result = BuildStoreMap(object, map.value(),
-                                          StoreMap::Kind::kInlinedAllocation);
-      CHECK(!result.IsDoneWithAbort());
-      return;
+      return BuildStoreMap(object, map.value(),
+                           StoreMap::Kind::kInlinedAllocation);
     }
   }
 
@@ -723,32 +721,25 @@ void MaglevReducer<BaseT>::BuildInitializeStore_Tagged(
     inlined_value->AddNonEscapingUses();
   }
 
-  // Since `value` is tagged, BuildStoreTaggedField doesn't need to do
-  // input conversions and won't abort.
-  ReduceResult result =
-      BuildStoreTaggedField(object, value, desc.offset, store_mode,
-                            PropertyKey::None(), maybe_assigned);
-  CHECK(!result.IsDoneWithAbort());
+  return BuildStoreTaggedField(object, value, desc.offset, store_mode,
+                               PropertyKey::None(), maybe_assigned);
 }
 
 template <typename BaseT>
-void MaglevReducer<BaseT>::BuildInitializeStore_TrustedPointer(
+ReduceResult MaglevReducer<BaseT>::BuildInitializeStore_TrustedPointer(
     vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
     ValueNode* value) {
   DCHECK_EQ(desc.type, vobj::FieldType::kTrustedPointer);
   DCHECK(value->Is<TrustedConstant>());
   DCHECK(value->is_tagged());
 
-  // Since `value` is tagged, BuildStoreTaggedField doesn't need to do input
-  // conversions and won't abort.
-  ReduceResult result = BuildStoreTrustedPointerField(
-      object, value, desc.offset, value->Cast<TrustedConstant>()->tag(),
-      StoreTaggedMode::kInitializing);
-  CHECK(!result.IsDoneWithAbort());
+  return BuildStoreTrustedPointerField(object, value, desc.offset,
+                                       value->Cast<TrustedConstant>()->tag(),
+                                       StoreTaggedMode::kInitializing);
 }
 
 template <typename BaseT>
-void MaglevReducer<BaseT>::BuildInitializeStore(
+ReduceResult MaglevReducer<BaseT>::BuildInitializeStore(
     vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
     ValueNode* value, StoreTaggedMode store_mode,
     MaybeAssignedFlag maybe_assigned) {
@@ -757,18 +748,17 @@ void MaglevReducer<BaseT>::BuildInitializeStore(
 
   switch (desc.type) {
     case vobj::FieldType::kTagged:
-      BuildInitializeStore_Tagged(desc, object, allocation_type, value,
-                                  store_mode, maybe_assigned);
-      break;
+      return BuildInitializeStore_Tagged(desc, object, allocation_type, value,
+                                         store_mode, maybe_assigned);
     case vobj::FieldType::kTrustedPointer:
-      BuildInitializeStore_TrustedPointer(desc, object, allocation_type, value);
-      break;
+      return BuildInitializeStore_TrustedPointer(desc, object, allocation_type,
+                                                 value);
     case vobj::FieldType::kInt32:
-      AddNewNodeNoInputConversion<StoreInt32>({object, value}, desc.offset);
-      break;
+      return AddNewNodeNoInputConversion<StoreInt32>({object, value},
+                                                     desc.offset);
     case vobj::FieldType::kFloat64:
-      AddNewNodeNoInputConversion<StoreFloat64>({object, value}, desc.offset);
-      break;
+      return AddNewNodeNoInputConversion<StoreFloat64>({object, value},
+                                                       desc.offset);
     case vobj::FieldType::kNone:
       UNREACHABLE();
   }
@@ -866,8 +856,8 @@ ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
       maybe_assigned =
           GetContextMaybeAssigned(scope_info.value(), index, &mode);
     }
-    BuildInitializeStore(desc, allocation, allocation_type, value, store_mode,
-                         maybe_assigned);
+    RETURN_IF_ABORT(BuildInitializeStore(desc, allocation, allocation_type,
+                                         value, store_mode, maybe_assigned));
   }
   if constexpr (ReducerBaseWithLoopEffectTracking<BaseT>) {
     if (base_->loop_effects()) {

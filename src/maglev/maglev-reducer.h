@@ -1659,18 +1659,20 @@ class MaglevReducer {
       AllocationType allocation_type, VirtualObject* value);
   ReduceResult ConvertForField(ValueNode* value, const vobj::Field& desc,
                                AllocationType allocation_type);
-  void BuildInitializeStore(vobj::Field desc, InlinedAllocation* alloc,
-                            AllocationType allocation_type, ValueNode* value,
-                            StoreTaggedMode store_mode,
-                            MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
-  void BuildInitializeStore_Tagged(vobj::Field desc, InlinedAllocation* alloc,
-                                   AllocationType allocation_type,
-                                   ValueNode* value, StoreTaggedMode store_mode,
-                                   MaybeAssignedFlag maybe_assigned);
-  void BuildInitializeStore_TrustedPointer(vobj::Field desc,
+  ReduceResult BuildInitializeStore(
+      vobj::Field desc, InlinedAllocation* alloc,
+      AllocationType allocation_type, ValueNode* value,
+      StoreTaggedMode store_mode,
+      MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
+  ReduceResult BuildInitializeStore_Tagged(vobj::Field desc,
                                            InlinedAllocation* alloc,
                                            AllocationType allocation_type,
-                                           ValueNode* value);
+                                           ValueNode* value,
+                                           StoreTaggedMode store_mode,
+                                           MaybeAssignedFlag maybe_assigned);
+  ReduceResult BuildInitializeStore_TrustedPointer(
+      vobj::Field desc, InlinedAllocation* alloc,
+      AllocationType allocation_type, ValueNode* value);
 
   template <typename T>
   friend class MapInference;
