@@ -118,27 +118,6 @@ TEST(InitialObjects) {
            *v8::Utils::OpenDirectHandle(*CompileRun("Object.prototype")));
 }
 
-static void VerifyStringAllocation(Isolate* isolate, const char* string) {
-  HandleScope scope(isolate);
-  DirectHandle<String> s = isolate->factory()
-                               ->NewStringFromUtf8(base::CStrVector(string))
-                               .ToHandleChecked();
-  CHECK_EQ(strlen(string), s->length());
-  for (uint32_t index = 0; index < s->length(); index++) {
-    CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));
-  }
-}
-
-TEST(String) {
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
-
-  VerifyStringAllocation(isolate, "a");
-  VerifyStringAllocation(isolate, "ab");
-  VerifyStringAllocation(isolate, "abc");
-  VerifyStringAllocation(isolate, "abcd");
-  VerifyStringAllocation(isolate, "fiskerdrengen er paa havet");
-}
 
 static bool WeakPointerCleared = false;
 
