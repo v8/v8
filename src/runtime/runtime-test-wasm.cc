@@ -807,12 +807,12 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
           type_index.index));
   if (is_struct) {
     const wasm::StructType* struct_type = module->struct_type(type_index);
-    DCHECK_EQ(struct_type->field_count(), 1);
-    DCHECK_EQ(struct_type->field(0), wasm::kWasmI64);
+    CHECK_EQ(struct_type->field_count(), 1);
+    CHECK_EQ(struct_type->field(0), wasm::kWasmI64);
     return *isolate->factory()->NewWasmStruct(struct_type, &value,
                                               direct_handle(map, isolate));
   } else {
-    DCHECK_EQ(module->array_type(type_index)->element_type(), wasm::kWasmI64);
+    CHECK_EQ(module->array_type(type_index)->element_type(), wasm::kWasmI64);
     return *isolate->factory()->NewWasmArray(
         wasm::kWasmI64, 1, value, direct_handle(map, isolate),
         AllocationType::kYoung, SKIP_WRITE_BARRIER);
