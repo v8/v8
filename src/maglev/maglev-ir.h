@@ -1993,7 +1993,6 @@ class LazyDeoptInfo : public DeoptInfo {
 
 class ExceptionHandlerInfo {
  public:
-  using List = base::ThreadedList<ExceptionHandlerInfo>;
   enum Mode {
     kNoExceptionHandler = -1,
     kLazyDeopt = -2,
@@ -2039,12 +2038,6 @@ class ExceptionHandlerInfo {
   Label trampoline_entry_;
   int depth_;
   int pc_offset_;
-
-  ExceptionHandlerInfo* next_ = nullptr;
-  ExceptionHandlerInfo** next() { return &next_; }
-
-  friend List;
-  friend base::ThreadedListTraits<ExceptionHandlerInfo>;
 };
 
 // Dummy type for the initial raw allocation.
@@ -2360,6 +2353,16 @@ class NodeBase : public ZoneObject {
     DCHECK(properties().can_throw());
     return reinterpret_cast<const ExceptionHandlerInfo*>(
         exception_handler_address());
+  }
+
+  // Returns the catch block this node throws to, or nullptr if it cannot throw
+  // or if it lazy deopts instead of dispatching to a handler.
+  BasicBlock* GetLiveCatchBlock() {
+    if (!properties().can_throw()) return nullptr;
+    ExceptionHandlerInfo* info = exception_handler_info();
+    if (!info->HasExceptionHandler()) return nullptr;
+    if (info->ShouldLazyDeopt()) return nullptr;
+    return info->catch_block();
   }
 
   void set_register_snapshot(RegisterSnapshot snapshot) {

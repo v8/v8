@@ -145,8 +145,7 @@ void RemapClonedDeoptInfo(NodeBase* src, NodeBase* clone, const ValueMap& vmap,
   }
 }
 
-void RemapClonedExceptionHandlerInfo(NodeBase* src, NodeBase* clone,
-                                     BasicBlock* dst_block) {
+void RemapClonedExceptionHandlerInfo(NodeBase* src, NodeBase* clone) {
   if (!clone->properties().can_throw()) return;
   ExceptionHandlerInfo* src_info = src->exception_handler_info();
   DCHECK(!src_info->HasExceptionHandler() || src_info->ShouldLazyDeopt());
@@ -155,9 +154,6 @@ void RemapClonedExceptionHandlerInfo(NodeBase* src, NodeBase* clone,
         ExceptionHandlerInfo(ExceptionHandlerInfo::kLazyDeopt);
   } else {
     new (clone->exception_handler_info()) ExceptionHandlerInfo();
-  }
-  if (clone->Is<CallKnownJSFunction>()) {
-    dst_block->AddExceptionHandler(clone->exception_handler_info());
   }
 }
 
@@ -761,7 +757,7 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
       }
       Node* cloned = CloneNodeWithRemap(node, ctx.value_map, zone());
       cloned->set_owner(dst_block);
-      RemapClonedExceptionHandlerInfo(node, cloned, dst_block);
+      RemapClonedExceptionHandlerInfo(node, cloned);
       dst_block->nodes().push_back(cloned);
       if (auto* vn = cloned->TryCast<ValueNode>()) {
         ctx.value_map[node->Cast<ValueNode>()] = vn;
@@ -1004,6 +1000,7 @@ void MaglevLoopPeeler::CloneLoopBodyControl(PeelContext& ctx) {
       clone->set_input(i, Remap(ctx.value_map, control->input(i).node()));
     }
     RemapClonedDeoptInfo(control, clone, ctx.value_map, zone());
+    RemapClonedExceptionHandlerInfo(control, clone);
     return clone;
   };
 

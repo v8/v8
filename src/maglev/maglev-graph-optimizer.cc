@@ -768,12 +768,6 @@ void MaglevGraphOptimizer::AttachExceptionHandlerInfo(NodeBase* node) {
     new (node->exception_handler_info())
         ExceptionHandlerInfo(info->catch_block(), info->depth());
   }
-  if (node->Is<CallKnownJSFunction>()) {
-    // Ensure that we always have the handler of inline call
-    // candidates.
-    reducer_.current_block()->AddExceptionHandler(
-        node->exception_handler_info());
-  }
 }
 
 template <typename NodeT>

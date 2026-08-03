@@ -17293,13 +17293,6 @@ void MaglevGraphBuilder::AttachExceptionHandlerInfo(NodeBase* node) {
           ExceptionHandlerInfo(ExceptionHandlerInfo::kLazyDeopt);
       DCHECK(node->exception_handler_info()->HasExceptionHandler());
       DCHECK(node->exception_handler_info()->ShouldLazyDeopt());
-      if (node->Is<CallKnownJSFunction>()) {
-        if (flags_.is_non_eager_inlining_enabled) {
-          // Ensure that we always have the handler of inline call
-          // candidates.
-          current_block()->AddExceptionHandler(node->exception_handler_info());
-        }
-      }
       return;
     }
 
@@ -17321,8 +17314,6 @@ void MaglevGraphBuilder::AttachExceptionHandlerInfo(NodeBase* node) {
     DCHECK(node->exception_handler_info()->HasExceptionHandler());
     DCHECK(!node->exception_handler_info()->ShouldLazyDeopt());
 
-    current_block()->AddExceptionHandler(node->exception_handler_info());
-
     if (MaglevGraphBuilder* handler = catch_block.handler_builder) {
       // Merge the current state into the handler state.
       handler->GetCatchBlockFrameState()->MergeThrow(
@@ -17336,12 +17327,6 @@ void MaglevGraphBuilder::AttachExceptionHandlerInfo(NodeBase* node) {
     // case.
     new (node->exception_handler_info()) ExceptionHandlerInfo();
     DCHECK(!node->exception_handler_info()->HasExceptionHandler());
-    if (node->Is<CallKnownJSFunction>()) {
-      if (flags_.is_non_eager_inlining_enabled) {
-        // Ensure that we always have the handler of inline call candidates.
-        current_block()->AddExceptionHandler(node->exception_handler_info());
-      }
-    }
   }
 }
 
