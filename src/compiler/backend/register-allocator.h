@@ -7,6 +7,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/register-configuration.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
@@ -944,13 +945,27 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   void VerifyIntervals() const;
 #endif
 
-  using SpilledField = base::BitField<bool, 0, 1>;
-  // Bits (1,7[ are used by TopLevelLiveRange.
-  using AssignedRegisterField = base::BitField<int32_t, 7, 6>;
-  using RepresentationField = base::BitField<MachineRepresentation, 13, 8>;
-  using RecombineField = base::BitField<bool, 21, 1>;
-  using ControlFlowRegisterHint = base::BitField<uint8_t, 22, 6>;
-  // Bits 28-31 are used by TopLevelLiveRange.
+  using RepresentationField = base::BitField<MachineRepresentation, 0, 5>;
+  using SpilledField = RepresentationField::Next<bool, 1>;
+  using RecombineField = SpilledField::Next<bool, 1>;
+
+  // Padding to put AssignedRegisterField on a byte boundary, could be used for
+  // something in the future.
+  using UnusedField = RecombineField::Next<bool, 1>;
+  using AssignedRegisterField = UnusedField::Next<int32_t, 6>;
+  using ControlFlowRegisterHint = AssignedRegisterField::Next<uint8_t, 6>;
+
+  // RepresentationField starts at bit 0 (Byte 0) and AssignedRegisterField
+  // starts at bit 8 (Byte 1). This allows zero-shift hardware byte-loads
+  // for representation and assigned register lookups.
+  static_assert(RepresentationField::kShift == 0);
+  static_assert(AssignedRegisterField::kShift == 8);
+  // RepresentationField can represent all MachineRepresentations.
+  static_assert(RepresentationField::is_valid(
+      MachineRepresentation::kLastRepresentation));
+
+  template <class T, int size>
+  using NextBitField = ControlFlowRegisterHint::Next<T, size>;
 
   // Unique among children of the same virtual register.
   int relative_id_;
@@ -1256,13 +1271,14 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     kSpillLater,
   };
 
-  using HasSlotUseField = base::BitField<SlotUseKind, 1, 2>;
-  using IsPhiField = base::BitField<bool, 3, 1>;
-  using IsNonLoopPhiField = base::BitField<bool, 4, 1>;
-  using SpillTypeField = base::BitField<SpillType, 5, 2>;
-  using DeferredFixedField = base::BitField<bool, 28, 1>;
-  using SpillAtLoopHeaderNotBeneficialField = base::BitField<bool, 29, 1>;
-  using SpillRangeModeField = base::BitField<SpillRangeMode, 30, 2>;
+  using HasSlotUseField = NextBitField<SlotUseKind, 2>;
+  using IsPhiField = HasSlotUseField::Next<bool, 1>;
+  using IsNonLoopPhiField = IsPhiField::Next<bool, 1>;
+  using SpillTypeField = IsNonLoopPhiField::Next<SpillType, 2>;
+  using DeferredFixedField = SpillTypeField::Next<bool, 1>;
+  using SpillAtLoopHeaderNotBeneficialField = DeferredFixedField::Next<bool, 1>;
+  using SpillRangeModeField =
+      SpillAtLoopHeaderNotBeneficialField::Next<SpillRangeMode, 2>;
 
   int vreg_;
   int last_child_id_;
