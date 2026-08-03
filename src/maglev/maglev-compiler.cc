@@ -41,6 +41,11 @@
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
 
+#ifdef V8_FUZZILLI
+#include "src/base/hashing.h"
+#include "src/fuzzilli/cov.h"
+#endif
+
 #ifdef ALWAYS_MAGLEV_GRAPH_LABELLER
 #define ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL true
 #else
@@ -82,6 +87,45 @@ void PrintAndVerify(Graph* graph, bool printing_condition, MaglevPhase phase) {
   PrintGraph(graph, printing_condition, phase);
   VerifyGraph(graph, phase);
 }
+
+#ifdef V8_FUZZILLI
+void CollectOptimizedCodeCoverageFromNode(
+    NodeBase* node, size_t steps_to_go, size_t hash_so_far,
+    std::set<uint32_t>& accumulated_hashes) {
+  v8::base::Hasher hasher(hash_so_far);
+  hasher.Add(node->opcode());
+
+  bool has_recursed = false;
+  if (steps_to_go > 0) {
+    int input_count = node->input_count();
+    for (int i = 0; i < input_count; ++i) {
+      has_recursed = true;
+      ValueNode* input = node->input_node(i);
+      CollectOptimizedCodeCoverageFromNode(input, steps_to_go - 1,
+                                           hasher.hash(), accumulated_hashes);
+    }
+  }
+  if (!has_recursed) {
+    accumulated_hashes.insert(static_cast<uint32_t>(hasher.hash()));
+  }
+}
+
+void ExtractOptimizedCodeCoverage(Graph* graph) {
+  // We extract information from each node and its input up to this depth:
+  constexpr size_t kMaxPathLength = 3;
+  std::set<uint32_t> hashes;
+
+  for (BasicBlock* block : *graph) {
+    if (block->is_dead()) continue;
+    block->ForEachNodeAndControl([&](NodeBase* node) {
+      CollectOptimizedCodeCoverageFromNode(node, kMaxPathLength, 0, hashes);
+    });
+  }
+
+  cov_add_optimized_code_coverage_edges(hashes);
+}
+#endif
+
 }  // namespace
 
 // static
@@ -306,6 +350,10 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     // Stash the compiled code_generator on the compilation info.
     compilation_info->set_code_generator(std::move(code_generator));
   }
+
+#ifdef V8_FUZZILLI
+  ExtractOptimizedCodeCoverage(graph);
+#endif
 
   return true;
 }

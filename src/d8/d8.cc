@@ -7116,6 +7116,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #ifdef V8_FUZZILLI
     } else if (FlagMatches("--fuzzilli-enable-builtins-coverage", &argv[i])) {
       options.fuzzilli_enable_builtins_coverage = true;
+    } else if (FlagMatches("--fuzzilli-enable-optimized-code-coverage",
+                           &argv[i])) {
+      options.fuzzilli_enable_optimized_code_coverage = true;
     } else if (FlagMatches("--fuzzilli-coverage-statistics", &argv[i])) {
       options.fuzzilli_coverage_statistics = true;
 #endif
@@ -8114,6 +8117,10 @@ int Shell::Main(int argc, char* argv[]) {
             .size()));
   }
 
+  if (options.fuzzilli_enable_optimized_code_coverage) {
+    cov_init_optimized_code_edges(kFuzzilliNumOptimizedCodeEdges);
+  }
+
   // Let the parent process (Fuzzilli) know we are ready.
   char helo[] = "HELO";
   if (write(REPRL_CWFD, helo, 4) != 4 || read(REPRL_CRFD, helo, 4) != 4) {
@@ -8295,6 +8302,12 @@ int Shell::Main(int argc, char* argv[]) {
               reinterpret_cast<i::Isolate*>(isolate));
           cov_update_builtins_basic_block_coverage(bitmap);
         }
+        std::vector<uint32_t> optimized_code_edges;
+        if (options.fuzzilli_enable_optimized_code_coverage) {
+          optimized_code_edges =
+              cov_get_and_reset_optimized_code_coverage_edges();
+          cov_update_optimized_code_coverage(optimized_code_edges);
+        }
         if (options.fuzzilli_coverage_statistics) {
           int tot = 0;
           for (bool b : bitmap) {
@@ -8304,7 +8317,8 @@ int Shell::Main(int argc, char* argv[]) {
           std::ofstream covlog("covlog.txt", std::ios::app);
           covlog << iteration_counter << "\t" << tot << "\t"
                  << sanitizer_cov_count_discovered_edges() << "\t"
-                 << bitmap.size() << std::endl;
+                 << bitmap.size() << "\t" << optimized_code_edges.size()
+                 << std::endl;
           iteration_counter++;
         }
         // In REPRL mode, stdout and stderr can be regular files, so they need

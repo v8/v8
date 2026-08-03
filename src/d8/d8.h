@@ -520,6 +520,8 @@ class ShellOptions {
       "fuzzilli-coverage-statistics", false};
   DisallowReassignment<bool> fuzzilli_enable_builtins_coverage = {
       "fuzzilli-enable-builtins-coverage", false};
+  DisallowReassignment<bool> fuzzilli_enable_optimized_code_coverage = {
+      "fuzzilli-enable-optimized-code-coverage", false};
   DisallowReassignment<bool> send_idle_notification = {"send-idle-notification",
                                                        false};
   DisallowReassignment<bool> invoke_weak_callbacks = {"invoke-weak-callbacks",

@@ -11,6 +11,7 @@
 // https://clang.llvm.org/docs/SanitizerCoverage.html
 
 #include <cstdint>
+#include <set>
 #include <vector>
 
 void fuzzilli_cov_enable();
@@ -18,5 +19,12 @@ void sanitizer_cov_reset_edgeguards();
 uint32_t sanitizer_cov_count_discovered_edges();
 void cov_init_builtins_edges(uint32_t num_edges);
 void cov_update_builtins_basic_block_coverage(const std::vector<bool>& cov_map);
+
+constexpr uint32_t kFuzzilliNumOptimizedCodeEdges = 256 * 1024;
+
+void cov_init_optimized_code_edges(uint32_t num_edges);
+void cov_add_optimized_code_coverage_edges(const std::set<uint32_t>& hashes);
+std::vector<uint32_t> cov_get_and_reset_optimized_code_coverage_edges();
+void cov_update_optimized_code_coverage(const std::vector<uint32_t>& hashes);
 
 #endif  // V8_FUZZILLI_COV_H_
