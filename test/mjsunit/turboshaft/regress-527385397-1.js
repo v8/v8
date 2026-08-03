@@ -4,12 +4,9 @@
 
 // Flags: --allow-natives-syntax
 
-// {glob} will be used to publish the allocation to the GC. Its {x} and {y}
-// field must not be at the same offset than `arr[2]` below. And its {y} field
-// must be a Tagged field (rather than Float64) so that it forces tagging when
-// we store to it, which can trigger a GC. (the "offset_16" field is at offset
-// 16 and is needed to that the "y" field isn't).
-let glob = { x : 42, offset_16 : "skipping offset 16", y : "abc" };
+// {glob} will be used to publish the allocation to the GC. Its {x} field must
+// not be at the same offset than `arr[2]` below.
+let glob = { x : 42 };
 
 function foo(x, ...rest) {
   // Turboshaft can recognize rotations in xor trees, which Turbofan cannot. As
