@@ -15,7 +15,6 @@
 #include <unistd.h>
 
 #include "src/base/platform/memory.h"
-#include "src/base/platform/mutex.h"
 #include "src/sandbox/hardware-support.h"
 
 #define SHM_SIZE 0x200000
@@ -261,58 +260,5 @@ void cov_update_builtins_basic_block_coverage(
 
       shmem->edges[byteIndex] |= (1 << bitIndex);
     }
-  }
-}
-
-uint32_t optimized_code_start = 0;
-uint32_t optimized_code_edge_count = 0;
-
-struct PendingOptimizedCodeCoverage {
-  v8::base::Mutex mutex;
-  std::vector<uint32_t> edges;
-};
-
-PendingOptimizedCodeCoverage& GetPendingOptimizedCodeCoverage() {
-  static PendingOptimizedCodeCoverage* pending =
-      new PendingOptimizedCodeCoverage();
-  return *pending;
-}
-
-void cov_init_optimized_code_edges(uint32_t num_edges) {
-  CHECK_EQ(optimized_code_edge_count, 0);
-  if (num_edges + shmem->num_edges > MAX_EDGES) {
-    fprintf(stderr,
-            "[COV] Error: Insufficient amount of edges left for optimized code "
-            "coverage.\n");
-    exit(-1);
-  }
-  optimized_code_edge_count = num_edges;
-  optimized_code_start = 1 + shmem->num_edges;
-  shmem->num_edges += optimized_code_edge_count;
-  fprintf(stderr, "[COV] Additional %d edges for optimized code initialized.\n",
-          num_edges);
-}
-
-void cov_add_optimized_code_coverage_edges(const std::set<uint32_t>& hashes) {
-  auto& pending = GetPendingOptimizedCodeCoverage();
-  v8::base::MutexGuard lock(&pending.mutex);
-  pending.edges.insert(pending.edges.end(), hashes.begin(), hashes.end());
-}
-
-std::vector<uint32_t> cov_get_and_reset_optimized_code_coverage_edges() {
-  auto& pending = GetPendingOptimizedCodeCoverage();
-  v8::base::MutexGuard lock(&pending.mutex);
-  std::vector<uint32_t> result;
-  result.swap(pending.edges);
-  return result;
-}
-
-void cov_update_optimized_code_coverage(const std::vector<uint32_t>& hashes) {
-  if (optimized_code_edge_count == 0) return;
-  for (uint32_t hash : hashes) {
-    uint32_t index = hash % optimized_code_edge_count;
-    const uint32_t byteIndex = (index + optimized_code_start) >> 3;
-    const uint32_t bitIndex = (index + optimized_code_start) & 7;
-    shmem->edges[byteIndex] |= (1 << bitIndex);
   }
 }
