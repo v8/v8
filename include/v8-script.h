@@ -280,7 +280,7 @@ class V8_EXPORT Module : public Data {
    *
    * If IsGraphAsync() is false, the returned Promise is settled.
    */
-  V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
+  V8_WARN_UNUSED_RESULT MaybeLocal<Promise> Evaluate(Local<Context> context);
 
   /**
    * Evaluates async dependencies of a module and defer its evaluation
@@ -292,7 +292,7 @@ class V8_EXPORT Module : public Data {
    * modules that are going to be evaluated. This module and its sync
    * dependencies are not going to be evaluated.
    */
-  V8_WARN_UNUSED_RESULT MaybeLocal<Value> EvaluateForImportDefer(
+  V8_WARN_UNUSED_RESULT MaybeLocal<Promise> EvaluateForImportDefer(
       Local<Context> context);
 
   /**
@@ -350,6 +350,8 @@ class V8_EXPORT Module : public Data {
    * exception was thrown) and return an empy MaybeLocal to indicate falure
    * (where an exception was thrown).
    */
+  // TODO(caiolima): Change this to `MaybeLocal<Promise>` given it's expected a
+  // Promise as return.
   using SyntheticModuleEvaluationSteps =
       MaybeLocal<Value> (*)(Local<Context> context, Local<Module> module);
 

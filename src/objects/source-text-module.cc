@@ -908,7 +908,7 @@ bool SourceTextModule::MaybeHandleEvaluationException(
 }
 
 // https://tc39.es/ecma262/#sec-moduleevaluation
-MaybeDirectHandle<Object> SourceTextModule::Evaluate(
+MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
     Isolate* isolate, Handle<SourceTextModule> module) {
   CHECK(module->status() == kLinked || module->status() == kEvaluatingAsync ||
         module->status() == kEvaluated || module->status() == kErrored);

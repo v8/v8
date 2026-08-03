@@ -2439,7 +2439,7 @@ Maybe<bool> Module::InstantiateModule(Local<Context> context,
   return Just(true);
 }
 
-MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
+MaybeLocal<Promise> Module::Evaluate(Local<Context> context) {
   auto i_isolate = i::Isolate::Current();
   TRACE_EVENT_CALL_STATS_SCOPED(i_isolate, "v8", "V8.Execute");
   EnterV8Scope<InternalEscapableScope> api_scope{i_isolate, context,
@@ -2457,7 +2457,7 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   return api_scope.EscapeMaybe(i::Module::Evaluate(i_isolate, self));
 }
 
-MaybeLocal<Value> Module::EvaluateForImportDefer(Local<Context> context) {
+MaybeLocal<Promise> Module::EvaluateForImportDefer(Local<Context> context) {
   auto i_isolate = i::Isolate::Current();
   TRACE_EVENT_CALL_STATS_SCOPED(i_isolate, "v8", "V8.Execute");
   EnterV8Scope<InternalEscapableScope> api_scope{i_isolate, context,
@@ -2487,7 +2487,7 @@ MaybeLocal<Value> Module::EvaluateForImportDefer(Local<Context> context) {
     Local<Module> v8_dep_module = Utils::ToLocal(dep_module);
     MaybeLocal<Value> maybe_eval_result = v8_dep_module->Evaluate(context);
     if (maybe_eval_result.IsEmpty()) {
-      return api_scope.EscapeMaybe(MaybeLocal<Value>());
+      return api_scope.EscapeMaybe(MaybeLocal<Promise>());
     }
     Local<Value> eval_result = maybe_eval_result.ToLocalChecked();
     CHECK(eval_result->IsPromise());
@@ -2502,7 +2502,7 @@ MaybeLocal<Value> Module::EvaluateForImportDefer(Local<Context> context) {
   i::MaybeHandle<i::JSPromise> maybe_promise_all_result =
       i::JSPromise::PerformPromiseAll(i_isolate, promises);
   if (maybe_promise_all_result.is_null()) {
-    return api_scope.EscapeMaybe(MaybeLocal<Value>());
+    return api_scope.EscapeMaybe(MaybeLocal<Promise>());
   }
   return api_scope.Escape(
       Utils::ToLocal(maybe_promise_all_result.ToHandleChecked()));
