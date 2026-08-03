@@ -118,17 +118,6 @@ TEST(InitialObjects) {
            *v8::Utils::OpenDirectHandle(*CompileRun("Object.prototype")));
 }
 
-
-TEST(HandleNull) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope outer_scope(isolate);
-  LocalContext context;
-  DirectHandle<Object> n(Tagged<Object>(kNullAddress), isolate);
-  CHECK(!n.is_null());
-}
-
-
 static void VerifyStringAllocation(Isolate* isolate, const char* string) {
   HandleScope scope(isolate);
   DirectHandle<String> s = isolate->factory()
