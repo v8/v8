@@ -4,7 +4,7 @@
 
 // Flags: --expose-gc --allow-natives-syntax --turbofan --no-turbolev
 // Flags: --no-optimize-on-next-call-optimizes-to-maglev
-// Flags: --concurrent-recompilation
+// Flags: --concurrent-recompilation --no-stress-background-compile
 
 function makeSeqOneByte(seed) {
   const chars = [];

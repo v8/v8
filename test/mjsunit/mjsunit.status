@@ -1860,6 +1860,7 @@
 
   # Synchronization point tests don't play well with multiple isolates.
   'compiler/regress-519664497': [SKIP],
+  'turboshaft/regress-539984773': [SKIP],
 
 }],  # 'isolates'
 
