@@ -8496,6 +8496,10 @@ TNode<BoolT> CodeStubAssembler::IsCode(TNode<HeapObject> object) {
   return HasInstanceType(object, CODE_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsLoadHandler(TNode<HeapObject> object) {
+  return HasInstanceType(object, LOAD_HANDLER_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsConstructorMap(TNode<Map> map) {
   return IsSetWord32<Map::Bits1::IsConstructorBit>(LoadMapBitField(map));
 }

@@ -872,7 +872,8 @@ InlineCacheState FeedbackNexus::ic_state() const {
 }
 
 Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
-                                  FeedbackSlotKind kind) {
+                                  FeedbackSlotKind kind,
+                                  Tagged<Map> lookup_start_object_map) {
   if (kind != FeedbackSlotKind::kLoadProperty) return Builtin::kIllegal;
 
   if (IsSmi(feedback_extra)) {
@@ -900,6 +901,14 @@ Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
                            LoadHandler::Kind::kConstantFromPrototype)) {
             return Builtin::kLoadICConstantFromPrototypeBaseline;
           }
+          if (IsStringMap(lookup_start_object_map) &&
+              value ==
+                  (LoadHandler::KindBits::encode(
+                       LoadHandler::Kind::kConstantFromPrototype) |
+                   LoadHandler::DoAccessCheckOnLookupStartObjectBits::encode(
+                       true))) {
+            return Builtin::kLoadICConstantFromStringPrototypeBaseline;
+          }
         }
       } else if (IsCode(heap_object)) {
         Tagged<Code> handler = UncheckedCast<Code>(heap_object);
@@ -914,9 +923,20 @@ Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
   return Builtin::kLoadICGenericBaseline;
 }
 
+Builtin FeedbackNexus::ic_handler(Tagged<Map> lookup_start_object_map) const {
+  DCHECK_EQ(kind(), FeedbackSlotKind::kLoadProperty);
+  return FeedbackNexus::ic_handler(GetFeedbackExtra(), kind(),
+                                   lookup_start_object_map);
+}
+
 Builtin FeedbackNexus::ic_handler() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kLoadProperty);
-  return FeedbackNexus::ic_handler(GetFeedbackExtra(), kind());
+  Tagged<HeapObject> feedback;
+  if (!GetFeedback().GetHeapObjectIfWeak(&feedback) || !IsMap(feedback)) {
+    return Builtin::kLoadICGenericBaseline;
+  }
+  return FeedbackNexus::ic_handler(GetFeedbackExtra(), kind(),
+                                   Cast<Map>(feedback));
 }
 
 void FeedbackNexus::ConfigurePropertyCellMode(DirectHandle<PropertyCell> cell) {
