@@ -1839,7 +1839,7 @@ class RepresentationSelector {
   }
 
   bool CanSpeculateAdditiveSafeInteger(Node* node) {
-    if (!v8_flags.additive_safe_int_feedback) return false;
+    if (!v8_flags.turbofan_additive_safe_int_feedback) return false;
     return NumberOperationHintOf(node->op()) ==
            NumberOperationHint::kAdditiveSafeInteger;
   }

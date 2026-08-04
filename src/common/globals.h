@@ -2207,10 +2207,10 @@ static_assert(kMinAdditiveSafeInteger + kMinAdditiveSafeInteger >=
               kMinSafeInteger);
 
 constexpr int64_t kMaxAdditiveSafeIntegerFeedback =
-    (int64_t{1} << 51) - 1;  // 2^51 - 1
+    (int64_t{1} << 50) - 1;  // 2^50 - 1
 constexpr int64_t kMinAdditiveSafeIntegerFeedback =
-    -(int64_t{1} << 51);  // - 2^51
-constexpr int kAdditiveSafeIntegerFeedbackBitLength = 52;
+    -(int64_t{1} << 50);  // - 2^50
+constexpr int kAdditiveSafeIntegerFeedbackBitLength = 51;
 // Number of bits to shift left before addition to detect potential overflow.
 constexpr int kAdditiveSafeIntegerFeedbackShift =
     64 - kAdditiveSafeIntegerFeedbackBitLength;

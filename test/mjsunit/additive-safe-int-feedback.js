@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --additive-safe-int-feedback
-// Flags: --turbofan
+// Flags: --turbofan-additive-safe-int-feedback --turbofan
 
-const maxAdditiveSafeInteger = 2251799813685247; // 2^52 - 1
-const minAdditiveSafeInteger = - 2251799813685248; // - 2^51
+const maxAdditiveSafeInteger = 1125899906842623; // 2^50 - 1
+const minAdditiveSafeInteger = - 1125899906842624; // - 2^50
 
 // If one of the inputs is a constant in the additive safe range,
 // we can use AdditiveSafeInteger.

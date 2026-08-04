@@ -10,6 +10,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/flags/flags.h"
 #include "src/objects/type-hints.h"
 
 namespace v8 {
@@ -28,7 +29,9 @@ bool BinaryOperationHintToNumberOperationHint(
       *number_hint = NumberOperationHint::kSignedSmallInputs;
       return true;
     case BinaryOperationHint::kAdditiveSafeInteger:
-      *number_hint = NumberOperationHint::kAdditiveSafeInteger;
+      *number_hint = v8_flags.turbofan_additive_safe_int_feedback
+                         ? NumberOperationHint::kAdditiveSafeInteger
+                         : NumberOperationHint::kNumber;
       return true;
     case BinaryOperationHint::kNumber:
       *number_hint = NumberOperationHint::kNumber;
