@@ -215,6 +215,134 @@ void DemandedByteAnalysis::Revisit() {
   revisit_limit_reached_ = false;
 }
 
+WasmShuffleAnalyzer::Reduction::SearchResult
+WasmShuffleAnalyzer::Reduction::Search(const Operation& op) {
+  if (auto binop = op.TryCast<Simd128BinopOp>()) {
+    return Search(*binop);
+  } else if (auto phi = op.TryCast<PhiOp>()) {
+    return Search(*phi);
+  }
+  return SearchResult::kContinue;
+}
+
+namespace {
+bool IsTopBottomInterleave(const Simd128ShuffleOp* shuffle_op) {
+  if (shuffle_op && shuffle_op->left() == shuffle_op->right()) {
+    std::array<uint8_t, kSimd128Size> shuffle_bytes;
+    std::copy_n(shuffle_op->shuffle, kSimd128Size, shuffle_bytes.begin());
+    return SimdShuffle::TryMatchCanonical(shuffle_bytes) ==
+           SimdShuffle::CanonicalShuffle::kS16x8TopBottomInterleave;
+  }
+  return false;
+}
+}  // end namespace
+
+WasmShuffleAnalyzer::Reduction::SearchResult
+WasmShuffleAnalyzer::Reduction::Search(const Simd128BinopOp& binop) {
+  // Starting at the input to an I32x4AddReduce, walk backwards through a
+  // reduction tree:
+  //   * I32x4Add keeps the search inside the tree by visiting both inputs.
+  //   * I32x4DotI8x16S is a leaf candidate. We only record it when both inputs
+  //     are the canonical generated shuffle used before dot-product lowering.
+  //
+  // Dots already accepted by an earlier reduction search abort this search.
+  //
+  // Example:
+  //                     -----
+  //                     |   |
+  //                     v   |
+  //                    Phi  |
+  //          Sub  Dot /     |
+  //           \   /  /      |
+  // Mul  Dot   Add  /       ^
+  //   \  /      \  /        |
+  //   Add       Add         |
+  //      \     /            |
+  //        Add -------->-----
+  //         |
+  //     AddReduce
+  // TODO(sparker): Is it worth exploring through Sub operations?
+
+  OpIndex binop_index = input_graph().Index(binop);
+  if (!visited_.insert(binop_index).second) return SearchResult::kContinue;
+
+  if (binop.kind != Simd128BinopOp::Kind::kI32x4Add &&
+      binop.kind != Simd128BinopOp::Kind::kI32x4DotI8x16S) {
+    return SearchResult::kContinue;
+  }
+
+  nodes_.insert(binop_index);
+
+  const Operation& left = input_graph().Get(binop.left());
+  const Operation& right = input_graph().Get(binop.right());
+
+  if (binop.kind == Simd128BinopOp::Kind::kI32x4Add) {
+    if (Search(left) == SearchResult::kAbort) return SearchResult::kAbort;
+    if (Search(right) == SearchResult::kAbort) return SearchResult::kAbort;
+  } else if (binop.kind == Simd128BinopOp::Kind::kI32x4DotI8x16S) {
+    if (existing_dot_candidates_.contains(binop_index)) {
+      TRACE("Aborting reduction search at already discovered dot %d\n",
+            binop_index.id());
+      dot_candidates_.clear();
+      return SearchResult::kAbort;
+    }
+    auto shuffle_left = left.TryCast<Simd128ShuffleOp>();
+    auto shuffle_right = right.TryCast<Simd128ShuffleOp>();
+    if (IsTopBottomInterleave(shuffle_left) &&
+        IsTopBottomInterleave(shuffle_right)) {
+      // When we generate kI32x4DotI8x16S, we use shuffles to reorder the
+      // inputs to preserve the semantics. But now that we've discovered that
+      // the result is being horizontally reduced, we know the order of the
+      // summation is not important. So, we can remove those shuffles.
+      TRACE("Found a Dot candidate: %d\n", input_graph().Index(binop).id());
+      dot_candidates_.emplace_back(input_graph().Index(binop),
+                                   shuffle_left->left(), shuffle_right->left());
+    }
+  }
+  return SearchResult::kContinue;
+}
+
+WasmShuffleAnalyzer::Reduction::SearchResult
+WasmShuffleAnalyzer::Reduction::Search(const PhiOp& phi) {
+  // We search through phis so we can support an in-loop reduction, and the
+  // search supports unrolled loops too.
+  OpIndex phi_index = input_graph().Index(phi);
+  if (!visited_.insert(phi_index).second) return SearchResult::kContinue;
+
+  nodes_.insert(phi_index);
+  TRACE("Found new phi %d\n", phi_index.id());
+  for (OpIndex input : phi.inputs()) {
+    if (Search(input_graph().Get(input)) == SearchResult::kAbort) {
+      return SearchResult::kAbort;
+    }
+  }
+  return SearchResult::kContinue;
+}
+
+// Iterate through all the discovered nodes and look at their users, which we
+// should have discovered them all. The other manual checks are for reduce node
+// users.
+bool WasmShuffleAnalyzer::Reduction::UsesStayInReduction(
+    const Simd128UseMap& use_map) const {
+  for (OpIndex node : nodes_) {
+    for (OpIndex use : use_map.uses(node)) {
+      if (nodes_.contains(use)) continue;
+      const Operation& use_op = input_graph().Get(use);
+      if (use_op.saturated_use_count.Is(0) && !use_op.IsRequiredWhenUnused()) {
+        continue;
+      }
+      // We allow any other I32x4AddReduce operation that we didn't discover as
+      // part of the search.
+      if (const Simd128ReduceOp* reduce = use_op.TryCast<Simd128ReduceOp>()) {
+        if (reduce->kind == Simd128ReduceOp::Kind::kI32x4AddReduce) continue;
+      }
+      TRACE("Reduction node %d has outside user %d\n", node.id(), use.id());
+      return false;
+    }
+  }
+  return true;
+}
+
 void WasmShuffleAnalyzer::Run() {
   TRACE("Running WasmShuffleAnalyzer\n");
   for (uint32_t processed = input_graph().block_count(); processed > 0;
@@ -267,6 +395,11 @@ void WasmShuffleAnalyzer::Process(const Operation& op) {
     ProcessLaneMemory(*lane_op);
     return;
   }
+
+  if (auto* reduce_op = op.TryCast<Simd128ReduceOp>()) {
+    ProcessReduce(*reduce_op);
+    return;
+  }
 }
 
 void WasmShuffleAnalyzer::ProcessUnary(const Simd128UnaryOp& unop) {
@@ -304,13 +437,38 @@ void WasmShuffleAnalyzer::ProcessLaneMemory(
   demanded_byte_analysis_.AddOp(lane_op, DemandedBytes::All());
 }
 
+void WasmShuffleAnalyzer::ProcessReduce(const Simd128ReduceOp& reduce_op) {
+#if V8_TARGET_ARCH_ARM64
+  if (reduce_op.kind != Simd128ReduceOp::Kind::kI32x4AddReduce) return;
+
+  Reduction reduction(input_graph(), dot_candidate_nodes_, phase_zone_);
+  // We use a Simd128UseMap to validate that none of the nodes in the reduction
+  // are used outside of the tree that we've discovered. Creating the map is
+  // quite expensive so only do it once we've discovered a candidate reduction.
+  TRACE("Searching from I32x4AddReduce op %d\n",
+        input_graph().Index(reduce_op).id());
+  if (reduction.Search(input_graph().Get(reduce_op.input())) !=
+          Reduction::SearchResult::kAbort &&
+      !reduction.candidates().empty() &&
+      reduction.UsesStayInReduction(GetOrCreateUseMap())) {
+    TRACE("Found valid reduction:\n");
+    for (const auto& candidate : reduction.candidates()) {
+      bool inserted = dot_candidate_nodes_.insert(candidate.dot).second;
+      DCHECK(inserted);
+      USE(inserted);
+      TRACE(" - with dot %d\n", candidate.dot.id());
+      dot_candidates_.push_back(candidate);
+    }
+  }
+#endif  // V8_TARGET_ARCH_ARM64
+}
+
 namespace {
 
 struct ShuffleWindows {
   WasmShuffleAnalyzer::ShuffleWindow shuffle_out_window;
   WasmShuffleAnalyzer::ShuffleWindow shuffle_in_window;
 };
-
 // Searches for a contiguous window of size `shuffle_in_demanded` within
 // `shuffle` such that all elements in the window are sourced from `side`, and
 // all elements outside of the window are sourced from the other side. Returns
