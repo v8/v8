@@ -3061,17 +3061,11 @@ WasmCode* WasmCodeManager::LookupCode(Address pc) const {
 }
 
 WasmCode* WasmCodeManager::LookupCode(Isolate* isolate, Address pc) const {
+  DCHECK_NOT_NULL(isolate);
   // Since kNullAddress is used as a sentinel value, we should not try
-  // to look it up in the cache
+  // to look it up in the cache.
   if (pc == kNullAddress) return nullptr;
-  // If 'isolate' is nullptr, do not use a cache. This can happen when
-  // called from function V8NameConverter::NameOfAddress
-  if (isolate) {
-    return isolate->wasm_code_look_up_cache()->GetCacheEntry(pc)->code;
-  } else {
-    wasm::WasmCodeRefScope code_ref_scope;
-    return LookupCode(pc);
-  }
+  return isolate->wasm_code_look_up_cache()->GetCacheEntry(pc)->code;
 }
 
 std::pair<WasmCode*, SafepointEntry&> WasmCodeManager::LookupCodeAndSafepoint(
