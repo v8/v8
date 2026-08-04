@@ -83,7 +83,9 @@ declare_args() {
   v8_expose_symbols = false
 
   # Implement tracing using Perfetto (https://perfetto.dev).
-  v8_use_perfetto = false
+  # Chromium is configured to use the perfetto client library, v8 should also
+  # use perfetto for tracing.
+  v8_use_perfetto = build_with_chromium && !use_fuzzing_engine
 
   # Use Perfetto JSON Export.
   v8_use_perfetto_json_export = ""
@@ -307,12 +309,6 @@ if (v8_enable_backtrace == "") {
 
 if (v8_use_perfetto_sdk) {
   # When using perfetto SDK, we also need to enable perfetto support.
-  v8_use_perfetto = true
-}
-
-# Chromium is configured to use the perfetto client library, v8 should also
-# use perfetto for tracing.
-if (build_with_chromium && !use_fuzzing_engine) {
   v8_use_perfetto = true
 }
 
