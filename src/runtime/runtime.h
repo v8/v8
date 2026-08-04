@@ -153,7 +153,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(StartMaglevOptimizeJob, 1, 1)        \
   F(OptimizeTurbofanEager, 1, 1)         \
   F(StartTurbofanOptimizeJob, 1, 1)      \
-  F(MarkLazyDeoptimized, 2, 1)
+  F(MarkLazyDeoptimizedOrFlushed, 2, 1)
 
 #define FOR_EACH_INTRINSIC_COMPILER(F, I)    \
   FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I)  \

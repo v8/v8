@@ -376,7 +376,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeTurbofanEager) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_MarkLazyDeoptimized) {
+RUNTIME_FUNCTION(Runtime_MarkLazyDeoptimizedOrFlushed) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);

@@ -654,6 +654,7 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kFunctionLogNextExecution:
     case Builtin::kMarkReoptimizeLazyDeoptimized:
     case Builtin::kMarkLazyDeoptimized:
+    case Builtin::kMarkFlushed:
     // All *DeoptContinuation builtins.
     case Builtin::kArrayEveryLoopEagerDeoptContinuation:
     case Builtin::kArrayEveryLoopLazyDeoptContinuation:
