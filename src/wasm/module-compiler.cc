@@ -1281,10 +1281,9 @@ class FeedbackMaker {
         WasmCodePointer{static_cast<uint32_t>(target_truncated_smi.value())};
     Address entry = GetProcessWideWasmCodePointerTable()
                         ->GetEntrypointWithoutSignatureCheck(handle);
-    wasm::WasmCode* code =
-        wasm::GetWasmCodeManager()->LookupCode(nullptr, entry);
-    if (!code || code->native_module() != instance_data_->native_module() ||
-        code->IsAnonymous()) {
+    WasmCodeRefScope code_ref_scope;
+    wasm::WasmCode* code = instance_data_->native_module()->Lookup(entry);
+    if (!code || code->IsAnonymous()) {
       // Was not in the main table (e.g., because it's an imported function).
       has_non_inlineable_targets_ = true;
       return;

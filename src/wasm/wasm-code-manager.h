@@ -1196,16 +1196,21 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   static bool CanRegisterUnwindInfoForNonABICompliantCodeRange();
 #endif  // V8_OS_WIN64
 
+  // Returns the NativeModule that contains the given address. Note that the
+  // returned pointer is borrowed and not reference-counted. Callers MUST ensure
+  // that the target NativeModule is kept alive (e.g. by an active call stack,
+  // owning pointer, or WasmCodeRefScope).
   NativeModule* LookupNativeModule(Address pc) const;
-  // Returns the Wasm code that contains the given address. The result
-  // is cached. There is one cache per isolate for performance reasons
-  // (to avoid locking and reference counting). Note that the returned
-  // value is not reference counted. This should not be an issue since
-  // we expect that the code is currently being executed. If 'isolate'
-  // is nullptr, no caching occurs.
+  // Returns the Wasm code that contains the given address. The result is cached
+  // in the given isolate's lookup cache. Note that the returned pointer is
+  // borrowed and not reference-counted. The {isolate} must not be nullptr.
   WasmCode* LookupCode(Isolate* isolate, Address pc) const;
   std::pair<WasmCode*, SafepointEntry> LookupCodeAndSafepoint(Isolate* isolate,
                                                               Address pc);
+  // Non-cached version of LookupCode for contexts where no Isolate is available
+  // (e.g., in the disassembler). The caller must have an active
+  // WasmCodeRefScope. Returns a borrowed pointer.
+  WasmCode* LookupCode(Address pc) const;
   void FlushCodeLookupCache(Isolate* isolate);
   size_t committed_code_space() const {
     return total_committed_code_space_.load();
@@ -1257,8 +1262,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
                         size_t committed_size);
 
   void AssignRange(base::AddressRegion, NativeModule*);
-
-  WasmCode* LookupCode(Address pc) const;
 
   const size_t max_committed_code_space_;
 
