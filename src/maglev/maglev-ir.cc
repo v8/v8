@@ -9269,8 +9269,10 @@ void CallRuntime::PrintParams(std::ostream& os) const {
   os << "(" << Runtime::FunctionForId(function_id())->name << ")";
 }
 
+int ReduceInterruptBudgetForLoop::MaxCallStackArgs() const { return 2; }
+
 void ReduceInterruptBudgetForLoop::PrintParams(std::ostream& os) const {
-  os << "(" << amount() << ")";
+  os << "(" << amount() << ", " << osr_offset().ToInt() << ")";
 }
 
 void ReduceInterruptBudgetForReturn::PrintParams(std::ostream& os) const {

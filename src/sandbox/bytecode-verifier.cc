@@ -279,8 +279,8 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
     case Runtime::kLoadLookupSlotForCall_Baseline:
     case Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug:
     case Runtime::kBytecodeBudgetInterrupt_Sparkplug:
-    case Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev:
     case Runtime::kBytecodeBudgetInterrupt_Maglev:
+    case Runtime::kBytecodeBudgetLoopInterrupt_Maglev:
     case Runtime::kPatchLoadICUninitializedBaseline:
     case Runtime::kLoadIC_Miss_FromBaseline:
 #if V8_ENABLE_SPARKPLUG_PLUS

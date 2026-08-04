@@ -11171,8 +11171,9 @@ class HandleNoHeapWritesInterrupt
 class ReduceInterruptBudgetForLoop
     : public FixedInputNodeT<1, ReduceInterruptBudgetForLoop> {
  public:
-  explicit ReduceInterruptBudgetForLoop(uint64_t bitfield, int amount)
-      : Base(bitfield), amount_(amount) {
+  explicit ReduceInterruptBudgetForLoop(uint64_t bitfield, int amount,
+                                        BytecodeOffset osr_offset)
+      : Base(bitfield), amount_(amount), osr_offset_(osr_offset) {
     DCHECK_GT(amount, 0);
   }
 
@@ -11184,6 +11185,7 @@ class ReduceInterruptBudgetForLoop
       OpProperties::LazyDeopt() | OpProperties::NotIdempotent();
 
   int amount() const { return amount_; }
+  BytecodeOffset osr_offset() const { return osr_offset_; }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -11192,6 +11194,7 @@ class ReduceInterruptBudgetForLoop
 
  private:
   const int amount_;
+  const BytecodeOffset osr_offset_;
 };
 
 class ReduceInterruptBudgetForReturn

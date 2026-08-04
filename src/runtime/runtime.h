@@ -300,7 +300,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BytecodeBudgetInterrupt_Sparkplug, 1, 1)               \
   F(BytecodeBudgetInterruptWithStackCheck_Sparkplug, 1, 1) \
   F(BytecodeBudgetInterrupt_Maglev, 1, 1)                  \
-  F(BytecodeBudgetInterruptWithStackCheck_Maglev, 1, 1)    \
+  F(BytecodeBudgetLoopInterrupt_Maglev, 2, 1)              \
   F(NotifyContextCellStateWillChange, 1, 1,                \
     RuntimeCallProperty::kCannotTriggerGC)                 \
   F(NewError, 2, 1)                                        \

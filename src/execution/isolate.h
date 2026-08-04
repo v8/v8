@@ -3170,9 +3170,14 @@ class StackLimitCheck {
 #endif
 
   // Use this to check for interrupt request in C++ code.
-  V8_INLINE bool InterruptRequested() {
+  V8_INLINE bool InterruptRequested(
+      StackGuard::InterruptLevel level =
+          StackGuard::InterruptLevel::kAnyEffect) {
     StackGuard* stack_guard = isolate_->stack_guard();
-    return GetCurrentStackPosition() < stack_guard->climit();
+    if (level == StackGuard::InterruptLevel::kAnyEffect) {
+      return GetCurrentStackPosition() < stack_guard->climit();
+    }
+    return stack_guard->CheckInterrupt(StackGuard::InterruptLevelMask(level));
   }
 
   // Precondition: InterruptRequested == true.

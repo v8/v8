@@ -14552,16 +14552,19 @@ ReduceResult MaglevGraphBuilder::VisitJumpLoop() {
   const FeedbackSlot feedback_slot = iterator_.GetSlotOperand(2);
   int target = iterator_.GetJumpTargetOffset();
 
+  bool osr = ShouldEmitOsrInterruptBudgetChecks();
   if (ShouldEmitInterruptBudgetChecks()) {
     int reduction = relative_jump_bytecode_offset *
                     v8_flags.osr_from_maglev_interrupt_scale_factor;
+    BytecodeOffset osr_offset = osr ? BytecodeOffset(iterator_.current_offset())
+                                    : BytecodeOffset::None();
     RETURN_IF_ABORT(AddNewNode<ReduceInterruptBudgetForLoop>(
-        {GetFeedbackCell()}, reduction > 0 ? reduction : 1));
+        {GetFeedbackCell()}, reduction > 0 ? reduction : 1, osr_offset));
   } else {
     RETURN_IF_ABORT(AddNewNode<HandleNoHeapWritesInterrupt>({}));
   }
 
-  if (ShouldEmitOsrInterruptBudgetChecks()) {
+  if (osr) {
     RETURN_IF_ABORT(AddNewNode<TryOnStackReplacement>(
         {GetClosure()}, loop_offset, feedback_slot,
         BytecodeOffset(iterator_.current_offset()), compilation_unit_));
