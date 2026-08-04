@@ -9043,6 +9043,28 @@ THREADED_TEST(StringWrite) {
   }
 }
 
+THREADED_TEST(NewFromTwoBytePreservesNonLatin1Characters) {
+  LocalContext context;
+  v8::Isolate* isolate = context.isolate();
+  v8::HandleScope scope(isolate);
+
+  // Exercise the word-at-a-time one-byte check in String::NonOneByteStart.
+  constexpr int kLength = static_cast<int>(sizeof(uintptr_t));
+  alignas(uintptr_t) const uint16_t input[kLength] = {0x3000};
+  Local<String> string =
+      String::NewFromTwoByte(isolate, input, v8::NewStringType::kNormal,
+                             kLength)
+          .ToLocalChecked();
+
+  CHECK_EQ(kLength, string->Length());
+  CHECK(!string->IsOneByte());
+  uint16_t output[kLength];
+  string->Write(isolate, 0, kLength, output);
+  for (int i = 0; i < kLength; ++i) {
+    CHECK_EQ(input[i], output[i]);
+  }
+}
+
 static void Utf16Helper(LocalContext& context, const char* name,
                         const char* lengths_name, int len) {
   Local<v8::Array> a = Local<v8::Array>::Cast(
