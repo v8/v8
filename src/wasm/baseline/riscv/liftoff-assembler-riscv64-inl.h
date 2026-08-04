@@ -844,7 +844,7 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* trapping_store_pc,
-                                   AtomicMemoryOrder /* memory_order */,
+                                   AtomicMemoryOrder memory_order,
                                    LiftoffRegList /* pinned */,
                                    bool /* i64_offset */,
                                    Endianness /* endianness */) {
@@ -872,6 +872,7 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
+  if (memory_order == AtomicMemoryOrder::kSeqCst) sync();
   DCHECK_IMPLIES(trapping_store_pc != nullptr,
                  InstructionAt(*trapping_store_pc)->IsStore());
 }
@@ -887,12 +888,13 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     if (trapping_store_pc) *trapping_store_pc = static_cast<uint32_t>(offset);
   };
 
+  sync();
   if (COMPRESS_POINTERS_BOOL) {
     Sw(src, MemOperand(dst_reg, 0), trapper);
   } else {
     Sd(src, MemOperand(dst_reg, 0), trapper);
   }
-  sync();
+  if (memory_order == AtomicMemoryOrder::kSeqCst) sync();
   if (v8_flags.disable_write_barriers) return;
   // The write barrier.
   Label exit;
