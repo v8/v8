@@ -1229,10 +1229,11 @@ class FeedbackMaker {
 
     // Feedback data is untrusted. An invalid handle could lead to an OOB read
     // from the `WasmCodePointerTable`, which either crashes or returns some
-    // garbage. Thus `WasmCodeManager::LookupCode` would either return `nullptr`
-    // (safe) or an unrelated code object which will be checked for a compatible
-    // signature before being inlined.
-    // So the CHECK here is mostly just there to silence a false positive report
+    // garbage. Only look up the target address in the current NativeModule: a
+    // target from a foreign module is not an inline candidate, and looking it
+    // up across all modules via `WasmCodeManager::LookupCode` could race with
+    // concurrent teardown of that foreign module.
+    // The CHECK here is mostly just there to silence a false positive report
     // by the sandbox crash filter about an OOB read.
     uint32_t untrusted_code_pointer =
         static_cast<uint32_t>(target_truncated_smi.value());
@@ -1240,10 +1241,9 @@ class FeedbackMaker {
     WasmCodePointer handle = WasmCodePointer{untrusted_code_pointer};
     Address entry = GetProcessWideWasmCodePointerTable()
                         ->GetEntrypointWithoutSignatureCheck(handle);
-    wasm::WasmCode* code =
-        wasm::GetWasmCodeManager()->LookupCode(nullptr, entry);
-    if (!code || code->native_module() != instance_data_->native_module() ||
-        code->IsAnonymous()) {
+    WasmCodeRefScope code_ref_scope;
+    wasm::WasmCode* code = instance_data_->native_module()->Lookup(entry);
+    if (!code || code->IsAnonymous()) {
       // Was not in the main table (e.g., because it's an imported function).
       has_non_inlineable_targets_ = true;
       return;
