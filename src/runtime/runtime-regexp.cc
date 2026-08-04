@@ -1266,6 +1266,49 @@ DirectHandle<JSObject> ConstructNamedCaptureGroupsObject(
   return groups;
 }
 
+// Returns a copy of {matches} that shares nothing mutable with it: the array
+// itself, and with named captures also the per-match argument arrays and the
+// groups objects they hold.
+//
+// Callers must use this on both sides of the results cache: a replace callback
+// can retain and mutate the groups object it is given, and the cache stores
+// entries by reference. Copying on entry keeps the cached arrays unreachable
+// from any callback, which is what lets the exit side be a plain clone.
+DirectHandle<FixedArray> CopyMatches(Isolate* isolate,
+                                     DirectHandle<FixedArray> matches,
+                                     bool has_named_captures,
+                                     int capture_count) {
+  DirectHandle<FixedArray> copy = isolate->factory()->CopyFixedArrayWithMap(
+      matches, isolate->factory()->fixed_array_map());
+  if (!has_named_captures) return copy;
+
+  const uint32_t length = copy->ulength().value();
+  for (uint32_t i = 0; i < length; i++) {
+    // Subject slices are encoded as smis; only matches carry captures.
+    if (!IsJSArray(copy->get(i))) continue;
+    DirectHandle<FixedArray> elements(
+        Cast<FixedArray>(Cast<JSArray>(copy->get(i))->elements()), isolate);
+    DirectHandle<FixedArray> new_elements =
+        isolate->factory()->CopyFixedArrayWithMap(
+            elements, isolate->factory()->fixed_array_map());
+    // The groups object is appended last, after match, captures, index and
+    // subject. GetArgcForReplaceCallable counts the match itself as a capture.
+    DCHECK_EQ(new_elements->ulength().value(),
+              GetArgcForReplaceCallable(capture_count + 1, true));
+    const uint32_t groups_index = new_elements->ulength().value() - 1;
+    DCHECK(IsJSObject(new_elements->get(groups_index)));
+    DirectHandle<JSObject> groups(
+        Cast<JSObject>(new_elements->get(groups_index)), isolate);
+    DirectHandle<JSObject> groups_copy =
+        isolate->factory()->CopyJSObject(groups);
+    new_elements->set(groups_index, *groups_copy);
+    DirectHandle<JSArray> new_match =
+        isolate->factory()->NewJSArrayWithElements(new_elements);
+    copy->set(i, *new_match);
+  }
+  return copy;
+}
+
 // Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
 // separate last match info.  See comment on that function.
 template <bool has_capture>
@@ -1295,6 +1338,10 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
   int capture_count = regexp_data->capture_count();
   int subject_length = subject->length();
 
+  // has_capture can only be true for IrRegExp.
+  DirectHandle<IrRegExpData> re_data;
+  if (has_capture) re_data = TrustedCast<IrRegExpData>(regexp_data);
+
   static const int kMinLengthToCache = 0x1000;
 
   if (subject_length > kMinLengthToCache) {
@@ -1311,10 +1358,12 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
       }
       DirectHandle<FixedArray> cached_fixed_array(
           Cast<FixedArray>(cached_answer), isolate);
-      // The cache FixedArray is a COW-array and we need to return a copy.
-      DirectHandle<FixedArray> copied_fixed_array =
-          isolate->factory()->CopyFixedArrayWithMap(
-              cached_fixed_array, isolate->factory()->fixed_array_map());
+      // The cache FixedArray is a COW-array and we need to return a copy. A
+      // cache hit implies an earlier run compiled the pattern, so the capture
+      // name map is populated.
+      DirectHandle<FixedArray> copied_fixed_array = CopyMatches(
+          isolate, cached_fixed_array,
+          has_capture && re_data->has_capture_name_map(), capture_count);
       RegExp::SetLastMatchInfo(isolate, last_match_array, subject,
                                capture_count, raw_last_match);
       return *copied_fixed_array;
@@ -1335,13 +1384,11 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
   // Two smis before and after the match, for very long strings.
   static const uint32_t kMaxBuilderEntriesPerRegExpMatch = 5;
 
-  DirectHandle<IrRegExpData> re_data;
-  bool has_named_captures = false;
-  // has_capture can only be true for IrRegExp.
-  if (has_capture) {
-    re_data = TrustedCast<IrRegExpData>(regexp_data);
-    has_named_captures = re_data->has_capture_name_map();
-  }
+  // The capture name map is populated lazily, so this must stay below the
+  // GlobalExecRunner constructor, which is what compiles the pattern.
+  const bool has_named_captures =
+      has_capture && re_data->has_capture_name_map();
+
   while (true) {
     int32_t* current_match = runner.FetchNext();
     if (current_match == nullptr) break;
@@ -1367,11 +1414,13 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
 
       if (has_capture) {
         // Arguments array to replace function is match, captures, index and
-        // subject, i.e., 3 + capture count in total. If the RegExp contains
-        // named captures, they are also passed as the last argument.
-
-        const int argc =
-            has_named_captures ? 4 + capture_count : 3 + capture_count;
+        // subject. If the RegExp contains named captures, they are also passed
+        // as the last argument. GetArgcForReplaceCallable counts the match
+        // itself as a capture, and cannot overflow here because kMaxCaptures
+        // is well below Code::kMaxArguments.
+        const uint32_t argc =
+            GetArgcForReplaceCallable(capture_count + 1, has_named_captures);
+        DCHECK_NE(argc, static_cast<uint32_t>(-1));
 
         DirectHandle<FixedArray> elements =
             isolate->factory()->NewFixedArray(argc);
@@ -1435,10 +1484,11 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
       DirectHandle<FixedArray> result_fixed_array =
           FixedArray::RightTrimOrEmpty(isolate, builder.array(),
                                        builder.length().value());
-      // Cache the result and copy the FixedArray into a COW array.
-      DirectHandle<FixedArray> copied_fixed_array =
-          isolate->factory()->CopyFixedArrayWithMap(
-              result_fixed_array, isolate->factory()->fixed_array_map());
+      // Cache the result and copy the FixedArray into a COW array. The copy
+      // must be deep, or the entry would share its groups objects with the
+      // array returned below.
+      DirectHandle<FixedArray> copied_fixed_array = CopyMatches(
+          isolate, result_fixed_array, has_named_captures, capture_count);
       regexp::ResultsCache::Enter(
           isolate, subject,
           direct_handle(regexp->data(isolate)->wrapper(), isolate),
