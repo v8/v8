@@ -379,9 +379,7 @@ class WasmShuffleAnalyzer {
   }
 
   WasmShuffleAnalyzer(Zone* phase_zone, const Graph& input_graph)
-      : phase_zone_(phase_zone), input_graph_(input_graph) {
-    Run();
-  }
+      : phase_zone_(phase_zone), input_graph_(input_graph) {}
 
   V8_EXPORT_PRIVATE void Run();
 
@@ -491,7 +489,7 @@ class WasmShuffleAnalyzer {
 template <class Next>
 class WasmShuffleReducer : public Next {
  private:
-  std::optional<WasmShuffleAnalyzer> analyzer_;
+  WasmShuffleAnalyzer* analyzer_ = nullptr;
 
   struct DeinterleaveLoadShuffle {
     const Simd128ShuffleOp* shuffle;
@@ -538,8 +536,15 @@ class WasmShuffleReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmShuffleReducer)
 
   void Analyze() {
-    analyzer_.emplace(__ phase_zone(), __ input_graph());
-    analyzer_->Run();
+    PipelineData* data = __ data();
+    if (data->has_wasm_shuffle_analyzer()) {
+      analyzer_ = data->wasm_shuffle_analyzer();
+    } else {
+      Zone* phase_zone = __ phase_zone();
+      analyzer_ = phase_zone->template New<WasmShuffleAnalyzer>(
+          phase_zone, __ input_graph());
+      analyzer_->Run();
+    }
     Next::Analyze();
   }
 

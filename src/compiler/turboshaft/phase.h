@@ -497,6 +497,10 @@ class V8_EXPORT_PRIVATE PipelineData {
     return wasm_shuffle_analyzer_;
   }
 
+  bool has_wasm_shuffle_analyzer() const {
+    return wasm_shuffle_analyzer_ != nullptr;
+  }
+
   void set_wasm_shuffle_analyzer(WasmShuffleAnalyzer* wasm_shuffle_analyzer) {
     DCHECK_NULL(wasm_shuffle_analyzer_);
     wasm_shuffle_analyzer_ = wasm_shuffle_analyzer;

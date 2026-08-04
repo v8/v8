@@ -727,6 +727,119 @@ TEST_F(ReducerTest, ShuffleOfShuffleRejectsRoundedWindowPastInputEnd) {
   EXPECT_EQ(reduced_inner->kind, Simd128ShuffleOp::Kind::kI8x16);
 }
 
+TEST_F(ReducerTest, ShuffleOfShuffleShiftsOnce) {
+  // Test that the analysis is only run once.
+  constexpr std::array<uint8_t, kSimd128Size> shuffle0 = {
+      24, 13, 2, 30, 28, 31, 13, 31, 17, 27, 2, 0, 19, 31, 31, 0};
+  constexpr std::array<uint8_t, kSimd128Size> shuffle1 = {
+      2, 28, 0, 31, 24, 31, 5, 25, 30, 26, 0, 5, 0, 11, 6, 18};
+  constexpr std::array<uint8_t, kSimd128Size> shuffle2 = {
+      31, 31, 28, 4, 31, 11, 19, 22, 31, 20, 0, 3, 15, 30, 3, 0};
+  constexpr std::array<uint8_t, kSimd128Size> shuffle5 = {
+      3, 1, 21, 31, 16, 2, 9, 10, 22, 0, 31, 29, 0, 1, 0, 1};
+
+  auto test = CreateFromGraph(1, [&](auto& Asm) {
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+    auto a =
+        __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+    auto b =
+        __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+    auto c =
+        __ Simd128Splat(__ Word32Constant(2), Simd128SplatOp::Kind::kI32x4);
+    auto d =
+        __ Simd128Splat(__ Word32Constant(3), Simd128SplatOp::Kind::kI32x4);
+
+    OpIndex x0 = Asm.Capture(
+        __ Simd128Shuffle(a, b, ShuffleKind, shuffle0.data()), "x0");
+    OpIndex y0 = __ Simd128Shuffle(c, d, ShuffleKind, shuffle1.data());
+    OpIndex z0 = Asm.Capture(
+        __ Simd128Shuffle(x0, y0, ShuffleKind, shuffle2.data()), "z0");
+
+    OpIndex x1 = Asm.Capture(
+        __ Simd128Shuffle(b, c, ShuffleKind, shuffle0.data()), "x1");
+    OpIndex y1 = __ Simd128Shuffle(d, a, ShuffleKind, shuffle1.data());
+    OpIndex z1 = Asm.Capture(
+        __ Simd128Shuffle(x1, y1, ShuffleKind, shuffle5.data()), "z1");
+
+    OpIndex extmul =
+        __ Simd128Binop(z0, z1, Simd128BinopOp::Kind::kI64x2ExtMulLowI32x4S);
+    __ Return(
+        __ Simd128Unary(extmul, Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low));
+  });
+
+  test.Run<WasmShuffleReducer>();
+
+  const Simd128ShuffleOp* reduced_x0 =
+      test.GetCapture("x0").GetAs<Simd128ShuffleOp>();
+  ASSERT_TRUE(reduced_x0);
+  const Simd128ShuffleOp* reduced_z0 =
+      test.GetCapture("z0").GetAs<Simd128ShuffleOp>();
+  ASSERT_TRUE(reduced_z0);
+  const Simd128ShuffleOp* reduced_x1 =
+      test.GetCapture("x1").GetAs<Simd128ShuffleOp>();
+  ASSERT_TRUE(reduced_x1);
+  const Simd128ShuffleOp* reduced_z1 =
+      test.GetCapture("z1").GetAs<Simd128ShuffleOp>();
+  ASSERT_TRUE(reduced_z1);
+
+  if (v8_flags.future_wasm_simd_opt) {
+    // z0 only needs bytes {31, 31, 28, 4} from x0/y0. Since byte 28 comes from
+    // x0, x0 can be shifted once to expose that byte as its byte zero.
+    EXPECT_EQ(reduced_x0->kind, Simd128ShuffleOp::Kind::kI8x1);
+    EXPECT_EQ(reduced_x0->shuffle[0], 28);
+
+    EXPECT_EQ(reduced_z0->kind, Simd128ShuffleOp::Kind::kI8x4);
+    EXPECT_EQ(reduced_z0->shuffle[0], 31);
+    EXPECT_EQ(reduced_z0->shuffle[1], 31);
+    EXPECT_EQ(reduced_z0->shuffle[2], 28);
+    EXPECT_EQ(reduced_z0->shuffle[3], 0);
+
+    // z1 needs a four-byte window from x1, so x1 is shifted once and z1 is
+    // rewritten to address the shifted x1 bytes. If the analysis runs twice,
+    // x1 is incorrectly shifted a second time to {2, 30, 28, 28}, while z1 is
+    // still written for the once-shifted producer.
+    EXPECT_EQ(reduced_x1->kind, Simd128ShuffleOp::Kind::kI8x4);
+    EXPECT_EQ(reduced_x1->shuffle[0], 13);
+    EXPECT_EQ(reduced_x1->shuffle[1], 2);
+    EXPECT_EQ(reduced_x1->shuffle[2], 30);
+    EXPECT_EQ(reduced_x1->shuffle[3], 28);
+
+    EXPECT_EQ(reduced_z1->kind, Simd128ShuffleOp::Kind::kI8x4);
+    EXPECT_EQ(reduced_z1->shuffle[0], 2);
+    EXPECT_EQ(reduced_z1->shuffle[1], 0);
+    EXPECT_EQ(reduced_z1->shuffle[2], 21);
+    EXPECT_EQ(reduced_z1->shuffle[3], 31);
+  } else {
+    EXPECT_EQ(reduced_x0->kind, Simd128ShuffleOp::Kind::kI8x8);
+    EXPECT_EQ(reduced_x0->shuffle[0], 24);
+    EXPECT_EQ(reduced_x0->shuffle[1], 13);
+    EXPECT_EQ(reduced_x0->shuffle[2], 2);
+    EXPECT_EQ(reduced_x0->shuffle[3], 30);
+    EXPECT_EQ(reduced_x0->shuffle[4], 28);
+    EXPECT_EQ(reduced_x0->shuffle[5], 31);
+    EXPECT_EQ(reduced_x0->shuffle[6], 13);
+    EXPECT_EQ(reduced_x0->shuffle[7], 31);
+
+    EXPECT_EQ(reduced_z0->kind, Simd128ShuffleOp::Kind::kI8x4);
+    EXPECT_EQ(reduced_z0->shuffle[0], 31);
+    EXPECT_EQ(reduced_z0->shuffle[1], 31);
+    EXPECT_EQ(reduced_z0->shuffle[2], 28);
+    EXPECT_EQ(reduced_z0->shuffle[3], 4);
+
+    EXPECT_EQ(reduced_x1->kind, Simd128ShuffleOp::Kind::kI8x4);
+    EXPECT_EQ(reduced_x1->shuffle[0], 24);
+    EXPECT_EQ(reduced_x1->shuffle[1], 13);
+    EXPECT_EQ(reduced_x1->shuffle[2], 2);
+    EXPECT_EQ(reduced_x1->shuffle[3], 30);
+
+    EXPECT_EQ(reduced_z1->kind, Simd128ShuffleOp::Kind::kI8x4);
+    EXPECT_EQ(reduced_z1->shuffle[0], 3);
+    EXPECT_EQ(reduced_z1->shuffle[1], 1);
+    EXPECT_EQ(reduced_z1->shuffle[2], 21);
+    EXPECT_EQ(reduced_z1->shuffle[3], 31);
+  }
+}
+
 TEST_F(ReducerTest, ExtractLaneNarrowsShuffle) {
   using ExtractCase = std::tuple<Simd128ExtractLaneOp::Kind, uint8_t,
                                  Simd128ShuffleOp::Kind, DemandedBytes>;
