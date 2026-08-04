@@ -8378,77 +8378,84 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
 
   // No need to finish the loop if this code is unreachable.
   if (!result.IsDoneWithAbort()) {
-    if (process_element_callback) {
-      ValueNode* value = result.value();
-      RETURN_IF_ABORT((*process_element_callback)(index_int32, value));
-    }
+    ReduceResult loop_body_result = [&]() -> ReduceResult {
+      if (process_element_callback) {
+        ValueNode* value = result.value();
+        RETURN_IF_ABORT((*process_element_callback)(index_int32, value));
+      }
 
-    // If any of the receiver's maps were unstable maps, we have to re-check the
-    // maps on each iteration, in case the callback changed them. That said, we
-    // know that the maps are valid on the first iteration, so we can rotate the
-    // check to _after_ the callback, and then elide it if the receiver maps are
-    // still known to be valid (i.e. the known maps after the call are contained
-    // inside the known maps before the call).
-    bool recheck_maps_after_call = receiver_maps_were_unstable;
-    if (recheck_maps_after_call) {
-      // No need to recheck maps if there are known maps...
-      MapInference inference_after_call(this, receiver);
-      // ... for which no side effect has occurred after recording them...
-      if (inference_after_call.all_maps_are_fresh()) {
-        if (auto receiver_maps_after_call =
-                inference_after_call.TryGetPossibleMaps()) {
-          // ... and those known maps are equal to, or a subset of, the maps
-          // before the call.
-          recheck_maps_after_call =
-              !receiver_maps_before_loop.contains(*receiver_maps_after_call);
+      // If any of the receiver's maps were unstable maps, we have to re-check
+      // the maps on each iteration, in case the callback changed them. That
+      // said, we know that the maps are valid on the first iteration, so we can
+      // rotate the check to _after_ the callback, and then elide it if the
+      // receiver maps are still known to be valid (i.e. the known maps after
+      // the call are contained inside the known maps before the call).
+      bool recheck_maps_after_call = receiver_maps_were_unstable;
+      if (recheck_maps_after_call) {
+        // No need to recheck maps if there are known maps...
+        MapInference inference_after_call(this, receiver);
+        // ... for which no side effect has occurred after recording them...
+        if (inference_after_call.all_maps_are_fresh()) {
+          if (auto receiver_maps_after_call =
+                  inference_after_call.TryGetPossibleMaps()) {
+            // ... and those known maps are equal to, or a subset of, the maps
+            // before the call.
+            recheck_maps_after_call =
+                !receiver_maps_before_loop.contains(*receiver_maps_after_call);
+          }
         }
       }
-    }
 
-    // Make sure to finish the loop if we eager deopt in the map check or index
-    // check.
-    const EagerDeoptFrameScope& eager_deopt_scope =
-        get_eager_deopt_scope(target, receiver, callback, this_arg, index_int32,
-                              next_index_int32, original_length);
+      // Make sure to finish the loop if we eager deopt in the map check or
+      // index check.
+      const EagerDeoptFrameScope& eager_deopt_scope =
+          get_eager_deopt_scope(target, receiver, callback, this_arg,
+                                index_int32, next_index_int32, original_length);
 
-    if (recheck_maps_after_call) {
-      // Build the CheckMap manually, since we're doing it with already known
-      // maps rather than feedback, and we don't need to update known node
-      // aspects or types since we're at the end of the loop anyway.
-      bool emit_check_with_migration = std::any_of(
-          receiver_maps_before_loop.begin(), receiver_maps_before_loop.end(),
-          [](compiler::MapRef map) { return map.is_migration_target(); });
-      if (emit_check_with_migration) {
-        RETURN_IF_ABORT(AddNewNode<CheckMapsWithMigration>(
-            {receiver}, receiver_maps_before_loop,
-            CheckType::kOmitHeapObjectCheck));
-      } else {
-        RETURN_IF_ABORT(AddNewNode<CheckMaps>({receiver},
-                                              receiver_maps_before_loop,
-                                              CheckType::kOmitHeapObjectCheck));
+      if (recheck_maps_after_call) {
+        // Build the CheckMap manually, since we're doing it with already known
+        // maps rather than feedback, and we don't need to update known node
+        // aspects or types since we're at the end of the loop anyway.
+        bool emit_check_with_migration = std::any_of(
+            receiver_maps_before_loop.begin(), receiver_maps_before_loop.end(),
+            [](compiler::MapRef map) { return map.is_migration_target(); });
+        if (emit_check_with_migration) {
+          RETURN_IF_ABORT(AddNewNode<CheckMapsWithMigration>(
+              {receiver}, receiver_maps_before_loop,
+              CheckType::kOmitHeapObjectCheck));
+        } else {
+          RETURN_IF_ABORT(
+              AddNewNode<CheckMaps>({receiver}, receiver_maps_before_loop,
+                                    CheckType::kOmitHeapObjectCheck));
+        }
       }
-    }
 
-    // Check if the index is still in bounds, in case the callback changed the
-    // length.
-    ValueNode* current_length;
-    GET_VALUE_OR_ABORT(current_length, BuildLoadJSArrayLength(receiver));
-    sub_builder.set(var_length, current_length);
+      // Check if the index is still in bounds, in case the callback changed the
+      // length.
+      ValueNode* current_length;
+      GET_VALUE_OR_ABORT(current_length, BuildLoadJSArrayLength(receiver));
+      sub_builder.set(var_length, current_length);
 
-    // Reference compare the loaded length against the original length. If this
-    // is the same value node, then we didn't have any side effects and didn't
-    // clear the cached length.
-    if (current_length != original_length) {
-      RETURN_IF_ABORT(
-          TryBuildCheckInt32Condition(original_length_int32, current_length,
-                                      AssertCondition::kUnsignedLessThanEqual,
-                                      DeoptimizeReason::kArrayLengthChanged));
-    }
+      // Reference compare the loaded length against the original length. If
+      // this is the same value node, then we didn't have any side effects and
+      // didn't clear the cached length.
+      if (current_length != original_length) {
+        RETURN_IF_ABORT(
+            TryBuildCheckInt32Condition(original_length_int32, current_length,
+                                        AssertCondition::kUnsignedLessThanEqual,
+                                        DeoptimizeReason::kArrayLengthChanged));
+      }
+      return ReduceResult::Done();
+    }();
+    // loop_body_result is either Done or DoneWithAbort. An abort sets
+    // current_block to null, which GotoOrTrim and EndLoop below both handle --
+    // no explicit check needed.
+    USE(loop_body_result);
   }
 
   if (skip_call.has_value()) {
     sub_builder.GotoOrTrim(&*skip_call);
-    sub_builder.Bind(&*skip_call);
+    RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&*skip_call));
   }
 
   sub_builder.set(var_index, next_index_int32);
@@ -8457,8 +8464,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   // ```
   // bind end
   // ```
-  sub_builder.Bind(&loop_end);
-
+  RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&loop_end));
   return ReduceResult::Done();
 }
 
