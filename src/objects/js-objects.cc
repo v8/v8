@@ -3036,6 +3036,9 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case CPP_HEAP_EXTERNAL_OBJECT_TYPE:
       accumulator->Add("<CppHeapExternalObject>");
       break;
+    case CPP_GCMANAGED_BASE_TYPE:
+      accumulator->Add("<CppGCManagedBase>");
+      break;
 
     default: {
       Tagged<Map> map_of_this = map();

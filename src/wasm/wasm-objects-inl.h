@@ -25,8 +25,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/managed.h"
-#include "src/objects/object-conversions-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/object-predicates-inl.h"
 #include "src/objects/pod-array-inl.h"
 #include "src/objects/slots-inl.h"
@@ -93,11 +92,12 @@ void WasmMemoryObject::set_array_buffer(
   array_buffer_.store(this, value, mode);
 }
 
-Tagged<Managed<BackingStore>> WasmMemoryObject::managed_backing_store() const {
+Tagged<CppGCManaged<BackingStore>> WasmMemoryObject::managed_backing_store()
+    const {
   return managed_backing_store_.load();
 }
 void WasmMemoryObject::set_managed_backing_store(
-    Tagged<Managed<BackingStore>> value, WriteBarrierMode mode) {
+    Tagged<CppGCManaged<BackingStore>> value, WriteBarrierMode mode) {
   managed_backing_store_.store(this, value, mode);
 }
 
@@ -123,7 +123,7 @@ void WasmMemoryObject::set_address_type(wasm::AddressType value) {
   address_type_ = static_cast<uint8_t>(value);
 }
 
-Managed<BackingStore>::Ptr WasmMemoryObject::backing_store() const {
+CppGCManaged<BackingStore>::Ptr WasmMemoryObject::backing_store() const {
   return managed_backing_store()->ptr();
 }
 

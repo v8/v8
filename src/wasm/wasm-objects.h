@@ -374,9 +374,9 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   inline void set_array_buffer(Tagged<UnionOf<JSArrayBuffer, Undefined>> value,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Managed<BackingStore>> managed_backing_store() const;
+  inline Tagged<CppGCManaged<BackingStore>> managed_backing_store() const;
   inline void set_managed_backing_store(
-      Tagged<Managed<BackingStore>> value,
+      Tagged<CppGCManaged<BackingStore>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int maximum_pages() const;
@@ -401,7 +401,7 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   }
 #endif  // TAGGED_SIZE_8_BYTES
 
-  inline Managed<BackingStore>::Ptr backing_store() const;
+  inline CppGCManaged<BackingStore>::Ptr backing_store() const;
 
   // Add a use of this memory object to the given instance. This updates the
   // internal weak list of instances that use this memory and also updates the
@@ -458,7 +458,7 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   // bit on the backing store is not authoritative).
   static DirectHandle<JSArrayBuffer> RefreshBuffer(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      Managed<BackingStore>::Ptr backing_store,
+      CppGCManaged<BackingStore>::Ptr backing_store,
       std::optional<ResizableFlag> override_resizable = {});
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
@@ -484,7 +484,7 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   static const int kHeaderSize;
 
   TaggedMember<UnionOf<JSArrayBuffer, Undefined>> array_buffer_;
-  TaggedMember<Managed<BackingStore>> managed_backing_store_;
+  TaggedMember<CppGCManaged<BackingStore>> managed_backing_store_;
   TaggedMember<Smi> maximum_pages_;
   TaggedMember<WeakArrayList> instances_;
   uint8_t address_type_;

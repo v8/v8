@@ -7699,8 +7699,15 @@ void Isolate::SetReleaseCppHeapCallback(
 
 void Isolate::RunReleaseCppHeapCallback(std::unique_ptr<v8::CppHeap> cpp_heap) {
   if (release_cpp_heap_callback_) {
+    // Invalidate the isolate alive token, as the CppHeap will continue to exist
+    // after the isolate is destroyed.
+    CppHeap::From(cpp_heap.get())->invalidate_isolate_alive_token();
     release_cpp_heap_callback_(std::move(cpp_heap));
   }
+}
+
+std::shared_ptr<bool> Isolate::cpp_heap_isolate_alive_token() const {
+  return CppHeap::From(heap_.cpp_heap())->isolate_alive_token();
 }
 
 void Isolate::SetPromiseHook(PromiseHook hook) {

@@ -817,9 +817,9 @@ DirectHandle<WasmMemoryObject> WasmMemoryObject::New(
                      : !maybe_buffer.IsEmpty()
                          ? maybe_buffer.ToHandleChecked()->GetByteLength()
                          : 0;
-  DirectHandle<Managed<BackingStore>> managed_backing_store =
-      Managed<BackingStore>::From(isolate, byte_size, backing_store,
-                                  AllocationType::kOld);
+  DirectHandle<CppGCManaged<BackingStore>> managed_backing_store =
+      CppGCManaged<BackingStore>::Create(isolate, byte_size, backing_store,
+                                       AllocationType::kOld);
 
   DirectHandle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
@@ -1015,7 +1015,7 @@ void WasmMemoryObject::FixUpResizableArrayBuffer(
 // static
 DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshBuffer(
     Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object,
-    Managed<BackingStore>::Ptr backing_store,
+    CppGCManaged<BackingStore>::Ptr backing_store,
     std::optional<ResizableFlag> override_resizable) {
   DCHECK_EQ(backing_store.raw(), memory_object->backing_store().raw());
 
@@ -1042,7 +1042,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                uint32_t pages) {
   TRACE_EVENT("v8.wasm", "wasm.GrowMemory");
 
-  Managed<BackingStore>::Ptr backing_store = memory_object->backing_store();
+  CppGCManaged<BackingStore>::Ptr backing_store =
+      memory_object->backing_store();
   DCHECK_NOT_NULL(backing_store);
 
   DirectHandle<JSArrayBuffer> maybe_old_buffer;
@@ -1114,7 +1115,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     // read-modify-write behavior required by the spec.
     uint32_t result = static_cast<int32_t>(result_inplace.value());
     memory_object->managed_backing_store()->UpdateEstimatedSize(
-        isolate, backing_store->byte_length());
+        backing_store->byte_length(), isolate);
     return result;  // success
   }
 
@@ -1133,7 +1134,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     memory_object->UpdateInstances(isolate);
     DCHECK_EQ(result_inplace.value(), old_pages);
     memory_object->managed_backing_store()->UpdateEstimatedSize(
-        isolate, backing_store->byte_length());
+        backing_store->byte_length(), isolate);
     return static_cast<int32_t>(result_inplace.value());  // success
   }
   DCHECK(!has_old_buffer || !maybe_old_buffer->is_resizable_by_js());
@@ -1208,7 +1209,8 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::ChangeArrayBufferResizability(
     return buffer;
   }
 
-  Managed<BackingStore>::Ptr backing_store = memory_object->backing_store();
+  CppGCManaged<BackingStore>::Ptr backing_store =
+      memory_object->backing_store();
   // For shared memory the flag on the backing store is not authoritative.
   // Since the AB is never detached, we just update the AB and use that as the
   // authoritative source of resizability.

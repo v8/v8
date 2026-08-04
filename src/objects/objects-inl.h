@@ -91,6 +91,7 @@ DEF_CAST_TRAITS(Context)
 DEF_CAST_TRAITS(ContextCell)
 DEF_CAST_TRAITS(CoverageInfo)
 DEF_CAST_TRAITS(CppHeapExternalObject)
+DEF_CAST_TRAITS(CppGCManagedBase)
 DEF_CAST_TRAITS(DataHandler)
 DEF_CAST_TRAITS(DeoptimizationData)
 DEF_CAST_TRAITS(DescriptorArray)
@@ -355,6 +356,8 @@ struct CastTraits<FieldType> {
 
 template <typename T>
 struct CastTraits<Managed<T>> : public CastTraits<Foreign> {};
+template <typename T>
+struct CastTraits<CppGCManaged<T>> : public CastTraits<CppGCManagedBase> {};
 template <typename T>
 struct CastTraits<TrustedManaged<T>> : public CastTraits<TrustedForeign> {};
 template <typename T>

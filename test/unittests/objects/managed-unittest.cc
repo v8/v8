@@ -19,6 +19,7 @@ using ManagedTest = TestWithIsolate;
 class DeleteCounter {
  public:
   static constexpr ExternalPointerTag kManagedTag = kGenericManagedTag;
+  static constexpr ManagedTypeId kTypeID = ManagedTypeId::kTestDeleteCounter;
 
   explicit DeleteCounter(int* deleted) : deleted_(deleted) { *deleted_ = 0; }
   ~DeleteCounter() { (*deleted_)++; }
@@ -59,6 +60,20 @@ TEST_F(ManagedTest, GCCausesDestruction) {
   CHECK_EQ(0, deleted2);
   d2.reset();
   CHECK_EQ(1, deleted2);
+}
+
+TEST_F(ManagedTest, CppGCManagedGCCausesDestruction) {
+  int deleted = 0;
+  {
+    HandleScope scope(isolate());
+    USE(CppGCManaged<DeleteCounter>::Create(
+        isolate(), 0, std::make_shared<DeleteCounter>(&deleted)));
+  }
+
+  DisableConservativeStackScanningScopeForTesting scope(isolate()->heap());
+  InvokeMemoryReducingMajorGCs(isolate());
+
+  CHECK_EQ(1, deleted);
 }
 
 TEST_F(ManagedTest, DisposeCausesDestruction1) {

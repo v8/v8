@@ -2094,7 +2094,8 @@ bool InstanceBuilder::ProcessImportedMemories(
     uint32_t memory_index = import.index;
     auto memory_object = Cast<WasmMemoryObject>(value);
 
-    Managed<BackingStore>::Ptr backing_store = memory_object->backing_store();
+    CppGCManaged<BackingStore>::Ptr backing_store =
+        memory_object->backing_store();
 #ifdef DEBUG
     if (Tagged<JSArrayBuffer> buffer;
         TryCast(memory_object->array_buffer(), &buffer)) {

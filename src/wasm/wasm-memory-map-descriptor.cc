@@ -96,7 +96,7 @@ size_t WasmMemoryMapDescriptor::Map(v8::Isolate* isolate,
     isolate->ThrowError("WasmMemoryMapDescriptor::Map called more than once");
     return 0;
   }
-  Managed<BackingStore>::Ptr backing_store = memory->backing_store();
+  CppGCManaged<BackingStore>::Ptr backing_store = memory->backing_store();
   if (backing_store->is_shared()) {
     // TODO(ahaas): Handle concurrent calls to `MapDescriptor`. To prevent
     // concurrency issues, we disable `MapDescriptor` for shared wasm memories
@@ -155,7 +155,7 @@ bool WasmMemoryMapDescriptor::Unmap(v8::Isolate* isolate) {
   mapped_memory_.Reset();
   CHECK(!memory.is_null());
 
-  Managed<BackingStore>::Ptr backing_store = memory->backing_store();
+  CppGCManaged<BackingStore>::Ptr backing_store = memory->backing_store();
 
   // The following checks already passed during `MapDescriptor`, and they should
   // still pass.

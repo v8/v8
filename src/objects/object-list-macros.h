@@ -119,6 +119,7 @@ namespace internal {
   V(ContextCell)                                \
   V(CoverageInfo)                               \
   V(CppHeapExternalObject)                      \
+  V(CppGCManagedBase)                           \
   V(DataHandler)                                \
   V(DeoptimizationData)                         \
   V(DependentCode)                              \

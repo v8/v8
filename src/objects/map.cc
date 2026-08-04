@@ -397,6 +397,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_SPECIAL_API_OBJECT_TYPE:
       return kVisitJSApiObject;
 
+    case CPP_GCMANAGED_BASE_TYPE:
+      return kVisitCppGCManagedBase;
+
     case CPP_HEAP_EXTERNAL_OBJECT_TYPE:
       return kVisitCppHeapExternalObject;
 

@@ -41,6 +41,7 @@ class CallableTask;
 class CallbackTask;
 class CallSiteInfo;
 class CoverageInfo;
+class CppGCManagedBase;
 class DebugInfo;
 class DeoptimizationData;
 class DeoptimizationLiteralArray;
@@ -1014,6 +1015,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Create a CppHeapExternal object for V8's external API.
   Handle<CppHeapExternalObject> NewCppHeapExternal(
+      AllocationType allocation = AllocationType::kYoung);
+
+  Handle<CppGCManagedBase> NewCppGCManagedBase(
       AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a new code object and initializes it to point to the given

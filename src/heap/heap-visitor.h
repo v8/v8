@@ -59,6 +59,7 @@ class MaybeObjectSize final {
   V(Context)                          \
   V(ContextCell)                      \
   V(CoverageInfo)                     \
+  V(CppGCManagedBase)                 \
   V(DataHandler)                      \
   V(DescriptorArray)                  \
   V(DoubleStringCache)                \

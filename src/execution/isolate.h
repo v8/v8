@@ -1937,6 +1937,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetReleaseCppHeapCallback(v8::Isolate::ReleaseCppHeapCallback callback);
 
   void RunReleaseCppHeapCallback(std::unique_ptr<v8::CppHeap> cpp_heap);
+  std::shared_ptr<bool> cpp_heap_isolate_alive_token() const;
 
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, DirectHandle<JSPromise> promise,

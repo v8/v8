@@ -62,6 +62,7 @@ enum InstanceType : uint16_t;
   V(Context)                         \
   V(ContextCell)                     \
   V(CppHeapExternalObject)           \
+  V(CppGCManagedBase)                \
   V(DataHandler)                     \
   V(DescriptorArray)                 \
   V(DoubleStringCache)               \

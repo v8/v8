@@ -727,7 +727,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   int32_t expected_value = NumberToInt32(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  Managed<BackingStore>::Ptr backing_store =
+  CppGCManaged<BackingStore>::Ptr backing_store =
       trusted_instance_data->memory_object(memory_index)->backing_store();
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, backing_store->byte_length());
@@ -753,7 +753,7 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   Tagged<BigInt> expected_value = Cast<BigInt>(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  Managed<BackingStore>::Ptr backing_store =
+  CppGCManaged<BackingStore>::Ptr backing_store =
       trusted_instance_data->memory_object(memory_index)->backing_store();
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, backing_store->byte_length());

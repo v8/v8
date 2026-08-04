@@ -1083,17 +1083,18 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kJSMessageObjectMap = 0x1a0001;
   static constexpr Tagged_t kExternalMap = 0x1a0029;
   static constexpr Tagged_t kCppHeapExternalMap = 0x1a0051;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x1a0079;
-  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1a00bd;
-  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1a00e5;
-  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1a010d;
-  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1a0161;
+  static constexpr Tagged_t kCppGCManagedBaseMap = 0x1a0079;
+  static constexpr Tagged_t kJSSharedArrayMap = 0x1a00a1;
+  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1a00e5;
+  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1a010d;
+  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1a0135;
+  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1a0189;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x1a0161;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x1a0189;
 };
 
-static constexpr std::array<Tagged_t, 897> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 898> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1991,6 +1992,7 @@ static constexpr std::array<Tagged_t, 897> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kExternalMap,
     StaticReadOnlyRoot::kJSMessageObjectMap,
     StaticReadOnlyRoot::kCppHeapExternalMap,
+    StaticReadOnlyRoot::kCppGCManagedBaseMap,
 };
 
 }  // namespace internal

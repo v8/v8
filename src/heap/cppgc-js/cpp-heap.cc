@@ -630,6 +630,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   CHECK_NULL(isolate_);
   isolate_ = isolate;
   heap_ = isolate->heap();
+  isolate_alive_token_ = std::make_shared<bool>(true);
   stack_->SetScanSimulatorCallback(
       Isolate::IterateRegistersAndStackOfSimulator);
   static_cast<CppgcPlatformAdapter*>(platform())

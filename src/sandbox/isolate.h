@@ -47,6 +47,7 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   inline bool SharesPointerTablesWith(IsolateForSandbox other) const;
 
  private:
+  friend class IsolateForPointerCompression;
   Isolate* const isolate_;
 };
 
@@ -72,6 +73,15 @@ class V8_EXPORT_PRIVATE IsolateForPointerCompression final {
   template <typename IsolateT>
   IsolateForPointerCompression(IsolateT* isolate)  // NOLINT(runtime/explicit)
       : isolate_(isolate->ForSandbox()) {}
+#ifdef V8_ENABLE_SANDBOX
+  IsolateForPointerCompression(
+      IsolateForSandbox isolate)  // NOLINT(runtime/explicit)
+      : isolate_(isolate.isolate_) {}
+#else
+  constexpr IsolateForPointerCompression(
+      IsolateForSandbox)  // NOLINT(runtime/explicit)
+      : isolate_(nullptr) {}
+#endif
 
   inline ExternalPointerTable& GetExternalPointerTableFor(
       ExternalPointerTagRange tag_range);
@@ -89,6 +99,9 @@ class V8_EXPORT_PRIVATE IsolateForPointerCompression final {
  public:
   template <typename IsolateT>
   constexpr IsolateForPointerCompression(IsolateT*)  // NOLINT(runtime/explicit)
+  {}
+  constexpr IsolateForPointerCompression(
+      IsolateForSandbox)  // NOLINT(runtime/explicit)
   {}
 };
 #endif  // V8_COMPRESS_POINTERS

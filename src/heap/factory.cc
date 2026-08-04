@@ -3395,6 +3395,16 @@ Handle<CppHeapExternalObject> Factory::NewCppHeapExternal(
   return handle(external, isolate());
 }
 
+Handle<CppGCManagedBase> Factory::NewCppGCManagedBase(
+    AllocationType allocation_type) {
+  Tagged<CppGCManagedBase> managed = Cast<CppGCManagedBase>(
+      AllocateRawWithAllocationSite(cpp_gc_managed_base_map(), allocation_type,
+                                    DirectHandle<AllocationSite>::null()));
+  managed->SetupLazilyInitializedCppHeapPointerField(
+      offsetof(CppGCManagedBase, cpp_gc_wrapper_));
+  return handle(managed, isolate());
+}
+
 DirectHandle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(
     DirectHandle<Code> code, Address off_heap_entry) {
   CHECK_NOT_NULL(isolate()->embedded_blob_code());

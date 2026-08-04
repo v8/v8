@@ -45,6 +45,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/object-conversions-inl.h"
@@ -1136,6 +1137,15 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     return AddEntry(object, HeapEntry::kObject, name);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  if (InstanceTypeChecker::IsCppGCManagedBase(instance_type)) {
+    size_t size = SizeForSnapshot(object);
+    Tagged<CppGCManagedBase> managed = Cast<CppGCManagedBase>(object);
+    const char* tag_name = ToString(managed->GetWrapper()->type_id());
+    const char* name =
+        names_->GetFormatted("system / CppGCManaged (%s)", tag_name);
+    return AddEntry(object.address(), HeapEntry::kNative, name, size);
+  }
 
   if (InstanceTypeChecker::IsForeign(instance_type)) {
     Tagged<Foreign> foreign = Cast<Foreign>(object);

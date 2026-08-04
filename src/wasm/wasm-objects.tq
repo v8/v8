@@ -17,8 +17,8 @@ type ManagedWasmNativeModule extends Foreign
 type TrustedManagedWasmNativeModule extends TrustedForeign
     constexpr 'TrustedManaged<wasm::NativeModule>';
 @useParentTypeChecker
-type ManagedBackingStore extends Foreign
-    constexpr 'Managed<BackingStore>';
+type ManagedBackingStore extends CppGCManagedBase
+    constexpr 'CppGCManaged<BackingStore>';
 
 type RawFunctionSigPtr extends RawPtr constexpr 'const wasm::CanonicalSig*';
 

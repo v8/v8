@@ -2964,6 +2964,11 @@ void Foreign::ForeignPrint(std::ostream& os) {
   os << "\n";
 }
 
+void CppGCManagedBase::CppGCManagedBasePrint(std::ostream& os) {
+  PrintHeader(os, "CppGCManagedBase");
+  os << "\n";
+}
+
 void TrustedForeign::TrustedForeignPrint(std::ostream& os) {
   PrintHeader(os, "TrustedForeign");
   os << "\n - foreign address: " << reinterpret_cast<void*>(foreign_address());

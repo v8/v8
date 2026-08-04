@@ -759,8 +759,8 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     Tagged<WasmMemoryObject> ref_memory =
         ref_instance_data->memory_object(memory_index);
 
-    Managed<BackingStore>::Ptr store = memory->backing_store();
-    Managed<BackingStore>::Ptr ref_store = ref_memory->backing_store();
+    CppGCManaged<BackingStore>::Ptr store = memory->backing_store();
+    CppGCManaged<BackingStore>::Ptr ref_store = ref_memory->backing_store();
 
     size_t memory_size = store->byte_length();
     size_t ref_memory_size = ref_store->byte_length();

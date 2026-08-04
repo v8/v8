@@ -966,6 +966,20 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class CppGCManagedBase::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    Tagged<CppGCManagedBase> managed = UncheckedCast<CppGCManagedBase>(obj);
+    v->VisitCppHeapPointer(obj, CppHeapPointerSlot(&managed->cpp_gc_wrapper_));
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return CppGCManagedBase::kSize;
+  }
+};
+
 template <typename Derived>
 class V8_EXPORT_PRIVATE SmallOrderedHashTableImpl<Derived>::BodyDescriptor final
     : public BodyDescriptorBase {

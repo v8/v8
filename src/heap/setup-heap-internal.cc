@@ -904,6 +904,8 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 
     ALLOCATE_MAP(CPP_HEAP_EXTERNAL_OBJECT_TYPE,
                  CppHeapExternalObject::kHeaderSize, cpp_heap_external)
+    ALLOCATE_MAP(CPP_GCMANAGED_BASE_TYPE, CppGCManagedBase::kHeaderSize,
+                 cpp_gc_managed_base)
   }
 
   // Shared space object maps are immutable and can be in RO space.

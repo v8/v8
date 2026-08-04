@@ -1916,6 +1916,10 @@ void Hole::HoleVerify(Isolate* isolate) {
 
 void Foreign::ForeignVerify(Isolate* isolate) { CHECK(Is<Foreign>(this)); }
 
+void CppGCManagedBase::CppGCManagedBaseVerify(Isolate* isolate) {
+  CHECK(Is<CppGCManagedBase>(this));
+}
+
 void TrustedForeign::TrustedForeignVerify(Isolate* isolate) {
   CHECK(Is<TrustedForeign>(this));
 }

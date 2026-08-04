@@ -2637,7 +2637,8 @@ void WebAssemblyMemoryGrowImpl(
   if (!maybe_delta_pages) return js_api_scope.AssertException();
   uint64_t delta_pages = *maybe_delta_pages;
 
-  i::Managed<i::BackingStore>::Ptr backing_store = receiver->backing_store();
+  i::CppGCManaged<i::BackingStore>::Ptr backing_store =
+      receiver->backing_store();
 #ifdef DEBUG
   if (i::Tagged<i::JSArrayBuffer> buffer;
       TryCast(receiver->array_buffer(), &buffer)) {

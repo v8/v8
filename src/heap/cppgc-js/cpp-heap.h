@@ -169,6 +169,13 @@ class V8_EXPORT_PRIVATE CppHeap final
   MetricRecorderAdapter* GetMetricRecorder() const;
 
   Isolate* isolate() const { return isolate_; }
+  std::shared_ptr<bool> isolate_alive_token() const {
+    return isolate_alive_token_;
+  }
+  void invalidate_isolate_alive_token() {
+    *isolate_alive_token_ = false;
+    isolate_alive_token_.reset();
+  }
 
   size_t used_size() const {
     return used_size_.load(std::memory_order_relaxed);
@@ -238,6 +245,11 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   Isolate* isolate_ = nullptr;
   Heap* heap_ = nullptr;
+  // Token to indicate that the isolate is alive. The token is only reset to
+  // false when the CppHeap gets released from the isolate. Otherwise, the
+  // CppHeap dies together with the isolate, and therefore the token never has
+  // to be set to false.
+  std::shared_ptr<bool> isolate_alive_token_;
   bool marking_done_ = true;
   // |collection_type_| is initialized when marking is in progress.
   std::optional<CollectionType> collection_type_;
