@@ -283,6 +283,17 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
     case Runtime::kBytecodeBudgetLoopInterrupt_Maglev:
     case Runtime::kPatchLoadICUninitializedBaseline:
     case Runtime::kLoadIC_Miss_FromBaseline:
+    case Runtime::kInstallBaselineCode:
+    case Runtime::kSwissTableAdd:
+    case Runtime::kSwissTableAllocate:
+    case Runtime::kSwissTableDelete:
+    case Runtime::kSwissTableDetailsAt:
+    case Runtime::kSwissTableElementsCount:
+    case Runtime::kSwissTableEquals:
+    case Runtime::kSwissTableFindEntry:
+    case Runtime::kSwissTableUpdate:
+    case Runtime::kSwissTableValueAt:
+    case Runtime::kSwissTableKeyAt:
 #if V8_ENABLE_SPARKPLUG_PLUS
     case Runtime::kPatchCompareOpBaselineCode:
     case Runtime::kPatchCompareOpBaselineCodeAndThrow:
