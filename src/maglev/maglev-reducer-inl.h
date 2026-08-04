@@ -991,6 +991,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryWithArrayIterationArgs(
                   [&]() -> ReduceResult { return from_index; }));
         }
 
+        GET_VALUE_OR_ABORT(from_index, BuildCheckSmi(from_index));
+
         return Reducer(elements_kind, elements, search_element, length,
                        from_index);
       });
