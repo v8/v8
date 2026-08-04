@@ -1194,6 +1194,8 @@ DEFINE_WEAK_IMPLICATION(always_osr_from_maglev, osr_from_maglev)
 DEFINE_INT(invocation_count_for_turbofan, 3000,
            "invocation count required for optimizing with TurboFan")
 DEFINE_INT(invocation_count_for_osr, 500, "invocation count required for OSR")
+DEFINE_FLOAT(invocation_count_for_osr_factor_while_tiering_in_progress, 3.0,
+             "invocation count factor while waiting for code to compile")
 DEFINE_UINT(osr_to_tierup, 1,
             "number to decrease the invocation budget by when we follow OSR")
 DEFINE_INT(minimum_invocations_after_ic_update, 500,
