@@ -1458,6 +1458,10 @@ class RootScavengeVisitor final : public RootVisitor {
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) final;
 
+  GarbageCollector collector() const final {
+    return GarbageCollector::SCAVENGER;
+  }
+
  private:
   void ScavengePointer(FullObjectSlot p);
 

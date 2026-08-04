@@ -4576,6 +4576,7 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
 
     from->jmpbuf()->is_on_central_stack =
         thread_local_top()->is_on_central_stack_flag_;
+    from->set_contains_only_old_pointers(false);
   }
   SBXCHECK_EQ(to->jmpbuf()->state, expected_target_state);
   to->jmpbuf()->state = wasm::JumpBuffer::Active;
