@@ -2096,7 +2096,7 @@ TEST_F(ValueSerializerTest, RoundTripImmutableArrayBufferShared) {
   EXPECT_TRUE(input_ab->IsImmutable());
 
   ValueSerializer serializer(
-      isolate(), ValueSerializer::SharedImmutableArrayBuffer::kEnabled);
+      isolate(), ValueSerializer::SharedImmutableArrayBufferMode::kEnabled);
   serializer.WriteHeader();
   ASSERT_TRUE(serializer.WriteValue(serialization_context(), input_ab)
                   .FromMaybe(false));
@@ -2115,6 +2115,39 @@ TEST_F(ValueSerializerTest, RoundTripImmutableArrayBufferShared) {
   EXPECT_TRUE(output_ab->IsImmutable());
   EXPECT_EQ(input_ab->GetBackingStore()->Data(),
             output_ab->GetBackingStore()->Data());
+
+  base::Free(data.first);
+}
+
+TEST_F(ValueSerializerTest, RoundTripEmptyImmutableArrayBufferShared) {
+  v8::Isolate::Scope isolate_scope(isolate());
+  v8::HandleScope handle_scope(isolate());
+  v8::Context::Scope context_scope(serialization_context());
+
+  Local<ArrayBuffer> input_ab = ArrayBuffer::New(isolate(), 0);
+  i::Cast<i::JSArrayBuffer>(v8::Utils::OpenDirectHandle(*input_ab))
+      ->MakeImmutable(reinterpret_cast<i::Isolate*>(isolate()));
+  EXPECT_TRUE(input_ab->IsImmutable());
+
+  ValueSerializer serializer(
+      isolate(), ValueSerializer::SharedImmutableArrayBufferMode::kEnabled);
+  serializer.WriteHeader();
+  ASSERT_TRUE(serializer.WriteValue(serialization_context(), input_ab)
+                  .FromMaybe(false));
+  std::pair<uint8_t*, size_t> data = serializer.Release();
+
+  ValueDeserializer deserializer(isolate(), data.first, data.second);
+  deserializer.SetSharedImmutableBackingStores(
+      serializer.ReleaseSharedImmutableBackingStores());
+  ASSERT_TRUE(
+      deserializer.ReadHeader(deserialization_context()).FromMaybe(false));
+  Local<Value> result =
+      deserializer.ReadValue(deserialization_context()).ToLocalChecked();
+
+  ASSERT_TRUE(result->IsArrayBuffer());
+  Local<ArrayBuffer> output_ab = result.As<ArrayBuffer>();
+  EXPECT_TRUE(output_ab->IsImmutable());
+  EXPECT_EQ(0u, output_ab->ByteLength());
 
   base::Free(data.first);
 }
@@ -2168,7 +2201,7 @@ TEST_F(ValueSerializerTest, RoundTripImmutableArrayBufferFlagDisabledCopied) {
   EXPECT_TRUE(input_ab->IsImmutable());
 
   ValueSerializer serializer(
-      isolate(), ValueSerializer::SharedImmutableArrayBuffer::kEnabled);
+      isolate(), ValueSerializer::SharedImmutableArrayBufferMode::kEnabled);
   serializer.WriteHeader();
   ASSERT_TRUE(serializer.WriteValue(serialization_context(), input_ab)
                   .FromMaybe(false));

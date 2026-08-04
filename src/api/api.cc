@@ -3620,8 +3620,9 @@ void ValueSerializer::Delegate::FreeBufferMemory(void* buffer) {
 }
 
 struct ValueSerializer::PrivateData {
-  explicit PrivateData(i::Isolate* i, ValueSerializer::Delegate* delegate,
-                       SharedImmutableArrayBuffer share_immutable_array_buffer)
+  explicit PrivateData(
+      i::Isolate* i, ValueSerializer::Delegate* delegate,
+      SharedImmutableArrayBufferMode share_immutable_array_buffer)
       : isolate(i), serializer(i, delegate, share_immutable_array_buffer) {}
   i::Isolate* isolate;
   i::ValueSerializer serializer;
@@ -3629,12 +3630,12 @@ struct ValueSerializer::PrivateData {
 
 ValueSerializer::ValueSerializer(
     Isolate* v8_isolate,
-    SharedImmutableArrayBuffer share_immutable_array_buffer)
+    SharedImmutableArrayBufferMode share_immutable_array_buffer)
     : ValueSerializer(v8_isolate, nullptr, share_immutable_array_buffer) {}
 
 ValueSerializer::ValueSerializer(
     Isolate* v8_isolate, Delegate* delegate,
-    SharedImmutableArrayBuffer share_immutable_array_buffer)
+    SharedImmutableArrayBufferMode share_immutable_array_buffer)
     : private_(new PrivateData(reinterpret_cast<i::Isolate*>(v8_isolate),
                                delegate, share_immutable_array_buffer)) {}
 

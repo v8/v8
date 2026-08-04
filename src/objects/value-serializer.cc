@@ -301,23 +301,21 @@ enum class WasmMemoryArrayBufferTag : uint8_t {
 
 }  // namespace
 
-ValueSerializer::ValueSerializer(Isolate* isolate,
-                                 v8::ValueSerializer::SharedImmutableArrayBuffer
-                                     share_immutable_array_buffer)
+ValueSerializer::ValueSerializer(
+    Isolate* isolate, v8::ValueSerializer::SharedImmutableArrayBufferMode
+                          share_immutable_array_buffer)
     : ValueSerializer(isolate, nullptr, share_immutable_array_buffer) {}
 
-ValueSerializer::ValueSerializer(Isolate* isolate,
-                                 v8::ValueSerializer::Delegate* delegate,
-                                 v8::ValueSerializer::SharedImmutableArrayBuffer
-                                     share_immutable_array_buffer)
+ValueSerializer::ValueSerializer(
+    Isolate* isolate, v8::ValueSerializer::Delegate* delegate,
+    v8::ValueSerializer::SharedImmutableArrayBufferMode
+        share_immutable_array_buffer)
     : isolate_(isolate),
       delegate_(delegate),
       zone_(isolate->allocator(), ZONE_NAME),
       id_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
       array_buffer_transfer_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
-      share_immutable_array_buffer_(
-          share_immutable_array_buffer ==
-          v8::ValueSerializer::SharedImmutableArrayBuffer::kEnabled) {
+      share_immutable_array_buffer_(share_immutable_array_buffer) {
   if (delegate_) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
     has_custom_host_objects_ = delegate_->HasCustomHostObject(v8_isolate);
@@ -325,9 +323,12 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
 }
 
 ValueSerializer::~ValueSerializer() {
-  DCHECK_IMPLIES(!buffer_ && !out_of_memory_ && share_immutable_array_buffer_ &&
-                     v8_flags.js_postmessage_share_immutable_arraybuffer,
-                 shared_immutable_backing_stores_.empty());
+  DCHECK_IMPLIES(
+      !buffer_ && !out_of_memory_ &&
+          share_immutable_array_buffer_ ==
+              v8::ValueSerializer::SharedImmutableArrayBufferMode::kEnabled &&
+          v8_flags.js_postmessage_share_immutable_arraybuffer,
+      shared_immutable_backing_stores_.empty());
   if (buffer_) {
     if (delegate_) {
       delegate_->FreeBufferMemory(buffer_);
@@ -1077,24 +1078,27 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   }
 
   if (array_buffer->is_immutable()) {
-    if (share_immutable_array_buffer_ &&
+    if (share_immutable_array_buffer_ ==
+            v8::ValueSerializer::SharedImmutableArrayBufferMode::kEnabled &&
         v8_flags.js_postmessage_share_immutable_arraybuffer) {
       auto backing_store = array_buffer->GetBackingStore();
-      CHECK(backing_store);
-      uint32_t id = 0;
-      auto it =
-          std::find(shared_immutable_backing_stores_.begin(),
-                    shared_immutable_backing_stores_.end(), backing_store);
-      if (it != shared_immutable_backing_stores_.end()) {
-        id = static_cast<uint32_t>(it -
-                                   shared_immutable_backing_stores_.begin());
-      } else {
-        id = static_cast<uint32_t>(shared_immutable_backing_stores_.size());
-        shared_immutable_backing_stores_.push_back(backing_store);
+      DCHECK_IMPLIES(!backing_store, byte_length == 0);
+      if (backing_store) {
+        uint32_t id = 0;
+        auto it =
+            std::find(shared_immutable_backing_stores_.begin(),
+                      shared_immutable_backing_stores_.end(), backing_store);
+        if (it != shared_immutable_backing_stores_.end()) {
+          id = static_cast<uint32_t>(it -
+                                     shared_immutable_backing_stores_.begin());
+        } else {
+          id = static_cast<uint32_t>(shared_immutable_backing_stores_.size());
+          shared_immutable_backing_stores_.push_back(backing_store);
+        }
+        WriteTag(SerializationTag::kSharedImmutableArrayBuffer);
+        WriteVarint<uint32_t>(id);
+        return ThrowIfOutOfMemory();
       }
-      WriteTag(SerializationTag::kSharedImmutableArrayBuffer);
-      WriteVarint<uint32_t>(id);
-      return ThrowIfOutOfMemory();
     }
     WriteTag(SerializationTag::kImmutableArrayBuffer);
   } else {

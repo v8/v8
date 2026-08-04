@@ -152,18 +152,18 @@ class V8_EXPORT ValueSerializer {
     virtual void FreeBufferMemory(void* buffer);
   };
 
-  enum class SharedImmutableArrayBuffer {
+  enum class SharedImmutableArrayBufferMode {
     kDisabled,
     kEnabled,
   };
 
   explicit ValueSerializer(
       Isolate* isolate,
-      SharedImmutableArrayBuffer share_immutable_array_buffer =
-          SharedImmutableArrayBuffer::kDisabled);
+      SharedImmutableArrayBufferMode share_immutable_array_buffer =
+          SharedImmutableArrayBufferMode::kDisabled);
   ValueSerializer(Isolate* isolate, Delegate* delegate,
-                  SharedImmutableArrayBuffer share_immutable_array_buffer =
-                      SharedImmutableArrayBuffer::kDisabled);
+                  SharedImmutableArrayBufferMode share_immutable_array_buffer =
+                      SharedImmutableArrayBufferMode::kDisabled);
   ~ValueSerializer();
 
   /**
@@ -206,7 +206,7 @@ class V8_EXPORT ValueSerializer {
    * Returns the backing stores of all immutable JSArrayBuffers that were
    * serialized without copying.
    *
-   * When SharedImmutableArrayBuffer::kEnabled is passed to the constructor,
+   * When SharedImmutableArrayBufferMode::kEnabled is passed to the constructor,
    * the embedder MUST call this method after serialization and transmit these
    * backing stores to the receiver, where they must be passed to
    * ValueDeserializer::SetSharedImmutableBackingStores.

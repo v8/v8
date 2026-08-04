@@ -7513,7 +7513,7 @@ class Serializer : public ValueSerializer::Delegate {
   explicit Serializer(Isolate* isolate)
       : isolate_(isolate),
         serializer_(isolate, this,
-                    ValueSerializer::SharedImmutableArrayBuffer::kEnabled),
+                    ValueSerializer::SharedImmutableArrayBufferMode::kEnabled),
         current_memory_usage_(0) {}
 
   Serializer(const Serializer&) = delete;

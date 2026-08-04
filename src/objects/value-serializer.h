@@ -53,14 +53,14 @@ class ValueSerializer {
  public:
   explicit ValueSerializer(
       Isolate* isolate,
-      v8::ValueSerializer::SharedImmutableArrayBuffer
+      v8::ValueSerializer::SharedImmutableArrayBufferMode
           share_immutable_array_buffer =
-              v8::ValueSerializer::SharedImmutableArrayBuffer::kDisabled);
+              v8::ValueSerializer::SharedImmutableArrayBufferMode::kDisabled);
   ValueSerializer(
       Isolate* isolate, v8::ValueSerializer::Delegate* delegate,
-      v8::ValueSerializer::SharedImmutableArrayBuffer
+      v8::ValueSerializer::SharedImmutableArrayBufferMode
           share_immutable_array_buffer =
-              v8::ValueSerializer::SharedImmutableArrayBuffer::kDisabled);
+              v8::ValueSerializer::SharedImmutableArrayBufferMode::kDisabled);
   ~ValueSerializer();
   ValueSerializer(const ValueSerializer&) = delete;
   ValueSerializer& operator=(const ValueSerializer&) = delete;
@@ -211,7 +211,9 @@ class ValueSerializer {
   // The conveyor used to keep shared objects alive.
   SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
 
-  bool share_immutable_array_buffer_ = false;
+  v8::ValueSerializer::SharedImmutableArrayBufferMode
+      share_immutable_array_buffer_ =
+          v8::ValueSerializer::SharedImmutableArrayBufferMode::kDisabled;
   std::vector<std::shared_ptr<BackingStore>> shared_immutable_backing_stores_;
 };
 
