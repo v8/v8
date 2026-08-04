@@ -873,7 +873,7 @@ class CandidateAnalyzer {
     // flow into Phis.
     // When visiting a loop header for the 1st time, the backedge predecessor
     // has no snapshot yet, and thus no value to look up: its inputs are handled
-    // by CheckLoopPhiInvalidation when reaching the JumpLoop instead.
+    // by MarkEscapingLoopPhiBackedges when reaching the JumpLoop instead.
     DCHECK_LE(data_.merged_predecessor_count, phi->input_count());
     for (int i = 0; i < data_.merged_predecessor_count; i++) {
       ValueNode* input = phi->input_node(i);
@@ -1181,6 +1181,14 @@ class FieldValuesTracker : public CandidateAnalyzer {
     if (JumpLoop* jump_loop = block->control_node()->TryCast<JumpLoop>()) {
       BasicBlock* loop_header = jump_loop->target();
 
+      // Any candidate flowing into a backedge need to be invalidated. When this
+      // happens, MarkAsEscaped will be called, which might set
+      // has_escaped_candidate for the current loop, which could trigger a
+      // revisit of the current loop. This means that it's important to run
+      // MarkEscapingLoopPhiBackedges before popping the current loop from
+      // `data_.loop_stack`.
+      MarkEscapingLoopPhiBackedges(loop_header);
+
       // Loop phis backedges need to be patched in 2 situations:
       //
       //   - this is a loop with multiple forward edges that was requiring Phis
@@ -1200,10 +1208,10 @@ class FieldValuesTracker : public CandidateAnalyzer {
       // will not lead to making any different decision when revisiting the
       // loop.
       //
-      // Also note that PatchLoopPhisBackedges needs to be called before popping
-      // the current loop from `data_.loop_stack` to ensure that if
-      // `MarkAsEscaped(alloc)` is called inside it, it will find the current
-      // loop on the stack if needed.
+      // Similarly to MarkEscapingLoopPhiBackedges above, PatchLoopPhisBackedges
+      // needs to be called before popping the current loop from
+      // `data_.loop_stack` to ensure that if `MarkAsEscaped(alloc)` is called
+      // inside it, it will find the current loop on the stack if needed.
       PatchLoopPhisBackedges(loop_header, snapshot);
 
       DCHECK_GT(data_.loop_stack.size(), 1);
@@ -1222,7 +1230,6 @@ class FieldValuesTracker : public CandidateAnalyzer {
       // CreateSnapshotFor when revisiting the loop, instead of discarding it
       // and recomputing it afterwards.
       bool needs_revisit = has_escaped_candidate ||
-                           CheckLoopPhiInvalidation(loop_header) ||
                            CreateSnapshotFor(loop_header, true);
       if (needs_revisit) {
         TRACE("> Will revisit loop");
@@ -1287,28 +1294,27 @@ class FieldValuesTracker : public CandidateAnalyzer {
     field_values().Seal();
   }
 
-  // Returns true if a candidate for eliding flows into a loop phi. In that
-  // case, we'll invalidate it and reprocess the loop.
+  // Invalidates any candidate that flows into a loop phi. This might trigger a
+  // loop revisit via has_escaped_candidate if the allocation was defined
+  // outside the current loop.
   // TODO(dmercadier): try to merge objects in that case, instead of
-  // invalidating.
-  bool CheckLoopPhiInvalidation(BasicBlock* loop_header) {
-    TRACE("CheckLoopPhiInvalidation");
+  // marking them as escaping.
+  void MarkEscapingLoopPhiBackedges(BasicBlock* loop_header) {
+    TRACE("MarkEscapingLoopPhiBackedges");
     if (!loop_header->has_phi()) {
       TRACE("> no phis");
-      return false;
+      return;
     }
 
-    bool invalidated = false;
     for (Phi* phi : *loop_header->phis()) {
       if (InlinedAllocation* alloc =
               data_.TryGetCandidateInlinedAllocation(phi->backedge_input())) {
-        TRACE("> Marking " << NODE_ID(alloc) << " as escaping, will revisit");
+        TRACE("> Marking " << NODE_ID(alloc) << " as escaping");
         data_.MarkAsEscaped(alloc);
-        invalidated = true;
       }
     }
-    return invalidated;
   }
+
   ProcessResult Process(InlinedAllocation* node, const ProcessingState& state) {
     BasicBlock* current_loop = data_.loop_stack.back().header;
     data_.alloc_definition_loop[node] = current_loop;
