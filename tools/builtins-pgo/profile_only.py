@@ -75,6 +75,7 @@ def run_benchmark(benchmark_path, d8_path, output_dir):
     with open(build_config_path) as f:
       build_config = json.load(f)
     if build_config.get("arch") == "ia32":
+      cmd.append("--")
       cmd.append("--exclude=babylonjs-scene-es6")
 
   try:
