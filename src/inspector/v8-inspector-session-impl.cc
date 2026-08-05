@@ -138,11 +138,11 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
       this, this, agentState(protocol::Console::Metainfo::domainName)));
   protocol::Console::Dispatcher::wire(&m_dispatcher, m_consoleAgent.get());
 
-  m_profilerAgent.reset(new V8ProfilerAgentImpl(
-      this, this, agentState(protocol::Profiler::Metainfo::domainName)));
-  protocol::Profiler::Dispatcher::wire(&m_dispatcher, m_profilerAgent.get());
-
   if (m_clientTrustLevel == V8Inspector::kFullyTrusted) {
+    m_profilerAgent.reset(new V8ProfilerAgentImpl(
+        this, this, agentState(protocol::Profiler::Metainfo::domainName)));
+    protocol::Profiler::Dispatcher::wire(&m_dispatcher, m_profilerAgent.get());
+
     m_heapProfilerAgent.reset(new V8HeapProfilerAgentImpl(
         this, this, agentState(protocol::HeapProfiler::Metainfo::domainName)));
     protocol::HeapProfiler::Dispatcher::wire(&m_dispatcher,
@@ -156,7 +156,7 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
     m_runtimeAgent->restore();
     m_debuggerAgent->restore();
     if (m_heapProfilerAgent) m_heapProfilerAgent->restore();
-    m_profilerAgent->restore();
+    if (m_profilerAgent) m_profilerAgent->restore();
     m_consoleAgent->restore();
   }
 }
@@ -165,7 +165,7 @@ V8InspectorSessionImpl::~V8InspectorSessionImpl() {
   v8::Isolate::Scope scope(m_inspector->isolate());
   discardInjectedScripts();
   m_consoleAgent->disable();
-  m_profilerAgent->disable();
+  if (m_profilerAgent) m_profilerAgent->disable();
   if (m_heapProfilerAgent) m_heapProfilerAgent->disable();
   m_debuggerAgent->disable();
   m_runtimeAgent->disable();
@@ -442,18 +442,20 @@ V8InspectorSessionImpl::supportedDomainsImpl() {
                        .setName(protocol::Debugger::Metainfo::domainName)
                        .setVersion(protocol::Debugger::Metainfo::version)
                        .build());
-  result.push_back(protocol::Schema::Domain::create()
-                       .setName(protocol::Profiler::Metainfo::domainName)
-                       .setVersion(protocol::Profiler::Metainfo::version)
-                       .build());
-  result.push_back(protocol::Schema::Domain::create()
-                       .setName(protocol::HeapProfiler::Metainfo::domainName)
-                       .setVersion(protocol::HeapProfiler::Metainfo::version)
-                       .build());
-  result.push_back(protocol::Schema::Domain::create()
-                       .setName(protocol::Schema::Metainfo::domainName)
-                       .setVersion(protocol::Schema::Metainfo::version)
-                       .build());
+  if (m_clientTrustLevel == V8Inspector::kFullyTrusted) {
+    result.push_back(protocol::Schema::Domain::create()
+                         .setName(protocol::Profiler::Metainfo::domainName)
+                         .setVersion(protocol::Profiler::Metainfo::version)
+                         .build());
+    result.push_back(protocol::Schema::Domain::create()
+                         .setName(protocol::HeapProfiler::Metainfo::domainName)
+                         .setVersion(protocol::HeapProfiler::Metainfo::version)
+                         .build());
+    result.push_back(protocol::Schema::Domain::create()
+                         .setName(protocol::Schema::Metainfo::domainName)
+                         .setVersion(protocol::Schema::Metainfo::version)
+                         .build());
+  }
   return result;
 }
 
@@ -521,7 +523,9 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
 
 void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
     StringView occasion) {
-  m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
+  if (m_profilerAgent) {
+    m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
+  }
 }
 
 V8InspectorSession::EvaluateResult V8InspectorSessionImpl::evaluate(

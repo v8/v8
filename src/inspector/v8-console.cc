@@ -389,7 +389,9 @@ void V8Console::Profile(const v8::debug::ConsoleCallArguments& info,
   String16 title =
       toProtocolString(m_inspector->isolate(), helper.firstArgToString());
   helper.forEachSession([&title](V8InspectorSessionImpl* session) {
-    session->profilerAgent()->consoleProfile(title);
+    if (session->profilerAgent()) {
+      session->profilerAgent()->consoleProfile(title);
+    }
   });
   TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "title",
                   title.utf8().c_str());
@@ -403,7 +405,9 @@ void V8Console::ProfileEnd(const v8::debug::ConsoleCallArguments& info,
   String16 title =
       toProtocolString(m_inspector->isolate(), helper.firstArgToString());
   helper.forEachSession([&title](V8InspectorSessionImpl* session) {
-    session->profilerAgent()->consoleProfileEnd(title);
+    if (session->profilerAgent()) {
+      session->profilerAgent()->consoleProfileEnd(title);
+    }
   });
   TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "title",
                   title.utf8().c_str());
