@@ -1596,10 +1596,38 @@ class LinearScanAllocator final : public RegisterAllocator {
       const InstructionBlock* block);
   bool HasNonDeferredPredecessor(InstructionBlock* block);
 
-  struct UnhandledLiveRangeOrdering {
-    bool operator()(const LiveRange* a, const LiveRange* b) const {
-      return a->ShouldBeAllocatedBefore(b);
+  class UnhandledLiveRangeQueue {
+    struct UnhandledLiveRangeCompare {
+      bool operator()(const LiveRange* a, const LiveRange* b) const {
+        return b->ShouldBeAllocatedBefore(a);
+      }
+    };
+
+   public:
+    explicit UnhandledLiveRangeQueue(Zone* zone) : size_(0), zone_(zone) {}
+
+    void reserve(size_t capacity);
+    bool empty() const { return size_ == 0; }
+    size_t size() const { return size_; }
+    LiveRange* top() const;
+    void pop();
+    void insert(LiveRange* range);
+    size_t erase(LiveRange* range);
+#ifdef ENABLE_SLOW_DCHECKS
+    bool ContainsSlow(const LiveRange* range) const {
+      return std::find(buffer_.begin(), buffer_.begin() + size_, range) !=
+             buffer_.begin() + size_;
     }
+#endif
+
+   private:
+    void ReheapAt(size_t idx);
+    size_t FindIndexInHeap(size_t i, LiveRange* target) const;
+
+    UnhandledLiveRangeCompare compare_;
+    base::Vector<LiveRange*> buffer_;
+    size_t size_;
+    Zone* zone_;
   };
 
   struct InactiveLiveRangeOrdering {
@@ -1608,12 +1636,6 @@ class LinearScanAllocator final : public RegisterAllocator {
     }
   };
 
-  // NOTE: We also tried a sorted ZoneVector instead of a `ZoneMultiset`
-  // (like for `InactiveLiveRangeQueue`), but it does not improve performance
-  // or max memory usage.
-  // TODO(dlehmann): Try `std::priority_queue`/`std::make_heap` instead.
-  using UnhandledLiveRangeQueue =
-      ZoneMultiset<LiveRange*, UnhandledLiveRangeOrdering>;
   // Sorted by `InactiveLiveRangeOrdering`.
   // TODO(dlehmann): Try `std::priority_queue`/`std::make_heap` instead.
   using InactiveLiveRangeQueue = ZoneVector<LiveRange*>;
