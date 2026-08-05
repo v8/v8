@@ -1324,6 +1324,7 @@ class LocalBlocklistsCollector {
 
   Handle<StringSet> context_blocklist_;
   std::map<Scope*, IndirectHandle<StringSet>> function_blocklists_;
+  bool has_matched_first_context_ = false;
 };
 
 LocalBlocklistsCollector::LocalBlocklistsCollector(
@@ -1338,7 +1339,8 @@ LocalBlocklistsCollector::LocalBlocklistsCollector(
 void LocalBlocklistsCollector::InitializeWithClosureScope() {
   CHECK(scope_->is_declaration_scope());
   function_blocklists_.emplace(scope_, StringSet::New(isolate_));
-  if (scope_->NeedsContext()) context_blocklist_ = StringSet::New(isolate_);
+  context_blocklist_ = StringSet::New(isolate_);
+  has_matched_first_context_ = scope_->NeedsContext();
 }
 
 void LocalBlocklistsCollector::AdvanceToNextNonHiddenScope() {
@@ -1407,9 +1409,9 @@ void LocalBlocklistsCollector::CollectAndStore() {
     //    here and we store them.  Next, advance the current context so
     //    `context_` and `scope_` match again.
     if (scope_->NeedsContext()) {
-      if (!context_blocklist_.is_null()) {
-        // Only store the block list and advance the context if the
-        // context_blocklist is set. This handles the case when we start on
+      if (has_matched_first_context_) {
+        // Only store the block list and advance the context if we have already
+        // matched our first context. This handles the case when we start on
         // a closure scope that doesn't require a context. In that case
         // `context_` is already the right context for `scope_` so we don't
         // need to advance `context_`.
@@ -1418,11 +1420,11 @@ void LocalBlocklistsCollector::CollectAndStore() {
             direct_handle(context_->previous()->scope_info(), isolate_),
             context_blocklist_);
         context_ = handle(context_->previous(), isolate_);
+        context_blocklist_ = StringSet::New(isolate_);
       }
+      has_matched_first_context_ = true;
 
       StoreFunctionBlocklists(direct_handle(context_->scope_info(), isolate_));
-
-      context_blocklist_ = StringSet::New(isolate_);
       function_blocklists_.clear();
     } else if (scope_->is_function_scope()) {
       // 3. If `scope` is a function scope with an SFI, start recording
@@ -1430,6 +1432,13 @@ void LocalBlocklistsCollector::CollectAndStore() {
       CHECK(!scope_->NeedsContext());
       function_blocklists_.emplace(scope_, StringSet::New(isolate_));
     }
+  }
+
+  if (has_matched_first_context_ && !IsNativeContext(*context_)) {
+    isolate_->LocalsBlockListCacheSet(
+        direct_handle(context_->scope_info(), isolate_),
+        direct_handle(context_->previous()->scope_info(), isolate_),
+        context_blocklist_);
   }
 
   // In case we don't have any outer scopes we still need to record the empty

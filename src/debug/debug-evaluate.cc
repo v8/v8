@@ -287,6 +287,19 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
         evaluation_context_, scope_info, element.materialized_object,
         element.wrapped_context);
   }
+
+  if (context_chain_.empty() && !IsNativeContext(*evaluation_context_)) {
+    // When evaluating in an outer closure scope (!InInnerScope()),
+    // context_chain_ is empty. We must still wrap evaluation_context_ in a
+    // DebugEvaluateContext so that Context::Lookup sets
+    // has_seen_debug_evaluate_context = true and consults the blocklist
+    // stored in LocalsBlockListCache on outer closure contexts.
+    scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
+    scope_info->SetIsDebugEvaluateScope();
+    evaluation_context_ = factory->NewDebugEvaluateContext(
+        evaluation_context_, scope_info, DirectHandle<JSReceiver>(),
+        evaluation_context_);
+  }
 }
 
 void DebugEvaluate::ContextBuilder::UpdateValues() {

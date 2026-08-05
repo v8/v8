@@ -237,6 +237,23 @@ break_position = 2;
 (f6())()();
 EndTest();
 
+BeginTest("Check evaluating on outer closure scope with stack-allocated shadowed variable");
+var x = 'global_x';
+function test_outer_shadow() {
+  let x = 'outer_stack';
+  let closure_y = 'closure_y';
+  () => closure_y; // force context allocation for closure_y
+  return function inner() {
+    debugger;
+  };
+}
+listener_delegate = function(exec_state) {
+  assertThrows(() => exec_state.frame(0).scope(1).evaluate("x").value(), ReferenceError);
+  assertEquals('closure_y', exec_state.frame(0).scope(1).evaluate("closure_y").value());
+};
+(test_outer_shadow())();
+EndTest();
+
 assertEquals(begin_test_count, break_count,
   'one or more tests did not enter the debugger');
 assertEquals(begin_test_count, end_test_count,
