@@ -738,6 +738,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSObject> NewArgumentsObject(DirectHandle<JSFunction> callee,
                                       int length);
 
+  Handle<JSObject> NewStrictArgumentsObject(DirectHandle<JSFunction> callee,
+                                            int length);
+
+  Handle<JSObject> NewSloppyArgumentsObject(DirectHandle<JSFunction> callee,
+                                            int length);
+
   // Allocates and initializes a new JavaScript object based on a
   // constructor.
   // JS objects are pretenured when allocated by the bootstrapper and
