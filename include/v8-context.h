@@ -318,9 +318,35 @@ class V8_EXPORT Context : public Data {
                                                     EmbedderDataTypeTag tag);
   V8_INLINE void* GetAlignedPointerFromEmbedderData(int index,
                                                     EmbedderDataTypeTag tag);
+  V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
+                                                    CppHeapPointerTag tag) {
+    // TODO(ahaas): This is a temporary implementation, the actual
+    // implementation will follow with the refactoring of EmbedderDataSlots.
+    // The refactoring will regress the existing API, as the fast path will move
+    // to this new API.
+    // By using this temporary implementation, blink's ScriptState can already
+    // switch to the new API, and thereby switch from the old fast path to the
+    // new fast path directly.
+    return GetAlignedPointerFromEmbedderData(isolate, index,
+                                             kEmbedderDataTypeTagDefault);
+  }
 
   void SetAlignedPointerInEmbedderData(int index, void* value,
                                        EmbedderDataTypeTag tag);
+
+  template <typename T>
+  void SetAlignedPointerInEmbedderData(int index,
+                                       cppgc::GarbageCollected<T>* value,
+                                       CppHeapPointerTag tag) {
+    // TODO(ahaas): This is a temporary implementation, the actual
+    // implementation will follow with the refactoring of EmbedderDataSlots.
+    // The refactoring will regress the existing API, as the fast path will move
+    // to this new API.
+    // By using this temporary implementation, blink's ScriptState can already
+    // switch to the new API, and thereby switch from the old fast path to the
+    // new fast path directly.
+    SetAlignedPointerInEmbedderData(index, value, kEmbedderDataTypeTagDefault);
+  }
 
   /**
    * Control whether code generation from strings is allowed. Calling
