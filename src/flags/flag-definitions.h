@@ -352,7 +352,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V)             \
   V(js_iterator_join, "Iterator.prototype.join")       \
   V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
-  V(js_joint_iteration, "joint iteration")             \
   V(js_import_text, "import text")                     \
   V(js_import_bytes, "import bytes")                   \
   V(js_defer_import_eval, "defer import eval")         \
@@ -387,7 +386,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
     "(https://github.com/tc39/ecma262/pull/3715)")                           \
   V(js_upsert, "upsert")                                                     \
   V(js_iterator_sequencing, "iterator sequencing")                           \
-  V(js_sum_precise, "Math.sumPrecise")
+  V(js_sum_precise, "Math.sumPrecise")                                       \
+  V(js_joint_iteration, "joint iteration")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
