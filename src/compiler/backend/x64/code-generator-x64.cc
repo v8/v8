@@ -7824,6 +7824,28 @@ constexpr Condition FlagsConditionToCondition(FlagsCondition condition) {
   UNREACHABLE();
 }
 
+#ifdef V8_ENABLE_APX_F
+// Map FlagsCondition to one implementation of EVEX-CCMP dfv.
+OszcFlags EncodeDefaultFlagsValue(FlagsCondition condition) {
+  switch (condition) {
+    case kUnorderedEqual:
+    case kEqual:
+    case kSignedLessThanOrEqual:
+    case kUnsignedLessThanOrEqual:
+      return OszcFlags({OszcBit::kZF});
+    case kSignedLessThan:
+      return OszcFlags({OszcBit::kSF});
+    case kUnsignedLessThan:
+      return OszcFlags({OszcBit::kCF});
+    case kOverflow:
+      return OszcFlags({OszcBit::kOF});
+    default:
+      return OszcFlags();
+  }
+  UNREACHABLE();
+}
+#endif  // V8_ENABLE_APX_F
+
 }  // namespace
 
 // Assembles branches after this instruction.
@@ -7959,16 +7981,165 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&done);
 }
 
+#ifdef V8_ENABLE_APX_F
+namespace {
+void AssembleConditionalCompareChain(Instruction* instr, int64_t num_ccmps,
+                                     size_t ccmp_base_index,
+                                     CodeGenerator* gen) {
+  X64OperandConverter i(gen, instr);
+
+  for (int n = 0; n < num_ccmps; ++n) {
+    size_t opcode_index = ccmp_base_index + kCcmpOffsetOfOpcode;
+    size_t compare_lhs_index = ccmp_base_index + kCcmpOffsetOfLhs;
+    size_t compare_rhs_index = ccmp_base_index + kCcmpOffsetOfRhs;
+    size_t default_condition_index =
+        ccmp_base_index + kCcmpOffsetOfDefaultFlags;
+    size_t compare_condition_index =
+        ccmp_base_index + kCcmpOffsetOfCompareCondition;
+    ccmp_base_index += kNumCcmpOperands;
+    DCHECK_LT(ccmp_base_index, instr->InputCount() - 1);
+
+    InstructionCode code = static_cast<InstructionCode>(
+        i.ToConstant(instr->InputAt(opcode_index)).ToInt64());
+
+    FlagsCondition default_condition = static_cast<FlagsCondition>(
+        i.ToConstant(instr->InputAt(default_condition_index)).ToInt64());
+    OszcFlags dfv = EncodeDefaultFlagsValue(default_condition);
+    FlagsCondition compare_condition = static_cast<FlagsCondition>(
+        i.ToConstant(instr->InputAt(compare_condition_index)).ToInt64());
+    Condition cc = FlagsConditionToCondition(compare_condition);
+
+    const bool lhs_is_reg = HasRegisterInput(instr, compare_lhs_index);
+    const bool rhs_is_imm = HasImmediateInput(instr, compare_rhs_index);
+    const bool rhs_is_reg = HasRegisterInput(instr, compare_rhs_index);
+
+    int kSize;
+    bool is_test = false;
+    switch (ArchOpcodeField::decode(code)) {
+      case kX64Cmp8:
+        kSize = kInt8Size;
+        break;
+      case kX64Cmp16:
+        kSize = kInt16Size;
+        break;
+      case kX64Cmp32:
+        kSize = kInt32Size;
+        break;
+      case kX64Cmp:
+        kSize = kInt64Size;
+        break;
+      case kX64Test8:
+        kSize = kInt8Size;
+        is_test = true;
+        break;
+      case kX64Test16:
+        kSize = kInt16Size;
+        is_test = true;
+        break;
+      case kX64Test32:
+        kSize = kInt32Size;
+        is_test = true;
+        break;
+      case kX64Test:
+        kSize = kInt64Size;
+        is_test = true;
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    if (lhs_is_reg) {
+      Register lhs = i.InputRegister(compare_lhs_index);
+      if (rhs_is_imm) {
+        Immediate rhs = i.InputImmediate(compare_rhs_index);
+        if (is_test) {
+          gen->masm()->Ctest(lhs, rhs, dfv, cc, kSize);
+        } else {
+          gen->masm()->Ccmp(lhs, rhs, dfv, cc, kSize);
+        }
+      } else if (rhs_is_reg) {
+        Register rhs = i.InputRegister(compare_rhs_index);
+        if (is_test) {
+          gen->masm()->Ctest(lhs, rhs, dfv, cc, kSize);
+        } else {
+          gen->masm()->Ccmp(lhs, rhs, dfv, cc, kSize);
+        }
+      } else {
+        Operand rhs = i.InputOperand(compare_rhs_index);
+        if (is_test) {
+          // CTEST has no (Register, Operand) encoding; swap since TEST is
+          // symmetric: A AND B sets the same flags as B AND A.
+          gen->masm()->Ctest(rhs, lhs, dfv, cc, kSize);
+        } else {
+          gen->masm()->Ccmp(lhs, rhs, dfv, cc, kSize);
+        }
+      }
+    } else {
+      Operand lhs = i.InputOperand(compare_lhs_index);
+      if (rhs_is_imm) {
+        Immediate rhs = i.InputImmediate(compare_rhs_index);
+        if (is_test) {
+          gen->masm()->Ctest(lhs, rhs, dfv, cc, kSize);
+        } else {
+          gen->masm()->Ccmp(lhs, rhs, dfv, cc, kSize);
+        }
+      } else if (rhs_is_reg) {
+        Register rhs = i.InputRegister(compare_rhs_index);
+        if (is_test) {
+          gen->masm()->Ctest(lhs, rhs, dfv, cc, kSize);
+        } else {
+          gen->masm()->Ccmp(lhs, rhs, dfv, cc, kSize);
+        }
+      } else {
+        UNREACHABLE();
+      }
+    }
+  }
+}
+}  // namespace
+#endif  // V8_ENABLE_APX_F
+
 #ifdef V8_ENABLE_WEBASSEMBLY
 void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
                                                 FlagsCondition condition) {
+#ifdef V8_ENABLE_APX_F
+  DCHECK_GE(instr->InputCount(), 6);
+  X64OperandConverter i(this, instr);
+  size_t num_ccmps_index =
+      instr->InputCount() - kConditionalTrapEndOffsetOfNumCcmps;
+  int64_t num_ccmps = i.ToConstant(instr->InputAt(num_ccmps_index)).ToInt64();
+  size_t ccmp_base_index = instr->InputCount() -
+                           kConditionalTrapEndOffsetOfCondition -
+                           kNumCcmpOperands * num_ccmps;
+  AssembleConditionalCompareChain(instr, num_ccmps, ccmp_base_index, this);
+  Condition cc = FlagsConditionToCondition(condition);
+  auto ool = zone()->New<WasmOutOfLineTrap>(this, instr);
+  Label* tlabel = ool->entry();
+  __ j(cc, tlabel);
+#else
   UNREACHABLE();
+#endif  // V8_ENABLE_APX_F
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
                                                   BranchInfo* branch) {
+#ifdef V8_ENABLE_APX_F
+  DCHECK_GE(instr->InputCount(), 6);
+  X64OperandConverter i(this, instr);
+  size_t num_ccmps_index =
+      instr->InputCount() - kConditionalBranchEndOffsetOfNumCcmps;
+  int64_t num_ccmps = i.ToConstant(instr->InputAt(num_ccmps_index)).ToInt64();
+  size_t ccmp_base_index = instr->InputCount() -
+                           kConditionalBranchEndOffsetOfCondition -
+                           kNumCcmpOperands * num_ccmps;
+  AssembleConditionalCompareChain(instr, num_ccmps, ccmp_base_index, this);
+  Condition cc = FlagsConditionToCondition(branch->condition);
+  __ j(cc, branch->true_label);
+  if (!branch->fallthru) __ jmp(branch->false_label);
+#else
   UNREACHABLE();
+#endif  // V8_ENABLE_APX_F
 }
 
 void CodeGenerator::AssembleArchBinarySearchSwitchRange(

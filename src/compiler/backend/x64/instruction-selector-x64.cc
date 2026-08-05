@@ -3322,6 +3322,121 @@ void InstructionSelector::EmitPrepareResults(
 bool InstructionSelector::IsTailCallAddressImmediate() { return true; }
 
 namespace {
+#ifdef V8_ENABLE_APX_F
+using compare_chain::CompareSequence;
+
+static InstructionCode X64GetCmpOpcode(RegisterRepresentation rep,
+                                       bool is_test) {
+  if (is_test) {
+    switch (rep.MapTaggedToWord().value()) {
+      case RegisterRepresentation::Word32():
+        return kX64Test32;
+      case RegisterRepresentation::Word64():
+        return kX64Test;
+      default:
+        UNREACHABLE();
+    }
+  }
+  switch (rep.MapTaggedToWord().value()) {
+    case RegisterRepresentation::Word32():
+      return kX64Cmp32;
+    case RegisterRepresentation::Word64():
+      return kX64Cmp;
+    default:
+      UNREACHABLE();
+  }
+}
+
+static void VisitCompareChain(InstructionSelector* selector, OpIndex left_node,
+                              OpIndex right_node, RegisterRepresentation rep,
+                              InstructionCode opcode, FlagsContinuation* cont) {
+  DCHECK(cont->IsConditionalTrap() || cont->IsConditionalBranch());
+  X64OperandGenerator g(selector);
+  constexpr uint32_t kMaxFlagSetInputs = 2;
+  constexpr uint32_t kMaxCcmpOperands =
+      FlagsContinuation::kMaxCompareChainSize * kNumCcmpOperands;
+  constexpr uint32_t kExtraCcmpInputs = 2;
+  constexpr uint32_t kMaxInputs =
+      kMaxFlagSetInputs + kMaxCcmpOperands + kExtraCcmpInputs;
+  InstructionOperand inputs[kMaxInputs];
+  size_t input_count = 0;
+
+  auto use_lhs = [&](OpIndex n, bool rhs_is_imm) -> InstructionOperand {
+    // LHS can be stack slot only when RHS is immediate.
+    if (rhs_is_imm) return g.Use(n);
+    return g.UseRegister(n);
+  };
+  auto use_rhs = [&](OpIndex n) -> InstructionOperand {
+    // RHS can be immediate, register, or stack slot.
+    if (g.CanBeImmediate(n)) return g.UseImmediate(n);
+    return g.Use(n);
+  };
+
+  bool initial_rhs_is_imm = g.CanBeImmediate(right_node);
+  inputs[input_count++] = use_lhs(left_node, initial_rhs_is_imm);
+  inputs[input_count++] = use_rhs(right_node);
+
+  auto& compares = cont->compares();
+  for (unsigned i = 0; i < cont->num_conditional_compares(); ++i) {
+    auto compare = compares[i];
+    // opcode
+    inputs[input_count + kCcmpOffsetOfOpcode] = g.TempImmediate(compare.code);
+
+    // lhs, rhs
+    bool current_rhs_is_imm = g.CanBeImmediate(compare.rhs);
+    inputs[input_count + kCcmpOffsetOfLhs] =
+        use_lhs(compare.lhs, current_rhs_is_imm);
+    inputs[input_count + kCcmpOffsetOfRhs] = use_rhs(compare.rhs);
+
+    // dfv (encode FlagsCondition)
+    inputs[input_count + kCcmpOffsetOfDefaultFlags] =
+        g.TempImmediate(compare.default_flags);
+
+    // compare condition for this CCMP
+    inputs[input_count + kCcmpOffsetOfCompareCondition] =
+        g.TempImmediate(compare.compare_condition);
+
+    input_count += kNumCcmpOperands;
+  }
+
+  // final condition + num ccmps
+  inputs[input_count++] = g.TempImmediate(cont->final_condition());
+  inputs[input_count++] =
+      g.TempImmediate(static_cast<int32_t>(cont->num_conditional_compares()));
+
+  DCHECK_GE(arraysize(inputs), input_count);
+  selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs, cont);
+}
+
+static bool TryMatchConditionalCompareChain(InstructionSelector* selector,
+                                            Zone* zone, OpIndex node,
+                                            FlagsContinuation* cont) {
+  if (!UseApxCcmp()) return false;
+
+  CompareSequence sequence;
+  FlagsCondition condition;
+  if (!compare_chain::TryBuildConditionalCompareChain(
+          selector, zone, node, cont, &sequence, &condition, X64GetCmpOpcode,
+          /*supports_float_cmp=*/false, /*supports_test_pattern=*/true, nullptr,
+          nullptr)) {
+    return false;
+  }
+
+  FlagsContinuation new_cont =
+      cont->IsBranch() ? FlagsContinuation::ForConditionalBranch(
+                             sequence.ccmps(), sequence.num_ccmps(), condition,
+                             cont->true_block(), cont->false_block())
+                       : FlagsContinuation::ForConditionalTrap(
+                             sequence.ccmps(), sequence.num_ccmps(), condition,
+                             cont->trap_id());
+
+  VisitCompareChain(selector, sequence.left(), sequence.right(),
+                    selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
+                    sequence.opcode(), &new_cont);
+
+  return true;
+}
+#endif  // V8_ENABLE_APX_F
 
 void VisitCompareWithMemoryOperand(InstructionSelector* selector,
                                    InstructionCode opcode, OpIndex left,
@@ -3975,7 +4090,18 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
     } else if (value_op.Is<Opmask::kWord32Sub>()) {
       return VisitWordCompare(this, value, kX64Cmp32, cont);
     } else if (value_op.Is<Opmask::kWord32BitwiseAnd>()) {
+#ifdef V8_ENABLE_APX_F
+      if (TryMatchConditionalCompareChain(this, zone(), value, cont)) {
+        return;
+      }
+#endif
       return VisitWordCompare(this, value, kX64Test32, cont);
+#ifdef V8_ENABLE_APX_F
+    } else if (value_op.Is<Opmask::kWord32BitwiseOr>()) {
+      if (TryMatchConditionalCompareChain(this, zone(), value, cont)) {
+        return;
+      }
+#endif
     } else if (const ProjectionOp* projection =
                    value_op.TryCast<ProjectionOp>()) {
       // Check if this is the overflow output projection of an

@@ -35,6 +35,9 @@ bool UseApxSetzucc() {
 bool UseApxCmovcc() {
   return v8_flags.enable_apx_f_cmovcc && CpuFeatures::IsSupported(APX_F);
 }
+bool UseApxCcmp() {
+  return v8_flags.enable_apx_f_ccmp && CpuFeatures::IsSupported(APX_F);
+}
 #endif
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures

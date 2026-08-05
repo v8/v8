@@ -591,6 +591,48 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CompareTaggedRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
 
+#ifdef V8_ENABLE_APX_F
+  template <typename Dst, typename Src>
+  void Ccmp(Dst lhs, Src rhs, OszcFlags dfv, Condition cond, int size) {
+    switch (size) {
+      case kInt8Size:
+        ccmpb(lhs, rhs, dfv, cond);
+        break;
+      case kInt16Size:
+        ccmpw(lhs, rhs, dfv, cond);
+        break;
+      case kInt32Size:
+        ccmpl(lhs, rhs, dfv, cond);
+        break;
+      case kInt64Size:
+        ccmpq(lhs, rhs, dfv, cond);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  template <typename Dst, typename Src>
+  void Ctest(Dst lhs, Src rhs, OszcFlags dfv, Condition cond, int size) {
+    switch (size) {
+      case kInt8Size:
+        ctestb(lhs, rhs, dfv, cond);
+        break;
+      case kInt16Size:
+        ctestw(lhs, rhs, dfv, cond);
+        break;
+      case kInt32Size:
+        ctestl(lhs, rhs, dfv, cond);
+        break;
+      case kInt64Size:
+        ctestq(lhs, rhs, dfv, cond);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+#endif
+
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
   void Prologue();

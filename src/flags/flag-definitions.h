@@ -2982,8 +2982,11 @@ DEFINE_BOOL(enable_apx_f_setzucc, false,
             "enable use of APX setzucc for x64 zero-extending setcc patterns")
 DEFINE_BOOL(enable_apx_f_cmovcc, false,
             "enable use of APX cmovcc for x64 conditional move patterns")
+DEFINE_BOOL(enable_apx_f_ccmp, false,
+            "enable use of APX ccmp/ctest for x64 conditional compare patterns")
 DEFINE_IMPLICATION(enable_apx_f_setzucc, enable_apx_f)
 DEFINE_IMPLICATION(enable_apx_f_cmovcc, enable_apx_f)
+DEFINE_IMPLICATION(enable_apx_f_ccmp, enable_apx_f)
 #endif
 #ifdef V8_ENABLE_AVX10_1
 DEFINE_BOOL(enable_avx10_1, false,
