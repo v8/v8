@@ -4039,21 +4039,23 @@ void LinearScanAllocator::GetSIMD128RegisterSet(int* num_regs, int* num_codes,
 
 void LinearScanAllocator::FindFreeRegistersForRange(
     LiveRange* range, base::Vector<LifetimePosition> positions) {
-  int num_regs = num_registers();
-  int num_codes = num_allocatable_registers();
-  const int* codes = allocatable_register_codes();
+  int num_regs_for_rep = num_registers();
+  int num_codes_unused = num_allocatable_registers();
+  const int* codes_unused = allocatable_register_codes();
   MachineRepresentation rep = range->representation();
   if (kFPAliasing == AliasingKind::kCombine &&
       (rep == MachineRepresentation::kFloat32 ||
        rep == MachineRepresentation::kSimd128)) {
-    GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
+    GetFPRegisterSet(rep, &num_regs_for_rep, &num_codes_unused, &codes_unused);
   } else if (kFPAliasing == AliasingKind::kIndependent &&
              (rep == MachineRepresentation::kSimd128)) {
-    GetSIMD128RegisterSet(&num_regs, &num_codes, &codes);
+    GetSIMD128RegisterSet(&num_regs_for_rep, &num_codes_unused, &codes_unused);
   }
-  DCHECK_GE(positions.length(), num_regs);
+  DCHECK_GE(positions.length(), num_regs_for_rep);
 
-  for (int i = 0; i < num_regs; ++i) {
+  // All registers are considered free until the end initially, and refined
+  // below by checking registers already assigned to active and inactive ranges.
+  for (int i = 0; i < num_regs_for_rep; ++i) {
     positions[i] = LifetimePosition::MaxPosition();
   }
 
@@ -4077,7 +4079,7 @@ void LinearScanAllocator::FindFreeRegistersForRange(
     }
   }
 
-  for (int cur_reg = 0; cur_reg < num_regs; ++cur_reg) {
+  for (int cur_reg = 0; cur_reg < num_registers(); ++cur_reg) {
     SlowDCheckInactiveLiveRangesIsSorted(cur_reg);
     for (LiveRange* cur_inactive : inactive_live_ranges(cur_reg)) {
       DCHECK_GT(cur_inactive->End(), range->Start());

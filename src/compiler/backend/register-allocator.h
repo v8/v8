@@ -1684,6 +1684,9 @@ class LinearScanAllocator final : public RegisterAllocator {
                         int* num_codes, const int** codes) const;
   void GetSIMD128RegisterSet(int* num_regs, int* num_codes,
                              const int** codes) const;
+  // Computes the lifetime position until which each register of range's
+  // representation is free (or `MaxPosition` if it has no conflicts).
+  // Results are populated in `free_until_pos`.
   void FindFreeRegistersForRange(LiveRange* range,
                                  base::Vector<LifetimePosition> free_until_pos);
   void ProcessCurrentRange(LiveRange* current, SpillMode spill_mode);
