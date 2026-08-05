@@ -244,7 +244,7 @@ struct TruncationPhase {
 
   PhaseResult Run(maglev::Graph* graph) {
     maglev::GraphBackwardProcessor<maglev::PropagateTruncationProcessor>
-        propagate;
+        propagate(graph);
     propagate.ProcessGraph(graph);
     // TODO(victorgomes): Support identities to flow to next passes?
     maglev::GraphProcessor<maglev::TruncationProcessor> truncate(graph);
