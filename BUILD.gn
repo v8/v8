@@ -666,7 +666,8 @@ if (v8_enable_sparkplug == "") {
   v8_enable_sparkplug = !v8_jitless
 }
 v8_enable_sparkplug_plus = v8_enable_sparkplug && (v8_current_cpu == "x64" ||
-                                                   v8_current_cpu == "arm64")
+                                                   v8_current_cpu == "arm64" ||
+                                                   v8_current_cpu == "loong64")
 if (v8_enable_maglev == "") {
   v8_enable_maglev =
       v8_enable_turbofan &&
