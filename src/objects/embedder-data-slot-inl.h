@@ -204,8 +204,8 @@ EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
   return base::ReadUnalignedValue<EmbedderDataSlot::RawData>(address());
 #else
   return RawData{
-      ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load().ptr(),
-      base::ReadUnalignedValue<Address>(address() + kExternalPointerOffset)};
+      base::ReadUnalignedValue<Address>(address() + kExternalPointerOffset),
+      ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load().ptr()};
 #endif
 }
 
