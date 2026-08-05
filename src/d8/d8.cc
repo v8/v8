@@ -6452,7 +6452,17 @@ bool Worker::StartWorkerThread(Isolate* requester,
       worker->state_.compare_exchange_strong(expected, State::kPrepareRunning));
   auto thread = new WorkerThread(worker, priority);
   worker->thread_ = thread;
-  if (!thread->Start()) return false;
+  if (!thread->Start()) {
+    // If starting the thread fails, we must clean up the thread object and
+    // clear worker->thread_. Otherwise, the strong reference cycle (Worker <->
+    // WorkerThread) prevents the Worker shared_ptr from being freed, leaking
+    // script_ and the Worker instance.
+    // If starting succeeds, this cycle is resolved in WorkerThread::Run().
+    worker->thread_ = nullptr;
+    worker->state_.store(State::kTerminated);
+    delete thread;
+    return false;
+  }
   // Wait until the worker is ready to receive messages.
   worker->started_semaphore_.ParkedWait(
       reinterpret_cast<i::Isolate*>(requester)->main_thread_local_isolate());
