@@ -4729,6 +4729,81 @@ void Assembler::emit_sse_operand(XMMRegister dst) {
   emit(0xD8 | dst.low_bits());
 }
 
+#ifdef V8_ENABLE_AVX10_1
+void Assembler::emit_sse_operand(XMMRegister reg, Operand adr,
+                                 uint8_t cd8_scale) {
+  if (cd8_scale > 0) {
+    adr = adr.to_evex_cd8(cd8_scale);
+  }
+  // The high register bits (for xmm8-31) are carried by the EVEX prefix; the
+  // ModR/M reg field only encodes the low 3 bits.
+  emit_operand(reg.low_bits(), adr);
+}
+
+void Assembler::vinstr_evex(uint8_t op, XMMRegister dst, XMMRegister src1,
+                            XMMRegister src2, SIMDPrefix pp, LeadingOpcode m,
+                            VexW w, OpMask mask, MaskingType z,
+                            CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  EnsureSpace ensure_space(this);
+  emit_evex_prefix(dst, src1, src2, kL128, pp, m, w, mask, z);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vinstr_evex(uint8_t op, XMMRegister dst, XMMRegister src1,
+                            Operand src2, SIMDPrefix pp, LeadingOpcode m,
+                            VexW w, TupleType tuple_type, OpMask mask,
+                            MaskingType z, CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  EnsureSpace ensure_space(this);
+  emit_evex_prefix(dst, src1, src2, kL128, pp, m, w, mask, z);
+  emit(op);
+  auto cd8_scale = TupleTypeToN(tuple_type, w, /*vlen=*/16);
+  emit_sse_operand(dst, src2, cd8_scale);
+}
+
+void Assembler::vinstr_evex(uint8_t op, YMMRegister dst, YMMRegister src1,
+                            YMMRegister src2, SIMDPrefix pp, LeadingOpcode m,
+                            VexW w, OpMask mask, MaskingType z,
+                            CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  EnsureSpace ensure_space(this);
+  emit_evex_prefix(dst, src1, src2, kL256, pp, m, w, mask, z);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vinstr_evex(uint8_t op, YMMRegister dst, YMMRegister src1,
+                            Operand src2, SIMDPrefix pp, LeadingOpcode m,
+                            VexW w, TupleType tuple_type, OpMask mask,
+                            MaskingType z, CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  EnsureSpace ensure_space(this);
+  emit_evex_prefix(dst, src1, src2, kL256, pp, m, w, mask, z);
+  emit(op);
+  auto cd8_scale = TupleTypeToN(tuple_type, w, /*vlen=*/32);
+  emit_sse_operand(dst, src2, cd8_scale);
+}
+
+void Assembler::vpsraq(XMMRegister dst, XMMRegister src, uint8_t imm8) {
+  // Opcode 0x72 /4: reg field carries the /4 extension (xmm4); the shift dst is
+  // encoded in EVEX.vvvv, the source in ModR/M.rm.
+  vinstr_evex(0x72, xmm4, dst, src, k66, k0F, kW1);
+  emit(imm8);
+}
+
+void Assembler::vpsraq(YMMRegister dst, YMMRegister src, uint8_t imm8) {
+  vinstr_evex(0x72, ymm4, dst, src, k66, k0F, kW1);
+  emit(imm8);
+}
+
+void Assembler::vpsraq(XMMRegister dst, Operand src, uint8_t imm8) {
+  vinstr_evex(0x72, xmm4, dst, src, k66, k0F, kW1, kFull);
+  emit(imm8);
+}
+#endif  // V8_ENABLE_AVX10_1
+
 void Assembler::db(uint8_t data) {
   EnsureSpace ensure_space(this);
   emit(data);
