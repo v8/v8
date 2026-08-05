@@ -23,7 +23,7 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-class MaglevGraphOptimizer {
+class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
  public:
   explicit MaglevGraphOptimizer(
       Graph* graph, RecomputeKnownNodeAspectsProcessor& kna_processor,
@@ -202,7 +202,7 @@ class MaglevGraphOptimizer {
 // the GraphProcessor can stitch the new blocks into the live graph at the
 // node currently being visited.
 template <>
-class Subgraph<MaglevGraphOptimizer>
+class V8_EXPORT_PRIVATE Subgraph<MaglevGraphOptimizer>
     : public SubgraphBase<Subgraph<MaglevGraphOptimizer>,
                           MaglevGraphOptimizer> {
  public:
@@ -249,6 +249,9 @@ class Subgraph<MaglevGraphOptimizer>
   KnownNodeAspects* saved_kna_;
   // Enclosing subgraph, or nullptr if this is a top-level subgraph.
   Subgraph<MaglevGraphOptimizer>* parent_;
+
+  ZoneVector<std::pair<int, Node*>> stashed_nodes_at_;
+  ZoneVector<Node*> stashed_nodes_at_end_;
 };
 
 }  // namespace maglev

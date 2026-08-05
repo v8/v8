@@ -186,9 +186,19 @@ Subgraph<MaglevGraphOptimizer>::Subgraph(
       saved_block_(reducer->current_block()),
       saved_position_(reducer->current_block_position()),
       saved_kna_(&reducer->known_node_aspects()),
-      parent_(reducer->active_subgraph_) {
+      parent_(reducer->active_subgraph_),
+      stashed_nodes_at_(zone_),
+      stashed_nodes_at_end_(zone_) {
   reducer_->active_subgraph_ = this;
-  reducer_->FlushNodesToBlock();
+  if (parent_ == nullptr) {
+    DCHECK_IMPLIES(
+        reducer_->HasPendingSplice(),
+        reducer_->new_nodes_at_.empty() && reducer_->new_nodes_at_end_.empty());
+    std::swap(stashed_nodes_at_, reducer_->new_nodes_at_);
+    std::swap(stashed_nodes_at_end_, reducer_->new_nodes_at_end_);
+  } else {
+    reducer_->FlushNodesToBlock();
+  }
 
   // Create entry block.
   BasicBlock* entry =
@@ -267,6 +277,16 @@ Subgraph<MaglevGraphOptimizer>::~Subgraph() {
   reducer_->set_current_block(saved_block_);
   reducer_->SetNewNodePosition(saved_position_);
   reducer_->set_known_node_aspects(saved_kna_);
+
+  if (parent_ == nullptr) {
+    DCHECK(reducer_->new_nodes_at_.empty());
+    DCHECK(reducer_->new_nodes_at_end_.empty());
+    std::swap(stashed_nodes_at_, reducer_->new_nodes_at_);
+    std::swap(stashed_nodes_at_end_, reducer_->new_nodes_at_end_);
+    if (!is_empty) {
+      reducer_->FlushNodesToBlock();
+    }
+  }
 }
 
 void Subgraph<MaglevGraphOptimizer>::MergeIntoLabel(Label* label,
