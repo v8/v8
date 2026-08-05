@@ -544,7 +544,8 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
   virtual bool CanBeRestarted() const = 0;
 
   virtual v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
-                                             bool throw_on_side_effect) = 0;
+                                             bool throw_on_side_effect,
+                                             int scope_index = 0) = 0;
 };
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> context,

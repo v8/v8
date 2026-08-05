@@ -1705,7 +1705,7 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
     std::optional<bool> includeCommandLineAPI, std::optional<bool> silent,
     std::optional<bool> returnByValue, std::optional<bool> generatePreview,
     std::optional<bool> throwOnSideEffect, std::optional<double> timeout,
-    std::unique_ptr<RemoteObject>* result,
+    std::optional<int> scopeNumber, std::unique_ptr<RemoteObject>* result,
     std::unique_ptr<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   InjectedScript::CallFrameScope scope(m_session, callFrameId);
@@ -1726,6 +1726,18 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
     return Response::ServerError("Could not find call frame with given id");
   }
 
+  if (scopeNumber.has_value()) {
+    auto scopeIterator = it->GetScopeIterator();
+    int number = scopeNumber.value();
+    while (!scopeIterator->Done() && number > 0) {
+      --number;
+      scopeIterator->Advance();
+    }
+    if (number != 0 || scopeIterator->Done()) {
+      return Response::ServerError("Could not find scope with given number");
+    }
+  }
+
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
     V8InspectorImpl::EvaluateScope evaluateScope(scope);
@@ -1734,7 +1746,8 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
       if (!response.IsSuccess()) return response;
     }
     maybeResultValue = it->Evaluate(toV8String(m_isolate, expression),
-                                    throwOnSideEffect.value_or(false));
+                                    throwOnSideEffect.value_or(false),
+                                    scopeNumber.value_or(0));
   }
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.

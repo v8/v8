@@ -212,6 +212,8 @@ domain Debugger
       optional boolean throwOnSideEffect
       # Terminate execution after timing out (number of milliseconds).
       experimental optional Runtime.TimeDelta timeout
+      # Specifies the scope number to evaluate the expression in (default: 0, innermost scope).
+      experimental optional integer scopeNumber
     returns
       # Object wrapper for the evaluation result.
       Runtime.RemoteObject result

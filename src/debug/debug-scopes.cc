@@ -433,6 +433,24 @@ bool ScopeIterator::DeclaresLocals(Mode mode) const {
   return declares_local;
 }
 
+bool ScopeIterator::ShouldIgnore() const {
+  if (Type() == ScopeTypeLocal ||
+      (Type() == ScopeTypeModule && InInnerScope())) {
+    return false;
+  }
+  return !DeclaresLocals(Mode::ALL);
+}
+
+bool ScopeIterator::AdvanceToScopeNumber(int scope_number) {
+  while (!Done() && ShouldIgnore()) Next();
+  while (!Done() && scope_number > 0) {
+    --scope_number;
+    Next();
+    while (!Done() && ShouldIgnore()) Next();
+  }
+  return scope_number == 0 && !Done();
+}
+
 bool ScopeIterator::HasContext() const {
   // In rare cases we pause in a scope that doesn't have its context pushed yet.
   // E.g. when pausing in for-of loop headers (see https://crbug.com/399002824).
