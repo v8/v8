@@ -563,7 +563,7 @@ static constexpr Opcode kFirstOpcode = static_cast<Opcode>(0);
 static constexpr Opcode kLastOpcode = static_cast<Opcode>(kOpcodeCount - 1);
 #undef PLUS_ONE
 
-const char* OpcodeToString(Opcode opcode);
+V8_EXPORT_PRIVATE const char* OpcodeToString(Opcode opcode);
 inline std::ostream& operator<<(std::ostream& os, Opcode opcode) {
   return os << OpcodeToString(opcode);
 }
