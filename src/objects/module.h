@@ -185,6 +185,15 @@ V8_OBJECT class JSModuleNamespace : public JSSpecialObject {
 
   bool HasExport(Isolate* isolate, DirectHandle<String> name);
 
+  // Counts an access to a missing `default` export on the namespace [it] starts
+  // at, when that module has an `export * from '...'` statement. Such a
+  // `default` is absent today because `export *` skips it, but would resolve to
+  // the star-exported default (if it exists) under the export-star-default
+  // proposal (https://github.com/tc39/proposal-export-star-default).
+  // Called from [[Get]] and [[HasProperty]]. Only valid while [it] is in the
+  // LookupIterator::MODULE_NAMESPACE state.
+  static void MaybeCountMissingDefaultWithStarExport(LookupIterator* it);
+
   // Return the (constant) property attributes for the referenced property,
   // which is assumed to correspond to an export. If the export is
   // uninitialized, schedule an exception and return Nothing.

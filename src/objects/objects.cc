@@ -1365,6 +1365,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
               isolate, it->GetHolder<JSDeferredModuleNamespace>());
           RETURN_EXCEPTION_IF_EXCEPTION(isolate);
         }
+        JSModuleNamespace::MaybeCountMissingDefaultWithStarExport(it);
         continue;
       }
       case LookupIterator::ACCESSOR:

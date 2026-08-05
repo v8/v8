@@ -1443,6 +1443,20 @@ Tagged<FixedArray> SourceTextModuleInfo::RegularExportExportNames(int i) const {
       i * kRegularExportLength + kRegularExportExportNamesOffset));
 }
 
+bool SourceTextModuleInfo::HasStarExports() const {
+  DisallowGarbageCollection no_gc;
+  Tagged<FixedArray> exports = special_exports();
+  const uint32_t length = exports->ulength().value();
+  for (uint32_t i = 0; i < length; ++i) {
+    // Star exports are the only special exports without a name.
+    if (IsUndefined(
+            Cast<SourceTextModuleInfoEntry>(exports->get(i))->export_name())) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const char* ToString(ScopeType type) {
   switch (type) {
     case ScopeType::EVAL_SCOPE:

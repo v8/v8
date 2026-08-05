@@ -235,6 +235,7 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
         if (JSDeferredModuleNamespace::TriggersEvaluation(it)) {
           return;
         }
+        JSModuleNamespace::MaybeCountMissingDefaultWithStarExport(it);
         // Once a deferred module is evaluated, we will fallback to perform IC
         // as an ordinary module namespace. This way it can be either ACCESSOR
         // or NOT_FOUND state.

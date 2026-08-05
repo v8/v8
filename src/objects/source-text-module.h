@@ -322,6 +322,9 @@ class SourceTextModuleInfo : public FixedArray {
 
   inline bool Equals(Tagged<SourceTextModuleInfo> other) const;
 
+  // Whether the module has at least one `export * from '...'` statement.
+  bool HasStarExports() const;
+
  private:
   template <typename Impl>
   friend class FactoryBase;
