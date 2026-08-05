@@ -2927,6 +2927,8 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& info) {
     Local<Object> realm_options = info[0].As<Object>();
     Local<Context> context = info.GetIsolate()->GetCurrentContext();
     Local<Value> value;
+    v8::TryCatch try_catch(info.GetIsolate());
+    try_catch.SetVerbose(true);
     if (realm_options
             ->Get(context, String::NewFromUtf8Literal(
                                info.GetIsolate(), "create_own_microtask_queue"))
