@@ -2651,7 +2651,7 @@ Builtin GetBuiltin(Isolate* isolate, Tagged<JSObject> obj,
   if (it.state() != LookupIterator::DATA) {
     return Builtin::kNoBuiltinId;
   }
-  DirectHandle<Object> fun = Object::GetProperty(&it).ToHandleChecked();
+  DirectHandle<Object> fun = it.GetDataValue(AllowAllocation{false});
   if (!IsJSFunction(*fun)) {
     return Builtin::kNoBuiltinId;
   }
