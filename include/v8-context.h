@@ -319,37 +319,8 @@ class V8_EXPORT Context : public Data {
   V8_INLINE void* GetAlignedPointerFromEmbedderData(int index,
                                                     EmbedderDataTypeTag tag);
 
-  V8_DEPRECATED(
-      "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
-      "parameter instead.")
-  V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate,
-                                                    int index) {
-    return GetAlignedPointerFromEmbedderData(isolate, index,
-                                             kEmbedderDataTypeTagDefault);
-  }
-
-  V8_DEPRECATED(
-      "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
-      "parameter instead.")
-  V8_INLINE void* GetAlignedPointerFromEmbedderData(int index) {
-    return GetAlignedPointerFromEmbedderData(index,
-                                             kEmbedderDataTypeTagDefault);
-  }
-
   void SetAlignedPointerInEmbedderData(int index, void* value,
                                        EmbedderDataTypeTag tag);
-
-  /**
-   * Sets a 2-byte-aligned native pointer in the embedder data with the given
-   * index, growing the data as needed. Note that index 0 currently has a
-   * special meaning for Chrome's debugger.
-   */
-  V8_DEPRECATED(
-      "Use SetAlignedPointerInEmbedderData with EmbedderDataTypeTag parameter "
-      "instead.")
-  void SetAlignedPointerInEmbedderData(int index, void* value) {
-    SetAlignedPointerInEmbedderData(index, value, kEmbedderDataTypeTagDefault);
-  }
 
   /**
    * Control whether code generation from strings is allowed. Calling
