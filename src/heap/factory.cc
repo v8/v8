@@ -5450,7 +5450,8 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
       // needed and maybe find some alternative to initialize it correctly
       // from the beginning.
       if (old_code->is_builtin()) {
-        jdt.SetCodeNoWriteBarrier(dispatch_handle, *code, isolate);
+        jdt.SetCodeKeepTieringRequest(dispatch_handle, *code, function, isolate,
+                                      mode);
         function->set_dispatch_handle(dispatch_handle, mode);
       } else {
         // On a transition of a feedback cell from one closure to many, make
@@ -5458,7 +5459,8 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
         // specialized, and if it was, eagerly re-optimize.
         if (cell_transition == FeedbackCell::kOneToMany &&
             old_code->is_context_specialized()) {
-          jdt.SetCodeNoWriteBarrier(dispatch_handle, *code, isolate);
+          jdt.SetCodeKeepTieringRequest(dispatch_handle, *code, function,
+                                        isolate, mode);
           function->set_dispatch_handle(dispatch_handle, mode);
           DCHECK(old_code->kind() == CodeKind::MAGLEV ||
                  old_code->kind() == CodeKind::TURBOFAN_JS);
