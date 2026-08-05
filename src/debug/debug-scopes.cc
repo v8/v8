@@ -1402,6 +1402,11 @@ void LocalBlocklistsCollector::CollectAndStore() {
 
   while (scope_->outer_scope() && !IsNativeContext(*context_)) {
     AdvanceToNextNonHiddenScope();
+
+    if (!has_matched_first_context_ && scope_->NeedsContext()) {
+      context_blocklist_ = StringSet::New(isolate_);
+    }
+
     // 1. Add all stack-allocated variables of `scope_` to the various lists.
     CollectCurrentLocalsIntoBlocklists();
 
