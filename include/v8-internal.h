@@ -998,11 +998,11 @@ class Internals {
 #endif  // !V8_COMPRESS_POINTERS
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
-  static const int kEmbedderDataSlotSize = kApiSystemPointerSize;
-#ifdef V8_ENABLE_SANDBOX
-  static const int kEmbedderDataSlotExternalPointerOffset = kApiTaggedSize;
-#else
+  static const int kEmbedderDataSlotSize = 2 * kApiTaggedSize;
+#if defined(V8_COMPRESS_POINTERS) && !defined(V8_ENABLE_SANDBOX)
   static const int kEmbedderDataSlotExternalPointerOffset = 0;
+#else
+  static const int kEmbedderDataSlotExternalPointerOffset = kApiTaggedSize;
 #endif
   static const int kNativeContextEmbedderDataOffset = 6 * kApiTaggedSize;
   static const int kStringRepresentationAndEncodingMask = 0x0f;

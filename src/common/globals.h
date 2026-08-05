@@ -720,7 +720,7 @@ constexpr JSDispatchHandle kPlaceholderDispatchHandle(0x0);
 constexpr JSDispatchHandle kInvalidDispatchHandle(0xffffffff
                                                   << kJSDispatchHandleShift);
 
-constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
+constexpr int kEmbedderDataSlotSize = 2 * kTaggedSize;
 
 constexpr int kEmbedderDataSlotSizeInTaggedSlots =
     kEmbedderDataSlotSize / kTaggedSize;
