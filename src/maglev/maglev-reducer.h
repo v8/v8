@@ -810,6 +810,7 @@ class MaglevReducer {
   ReduceResult BuildSmiUntag(ValueNode* node);
   ReduceResult BuildCheckSmi(ValueNode* object);
   ReduceResult BuildCheckString(ValueNode* object);
+  MaybeReduceResult TryFoldCheckNotHole(ValueNode* node);
 
   ReduceResult BuildTaggedEqual(ValueNode* lhs, ValueNode* rhs);
   ReduceResult BuildTaggedEqual(ValueNode* lhs, RootIndex rhs_index);

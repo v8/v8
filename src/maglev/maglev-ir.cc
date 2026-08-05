@@ -764,11 +764,16 @@ Tribool ValueNode::IsTheHole() const {
     return ToTribool(cst->index() == RootIndex::kTheHoleValue);
   }
   if (const LoadTaggedField* load = TryCast<LoadTaggedField>()) {
-    // Modules variables can be the hole.
-    if (load->offset() == offsetof(Cell, maybe_value_)) {
-      return Tribool::kMaybe;
+    // There are a few ways that this can load a hole, for instance through a
+    // modules variable, or because this is actually a load from a FixedArray
+    // (TryBuildLoadFixedArrayElementConstantIndex emits LoadTaggedField instead
+    // of LoadFixedArrayElement when the index is known).
+    if (load->type() != NodeType::kUnknown) {
+      // There is no NodeType that contains the hole, so if this load has a
+      // type, it cannot be the hole.
+      return Tribool::kFalse;
     }
-    return Tribool::kFalse;
+    return Tribool::kMaybe;
   }
   if (const LoadFixedArrayElement* load = TryCast<LoadFixedArrayElement>()) {
     if (load->load_type() != LoadType::kUnknown) {

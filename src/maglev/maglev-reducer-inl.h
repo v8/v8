@@ -3033,6 +3033,19 @@ ReduceResult MaglevReducer<BaseT>::BuildCheckString(ValueNode* object) {
   return AddNewNode<CheckString>({object}, GetCheckType(known_type));
 }
 
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckNotHole(ValueNode* node) {
+  if (!node->is_tagged()) return ReduceResult::Done();
+  switch (node->IsTheHole()) {
+    case Tribool::kTrue:
+      return EmitUnconditionalDeopt(DeoptimizeReason::kHole);
+    case Tribool::kFalse:
+      return ReduceResult::Done();
+    case Tribool::kMaybe:
+      return MaybeReduceResult::Fail();
+  }
+}
+
 namespace detail {
 inline bool CheckConditionIn32(int32_t lhs, int32_t rhs,
                                AssertCondition condition) {

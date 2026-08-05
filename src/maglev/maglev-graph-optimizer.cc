@@ -988,7 +988,8 @@ ProcessResult MaglevGraphOptimizer::VisitCheckJSReceiverOrNullOrUndefined(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckNotHole(
     CheckNotHole* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REMOVE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldCheckNotHole(node->ObjectInput().node()));
   return ProcessResult::kContinue;
 }
 
