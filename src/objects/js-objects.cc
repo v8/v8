@@ -3822,9 +3822,9 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         InterceptorResult result;
         if (semantics == EnforceDefineSemantics::kDefine) {
           PropertyDescriptor descriptor;
-          descriptor.set_configurable((attributes & DONT_DELETE) != 0);
-          descriptor.set_enumerable((attributes & DONT_ENUM) != 0);
-          descriptor.set_writable((attributes & READ_ONLY) != 0);
+          descriptor.set_configurable((attributes & DONT_DELETE) == 0);
+          descriptor.set_enumerable((attributes & DONT_ENUM) == 0);
+          descriptor.set_writable((attributes & READ_ONLY) == 0);
           descriptor.set_value(Cast<JSAny>(value));
           if (!DefinePropertyWithInterceptorInternal(it, it->GetInterceptor(),
                                                      should_throw, &descriptor)

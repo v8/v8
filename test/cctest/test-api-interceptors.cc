@@ -2991,6 +2991,55 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
 }
 
 namespace {
+int descriptor_callback_count;
+v8::Intercepted CheckDescriptorInDefineNamedOwnICCallback(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<Boolean>& info) {
+  ++descriptor_callback_count;
+  CHECK(desc.has_value());
+  CHECK_EQ(42, desc.value()
+                   ->Int32Value(info.GetIsolate()->GetCurrentContext())
+                   .FromJust());
+  CHECK(desc.has_writable());
+  CHECK(desc.writable());
+  CHECK(desc.has_enumerable());
+  CHECK(desc.enumerable());
+  CHECK(desc.has_configurable());
+  CHECK(desc.configurable());
+  return v8::Intercepted::kYes;
+}
+}  // namespace
+
+THREADED_TEST(PropertyDefinerCallbackDescriptorInDefineNamedOwnIC) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      nullptr, nullptr, nullptr, nullptr, nullptr,
+      CheckDescriptorInDefineNamedOwnICCallback));
+  Local<Object> obj = templ->GetFunction(env.local())
+                          .ToLocalChecked()
+                          ->NewInstance(env.local())
+                          .ToLocalChecked();
+  env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust();
+
+  descriptor_callback_count = 0;
+  CompileRun(R"(
+    class Base {
+      constructor(arg) {
+        return arg;
+      }
+    }
+    class Derived extends Base {
+      field = 42;
+    }
+    new Derived(obj);
+  )");
+  CHECK_EQ(1, descriptor_callback_count);
+}
+
+namespace {
 v8::Intercepted EmptyPropertyDescriptorCallback(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   return v8::Intercepted::kNo;
