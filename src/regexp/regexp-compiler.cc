@@ -3211,6 +3211,8 @@ void Compiler::ComputeQuickCheckFilters(Node* start,
       has_filter = true;
     }
   }
+#else
+  USE(kMaxChars);
 #endif
 
   // Store the inverse of the collected set, since the exec path rejects on a
