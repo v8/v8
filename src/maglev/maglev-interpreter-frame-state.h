@@ -603,23 +603,19 @@ class MergePointInterpreterFrameState {
   }
 
  protected:
-  int merge_offset_;
   const MaglevCompilationUnit* unit_;
 
   uint32_t predecessor_count_;
   uint32_t predecessors_so_far_;
 
   uint32_t bitfield_;
+  int merge_offset_;
 
   BasicBlock** predecessors_;
 
   Phi::List phis_;
   CompactInterpreterFrameState frame_state_;
 
-  // Set by the register allocator, which only publishes it here once it is
-  // fully initialized. Never set when the Maglev graph is only used as
-  // Turbolev's frontend.
-  MergePointRegisterState* register_state_ = nullptr;
   KnownNodeAspects* known_node_aspects_ = nullptr;
   compiler::OptionalScopeInfoRef context_scope_info_;
 
@@ -631,6 +627,11 @@ class MergePointInterpreterFrameState {
     // This will be the same value for all incoming merges.
     interpreter::Register catch_block_context_register_;
   };
+
+  // Set by the register allocator, which only publishes it here once it is
+  // fully initialized. Never set when the Maglev graph is only used as
+  // Turbolev's frontend.
+  MergePointRegisterState* register_state_ = nullptr;
 };
 
 // Merge states of loop headers carry additional fields. They are only created
@@ -697,6 +698,13 @@ MergePointInterpreterFrameState::AsLoopHeader() const {
   DCHECK(is_loop());
   return static_cast<const LoopMergePointInterpreterFrameState*>(this);
 }
+
+#if V8_HOST_ARCH_64_BIT
+// These asserts only exist to avoid accidentally bloating the merge states;
+// the sizes can be increased if more fields are actually needed.
+static_assert(sizeof(MergePointInterpreterFrameState) == 96);
+static_assert(sizeof(LoopMergePointInterpreterFrameState) == 120);
+#endif
 
 struct LoopEffects {
   explicit LoopEffects(int loop_header, Zone* zone)

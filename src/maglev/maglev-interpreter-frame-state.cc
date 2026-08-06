@@ -241,12 +241,12 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
     int predecessors_so_far, BasicBlock** predecessors, BasicBlockType type,
     const compiler::BytecodeLivenessState* liveness,
     compiler::OptionalScopeInfoRef context_scope_info)
-    : merge_offset_(merge_offset),
-      unit_(&info),
+    : unit_(&info),
       predecessor_count_(predecessor_count),
       predecessors_so_far_(predecessors_so_far),
       bitfield_(kBasicBlockTypeBits::encode(type) |
                 kIsInline::encode(info.is_inline())),
+      merge_offset_(merge_offset),
       predecessors_(predecessors),
       frame_state_(info, liveness),
       context_scope_info_(context_scope_info),
