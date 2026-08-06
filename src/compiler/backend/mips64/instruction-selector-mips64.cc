@@ -807,9 +807,12 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   InstructionCode opcode_no_high = is_add ? kMips64Dadd : kMips64Dsub;
 
   if (!out_high.valid() || !selector->IsUsed(out_high.value())) {
-    InstructionOperand b_low_op = g.UseOperand(op.right_low(), opcode_no_high);
-    selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
-                   g.UseRegister(op.left_low()), b_low_op);
+    if (out_low.valid() && selector->IsUsed(out_low.value())) {
+      InstructionOperand b_low_op =
+          g.UseOperand(op.right_low(), opcode_no_high);
+      selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
+                     g.UseRegister(op.left_low()), b_low_op);
+    }
     return;
   }
 
