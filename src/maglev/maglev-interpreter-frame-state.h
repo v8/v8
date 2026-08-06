@@ -28,6 +28,7 @@ namespace maglev {
 
 class BasicBlock;
 class Graph;
+class LoopMergePointInterpreterFrameState;
 class MergePointInterpreterFrameState;
 struct LoopEffects;
 
@@ -304,7 +305,7 @@ class MergePointInterpreterFrameState {
       const compiler::BytecodeLivenessState* liveness,
       compiler::OptionalScopeInfoRef context_scope_info);
 
-  static MergePointInterpreterFrameState* NewForLoop(
+  static LoopMergePointInterpreterFrameState* NewForLoop(
       const InterpreterFrameState& start_state,
       const MaglevCompilationUnit& info, bool is_inline, Graph* graph,
       int merge_offset, int predecessor_count,
@@ -344,21 +345,8 @@ class MergePointInterpreterFrameState {
                       LoopEffects* loop_effects = nullptr);
   void InitializeWithBasicBlock(BasicBlock* current_block);
 
-  // Merges an unmerged framestate with a possibly merged framestate into |this|
-  // framestate.
-  void MergeLoop(Graph* graph, bool is_tracing,
-                 MaglevCompilationUnit& compilation_unit,
-                 InterpreterFrameState& loop_end_state,
-                 BasicBlock* loop_end_block, DeoptFrame* backedge_deopt_frame);
-  void set_loop_effects(LoopEffects* loop_effects);
-  const LoopEffects* loop_effects();
-  // Merges a frame-state that might not be mergable, in which case we need to
-  // re-compile the loop again. Calls FinishBlock only if the merge succeeded.
-  bool TryMergeLoop(compiler::JSHeapBroker* broker, Graph* graph,
-                    bool is_tracing, MaglevCompilationUnit& compilation_unit,
-                    InterpreterFrameState& loop_end_state,
-                    const std::function<BasicBlock*()>& FinishBlock,
-                    DeoptFrame* backedge_deopt_frame);
+  inline LoopMergePointInterpreterFrameState* AsLoopHeader();
+  inline const LoopMergePointInterpreterFrameState* AsLoopHeader() const;
 
   // Merges an unmerged framestate into a possibly merged framestate at the
   // start of the target catchblock.
@@ -519,19 +507,6 @@ class MergePointInterpreterFrameState {
 
   const MaglevCompilationUnit& unit() const { return *unit_; }
 
-  DeoptFrame* backedge_deopt_frame() const {
-    DCHECK(is_loop());
-    DCHECK_NOT_NULL(loop_metadata_);
-    return loop_metadata_->backedge_deopt_frame;
-  }
-
-  KnownNodeAspects* backedge_known_node_aspects() const {
-    DCHECK(is_loop());
-    DCHECK_NOT_NULL(loop_metadata_);
-    DCHECK_NOT_NULL(loop_metadata_->backedge_known_node_aspects);
-    return loop_metadata_->backedge_known_node_aspects;
-  }
-
   interpreter::Register catch_block_context_register() const {
     DCHECK(is_exception_handler());
     return catch_block_context_register_;
@@ -571,12 +546,19 @@ class MergePointInterpreterFrameState {
   template <typename T, typename... Args>
   friend T* Zone::New(Args&&... args);
 
+ protected:
   MergePointInterpreterFrameState(
       const MaglevCompilationUnit& info, int merge_offset,
       int predecessor_count, int predecessors_so_far, BasicBlock** predecessors,
       BasicBlockType type, const compiler::BytecodeLivenessState* liveness,
       compiler::OptionalScopeInfoRef context_scope_info);
 
+  void MergeLoopValue(Graph* graph, bool is_tracing,
+                      interpreter::Register owner,
+                      const KnownNodeAspects& unmerged_aspects,
+                      ValueNode* merged, ValueNode* unmerged);
+
+ private:
   void MergePhis(Graph* graph, bool is_tracing,
                  MaglevCompilationUnit& compilation_unit,
                  InterpreterFrameState& unmerged, BasicBlock* predecessor,
@@ -603,11 +585,6 @@ class MergePointInterpreterFrameState {
       Graph* graph, const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
       ValueNode* unmerged);
 
-  void MergeLoopValue(Graph* graph, bool is_tracing,
-                      interpreter::Register owner,
-                      const KnownNodeAspects& unmerged_aspects,
-                      ValueNode* merged, ValueNode* unmerged);
-
   ValueNode* NewLoopPhi(Zone* zone, interpreter::Register reg);
 
   ValueNode* NewExceptionPhi(Zone* zone, interpreter::Register reg) {
@@ -618,6 +595,7 @@ class MergePointInterpreterFrameState {
     return result;
   }
 
+ protected:
   int merge_offset_;
   const MaglevCompilationUnit* unit_;
 
@@ -643,18 +621,72 @@ class MergePointInterpreterFrameState {
     // This will be the same value for all incoming merges.
     interpreter::Register catch_block_context_register_;
   };
-
-  // Allocated only for loop headers.
-  struct LoopMetadata {
-    const LoopEffects* loop_effects = nullptr;
-    // The KNA from the backedge (end of the loop).
-    KnownNodeAspects* backedge_known_node_aspects = nullptr;
-    // The deopt frame for the backedge, in case we want to insert a deopting
-    // conversion during phi untagging. It is set when visiting the JumpLoop.
-    DeoptFrame* backedge_deopt_frame = nullptr;
-  };
-  LoopMetadata* loop_metadata_ = nullptr;
 };
+
+// Merge states of loop headers carry additional fields. They are only created
+// by NewForLoop; is_loop() implies that the state is a
+// LoopMergePointInterpreterFrameState.
+class LoopMergePointInterpreterFrameState final
+    : public MergePointInterpreterFrameState {
+ public:
+  // Merges an unmerged framestate with a possibly merged framestate into |this|
+  // framestate.
+  void MergeLoop(Graph* graph, bool is_tracing,
+                 MaglevCompilationUnit& compilation_unit,
+                 InterpreterFrameState& loop_end_state,
+                 BasicBlock* loop_end_block, DeoptFrame* backedge_deopt_frame);
+  // Merges a frame-state that might not be mergable, in which case we need to
+  // re-compile the loop again. Calls FinishBlock only if the merge succeeded.
+  bool TryMergeLoop(compiler::JSHeapBroker* broker, Graph* graph,
+                    bool is_tracing, MaglevCompilationUnit& compilation_unit,
+                    InterpreterFrameState& loop_end_state,
+                    const std::function<BasicBlock*()>& FinishBlock,
+                    DeoptFrame* backedge_deopt_frame);
+
+  void set_loop_effects(LoopEffects* loop_effects) {
+    loop_effects_ = loop_effects;
+  }
+  const LoopEffects* loop_effects() const { return loop_effects_; }
+
+  DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
+
+  KnownNodeAspects* backedge_known_node_aspects() const {
+    DCHECK_NOT_NULL(backedge_known_node_aspects_);
+    return backedge_known_node_aspects_;
+  }
+
+ private:
+  template <typename T, typename... Args>
+  friend T* Zone::New(Args&&... args);
+
+  LoopMergePointInterpreterFrameState(
+      const MaglevCompilationUnit& info, int merge_offset,
+      int predecessor_count, int predecessors_so_far, BasicBlock** predecessors,
+      const compiler::BytecodeLivenessState* liveness)
+      : MergePointInterpreterFrameState(
+            info, merge_offset, predecessor_count, predecessors_so_far,
+            predecessors, BasicBlockType::kLoopHeader, liveness, std::nullopt) {
+  }
+
+  const LoopEffects* loop_effects_ = nullptr;
+  // The KNA from the backedge (end of the loop).
+  KnownNodeAspects* backedge_known_node_aspects_ = nullptr;
+  // The deopt frame for the backedge, in case we want to insert a deopting
+  // conversion during phi untagging. It is set when visiting the JumpLoop.
+  DeoptFrame* backedge_deopt_frame_ = nullptr;
+};
+
+inline LoopMergePointInterpreterFrameState*
+MergePointInterpreterFrameState::AsLoopHeader() {
+  DCHECK(is_loop());
+  return static_cast<LoopMergePointInterpreterFrameState*>(this);
+}
+
+inline const LoopMergePointInterpreterFrameState*
+MergePointInterpreterFrameState::AsLoopHeader() const {
+  DCHECK(is_loop());
+  return static_cast<const LoopMergePointInterpreterFrameState*>(this);
+}
 
 struct LoopEffects {
   explicit LoopEffects(int loop_header, Zone* zone)

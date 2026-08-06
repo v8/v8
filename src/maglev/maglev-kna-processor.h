@@ -88,7 +88,7 @@ class RecomputeKnownNodeAspectsProcessor {
       DCHECK_GT(block->predecessor_count(), 1);
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
       KnownNodeAspects* backedge_known_node_aspects =
-          block->state()->backedge_known_node_aspects();
+          block->state()->AsLoopHeader()->backedge_known_node_aspects();
       // Merge saved backedge KNA to the forward one.
       TRACE_KNA("Merging KNA at loop header B"
                 << block->id() << ":" << TraceNewline{}
@@ -96,8 +96,9 @@ class RecomputeKnownNodeAspectsProcessor {
                 << TraceNewline{} << "## Backward KNA:" << TraceNewline{}
                 << *backedge_known_node_aspects);
       backedge_known_node_aspects->UnwrapIdentitiesAndPhisInKeys(zone());
-      known_node_aspects_->MergeForLoop(*backedge_known_node_aspects, zone(),
-                                        block->state()->loop_effects());
+      known_node_aspects_->MergeForLoop(
+          *backedge_known_node_aspects, zone(),
+          block->state()->AsLoopHeader()->loop_effects());
     } else if (block->has_state()) {
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
     } else if (block->is_edge_split_block()) {

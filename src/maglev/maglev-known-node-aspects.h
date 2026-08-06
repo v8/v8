@@ -894,6 +894,7 @@ class KnownNodeAspects {
   friend class MaglevReducer;
   friend class RecomputeKnownNodeAspectsProcessor;
   friend class MergePointInterpreterFrameState;
+  friend class LoopMergePointInterpreterFrameState;
 
   NodeType GetTypeUnchecked(compiler::JSHeapBroker* broker,
                             ValueNode* node) const {

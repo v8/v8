@@ -245,7 +245,7 @@ class LoopOptimizationProcessor {
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     current_block = block;
     if (current_block->is_loop()) {
-      loop_effects = current_block->state()->loop_effects();
+      loop_effects = current_block->state()->AsLoopHeader()->loop_effects();
       if (loop_effects) return BlockProcessResult::kContinue;
     } else {
       // TODO(olivf): Some dominance analysis would allow us to keep loop

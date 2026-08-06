@@ -394,12 +394,12 @@ class V8_NODISCARD MaglevGraphBuilder::EagerDeoptFrameScope
 class MaglevGraphBuilder::MaglevSubGraphBuilder::LoopLabel {
  public:
  private:
-  explicit LoopLabel(MergePointInterpreterFrameState* merge_state,
+  explicit LoopLabel(LoopMergePointInterpreterFrameState* merge_state,
                      BasicBlock* loop_header)
       : merge_state_(merge_state), loop_header_(loop_header) {}
 
   friend class MaglevSubGraphBuilder;
-  MergePointInterpreterFrameState* merge_state_ = nullptr;
+  LoopMergePointInterpreterFrameState* merge_state_ = nullptr;
   BasicBlock* loop_header_;
 };
 
@@ -513,7 +513,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
 
   // Create a state for the loop header, with two predecessors (the above jump
   // and the back edge), and initialise with the current state.
-  MergePointInterpreterFrameState* loop_state =
+  LoopMergePointInterpreterFrameState* loop_state =
       MergePointInterpreterFrameState::NewForLoop(
           variable_frame_, *dummy_unit_, builder_->is_inline(),
           builder_->graph(), 0, 2, loop_header_liveness, loop_info);
@@ -14533,7 +14533,7 @@ void MaglevGraphBuilder::EndLoopEffects(int loop_header) {
   // TODO(olivf): Update merge states dominated by the loop header with
   // information we know to be unaffected by the loop.
   if (merge_states_[loop_header] && merge_states_[loop_header]->is_loop()) {
-    merge_states_[loop_header]->set_loop_effects(loop_effects_);
+    merge_states_[loop_header]->AsLoopHeader()->set_loop_effects(loop_effects_);
   }
   if (loop_effects_stack_.size() > 1) {
     LoopEffects* inner_effects = loop_effects_;
@@ -14574,7 +14574,7 @@ ReduceResult MaglevGraphBuilder::VisitJumpLoop() {
     ClobberAccumulator();
     if (in_optimistic_peeling_iteration()) {
       // Let's see if we can finish this loop without peeling it.
-      if (!merge_states_[target]->TryMergeLoop(
+      if (!merge_states_[target]->AsLoopHeader()->TryMergeLoop(
               broker(), graph(), is_tracing(), *compilation_unit(),
               current_interpreter_frame_, FinishLoopBlock,
               GetLatestCheckpointedFrame())) {
@@ -14586,9 +14586,9 @@ ReduceResult MaglevGraphBuilder::VisitJumpLoop() {
     }
   } else {
     BasicBlock* block = FinishLoopBlock();
-    merge_states_[target]->MergeLoop(graph(), is_tracing(), *compilation_unit(),
-                                     current_interpreter_frame_, block,
-                                     GetLatestCheckpointedFrame());
+    merge_states_[target]->AsLoopHeader()->MergeLoop(
+        graph(), is_tracing(), *compilation_unit(), current_interpreter_frame_,
+        block, GetLatestCheckpointedFrame());
     block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
     if (is_peeled_loop) {
       DCHECK(!in_peeled_iteration());

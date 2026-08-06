@@ -112,20 +112,19 @@ void MergePointInterpreterFrameState::set_is_resumable_loop(Graph* graph) {
 }
 
 // static
-MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
+LoopMergePointInterpreterFrameState*
+MergePointInterpreterFrameState::NewForLoop(
     const InterpreterFrameState& start_state, const MaglevCompilationUnit& info,
     bool is_inline, Graph* graph, int merge_offset, int predecessor_count,
     const compiler::BytecodeLivenessState* liveness,
     const compiler::LoopInfo* loop_info, bool has_been_peeled) {
-  MergePointInterpreterFrameState* state =
-      info.zone()->New<MergePointInterpreterFrameState>(
+  LoopMergePointInterpreterFrameState* state =
+      info.zone()->New<LoopMergePointInterpreterFrameState>(
           info, merge_offset, predecessor_count, 0,
-          info.zone()->AllocateArray<BasicBlock*>(predecessor_count),
-          BasicBlockType::kLoopHeader, liveness, std::nullopt);
+          info.zone()->AllocateArray<BasicBlock*>(predecessor_count), liveness);
 
   state->bitfield_ =
       kIsLoopWithPeeledIterationBit::update(state->bitfield_, has_been_peeled);
-  state->loop_metadata_ = info.zone()->New<LoopMetadata>();
   if (loop_info->resumable() && !is_inline && !graph->is_osr()) {
     // Note that inlined and OSR'd loops are never resumable:
     //
@@ -496,7 +495,7 @@ void MergePointInterpreterFrameState::Merge(
   DCHECK_LE(predecessors_so_far_, predecessor_count_);
 }
 
-void MergePointInterpreterFrameState::MergeLoop(
+void LoopMergePointInterpreterFrameState::MergeLoop(
     Graph* graph, bool is_tracing, MaglevCompilationUnit& compilation_unit,
     InterpreterFrameState& loop_end_state, BasicBlock* loop_end_block,
     DeoptFrame* backedge_deopt_frame) {
@@ -507,10 +506,10 @@ void MergePointInterpreterFrameState::MergeLoop(
 
   if (graph->compilation_info()->is_turbolev() ||
       graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
-    loop_metadata_->backedge_known_node_aspects =
+    backedge_known_node_aspects_ =
         loop_end_state.known_node_aspects()->Clone(graph->zone());
   }
-  loop_metadata_->backedge_deopt_frame = backedge_deopt_frame;
+  backedge_deopt_frame_ = backedge_deopt_frame;
 
   const MaglevCompilationInfo* info = compilation_unit.info();
   TRACE(TraceColor::kInfo << "Merging loop backedge...");
@@ -526,7 +525,7 @@ void MergePointInterpreterFrameState::MergeLoop(
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
 }
 
-bool MergePointInterpreterFrameState::TryMergeLoop(
+bool LoopMergePointInterpreterFrameState::TryMergeLoop(
     compiler::JSHeapBroker* broker, Graph* graph, bool is_tracing,
     MaglevCompilationUnit& compilation_unit,
     InterpreterFrameState& loop_end_state,
@@ -575,10 +574,10 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
 
   if (graph->compilation_info()->is_turbolev() ||
       graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
-    loop_metadata_->backedge_known_node_aspects =
+    backedge_known_node_aspects_ =
         loop_end_state.known_node_aspects()->Clone(graph->zone());
   }
-  loop_metadata_->backedge_deopt_frame = backedge_deopt_frame;
+  backedge_deopt_frame_ = backedge_deopt_frame;
 
   BasicBlock* loop_end_block = FinishBlock();
   int input = predecessor_count_ - 1;
@@ -598,19 +597,6 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
   return true;
-}
-
-void MergePointInterpreterFrameState::set_loop_effects(
-    LoopEffects* loop_effects) {
-  DCHECK(is_loop());
-  DCHECK_NOT_NULL(loop_metadata_);
-  loop_metadata_->loop_effects = loop_effects;
-}
-
-const LoopEffects* MergePointInterpreterFrameState::loop_effects() {
-  DCHECK(is_loop());
-  DCHECK_NOT_NULL(loop_metadata_);
-  return loop_metadata_->loop_effects;
 }
 
 void MergePointInterpreterFrameState::MergeThrow(

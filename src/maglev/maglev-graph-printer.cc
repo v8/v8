@@ -403,7 +403,8 @@ BlockProcessResult MaglevPrintingVisitor::PreProcessBasicBlock(
     if (block->state()->is_loop_with_peeled_iteration()) {
       os_ << " peeled";
     }
-    if (const LoopEffects* loop_effects = block->state()->loop_effects()) {
+    if (const LoopEffects* loop_effects =
+            block->state()->AsLoopHeader()->loop_effects()) {
       os_ << " (effects:";
       if (loop_effects->unstable_aspects_cleared) {
         os_ << " ua";

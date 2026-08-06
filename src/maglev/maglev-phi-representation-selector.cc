@@ -874,7 +874,8 @@ void MaglevPhiRepresentationSelector::UntagBackedgePhiInput(
 
   DCHECK_EQ(input_phi->value_representation(), ValueRepresentation::kTagged);
 
-  eager_deopt_frame_ = phi->merge_state()->backedge_deopt_frame();
+  eager_deopt_frame_ =
+      phi->merge_state()->AsLoopHeader()->backedge_deopt_frame();
   switch (repr) {
     case ValueRepresentation::kInt32: {
       if (NodeTypeIs(phi->type(), NodeType::kSmi)) {
