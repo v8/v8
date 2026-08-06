@@ -519,22 +519,17 @@ class MergePointInterpreterFrameState {
 
   const MaglevCompilationUnit& unit() const { return *unit_; }
 
-  DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
+  DeoptFrame* backedge_deopt_frame() const {
+    DCHECK(is_loop());
+    DCHECK_NOT_NULL(loop_metadata_);
+    return loop_metadata_->backedge_deopt_frame;
+  }
 
   KnownNodeAspects* backedge_known_node_aspects() const {
     DCHECK(is_loop());
-    DCHECK_NOT_NULL(backedge_known_node_aspects_);
-    return backedge_known_node_aspects_;
-  }
-
-  const compiler::LoopInfo* loop_info() const {
-    DCHECK(loop_metadata_.has_value());
-    DCHECK_NOT_NULL(loop_metadata_->loop_info);
-    return loop_metadata_->loop_info;
-  }
-  void ClearLoopInfo() { loop_metadata_->loop_info = nullptr; }
-  bool HasLoopInfo() const {
-    return loop_metadata_.has_value() && loop_metadata_->loop_info;
+    DCHECK_NOT_NULL(loop_metadata_);
+    DCHECK_NOT_NULL(loop_metadata_->backedge_known_node_aspects);
+    return loop_metadata_->backedge_known_node_aspects;
   }
 
   interpreter::Register catch_block_context_register() const {
@@ -640,29 +635,25 @@ class MergePointInterpreterFrameState {
   KnownNodeAspects* known_node_aspects_ = nullptr;
   compiler::OptionalScopeInfoRef context_scope_info_;
 
-  // The KNA from the backedge (end of the loop). Only used for loop headers.
-  KnownNodeAspects* backedge_known_node_aspects_ = nullptr;
-
   union {
     // {pre_predecessor_alternatives_} is used to keep track of the alternatives
     // of Phi inputs. Once the block has been merged, it's not used anymore.
     Alternatives::List* per_predecessor_alternatives_;
-    // {backedge_deopt_frame_} is used to record the deopt frame for the
-    // backedge, in case we want to insert a deopting conversion during phi
-    // untagging. It is set when visiting the JumpLoop (and will only be set for
-    // loop headers), when the header has already been merged and
-    // {per_predecessor_alternatives_} is thus not used anymore.
-    DeoptFrame* backedge_deopt_frame_;
     // For catch blocks, store the interpreter register holding the context.
     // This will be the same value for all incoming merges.
     interpreter::Register catch_block_context_register_;
   };
 
+  // Allocated only for loop headers.
   struct LoopMetadata {
-    const compiler::LoopInfo* loop_info;
-    const LoopEffects* loop_effects;
+    const LoopEffects* loop_effects = nullptr;
+    // The KNA from the backedge (end of the loop).
+    KnownNodeAspects* backedge_known_node_aspects = nullptr;
+    // The deopt frame for the backedge, in case we want to insert a deopting
+    // conversion during phi untagging. It is set when visiting the JumpLoop.
+    DeoptFrame* backedge_deopt_frame = nullptr;
   };
-  std::optional<LoopMetadata> loop_metadata_ = std::nullopt;
+  LoopMetadata* loop_metadata_ = nullptr;
 };
 
 struct LoopEffects {

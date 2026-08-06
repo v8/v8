@@ -125,7 +125,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
 
   state->bitfield_ =
       kIsLoopWithPeeledIterationBit::update(state->bitfield_, has_been_peeled);
-  state->loop_metadata_ = LoopMetadata{loop_info, nullptr};
+  state->loop_metadata_ = info.zone()->New<LoopMetadata>();
   if (loop_info->resumable() && !is_inline && !graph->is_osr()) {
     // Note that inlined and OSR'd loops are never resumable:
     //
@@ -252,7 +252,8 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
       frame_state_(info, liveness),
       context_scope_info_(context_scope_info),
       per_predecessor_alternatives_(
-          type == BasicBlockType::kExceptionHandlerStart
+          type == BasicBlockType::kExceptionHandlerStart ||
+                  type == BasicBlockType::kUnusedExceptionHandlerStart
               ? nullptr
               : info.zone()->AllocateArray<Alternatives::List>(
                     frame_state_.size(info))) {}
@@ -506,10 +507,10 @@ void MergePointInterpreterFrameState::MergeLoop(
 
   if (graph->compilation_info()->is_turbolev() ||
       graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
-    backedge_known_node_aspects_ =
+    loop_metadata_->backedge_known_node_aspects =
         loop_end_state.known_node_aspects()->Clone(graph->zone());
   }
-  backedge_deopt_frame_ = backedge_deopt_frame;
+  loop_metadata_->backedge_deopt_frame = backedge_deopt_frame;
 
   const MaglevCompilationInfo* info = compilation_unit.info();
   TRACE(TraceColor::kInfo << "Merging loop backedge...");
@@ -523,22 +524,6 @@ void MergePointInterpreterFrameState::MergeLoop(
   });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
-
-  // We have to clear the LoopInfo (which is used to record more precise use
-  // hints for Phis) for 2 reasons:
-  //
-  //  - Phi::RecordUseReprHint checks if a use is inside the loop defining the
-  //    Phi by checking if the LoopInfo of the loop Phi "Contains" the current
-  //    bytecode offset, but this will be wrong if the Phi is in a function that
-  //    was inlined (because the LoopInfo contains the first and last bytecode
-  //    offset of the loop **in its own function**).
-  //
-  //  - LoopInfo is obtained from the {header_to_info_} member of
-  //    BytecodeAnalysis, but the BytecodeAnalysis is a member of the
-  //    MaglevGraphBuilder, and thus gets destructed when the MaglevGraphBuilder
-  //    created for inlining is destructed. LoopInfo would then become a stale
-  //    pointer.
-  ClearLoopInfo();
 }
 
 bool MergePointInterpreterFrameState::TryMergeLoop(
@@ -559,7 +544,6 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
           *known_node_aspects_)) {
     const MaglevCompilationInfo* info = compilation_unit.info();
     TRACE(TraceColor::kRed << "Merging failed, peeling loop instead... ");
-    ClearLoopInfo();
     return false;
   }
 
@@ -586,16 +570,15 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     }
   });
   if (!phis_can_merge) {
-    ClearLoopInfo();
     return false;
   }
 
   if (graph->compilation_info()->is_turbolev() ||
       graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
-    backedge_known_node_aspects_ =
+    loop_metadata_->backedge_known_node_aspects =
         loop_end_state.known_node_aspects()->Clone(graph->zone());
   }
-  backedge_deopt_frame_ = backedge_deopt_frame;
+  loop_metadata_->backedge_deopt_frame = backedge_deopt_frame;
 
   BasicBlock* loop_end_block = FinishBlock();
   int input = predecessor_count_ - 1;
@@ -614,20 +597,19 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
-  ClearLoopInfo();
   return true;
 }
 
 void MergePointInterpreterFrameState::set_loop_effects(
     LoopEffects* loop_effects) {
   DCHECK(is_loop());
-  DCHECK(loop_metadata_.has_value());
+  DCHECK_NOT_NULL(loop_metadata_);
   loop_metadata_->loop_effects = loop_effects;
 }
 
 const LoopEffects* MergePointInterpreterFrameState::loop_effects() {
   DCHECK(is_loop());
-  DCHECK(loop_metadata_.has_value());
+  DCHECK_NOT_NULL(loop_metadata_);
   return loop_metadata_->loop_effects;
 }
 
