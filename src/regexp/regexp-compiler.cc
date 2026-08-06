@@ -6014,8 +6014,14 @@ EmitResult ActionNode::Emit(Compiler* compiler, Trace* trace) {
       return EmitResult::Success();
     }
     case MODIFY_FLAGS: {
-      compiler->set_flags(flags());
+      // Restore on the way out, like FillInBMInfo and GetQuickCheckDetails do.
+      // The graph also carries a ModifyFlags node that restores the outer
+      // flags, but a branching body shares that one node between its
+      // alternatives, so it is not necessarily emitted last.
+      const Flags outer_flags = compiler->flags();
+      compiler->set_flags(flags());  // The group's flags, from this node.
       RETURN_IF_ERROR(on_success()->Emit(compiler, trace));
+      compiler->set_flags(outer_flags);
       break;
     }
     default:
