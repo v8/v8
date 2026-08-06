@@ -4091,6 +4091,10 @@ void LinearScanAllocator::FindFreeRegistersForRange(
       while (aliases--) {
         int aliased_reg = alias_base_index + aliases;
         positions[aliased_reg] = LifetimePosition::GapFromInstructionIndex(0);
+        TRACE("Register %s is free until pos %d (1) due to %d\n",
+              RegisterName(aliased_reg, rep),
+              LifetimePosition::GapFromInstructionIndex(0).value(),
+              cur_active->TopLevel()->vreg());
       }
     }
   }
@@ -4125,6 +4129,8 @@ void LinearScanAllocator::FindFreeRegistersForRange(
           int aliased_reg = alias_base_index + aliases;
           positions[aliased_reg] =
               std::min(positions[aliased_reg], next_intersection);
+          TRACE("Register %s is free until pos %d (2)\n",
+                RegisterName(aliased_reg, rep), positions[aliased_reg].value());
         }
       }
     }
