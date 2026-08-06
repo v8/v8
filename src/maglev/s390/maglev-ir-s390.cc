@@ -1056,9 +1056,7 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
 
 void ReduceInterruptBudgetForLoop::SetValueLocationConstraints() {
   UseRegister(FeedbackCellInput());
-  if (try_osr()) {
-    set_temporaries_needed(3);
-  }
+  set_temporaries_needed(try_osr() ? 3 : 1);
 }
 void ReduceInterruptBudgetForLoop::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
