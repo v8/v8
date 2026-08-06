@@ -806,12 +806,11 @@ DirectHandle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(
       __ jmp(&return_v0);
 
       __ bind(&stack_limit_hit);
-      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a0);
       // Without a backtrack stack, backtrack_stackpointer() was never
       // initialized above; storing it would corrupt the saved stack pointer
       // (regexp::StackScope verifies it is unchanged across the exec call).
       if (backtrack_stack_used()) {
-        StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
+        StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a0);
       }
       CallCheckStackGuardState(a0, extra_space_for_variables);
       // If returned value is non-zero, we exit with the returned value as
