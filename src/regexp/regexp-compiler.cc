@@ -350,7 +350,7 @@ Compiler::CompilationResult Compiler::Assemble(
   };
 
   const Flags flags_before_emit = flags_;
-  ZoneVector<Node*> work_list(zone());
+  ZoneVector<WorkItem> work_list(zone());
   work_list_ = &work_list;
   Label fail;
   macro_assembler_->set_fail_label(&fail);
@@ -373,11 +373,13 @@ Compiler::CompilationResult Compiler::Assemble(
   macro_assembler_->BindJumpTarget(&fail);
   macro_assembler_->Fail();
   while (!work_list.empty()) {
-    Node* node = work_list.back();
+    WorkItem item = work_list.back();
+    Node* node = item.node;
     TRACE_WITH_NODE(this, "Popping from worklist ", node);
     work_list.pop_back();
     node->set_on_work_list(false);
     if (!node->label()->is_bound()) {
+      set_flags(item.flags);
       if (node->Emit(this, &new_trace).IsError()) {
         work_list_ = nullptr;
         return ReportError();
@@ -6014,14 +6016,8 @@ EmitResult ActionNode::Emit(Compiler* compiler, Trace* trace) {
       return EmitResult::Success();
     }
     case MODIFY_FLAGS: {
-      // Restore on the way out, like FillInBMInfo and GetQuickCheckDetails do.
-      // The graph also carries a ModifyFlags node that restores the outer
-      // flags, but a branching body shares that one node between its
-      // alternatives, so it is not necessarily emitted last.
-      const Flags outer_flags = compiler->flags();
-      compiler->set_flags(flags());  // The group's flags, from this node.
+      compiler->set_flags(flags());
       RETURN_IF_ERROR(on_success()->Emit(compiler, trace));
-      compiler->set_flags(outer_flags);
       break;
     }
     default:

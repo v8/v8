@@ -93,3 +93,17 @@ test(/(?!(?-i:x|y))[K]/i, ['K', 'k']);
 test(
     /^K(?-i:(?:x|y))(?:a|b)(?:c|d)(?:e|f)(?:g|h)/i,
     ['kxaceg', 'KxaceG', 'kxACEH'], ['kXaceg', 'KXaceg']);
+
+// Nodes inside a modifier group deferred to the work list must be compiled with
+// the group's inner flags, not the outer flags.
+test(
+    /^(?i:(?:a|b)(?:c|d)(?:e|f)(?:g|h)(?:i|j)(?:k|l)(?:m|n)X)/,
+    ['acegikmx', 'acegikmX', 'bdfhjlnx', 'bdfhjlnX'],
+    ['acegikmy', 'bdfhjlny']);
+
+// Symmetrically, nodes inside a (?-i:...) group under outer /i must compile
+// case-sensitively even when deferred.
+test(
+    /^(?-i:(?:a|b)(?:c|d)(?:e|f)(?:g|h)(?:i|j)(?:k|l)(?:m|n)x)/i,
+    ['acegikmx', 'bdfhjlnx'],
+    ['acegikmX', 'bdfhjlnX']);

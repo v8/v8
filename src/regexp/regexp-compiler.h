@@ -641,10 +641,15 @@ class V8_EXPORT_PRIVATE Compiler {
   // lead surrogate and start matching from there.
   Node* OptionallyStepBackToLeadSurrogate(Node* on_success);
 
+  struct WorkItem {
+    Node* node;
+    Flags flags;
+  };
+
   inline void AddWork(Node* node) {
     if (!node->on_work_list() && !node->label()->is_bound()) {
       node->set_on_work_list(true);
-      work_list_->push_back(node);
+      work_list_->push_back({node, flags()});
     }
   }
 
@@ -721,7 +726,7 @@ class V8_EXPORT_PRIVATE Compiler {
   int next_register_;
   int unicode_lookaround_stack_register_;
   int unicode_lookaround_position_register_;
-  ZoneVector<Node*>* work_list_;
+  ZoneVector<WorkItem>* work_list_;
   int recursion_depth_;
   Flags flags_;
   RegExpMacroAssembler* macro_assembler_;
