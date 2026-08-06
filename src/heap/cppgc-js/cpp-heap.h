@@ -124,8 +124,6 @@ class V8_EXPORT_PRIVATE CppHeap final
   void StartDetachingIsolate();
   void DetachIsolate();
 
-  void Terminate();
-
   void CollectCustomSpaceStatisticsAtLastGC(
       std::vector<cppgc::CustomSpaceIndex>,
       std::unique_ptr<CustomSpaceStatisticsReceiver>);
@@ -287,7 +285,6 @@ class V8_EXPORT_PRIVATE CppHeap final
   std::optional<v8::base::RandomNumberGenerator> allocation_timeout_rng_;
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-  bool already_terminated_ = false;
   bool is_detached_ = true;
 
   friend class MetricRecorderAdapter;

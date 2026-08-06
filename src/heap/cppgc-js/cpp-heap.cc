@@ -116,8 +116,6 @@ cppgc::HeapHandle& CppHeap::GetHeapHandle() {
   return *internal::CppHeap::From(this);
 }
 
-void CppHeap::Terminate() { internal::CppHeap::From(this)->Terminate(); }
-
 cppgc::HeapStatistics CppHeap::CollectStatistics(
     cppgc::HeapStatistics::DetailLevel detail_level) {
   return internal::CppHeap::From(this)->AsBase().CollectStatistics(
@@ -538,14 +536,6 @@ CppHeap::CppHeap(
 }
 
 CppHeap::~CppHeap() {
-  Terminate();
-}
-
-void CppHeap::Terminate() {
-  // TODO(ahaas): Remove `already_terminated_` once the V8 API
-  // CppHeap::Terminate has been removed.
-  if (already_terminated_) return;
-  already_terminated_ = true;
   // Must not be attached to a heap when invoking termination GCs.
   CHECK(!isolate_);
   // Gracefully terminate the C++ heap invoking destructors.
