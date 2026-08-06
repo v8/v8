@@ -1215,11 +1215,6 @@ ProcessResult MaglevGraphOptimizer::VisitGeneratorStore(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTryOnStackReplacement(
-    TryOnStackReplacement* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
 
 ProcessResult MaglevGraphOptimizer::VisitStoreMap(
     StoreMap* node, const ProcessingState& state) {

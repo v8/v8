@@ -5925,11 +5925,6 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::TryOnStackReplacement*,
-                                const maglev::ProcessingState&) {
-    // Turboshaft is the top tier compiler, so we never need to OSR from it.
-    return maglev::ProcessResult::kContinue;
-  }
   maglev::ProcessResult Process(maglev::ReduceInterruptBudgetForReturn*,
                                 const maglev::ProcessingState&) {
     // No need to update the interrupt budget once we reach Turboshaft.

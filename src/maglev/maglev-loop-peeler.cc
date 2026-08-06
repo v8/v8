@@ -197,7 +197,6 @@ Node* CloneNodeWithRemap(Node* src, const ValueMap& vmap, Zone* zone) {
 // loop's back-edge and produce no value used elsewhere.
 bool IsSkippableInPeel(Node* node) {
   return node->Is<HandleNoHeapWritesInterrupt>() ||
-         node->Is<TryOnStackReplacement>() ||
          node->Is<ReduceInterruptBudgetForLoop>();
 }
 

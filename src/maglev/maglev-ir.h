@@ -473,7 +473,6 @@ class ExceptionHandlerInfo;
   V(MajorGCForCompilerTesting)                \
   V(FunctionEntryStackCheck)                  \
   V(GeneratorStore)                           \
-  V(TryOnStackReplacement)                    \
   V(StoreMap)                                 \
   V(StoreFixedArrayElementWithWriteBarrier)   \
   V(StoreFixedArrayElementNoWriteBarrier)     \
@@ -5100,40 +5099,6 @@ class GeneratorStore : public VarargsNodeT<2, GeneratorStore> {
  private:
   const int suspend_id_;
   const int bytecode_offset_;
-};
-
-class TryOnStackReplacement : public FixedInputNodeT<1, TryOnStackReplacement> {
- public:
-  explicit TryOnStackReplacement(uint64_t bitfield, int32_t loop_depth,
-                                 FeedbackSlot feedback_slot,
-                                 BytecodeOffset osr_offset,
-                                 MaglevCompilationUnit* unit)
-      : Base(bitfield),
-        loop_depth_(loop_depth),
-        feedback_slot_(feedback_slot),
-        osr_offset_(osr_offset),
-        unit_(unit) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::DeferredCall() | OpProperties::EagerDeopt() |
-      OpProperties::CanAllocate() | OpProperties::NotIdempotent();
-  DECLARE_INPUTS(Closure)
-  DECLARE_INPUT_TYPES(Tagged)
-
-  Input closure() { return Node::input(0); }
-
-  const MaglevCompilationUnit* unit() const { return unit_; }
-
-  int MaxCallStackArgs() const;
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-
- private:
-  // For OSR.
-  const int32_t loop_depth_;
-  const FeedbackSlot feedback_slot_;
-  const BytecodeOffset osr_offset_;
-  MaglevCompilationUnit* const unit_;
 };
 
 class ForInPrepare : public FixedInputValueNodeT<2, ForInPrepare> {
@@ -11302,9 +11267,16 @@ class ReduceInterruptBudgetForLoop
     : public FixedInputNodeT<1, ReduceInterruptBudgetForLoop> {
  public:
   explicit ReduceInterruptBudgetForLoop(uint64_t bitfield, int amount,
-                                        BytecodeOffset osr_offset)
-      : Base(bitfield), amount_(amount), osr_offset_(osr_offset) {
+                                        BytecodeOffset osr_offset,
+                                        int loop_depth,
+                                        FeedbackSlot feedback_slot)
+      : Base(bitfield),
+        amount_(amount),
+        osr_offset_(osr_offset),
+        loop_depth_(loop_depth),
+        feedback_slot_(feedback_slot) {
     DCHECK_GT(amount, 0);
+    DCHECK_EQ(osr_offset == BytecodeOffset::None(), !try_osr());
   }
 
   DECLARE_INPUTS(FeedbackCell)
@@ -11312,10 +11284,14 @@ class ReduceInterruptBudgetForLoop
 
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::CanAllocate() |
-      OpProperties::LazyDeopt() | OpProperties::NotIdempotent();
+      OpProperties::LazyDeopt() | OpProperties::EagerDeopt() |
+      OpProperties::NotIdempotent();
 
   int amount() const { return amount_; }
   BytecodeOffset osr_offset() const { return osr_offset_; }
+  int loop_depth() const { return loop_depth_; }
+  FeedbackSlot feedback_slot() const { return feedback_slot_; }
+  bool try_osr() const { return !feedback_slot_.IsInvalid(); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -11325,6 +11301,8 @@ class ReduceInterruptBudgetForLoop
  private:
   const int amount_;
   const BytecodeOffset osr_offset_;
+  const int loop_depth_;
+  const FeedbackSlot feedback_slot_;
 };
 
 class ReduceInterruptBudgetForReturn

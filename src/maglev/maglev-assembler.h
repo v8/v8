@@ -860,6 +860,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   void ResetLastYoungAllocation();
 
+  void TryOnStackReplacement(ReduceInterruptBudgetForLoop* node,
+                             FeedbackSlot feedback_slot);
+
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();
   }

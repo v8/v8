@@ -1056,11 +1056,17 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
 
 void ReduceInterruptBudgetForLoop::SetValueLocationConstraints() {
   UseRegister(FeedbackCellInput());
+  if (try_osr()) {
+    set_temporaries_needed(3);
+  }
 }
 void ReduceInterruptBudgetForLoop::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
   GenerateReduceInterruptBudget(masm, this, ToRegister(FeedbackCellInput()),
                                 ReduceInterruptBudgetType::kLoop, amount());
+  if (try_osr()) {
+    masm->TryOnStackReplacement(this, feedback_slot());
+  }
 }
 
 int ReduceInterruptBudgetForReturn::MaxCallStackArgs() const { return 1; }

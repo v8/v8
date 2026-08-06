@@ -724,7 +724,6 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
 }
 
 namespace {
-
 Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
                                              DirectHandle<JSFunction> function,
                                              BytecodeOffset osr_offset) {
@@ -766,7 +765,6 @@ Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
   return CompileOptimizedOSR(isolate, function, CodeKind::TURBOFAN_JS,
                              osr_offset);
 }
-
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
