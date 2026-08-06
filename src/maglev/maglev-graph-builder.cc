@@ -6729,7 +6729,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
       ValueNode* receiver_map;
       GET_VALUE_OR_ABORT(receiver_map, BuildLoadMap(object));
       RETURN_IF_ABORT(AddNewNode<CheckDynamicValue>(
-          {receiver_map, current_for_in_state.cache_type},
+          {receiver_map, current_for_in_state.cache_type}, true,
           DeoptimizeReason::kWrongMapDynamic));
       if (current_for_in_state.receiver == object) {
         current_for_in_state.receiver_needs_map_check = false;
@@ -10620,7 +10620,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
       ValueNode* receiver_map;
       GET_VALUE_OR_ABORT(receiver_map, BuildLoadMap(receiver));
       RETURN_IF_ABORT(AddNewNode<CheckDynamicValue>(
-          {receiver_map, current_for_in_state.cache_type},
+          {receiver_map, current_for_in_state.cache_type}, true,
           DeoptimizeReason::kWrongMapDynamic));
       current_for_in_state.receiver_needs_map_check = false;
     }
@@ -15280,8 +15280,9 @@ ReduceResult MaglevGraphBuilder::VisitForInPrepare() {
       // the receiver's Map or a FixedArray).
       ValueNode* receiver_map;
       GET_VALUE_OR_ABORT(receiver_map, BuildLoadMap(receiver));
-      RETURN_IF_ABORT(AddNewNode<CheckDynamicValue>(
-          {receiver_map, enumerator}, DeoptimizeReason::kWrongMapDynamic));
+      RETURN_IF_ABORT(
+          AddNewNode<CheckDynamicValue>({receiver_map, enumerator}, true,
+                                        DeoptimizeReason::kWrongMapDynamic));
 
       ValueNode* descriptor_array;
       GET_VALUE_OR_ABORT(
@@ -15367,8 +15368,9 @@ ReduceResult MaglevGraphBuilder::VisitForInNext() {
       // Ensure that the expected map still matches that of the {receiver}.
       ValueNode* receiver_map;
       GET_VALUE_OR_ABORT(receiver_map, BuildLoadMap(receiver));
-      RETURN_IF_ABORT(AddNewNode<CheckDynamicValue>(
-          {receiver_map, cache_type}, DeoptimizeReason::kWrongMapDynamic));
+      RETURN_IF_ABORT(
+          AddNewNode<CheckDynamicValue>({receiver_map, cache_type}, true,
+                                        DeoptimizeReason::kWrongMapDynamic));
       ValueNode* key;
       GET_VALUE_OR_ABORT(
           key, BuildLoadFixedArrayElement(cache_array, index,

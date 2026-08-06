@@ -296,6 +296,34 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_CHECK(Symbol)
 #undef PROCESS_CHECK
 
+  // Re-establish the value knowledge implied by a value check, mirroring what
+  // MaglevReducer::SetKnownValue records when the check is first emitted.
+  ProcessResult RecordCheckedValue(ValueNode* node, ValueNode* constant,
+                                   NodeType type) {
+    if (IsConstantNode(node->opcode())) return ProcessResult::kContinue;
+    // Keep an already known alternative: it was proven by a dominating check,
+    // so it still holds (and might be a stronger one, like a
+    // CheckedInternalizedString).
+    NodeInfo* info = GetOrCreateInfoFor(node);
+    if (info->alternative().checked_value() == nullptr) {
+      info->alternative().set_checked_value(constant);
+    }
+    return RecordType(node, type);
+  }
+
+  ProcessResult ProcessNode(CheckValue* node) {
+    return RecordCheckedValue(node->input_node(0),
+                              graph_->GetConstant(node->value()),
+                              StaticTypeForConstant(broker(), node->value()));
+  }
+
+  ProcessResult ProcessNode(CheckRootConstant* node) {
+    if (!node->expected()) return ProcessResult::kContinue;
+    RootConstant* constant = graph_->GetRootConstant(node->root_index());
+    return RecordCheckedValue(node->input_node(0), constant,
+                              constant->type(broker()));
+  }
+
   ProcessResult ProcessNode(CheckNumber* node) {
     switch (node->mode()) {
       case Object::Conversion::kToNumber:

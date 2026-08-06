@@ -439,6 +439,7 @@ class ExceptionHandlerInfo;
   V(CheckHoleyFloat64IsSmi)                   \
   V(CheckHeapObject)                          \
   V(CheckInt32Condition)                      \
+  V(CheckFloat64Condition)                    \
   V(CheckCacheIndicesNotCleared)              \
   V(CheckJSDataViewBounds)                    \
   V(CheckTypedArrayBounds)                    \
@@ -459,6 +460,9 @@ class ExceptionHandlerInfo;
   V(CheckStringOrStringWrapper)               \
   V(CheckStringOrOddball)                     \
   V(CheckSymbol)                              \
+  V(CheckToBoolean)                           \
+  V(CheckRootConstant)                        \
+  V(CheckUndetectable)                        \
   V(CheckValue)                               \
   V(CheckValueEqualsInt32)                    \
   V(CheckFloat64SameValue)                    \
@@ -7233,6 +7237,73 @@ class CheckMapsWithAlreadyLoadedMap
   const compiler::ZoneRefSet<Map> maps_;
 };
 
+// Deopts unless (input is the given root) == expected.
+class CheckRootConstant : public FixedInputNodeT<1, CheckRootConstant> {
+ public:
+  explicit CheckRootConstant(uint64_t bitfield, RootIndex root_index,
+                             bool expected, DeoptimizeReason reason)
+      : Base(ExpectedField::update(bitfield | ReasonField::encode(reason),
+                                   expected)),
+        root_index_(root_index) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  DECLARE_UNOP(Tagged)
+
+  RootIndex root_index() const { return root_index_; }
+  bool expected() const { return ExpectedField::decode(bitfield()); }
+
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing() {
+    // Don't need to decompress to compare reference equality.
+  }
+#endif
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  auto options() const {
+    return std::tuple{root_index_, expected(), deoptimize_reason()};
+  }
+
+  DEOPTIMIZE_REASON_FIELD
+
+ private:
+  using ExpectedField = ReasonField::Next<bool, 1>;
+
+  const RootIndex root_index_;
+};
+
+// Deopts unless (input is undetectable) == expected.
+class CheckUndetectable : public FixedInputNodeT<1, CheckUndetectable> {
+ public:
+  explicit CheckUndetectable(uint64_t bitfield, CheckType check_type,
+                             bool expected, DeoptimizeReason reason)
+      : Base(ExpectedField::update(
+            CheckTypeBitField::update(bitfield | ReasonField::encode(reason),
+                                      check_type),
+            expected)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  DECLARE_UNOP(Tagged)
+
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+  bool expected() const { return ExpectedField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  auto options() const {
+    return std::tuple{check_type(), expected(), deoptimize_reason()};
+  }
+
+  DEOPTIMIZE_REASON_FIELD
+
+ private:
+  using CheckTypeBitField = ReasonField::Next<CheckType, 1>;
+  using ExpectedField = CheckTypeBitField::Next<bool, 1>;
+};
+
 class CheckValue : public FixedInputNodeT<1, CheckValue> {
  public:
   explicit CheckValue(uint64_t bitfield, const compiler::HeapObjectRef value,
@@ -7338,13 +7409,18 @@ class CheckValueEqualsString
   const compiler::InternalizedStringRef value_;
 };
 
+// Deopts unless (the two inputs are reference equal) == expected.
 class CheckDynamicValue : public FixedInputNodeT<2, CheckDynamicValue> {
  public:
-  explicit CheckDynamicValue(uint64_t bitfield, DeoptimizeReason reason)
-      : Base(bitfield | ReasonField::encode(reason)) {}
+  explicit CheckDynamicValue(uint64_t bitfield, bool expected,
+                             DeoptimizeReason reason)
+      : Base(ExpectedField::update(bitfield | ReasonField::encode(reason),
+                                   expected)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   DECLARE_BINOP(Tagged, Tagged)
+
+  bool expected() const { return ExpectedField::decode(bitfield()); }
 
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {
@@ -7356,9 +7432,12 @@ class CheckDynamicValue : public FixedInputNodeT<2, CheckDynamicValue> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  auto options() const { return std::tuple{deoptimize_reason()}; }
+  auto options() const { return std::tuple{expected(), deoptimize_reason()}; }
 
   DEOPTIMIZE_REASON_FIELD
+
+ private:
+  using ExpectedField = ReasonField::Next<bool, 1>;
 };
 
 class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
@@ -7432,6 +7511,37 @@ class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
 
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
+};
+
+// Deopts unless ToBoolean(condition) == expected.
+class CheckToBoolean : public FixedInputNodeT<1, CheckToBoolean> {
+ public:
+  explicit CheckToBoolean(uint64_t bitfield, CheckType check_type,
+                          bool expected, DeoptimizeReason reason)
+      : Base(ExpectedField::update(
+            CheckTypeBitField::update(bitfield | ReasonField::encode(reason),
+                                      check_type),
+            expected)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  DECLARE_INPUTS(Condition)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+  bool expected() const { return ExpectedField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  auto options() const {
+    return std::tuple{check_type(), expected(), deoptimize_reason()};
+  }
+
+  DEOPTIMIZE_REASON_FIELD
+
+ private:
+  using CheckTypeBitField = ReasonField::Next<CheckType, 1>;
+  using ExpectedField = CheckTypeBitField::Next<bool, 1>;
 };
 
 class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
@@ -7766,6 +7876,38 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
       ReasonField::Next<AssertCondition, base::bits::WhichPowerOfTwo<size_t>(
                                              base::bits::RoundUpToPowerOfTwo32(
                                                  kNumAssertConditions))>;
+};
+
+// Deopts unless ((left <operation> right) == expected), where NaN comparisons
+// evaluate to false (so with expected == true, NaN operands deopt; with
+// expected == false, they pass).
+class CheckFloat64Condition : public FixedInputNodeT<2, CheckFloat64Condition> {
+ public:
+  explicit CheckFloat64Condition(uint64_t bitfield, Operation operation,
+                                 bool expected, DeoptimizeReason reason)
+      : Base(ExpectedField::update(bitfield | ReasonField::encode(reason),
+                                   expected)),
+        operation_(operation) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  DECLARE_BINOP(Float64, Float64)
+
+  Operation operation() const { return operation_; }
+  bool expected() const { return ExpectedField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  auto options() const {
+    return std::tuple{operation_, expected(), deoptimize_reason()};
+  }
+
+  DEOPTIMIZE_REASON_FIELD
+
+ private:
+  using ExpectedField = ReasonField::Next<bool, 1>;
+  const Operation operation_;
 };
 
 // AssumeMap is a hint for Turboshaft's LateLoadElimination: it tells it that

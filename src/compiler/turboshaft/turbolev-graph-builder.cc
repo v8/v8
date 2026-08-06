@@ -3013,10 +3013,61 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::CheckDynamicValue* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    __ DeoptimizeIfNot(
-        __ TaggedEqual(Map(node->LeftInput()), Map(node->RightInput())),
-        frame_state, node->deoptimize_reason(),
-        node->eager_deopt_info()->feedback_to_update());
+    V<Word32> condition =
+        __ TaggedEqual(Map(node->LeftInput()), Map(node->RightInput()));
+    if (node->expected()) {
+      __ DeoptimizeIfNot(condition, frame_state, node->deoptimize_reason(),
+                         node->eager_deopt_info()->feedback_to_update());
+    } else {
+      __ DeoptimizeIf(condition, frame_state, node->deoptimize_reason(),
+                      node->eager_deopt_info()->feedback_to_update());
+    }
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckFloat64Condition* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    V<Word32> condition =
+        ConvertCompare<Float64>(node->LeftInput(), node->RightInput(),
+                                node->operation(), Sign::kSigned);
+    if (node->expected()) {
+      __ DeoptimizeIfNot(condition, frame_state, node->deoptimize_reason(),
+                         node->eager_deopt_info()->feedback_to_update());
+    } else {
+      __ DeoptimizeIf(condition, frame_state, node->deoptimize_reason(),
+                      node->eager_deopt_info()->feedback_to_update());
+    }
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckRootConstant* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    V<Word32> condition = RootEqual(node->ValueInput(), node->root_index());
+    if (node->expected()) {
+      __ DeoptimizeIfNot(condition, frame_state, node->deoptimize_reason(),
+                         node->eager_deopt_info()->feedback_to_update());
+    } else {
+      __ DeoptimizeIf(condition, frame_state, node->deoptimize_reason(),
+                      node->eager_deopt_info()->feedback_to_update());
+    }
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckUndetectable* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    ObjectIsOp::InputAssumptions assumption =
+        node->check_type() == maglev::CheckType::kCheckHeapObject
+            ? ObjectIsOp::InputAssumptions::kNone
+            : ObjectIsOp::InputAssumptions::kHeapObject;
+    V<Word32> condition = __ ObjectIs(
+        Map(node->ValueInput()), ObjectIsOp::Kind::kUndetectable, assumption);
+    if (node->expected()) {
+      __ DeoptimizeIfNot(condition, frame_state, node->deoptimize_reason(),
+                         node->eager_deopt_info()->feedback_to_update());
+    } else {
+      __ DeoptimizeIf(condition, frame_state, node->deoptimize_reason(),
+                      node->eager_deopt_info()->feedback_to_update());
+    }
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckedSmiSizedInt32* node,
@@ -3041,6 +3092,23 @@ class GraphBuildingNodeProcessor {
     __ DeoptimizeIf(RootEqual(node->ObjectInput(), RootIndex::kUndefinedValue),
                     frame_state, DeoptimizeReason::kHoleOrUndefined,
                     node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckToBoolean* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    TruncateJSPrimitiveToUntaggedOp::InputAssumptions assumption =
+        node->check_type() == maglev::CheckType::kCheckHeapObject
+            ? TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject
+            : TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kHeapObject;
+    V<Word32> condition = ToBit(node->ConditionInput(), assumption);
+    if (node->expected()) {
+      __ DeoptimizeIfNot(condition, frame_state, node->deoptimize_reason(),
+                         node->eager_deopt_info()->feedback_to_update());
+    } else {
+      __ DeoptimizeIf(condition, frame_state, node->deoptimize_reason(),
+                      node->eager_deopt_info()->feedback_to_update());
+    }
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(

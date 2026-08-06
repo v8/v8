@@ -18,6 +18,7 @@ enum MaglevPhase {
   kNone,
   kMaglevGraphBuilding,
   kInlining,
+  kColdBranchFolding,
   kLoopPeeling,
   kTruncationPropagation,
   kTruncation,
@@ -42,6 +43,8 @@ inline const char* PhaseName(MaglevPhase phase) {
       return "Maglev graph building";
     case kInlining:
       return "Non-eager inlining";
+    case kColdBranchFolding:
+      return "Cold branch folding";
     case kLoopPeeling:
       return "Non-eager loop peeling";
     case kTruncationPropagation:

@@ -324,9 +324,7 @@ template <typename NodeT>
 void MaglevReducer<BaseT>::AttachDeoptCheckpoint(NodeT* node) {
   if constexpr (NodeT::kProperties.is_deopt_checkpoint()) {
     static_assert(ReducerBaseWithEagerDeopt<BaseT>);
-    DeoptFrame* top_frame = base_->GetDeoptFrameForEagerDeopt();
-    graph_->AddEagerTopFrame(top_frame);
-    node->SetEagerDeoptInfo(zone(), top_frame);
+    graph_->AttachEagerDeoptInfo(node, base_->GetDeoptFrameForEagerDeopt());
   }
 }
 
@@ -335,9 +333,8 @@ template <typename NodeT>
 void MaglevReducer<BaseT>::AttachEagerDeoptInfo(NodeT* node) {
   if constexpr (NodeT::kProperties.can_eager_deopt()) {
     static_assert(ReducerBaseWithEagerDeopt<BaseT>);
-    DeoptFrame* top_frame = base_->GetDeoptFrameForEagerDeopt();
-    graph_->AddEagerTopFrame(top_frame);
-    node->SetEagerDeoptInfo(zone(), top_frame, current_speculation_feedback_);
+    graph_->AttachEagerDeoptInfo(node, base_->GetDeoptFrameForEagerDeopt(),
+                                 current_speculation_feedback_);
   }
 }
 
@@ -1478,6 +1475,7 @@ ReduceResult MaglevReducer<BaseT>::EmitAbruptBlockEnd(
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::EmitUnconditionalDeopt(
     DeoptimizeReason reason) {
+  graph()->set_may_have_cold_branches();
   return EmitAbruptBlockEnd<Deopt>({}, reason);
 }
 

@@ -719,6 +719,11 @@ DEFINE_BOOL(maglev_pretenure_store_values, true,
 DEFINE_BOOL(maglev_poly_calls, true, "Support (inlining) polymorphic calls")
 DEFINE_BOOL(maglev_truncation, true, "Enable Maglev truncation pass")
 DEFINE_DEVELOPER_FLAG(trace_maglev_truncation, "trace maglev truncation pass")
+DEFINE_BOOL(maglev_fold_cold_branches, true,
+            "Fold branches whose target block only contains an unconditional "
+            "deopt into a conditional deopt check")
+DEFINE_DEVELOPER_FLAG(trace_maglev_fold_cold_branches,
+                      "trace maglev cold branch folding")
 
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)

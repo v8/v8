@@ -216,6 +216,18 @@ class Graph final : public ZoneObject {
     eager_deopt_top_frames_.insert(frame);
   }
 
+  // Attaches {top_frame} to {node} as its eager deopt frame. The frame is
+  // registered in eager_deopt_top_frames_, which phi untagging uses to patch
+  // frames referencing phis; every frame an eager deopt info points to must be
+  // in there. Passing an already registered frame (when reusing the frame of a
+  // node being replaced) is fine, since the frames are kept in a set.
+  void AttachEagerDeoptInfo(
+      NodeBase* node, DeoptFrame* top_frame,
+      compiler::FeedbackSource feedback = compiler::FeedbackSource()) {
+    AddEagerTopFrame(top_frame);
+    node->SetEagerDeoptInfo(zone(), top_frame, feedback);
+  }
+
   const ZoneAbslFlatHashMap<DeoptFrame*, std::pair<interpreter::Register, int>>&
   lazy_deopt_top_frames() const {
     return lazy_deopt_top_frames_;
@@ -300,6 +312,23 @@ class Graph final : public ZoneObject {
     may_have_truncation_ = value;
   }
   bool may_have_truncation() const { return may_have_truncation_; }
+
+  void set_may_have_cold_branches() { may_have_cold_branches_ = true; }
+  bool may_have_cold_branches() const { return may_have_cold_branches_; }
+
+  // Folds conditional branches where one successor block does nothing but
+  // eagerly deopt (typically a cold branch whose body has insufficient
+  // feedback) into an equivalent check node followed by an unconditional
+  // jump:
+  //
+  //   BranchIfX(cond) -> b1, b2            CheckNotX(cond)  // deopts iff cond
+  //   b1: Deopt(reason)          =====>    Jump b2
+  //   b2: ...                              b2: ...
+  //
+  // This linearizes the hot path and makes the condition visible to
+  // node-based optimizations (CSE, known-node-aspects) that do not reason
+  // about branches.
+  void FoldColdBranches();
 
   // Resolve the scope info of a context value.
   // An empty result means we don't statically know the context's scope.
@@ -425,6 +454,7 @@ class Graph final : public ZoneObject {
   bool has_resumable_generator_ = false;
   bool may_have_unreachable_blocks_ = false;
   bool may_have_truncation_ = false;
+  bool may_have_cold_branches_ = false;
   BasicBlock::Id max_block_id_ = 0;
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_ = {};
 

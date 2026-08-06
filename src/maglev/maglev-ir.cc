@@ -4102,7 +4102,8 @@ void CheckDynamicValue::GenerateCode(MaglevAssembler* masm,
   Register first = ToRegister(LeftInput());
   Register second = ToRegister(RightInput());
   Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
-  __ CompareTaggedAndJumpIf(first, second, kNotEqual, fail);
+  __ CompareTaggedAndJumpIf(first, second, expected() ? kNotEqual : kEqual,
+                            fail);
 }
 
 void CheckSmi::SetValueLocationConstraints() { UseRegister(ValueInput()); }
@@ -4134,6 +4135,57 @@ void CheckSymbol::GenerateCode(MaglevAssembler* masm,
   }
   __ JumpIfNotObjectType(object, SYMBOL_TYPE,
                          __ GetDeoptLabel(this, DeoptimizeReason::kNotASymbol));
+}
+
+void CheckToBoolean::SetValueLocationConstraints() {
+  UseRegister(ConditionInput());
+}
+void CheckToBoolean::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  ZoneLabelRef done(masm);
+  // Unconditional jumps to deopt labels are not allowed (see
+  // MaglevAssembler::Jump), so route the failing side through a deferred
+  // trampoline.
+  ZoneLabelRef fail = ZoneLabelRef::UnsafeFromLabelPointer(__ MakeDeferredCode(
+      [](MaglevAssembler* masm, CheckToBoolean* node) {
+        __ EmitEagerDeopt(node, node->deoptimize_reason());
+      },
+      this));
+  if (expected()) {
+    __ ToBoolean(ToRegister(ConditionInput()), check_type(), done, fail,
+                 /* fallthrough_when_true */ true);
+  } else {
+    __ ToBoolean(ToRegister(ConditionInput()), check_type(), fail, done,
+                 /* fallthrough_when_true */ false);
+  }
+  __ bind(*done);
+}
+
+void CheckRootConstant::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+}
+void CheckRootConstant::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  __ CompareRootAndEmitEagerDeoptIf(ToRegister(ValueInput()), root_index(),
+                                    expected() ? kNotEqual : kEqual,
+                                    deoptimize_reason(), this);
+}
+
+void CheckUndetectable::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  set_temporaries_needed(1);
+}
+void CheckUndetectable::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register value = ToRegister(ValueInput());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
+  if (expected()) {
+    __ JumpIfNotUndetectable(value, scratch, check_type(), fail);
+  } else {
+    __ JumpIfUndetectable(value, scratch, check_type(), fail);
+  }
 }
 
 void CheckInstanceType::SetValueLocationConstraints() {
@@ -4218,6 +4270,28 @@ void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
   Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
   __ CompareInt32AndJumpIf(ToRegister(LeftInput()), ToRegister(RightInput()),
                            NegateCondition(ToCondition(condition())), fail);
+}
+
+void CheckFloat64Condition::SetValueLocationConstraints() {
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
+}
+void CheckFloat64Condition::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(LeftInput());
+  DoubleRegister right = ToDoubleRegister(RightInput());
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
+  if (expected()) {
+    // NaN comparisons are false, so they fail the check.
+    __ CompareFloat64AndJumpIf(
+        left, right, NegateCondition(ConditionForFloat64(operation())), fail,
+        fail);
+  } else {
+    Label done;
+    __ CompareFloat64AndJumpIf(left, right, ConditionForFloat64(operation()),
+                               fail, &done);
+    __ bind(&done);
+  }
 }
 
 int CheckMaglevType::MaxCallStackArgs() const {
@@ -8952,7 +9026,18 @@ void TransitionElementsKindOrCheckMap::PrintParams(std::ostream& os) const {
 }
 
 void CheckDynamicValue::PrintParams(std::ostream& os) const {
-  os << "(" << DeoptimizeReasonToString(deoptimize_reason()) << ")";
+  os << "(" << (expected() ? "" : "negated, ")
+     << DeoptimizeReasonToString(deoptimize_reason()) << ")";
+}
+
+void CheckFloat64Condition::PrintParams(std::ostream& os) const {
+  os << "(" << operation() << (expected() ? "" : ", negated") << ", "
+     << DeoptimizeReasonToString(deoptimize_reason()) << ")";
+}
+
+void CheckRootConstant::PrintParams(std::ostream& os) const {
+  os << "(" << RootsTable::name(root_index()) << (expected() ? "" : ", negated")
+     << ", " << DeoptimizeReasonToString(deoptimize_reason()) << ")";
 }
 
 void CheckValue::PrintParams(std::ostream& os) const {

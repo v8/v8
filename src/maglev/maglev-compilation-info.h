@@ -41,6 +41,7 @@ inline bool FlagsMightEnableMaglevTracing() {
   return v8_flags.code_comments || v8_flags.print_maglev_code ||
          v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
          v8_flags.trace_maglev_escape_analysis ||
+         v8_flags.trace_maglev_fold_cold_branches ||
          v8_flags.trace_maglev_graph_building ||
          v8_flags.trace_maglev_inlining || v8_flags.trace_turbo_inlining ||
          v8_flags.trace_maglev_object_tracking ||
