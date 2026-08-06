@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_TRUNCATION_H_
 #define V8_MAGLEV_MAGLEV_TRUNCATION_H_
 
+#include <algorithm>
 #include <cmath>
 #include <type_traits>
 
@@ -239,8 +240,8 @@ class PropagateTruncationProcessor {
     return node->can_truncate_to_int32() && IsAdditiveOperation(node->opcode());
   }
 
-  // Largest absolute value an input can hold.
-  static int64_t GetMaxExactInputValue(ValueNode* node) {
+  // Largest absolute value an input can hold, as an operand of `user_opcode`.
+  static int64_t GetMaxExactInputValue(Opcode user_opcode, ValueNode* node) {
     node = UnwrapForTruncation(node);
     if (auto constant = node->TryCast<Float64Constant>()) {
       double value = std::abs(constant->value().get_scalar());
@@ -261,9 +262,17 @@ class PropagateTruncationProcessor {
     if (node->is_int32() || node->is_uint32()) {
       return int64_t{kMaxUInt32};
     }
-    // Reaches the addition through a conversion, which range checks it against
-    // the additive safe integer feedback range, so that check bounds it.
-    return -kMinAdditiveSafeIntegerFeedback;
+    // An operand the pass leaves untruncated has nothing truncated below it
+    // either, since refusing a node also refuses everything it is computed
+    // from, so its static range still describes the value it holds.
+    int64_t max_abs_value = GetMaxExactValueOfRange(node->GetStaticRange());
+    if (user_opcode == Opcode::kFloat64SpeculateSafeAdd) {
+      // Speculative truncation reaches a Float64 operand through a conversion
+      // that range checks it against the additive safe integer feedback range,
+      // so that check bounds it too.
+      max_abs_value = std::min(max_abs_value, -kMinAdditiveSafeIntegerFeedback);
+    }
+    return max_abs_value;
   }
 
   // Largest absolute value this node can reach before truncation wraps it.
@@ -304,16 +313,16 @@ class PropagateTruncationProcessor {
       }
       if (has_pending_input) continue;
       // Every operand is bounded now, so this node's bound is their sum.
-      int64_t max_absl_value = 0;
+      int64_t max_abs_value = 0;
       for (int i = 0; i < node->input_count(); i++) {
         ValueNode* input = UnwrapForTruncation(node->input_node(i));
-        max_absl_value =
-            add_saturated(max_absl_value, IsTruncatableAdditiveOperation(input)
-                                              ? max_exact_value_.at(input)
-                                              : GetMaxExactInputValue(input));
+        max_abs_value = add_saturated(
+            max_abs_value, IsTruncatableAdditiveOperation(input)
+                               ? max_exact_value_.at(input)
+                               : GetMaxExactInputValue(node->opcode(), input));
       }
       stack.pop_back();
-      max_exact_value_.emplace(node, max_absl_value);
+      max_exact_value_.emplace(node, max_abs_value);
     }
     return max_exact_value_.at(root);
   }
