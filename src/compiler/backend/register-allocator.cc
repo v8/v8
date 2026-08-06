@@ -537,10 +537,6 @@ bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
     if (controlflow_hint() > other->controlflow_hint()) {
       return false;
     }
-    // There is a one to one correspondence between TopLevelLiveRange and vregs,
-    // and since LiveRanges belonging to the same vreg are disjunct partitions,
-    // they cannot have the same start if from the same vreg.
-    DCHECK_NE(TopLevel()->vreg(), other->TopLevel()->vreg());
     // Both have the same hint or no hint at all. Use first use position.
     // To make the order total, handle the case where both positions are null.
     if (positions_span_.empty() && other->positions_span_.empty()) {
@@ -2953,107 +2949,6 @@ const char* RegisterAllocator::RegisterName(int register_code) const {
   UNREACHABLE();
 }
 
-void LinearScanAllocator::UnhandledLiveRangeQueue::reserve(size_t capacity) {
-  if (capacity <= buffer_.size()) return;
-  base::Vector<LiveRange*> new_buffer =
-      zone_->AllocateVector<LiveRange*>(capacity);
-  if (size_ > 0) {
-    std::copy(buffer_.begin(), buffer_.begin() + size_, new_buffer.begin());
-  }
-  buffer_ = new_buffer;
-}
-
-LiveRange* LinearScanAllocator::UnhandledLiveRangeQueue::top() const {
-  DCHECK(!empty());
-  return buffer_[0];
-}
-
-void LinearScanAllocator::UnhandledLiveRangeQueue::pop() {
-  DCHECK(!empty());
-  std::pop_heap(buffer_.begin(), buffer_.begin() + size_, compare_);
-  --size_;
-}
-
-void LinearScanAllocator::UnhandledLiveRangeQueue::insert(LiveRange* range) {
-  // The number of unhandled live ranges concurrently in the queue can never
-  // exceed the initial total number of top-level live ranges (vregs), because
-  // ranges are only split after being popped from unhandled.
-  CHECK_LT(size_, buffer_.size());
-  buffer_[size_++] = range;
-  std::push_heap(buffer_.begin(), buffer_.begin() + size_, compare_);
-}
-
-size_t LinearScanAllocator::UnhandledLiveRangeQueue::erase(LiveRange* range) {
-  size_t idx = FindIndexInHeap(0, range);
-  if (idx < size_) {
-    buffer_[idx] = buffer_[size_ - 1];
-    --size_;
-    if (idx < size_) {
-      ReheapAt(idx);
-    }
-    SLOW_DCHECK(
-        std::is_heap(buffer_.begin(), buffer_.begin() + size_, compare_));
-    return 1;
-  }
-  return 0;
-}
-
-// Re-establishes the heap invariant in O(log N) time after replacing an
-// element at `idx` with the last element in the buffer. The C++ Standard
-// Library (<algorithm>) does not provide a `std::erase_heap` or `std::reheap`
-// function for arbitrary array indices (since `std::pop_heap` only operates
-// at index 0 and sub-heap pointer offsets break binary tree index math), so
-// we implement local sift-up and sift-down here.
-void LinearScanAllocator::UnhandledLiveRangeQueue::ReheapAt(size_t idx) {
-  // 1. Sift up if replacement node is higher priority (earlier start_) than
-  // parent.
-  size_t current = idx;
-  while (current > 0) {
-    size_t parent = (current - 1) / 2;
-    if (compare_(buffer_[parent], buffer_[current])) {
-      std::swap(buffer_[current], buffer_[parent]);
-      current = parent;
-    } else {
-      break;
-    }
-  }
-  if (current < idx) return;
-
-  // 2. Otherwise sift down.
-  while (true) {
-    size_t left = 2 * current + 1;
-    if (left >= size_) break;
-    size_t right = left + 1;
-    size_t min_idx = current;
-
-    if (compare_(buffer_[min_idx], buffer_[left])) {
-      min_idx = left;
-    }
-    if (right < size_ && compare_(buffer_[min_idx], buffer_[right])) {
-      min_idx = right;
-    }
-    if (min_idx == current) break;
-    std::swap(buffer_[current], buffer_[min_idx]);
-    current = min_idx;
-  }
-}
-
-size_t LinearScanAllocator::UnhandledLiveRangeQueue::FindIndexInHeap(
-    size_t i, LiveRange* target) const {
-  if (i >= size_) return size_;
-
-  if (buffer_[i] == target) return i;
-
-  // If target should be allocated before buffer_[i] (i.e. target->start_ <
-  // buffer_[i]->start_), then target cannot be buffer_[i] or any of its
-  // descendants in this heap.
-  if (compare_(buffer_[i], target)) return size_;
-
-  size_t left = FindIndexInHeap(2 * i + 1, target);
-  if (left < size_) return left;
-  return FindIndexInHeap(2 * i + 2, target);
-}
-
 LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
                                          RegisterKind kind, Zone* local_zone)
     : RegisterAllocator(data, kind),
@@ -3064,7 +2959,6 @@ LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
       next_active_ranges_change_(LifetimePosition::Invalid()),
       next_inactive_ranges_change_(LifetimePosition::Invalid()) {
   active_live_ranges().reserve(8);
-  unhandled_live_ranges().reserve(data->live_ranges().size());
 }
 
 void LinearScanAllocator::MaybeSpillPreviousRanges(LiveRange* begin_range,
@@ -3768,7 +3662,7 @@ void LinearScanAllocator::AllocateRegisters() {
     data()->tick_counter()->TickAndMaybeEnterSafepoint();
     LiveRange* current = unhandled_live_ranges().empty()
                              ? nullptr
-                             : unhandled_live_ranges().top();
+                             : *unhandled_live_ranges().begin();
     LifetimePosition position =
         current ? current->Start() : next_block_boundary;
 #ifdef DEBUG
@@ -3935,8 +3829,8 @@ void LinearScanAllocator::AllocateRegisters() {
     TRACE("Processing interval %d:%d start=%d\n", current->TopLevel()->vreg(),
           current->relative_id(), position.value());
 
-    // Now we can pop current, as we are sure to process it.
-    unhandled_live_ranges().pop();
+    // Now we can erase current, as we are sure to process it.
+    unhandled_live_ranges().erase(unhandled_live_ranges().begin());
 
     if (current->IsTopLevel() && TryReuseSpillForPhi(current->TopLevel())) {
       continue;
@@ -3992,18 +3886,6 @@ void LinearScanAllocator::AddToUnhandled(LiveRange* range) {
   if (range == nullptr || range->IsEmpty()) return;
   DCHECK(!range->HasRegisterAssigned() && !range->spilled());
   DCHECK(allocation_finger_ <= range->Start());
-
-#ifdef ENABLE_SLOW_DCHECKS
-  if (v8_flags.enable_slow_asserts) {
-    DCHECK(!unhandled_live_ranges().ContainsSlow(range));
-    // Verify no earlier split half of the same virtual register is in
-    // unhandled.
-    for (LiveRange* child : range->TopLevel()->Children()) {
-      if (child == range) break;
-      DCHECK(!unhandled_live_ranges().ContainsSlow(child));
-    }
-  }
-#endif
 
   TRACE("Add live range %d:%d to unhandled\n", range->TopLevel()->vreg(),
         range->relative_id());
