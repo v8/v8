@@ -1750,6 +1750,7 @@ transitioning macro IteratorZipHelperNextCommon(
           //    ii. Return ? IteratorCloseAll(openIters, result).
           iterators.objects[kIteratorRecordFieldCount * i] = TheHole;
           IteratorZipCloseAll(iterators, false);
+          MarkIteratorHelperAsExhausted(helper);
           goto DoneWithException(exception, message);
         } label IterDone {
           // d. If result is done, then

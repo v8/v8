@@ -203,3 +203,19 @@
   const options = { mode: 'longest', padding };
   assertThrows(() => Iterator.zip(manyIterables, options), Error);
 })();
+
+(function RegressionTestOnExceptionDuringNext() {
+  const thrower = {
+    next() {
+      throw new Error('Oops');
+    }
+  };
+
+  let zipped = Iterator.zip([thrower]);
+
+  assertThrows(() => zipped.next(), Error, 'Oops');
+
+  let result = zipped.next();
+  assertEquals(undefined, result.value);
+  assertEquals(true, result.done);
+})();

@@ -245,3 +245,19 @@
     Iterator.zipKeyed(iterables, options);
   }, Error);
 })();
+
+(function RegressionTestOnExceptionDuringNext() {
+  const thrower = {
+    next() {
+      throw new Error('Oops');
+    }
+  };
+
+  let zippedKeyed = Iterator.zipKeyed({a: thrower});
+
+  assertThrows(() => zippedKeyed.next(), Error, 'Oops');
+
+  let resultKeyed = zippedKeyed.next();
+  assertEquals(undefined, resultKeyed.value);
+  assertEquals(true, resultKeyed.done);
+})();
