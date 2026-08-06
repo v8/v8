@@ -3586,7 +3586,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
 
   if (wasm_code()->index() == wasm::kAnonymousFuncIndex) {
     accumulator->Add("Anonymous wasm wrapper [pc: %p]\n",
-                     reinterpret_cast<void*>(pc()));
+                     reinterpret_cast<void*>(maybe_unauthenticated_pc()));
     return;
   }
   wasm::WasmCodeRefScope code_ref_scope;
@@ -3608,9 +3608,11 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
   int func_code_offset = module->functions[func_index].code.offset();
   accumulator->Add(
       "], function #%u ('%s'), pc=%p (+0x%x), pos=%d (+%d) instance=%p\n",
-      func_index, func_name, reinterpret_cast<void*>(pc()),
-      static_cast<int>(pc() - top_summary.code()->instruction_start()), pos,
-      pos - func_code_offset,
+      func_index, func_name,
+      reinterpret_cast<void*>(maybe_unauthenticated_pc()),
+      static_cast<int>(maybe_unauthenticated_pc() -
+                       top_summary.code()->instruction_start()),
+      pos, pos - func_code_offset,
       reinterpret_cast<void*>(trusted_instance_data()->ptr()));
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
@@ -3645,7 +3647,8 @@ Tagged<Script> WasmFrame::script() const { return module_object()->script(); }
 std::tuple<SourcePosition, int>
 WasmFrame::GetInnermostSourcePositionAndFunctionIndex() const {
   wasm::WasmCode* code = wasm_code();
-  int offset = static_cast<int>(pc() - code->instruction_start());
+  int offset =
+      static_cast<int>(maybe_unauthenticated_pc() - code->instruction_start());
   SourcePosition pos = code->GetSourcePositionBefore(offset);
   int func_index = code->index();
   if (pos.isInlined()) {
@@ -3715,11 +3718,12 @@ FrameSummaries WasmFrame::Summarize(AllowAllocation allow_allocation) const {
 }
 
 int WasmFrame::LookupExceptionHandlerInTable() {
-  wasm::WasmCode* code =
-      wasm::GetWasmCodeManager()->LookupCode(isolate(), pc());
+  wasm::WasmCode* code = wasm::GetWasmCodeManager()->LookupCode(
+      isolate(), maybe_unauthenticated_pc());
   if (!code->IsAnonymous() && code->handler_table_size() > 0) {
     HandlerTable table(code);
-    int pc_offset = static_cast<int>(pc() - code->instruction_start());
+    int pc_offset = static_cast<int>(maybe_unauthenticated_pc() -
+                                     code->instruction_start());
     return table.LookupReturn(pc_offset);
   }
   return -1;
