@@ -1859,6 +1859,8 @@
   'shared-memory/regress-crbug-1395117': [SKIP],
 
   # Synchronization point tests don't play well with multiple isolates.
+  # https://crbug.com/539796962
+  'compiler/concurrent-string-ext-seq': [SKIP],
   'compiler/regress-519664497': [SKIP],
   'turboshaft/regress-539984773': [SKIP],
 
