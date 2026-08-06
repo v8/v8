@@ -1810,6 +1810,7 @@ transitioning macro IteratorZipHelperNextCommon(
                 //      ii. Return ? IteratorCloseAll(openIters, open).
                 iterators.objects[kIteratorRecordFieldCount * k] = TheHole;
                 IteratorZipCloseAll(iterators, false);
+                MarkIteratorHelperAsExhausted(helper);
                 goto DoneWithException(e, message);
               } label InnerDone {
                 // v. If open is done, then
