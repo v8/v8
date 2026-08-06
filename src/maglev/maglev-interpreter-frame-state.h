@@ -263,8 +263,6 @@ class MergePointRegisterState {
 #ifdef V8_ENABLE_MAGLEV
 
  public:
-  bool is_initialized() const { return values_[0].GetPayload().is_initialized; }
-
   template <typename Function>
   void ForEachGeneralRegister(Function&& f) {
     RegisterState* current_value = &values_[0];
@@ -419,7 +417,16 @@ class MergePointInterpreterFrameState {
   const CompactInterpreterFrameState& frame_state() const {
     return frame_state_;
   }
-  MergePointRegisterState& register_state() { return register_state_; }
+  bool has_register_state() const { return register_state_ != nullptr; }
+  MergePointRegisterState& register_state() {
+    DCHECK_NOT_NULL(register_state_);
+    return *register_state_;
+  }
+  void set_register_state(MergePointRegisterState* register_state) {
+    DCHECK_NULL(register_state_);
+    DCHECK_NOT_NULL(register_state);
+    register_state_ = register_state;
+  }
 
   bool has_phi() const { return !phis_.is_empty(); }
   Phi::List* phis() { return &phis_; }
@@ -609,7 +616,10 @@ class MergePointInterpreterFrameState {
   Phi::List phis_;
   CompactInterpreterFrameState frame_state_;
 
-  MergePointRegisterState register_state_;
+  // Set by the register allocator, which only publishes it here once it is
+  // fully initialized. Never set when the Maglev graph is only used as
+  // Turbolev's frontend.
+  MergePointRegisterState* register_state_ = nullptr;
   KnownNodeAspects* known_node_aspects_ = nullptr;
   compiler::OptionalScopeInfoRef context_scope_info_;
 

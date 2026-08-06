@@ -1087,7 +1087,7 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
         os_ << "\n";
       }
 #ifdef V8_ENABLE_MAGLEV
-      if (target->state()->register_state().is_initialized()) {
+      if (target->state()->has_register_state()) {
         PrintVerticalArrows(os_, targets_);
         PrintPadding(os_, max_node_id_, -1);
         os_ << (has_fallthrough ? "│" : " ");

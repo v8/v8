@@ -357,7 +357,7 @@ class BasicBlock {
     }
     bool has_register_merge = false;
 #ifdef V8_ENABLE_MAGLEV
-    if (!state()->register_state().is_initialized()) {
+    if (!state()->has_register_state()) {
       // This can happen when the graph has disconnected blocks; bail out and
       // don't jump thread them.
       return true;
