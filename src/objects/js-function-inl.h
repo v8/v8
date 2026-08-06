@@ -358,6 +358,7 @@ std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(
 }
 
 void JSFunction::ResetTieringRequests(Isolate* isolate) {
+  if (has_feedback_vector()) feedback_vector()->reset_osr_urgency();
   isolate->js_dispatch_table().ResetTieringRequest(dispatch_handle());
 }
 
