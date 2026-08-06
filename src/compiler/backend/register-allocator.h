@@ -1549,7 +1549,9 @@ class RegisterAllocator : public ZoneObject {
                                           LiveRange** begin_spill_out);
 
   const ZoneVector<TopLevelLiveRange*>& GetFixedRegisters() const;
-  const char* RegisterName(int allocation_index) const;
+  const char* RegisterName(int allocation_index, RegisterKind kind) const;
+  const char* RegisterName(int allocation_index,
+                           MachineRepresentation rep) const;
 
  private:
   RegisterAllocationData* const data_;
