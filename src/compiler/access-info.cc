@@ -994,6 +994,43 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
   return true;
 }
 
+namespace {
+
+PropertyAccessInfo TryComputeDictionaryDataFieldAccessInfo(
+    Zone* zone, MapRef map, NameRef name, OptionalObjectRef handler) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    return PropertyAccessInfo::Invalid(zone);
+  }
+  if (!handler.has_value() || !handler->IsSmi()) {
+    return PropertyAccessInfo::Invalid(zone);
+  }
+
+  // Receiver map must be a standard JSObject without access checks or
+  // interceptors.
+  if (!map.is_dictionary_map() || !map.IsJSObjectMap() ||
+      IsJSGlobalObjectMap(*map.object()) || map.is_access_check_needed() ||
+      map.has_named_interceptor()) {
+    return PropertyAccessInfo::Invalid(zone);
+  }
+
+  const auto smi_handler = Cast<Smi>(*handler->object());
+  const int smi_value = smi_handler.value();
+  if (LoadHandler::GetHandlerKind(smi_handler) != LoadHandler::Kind::kNormal ||
+      !LoadHandler::IsDataPropertyBits::decode(smi_value)) {
+    return PropertyAccessInfo::Invalid(zone);
+  }
+
+  uint32_t index = LoadHandler::DictionaryIndexBits::decode(smi_value);
+  if (index == LoadHandler::DictionaryIndexBits::kMax) {
+    return PropertyAccessInfo::Invalid(zone);
+  }
+
+  return PropertyAccessInfo::DictionaryDataField(
+      zone, map, OptionalJSObjectRef(), InternalIndex(index), name);
+}
+
+}  // namespace
+
 PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     MapRef map, NameRef name, AccessMode access_mode,
     OptionalObjectRef handler) const {
@@ -1004,22 +1041,11 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker());
 
-  if (map.is_dictionary_map() && access_mode == AccessMode::kLoad &&
-      handler.has_value() && handler->IsSmi()) {
-    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      return Invalid();
-    }
-    auto smi_handler = Cast<Smi>(*handler->object());
-    if (LoadHandler::GetHandlerKind(smi_handler) ==
-        LoadHandler::Kind::kNormal) {
-      if (LoadHandler::IsDataPropertyBits::decode(smi_handler.value())) {
-        uint32_t index =
-            LoadHandler::DictionaryIndexBits::decode(smi_handler.value());
-        if (index != LoadHandler::DictionaryIndexBits::kMax) {
-          return PropertyAccessInfo::DictionaryDataField(
-              zone(), map, OptionalJSObjectRef(), InternalIndex(index), name);
-        }
-      }
+  if (access_mode == AccessMode::kLoad) {
+    PropertyAccessInfo access_info =
+        TryComputeDictionaryDataFieldAccessInfo(zone(), map, name, handler);
+    if (!access_info.IsInvalid()) {
+      return access_info;
     }
   }
 

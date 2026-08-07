@@ -314,6 +314,8 @@ class AccessInfoFactory final {
   PropertyAccessInfo ComputeAccessorDescriptorAccessInfo(
       MapRef receiver_map, NameRef name, MapRef map, OptionalJSObjectRef holder,
       InternalIndex descriptor, AccessMode access_mode) const;
+  PropertyAccessInfo ComputeDictionaryDataFieldAccessInfo(
+      MapRef map, NameRef name, OptionalObjectRef handler) const;
 
   PropertyAccessInfo Invalid() const {
     return PropertyAccessInfo::Invalid(zone());
