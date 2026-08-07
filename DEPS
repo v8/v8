@@ -307,9 +307,9 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '8abf1e701fbd88c8170f48fe0558247e2e5f8e7d',
   },
   'third_party/fuzztest':
-    Var('chromium_url') + '/chromium/src/third_party/fuzztest.git' + '@' + 'cd500986f85ef6810061aafc86628b8ad6e0c7c8',
+    Var('chromium_url') + '/chromium/src/third_party/fuzztest.git' + '@' + '74187bf667fb5de52f94cda3ffc2d6c39c872820',
   'third_party/fuzztest/src':
-    Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '7455b4d54d8f20957417e4869d42f98c880e0975',
+    Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '4e0d121d70078e1340434a49175d0c932f3c2e92',
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '4fe3307fb2d9f86d19777c7eb0e4809e9694dde7',
   'third_party/highway/src':
