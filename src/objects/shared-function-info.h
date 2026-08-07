@@ -408,6 +408,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   // Get the outer scope info whether this function is compiled or not.
   inline bool HasOuterScopeInfo() const;
   inline Tagged<ScopeInfo> GetOuterScopeInfo() const;
+  inline Tagged<ScopeInfo> TryGetScopeInfoForMerge() const;
 
   // [feedback metadata] Metadata template for feedback vectors of instances of
   // this function.
