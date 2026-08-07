@@ -38,6 +38,7 @@ function testNoOsr() {
   assertEquals(4950, f());
   assertFalse(%CurrentFrameIsTurbofan());
 }
+%NeverOptimizeFunction(testNoOsr);
 testNoOsr();
 
 // Test 2: Function g triggers %OptimizeOsr() so OSR code is installed.
