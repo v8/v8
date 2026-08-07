@@ -1052,6 +1052,9 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
         t = isolate->factory()->InternalizeString(
             base::StaticCharVector("exnref"));
         v = ref;
+      } else if (IsWasmNull(*ref)) {
+        v = isolate->factory()->null_value();
+        t = GetRefTypeName(isolate, value.type());
       } else if (IsWasmStruct(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
@@ -1066,9 +1069,6 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
         DirectHandle<WasmInternalFunction> internal_fct{
             Cast<WasmFuncRef>(*ref)->internal(isolate), isolate};
         v = WasmInternalFunction::GetOrCreateExternal(internal_fct);
-        t = GetRefTypeName(isolate, value.type());
-      } else if (IsWasmNull(*ref)) {
-        v = isolate->factory()->null_value();
         t = GetRefTypeName(isolate, value.type());
       } else if (IsJSFunction(*ref) || IsSmi(*ref) || IsNull(*ref) ||
                  IsString(*ref) ||

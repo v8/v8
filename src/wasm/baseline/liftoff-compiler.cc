@@ -6865,9 +6865,8 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    const bool requires_aligned_access = field_kind == ValueKind::kI64;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_object.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_object.type, field.field_imm.index);
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_object.type);
     }
@@ -6996,9 +6995,8 @@ class LiftoffCompiler {
     const StructType* struct_type = field.struct_imm.struct_type;
     ValueKind field_kind = struct_type->field(field.field_imm.index).kind();
     int offset = StructFieldOffset(struct_type, field.field_imm.index);
-    const bool requires_aligned_access = field_kind == ValueKind::kI64;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_object.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_object.type, field.field_imm.index);
 
 #if V8_TARGET_ARCH_IA32
     DCHECK(!implicit_check);  // No trap handler on 32-bit.
@@ -7899,9 +7897,8 @@ class LiftoffCompiler {
                                               const Value& descriptor_value) {
     LiftoffRegList pinned;
     LiftoffRegister descriptor = pinned.set(__ PopToRegister({}));
-    const bool requires_aligned_access = false;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        descriptor_value.type, 0, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(descriptor_value.type, 0);
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, descriptor.gp(), pinned,
                          descriptor_value.type);
@@ -8026,9 +8023,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    const bool requires_aligned_access = false;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_obj.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
 
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
@@ -8049,9 +8045,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    const bool requires_aligned_access = field_kind == ValueKind::kI64;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_obj.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
 
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
@@ -8072,9 +8067,8 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    const bool requires_aligned_access = false;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_obj.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
 
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
@@ -8096,9 +8090,8 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    const bool requires_aligned_access = field_kind == ValueKind::kI64;
-    auto [explicit_check, implicit_check] = null_checks_for_struct_op(
-        struct_obj.type, field.field_imm.index, requires_aligned_access);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(struct_obj.type, field.field_imm.index);
     if (explicit_check) {
       MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
     }
@@ -8652,11 +8645,21 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister ref = pinned.set(__ PopToRegister());
 
-    // Implicit null checks don't cover the map load.
-    MaybeEmitNullCheck(decoder, ref.gp(), pinned, ref_val.type);
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(ref_val.type, 0);
+
+    if (explicit_check) {
+      MaybeEmitNullCheck(decoder, ref.gp(), pinned, ref_val.type);
+    }
 
     LiftoffRegister value = __ GetUnusedRegister(kGpReg, pinned);
+    // Can't use {LoadObjectField} because it's not designed for negative
+    // offsets.
+    uint32_t protected_load_pc = __ pc_offset();
     __ LoadMap(value.gp(), ref.gp());
+    if (implicit_check) {
+      RegisterTrappingInstruction(decoder, protected_load_pc);
+    }
     LoadObjectField(decoder, value, value.gp(), no_reg,
                     offsetof(Map, instance_descriptors_) - kHeapObjectTag, kRef,
                     false, false, pinned);
@@ -8689,10 +8692,7 @@ class LiftoffCompiler {
     Label match;
     bool is_cast_from_any = obj_type.is_reference_to(GenericKind::kAny);
 
-    // Skip the null check if casting from any and not {null_succeeds}.
-    // In that case the instance type check will identify null as not being a
-    // wasm object and fail.
-    if (obj_type.is_nullable() && (!is_cast_from_any || null_succeeds)) {
+    if (obj_type.is_nullable()) {
       __ emit_cond_jump(kEqual, null_succeeds ? &match : no_match,
                         obj_type.kind(), obj_reg, scratch_null, frozen);
     }
@@ -10930,13 +10930,12 @@ class LiftoffCompiler {
            kHeapObjectTag;
   }
 
-  std::pair<bool, bool> null_checks_for_struct_op(
-      ValueType struct_type, int field_index, bool requires_aligned_access) {
+  std::pair<bool, bool> null_checks_for_struct_op(ValueType struct_type,
+                                                  int field_index) {
     bool explicit_null_check =
         struct_type.is_nullable() &&
         (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit ||
-         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck ||
-         requires_aligned_access);
+         field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
     bool implicit_null_check =
         struct_type.is_nullable() && !explicit_null_check;
     return {explicit_null_check, implicit_null_check};

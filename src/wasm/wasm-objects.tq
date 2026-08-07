@@ -330,6 +330,8 @@ extern class WasmStringViewIter extends HeapObject {
 }
 
 @cppObjectLayoutDefinition
+@doNotGenerateCast
+@doNotGenerateInstanceTypeCheck
 extern class WasmNull extends HeapObject {}
 
 extern macro WasmNullConstant(): WasmNull;

@@ -1735,8 +1735,7 @@ class PrototypesSetup : public wasm::Decoder {
       return {};
     }
     // TODO(jkummerow): Can we tighten the spec to require non-nullable arrays?
-    if (!IsWasmFuncRef(*maybe_func)) {
-      DCHECK(IsWasmNull(*maybe_func));
+    if (IsWasmNull(*maybe_func)) {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapNullFunc);
       return {};
     }

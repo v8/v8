@@ -800,6 +800,7 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
        obj = iterator.Next()) {
     FindOrAddEntry(obj.address(), SizeForSnapshot(obj));
     if (v8_flags.heap_profiler_trace_objects) {
+      if (IsInaccessible(obj)) continue;
       int object_size = obj->Size();
       PrintF("Update object      : %p %6d. Next address is %p\n",
              reinterpret_cast<void*>(obj.address()), object_size,
@@ -999,6 +1000,9 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
 }
 
 HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
+  if (IsWasmNull(object)) {
+    return AddEntry(object, HeapEntry::kNative, "null (wasm)");
+  }
   InstanceType instance_type = object->map()->instance_type();
   if (InstanceTypeChecker::IsJSObject(instance_type)) {
     if (InstanceTypeChecker::IsJSFunction(instance_type)) {
@@ -1239,6 +1243,11 @@ const char* V8HeapExplorer::GetSystemEntryName(Tagged<HeapObject> object) {
     UNREACHABLE();
     STRING_TYPE_LIST(MAKE_STRING_CASE)
 #undef MAKE_STRING_CASE
+
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_NULL_TYPE:
+      return "system / WasmNull";
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   // Avoid undefined behavior for enum values not handled by the exhaustive
@@ -2851,6 +2860,9 @@ bool V8HeapExplorer::IterateAndExtractReferences(
        obj = iterator.Next(), progress_->ProgressStep()) {
     if (interrupted) continue;
 
+    // There's nothing interesting to see for inaccessible objects anyway.
+    if (IsInaccessible(obj)) continue;
+
     max_pointers_ = obj->Size() / kTaggedSize;
     if (max_pointers_ > visited_fields_.size()) {
       // Reallocate to right size.
@@ -2904,8 +2916,8 @@ bool V8HeapExplorer::IsEssentialObject(Tagged<Object> object) {
   }
   Isolate* isolate = heap_->isolate();
   ReadOnlyRoots roots(isolate);
-  return !IsAnyHole(object) && !IsOddball(object) &&
-         object != roots.empty_byte_array() &&
+  return !IsInaccessible(Cast<HeapObject>(object)) && !IsAnyHole(object) &&
+         !IsOddball(object) && object != roots.empty_byte_array() &&
          object != roots.empty_fixed_array() &&
          object != roots.empty_weak_fixed_array() &&
          object != roots.empty_descriptor_array() &&

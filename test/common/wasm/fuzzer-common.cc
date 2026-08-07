@@ -893,9 +893,10 @@ bool TablesMatch(Isolate* isolate, const WasmModule* module,
       // Tuple2 is used as placeholder in tables (see
       // `WasmTableObject::SetFunctionTablePlaceholder`). They reference the
       // instance and the function index; just check the stored function index.
-      if (IsTuple2(*entry)) {
-        if (IsTuple2(*ref_entry) && Cast<Tuple2>(*entry)->value2() ==
-                                        Cast<Tuple2>(*ref_entry)->value2()) {
+      if (!IsWasmNull(*entry) && IsTuple2(*entry)) {
+        if (!IsWasmNull(*ref_entry) && IsTuple2(*ref_entry) &&
+            Cast<Tuple2>(*entry)->value2() ==
+                Cast<Tuple2>(*ref_entry)->value2()) {
           continue;
         }
       } else {

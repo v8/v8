@@ -1273,6 +1273,7 @@ void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
   CombinedHeapObjectIterator iterator(heap);
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
+    if (IsInaccessible(obj)) continue;
     visitor->Visit(obj);
   }
 }

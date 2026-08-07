@@ -4499,6 +4499,7 @@ bool IsInterestingObjectStart(MapWord map_word) {
 bool ClearStaleLeftTrimmedPointerVisitor::IsLeftTrimmed(FullObjectSlot p) {
   Tagged<HeapObject> current;
   if (!TryCast<HeapObject>(*p, &current)) return false;
+  if (IsInaccessible(current)) return false;
   // Using MapWord instead of `current` directly defends against concurrent
   // Scavenge tasks installing forward pointers on `current`.
   MapWord map_word = current->map_word(kRelaxedLoad);

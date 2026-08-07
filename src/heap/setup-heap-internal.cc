@@ -1362,11 +1362,9 @@ bool Heap::CreateReadOnlyObjects() {
 #ifdef V8_ENABLE_WEBASSEMBLY
   // Allocate the wasm-null object. It is a regular V8 heap object contained in
   // a V8 page.
-  // In static-roots builds, it is large enough so that its payload (other than
-  // its map word) can be mprotected on OS page granularity. We adjust the
-  // layout such that we have a filler object in the current OS page, and the
-  // wasm-null map word at the end of the current OS page. The payload then is
-  // contained on a separate OS page which can be protected.
+  // In static-roots builds, it is large enough so that it can be mprotected on
+  // OS page granularity, so we fill up the rest of the current OS page with
+  // a filler.
   // In non-static-roots builds, it is a regular object of size {kTaggedSize}
   // and does not need padding.
 #define V8_UNMAP_WASM_NULL_PAYLOAD \
@@ -1375,17 +1373,10 @@ bool Heap::CreateReadOnlyObjects() {
 #if V8_UNMAP_WASM_NULL_PAYLOAD
   // Allocate an unmappable WasmNull.
   {
-    static_assert(WasmNull::kSize ==
-                  WasmNull::kHeaderSize + WasmNull::kPayloadSize);
     Tagged<HeapObject> wasm_null_obj =
-        read_only_space_
-            ->AllocateRawUnmappableAllocation(WasmNull::kHeaderSize,
-                                              WasmNull::kPayloadSize)
+        read_only_space_->AllocateRawUnmappableAllocation(0, WasmNull::kSize)
             .ToObjectChecked();
-    wasm_null_obj->set_map_after_allocation(isolate(), roots.wasm_null_map(),
-                                            SKIP_WRITE_BARRIER);
-    // No need to initialize the payload since it's either empty or unmapped.
-    set_wasm_null(Cast<WasmNull>(wasm_null_obj));
+    set_wasm_null(UncheckedCast<WasmNull>(wasm_null_obj));
   }
 #else
   // Allocate the WasmNull.

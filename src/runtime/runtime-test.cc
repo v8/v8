@@ -1301,7 +1301,7 @@ static void DebugPrintImpl(Tagged<MaybeObject> maybe_object, std::ostream& os) {
     os << "DebugPrint: ";
     if (weak) os << "[weak] ";
     Print(object, os);
-    if (IsHeapObject(object)) {
+    if (IsHeapObject(object) && !IsInaccessible(Cast<HeapObject>(object))) {
       Print(Cast<HeapObject>(object)->map(), os);
     }
 #else

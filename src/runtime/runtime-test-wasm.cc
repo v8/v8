@@ -538,7 +538,9 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
       isolate->factory()->NewFixedArray(values_len);
   for (uint32_t i = 0; i < values_len; i++) {
     DirectHandle<Object> value(values->get(i), isolate);
-    if (!IsSmi(*value)) {
+    if (IsWasmNull(*value)) {
+      value = isolate->factory()->null_value();
+    } else if (!IsSmi(*value)) {
       // When fuzzers use this function, don't leak anything that the JS side
       // can't handle.
       if (IsByteArray(*value) ||  // Probably a stringview_wtf8.

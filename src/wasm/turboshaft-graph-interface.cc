@@ -5120,9 +5120,12 @@ class TurboshaftGraphBuildingInterface
       // initialize the function table entry.
       Label<Object> resolved(&asm_);
       Label<> call_runtime(&asm_);
-      // The entry is a WasmFuncRef, WasmNull, or Tuple2. Hence
-      // it is safe to cast it to HeapObject.
+      // The entry is a WasmFuncRef, WasmNull, or Tuple2. We can cast it
+      // to HeapObject after checking for WasmNull.
+      GOTO_IF(UNLIKELY(__ IsNull(entry, kWasmFuncRef)), resolved, entry);
       V<Map> entry_map = __ LoadMapField(V<HeapObject>::Cast(entry));
+      // TODO(jkummerow): Instead of loading the instance type, compare
+      // the Tuple2Map by pointer identity.
       V<Word32> instance_type = __ LoadInstanceTypeField(entry_map);
       GOTO_IF(
           UNLIKELY(__ Word32Equal(instance_type, InstanceType::TUPLE2_TYPE)),

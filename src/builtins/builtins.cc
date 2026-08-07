@@ -968,7 +968,7 @@ void Builtins::VerifyGetJSBuiltinState(bool allow_non_initial_state) {
   // JSFunctions.
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (IsAnyHole(obj)) continue;
+    if (IsInaccessible(obj)) continue;
 
     Tagged<JSFunction> func;
     if (!TryCast(obj, &func)) continue;

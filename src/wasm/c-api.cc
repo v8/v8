@@ -2072,13 +2072,12 @@ WASM_EXPORT auto Global::get() const -> Val {
       StoreImpl* store = impl(this)->store();
       i::HandleScope scope(store->i_isolate());
       i::DirectHandle<i::Object> result = v8_global->GetRef();
-      if (IsWasmFuncRef(*result)) {
+      if (IsWasmNull(*result)) {
+        result = i::Isolate::Current()->factory()->null_value();
+      } else if (IsWasmFuncRef(*result)) {
         result = i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(
             i::Cast<i::WasmFuncRef>(*result)->internal(store->i_isolate()),
             store->i_isolate()));
-      }
-      if (IsWasmNull(*result)) {
-        result = i::Isolate::Current()->factory()->null_value();
       }
       return Val(V8RefValueToWasm(store, result));
     }
@@ -2224,12 +2223,11 @@ WASM_EXPORT auto Table::get(size_t index) const -> own<Ref> {
   i::HandleScope handle_scope(isolate);
   i::DirectHandle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
-  if (IsWasmFuncRef(*result)) {
-    result = i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(
-        i::Cast<i::WasmFuncRef>(*result)->internal(isolate), isolate));
-  }
   if (IsWasmNull(*result)) {
     result = isolate->factory()->null_value();
+  } else if (IsWasmFuncRef(*result)) {
+    result = i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(
+        i::Cast<i::WasmFuncRef>(*result)->internal(isolate), isolate));
   }
   DCHECK(IsNull(*result) || IsJSReceiver(*result));
   return V8RefValueToWasm(impl(this)->store(), result);

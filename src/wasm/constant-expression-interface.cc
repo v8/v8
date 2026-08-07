@@ -171,11 +171,11 @@ DirectHandle<Map> ConstantExpressionInterface::GetRtt(
   DCHECK(type.has_descriptor());
   WasmValue desc = descriptor.runtime_value;
   DirectHandle<Object> maybe_obj = desc.to_ref();
-  if (!IsWasmStruct(*maybe_obj)) {
-    DCHECK(IsWasmNull(*maybe_obj));
+  if (IsWasmNull(*maybe_obj)) {
     error_ = MessageTemplate::kWasmTrapNullDereference;
     return {};
   }
+  DCHECK(IsWasmStruct(*maybe_obj));
   DCHECK_EQ(desc.type().ref_index(),
             module_->canonical_type_id(type.descriptor));
   return direct_handle(Cast<WasmStruct>(*maybe_obj)->described_rtt(), isolate_);

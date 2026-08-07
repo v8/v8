@@ -479,6 +479,16 @@ template <template <typename> typename HandleType>
 typename HandleType<String>::MaybeType Object::ConvertToString(
     Isolate* isolate, HandleType<Object> input) {
   while (true) {
+#if V8_ENABLE_WEBASSEMBLY
+    // We generally don't let the WasmNull escape into the JavaScript world,
+    // but some builtins may encounter it when called directly from Wasm code.
+    // This must be checked first, because WasmNull is entirely inaccessible,
+    // even its map, so we have to compare it by pointer before loading
+    // anything from it.
+    if (IsWasmNull(*input)) {
+      return isolate->factory()->null_string();
+    }
+#endif
     if (IsOddball(*input)) {
       HandleType<String> result(Cast<Oddball>(input)->to_string(), isolate);
       return result;
@@ -492,13 +502,6 @@ typename HandleType<String>::MaybeType Object::ConvertToString(
     if (IsBigInt(*input)) {
       return BigInt::ToString(isolate, Cast<BigInt>(input));
     }
-#if V8_ENABLE_WEBASSEMBLY
-    // We generally don't let the WasmNull escape into the JavaScript world,
-    // but some builtins may encounter it when called directly from Wasm code.
-    if (IsWasmNull(*input)) {
-      return isolate->factory()->null_string();
-    }
-#endif
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input,
         JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(input),

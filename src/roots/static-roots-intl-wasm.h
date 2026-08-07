@@ -1217,7 +1217,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kManyClosuresCell = kShadowRealmScopeInfo + 24;
   static constexpr Tagged_t kPreallocatedNumberStringTable =
       kManyClosuresCell + 16;
-  static constexpr Tagged_t kWasmNull = 0xfffd;
+  static constexpr Tagged_t kWasmNull = 0x10001;
   static constexpr Tagged_t kTheHoleValue = 0x2fffd;
   // -- End of page 0 --
   static constexpr Tagged_t kPropertyCellHoleValue = 0x4fffd;

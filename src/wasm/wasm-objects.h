@@ -2008,18 +2008,17 @@ V8_OBJECT class WasmNull : public HeapObject {
  public:
 #if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL
   // TODO(manoskouk): Make it smaller if able and needed.
-  static constexpr int kPayloadSize = 64 * KB;
-  // Payload should be a multiple of page size.
-  static_assert(kPayloadSize % kMinimumOSPageSize == 0);
-
-  Address payload() { return reinterpret_cast<Address>(this) + kPayloadOffset; }
-
-  static const int kPayloadOffset;
-  static const int kSizeWithPayload;
+  static constexpr int kSize = 64 * KB;
+  // Inaccessible region should be a multiple of page size.
+  static_assert(kSize % kMinimumOSPageSize == 0);
+  // Any wasm struct offset should fit in the object.
+  static_assert(kSize >=
+                WasmStruct::kHeaderSize +
+                    (wasm::kMaxStructFieldIndexForImplicitNullCheck + 1) *
+                        kSimd128Size);
+#else
+  static constexpr int kSize = sizeof(HeapObject);
 #endif
-
-  static const int kHeaderSize;
-  static const int kSize;
 
   DECL_PRINTER(WasmNull)
   DECL_VERIFIER(WasmNull)
@@ -2028,21 +2027,6 @@ V8_OBJECT class WasmNull : public HeapObject {
   // (not fixed size) as kSize is too large for a fixed-size map.
   class BodyDescriptor;
 } V8_OBJECT_END;
-
-inline constexpr int WasmNull::kHeaderSize = sizeof(WasmNull);
-#if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL
-inline constexpr int WasmNull::kPayloadOffset = WasmNull::kHeaderSize;
-inline constexpr int WasmNull::kSizeWithPayload =
-    WasmNull::kPayloadOffset + WasmNull::kPayloadSize;
-inline constexpr int WasmNull::kSize = WasmNull::kSizeWithPayload;
-// Any wasm struct offset should fit in the object.
-static_assert(WasmNull::kSizeWithPayload >=
-              WasmStruct::kHeaderSize +
-                  (wasm::kMaxStructFieldIndexForImplicitNullCheck + 1) *
-                      kSimd128Size);
-#else
-inline constexpr int WasmNull::kSize = WasmNull::kHeaderSize;
-#endif
 
 #undef DECL_OPTIONAL_ACCESSORS
 

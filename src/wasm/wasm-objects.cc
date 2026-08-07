@@ -243,7 +243,7 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
 
   DCHECK_LE(initial, wasm::max_table_size());
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(initial);
-  for (int i = 0; i < static_cast<int>(initial); ++i) {
+  for (uint32_t i = 0; i < initial; ++i) {
     entries->set(i, *initial_value);
   }
   bool is_function_table = canonical_type.IsFunctionType();
@@ -252,7 +252,8 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
           ? isolate->factory()->NewWasmDispatchTable(initial, canonical_type)
           : isolate->factory()->empty_wasm_dispatch_table();
 
-  if (is_function_table && initial > 0 && IsWasmFuncRef(*initial_value)) {
+  if (is_function_table && initial > 0 && !IsWasmNull(*initial_value) &&
+      IsWasmFuncRef(*initial_value)) {
     DirectHandle<Object> external =
         WasmInternalFunction::GetOrCreateExternal(direct_handle(
             Cast<WasmFuncRef>(*initial_value)->internal(isolate), isolate));

@@ -469,7 +469,7 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
   /* Also ignore any non-JSAny values. */                                 \
   if ((roots.name() != roots.undefined_value() ||                         \
        RootIndex::k##CamelName == RootIndex::kUndefinedValue) &&          \
-      !IsAnyHole(roots.name()) && Is<JSAny>(roots.name())) {              \
+      !IsInaccessible(roots.name()) && Is<JSAny>(roots.name())) {         \
     DCHECK_EQ(Object::BooleanValue(roots.name(), local_isolate),          \
               RootToBoolean(RootIndex::k##CamelName));                    \
   }

@@ -6105,6 +6105,10 @@ void Isolate::VerifyStaticRoots() {
   // such that the static map range is restored (consult static-roots.h for a
   // sorted list of addresses) or remove the offending entry from the list.
   for (idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
+#if V8_ENABLE_WEBASSEMBLY
+    // WasmNull is entirely inaccessible, we cannot loads its instance type.
+    if (idx == RootIndex::kWasmNull) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY
     Tagged<Object> obj = roots_table().slot(idx).load(this);
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
@@ -6639,8 +6643,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #if V8_STATIC_ROOTS_BOOL
   // Protect the payload of wasm null.
   if (!page_allocator()->DecommitPages(
-          reinterpret_cast<void*>(factory()->wasm_null()->payload()),
-          WasmNull::kPayloadSize)) {
+          reinterpret_cast<void*>(factory()->wasm_null()->address()),
+          WasmNull::kSize)) {
     V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
   }
 #endif  // V8_STATIC_ROOTS_BOOL
