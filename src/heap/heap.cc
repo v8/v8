@@ -2605,6 +2605,7 @@ void Heap::MarkCompactPrologue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_PROLOGUE);
   isolate_->descriptor_lookup_cache()->Clear();
   regexp::ResultsCache::Clear(string_split_cache());
+  regexp::ResultsCache::Clear(regexp_split_cache());
   regexp::ResultsCache::Clear(regexp_multiple_cache());
   regexp::ResultsCache_MatchGlobalAtom::Clear(this);
 

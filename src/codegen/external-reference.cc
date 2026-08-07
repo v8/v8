@@ -1112,6 +1112,8 @@ FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
 
 FUNCTION_REFERENCE(re_atom_exec_raw, RegExp::AtomExecRaw)
 
+FUNCTION_REFERENCE(re_split_cache_enter, regexp::ResultsCache::EnterRaw)
+
 FUNCTION_REFERENCE(allocate_regexp_result_vector,
                    regexp::ResultVector::Allocate)
 FUNCTION_REFERENCE(free_regexp_result_vector, regexp::ResultVector::Free)

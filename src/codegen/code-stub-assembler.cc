@@ -6685,7 +6685,12 @@ void CodeStubAssembler::CopyRange(TNode<HeapObject> dst_object, int dst_offset,
         TNode<Object> value = LoadObjectField(src_object, current_src_offset);
         TNode<IntPtrT> current_dst_offset =
             IntPtrAdd(TimesTaggedSize(index), IntPtrConstant(dst_offset));
-        if (mode == SKIP_WRITE_BARRIER) {
+        if (mode == UNSAFE_SKIP_WRITE_BARRIER) {
+          UnsafeStoreNoWriteBarrier(
+              MachineRepresentation::kTagged, dst_object,
+              IntPtrSub(current_dst_offset, IntPtrConstant(kHeapObjectTag)),
+              value);
+        } else if (mode == SKIP_WRITE_BARRIER) {
           StoreObjectFieldNoWriteBarrier(dst_object, current_dst_offset, value);
         } else {
           StoreObjectField(dst_object, current_dst_offset, value);

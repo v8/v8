@@ -396,6 +396,7 @@ class RootVisitor;
     NumberStringNotRegexpLikeProtector)                                        \
   /* Caches */                                                                 \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
+  V(FixedArray, regexp_split_cache, RegExpSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
   V(FixedArray, regexp_match_global_atom_cache, RegExpMatchGlobalAtomCache)    \
   /* Indirection lists for isolate-independent builtins */                     \

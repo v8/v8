@@ -1480,6 +1480,9 @@ void Heap::CreateInitialMutableObjects() {
   // Allocate regexp caches.
   set_string_split_cache(*factory->NewFixedArray(
       regexp::ResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
+  set_regexp_split_cache(*factory->NewFixedArray(
+      regexp::ResultsCache::kRegExpSplitResultsCacheSize,
+      AllocationType::kOld));
   set_regexp_multiple_cache(*factory->NewFixedArray(
       regexp::ResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
   set_regexp_match_global_atom_cache(*factory->NewFixedArray(

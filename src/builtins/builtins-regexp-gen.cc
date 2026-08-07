@@ -181,6 +181,124 @@ TNode<RegExpData> RegExpBuiltinsAssembler::LoadRegExpDataFromObject(
                                                                      offset);
 }
 
+// On a hit, sets {var_result} to a fresh array over the cached parts and jumps
+// to {if_found}. On a miss, falls through. Mirrors ResultsCache::Lookup.
+void RegExpBuiltinsAssembler::TryRegExpSplitCacheLookup(
+    TNode<Context> context, TNode<JSRegExp> regexp, TNode<RegExpData> data,
+    TNode<String> string, TVariable<JSArray>* var_result, Label* if_found) {
+  Label miss(this);
+
+  TNode<FixedArray> cache =
+      CAST(CodeAssembler::LoadRoot(RootIndex::kRegExpSplitCache));
+  TNode<Object> key_pattern =
+      LoadObjectField(data, offsetof(RegExpData, wrapper_));
+
+  CSA_DCHECK(this, IsInternalizedString(string));
+  TNode<IntPtrT> hash =
+      Signed(ChangeUint32ToWord(LoadNameHashAssumeComputed(string)));
+  constexpr int kSizeMask =
+      regexp::ResultsCache::kRegExpSplitResultsCacheSize - 1;
+  constexpr int kSlotsPerEntry =
+      regexp::ResultsCache::kArrayEntriesPerCacheEntry;
+  TNode<IntPtrT> first_index = WordAnd(WordAnd(hash, IntPtrConstant(kSizeMask)),
+                                       IntPtrConstant(~(kSlotsPerEntry - 1)));
+
+  // Read as part of the probe, so a later eviction cannot be observed.
+  TVARIABLE(FixedArray, var_elements);
+  TVARIABLE(FixedArray, var_last_match_cache);
+
+  Label found(this, {&var_elements, &var_last_match_cache});
+  auto probe = [&](TNode<IntPtrT> index, Label* if_no_match) {
+    TNode<Object> key_string = UnsafeLoadFixedArrayElement(
+        cache, index, regexp::ResultsCache::kStringOffset * kTaggedSize);
+    GotoIfNot(TaggedEqual(key_string, string), if_no_match);
+    TNode<Object> pattern = UnsafeLoadFixedArrayElement(
+        cache, index, regexp::ResultsCache::kPatternOffset * kTaggedSize);
+    GotoIfNot(TaggedEqual(pattern, key_pattern), if_no_match);
+    var_elements = CAST(UnsafeLoadFixedArrayElement(
+        cache, index, regexp::ResultsCache::kArrayOffset * kTaggedSize));
+    var_last_match_cache = CAST(UnsafeLoadFixedArrayElement(
+        cache, index, regexp::ResultsCache::kLastMatchOffset * kTaggedSize));
+    Goto(&found);
+  };
+
+  Label try_second(this);
+  probe(first_index, &try_second);
+
+  BIND(&try_second);
+  probe(WordAnd(IntPtrAdd(first_index, IntPtrConstant(kSlotsPerEntry)),
+                IntPtrConstant(kSizeMask)),
+        &miss);
+
+  BIND(&found);
+  {
+    ReplayLastMatchInfo(context, string, var_last_match_cache.value());
+
+    // Enter made the elements copy-on-write, so the result can share them: a
+    // write copies the backing store instead of clobbering the entry.
+    TNode<FixedArray> elements = var_elements.value();
+    CSA_DCHECK(this, IsFixedCOWArrayMap(LoadMap(elements)));
+    TNode<Map> array_map =
+        LoadJSArrayElementsMap(PACKED_ELEMENTS, LoadNativeContext(context));
+    *var_result = AllocateJSArray(array_map, elements,
+                                  SmiTag(LoadFixedArrayBaseLength(elements)));
+    Goto(if_found);
+  }
+
+  BIND(&miss);
+}
+
+// Restores LastMatchInfo from a SnapshotLastMatchInfo result. An empty
+// snapshot means the split loop never matched, so LastMatchInfo is left alone.
+void RegExpBuiltinsAssembler::ReplayLastMatchInfo(
+    TNode<Context> context, TNode<String> subject,
+    TNode<FixedArray> last_match_cache) {
+  Label done(this);
+  TNode<IntPtrT> register_count = LoadFixedArrayBaseLength(last_match_cache);
+  GotoIf(IntPtrEqual(register_count, IntPtrConstant(0)), &done);
+
+  CSA_DCHECK(this, TaggedEqual(context, LoadNativeContext(context)));
+  TNode<RegExpMatchInfo> match_info = CAST(
+      LoadContextElementNoCell(context, Context::REGEXP_LAST_MATCH_INFO_INDEX));
+  match_info =
+      PrepareMatchInfo(context, match_info, SmiTag(register_count), subject);
+
+  // Both sides hold the capture offsets as Smis, so no write barrier is needed.
+  CopyRange(match_info, RegExpMatchInfo::OffsetOfElementAt(0), last_match_cache,
+            FixedArray::OffsetOfElementAt(0), register_count,
+            UNSAFE_SKIP_WRITE_BARRIER);
+  Goto(&done);
+
+  BIND(&done);
+}
+
+// Records the match LastMatchInfo currently holds, for a later hit to replay.
+// Returns the empty array if the split loop never matched.
+TNode<FixedArray> RegExpBuiltinsAssembler::SnapshotLastMatchInfo(
+    TNode<Context> context, TNode<BoolT> did_match) {
+  TVARIABLE(FixedArray, var_result, EmptyFixedArrayConstant());
+  Label done(this, &var_result);
+  GotoIfNot(did_match, &done);
+
+  CSA_DCHECK(this, TaggedEqual(context, LoadNativeContext(context)));
+  TNode<RegExpMatchInfo> match_info = CAST(
+      LoadContextElementNoCell(context, Context::REGEXP_LAST_MATCH_INFO_INDEX));
+  TNode<IntPtrT> register_count = PositiveSmiUntag(LoadObjectField<Smi>(
+      match_info, offsetof(RegExpMatchInfo, number_of_capture_registers_)));
+
+  TNode<FixedArray> snapshot =
+      CAST(AllocateFixedArray(PACKED_ELEMENTS, register_count));
+  // Both sides hold the capture offsets as Smis, so no write barrier is needed.
+  CopyRange(snapshot, FixedArray::OffsetOfElementAt(0), match_info,
+            RegExpMatchInfo::OffsetOfElementAt(0), register_count,
+            UNSAFE_SKIP_WRITE_BARRIER);
+  var_result = snapshot;
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
+}
+
 TNode<Smi> RegExpBuiltinsAssembler::LoadCaptureCount(TNode<RegExpData> data) {
   return Select<Smi>(
       SmiEqual(LoadObjectField<Smi>(data, offsetof(RegExpData, type_tag_)),
@@ -497,11 +615,9 @@ static_assert(kInt32Size == 1 << kInt32SizeLog2);
 
 }  // namespace
 
-TNode<RegExpMatchInfo>
-RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
+TNode<RegExpMatchInfo> RegExpBuiltinsAssembler::PrepareMatchInfo(
     TNode<Context> context, TNode<RegExpMatchInfo> match_info,
-    TNode<Smi> register_count, TNode<String> subject,
-    TNode<RawPtrT> result_offsets_vector) {
+    TNode<Smi> register_count, TNode<String> subject) {
   TVARIABLE(RegExpMatchInfo, var_match_info, match_info);
 
   // Check that the last match info has space for the capture registers.
@@ -521,7 +637,6 @@ RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
     BIND(&next);
   }
 
-  // Fill match_info.
   StoreObjectField(var_match_info.value(),
                    offsetof(RegExpMatchInfo, number_of_capture_registers_),
                    register_count);
@@ -529,6 +644,16 @@ RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
                    offsetof(RegExpMatchInfo, last_subject_), subject);
   StoreObjectField(var_match_info.value(),
                    offsetof(RegExpMatchInfo, last_input_), subject);
+  return var_match_info.value();
+}
+
+TNode<RegExpMatchInfo>
+RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
+    TNode<Context> context, TNode<RegExpMatchInfo> match_info,
+    TNode<Smi> register_count, TNode<String> subject,
+    TNode<RawPtrT> result_offsets_vector) {
+  TNode<RegExpMatchInfo> prepared_match_info =
+      PrepareMatchInfo(context, match_info, register_count, subject);
 
   // Fill match and capture offsets in match_info. They are located in the
   // region:
@@ -554,14 +679,14 @@ RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
               Load(MachineType::Int32(), current_register_address));
           TNode<Smi> smi_value = SmiFromInt32(value);
           StoreNoWriteBarrier(MachineRepresentation::kTagged,
-                              var_match_info.value(), var_to_offset.value(),
+                              prepared_match_info, var_to_offset.value(),
                               smi_value);
           Increment(&var_to_offset, kTaggedSize);
         },
         kInt32Size, kLoopUnrolling, IndexAdvanceMode::kPost);
   }
 
-  return var_match_info.value();
+  return prepared_match_info;
 }
 
 TNode<RegExpMatchInfo> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
@@ -1753,9 +1878,11 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
 
   const ElementsKind elements_kind = PACKED_ELEMENTS;
 
-  Label done(this);
-  Label return_empty_array(this, Label::kDeferred);
   TVARIABLE(JSArray, var_result);
+
+  Label done(this);
+  Label done_no_result_vector(this, &var_result);
+  Label return_empty_array(this, Label::kDeferred);
 
   // Exception handling is necessary to free any allocated memory.
   TVARIABLE(Object, var_exception);
@@ -1766,6 +1893,23 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   // the specialized AdvanceStringIndex logic below.
   TNode<RegExpData> data =
       LoadRegExpDataFromObject(regexp, offsetof(JSRegExp, data_));
+
+  // Only an unlimited split is cacheable, since the cached array holds every
+  // part. v8_flags.regexp_results_cache is a mksnapshot-time constant here, so
+  // it is checked in ResultsCache::{Lookup,Enter} instead.
+  TNode<BoolT> is_cacheable =
+      Word32And(SmiEqual(limit, SmiConstant(Smi::kMaxValue)),
+                IsInternalizedString(string));
+  {
+    Label next(this);
+    GotoIfNot(is_cacheable, &next);
+    TryRegExpSplitCacheLookup(context, regexp, data, string, &var_result,
+                              &done_no_result_vector);
+    Goto(&next);
+
+    BIND(&next);
+  }
+
   TNode<Smi> capture_count = LoadCaptureCount(data);
   TNode<Smi> register_count_per_match = RegistersForCaptureCount(capture_count);
   TNode<RawPtrT> result_offsets_vector;
@@ -1843,11 +1987,13 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
 
     TVARIABLE(Smi, var_last_matched_until, SmiZero());
     TVARIABLE(Smi, var_next_search_from, SmiZero());
+    // Whether the loop wrote LastMatchInfo. Only then may a hit replay it.
+    TVARIABLE(BoolT, var_did_match, Int32FalseConstant());
 
-    Label loop(this,
-               {array.var_array(), array.var_length(), array.var_capacity(),
-                &var_last_matched_until, &var_next_search_from}),
-        push_suffix_and_out(this), out(this);
+    Label loop(
+        this, {array.var_array(), array.var_length(), array.var_capacity(),
+               &var_last_matched_until, &var_next_search_from, &var_did_match}),
+        push_suffix_and_out(this), out(this), out_cacheable(this);
     Goto(&loop);
 
     BIND(&loop);
@@ -1885,6 +2031,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
       match_info = InitializeMatchInfoFromRegisters(
           context, match_info, register_count_per_match, string,
           result_offsets_vector);
+      var_did_match = Int32TrueConstant();
 
       TNode<Smi> match_to = LoadArrayElement(match_info, IntPtrConstant(1));
 
@@ -1977,7 +2124,32 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
       TNode<Smi> from = var_last_matched_until.value();
       TNode<Smi> to = string_length;
       array.Push(CallBuiltin(Builtin::kSubString, context, string, from, to));
-      Goto(&out);
+      Branch(is_cacheable, &out_cacheable, &out);
+    }
+
+    // Only reached when the split ran to the end of the subject. A split cut
+    // short by {limit} exits through {out} and must not be cached.
+    BIND(&out_cacheable);
+    {
+      var_result = array.ToJSArray(context);
+
+      // Snapshot rather than reconstruct which match was the last one: the
+      // final match may contribute no element, e.g. one at the end of the
+      // subject.
+      TNode<FixedArray> last_match_cache =
+          SnapshotLastMatchInfo(context, var_did_match.value());
+      TNode<ExternalReference> function =
+          ExternalConstant(ExternalReference::re_split_cache_enter());
+      TNode<ExternalReference> isolate_ptr =
+          ExternalConstant(ExternalReference::isolate_address());
+      CallCFunction(
+          function, MachineType::AnyTagged(),
+          std::make_pair(MachineType::Pointer(), isolate_ptr),
+          std::make_pair(MachineType::AnyTagged(), string),
+          std::make_pair(MachineType::AnyTagged(), regexp),
+          std::make_pair(MachineType::AnyTagged(), var_result.value()),
+          std::make_pair(MachineType::AnyTagged(), last_match_cache));
+      Goto(&done);
     }
 
     BIND(&out);
@@ -2009,6 +2181,9 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   BIND(&done);
   FreeRegExpResultVector(result_offsets_vector,
                          result_offsets_vector_is_dynamic);
+  Goto(&done_no_result_vector);
+
+  BIND(&done_no_result_vector);
   return var_result.value();
 }
 
