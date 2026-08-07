@@ -236,7 +236,20 @@ bool JSDataObjectBuilder::TryAddFastPropertyForValue(
 bool JSDataObjectBuilder::TryAddFastPropertyForValue(
     DirectHandle<InternalizedString> key, DirectHandle<Object> value) {
   if (map_->is_deprecated()) {
-    return false;
+    // Normally previous TryAddFastPropertyForValue wouldn't allow a deprecated
+    // map to reach here. However, we could get a deprecated map here if the
+    // property iterator's GetKey/GetValue calls deprecated the map (e.g.
+    // through recursive object literal building).
+    DirectHandle<Map> new_map = Map::Update(isolate_, map_);
+
+    // The migration target could be a dictionary map -- we can't rewind to a
+    // previous map here like we do in the GetValueFunction version of this
+    // function, or like in TryAddFastPropertyTransitionForValue, so we just
+    // have to bail out and force CreateAndInitialiseObject deal with it.
+    if (new_map->is_dictionary_map()) return false;
+
+    map_ = new_map;
+    RecalculateExtraHeapNumbersNeeded();
   }
 
   DCHECK(object_.is_null());
@@ -260,9 +273,28 @@ bool JSDataObjectBuilder::TryAddFastPropertyForValue(
 template <typename ValueIterator>
 inline void JSDataObjectBuilder::CreateAndInitialiseObject(
     ValueIterator&& value_it, DirectHandle<FixedArrayBase> elements) {
+  bool needs_migration = false;
   if (map_->is_deprecated()) {
-    map_ = Map::Update(isolate_, map_);
-    RecalculateExtraHeapNumbersNeeded();
+    // We could get a deprecated map here if a GetKey/GetValue deprecated the
+    // existing map_. We ideally don't want to create deprecated objects and
+    // then migrate them, so update the map first.
+    DirectHandle<Map> new_map = Map::Update(isolate_, map_);
+    if (current_property_index_ > 0 && new_map->is_dictionary_map()) {
+      // In edge cases, the migration target might be a dictionary map. We can't
+      // switch to a dictionary map when current_property_index_ > 0, because
+      // we'll have already iterated over some keys and we don't persist them
+      // anywhere but the map's descriptor array, so we have to use the
+      // deprecated map after all and migrate the object once we're done
+      // initializing it.
+      //
+      // TODO(leszeks): We _could_ immediately allocate a slow JSObject and
+      // populate it by walking the deprecated map's descriptor array to recover
+      // the keys -- this is probably overkill for this edge case though.
+      needs_migration = true;
+    } else {
+      map_ = new_map;
+      RecalculateExtraHeapNumbersNeeded();
+    }
   }
   // We've created a map for the first `i` property stack values (which might
   // be all of them). We need to write these properties to a newly allocated
@@ -313,53 +345,60 @@ inline void JSDataObjectBuilder::CreateAndInitialiseObject(
   Handle<JSObject> object = isolate_->factory()->NewJSObjectFromMap(
       map_, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
       NewJSObjectType::kNoEmbedderFieldsAndNoApiWrapper);
-  DisallowGarbageCollection no_gc;
-  Tagged<JSObject> raw_object = *object;
+  {
+    DisallowGarbageCollection no_gc;
+    Tagged<JSObject> raw_object = *object;
 
-  raw_object->set_elements(*elements);
-  Tagged<DescriptorArray> descriptors =
-      raw_object->map()->instance_descriptors();
+    raw_object->set_elements(*elements);
+    Tagged<DescriptorArray> descriptors =
+        raw_object->map()->instance_descriptors();
 
-  FoldedMutableHeapNumberAllocator hn_allocator(isolate_, &hn_allocation,
-                                                no_gc);
+    FoldedMutableHeapNumberAllocator hn_allocator(isolate_, &hn_allocation,
+                                                  no_gc);
 
-  ReadOnlyRoots roots(isolate_);
+    ReadOnlyRoots roots(isolate_);
 
-  // Initialize the in-object properties up to the last added property.
-  int current_property_offset = raw_object->GetInObjectPropertyOffset(0);
-  for (int i = 0; i < current_property_index_; ++i) {
-    InternalIndex descriptor_index(i);
-    Tagged<Object> value = value_it.GetNext();
+    // Initialize the in-object properties up to the last added property.
+    int current_property_offset = raw_object->GetInObjectPropertyOffset(0);
+    for (int i = 0; i < current_property_index_; ++i) {
+      InternalIndex descriptor_index(i);
+      Tagged<Object> value = value_it.GetNext();
 
-    // See comment in RegisterFieldNeedsFreshHeapNumber, we need to allocate
-    // HeapNumbers for double representation fields when we can't make
-    // existing HeapNumbers mutable, or when we only have a Smi value.
-    if (heap_number_mode_ != kHeapNumbersGuaranteedUniquelyOwned ||
-        IsSmi(value)) {
-      PropertyDetails details = descriptors->GetDetails(descriptor_index);
-      if (details.representation().IsDouble()) {
-        Float64 d = Float64::hole_nan();
-        if (IsNumber(value)) {
-          d = Float64::FromMaybeNaN(Object::NumberValue(value));
+      // See comment in RegisterFieldNeedsFreshHeapNumber, we need to allocate
+      // HeapNumbers for double representation fields when we can't make
+      // existing HeapNumbers mutable, or when we only have a Smi value.
+      if (heap_number_mode_ != kHeapNumbersGuaranteedUniquelyOwned ||
+          IsSmi(value)) {
+        PropertyDetails details = descriptors->GetDetails(descriptor_index);
+        if (details.representation().IsDouble()) {
+          Float64 d = Float64::hole_nan();
+          if (IsNumber(value)) {
+            d = Float64::FromMaybeNaN(Object::NumberValue(value));
+          }
+          value = hn_allocator.AllocateNext(roots, d);
         }
-        value = hn_allocator.AllocateNext(roots, d);
       }
-    }
 
-    DCHECK(FieldIndex::ForPropertyIndex(object->map(), i).is_inobject());
-    DCHECK_EQ(current_property_offset,
-              FieldIndex::ForPropertyIndex(object->map(), i).offset());
-    DCHECK_EQ(current_property_offset,
-              object->map()->GetInObjectPropertyOffset(i));
-    FieldIndex index = FieldIndex::ForInObjectOffset(current_property_offset,
-                                                     FieldIndex::kTagged);
-    // Object is the most recent young allocation, so no write barrier
-    // required.
-    raw_object->RawFastInobjectPropertyAtPut(index, value, SKIP_WRITE_BARRIER);
-    current_property_offset += kTaggedSize;
+      DCHECK(FieldIndex::ForPropertyIndex(object->map(), i).is_inobject());
+      DCHECK_EQ(current_property_offset,
+                FieldIndex::ForPropertyIndex(object->map(), i).offset());
+      DCHECK_EQ(current_property_offset,
+                object->map()->GetInObjectPropertyOffset(i));
+      FieldIndex index = FieldIndex::ForInObjectOffset(current_property_offset,
+                                                       FieldIndex::kTagged);
+      // Object is the most recent young allocation, so no write barrier
+      // required.
+      raw_object->RawFastInobjectPropertyAtPut(index, value,
+                                               SKIP_WRITE_BARRIER);
+      current_property_offset += kTaggedSize;
+    }
+    DCHECK_EQ(current_property_offset, object->map()->GetInObjectPropertyOffset(
+                                           current_property_index_));
   }
-  DCHECK_EQ(current_property_offset,
-            object->map()->GetInObjectPropertyOffset(current_property_index_));
+
+  if (needs_migration) {
+    JSObject::MigrateToMap(isolate_, object, Map::Update(isolate_, map_));
+  }
 
   object_ = object;
 }
@@ -490,7 +529,12 @@ bool JSDataObjectBuilder::TryAddFastPropertyTransitionForValue(
   if (next_map->is_dictionary_map()) return false;
 
   if (next_map->is_deprecated()) {
-    map_ = Map::Update(isolate_, next_map);
+    next_map = Map::Update(isolate_, next_map);
+    // If the migration target is a dictionary map, bail out so that we still
+    // have a fast map (otherwise we'd lose its keys, since we don't persist
+    // them anywhere else).
+    if (next_map->is_dictionary_map()) return false;
+    map_ = next_map;
     RecalculateExtraHeapNumbersNeeded();
   } else {
     map_ = next_map;
