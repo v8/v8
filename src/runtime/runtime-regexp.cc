@@ -1812,6 +1812,10 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, ctor, Object::SpeciesConstructor(isolate, recv, regexp_fun));
 
+  if (!ctor.is_identical_to(regexp_fun)) {
+    isolate->CountUsage(v8::Isolate::kRegExpCustomSpecies);
+  }
+
   DirectHandle<Object> flags_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, flags_obj,
@@ -1849,6 +1853,18 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
         Execution::New(isolate, ctor, base::VectorOf(ctor_args)));
 
     splitter = Cast<JSReceiver>(splitter_obj);
+
+    if (IsJSRegExp(*splitter)) {
+      JSRegExp::Flags splitter_flags = Cast<JSRegExp>(*splitter)->flags();
+      bool splitter_sticky = (splitter_flags & JSRegExp::kSticky) != 0;
+      bool splitter_unicode =
+          (splitter_flags & (JSRegExp::kUnicode | JSRegExp::kUnicodeSets)) != 0;
+      if (!splitter_sticky || splitter_unicode != unicode) {
+        isolate->CountUsage(v8::Isolate::kRegExpMatcherFlagsMismatch);
+      }
+    } else {
+      isolate->CountUsage(v8::Isolate::kRegExpMatcherFlagsMismatch);
+    }
   }
 
   uint32_t limit;

@@ -667,6 +667,8 @@ class V8_EXPORT Isolate {
     kHoleyArrayReadthrough = 185,
     kWasmGCAllocation = 186,
     kModuleNamespaceMissingDefaultWithStarExport = 187,
+    kRegExpMatcherFlagsMismatch = 188,
+    kRegExpCustomSpecies = 189,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
