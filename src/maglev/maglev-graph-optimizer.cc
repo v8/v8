@@ -54,6 +54,19 @@ MaglevGraphOptimizer::GetDeoptFrameForLazyDeopt(bool can_throw) {
   return {frame, result_location, result_size};
 }
 
+DeoptFrame* MaglevGraphOptimizer::GetDeoptFrameForEagerDeopt() {
+  CHECK(current_node()->properties().has_eager_deopt_info());
+  DeoptFrame* frame = &current_node()->eager_deopt_info()->top_frame();
+
+  auto* eager_scope = reducer_.current_eager_deopt_scope();
+  if (eager_scope != nullptr) {
+    frame = GetDeoptFrameForLazyDeoptHelper(graph()->zone(),
+                                            eager_scope->parent(), frame);
+    frame = graph()->zone()->New<DeoptFrame>(eager_scope->data(), frame);
+  }
+  return frame;
+}
+
 #define RETURN_IF_SUCCESS(res) \
   do {                         \
     auto _res = (res);         \

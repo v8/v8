@@ -705,8 +705,35 @@ class MaglevReducer {
     LazyDeoptFrameScope* parent_;
   };
 
+  // Pushes an eager deopt continuation frame: eager deopts of nodes created
+  // while the scope is live resume in the continuation instead of
+  // re-executing the current bytecode.
+  class V8_NODISCARD EagerDeoptFrameScope {
+   public:
+    EagerDeoptFrameScope(MaglevReducer* reducer, ValueNode* context,
+                         Builtin continuation,
+                         compiler::OptionalJSFunctionRef maybe_js_target = {},
+                         base::Vector<ValueNode* const> parameters = {});
+    ~EagerDeoptFrameScope();
+
+    LazyDeoptFrameScope* parent() const { return parent_; }
+    const DeoptFrame::FrameData& data() const { return data_; }
+
+   private:
+    MaglevReducer* reducer_;
+    DeoptFrame::FrameData data_;
+    // An eager deopt continuation's parent has to be a lazy deopt
+    // continuation, because we want to continue _after_ the eager deopt
+    // continuation completes.
+    LazyDeoptFrameScope* parent_;
+  };
+
   LazyDeoptFrameScope* current_lazy_deopt_scope() const {
     return current_lazy_deopt_scope_;
+  }
+
+  EagerDeoptFrameScope* current_eager_deopt_scope() const {
+    return current_eager_deopt_scope_;
   }
 
   MaglevReducer(BaseT* base, Graph* graph,
@@ -1755,6 +1782,7 @@ class MaglevReducer {
   bool period_added_throwing_node_ = false;
 
   LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
+  EagerDeoptFrameScope* current_eager_deopt_scope_ = nullptr;
   compiler::FeedbackSource current_speculation_feedback_ = {};
   SpeculationMode current_speculation_mode_ =
       SpeculationMode::kDisallowSpeculation;

@@ -92,7 +92,8 @@ class MaglevGraphBuilder {
   using MapInference = maglev::MapInference<MaglevGraphBuilder>;
   using CallArguments = ::v8::internal::maglev::CallArguments;
 
-  class EagerDeoptFrameScope;
+  using EagerDeoptFrameScope =
+      MaglevReducer<MaglevGraphBuilder>::EagerDeoptFrameScope;
 
   using LazyDeoptFrameScope =
       MaglevReducer<MaglevGraphBuilder>::LazyDeoptFrameScope;
@@ -287,8 +288,6 @@ class MaglevGraphBuilder {
   friend class Subgraph<MaglevGraphBuilder>;
 
   void InitializeScopeInfo();
-
-  class DeoptFrameScopeBase;
 
   // Helper class for building a subgraph with its own control flow, that is not
   // attached to any bytecode.
@@ -1907,7 +1906,6 @@ class MaglevGraphBuilder {
   int inlining_id_ = SourcePosition::kNotInlined;
   uint32_t next_handler_table_index_ = 0;
 
-  EagerDeoptFrameScope* current_eager_deopt_scope_ = nullptr;
   LazyDeoptResultLocationScope* lazy_deopt_result_location_scope_ = nullptr;
 
   struct HandlerTableEntry {

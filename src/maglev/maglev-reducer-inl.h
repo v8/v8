@@ -119,6 +119,46 @@ MaglevReducer<BaseT>::LazyDeoptFrameScope::~LazyDeoptFrameScope() {
 }
 
 template <typename BaseT>
+MaglevReducer<BaseT>::EagerDeoptFrameScope::EagerDeoptFrameScope(
+    MaglevReducer* reducer, ValueNode* context, Builtin continuation,
+    compiler::OptionalJSFunctionRef maybe_js_target,
+    base::Vector<ValueNode* const> parameters)
+    : reducer_(reducer),
+      data_(DeoptFrame::BuiltinContinuationFrameData{
+          continuation,
+          parameters.empty() ? base::Vector<ValueNode*>{}
+                             : reducer->zone()->CloneVector(parameters),
+          context, maybe_js_target}),
+      parent_(reducer->current_lazy_deopt_scope_) {
+  if constexpr (ReducerBaseWithDeoptFrameScopeHooks<BaseT>) {
+    reducer->base_->OnBeginDeoptFrameScope();
+  }
+  if (!parameters.empty()) {
+    if (InlinedAllocation* receiver =
+            parameters[0]->TryCast<InlinedAllocation>()) {
+      // We escape the first argument, since the builtin continuation call can
+      // trigger a stack iteration, which expects the receiver to be a
+      // materialized object.
+      receiver->ForceEscaping();
+    }
+  }
+  DebugVerifyBuiltinDeoptFrame(data_,
+                               compiler::ContinuationFrameStateMode::EAGER);
+  // Eager deopt continuations cannot be nested, so this should always be
+  // null.
+  DCHECK_NULL(reducer->current_eager_deopt_scope_);
+  reducer->current_eager_deopt_scope_ = this;
+}
+
+template <typename BaseT>
+MaglevReducer<BaseT>::EagerDeoptFrameScope::~EagerDeoptFrameScope() {
+  reducer_->current_eager_deopt_scope_ = nullptr;
+  if constexpr (ReducerBaseWithDeoptFrameScopeHooks<BaseT>) {
+    reducer_->base_->OnEndDeoptFrameScope();
+  }
+}
+
+template <typename BaseT>
 template <typename NodeT, typename Function, typename... Args>
 ReduceResult MaglevReducer<BaseT>::AddNewNode(
     size_t input_count, Function&& post_create_input_initializer,

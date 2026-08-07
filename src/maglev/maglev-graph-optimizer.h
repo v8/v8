@@ -60,10 +60,7 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
     kna_processor_.set_known_node_aspects(known_node_aspects);
   }
 
-  DeoptFrame* GetDeoptFrameForEagerDeopt() {
-    CHECK(current_node()->properties().has_eager_deopt_info());
-    return &current_node()->eager_deopt_info()->top_frame();
-  }
+  DeoptFrame* GetDeoptFrameForEagerDeopt();
 
   std::tuple<DeoptFrame*, interpreter::Register, int> GetDeoptFrameForLazyDeopt(
       bool can_throw);
