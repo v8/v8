@@ -163,7 +163,7 @@ extern operator '.instance_data' macro
 
 @cppObjectLayoutDefinition
 extern class WasmCapiFunctionData extends WasmFunctionData {
-  embedder_data: Foreign;  // Managed<wasm::FuncData>
+  embedder_data: CppGCManagedBase;  // CppGCManaged<wasm::FuncData>
 }
 
 @cppObjectLayoutDefinition

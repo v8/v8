@@ -2351,7 +2351,7 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 }
 
 DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
-    Address call_target, DirectHandle<Foreign> embedder_data,
+    Address call_target, DirectHandle<CppGCManagedBase> embedder_data,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     const wasm::CanonicalSig* sig) {
   DirectHandle<WasmImportData> import_data =

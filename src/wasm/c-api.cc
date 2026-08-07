@@ -1506,7 +1506,7 @@ WASM_EXPORT void Func::destroy() { delete impl(this); }
 WASM_EXPORT auto Func::copy() const -> own<Func> { return impl(this)->copy(); }
 
 struct FuncData {
-  static constexpr i::ExternalPointerTag kManagedTag = i::kWasmFuncDataTag;
+  static constexpr i::ManagedTypeId kTypeID = i::ManagedTypeId::kWasmFuncData;
 
   Store* store;
   own<FuncType> type;
@@ -1600,8 +1600,8 @@ auto make_func(Store* store_abs, std::shared_ptr<FuncData> data) -> own<Func> {
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   CheckAndHandleInterrupts(isolate);
-  i::DirectHandle<i::Managed<FuncData>> embedder_data =
-      i::Managed<FuncData>::From(isolate, sizeof(FuncData), data);
+  i::DirectHandle<i::CppGCManaged<FuncData>> embedder_data =
+      i::CppGCManaged<FuncData>::Create(isolate, sizeof(FuncData), data);
   i::wasm::CanonicalTypeIndex sig_index =
       SignatureHelper::Canonicalize(data->type.get());
   const i::wasm::CanonicalSig* sig =
@@ -1795,8 +1795,8 @@ void PopArgs(const i::wasm::CanonicalSig* sig, vec<Val>& results,
 
 own<Trap> CallWasmCapiFunction(i::Tagged<i::WasmCapiFunctionData> data,
                                const vec<Val>& args, vec<Val>& results) {
-  i::Managed<FuncData>::Ptr func_data =
-      i::Cast<i::Managed<FuncData>>(data->embedder_data())->ptr();
+  i::CppGCManaged<FuncData>::Ptr func_data =
+      i::Cast<i::CppGCManaged<FuncData>>(data->embedder_data())->ptr();
   if (func_data->kind == FuncData::kCallback) {
     return (func_data->callback)(args, results);
   }
@@ -1910,8 +1910,9 @@ WASM_EXPORT auto Func::call(const vec<Val>& args, vec<Val>& results) const
 
 i::Address FuncData::v8_callback(i::Address host_data_foreign,
                                  i::Address argv) {
-  i::Managed<FuncData>::Ptr self =
-      i::Cast<i::Managed<FuncData>>(i::Tagged<i::Object>(host_data_foreign))
+  i::CppGCManaged<FuncData>::Ptr self =
+      i::Cast<i::CppGCManaged<FuncData>>(
+          i::Tagged<i::Object>(host_data_foreign))
           ->ptr();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();

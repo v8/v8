@@ -2743,7 +2743,8 @@ bool WasmCapiFunction::IsWasmCapiFunction(Tagged<Object> object) {
 }
 
 DirectHandle<WasmCapiFunction> WasmCapiFunction::New(
-    Isolate* isolate, Address call_target, DirectHandle<Foreign> embedder_data,
+    Isolate* isolate, Address call_target,
+    DirectHandle<CppGCManagedBase> embedder_data,
     const wasm::CanonicalSig* sig) {
   // TODO(jkummerow): Install a JavaScript wrapper. For now, calling
   // these functions directly is unsupported; they can only be called

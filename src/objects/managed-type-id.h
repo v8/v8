@@ -19,6 +19,8 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "TestDeleteCounter";
     case ManagedTypeId::kWasmStreaming:
       return "WasmStreaming";
+    case ManagedTypeId::kWasmFuncData:
+      return "WasmFuncData";
   }
 }
 

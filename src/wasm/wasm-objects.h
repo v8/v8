@@ -1250,10 +1250,10 @@ class WasmCapiFunction : public JSFunction {
  public:
   static bool IsWasmCapiFunction(Tagged<Object> object);
 
-  static DirectHandle<WasmCapiFunction> New(Isolate* isolate,
-                                            Address call_target,
-                                            DirectHandle<Foreign> embedder_data,
-                                            const wasm::CanonicalSig* sig);
+  static DirectHandle<WasmCapiFunction> New(
+      Isolate* isolate, Address call_target,
+      DirectHandle<CppGCManagedBase> embedder_data,
+      const wasm::CanonicalSig* sig);
 
   // TODO(clemensb): Remove this accessor.
   const wasm::CanonicalSig* sig() const;
@@ -1528,8 +1528,8 @@ inline constexpr int WasmFuncRef::kSize = sizeof(WasmFuncRef);
 
 V8_OBJECT class WasmCapiFunctionData : public WasmFunctionData {
  public:
-  inline Tagged<Foreign> embedder_data() const;
-  inline void set_embedder_data(Tagged<Foreign> value,
+  inline Tagged<CppGCManagedBase> embedder_data() const;
+  inline void set_embedder_data(Tagged<CppGCManagedBase> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(WasmCapiFunctionData)
@@ -1541,7 +1541,7 @@ V8_OBJECT class WasmCapiFunctionData : public WasmFunctionData {
   static const int kSize;
 
  public:
-  TaggedMember<Foreign> embedder_data_;
+  TaggedMember<CppGCManagedBase> embedder_data_;
 } V8_OBJECT_END;
 
 inline constexpr int WasmCapiFunctionData::kHeaderSize =

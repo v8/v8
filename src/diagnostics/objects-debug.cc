@@ -3434,7 +3434,7 @@ void WasmCapiFunctionData::WasmCapiFunctionDataVerify(Isolate* isolate) {
   CHECK(Is<WasmCapiFunctionData>(this));
   WasmFunctionDataVerify(isolate);
   Object::VerifyPointer(isolate, embedder_data_.load());
-  CHECK(IsForeign(embedder_data_.load()));
+  CHECK(Is<CppGCManagedBase>(embedder_data_.load()));
 }
 
 void WasmSuspenderObject::WasmSuspenderObjectVerify(Isolate* isolate) {

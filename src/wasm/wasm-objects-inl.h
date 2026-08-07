@@ -937,10 +937,10 @@ void WasmInternalFunction::set_call_target(WasmCodePointer code_pointer) {
 }
 
 // WasmCapiFunctionData
-Tagged<Foreign> WasmCapiFunctionData::embedder_data() const {
+Tagged<CppGCManagedBase> WasmCapiFunctionData::embedder_data() const {
   return embedder_data_.load();
 }
-void WasmCapiFunctionData::set_embedder_data(Tagged<Foreign> value,
+void WasmCapiFunctionData::set_embedder_data(Tagged<CppGCManagedBase> value,
                                              WriteBarrierMode mode) {
   embedder_data_.store(this, value, mode);
 }

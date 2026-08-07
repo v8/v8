@@ -579,6 +579,7 @@ enum class ManagedTypeId : uint32_t {
   kBackingStore,
   kTestDeleteCounter,
   kWasmStreaming,
+  kWasmFuncData,
 };
 
 #define SHARED_MANAGED_TAG_LIST(V) V(WasmFutexManagedObjectWaitListTag)
@@ -586,7 +587,6 @@ enum class ManagedTypeId : uint32_t {
 #define MANAGED_TAG_LIST(V)          \
   SHARED_MANAGED_TAG_LIST(V)         \
   V(GenericManagedTag)               \
-  V(WasmFuncDataTag)                 \
   V(WasmManagedDataTag)              \
   V(WasmNativeModuleTag)             \
   V(BackingStoreTag)                 \
