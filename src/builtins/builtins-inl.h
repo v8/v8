@@ -323,7 +323,6 @@ bool Builtins::IsJSTrampoline(Builtin builtin) {
   switch (builtin) {
     case Builtin::kIllegal:
     case Builtin::kCompileLazy:
-    case Builtin::kMarkFlushed:
     case Builtin::kInterpreterEntryTrampoline:
     case Builtin::kDebugBreakTrampoline:
 #ifdef V8_ENABLE_WEBASSEMBLY
