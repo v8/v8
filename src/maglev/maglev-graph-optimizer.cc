@@ -810,9 +810,6 @@ ProcessResult MaglevGraphOptimizer::VisitAssertInt32(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckDynamicValue(
     CheckDynamicValue* node, const ProcessingState& state) {
-  if (node->input_node(0) == node->input_node(1)) {
-    return RemoveCheckOrDeopt(node->expected(), node->deoptimize_reason());
-  }
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1049,39 +1046,6 @@ VISIT_CHECK(StringOrStringWrapper)
 VISIT_CHECK(StringOrOddball)
 VISIT_CHECK(Symbol)
 #undef VISIT_CHECK
-
-ProcessResult MaglevGraphOptimizer::VisitCheckFloat64Condition(
-    CheckFloat64Condition* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckRootConstant(
-    CheckRootConstant* node, const ProcessingState& state) {
-  if (RootConstant* constant = node->input_node(0)->TryCast<RootConstant>()) {
-    bool is_root = constant->index() == node->root_index();
-    return RemoveCheckOrDeopt(is_root == node->expected(),
-                              node->deoptimize_reason());
-  }
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckUndetectable(
-    CheckUndetectable* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckToBoolean(
-    CheckToBoolean* node, const ProcessingState& state) {
-  if (IsConstantNode(node->input_node(0)->opcode())) {
-    bool condition =
-        FromConstantToBool(reducer_.local_isolate(), node->input_node(0));
-    return RemoveCheckOrDeopt(condition == node->expected(),
-                              node->deoptimize_reason());
-  }
-  return ProcessResult::kContinue;
-}
 
 ProcessResult MaglevGraphOptimizer::VisitCheckValue(
     CheckValue* node, const ProcessingState& state) {

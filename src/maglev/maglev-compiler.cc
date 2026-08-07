@@ -177,15 +177,6 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                      MaglevPhase::kInlining);
     }
 
-    if (v8_flags.maglev_fold_cold_branches && !graph->is_osr() &&
-        graph->may_have_cold_branches()) {
-      TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                  "V8.Maglev.ColdBranchFolding");
-      graph->FoldColdBranches();
-      PrintAndVerify(graph, v8_flags.print_maglev_graphs,
-                     MaglevPhase::kColdBranchFolding);
-    }
-
     if (v8_flags.maglev_truncation && graph->may_have_truncation()) {
       TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                   "V8.Maglev.Truncation");

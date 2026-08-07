@@ -229,15 +229,6 @@ struct InlinerPhase {
   }
 };
 
-struct ColdBranchFoldingPhase {
-  DECL_TURBOLEV_PHASE_CONSTANTS(ColdBranchFolding)
-
-  PhaseResult Run(maglev::Graph* graph) {
-    graph->FoldColdBranches();
-    return PhaseResult::kContinue;
-  }
-};
-
 struct LoopPeelerPhase {
   DECL_TURBOLEV_PHASE_CONSTANTS(LoopPeeling)
 
@@ -438,10 +429,6 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   RUN_MAYBE_ABORT(MaglevGraphBuilderPhase);
   if (v8_flags.turbolev_non_eager_inlining) {
     RUN_MAYBE_ABORT(InlinerPhase);
-  }
-  if (v8_flags.maglev_fold_cold_branches && !graph_->is_osr() &&
-      graph_->may_have_cold_branches()) {
-    RUN_MAYBE_ABORT(ColdBranchFoldingPhase);
   }
   if (v8_flags.turbolev_non_eager_loop_peeling) {
     bool peeled = false;
