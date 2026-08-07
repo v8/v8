@@ -90,7 +90,7 @@
   'regress/regress-435630464-verification-failure': [['mode == release', SKIP], ['mode != release', FAIL]],
 
   # https://crbug.com/532595489
-  'regress/regress-532595489': [FAIL, CRASH, NO_VARIANTS, ['not pointer_compression', SKIP]],
+  'regress/regress-532595489': [FAIL, CRASH, NO_VARIANTS, ['not pointer_compression or simulator_run', SKIP]],
 
   ##############################################################################
   # Tests where variants make no sense.
