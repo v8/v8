@@ -7,12 +7,9 @@
 
 #include <stdint.h>
 
-namespace v8::internal {
+#include "include/v8-internal.h"
 
-enum class ManagedTypeId : uint32_t {
-  kBackingStore,
-  kTestDeleteCounter,
-};
+namespace v8::internal {
 
 constexpr const char* ToString(ManagedTypeId type_id) {
   switch (type_id) {
@@ -20,6 +17,8 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "BackingStore";
     case ManagedTypeId::kTestDeleteCounter:
       return "TestDeleteCounter";
+    case ManagedTypeId::kWasmStreaming:
+      return "WasmStreaming";
   }
 }
 

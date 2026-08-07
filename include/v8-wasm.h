@@ -169,8 +169,8 @@ class V8_EXPORT WasmModuleObject : public Object {
  */
 class V8_EXPORT WasmStreaming final {
  public:
-  static constexpr internal::ExternalPointerTag kManagedTag =
-      internal::kWasmWasmStreamingTag;
+  static constexpr internal::ManagedTypeId kTypeID =
+      internal::ManagedTypeId::kWasmStreaming;
   class WasmStreamingImpl;
 
   class ModuleCachingInterface {
@@ -242,9 +242,9 @@ class V8_EXPORT WasmStreaming final {
   void SetUrl(const char* url, size_t length);
 
   /**
-   * Unpacks a {WasmStreaming} object wrapped in a  {Managed} for the embedder.
-   * Since the embedder is on the other side of the API, it cannot unpack the
-   * {Managed} itself.
+   * Unpacks a {WasmStreaming} object wrapped in a {CppGCManaged} for the
+   * embedder. Since the embedder is on the other side of the API, it cannot
+   * unpack the {CppGCManaged} itself.
    */
   static std::shared_ptr<WasmStreaming> Unpack(Isolate* isolate,
                                                Local<Value> value);

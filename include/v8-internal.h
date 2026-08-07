@@ -575,12 +575,17 @@ struct TagRange {
   Tag last;
 };
 
+enum class ManagedTypeId : uint32_t {
+  kBackingStore,
+  kTestDeleteCounter,
+  kWasmStreaming,
+};
+
 #define SHARED_MANAGED_TAG_LIST(V) V(WasmFutexManagedObjectWaitListTag)
 
 #define MANAGED_TAG_LIST(V)          \
   SHARED_MANAGED_TAG_LIST(V)         \
   V(GenericManagedTag)               \
-  V(WasmWasmStreamingTag)            \
   V(WasmFuncDataTag)                 \
   V(WasmManagedDataTag)              \
   V(WasmNativeModuleTag)             \

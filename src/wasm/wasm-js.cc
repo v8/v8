@@ -169,7 +169,7 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
   TRACE_EVENT("v8.wasm", "wasm.WasmStreaming.Unpack");
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
   auto managed =
-      i::Cast<i::Managed<WasmStreaming>>(Utils::OpenDirectHandle(*value));
+      i::Cast<i::CppGCManaged<WasmStreaming>>(Utils::OpenDirectHandle(*value));
   return managed->ptr().as_shared_ptr();
 }
 
@@ -841,14 +841,14 @@ void StartAsyncCompilationWithResolver(
     return;
   }
 
-  // Allocate the streaming decoder in a Managed so we can pass it to the
+  // Allocate the streaming decoder in a CppGCManaged so we can pass it to the
   // embedder.
   std::shared_ptr<WasmStreaming> streaming = std::make_shared<WasmStreaming>(
       std::make_unique<WasmStreaming::WasmStreamingImpl>(
           i_isolate, js_api_scope.api_name(), std::move(compile_imports),
           resolver));
-  i::DirectHandle<i::Managed<WasmStreaming>> data =
-      i::Managed<WasmStreaming>::From(i_isolate, 0, streaming);
+  i::DirectHandle<i::CppGCManaged<WasmStreaming>> data =
+      i::CppGCManaged<WasmStreaming>::Create(i_isolate, 0, streaming);
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   Local<v8::Function> compile_callback, reject_callback;
