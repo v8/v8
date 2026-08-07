@@ -9794,6 +9794,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
         " array iteration");
   }
 
+  // The union kind is only an upper bound on each receiver's own kind. Loads
+  // through it widen and are sound; stores narrow and are not. Unlike the
+  // iterating builtins, sort writes its snapshot back into the receiver.
+  if (std::any_of(possible_maps->begin(), possible_maps->end(),
+                  [&](compiler::MapRef map) {
+                    return map.elements_kind() != elements_kind;
+                  })) {
+    FAIL(" to reduce Array.prototype.sort - receiver elements kinds disagree");
+  }
+
   // Holey arrays require holes to be moved to the end of the sorted result
   // (ECMA-262 23.1.3.30 step 5, skip-holes mode).  The insertion sort does
   // not implement this, so bail out for any holey kind.
