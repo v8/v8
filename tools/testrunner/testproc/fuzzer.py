@@ -12,7 +12,7 @@ from . import base
 # You can space-separate multiple flags in the flag string.
 EXTRA_FLAGS = [
     (0.05, '--always-osr'),
-    (0.05, '--always-osr-from-maglev'),
+    (0.05, '--osr-from-maglev=4'),
     (0.05, '--always-sparkplug'),
     (0.1, '--assert-types'),
     (0.1, '--cache=code'),

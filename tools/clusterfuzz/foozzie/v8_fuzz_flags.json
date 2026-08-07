@@ -1,6 +1,6 @@
 [
   [0.05, "--always-osr"],
-  [0.05, "--always-osr-from-maglev"],
+  [0.05, "--osr-from-maglev=4"],
   [0.05, "--always-sparkplug"],
   [0.05, "--stress-compaction-random"],
   [0.05, "--stress-delay-tasks"],

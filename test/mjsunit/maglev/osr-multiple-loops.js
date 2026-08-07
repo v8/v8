@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --maglev --no-stress-opt
 // Flags: --no-baseline-batch-compilation --use-osr --turbofan
 // Flags: --concurrent-osr --concurrent-recompilation
-// Flags: --osr-from-maglev --always-osr-from-maglev
+// Flags: --osr-from-maglev=4
 
 let keep_going = 10000000;
 

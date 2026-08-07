@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "src/base/base-export.h"
+#include "src/base/enum-set.h"
 #include "src/base/functional/function-ref.h"
 #include "src/base/logging.h"
 #include "src/base/vector.h"
@@ -364,8 +365,16 @@ class MaglevGraphBuilder {
   }
 
  public:
+  enum class OsrFromMaglevStrategy {
+    kOnOsrCompile,
+    kIfLoopOsrd,
+    kAlways,
+  };
+  using OsrFromMaglevStrategies = base::EnumSet<OsrFromMaglevStrategy>;
+
   bool ShouldEmitInterruptBudgetChecks();
-  bool ShouldEmitOsrInterruptBudgetChecks();
+  bool ShouldEmitOsrInterruptBudgetChecks(FeedbackSlot feedback_slot,
+                                          BytecodeOffset osr_offset);
 
   bool MaglevIsTopTier() const { return !v8_flags.turbofan && v8_flags.maglev; }
   BasicBlock* CreateEdgeSplitBlock(BasicBlockRef& jump_targets,

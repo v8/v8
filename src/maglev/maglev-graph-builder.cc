@@ -65,6 +65,7 @@
 #include "src/objects/arguments.h"
 #include "src/objects/contexts.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
@@ -14452,13 +14453,16 @@ ReduceResult MaglevGraphBuilder::VisitJumpLoop() {
   const int32_t loop_offset = iterator_.GetImmediateOperand(1);
   const FeedbackSlot feedback_slot = iterator_.GetSlotOperand(2);
   int target = iterator_.GetJumpTargetOffset();
+  BytecodeOffset jump_loop_osr_offset =
+      BytecodeOffset(iterator_.current_offset());
 
-  bool osr = ShouldEmitOsrInterruptBudgetChecks();
+  bool osr =
+      ShouldEmitOsrInterruptBudgetChecks(feedback_slot, jump_loop_osr_offset);
   if (ShouldEmitInterruptBudgetChecks()) {
     int reduction = relative_jump_bytecode_offset *
                     v8_flags.osr_from_maglev_interrupt_scale_factor;
-    BytecodeOffset osr_offset = osr ? BytecodeOffset(iterator_.current_offset())
-                                    : BytecodeOffset::None();
+    BytecodeOffset osr_offset =
+        osr ? jump_loop_osr_offset : BytecodeOffset::None();
     FeedbackSlot slot = osr ? feedback_slot : FeedbackSlot::Invalid();
     RETURN_IF_ABORT(AddNewNode<ReduceInterruptBudgetForLoop>(
         {GetFeedbackCell()}, reduction > 0 ? reduction : 1, osr_offset,
@@ -16456,11 +16460,9 @@ bool MaglevGraphBuilder::ShouldEmitInterruptBudgetChecks() {
   return v8_flags.force_emit_interrupt_budget_checks || v8_flags.turbofan;
 }
 
-bool MaglevGraphBuilder::ShouldEmitOsrInterruptBudgetChecks() {
+bool MaglevGraphBuilder::ShouldEmitOsrInterruptBudgetChecks(
+    FeedbackSlot feedback_slot, BytecodeOffset osr_offset) {
   if (!v8_flags.turbofan || !v8_flags.use_osr || !v8_flags.osr_from_maglev) {
-    return false;
-  }
-  if (!graph_->is_osr() && !v8_flags.always_osr_from_maglev) {
     return false;
   }
   // TODO(olivf) OSR from maglev requires lazy recompilation (see
@@ -16476,7 +16478,28 @@ bool MaglevGraphBuilder::ShouldEmitOsrInterruptBudgetChecks() {
   // same maglev osr code again, before reaching the turbofan OSR code in the
   // callee. The solution is to support osr from maglev without
   // deoptimization.
-  return !is_inline();
+  if (is_inline()) {
+    return false;
+  }
+  auto osr_from_maglev =
+      OsrFromMaglevStrategies::FromIntegral(v8_flags.osr_from_maglev);
+  if (osr_from_maglev.contains(OsrFromMaglevStrategy::kAlways)) {
+    return true;
+  }
+  if (osr_from_maglev.contains(OsrFromMaglevStrategy::kOnOsrCompile) &&
+      graph_->is_osr()) {
+    return true;
+  }
+  if (osr_from_maglev.contains(OsrFromMaglevStrategy::kIfLoopOsrd)) {
+    if (graph_->is_osr() && compilation_unit_->osr_offset() == osr_offset) {
+      return true;
+    }
+    std::optional<Tagged<Code>> maybe_osr_code =
+        compilation_unit_->feedback().object()->GetOptimizedOsrCode(
+            broker()->isolate(), {}, feedback_slot);
+    if (maybe_osr_code.has_value()) return true;
+  }
+  return false;
 }
 
 BasicBlock* MaglevGraphBuilder::CreateEdgeSplitBlock(

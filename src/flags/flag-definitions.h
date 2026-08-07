@@ -1189,15 +1189,16 @@ DEFINE_INT(invocation_count_for_maglev, 400,
 #endif  // ANDROID
 DEFINE_INT(invocation_count_for_maglev_osr, 100,
            "invocation count required for maglev OSR")
-DEFINE_BOOL(osr_from_maglev, false,
-            "whether we try to OSR to Turbofan from OSR'd Maglev")
+DEFINE_INT(osr_from_maglev, 3,
+           "bitset mode for OSR from Maglev to Turbofan (0=off, 1=on OSR "
+           "compile, 2=if loop was OSR'd, 4=always)")
 DEFINE_FLOAT(
     osr_from_maglev_interrupt_scale_factor, 0.8,
     "Scale interrupt budget reduction for OSR from Maglev vs. OSR to Maglev")
 DEFINE_BOOL(always_osr_from_maglev, false,
-            "whether we try to OSR to Turbofan from any Maglev")
-DEFINE_WEAK_IMPLICATION(turbolev, always_osr_from_maglev)
-DEFINE_WEAK_IMPLICATION(always_osr_from_maglev, osr_from_maglev)
+            "whether we try to OSR to Turbofan from any Maglev (alias for "
+            "--osr-from-maglev=4)")
+DEFINE_VALUE_IMPLICATION(always_osr_from_maglev, osr_from_maglev, 4)
 
 // Tiering: Turbofan.
 DEFINE_INT(invocation_count_for_turbofan, 3000,
@@ -1237,8 +1238,10 @@ DEFINE_VALUE_IMPLICATION(jit_fuzzing, minimum_invocations_after_ic_update, 5)
 
 #if V8_ENABLE_WEBASSEMBLY
 // Wasm tiering thresholds.
-DEFINE_VALUE_IMPLICATION(jit_fuzzing, wasm_wrapper_tiering_budget, 1)
-DEFINE_VALUE_IMPLICATION(jit_fuzzing, wasm_tiering_budget, 1)
+DEFINE_VALUE_IMPLICATION(jit_fuzzing,
+  wasm_wrapper_tiering_budget, 1)
+DEFINE_VALUE_IMPLICATION(jit_fuzzing,
+  wasm_tiering_budget, 1)
 DEFINE_IMPLICATION(jit_fuzzing, wasm_inlining_ignore_call_counts)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1655,9 +1658,10 @@ DEFINE_INT(max_turbolev_eager_inlined_bytecode_size, 30,
            "maximum size of bytecode considered for eager inlining")
 
 // When using maglev as OSR target allow us to tier up further
-DEFINE_WEAK_VALUE_IMPLICATION(maglev_osr, osr_from_maglev, true)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev_osr, osr_from_maglev, 2)
 DEFINE_VALUE_IMPLICATION(!use_osr, maglev_osr, false)
-DEFINE_VALUE_IMPLICATION(!turbofan, osr_from_maglev, false)
+DEFINE_VALUE_IMPLICATION(!turbofan, osr_from_maglev, 0)
+DEFINE_VALUE_IMPLICATION(!turbofan, always_osr_from_maglev, false)
 DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 
 DEFINE_INT(maglev_allocation_folding, 2, "maglev allocation folding level")

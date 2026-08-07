@@ -1341,6 +1341,11 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(always_osr_from_maglev, lite_mode);
   CONTRADICTION(always_osr_from_maglev, turbofan);
   CONTRADICTION(always_osr_from_maglev, turboshaft);
+  CONTRADICTION(osr_from_maglev, disable_optimizing_compilers);
+  CONTRADICTION(osr_from_maglev, jitless);
+  CONTRADICTION(osr_from_maglev, lite_mode);
+  CONTRADICTION(osr_from_maglev, turbofan);
+  CONTRADICTION(osr_from_maglev, turboshaft);
   CONTRADICTION(assert_types, stress_concurrent_inlining);
   CONTRADICTION(assert_types, stress_concurrent_inlining_attach_code);
   CONTRADICTION(disable_optimizing_compilers, maglev_future);
