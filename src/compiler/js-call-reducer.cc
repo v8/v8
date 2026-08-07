@@ -4068,6 +4068,10 @@ class IteratingArrayBuiltinHelper {
       return;
     }
 
+    all_elements_kinds_equal_ = std::all_of(
+        receiver_maps.begin(), receiver_maps.end(),
+        [&](MapRef map) { return map.elements_kind() == elements_kind_; });
+
     // TODO(jgruber): May only be needed for holey elements kinds.
     if (!dependencies->DependOnNoElementsProtector()) return;
 
@@ -4083,10 +4087,13 @@ class IteratingArrayBuiltinHelper {
   Control control() const { return control_; }
   MapInference* inference() { return &inference_; }
   ElementsKind elements_kind() const { return elements_kind_; }
+  // False when elements_kind() is a union over differing receiver kinds.
+  bool all_elements_kinds_equal() const { return all_elements_kinds_equal_; }
 
  private:
   bool can_reduce_ = false;
   bool has_stability_dependency_ = false;
+  bool all_elements_kinds_equal_ = false;
   Node* receiver_;
   Effect effect_;
   Control control_;
@@ -4125,6 +4132,11 @@ Reduction JSCallReducer::ReduceArraySort(Node* node,
 
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
+
+  // The union kind is only an upper bound on each receiver's own kind. Loads
+  // through it widen and are sound; stores narrow and are not. Unlike the
+  // iterating builtins, sort writes its snapshot back into the receiver.
+  if (!h.all_elements_kinds_equal()) return h.inference()->NoChange();
 
   // Only non-holey, non-double PACKED kinds are supported.  Holey arrays need
   // hole handling; double arrays need a FixedDoubleArray temp copy.
