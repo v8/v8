@@ -21,6 +21,8 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "WasmStreaming";
     case ManagedTypeId::kWasmFuncData:
       return "WasmFuncData";
+    case ManagedTypeId::kWasmManagedData:
+      return "WasmManagedData";
   }
 }
 

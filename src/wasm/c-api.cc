@@ -491,7 +491,8 @@ StoreImpl::~StoreImpl() {
 }
 
 struct ManagedData {
-  static constexpr i::ExternalPointerTag kManagedTag = i::kWasmManagedDataTag;
+  static constexpr i::ManagedTypeId kTypeID =
+      i::ManagedTypeId::kWasmManagedData;
 
   ManagedData(void* info, void (*finalizer)(void*))
       : info(info), finalizer(finalizer) {}
@@ -512,7 +513,7 @@ void StoreImpl::SetHostInfo(i::DirectHandle<i::Object> object, void* info,
   // but all we get from the embedder is a {void*}, so our best estimate
   // is the size of the metadata.
   size_t estimated_size = sizeof(ManagedData);
-  i::DirectHandle<i::Object> wrapper = i::Managed<ManagedData>::From(
+  i::DirectHandle<i::Object> wrapper = i::CppGCManaged<ManagedData>::Create(
       i_isolate(), estimated_size,
       std::make_shared<ManagedData>(info, finalizer));
   int32_t hash = i::Object::GetOrCreateHash(*object, i_isolate()).value();
@@ -526,7 +527,7 @@ void* StoreImpl::GetHostInfo(i::DirectHandle<i::Object> key,
   i::Tagged<i::Object> raw =
       i::Cast<i::EphemeronHashTable>(host_info_map_->table())->Lookup(key);
   if (IsTheHole(raw)) return nullptr;
-  return i::Cast<i::Managed<ManagedData>>(raw)->raw(no_gc)->info;
+  return i::Cast<i::CppGCManaged<ManagedData>>(raw)->raw()->info;
 }
 
 template <>
