@@ -837,6 +837,18 @@ class V8_EXPORT Object : public Value {
   void* GetAlignedPointerFromEmbedderDataInCreationContext(
       int index, EmbedderDataTypeTag tag);
 
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(
+      v8::Isolate* isolate, int index, CppHeapPointerTag tag) {
+    // TODO(ahaas): This is a temporary implementation, the actual
+    // implementation will follow with the refactoring of EmbedderDataSlots.
+    // The refactoring will regress the existing API, as the fast path will move
+    // to this new API.
+    // By using this temporary implementation, blink's ScriptState can already
+    // switch to the new API, and thereby switch from the old fast path to the
+    // new fast path directly.
+    return GetAlignedPointerFromEmbedderDataInCreationContext(
+        isolate, index, kEmbedderDataTypeTagDefault);
+  }
   /**
    * Checks whether a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
