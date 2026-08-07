@@ -1842,8 +1842,8 @@ DEFINE_BOOL(turboshaft_string_concat_escape_analysis, true,
 DEFINE_BOOL(turboshaft_trusted_load_elimination, true,
             "enable Turboshaft's low level load elimination for trusted loads "
             "(JS and Wasm)")
-DEFINE_IMPLICATION(turboshaft_trusted_load_elimination,
-                   turboshaft_load_elimination)
+DEFINE_WEAK_IMPLICATION(turboshaft_trusted_load_elimination,
+                        turboshaft_load_elimination)
 
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
