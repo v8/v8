@@ -214,7 +214,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   BUILTIN_LIST_BASE_TIERING_TURBOFAN(TFC)          \
   TFC(FunctionLogNextExecution, JSTrampoline)      \
   TFC(MarkReoptimizeLazyDeoptimized, JSTrampoline) \
-  TFC(MarkLazyDeoptimized, JSTrampoline)
+  TFC(MarkLazyDeoptimized, JSTrampoline)           \
+  TFC(MarkFlushed, JSTrampoline)
 
 #define BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH,     \
                                 ASM)                                           \

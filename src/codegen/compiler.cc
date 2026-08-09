@@ -3287,8 +3287,7 @@ void Compiler::CompileOptimized(Isolate* isolate,
   DCHECK(function->is_compiled(isolate));
   DCHECK(function->shared()->HasBytecodeArray());
 
-  DCHECK_IMPLIES(function->IsTieringRequestedOrInProgress(isolate) &&
-                     !function->IsLoggingRequested(isolate),
+  DCHECK_IMPLIES(function->IsOptimizationRequested(isolate),
                  function->tiering_in_progress());
   DCHECK_IMPLIES(!tiering_was_in_progress && function->tiering_in_progress(),
                  function->ChecksTieringState(isolate));

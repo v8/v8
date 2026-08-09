@@ -350,6 +350,7 @@ std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(
       break;
     case TieringBuiltin::kMarkLazyDeoptimized:
     case TieringBuiltin::kMarkReoptimizeLazyDeoptimized:
+    case TieringBuiltin::kMarkFlushed:
     case TieringBuiltin::kFunctionLogNextExecution:
       break;
   }
