@@ -67,10 +67,9 @@ class ConsoleHelper {
   int groupId() const { return m_inspector->contextGroupId(contextId()); }
 
   InjectedScript* injectedScript(int sessionId) {
-    std::shared_ptr<InspectedContext> context =
-        m_inspector->getContext(groupId(), contextId());
-    if (!context) return nullptr;
-    return context->getInjectedScript(sessionId);
+    m_inspectedContext = m_inspector->getContext(groupId(), contextId());
+    if (!m_inspectedContext) return nullptr;
+    return m_inspectedContext->getInjectedScript(sessionId);
   }
 
   V8InspectorSessionImpl* session(int sessionId) {
@@ -210,6 +209,7 @@ class ConsoleHelper {
   const v8::debug::ConsoleCallArguments& m_info;
   const v8::debug::ConsoleContext& m_consoleContext;
   V8InspectorImpl* m_inspector;
+  std::shared_ptr<InspectedContext> m_inspectedContext;
 };
 
 void createBoundFunctionProperty(
