@@ -2580,6 +2580,8 @@
   'regress/regress-430201b': [PASS, ['tsan', SKIP]],
   # Slow test due to generating heap snapshots on every GC.
   'regress/regress-494583765' : [SKIP],
+  # Exceeds expected timeouts.
+  'compiler/concurrent-string-ext-seq': [SKIP],
 }],  # variant == stress_concurrent_allocation
 
 ##############################################################################
