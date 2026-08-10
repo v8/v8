@@ -515,10 +515,13 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
 inline MemOperand MaglevAssembler::TypedArrayElementOperand(
     Register data_pointer, Register index, int element_size) {
   const int shift = ShiftFromScale(element_size);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  ZeroExtendWord(scratch, index);
   if (shift == 0) {
-    AddWord(data_pointer, data_pointer, index);
+    AddWord(data_pointer, data_pointer, scratch);
   } else {
-    CalcScaledAddress(data_pointer, data_pointer, index, shift);
+    CalcScaledAddress(data_pointer, data_pointer, scratch, shift);
   }
   return MemOperand(data_pointer);
 }
@@ -548,10 +551,13 @@ inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register index, int scale,
                                                     int offset) {
   const int shift = ShiftFromScale(scale);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  ZeroExtendWord(scratch, index);
   if (shift == 0) {
-    AddWord(result, object, index);
+    AddWord(result, object, scratch);
   } else {
-    CalcScaledAddress(result, object, index, shift);
+    CalcScaledAddress(result, object, scratch, shift);
   }
   LoadTaggedField(result, FieldMemOperand(result, offset));
 }
@@ -602,7 +608,10 @@ void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
     CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
                           AbortReason::kUnexpectedNegativeValue);
   }
-  CalcScaledAddress(result, array, index, kTaggedSizeLog2);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  ZeroExtendWord(scratch, index);
+  CalcScaledAddress(result, array, scratch, kTaggedSizeLog2);
   MacroAssembler::LoadTaggedFieldWithoutDecompressing(
       result, FieldMemOperand(result, OFFSET_OF_DATA_START(FixedArray)));
 }
@@ -618,7 +627,8 @@ void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
   }
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  CalcScaledAddress(scratch, array, index, kDoubleSizeLog2);
+  ZeroExtendWord(scratch, index);
+  CalcScaledAddress(scratch, array, scratch, kDoubleSizeLog2);
   LoadDouble(result,
              FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
@@ -627,7 +637,8 @@ inline void MaglevAssembler::StoreFixedDoubleArrayElement(
     Register array, Register index, DoubleRegister value) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  CalcScaledAddress(scratch, array, index, kDoubleSizeLog2);
+  ZeroExtendWord(scratch, index);
+  CalcScaledAddress(scratch, array, scratch, kDoubleSizeLog2);
   StoreDouble(value,
               FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
@@ -664,8 +675,11 @@ inline void MaglevAssembler::SetSlotAddressForTaggedField(Register slot_reg,
 
 inline void MaglevAssembler::SetSlotAddressForFixedArrayElement(
     Register slot_reg, Register object, Register index) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
   Add64(slot_reg, object, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
-  CalcScaledAddress(slot_reg, slot_reg, index, kTaggedSizeLog2);
+  ZeroExtendWord(scratch, index);
+  CalcScaledAddress(slot_reg, slot_reg, scratch, kTaggedSizeLog2);
 }
 
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
@@ -678,7 +692,8 @@ inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
     Register array, Register index, Register value) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  CalcScaledAddress(scratch, array, index, kTaggedSizeLog2);
+  ZeroExtendWord(scratch, index);
+  CalcScaledAddress(scratch, array, scratch, kTaggedSizeLog2);
   MacroAssembler::StoreTaggedField(
       value, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
