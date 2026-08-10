@@ -5,9 +5,9 @@
 // Flags: --allow-natives-syntax --maglev --no-stress-opt
 // Flags: --no-baseline-batch-compilation --use-osr --turbofan
 // Flags: --max-bytecode-size-for-early-opt=0
-// Flags: --osr-from-maglev --always-osr-from-maglev --maglev-loop-peeling
+// Flags: --osr-from-maglev=4 --maglev-loop-peeling
 
-let keep_going = 100000;
+let keep_going = 1000000;
 let i;
 
 function f() {
