@@ -896,33 +896,37 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
 
   // Test single bit in value.
-  inline void TestBit(Register value, int bitNumber, Register scratch = r0) {
+  inline void TestBit(Register value, int bitNumber) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     ExtractBitRange(scratch, value, bitNumber, bitNumber, SetRC, true);
   }
 
   // Test consecutive bit range in value.  Range is defined by mask.
-  inline void TestBitMask(Register value, uintptr_t mask,
-                          Register scratch = r0) {
+  inline void TestBitMask(Register value, uintptr_t mask) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     ExtractBitMask(scratch, value, mask, SetRC, true);
   }
   // Test consecutive bit range in value.  Range is defined by
   // rangeStart - rangeEnd.
-  inline void TestBitRange(Register value, int rangeStart, int rangeEnd,
-                           Register scratch = r0) {
+  inline void TestBitRange(Register value, int rangeStart, int rangeEnd) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     ExtractBitRange(scratch, value, rangeStart, rangeEnd, SetRC, true);
   }
 
-  inline void TestIfSmi(Register value, Register scratch) {
-    TestBitRange(value, kSmiTagSize - 1, 0, scratch);
+  inline void TestIfSmi(Register value) {
+    TestBitRange(value, kSmiTagSize - 1, 0);
   }
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
-    TestIfSmi(value, r0);
+    TestIfSmi(value);
     beq(smi_label, cr0);  // branch if SMI
   }
 
   Condition CheckSmi(Register src) {
-    TestIfSmi(src, r0);
+    TestIfSmi(src);
     return eq;
   }
 
@@ -955,9 +959,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadInterpreterDataInterpreterTrampoline(Register destination,
                                                 Register interpreter_data);
 
-  inline void TestIfInt32(Register value, Register scratch,
-                          CRegister cr = cr0) {
+  inline void TestIfInt32(Register value, CRegister cr = cr0) {
     // High bits must be identical to fit into an 32-bit integer
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     extsw(scratch, value);
     CmpS64(scratch, value, cr);
   }
@@ -1720,7 +1725,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Jump if either of the registers contain a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
-    TestIfSmi(value, r0);
+    TestIfSmi(value);
     bne(not_smi_label, cr0);
   }
 

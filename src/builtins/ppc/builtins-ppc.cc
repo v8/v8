@@ -1826,7 +1826,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   Label non_constructor;
   __ LoadMap(r5, r4);
   __ lbz(r5, FieldMemOperand(r5, offsetof(Map, bit_field_)));
-  __ TestBit(r5, Map::Bits1::IsConstructorBit::kShift, r0);
+  __ TestBit(r5, Map::Bits1::IsConstructorBit::kShift);
   __ beq(&non_constructor, cr0);
 
   // Add a stack check before pushing arguments.
@@ -1993,7 +1993,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   if (v8_flags.debug_code) {
     // Check function data field is actually a BytecodeArray object.
-    __ TestIfSmi(kInterpreterBytecodeArrayRegister, r0);
+    __ TestIfSmi(kInterpreterBytecodeArrayRegister);
     __ Assert(ne,
               AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,
               cr0);
@@ -2208,7 +2208,7 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
     DCHECK(!AreAliased(argc, target, flags));
     __ lbz(flags, FieldMemOperand(map, offsetof(Map, bit_field_)));
     map = no_reg;
-    __ TestBit(flags, Map::Bits1::IsCallableBit::kShift, r0);
+    __ TestBit(flags, Map::Bits1::IsCallableBit::kShift);
     __ beq(&non_callable, cr0);
   }
 
@@ -2588,7 +2588,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ LoadTaggedField(scratch,
                        FieldMemOperand(r6, offsetof(HeapObject, map_)));
     __ lbz(scratch, FieldMemOperand(scratch, offsetof(Map, bit_field_)));
-    __ TestBit(scratch, Map::Bits1::IsConstructorBit::kShift, r0);
+    __ TestBit(scratch, Map::Bits1::IsConstructorBit::kShift);
     __ bne(&new_target_constructor, cr0);
     __ bind(&new_target_not_constructor);
     {
@@ -2937,7 +2937,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
     Register flags = r5;
     DCHECK(!AreAliased(r3, target, map, instance_type, flags));
     __ lbz(flags, FieldMemOperand(map, offsetof(Map, bit_field_)));
-    __ TestBit(flags, Map::Bits1::IsConstructorBit::kShift, r0);
+    __ TestBit(flags, Map::Bits1::IsConstructorBit::kShift);
     __ beq(&non_constructor, cr0);
   }
 
@@ -4609,7 +4609,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
                           result_reg, d0);
 
 // Test for overflow
-  __ TestIfInt32(result_reg, r0);
+  __ TestIfInt32(result_reg);
   __ beq(&fastpath_done);
 
   __ Push(scratch_high, scratch_low);

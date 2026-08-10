@@ -1778,7 +1778,7 @@ void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
                        result, double_scratch);
 
 // Test for overflow
-  TestIfInt32(result, r0);
+  TestIfInt32(result);
   beq(done);
 }
 
@@ -2043,7 +2043,7 @@ void MacroAssembler::AssertZeroExtended(Register int32_register) {
 void MacroAssembler::AssertMap(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
-  TestIfSmi(object, r0);
+  TestIfSmi(object);
   Check(ne, AbortReason::kOperandIsNotAMap);
   UseScratchRegisterScope temps(this);
   Register temp = temps.Acquire();
@@ -2054,7 +2054,7 @@ void MacroAssembler::AssertMap(Register object) {
 void MacroAssembler::AssertNotSmi(Register object) {
   if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
-    TestIfSmi(object, r0);
+    TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmi, cr0);
   }
 }
@@ -2062,7 +2062,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 void MacroAssembler::AssertSmi(Register object) {
   if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
-    TestIfSmi(object, r0);
+    TestIfSmi(object);
     Check(eq, AbortReason::kOperandIsNotASmi, cr0);
   }
 }
@@ -2070,7 +2070,7 @@ void MacroAssembler::AssertSmi(Register object) {
 void MacroAssembler::AssertConstructor(Register object) {
   if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
-    TestIfSmi(object, r0);
+    TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, cr0);
     push(object);
     LoadMap(object, object);
@@ -2084,7 +2084,7 @@ void MacroAssembler::AssertConstructor(Register object) {
 void MacroAssembler::AssertFunction(Register object) {
   if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
-    TestIfSmi(object, r0);
+    TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();
@@ -2099,7 +2099,7 @@ void MacroAssembler::AssertCallableFunction(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
-  TestIfSmi(object, r0);
+  TestIfSmi(object);
   Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
   UseScratchRegisterScope temps(this);
   Register temp = temps.Acquire();
@@ -2112,7 +2112,7 @@ void MacroAssembler::AssertCallableFunction(Register object) {
 void MacroAssembler::AssertBoundFunction(Register object) {
   if (v8_flags.debug_code) {
     static_assert(kSmiTag == 0);
-    TestIfSmi(object, r0);
+    TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, cr0);
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();
@@ -2123,7 +2123,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!v8_flags.debug_code) return;
-  TestIfSmi(object, r0);
+  TestIfSmi(object);
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, cr0);
 
   // Check if JSGeneratorObject
