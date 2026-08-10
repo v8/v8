@@ -589,7 +589,6 @@ enum class ManagedTypeId : uint32_t {
 #define MANAGED_TAG_LIST(V)          \
   SHARED_MANAGED_TAG_LIST(V)         \
   V(GenericManagedTag)               \
-  V(BackingStoreTag)                 \
   V(IcuBreakIteratorTag)             \
   V(IcuListFormatterTag)             \
   V(IcuLocaleTag)                    \
