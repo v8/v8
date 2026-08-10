@@ -30,12 +30,41 @@ namespace maglev {
 
 namespace {
 
+// The scope's captured nodes become inputs of the cloned deopt frame, so they
+// need a deopt use each. Without it, reducing the current node can drop their
+// last regular use, letting dead node sweeping remove a node that the frame
+// still references.
+void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data,
+                            const VirtualObjectList& virtual_objects) {
+  switch (data.tag()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      // These frames are never created as deopt scope.
+      UNREACHABLE();
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
+      data.get<DeoptFrame::ConstructInvokeStubFrameData>()
+          .receiver->AddDeoptUse(virtual_objects);
+      data.get<DeoptFrame::ConstructInvokeStubFrameData>().context->AddDeoptUse(
+          virtual_objects);
+      break;
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      data.get<DeoptFrame::BuiltinContinuationFrameData>().context->AddDeoptUse(
+          virtual_objects);
+      for (ValueNode* node :
+           data.get<DeoptFrame::BuiltinContinuationFrameData>().parameters) {
+        node->AddDeoptUse(virtual_objects);
+      }
+      break;
+  }
+}
+
 DeoptFrame* GetDeoptFrameForLazyDeoptHelper(
     Zone* zone, MaglevReducer<MaglevGraphOptimizer>::LazyDeoptFrameScope* scope,
-    DeoptFrame* parent) {
+    DeoptFrame* parent, const VirtualObjectList& virtual_objects) {
   if (scope == nullptr) return parent;
-  DeoptFrame* new_parent =
-      GetDeoptFrameForLazyDeoptHelper(zone, scope->parent(), parent);
+  DeoptFrame* new_parent = GetDeoptFrameForLazyDeoptHelper(
+      zone, scope->parent(), parent, virtual_objects);
+  AddDeoptUseToScopeData(scope->data(), virtual_objects);
   return zone->New<DeoptFrame>(scope->data(), new_parent);
 }
 
@@ -48,8 +77,9 @@ MaglevGraphOptimizer::GetDeoptFrameForLazyDeopt(bool can_throw) {
       current_node()->lazy_deopt_info()->GetFrameForCloning();
 
   if (reducer_.current_lazy_deopt_scope() != nullptr) {
-    frame = GetDeoptFrameForLazyDeoptHelper(
-        graph()->zone(), reducer_.current_lazy_deopt_scope(), frame);
+    frame = GetDeoptFrameForLazyDeoptHelper(graph()->zone(),
+                                            reducer_.current_lazy_deopt_scope(),
+                                            frame, frame->GetVirtualObjects());
   }
   return {frame, result_location, result_size};
 }
@@ -60,8 +90,10 @@ DeoptFrame* MaglevGraphOptimizer::GetDeoptFrameForEagerDeopt() {
 
   auto* eager_scope = reducer_.current_eager_deopt_scope();
   if (eager_scope != nullptr) {
-    frame = GetDeoptFrameForLazyDeoptHelper(graph()->zone(),
-                                            eager_scope->parent(), frame);
+    const VirtualObjectList& virtual_objects = frame->GetVirtualObjects();
+    frame = GetDeoptFrameForLazyDeoptHelper(
+        graph()->zone(), eager_scope->parent(), frame, virtual_objects);
+    AddDeoptUseToScopeData(eager_scope->data(), virtual_objects);
     frame = graph()->zone()->New<DeoptFrame>(eager_scope->data(), frame);
   }
   return frame;
