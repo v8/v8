@@ -1098,7 +1098,7 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   OptionalOpIndex out_high = selector->FindProjection(node, 1);
 
   if (!out_high.valid() || !selector->IsUsed(out_high.value())) {
-    if (out_low.valid()) {
+    if (out_low.valid() && selector->IsUsed(out_low.value())) {
       InstructionOperand b_low_op =
           g.UseOperand(op.right_low(), opcode_no_high);
       selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
