@@ -574,6 +574,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractInternalReferences(Tagged<JSObject> js_obj, HeapEntry* entry);
   void ExtractCppHeapExternalReferences(HeapEntry* entry,
                                         Tagged<CppHeapExternalObject> obj);
+  void ExtractCppGCManagedBaseReferences(HeapEntry* entry,
+                                         Tagged<CppGCManagedBase> obj);
 
 #if V8_ENABLE_WEBASSEMBLY
   void ExtractWasmStructReferences(Tagged<WasmStruct> obj, HeapEntry* entry);

@@ -641,7 +641,7 @@ class WasmCodeAllocator {
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
-  static constexpr ExternalPointerTag kManagedTag = kWasmNativeModuleTag;
+  static constexpr ManagedTypeId kTypeID = ManagedTypeId::kWasmNativeModule;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64 || \
     V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_LOONG64 ||                     \

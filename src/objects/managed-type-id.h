@@ -23,6 +23,8 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "WasmFuncData";
     case ManagedTypeId::kWasmManagedData:
       return "WasmManagedData";
+    case ManagedTypeId::kWasmNativeModule:
+      return "WasmNativeModule";
   }
 }
 

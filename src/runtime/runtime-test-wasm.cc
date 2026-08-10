@@ -797,7 +797,7 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();
   }
-  Managed<wasm::NativeModule>::Ptr native_module =
+  CppGCManaged<wasm::NativeModule>::Ptr native_module =
       module_object->native_module();
   const wasm::WasmModule* module = native_module->module();
   wasm::WasmValue value(int64_t{0x7AADF00DBAADF00D});

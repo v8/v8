@@ -3372,7 +3372,7 @@ bool AsyncStreamingProcessor::Deserialize(
   }
 
   DCHECK_NULL(job_->new_native_module_);
-  Managed<NativeModule>::Ptr deserialized_native_module =
+  CppGCManaged<NativeModule>::Ptr deserialized_native_module =
       module_object->native_module();
   job_->wire_bytes_ = ModuleWireBytes(deserialized_native_module->wire_bytes());
   // Calling {FinishCompile} deletes the {AsyncCompileJob} and {this}.

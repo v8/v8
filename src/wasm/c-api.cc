@@ -1271,7 +1271,7 @@ WASM_EXPORT auto Module::make(Store* store_abs, const vec<byte_t>& binary)
 }
 
 WASM_EXPORT auto Module::imports() const -> ownvec<ImportType> {
-  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+  i::CppGCManaged<i::wasm::NativeModule>::Ptr native_module =
       impl(this)->v8_object()->native_module();
   const i::wasm::WasmModule* module = native_module->module();
   const v8::base::Vector<const uint8_t> wire_bytes =
@@ -1292,7 +1292,7 @@ WASM_EXPORT auto Module::imports() const -> ownvec<ImportType> {
 
 ownvec<ExportType> ExportsImpl(
     i::DirectHandle<i::WasmModuleObject> module_obj) {
-  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+  i::CppGCManaged<i::wasm::NativeModule>::Ptr native_module =
       module_obj->native_module();
   const i::wasm::WasmModule* module = native_module->module();
   const v8::base::Vector<const uint8_t> wire_bytes =
@@ -1323,7 +1323,7 @@ WASM_EXPORT auto Module::serialize() const -> vec<byte_t> {
   i::Isolate* isolate = impl(this)->isolate();
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
-  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+  i::CppGCManaged<i::wasm::NativeModule>::Ptr native_module =
       impl(this)->v8_object()->native_module();
   native_module->compilation_state()->TierUpAllFunctions();
   v8::base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();

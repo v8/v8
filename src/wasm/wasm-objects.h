@@ -144,17 +144,18 @@ V8_OBJECT class WasmModuleObject : public JSObject {
  public:
   using Super = JSObject;
 
-  inline Tagged<Managed<wasm::NativeModule>> managed_native_module() const
+  inline Tagged<CppGCManaged<wasm::NativeModule>> managed_native_module() const
       V8_LIFETIME_BOUND;
   inline void set_managed_native_module(
-      Tagged<Managed<wasm::NativeModule>> value,
+      Tagged<CppGCManaged<wasm::NativeModule>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<Script> script() const V8_LIFETIME_BOUND;
   inline void set_script(Tagged<Script> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Managed<wasm::NativeModule>::Ptr native_module() V8_LIFETIME_BOUND;
+  inline CppGCManaged<wasm::NativeModule>::Ptr native_module()
+      V8_LIFETIME_BOUND;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmModuleObject)
@@ -195,7 +196,7 @@ V8_OBJECT class WasmModuleObject : public JSObject {
       Isolate*, base::Vector<const uint8_t> wire_bytes, wasm::WireBytesRef,
       InternalizeString, SharedFlag shared = SharedFlag{false});
 
-  TaggedMember<Managed<wasm::NativeModule>> managed_native_module_;
+  TaggedMember<CppGCManaged<wasm::NativeModule>> managed_native_module_;
   TaggedMember<Script> script_;
 } V8_OBJECT_END;
 

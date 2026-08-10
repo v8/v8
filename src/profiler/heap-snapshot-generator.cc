@@ -1144,6 +1144,13 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     const char* tag_name = ToString(managed->GetWrapper()->type_id());
     const char* name =
         names_->GetFormatted("system / CppGCManaged (%s)", tag_name);
+#if V8_ENABLE_WEBASSEMBLY
+    if (managed->GetWrapper()->type_id() == ManagedTypeId::kWasmNativeModule) {
+      size = Cast<CppGCManaged<wasm::NativeModule>>(managed)
+                 ->raw()
+                 ->EstimateCurrentMemoryConsumption();
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
     return AddEntry(object.address(), HeapEntry::kNative, name, size);
   }
 
@@ -1157,14 +1164,6 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     if (kAnyManagedExternalPointerTagRange.Contains(tag)) {
       const char* tag_name = ToString(tag);
       name = names_->GetFormatted("system / Managed (%s)", tag_name);
-#if V8_ENABLE_WEBASSEMBLY
-      if (tag == kWasmNativeModuleTag) {
-        DisallowGarbageCollection no_gc;
-        size = Cast<Managed<wasm::NativeModule>>(foreign)
-                   ->raw(no_gc)
-                   ->EstimateCurrentMemoryConsumption();
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
     } else if (kAnyForeignExternalPointerTagRange.Contains(tag)) {
       // Only sandbox configurations set tags properly, so we cannot CHECK here
       // but merely improve the tag if present.
@@ -1577,6 +1576,8 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
     ExtractScopeInfoReferences(entry, Cast<ScopeInfo>(obj));
   } else if (IsCppHeapExternalObject(obj)) {
     ExtractCppHeapExternalReferences(entry, Cast<CppHeapExternalObject>(obj));
+  } else if (IsCppGCManagedBase(obj)) {
+    ExtractCppGCManagedBaseReferences(entry, Cast<CppGCManagedBase>(obj));
 #if V8_ENABLE_WEBASSEMBLY
   } else if (IsWasmStruct(obj)) {
     ExtractWasmStructReferences(Cast<WasmStruct>(obj), entry);
@@ -2615,6 +2616,11 @@ void V8HeapExplorer::ExtractInternalReferences(Tagged<JSObject> js_obj,
 
 void V8HeapExplorer::ExtractCppHeapExternalReferences(
     HeapEntry* entry, Tagged<CppHeapExternalObject> obj) {
+  generator_->GetCppHeapWrappers().insert(obj);
+}
+
+void V8HeapExplorer::ExtractCppGCManagedBaseReferences(
+    HeapEntry* entry, Tagged<CppGCManagedBase> obj) {
   generator_->GetCppHeapWrappers().insert(obj);
 }
 

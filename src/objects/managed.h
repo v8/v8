@@ -83,6 +83,8 @@ class CppGCManagedWrapper final
 
   ManagedTypeId type_id() const { return type_id_; }
 
+  size_t estimated_size() const { return estimated_size_; }
+
   void* shared_ptr_ptr() const { return shared_ptr_ptr_; }
 
  private:
@@ -101,6 +103,8 @@ V8_OBJECT class CppGCManagedBase : public HeapObject {
   DECL_PRINTER(CppGCManagedBase)
 
   CppGCManagedWrapper* GetWrapper() const;
+
+  inline size_t estimated_size() const;
 
   class BodyDescriptor;
 

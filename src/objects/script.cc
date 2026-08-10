@@ -467,7 +467,8 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   // For wasm, we use the byte offset as the column.
   if (type() == Script::Type::kWasm) {
     DCHECK_LE(0, position);
-    Managed<wasm::NativeModule>::Ptr native_module = wasm_native_module();
+    CppGCManaged<wasm::NativeModule>::Ptr native_module =
+        wasm_native_module();
     const wasm::WasmModule* module = native_module->module();
     if (module->functions.empty()) return false;
     info->line = 0;

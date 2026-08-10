@@ -88,6 +88,10 @@ inline CppGCManagedWrapper* CppGCManagedBase::GetWrapper() const {
       CppHeapPointerTag::kCppGCManagedTag));
 }
 
+inline size_t CppGCManagedBase::estimated_size() const {
+  return GetWrapper()->estimated_size();
+}
+
 // static
 template <class CppType>
 Handle<CppGCManaged<CppType>> CppGCManaged<CppType>::Create(

@@ -150,7 +150,7 @@ V8_OBJECT class Script : public Struct {
   inline void set_wasm_managed_native_module(
       Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Managed<wasm::NativeModule>::Ptr wasm_native_module() const;
+  inline CppGCManaged<wasm::NativeModule>::Ptr wasm_native_module() const;
 
   // [wasm_weak_instance_list]: the list of all {WasmInstanceObject} being
   // affected by breakpoints that are managed via this script.
@@ -367,7 +367,7 @@ V8_OBJECT class Script : public Struct {
   TaggedMember<UnionOf<FixedArray, Smi>> line_ends_;
   TaggedMember<Smi> id_;
   TaggedMember<Object> eval_from_shared_or_wrapped_arguments_;
-  TaggedMember<UnionOf<Smi, Foreign>> eval_from_position_;
+  TaggedMember<UnionOf<Smi, CppGCManagedBase>> eval_from_position_;
   TaggedMember<UnionOf<ScopeInfo, Undefined>> eval_from_scope_info_;
   TaggedMember<UnionOf<WeakFixedArray, WeakArrayList>> infos_;
   TaggedMember<UnionOf<ArrayList, Undefined>> compiled_lazy_function_positions_;

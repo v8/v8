@@ -9,7 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/heap-object-inl.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/struct-inl.h"
@@ -95,7 +95,8 @@ Tagged<Object> Script::wasm_managed_native_module() const {
 void Script::set_wasm_managed_native_module(Tagged<Object> value,
                                             WriteBarrierMode mode) {
   DCHECK_EQ(type(), Type::kWasm);
-  eval_from_position_.store(this, Cast<UnionOf<Smi, Foreign>>(value), mode);
+  eval_from_position_.store(this, Cast<UnionOf<Smi, CppGCManagedBase>>(value),
+                            mode);
 }
 
 Tagged<WeakArrayList> Script::wasm_weak_instance_list() const {
@@ -176,8 +177,9 @@ bool Script::has_wasm_breakpoint_infos() const {
          wasm_breakpoint_infos()->ulength().value() > 0;
 }
 
-Managed<wasm::NativeModule>::Ptr Script::wasm_native_module() const {
-  return Cast<Managed<wasm::NativeModule>>(wasm_managed_native_module())->ptr();
+CppGCManaged<wasm::NativeModule>::Ptr Script::wasm_native_module() const {
+  return Cast<CppGCManaged<wasm::NativeModule>>(wasm_managed_native_module())
+      ->ptr();
 }
 
 bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }

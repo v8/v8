@@ -120,7 +120,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
 
   DirectHandle<WasmModuleObject> module_object =
       compiled_module.ToHandleChecked();
-  Managed<wasm::NativeModule>::Ptr native_module =
+  CppGCManaged<wasm::NativeModule>::Ptr native_module =
       module_object->native_module();
   const WasmModule* module = native_module->module();
   DirectHandle<WasmInstanceObject> instance =

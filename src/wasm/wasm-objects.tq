@@ -11,8 +11,8 @@
 type PodArrayOfWasmValueType extends ByteArray
     constexpr 'PodArray<wasm::ValueType>';
 @useParentTypeChecker
-type ManagedWasmNativeModule extends Foreign
-    constexpr 'Managed<wasm::NativeModule>';
+type ManagedWasmNativeModule extends CppGCManagedBase
+    constexpr 'CppGCManaged<wasm::NativeModule>';
 @useParentTypeChecker
 type TrustedManagedWasmNativeModule extends TrustedForeign
     constexpr 'TrustedManaged<wasm::NativeModule>';

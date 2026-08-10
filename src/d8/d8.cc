@@ -3406,7 +3406,7 @@ void Shell::WasmSerializeModule(
   i::DirectHandle<i::WasmModuleObject> module_obj =
       i::Cast<i::WasmModuleObject>(Utils::OpenHandle(*info[0]));
 
-  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+  i::CppGCManaged<i::wasm::NativeModule>::Ptr native_module =
       module_obj->native_module();
   DCHECK(!native_module->compilation_state()->failed());
 
@@ -5313,7 +5313,7 @@ void WriteWasmLcovData(v8::Isolate* isolate, const char* file) {
     debug::Coverage::ScriptData script_data = coverage.GetScriptData(i_script);
     Local<debug::Script> script = script_data.GetScript();
     auto wasm_script = Utils::OpenDirectHandle(*script);
-    i::Managed<i::wasm::NativeModule>::Ptr native_module =
+    i::CppGCManaged<i::wasm::NativeModule>::Ptr native_module =
         wasm_script->wasm_native_module();
     const i::wasm::WasmModule* wasm_module = native_module->module();
 

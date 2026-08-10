@@ -48,7 +48,8 @@ extern class Script extends Struct {
   // the arguments.
   eval_from_shared_or_wrapped_arguments: SharedFunctionInfo|FixedArray|
       Undefined;
-  eval_from_position: Smi|Foreign;  // Smi or Managed<wasm::NativeModule>
+  eval_from_position: Smi|
+      CppGCManagedBase;  // Smi or CppGCManaged<wasm::NativeModule>
   eval_from_scope_info: ScopeInfo|Undefined;
   infos: WeakFixedArray|WeakArrayList;
 

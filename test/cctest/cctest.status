@@ -109,6 +109,10 @@
   'test-serialize/StartupSerializerOnce': [PASS, SLOW],
   'test-serialize/StartupSerializerTwice': [PASS, SLOW],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
+  'test-run-wasm/RunWasmLiftoff_Float32Add_Consts': [PASS, SLOW],
+  'test-run-wasm/RunWasmLiftoff_Float32Sub_Consts': [PASS, SLOW],
+  'test-run-wasm/RunWasmLiftoff_Float32Mul_Consts': [PASS, SLOW],
+  'test-run-wasm/RunWasmLiftoff_Float32Div_Consts': [PASS, SLOW],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'test-allocation/AccountingAllocatorOOM': [PASS, HEAVY],

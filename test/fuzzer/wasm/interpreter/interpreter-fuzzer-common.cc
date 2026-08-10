@@ -174,7 +174,8 @@ Handle<JSFunction> GenerateJSFunction(Isolate* isolate) {
 MaybeDirectHandle<WasmTableObject> GenerateWasmTable(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t table_index) {
-  Managed<NativeModule>::Ptr native_module = module_object->native_module();
+  CppGCManaged<NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmTable& table = native_module->module()->tables[table_index];
 
   uint32_t table_initial = 10;
@@ -221,7 +222,8 @@ Handle<JSObject> CreateImportObjectInternal(
   for (size_t index = 0;
        index < module_object->native_module()->module()->import_table.size();
        ++index) {
-    Managed<NativeModule>::Ptr native_module = module_object->native_module();
+    CppGCManaged<NativeModule>::Ptr native_module =
+      module_object->native_module();
     const WasmImport& import = native_module->module()->import_table[index];
 
     Handle<String> module_name = ExtractUtf8StringFromModuleBytes(

@@ -4858,21 +4858,16 @@ TEST(HeapSnapshotWithWasmInstance) {
   CheckProperties(isolate, module_node,
                   {"__proto__", "managed_native_module", "map", "script"});
   // Check the "managed_native_module" specifically. It should say
-  // "Managed<wasm::NativeModule>" and should have a reasonable size.
+  // "CppGCManaged<wasm::NativeModule>" and should have a reasonable size.
   const v8::HeapGraphNode* managed_node =
       GetProperty(isolate, module_node, v8::HeapGraphEdge::kInternal,
                   "managed_native_module");
   CHECK_NOT_NULL(managed_node);
   v8::String::Utf8Value managed_name{isolate, managed_node->GetName()};
-#if V8_ENABLE_SANDBOX
-  CHECK_EQ(std::string_view{"system / Managed (WasmNativeModuleTag)"},
+  CHECK_EQ(std::string_view{"system / CppGCManaged (WasmNativeModule)"},
            std::string_view{*managed_name});
-  // The size of the Managed is computed from the size of the NativeModule. This
-  // is multiple kB, just conservatively assume >= 500b here.
+  // The size of the CppGCManaged is computed from the size of the NativeModule.
+  // This is multiple kB, just conservatively assume >= 500b here.
   CHECK_LE(500, managed_node->GetShallowSize());
-#else
-  CHECK_EQ(std::string_view{"system / Foreign"},
-           std::string_view{*managed_name});
-#endif  // V8_ENABLE_SANDBOX
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
