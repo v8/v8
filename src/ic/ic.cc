@@ -85,6 +85,17 @@ char IC::TransitionMarkFromState(IC::State state) {
 
 namespace {
 
+bool MayHaveTypedArrayInPrototypeChain(Isolate* isolate,
+                                       DirectHandle<JSObject> object) {
+  for (PrototypeIterator iter(isolate, *object); !iter.IsAtEnd();
+       iter.Advance()) {
+    // Be conservative, don't walk into proxies.
+    if (IsJSProxy(iter.GetCurrent())) return true;
+    if (IsJSTypedArray(iter.GetCurrent())) return true;
+  }
+  return false;
+}
+
 const char* GetModifier(KeyedAccessLoadMode mode) {
   switch (mode) {
     case KeyedAccessLoadMode::kHandleOOB:
@@ -2376,7 +2387,17 @@ MaybeDirectHandle<Object> StoreIC::Store(Handle<JSAny> object,
 void StoreIC::UpdateCaches(LookupIterator* lookup, DirectHandle<Object> value,
                            StoreOrigin store_origin) {
   MaybeObjectHandle handler;
-  if (LookupForWrite(lookup, value, store_origin)) {
+  if (lookup->IsElement() && !IsAnyDefineOwn() &&
+      IsJSObject(*lookup->GetReceiver()) &&
+      MayHaveTypedArrayInPrototypeChain(
+          isolate(), Cast<JSObject>(lookup->GetReceiver()))) {
+    // Make sure we don't handle this in IC if there's any JSTypedArray in
+    // the {receiver}'s prototype chain, since that prototype is going to
+    // swallow all stores that are out-of-bounds for said prototype, and we
+    // just let the runtime deal with the complexity of this.
+    set_slow_stub_reason("typed array in the prototype chain");
+    handler = MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+  } else if (LookupForWrite(lookup, value, store_origin)) {
     if (IsStoreGlobalIC()) {
       if (lookup->state() == LookupIterator::DATA &&
           lookup->GetReceiver().is_identical_to(lookup->GetHolder<Object>())) {
@@ -2991,17 +3012,6 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
 }
 
 namespace {
-
-bool MayHaveTypedArrayInPrototypeChain(Isolate* isolate,
-                                       DirectHandle<JSObject> object) {
-  for (PrototypeIterator iter(isolate, *object); !iter.IsAtEnd();
-       iter.Advance()) {
-    // Be conservative, don't walk into proxies.
-    if (IsJSProxy(iter.GetCurrent())) return true;
-    if (IsJSTypedArray(iter.GetCurrent())) return true;
-  }
-  return false;
-}
 
 KeyedAccessStoreMode GetStoreMode(DirectHandle<JSObject> receiver,
                                   size_t index) {
