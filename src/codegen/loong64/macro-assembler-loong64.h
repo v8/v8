@@ -1446,7 +1446,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {
-    Bstrpick_d(dst, src, Field::kShift + Field::kSize - 1, Field::kShift);
+    static constexpr int shift = Field::kShift;
+    static constexpr uint64_t mask =
+        static_cast<uint64_t>(Field::kMask) >> shift;
+    if constexpr ((mask & (mask + 1)) == 0) {
+      Bstrpick_d(dst, src, shift + Field::kSize - 1, shift);
+    } else {
+      if constexpr (shift != 0) {
+        srli_d(dst, src, shift);
+        And(dst, dst, mask);
+      } else {
+        And(dst, src, mask);
+      }
+    }
   }
 
   template <typename Field>
