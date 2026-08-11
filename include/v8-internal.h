@@ -604,13 +604,13 @@ enum class ManagedTypeId : uint32_t {
   kDisplayNamesInternal,
   kD8Worker,
   kD8ModuleEmbedderData,
+  kD8AsyncHooksWrap,
 };
 
 #define SHARED_MANAGED_TAG_LIST(V) V(WasmFutexManagedObjectWaitListTag)
 
 #define MANAGED_TAG_LIST(V)  \
-  SHARED_MANAGED_TAG_LIST(V) \
-  V(GenericManagedTag)
+  SHARED_MANAGED_TAG_LIST(V)
 
 #define FOREIGN_TAG_LIST(V)                               \
   V(GenericForeignTag)                                    \

@@ -69,6 +69,8 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "D8Worker";
     case ManagedTypeId::kD8ModuleEmbedderData:
       return "D8ModuleEmbedderData";
+    case ManagedTypeId::kD8AsyncHooksWrap:
+      return "D8AsyncHooksWrap";
   }
 }
 
