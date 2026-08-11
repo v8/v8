@@ -1563,17 +1563,6 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
                       getter_side_effect_type, setter_side_effect_type);
 }
 
-void Template::SetNativeDataProperty(v8::Local<Name> name,
-                                     AccessorNameGetterCallback getter,
-                                     AccessorNameSetterCallback setter,
-                                     v8::Local<Value> data,
-                                     PropertyAttribute attribute,
-                                     SideEffectType getter_side_effect_type,
-                                     SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, attribute, false,
-                      getter_side_effect_type, setter_side_effect_type);
-}
-
 void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    AccessorNameGetterCallback getter,
                                    v8::Local<Value> data,
@@ -1581,7 +1570,7 @@ void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    SideEffectType getter_side_effect_type,
                                    SideEffectType setter_side_effect_type) {
   TemplateSetAccessor(
-      this, name, getter, static_cast<AccessorNameSetterCallback>(nullptr),
+      this, name, getter, static_cast<AccessorNameSetterCallbackV2>(nullptr),
       data, attribute, true, getter_side_effect_type, setter_side_effect_type);
 }
 
@@ -5291,24 +5280,13 @@ Maybe<bool> Object::SetNativeDataProperty(
                            setter_side_effect_type);
 }
 
-Maybe<bool> Object::SetNativeDataProperty(
-    v8::Local<v8::Context> context, v8::Local<Name> name,
-    AccessorNameGetterCallback getter, AccessorNameSetterCallback setter,
-    v8::Local<Value> data, PropertyAttribute attributes,
-    SideEffectType getter_side_effect_type,
-    SideEffectType setter_side_effect_type) {
-  return ObjectSetAccessor(context, this, name, getter, setter, data,
-                           attributes, false, getter_side_effect_type,
-                           setter_side_effect_type);
-}
-
 Maybe<bool> Object::SetLazyDataProperty(
     v8::Local<v8::Context> context, v8::Local<Name> name,
     AccessorNameGetterCallback getter, v8::Local<Value> data,
     PropertyAttribute attributes, SideEffectType getter_side_effect_type,
     SideEffectType setter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter,
-                           static_cast<AccessorNameSetterCallback>(nullptr),
+                           static_cast<AccessorNameSetterCallbackV2>(nullptr),
                            data, attributes, true, getter_side_effect_type,
                            setter_side_effect_type);
 }

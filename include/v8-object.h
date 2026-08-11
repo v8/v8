@@ -202,9 +202,10 @@ using AccessorNameSetterCallbackV2 =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<Boolean>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
-using AccessorNameSetterCallback =
-    void (*)(Local<Name> property, Local<Value> value,
-             const PropertyCallbackInfo<void>& info);
+using AccessorNameSetterCallback  //
+    V8_DEPRECATE_SOON("Use AccessorNameSetterCallbackV2 instead.") =
+        void (*)(Local<Name> property, Local<Value> value,
+                 const PropertyCallbackInfo<void>& info);
 
 /**
  * Property filter bits. They can be or'ed to build a composite filter.
@@ -406,30 +407,11 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
       Local<Context> context, Local<Name> name,
-      AccessorNameGetterCallback getter, AccessorNameSetterCallbackV2 setter,
+      AccessorNameGetterCallback getter,
+      AccessorNameSetterCallbackV2 setter = nullptr,
       Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
-  V8_DEPRECATED("Use AccessorNameSetterCallbackV2 setter instead")
-  V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
-      Local<Context> context, Local<Name> name,
-      AccessorNameGetterCallback getter, AccessorNameSetterCallback setter,
-      Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
-  // TODO(https://crbug.com/348660658): remove once AccessorNameSetterCallback
-  // is removed.
-  V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
-      Local<Context> context, Local<Name> name,
-      AccessorNameGetterCallback getter, std::nullptr_t setter = nullptr,
-      Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect) {
-    return SetNativeDataProperty(
-        context, name, getter,
-        static_cast<AccessorNameSetterCallbackV2>(setter), data, attributes,
-        getter_side_effect_type, setter_side_effect_type);
-  }
 
   /**
    * Attempts to create a property with the given name which behaves like a data

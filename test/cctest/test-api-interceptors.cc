@@ -4322,8 +4322,8 @@ THREADED_TEST(IndexedInterceptorOnProto) {
 
 namespace {
 
-void CheckIndexedInterceptorHasIC(v8::IndexedPropertyGetterCallbackV2 getter,
-                                  v8::IndexedPropertyQueryCallbackV2 query,
+void CheckIndexedInterceptorHasIC(v8::IndexedPropertyGetterCallback getter,
+                                  v8::IndexedPropertyQueryCallback query,
                                   const char* source, int expected) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -5440,8 +5440,7 @@ THREADED_TEST(NullNamedInterceptor) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      static_cast<v8::NamedPropertyGetterCallback>(nullptr)));
+  templ->SetHandler(v8::NamedPropertyHandlerConfiguration(nullptr));
   LocalContext context;
   templ->Set(CcTest::isolate(), "x", v8_num(42));
   v8::Local<v8::Object> obj =
@@ -5458,8 +5457,7 @@ THREADED_TEST(NullIndexedInterceptor) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      static_cast<v8::IndexedPropertyGetterCallbackV2>(nullptr)));
+  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(nullptr));
   LocalContext context;
   templ->Set(CcTest::isolate(), "42", v8_num(42));
   v8::Local<v8::Object> obj =
@@ -5707,11 +5705,9 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
   obj_template->Set(isolate, "7", v8::Integer::New(isolate, 7));
   obj_template->Set(isolate, "x", v8::Integer::New(isolate, 42));
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      static_cast<v8::IndexedPropertyGetterCallbackV2>(nullptr), nullptr,
-      nullptr, nullptr, IndexedPropertyEnumerator));
+      nullptr, nullptr, nullptr, nullptr, IndexedPropertyEnumerator));
   obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      static_cast<v8::NamedPropertyGetterCallback>(nullptr), nullptr, nullptr,
-      nullptr, NamedPropertyEnumerator));
+      nullptr, nullptr, nullptr, nullptr, NamedPropertyEnumerator));
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
@@ -5776,8 +5772,7 @@ THREADED_TEST(GetOwnPropertyNamesWithIndexedInterceptorExceptions_regress4026) {
   obj_template->Set(isolate, "x", v8::Integer::New(isolate, 42));
   // First just try a failing indexed interceptor.
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      static_cast<v8::IndexedPropertyGetterCallbackV2>(nullptr), nullptr,
-      nullptr, nullptr, IndexedPropertyEnumeratorException));
+      nullptr, nullptr, nullptr, nullptr, IndexedPropertyEnumeratorException));
 
   LocalContext context;
   v8::Local<v8::Object> global = context->Global();
