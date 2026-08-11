@@ -28,7 +28,6 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler/turbofan.h"
 #include "src/debug/debug.h"
-#include "src/debug/liveedit.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -3294,15 +3293,6 @@ void Compiler::CompileOptimized(Isolate* isolate,
   DCHECK_IMPLIES(!tiering_was_in_progress && function->tiering_in_progress(),
                  IsConcurrent(mode));
 #endif  // DEBUG
-}
-
-// static
-MaybeDirectHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
-    ParseInfo* parse_info, Handle<Script> script,
-    MaybeDirectHandle<ScopeInfo> outer_scope_info, Isolate* isolate) {
-  IsCompiledScope is_compiled_scope;
-  return v8::internal::CompileToplevel(parse_info, script, outer_scope_info,
-                                       isolate, &is_compiled_scope);
 }
 
 // static

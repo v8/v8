@@ -51,9 +51,6 @@
   # is enabled.
   #'test-api-interceptors/Crash*': [FAIL, CRASH],
 
-  # This test always fails.  It tests that LiveEdit causes abort when turned off.
-  'test-debug/LiveEditDisabled': [FAIL],
-
   # This test always fails.  It tests that DisallowJavascriptExecutionScope
   # works as intended.
   'test-api/DisallowJavascriptExecutionScope': [FAIL],

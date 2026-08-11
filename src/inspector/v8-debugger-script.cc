@@ -119,23 +119,6 @@ void V8DebuggerScript::setSourceMappingURL(const String16& sourceMappingURL) {
   m_sourceMappingURL = sourceMappingURL;
 }
 
-void V8DebuggerScript::setSource(const String16& newSource, bool preview,
-                                 bool allowTopFrameLiveEditing,
-                                 v8::debug::LiveEditResult* result) {
-  v8::EscapableHandleScope scope(m_isolate);
-  v8::Local<v8::String> v8Source = toV8String(m_isolate, newSource);
-  if (!m_script.Get(m_isolate)->SetScriptSource(
-          v8Source, preview, allowTopFrameLiveEditing, result)) {
-    result->message = scope.Escape(result->message);
-    return;
-  }
-  // NOP if preview or unchanged source (diffs.empty() in PatchScript)
-  if (preview || result->script.IsEmpty()) return;
-
-  m_hash = String16();
-  Initialize(scope.Escape(result->script));
-}
-
 bool V8DebuggerScript::getPossibleBreakpoints(
     const v8::debug::Location& start, const v8::debug::Location& end,
     bool restrictToFunction, std::vector<v8::debug::BreakLocation>* locations) {

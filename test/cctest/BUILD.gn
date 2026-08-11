@@ -147,7 +147,6 @@ v8_cluster_source_set("cctest_sources") {
     "test-icache.cc",
     "test-inobject-slack-tracking.cc",
     "test-js-weak-refs.cc",
-    "test-liveedit.cc",
     "test-lockers.cc",
     "test-mementos.cc",
     "test-orderedhashtable.cc",

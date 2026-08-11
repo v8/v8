@@ -752,16 +752,6 @@ Location Script::GetSourceLocation(int offset) const {
   return Location(info.line, info.column);
 }
 
-bool Script::SetScriptSource(Local<String> newSource, bool preview,
-                             bool allow_top_frame_live_editing,
-                             LiveEditResult* result) const {
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
-  i::Isolate* isolate = i::Isolate::Current();
-  return isolate->debug()->SetScriptSource(
-      script, Utils::OpenHandle(*newSource), preview,
-      allow_top_frame_live_editing, result);
-}
-
 bool Script::SetBreakpoint(Local<String> condition, Location* location,
                            BreakpointId* id) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);

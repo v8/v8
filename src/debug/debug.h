@@ -382,14 +382,6 @@ class V8_EXPORT_PRIVATE Debug {
   // Walks the call stack to see if any frames are not ignore listed.
   bool AllFramesOnStackAreBlackboxed();
 
-  // Set new script source, throw an exception if error occurred. When preview
-  // is true: try to set source, throw exception if any without actual script
-  // change. stack_changed is true if after editing script on pause stack is
-  // changed and client should request stack trace again.
-  bool SetScriptSource(Handle<Script> script, Handle<String> source,
-                       bool preview, bool allow_top_frame_live_editing,
-                       debug::LiveEditResult* result);
-
   int GetFunctionDebuggingId(DirectHandle<JSFunction> function);
 
   // Threading support.
@@ -606,8 +598,6 @@ class V8_EXPORT_PRIVATE Debug {
   bool hook_on_function_call_;
   // Suppress debug events.
   bool is_suppressed_;
-  // Running liveedit.
-  bool running_live_edit_ = false;
   // Do not trigger debug break events.
   bool break_disabled_;
   // Do not break on break points.
@@ -728,7 +718,6 @@ class V8_EXPORT_PRIVATE Debug {
   friend class DebugScope;
   friend class DisableBreak;
   friend class DisableTemporaryObjectTracking;
-  friend class LiveEdit;
   friend class SuppressDebug;
 
   friend DirectHandle<ProtectedFixedArray>

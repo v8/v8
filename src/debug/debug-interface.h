@@ -162,26 +162,6 @@ bool CanBreakProgram(Isolate* isolate);
 
 class Script;
 
-struct LiveEditResult {
-  enum Status {
-    OK,
-    COMPILE_ERROR,
-    BLOCKED_BY_RUNNING_GENERATOR,
-    BLOCKED_BY_ACTIVE_FUNCTION,
-    BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE,
-    FEATURE_DISABLED,
-  };
-  Status status = OK;
-  bool stack_changed = false;
-  // Available only for OK.
-  v8::Local<v8::debug::Script> script;
-  bool restart_top_frame_required = false;
-  // Fields below are available only for COMPILE_ERROR.
-  v8::Local<v8::String> message;
-  int line_number = -1;
-  int column_number = -1;
-};
-
 /**
  * An internal representation of the source for a given
  * `v8::debug::Script`, which can be a `v8::String`, in
@@ -235,9 +215,6 @@ class V8_EXPORT_PRIVATE Script {
       const debug::Location& location,
       GetSourceOffsetMode mode = GetSourceOffsetMode::kStrict) const;
   v8::debug::Location GetSourceLocation(int offset) const;
-  bool SetScriptSource(v8::Local<v8::String> newSource, bool preview,
-                       bool allow_top_frame_live_editing,
-                       LiveEditResult* result) const;
   bool SetBreakpoint(v8::Local<v8::String> condition, debug::Location* location,
                      BreakpointId* id) const;
 #if V8_ENABLE_WEBASSEMBLY

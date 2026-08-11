@@ -8,7 +8,6 @@
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
-#include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/interpreter/bytecodes.h"
@@ -975,40 +974,6 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseThen) {
     isolate->OnPromiseThen(Cast<JSPromise>(promise));
   }
   return *promise;
-}
-
-RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  DirectHandle<JSFunction> script_function = args.at<JSFunction>(0);
-  Handle<String> new_source = args.at<String>(1);
-
-  Handle<Script> script(Cast<Script>(script_function->shared()->script()),
-                        isolate);
-  v8::debug::LiveEditResult result;
-  isolate->debug()->SetScriptSource(script, new_source, /* preview */ false,
-                                    /* allow_top_frame_live_editing */ false,
-                                    &result);
-  switch (result.status) {
-    case v8::debug::LiveEditResult::COMPILE_ERROR:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: COMPILE_ERROR"));
-    case v8::debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: BLOCKED_BY_RUNNING_GENERATOR"));
-    case v8::debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: BLOCKED_BY_ACTIVE_FUNCTION"));
-    case v8::debug::LiveEditResult::BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: BLOCKED_BY_TOP_LEVEL_ES_MODULE_CHANGE"));
-    case v8::debug::LiveEditResult::FEATURE_DISABLED:
-      return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
-          "LiveEdit failed: FEATURE_DISABLED"));
-    case v8::debug::LiveEditResult::OK:
-      return ReadOnlyRoots(isolate).undefined_value();
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {

@@ -17,7 +17,6 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug-evaluate.h"
-#include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -2780,24 +2779,6 @@ bool Debug::CanBreakAtEntry(DirectHandle<SharedFunctionInfo> shared) {
   return false;
 }
 
-bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
-                            bool preview, bool allow_top_frame_live_editing,
-                            debug::LiveEditResult* result) {
-  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DebugScope debug_scope(this);
-
-  if (v8_flags.inspector_live_edit) {
-    running_live_edit_ = true;
-    LiveEdit::PatchScript(isolate_, script, source, preview,
-                          allow_top_frame_live_editing, result);
-    running_live_edit_ = false;
-  } else {
-    result->status = debug::LiveEditResult::FEATURE_DISABLED;
-  }
-
-  return result->status == debug::LiveEditResult::OK;
-}
-
 void Debug::OnCompileError(DirectHandle<Script> script) {
   ProcessCompileEvent(true, script);
 }
@@ -2811,9 +2792,6 @@ void Debug::ProcessCompileEvent(bool has_compile_error,
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Ignore temporary scripts.
   if (script->id() == Script::kTemporaryScriptId) return;
-  // TODO(kozyatinskiy): teach devtools to work with liveedit scripts better
-  // first and then remove this fast return.
-  if (running_live_edit_) return;
   // Attach the correct debug id to the script. The debug id is used by the
   // inspector to filter scripts by native context.
   script->set_context_data(isolate_->native_context()->debug_context_id());
@@ -2827,8 +2805,8 @@ void Debug::ProcessCompileEvent(bool has_compile_error,
   AllowJavascriptExecution allow_script(isolate_);
   {
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
-    debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
-                                    running_live_edit_, has_compile_error);
+    debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script), false,
+                                    has_compile_error);
   }
 }
 
