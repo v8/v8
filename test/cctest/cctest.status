@@ -109,10 +109,6 @@
   'test-serialize/StartupSerializerOnce': [PASS, SLOW],
   'test-serialize/StartupSerializerTwice': [PASS, SLOW],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
-  'test-run-wasm/RunWasmLiftoff_Float32Add_Consts': [PASS, SLOW],
-  'test-run-wasm/RunWasmLiftoff_Float32Sub_Consts': [PASS, SLOW],
-  'test-run-wasm/RunWasmLiftoff_Float32Mul_Consts': [PASS, SLOW],
-  'test-run-wasm/RunWasmLiftoff_Float32Div_Consts': [PASS, SLOW],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'test-allocation/AccountingAllocatorOOM': [PASS, HEAVY],
@@ -550,6 +546,11 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'test-heap-profiler/SamplingHeapProfiler': [SKIP],
+  # Tests time out in stress_incremental_marking.
+  'test-run-wasm/RunWasmLiftoff_Float32Add_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Sub_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Mul_Consts': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Float32Div_Consts': [SKIP],
 
   # BUG(https://crbug.com/v8/12999): Very slow test.
   'test-api/InternalFieldsSubclassing': [PASS, ['mode == debug and arch == ia32', SKIP]],
