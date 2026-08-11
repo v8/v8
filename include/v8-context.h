@@ -15,6 +15,11 @@
 #include "v8-snapshot.h"      // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
+namespace cppgc {
+template <typename T>
+class GarbageCollected;
+}  // namespace cppgc
+
 namespace v8 {
 
 class Function;
@@ -318,8 +323,10 @@ class V8_EXPORT Context : public Data {
                                                     EmbedderDataTypeTag tag);
   V8_INLINE void* GetAlignedPointerFromEmbedderData(int index,
                                                     EmbedderDataTypeTag tag);
-  V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
-                                                    CppHeapPointerTag tag) {
+  template <typename T>
+    requires std::is_base_of_v<cppgc::GarbageCollected<T>, T>
+  V8_INLINE T* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
+                                                CppHeapPointerTag tag) {
     // TODO(ahaas): This is a temporary implementation, the actual
     // implementation will follow with the refactoring of EmbedderDataSlots.
     // The refactoring will regress the existing API, as the fast path will move
@@ -327,16 +334,16 @@ class V8_EXPORT Context : public Data {
     // By using this temporary implementation, blink's ScriptState can already
     // switch to the new API, and thereby switch from the old fast path to the
     // new fast path directly.
-    return GetAlignedPointerFromEmbedderData(isolate, index,
-                                             kEmbedderDataTypeTagDefault);
+    return static_cast<T*>(GetAlignedPointerFromEmbedderData(
+        isolate, index, kEmbedderDataTypeTagDefault));
   }
 
   void SetAlignedPointerInEmbedderData(int index, void* value,
                                        EmbedderDataTypeTag tag);
 
   template <typename T>
-  void SetAlignedPointerInEmbedderData(int index,
-                                       cppgc::GarbageCollected<T>* value,
+    requires std::is_base_of_v<cppgc::GarbageCollected<T>, T>
+  void SetAlignedPointerInEmbedderData(int index, T* value,
                                        CppHeapPointerTag tag) {
     // TODO(ahaas): This is a temporary implementation, the actual
     // implementation will follow with the refactoring of EmbedderDataSlots.
