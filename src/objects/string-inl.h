@@ -1525,7 +1525,7 @@ void ExternalString::RestoreResourceRefs(Isolate* isolate, ResourceRefs refs) {
 void ExternalString::DisposeResource(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
 
-  Address value = resource_.load(isolate);
+  Address value = resource_.exchange(isolate, kNullAddress);
   v8::String::ExternalStringResourceBase* resource =
       reinterpret_cast<v8::String::ExternalStringResourceBase*>(value);
 
@@ -1536,7 +1536,6 @@ void ExternalString::DisposeResource(Isolate* isolate) {
     }
     DisableGCMole no_gc_mole;
     resource->Dispose();
-    resource_.store(isolate, kNullAddress);
   }
 }
 

@@ -1553,6 +1553,11 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
       InstanceType instance_type = static_cast<InstanceType>(string_type);
       fields[instance_type]["length"] = offsetof(String, length_);
       fields[instance_type]["hash"] = offsetof(String, raw_hash_field_);
+      if (InstanceTypeChecker::IsExternalString(instance_type)) {
+        fields[instance_type]["resource"] = offsetof(ExternalString, resource_);
+        fields[instance_type]["resource_data"] =
+            offsetof(ExternalString, resource_data_);
+      }
     }
     fields[SLICED_ONE_BYTE_STRING_TYPE]["parent"] =
         offsetof(SlicedString, parent_);
