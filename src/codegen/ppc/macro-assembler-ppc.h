@@ -1632,8 +1632,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CompareTaggedRoot(const Register& with, RootIndex index);
 
   void PushRoot(RootIndex index) {
-    LoadRoot(r0, index);
-    Push(r0);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadRoot(scratch, index);
+    Push(scratch);
   }
 
   // Compare the object in a register to a value and jump if they are equal.
