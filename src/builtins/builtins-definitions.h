@@ -1497,6 +1497,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToTagged)                       \
   IF_WASM(TFC, WasmFloat64ToString, WasmFloat64ToTagged)                       \
   IF_WASM(TFC, JSToWasmLazyDeoptContinuation, SingleParameterOnStack)          \
+  IF_WASM(TFS, WasmGetOwnProperty, NeedsContext{false}, kObject, kSymbol)      \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, kDontAdaptArgumentsSentinel)                         \

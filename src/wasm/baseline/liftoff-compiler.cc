@@ -1868,16 +1868,12 @@ class LiftoffCompiler {
     LiftoffRegister tag_symbol_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadExceptionSymbol(tag_symbol_reg.gp(), pinned, root_index);
-    LiftoffRegister context_reg =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(context_reg.gp(), NativeContext, pinned);
 
     VarState tag_symbol{kRef, tag_symbol_reg, 0};
-    VarState context{kRef, context_reg, 0};
 
     CallBuiltin(Builtin::kWasmGetOwnProperty,
-                MakeSig::Returns(kRef).Params(kRef, kRef, kRef),
-                {exception, tag_symbol, context}, kNoSourcePosition);
+                MakeSig::Returns(kRef).Params(kRef, kRef),
+                {exception, tag_symbol}, kNoSourcePosition);
 
     return LiftoffRegister(kReturnRegister0);
   }
