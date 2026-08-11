@@ -5944,7 +5944,8 @@ class TurboshaftGraphBuildingInterface
 
   void RefCastDescEq(FullDecoder* decoder, const Value& object,
                      const Value& desc, Value* result) {
-    if (v8_flags.wasm_assume_ref_cast_succeeds) {
+    if (v8_flags.wasm_assume_ref_cast_succeeds ||
+        v8_flags.wasm_assume_ref_cast_desc_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
