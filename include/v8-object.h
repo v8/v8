@@ -494,9 +494,6 @@ class V8_EXPORT Object : public Value {
    * This does not consult the security handler.
    */
   Local<Value> GetPrototype();
-  // TODO(http://crbug.com/333672197): deprecate and remove.
-  V8_DEPRECATED("Use GetPrototype().")
-  inline Local<Value> GetPrototypeV2() { return GetPrototype(); }
 
   /**
    * Set the prototype object (same as calling Object.setPrototypeOf(..)).
@@ -504,12 +501,6 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototype(Local<Context> context,
                                                  Local<Value> prototype);
-  // TODO(http://crbug.com/333672197): deprecate and remove.
-  V8_DEPRECATED("Use SetPrototype().")
-  V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototypeV2(Local<Context> context,
-                                                   Local<Value> prototype) {
-    return SetPrototype(context, prototype);
-  }
 
   /**
    * Finds an instance of the given function template in the prototype
