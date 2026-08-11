@@ -129,7 +129,7 @@ inline constexpr int CppGCManagedBase::kSize = sizeof(CppGCManagedBase);
 template <class CppType>
 V8_OBJECT class CppGCManaged : public CppGCManagedBase {
  public:
-  class Ptr final {
+  V8_OBJECT_INNER_CLASS class Ptr final {
    public:
     V8_INLINE Ptr() = default;
 
@@ -178,7 +178,7 @@ V8_OBJECT class CppGCManaged : public CppGCManagedBase {
         : ptr_(std::move(ptr)) {}
 
     std::shared_ptr<CppType> ptr_;
-  };
+  } V8_OBJECT_INNER_CLASS_END;
 
   inline Ptr ptr() const;
 

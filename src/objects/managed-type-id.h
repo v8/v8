@@ -45,6 +45,22 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "IcuPluralRules";
     case ManagedTypeId::kIcuLocalizedNumberFormatter:
       return "IcuLocalizedNumberFormatter";
+    case ManagedTypeId::kTemporalDuration:
+      return "TemporalDuration";
+    case ManagedTypeId::kTemporalInstant:
+      return "TemporalInstant";
+    case ManagedTypeId::kTemporalPlainDate:
+      return "TemporalPlainDate";
+    case ManagedTypeId::kTemporalPlainTime:
+      return "TemporalPlainTime";
+    case ManagedTypeId::kTemporalPlainDateTime:
+      return "TemporalPlainDateTime";
+    case ManagedTypeId::kTemporalPlainYearMonth:
+      return "TemporalPlainYearMonth";
+    case ManagedTypeId::kTemporalPlainMonthDay:
+      return "TemporalPlainMonthDay";
+    case ManagedTypeId::kTemporalZonedDateTime:
+      return "TemporalZonedDateTime";
   }
 }
 

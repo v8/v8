@@ -2805,7 +2805,7 @@ void RegExpData::RegExpDataVerify(Isolate* isolate) {
 #define DEFINE_TEMPORAL_VERIFIER(JSType, field)   \
   void JSType::JSType##Verify(Isolate* isolate) { \
     JSObjectVerify(isolate);                      \
-    CHECK(IsForeign(field##_.load()));            \
+    CHECK(IsCppGCManagedBase(field##_.load()));   \
   }
 
 DEFINE_TEMPORAL_VERIFIER(JSTemporalDuration, duration)

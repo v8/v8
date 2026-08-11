@@ -592,23 +592,23 @@ enum class ManagedTypeId : uint32_t {
   kIcuCollator,
   kIcuPluralRules,
   kIcuLocalizedNumberFormatter,
+  kTemporalDuration,
+  kTemporalInstant,
+  kTemporalPlainDate,
+  kTemporalPlainTime,
+  kTemporalPlainDateTime,
+  kTemporalPlainYearMonth,
+  kTemporalPlainMonthDay,
+  kTemporalZonedDateTime,
 };
 
 #define SHARED_MANAGED_TAG_LIST(V) V(WasmFutexManagedObjectWaitListTag)
 
-#define MANAGED_TAG_LIST(V)      \
-  SHARED_MANAGED_TAG_LIST(V)     \
-  V(GenericManagedTag)           \
-  V(TemporalDurationTag)         \
-  V(TemporalInstantTag)          \
-  V(TemporalPlainDateTag)        \
-  V(TemporalPlainTimeTag)        \
-  V(TemporalPlainDateTimeTag)    \
-  V(TemporalPlainYearMonthTag)   \
-  V(TemporalPlainMonthDayTag)    \
-  V(TemporalZonedDateTimeTag)    \
-  V(DisplayNamesInternalTag)     \
-  V(D8WorkerTag)                 \
+#define MANAGED_TAG_LIST(V)  \
+  SHARED_MANAGED_TAG_LIST(V) \
+  V(GenericManagedTag)       \
+  V(DisplayNamesInternalTag) \
+  V(D8WorkerTag)             \
   V(D8ModuleEmbedderDataTag)
 
 #define FOREIGN_TAG_LIST(V)                               \
