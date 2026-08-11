@@ -47,7 +47,7 @@ String16 calculateHash(v8::Isolate* isolate, v8::Local<v8::String> source) {
 
 V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
                                    v8::Local<v8::debug::Script> script,
-                                   bool hadCompileError, bool isLiveEdit,
+                                   bool hadCompileError,
                                    V8DebuggerAgentImpl* agent,
                                    V8InspectorClient* client)
     : m_id(String16::fromInteger(script->Id())),
@@ -55,8 +55,7 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
       m_isolate(isolate),
       m_embedderName(GetScriptName(isolate, script, client)),
       m_agent(agent),
-      m_hadCompileError(hadCompileError),
-      m_isLiveEdit(isLiveEdit) {
+      m_hadCompileError(hadCompileError) {
   Initialize(script);
 }
 

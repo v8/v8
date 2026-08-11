@@ -2805,7 +2805,7 @@ void Debug::ProcessCompileEvent(bool has_compile_error,
   AllowJavascriptExecution allow_script(isolate_);
   {
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
-    debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script), false,
+    debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
                                     has_compile_error);
   }
 }

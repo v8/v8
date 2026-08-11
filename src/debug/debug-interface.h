@@ -283,7 +283,7 @@ enum ExceptionType { kException, kPromiseRejection };
 class DebugDelegate {
  public:
   virtual ~DebugDelegate() = default;
-  virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
+  virtual void ScriptCompiled(v8::Local<Script> script,
                               bool has_compile_error) {}
   // |inspector_break_points_hit| contains id of breakpoints installed with
   // debug::Script::SetBreakpoint API.

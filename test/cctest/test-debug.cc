@@ -3487,7 +3487,7 @@ class ContextCheckEventListener : public v8::debug::DebugDelegate {
       v8::debug::BreakReasons break_reasons) override {
     CheckContext();
   }
-  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override {
     CheckContext();
   }
@@ -3631,7 +3631,7 @@ TEST(EvalContextData) {
 // Debug event listener which counts script compiled events.
 class ScriptCompiledDelegate : public v8::debug::DebugDelegate {
  public:
-  void ScriptCompiled(v8::Local<v8::debug::Script>, bool,
+  void ScriptCompiled(v8::Local<v8::debug::Script>,
                       bool has_compile_error) override {
     if (!has_compile_error) {
       after_compile_event_count++;
@@ -4537,7 +4537,7 @@ TEST(DebugPromiseInterceptedByTryCatch) {
 
 class NoInterruptsOnDebugEvent : public v8::debug::DebugDelegate {
  public:
-  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override {
     ++after_compile_handler_depth_;
     // Do not allow nested AfterCompile events.
@@ -5218,7 +5218,7 @@ TEST(SourceInfo) {
 namespace {
 class SetBreakpointOnScriptCompiled : public v8::debug::DebugDelegate {
  public:
-  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override {
     v8::Local<v8::String> name;
     if (!script->SourceURL().ToLocal(&name)) return;
@@ -7065,8 +7065,7 @@ class FailedScriptCompiledDelegate : public v8::debug::DebugDelegate {
  public:
   explicit FailedScriptCompiledDelegate(v8::Isolate* isolate)
       : isolate(isolate) {}
-  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool,
-                      bool) override {
+  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool) override {
     script_.Reset(isolate, script);
     script_.SetWeak();
   }
