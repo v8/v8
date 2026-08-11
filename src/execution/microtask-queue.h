@@ -63,11 +63,11 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
                         v8::MicrotaskCallbackWithData callback,
                         v8::Local<v8::Data> data) override;
   void PerformCheckpoint(v8::Isolate* isolate) override {
-    if (!ShouldPerfomCheckpoint()) return;
+    if (!ShouldPerformCheckpoint()) return;
     PerformCheckpointInternal(isolate);
   }
 
-  bool ShouldPerfomCheckpoint() const {
+  bool ShouldPerformCheckpoint() const {
     return !IsRunningMicrotasks() && !GetMicrotasksScopeDepth() &&
            !HasMicrotasksSuppressions();
   }

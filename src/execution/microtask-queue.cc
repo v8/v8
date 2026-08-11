@@ -164,7 +164,7 @@ void MicrotaskQueue::EnqueueMicrotask(Tagged<Microtask> microtask) {
 }
 
 void MicrotaskQueue::PerformCheckpointInternal(v8::Isolate* v8_isolate) {
-  DCHECK(ShouldPerfomCheckpoint());
+  DCHECK(ShouldPerformCheckpoint());
   std::optional<MicrotasksScope> microtasks_scope;
   if (microtasks_policy_ == v8::MicrotasksPolicy::kScoped) {
     // If we're using microtask scopes to schedule microtask execution, V8
@@ -204,6 +204,18 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
   SetIsRunningMicrotasks scope(&is_running_microtasks_);
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
       reinterpret_cast<v8::Isolate*>(isolate), this);
+  // JS execution might be currently disallowed by respective
+  // DisallowJavascriptExecutionScope, but it should not prevent microtasks
+  // execution triggered from the microtask checkpoint.
+  // The reason is that the disallow scope is supposed to be used to avoid
+  // potential side effects from particular JavaScript operations triggered
+  // via V8 Api while microtasks execution is orthogonal to that and we are
+  // not interested in making random microtasks throw IllegalOperation
+  // exception just because they were unlucky to be triggered from the disallow
+  // execution scope. One should rely on SuppressMicrotaskExecutionScope to
+  // prevent microtask execution instead.
+  v8::Isolate::AllowJavascriptExecutionScope allow_js_execution(
+      reinterpret_cast<v8::Isolate*>(isolate));
 
   if (!size()) {
     OnCompleted(isolate);
