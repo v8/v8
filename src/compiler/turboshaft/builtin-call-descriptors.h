@@ -1123,14 +1123,10 @@ struct BuiltinCallDescriptor {
     using results_t = std::tuple<V<Object>>;
 
     static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = true;
+    static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoThrow;
-    // Calls {GetPropertyWithReceiver}, which has paths that can allocate,
-    // but from this caller we won't reach them. Nevertheless, to please the
-    // verifier we currently have no other choice than setting the CanAllocate
-    // effect here.
-    // TODO(dmercadier): Support overriding the automatic can-allocate
-    // inference.
+    // Can allocate a HeapNumber when it encounters a MutableHeapNumber. This
+    // won't happen in practice, but can-allocate verification detects it.
     static constexpr OpEffects kEffects =
         base_effects.CanReadHeapMemory().CanAllocate();
   };

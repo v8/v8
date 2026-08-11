@@ -266,6 +266,71 @@ TNode<BoolT> WasmBuiltinsAssembler::InSharedSpace(TNode<HeapObject> object) {
   return IsPageFlagSet(address, MemoryChunk::kInSharedHeap);
 }
 
+// Wasm uses private symbols (e.g. wasm_exception_tag_symbol) to stamp certain
+// objects. This builtin checks for presence of such symbols; it is a
+// specialization of "GetOwnProperty" behavior: if the object is not a plain
+// JS object or the property is not an own data property, return undefined.
+// To allow compilers to assume no side effects from this builtin, it's
+// particularly important to not invoke any getters.
+TF_BUILTIN(WasmGetOwnProperty, WasmBuiltinsAssembler) {
+  TNode<Object> object = Parameter<Object>(Descriptor::kObject);
+  TNode<Symbol> symbol = Parameter<Symbol>(Descriptor::kSymbol);
+
+  Label return_undefined(this, Label::kDeferred);
+
+  GotoIf(TaggedIsSmi(object), &return_undefined);
+  TNode<HeapObject> heap_object = CAST(object);
+
+  TNode<Map> map = LoadMap(heap_object);
+  TNode<Int32T> instance_type = LoadMapInstanceType(map);
+
+  GotoIfNot(IsJSReceiverInstanceType(instance_type), &return_undefined);
+  GotoIf(IsSpecialReceiverInstanceType(instance_type), &return_undefined);
+
+  TNode<JSObject> js_object = CAST(heap_object);
+
+  {
+    TVARIABLE(HeapObject, var_meta_storage);
+    TVARIABLE(IntPtrT, var_entry);
+    TVARIABLE(Object, var_value);
+    TVARIABLE(Uint32T, var_details);
+    Label if_found_fast(this), if_found_dict(this), got_value(this);
+
+    TryLookupPropertyInSimpleObject(
+        js_object, map, symbol, &if_found_fast, &if_found_dict,
+        &var_meta_storage, &var_entry, &return_undefined, &return_undefined);
+
+    BIND(&if_found_fast);
+    {
+      TNode<DescriptorArray> descriptors = CAST(var_meta_storage.value());
+      LoadPropertyFromFastObject(js_object, map, descriptors, var_entry.value(),
+                                 &var_details, &var_value);
+      Goto(&got_value);
+    }
+
+    BIND(&if_found_dict);
+    {
+      TNode<PropertyDictionary> dictionary = CAST(var_meta_storage.value());
+      LoadPropertyFromDictionary(dictionary, var_entry.value(), &var_details,
+                                 &var_value);
+      Goto(&got_value);
+    }
+
+    BIND(&got_value);
+    {
+      TNode<Uint32T> kind =
+          DecodeWord32<PropertyDetails::KindField>(var_details.value());
+      constexpr int kData = static_cast<int>(PropertyKind::kData);
+      GotoIfNot(Word32Equal(kind, Int32Constant(kData)), &return_undefined);
+      GotoIfLazyClosure(CAST(var_value.value()), &return_undefined);
+      Return(var_value.value());
+    }
+  }
+
+  BIND(&return_undefined);
+  Return(UndefinedConstant());
+}
+
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace v8::internal
