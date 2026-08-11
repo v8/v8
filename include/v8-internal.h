@@ -601,15 +601,15 @@ enum class ManagedTypeId : uint32_t {
   kTemporalPlainMonthDay,
   kTemporalZonedDateTime,
   kDisplayNamesInternal,
+  kD8Worker,
+  kD8ModuleEmbedderData,
 };
 
 #define SHARED_MANAGED_TAG_LIST(V) V(WasmFutexManagedObjectWaitListTag)
 
 #define MANAGED_TAG_LIST(V)  \
   SHARED_MANAGED_TAG_LIST(V) \
-  V(GenericManagedTag)       \
-  V(D8WorkerTag)             \
-  V(D8ModuleEmbedderDataTag)
+  V(GenericManagedTag)
 
 #define FOREIGN_TAG_LIST(V)                               \
   V(GenericForeignTag)                                    \

@@ -1135,12 +1135,13 @@ void Serializer::ObjectSerializer::VisitCppHeapPointer(
 
   PtrComprCageBase cage_base(isolate());
   // Currently there's only very limited support for CppHeapPointerSlot
-  // serialization as it's only used for API wrappers.
+  // serialization.
   //
   // We serialize the slot as initialized-but-unused slot.  The actual API
   // wrapper serialization is implemented in
   // `ContextSerializer::SerializeApiWrapperFields()`.
-  DCHECK(IsJSApiWrapperObjectMap(object_->map()) || IsNativeContext(*object_));
+  DCHECK(IsJSApiWrapperObjectMap(object_->map()) || IsNativeContext(*object_) ||
+         IsCppGCManagedBase(*object_));
   static_assert(kCppHeapPointerSlotSize % kTaggedSize == 0);
   sink_->Put(
       FixedRawDataWithSize::Encode(kCppHeapPointerSlotSize >> kTaggedSizeLog2),
