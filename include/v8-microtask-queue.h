@@ -58,7 +58,7 @@ class V8_EXPORT MicrotaskQueue
                              MicrotasksPolicy policy = MicrotasksPolicy::kAuto);
   virtual void Trace(cppgc::Visitor* visitor) const {}
 #else
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use MicrotaskQueue allocated in cppgc, "
       "see gn flag: v8_cppgc_microtask_queue.")
   static std::unique_ptr<MicrotaskQueue> New(
