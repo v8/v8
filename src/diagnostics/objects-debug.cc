@@ -2174,12 +2174,12 @@ void JSShadowRealm::JSShadowRealmVerify(Isolate* isolate) {
 #ifdef V8_INTL_SUPPORT
 void JSLocale::JSLocaleVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsForeign(icu_locale()));
+  CHECK(IsCppGCManagedBase(icu_locale()));
 }
 
 void JSCollator::JSCollatorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsForeign(icu_collator()));
+  CHECK(IsCppGCManagedBase(icu_collator()));
   CHECK(IsUndefined(bound_compare()) || IsJSFunction(bound_compare()));
   CHECK(IsString(locale()));
 }
@@ -2198,9 +2198,9 @@ void JSV8BreakIterator::JSV8BreakIteratorVerify(Isolate* isolate) {
 void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsForeign(icu_locale_.load()));
-  CHECK(IsForeign(icu_simple_date_format_.load()));
-  CHECK(IsForeign(icu_date_interval_format_.load()));
+  CHECK(IsCppGCManagedBase(icu_locale_.load()));
+  CHECK(IsCppGCManagedBase(icu_simple_date_format_.load()));
+  CHECK(IsCppGCManagedBase(icu_date_interval_format_.load()));
   CHECK(IsUndefined(bound_format()) || IsJSFunction(bound_format()));
   CHECK(IsSmi(flags_.load()));
 }
@@ -2215,21 +2215,21 @@ void JSDurationFormat::JSDurationFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsSmi(style_flags_.load()));
   CHECK(IsSmi(display_flags_.load()));
-  CHECK(IsForeign(icu_locale_.load()));
-  CHECK(IsForeign(icu_number_formatter_.load()));
+  CHECK(IsCppGCManagedBase(icu_locale_.load()));
+  CHECK(IsCppGCManagedBase(icu_number_formatter_.load()));
 }
 
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsForeign(icu_formatter_.load()));
+  CHECK(IsCppGCManagedBase(icu_formatter_.load()));
   CHECK(IsSmi(flags_.load()));
 }
 
 void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsForeign(icu_number_formatter_.load()));
+  CHECK(IsCppGCManagedBase(icu_number_formatter_.load()));
   CHECK(IsUndefined(bound_format()) || IsJSFunction(bound_format()));
 }
 
@@ -2237,22 +2237,22 @@ void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
   CHECK(IsSmi(flags_.load()));
-  CHECK(IsForeign(icu_plural_rules_.load()));
-  CHECK(IsForeign(icu_number_formatter_.load()));
+  CHECK(IsCppGCManagedBase(icu_plural_rules_.load()));
+  CHECK(IsCppGCManagedBase(icu_number_formatter_.load()));
 }
 
 void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
   CHECK(IsString(numberingSystem()));
-  CHECK(IsForeign(icu_formatter_.load()));
+  CHECK(IsCppGCManagedBase(icu_formatter_.load()));
   CHECK(IsSmi(flags_.load()));
 }
 
 void JSSegmenter::JSSegmenterVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsForeign(icu_break_iterator_.load()));
+  CHECK(IsCppGCManagedBase(icu_break_iterator_.load()));
   CHECK(IsSmi(flags_.load()));
 }
 

@@ -582,33 +582,33 @@ enum class ManagedTypeId : uint32_t {
   kWasmFuncData,
   kWasmManagedData,
   kWasmNativeModule,
+  kIcuBreakIterator,
+  kIcuLocale,
+  kIcuSimpleDateFormat,
+  kIcuDateIntervalFormat,
+  kIcuRelativeDateTimeFormatter,
+  kIcuListFormatter,
+  kIcuCollator,
+  kIcuPluralRules,
+  kIcuLocalizedNumberFormatter,
 };
 
 #define SHARED_MANAGED_TAG_LIST(V) V(WasmFutexManagedObjectWaitListTag)
 
-#define MANAGED_TAG_LIST(V)          \
-  SHARED_MANAGED_TAG_LIST(V)         \
-  V(GenericManagedTag)               \
-  V(IcuBreakIteratorTag)             \
-  V(IcuListFormatterTag)             \
-  V(IcuLocaleTag)                    \
-  V(IcuSimpleDateFormatTag)          \
-  V(IcuDateIntervalFormatTag)        \
-  V(IcuRelativeDateTimeFormatterTag) \
-  V(IcuLocalizedNumberFormatterTag)  \
-  V(IcuPluralRulesTag)               \
-  V(IcuCollatorTag)                  \
-  V(IcuBreakIteratorWithTextTag)     \
-  V(TemporalDurationTag)             \
-  V(TemporalInstantTag)              \
-  V(TemporalPlainDateTag)            \
-  V(TemporalPlainTimeTag)            \
-  V(TemporalPlainDateTimeTag)        \
-  V(TemporalPlainYearMonthTag)       \
-  V(TemporalPlainMonthDayTag)        \
-  V(TemporalZonedDateTimeTag)        \
-  V(DisplayNamesInternalTag)         \
-  V(D8WorkerTag)                     \
+#define MANAGED_TAG_LIST(V)      \
+  SHARED_MANAGED_TAG_LIST(V)     \
+  V(GenericManagedTag)           \
+  V(IcuBreakIteratorWithTextTag) \
+  V(TemporalDurationTag)         \
+  V(TemporalInstantTag)          \
+  V(TemporalPlainDateTag)        \
+  V(TemporalPlainTimeTag)        \
+  V(TemporalPlainDateTimeTag)    \
+  V(TemporalPlainYearMonthTag)   \
+  V(TemporalPlainMonthDayTag)    \
+  V(TemporalZonedDateTimeTag)    \
+  V(DisplayNamesInternalTag)     \
+  V(D8WorkerTag)                 \
   V(D8ModuleEmbedderDataTag)
 
 #define FOREIGN_TAG_LIST(V)                               \

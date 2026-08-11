@@ -182,7 +182,8 @@ V8_OBJECT class CppGCManaged : public CppGCManagedBase {
 
   inline Ptr ptr() const;
 
-  inline CppType* raw() const;
+  inline CppType* raw(
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) const;
 
   inline std::shared_ptr<CppType> get() const;
 
@@ -201,6 +202,17 @@ V8_OBJECT class CppGCManaged : public CppGCManagedBase {
  private:
   inline std::shared_ptr<CppType>* GetSharedPtr() const;
 } V8_OBJECT_END;
+
+template <typename CppType>
+struct TypeIdForManaged {
+  static constexpr ManagedTypeId value = CppType::kTypeID;
+};
+
+#define ASSIGN_MANAGED_TYPE_ID_FOR_MANAGED(CppType, TypeId) \
+  template <>                                               \
+  struct TypeIdForManaged<CppType> {                        \
+    static constexpr ManagedTypeId value = TypeId;          \
+  };
 
 template <typename CppType>
 struct TagForManaged {

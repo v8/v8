@@ -1150,8 +1150,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
         names_->GetFormatted("system / CppGCManaged (%s)", tag_name);
 #if V8_ENABLE_WEBASSEMBLY
     if (managed->GetWrapper()->type_id() == ManagedTypeId::kWasmNativeModule) {
+      DisallowGarbageCollection no_gc;
       size = Cast<CppGCManaged<wasm::NativeModule>>(managed)
-                 ->raw()
+                 ->raw(no_gc)
                  ->EstimateCurrentMemoryConsumption();
     }
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -527,7 +527,7 @@ void* StoreImpl::GetHostInfo(i::DirectHandle<i::Object> key,
   i::Tagged<i::Object> raw =
       i::Cast<i::EphemeronHashTable>(host_info_map_->table())->Lookup(key);
   if (IsTheHole(raw)) return nullptr;
-  return i::Cast<i::CppGCManaged<ManagedData>>(raw)->raw()->info;
+  return i::Cast<i::CppGCManaged<ManagedData>>(raw)->raw(no_gc)->info;
 }
 
 template <>

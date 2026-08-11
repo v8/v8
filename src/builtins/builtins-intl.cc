@@ -1241,7 +1241,8 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
+  CppGCManaged<icu::Collator>::Ptr icu_collator =
+      collator->icu_collator()->ptr();
   CHECK_NOT_NULL(icu_collator);
   int result = Intl::CompareStrings(isolate, *icu_collator, string_x, string_y);
   // See StringPrototypeLocaleCompareIntl: the inline fast path relies on
