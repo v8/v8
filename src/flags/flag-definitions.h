@@ -3248,8 +3248,7 @@ DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
 DEFINE_BOOL(expose_inspector_scripts, false,
             "expose injected-script-source.js for debugging")
 DEFINE_BOOL(inspector_live_edit, false,
-            "Enable the Debugger.setScriptSource CDP command, otherwise it'll "
-            "always fail with an error")
+            "deprecated and ignored (live edit is no longer supported)")
 
 // execution.cc
 //
