@@ -2207,7 +2207,7 @@ void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
 
 void JSDisplayNames::JSDisplayNamesVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsForeign(internal_.load()));
+  CHECK(IsCppGCManagedBase(internal_.load()));
   CHECK(IsSmi(flags_.load()));
 }
 

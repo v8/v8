@@ -61,6 +61,8 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "TemporalPlainMonthDay";
     case ManagedTypeId::kTemporalZonedDateTime:
       return "TemporalZonedDateTime";
+    case ManagedTypeId::kDisplayNamesInternal:
+      return "DisplayNamesInternal";
   }
 }
 
