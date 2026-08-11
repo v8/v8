@@ -583,6 +583,7 @@ enum class ManagedTypeId : uint32_t {
   kWasmManagedData,
   kWasmNativeModule,
   kIcuBreakIterator,
+  kIcuBreakIteratorWithText,
   kIcuLocale,
   kIcuSimpleDateFormat,
   kIcuDateIntervalFormat,
@@ -598,7 +599,6 @@ enum class ManagedTypeId : uint32_t {
 #define MANAGED_TAG_LIST(V)      \
   SHARED_MANAGED_TAG_LIST(V)     \
   V(GenericManagedTag)           \
-  V(IcuBreakIteratorWithTextTag) \
   V(TemporalDurationTag)         \
   V(TemporalInstantTag)          \
   V(TemporalPlainDateTag)        \

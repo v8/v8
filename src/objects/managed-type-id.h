@@ -27,6 +27,8 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "WasmNativeModule";
     case ManagedTypeId::kIcuBreakIterator:
       return "IcuBreakIterator";
+    case ManagedTypeId::kIcuBreakIteratorWithText:
+      return "IcuBreakIteratorWithText";
     case ManagedTypeId::kIcuLocale:
       return "IcuLocale";
     case ManagedTypeId::kIcuSimpleDateFormat:

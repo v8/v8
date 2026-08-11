@@ -1327,7 +1327,7 @@ BUILTIN(SegmentsPrototypeIterator) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegments, segments, method_name);
 
-  Managed<IcuBreakIteratorWithText>::Ptr iterator_with_text =
+  CppGCManaged<IcuBreakIteratorWithText>::Ptr iterator_with_text =
       segments->icu_iterator_with_text()->ptr();
 
   RETURN_RESULT_OR_FAILURE(

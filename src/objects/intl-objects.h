@@ -80,8 +80,8 @@ class JSCollator;
 // Owns the ICU break iterator together with the string buffer it refers to.
 class IcuBreakIteratorWithText final {
  public:
-  static constexpr ExternalPointerTag kManagedTag =
-      kIcuBreakIteratorWithTextTag;
+  static constexpr ManagedTypeId kTypeID =
+      ManagedTypeId::kIcuBreakIteratorWithText;
 
   // Adopts the given iterator with an empty string.
   explicit IcuBreakIteratorWithText(

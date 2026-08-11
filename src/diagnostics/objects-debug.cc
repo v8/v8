@@ -2187,7 +2187,7 @@ void JSCollator::JSCollatorVerify(Isolate* isolate) {
 void JSV8BreakIterator::JSV8BreakIteratorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsForeign(icu_iterator_with_text_.load()));
+  CHECK(IsCppGCManagedBase(icu_iterator_with_text_.load()));
   CHECK(IsUndefined(bound_adopt_text()) || IsJSFunction(bound_adopt_text()));
   CHECK(IsUndefined(bound_first()) || IsJSFunction(bound_first()));
   CHECK(IsUndefined(bound_next()) || IsJSFunction(bound_next()));
@@ -2258,14 +2258,14 @@ void JSSegmenter::JSSegmenterVerify(Isolate* isolate) {
 
 void JSSegments::JSSegmentsVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsForeign(icu_iterator_with_text_.load()));
+  CHECK(IsCppGCManagedBase(icu_iterator_with_text_.load()));
   CHECK(IsString(raw_string()));
   CHECK(IsSmi(flags_.load()));
 }
 
 void JSSegmentIterator::JSSegmentIteratorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsForeign(icu_iterator_with_text_.load()));
+  CHECK(IsCppGCManagedBase(icu_iterator_with_text_.load()));
   CHECK(IsString(raw_string()));
   CHECK(IsSmi(flags_.load()));
 }
