@@ -578,6 +578,7 @@ struct TagRange {
 enum class ManagedTypeId : uint32_t {
   kBackingStore,
   kTestDeleteCounter,
+  kTestDeleteNative,
   kWasmStreaming,
   kWasmFuncData,
   kWasmManagedData,

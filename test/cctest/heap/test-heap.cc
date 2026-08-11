@@ -6538,10 +6538,7 @@ void HeapTester::UncommitUnusedMemory(Heap* heap) {
 
 class DeleteNative {
  public:
-  static constexpr ExternalPointerTag kManagedTag = kGenericManagedTag;
-  static void Deleter(void* arg) {
-    delete reinterpret_cast<DeleteNative*>(arg);
-  }
+  static constexpr ManagedTypeId kTypeID = ManagedTypeId::kTestDeleteNative;
 };
 
 // The test only runs on 64-bit, because it simulates allocating ~9Gb
@@ -6553,7 +6550,7 @@ TEST(Regress8014) {
   {
     HandleScope scope(isolate);
     for (int i = 0; i < 10000; i++) {
-      auto handle = Managed<DeleteNative>::From(
+      auto handle = CppGCManaged<DeleteNative>::Create(
           isolate, 1000000, std::make_shared<DeleteNative>());
       USE(handle);
     }

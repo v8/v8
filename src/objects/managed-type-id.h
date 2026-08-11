@@ -17,6 +17,8 @@ constexpr const char* ToString(ManagedTypeId type_id) {
       return "BackingStore";
     case ManagedTypeId::kTestDeleteCounter:
       return "TestDeleteCounter";
+    case ManagedTypeId::kTestDeleteNative:
+      return "TestDeleteNative";
     case ManagedTypeId::kWasmStreaming:
       return "WasmStreaming";
     case ManagedTypeId::kWasmFuncData:
