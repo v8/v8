@@ -5885,12 +5885,12 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
             .ToLocalChecked();
     Local<String> callback_name = v8::String::NewFromUtf8Literal(
         isolate_, "receive", NewStringType::kInternalized);
+    v8::TryCatch try_catch(isolate_);
     Local<Value> callback;
     if (!context->Global()->Get(context, callback_name).ToLocal(&callback)) {
       return;
     }
     if (callback->IsFunction()) {
-      v8::TryCatch try_catch(isolate_);
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
       i::DirectHandle<i::Object> i_callback =
           Utils::OpenDirectHandle(*callback);
