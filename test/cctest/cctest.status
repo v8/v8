@@ -160,6 +160,7 @@
   'test-cpu-profiler/*': [SKIP],
 
   # Slow tests on TSAN
+  'test-heap/Regress8014': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Float32Add_Consts': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Float32Sub_Consts': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Float32Mul_Consts': [SKIP],
