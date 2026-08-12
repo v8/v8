@@ -1859,13 +1859,16 @@ void StringBuiltinsAssembler::ReplaceUnpairedSurrogates(TNode<String> source,
             if_indirect);
 
   TNode<RawPtrT> source_data = DirectStringData(source, source_instance_type);
-  // The destination string is a freshly allocated SeqString, and so is always
-  // direct.
-  TNode<Uint16T> dest_instance_type = LoadInstanceType(dest);
-  CSA_DCHECK(this, Word32Equal(Word32And(dest_instance_type,
-                                         Int32Constant(kStringEncodingMask)),
-                               Int32Constant(kTwoByteStringTag)));
-  TNode<RawPtrT> dest_data = DirectStringData(dest, dest_instance_type);
+  // The destination string is a freshly allocated TwoByteSeqString, and so is
+  // always direct.
+  CSA_DCHECK(this,
+             Word32Equal(
+                 Word32And(LoadInstanceType(dest),
+                           Int32Constant(kIsNotStringMask |
+                                         kStringRepresentationAndEncodingMask)),
+                 Int32Constant(kSeqTwoByteStringTag)));
+  TNode<RawPtrT> dest_data =
+      DirectStringData(dest, Int32Constant(SEQ_TWO_BYTE_STRING_TYPE));
   TNode<IntPtrT> length = LoadStringLengthAsWord(source);
   CSA_DCHECK(this, IntPtrEqual(length, LoadStringLengthAsWord(dest)));
 
