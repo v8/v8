@@ -563,6 +563,7 @@
   'compiler/regress-crbug-1323114': [SKIP],
   'wasm/wasm-gc-inlining': [SKIP], #BUG(397252111)
   'maglev/load_mutable_heap_slot_context_specialized': [SKIP],
+  'array-destructuring-lazy-deopt': [SKIP],
 
   # https://crbug.com/v8/13461
   'maglev/inner-function': [SKIP],
