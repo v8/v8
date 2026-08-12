@@ -627,6 +627,11 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, std::atomic<uint32_t>*)
   DECL_PROTECTED_POINTER_ACCESSORS(memory_bases_and_sizes,
                                    TrustedFixedAddressArray)
+  static constexpr int kMemoryBasesAndSizesEntriesPerMemory = 3;
+  static constexpr int kMemoryBasesAndSizesBaseOffset = 0;
+  static constexpr int kMemoryBasesAndSizesSizeOffset = 1;
+  // The address of the memory size. The value is only set for shared memories.
+  static constexpr int kMemoryBasesAndSizesSizeAddrOffset = 2;
   DECL_PROTECTED_POINTER_ACCESSORS(data_segments,
                                    TrustedPodArray<wasm::WireBytesRef>)
   DECL_ACCESSORS(element_segments, Tagged<FixedArray>)
@@ -767,8 +772,8 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   static_assert(kProtectedFieldOffsets.size() == kProtectedFieldNames.size(),
                 "every protected field offset needs a name");
 
-  void SetRawMemory(uint32_t memory_index, uint8_t* mem_start, size_t mem_size);
-
+  void SetRawMemory(uint32_t memory_index, uint8_t* mem_start, size_t mem_size,
+                    Address size_address);
 
   static DirectHandle<WasmTrustedInstanceData> New(
       Isolate*, DirectHandle<WasmModuleObject>,

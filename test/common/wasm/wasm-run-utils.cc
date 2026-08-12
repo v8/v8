@@ -202,11 +202,20 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
 
   // Create the memory_bases_and_sizes array.
   DirectHandle<TrustedFixedAddressArray> memory_bases_and_sizes =
-      TrustedFixedAddressArray::New(isolate_, 2);
+      TrustedFixedAddressArray::New(
+          isolate_,
+          WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(
       memory_object->backing_store()->buffer_start());
-  memory_bases_and_sizes->set(0, reinterpret_cast<Address>(mem_start));
-  memory_bases_and_sizes->set(1, size);
+  memory_bases_and_sizes->set(
+      WasmTrustedInstanceData::kMemoryBasesAndSizesBaseOffset,
+      reinterpret_cast<Address>(mem_start));
+  memory_bases_and_sizes->set(
+      WasmTrustedInstanceData::kMemoryBasesAndSizesSizeOffset, size);
+  memory_bases_and_sizes->set(
+      WasmTrustedInstanceData::kMemoryBasesAndSizesSizeAddrOffset,
+      reinterpret_cast<Address>(
+          memory_object->backing_store()->byte_length_address()));
   trusted_instance_data_->set_memory_bases_and_sizes(*memory_bases_and_sizes);
 
   mem0_start_ = mem_start;
@@ -218,7 +227,10 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   // TODO(wasm): Delete the following line when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
   // two lines is used to shrink the memory for testing purposes.
-  trusted_instance_data_->SetRawMemory(0, mem0_start_, mem0_size_);
+  trusted_instance_data_->SetRawMemory(
+      0, mem0_start_, mem0_size_,
+      reinterpret_cast<Address>(
+          memory_object->backing_store()->byte_length_address()));
   return mem0_start_;
 }
 
