@@ -4436,7 +4436,18 @@ void WriteChunkListToFlat(Tagged<FixedArray> chunk_list_head,
         const uint32_t string_length = string->length();
 
         DCHECK(string_length == 0 || sink < sink_end);
-        String::WriteToFlat(string, sink, 0, string_length);
+        // WriteToFlat is not inlined even with PGO and ThinLTO, so we handle
+        // the common sequential cases here to avoid the call overhead.
+        StringShape shape(string);
+        if (shape.IsSequentialOneByte()) {
+          CopyChars(sink, Cast<SeqOneByteString>(string)->GetChars(no_gc),
+                    string_length);
+        } else if (shape.IsSequentialTwoByte()) {
+          CopyChars(sink, Cast<SeqTwoByteString>(string)->GetChars(no_gc),
+                    string_length);
+        } else {
+          String::WriteToFlat(string, sink, 0, string_length);
+        }
         sink += string_length;
 
         // Next string element, needs at least one separator preceding it.
