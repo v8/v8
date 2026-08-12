@@ -473,28 +473,10 @@
   # Skip tests not suitable for GC stress.
   'allocation-site-info': [SKIP],
   'array-constructor-feedback': [SKIP],
-  'array-feedback': [SKIP],
-  'array-literal-feedback': [SKIP],
   'd8/d8-performance-now': [SKIP],
-  'elements-kind': [SKIP],
-  'elements-transition-hoisting': [SKIP],
-  'fast-prototype': [SKIP],
-  'field-type-tracking': [SKIP],
-  'getters-on-elements': [SKIP],
-  'es6/block-let-crankshaft': [SKIP],
-  'maglev/osr-to-tf': [SKIP],
-  'maglev/unstable-map-transition': [SKIP],
   'opt-elements-kind': [SKIP],
-  'osr-elements-kind': [SKIP],
-  'compiler/number-divide': [SKIP],
-  'regress/regress-crbug-137689': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
-  'regress/regress-2249': [SKIP],
-  'regress/regress-3709': [SKIP],
   'regress/regress-4121': [SKIP],
-  'regress/regress-6989': [SKIP],
-  'compare-known-objects-slow': [SKIP],
-  'compiler/array-multiple-receiver-maps': [SKIP],
   # Tests taking too long
   'regress/regress-1122': [SKIP],
   'regress/regress-353551': [SKIP],
@@ -559,12 +541,6 @@
 
   # BUG(v8:12561)
   'spread-large-map': [SKIP],
-
-  # Flaky tests due to GC interferring with optimization.
-  'compiler/regress-crbug-1323114': [SKIP],
-  'wasm/wasm-gc-inlining': [SKIP], #BUG(397252111)
-  'maglev/load_mutable_heap_slot_context_specialized': [SKIP],
-  'array-destructuring-lazy-deopt': [SKIP],
 
   # https://crbug.com/v8/13461
   'maglev/inner-function': [SKIP],
