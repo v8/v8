@@ -3925,6 +3925,13 @@ void ErrorStackData::ErrorStackDataVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, stack_trace_.load());
 }
 
+void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
+  CHECK(Is<Struct>(this));
+  CHECK(Is<DebugScriptScopeInfo>(this));
+  Object::VerifyPointer(isolate, numeric_data_.load());
+  Object::VerifyPointer(isolate, string_table_.load());
+}
+
 void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate) {
   CHECK_LE(length_, kMaxCapacity);
   {

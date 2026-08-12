@@ -205,7 +205,8 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kClassBoilerplateMap = kBytecodeWrapperMap + 40;
   static constexpr Tagged_t kClassPositionsMap = kClassBoilerplateMap + 40;
   static constexpr Tagged_t kCodeWrapperMap = kClassPositionsMap + 40;
-  static constexpr Tagged_t kErrorStackDataMap = kCodeWrapperMap + 40;
+  static constexpr Tagged_t kDebugScriptScopeInfoMap = kCodeWrapperMap + 40;
+  static constexpr Tagged_t kErrorStackDataMap = kDebugScriptScopeInfoMap + 40;
   static constexpr Tagged_t kFunctionTemplateRareDataMap =
       kErrorStackDataMap + 40;
   static constexpr Tagged_t kModuleRequestMap =
@@ -1094,7 +1095,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x1a0189;
 };
 
-static constexpr std::array<Tagged_t, 898> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 899> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1947,6 +1948,7 @@ static constexpr std::array<Tagged_t, 898> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kClassBoilerplateMap,
     StaticReadOnlyRoot::kClassPositionsMap,
     StaticReadOnlyRoot::kCodeWrapperMap,
+    StaticReadOnlyRoot::kDebugScriptScopeInfoMap,
     StaticReadOnlyRoot::kEnumCacheMap,
     StaticReadOnlyRoot::kErrorStackDataMap,
     StaticReadOnlyRoot::kFunctionTemplateRareDataMap,

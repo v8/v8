@@ -4605,6 +4605,17 @@ Handle<StackTraceInfo> Factory::NewStackTraceInfo(
   return handle(info, isolate());
 }
 
+Handle<DebugScriptScopeInfo> Factory::NewDebugScriptScopeInfo(
+    DirectHandle<ByteArray> numeric_data,
+    DirectHandle<FixedArray> string_table) {
+  Tagged<DebugScriptScopeInfo> info = NewStructInternal<DebugScriptScopeInfo>(
+      DEBUG_SCRIPT_SCOPE_INFO_TYPE, AllocationType::kOld);
+  DisallowGarbageCollection no_gc;
+  info->set_numeric_data(*numeric_data);
+  info->set_string_table(*string_table);
+  return handle(info, isolate());
+}
+
 Handle<JSObject> Factory::NewArgumentsObject(DirectHandle<JSFunction> callee,
                                              int length) {
   bool strict_mode_callee = is_strict(callee->shared()->language_mode()) ||

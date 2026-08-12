@@ -455,6 +455,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case BREAK_POINT_INFO_TYPE:
     case CLASS_BOILERPLATE_TYPE:
     case CLASS_POSITIONS_TYPE:
+    case DEBUG_SCRIPT_SCOPE_INFO_TYPE:
     case ENUM_CACHE_TYPE:
     case ERROR_STACK_DATA_TYPE:
     case FUNCTION_TEMPLATE_RARE_DATA_TYPE:

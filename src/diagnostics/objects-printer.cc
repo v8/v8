@@ -3745,6 +3745,13 @@ void ErrorStackData::ErrorStackDataPrint(std::ostream& os) {
   os << "\n";
 }
 
+void DebugScriptScopeInfo::DebugScriptScopeInfoPrint(std::ostream& os) {
+  this->PrintHeader(os, "DebugScriptScopeInfo");
+  os << "\n - numeric_data: " << Brief(this->numeric_data());
+  os << "\n - string_table: " << Brief(this->string_table());
+  os << "\n";
+}
+
 void LoadHandler::LoadHandlerPrint(std::ostream& os) {
   PrintHeader(os, "LoadHandler");
   // TODO(ishell): implement printing based on handler kind

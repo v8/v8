@@ -563,6 +563,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int bytecode_offset_or_source_position,
       DirectHandle<String> function_name, bool is_constructor);
   Handle<StackTraceInfo> NewStackTraceInfo(DirectHandle<FixedArray> frames);
+  Handle<DebugScriptScopeInfo> NewDebugScriptScopeInfo(
+      DirectHandle<ByteArray> numeric_data,
+      DirectHandle<FixedArray> string_table);
 
   // Allocate various microtasks.
   DirectHandle<CallableTask> NewCallableTask(
