@@ -320,12 +320,8 @@ void LiftoffAssembler::LoadMemoryStart(Register dst, Register instance_data,
     LoadProtectedPointer(
         dst, instance_data,
         WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset);
-    int elem_idx =
-        WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory *
-            mem_index +
-        WasmTrustedInstanceData::kMemoryBasesAndSizesBaseOffset;
-    int buffer_offset =
-        TrustedFixedAddressArray::OffsetOfElementAt(elem_idx) - kHeapObjectTag;
+    int buffer_offset = OFFSET_OF_DATA_START(TrustedFixedAddressArray) -
+                        kHeapObjectTag + kSystemPointerSize * mem_index * 2;
     LoadFullPointer(dst, dst, buffer_offset);
   }
 }

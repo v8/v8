@@ -4213,13 +4213,8 @@ class LiftoffCompiler {
     } else {
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
                                         pinned);
-      int elem_idx =
-          WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory *
-              memory->index +
-          WasmTrustedInstanceData::kMemoryBasesAndSizesSizeOffset;
-      int buffer_offset =
-          TrustedFixedAddressArray::OffsetOfElementAt(elem_idx) -
-          kHeapObjectTag;
+      int buffer_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag +
+                          kSystemPointerSize * (memory->index * 2 + 1);
       __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
     }
 
@@ -4726,72 +4721,15 @@ class LiftoffCompiler {
                           Value* /* result */) {
     LiftoffRegList pinned;
     LiftoffRegister mem_size = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    if (!imm.memory->is_shared) {
-      // For unshared memories it is enough to load the cached memory size.
-      if (imm.index == 0) {
-        LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
-                            pinned);
-      } else {
-        LOAD_PROTECTED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
-                                          pinned);
-        int elem_idx =
-            WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory *
-                imm.index +
-            WasmTrustedInstanceData::kMemoryBasesAndSizesSizeOffset;
-        int buffer_offset =
-            TrustedFixedAddressArray::OffsetOfElementAt(elem_idx) -
-            kHeapObjectTag;
-        __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
-      }
+    if (imm.index == 0) {
+      LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
+                          pinned);
     } else {
-      // For shared memories it is necessary to perform a sequentially
-      // consistent atomic load of the corresponding backing store size.
-      LiftoffRegister scratch =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LiftoffRegister size_addr = scratch;
-      LOAD_PROTECTED_PTR_INSTANCE_FIELD(size_addr.gp(), MemoryBasesAndSizes,
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
                                         pinned);
-      int size_addr_elem_idx =
-          WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory *
-              imm.index +
-          WasmTrustedInstanceData::kMemoryBasesAndSizesSizeAddrOffset;
-      int buffer_offset =
-          TrustedFixedAddressArray::OffsetOfElementAt(size_addr_elem_idx) -
-          kHeapObjectTag;
-      __ LoadFullPointer(size_addr.gp(), size_addr.gp(), buffer_offset);
-      LoadType load_type =
-          kSystemPointerSize == 8 ? LoadType::kI64Load : LoadType::kI32Load;
-      __ AtomicLoad(mem_size, size_addr.gp(), no_reg, 0, load_type, nullptr,
-                    AtomicMemoryOrder::kSeqCst, pinned, false);
-
-      // Write the loaded value into the cached memory size in the
-      // WasmTrustedInstanceData. This ensures consistency within the thread (as
-      // bounds-checks etc. might use these cached properties).
-      StoreType store_type =
-          kSystemPointerSize == 8 ? StoreType::kI64Store : StoreType::kI32Store;
-      Register instance_reg = LoadInstanceIntoRegister(pinned, scratch.gp());
-      pinned.set(instance_reg);
-      LiftoffRegister bases_and_sizes =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LOAD_PROTECTED_PTR_INSTANCE_FIELD(bases_and_sizes.gp(),
-                                        MemoryBasesAndSizes, pinned);
-      int cached_size_elem_idx =
-          WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory *
-              imm.index +
-          WasmTrustedInstanceData::kMemoryBasesAndSizesSizeOffset;
-      int cached_size_offset =
-          TrustedFixedAddressArray::OffsetOfElementAt(cached_size_elem_idx) -
-          kHeapObjectTag;
-      __ Store(bases_and_sizes.gp(), no_reg, cached_size_offset, mem_size,
-               store_type, pinned);
-      if (imm.index == 0) {
-        // For memory 0 there is a second cached field directly on the
-        // WasmTrustedInstanceData that needs to be updated as well.
-        __ Store(instance_reg, no_reg,
-                 WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET(Memory0Size) -
-                     kHeapObjectTag,
-                 mem_size, store_type, pinned);
-      }
+      int buffer_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag +
+                          kSystemPointerSize * (imm.index * 2 + 1);
+      __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
     }
     // Convert bytes to pages.
     __ emit_ptrsize_shri(mem_size.gp(), mem_size.gp(), kWasmPageSizeLog2);
@@ -6572,13 +6510,8 @@ class LiftoffCompiler {
       LOAD_INSTANCE_FIELD(addr, Memory0Start, kSystemPointerSize, pinned);
     } else {
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(addr, MemoryBasesAndSizes, pinned);
-      int elem_idx =
-          WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory *
-              imm.mem_index +
-          WasmTrustedInstanceData::kMemoryBasesAndSizesBaseOffset;
-      int buffer_offset =
-          TrustedFixedAddressArray::OffsetOfElementAt(elem_idx) -
-          kHeapObjectTag;
+      int buffer_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag +
+                          kSystemPointerSize * imm.mem_index * 2;
       __ LoadFullPointer(addr, addr, buffer_offset);
     }
     __ emit_i32_add(addr, addr, index);

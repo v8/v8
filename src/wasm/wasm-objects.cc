@@ -14,7 +14,6 @@
 #endif  // V8_TARGET_OS_LINUX
 
 #include <optional>
-#include <type_traits>
 
 #include "src/base/iterator.h"
 #include "src/base/vector.h"
@@ -788,25 +787,7 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
   // corruption primitive could have modified it since then.
   SBXCHECK_GE(byte_length, memory.min_memory_size);
 
-  // The generated code assumes that it can perform atomic reads on the
-  // std::atomic<size_t> and that that yields the underlying size_t.
-  static_assert(sizeof(*backing_store->byte_length_address()) ==
-                sizeof(size_t));
-  static_assert(
-      std::remove_pointer_t<
-          decltype(backing_store->byte_length_address())>::is_always_lock_free);
-  // Only set the size address if the memory is shared.
-  // 1) For shared memories the address is needed for reading it during a
-  //    memory.size instruction.
-  // 2) On unshared memories, the backing store can move which could result in
-  //    dangling pointers in those cases, so instead we don't initialize the
-  //    address at all.
-  Address size_address =
-      memory.is_shared
-          ? reinterpret_cast<Address>(backing_store->byte_length_address())
-          : kNullAddress;
-  trusted_instance_data->SetRawMemory(memory_index, base_address, byte_length,
-                                      size_address);
+  trusted_instance_data->SetRawMemory(memory_index, base_address, byte_length);
 
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless &&
@@ -1436,25 +1417,17 @@ constexpr decltype(WasmTrustedInstanceData::kProtectedFieldNames)
     WasmTrustedInstanceData::kProtectedFieldNames;
 
 void WasmTrustedInstanceData::SetRawMemory(uint32_t memory_index,
-                                           uint8_t* mem_start, size_t mem_size,
-                                           Address size_address) {
+                                           uint8_t* mem_start,
+                                           size_t mem_size) {
   CHECK_LT(memory_index, module()->memories.size());
 
   CHECK_LE(mem_size, module()->memories[memory_index].is_memory64()
                          ? wasm::max_mem64_bytes()
                          : wasm::max_mem32_bytes());
-  // All memory bases, sizes, and size_addresses are stored in a
-  // TrustedFixedAddressArray.
+  // All memory bases and sizes are stored in a TrustedFixedAddressArray.
   Tagged<TrustedFixedAddressArray> bases_and_sizes = memory_bases_and_sizes();
-  bases_and_sizes->set(kMemoryBasesAndSizesEntriesPerMemory * memory_index +
-                           kMemoryBasesAndSizesBaseOffset,
-                       reinterpret_cast<Address>(mem_start));
-  bases_and_sizes->set(kMemoryBasesAndSizesEntriesPerMemory * memory_index +
-                           kMemoryBasesAndSizesSizeOffset,
-                       mem_size);
-  bases_and_sizes->set(kMemoryBasesAndSizesEntriesPerMemory * memory_index +
-                           kMemoryBasesAndSizesSizeAddrOffset,
-                       size_address);
+  bases_and_sizes->set(memory_index * 2, reinterpret_cast<Address>(mem_start));
+  bases_and_sizes->set(memory_index * 2 + 1, mem_size);
   // Memory 0 has fast-access fields.
   if (memory_index == 0) {
     set_memory0_start(mem_start);
@@ -1506,15 +1479,12 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
       FixedInt32Array::New(isolate, num_imported_functions);
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  static_assert(
-      wasm::kV8MaxWasmMemories <
-      kMaxInt / WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory);
+  static_assert(wasm::kV8MaxWasmMemories < kMaxInt / 2);
   uint32_t num_memories = static_cast<uint32_t>(module->memories.size());
   DirectHandle<FixedArray> memory_objects =
       isolate->factory()->NewFixedArray(num_memories, AllocationType::kYoung);
   DirectHandle<TrustedFixedAddressArray> memory_bases_and_sizes =
-      TrustedFixedAddressArray::New(
-          isolate, kMemoryBasesAndSizesEntriesPerMemory * num_memories);
+      TrustedFixedAddressArray::New(isolate, 2 * num_memories);
 
   // TODO(clemensb): Should we have singleton empty dispatch table in the
   // trusted space?
@@ -1585,15 +1555,8 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 
     for (uint32_t i = 0; i < num_memories; ++i) {
       memory_bases_and_sizes->set(
-          kMemoryBasesAndSizesEntriesPerMemory * i +
-              kMemoryBasesAndSizesBaseOffset,
-          reinterpret_cast<Address>(empty_backing_store_buffer));
-      memory_bases_and_sizes->set(kMemoryBasesAndSizesEntriesPerMemory * i +
-                                      kMemoryBasesAndSizesSizeOffset,
-                                  0);
-      memory_bases_and_sizes->set(kMemoryBasesAndSizesEntriesPerMemory * i +
-                                      kMemoryBasesAndSizesSizeAddrOffset,
-                                  kNullAddress);
+          2 * i, reinterpret_cast<Address>(empty_backing_store_buffer));
+      memory_bases_and_sizes->set(2 * i + 1, 0);
     }
   }
 

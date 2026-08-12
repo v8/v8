@@ -1620,53 +1620,8 @@ class TurboshaftGraphBuildingInterface
 
   void CurrentMemoryPages(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                           Value* result) {
-    V<WordPtr> size_wordptr;
-    if (!imm.memory->is_shared) {
-      size_wordptr = MemSize(imm.index);
-    } else {
-      // For shared memories it is necessary to perform a sequentially
-      // consistent atomic load of the corresponding backing store size.
-      V<TrustedFixedAddressArray> instance_memories =
-          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
-              instance_cache_.trusted_instance_data(), MemoryBasesAndSizes,
-              TrustedFixedAddressArray);
-      int elem_idx =
-          WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory *
-              imm.index +
-          WasmTrustedInstanceData::kMemoryBasesAndSizesSizeAddrOffset;
-      V<WordPtr> size_addr =
-          __ Load(instance_memories, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::UintPtr(),
-                  TrustedFixedAddressArray::OffsetOfElementAt(elem_idx));
-      size_wordptr = __ Load(size_addr, LoadOp::Kind::RawAligned().Atomic(),
-                             MemoryRepresentation::UintPtr(), 0);
-
-      // Write the loaded value into the cached memory size in the
-      // WasmTrustedInstanceData. This ensures consistency within the thread (as
-      // bounds-checks etc. might use these cached properties).
-      int size_elem_idx =
-          WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory *
-              imm.index +
-          WasmTrustedInstanceData::kMemoryBasesAndSizesSizeOffset;
-      __ Store(instance_memories, size_wordptr, LoadOp::Kind::TaggedBase(),
-               MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
-               TrustedFixedAddressArray::OffsetOfElementAt(size_elem_idx));
-
-      if (imm.index == 0) {
-        // For memory 0 there is a second cached field directly on the
-        // WasmTrustedInstanceData that needs to be updated as well.
-        // Note that the `InstanceCache` (class in this graph builder) never
-        // caches the size of a shared memory, so it doesn't need to be
-        // updated or invalidated.
-        __ Store(instance_cache_.trusted_instance_data(), size_wordptr,
-                 LoadOp::Kind::TaggedBase(), MemoryRepresentation::UintPtr(),
-                 compiler::kNoWriteBarrier,
-                 WasmTrustedInstanceData::kMemory0SizeOffset);
-      }
-    }
-
     V<WordPtr> result_wordptr =
-        __ WordPtrShiftRightArithmetic(size_wordptr, kWasmPageSizeLog2);
+        __ WordPtrShiftRightArithmetic(MemSize(imm.index), kWasmPageSizeLog2);
     // In the 32-bit case, truncation happens implicitly.
     if (imm.memory->is_memory64()) {
       result->op = __ ChangeIntPtrToInt64(result_wordptr);
@@ -8264,13 +8219,9 @@ class TurboshaftGraphBuildingInterface
           LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
               instance_cache_.trusted_instance_data(), MemoryBasesAndSizes,
               TrustedFixedAddressArray);
-      int elem_idx =
-          WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory *
-              index +
-          WasmTrustedInstanceData::kMemoryBasesAndSizesBaseOffset;
       return __ Load(instance_memories, LoadOp::Kind::TaggedBase(),
                      MemoryRepresentation::UintPtr(),
-                     TrustedFixedAddressArray::OffsetOfElementAt(elem_idx));
+                     TrustedFixedAddressArray::OffsetOfElementAt(2 * index));
     }
   }
 
@@ -8286,18 +8237,14 @@ class TurboshaftGraphBuildingInterface
       return instance_cache_.memory0_size();
     } else {
       // TODO(14616): Fix sharedness.
-      V<TrustedFixedAddressArray> instance_memories =
+      V<TrustedByteArray> instance_memories =
           LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
               instance_cache_.trusted_instance_data(), MemoryBasesAndSizes,
-              TrustedFixedAddressArray);
-      int elem_idx =
-          WasmTrustedInstanceData::kMemoryBasesAndSizesEntriesPerMemory *
-              index +
-          WasmTrustedInstanceData::kMemoryBasesAndSizesSizeOffset;
-      return __ Load(instance_memories,
-                     LoadOp::Kind::TaggedBase().NotLoadEliminable(),
-                     MemoryRepresentation::UintPtr(),
-                     TrustedFixedAddressArray::OffsetOfElementAt(elem_idx));
+              TrustedByteArray);
+      return __ Load(
+          instance_memories, LoadOp::Kind::TaggedBase().NotLoadEliminable(),
+          MemoryRepresentation::UintPtr(),
+          TrustedFixedAddressArray::OffsetOfElementAt(2 * index + 1));
     }
   }
 
