@@ -745,6 +745,22 @@ Tagged<ScopeInfo> SharedFunctionInfo::TryGetScopeInfoForMerge() const {
   return GetReadOnlyRoots().empty_scope_info();
 }
 
+Tagged<ScopeInfo> SharedFunctionInfo::TryGetOuterScopeInfo() const {
+  if (Tagged<ScopeInfo> scope_info;
+      TryCast(name_or_scope_info(kAcquireLoad), &scope_info)) {
+    if (scope_info->HasOuterScopeInfo()) {
+      return scope_info->OuterScopeInfo();
+    }
+    return GetReadOnlyRoots().empty_scope_info();
+  }
+  if (Tagged<ScopeInfo> outer_scope_info;
+      TryCast(raw_outer_scope_info_or_feedback_metadata(kAcquireLoad),
+              &outer_scope_info)) {
+    return outer_scope_info;
+  }
+  return GetReadOnlyRoots().empty_scope_info();
+}
+
 void SharedFunctionInfo::set_outer_scope_info(
     Tagged<UnionOf<ScopeInfo, TheHole>> value, WriteBarrierMode mode) {
   DCHECK(!is_compiled());
