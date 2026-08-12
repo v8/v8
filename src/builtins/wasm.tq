@@ -107,6 +107,8 @@ extern macro Allocate(intptr): HeapObject;
 extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
+extern macro Retain(Object): void;
+
 macro NumberToInt32(input: Number): int32 {
   return Convert<int32>(input);
 }
@@ -1429,13 +1431,17 @@ transitioning builtin WasmStringViewWtf16Slice(
       let subslice = Subslice(
           slice, Convert<intptr>(start), Convert<intptr>(clampedLength))
           otherwise unreachable;
-      return AllocateNonEmptySeqOneByteString(
-          clampedLength, subslice.Iterator());
+      const result =
+          AllocateNonEmptySeqOneByteString(clampedLength, subslice.Iterator());
+      Retain(string);
+      return result;
     } label TwoByte(slice: ConstSlice<char16>) {
       let subslice = Subslice(
           slice, Convert<intptr>(start), Convert<intptr>(clampedLength))
           otherwise unreachable;
-      return StringFromTwoByteSlice(clampedLength, subslice);
+      const result = StringFromTwoByteSlice(clampedLength, subslice);
+      Retain(string);
+      return result;
     } label Runtime deferred {
       const context = LoadContextFromWasmOrJsFrame();
       tail runtime::WasmSubstring(
