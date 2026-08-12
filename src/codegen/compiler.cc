@@ -2494,9 +2494,11 @@ void BackgroundMergeTask::BeginMergeInBackground(
           Tagged<ScopeInfo> info = old_sfi->scope_info();
           if (!info->IsEmpty()) {
             new_sfi->SetScopeInfo(info);
-          } else if (old_sfi->HasOuterScopeInfo()) {
-            new_sfi->scope_info()->set_outer_scope_info(
-                old_sfi->GetOuterScopeInfo());
+          } else {
+            Tagged<ScopeInfo> outer_info = old_sfi->TryGetOuterScopeInfo();
+            if (!outer_info->IsEmpty()) {
+              new_sfi->scope_info()->set_outer_scope_info(outer_info);
+            }
           }
           forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
         }

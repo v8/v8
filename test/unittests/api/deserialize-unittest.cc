@@ -10,6 +10,7 @@
 #include "include/v8-primitive.h"
 #include "include/v8-script.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/common/synchronization-point-support.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -951,6 +952,120 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
       String::NewFromOneByte(isolate(), kFunctionText).ToLocalChecked();
   Local<Value> actual = RunGlobalFunc("f");
   CHECK(expected->StrictEquals(actual));
+}
+
+TEST_F(MergeDeserializedCodeTest,
+       MergeThatCompilesLazyFunctionWithOuterScopeInfo) {
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
+      true;
+  i::v8_flags.verify_code_merge = true;
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
+  IsolateAndContextScope scope(this);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  PersistentScriptOrigin default_origin(isolate(), NewString(""));
+
+  constexpr char kSourceCode[] =
+      "var outer = function () {\n"
+      "  var x = 1;\n"
+      "  var g = function () { return x; };\n"
+      "  var f = function () { return 42; };\n"
+      "  return f;\n"
+      "};\n"
+      "var f = outer();";
+
+  // Compile the script for the first time to produce code cache data.
+  {
+    v8::HandleScope handle_scope(isolate());
+    ScriptOrigin origin = default_origin.AsScriptOrigin();
+    Local<Script> script =
+        Script::Compile(context(), NewString(kSourceCode), &origin)
+            .ToLocalChecked();
+    CHECK(!script->Run(context()).IsEmpty());
+
+    // Cause the inner function to become compiled before creating the code
+    // cache.
+    Local<Value> actual = RunGlobalFunc("f");
+    CHECK_EQ(42, actual->Int32Value(context()).FromJust());
+
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+  }
+
+  i_isolate->compilation_cache()->Clear();
+
+  // Compile the script for the second time, but don't run the function 'f'.
+  {
+    v8::HandleScope handle_scope(isolate());
+    ScriptOrigin origin = default_origin.AsScriptOrigin();
+    Local<Script> script =
+        Script::Compile(context(), NewString(kSourceCode), &origin)
+            .ToLocalChecked();
+    CHECK(!script->Run(context()).IsEmpty());
+
+    // Age the top-level bytecode so that the Isolate compilation cache will
+    // contain only the Script.
+    i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
+  }
+
+  {
+    // We need to invoke GC without stack, otherwise some objects may survive.
+    i::DisableConservativeStackScanningScopeForTesting no_css_scope(
+        i_isolate->heap());
+    InvokeMajorGC(i_isolate);
+    InvokeMajorGC(i_isolate);
+  }
+
+  DeserializeThread deserialize_thread(ScriptCompiler::StartConsumingCodeCache(
+      isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                     cached_data->data, cached_data->length,
+                     ScriptCompiler::CachedData::BufferNotOwned)));
+  CHECK(deserialize_thread.Start());
+  deserialize_thread.Join();
+
+  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task =
+      deserialize_thread.TakeTask();
+
+  task->SourceTextAvailable(isolate(), NewString(kSourceCode),
+                            default_origin.AsScriptOrigin());
+
+  CHECK(task->ShouldMergeWithExistingScript());
+
+  // Request block at sync point before background thread reads outer scope
+  // info.
+  i::SynchronizationPointSupport::Get()->RequestBlockAt(
+      "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10));
+
+  MergeThread merge_thread(task.get());
+  CHECK(merge_thread.Start());
+
+  // Wait until background merge is paused at the sync point.
+  CHECK(i::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+      "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10)));
+
+  // While background merge is paused before reading outer scope info, trigger
+  // real lazy compilation of 'f' on the main thread.
+  {
+    Local<Value> actual = RunGlobalFunc("f");
+    CHECK_EQ(42, actual->Int32Value(context()).FromJust());
+  }
+
+  // Resume the background merge thread.
+  CHECK(
+      i::SynchronizationPointSupport::Get()->Resume("BeforeGetOuterScopeInfo"));
+  merge_thread.Join();
+
+  // Complete compilation on the main thread.
+  ScriptCompiler::Source source(NewString(kSourceCode),
+                                default_origin.AsScriptOrigin(),
+                                cached_data.release(), task.release());
+  Local<Script> script =
+      ScriptCompiler::Compile(context(), &source,
+                              ScriptCompiler::kConsumeCodeCache)
+          .ToLocalChecked();
+  CHECK(!script->Run(context()).IsEmpty());
+
+  Local<Value> actual = RunGlobalFunc("f");
+  CHECK_EQ(42, actual->Int32Value(context()).FromJust());
 }
 
 // POC: Relaxed-store publication of fresh SharedFunctionInfo into

@@ -16,6 +16,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/abstract-code.h"
@@ -735,6 +736,23 @@ Tagged<ScopeInfo> SharedFunctionInfo::TryGetScopeInfoForMerge() const {
       raw_outer_scope_info_or_feedback_metadata(kAcquireLoad);
   if (IsScopeInfo(maybe_outer_scope_info_or_feedback)) {
     return Cast<ScopeInfo>(maybe_outer_scope_info_or_feedback);
+  }
+  return GetReadOnlyRoots().empty_scope_info();
+}
+
+Tagged<ScopeInfo> SharedFunctionInfo::TryGetOuterScopeInfo() const {
+  if (Tagged<ScopeInfo> scope_info;
+      TryCast(name_or_scope_info(kAcquireLoad), &scope_info)) {
+    if (scope_info->HasOuterScopeInfo()) {
+      return scope_info->OuterScopeInfo();
+    }
+    return GetReadOnlyRoots().empty_scope_info();
+  }
+  SYNCHRONIZATION_POINT("BeforeGetOuterScopeInfo");
+  if (Tagged<ScopeInfo> outer_scope_info;
+      TryCast(raw_outer_scope_info_or_feedback_metadata(kAcquireLoad),
+              &outer_scope_info)) {
+    return outer_scope_info;
   }
   return GetReadOnlyRoots().empty_scope_info();
 }
