@@ -350,7 +350,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define HARMONY_STAGED_BASE(V)
 
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V)             \
-  V(js_iterator_join, "Iterator.prototype.join")       \
   V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
   V(js_import_text, "import text")                     \
   V(js_import_bytes, "import bytes")                   \
@@ -371,23 +370,24 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_temporal, "Temporal")
 
 #define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                                 \
-  V(js_regexp_duplicate_named_groups, "RegExp duplicate named groups")       \
-  V(js_regexp_modifiers, "RegExp modifiers")                                 \
-  V(js_promise_try, "Promise.try")                                           \
   V(js_atomics_pause, "Atomics.pause")                                       \
-  V(js_error_iserror, "Error.isError")                                       \
-  V(js_regexp_escape, "RegExp.escape")                                       \
-  V(js_explicit_resource_management, "explicit resource management")         \
-  V(js_float16array,                                                         \
-    "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16") \
   V(js_base_64, "Uint8Array to/from base64 and hex")                         \
+  V(js_error_iserror, "Error.isError")                                       \
   V(js_esm_ns_reexport,                                                      \
     "Support diamond-importing re-expored namespaces "                       \
     "(https://github.com/tc39/ecma262/pull/3715)")                           \
-  V(js_upsert, "upsert")                                                     \
+  V(js_explicit_resource_management, "explicit resource management")         \
+  V(js_float16array,                                                         \
+    "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16") \
+  V(js_iterator_join, "Iterator.prototype.join")                             \
   V(js_iterator_sequencing, "iterator sequencing")                           \
+  V(js_joint_iteration, "joint iteration")                                   \
+  V(js_promise_try, "Promise.try")                                           \
+  V(js_regexp_duplicate_named_groups, "RegExp duplicate named groups")       \
+  V(js_regexp_escape, "RegExp.escape")                                       \
+  V(js_regexp_modifiers, "RegExp modifiers")                                 \
   V(js_sum_precise, "Math.sumPrecise")                                       \
-  V(js_joint_iteration, "joint iteration")
+  V(js_upsert, "upsert")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
