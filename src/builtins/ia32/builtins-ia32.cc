@@ -5287,7 +5287,7 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // The arguments are already in the stack, but we might need to adapt them
-  // if the function signature changed (e.g. via LiveEdit).
+  // if the function signature changed.
   __ mov(ecx, FieldOperand(edi, offsetof(JSFunction, shared_function_info_)));
   __ movzx_w(ecx, FieldOperand(ecx, offsetof(SharedFunctionInfo,
                                              formal_parameter_count_)));

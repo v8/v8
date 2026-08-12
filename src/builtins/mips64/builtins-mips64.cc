@@ -4223,7 +4223,7 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // The arguments are already in the stack, but we might need to adapt them
-  // if the function signature changed (e.g. via LiveEdit).
+  // if the function signature changed.
   __ InvokeFunction(a1, a0, InvokeType::kJump, ArgumentAdaptionMode::kAdapt);
 }
 

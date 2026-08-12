@@ -5251,7 +5251,7 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // The arguments are already in the stack, but we might need to adapt them
-  // if the function signature changed (e.g. via LiveEdit).
+  // if the function signature changed.
   __ LoadTaggedField(
       r5, FieldMemOperand(r4, offsetof(JSFunction, shared_function_info_)));
   __ LoadU16(r5, FieldMemOperand(r5, offsetof(SharedFunctionInfo,

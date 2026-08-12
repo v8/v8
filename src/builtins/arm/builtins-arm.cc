@@ -5076,7 +5076,7 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::INTERNAL);
 
   // The arguments are already in the stack, but we might need to adapt them
-  // if the function signature changed (e.g. via LiveEdit).
+  // if the function signature changed.
   __ ldr(r2, FieldMemOperand(r1, offsetof(JSFunction, shared_function_info_)));
   __ ldrh(r2, FieldMemOperand(
                   r2, offsetof(SharedFunctionInfo, formal_parameter_count_)));

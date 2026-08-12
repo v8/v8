@@ -304,14 +304,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   // come from debug evaluate but are different to IsDebugEvaluateScope().
   bool IsReplModeScope() const;
 
-  // For LiveEdit we ignore:
-  //   - position info: "unchanged" functions are allowed to move in a script
-  //   - module info: SourceTextModuleInfo::Equals compares exact FixedArray
-  //     addresses which will never match for separate instances.
-  //   - outer scope info: LiveEdit already analyses outer scopes of unchanged
-  //     functions. Also checking it here will break in really subtle cases
-  //     e.g. changing a let to a const in an outer function, which is fine.
-  bool Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare = false,
+  bool Equals(Tagged<ScopeInfo> other,
               int* out_last_checked_field = nullptr) const;
 
   template <typename IsolateT>

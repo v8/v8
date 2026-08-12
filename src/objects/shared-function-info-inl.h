@@ -501,8 +501,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, properties_are_final,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     private_name_lookup_skips_outer_class,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, live_edited,
-                    SharedFunctionInfo::LiveEditedBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, is_hoisted_in_context,
                     SharedFunctionInfo::IsHoistedInContextBit)
 

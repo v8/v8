@@ -47,7 +47,7 @@ bool NameToIndexHashTableEquals(Tagged<NameToIndexHashTable> a,
 }  // namespace
 
 // TODO(crbug.com/401059828): make it DEBUG only, once investigation is over.
-bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
+bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
                        int* out_last_checked_field) const {
   if (length() != other->length()) return false;
   // Fixed header fields.
@@ -57,20 +57,14 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
   if (out_last_checked_field) *out_last_checked_field = kParameterCount;
   if (context_local_count() != other->context_local_count()) return false;
   if (out_last_checked_field) *out_last_checked_field = kContextLocalCount;
-  if (!is_live_edit_compare) {
-    if (position_info_start() != other->position_info_start()) return false;
-    if (out_last_checked_field) *out_last_checked_field = kPositionInfoStart;
-    if (position_info_end() != other->position_info_end()) return false;
-    if (out_last_checked_field) *out_last_checked_field = kPositionInfoEnd;
-  }
+  if (position_info_start() != other->position_info_start()) return false;
+  if (out_last_checked_field) *out_last_checked_field = kPositionInfoStart;
+  if (position_info_end() != other->position_info_end()) return false;
+  if (out_last_checked_field) *out_last_checked_field = kPositionInfoEnd;
   // Variable-part tail.
-  const int inferred_function_name_index = InferredFunctionNameIndex();
   for (int index = 0; index < length(); ++index) {
     if (out_last_checked_field) {
       *out_last_checked_field = kVariablePartStart + index;
-    }
-    if (is_live_edit_compare && index == inferred_function_name_index) {
-      continue;
     }
     Tagged<Object> entry = get(index);
     Tagged<Object> other_entry = other->get(index);
@@ -86,13 +80,11 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
           return false;
         }
       } else if (IsScopeInfo(entry)) {
-        if (!is_live_edit_compare && !Cast<ScopeInfo>(entry)->Equals(
-                                         Cast<ScopeInfo>(other_entry), false)) {
+        if (!Cast<ScopeInfo>(entry)->Equals(Cast<ScopeInfo>(other_entry))) {
           return false;
         }
       } else if (IsSourceTextModuleInfo(entry)) {
-        if (!is_live_edit_compare &&
-            !Cast<SourceTextModuleInfo>(entry)->Equals(
+        if (!Cast<SourceTextModuleInfo>(entry)->Equals(
                 Cast<SourceTextModuleInfo>(other_entry))) {
           return false;
         }
@@ -103,9 +95,6 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
         }
       } else if (IsDependentCode(entry)) {
         DCHECK(IsDependentCode(other_entry));
-        // Ignore the dependent code field since all the code have to be
-        // deoptimized anyway in case of a live-edit.
-
       } else if (IsNameToIndexHashTable(entry)) {
         if (!NameToIndexHashTableEquals(
                 Cast<NameToIndexHashTable>(entry),
