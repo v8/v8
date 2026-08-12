@@ -71,10 +71,6 @@ void ExternalEntityTable<Entry, size>::Initialize() {
 
   DCHECK_EQ(first_segment - this->vas_->base(),
             kInternalReadOnlySegmentsOffset);
-
-  if constexpr (Base::kUseSegmentPool) {
-    Base::FillSegmentsPool(false);
-  }
 }
 
 template <typename Entry, size_t size>
