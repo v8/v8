@@ -5967,6 +5967,7 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
   void runMessageLoopOnPause(int contextGroupId) override {
     v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
     v8::HandleScope handle_scope(isolate_);
+    v8::TryCatch try_catch(isolate_);
     Local<String> callback_name = v8::String::NewFromUtf8Literal(
         isolate_, "handleInspectorMessage", NewStringType::kInternalized);
     Local<Context> context = context_.Get(isolate_);
@@ -5984,7 +5985,6 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
         v8::StackState::kMayContainHeapPointers);
 
-    v8::TryCatch try_catch(isolate_);
     try_catch.SetVerbose(true);
     is_paused = true;
 
