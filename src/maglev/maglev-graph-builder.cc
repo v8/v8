@@ -97,7 +97,7 @@ namespace v8::internal::maglev {
     TraceLogger(tracer()) << __VA_ARGS__; \
   }
 
-#define FAIL(...)                                                         \
+#define MAGLEV_FAIL(...)                                                  \
   TRACE("Failed " << __func__ << ":" << __LINE__ << ": " << __VA_ARGS__); \
   return {};
 
@@ -7880,13 +7880,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   if (!receiver) return {};
 
   if (args.count() < 1) {
-    FAIL(" to reduce Array.prototype.forEach - not enough arguments");
+    MAGLEV_FAIL(" to reduce Array.prototype.forEach - not enough arguments");
   }
 
   MapInference inference(this, receiver);
   auto possible_maps = inference.TryGetPossibleMaps();
   if (!possible_maps) {
-    FAIL(" to reduce Array.prototype.forEach - receiver map is unknown");
+    MAGLEV_FAIL(" to reduce Array.prototype.forEach - receiver map is unknown");
   }
 
   // Map checks are inserted by TryReduceArrayIteratingBuiltin below, no need
@@ -7895,21 +7895,22 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   ElementsKind elements_kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), *possible_maps,
                                       &elements_kind)) {
-    FAIL(
+    MAGLEV_FAIL(
         " to reduce Array.prototype.forEach - doesn't support fast array "
         "iteration or incompatible maps");
   }
 
   // TODO(leszeks): May only be needed for holey elements kinds.
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    FAIL(
+    MAGLEV_FAIL(
         " to reduce Array.prototype.forEach - invalidated no elements "
         "protector");
   }
 
   ValueNode* callback = args[0];
   if (!callback->is_tagged()) {
-    FAIL(" to reduce Array.prototype.forEach - callback is untagged value")
+    MAGLEV_FAIL(
+        " to reduce Array.prototype.forEach - callback is untagged value")
   }
 
   auto get_lazy_deopt_scope =
@@ -7951,7 +7952,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
   }
 
   if (!broker()->dependencies()->DependOnArraySpeciesProtector()) {
-    FAIL(
+    MAGLEV_FAIL(
         "  to reduce Array.prototype.map - invalidated array species "
         "protector");
   }
@@ -8055,33 +8056,35 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   if (!receiver) return {};
 
   if (args.count() < 1) {
-    FAIL(" to reduce " << name << " - not enough arguments");
+    MAGLEV_FAIL(" to reduce " << name << " - not enough arguments");
   }
 
   MapInference inference(this, receiver);
   auto possible_maps = inference.TryGetPossibleMaps();
   if (!possible_maps) {
-    FAIL(" to reduce " << name << " - receiver map is unknown");
+    MAGLEV_FAIL(" to reduce " << name << " - receiver map is unknown");
   }
 
   ElementsKind elements_kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), *possible_maps,
                                       &elements_kind)) {
-    FAIL(" to reduce "
-         << name << " - doesn't support fast array iteration or incompatible"
-         << " maps");
+    MAGLEV_FAIL(" to reduce "
+                << name
+                << " - doesn't support fast array iteration or incompatible"
+                << " maps");
   }
 
   RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
 
   // TODO(leszeks): May only be needed for holey elements kinds.
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    FAIL(" to reduce " << name << " - invalidated no elements protector");
+    MAGLEV_FAIL(" to reduce " << name
+                              << " - invalidated no elements protector");
   }
 
   ValueNode* callback = args[0];
   if (!callback->is_tagged()) {
-    FAIL(" to reduce " << name << " - callback is untagged value");
+    MAGLEV_FAIL(" to reduce " << name << " - callback is untagged value");
   }
 
   ValueNode* this_arg =
@@ -8579,7 +8582,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   if (!receiver->Is<InlinedAllocation>()) return {};
   VirtualObject* iterator = receiver->Cast<InlinedAllocation>()->object();
   if (!iterator->map() || !iterator->map()->IsJSArrayIteratorMap()) {
-    FAIL("iterator is not a JS array iterator object");
+    MAGLEV_FAIL("iterator is not a JS array iterator object");
   }
 
   std::optional<MapInference> map_inference;
@@ -8619,7 +8622,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     map_inference.emplace(this, iterated_object);
     auto possible_maps = map_inference->TryGetPossibleMaps();
     if (!possible_maps) {
-      FAIL("iterated object is unknown");
+      MAGLEV_FAIL("iterated object is unknown");
     }
     for (compiler::MapRef map : *possible_maps) {
       if (!process_map(map)) {
@@ -8652,11 +8655,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
 
   if (double_kind.has_value() && IsHoleyElementsKind(*double_kind) &&
       !broker()->dependencies()->DependOnNoElementsProtector()) {
-    FAIL("no elements protector");
+    MAGLEV_FAIL("no elements protector");
   }
   if (tagged_kind.has_value() && IsHoleyElementsKind(*tagged_kind) &&
       !broker()->dependencies()->DependOnNoElementsProtector()) {
-    FAIL("no elements protector");
+    MAGLEV_FAIL("no elements protector");
   }
 
   if (map_inference.has_value()) {
@@ -9358,7 +9361,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetByteLength(
   MapInference inference(this, receiver);
   auto possible_receiver_maps = inference.TryGetPossibleMaps();
   if (!possible_receiver_maps) {
-    FAIL(" to reduce DataView.get byteLength - unknown receiver map");
+    MAGLEV_FAIL(" to reduce DataView.get byteLength - unknown receiver map");
   }
 
   // Don't optimize if any of the known maps is something else than a DataView
@@ -9547,10 +9550,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
   }
 
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    FAIL(" to reduce Map.prototype.Get - no receiver");
+    MAGLEV_FAIL(" to reduce Map.prototype.Get - no receiver");
   }
   if (args.count() != 1) {
-    FAIL(" to reduce Map.prototype.Get - invalid argument count");
+    MAGLEV_FAIL(" to reduce Map.prototype.Get - invalid argument count");
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
@@ -9559,7 +9562,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!possible_receiver_maps) {
-    FAIL(" to reduce Map.prototype.Get - unknown receiver map");
+    MAGLEV_FAIL(" to reduce Map.prototype.Get - unknown receiver map");
   }
 
   // If the set of possible maps is empty, then there's no possible map for this
@@ -9573,7 +9576,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
   }
 
   if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_MAP_TYPE)) {
-    FAIL(" to reduce Map.prototype.Get - wrong receiver maps");
+    MAGLEV_FAIL(" to reduce Map.prototype.Get - wrong receiver maps");
   }
 
   RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
@@ -9604,17 +9607,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceWeakMapPrototypeGet(
   if (!is_turbolev()) return {};
 
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    FAIL(" to reduce WeakMap.prototype.Get - no receiver");
+    MAGLEV_FAIL(" to reduce WeakMap.prototype.Get - no receiver");
   }
   if (args.count() != 1) {
-    FAIL(" to reduce WeakMap.prototype.Get - invalid argument count");
+    MAGLEV_FAIL(" to reduce WeakMap.prototype.Get - invalid argument count");
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
   MapInference inference(this, receiver);
   auto possible_receiver_maps = inference.TryGetPossibleMaps();
   if (!possible_receiver_maps) {
-    FAIL(" to reduce WeakMap.prototype.Get - unknown receiver map");
+    MAGLEV_FAIL(" to reduce WeakMap.prototype.Get - unknown receiver map");
   }
 
   if (possible_receiver_maps->is_empty()) {
@@ -9622,7 +9625,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceWeakMapPrototypeGet(
   }
 
   if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_WEAK_MAP_TYPE)) {
-    FAIL(" to reduce WeakMap.prototype.Get - wrong receiver maps");
+    MAGLEV_FAIL(" to reduce WeakMap.prototype.Get - wrong receiver maps");
   }
 
   RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
@@ -9645,13 +9648,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceSetPrototypeHas(
   if (!receiver) return {};
 
   if (args.count() != 1) {
-    FAIL(" to reduce Set.prototype.has - invalid argument count");
+    MAGLEV_FAIL(" to reduce Set.prototype.has - invalid argument count");
   }
 
   MapInference inference(this, receiver);
   auto possible_receiver_maps = inference.TryGetPossibleMaps();
   if (!possible_receiver_maps) {
-    FAIL(" to reduce Set.prototype.has - receiver map is unknown");
+    MAGLEV_FAIL(" to reduce Set.prototype.has - receiver map is unknown");
   }
 
   // If the set of possible maps is empty, then there's no possible map for this
@@ -9665,7 +9668,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceSetPrototypeHas(
   }
 
   if (!AllOfInstanceTypesAre(*possible_receiver_maps, JS_SET_TYPE)) {
-    FAIL(" to reduce Set.prototype.has - wrong receiver maps");
+    MAGLEV_FAIL(" to reduce Set.prototype.has - wrong receiver maps");
   }
 
   RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
@@ -9723,20 +9726,20 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
   if (!receiver) return {};
 
   if (args.count() < 1) {
-    FAIL(" to reduce Array.prototype.sort - no comparefn provided");
+    MAGLEV_FAIL(" to reduce Array.prototype.sort - no comparefn provided");
   }
 
   // Require the receiver to have known maps that support fast array iteration.
   MapInference inference(this, receiver);
   auto possible_maps = inference.TryGetPossibleMaps();
   if (!possible_maps) {
-    FAIL(" to reduce Array.prototype.sort - unknown receiver maps");
+    MAGLEV_FAIL(" to reduce Array.prototype.sort - unknown receiver maps");
   }
 
   ElementsKind elements_kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), *possible_maps,
                                       &elements_kind)) {
-    FAIL(
+    MAGLEV_FAIL(
         " to reduce Array.prototype.sort - elements kind does not support fast"
         " array iteration");
   }
@@ -9748,25 +9751,29 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
                   [&](compiler::MapRef map) {
                     return map.elements_kind() != elements_kind;
                   })) {
-    FAIL(" to reduce Array.prototype.sort - receiver elements kinds disagree");
+    MAGLEV_FAIL(
+        " to reduce Array.prototype.sort - receiver elements kinds disagree");
   }
 
   // Holey arrays require holes to be moved to the end of the sorted result
   // (ECMA-262 23.1.3.30 step 5, skip-holes mode).  The insertion sort does
   // not implement this, so bail out for any holey kind.
   if (IsHoleyElementsKind(elements_kind)) {
-    FAIL(" to reduce Array.prototype.sort - holey elements not supported");
+    MAGLEV_FAIL(
+        " to reduce Array.prototype.sort - holey elements not supported");
   }
 
   // See the comment at the top of this function for why PACKED_DOUBLE is
   // not handled (FixedDoubleArray <-> FixedArray bridging on the deopt
   // continuation path).
   if (IsDoubleElementsKind(elements_kind)) {
-    FAIL(" to reduce Array.prototype.sort - PACKED_DOUBLE not supported");
+    MAGLEV_FAIL(
+        " to reduce Array.prototype.sort - PACKED_DOUBLE not supported");
   }
 
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    FAIL(" to reduce Array.prototype.sort - no elements protector invalid");
+    MAGLEV_FAIL(
+        " to reduce Array.prototype.sort - no elements protector invalid");
   }
 
   // Require comparefn to be a statically-known interpreted JSFunction.
@@ -9784,13 +9791,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
   } else if (auto* cc = comparefn->TryCast<CreateClosure>()) {
     comparefn_shared = cc->shared_function_info();
   } else {
-    FAIL(
+    MAGLEV_FAIL(
         " to reduce Array.prototype.sort - comparefn is not a statically-known"
         " function");
   }
 
   if (!comparefn_shared->HasBytecodeArray()) {
-    FAIL(" to reduce Array.prototype.sort - comparefn has no bytecode");
+    MAGLEV_FAIL(" to reduce Array.prototype.sort - comparefn has no bytecode");
   }
 
   // All static preconditions satisfied.  Commit the reduction.
@@ -10140,11 +10147,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   if (!CanSpeculateCall()) return {};
   // We can't reduce Function#call when there is no receiver function.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    FAIL(" to reduce Array.prototype.push - no receiver");
+    MAGLEV_FAIL(" to reduce Array.prototype.push - no receiver");
   }
 
   if (args.count() == 0) {
-    FAIL("  to reduce Array.prototype.push - no argument");
+    MAGLEV_FAIL("  to reduce Array.prototype.push - no argument");
   }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
 
@@ -10153,7 +10160,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!possible_maps) {
-    FAIL(" to reduce Array.prototype.push - unknown receiver map");
+    MAGLEV_FAIL(" to reduce Array.prototype.push - unknown receiver map");
   }
 
   // If the set of possible maps is empty, then there's no possible map for this
@@ -10167,7 +10174,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   }
 
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    FAIL(" to reduce Array.prototype.push - NoElementsProtector invalidated");
+    MAGLEV_FAIL(
+        " to reduce Array.prototype.push - NoElementsProtector invalidated");
   }
 
   // Check that inlining resizing array builtins is supported and group maps
@@ -10192,7 +10200,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   if (!CanInlineArrayResizingBuiltin(broker(), *possible_maps, map_kinds,
                                      elements_kind_to_index, &unique_kind_count,
                                      false)) {
-    FAIL(" to reduce Array.prototype.push - Map doesn't support fast resizing");
+    MAGLEV_FAIL(
+        " to reduce Array.prototype.push - Map doesn't support fast resizing");
   }
 
   RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
@@ -10326,7 +10335,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   if (!CanSpeculateCall()) return {};
   // We can't reduce Function#call when there is no receiver function.
   if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
-    FAIL(" to reduce Array.prototype.pop - no receiver");
+    MAGLEV_FAIL(" to reduce Array.prototype.pop - no receiver");
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
@@ -10336,7 +10345,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   // If the map set is not found, then we don't know anything about the map of
   // the receiver, so bail.
   if (!possible_maps) {
-    FAIL(" to reduce Array.prototype.pop - unknown receiver map");
+    MAGLEV_FAIL(" to reduce Array.prototype.pop - unknown receiver map");
   }
 
   // If the set of possible maps is empty, then there's no possible map for this
@@ -10350,7 +10359,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   }
 
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    FAIL(" to reduce Array.prototype.pop - NoElementsProtector invalidated");
+    MAGLEV_FAIL(
+        " to reduce Array.prototype.pop - NoElementsProtector invalidated");
   }
 
   constexpr int max_kind_count = 4;
@@ -10390,7 +10400,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   if (!CanInlineArrayResizingBuiltin(broker(), *possible_maps, map_kinds,
                                      elements_kind_to_index, &unique_kind_count,
                                      true)) {
-    FAIL(" to reduce Array.prototype.pop - Map doesn't support fast resizing");
+    MAGLEV_FAIL(
+        " to reduce Array.prototype.pop - Map doesn't support fast resizing");
   }
 
   RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
@@ -17489,7 +17500,7 @@ ReduceResult MaglevGraphBuilder::BuildGetCharCodeAt(ValueNode* string,
 }
 
 #undef TRACE
-#undef FAIL
+#undef MAGLEV_FAIL
 #undef TRACE_CANNOT_INLINE
 
 }  // namespace v8::internal::maglev

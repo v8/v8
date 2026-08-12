@@ -36,7 +36,7 @@
     TraceLogger(tracer()) << __VA_ARGS__; \
   }
 
-#define FAIL(...)                                                         \
+#define MAGLEV_FAIL(...)                                                  \
   TRACE("Failed " << __func__ << ":" << __LINE__ << ": " << __VA_ARGS__); \
   return {};
 
@@ -1046,7 +1046,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryWithFastArrayElements(
   MapInference<MaglevReducer<BaseT>> inference(this, receiver);
   auto possible_maps = inference.TryGetPossibleMaps();
   if (!possible_maps) {
-    FAIL("to reduce " << builtin_name << " - receiver map is unknown");
+    MAGLEV_FAIL("to reduce " << builtin_name << " - receiver map is unknown");
   }
 
   ElementsKind elements_kind;
@@ -1054,15 +1054,15 @@ MaybeReduceResult MaglevReducer<BaseT>::TryWithFastArrayElements(
   // together.
   if (!CanInlineArrayIteratingBuiltin(broker(), *possible_maps,
                                       &elements_kind)) {
-    FAIL("to reduce " << builtin_name
-                      << " - doesn't support fast array iteration or "
-                         "incompatible maps");
+    MAGLEV_FAIL("to reduce " << builtin_name
+                             << " - doesn't support fast array iteration or "
+                                "incompatible maps");
   }
 
   if (IsHoleyElementsKind(elements_kind) &&
       !broker()->dependencies()->DependOnNoElementsProtector()) {
-    FAIL("to reduce " << builtin_name
-                      << " - invalidated no elements protector");
+    MAGLEV_FAIL("to reduce " << builtin_name
+                             << " - invalidated no elements protector");
   }
 
   RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
@@ -6494,6 +6494,6 @@ inline bool IsSmallFunction(int bytecode_length,
 }  // namespace v8
 
 #undef TRACE
-#undef FAIL
+#undef MAGLEV_FAIL
 
 #endif  // V8_MAGLEV_MAGLEV_REDUCER_INL_H_
