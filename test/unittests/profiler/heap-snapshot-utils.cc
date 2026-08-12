@@ -50,13 +50,9 @@ bool IsRetainedByCppStackRoot(HeapSnapshot* snapshot, const HeapEntry& entry) {
          FindFirstEdgeTo(*stack_roots_entry, entry) != nullptr;
 }
 
-const HeapEntry* GetEntryByName(HeapSnapshot* snapshot, const char* name,
-                                std::optional<HeapEntry::Type> type) {
+const HeapEntry* GetEntryByName(HeapSnapshot* snapshot, const char* name) {
   for (const HeapEntry& entry : snapshot->entries()) {
-    if (strcmp(entry.name(), name) == 0 &&
-        (!type.has_value() || entry.type() == type.value())) {
-      return &entry;
-    }
+    if (strcmp(entry.name(), name) == 0) return &entry;
   }
   return nullptr;
 }

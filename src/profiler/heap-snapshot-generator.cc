@@ -49,7 +49,6 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/object-conversions-inl.h"
-#include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
 #include "src/objects/slots-inl.h"
@@ -1390,6 +1389,24 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     VisitSlotImpl(code_cage_base(), slot);
   }
 
+  void VisitCodeTarget(Tagged<InstructionStream> host,
+                       RelocInfo* rinfo) override {
+    Tagged<InstructionStream> target =
+        InstructionStream::FromTargetAddress(rinfo->target_address());
+    VisitHeapObjectImpl(target, -1);
+  }
+
+  void VisitEmbeddedPointer(Tagged<InstructionStream> host,
+                            RelocInfo* rinfo) override {
+    Tagged<HeapObject> object = rinfo->target_object();
+    Tagged<Code> code = UncheckedCast<Code>(host->raw_code(kAcquireLoad));
+    if (code->IsWeakObject(object)) {
+      generator_->SetWeakReference(parent_, next_index_++, object, {});
+    } else {
+      VisitHeapObjectImpl(object, -1);
+    }
+  }
+
   void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
                             IndirectPointerMode mode) override {
     VisitSlotImpl(generator_->isolate(), slot);
@@ -2243,29 +2260,6 @@ void V8HeapExplorer::ExtractInstructionStreamReferences(
             HeapEntry::kCode);
   SetInternalReference(entry, "relocation_info", istream->relocation_info(),
                        InstructionStream::kRelocationInfoOffset);
-
-  if (istream->IsFullyInitialized()) {
-    int reloc_index = 0;
-    for (RelocIterator it(istream,
-                          InstructionStream::BodyDescriptor::kRelocModeMask);
-         !it.done(); it.next()) {
-      RelocInfo* rinfo = it.rinfo();
-      if (RelocInfo::IsCodeTargetMode(rinfo->rmode())) {
-        Tagged<InstructionStream> target =
-            InstructionStream::FromTargetAddress(rinfo->target_address());
-        SetHiddenReference(istream, entry, reloc_index++, target,
-                           -1 * kTaggedSize);
-      } else if (RelocInfo::IsEmbeddedObjectMode(rinfo->rmode())) {
-        Tagged<HeapObject> object = rinfo->target_object();
-        if (code->IsWeakObject(object)) {
-          SetWeakReference(entry, reloc_index++, object, {});
-        } else {
-          SetHiddenReference(istream, entry, reloc_index++, object,
-                             -1 * kTaggedSize);
-        }
-      }
-    }
-  }
 }
 
 void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry,
