@@ -671,6 +671,7 @@
 ##############################################################################
 ['not has_wasm_interpreter or variant != jitless', {
   # Tests to run only with the Wasm interpreter.
+  'regress/wasm/regress-interpreter-failed-reentry': [SKIP],
   'wasm/wasm-interpreter-fuzzer' : [SKIP],
   'wasm/wasm-interpreter-memory*' : [SKIP],
 }],  # not has_wasm_interpreter or variant != jitless
@@ -697,6 +698,11 @@
 ['has_wasm_interpreter and variant == jitless', {
   # Skip tests that require Wasm experimental features not supported by the
   # Wasm interpreter, or that explicitly require compilation.
+
+  # Wasm debugging that runs GC while paused at a trap safepoint is not
+  # supported by the Wasm interpreter; it crashes (BUS_ADRALN) in the DrumBrake
+  # safepoint path in jitless mode. Passes in JIT variants.
+  'wasm/regress-534579660': [SKIP],
 
   # --wasm-inlining
   'regress/wasm/regress-crbug-1510626': [SKIP],
@@ -734,6 +740,13 @@
   'wasm/memory-control': [SKIP],
   'regress/wasm/regress-493307331': [SKIP],
 
+  # --experimental-wasm-acquire-release
+  'wasm/acq-rel-fence': [SKIP],
+  'wasm/acq-rel-load-and-store': [SKIP],
+  'wasm/acq-rel-rmw-operations': [SKIP],
+  'regress/wasm/regress-516102113': [SKIP],
+  'regress/wasm/regress-518131466': [SKIP],
+
   # exnref
   'regress/wasm/regress-14689': [SKIP],
   'regress/wasm/regress-1502837': [SKIP],
@@ -764,7 +777,9 @@
   'wasm/growable-stacks': [SKIP],
 
   # --wasm-growable-stacks
+  'regress/wasm/regress-421055121': [SKIP],
   'regress/wasm/regress-513250424': [SKIP],
+  'regress/wasm/regress-520777574': [SKIP],
 
   # --wasm-wasmfx
   'regress/wasm/regress-455832038': [SKIP],
@@ -786,9 +801,6 @@
   'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],
   'wasm/wasmfx*': [SKIP],
-
-  # --wasm-growable-stacks
-  'regress/wasm/regress-421055121': [SKIP],
 
   # --wasm-stringref
   'regress/wasm/regress-324475066': [SKIP],
@@ -988,6 +1000,7 @@
   'compiler/fast-api-calls-wasm': [SKIP],
   'regress/wasm/regress-403308742': [SKIP],
   'regress/wasm/regress-488943662': [SKIP],
+  'regress/wasm/regress-526163463': [SKIP], # --wasm-code-coverage
   'wasm/regression-521715545': [SKIP], # --wasm-code-coverage
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
@@ -1004,6 +1017,7 @@
 
   # d8.exe --no-wasm-trap-handler.
   'regress/wasm/regress-842501': [SKIP],
+  'regress/wasm/regress-513413942': [SKIP],
 
   # TODO(paolosev): Support Wasm to JS calls to JSApiObjects.
   'wasm/ffi': [SKIP],
@@ -1040,8 +1054,13 @@
   'regress/wasm/regress-518697709': [SKIP],
   'regress/wasm/regress-524792614': [SKIP],
   'regress/wasm/regress-530658019': [SKIP],
+  'regress/wasm/regress-535659723': [SKIP],
+  'regress/wasm/regress-538378084': [SKIP],
+  'regress/wasm/regress-540446645': [SKIP],
+  'regress/wasm/regress-543901836': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
   'regress/wasm/regress-simd-518058891': [SKIP],
+  'regress/wasm/regress-simd-525600038': [SKIP],
   'regress/wasm/regress-simd-526303929': [SKIP],
   'regress/wasm/regress-simd-528884838': [SKIP],
   'wasm/bit-shift-right': [SKIP],
@@ -1090,15 +1109,9 @@
   'regress/wasm/regress-498818401': [SKIP],
   'regress/wasm/regress-500113958': [SKIP],
 
-  # --wasm-acquire-release
-  'regress/wasm/regress-516102113': [SKIP],
-  'regress/wasm/regress-518131466': [SKIP],
-  'wasm/acq-rel-*': [SKIP],
-
   # The interpreter call stack contains an additional top frame if we throw a
   # type-mismatch exception before executing the Wasm function.
   'regress/wasm/regress-366635354': [SKIP],
-
 
   # Interpreter needs more stack space
   'wasm/turboshaft/reduction-shuffle': [SKIP],

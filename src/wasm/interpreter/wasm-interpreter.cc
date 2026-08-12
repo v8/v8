@@ -541,7 +541,12 @@ WasmInterpreterThread::WasmInterpreterThread(Isolate* isolate)
       current_ref_stack_size_(0),
       execution_timer_(isolate, true) {
   PageAllocator* page_allocator = GetPlatformPageAllocator();
-  stack_mem_ = AllocatePages(page_allocator, kMaxStackSize,
+  // Reserve kMaxStackSize bytes of growable stack plus a permanently
+  // inaccessible guard region of kInterpreterStackGuardSize bytes at the top.
+  // The guard region is never committed, so any OOB write past kMaxStackSize
+  // faults deterministically instead of touching memory belonging to another
+  // allocation.
+  stack_mem_ = AllocatePages(page_allocator, kInterpreterStackReservationSize,
                              page_allocator->AllocatePageSize(),
                              PageAllocator::kNoAccess);
   if (!stack_mem_ ||
@@ -556,7 +561,8 @@ WasmInterpreterThread::WasmInterpreterThread(Isolate* isolate)
 
 WasmInterpreterThread::~WasmInterpreterThread() {
   GlobalHandles::Destroy(reference_stack_.location());
-  FreePages(GetPlatformPageAllocator(), stack_mem_, kMaxStackSize);
+  FreePages(GetPlatformPageAllocator(), stack_mem_,
+            kInterpreterStackReservationSize);
 }
 
 void WasmInterpreterThread::EnsureRefStackSpace(size_t new_size) {
@@ -4900,9 +4906,13 @@ class Handlers : public HandlersBase {
   UNOP_CASE(F32x4NearestInt, f32x4, float32x4, 4, nearbyintf(a))
   UNOP_CASE(I64x2Neg, i64x2, int64x2, 2, base::NegateWithWraparound(a))
   UNOP_CASE(I32x4Neg, i32x4, int32x4, 4, base::NegateWithWraparound(a))
-  // Use llabs which will work correctly on both 64-bit and 32-bit.
-  UNOP_CASE(I64x2Abs, i64x2, int64x2, 2, std::llabs(a))
-  UNOP_CASE(I32x4Abs, i32x4, int32x4, 4, std::abs(a))
+  // abs(INT_MIN) wraps to INT_MIN per the Wasm SIMD spec. Using std::abs /
+  // std::llabs on INT_MIN is undefined behavior, so route the negative case
+  // through NegateWithWraparound.
+  UNOP_CASE(I64x2Abs, i64x2, int64x2, 2,
+            a < 0 ? base::NegateWithWraparound(a) : a)
+  UNOP_CASE(I32x4Abs, i32x4, int32x4, 4,
+            a < 0 ? base::NegateWithWraparound(a) : a)
   UNOP_CASE(S128Not, i32x4, int32x4, 4, ~a)
   UNOP_CASE(I16x8Neg, i16x8, int16x8, 8, base::NegateWithWraparound(a))
   UNOP_CASE(I16x8Abs, i16x8, int16x8, 8, std::abs(a))
@@ -8312,18 +8322,18 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
       break;
     }
 
-#define LOAD_CASE(name, ctype, mtype, rep, type, opcode)                       \
-  case kExpr##name: {                                                          \
-    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                      \
-    MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              false,                                           \
-                              is_rmw ? MemoryAccessImmediate::kAtomicRMW       \
-                                     : MemoryAccessImmediate::kNonAtomic,      \
-                              Decoder::kNoValidation);                         \
-    len = 1 + imm.length;                                                      \
-    optional.memory_access.offset = imm.offset;                                \
-    optional.memory_access.memory_index = imm.mem_index;                       \
-    break;                                                                     \
+#define LOAD_CASE(name, ctype, mtype, rep, type, opcode)        \
+  case kExpr##name: {                                           \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);       \
+    MemoryAccessImmediate imm(                                  \
+        &decoder, wasm_code_->at(pc + 1), sizeof(ctype), false, \
+        is_rmw ? MemoryAccessImmediate::Kind::kAtomicRMW        \
+               : MemoryAccessImmediate::Kind::kNonAtomic,       \
+        Decoder::kNoValidation);                                \
+    len = 1 + imm.length;                                       \
+    optional.memory_access.offset = imm.offset;                 \
+    optional.memory_access.memory_index = imm.mem_index;        \
+    break;                                                      \
   }
       LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8, I32, opcode);
       LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8, I32, opcode);
@@ -8341,18 +8351,18 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
       LOAD_CASE(F64LoadMem, Float64, uint64_t, kFloat64, F64, opcode);
 #undef LOAD_CASE
 
-#define STORE_CASE(name, ctype, mtype, rep, type, opcode)                      \
-  case kExpr##name: {                                                          \
-    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                      \
-    MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              false,                                           \
-                              is_rmw ? MemoryAccessImmediate::kAtomicRMW       \
-                                     : MemoryAccessImmediate::kNonAtomic,      \
-                              Decoder::kNoValidation);                         \
-    len = 1 + imm.length;                                                      \
-    optional.memory_access.offset = imm.offset;                                \
-    optional.memory_access.memory_index = imm.mem_index;                       \
-    break;                                                                     \
+#define STORE_CASE(name, ctype, mtype, rep, type, opcode)       \
+  case kExpr##name: {                                           \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);       \
+    MemoryAccessImmediate imm(                                  \
+        &decoder, wasm_code_->at(pc + 1), sizeof(ctype), false, \
+        is_rmw ? MemoryAccessImmediate::Kind::kAtomicRMW        \
+               : MemoryAccessImmediate::Kind::kNonAtomic,       \
+        Decoder::kNoValidation);                                \
+    len = 1 + imm.length;                                       \
+    optional.memory_access.offset = imm.offset;                 \
+    optional.memory_access.memory_index = imm.mem_index;        \
+    break;                                                      \
   }
       STORE_CASE(I32StoreMem8, int32_t, int8_t, kWord8, I32, opcode);
       STORE_CASE(I32StoreMem16, int32_t, int16_t, kWord16, I32, opcode);
@@ -8781,12 +8791,12 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
   case kExpr##name: {                                                       \
     MachineType memtype = MachineType::Type();                              \
     bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                   \
-    MemoryAccessImmediate imm(decoder, code->at(pc + *len),                 \
-                              ElementSizeLog2Of(memtype.representation()),  \
-                              false,                                        \
-                              is_rmw ? MemoryAccessImmediate::kAtomicRMW    \
-                                     : MemoryAccessImmediate::kNonAtomic,   \
-                              Decoder::kNoValidation);                      \
+    MemoryAccessImmediate imm(                                              \
+        decoder, code->at(pc + *len),                                       \
+        ElementSizeLog2Of(memtype.representation()), false,                 \
+        is_rmw ? MemoryAccessImmediate::Kind::kAtomicRMW                    \
+               : MemoryAccessImmediate::Kind::kNonAtomic,                   \
+        Decoder::kNoValidation);                                            \
     optional->memory_access.offset = imm.offset;                            \
     optional->memory_access.memory_index = imm.mem_index;                   \
     *len += imm.length;                                                     \
@@ -9973,6 +9983,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         } else {
           EMIT_INSTR_HANDLER(s2s_Branch);
           EmitBranchOffset(br_on_cast_data.label_depth());
+          SetUnreachableMode();
         }
       } else if (V8_LIKELY(!TypeCheckAlwaysFails(
                      obj_type, target_type.heap_type(), null_succeeds))) {
@@ -10021,6 +10032,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrOnCast);
         EMIT_INSTR_HANDLER(s2s_Branch);
         EmitBranchOffset(br_on_cast_data.label_depth());
+        SetUnreachableMode();
       } else if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(
                      obj_type, target_type.heap_type()))) {
         // The branch can still be taken on null.
@@ -11433,7 +11445,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
     case kExprRefAsNonNull: {
       EMIT_INSTR_HANDLER_WITH_PC(s2s_RefAsNonNull, instr.pc);
       ValueType value_type = RefPop();
-      RefPush(value_type);
+      RefPush(value_type.AsNonNull());
       break;
     }
 
@@ -12044,7 +12056,9 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           RefPush(resulting_value_type);
         } else {
           // In this case we just trap.
+          RefPop(false);
           EMIT_INSTR_HANDLER_WITH_PC(s2s_TrapIllegalCast, instr.pc);
+          SetUnreachableMode();
         }
       } else {
         if (instr.opcode == kExprRefCast) {
@@ -12524,9 +12538,10 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                 (AixFpOpWorkaround<float, &nearbyintf>(a)))
       UNOP_CASE(I64x2Neg, i64x2, int64x2, 2, base::NegateWithWraparound(a))
       UNOP_CASE(I32x4Neg, i32x4, int32x4, 4, base::NegateWithWraparound(a))
-      // Use llabs which will work correctly on both 64-bit and 32-bit.
-      UNOP_CASE(I64x2Abs, i64x2, int64x2, 2, std::llabs(a))
-      UNOP_CASE(I32x4Abs, i32x4, int32x4, 4, std::abs(a))
+      UNOP_CASE(I64x2Abs, i64x2, int64x2, 2,
+                a < 0 ? base::NegateWithWraparound(a) : a)
+      UNOP_CASE(I32x4Abs, i32x4, int32x4, 4,
+                a < 0 ? base::NegateWithWraparound(a) : a)
       UNOP_CASE(S128Not, i32x4, int32x4, 4, ~a)
       UNOP_CASE(I16x8Neg, i16x8, int16x8, 8, base::NegateWithWraparound(a))
       UNOP_CASE(I16x8Abs, i16x8, int16x8, 8, std::abs(a))
