@@ -1849,7 +1849,7 @@ static const struct {
 void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
                                               Tagged<Context> context) {
   DisallowGarbageCollection no_gc;
-  if (!IsNativeContext(context) && context->is_declaration_context()) {
+  if (!IsNativeContext(context)) {
     Tagged<ScopeInfo> scope_info = context->scope_info();
     // Add context allocated locals.
     for (auto it : ScopeInfo::IterateLocalNames(scope_info, no_gc)) {

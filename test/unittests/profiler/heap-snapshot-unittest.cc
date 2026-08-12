@@ -782,4 +782,199 @@ TEST_F(HeapSnapshotTest, InstructionStreamReferences) {
   EXPECT_GT(weak_edge_count, 0);
 }
 
+const HeapEntry* GetClosureContext(HeapSnapshot* snapshot, const char* name) {
+  const HeapEntry* closure =
+      GetEntryByName(snapshot, name, HeapEntry::kClosure);
+  if (!closure) return nullptr;
+  const HeapGraphEdge* context_edge = GetNamedEdge(*closure, "context");
+  if (!context_edge) return nullptr;
+  return context_edge->to();
+}
+
+void AssertContextType(const HeapEntry* context_entry,
+                       InstanceType expected_instance_type,
+                       const char* expected_instance_type_name,
+                       ScopeType expected_scope_type,
+                       const char* expected_scope_type_name) {
+  ASSERT_NE(nullptr, context_entry);
+
+  const HeapGraphEdge* map_edge = GetNamedEdge(*context_entry, "map");
+  ASSERT_NE(nullptr, map_edge);
+  const HeapEntry* map_entry = map_edge->to();
+  EXPECT_EQ(static_cast<int>(expected_instance_type),
+            GetIntEdge(map_entry, "instance_type"));
+  const HeapGraphEdge* instance_type_name_edge =
+      GetNamedEdge(*map_entry, "instance_type_name");
+  ASSERT_NE(nullptr, instance_type_name_edge);
+  EXPECT_STREQ(expected_instance_type_name,
+               instance_type_name_edge->to()->name());
+
+  const HeapGraphEdge* scope_info_edge =
+      GetNamedEdge(*context_entry, "scope_info");
+  ASSERT_NE(nullptr, scope_info_edge);
+  const HeapEntry* scope_info_entry = scope_info_edge->to();
+  EXPECT_EQ(static_cast<int>(expected_scope_type),
+            GetIntEdge(scope_info_entry, "scope_type"));
+  const HeapGraphEdge* scope_type_name_edge =
+      GetNamedEdge(*scope_info_entry, "scope_type_name");
+  ASSERT_NE(nullptr, scope_type_name_edge);
+  EXPECT_STREQ(expected_scope_type_name, scope_type_name_edge->to()->name());
+}
+
+TEST_F(HeapSnapshotTest, FunctionContextVariables) {
+  RunJS(
+      "function factory() {\n"
+      "  let func_var = { name: 'function_scope_object' };\n"
+      "  return function closure() { return func_var; };\n"
+      "}\n"
+      "globalThis.f = factory();");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* func_context_entry = GetClosureContext(snapshot, "closure");
+  AssertContextType(func_context_entry, FUNCTION_CONTEXT_TYPE,
+                    "FUNCTION_CONTEXT_TYPE", FUNCTION_SCOPE, "FUNCTION_SCOPE");
+
+  const HeapGraphEdge* func_var_edge =
+      GetNamedEdge(*func_context_entry, "func_var");
+  ASSERT_NE(nullptr, func_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, func_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, BlockContextVariables) {
+  RunJS(
+      "function factory() {\n"
+      "  {\n"
+      "    let block_var = { name: 'block_scope_object' };\n"
+      "    return function closure() { return block_var; };\n"
+      "  }\n"
+      "}\n"
+      "globalThis.f = factory();");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* block_context_entry = GetClosureContext(snapshot, "closure");
+  AssertContextType(block_context_entry, BLOCK_CONTEXT_TYPE,
+                    "BLOCK_CONTEXT_TYPE", BLOCK_SCOPE, "BLOCK_SCOPE");
+
+  const HeapGraphEdge* block_var_edge =
+      GetNamedEdge(*block_context_entry, "block_var");
+  ASSERT_NE(nullptr, block_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, block_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, CatchContextVariables) {
+  RunJS(
+      "function factory() {\n"
+      "  try {\n"
+      "    throw { name: 'catch_scope_object' };\n"
+      "  } catch (catch_var) {\n"
+      "    return function closure() { return catch_var; };\n"
+      "  }\n"
+      "}\n"
+      "globalThis.f = factory();");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* catch_context_entry = GetClosureContext(snapshot, "closure");
+  AssertContextType(catch_context_entry, CATCH_CONTEXT_TYPE,
+                    "CATCH_CONTEXT_TYPE", CATCH_SCOPE, "CATCH_SCOPE");
+
+  const HeapGraphEdge* catch_var_edge =
+      GetNamedEdge(*catch_context_entry, "catch_var");
+  ASSERT_NE(nullptr, catch_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, catch_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, SloppyEvalContextVariables) {
+  RunJS(
+      "function factory() {\n"
+      "  return eval('let eval_var = { name: \"eval_scope_object\" }; "
+      "function closure() { return eval_var; }; closure;');\n"
+      "}\n"
+      "globalThis.f = factory();");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* eval_context_entry = GetClosureContext(snapshot, "closure");
+  AssertContextType(eval_context_entry, EVAL_CONTEXT_TYPE, "EVAL_CONTEXT_TYPE",
+                    EVAL_SCOPE, "EVAL_SCOPE");
+
+  const HeapGraphEdge* eval_var_edge =
+      GetNamedEdge(*eval_context_entry, "eval_var");
+  ASSERT_NE(nullptr, eval_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, eval_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, ForOfLoopBlockContextVariables) {
+  RunJS(
+      "function factory() {\n"
+      "  const closures = [];\n"
+      "  for (let item of [{ name: 'item_1' }, { name: 'item_2' }]) {\n"
+      "    closures.push(function closure() { return item; });\n"
+      "  }\n"
+      "  return closures;\n"
+      "}\n"
+      "globalThis.closures = factory();");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* block_context_entry = GetClosureContext(snapshot, "closure");
+  AssertContextType(block_context_entry, BLOCK_CONTEXT_TYPE,
+                    "BLOCK_CONTEXT_TYPE", BLOCK_SCOPE, "BLOCK_SCOPE");
+
+  const HeapGraphEdge* item_var_edge =
+      GetNamedEdge(*block_context_entry, "item");
+  ASSERT_NE(nullptr, item_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, item_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, NativeContextGlobalVariable) {
+  RunJS("var global_var = { name: 'global_var_object' };");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* native_context_entry =
+      GetEntryByName(snapshot, "system / NativeContext", HeapEntry::kNative);
+  AssertContextType(native_context_entry, NATIVE_CONTEXT_TYPE,
+                    "NATIVE_CONTEXT_TYPE", SCRIPT_SCOPE, "SCRIPT_SCOPE");
+
+  const HeapGraphEdge* global_obj_edge =
+      GetNamedEdge(*native_context_entry, "global_object");
+  ASSERT_NE(nullptr, global_obj_edge);
+  const HeapEntry* global_obj_entry = global_obj_edge->to();
+  ASSERT_NE(nullptr, global_obj_entry);
+
+  const HeapGraphEdge* global_var_edge =
+      GetNamedEdge(*global_obj_entry, "global_var");
+  ASSERT_NE(nullptr, global_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kProperty, global_var_edge->type());
+}
+
+TEST_F(HeapSnapshotTest, ScriptContextVariables) {
+  RunJS(
+      "let script_let_var = { name: 'script_let_object' };\n"
+      "const script_const_var = { name: 'script_const_object' };\n"
+      "globalThis.closure = function closure() {\n"
+      "  return [script_let_var, script_const_var];\n"
+      "};");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* script_context_entry =
+      GetClosureContext(snapshot, "closure");
+  AssertContextType(script_context_entry, SCRIPT_CONTEXT_TYPE,
+                    "SCRIPT_CONTEXT_TYPE", SCRIPT_SCOPE, "SCRIPT_SCOPE");
+
+  const HeapGraphEdge* let_var_edge =
+      GetNamedEdge(*script_context_entry, "script_let_var");
+  ASSERT_NE(nullptr, let_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, let_var_edge->type());
+
+  const HeapGraphEdge* const_var_edge =
+      GetNamedEdge(*script_context_entry, "script_const_var");
+  ASSERT_NE(nullptr, const_var_edge);
+  EXPECT_EQ(HeapGraphEdge::kContextVariable, const_var_edge->type());
+
+  const HeapGraphEdge* previous_edge =
+      GetNamedEdge(*script_context_entry, "previous");
+  ASSERT_NE(nullptr, previous_edge);
+  const HeapEntry* native_context_entry = previous_edge->to();
+  AssertContextType(native_context_entry, NATIVE_CONTEXT_TYPE,
+                    "NATIVE_CONTEXT_TYPE", SCRIPT_SCOPE, "SCRIPT_SCOPE");
+}
+
 }  // namespace v8::internal
