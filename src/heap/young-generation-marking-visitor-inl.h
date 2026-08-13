@@ -24,7 +24,8 @@ namespace internal {
 template <YoungGenerationMarkingVisitationMode marking_mode>
 YoungGenerationMarkingVisitor<marking_mode>::YoungGenerationMarkingVisitor(
     Heap* heap,
-    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
+    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
+    YoungPendingAllocations::Snapshot* young_pending_allocations_snapshot)
     : Base(heap->isolate()),
       isolate_(heap->isolate()),
       marking_worklists_local_(
@@ -36,6 +37,7 @@ YoungGenerationMarkingVisitor<marking_mode>::YoungGenerationMarkingVisitor(
           *heap->minor_mark_sweep_collector()->ephemeron_table_list()),
       pretenuring_handler_(heap->pretenuring_handler()),
       local_pretenuring_feedback_(local_pretenuring_feedback),
+      young_pending_allocations_snapshot_(young_pending_allocations_snapshot),
       shortcut_strings_(heap->CanShortcutStringsDuringGC(
           GarbageCollector::MINOR_MARK_SWEEPER)) {}
 
@@ -84,8 +86,12 @@ size_t YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
   const int object_size =
       static_cast<int>(Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(
           map, object, maybe_object_size));
+  DCHECK_IMPLIES(
+      marking_mode == YoungGenerationMarkingVisitationMode::kConcurrent,
+      young_pending_allocations_snapshot_ != nullptr);
   PretenuringHandler::UpdateAllocationSite(
-      isolate_->heap(), map, object, object_size, local_pretenuring_feedback_);
+      isolate_->heap(), map, object, object_size, local_pretenuring_feedback_,
+      young_pending_allocations_snapshot_);
   return object_size;
 }
 
