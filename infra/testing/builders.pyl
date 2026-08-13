@@ -1442,7 +1442,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'mjsunit', 'test_args': ['--no-harness'], 'shards': 2},
+      {'name': 'mjsunit', 'test_args': ['--no-harness'], 'shards': 4},
     ],
   },
   'V8 Linux64 - debug': {
