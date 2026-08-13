@@ -1002,12 +1002,12 @@ class Shell : public i::AllStatic {
                                             const std::string& file_name,
                                             ModuleType module_type);
 
-  static MaybeLocal<Value> JSONModuleEvaluationSteps(Local<Context> context,
-                                                     Local<Module> module);
-  static MaybeLocal<Value> TextModuleEvaluationSteps(Local<Context> context,
-                                                     Local<Module> module);
-  static MaybeLocal<Value> BytesModuleEvaluationSteps(Local<Context> context,
-                                                      Local<Module> module);
+  static MaybeLocal<Promise> JSONModuleEvaluationSteps(Local<Context> context,
+                                                       Local<Module> module);
+  static MaybeLocal<Promise> TextModuleEvaluationSteps(Local<Context> context,
+                                                       Local<Module> module);
+  static MaybeLocal<Promise> BytesModuleEvaluationSteps(Local<Context> context,
+                                                        Local<Module> module);
 
   template <class T>
   static MaybeLocal<T> CompileSource(Isolate* isolate, Local<Context> context,

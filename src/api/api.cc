@@ -2526,6 +2526,34 @@ Local<Module> Module::CreateSyntheticModule(
           i_host_defined_options)));
 }
 
+START_ALLOW_USE_DEPRECATED()
+Local<Module> Module::CreateSyntheticModule(
+    Isolate* v8_isolate, Local<String> module_name,
+    const std::span<const Local<String>>& export_names,
+    v8::Module::LegacySyntheticModuleEvaluationSteps evaluation_steps,
+    Local<Data> host_defined_options) {
+  // TODO(https://crbug.com/545375591): Remove once
+  // LegacySyntheticModuleEvaluationSteps is gone.
+#if (__GNUC__ >= 8) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+  // Cast from 'v8::MaybeLocal<v8::Value> (*)(v8::Local<v8::Context>,
+  // v8::Local<v8::Module>)' to 'v8::MaybeLocal<v8::Promise>
+  // (*)(v8::Local<v8::Context>, v8::Local<v8::Module>)'. Both return types are
+  // pointer-sized, trivially copyable handle wrappers, so they share the same
+  // representation. SyntheticModule::Evaluate() checks at runtime that the
+  // returned value really is a Promise.
+  auto promise_returning_steps =
+      reinterpret_cast<SyntheticModuleEvaluationSteps>(evaluation_steps);
+#if (__GNUC__ >= 8) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+  return CreateSyntheticModule(v8_isolate, module_name, export_names,
+                               promise_returning_steps, host_defined_options);
+}
+END_ALLOW_USE_DEPRECATED()
+
 Local<Data> Module::GetSyntheticModuleHostDefinedOptions() const {
   auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();

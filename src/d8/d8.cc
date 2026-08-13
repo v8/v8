@@ -1678,8 +1678,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   return result;
 }
 
-MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
-                                                   Local<Module> module) {
+MaybeLocal<Promise> Shell::JSONModuleEvaluationSteps(Local<Context> context,
+                                                     Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
   Local<Value> json_value =
@@ -1702,8 +1702,8 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
   return resolver->GetPromise();
 }
 
-MaybeLocal<Value> Shell::TextModuleEvaluationSteps(Local<Context> context,
-                                                   Local<Module> module) {
+MaybeLocal<Promise> Shell::TextModuleEvaluationSteps(Local<Context> context,
+                                                     Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
   Local<Value> text_value =
@@ -1726,8 +1726,8 @@ MaybeLocal<Value> Shell::TextModuleEvaluationSteps(Local<Context> context,
   return resolver->GetPromise();
 }
 
-MaybeLocal<Value> Shell::BytesModuleEvaluationSteps(Local<Context> context,
-                                                    Local<Module> module) {
+MaybeLocal<Promise> Shell::BytesModuleEvaluationSteps(Local<Context> context,
+                                                      Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
   Local<Value> bytes_value =

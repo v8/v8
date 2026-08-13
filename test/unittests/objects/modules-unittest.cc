@@ -1738,7 +1738,7 @@ TEST_F(ModuleTest, SyntheticModuleGetResourceName) {
   Local<String> resource_name = NewString("synthetic-module");
   Local<Module> module = Module::CreateSyntheticModule(
       isolate(), resource_name, {},
-      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Value> {
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Promise> {
         // Do nothing.
         Local<v8::Promise::Resolver> resolver =
             v8::Promise::Resolver::New(context).ToLocalChecked();
@@ -1768,12 +1768,12 @@ TEST_F(ModuleTest, SyntheticModuleGetResourceNameInError) {
   Local<String> resource_name = NewString("synthetic-module");
   Local<Module> module = Module::CreateSyntheticModule(
       isolate(), resource_name, {},
-      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Value> {
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Promise> {
         // Throw an error.
         Isolate* isolate = Isolate::GetCurrent();
         isolate->ThrowException(
             v8::String::NewFromUtf8Literal(isolate, "synthetic module error"));
-        return MaybeLocal<Value>();
+        return MaybeLocal<Promise>();
       });
 
   CHECK_EQ(Module::kUninstantiated, module->GetStatus());
@@ -1862,7 +1862,7 @@ TEST_F(ModuleTest, ExportStarMissingDefaultUseCounter) {
   use_counts[kCounter] = 0;
   Local<Module> synthetic = Module::CreateSyntheticModule(
       isolate(), NewString("synthetic"), {},
-      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Value> {
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Promise> {
         Local<v8::Promise::Resolver> resolver =
             v8::Promise::Resolver::New(context).ToLocalChecked();
         resolver->Resolve(context, v8::Undefined(Isolate::GetCurrent()))
