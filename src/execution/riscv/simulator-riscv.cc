@@ -4177,9 +4177,9 @@ struct ScopedRoundingMode {
       case RTZ:
         return FE_TOWARDZERO;
       case RDN:
-        return FE_UPWARD;
-      case RUP:
         return FE_DOWNWARD;
+      case RUP:
+        return FE_UPWARD;
       case RMM:
         return FE_TONEAREST;
       default:
