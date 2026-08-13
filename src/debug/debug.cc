@@ -2322,19 +2322,13 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
                          &is_compiled_scope, CreateSourcePositions{true})) {
     return false;
   }
-  return CreateBreakInfo(shared);
+  CreateBreakInfo(shared);
+  return true;
 }
 
-bool Debug::CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared) {
+void Debug::CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   HandleScope scope(isolate_);
-
-  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
-  if (shared->HasBytecodeArray() &&
-      !shared->GetBytecodeArray(isolate_)->HasSourcePositionTable()) {
-    return false;
-  }
-
   DirectHandle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
 
   // Initialize with break information.
@@ -2351,7 +2345,7 @@ bool Debug::CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared) {
   debug_info->set_flags(flags, kRelaxedStore);
   debug_info->set_break_points(*break_points);
 
-  return true;
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
 }
 
 Handle<DebugInfo> Debug::GetOrCreateDebugInfo(

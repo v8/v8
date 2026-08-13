@@ -350,7 +350,7 @@ class V8_EXPORT_PRIVATE Debug {
 
   // Returns whether the operation succeeded.
   bool EnsureBreakInfo(Handle<SharedFunctionInfo> shared);
-  bool CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared);
+  void CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared);
   Handle<DebugInfo> GetOrCreateDebugInfo(
       DirectHandle<SharedFunctionInfo> shared);
 
