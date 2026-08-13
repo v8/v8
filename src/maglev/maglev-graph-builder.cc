@@ -1546,7 +1546,7 @@ ReduceResult MaglevGraphBuilder::BuildFloat64BinarySmiOperationNodeForToNumber(
   // HoleyFloat64 nodes if folded.
   ValueNode* left;
   GET_VALUE_OR_ABORT(left,
-                     GetAccumulatorFloat64ForToNumber(allowed_input_type));
+                     GetAccumulatorFloat64ForArithmetic(allowed_input_type));
   double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldFloat64BinaryOperationForToNumber<kOperation>(
@@ -1563,7 +1563,7 @@ ReduceResult MaglevGraphBuilder::BuildFloat64UnaryOperationNodeForToNumber(
   // HoleyFloat64 nodes if folded.
   ValueNode* value;
   GET_VALUE_OR_ABORT(value,
-                     GetAccumulatorFloat64ForToNumber(allowed_input_type));
+                     GetAccumulatorFloat64ForArithmetic(allowed_input_type));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldFloat64UnaryOperationForToNumber<kOperation>(
           GetTaggedToFloat64ConversionType(allowed_input_type), value),
@@ -1589,10 +1589,10 @@ ReduceResult MaglevGraphBuilder::BuildFloat64BinaryOperationNodeForToNumber(
   // HoleyFloat64 nodes if folded.
   ValueNode* left;
   GET_VALUE_OR_ABORT(left,
-                     LoadRegisterFloat64ForToNumber(0, allowed_input_type));
+                     LoadRegisterFloat64ForArithmetic(0, allowed_input_type));
   ValueNode* right;
   GET_VALUE_OR_ABORT(right,
-                     GetAccumulatorFloat64ForToNumber(allowed_input_type));
+                     GetAccumulatorFloat64ForArithmetic(allowed_input_type));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldFloat64BinaryOperationForToNumber<kOperation>(
           GetTaggedToFloat64ConversionType(allowed_input_type), left, right),
@@ -5343,10 +5343,9 @@ ReduceResult MaglevGraphBuilder::BuildElementLoadOnJSArrayOrJSObject(
   auto emit_load = [&]() -> ReduceResult {
     ValueNode* result;
     if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-      GET_VALUE_OR_ABORT(result, BuildLoadHoleyFixedDoubleArrayElement(
-                                     elements_array, index,
-                                     CanTreatHoleAsUndefined(maps) &&
-                                         LoadModeHandlesHoles(load_mode)));
+      GET_VALUE_OR_ABORT(
+          result, BuildLoadHoleyFixedDoubleArrayElement(
+                      elements_array, index, CanTreatHoleAsUndefined(maps)));
     } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
       GET_VALUE_OR_ABORT(
           result, BuildLoadFixedDoubleArrayElement(elements_array, index));

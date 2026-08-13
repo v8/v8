@@ -419,8 +419,11 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   } else if (use_reprs.contains(UseRepresentation::kInt32)) {
     allowed_inputs_for_uses = {ValueRepresentation::kInt32};
   } else if (use_reprs.contains(UseRepresentation::kFloat64)) {
+    // A Float64 use can also consume a HoleyFloat64 input, so a Phi with
+    // HoleyFloat64 inputs need not be kept tagged.
     allowed_inputs_for_uses = {ValueRepresentation::kInt32,
-                               ValueRepresentation::kFloat64};
+                               ValueRepresentation::kFloat64,
+                               ValueRepresentation::kHoleyFloat64};
   } else {
     DCHECK(!use_reprs.empty() &&
            use_reprs.is_subset_of({UseRepresentation::kHoleyFloat64,

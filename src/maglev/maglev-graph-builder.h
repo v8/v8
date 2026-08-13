@@ -729,6 +729,24 @@ class MaglevGraphBuilder {
                                  allowed_input_type);
   }
 
+  // An operand that is already HoleyFloat64 can keep its undefined and let the
+  // arithmetic turn it into a NaN, instead of deopting on it.
+  NodeType AllowUndefinedInputForArithmetic(interpreter::Register reg,
+                                            NodeType allowed_input_type) {
+    if (NodeTypeIs(allowed_input_type, NodeType::kNumber) &&
+        current_interpreter_frame_.get(reg)->value_representation() ==
+            ValueRepresentation::kHoleyFloat64) {
+      return NodeType::kNumberOrUndefined;
+    }
+    return allowed_input_type;
+  }
+
+  ReduceResult GetAccumulatorFloat64ForArithmetic(NodeType allowed_input_type) {
+    interpreter::Register reg = interpreter::Register::virtual_accumulator();
+    return GetFloat64ForToNumber(
+        reg, AllowUndefinedInputForArithmetic(reg, allowed_input_type));
+  }
+
   ReduceResult GetSilencedNaN(ValueNode* value);
 
   bool IsRegisterEqualToAccumulator(int operand_index) {
@@ -746,6 +764,13 @@ class MaglevGraphBuilder {
                                               NodeType allowed_input_type) {
     return GetFloat64ForToNumber(iterator_.GetRegisterOperand(operand_index),
                                  allowed_input_type);
+  }
+
+  ReduceResult LoadRegisterFloat64ForArithmetic(int operand_index,
+                                                NodeType allowed_input_type) {
+    interpreter::Register reg = iterator_.GetRegisterOperand(operand_index);
+    return GetFloat64ForToNumber(
+        reg, AllowUndefinedInputForArithmetic(reg, allowed_input_type));
   }
 
   template <typename NodeT>

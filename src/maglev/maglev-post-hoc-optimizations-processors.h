@@ -188,7 +188,14 @@ class RecomputePhiUseHintsProcessor {
           use_repr = UseRepresentation::kTruncatedInt32;
         } else if (node->Is<NumberToString>()) {
           use_repr = UseRepresentation::kTaggedForNumberToString;
-        } else if (node->Is<CheckedNumberOrOddballToUint8Clamped>()) {
+        } else if (node->Is<CheckedNumberOrOddballToUint8Clamped>() ||
+                   node->Is<CheckedNumberOrOddballToHoleyFloat64>() ||
+                   node->Is<UnsafeNumberOrOddballToHoleyFloat64>()) {
+          // These consume their input tagged, so is_conversion() is false and
+          // the use would otherwise default to kTagged, pinning the phi boxed.
+          // The two unboxers are how a holey-double element store consumes its
+          // value, so a phi feeding such a store can untag to HoleyFloat64 and
+          // be stored raw instead of being boxed into a HeapNumber.
           use_repr = UseRepresentation::kHoleyFloat64;
         }
         phi->RecordUseReprHint(UseRepresentationSet{use_repr},
