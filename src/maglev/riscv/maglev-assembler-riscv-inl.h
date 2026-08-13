@@ -347,12 +347,15 @@ inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
   CHECK(!SmiValuesAre32Bits());
   // NB: JumpIf expects the result in dedicated "flag" register.
   Register overflow_flag = MaglevAssembler::GetFlagsRegister();
-  // Smi is shifted left by 1, so double incoming integer using 64- and 32-bit
-  // addition operations and then compare the results to detect overflow. The
-  // order matters because the dst and src registers may be the same.
-  Add64(overflow_flag, src, src);
-  Add32(dst, src, src);
-  Sne(overflow_flag, overflow_flag, Operand(dst));
+  // Smi is shifted left by 1.
+  if (src == dst) {
+    Move(overflow_flag, src);
+    src = overflow_flag;
+  }
+  // overflow_flag = (bits[31] ^ bits[30]) >> 31
+  Sll32(dst, src, 1);
+  Xor(overflow_flag, src, dst);
+  Srl32(overflow_flag, overflow_flag, 31);
   return kNoOverflow;
 }
 
@@ -364,12 +367,12 @@ inline void MaglevAssembler::CheckInt32IsSmi(Register maybe_smi, Label* fail,
   if (scratch == Register::no_reg()) {
     scratch = temps.AcquireScratch();
   }
-  Register sum32 = scratch;
-  Register sum64 = temps.AcquireScratch();
-  Add32(sum32, maybe_smi, Operand(maybe_smi));
-  Add64(sum64, maybe_smi, Operand(maybe_smi));
-  // Overflow happened if sum64 != sum32.
-  MacroAssembler::Branch(fail, ne, sum64, Operand(sum32));
+  Register bit31 = scratch;
+  Register bit30 = temps.AcquireScratch();
+  Srl32(bit30, maybe_smi, 30);
+  Srl32(bit31, maybe_smi, 31);
+  And(bit30, bit30, Operand(1));
+  MacroAssembler::Branch(fail, ne, bit30, Operand(bit31));
 }
 
 inline void MaglevAssembler::SmiAddConstant(Register dst, Register src,
