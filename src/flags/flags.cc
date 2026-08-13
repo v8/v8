@@ -358,7 +358,12 @@ constexpr auto kFlagsMetadata = []() {
     const char* comment;
   };
   constexpr RawMetadata raw[] = {
-#define FLAG_MODE_APPLY(ctype, nam, primary, cmt) {#nam, #primary, cmt},
+#define FLAG_MODE_APPLY(ctype, nam, primary, cmt)    \
+  [] {                                               \
+    static_assert(#nam[0] != 'n' || #nam[1] != 'o',  \
+                  "Flags must not start with 'no'"); \
+    return RawMetadata{#nam, #primary, cmt};         \
+  }(),
 #define FLAG_MODE_INCLUDE_READONLY
 #define FLAG_MODE_INCLUDE_ALIASES
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)

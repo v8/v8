@@ -1168,9 +1168,6 @@
   'regress/regress-10138': [SKIP],
   'regress/regress-1078913': [SKIP],
 
-  # Flag --no-jitless incompatible with jitless
-  'opt-proto-seq/*': [SKIP],
-
   # Baseline incompatible with jitless
   'baseline/*': [SKIP],
 
@@ -2463,8 +2460,6 @@
   'harmony/import-from-compilation-errored': [SKIP],
   'harmony/private-fields-special-object': [SKIP],
   'regress/regress-676025': [SKIP],
-  # Skip, since import errors since they refer to the script via debug symbols
-  'harmony/import-from-instantiation-errored': [SKIP],
   # The entire snapshotting code assumes that the snapshot size fits
   # into an int, so it doesn't support huge TypedArrays.
   'regress/regress-319722-ArrayBuffer': [SKIP],
@@ -2553,7 +2548,6 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'harmony/sharedarraybuffer-worker-gc-stress': [PASS, ['gc_stress', SKIP]],
-  'regress/regress-740784': [PASS, ['tsan', SKIP]],
   'regress/regress-crbug-820312': [PASS, SLOW],
   'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
 }],  # variant == stress_incremental_marking
@@ -3306,14 +3300,6 @@
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
   'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
 }], # sandbox_hardware_support
-
-['variant == minor_ms', {
-  'weakrefs/minor-gc-*': [SKIP],
-}],  # variant == minor_ms
-
-['variant == scavenger_chaos_mode', {
-  'weakrefs/minor-gc-*': [SKIP],
-}],  # variant == scavenger_chaos_mode
 
 ['variant == experimental_regexp', {
   'regress/regress-503097371': [SKIP],
