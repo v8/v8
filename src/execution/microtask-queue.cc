@@ -16,7 +16,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 #include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/microtask-inl.h"
@@ -163,8 +163,15 @@ void MicrotaskQueue::EnqueueMicrotask(Tagged<Microtask> microtask) {
   ++size_;
 }
 
+bool MicrotaskQueue::ShouldPerformCheckpoint(v8::Isolate* v8_isolate) const {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  return !IsRunningMicrotasks() && !GetMicrotasksScopeDepth() &&
+         !HasMicrotasksSuppressions() &&
+         isolate->is_javascript_execution_allowed();
+}
+
 void MicrotaskQueue::PerformCheckpointInternal(v8::Isolate* v8_isolate) {
-  DCHECK(ShouldPerfomCheckpoint());
+  DCHECK(ShouldPerformCheckpoint(v8_isolate));
   std::optional<MicrotasksScope> microtasks_scope;
   if (microtasks_policy_ == v8::MicrotasksPolicy::kScoped) {
     // If we're using microtask scopes to schedule microtask execution, V8
@@ -213,6 +220,7 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
   // We should not enter V8 if it's marked for termination.
   DCHECK_IMPLIES(v8_flags.strict_termination_checks,
                  !isolate->is_execution_terminating());
+  DCHECK(isolate->is_javascript_execution_allowed());
 
   intptr_t base_count = finished_microtask_count_;
   HandleScope handle_scope(isolate);

@@ -23848,6 +23848,123 @@ TEST_WITH_PLATFORM(DumpOnJavascriptExecution, MockPlatform) {
   CHECK(platform.dump_without_crashing_called());
 }
 
+namespace {
+void TestMicrotaskCheckpointCallback(v8::Local<v8::Data> data) {
+  int* count = GetData<int>(data);
+  (*count)++;
+}
+void TestMicrotaskFunctionCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  int* count = GetData<int>(info);
+  (*count)++;
+}
+}  // namespace
+
+TEST(MicrotaskCheckpointDisallowJavascriptExecutionScope) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::MicrotaskQueue* microtask_queue = env.local()->GetMicrotaskQueue();
+
+  // 1. Explicit policy: C++ microtask callback with CRASH_ON_FAILURE.
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  int microtasks_run_count = 0;
+  microtask_queue->EnqueueMicrotask(isolate, TestMicrotaskCheckpointCallback,
+                                    MakeData(isolate, &microtasks_run_count));
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    v8::MicrotasksScope::PerformCheckpoint(isolate);
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+  CHECK_EQ(1, microtasks_run_count);
+
+  // 2. Explicit policy: JS function microtask callback with CRASH_ON_FAILURE.
+  microtasks_run_count = 0;
+  v8::Local<v8::FunctionTemplate> t =
+      v8::FunctionTemplate::New(isolate, TestMicrotaskFunctionCallback,
+                                MakeData(isolate, &microtasks_run_count));
+  v8::Local<v8::Function> fn = t->GetFunction(env.local()).ToLocalChecked();
+  microtask_queue->EnqueueMicrotask(isolate, fn);
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    v8::MicrotasksScope::PerformCheckpoint(isolate);
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+  CHECK_EQ(1, microtasks_run_count);
+
+  // 3. THROW_ON_FAILURE.
+  microtasks_run_count = 0;
+  microtask_queue->EnqueueMicrotask(isolate, TestMicrotaskCheckpointCallback,
+                                    MakeData(isolate, &microtasks_run_count));
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+    v8::MicrotasksScope::PerformCheckpoint(isolate);
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+  CHECK_EQ(1, microtasks_run_count);
+
+  // 4. DUMP_ON_FAILURE.
+  microtasks_run_count = 0;
+  microtask_queue->EnqueueMicrotask(isolate, TestMicrotaskCheckpointCallback,
+                                    MakeData(isolate, &microtasks_run_count));
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::DUMP_ON_FAILURE);
+    v8::MicrotasksScope::PerformCheckpoint(isolate);
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+  CHECK_EQ(1, microtasks_run_count);
+
+  // 5. Scoped policy: MicrotasksScope destructor inside
+  // DisallowJavascriptExecutionScope.
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
+  microtasks_run_count = 0;
+  microtask_queue->EnqueueMicrotask(isolate, TestMicrotaskCheckpointCallback,
+                                    MakeData(isolate, &microtasks_run_count));
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    {
+      v8::MicrotasksScope microtasks_scope(env.local(),
+                                           v8::MicrotasksScope::kRunMicrotasks);
+    }
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  {
+    v8::MicrotasksScope microtasks_scope(env.local(),
+                                         v8::MicrotasksScope::kRunMicrotasks);
+  }
+  CHECK_EQ(1, microtasks_run_count);
+
+  // 6. kAuto policy: top-level Api call (v8::Object::HasOwnProperty()) inside
+  // DisallowJavascriptExecutionScope.
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
+  microtasks_run_count = 0;
+  microtask_queue->EnqueueMicrotask(isolate, TestMicrotaskCheckpointCallback,
+                                    MakeData(isolate, &microtasks_run_count));
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    CHECK(env->Global()->HasOwnProperty(env.local(), v8_str("foo")).IsJust());
+    CHECK_EQ(0, microtasks_run_count);
+  }
+  CHECK(env->Global()->HasOwnProperty(env.local(), v8_str("foo")).IsJust());
+  CHECK_EQ(1, microtasks_run_count);
+}
+
 TEST(Regress354123) {
   LocalContext current;
   v8::Isolate* isolate = current.isolate();

@@ -124,6 +124,11 @@ bool Isolate::is_execution_terminating() {
          i::ReadOnlyRoots(this).termination_exception();
 }
 
+bool Isolate::is_javascript_execution_allowed() const {
+  return javascript_execution_assert() && javascript_execution_throws() &&
+         javascript_execution_dump();
+}
+
 #ifdef DEBUG
 Tagged<Object> Isolate::VerifyBuiltinsResult(Tagged<Object> result) {
   if (is_execution_terminating() && !v8_flags.strict_termination_checks) {
