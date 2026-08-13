@@ -2814,8 +2814,7 @@ bool Simulator::test_fflags_bits(uint32_t mask) {
 template <typename T>
 T Simulator::FMaxMinHelper(T a, T b, MaxMinKind kind) {
   // set invalid bit for signaling nan
-  if ((a == std::numeric_limits<T>::signaling_NaN()) ||
-      (b == std::numeric_limits<T>::signaling_NaN())) {
+  if ((std::isnan(a) || std::isnan(b)) && (isSnan(a) || isSnan(b))) {
     set_csr_bits(csr_fflags, kInvalidOperation);
   }
 
@@ -4383,22 +4382,20 @@ bool Simulator::CompareFHelper(T input1, T input2, FPUCondition cc) {
       break;
 
     case EQ:
-      if (std::numeric_limits<T>::signaling_NaN() == input1 ||
-          std::numeric_limits<T>::signaling_NaN() == input2) {
-        set_fflags(kInvalidOperation);
-      }
       if (std::isnan(input1) || std::isnan(input2)) {
+        if (isSnan(input1) || isSnan(input2)) {
+          set_fflags(kInvalidOperation);
+        }
         result = false;
       } else {
         result = (input1 == input2);
       }
       break;
     case NE:
-      if (std::numeric_limits<T>::signaling_NaN() == input1 ||
-          std::numeric_limits<T>::signaling_NaN() == input2) {
-        set_fflags(kInvalidOperation);
-      }
       if (std::isnan(input1) || std::isnan(input2)) {
+        if (isSnan(input1) || isSnan(input2)) {
+          set_fflags(kInvalidOperation);
+        }
         result = true;
       } else {
         result = (input1 != input2);
