@@ -25,7 +25,7 @@ class PretenuringHandler final {
 
   using PretenuringFeedbackMap =
       std::unordered_map<Tagged<AllocationSite>, size_t, Object::Hasher>;
-  enum FindMementoMode { kForRuntime, kForGC, kForConcurrentGC };
+  enum FindMementoMode { kForRuntime, kForGC };
 
   explicit PretenuringHandler(Heap* heap);
   ~PretenuringHandler();
@@ -47,11 +47,9 @@ class PretenuringHandler final {
 
   // Updates the AllocationSite of a given {object}. The entry (including the
   // count) is cached on the local pretenuring feedback.
-  template <FindMementoMode mode = FindMementoMode::kForGC>
   static inline void UpdateAllocationSite(
       Heap* heap, Tagged<Map> map, Tagged<HeapObject> object, int object_size,
       PretenuringFeedbackMap* pretenuring_feedback);
-  template <FindMementoMode mode = FindMementoMode::kForGC>
   static inline void UpdateAllocationSite(
       Heap* heap, Tagged<Map> map, Tagged<HeapObject> object,
       SafeHeapObjectSize object_size,
