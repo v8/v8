@@ -1096,11 +1096,22 @@ class MaglevGraphBuilder {
                                                  CallArguments& args,
                                                  ArgumentsElements* elements,
                                                  Args&&... extra_arg);
+  std::optional<base::SmallVector<ValueNode*, 8>>
+  TryExtractArgumentsFromElements(VirtualObject* arguments_object,
+                                  const CallArguments& args,
+                                  size_t num_args_to_copy);
   ReduceResult ReduceCallWithArrayLikeForArgumentsObject(
       ValueNode* target_node, CallArguments& args,
       VirtualObject* arguments_object,
       const compiler::FeedbackSource& feedback_source);
   ReduceResult ReduceCallWithArrayLike(
+      ValueNode* target_node, CallArguments& args,
+      const compiler::FeedbackSource& feedback_source);
+  MaybeReduceResult TryReduceCallWithSpreadForArgumentsObject(
+      ValueNode* target_node, CallArguments& args,
+      VirtualObject* arguments_object,
+      const compiler::FeedbackSource& feedback_source);
+  ReduceResult ReduceCallWithSpread(
       ValueNode* target_node, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   ReduceResult ReduceCall(ValueNode* target_node, CallArguments& args,
@@ -1145,18 +1156,18 @@ class MaglevGraphBuilder {
       compiler::JSFunctionRef function,
       compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
       ValueNode* new_target, CallArguments& args,
-      compiler::FeedbackSource& feedback_source);
+      const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryReduceConstruct(
       compiler::HeapObjectRef target_constant, ValueNode* target,
       ValueNode* new_target, CallArguments& args,
-      compiler::FeedbackSource& feedback_source);
+      const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryReduceConstructWithSpreadForArgumentsObject(
       ValueNode* target, ValueNode* new_target, CallArguments& args,
       VirtualObject* arguments_object,
       const compiler::FeedbackSource& feedback_source);
   ReduceResult BuildConstruct(ValueNode* target, ValueNode* new_target,
                               CallArguments& args,
-                              compiler::FeedbackSource& feedback_source);
+                              const compiler::FeedbackSource& feedback_source);
 
   MaybeReduceResult TryBuildScriptContextStore(
       const compiler::GlobalAccessFeedback& global_access_feedback);
@@ -1532,7 +1543,7 @@ class MaglevGraphBuilder {
       const DeoptFrame& frame,
       const MaglevGraphBuilder::LazyDeoptFrameScope* parent_scope);
 
-  std::optional<VirtualObject*> TryGetNonEscapingArgumentsObject(
+  std::optional<VirtualObject*> TryGetNonEscapingArgumentsOrArray(
       ValueNode* value);
 
   MaybeReduceResult TryBuildFastCreateObjectOrArrayLiteral(

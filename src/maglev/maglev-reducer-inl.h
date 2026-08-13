@@ -803,6 +803,11 @@ ReduceResult MaglevReducer<BaseT>::ConvertForField(
                 ValueRepresentation::kInt32);
       return value;
     case vobj::FieldType::kFloat64:
+      if (value->properties().value_representation() ==
+          ValueRepresentation::kHoleyFloat64) {
+        return AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>(
+            {value});
+      }
       return GetFloat64(value);
     case vobj::FieldType::kNone:
       UNREACHABLE();

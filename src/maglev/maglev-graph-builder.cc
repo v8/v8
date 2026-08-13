@@ -11654,6 +11654,174 @@ ReduceResult MaglevGraphBuilder::BuildCallForwardArgumentsElements(
                                   tagged_context, start_index, target_type);
 }
 
+std::optional<base::SmallVector<ValueNode*, 8>>
+MaglevGraphBuilder::TryExtractArgumentsFromElements(
+    VirtualObject* arguments_object, const CallArguments& args,
+    size_t num_args_to_copy) {
+  constexpr size_t kMaxArityForOptimizedSpread = 32;
+
+  auto build_arguments = [&](int32_t capacity, auto get_element_at)
+      -> std::optional<base::SmallVector<ValueNode*, 8>> {
+    int32_t length = 0;
+    if (arguments_object->map()->IsJSArrayMap()) {
+      ValueNode* length_node =
+          arguments_object->get(offsetof(JSArray, length_));
+      std::optional<int32_t> maybe_length = TryGetInt32Constant(length_node);
+      if (!maybe_length.has_value() || *maybe_length < 0 ||
+          *maybe_length > capacity) {
+        return {};
+      }
+      length = *maybe_length;
+    } else {
+      DCHECK(arguments_object->map()->IsJSArgumentsObjectMap());
+      length = capacity;
+    }
+
+    if (num_args_to_copy + static_cast<size_t>(length) >
+        kMaxArityForOptimizedSpread) {
+      return {};
+    }
+
+    bool has_hole = false;
+    base::SmallVector<ValueNode*, 8> arg_list;
+    const bool has_receiver =
+        args.receiver_mode() != ConvertReceiverMode::kNullOrUndefined;
+    arg_list.reserve((has_receiver ? 1 : 0) + num_args_to_copy + length);
+    if (has_receiver) {
+      DCHECK_NOT_NULL(args.receiver());
+      arg_list.push_back(args.receiver());
+    }
+    for (size_t i = 0; i < num_args_to_copy; i++) {
+      arg_list.push_back(args[i]);
+    }
+    for (int32_t i = 0; i < length; i++) {
+      std::optional<ValueNode*> element = get_element_at(i, has_hole);
+      if (!element.has_value()) {
+        return {};
+      }
+      arg_list.push_back(*element);
+    }
+    if (has_hole) {
+      if (!broker()->dependencies()->DependOnNoElementsProtector()) {
+        return {};
+      }
+    }
+    return arg_list;
+  };
+
+  ValueNode* elements_value =
+      arguments_object->get(offsetof(JSObject, elements_));
+
+  if (auto* root_constant = elements_value->TryCast<RootConstant>()) {
+    if (root_constant->index() != RootIndex::kEmptyFixedArray) {
+      return {};
+    }
+    return build_arguments(
+        0, [](int32_t, bool&) -> std::optional<ValueNode*> { UNREACHABLE(); });
+  }
+
+  if (auto* constant_value = elements_value->TryCast<HeapConstant>()) {
+    if (constant_value->object().IsFixedArray()) {
+      compiler::FixedArrayRef elements =
+          constant_value->object().AsFixedArray();
+      return build_arguments(
+          elements.length(),
+          [&](int32_t i, bool& has_hole) -> std::optional<ValueNode*> {
+            const auto element =
+                elements.TryGet(broker(), static_cast<uint32_t>(i));
+            if (!element.has_value()) {
+              return {};
+            }
+            if (element->IsTheHole()) {
+              has_hole = true;
+              return GetRootConstant(RootIndex::kUndefinedValue);
+            }
+            return GetConstant(element.value());
+          });
+    }
+    if (constant_value->object().IsFixedDoubleArray()) {
+      compiler::FixedDoubleArrayRef elements =
+          constant_value->object().AsFixedDoubleArray();
+      return build_arguments(
+          elements.length(),
+          [&](int32_t i, bool& has_hole) -> std::optional<ValueNode*> {
+            Float64 value = elements.GetFromImmutableFixedDoubleArray(i);
+            if (value.is_hole_nan()) {
+              has_hole = true;
+              return GetRootConstant(RootIndex::kUndefinedValue);
+            }
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+            if (value.is_undefined_nan()) {
+              return GetRootConstant(RootIndex::kUndefinedValue);
+            }
+#endif
+            return GetFloat64Constant(value);
+          });
+    }
+    return {};
+  }
+
+  if (auto* inlined_allocation = elements_value->TryCast<InlinedAllocation>()) {
+    VirtualObject* elements = inlined_allocation->object();
+    ValueNode* elements_length_node =
+        elements->get(offsetof(FixedArray, length_));
+    std::optional<int32_t> maybe_elements_length =
+        TryGetInt32Constant(elements_length_node);
+    if (!maybe_elements_length.has_value() || *maybe_elements_length < 0) {
+      return {};
+    }
+    int32_t capacity = *maybe_elements_length;
+    if (elements->map()->IsFixedArrayMap()) {
+      return build_arguments(
+          capacity,
+          [&](int32_t i, bool& has_hole) -> std::optional<ValueNode*> {
+            ValueNode* el = elements->get(FixedArray::OffsetOfElementAt(i));
+            if (auto* cst = el->TryCast<RootConstant>()) {
+              if (cst->index() == RootIndex::kTheHoleValue) {
+                has_hole = true;
+                el = GetRootConstant(RootIndex::kUndefinedValue);
+              }
+            }
+            return el->Unwrap();
+          });
+    }
+    if (elements->map()->IsFixedDoubleArrayMap()) {
+      return build_arguments(
+          capacity,
+          [&](int32_t i, bool& has_hole) -> std::optional<ValueNode*> {
+            ValueNode* el =
+                elements->get(FixedDoubleArray::OffsetOfElementAt(i));
+            if (auto* float_cst = el->TryCast<Float64Constant>()) {
+              if (float_cst->value().is_hole_nan()) {
+                has_hole = true;
+                el = GetRootConstant(RootIndex::kUndefinedValue);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+              } else if (float_cst->value().is_undefined_nan()) {
+                el = GetRootConstant(RootIndex::kUndefinedValue);
+#endif
+              }
+            } else if (auto* holey_cst = el->TryCast<HoleyFloat64Constant>()) {
+              if (holey_cst->value().is_hole_nan()) {
+                has_hole = true;
+                el = GetRootConstant(RootIndex::kUndefinedValue);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+              } else if (holey_cst->value().is_undefined_nan()) {
+                el = GetRootConstant(RootIndex::kUndefinedValue);
+#endif
+              }
+            } else if (el->properties().value_representation() ==
+                       ValueRepresentation::kHoleyFloat64) {
+              return {};
+            }
+            return el->Unwrap();
+          });
+    }
+    return {};
+  }
+
+  return {};
+}
+
 ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     ValueNode* target_node, CallArguments& args,
     VirtualObject* arguments_object,
@@ -11661,57 +11829,24 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
   DCHECK_EQ(args.mode(), CallArguments::kWithArrayLike);
   DCHECK(arguments_object->map()->IsJSArgumentsObjectMap() ||
          arguments_object->map()->IsJSArrayMap());
-  args.PopArrayLikeArgument();
   ValueNode* elements_value =
       arguments_object->get(offsetof(JSObject, elements_));
   if (ArgumentsElements* arguments_elements =
           elements_value->TryCast<ArgumentsElements>()) {
+    args.PopArrayLikeArgument();
     return BuildCallForwardArgumentsElements<CallForwardVarargs>(
         target_node, args, arguments_elements);
   }
 
-  if (elements_value->Is<RootConstant>()) {
-    // It is a RootConstant, Elements can only be the empty fixed array.
-    DCHECK_EQ(elements_value->Cast<RootConstant>()->index(),
-              RootIndex::kEmptyFixedArray);
-    CallArguments new_args(ConvertReceiverMode::kAny, {args.receiver()});
-    return ReduceCall(target_node, new_args, feedback_source);
+  std::optional<base::SmallVector<ValueNode*, 8>> arg_list =
+      TryExtractArgumentsFromElements(arguments_object, args, args.count() - 1);
+  if (!arg_list.has_value()) {
+    // On fallthrough, create a generic call.
+    return BuildGenericCall(target_node, Call::TargetType::kAny, args,
+                            feedback_source);
   }
 
-  if (HeapConstant* constant_value = elements_value->TryCast<HeapConstant>()) {
-    DCHECK(constant_value->object().IsFixedArray());
-    compiler::FixedArrayRef elements = constant_value->object().AsFixedArray();
-    base::SmallVector<ValueNode*, 8> arg_list;
-    DCHECK_NOT_NULL(args.receiver());
-    arg_list.push_back(args.receiver());
-    for (int i = 0; i < static_cast<int>(args.count()); i++) {
-      arg_list.push_back(args[i]);
-    }
-    for (uint32_t i = 0; i < elements.length(); i++) {
-      arg_list.push_back(GetConstant(*elements.TryGet(broker(), i)));
-    }
-    CallArguments new_args(ConvertReceiverMode::kAny, std::move(arg_list));
-    return ReduceCall(target_node, new_args, feedback_source);
-  }
-
-  DCHECK(elements_value->Is<InlinedAllocation>());
-  InlinedAllocation* allocation = elements_value->Cast<InlinedAllocation>();
-  VirtualObject* elements = allocation->object();
-
-  base::SmallVector<ValueNode*, 8> arg_list;
-  DCHECK_NOT_NULL(args.receiver());
-  arg_list.push_back(args.receiver());
-  for (int i = 0; i < static_cast<int>(args.count()); i++) {
-    arg_list.push_back(args[i]);
-  }
-  DCHECK(elements->get(offsetof(FixedArray, length_))->Is<Int32Constant>());
-  int length = elements->get(offsetof(FixedArray, length_))
-                   ->Cast<Int32Constant>()
-                   ->value();
-  for (int i = 0; i < length; i++) {
-    arg_list.push_back(elements->get(FixedArray::OffsetOfElementAt(i)));
-  }
-  CallArguments new_args(ConvertReceiverMode::kAny, std::move(arg_list));
+  CallArguments new_args(ConvertReceiverMode::kAny, std::move(*arg_list));
   return ReduceCall(target_node, new_args, feedback_source);
 }
 
@@ -11726,23 +11861,30 @@ MaglevGraphBuilder::TryReduceConstructWithSpreadForArgumentsObject(
 
   ValueNode* elements_value =
       arguments_object->get(offsetof(JSObject, elements_));
-  if (ArgumentsElements* arguments_elements =
-          elements_value->TryCast<ArgumentsElements>()) {
-    // For call/construct with spread, we need to also install a code
-    // dependency on the array iterator lookup protector cell to ensure
-    // that no one messed with the %ArrayIteratorPrototype%.next method.
-    if (!broker()->dependencies()->DependOnArrayIteratorProtector()) return {};
-
-    // Remove spread.
+  if (auto* arguments_elements = elements_value->TryCast<ArgumentsElements>()) {
+    if (!broker()->dependencies()->DependOnArrayIteratorProtector()) {
+      return {};
+    }
     args.PopSpread();
-
     ValueNode* tagged_new_target;
     GET_VALUE_OR_ABORT(tagged_new_target, GetTaggedValue(new_target));
     return BuildCallForwardArgumentsElements<ConstructForwardVarargs>(
         target, args, arguments_elements, tagged_new_target);
   }
 
-  return {};
+  std::optional<base::SmallVector<ValueNode*, 8>> arg_list =
+      TryExtractArgumentsFromElements(arguments_object, args, args.count() - 1);
+  if (!arg_list.has_value()) {
+    return {};
+  }
+
+  if (!broker()->dependencies()->DependOnArrayIteratorProtector()) {
+    return {};
+  }
+
+  CallArguments new_args(ConvertReceiverMode::kNullOrUndefined,
+                         std::move(*arg_list));
+  return BuildConstruct(target, new_target, new_args, feedback_source);
 }
 
 namespace {
@@ -11755,29 +11897,47 @@ bool IsSloppyMappedArgumentsObject(compiler::JSHeapBroker* broker,
 }  // namespace
 
 std::optional<VirtualObject*>
-MaglevGraphBuilder::TryGetNonEscapingArgumentsObject(ValueNode* value) {
-  if (!value->Is<InlinedAllocation>()) return {};
-  InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
-  // Although the arguments object has not been changed so far, since it is not
-  // escaping, it could be modified after this bytecode if it is inside a loop.
-  if (IsInsideLoop()) {
-    if (!is_loop_effect_tracking() ||
-        !loop_effects_->allocations.contains(alloc)) {
+MaglevGraphBuilder::TryGetNonEscapingArgumentsOrArray(ValueNode* value) {
+  auto try_get_non_escaping_alloc = [&](ValueNode* node) -> InlinedAllocation* {
+    if (!node->Is<InlinedAllocation>()) {
+      return nullptr;
+    }
+    InlinedAllocation* alloc = node->Cast<InlinedAllocation>();
+    if (IsInsideLoop() && (!is_loop_effect_tracking() ||
+                           !loop_effects_->allocations.contains(alloc))) {
+      return nullptr;
+    }
+    if (IsEscaping(alloc)) {
+      return nullptr;
+    }
+    return alloc;
+  };
+
+  InlinedAllocation* alloc = try_get_non_escaping_alloc(value);
+  if (!alloc) {
+    return {};
+  }
+
+  VirtualObject* object = alloc->object();
+  if (!object->has_static_map()) {
+    return {};
+  }
+  compiler::MapRef map = *object->map();
+  if (map.IsJSArrayMap()) {
+    if (!map.supports_fast_array_iteration(broker())) {
       return {};
     }
-  }
-  // TODO(victorgomes): We can probably loosen the IsNotEscaping requirement if
-  // we keep track of the arguments object changes so far.
-  if (IsEscaping(alloc)) return {};
-  VirtualObject* object = alloc->object();
-  if (!object->has_static_map()) return {};
-  // TODO(victorgomes): Support simple JSArray forwarding.
-  compiler::MapRef map = *object->map();
-  // It is a rest parameter, if it is an array with ArgumentsElements node as
-  // the elements array.
-  if (map.IsJSArrayMap() &&
-      object->get(offsetof(JSObject, elements_))->Is<ArgumentsElements>()) {
-    return object;
+    ValueNode* elements = object->get(offsetof(JSObject, elements_));
+    // Object is the rest parameter.
+    if (elements->Is<ArgumentsElements>()) {
+      return object;
+    }
+    if (try_get_non_escaping_alloc(elements)) {
+      return object;
+    }
+    if (elements->Is<RootConstant>() || elements->Is<HeapConstant>()) {
+      return object;
+    }
   }
   // TODO(victorgomes): We can loosen the IsSloppyMappedArgumentsObject
   // requirement if there is no stores to  the mapped arguments.
@@ -11793,9 +11953,8 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLike(
     const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(args.mode(), CallArguments::kWithArrayLike);
 
-  // TODO(victorgomes): Add the case for JSArrays and Rest parameter.
   if (std::optional<VirtualObject*> arguments_object =
-          TryGetNonEscapingArgumentsObject(args.array_like_argument())) {
+          TryGetNonEscapingArgumentsOrArray(args.array_like_argument())) {
     RETURN_IF_DONE(ReduceCallWithArrayLikeForArgumentsObject(
         target_node, args, *arguments_object, feedback_source));
   }
@@ -11805,9 +11964,65 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLike(
                           feedback_source);
 }
 
+ReduceResult MaglevGraphBuilder::ReduceCallWithSpread(
+    ValueNode* target_node, CallArguments& args,
+    const compiler::FeedbackSource& feedback_source) {
+  DCHECK_EQ(args.mode(), CallArguments::kWithSpread);
+
+  if (std::optional<VirtualObject*> arguments_object =
+          TryGetNonEscapingArgumentsOrArray(args.spread())) {
+    MaybeReduceResult result = TryReduceCallWithSpreadForArgumentsObject(
+        target_node, args, *arguments_object, feedback_source);
+    RETURN_IF_DONE(result);
+  }
+
+  // On fallthrough, create a generic call.
+  return BuildGenericCall(target_node, Call::TargetType::kAny, args,
+                          feedback_source);
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceCallWithSpreadForArgumentsObject(
+    ValueNode* target_node, CallArguments& args,
+    VirtualObject* arguments_object,
+    const compiler::FeedbackSource& feedback_source) {
+  DCHECK_EQ(args.mode(), CallArguments::kWithSpread);
+  DCHECK_NOT_NULL(arguments_object);
+  DCHECK(arguments_object->map()->IsJSArgumentsObjectMap() ||
+         arguments_object->map()->IsJSArrayMap());
+
+  auto* elements_value = arguments_object->get(offsetof(JSObject, elements_));
+  if (auto* arguments_elements = elements_value->TryCast<ArgumentsElements>()) {
+    if (!broker()->dependencies()->DependOnArrayIteratorProtector()) {
+      return {};
+    }
+    args.PopSpread();
+    return BuildCallForwardArgumentsElements<CallForwardVarargs>(
+        target_node, args, arguments_elements);
+  }
+
+  std::optional<base::SmallVector<ValueNode*, 8>> arg_list =
+      TryExtractArgumentsFromElements(arguments_object, args, args.count() - 1);
+  if (!arg_list.has_value()) {
+    return {};
+  }
+
+  if (!broker()->dependencies()->DependOnArrayIteratorProtector()) {
+    return {};
+  }
+
+  CallArguments new_args(ConvertReceiverMode::kAny, std::move(*arg_list));
+  return ReduceCall(target_node, new_args, feedback_source);
+}
+
 ReduceResult MaglevGraphBuilder::ReduceCall(
     ValueNode* target_node, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
+  if (args.mode() == CallArguments::kWithArrayLike) {
+    return ReduceCallWithArrayLike(target_node, args, feedback_source);
+  }
+  if (args.mode() == CallArguments::kWithSpread) {
+    return ReduceCallWithSpread(target_node, args, feedback_source);
+  }
   if (compiler::OptionalJSFunctionRef maybe_constant =
           TryGetConstant<JSFunction>(target_node)) {
     MaybeReduceResult result = TryReduceCallForTarget(
@@ -12782,6 +12997,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   // elements_kind below.
   bool values_all_smis = true, values_all_numbers = true,
        values_any_nonnumber = false;
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  auto is_undefined = [&](ValueNode* node, NodeType node_type) {
+    if (auto* root = node->TryCast<RootConstant>()) {
+      return root->index() == RootIndex::kUndefinedValue;
+    }
+    return NodeTypeIs(node_type, NodeType::kUndefined);
+  };
+  bool has_undefined = false;
+#endif
   base::SmallVector<ValueNode*, 16> values;
   values.reserve(arity);
   for (ValueNode* v : args) {
@@ -12790,9 +13014,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
       values_all_smis = false;
       if (!NodeTypeIs(node_type, NodeType::kNumber)) {
         values_all_numbers = false;
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        if (is_undefined(v, node_type)) {
+          has_undefined = true;
+        } else if (!NodeTypeCanBe(node_type, NodeType::kNumber)) {
+          values_any_nonnumber = true;
+        }
+#else
         if (!NodeTypeCanBe(node_type, NodeType::kNumber)) {
           values_any_nonnumber = true;
         }
+#endif
       }
     }
     values.push_back(v);
@@ -12805,6 +13037,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         elements_kind, IsHoleyElementsKind(elements_kind)
                            ? HOLEY_DOUBLE_ELEMENTS
                            : PACKED_DOUBLE_ELEMENTS);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  } else if (!values_any_nonnumber && has_undefined) {
+    elements_kind =
+        GetMoreGeneralElementsKind(elements_kind, HOLEY_DOUBLE_ELEMENTS);
+#endif
   } else if (values_any_nonnumber) {
     // We statically know that at least one value is not a number.
     elements_kind = GetMoreGeneralElementsKind(
@@ -12835,6 +13072,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     }
   } else if (IsDoubleElementsKind(elements_kind)) {
     for (ValueNode*& v : values) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+      if (is_undefined(v, GetType(v))) {
+        v = graph()->GetHoleyFloat64Constant(Float64::undefined_nan());
+        continue;
+      }
+#endif
       if (!NodeTypeIs(GetType(v), NodeType::kNumber)) {
         RETURN_IF_ABORT(BuildCheckNumber(v));
       }
@@ -12913,7 +13156,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
     compiler::JSFunctionRef target_constant,
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
     ValueNode* new_target, CallArguments& args,
-    compiler::FeedbackSource& feedback_source) {
+    const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(target_constant, TryGetConstant<HeapObject>(target).value());
 
   // Emit an inlined version of the construct stub. This can be either
@@ -13019,7 +13262,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstruct(
     compiler::HeapObjectRef target_constant, ValueNode* target,
     ValueNode* new_target, CallArguments& args,
-    compiler::FeedbackSource& feedback_source) {
+    const compiler::FeedbackSource& feedback_source) {
   // If we have AllocationSite feedback, we take a different path that calls
   // TryReduceConstructArrayConstructor directly.
   DCHECK(!target_constant.IsAllocationSite());
@@ -13064,7 +13307,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstruct(
 
 ReduceResult MaglevGraphBuilder::BuildConstruct(
     ValueNode* target, ValueNode* new_target, CallArguments& args,
-    compiler::FeedbackSource& feedback_source) {
+    const compiler::FeedbackSource& feedback_source) {
   compiler::ProcessedFeedback const& processed_feedback =
       broker()->GetFeedbackForCall(feedback_source);
   if (processed_feedback.IsInsufficient()) {
@@ -13075,10 +13318,9 @@ ReduceResult MaglevGraphBuilder::BuildConstruct(
   // Enable feedback-based speculation.
   SaveCallSpeculationScope saved(this, feedback_source);
 
-  // TODO(victorgomes): Add the case for Rest parameter.
   if (args.mode() == CallArguments::kWithSpread) {
     if (std::optional<VirtualObject*> arguments_object =
-            TryGetNonEscapingArgumentsObject(args.spread())) {
+            TryGetNonEscapingArgumentsOrArray(args.spread())) {
       PROCESS_AND_RETURN_IF_DONE(
           TryReduceConstructWithSpreadForArgumentsObject(
               target, new_target, args, *arguments_object, feedback_source),
