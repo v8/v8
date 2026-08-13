@@ -4476,9 +4476,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // r14: still holds argc (C caller-saved).
   __ LeaveExitFrame();
   if (argv_mode == ArgvMode::kStack) {
-    DCHECK(!AreAliased(scratch, argc_sav));
-    __ ShiftLeftU64(scratch, argc_sav, Operand(kSystemPointerSizeLog2));
-    __ AddS64(sp, sp, scratch);
+    __ Drop(argc_sav);
   }
 
   __ blr();

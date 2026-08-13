@@ -405,7 +405,9 @@ void MacroAssembler::Drop(int count) {
   }
 }
 
-void MacroAssembler::Drop(Register count, Register scratch) {
+void MacroAssembler::Drop(Register count) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   ShiftLeftU64(scratch, count, Operand(kSystemPointerSizeLog2));
   add(sp, sp, scratch);
 }
@@ -1222,12 +1224,7 @@ void MacroAssembler::Prologue() {
   }
 }
 
-void MacroAssembler::DropArguments(Register count) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  ShiftLeftU64(scratch, count, Operand(kSystemPointerSizeLog2));
-  add(sp, sp, scratch);
-}
+void MacroAssembler::DropArguments(Register count) { Drop(count); }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Register receiver) {
@@ -5196,8 +5193,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   } else {
     // {argc_operand} was loaded into {argc_reg} above.
     __ AddS64(sp, sp, Operand(slots_to_drop_on_return * kSystemPointerSize));
-    __ ShiftLeftU64(r0, argc_reg, Operand(kSystemPointerSizeLog2));
-    __ AddS64(sp, sp, r0);
+    __ Drop(argc_reg);
   }
 
   __ blr();
