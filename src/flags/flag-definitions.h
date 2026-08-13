@@ -3254,8 +3254,6 @@ DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
 // inspector
 DEFINE_BOOL(expose_inspector_scripts, false,
             "expose injected-script-source.js for debugging")
-DEFINE_BOOL(inspector_live_edit, false,
-            "deprecated and ignored (live edit is no longer supported)")
 
 // execution.cc
 //
