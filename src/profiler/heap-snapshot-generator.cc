@@ -1070,8 +1070,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     } else if (IsSlicedString(string)) {
       return AddEntry(object, HeapEntry::kSlicedString, "(sliced string)");
     } else {
-      return AddEntry(object, HeapEntry::kString,
-                      names_->GetName(Cast<String>(object)));
+      const char* name = IsScriptSource(string) ? names_->GetUntruncated(string)
+                                                : names_->GetName(string);
+      return AddEntry(object, HeapEntry::kString, name);
     }
   } else if (InstanceTypeChecker::IsSymbol(instance_type)) {
     if (Cast<Symbol>(object)->is_any_private()) {
@@ -1322,6 +1323,30 @@ void V8HeapExplorer::PopulateLineEnds() {
   for (auto& script : scripts) {
     snapshot_->AddScriptLineEnds(script->id(),
                                  Script::GetLineEnds(isolate(), script));
+  }
+}
+
+void V8HeapExplorer::RecordScriptSources() {
+  Script::Iterator iterator(isolate());
+  for (Tagged<Script> script = iterator.Next(); !script.is_null();
+       script = iterator.Next()) {
+    Tagged<Object> source = script->source();
+    if (!IsString(source)) continue;
+    // While script sources are flattened, the source isn't guaranteed to be a
+    // sequential string. A ConsString for example flattens to
+    // ConsString(<flattened>, "").
+    Tagged<String> current = Cast<String>(source);
+    while (script_sources_.insert(current).second) {
+      if (IsConsString(current)) {
+        current = Cast<ConsString>(current)->first();
+      } else if (IsSlicedString(current)) {
+        current = Cast<SlicedString>(current)->parent();
+      } else if (IsThinString(current)) {
+        current = Cast<ThinString>(current)->actual();
+      } else {
+        break;
+      }
+    }
   }
 }
 
@@ -1742,7 +1767,7 @@ class ExternalStringRecorder
 void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
                                              Tagged<String> string) {
   AddIntEdge(entry, HeapGraphEdge::kInternal, "length", string->length());
-  if (names_->NeedsTruncation(string->length())) {
+  if (names_->NeedsTruncation(string->length()) && !IsScriptSource(string)) {
     AddBoolEdge(entry, HeapGraphEdge::kInternal, "truncated", true);
     AddIntEdge(entry, HeapGraphEdge::kInternal, "hash",
                static_cast<int>(string->EnsureHash()));
@@ -3712,6 +3737,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   snapshot_->AddSyntheticRootEntries();
 
   v8_heap_explorer_.PopulateLineEnds();
+  v8_heap_explorer_.RecordScriptSources();
   if (!FillReferences()) return false;
 
   snapshot_->FillChildren();
@@ -3747,6 +3773,7 @@ bool HeapSnapshotGenerator::GenerateSnapshotAfterGC() {
       std::move(temporary_native_context_tags));
   snapshot_->AddSyntheticRootEntries();
   v8_heap_explorer_.PopulateLineEnds();
+  v8_heap_explorer_.RecordScriptSources();
   if (!FillReferences()) return false;
   snapshot_->FillChildren();
   snapshot_->RememberLastJSObjectId();

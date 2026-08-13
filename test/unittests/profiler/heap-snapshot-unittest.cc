@@ -977,4 +977,53 @@ TEST_F(HeapSnapshotTest, ScriptContextVariables) {
                     "NATIVE_CONTEXT_TYPE", SCRIPT_SCOPE, "SCRIPT_SCOPE");
 }
 
+TEST_F(HeapSnapshotTest, ScriptSourceStringsUntruncated) {
+  std::string script_source = "function very_long_function_name() { /* " +
+                              std::string(1500, 'x') + " */ return 42; }";
+  RunJS(script_source.c_str());
+
+  // Also test a dynamically constructed ConsString script source via eval.
+  std::string eval_script_source =
+      "function cons_script_func() { /* " + std::string(1500, 'z') + " */ }";
+  RunJS(
+      "eval('function cons_script_func() { /* ' + 'z'.repeat(1500) + ' */ "
+      "}');");
+
+  std::string regular_content(1500, 'y');
+  RunJS(
+      ("globalThis.regular_long_string = '" + regular_content + "';").c_str());
+
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* script_source_entry =
+      GetEntryByName(snapshot, script_source.c_str(), HeapEntry::kString);
+  ASSERT_NE(nullptr, script_source_entry);
+  EXPECT_STREQ(script_source.c_str(), script_source_entry->name());
+
+  // Truncated flag should not be present on script source entry.
+  std::optional<bool> script_truncated =
+      GetBoolEdge(script_source_entry, "truncated");
+  EXPECT_FALSE(script_truncated.has_value());
+
+  // ConsString script source should also not be truncated.
+  const HeapEntry* eval_source_entry =
+      GetEntryByName(snapshot, eval_script_source.c_str(), HeapEntry::kString);
+  ASSERT_NE(nullptr, eval_source_entry);
+  EXPECT_STREQ(eval_script_source.c_str(), eval_source_entry->name());
+  std::optional<bool> eval_script_truncated =
+      GetBoolEdge(eval_source_entry, "truncated");
+  EXPECT_FALSE(eval_script_truncated.has_value());
+
+  // Regular long string should be truncated to 1024 characters.
+  std::string expected_truncated_regular = regular_content.substr(0, 1024);
+  const HeapEntry* regular_string_entry = GetEntryByName(
+      snapshot, expected_truncated_regular.c_str(), HeapEntry::kString);
+  ASSERT_NE(nullptr, regular_string_entry);
+
+  std::optional<bool> regular_truncated =
+      GetBoolEdge(regular_string_entry, "truncated");
+  ASSERT_TRUE(regular_truncated.has_value());
+  EXPECT_TRUE(regular_truncated.value());
+}
+
 }  // namespace v8::internal
