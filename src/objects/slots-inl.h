@@ -321,6 +321,11 @@ void CppHeapPointerSlot::Release_StoreHandle(
   return base::AsAtomic32::Release_Store(location(), handle);
 }
 
+void CppHeapPointerSlot::Relaxed_StoreHandle(
+    CppHeapPointerHandle handle) const {
+  return base::AsAtomic32::Relaxed_Store(location(), handle);
+}
+
 #else
 
 void CppHeapPointerSlot::store(Address value) const {

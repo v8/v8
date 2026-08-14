@@ -46,6 +46,8 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   // are the same.
   inline bool SharesPointerTablesWith(IsolateForSandbox other) const;
 
+  inline Isolate* GetIsolate() const { return isolate_; }
+
  private:
   friend class IsolateForPointerCompression;
   Isolate* const isolate_;
@@ -90,6 +92,8 @@ class V8_EXPORT_PRIVATE IsolateForPointerCompression final {
 
   inline CppHeapPointerTable& GetCppHeapPointerTable();
   inline CppHeapPointerTable::Space* GetCppHeapPointerTableSpace();
+
+  inline Isolate* GetIsolate() const { return isolate_; }
 
  private:
   Isolate* const isolate_;

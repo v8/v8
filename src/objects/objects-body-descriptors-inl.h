@@ -91,10 +91,9 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Tagged<Map> map,
     for (int offset = header_end_offset; offset < inobject_fields_start_offset;
          offset += kEmbedderDataSlotSize) {
       IteratePointer(obj, offset + EmbedderDataSlot::kTaggedPayloadOffset, v);
-      v->VisitExternalPointer(
-          obj, obj->RawExternalPointerField(
-                   offset + EmbedderDataSlot::kExternalPointerOffset,
-                   {kFirstEmbedderDataTag, kLastEmbedderDataTag}));
+      v->VisitCppHeapPointer(
+          obj, obj->RawCppHeapPointerField(
+                   offset + EmbedderDataSlot::kCppHeapPointerOffset));
     }
     // Proceed processing inobject properties.
     start_offset = inobject_fields_start_offset;
@@ -1900,10 +1899,9 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
     for (int offset = EmbedderDataArray::OffsetOfElementAt(0);
          offset < object_size; offset += kEmbedderDataSlotSize) {
       IteratePointer(obj, offset + EmbedderDataSlot::kTaggedPayloadOffset, v);
-      v->VisitExternalPointer(
-          obj, obj->RawExternalPointerField(
-                   offset + EmbedderDataSlot::kExternalPointerOffset,
-                   {kFirstEmbedderDataTag, kLastEmbedderDataTag}));
+      v->VisitCppHeapPointer(
+          obj, obj->RawCppHeapPointerField(
+                   offset + EmbedderDataSlot::kCppHeapPointerOffset));
     }
   }
 
