@@ -13598,10 +13598,16 @@ TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
     CSA_DCHECK(this, IsJSReceiver(object));
 
     // Throw TypeError in case of non-instance prototype.
-    TNode<JSReceiver> callable_prototype = CAST(LoadJSFunctionPrototype(
+    TNode<JSPrototype> maybe_callable_prototype = CAST(LoadJSFunctionPrototype(
         CAST(callable), &return_runtime, &if_non_instance_prototype,
         &var_non_instance_prototype));
+    // Usually, we don't expect JSFunctions with prototypes to have initial
+    // maps with null prototype, however this is currently the case for shared
+    // struct constructors.
+    var_non_instance_prototype = maybe_callable_prototype;
+    GotoIf(IsNull(maybe_callable_prototype), &if_non_instance_prototype);
 
+    TNode<JSReceiver> callable_prototype = CAST(maybe_callable_prototype);
     // Loop through the prototype chain looking for the {callable} prototype.
     var_result = HasInPrototypeChain(context, object, callable_prototype);
     Goto(&return_result);
