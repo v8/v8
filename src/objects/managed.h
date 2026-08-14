@@ -126,8 +126,9 @@ inline constexpr int CppGCManagedBase::kSize = sizeof(CppGCManagedBase);
 // deletes its underlying {std::shared_ptr<T>}, thereby decrementing its
 // internal reference count, which will delete the C++ object when the reference
 // count drops to 0.
+V8_OBJECT
 template <class CppType>
-V8_OBJECT class CppGCManaged : public CppGCManagedBase {
+class CppGCManaged : public CppGCManagedBase {
  public:
   V8_OBJECT_INNER_CLASS class Ptr final {
    public:
