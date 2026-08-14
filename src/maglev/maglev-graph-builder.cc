@@ -4104,12 +4104,22 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
     ElementsKind elements_kind, ValueNode* elements, ValueNode* index,
     ValueNode* value) {
   // TODO(victorgomes): Support storing double element to a virtual object.
-  if (value->value_representation() == ValueRepresentation::kHoleyFloat64) {
-    DCHECK_EQ(elements_kind, HOLEY_DOUBLE_ELEMENTS);
-    return AddNewNode<StoreFixedHoleyDoubleArrayElement>(
-        {elements, index, value});
+  DCHECK(value->is_float64_or_holey_float64());
+  if (value->is_holey_float64()) {
+    if (value->MayBeHoleOrUndefinedNan()) {
+      // The value can be undefined. Both NaN patterns mean undefined here, but
+      // an array element only ever holds the undefined one, so the store
+      // rewrites the hole NaN into it.
+      DCHECK(IsHoleyElementsKind(elements_kind));
+      return AddNewNode<StoreFixedHoleyDoubleArrayElement>(
+          {elements, index, value});
+    }
+    value = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({value});
   }
-  DCHECK_EQ(value->value_representation(), ValueRepresentation::kFloat64);
+  if (value->MayBeHoleOrUndefinedNan()) {
+    GET_VALUE_OR_ABORT(value, AddNewNode<Float64ToSilencedFloat64>({value}));
+  }
+  CHECK(!value->MayBeHoleOrUndefinedNan());
   return AddNewNode<StoreFixedDoubleArrayElement>({elements, index, value});
 }
 
@@ -4508,7 +4518,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
     if (access_info.IsFastDataConstant()) {
       // Force conversion to Float64 to ensure we can check for hole NaN.
       GET_VALUE_OR_ABORT(value, GetFloat64(value));
-      GET_VALUE_OR_ABORT(value, GetSilencedNaN(value));
+      if (value->MayBeHoleOrUndefinedNan()) {
+        GET_VALUE_OR_ABORT(value,
+                           AddNewNode<Float64ToSilencedFloat64>({value}));
+      }
     }
     if (access_info.HasTransitionMap()) {
       // Allocate the mutable double box owned by the field.
@@ -5404,20 +5417,10 @@ ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
     if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
       value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
-      ValueNode* value_hf64;
-      GET_VALUE_OR_ABORT(value_hf64, GetHoleyFloat64(value));
-      // We still have to convert hole nans to undefined nans for storing.
-      GET_VALUE_OR_ABORT(
-          value, AddNewNode<HoleyFloat64ConvertHoleToUndefined>({value_hf64}));
-      return value;
+      return GetHoleyFloat64(value);
     }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
-    // Make sure we do not store signalling NaNs into double arrays.
-    // TODO(leszeks): Consider making this a bit on StoreFixedDoubleArrayElement
-    // rather than a separate node.
-    ValueNode* float64_value;
-    GET_VALUE_OR_ABORT(float64_value, GetFloat64(value));
-    return GetSilencedNaN(float64_value);
+    return GetFloat64(value);
   }
   if (IsSmiElementsKind(kind)) return GetSmiValue(value);
   return value;
@@ -10453,9 +10456,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
     if (IsDoubleElementsKind(kind)) {
       GET_VALUE_OR_ABORT(value, BuildLoadFixedDoubleArrayElement(
                                     writable_elements_array, new_array_length));
-      RETURN_IF_ABORT(BuildStoreFixedDoubleArrayElement(
-          kind, writable_elements_array, new_array_length,
-          GetFloat64Constant(Float64::FromBits(kHoleNanInt64))));
+      RETURN_IF_ABORT(AddNewNode<StoreFixedDoubleArrayElement>(
+          {writable_elements_array, new_array_length,
+           GetFloat64Constant(Float64::FromBits(kHoleNanInt64))}));
     } else {
       DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
       GET_VALUE_OR_ABORT(value, BuildLoadFixedArrayElement(
@@ -13076,9 +13079,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         RETURN_IF_ABORT(BuildCheckNumber(v));
       }
       DCHECK(NodeTypeIs(GetType(v), NodeType::kNumber));
-      ValueNode* float64_value;
-      GET_VALUE_OR_ABORT(float64_value, GetFloat64(v));
-      GET_VALUE_OR_ABORT(v, GetSilencedNaN(float64_value));
+      GET_VALUE_OR_ABORT(v, GetFloat64(v));
+      if (v->MayBeHoleOrUndefinedNan()) {
+        GET_VALUE_OR_ABORT(v, AddNewNode<Float64ToSilencedFloat64>({v}));
+      }
     }
   }
 
@@ -17368,38 +17372,6 @@ void MaglevGraphBuilder::Print(ValueNode* value) {
 void MaglevGraphBuilder::Print(const char* str, ValueNode* value) {
   Print(str);
   Print(value);
-}
-
-ReduceResult MaglevGraphBuilder::GetSilencedNaN(ValueNode* value) {
-  DCHECK_EQ(value->properties().value_representation(),
-            ValueRepresentation::kFloat64);
-
-  // We only need to check for silenced NaN in non-conversion nodes or
-  // conversion from tagged, since they can't be signalling NaNs.
-  if (value->is_conversion()) {
-    // A conversion node should have at least one input.
-    DCHECK_GE(value->input_count(), 1);
-    // If the conversion node is tagged, we could be reading a fabricated sNaN
-    // value (built using a BufferArray for example).
-    if (!value->input(0).node()->properties().is_tagged()) {
-      // Conversions out of HoleyFloat64 propagate the hole and undefined NaN
-      // patterns, unless they deopt on them.
-      CHECK(!value->input_node(0)->is_holey_float64() ||
-            value->Is<CheckedHoleyFloat64ToFloat64>());
-      return value;
-    }
-  }
-
-  // Special case constants, since we know what they are.
-  Float64Constant* constant = value->TryCast<Float64Constant>();
-  if (constant) {
-    constexpr double quiet_NaN = std::numeric_limits<double>::quiet_NaN();
-    if (!constant->value().is_nan()) return constant;
-    return GetFloat64Constant(quiet_NaN);
-  }
-
-  // Silence all other values.
-  return AddNewNode<Float64ToSilencedFloat64>({value});
 }
 
 ValueNode* MaglevGraphBuilder::GetSecondValue(ValueNode* result) {

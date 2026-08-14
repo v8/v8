@@ -164,6 +164,9 @@ class MaglevGraphBuilder {
   Float64Constant* GetFloat64Constant(Float64 constant) {
     return graph()->GetFloat64Constant(constant);
   }
+  HoleyFloat64Constant* GetHoleyFloat64Constant(Float64 constant) {
+    return graph()->GetHoleyFloat64Constant(constant);
+  }
   RootConstant* GetRootConstant(RootIndex index) {
     return graph()->GetRootConstant(index);
   }
@@ -746,8 +749,6 @@ class MaglevGraphBuilder {
     return GetFloat64ForToNumber(
         reg, AllowUndefinedInputForArithmetic(reg, assumed_input_type));
   }
-
-  ReduceResult GetSilencedNaN(ValueNode* value);
 
   bool IsRegisterEqualToAccumulator(int operand_index) {
     interpreter::Register source = iterator_.GetRegisterOperand(operand_index);

@@ -777,20 +777,11 @@ void MaglevPhiRepresentationSelector::UntagConversionInput(
   ValueRepresentation from_repr = bypassed_input->value_representation();
   ValueNode* new_input;
   if (from_repr == repr) {
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    if (input->Is<HoleyFloat64ToTagged>()) {
-      DCHECK_EQ(from_repr, ValueRepresentation::kHoleyFloat64);
-      // HoleyFloat64ToTagged conversion does convert holes to undefined, so
-      // we need to preserve this behavior even if we eliminate that node.
-      new_input = GetReplacementForPhiInputConversion<
-          HoleyFloat64ConvertHoleToUndefined>(bypassed_input, phi, input_index);
-    } else {
-#endif
-      TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
-      new_input = bypassed_input;
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    }
-#endif
+    // A HoleyFloat64ToTagged we bypass here converts holes to undefined, but
+    // the two are the same value: only stores tell them apart, and those
+    // canonicalize the bits themselves.
+    TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
+    new_input = bypassed_input;
   } else {
     Opcode conv_opcode = GetOpcodeForConversion(from_repr, repr, truncating);
     switch (conv_opcode) {

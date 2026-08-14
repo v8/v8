@@ -3695,14 +3695,27 @@ class GraphBuildingNodeProcessor {
                               WriteBarrierKind::kFullWriteBarrier);
     return maglev::ProcessResult::kContinue;
   }
-  template <Either<maglev::StoreFixedDoubleArrayElement,
-                   maglev::StoreFixedHoleyDoubleArrayElement>
-                T>
-  maglev::ProcessResult Process(T* node, const maglev::ProcessingState& state) {
+  maglev::ProcessResult Process(maglev::StoreFixedDoubleArrayElement* node,
+                                const maglev::ProcessingState& state) {
     __ StoreFixedDoubleArrayElement(
         Map(node->ElementsInput()),
         __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
         Map(node->ValueInput()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreFixedHoleyDoubleArrayElement* node,
+                                const maglev::ProcessingState& state) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    ScopedVar<Float64, AssemblerT> value(this, Map(node->ValueInput()));
+    IF (__ Float64IsHole(value)) {
+      value = __ Float64Constant(internal::Float64::undefined_nan());
+    }
+#else
+    V<Float64> value = Map(node->ValueInput());
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+    __ StoreFixedDoubleArrayElement(
+        Map(node->ElementsInput()),
+        __ ChangeInt32ToIntPtr(Map(node->IndexInput())), value);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreMap* node,
@@ -5487,21 +5500,6 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ Float64SilenceNaN(Map(node->ValueInput())));
     return maglev::ProcessResult::kContinue;
   }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-  maglev::ProcessResult Process(
-      maglev::HoleyFloat64ConvertHoleToUndefined* node,
-      const maglev::ProcessingState& state) {
-    V<Float64> input = Map(node->ValueInput());
-
-    ScopedVar<Float64, AssemblerT> result(this, input);
-    IF (__ Float64IsHole(input)) {
-      result = __ Float64Constant(internal::Float64::undefined_nan());
-    }
-
-    SetMap(node, result);
-    return maglev::ProcessResult::kContinue;
-  }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::CheckedHoleyFloat64ToFloat64* node,
                                 const maglev::ProcessingState& state) {
     V<Float64> input = Map(node->ValueInput());

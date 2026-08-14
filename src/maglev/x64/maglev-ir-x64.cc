@@ -1074,21 +1074,6 @@ void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
 void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
                                                const ProcessingState& state) {}
 
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-void HoleyFloat64ConvertHoleToUndefined::SetValueLocationConstraints() {
-  UseRegister(ValueInput());
-  DefineSameAsFirst(this);
-}
-void HoleyFloat64ConvertHoleToUndefined::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(ValueInput());
-  Label done;
-  __ JumpIfNotHoleNan(value, kScratchRegister, &done);
-  __ Move(value, UndefinedNan());
-  __ bind(&done);
-}
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-
 namespace {
 
 enum class ReduceInterruptBudgetType { kLoop, kReturn };

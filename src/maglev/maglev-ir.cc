@@ -641,6 +641,87 @@ bool NodeBase::IsStructurallyEqualTo(const NodeBase* other) const {
   UNREACHABLE();
 }
 
+bool ValueNode::MayBeHoleOrUndefinedNan() const {
+  DCHECK(is_float64_or_holey_float64());
+  switch (opcode()) {
+    // Values built out of integers, values that were canonicalized already, and
+    // conversions that deopt on the hole and undefined NaNs.
+    case Opcode::kChangeInt32ToFloat64:
+    case Opcode::kChangeInt32ToHoleyFloat64:
+    case Opcode::kChangeIntPtrToFloat64:
+    case Opcode::kChangeUint32ToFloat64:
+    case Opcode::kChangeUint32ToHoleyFloat64:
+    case Opcode::kChangeFloat64ToHoleyFloat64:
+    case Opcode::kFloat64ToSilencedFloat64:
+    case Opcode::kCheckedHoleyFloat64ToFloat64:
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole:
+#else
+    case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotHole:
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+      return false;
+
+    // Both patterns are signalling NaNs, and an IEEE 754 arithmetic
+    // instruction never returns one: a NaN operand comes back quieted, and a
+    // NaN produced out of non-NaN operands is the default quiet NaN. This says
+    // nothing about the operations implemented as a call into C, which can
+    // hand back the NaN they were given.
+    case Opcode::kFloat64Add:
+    case Opcode::kFloat64SpeculateSafeAdd:
+    case Opcode::kFloat64Subtract:
+    case Opcode::kFloat64Multiply:
+    case Opcode::kFloat64Divide:
+    case Opcode::kFloat64Sqrt:
+      return false;
+
+    case Opcode::kFloat64Constant:
+      return Cast<Float64Constant>()->value().is_undefined_or_hole_nan();
+    case Opcode::kHoleyFloat64Constant:
+      return Cast<HoleyFloat64Constant>()->value().is_undefined_or_hole_nan();
+
+    case Opcode::kReturnedValue:
+      return input_node(0)->MayBeHoleOrUndefinedNan();
+
+    // Reads of memory that anyone can write the patterns into, casts that
+    // reinterpret HoleyFloat64 bits as a number, and operations on the bits
+    // rather than on the value: negating 0x7FF7'FFFF'FFF7'FFFF yields the hole,
+    // and Float64Max returns its input untouched when both inputs are the same
+    // node.
+    case Opcode::kLoadFloat64:
+    case Opcode::kLoadFixedDoubleArrayElement:
+    case Opcode::kLoadHoleyFixedDoubleArrayElement:
+    case Opcode::kLoadDoubleDataViewElement:
+    case Opcode::kLoadDoubleTypedArrayElement:
+    case Opcode::kLoadDoubleConstantTypedArrayElement:
+    case Opcode::kCheckedNumberToFloat64:
+    case Opcode::kCheckedNumberOrOddballToFloat64:
+    case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
+    case Opcode::kUnsafeNumberToFloat64:
+    case Opcode::kUnsafeNumberOrOddballToFloat64:
+    case Opcode::kUnsafeNumberOrOddballToHoleyFloat64:
+    case Opcode::kUnsafeHoleyFloat64ToFloat64:
+    case Opcode::kUnsafeFloat64ToHoleyFloat64:
+    case Opcode::kFloat64Abs:
+    case Opcode::kFloat64Negate:
+    case Opcode::kFloat64Max:
+    case Opcode::kFloat64Min:
+    case Opcode::kFloat64Round:
+    case Opcode::kFloat64RoundToFloat32:
+    case Opcode::kFloat64Modulus:
+    case Opcode::kFloat64Exponentiate:
+    case Opcode::kFloat64Ieee754Unary:
+    case Opcode::kFloat64Ieee754Binary:
+    // TODO(victorgomes): Look through the inputs instead.
+    case Opcode::kPhi:
+      return true;
+
+    default:
+      // Every node that can produce a Float64 or HoleyFloat64 value has to be
+      // classified above.
+      UNREACHABLE();
+  }
+}
+
 void ValueNode::SetHint(compiler::InstructionOperand hint) {
   DCHECK_EQ(state_, kRegallocInfo);
   auto node_info = regalloc_info();
@@ -3621,6 +3702,13 @@ void StoreFixedDoubleArrayElementT<
     Derived, value_input_rep>::SetValueLocationConstraints() {
   UseRegister(ElementsInput());
   UseRegister(IndexInput());
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  if constexpr (value_input_rep == ValueRepresentation::kHoleyFloat64) {
+    UseAndClobberRegister(ValueInput());
+    this->set_temporaries_needed(1);
+    return;
+  }
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   UseRegister(ValueInput());
 }
 template <typename Derived, ValueRepresentation value_input_rep>
@@ -3635,6 +3723,16 @@ void StoreFixedDoubleArrayElementT<Derived, value_input_rep>::GenerateCode(
     __ CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
                              AbortReason::kUnexpectedNegativeValue);
   }
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  if constexpr (value_input_rep == ValueRepresentation::kHoleyFloat64) {
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    Label done;
+    __ JumpIfNotHoleNan(value, scratch, &done);
+    __ Move(value, UndefinedNan());
+    __ bind(&done);
+  }
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   __ StoreFixedDoubleArrayElement(elements, index, value);
 }
 

@@ -376,7 +376,6 @@ class ExceptionHandlerInfo;
   V(UnsafeHoleyFloat64ToFloat64)                                      \
   V(UnsafeFloat64ToHoleyFloat64)                                      \
   V(Float64ToSilencedFloat64)                                         \
-  IF_UD(V, HoleyFloat64ConvertHoleToUndefined)                        \
   IF_UD(V, HoleyFloat64IsUndefinedOrHole)                             \
   IF_NOT_UD(V, HoleyFloat64IsHole)                                    \
   V(LogicalNot)                                                       \
@@ -2714,6 +2713,12 @@ class ValueNode : public Node {
     return is_float64() || is_holey_float64();
   }
 
+  // Whether the bits of this value could be one of the NaN patterns that
+  // HoleyFloat64 gives a meaning to. Only false if that is provably not the
+  // case, so that whoever writes those bits somewhere they would regain that
+  // meaning (a double array, mainly) can skip canonicalizing them.
+  bool MayBeHoleOrUndefinedNan() const;
+
 #ifdef V8_COMPRESS_POINTERS
   constexpr bool decompresses_tagged_result() const {
     return TaggedResultNeedsDecompressField::decode(bitfield());
@@ -4558,20 +4563,6 @@ class UnsafeFloat64ToHoleyFloat64
 };
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-class HoleyFloat64ConvertHoleToUndefined
-    : public FixedInputValueNodeT<1, HoleyFloat64ConvertHoleToUndefined> {
- public:
-  explicit HoleyFloat64ConvertHoleToUndefined(uint64_t bitfield)
-      : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
-  DECLARE_UNOP(HoleyFloat64)
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-};
-
 class HoleyFloat64IsUndefinedOrHole
     : public FixedInputValueNodeT<1, HoleyFloat64IsUndefinedOrHole> {
  public:
@@ -8906,6 +8897,9 @@ class StoreFixedDoubleArrayElement
   explicit StoreFixedDoubleArrayElement(uint64_t bitfield) : Base(bitfield) {}
 };
 
+// Stores a value that can be undefined. HoleyFloat64 spells undefined in two
+// ways, while an element of the array only ever spells it as the undefined
+// NaN, so the store canonicalizes onto that one.
 class StoreFixedHoleyDoubleArrayElement
     : public StoreFixedDoubleArrayElementT<StoreFixedHoleyDoubleArrayElement,
                                            ValueRepresentation::kHoleyFloat64> {

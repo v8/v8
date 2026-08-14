@@ -2736,12 +2736,6 @@ ProcessResult MaglevGraphOptimizer::VisitChangeFloat64ToHoleyFloat64(
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 
-ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ConvertHoleToUndefined(
-    HoleyFloat64ConvertHoleToUndefined* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsUndefinedOrHole(
     HoleyFloat64IsUndefinedOrHole* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

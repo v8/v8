@@ -1967,6 +1967,12 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       DCHECK_EQ(use_rep, UseRepresentation::kHoleyFloat64);
       // We only set the holey_float64 alternative if all feasible values are
       // allowed according to `assumed_input_type`.
+      if (!value->MayBeHoleOrUndefinedNan()) {
+        return alternative.set_holey_float64(
+            AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>({value}));
+      }
+      // The value is a number, so its bits must not keep meaning the hole or
+      // undefined in the wider representation.
       return alternative.set_holey_float64(
           AddNewNodeNoInputConversion<ChangeFloat64ToHoleyFloat64>({value}));
     case ValueRepresentation::kHoleyFloat64: {
