@@ -4556,6 +4556,7 @@ class UnsafeFloat64ToHoleyFloat64
   DECLARE_UNOP(Float64)
 
   int MaxCallStackArgs() const { return 0; }
+  void VerifyInputs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 

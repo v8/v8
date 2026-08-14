@@ -1058,6 +1058,11 @@ void InlinedAllocation::VerifyInputs() const {
   CheckInputIs(0, Opcode::kAllocationBlock);
 }
 
+void UnsafeFloat64ToHoleyFloat64::VerifyInputs() const {
+  Base::VerifyInputs();
+  CHECK(!input_node(0)->UnwrapIdentities()->MayBeHoleOrUndefinedNan());
+}
+
 AllocationBlock* InlinedAllocation::allocation_block() {
   return AllocationBlockInput().node()->Cast<AllocationBlock>();
 }
