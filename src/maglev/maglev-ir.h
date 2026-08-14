@@ -47,6 +47,7 @@
 #include "src/objects/arguments.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-array-buffer.h"
+#include "src/objects/js-collection-iterator.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
@@ -6065,6 +6066,16 @@ struct VirtualJSStringIteratorShape : VirtualJSObjectShape {
   using T = JSStringIterator;
 #define FIELD_LIST(V)                                       \
   V(string, offsetof(T, string_), vobj::FieldType::kTagged) \
+  V(index, offsetof(T, index_), vobj::FieldType::kTagged)
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSMapIteratorShape : VirtualJSObjectShape {
+  using T = JSCollectionIterator;
+#define FIELD_LIST(V)                                     \
+  V(table, offsetof(T, table_), vobj::FieldType::kTagged, \
+    vobj::FieldConstness::kConstAfterInit)                \
   V(index, offsetof(T, index_), vobj::FieldType::kTagged)
   DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST

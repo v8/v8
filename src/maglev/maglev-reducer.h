@@ -1010,6 +1010,7 @@ class MaglevReducer {
                                         ValueNode* done);
   VirtualObject* CreateJSStringIterator(compiler::MapRef map,
                                         ValueNode* string);
+  VirtualObject* CreateJSMapIterator(compiler::MapRef map, ValueNode* table);
   VirtualObject* CreateJSStringWrapper(ValueNode* value);
   VirtualObject* CreateJSPromiseObject();
   VirtualObject* CreateAsyncResumeTask(ValueNode* generator, ValueNode* value,
@@ -1212,6 +1213,9 @@ class MaglevReducer {
   V(DatePrototypeGetSeconds)                   \
   V(DatePrototypeGetTime)                      \
   V(FunctionPrototypeHasInstance)              \
+  V(MapPrototypeEntries)                       \
+  V(MapPrototypeKeys)                          \
+  V(MapPrototypeValues)                        \
   V(MathAbs)                                   \
   V(MathCeil)                                  \
   V(MathClz32)                                 \
@@ -1241,6 +1245,9 @@ class MaglevReducer {
                                     CallArguments& args);
   MAGLEV_REDUCER_BUILTIN(DECLARE_BUILTIN_REDUCER)
 #undef DECLARE_BUILTIN_REDUCER
+
+  MaybeReduceResult TryReduceMapIteratorCreation(CallArguments& args,
+                                                 IterationKind iteration_kind);
 
   // Reduces a TypedArray construct (not call — calling a TypedArray
   // constructor without new throws) to Builtin::kCreateTypedArray.

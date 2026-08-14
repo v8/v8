@@ -5952,6 +5952,24 @@ VirtualObject* MaglevReducer<BaseT>::CreateJSStringIterator(
 }
 
 template <typename BaseT>
+VirtualObject* MaglevReducer<BaseT>::CreateJSMapIterator(compiler::MapRef map,
+                                                         ValueNode* table) {
+  using Shape = VirtualJSMapIteratorShape;
+  static_assert(sizeof(JSMapIterator) == 5 * kTaggedSize);
+  int slot_count = Shape::header_slot_count;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), zone(), &Shape::kObjectLayout, map, slot_count);
+  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
+  vobj->set(offsetof(JSCollectionIterator, properties_or_hash_),
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(offsetof(JSCollectionIterator, elements_),
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(offsetof(JSCollectionIterator, table_), table);
+  vobj->set(offsetof(JSCollectionIterator, index_), GetInt32Constant(0));
+  return vobj;
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReducePromisePrototypeThen(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
@@ -6276,6 +6294,61 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceTypedArrayConstructor(
   return BuildCallBuiltinWithTaggedInputs<Builtin::kCreateTypedArray>(
       GetConstant(broker()->target_native_context()),
       {target_node, new_target, arg0, arg1, arg2});
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceMapIteratorCreation(
+    CallArguments& args, IterationKind iteration_kind) {
+  if (!CanSpeculateCall()) return {};
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    return {};
+  }
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  MapInference<MaglevReducer<BaseT>> inference(this, receiver);
+  auto possible_receiver_maps = inference.TryGetPossibleMaps();
+  if (!possible_receiver_maps || possible_receiver_maps->is_empty()) {
+    return {};
+  }
+  if (!std::all_of(possible_receiver_maps->begin(),
+                   possible_receiver_maps->end(), [](compiler::MapRef map) {
+                     return map.instance_type() == JS_MAP_TYPE;
+                   })) {
+    return {};
+  }
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
+
+  ValueNode* table;
+  GET_VALUE_OR_ABORT(
+      table, BuildLoadTaggedField(receiver, offsetof(JSCollection, table_),
+                                  NodeType::kAnyHeapObject));
+
+  compiler::NativeContextRef nc = broker()->target_native_context();
+  compiler::MapRef iterator_map =
+      iteration_kind == IterationKind::kEntries
+          ? nc.map_key_value_iterator_map(broker())
+          : (iteration_kind == IterationKind::kKeys
+                 ? nc.map_key_iterator_map(broker())
+                 : nc.map_value_iterator_map(broker()));
+  VirtualObject* iterator = CreateJSMapIterator(iterator_map, table);
+  return BuildInlinedAllocation(iterator, AllocationType::kYoung);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceMapPrototypeEntries(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceMapIteratorCreation(args, IterationKind::kEntries);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceMapPrototypeKeys(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceMapIteratorCreation(args, IterationKind::kKeys);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceMapPrototypeValues(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceMapIteratorCreation(args, IterationKind::kValues);
 }
 
 template <typename BaseT>
