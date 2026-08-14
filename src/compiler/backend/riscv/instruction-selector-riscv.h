@@ -188,7 +188,7 @@ static void VisitSimdShift(InstructionSelector* selector, ArchOpcode opcode,
                            OpIndex node) {
   RiscvOperandGenerator g(selector);
   const Operation& op = selector->Get(node);
-  OpIndex rhs = op.input(0);
+  OpIndex rhs = op.input(1);
   if (selector->Get(rhs).TryCast<ConstantOp>()) {
     selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
                    g.UseImmediate(op.input(1)));

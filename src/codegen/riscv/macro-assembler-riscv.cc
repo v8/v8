@@ -2810,7 +2810,7 @@ void MacroAssembler::SaveVectorRegisters(const Simd128RegList& reg_list) {
       }
     } else {
       SubWord(sp, sp,
-              Operand(-static_cast<int32_t>(reg_list.Count()) * kSimd128Size));
+              Operand(static_cast<int32_t>(reg_list.Count()) * kSimd128Size));
     }
   }
 }
@@ -8275,7 +8275,7 @@ void MacroAssembler::BranchRange(Label* L, Condition cond, Register value,
     SubWord(scratch, value, Operand(lower_limit));
     Branch(L, cond, scratch, Operand(higher_limit - lower_limit), distance);
   } else {
-    Branch(L, cond, scratch, Operand(higher_limit - lower_limit), distance);
+    Branch(L, cond, value, Operand(higher_limit), distance);
   }
 }
 
