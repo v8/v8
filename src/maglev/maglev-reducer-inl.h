@@ -6279,6 +6279,12 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceTypedArrayConstructor(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceReturnReceiver(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return GetValueOrUndefined(args.receiver());
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
     Builtin builtin_id, ValueNode* context, compiler::JSFunctionRef target,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {

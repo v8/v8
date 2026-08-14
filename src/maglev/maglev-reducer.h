@@ -1229,6 +1229,7 @@ class MaglevReducer {
   V(PromisePrototypeThen)                      \
   V(PromiseResolveTrampoline)                  \
   V(RegExpPrototypeTest)                       \
+  V(ReturnReceiver)                            \
   IEEE_754_UNARY_LIST(V)                       \
   IEEE_754_BINARY_LIST(V)                      \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
