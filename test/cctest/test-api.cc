@@ -32144,65 +32144,6 @@ TEST(ContinuationPreservedEmbedderDataV2_CppHeapExternal) {
   isolate->Dispose();
 }
 
-TEST(EmbedderDataAlignedPointers_CppHeapPointer) {
-  v8::Isolate::CreateParams create_params = CreateTestParams();
-  create_params.cpp_heap =
-      v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),
-                          v8::CppHeapCreateParams({}))
-          .release();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  isolate->Enter();
-  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
-
-  {
-    v8::HandleScope scope(isolate);
-    LocalContext env(isolate);
-    v8::Local<v8::Object> obj = v8::Object::New(isolate);
-
-    cppgc::Persistent<TestGarbagedCollectedData> cpp_object(
-        cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
-            cpp_heap->GetAllocationHandle()));
-
-    // Null pointer test.
-    (*env)->SetAlignedPointerInEmbedderData(
-        0, static_cast<TestGarbagedCollectedData*>(nullptr),
-        v8::CppHeapPointerTag::kTagForTesting);
-    CHECK_EQ(
-        nullptr,
-        (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
-            isolate, 0, v8::CppHeapPointerTag::kTagForTesting));
-    CHECK_EQ(nullptr, obj->GetAlignedPointerFromEmbedderDataInCreationContext(
-                          isolate, 0, v8::CppHeapPointerTag::kTagForTesting));
-
-    // Valid cppgc object test.
-    (*env)->SetAlignedPointerInEmbedderData(
-        1, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
-    CHECK_EQ(
-        cpp_object.Get(),
-        (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
-            isolate, 1, v8::CppHeapPointerTag::kTagForTesting));
-    CHECK_EQ(cpp_object.Get(),
-             obj->GetAlignedPointerFromEmbedderDataInCreationContext(
-                 isolate, 1, v8::CppHeapPointerTag::kTagForTesting));
-
-    // Detached global proxy test.
-    v8::Local<v8::Object> global_obj = env->Global();
-    (*env)->SetAlignedPointerInEmbedderData(
-        2, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
-    CHECK_EQ(cpp_object.Get(),
-             global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
-                 isolate, 2, v8::CppHeapPointerTag::kTagForTesting));
-
-    env->DetachGlobal();
-    CHECK_EQ(cpp_object.Get(),
-             global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
-                 isolate, 2, v8::CppHeapPointerTag::kTagForTesting));
-  }
-
-  isolate->Exit();
-  isolate->Dispose();
-}
-
 TEST(IsolateFree) {
   v8::Isolate* isolate1 = v8::Isolate::Allocate();
   v8::Isolate::Initialize(isolate1, CreateTestParams());

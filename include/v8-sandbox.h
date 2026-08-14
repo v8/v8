@@ -63,7 +63,6 @@ enum class CppHeapPointerTag : uint16_t {
   kMicrotaskQueueTag,
   kWasmMemoryMapDescriptorTag,
   kCppGCManagedTag,
-  kEmbedderDataSlotTag,
   kLastV8InternalTag,
 
 #if !V8_ENABLE_SANDBOX

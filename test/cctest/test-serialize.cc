@@ -4746,10 +4746,18 @@ UNINITIALIZED_TEST(SerializeContextData) {
         v8::Local<v8::Context> context =
             v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
         CHECK_NULL(context->GetAlignedPointerFromEmbedderData(0, kRawDataTag));
-        // Embedder pointers stored in embedder slots are always cleared during
-        // snapshot serialization if no custom serializer/deserializer is
-        // provided.
-        CHECK_NULL(context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
+        // It would be more consistent if the API would always null out pointers
+        // stored in embedder slots (if no custom serializer/deserializer is
+        // provided), but in the wide pointer case we don't actually know
+        // whether it's a pointer or a Smi, so we just let these values pass
+        // through.
+        if (V8_ENABLE_SANDBOX_BOOL) {
+          CHECK_NULL(
+              context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
+        } else {
+          CHECK_EQ(raw_data,
+                   context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
+        }
       }
       isolate->Dispose();
     }

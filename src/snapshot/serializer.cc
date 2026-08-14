@@ -1141,8 +1141,7 @@ void Serializer::ObjectSerializer::VisitCppHeapPointer(
   // wrapper serialization is implemented in
   // `ContextSerializer::SerializeApiWrapperFields()`.
   DCHECK(IsJSApiWrapperObjectMap(object_->map()) || IsNativeContext(*object_) ||
-         IsCppGCManagedBase(*object_) ||
-         IsEmbedderDataArray(*object_));
+         IsCppGCManagedBase(*object_));
   static_assert(kCppHeapPointerSlotSize % kTaggedSize == 0);
   sink_->Put(
       FixedRawDataWithSize::Encode(kCppHeapPointerSlotSize >> kTaggedSizeLog2),
@@ -1192,6 +1191,9 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
     // Serialization of external references in other objects is handled
     // elsewhere or not supported.
     DCHECK(
+        // Serialization of external pointers stored in EmbedderDataArray
+        // is not supported yet, mostly because it's not used.
+        InstanceTypeChecker::IsEmbedderDataArray(instance_type) ||
         // See ObjectSerializer::SerializeJSTypedArray().
         InstanceTypeChecker::IsJSTypedArray(instance_type) ||
         // See ObjectSerializer::SerializeJSArrayBuffer().
