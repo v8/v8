@@ -1704,7 +1704,8 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
     // numbers from background threads will make the random values dependent
     // on the thread scheduling and thus non-deterministic.
     stack_overflow_ = local_isolate_->fuzzer_rng()->NextInt(
-                          v8_flags.stress_lazy_compilation) == 0;
+                          v8_flags.stress_lazy_compilation &
+                          std::numeric_limits<int>::max()) == 0;
   }
 
   // Initialize the incoming context.
