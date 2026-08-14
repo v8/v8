@@ -4125,18 +4125,11 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
 
 ReduceResult MaglevGraphBuilder::BuildLoadHoleyFixedDoubleArrayElement(
     ValueNode* elements, ValueNode* index, bool convert_hole) {
-  if (convert_hole) {
-    return AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements, index});
-  } else {
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    return AddNewNode<
-        LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole>(
-        {elements, index});
-#else
-    return AddNewNode<LoadHoleyFixedDoubleArrayElementCheckedNotHole>(
-        {elements, index});
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-  }
+  ValueNode* load;
+  GET_VALUE_OR_ABORT(
+      load, AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements, index}));
+  if (convert_hole) return load;
+  return GetFloat64(load);
 }
 
 bool MaglevGraphBuilder::CanTreatHoleAsUndefined(

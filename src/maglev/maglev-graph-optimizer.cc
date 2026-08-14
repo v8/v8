@@ -2071,15 +2071,6 @@ ProcessResult MaglevGraphOptimizer::VisitLoadHoleyFixedDoubleArrayElement(
   return ProcessResult::kContinue;
 }
 
-ProcessResult
-MaglevGraphOptimizer::VisitLoadHoleyFixedDoubleArrayElementCheckedNotHole(
-    LoadHoleyFixedDoubleArrayElementCheckedNotHole* node,
-    const ProcessingState& state) {
-  REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitLoadSignedIntDataViewElement(
     LoadSignedIntDataViewElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -2738,14 +2729,6 @@ ProcessResult MaglevGraphOptimizer::VisitChangeFloat64ToHoleyFloat64(
 
 ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsUndefinedOrHole(
     HoleyFloat64IsUndefinedOrHole* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::
-    VisitLoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole(
-        LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole* node,
-        const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

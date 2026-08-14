@@ -654,11 +654,6 @@ bool ValueNode::MayBeHoleOrUndefinedNan() const {
     case Opcode::kChangeFloat64ToHoleyFloat64:
     case Opcode::kFloat64ToSilencedFloat64:
     case Opcode::kCheckedHoleyFloat64ToFloat64:
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole:
-#else
-    case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotHole:
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
       return false;
 
     // Both patterns are signalling NaNs, and an IEEE 754 arithmetic
@@ -3661,47 +3656,6 @@ void LoadHoleyFixedDoubleArrayElement::GenerateCode(
   DoubleRegister result_reg = ToDoubleRegister(result());
   __ LoadFixedDoubleArrayElement(result_reg, elements, index);
 }
-
-void LoadHoleyFixedDoubleArrayElementCheckedNotHole::
-    SetValueLocationConstraints() {
-  UseRegister(ElementsInput());
-  UseRegister(IndexInput());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-}
-void LoadHoleyFixedDoubleArrayElementCheckedNotHole::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register elements = ToRegister(ElementsInput());
-  Register index = ToRegister(IndexInput());
-  DoubleRegister result_reg = ToDoubleRegister(result());
-  __ LoadFixedDoubleArrayElement(result_reg, elements, index);
-  __ JumpIfHoleNan(result_reg, temps.Acquire(),
-                   __ GetDeoptLabel(this, DeoptimizeReason::kHole));
-}
-
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-void LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole::
-    SetValueLocationConstraints() {
-  UseRegister(ElementsInput());
-  UseRegister(IndexInput());
-  DefineAsRegister(this);
-  set_temporaries_needed(1);
-}
-void LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register elements = ToRegister(ElementsInput());
-  Register index = ToRegister(IndexInput());
-  DoubleRegister result_reg = ToDoubleRegister(result());
-  __ LoadFixedDoubleArrayElement(result_reg, elements, index);
-  // TODO(nicohartmann): Should have a combined JumpIfUndefinedOrHoleNan.
-  Register scratch = temps.Acquire();
-  Label* deopt_label = __ GetDeoptLabel(this, DeoptimizeReason::kHole);
-  __ JumpIfUndefinedNan(result_reg, scratch, deopt_label);
-  __ JumpIfHoleNan(result_reg, scratch, deopt_label);
-}
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 template <typename Derived, ValueRepresentation value_input_rep>
 void StoreFixedDoubleArrayElementT<

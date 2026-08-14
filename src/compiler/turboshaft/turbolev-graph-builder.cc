@@ -3549,35 +3549,6 @@ class GraphBuildingNodeProcessor {
                      __ ChangeInt32ToIntPtr(Map(node->IndexInput()))));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(
-      maglev::LoadHoleyFixedDoubleArrayElementCheckedNotHole* node,
-      const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    V<Float64> result = __ LoadFixedDoubleArrayElement(
-        Map(node->ElementsInput()),
-        __ ChangeInt32ToIntPtr(Map(node->IndexInput())));
-    __ DeoptimizeIf(__ Float64IsHole(result), frame_state,
-                    DeoptimizeReason::kHole,
-                    node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, result);
-    return maglev::ProcessResult::kContinue;
-  }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-  maglev::ProcessResult Process(
-      maglev::LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole* node,
-      const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    V<Float64> result = __ LoadFixedDoubleArrayElement(
-        Map(node->ElementsInput()),
-        __ ChangeInt32ToIntPtr(Map(node->IndexInput())));
-    __ DeoptimizeIf(__ Float64IsUndefinedOrHole(result), frame_state,
-                    DeoptimizeReason::kHole,
-                    node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, result);
-    return maglev::ProcessResult::kContinue;
-  }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-
   // Maps a maglev static type to the memory representation of a tagged
   // field access.
   MemoryRepresentation TaggedMemoryRepresentation(maglev::NodeType type) {

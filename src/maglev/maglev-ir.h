@@ -322,8 +322,6 @@ class ExceptionHandlerInfo;
   V(LoadFixedArrayElement)                                            \
   V(LoadFixedDoubleArrayElement)                                      \
   V(LoadHoleyFixedDoubleArrayElement)                                 \
-  V(LoadHoleyFixedDoubleArrayElementCheckedNotHole)                   \
-  IF_UD(V, LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole) \
   V(LoadSignedIntDataViewElement)                                     \
   V(LoadDoubleDataViewElement)                                        \
   V(LoadTypedArrayLength)                                             \
@@ -8834,43 +8832,6 @@ class LoadHoleyFixedDoubleArrayElement
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
-
-class LoadHoleyFixedDoubleArrayElementCheckedNotHole
-    : public FixedInputValueNodeT<
-          2, LoadHoleyFixedDoubleArrayElementCheckedNotHole> {
- public:
-  explicit LoadHoleyFixedDoubleArrayElementCheckedNotHole(uint64_t bitfield)
-      : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::CanRead() |
-                                              OpProperties::Float64() |
-                                              OpProperties::EagerDeopt();
-  DECLARE_INPUTS(Elements, Index)
-  DECLARE_INPUT_TYPES(Tagged, Int32)
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-};
-
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-class LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole
-    : public FixedInputValueNodeT<
-          2, LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole> {
- public:
-  explicit LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole(
-      uint64_t bitfield)
-      : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::CanRead() |
-                                              OpProperties::Float64() |
-                                              OpProperties::EagerDeopt();
-  DECLARE_INPUTS(Elements, Index)
-  DECLARE_INPUT_TYPES(Tagged, Int32)
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-};
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 template <typename Derived, ValueRepresentation value_input_rep>
 class StoreFixedDoubleArrayElementT : public FixedInputNodeT<3, Derived> {
