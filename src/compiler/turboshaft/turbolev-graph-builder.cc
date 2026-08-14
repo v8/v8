@@ -6354,9 +6354,12 @@ class GraphBuildingNodeProcessor {
                   value->Cast<maglev::HeapConstant>()->ref().object()));
           break;
 
-        case maglev::Opcode::kFloat64Constant: {
+        case maglev::Opcode::kFloat64Constant:
+        case maglev::Opcode::kHoleyFloat64Constant: {
           i::Float64 value_as_float =
-              value->Cast<maglev::Float64Constant>()->value();
+              value->opcode() == maglev::Opcode::kFloat64Constant
+                  ? value->Cast<maglev::Float64Constant>()->value()
+                  : value->Cast<maglev::HoleyFloat64Constant>()->value();
           if (value_as_float.is_hole_nan()) {
             builder.AddInput(
                 MachineType::AnyTagged(),
