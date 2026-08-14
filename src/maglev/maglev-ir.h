@@ -376,7 +376,6 @@ class ExceptionHandlerInfo;
   V(UnsafeHoleyFloat64ToFloat64)                                      \
   V(UnsafeFloat64ToHoleyFloat64)                                      \
   V(Float64ToSilencedFloat64)                                         \
-  V(HoleyFloat64ToSilencedFloat64)                                    \
   IF_UD(V, HoleyFloat64ConvertHoleToUndefined)                        \
   IF_UD(V, HoleyFloat64IsUndefinedOrHole)                             \
   IF_NOT_UD(V, HoleyFloat64IsHole)                                    \
@@ -4526,21 +4525,6 @@ class UnsafeHoleyFloat64ToFloat64
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-};
-
-class HoleyFloat64ToSilencedFloat64
-    : public FixedInputValueNodeT<1, HoleyFloat64ToSilencedFloat64> {
- public:
-  explicit HoleyFloat64ToSilencedFloat64(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Float64();
-  DECLARE_UNOP(HoleyFloat64)
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-
-  auto options() const { return std::tuple{}; }
 };
 
 class Float64ToSilencedFloat64

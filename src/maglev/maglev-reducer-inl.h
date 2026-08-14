@@ -1980,16 +1980,11 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
         return alternative.set_float64(
             AddNewNodeNoInputConversion<CheckedHoleyFloat64ToFloat64>({value}));
       }
-      if (NodeTypeIs(assumed_input_type, NodeType::kNumberOrUndefined)) {
-        return AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>(
-            {value});
-      }
       DCHECK(NodeTypeIs(assumed_input_type, NodeType::kNumberOrOddball));
       // NumberOrOddball->Float64 conversions are not exact alternatives,
       // since they lose the information that this is an oddball, so they
       // cannot become the canonical float64_alternative.
-      return AddNewNodeNoInputConversion<HoleyFloat64ToSilencedFloat64>(
-          {value});
+      return AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({value});
     }
     case ValueRepresentation::kIntPtr: {
       ValueNode* float64 =

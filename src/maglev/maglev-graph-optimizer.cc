@@ -2728,12 +2728,6 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64ToSilencedFloat64(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToSilencedFloat64(
-    HoleyFloat64ToSilencedFloat64* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitChangeFloat64ToHoleyFloat64(
     ChangeFloat64ToHoleyFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

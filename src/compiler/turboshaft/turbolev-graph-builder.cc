@@ -5476,10 +5476,8 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  template <Either<maglev::Float64ToSilencedFloat64,
-                   maglev::HoleyFloat64ToSilencedFloat64>
-                T>
-  maglev::ProcessResult Process(T* node, const maglev::ProcessingState& state) {
+  maglev::ProcessResult Process(maglev::Float64ToSilencedFloat64* node,
+                                const maglev::ProcessingState& state) {
     SetMap(node, __ Float64SilenceNaN(Map(node->ValueInput())));
     return maglev::ProcessResult::kContinue;
   }

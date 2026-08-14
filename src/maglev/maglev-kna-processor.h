@@ -334,7 +334,7 @@ class RecomputeKnownNodeAspectsProcessor {
 
   ProcessResult ProcessNode(CheckedNumberOrOddballToFloat64* node);
   ProcessResult ProcessNode(UnsafeNumberOrOddballToFloat64* node);
-  ProcessResult ProcessNode(HoleyFloat64ToSilencedFloat64* node);
+  ProcessResult ProcessNode(UnsafeHoleyFloat64ToFloat64* node);
 
 // TODO(victorgomes): Ideally we would like to check we already know the type,
 // but currently we cannot. The issue is that if the GraphBuilder emits a
@@ -364,7 +364,7 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_UNSAFE_CONV(ChangeIntPtrToFloat64, float64, Number)
   PROCESS_UNSAFE_CONV(UnsafeNumberToFloat64, float64, Number)
   // Note: NumberOrOddball->Float64 conversions (such as
-  // UnsafeNumberOrOddballToFloat64 and HoleyFloat64ToSilencedFloat64) lose
+  // UnsafeNumberOrOddballToFloat64 and UnsafeHoleyFloat64ToFloat64) lose
   // oddball identity and are promoted to float64 alternative by explicit
   // handlers if and only if KNA has statically proven the input is strictly
   // NodeType::kNumber without oddballs.

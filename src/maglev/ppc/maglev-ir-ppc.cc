@@ -968,18 +968,6 @@ void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   __ CanonicalizeNaN(value, value);
 }
 
-void HoleyFloat64ToSilencedFloat64::SetValueLocationConstraints() {
-  UseRegister(ValueInput());
-  DefineSameAsFirst(this);
-}
-void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
-  // The hole value is a signalling NaN, so just silence it to get the
-  // float64 value.
-  __ CanonicalizeNaN(ToDoubleRegister(this->result()),
-                     ToDoubleRegister(ValueInput()));
-}
-
 void Float64ToSilencedFloat64::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineSameAsFirst(this);

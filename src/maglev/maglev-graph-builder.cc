@@ -13515,7 +13515,7 @@ ReduceResult MaglevGraphBuilder::BuildToNumberOrToNumeric(
       return ReduceResult::Done();
 
     case ValueRepresentation::kHoleyFloat64: {
-      return SetAccumulator(AddNewNode<HoleyFloat64ToSilencedFloat64>({value}));
+      return SetAccumulator(AddNewNode<UnsafeHoleyFloat64ToFloat64>({value}));
     }
 
     case ValueRepresentation::kTagged:
@@ -17382,6 +17382,10 @@ ReduceResult MaglevGraphBuilder::GetSilencedNaN(ValueNode* value) {
     // If the conversion node is tagged, we could be reading a fabricated sNaN
     // value (built using a BufferArray for example).
     if (!value->input(0).node()->properties().is_tagged()) {
+      // Conversions out of HoleyFloat64 propagate the hole and undefined NaN
+      // patterns, unless they deopt on them.
+      CHECK(!value->input_node(0)->is_holey_float64() ||
+            value->Is<CheckedHoleyFloat64ToFloat64>());
       return value;
     }
   }

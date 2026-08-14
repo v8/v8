@@ -120,7 +120,7 @@ ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(
 }
 
 ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(
-    HoleyFloat64ToSilencedFloat64* node) {
+    UnsafeHoleyFloat64ToFloat64* node) {
   NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));
   if (!info->alternative().float64() &&
       NodeTypeIs(info->type(), NodeType::kNumber)) {

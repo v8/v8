@@ -577,7 +577,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
           // don't have to handle this case.
           UNREACHABLE();
         case ValueRepresentation::kFloat64:
-          return Opcode::kHoleyFloat64ToSilencedFloat64;
+          return Opcode::kUnsafeHoleyFloat64ToFloat64;
 
         case ValueRepresentation::kHoleyFloat64:
         case ValueRepresentation::kTagged:
