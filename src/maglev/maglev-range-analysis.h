@@ -327,6 +327,12 @@ class RangeProcessor {
         node, Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
+  ProcessResult Process(Int32ModulusWithOverflow* node,
+                        const ProcessingState&) {
+    UnionUpdateInt32(
+        node, Range::Mod(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
   ProcessResult Process(Int32BitwiseAnd* node, const ProcessingState&) {
     UnionUpdateInt32(node, Range::BitwiseAnd(Get(node->input_node(0)),
                                              Get(node->input_node(1))));
