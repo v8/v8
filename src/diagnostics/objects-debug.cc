@@ -1135,6 +1135,9 @@ void ScopeInfo::ScopeInfoVerify(Isolate* isolate) {
 
   if (is_module) {
     CHECK_LE(0, module_variable_count());
+    if (HasModuleVariablesHashtable()) {
+      CHECK(IsNameToIndexHashTable(module_variables_hashtable()));
+    }
   }
 
   if (has_hashtable) {
