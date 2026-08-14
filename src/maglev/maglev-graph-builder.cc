@@ -112,9 +112,9 @@ class FunctionContextSpecialization final : public AllStatic {
   }
 };
 
-NodeType NodeTypeFromAccessInfo(
-    compiler::JSHeapBroker* broker,
-    const compiler::PropertyAccessInfo& access_info) {
+NodeType NodeTypeFromAccessInfo(compiler::JSHeapBroker* broker,
+                                const compiler::PropertyAccessInfo& access_info,
+                                compiler::OptionalMapRef stable_field_map) {
   if (access_info.field_representation().IsSmi()) {
     return NodeType::kSmi;
   }
@@ -123,8 +123,8 @@ NodeType NodeTypeFromAccessInfo(
     return NodeType::kHeapNumber;
   }
 
-  if (access_info.field_map().has_value()) {
-    return StaticTypeForMap(access_info.field_map().value(), broker);
+  if (stable_field_map.has_value()) {
+    return StaticTypeForMap(stable_field_map.value(), broker);
   }
 
   const auto type = access_info.field_type();
@@ -4604,7 +4604,14 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
         {heap_number}, static_cast<int>(offsetof(HeapNumber, value_)));
   }
 
-  const auto node_type = NodeTypeFromAccessInfo(this->broker(), access_info);
+  compiler::OptionalMapRef stable_field_map;
+  if (access_info.field_representation().IsHeapObject() &&
+      access_info.field_map().has_value() &&
+      access_info.field_map().value().is_stable()) {
+    stable_field_map = access_info.field_map();
+  }
+  const auto node_type =
+      NodeTypeFromAccessInfo(this->broker(), access_info, stable_field_map);
   ValueNode* value;
   GET_VALUE_OR_ABORT(value, BuildLoadTaggedField(
                                 load_source, field_index.offset(), node_type,
