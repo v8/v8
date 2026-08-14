@@ -666,9 +666,8 @@ class MaglevGraphBuilder {
 
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
-  std::optional<Float64> TryGetFloat64OrHoleyFloat64Constant(
-      UseRepresentation use_repr, ValueNode* value,
-      NodeType assumed_input_type);
+  std::optional<Float64> TryGetFloat64Constant(ValueNode* value,
+                                               NodeType assumed_input_type);
   MaybeHandle<String> TryGetStringConstant(ValueNode* value);
 
   // Get an Int32 representation node whose value is equivalent to the given
@@ -679,10 +678,6 @@ class MaglevGraphBuilder {
 
   ReduceResult EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
   ReduceResult EnsureInt32(interpreter::Register reg);
-
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-  std::optional<double> TryGetHoleyFloat64Constant(ValueNode* value);
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
   // Get a Float64 representation node whose value is equivalent to the given
   // node.

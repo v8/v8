@@ -4948,8 +4948,7 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
       return object;
 
     case ValueRepresentation::kFloat64:
-      if (auto constant = TryGetFloat64OrHoleyFloat64Constant(
-              UseRepresentation::kFloat64, object, NodeType::kNumber)) {
+      if (auto constant = TryGetFloat64Constant(object, NodeType::kNumber)) {
         uint32_t uint32_value;
         if (!DoubleToUint32IfEqualToSelf(constant->get_scalar(),
                                          &uint32_value)) {
@@ -11320,8 +11319,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
       }
     }
 
-    if (TryGetFloat64OrHoleyFloat64Constant(UseRepresentation::kFloat64, node,
-                                            NodeType::kNumber)) {
+    if (TryGetFloat64Constant(node, NodeType::kNumber)) {
       // This a non-smi float64 constant ==> deopting.
       return reducer_.EmitUnconditionalDeopt(reason);
     }
@@ -11335,8 +11333,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
     DCHECK(ref.IsHeapNumber());
     Float64 ref_value = Float64::FromBits(ref.AsHeapNumber().value_as_bits());
 
-    if (std::optional<Float64> cst = TryGetFloat64OrHoleyFloat64Constant(
-            UseRepresentation::kFloat64, node, NodeType::kNumber)) {
+    if (std::optional<Float64> cst =
+            TryGetFloat64Constant(node, NodeType::kNumber)) {
       if (cst->is_nan() && ref_value.is_nan()) {
         return ReduceResult::Done();
       }
@@ -17251,10 +17249,9 @@ std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
     ValueNode* value) {
   return reducer_.TryGetUint32Constant(value);
 }
-std::optional<Float64> MaglevGraphBuilder::TryGetFloat64OrHoleyFloat64Constant(
-    UseRepresentation use_repr, ValueNode* value, NodeType assumed_input_type) {
-  return reducer_.TryGetFloat64OrHoleyFloat64Constant(use_repr, value,
-                                                      assumed_input_type);
+std::optional<Float64> MaglevGraphBuilder::TryGetFloat64Constant(
+    ValueNode* value, NodeType assumed_input_type) {
+  return reducer_.TryGetFloat64Constant(value, assumed_input_type);
 }
 
 MaybeHandle<String> MaglevGraphBuilder::TryGetStringConstant(ValueNode* value) {
