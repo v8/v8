@@ -970,43 +970,6 @@ std::ostream& operator<<(std::ostream& os, UseRepresentation repr);
 typedef base::EnumSet<ValueRepresentation, int8_t> ValueRepresentationSet;
 typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
 
-enum class TaggedToFloat64ConversionType : uint8_t {
-  kOnlyNumber,
-  kNumberOrUndefined,
-  kNumberOrBoolean,
-  kNumberOrOddball,
-};
-
-constexpr TaggedToFloat64ConversionType GetTaggedToFloat64ConversionType(
-    NodeType type) {
-  if (NodeTypeIs(type, NodeType::kNumber)) {
-    return TaggedToFloat64ConversionType::kOnlyNumber;
-  }
-  if (NodeTypeIs(type, NodeType::kNumberOrBoolean)) {
-    return TaggedToFloat64ConversionType::kNumberOrBoolean;
-  }
-  if (NodeTypeIs(type, NodeType::kNumberOrUndefined)) {
-    return TaggedToFloat64ConversionType::kNumberOrUndefined;
-  }
-  DCHECK(NodeTypeIs(type, NodeType::kNumberOrOddball));
-  return TaggedToFloat64ConversionType::kNumberOrOddball;
-}
-
-constexpr NodeType GetAllowedTypeFromConversionType(
-    TaggedToFloat64ConversionType conversion) {
-  switch (conversion) {
-    case TaggedToFloat64ConversionType::kOnlyNumber:
-      return NodeType::kNumber;
-    case TaggedToFloat64ConversionType::kNumberOrUndefined:
-      return NodeType::kNumberOrUndefined;
-    case TaggedToFloat64ConversionType::kNumberOrBoolean:
-      return NodeType::kNumberOrBoolean;
-    case TaggedToFloat64ConversionType::kNumberOrOddball:
-      return NodeType::kNumberOrOddball;
-  }
-  UNREACHABLE();
-}
-
 constexpr Condition ConditionFor(Operation cond);
 constexpr Condition ConditionForNaN();
 
@@ -1032,21 +995,6 @@ inline std::ostream& operator<<(std::ostream& os,
       return os << "RawPtr";
     case ValueRepresentation::kNone:
       return os << "None";
-  }
-  UNREACHABLE();
-}
-
-inline std::ostream& operator<<(
-    std::ostream& os, const TaggedToFloat64ConversionType& conversion_type) {
-  switch (conversion_type) {
-    case TaggedToFloat64ConversionType::kOnlyNumber:
-      return os << "Number";
-    case TaggedToFloat64ConversionType::kNumberOrUndefined:
-      return os << "NumberOrUndefined";
-    case TaggedToFloat64ConversionType::kNumberOrBoolean:
-      return os << "NumberOrBoolean";
-    case TaggedToFloat64ConversionType::kNumberOrOddball:
-      return os << "NumberOrOddball";
   }
   UNREACHABLE();
 }
@@ -4450,12 +4398,12 @@ DEFINE_TRUNCATE_NODE(TruncateHoleyFloat64ToInt32, HoleyFloat64,
 class CheckedNumberOrOddballToFloat64
     : public FixedInputValueNodeT<1, CheckedNumberOrOddballToFloat64> {
  public:
-  explicit CheckedNumberOrOddballToFloat64(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
-                                                         conversion_type)) {
-    // CheckedNumberToFloat64 should be used instead for kOnlyNumber.
-    DCHECK_NE(conversion_type, TaggedToFloat64ConversionType::kOnlyNumber);
+  explicit CheckedNumberOrOddballToFloat64(uint64_t bitfield,
+                                           NodeType assumed_input_type)
+      : Base(bitfield), assumed_input_type_(assumed_input_type) {
+    DCHECK(NodeTypeIs(assumed_input_type, NodeType::kNumberOrOddball));
+    // CheckedNumberToFloat64 should be used instead for kNumber.
+    DCHECK(!NodeTypeIs(assumed_input_type, NodeType::kNumber));
   }
 
   static constexpr OpProperties kProperties =
@@ -4465,77 +4413,67 @@ class CheckedNumberOrOddballToFloat64
   // Not a conversion node since it is not reversible.
   static_assert(!kProperties.is_conversion());
 
-  TaggedToFloat64ConversionType conversion_type() const {
-    return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
-  }
+  NodeType assumed_input_type() const { return assumed_input_type_; }
   DeoptimizeReason deoptimize_reason() const {
-    return conversion_type() == TaggedToFloat64ConversionType::kNumberOrBoolean
+    return NodeTypeIs(assumed_input_type(), NodeType::kNumberOrBoolean)
                ? DeoptimizeReason::kNotANumberOrBoolean
                : DeoptimizeReason::kNotANumberOrOddball;
   }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  auto options() const { return std::tuple{conversion_type()}; }
+  auto options() const { return std::tuple{assumed_input_type()}; }
 
  private:
-  using TaggedToFloat64ConversionTypeOffset =
-      Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
+  const NodeType assumed_input_type_;
 };
 
 class CheckedNumberOrOddballToHoleyFloat64
     : public FixedInputValueNodeT<1, CheckedNumberOrOddballToHoleyFloat64> {
  public:
-  explicit CheckedNumberOrOddballToHoleyFloat64(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
-                                                         conversion_type)) {
-    // CheckedNumberToFloat64 should be used instead for kOnlyNumber.
-    DCHECK_NE(conversion_type, TaggedToFloat64ConversionType::kOnlyNumber);
+  explicit CheckedNumberOrOddballToHoleyFloat64(uint64_t bitfield,
+                                                NodeType assumed_input_type)
+      : Base(bitfield), assumed_input_type_(assumed_input_type) {
+    DCHECK(NodeTypeIs(assumed_input_type, NodeType::kNumberOrOddball));
+    // CheckedNumberToFloat64 should be used instead for kNumber.
+    DCHECK(!NodeTypeIs(assumed_input_type, NodeType::kNumber));
   }
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::HoleyFloat64();
   DECLARE_UNOP(Tagged)
 
-  TaggedToFloat64ConversionType conversion_type() const {
-    return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
-  }
+  NodeType assumed_input_type() const { return assumed_input_type_; }
 
   DeoptimizeReason deoptimize_reason() const {
-    switch (conversion_type()) {
-      case TaggedToFloat64ConversionType::kOnlyNumber:
-        // CheckedNumberToFloat64 should be used instead for kOnlyNumber.
-        UNREACHABLE();
-      case TaggedToFloat64ConversionType::kNumberOrBoolean:
-        return DeoptimizeReason::kNotANumberOrBoolean;
-      case TaggedToFloat64ConversionType::kNumberOrUndefined:
-        return DeoptimizeReason::kNotANumberOrUndefined;
-      case TaggedToFloat64ConversionType::kNumberOrOddball:
-        return DeoptimizeReason::kNotANumberOrOddball;
+    if (NodeTypeIs(assumed_input_type(), NodeType::kNumberOrBoolean)) {
+      return DeoptimizeReason::kNotANumberOrBoolean;
     }
-    UNREACHABLE();
+    if (NodeTypeIs(assumed_input_type(), NodeType::kNumberOrUndefined)) {
+      return DeoptimizeReason::kNotANumberOrUndefined;
+    }
+    DCHECK(NodeTypeIs(assumed_input_type(), NodeType::kNumberOrOddball));
+    return DeoptimizeReason::kNotANumberOrOddball;
   }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 
-  auto options() const { return std::tuple{conversion_type()}; }
+  auto options() const { return std::tuple{assumed_input_type()}; }
 
  private:
-  using TaggedToFloat64ConversionTypeOffset =
-      Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
+  const NodeType assumed_input_type_;
 };
 
 class UnsafeNumberOrOddballToFloat64
     : public FixedInputValueNodeT<1, UnsafeNumberOrOddballToFloat64> {
  public:
-  explicit UnsafeNumberOrOddballToFloat64(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
-                                                         conversion_type)) {
-    // UnsafeNumberToFloat64 should be used instead for kOnlyNumber.
-    DCHECK_NE(conversion_type, TaggedToFloat64ConversionType::kOnlyNumber);
+  explicit UnsafeNumberOrOddballToFloat64(uint64_t bitfield,
+                                          NodeType assumed_input_type)
+      : Base(bitfield), assumed_input_type_(assumed_input_type) {
+    DCHECK(NodeTypeIs(assumed_input_type, NodeType::kNumberOrOddball));
+    // UnsafeNumberToFloat64 should be used instead for kNumber.
+    DCHECK(!NodeTypeIs(assumed_input_type, NodeType::kNumber));
   }
 
   static constexpr OpProperties kProperties = OpProperties::Float64();
@@ -4544,26 +4482,24 @@ class UnsafeNumberOrOddballToFloat64
   // Not a conversion node since it is not reversible.
   static_assert(!kProperties.is_conversion());
 
-  TaggedToFloat64ConversionType conversion_type() const {
-    return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
-  }
+  NodeType assumed_input_type() const { return assumed_input_type_; }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  auto options() const { return std::tuple{conversion_type()}; }
+  auto options() const { return std::tuple{assumed_input_type()}; }
 
  private:
-  using TaggedToFloat64ConversionTypeOffset =
-      Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
+  const NodeType assumed_input_type_;
 };
 
 class UnsafeNumberOrOddballToHoleyFloat64
     : public FixedInputValueNodeT<1, UnsafeNumberOrOddballToHoleyFloat64> {
  public:
-  explicit UnsafeNumberOrOddballToHoleyFloat64(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
-                                                         conversion_type)) {}
+  explicit UnsafeNumberOrOddballToHoleyFloat64(uint64_t bitfield,
+                                               NodeType assumed_input_type)
+      : Base(bitfield), assumed_input_type_(assumed_input_type) {
+    DCHECK(NodeTypeIs(assumed_input_type, NodeType::kNumberOrOddball));
+  }
 
   static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
   DECLARE_UNOP(Tagged)
@@ -4571,15 +4507,12 @@ class UnsafeNumberOrOddballToHoleyFloat64
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 
-  TaggedToFloat64ConversionType conversion_type() const {
-    return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
-  }
+  NodeType assumed_input_type() const { return assumed_input_type_; }
 
-  auto options() const { return std::tuple{conversion_type()}; }
+  auto options() const { return std::tuple{assumed_input_type()}; }
 
  private:
-  using TaggedToFloat64ConversionTypeOffset =
-      Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
+  const NodeType assumed_input_type_;
 };
 
 class UnsafeHoleyFloat64ToFloat64
@@ -4683,10 +4616,12 @@ class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
 class TruncateUnsafeNumberOrOddballToInt32
     : public FixedInputValueNodeT<1, TruncateUnsafeNumberOrOddballToInt32> {
  public:
-  explicit TruncateUnsafeNumberOrOddballToInt32(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
-                                                         conversion_type)) {}
+  explicit TruncateUnsafeNumberOrOddballToInt32(uint64_t bitfield,
+                                                NodeType assumed_input_type)
+      : Base(bitfield), assumed_input_type_(assumed_input_type) {
+    DCHECK(NodeTypeIs(assumed_input_type, NodeType::kNumberOrOddball));
+    DCHECK_NE(assumed_input_type, NodeType::kNumberOrUndefined);
+  }
 
   static constexpr OpProperties kProperties = OpProperties::Int32();
   DECLARE_UNOP(Tagged)
@@ -4694,15 +4629,12 @@ class TruncateUnsafeNumberOrOddballToInt32
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 
-  TaggedToFloat64ConversionType conversion_type() const {
-    return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
-  }
+  NodeType assumed_input_type() const { return assumed_input_type_; }
 
-  auto options() const { return std::tuple{conversion_type()}; }
+  auto options() const { return std::tuple{assumed_input_type()}; }
 
  private:
-  using TaggedToFloat64ConversionTypeOffset =
-      NextBitField<TaggedToFloat64ConversionType, 2>;
+  const NodeType assumed_input_type_;
 };
 
 // This node checks that the input is a Number and that it is in the SafeInt
@@ -4773,10 +4705,12 @@ class TruncateHoleyFloat64AsSafeIntToInt32
 class TruncateCheckedNumberOrOddballToInt32
     : public FixedInputValueNodeT<1, TruncateCheckedNumberOrOddballToInt32> {
  public:
-  explicit TruncateCheckedNumberOrOddballToInt32(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
-                                                         conversion_type)) {}
+  explicit TruncateCheckedNumberOrOddballToInt32(uint64_t bitfield,
+                                                 NodeType assumed_input_type)
+      : Base(bitfield), assumed_input_type_(assumed_input_type) {
+    DCHECK(NodeTypeIs(assumed_input_type, NodeType::kNumberOrOddball));
+    DCHECK_NE(assumed_input_type, NodeType::kNumberOrUndefined);
+  }
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32();
@@ -4785,15 +4719,12 @@ class TruncateCheckedNumberOrOddballToInt32
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 
-  TaggedToFloat64ConversionType conversion_type() const {
-    return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
-  }
+  NodeType assumed_input_type() const { return assumed_input_type_; }
 
-  auto options() const { return std::tuple{conversion_type()}; }
+  auto options() const { return std::tuple{assumed_input_type()}; }
 
  private:
-  using TaggedToFloat64ConversionTypeOffset =
-      NextBitField<TaggedToFloat64ConversionType, 2>;
+  const NodeType assumed_input_type_;
 };
 
 class LogicalNot : public FixedInputValueNodeT<1, LogicalNot> {

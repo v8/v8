@@ -1285,8 +1285,8 @@ ReduceResult MaglevGraphBuilder::GetInternalizedString(
 }
 
 ReduceResult MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
-    ValueNode* value, NodeType allowed_input_type) {
-  return reducer_.GetTruncatedInt32ForToNumber(value, allowed_input_type);
+    ValueNode* value, NodeType assumed_input_type) {
+  return reducer_.GetTruncatedInt32ForToNumber(value, assumed_input_type);
 }
 
 namespace {
@@ -1452,11 +1452,11 @@ ReduceResult MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
 }
 
 ReduceResult MaglevGraphBuilder::BuildTruncatingInt32BitwiseNotForToNumber(
-    NodeType allowed_input_type) {
+    NodeType assumed_input_type) {
   ValueNode* value;
   GET_VALUE_OR_ABORT(
       value, GetTruncatedInt32ForToNumber(
-                 current_interpreter_frame_.accumulator(), allowed_input_type));
+                 current_interpreter_frame_.accumulator(), assumed_input_type));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldInt32UnaryOperation<Operation::kBitwiseNot>(value),
       SetAccumulator);
@@ -1480,7 +1480,7 @@ ReduceResult MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
 template <Operation kOperation>
 ReduceResult
 MaglevGraphBuilder::BuildTruncatingInt32BinaryOperationNodeForToNumber(
-    NodeType allowed_input_type) {
+    NodeType assumed_input_type) {
   static_assert(BinaryOperationIsBitwiseInt32<kOperation>());
   ValueNode* left;
   ValueNode* right;
@@ -1489,16 +1489,16 @@ MaglevGraphBuilder::BuildTruncatingInt32BinaryOperationNodeForToNumber(
         right,
         GetTruncatedInt32ForToNumber(
             current_interpreter_frame_.get(iterator_.GetRegisterOperand(0)),
-            allowed_input_type));
+            assumed_input_type));
     left = right;
   } else {
     GET_VALUE_OR_ABORT(
         left, GetTruncatedInt32ForToNumber(current_interpreter_frame_.get(
                                                iterator_.GetRegisterOperand(0)),
-                                           allowed_input_type));
+                                           assumed_input_type));
     GET_VALUE_OR_ABORT(right, GetTruncatedInt32ForToNumber(
                                   current_interpreter_frame_.accumulator(),
-                                  allowed_input_type));
+                                  assumed_input_type));
   }
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldInt32BinaryOperation<kOperation>(left, right),
@@ -1525,12 +1525,12 @@ ReduceResult MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
 template <Operation kOperation>
 ReduceResult
 MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
-    NodeType allowed_input_type) {
+    NodeType assumed_input_type) {
   static_assert(BinaryOperationIsBitwiseInt32<kOperation>());
   ValueNode* left;
   GET_VALUE_OR_ABORT(
       left, GetTruncatedInt32ForToNumber(
-                current_interpreter_frame_.accumulator(), allowed_input_type));
+                current_interpreter_frame_.accumulator(), assumed_input_type));
   int32_t constant = iterator_.GetImmediateOperand(0);
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldInt32BinaryOperation<kOperation>(left, constant),
@@ -1541,16 +1541,16 @@ MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
 
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::BuildFloat64BinarySmiOperationNodeForToNumber(
-    NodeType allowed_input_type) {
+    NodeType assumed_input_type) {
   // TODO(v8:7700): Do constant identity folding. Make sure to normalize
   // HoleyFloat64 nodes if folded.
   ValueNode* left;
   GET_VALUE_OR_ABORT(left,
-                     GetAccumulatorFloat64ForArithmetic(allowed_input_type));
+                     GetAccumulatorFloat64ForArithmetic(assumed_input_type));
   double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldFloat64BinaryOperationForToNumber<kOperation>(
-          GetTaggedToFloat64ConversionType(allowed_input_type), left, constant),
+          assumed_input_type, left, constant),
       SetAccumulator);
   ValueNode* right = GetFloat64Constant(constant);
   return SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
@@ -1558,15 +1558,15 @@ ReduceResult MaglevGraphBuilder::BuildFloat64BinarySmiOperationNodeForToNumber(
 
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::BuildFloat64UnaryOperationNodeForToNumber(
-    NodeType allowed_input_type) {
+    NodeType assumed_input_type) {
   // TODO(v8:7700): Do constant identity folding. Make sure to normalize
   // HoleyFloat64 nodes if folded.
   ValueNode* value;
   GET_VALUE_OR_ABORT(value,
-                     GetAccumulatorFloat64ForArithmetic(allowed_input_type));
+                     GetAccumulatorFloat64ForArithmetic(assumed_input_type));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldFloat64UnaryOperationForToNumber<kOperation>(
-          GetTaggedToFloat64ConversionType(allowed_input_type), value),
+          assumed_input_type, value),
       SetAccumulator);
   switch (kOperation) {
     case Operation::kNegate:
@@ -1584,24 +1584,24 @@ ReduceResult MaglevGraphBuilder::BuildFloat64UnaryOperationNodeForToNumber(
 
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::BuildFloat64BinaryOperationNodeForToNumber(
-    NodeType allowed_input_type) {
+    NodeType assumed_input_type) {
   // TODO(v8:7700): Do constant identity folding. Make sure to normalize
   // HoleyFloat64 nodes if folded.
   ValueNode* left;
   GET_VALUE_OR_ABORT(left,
-                     LoadRegisterFloat64ForArithmetic(0, allowed_input_type));
+                     LoadRegisterFloat64ForArithmetic(0, assumed_input_type));
   ValueNode* right;
   GET_VALUE_OR_ABORT(right,
-                     GetAccumulatorFloat64ForArithmetic(allowed_input_type));
+                     GetAccumulatorFloat64ForArithmetic(assumed_input_type));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldFloat64BinaryOperationForToNumber<kOperation>(
-          GetTaggedToFloat64ConversionType(allowed_input_type), left, right),
+          assumed_input_type, left, right),
       SetAccumulator);
   return SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
 }
 
 namespace {
-NodeType BinopHintToNodeTypeAndConversionType(BinaryOperationHint hint) {
+NodeType BinopHintToAssumedInputType(BinaryOperationHint hint) {
   switch (hint) {
     case BinaryOperationHint::kSignedSmall:
       return NodeType::kSmi;
@@ -1657,16 +1657,15 @@ ReduceResult MaglevGraphBuilder::VisitUnaryOperation() {
     case BinaryOperationHint::kAdditiveSafeInteger:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
-      auto allowed_input_type =
-          BinopHintToNodeTypeAndConversionType(feedback_hint);
+      auto assumed_input_type = BinopHintToAssumedInputType(feedback_hint);
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         static_assert(kOperation == Operation::kBitwiseNot);
-        return BuildTruncatingInt32BitwiseNotForToNumber(allowed_input_type);
+        return BuildTruncatingInt32BitwiseNotForToNumber(assumed_input_type);
       } else if (feedback_hint == BinaryOperationHint::kSignedSmall) {
         return BuildInt32UnaryOperationNode<kOperation>();
       }
       return BuildFloat64UnaryOperationNodeForToNumber<kOperation>(
-          allowed_input_type);
+          assumed_input_type);
       break;
     }
     case BinaryOperationHint::kBigInt:
@@ -2014,7 +2013,7 @@ ReduceResult MaglevGraphBuilder::BuildFloat64SpeculateSafeAdd(
   DCHECK(flags_.can_speculative_additive_safe_int);
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldFloat64BinaryOperationForToNumber<Operation::kAdd>(
-          TaggedToFloat64ConversionType::kOnlyNumber, left, right),
+          NodeType::kNumber, left, right),
       SetAccumulator);
   ReduceResult result = AddNewNode<Float64SpeculateSafeAdd>({left, right});
   if (result.IsDoneWithValue()) {
@@ -2047,11 +2046,10 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
-      NodeType allowed_input_type =
-          BinopHintToNodeTypeAndConversionType(feedback_hint);
+      NodeType assumed_input_type = BinopHintToAssumedInputType(feedback_hint);
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         return BuildTruncatingInt32BinaryOperationNodeForToNumber<kOperation>(
-            allowed_input_type);
+            assumed_input_type);
       } else if (feedback_hint == BinaryOperationHint::kSignedSmall) {
         if constexpr (kOperation == Operation::kExponentiate) {
           // Exponentiate never updates the feedback to be a Smi.
@@ -2061,7 +2059,7 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
         }
       } else {
         return BuildFloat64BinaryOperationNodeForToNumber<kOperation>(
-            allowed_input_type);
+            assumed_input_type);
       }
       break;
     }
@@ -2142,11 +2140,10 @@ ReduceResult MaglevGraphBuilder::VisitBinarySmiOperation() {
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
-      NodeType allowed_input_type =
-          BinopHintToNodeTypeAndConversionType(feedback_hint);
+      NodeType assumed_input_type = BinopHintToAssumedInputType(feedback_hint);
       if constexpr (BinaryOperationIsBitwiseInt32<kOperation>()) {
         return BuildTruncatingInt32BinarySmiOperationNodeForToNumber<
-            kOperation>(allowed_input_type);
+            kOperation>(assumed_input_type);
       } else if (feedback_hint == BinaryOperationHint::kSignedSmall) {
         if constexpr (kOperation == Operation::kExponentiate) {
           // Exponentiate never updates the feedback to be a Smi.
@@ -2156,7 +2153,7 @@ ReduceResult MaglevGraphBuilder::VisitBinarySmiOperation() {
         }
       } else {
         return BuildFloat64BinarySmiOperationNodeForToNumber<kOperation>(
-            allowed_input_type);
+            assumed_input_type);
       }
       break;
     }
@@ -2357,7 +2354,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     return MaybeOddball(LoadRegister(0)) || MaybeOddball(GetAccumulator());
   };
 
-  auto GetConversionType = [](CompareOperationHint hint) {
+  auto GetAssumedInputType = [](CompareOperationHint hint) {
     switch (hint) {
       case CompareOperationHint::kNumber:
         return NodeType::kNumber;
@@ -2423,10 +2420,10 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       if (TryConstantFoldUint32ComparedToZero(left, right)) {
         return ReduceResult::Done();
       }
-      auto allowed_input_type = GetConversionType(hint);
-      GET_VALUE_OR_ABORT(left, GetFloat64ForToNumber(left, allowed_input_type));
+      auto assumed_input_type = GetAssumedInputType(hint);
+      GET_VALUE_OR_ABORT(left, GetFloat64ForToNumber(left, assumed_input_type));
       GET_VALUE_OR_ABORT(right,
-                         GetFloat64ForToNumber(right, allowed_input_type));
+                         GetFloat64ForToNumber(right, assumed_input_type));
       if (left->Is<Float64Constant>() && right->Is<Float64Constant>()) {
         double left_value = left->Cast<Float64Constant>()->value().get_scalar();
         double right_value =
@@ -4939,8 +4936,7 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
 
     case ValueRepresentation::kFloat64:
       if (auto constant = TryGetFloat64OrHoleyFloat64Constant(
-              UseRepresentation::kFloat64, object,
-              TaggedToFloat64ConversionType::kOnlyNumber)) {
+              UseRepresentation::kFloat64, object, NodeType::kNumber)) {
         uint32_t uint32_value;
         if (!DoubleToUint32IfEqualToSelf(constant->get_scalar(),
                                          &uint32_value)) {
@@ -11321,9 +11317,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
       }
     }
 
-    if (TryGetFloat64OrHoleyFloat64Constant(
-            UseRepresentation::kFloat64, node,
-            TaggedToFloat64ConversionType::kOnlyNumber)) {
+    if (TryGetFloat64OrHoleyFloat64Constant(UseRepresentation::kFloat64, node,
+                                            NodeType::kNumber)) {
       // This a non-smi float64 constant ==> deopting.
       return reducer_.EmitUnconditionalDeopt(reason);
     }
@@ -11338,8 +11333,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
     Float64 ref_value = Float64::FromBits(ref.AsHeapNumber().value_as_bits());
 
     if (std::optional<Float64> cst = TryGetFloat64OrHoleyFloat64Constant(
-            UseRepresentation::kFloat64, node,
-            TaggedToFloat64ConversionType::kOnlyNumber)) {
+            UseRepresentation::kFloat64, node, NodeType::kNumber)) {
       if (cst->is_nan() && ref_value.is_nan()) {
         return ReduceResult::Done();
       }
@@ -17231,14 +17225,14 @@ ReduceResult MaglevGraphBuilder::GetFloat64(interpreter::Register reg) {
 }
 
 ReduceResult MaglevGraphBuilder::GetFloat64ForToNumber(
-    ValueNode* value, NodeType allowed_input_type) {
-  return reducer_.GetFloat64ForToNumber(value, allowed_input_type);
+    ValueNode* value, NodeType assumed_input_type) {
+  return reducer_.GetFloat64ForToNumber(value, assumed_input_type);
 }
 
 ReduceResult MaglevGraphBuilder::GetFloat64ForToNumber(
-    interpreter::Register reg, NodeType allowed_input_type) {
+    interpreter::Register reg, NodeType assumed_input_type) {
   return GetFloat64ForToNumber(current_interpreter_frame_.get(reg),
-                               allowed_input_type);
+                               assumed_input_type);
 }
 
 ReduceResult MaglevGraphBuilder::GetHoleyFloat64(ValueNode* value) {
@@ -17254,10 +17248,9 @@ std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
   return reducer_.TryGetUint32Constant(value);
 }
 std::optional<Float64> MaglevGraphBuilder::TryGetFloat64OrHoleyFloat64Constant(
-    UseRepresentation use_repr, ValueNode* value,
-    TaggedToFloat64ConversionType conversion_type) {
+    UseRepresentation use_repr, ValueNode* value, NodeType assumed_input_type) {
   return reducer_.TryGetFloat64OrHoleyFloat64Constant(use_repr, value,
-                                                      conversion_type);
+                                                      assumed_input_type);
 }
 
 MaybeHandle<String> MaglevGraphBuilder::TryGetStringConstant(ValueNode* value) {

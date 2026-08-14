@@ -2070,93 +2070,84 @@ void CheckedSmiDecrement::GenerateCode(MaglevAssembler* masm,
 
 namespace {
 
-void JumpToFailIfNotHeapNumberOrOddball(
-    MaglevAssembler* masm, Register value,
-    TaggedToFloat64ConversionType conversion_type, Label* fail) {
+void JumpToFailIfNotHeapNumberOrOddball(MaglevAssembler* masm, Register value,
+                                        NodeType assumed_input_type,
+                                        Label* fail) {
   if (!fail && !v8_flags.debug_code) return;
 
   static_assert(InstanceType::HEAP_NUMBER_TYPE + 1 ==
                 InstanceType::ODDBALL_TYPE);
-  switch (conversion_type) {
-    case TaggedToFloat64ConversionType::kNumberOrBoolean: {
-      // Check if HeapNumber or Boolean, jump to fail otherwise.
-      MaglevAssembler::TemporaryRegisterScope temps(masm);
-      Register map = temps.AcquireScratch();
+  if (NodeTypeIs(assumed_input_type, NodeType::kNumber)) {
+    // Check if HeapNumber, jump to fail otherwise.
+    if (fail) {
+      __ JumpIfNotObjectType(value, InstanceType::HEAP_NUMBER_TYPE, fail);
+    } else {
+      __ AssertObjectType(value, InstanceType::HEAP_NUMBER_TYPE,
+                          AbortReason::kUnexpectedValue);
+    }
+  } else if (NodeTypeIs(assumed_input_type, NodeType::kNumberOrBoolean)) {
+    // Check if HeapNumber or Boolean, jump to fail otherwise.
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
+    Register map = temps.AcquireScratch();
 
 #if V8_STATIC_ROOTS_BOOL
-      static_assert(StaticReadOnlyRoot::kBooleanMap + Map::kSize ==
-                    StaticReadOnlyRoot::kHeapNumberMap);
-      __ LoadMapForCompare(map, value);
-      if (fail) {
-        __ JumpIfObjectNotInRange(map, StaticReadOnlyRoot::kBooleanMap,
-                                  StaticReadOnlyRoot::kHeapNumberMap, fail);
-      } else {
-        __ AssertObjectInRange(map, StaticReadOnlyRoot::kBooleanMap,
-                               StaticReadOnlyRoot::kHeapNumberMap,
-                               AbortReason::kUnexpectedValue);
-      }
+    static_assert(StaticReadOnlyRoot::kBooleanMap + Map::kSize ==
+                  StaticReadOnlyRoot::kHeapNumberMap);
+    __ LoadMapForCompare(map, value);
+    if (fail) {
+      __ JumpIfObjectNotInRange(map, StaticReadOnlyRoot::kBooleanMap,
+                                StaticReadOnlyRoot::kHeapNumberMap, fail);
+    } else {
+      __ AssertObjectInRange(map, StaticReadOnlyRoot::kBooleanMap,
+                             StaticReadOnlyRoot::kHeapNumberMap,
+                             AbortReason::kUnexpectedValue);
+    }
 #else
-      Label done;
-      __ LoadMap(map, value);
-      __ CompareRoot(map, RootIndex::kHeapNumberMap);
-      __ JumpIf(kEqual, &done);
-      __ CompareRoot(map, RootIndex::kBooleanMap);
-      if (fail) {
-        __ JumpIf(kNotEqual, fail);
-      } else {
-        __ Assert(kEqual, AbortReason::kUnexpectedValue);
-      }
-      __ bind(&done);
+    Label done;
+    __ LoadMap(map, value);
+    __ CompareRoot(map, RootIndex::kHeapNumberMap);
+    __ JumpIf(kEqual, &done);
+    __ CompareRoot(map, RootIndex::kBooleanMap);
+    if (fail) {
+      __ JumpIf(kNotEqual, fail);
+    } else {
+      __ Assert(kEqual, AbortReason::kUnexpectedValue);
+    }
+    __ bind(&done);
 #endif
-      break;
+  } else if (NodeTypeIs(assumed_input_type, NodeType::kNumberOrUndefined)) {
+    // Check if HeapNumber or Undefined, jump to fail otherwise.
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
+    Register map = temps.AcquireScratch();
+
+    Label done;
+    __ LoadMap(map, value);
+    __ CompareRoot(map, RootIndex::kHeapNumberMap);
+    __ JumpIf(kEqual, &done);
+    __ CompareRoot(map, RootIndex::kUndefinedMap);
+    if (fail) {
+      __ JumpIf(kNotEqual, fail);
+    } else {
+      __ Assert(kEqual, AbortReason::kUnexpectedValue);
     }
-
-    case TaggedToFloat64ConversionType::kNumberOrUndefined: {
-      // Check if HeapNumber or Undefined, jump to fail otherwise.
-      MaglevAssembler::TemporaryRegisterScope temps(masm);
-      Register map = temps.AcquireScratch();
-
-      Label done;
-      __ LoadMap(map, value);
-      __ CompareRoot(map, RootIndex::kHeapNumberMap);
-      __ JumpIf(kEqual, &done);
-      __ CompareRoot(map, RootIndex::kUndefinedMap);
-      if (fail) {
-        __ JumpIf(kNotEqual, fail);
-      } else {
-        __ Assert(kEqual, AbortReason::kUnexpectedValue);
-      }
-      __ bind(&done);
-      break;
+    __ bind(&done);
+  } else {
+    DCHECK(NodeTypeIs(assumed_input_type, NodeType::kNumberOrOddball));
+    // Check if HeapNumber or Oddball, jump to fail otherwise.
+    if (fail) {
+      __ JumpIfObjectTypeNotInRange(value, InstanceType::HEAP_NUMBER_TYPE,
+                                    InstanceType::ODDBALL_TYPE, fail);
+    } else {
+      __ AssertObjectTypeInRange(value, InstanceType::HEAP_NUMBER_TYPE,
+                                 InstanceType::ODDBALL_TYPE,
+                                 AbortReason::kUnexpectedValue);
     }
-
-    case TaggedToFloat64ConversionType::kNumberOrOddball:
-      // Check if HeapNumber or Oddball, jump to fail otherwise.
-      if (fail) {
-        __ JumpIfObjectTypeNotInRange(value, InstanceType::HEAP_NUMBER_TYPE,
-                                      InstanceType::ODDBALL_TYPE, fail);
-      } else {
-        __ AssertObjectTypeInRange(value, InstanceType::HEAP_NUMBER_TYPE,
-                                   InstanceType::ODDBALL_TYPE,
-                                   AbortReason::kUnexpectedValue);
-      }
-      break;
-    case TaggedToFloat64ConversionType::kOnlyNumber:
-      // Check if HeapNumber, jump to fail otherwise.
-      if (fail) {
-        __ JumpIfNotObjectType(value, InstanceType::HEAP_NUMBER_TYPE, fail);
-      } else {
-        __ AssertObjectType(value, InstanceType::HEAP_NUMBER_TYPE,
-                            AbortReason::kUnexpectedValue);
-      }
-      break;
   }
 }
 
 void TryUnboxNumberOrOddball(MaglevAssembler* masm, DoubleRegister dst,
                              Register clobbered_src,
-                             TaggedToFloat64ConversionType conversion_type,
-                             Label* fail) {
+                             NodeType assumed_input_type, Label* fail) {
   Label is_not_smi, done;
   // Check if Smi.
   __ JumpIfNotSmi(clobbered_src, &is_not_smi, Label::kNear);
@@ -2165,7 +2156,7 @@ void TryUnboxNumberOrOddball(MaglevAssembler* masm, DoubleRegister dst,
   __ Int32ToDouble(dst, clobbered_src);
   __ Jump(&done);
   __ bind(&is_not_smi);
-  JumpToFailIfNotHeapNumberOrOddball(masm, clobbered_src, conversion_type,
+  JumpToFailIfNotHeapNumberOrOddball(masm, clobbered_src, assumed_input_type,
                                      fail);
   __ LoadHeapNumberOrOddballValue(dst, clobbered_src);
   __ bind(&done);
@@ -2181,7 +2172,7 @@ void CheckedNumberOrOddballToFloat64::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
-                          conversion_type(),
+                          assumed_input_type(),
                           __ GetDeoptLabel(this, deoptimize_reason()));
 }
 
@@ -2193,8 +2184,7 @@ void CheckedNumberToFloat64::GenerateCode(MaglevAssembler* masm,
                                           const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   TryUnboxNumberOrOddball(
-      masm, ToDoubleRegister(result()), value,
-      TaggedToFloat64ConversionType::kOnlyNumber,
+      masm, ToDoubleRegister(result()), value, NodeType::kNumber,
       __ GetDeoptLabel(this, DeoptimizeReason::kNotANumber));
 }
 
@@ -2216,7 +2206,7 @@ void CheckedNumberOrOddballToHoleyFloat64::GenerateCode(
   __ Int32ToDouble(dst, src);
   __ Jump(&done);
   __ bind(&is_not_smi);
-  JumpToFailIfNotHeapNumberOrOddball(masm, src, conversion_type(), fail);
+  JumpToFailIfNotHeapNumberOrOddball(masm, src, assumed_input_type(), fail);
   __ LoadHeapNumberOrOddballValue(dst, src);
   __ JumpIfNotObjectType(src, InstanceType::HEAP_NUMBER_TYPE, &done,
                          Label::kNear);
@@ -2232,7 +2222,7 @@ void UnsafeNumberOrOddballToFloat64::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
-                          conversion_type(), nullptr);
+                          assumed_input_type(), nullptr);
 }
 
 void UnsafeNumberToFloat64::SetValueLocationConstraints() {
@@ -2243,7 +2233,7 @@ void UnsafeNumberToFloat64::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
-                          TaggedToFloat64ConversionType::kOnlyNumber, nullptr);
+                          NodeType::kNumber, nullptr);
 }
 
 void UnsafeNumberOrOddballToHoleyFloat64::SetValueLocationConstraints() {
@@ -2263,7 +2253,7 @@ void UnsafeNumberOrOddballToHoleyFloat64::GenerateCode(
   __ Int32ToDouble(dst, src);
   __ Jump(&done);
   __ bind(&is_not_smi);
-  JumpToFailIfNotHeapNumberOrOddball(masm, src, conversion_type(), nullptr);
+  JumpToFailIfNotHeapNumberOrOddball(masm, src, assumed_input_type(), nullptr);
   __ LoadHeapNumberOrOddballValue(dst, src);
   __ JumpIfNotObjectType(src, InstanceType::HEAP_NUMBER_TYPE, &done,
                          Label::kNear);
@@ -2289,8 +2279,8 @@ void CheckedNumberToInt32::GenerateCode(MaglevAssembler* masm,
   __ Jump(&done);
   __ bind(&is_not_smi);
   // Check if Number.
-  JumpToFailIfNotHeapNumberOrOddball(
-      masm, value, TaggedToFloat64ConversionType::kOnlyNumber, deopt_label);
+  JumpToFailIfNotHeapNumberOrOddball(masm, value, NodeType::kNumber,
+                                     deopt_label);
   __ LoadHeapNumberValue(double_value, value);
   __ TryTruncateDoubleToInt32(ToRegister(result()), double_value, deopt_label);
   __ bind(&done);
@@ -2298,9 +2288,10 @@ void CheckedNumberToInt32::GenerateCode(MaglevAssembler* masm,
 
 namespace {
 
-void EmitTruncateNumberOrOddballToInt32(
-    MaglevAssembler* masm, Register value, Register result_reg,
-    TaggedToFloat64ConversionType conversion_type, Label* not_a_number) {
+void EmitTruncateNumberOrOddballToInt32(MaglevAssembler* masm, Register value,
+                                        Register result_reg,
+                                        NodeType assumed_input_type,
+                                        Label* not_a_number) {
   Label is_not_smi, done;
   // Check if Smi.
   __ JumpIfNotSmi(value, &is_not_smi, Label::kNear);
@@ -2308,7 +2299,7 @@ void EmitTruncateNumberOrOddballToInt32(
   __ SmiToInt32(value);
   __ Jump(&done, Label::kNear);
   __ bind(&is_not_smi);
-  JumpToFailIfNotHeapNumberOrOddball(masm, value, conversion_type,
+  JumpToFailIfNotHeapNumberOrOddball(masm, value, assumed_input_type,
                                      not_a_number);
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   DoubleRegister double_value = temps.AcquireScratchDouble();
@@ -2396,8 +2387,8 @@ void TruncateCheckedNumberOrOddballToInt32::GenerateCode(
   DCHECK_EQ(value, result_reg);
   Label* deopt_label =
       __ GetDeoptLabel(this, DeoptimizeReason::kNotANumberOrOddball);
-  EmitTruncateNumberOrOddballToInt32(masm, value, result_reg, conversion_type(),
-                                     deopt_label);
+  EmitTruncateNumberOrOddballToInt32(masm, value, result_reg,
+                                     assumed_input_type(), deopt_label);
 }
 
 void TruncateUnsafeNumberOrOddballToInt32::SetValueLocationConstraints() {
@@ -2409,8 +2400,8 @@ void TruncateUnsafeNumberOrOddballToInt32::GenerateCode(
   Register value = ToRegister(ValueInput());
   Register result_reg = ToRegister(result());
   DCHECK_EQ(value, result_reg);
-  EmitTruncateNumberOrOddballToInt32(masm, value, result_reg, conversion_type(),
-                                     nullptr);
+  EmitTruncateNumberOrOddballToInt32(masm, value, result_reg,
+                                     assumed_input_type(), nullptr);
 }
 
 void ChangeInt32ToFloat64::SetValueLocationConstraints() {
@@ -6965,9 +6956,8 @@ void CheckedNumberOrOddballToUint8Clamped::GenerateCode(
   // Check if HeapNumber or Oddball, deopt otherwise.
   Label* deopt_label =
       __ GetDeoptLabel(this, DeoptimizeReason::kNotANumberOrOddball);
-  JumpToFailIfNotHeapNumberOrOddball(
-      masm, value, TaggedToFloat64ConversionType::kNumberOrOddball,
-      deopt_label);
+  JumpToFailIfNotHeapNumberOrOddball(masm, value, NodeType::kNumberOrOddball,
+                                     deopt_label);
   // ToNumber of an oddball reads its to_number_raw field, which lives at the
   // same offset as HeapNumber::value_, so the same load works for both.
   __ LoadHeapNumberOrOddballValue(double_value, value);

@@ -137,13 +137,13 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
 
   ValueNode* GetConstantWithRepresentation(
       ValueNode* node, UseRepresentation repr,
-      std::optional<TaggedToFloat64ConversionType> conversion_type);
+      std::optional<NodeType> assumed_input_type);
 
   // Returns a variant of the node with the value representation given. It
   // returns nullptr if we need to emit a tagged conversion.
   MaybeReduceResult GetUntaggedValueWithRepresentation(
       ValueNode* node, UseRepresentation repr,
-      std::optional<TaggedToFloat64ConversionType> conversion_type);
+      std::optional<NodeType> assumed_input_type);
 
   // Records the untagged input of a tagging conversion as the matching
   // untagged alternative of `tagged`, so a later untagging use can reuse it.

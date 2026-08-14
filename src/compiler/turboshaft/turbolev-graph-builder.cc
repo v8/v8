@@ -5138,27 +5138,34 @@ class GraphBuildingNodeProcessor {
                node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  // The narrowest kind that still admits everything the conversion is allowed
+  // to assume about its input.
+  static ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind
+  JSPrimitiveKindFor(maglev::NodeType assumed_input_type) {
+    if (maglev::NodeTypeIs(assumed_input_type, maglev::NodeType::kNumber)) {
+      return ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
+    }
+    if (maglev::NodeTypeIs(assumed_input_type,
+                           maglev::NodeType::kNumberOrBoolean)) {
+      return ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+          kNumberOrBoolean;
+    }
+    if (maglev::NodeTypeIs(assumed_input_type,
+                           maglev::NodeType::kNumberOrUndefined)) {
+      return ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+          kNumberOrUndefined;
+    }
+    DCHECK(maglev::NodeTypeIs(assumed_input_type,
+                              maglev::NodeType::kNumberOrOddball));
+    return ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+        kNumberOrOddball;
+  }
+
   maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind;
-    switch (node->conversion_type()) {
-      case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrUndefined;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrBoolean;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrOddball;
-        break;
-    }
+    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind =
+        JSPrimitiveKindFor(node->assumed_input_type());
     SetMap(node,
            __ ConvertJSPrimitiveToUntaggedOrDeopt(
                Map(node->ValueInput()), frame_state, kind,
@@ -5171,24 +5178,8 @@ class GraphBuildingNodeProcessor {
       maglev::CheckedNumberOrOddballToHoleyFloat64* node,
       const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind;
-    switch (node->conversion_type()) {
-      case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrUndefined;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrBoolean;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
-        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-            kNumberOrOddball;
-        break;
-    }
+    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind =
+        JSPrimitiveKindFor(node->assumed_input_type());
     SetMap(
         node,
         __ ConvertJSPrimitiveToUntaggedOrDeopt(
@@ -5204,9 +5195,9 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::UnsafeNumberToFloat64* node,
                                 const maglev::ProcessingState& state) {
-    // `node->conversion_type()` doesn't matter here, since for both HeapNumbers
-    // and Oddballs, the Float64 value is at the same index (and this node never
-    // deopts, regardless of its input).
+    // `node->assumed_input_type()` doesn't matter here, since for both
+    // HeapNumbers and Oddballs, the Float64 value is at the same index (and
+    // this node never deopts, regardless of its input).
     SetMap(node, __ ConvertJSPrimitiveToUntagged(
                      Map(node->ValueInput()),
                      ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64,
@@ -5216,9 +5207,9 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::UnsafeNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
-    // `node->conversion_type()` doesn't matter here, since for both HeapNumbers
-    // and Oddballs, the Float64 value is at the same index (and this node never
-    // deopts, regardless of its input).
+    // `node->assumed_input_type()` doesn't matter here, since for both
+    // HeapNumbers and Oddballs, the Float64 value is at the same index (and
+    // this node never deopts, regardless of its input).
     SetMap(node, __ ConvertJSPrimitiveToUntagged(
                      Map(node->ValueInput()),
                      ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64,
@@ -5229,9 +5220,9 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(
       maglev::UnsafeNumberOrOddballToHoleyFloat64* node,
       const maglev::ProcessingState& state) {
-    // `node->conversion_type()` doesn't matter here, since for both HeapNumbers
-    // and Oddballs, the Float64 value is at the same index (and this node never
-    // deopts, regardless of its input).
+    // `node->assumed_input_type()` doesn't matter here, since for both
+    // HeapNumbers and Oddballs, the Float64 value is at the same index (and
+    // this node never deopts, regardless of its input).
     SetMap(node,
            __ ConvertJSPrimitiveToUntagged(
                Map(node->ValueInput()),
@@ -5438,21 +5429,21 @@ class GraphBuildingNodeProcessor {
       maglev::TruncateCheckedNumberOrOddballToInt32* node,
       const maglev::ProcessingState& state) {
     TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement input_requirement;
-    switch (node->conversion_type()) {
-      case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
-        input_requirement =
-            TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement::kNumber;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
-        UNREACHABLE();
-      case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
-        input_requirement = TruncateJSPrimitiveToWord32OrDeoptOp::
-            InputRequirement::kNumberOrBoolean;
-        break;
-      case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
-        input_requirement = TruncateJSPrimitiveToWord32OrDeoptOp::
-            InputRequirement::kNumberOrOddball;
-        break;
+    if (maglev::NodeTypeIs(node->assumed_input_type(),
+                           maglev::NodeType::kNumber)) {
+      input_requirement =
+          TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement::kNumber;
+    } else if (maglev::NodeTypeIs(node->assumed_input_type(),
+                                  maglev::NodeType::kNumberOrBoolean)) {
+      input_requirement = TruncateJSPrimitiveToWord32OrDeoptOp::
+          InputRequirement::kNumberOrBoolean;
+    } else {
+      DCHECK(maglev::NodeTypeIs(node->assumed_input_type(),
+                                maglev::NodeType::kNumberOrOddball));
+      DCHECK_NE(node->assumed_input_type(),
+                maglev::NodeType::kNumberOrUndefined);
+      input_requirement = TruncateJSPrimitiveToWord32OrDeoptOp::
+          InputRequirement::kNumberOrOddball;
     }
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     SetMap(node, __ TruncateJSPrimitiveToWord32OrDeopt(

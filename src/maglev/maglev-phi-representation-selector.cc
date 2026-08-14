@@ -646,8 +646,8 @@ void MaglevPhiRepresentationSelector::UntagInputWithHoistedUntagging(
           DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
                             NodeType::kNumber));
           untagged = AddNewNodeNoInputConversionAtBlockEnd<
-              TruncateUnsafeNumberOrOddballToInt32>(
-              block, {input}, TaggedToFloat64ConversionType::kOnlyNumber);
+              TruncateUnsafeNumberOrOddballToInt32>(block, {input},
+                                                    NodeType::kNumber);
         } else {
           DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
                             NodeType::kSmi));
@@ -657,8 +657,8 @@ void MaglevPhiRepresentationSelector::UntagInputWithHoistedUntagging(
       } else {
         if (truncating) {
           untagged = AddNewNodeNoInputConversionAtBlockEnd<
-              TruncateCheckedNumberOrOddballToInt32>(
-              block, {input}, TaggedToFloat64ConversionType::kOnlyNumber);
+              TruncateCheckedNumberOrOddballToInt32>(block, {input},
+                                                     NodeType::kNumber);
         } else {
           // TODO(victorgomes): Why not CheckedNumberToInt32?
           untagged =
@@ -910,7 +910,7 @@ void MaglevPhiRepresentationSelector::UntagBackedgePhiInput(
                         AddNewNodeNoInputConversionAtBlockEnd<
                             CheckedNumberOrOddballToHoleyFloat64>(
                             phi->predecessor_at(input_index), {input_phi},
-                            TaggedToFloat64ConversionType::kNumberOrUndefined));
+                            NodeType::kNumberOrUndefined));
       break;
     }
     case ValueRepresentation::kTagged:
@@ -1212,17 +1212,11 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
       // A HoleyFloat64 hole really means Undefined rather than the_hole:
       // whenever it gets rematerialized, it will always be rematerialized as
       // Undefined. So, we can use a truncating conversion as long as the
-      // original ConversionType was allowing truncating Undefined.
-      switch (truncate->conversion_type()) {
-        case TaggedToFloat64ConversionType::kOnlyNumber:
-        case TaggedToFloat64ConversionType::kNumberOrBoolean:
-          // Need to deopt for Hole/Undefined ==> not truncating.
-          break;
-        case TaggedToFloat64ConversionType::kNumberOrUndefined:
-        case TaggedToFloat64ConversionType::kNumberOrOddball:
-          conversion_is_truncating_float64 = true;
-          break;
-      }
+      // original assumed input type was allowing truncating Undefined.
+      // Assumptions without Undefined need to deopt for Hole/Undefined
+      // ==> not truncating.
+      conversion_is_truncating_float64 = !NodeTypeIs(
+          truncate->assumed_input_type(), NodeType::kNumberOrBoolean);
     }
   }
 
@@ -1232,8 +1226,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   if (from_repr == ValueRepresentation::kHoleyFloat64) {
     if (CheckedNumberOrOddballToFloat64* number_untagging =
             old_untagging->TryCast<CheckedNumberOrOddballToFloat64>()) {
-      if (number_untagging->conversion_type() !=
-          TaggedToFloat64ConversionType::kNumberOrOddball) {
+      if (NodeTypeIs(number_untagging->assumed_input_type(),
+                     NodeType::kNumberOrBoolean)) {
         // {phi} is a HoleyFloat64 (and thus, it could be a hole), but the
         // original untagging did not allow holes.
         needed_conversion = Opcode::kCheckedHoleyFloat64ToFloat64;
