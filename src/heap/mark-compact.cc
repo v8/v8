@@ -3644,6 +3644,13 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   Tagged<BytecodeArray> bytecode_array =
       shared_info->GetBytecodeArrayForGC(heap_->isolate());
 
+  // With in-sandbox corruption, the SFI::trusted_function_data_ handle could be
+  // swapped before getting flushed. The SBXCHECK ensures that we haven't marked
+  // this bytecode as live, so we don't flush out functions that are currently
+  // executing on the stack.
+  SBXCHECK(!MarkingHelper::IsMarkedOrAlwaysLive(
+      heap_, non_atomic_marking_state_, bytecode_array));
+
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!HeapLayout::InWritableSharedSpace(shared_info));
   // Make the old handle unusable. We don't zap it eagerly since other SFI might
