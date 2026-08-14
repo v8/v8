@@ -679,14 +679,17 @@ bool ValueNode::MayBeHoleOrUndefinedNan() const {
     case Opcode::kHoleyFloat64Constant:
       return Cast<HoleyFloat64Constant>()->value().is_undefined_or_hole_nan();
 
+    // Casts that reinterpret the bits without touching them, so they carry the
+    // patterns exactly when their input does.
     case Opcode::kReturnedValue:
+    case Opcode::kUnsafeHoleyFloat64ToFloat64:
+    case Opcode::kUnsafeFloat64ToHoleyFloat64:
       return input_node(0)->MayBeHoleOrUndefinedNan();
 
-    // Reads of memory that anyone can write the patterns into, casts that
-    // reinterpret HoleyFloat64 bits as a number, and operations on the bits
-    // rather than on the value: negating 0x7FF7'FFFF'FFF7'FFFF yields the hole,
-    // and Float64Max returns its input untouched when both inputs are the same
-    // node.
+    // Reads of memory that anyone can write the patterns into, and operations
+    // on the bits rather than on the value: negating 0x7FF7'FFFF'FFF7'FFFF
+    // yields the hole, and Float64Max returns its input untouched when both
+    // inputs are the same node.
     case Opcode::kLoadFloat64:
     case Opcode::kLoadFixedDoubleArrayElement:
     case Opcode::kLoadHoleyFixedDoubleArrayElement:
@@ -699,8 +702,6 @@ bool ValueNode::MayBeHoleOrUndefinedNan() const {
     case Opcode::kUnsafeNumberToFloat64:
     case Opcode::kUnsafeNumberOrOddballToFloat64:
     case Opcode::kUnsafeNumberOrOddballToHoleyFloat64:
-    case Opcode::kUnsafeHoleyFloat64ToFloat64:
-    case Opcode::kUnsafeFloat64ToHoleyFloat64:
     case Opcode::kFloat64Abs:
     case Opcode::kFloat64Negate:
     case Opcode::kFloat64Max:
