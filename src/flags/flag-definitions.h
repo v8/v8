@@ -2179,16 +2179,6 @@ FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_WASM_FLAG
 #undef DECL_EXPERIMENTAL_WASM_FLAG
 
-// Note that it is a conscious decision not to use DEFINE_TEST_ONLY_FLAG as that
-// can't be used in combination with --fuzzing.
-// This flag allows to bypass casts which is unsafe. Note that this flag is
-// disabled in production and is disallowed for vulnerability reports. Creating
-// a crash with this flag enabled is neither a vulnerability, nor a stability
-// issue nor an issue at all.
-DEFINE_EXPERIMENTAL_FEATURE(
-    wasm_assume_ref_cast_desc_succeeds,
-    "assume ref.cast_desc always succeeds and skip the related type check")
-
 // Unsafe additions to the GC proposal for performance experiments.
 DEFINE_TEST_ONLY_FLAG(
     wasm_assume_ref_cast_succeeds,
@@ -4427,8 +4417,6 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_code_traces)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_drumbrake_traces)
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_assume_ref_cast_succeeds)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
-                       wasm_assume_ref_cast_desc_succeeds)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_skip_null_checks)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_ref_cast_nop)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_skip_bounds_checks)

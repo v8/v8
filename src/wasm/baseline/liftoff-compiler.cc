@@ -8901,8 +8901,7 @@ class LiftoffCompiler {
 
   void RefCastDescEq(FullDecoder* decoder, const Value& obj, const Value& desc,
                      Value* result) {
-    if (v8_flags.wasm_assume_ref_cast_succeeds ||
-        v8_flags.wasm_assume_ref_cast_desc_succeeds) {
+    if (v8_flags.wasm_assume_ref_cast_succeeds) {
       __ DropValues(1);  // Drop the descriptor, pretend it was consumed.
       return;
     }
