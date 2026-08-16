@@ -1276,4 +1276,13 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Promise/try/avoids-wrap': [SKIP],
+  'built-ins/Promise/try/avoids-wrap-for-subclass': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
