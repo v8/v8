@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMMON_SEGMENTED_TABLE_INL_H_
-#define V8_COMMON_SEGMENTED_TABLE_INL_H_
+#ifndef V8_SANDBOX_SEGMENTED_TABLE_INL_H_
+#define V8_SANDBOX_SEGMENTED_TABLE_INL_H_
 
-#include "src/common/segmented-table.h"
+#include "src/sandbox/segmented-table.h"
 // Include the non-inl header before the rest of the headers.
 
 #include "src/base/emulated-virtual-address-subspace.h"
@@ -42,9 +42,9 @@ const Entry& SegmentedTable<Entry, size>::at(uint32_t index) const {
 }
 
 template <typename Entry, size_t size>
-typename SegmentedTable<Entry, size>::WriteIterator
-SegmentedTable<Entry, size>::iter_at(uint32_t index) {
-  return WriteIterator(base_, index);
+typename SegmentedTable<Entry, size>::WritableRange
+SegmentedTable<Entry, size>::GetWritableRange(Segment segment) {
+  return WritableRange(base_, segment);
 }
 
 template <typename Entry, size_t size>
@@ -138,20 +138,15 @@ void SegmentedTable<Entry, size>::TearDown() {
 
 template <typename Entry, size_t size>
 typename SegmentedTable<Entry, size>::FreelistHead
-SegmentedTable<Entry, size>::InitializeFreeList(Segment segment,
-                                                uint32_t start_offset) {
-  DCHECK_LT(start_offset, kEntriesPerSegment);
-  uint32_t num_entries = kEntriesPerSegment - start_offset;
-
-  uint32_t first = segment.first_entry() + start_offset;
+SegmentedTable<Entry, size>::InitializeFreeList(Segment segment) {
+  uint32_t num_entries = kEntriesPerSegment;
+  uint32_t first = segment.first_entry();
   uint32_t last = segment.last_entry();
   {
-    WriteIterator it = iter_at(first);
-    while (it.index() != last) {
-      it->MakeFreelistEntry(it.index() + 1);
-      ++it;
+    auto write_range = GetWritableRange(segment);
+    for (auto it = write_range.begin(); it != write_range.end(); ++it) {
+      it->MakeFreelistEntry(it.index() == last ? 0 : it.index() + 1);
     }
-    it->MakeFreelistEntry(0);
   }
 
   return FreelistHead(first, num_entries);
@@ -199,12 +194,7 @@ void SegmentedTable<Entry, size>::FreeTableSegment(Segment segment) {
   vas_->FreePages(segment_start, kSegmentSize);
 }
 
-template <typename Entry, size_t size>
-SegmentedTable<Entry, size>::WriteIterator::WriteIterator(Entry* base,
-                                                          uint32_t index)
-    : base_(base), index_(index), write_scope_("pointer table write") {}
-
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMMON_SEGMENTED_TABLE_INL_H_
+#endif  // V8_SANDBOX_SEGMENTED_TABLE_INL_H_

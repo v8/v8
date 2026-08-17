@@ -14,7 +14,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/code-memory-access.h"
 #include "src/common/globals.h"
-#include "src/common/segmented-table.h"
+#include "src/sandbox/segmented-table.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -58,6 +58,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   using FreelistHead = Base::FreelistHead;
   using Segment = Base::Segment;
   using WriteIterator = Base::WriteIterator;
+  using WritableRange = Base::WritableRange;
   static constexpr size_t kSegmentSize = Base::kSegmentSize;
   static constexpr size_t kEntriesPerSegment = Base::kEntriesPerSegment;
   static constexpr size_t kEntrySize = Base::kEntrySize;

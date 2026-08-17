@@ -12,8 +12,8 @@
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "src/base/iterator.h"
 #include "src/common/assert-scope.h"
-#include "src/common/segmented-table-inl.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/segmented-table-inl.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -377,8 +377,8 @@ uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space,
     uint32_t previous_freelist_length = current_freelist_length;
 
     // Process every entry in this segment, again going top to bottom.
-    for (WriteIterator it = this->iter_at(segment.last_entry());
-         it.index() >= segment.first_entry(); --it) {
+    auto write_range = this->GetWritableRange(segment);
+    for (auto it = write_range.rbegin(); it != write_range.rend(); ++it) {
       if (!it->IsMarked()) {
         it->MakeFreelistEntry(current_freelist_head);
         current_freelist_head = it.index();
