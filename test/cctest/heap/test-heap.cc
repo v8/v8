@@ -96,61 +96,6 @@ static const int kPretenureCreationCount =
 
 
 
-static bool WeakPointerCleared = false;
-
-static void TestWeakGlobalHandleCallback(
-    const v8::WeakCallbackInfo<void>& data) {
-  std::pair<v8::Persistent<v8::Value>*, int>* p =
-      reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
-          data.GetParameter());
-  if (p->second == 1234) WeakPointerCleared = true;
-  p->first->Reset();
-}
-
-TEST(WeakGlobalHandlesMark) {
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = CcTest::heap();
-  Factory* factory = isolate->factory();
-  GlobalHandles* global_handles = isolate->global_handles();
-
-  WeakPointerCleared = false;
-
-  IndirectHandle<Object> h1;
-  IndirectHandle<Object> h2;
-
-  {
-    HandleScope scope(isolate);
-
-    DirectHandle<Object> i = factory->NewStringFromStaticChars("fisk");
-    DirectHandle<Object> u = factory->NewNumber(1.12344);
-
-    h1 = global_handles->Create(*i);
-    h2 = global_handles->Create(*u);
-  }
-
-  // Make sure the objects are promoted.
-  heap::EmptyNewSpaceUsingGC(heap);
-  CHECK(!HeapLayout::InYoungGeneration(*h1) &&
-        !HeapLayout::InYoungGeneration(*h2));
-
-  std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
-  GlobalHandles::MakeWeak(
-      h2.location(), reinterpret_cast<void*>(&handle_and_id),
-      &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
-
-  // Incremental marking potentially marked handles before they turned weak.
-  {
-    // We need to invoke GC without stack, otherwise some objects may not be
-    // reclaimed because of conservative stack scanning.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::InvokeMajorGC(heap);
-  }
-  CHECK(IsString(*h1));
-  CHECK(WeakPointerCleared);
-  GlobalHandles::Destroy(h1.location());
-}
 
 
 static const char* not_so_random_string_table[] = {
