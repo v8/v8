@@ -3112,6 +3112,7 @@ DEFINE_BOOL(test_small_max_function_context_stub_size, false,
             "by making the maximum size smaller")
 DEFINE_WEAK_IMPLICATION(future, fast_api_indexof)
 DEFINE_BOOL(fast_api_indexof, false, "enable using indexOf Api callbacks")
+DEFINE_WEAK_IMPLICATION(future, fast_api_iterable_to_list)
 DEFINE_BOOL(fast_api_iterable_to_list, false,
             "enable fast path for IterableToList for indexed interceptors")
 
