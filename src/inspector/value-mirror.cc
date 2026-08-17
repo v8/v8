@@ -260,6 +260,7 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
 }
 
 bool isBuiltinGetter(v8::Local<v8::Function> function) {
+  if (function->IsProxy()) return false;
   // A bound function may forward to user code via its bound receiver or
   // bound arguments even when the underlying target is a builtin, so it is
   // never treated as a plain builtin getter.
