@@ -479,9 +479,9 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
 
 inline MemOperand MaglevAssembler::TypedArrayElementOperand(
     Register data_pointer, Register index, int element_size) {
-  Add(data_pointer, data_pointer,
-      Operand(index, LSL, ShiftFromScale(element_size)));
-  return MemOperand(data_pointer);
+  // The accesses this operand feeds are always exactly element_size wide, so
+  // the scaled register-offset addressing mode can fold the index shift.
+  return MemOperand(data_pointer, index, LSL, ShiftFromScale(element_size));
 }
 
 inline void MaglevAssembler::StoreDataViewElement(Register value,
