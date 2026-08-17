@@ -1861,9 +1861,11 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64ForToNumber(
     return alt_f64;
   }
 
+  NodeType known_type = GetType(value);
+
   // Check for the empty type first, so that we don't emit unsafe conversion
   // nodes below.
-  if (IsEmptyNodeType(node_info->type())) {
+  if (IsEmptyNodeType(known_type)) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
   }
 
@@ -1872,8 +1874,7 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64ForToNumber(
       // The conversion only has to cope with inputs that the caller allows it
       // to assume and that the value can actually have, so the arms below pick
       // their check from the intersection of the two.
-      auto narrowed_input_type =
-          IntersectType(assumed_input_type, node_info->type());
+      auto narrowed_input_type = IntersectType(assumed_input_type, known_type);
       if (IsEmptyNodeType(narrowed_input_type)) {
         // The value can never be what the caller assumes, so whatever we emit
         // deopts at runtime. Emitting a plain check keeps the graph as it is,
@@ -1957,6 +1958,8 @@ ReduceResult MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
       known_node_aspects().GetOrCreateInfoFor(broker(), value);
   auto& alternative = node_info->alternative();
 
+  NodeType known_type = GetType(value);
+
   // When we want to use the `holey_float64` alternative, we need to make sure
   // that this doesn't contain any values that are not outside of
   // `assumed_input_type`. We do only set this alternative (see below) when
@@ -1967,16 +1970,15 @@ ReduceResult MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
   // range, because the `holey_float64` alternative can contain values outside
   // of smi range.
   if (ValueNode* alt_hf64 = alternative.holey_float64()) {
-    if (NodeTypeIs(
-            IntersectType(NodeType::kNumberOrUndefined, node_info->type()),
-            assumed_input_type)) {
+    if (NodeTypeIs(IntersectType(NodeType::kNumberOrUndefined, known_type),
+                   assumed_input_type)) {
       return alt_hf64;
     }
   }
 
   // Check for the empty type first, so that we don't emit unsafe conversion
   // nodes below.
-  if (IsEmptyNodeType(node_info->type())) {
+  if (IsEmptyNodeType(known_type)) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
   }
 
@@ -1984,8 +1986,7 @@ ReduceResult MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
   // only one that cannot be converted and widened below. It is unboxed into
   // HoleyFloat64 directly, which is what keeps undefined undefined.
   if (value->is_tagged()) {
-    auto narrowed_input_type =
-        IntersectType(assumed_input_type, node_info->type());
+    auto narrowed_input_type = IntersectType(assumed_input_type, known_type);
     if (IsEmptyNodeType(narrowed_input_type)) {
       // The input cannot be what the caller expects, so a conversion of it
       // could only ever deopt.
