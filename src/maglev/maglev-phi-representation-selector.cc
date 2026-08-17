@@ -1248,9 +1248,22 @@ ProcessResult MaglevPhiRepresentationSelector ::UpdateNodePhiInput(
     case ValueRepresentation::kFloat64:
       node->OverwriteWith<Float64ToString>();
       return ProcessResult::kContinue;
-    default:
+    case ValueRepresentation::kHoleyFloat64: {
+      // NumberToString is only emitted for inputs that are known to be numbers.
+      ValueNode* input =
+          AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>(
+              reducer_.current_block(), BasicBlockPosition::Start(), {phi});
+      node->OverwriteWith<Float64ToString>();
+      node->change_input(input_index, input);
+      return ProcessResult::kContinue;
+    }
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
