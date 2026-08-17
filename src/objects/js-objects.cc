@@ -4320,7 +4320,9 @@ bool TestDictionaryPropertiesIntegrityLevel(Tagged<Dictionary> dict,
     if (Object::FilterKey(key, ALL_PROPERTIES)) continue;
     PropertyDetails details = dict->DetailsAt(i);
     if (details.IsConfigurable()) return false;
-    if (level == FROZEN && details.kind() == PropertyKind::kData &&
+    if (level == FROZEN &&
+        (details.kind() == PropertyKind::kData ||
+         IsAccessorInfo(dict->ValueAt(i))) &&
         !details.IsReadOnly()) {
       return false;
     }
@@ -4339,7 +4341,9 @@ bool TestFastPropertiesIntegrityLevel(Tagged<Map> map,
     if (descriptors->GetKey(i)->IsAnyPrivate()) continue;
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.IsConfigurable()) return false;
-    if (level == FROZEN && details.kind() == PropertyKind::kData &&
+    if (level == FROZEN &&
+        (details.kind() == PropertyKind::kData ||
+         IsAccessorInfo(descriptors->GetStrongValue(i))) &&
         !details.IsReadOnly()) {
       return false;
     }
