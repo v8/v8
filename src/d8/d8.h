@@ -5,6 +5,7 @@
 #ifndef V8_D8_D8_H_
 #define V8_D8_D8_H_
 
+#include <atomic>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -168,6 +169,7 @@ class SourceGroup {
   i::ParkingSemaphore next_semaphore_;
   i::ParkingSemaphore done_semaphore_;
   base::Thread* thread_;
+  std::atomic<bool> terminate_{false};
 
   void ExitShell(int exit_code);
 

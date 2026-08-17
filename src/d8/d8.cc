@@ -1138,6 +1138,10 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
     }
   }
 
+  HandleScope handle_scope(isolate);
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(report_exceptions == kReportExceptions);
+
   if (i::v8_flags.parse_only) {
     i::VMState<PARSER> state(i_isolate);
     i::DirectHandle<i::String> str = Utils::OpenDirectHandle(*(source_str));
@@ -1170,10 +1174,6 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
     }
     return true;
   }
-
-  HandleScope handle_scope(isolate);
-  TryCatch try_catch(isolate);
-  try_catch.SetVerbose(report_exceptions == kReportExceptions);
 
   // Explicitly check for stack overflows. This method can be called
   // recursively, and since we consume quite some stack space for the C++
@@ -2157,6 +2157,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
     i::CppGCManaged<ModuleEmbedderData>::Ptr module_data =
         GetModuleDataFromContext(realm);
+
     Local<Module> root_module;
     auto module_it = module_data->module_map.find(
         std::make_pair(absolute_path, ModuleType::kJavaScript));
@@ -6346,6 +6347,7 @@ void SourceGroup::ExecuteInThread() {
     for (int i = 0; i < Shell::options.stress_runs; ++i) {
       next_semaphore_.ParkedWait(
           reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate());
+      if (terminate_) break;
       {
         Global<Context> global_context;
         HandleScope scope(isolate);
@@ -6397,7 +6399,11 @@ void SourceGroup::WaitForThread(const i::ParkedScope& parked) {
 void SourceGroup::JoinThread(const i::ParkedScope& parked) {
   USE(parked);
   if (thread_ == nullptr) return;
+  terminate_ = true;
+  next_semaphore_.Signal();
   thread_->Join();
+  delete thread_;
+  thread_ = nullptr;
 }
 
 void SerializationDataQueue::Enqueue(std::unique_ptr<SerializationData> data) {
@@ -7289,6 +7295,36 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   return true;
 }
 
+namespace {
+
+void WaitForAllWorkerAndIsolateThreads(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->main_thread_local_heap()->ExecuteMainThreadWhileParked(
+      [](const i::ParkedScope& parked) {
+        for (int i = 1; i < Shell::options.num_isolates; ++i) {
+          if (!Shell::options.bundle) {
+            Shell::options.isolate_sources[i].WaitForThread(parked);
+          }
+        }
+        Shell::WaitForRunningWorkers(parked);
+      });
+}
+
+void JoinAllWorkerAndIsolateThreads(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->main_thread_local_heap()->ExecuteMainThreadWhileParked(
+      [](const i::ParkedScope& parked) {
+        for (int i = 1; i < Shell::options.num_isolates; ++i) {
+          if (!Shell::options.bundle) {
+            Shell::options.isolate_sources[i].JoinThread(parked);
+          }
+        }
+        Shell::WaitForRunningWorkers(parked);
+      });
+}
+
+}  // namespace
+
 int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
@@ -7307,19 +7343,11 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
 
   // Park the main thread here to prevent deadlocks in shared GCs when
   // waiting in JoinThread.
-  i_isolate->main_thread_local_heap()->ExecuteMainThreadWhileParked(
-      [last_run](const i::ParkedScope& parked) {
-        for (int i = 1; i < options.num_isolates; ++i) {
-          if (!options.bundle) {
-            if (last_run) {
-              options.isolate_sources[i].JoinThread(parked);
-            } else {
-              options.isolate_sources[i].WaitForThread(parked);
-            }
-          }
-        }
-        WaitForRunningWorkers(parked);
-      });
+  if (last_run) {
+    JoinAllWorkerAndIsolateThreads(isolate);
+  } else {
+    WaitForAllWorkerAndIsolateThreads(isolate);
+  }
 
   // Other threads have terminated, we can now run the artificial
   // serialize-deserialize pass (which destructively mutates heap state).
@@ -8210,9 +8238,15 @@ int Shell::Main(int argc, char* argv[]) {
         for (int i = 0; i < options.stress_runs; i++) {
           printf("============ Run %d/%d ============\n", i + 1,
                  options.stress_runs.get());
-          bool last_run = i == options.stress_runs - 1;
-          int this_result = RunMain(isolate, last_run);
-          if (this_result != 0) result = this_result;
+          bool is_last_run = i == options.stress_runs - 1;
+          int this_result = RunMain(isolate, is_last_run);
+          if (this_result != 0) {
+            result = this_result;
+            if (!is_last_run) {
+              JoinAllWorkerAndIsolateThreads(isolate);
+            }
+            break;
+          }
         }
       } else if (options.code_cache_options != ShellOptions::kNoProduceCache) {
         // Park the main thread here in case the new isolate wants to perform
@@ -8236,7 +8270,7 @@ int Shell::Main(int argc, char* argv[]) {
                 Initialize(isolate2, console2);
                 PerIsolateData data2(isolate2);
 
-                result = RunMain(isolate2, false);
+                result = RunMain(isolate2, /*last_run=*/false);
                 ResetOnProfileEndListener(isolate2);
               }
               // D8WasmAsyncResolvePromiseTask may be still in the runner at
@@ -8262,12 +8296,11 @@ int Shell::Main(int argc, char* argv[]) {
 
         printf("============ Run: Consume code cache ============\n");
         // Second run to consume the cache in current isolate
-        result = RunMain(isolate, true);
+        result = RunMain(isolate, /*last_run=*/true);
         options.compile_options.Overwrite(
             v8::ScriptCompiler::kNoCompileOptions);
       } else {
-        bool last_run = true;
-        result = RunMain(isolate, last_run);
+        result = RunMain(isolate, /*last_run=*/true);
       }
 
       // Run interactive shell if explicitly requested or if no script has been
