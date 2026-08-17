@@ -92,6 +92,16 @@
   # https://crbug.com/532595489
   'regress/regress-532595489': [FAIL, CRASH, NO_VARIANTS, ['not pointer_compression', SKIP]],
 
+  # TODO(542447324): --shared-string-table together with
+  # --transition-strings-during-gc-with-stack was never intended to work.
+  # Consider reverting the changes introduced to fix misbehaviour.
+  'regress/regress-526275356': [SKIP],
+  'regress/regress-526275356-2': [SKIP],
+  'regress/regress-537813778': [SKIP],
+  'regress/regress-538529872': [SKIP],
+  'regress/regress-538529872-2': [SKIP],
+  'turboshaft/regress-523436017': [SKIP],
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
@@ -2759,13 +2769,7 @@
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.
   'regress/regress-461969023': [SKIP],
-  'regress/regress-526275356': [SKIP],
-  'regress/regress-526275356-2': [SKIP],
-  'regress/regress-537813778': [SKIP],
-  'regress/regress-538529872': [SKIP],
-  'regress/regress-538529872-2': [SKIP],
   'regress/wasm/regress-536581698': [SKIP],
-  'turboshaft/regress-523436017': [SKIP],
   # We need this here because it needs --fuzzing, and in that case we do not
   # check for contradictory flags.
   'regress/wasm/regress-510448957': [SKIP],
