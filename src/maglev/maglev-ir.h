@@ -1475,6 +1475,10 @@ class DeoptFrame {
     const base::Vector<ValueNode*> parameters;
     ValueNode* context;
     compiler::OptionalJSFunctionRef maybe_js_target;
+    // If true, the deoptimizer treats this continuation as a catch handler
+    // when a throw arrives at the call, passing the exception in the slot it
+    // pushes itself (kJavaScriptBuiltinContinuationWithCatch frames).
+    bool is_with_catch = false;
   };
 
   using FrameData = base::DiscriminatedUnion<
@@ -1655,15 +1659,16 @@ class BuiltinContinuationDeoptFrame : public DeoptFrame {
                                 base::Vector<ValueNode*> parameters,
                                 ValueNode* context,
                                 compiler::OptionalJSFunctionRef maybe_js_target,
-                                DeoptFrame* parent)
+                                DeoptFrame* parent, bool is_with_catch)
       : DeoptFrame(BuiltinContinuationFrameData{builtin_id, parameters, context,
-                                                maybe_js_target},
+                                                maybe_js_target, is_with_catch},
                    parent) {}
 
   const Builtin& builtin_id() const { return data().builtin_id; }
   base::Vector<ValueNode*> parameters() const { return data().parameters; }
   ValueNode*& context() { return data().context; }
   ValueNode* context() const { return data().context; }
+  bool is_with_catch() const { return data().is_with_catch; }
   bool is_javascript() const { return data().maybe_js_target.has_value(); }
   compiler::JSFunctionRef javascript_target() const {
     return data().maybe_js_target.value();

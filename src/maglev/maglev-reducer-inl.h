@@ -71,13 +71,13 @@ template <typename BaseT>
 MaglevReducer<BaseT>::LazyDeoptFrameScope::LazyDeoptFrameScope(
     MaglevReducer* reducer, ValueNode* context, Builtin continuation,
     compiler::OptionalJSFunctionRef maybe_js_target,
-    base::Vector<ValueNode* const> parameters)
+    base::Vector<ValueNode* const> parameters, bool is_with_catch)
     : reducer_(reducer),
       data_(DeoptFrame::BuiltinContinuationFrameData{
           continuation,
           parameters.empty() ? base::Vector<ValueNode*>{}
                              : reducer->zone()->CloneVector(parameters),
-          context, maybe_js_target}),
+          context, maybe_js_target, is_with_catch}),
       parent_(reducer->current_lazy_deopt_scope_) {
   if constexpr (ReducerBaseWithDeoptFrameScopeHooks<BaseT>) {
     reducer->base_->OnBeginDeoptFrameScope();
@@ -91,8 +91,10 @@ MaglevReducer<BaseT>::LazyDeoptFrameScope::LazyDeoptFrameScope(
       receiver->ForceEscaping();
     }
   }
-  DebugVerifyBuiltinDeoptFrame(data_,
-                               compiler::ContinuationFrameStateMode::LAZY);
+  DebugVerifyBuiltinDeoptFrame(
+      data_, is_with_catch
+                 ? compiler::ContinuationFrameStateMode::LAZY_WITH_CATCH
+                 : compiler::ContinuationFrameStateMode::LAZY);
   reducer->current_lazy_deopt_scope_ = this;
 }
 

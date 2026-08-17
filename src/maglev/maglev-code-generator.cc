@@ -1420,10 +1420,18 @@ class MaglevFrameTranslationBuilder {
         JSTrampolineDescriptor::GetRegisterParameterCount();
 
     if (frame.is_javascript()) {
-      translation_array_builder_->BeginJavaScriptBuiltinContinuationFrame(
-          bailout_id, literal_id,
-          frame.parameters().length() + kFixedJSFrameRegisterParameters);
+      if (frame.is_with_catch()) {
+        translation_array_builder_
+            ->BeginJavaScriptBuiltinContinuationWithCatchFrame(
+                bailout_id, literal_id,
+                frame.parameters().length() + kFixedJSFrameRegisterParameters);
+      } else {
+        translation_array_builder_->BeginJavaScriptBuiltinContinuationFrame(
+            bailout_id, literal_id,
+            frame.parameters().length() + kFixedJSFrameRegisterParameters);
+      }
     } else {
+      DCHECK(!frame.is_with_catch());
       translation_array_builder_->BeginBuiltinContinuationFrame(
           bailout_id, literal_id, frame.parameters().length());
     }
