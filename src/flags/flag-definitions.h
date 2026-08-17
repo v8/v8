@@ -3326,9 +3326,6 @@ DEFINE_WEAK_IMPLICATION(future, clone_object_sidestep_transitions)
 DEFINE_INT(fast_properties_soft_limit, 12,
            "limits the number of properties that can be added to an object "
            "using keyed store before transitioning to dictionary mode")
-DEFINE_INT(max_fast_properties, 128,
-           "limits the number of mutable properties that can be added to an "
-           "object before transitioning to dictionary mode")
 
 DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
             "generate extra code for manipulating stats counters")
