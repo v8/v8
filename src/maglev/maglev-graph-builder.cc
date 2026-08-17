@@ -8452,42 +8452,22 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
             StoreTaggedMode::kDefault)
             .IsDoneWithoutAbort());
 
-  // Generators can accept an optional value when resumed (e.g.
-  // g.next("val")). This value becomes the result of the `yield`
-  // expression inside the generator.
-  ValueNode* value = GetValueOrUndefined(args[0]);
-
   ValueNode* result;
-  CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
-  if (catch_block.ref && catch_block.exception_handler_was_used) {
-    // The resume site has a catch handler that has already seen exceptions:
-    // use the wrapper builtin that closes the generator and rethrows, so
-    // that a throwing generator doesn't deopt on every throw.
+  {
     LazyDeoptFrameScope lazy_deopt_scope(
         &reducer_, GetContext(),
         Builtin::kGeneratorPrototypeNextLazyDeoptContinuation, target,
         base::VectorOf<ValueNode*>(
             {GetRootConstant(RootIndex::kUndefinedValue), receiver,
              GetRootConstant(RootIndex::kTheHoleValue)}));
+    // Generators can accept an optional value when resumed (e.g.
+    // g.next("val")). This value becomes the result of the `yield`
+    // expression inside the generator.
+    ValueNode* value = GetValueOrUndefined(args[0]);
     GET_VALUE_OR_ABORT(
         result,
         BuildCallBuiltinWithTaggedInputs<
             Builtin::kResumeGeneratorTrampoline_WithCatch>({value, receiver}));
-  } else {
-    // Call the trampoline directly; if the generator throws, we lazy deopt
-    // and the with-catch continuation closes the generator and rethrows.
-    // The deoptimizer passes the exception and the result, so they are not
-    // part of the parameters here.
-    LazyDeoptFrameScope lazy_deopt_scope(
-        &reducer_, GetContext(),
-        Builtin::kGeneratorPrototypeNextLazyDeoptContinuation, target,
-        base::VectorOf<ValueNode*>(
-            {GetRootConstant(RootIndex::kUndefinedValue), receiver}),
-        /* is_with_catch */ true);
-    GET_VALUE_OR_ABORT(
-        result,
-        BuildCallBuiltinWithTaggedInputs<Builtin::kResumeGeneratorTrampoline>(
-            {value, receiver}));
   }
 
   ValueNode* result_continuation;
@@ -17446,17 +17426,6 @@ void MaglevGraphBuilder::StoreRegisterPair(
 }
 
 void MaglevGraphBuilder::AttachExceptionHandlerInfo(NodeBase* node) {
-  if (reducer_.current_lazy_deopt_scope() != nullptr &&
-      reducer_.current_lazy_deopt_scope()->is_with_catch()) {
-    // The lazy deopt continuation acts as a catch handler; a throw must
-    // trigger a lazy deopt so that the deoptimizer materializes the
-    // continuation frame with the exception.
-    new (node->exception_handler_info())
-        ExceptionHandlerInfo(ExceptionHandlerInfo::kLazyDeopt);
-    DCHECK(node->exception_handler_info()->HasExceptionHandler());
-    DCHECK(node->exception_handler_info()->ShouldLazyDeopt());
-    return;
-  }
   CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
   if (catch_block.ref) {
     if (!catch_block.exception_handler_was_used) {
