@@ -125,7 +125,7 @@ DeoptFrame* CloneDeoptFrame(DeoptFrame* src, const ValueMap& vmap, Zone* zone) {
           f.builtin_id(),
           base::Vector<ValueNode*>(params, f.parameters().size()),
           RemapAndAddDeoptUse(vmap, f.context(), remapped_vos), js_target,
-          parent_clone);
+          parent_clone, f.is_with_catch());
     }
   }
   UNREACHABLE();

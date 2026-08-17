@@ -690,7 +690,8 @@ class MaglevReducer {
     LazyDeoptFrameScope(MaglevReducer* reducer, ValueNode* context,
                         Builtin continuation,
                         compiler::OptionalJSFunctionRef maybe_js_target = {},
-                        base::Vector<ValueNode* const> parameters = {});
+                        base::Vector<ValueNode* const> parameters = {},
+                        bool is_with_catch = false);
     LazyDeoptFrameScope(MaglevReducer* reducer, ValueNode* context,
                         ValueNode* receiver, const MaglevCompilationUnit& unit,
                         SourcePosition position);
@@ -698,6 +699,11 @@ class MaglevReducer {
 
     LazyDeoptFrameScope* parent() const { return parent_; }
     const DeoptFrame::FrameData& data() const { return data_; }
+    bool is_with_catch() const {
+      return data_.tag() == DeoptFrame::FrameType::kBuiltinContinuationFrame &&
+             data_.get<DeoptFrame::BuiltinContinuationFrameData>()
+                 .is_with_catch;
+    }
 
    private:
     MaglevReducer* reducer_;
