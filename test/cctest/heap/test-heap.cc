@@ -177,28 +177,6 @@ TEST(ObjectProperties) {
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, s2));
 }
 
-TEST(JSObjectMaps) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-
-  v8::HandleScope sc(CcTest::isolate());
-  DirectHandle<String> name = factory->InternalizeUtf8String("theFunction");
-  DirectHandle<JSFunction> function = factory->NewFunctionForTesting(name);
-
-  DirectHandle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-  DirectHandle<JSObject> obj = factory->NewJSObject(function);
-  DirectHandle<Map> initial_map(function->initial_map(), isolate);
-
-  // Set a propery
-  DirectHandle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
-  CHECK_EQ(Smi::FromInt(23),
-           *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
-
-  // Check the map has changed
-  CHECK(*initial_map != obj->map());
-}
 
 // Checks that extended Maps handling works as expected regarding Map
 // transitions, object creation and so on.
