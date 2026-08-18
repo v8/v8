@@ -846,6 +846,10 @@ ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
   return ExternalReference(&v8_flags.builtin_subclassing);
 }
 
+ExternalReference ExternalReference::address_of_js_pr_3883_flag() {
+  return ExternalReference(&v8_flags.js_pr_3883);
+}
+
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }

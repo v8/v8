@@ -3083,6 +3083,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         ExternalReference::address_of_builtin_subclassing_flag());
   }
 
+  TNode<BoolT> HasJsPr3883Flag() {
+    return LoadRuntimeFlag(ExternalReference::address_of_js_pr_3883_flag());
+  }
+
   TNode<BoolT> HasSharedStringTableFlag() {
     return LoadRuntimeFlag(
         ExternalReference::address_of_shared_string_table_flag());
