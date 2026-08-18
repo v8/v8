@@ -24,7 +24,9 @@
 #include "include/v8-object.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/script-details.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
@@ -1763,6 +1765,105 @@ TEST_F(HeapTest, JSInterceptorMap) {
   DirectHandle<JSInterceptorMap> map = Cast<JSInterceptorMap>(last_map);
   EXPECT_EQ(map->named_interceptor(), *named_interceptor);
   EXPECT_EQ(map->indexed_interceptor(), *indexed_interceptor);
+}
+
+namespace {
+void RunCompilationCacheCachingBehaviorTest(HeapTest* test,
+                                            bool retain_script) {
+  // If we do not have the compilation cache turned off, this test is invalid.
+  if (!v8_flags.compilation_cache) {
+    return;
+  }
+  if (!v8_flags.flush_bytecode ||
+      (v8_flags.always_sparkplug && !v8_flags.flush_baseline_code)) {
+    return;
+  }
+  Isolate* isolate = test->i_isolate();
+  Factory* factory = test->factory();
+  CompilationCache* compilation_cache = isolate->compilation_cache();
+  LanguageMode language_mode = LanguageMode::kSloppy;
+
+  v8::HandleScope outer_scope(test->v8_isolate());
+  const char* raw_source = retain_script ? "function foo() {"
+                                           "  var x = 42;"
+                                           "  var y = 42;"
+                                           "  var z = x + y;"
+                                           "};"
+                                           "foo();"
+                                         : "(function foo() {"
+                                           "  var x = 42;"
+                                           "  var y = 42;"
+                                           "  var z = x + y;"
+                                           "})();";
+  Handle<String> source =
+      Cast<String>(factory->InternalizeUtf8String(raw_source));
+
+  {
+    v8::HandleScope scope(test->v8_isolate());
+    test->RunJS(raw_source);
+  }
+
+  // The script should be in the cache now.
+  {
+    v8::HandleScope scope(test->v8_isolate());
+    ScriptDetails script_details(Handle<Object>(),
+                                 v8::ScriptOriginOptions(true, false));
+    auto lookup_result =
+        compilation_cache->LookupScript(source, script_details, language_mode);
+    EXPECT_FALSE(lookup_result.toplevel_sfi().is_null());
+  }
+
+  // Check that the code cache entry survives at least one GC.
+  {
+    // In this test, we need to invoke GC without stack, otherwise some objects
+    // may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        test->heap());
+    test->InvokeMajorGC();
+  }
+  {
+    v8::HandleScope scope(test->v8_isolate());
+    ScriptDetails script_details(Handle<Object>(),
+                                 v8::ScriptOriginOptions(true, false));
+    auto lookup_result =
+        compilation_cache->LookupScript(source, script_details, language_mode);
+    EXPECT_FALSE(lookup_result.toplevel_sfi().is_null());
+
+    // Progress code age until it's old and ready for GC.
+    DirectHandle<SharedFunctionInfo> shared =
+        lookup_result.toplevel_sfi().ToHandleChecked();
+    EXPECT_TRUE(shared->HasBytecodeArray());
+    SharedFunctionInfo::EnsureOldForTesting(*shared);
+  }
+
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        test->heap());
+    // The first GC flushes the BytecodeArray from the SFI.
+    test->InvokeMajorGC();
+    // The second GC removes the SFI from the compilation cache.
+    test->InvokeMajorGC();
+  }
+
+  {
+    v8::HandleScope scope(test->v8_isolate());
+    // Ensure code aging cleared the entry from the cache.
+    ScriptDetails script_details(Handle<Object>(),
+                                 v8::ScriptOriginOptions(true, false));
+    auto lookup_result =
+        compilation_cache->LookupScript(source, script_details, language_mode);
+    EXPECT_TRUE(lookup_result.toplevel_sfi().is_null());
+    EXPECT_EQ(retain_script, !lookup_result.script().is_null());
+  }
+}
+}  // namespace
+
+TEST_F(HeapTest, CompilationCacheCachingBehaviorDiscardScript) {
+  RunCompilationCacheCachingBehaviorTest(this, false);
+}
+
+TEST_F(HeapTest, CompilationCacheCachingBehaviorRetainScript) {
+  RunCompilationCacheCachingBehaviorTest(this, true);
 }
 
 }  // namespace internal
