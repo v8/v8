@@ -42,6 +42,7 @@ declare_args() {
   v8_use_external_startup_data = ""
 
   # Includes profiles to optimize builtins.
+  # Sets -DV8_ENABLE_BUILTINS_OPTIMIZATION.
   v8_enable_builtins_optimization = ""
 
   # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode

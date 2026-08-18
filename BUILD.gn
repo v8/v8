@@ -1500,6 +1500,9 @@ config("features") {
       v8_current_cpu == "x64") {
     defines += [ "V8_BUILTINS_GEARBOX" ]
   }
+  if (v8_enable_builtins_optimization) {
+    defines += [ "V8_ENABLE_BUILTINS_OPTIMIZATION" ]
+  }
   if (v8_enable_short_builtin_calls) {
     defines += [ "V8_SHORT_BUILTIN_CALLS" ]
   }
