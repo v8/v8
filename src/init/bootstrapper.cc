@@ -5548,7 +5548,6 @@ void Genesis::InitializeConsole(DirectHandle<JSObject> extras_binding) {
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_attributes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_import_text)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_buffer_boundaries)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_duplicate_named_groups)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_decorators)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_import_bytes)
 

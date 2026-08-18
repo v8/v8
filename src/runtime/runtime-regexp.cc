@@ -1250,7 +1250,6 @@ DirectHandle<JSObject> ConstructNamedCaptureGroupsObject(
     LookupIterator it(isolate, groups, capture_name, groups,
                       LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (it.IsFound()) {
-      DCHECK(v8_flags.js_regexp_duplicate_named_groups);
       if (!IsUndefined(*capture_value)) {
         DCHECK(IsUndefined(*it.GetDataValue()));
         CHECK(Object::SetDataProperty(&it, capture_value).ToChecked());

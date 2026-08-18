@@ -99,7 +99,6 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     // are undefined. In the latter case we don't do anything, in the former
     // case we update the entry.
     if (group_entry.is_found()) {
-      DCHECK(v8_flags.js_regexp_duplicate_named_groups);
       if (!IsUndefined(*capture_indices)) {
         DCHECK(IsUndefined(group_names_dict->ValueAt(group_entry)));
         group_names_dict->ValueAtPut(group_entry, *capture_indices);
