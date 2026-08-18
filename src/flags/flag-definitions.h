@@ -376,8 +376,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
     "Support diamond-importing re-expored namespaces "                       \
     "(https://github.com/tc39/ecma262/pull/3715)")                           \
   V(js_explicit_resource_management, "explicit resource management")         \
-  V(js_float16array,                                                         \
-    "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16") \
   V(js_iterator_join, "Iterator.prototype.join")                             \
   V(js_iterator_sequencing, "iterator sequencing")                           \
   V(js_joint_iteration, "joint iteration")                                   \
