@@ -1130,7 +1130,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/invokes-return': [SKIP],
   'built-ins/Promise/allKeyed/capability-resolve-throws-reject': [SKIP],
   'built-ins/Promise/allKeyed/get-value-not-called-for-non-enumerable': [SKIP],
   'built-ins/Promise/allKeyed/get-value-throws-reject': [SKIP],
