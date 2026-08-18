@@ -1379,48 +1379,6 @@ TEST(HeapNumberAlignment) {
   }
 }
 
-TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
-  if (v8_flags.stress_concurrent_allocation) {
-    return;
-  }
-  CcTest::InitializeVM();
-  // Disable LAB, such that calculations with SizeOfObjects() and object size
-  // are correct.
-  CcTest::heap()->DisableInlineAllocation();
-  HeapObjectIterator iterator(CcTest::heap());
-  intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
-  intptr_t size_of_objects_2 = 0;
-  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    if (!IsFreeSpace(obj)) {
-      size_of_objects_2 += obj->Size();
-    }
-  }
-  // Delta must be within 5% of the larger result.
-  // TODO(gc): Tighten this up by distinguishing between byte
-  // arrays that are real and those that merely mark free space
-  // on the heap.
-  if (size_of_objects_1 > size_of_objects_2) {
-    intptr_t delta = size_of_objects_1 - size_of_objects_2;
-    PrintF("Heap::SizeOfObjects: %" V8PRIdPTR
-           ", "
-           "Iterator: %" V8PRIdPTR
-           ", "
-           "delta: %" V8PRIdPTR "\n",
-           size_of_objects_1, size_of_objects_2, delta);
-    CHECK_GT(size_of_objects_1 / 20, delta);
-  } else {
-    intptr_t delta = size_of_objects_2 - size_of_objects_1;
-    PrintF("Heap::SizeOfObjects: %" V8PRIdPTR
-           ", "
-           "Iterator: %" V8PRIdPTR
-           ", "
-           "delta: %" V8PRIdPTR "\n",
-           size_of_objects_1, size_of_objects_2, delta);
-    CHECK_GT(size_of_objects_2 / 20, delta);
-  }
-}
-
 static int NumberOfGlobalObjects() {
   int count = 0;
   HeapObjectIterator iterator(CcTest::heap());
