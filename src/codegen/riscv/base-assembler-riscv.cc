@@ -386,6 +386,20 @@ void AssemblerRiscvBase::GenInstrCBA(uint8_t funct3, uint8_t funct2,
                      (funct3 << kRvcFunct3Shift) | (funct2 << 10);
   emit(instr);
 }
+
+// CU (Compressed Unary) format, used by the Zcb extension:
+// | funct3 | nzuimm[5:3] | rd'/rs1' | funct2 | nzuimm[2:0] | opcode |
+//   15:13     12:10        9:7        6:5       4:2          1:0
+void AssemblerRiscvBase::GenInstrCU(uint8_t funct3, uint8_t funct2,
+                                    BaseOpcode opcode, Register rd,
+                                    uint8_t nzuimm) {
+  DCHECK(is_uint3(funct3) && is_uint2(funct2) && is_uint6(nzuimm));
+  ShortInstr instr = opcode | ((nzuimm & 0x7) << kRvcRs2sShift) |
+                     ((rd.code() & 0x7) << kRvcRs1sShift) |
+                     ((nzuimm & 0x38) << 7) | (funct2 << kRvcFunct2Shift) |
+                     (funct3 << kRvcFunct3Shift);
+  emit(instr);
+}
 // ----- Instruction class templates match those in the compiler
 
 void AssemblerRiscvBase::GenInstrBranchCC_rri(uint8_t funct3, Register rs1,
