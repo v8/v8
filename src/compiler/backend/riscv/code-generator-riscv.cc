@@ -3054,9 +3054,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI8x16ShrU: {
       __ VU.SetSimd128(E8);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 8 - 1);
+        __ andi(kScratchReg, i.InputRegister(1), 8 - 1);
         __ vsrl_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputRegister(1));
+                   kScratchReg);
       } else {
         __ vsrl_vi(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputInt5(1) % 8);
@@ -3066,9 +3066,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI16x8ShrU: {
       __ VU.SetSimd128(E16);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(i.InputRegister(1), i.InputRegister(1), 16 - 1);
+        __ andi(kScratchReg, i.InputRegister(1), 16 - 1);
         __ vsrl_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputRegister(1));
+                   kScratchReg);
       } else {
         __ vsrl_vi(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputInt5(1) % 16);
@@ -5282,6 +5282,7 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   RiscvOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
+  Register scratch = input;
   std::vector<std::pair<int32_t, Label*>> cases;
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
     cases.push_back({i.InputInt32(index + 0), GetLabel(i.InputRpo(index + 1))});
@@ -5295,9 +5296,11 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   // AssembleArchBinarySearchSwitch, we perform the sign extension once here,
   // rather than repeatedly in JumpIfEqual and JumpIfLessThan. This reduces the
   // total number of sign extension operations and improves efficiency.
-  __ SignExtendWord(input, input);
+  UseScratchRegisterScope temps(masm());
+  scratch = temps.Acquire();
+  __ SignExtendWord(scratch, input);
 #endif
-  AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
+  AssembleArchBinarySearchSwitchRange(scratch, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size());
 }
 
