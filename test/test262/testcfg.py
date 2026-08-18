@@ -58,7 +58,6 @@ FEATURE_FLAGS = {
     'set-methods': '--harmony-set-methods',
     'import-attributes': '--harmony-import-attributes',
     'regexp-duplicate-named-groups': '--js-regexp-duplicate-named-groups',
-    'regexp-modifiers': '--js-regexp-modifiers',
     'Float16Array': '--js-float16array',
     'explicit-resource-management': '--js-explicit-resource-management',
     'decorators': '--js-decorators',

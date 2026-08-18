@@ -388,7 +388,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_promise_try, "Promise.try")                                           \
   V(js_regexp_duplicate_named_groups, "RegExp duplicate named groups")       \
   V(js_regexp_escape, "RegExp.escape")                                       \
-  V(js_regexp_modifiers, "RegExp modifiers")                                 \
   V(js_sum_precise, "Math.sumPrecise")                                       \
   V(js_upsert, "upsert")
 

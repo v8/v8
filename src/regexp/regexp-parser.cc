@@ -1583,10 +1583,6 @@ ParserState<mode>* ParserImpl<CharT, mode>::ParseOpenParenthesis(
       base::uc32 next = Next();
       switch (next) {
         case '-':
-          if (!v8_flags.js_regexp_modifiers) {
-            ReportError(Error::kInvalidGroup);
-            return nullptr;
-          }
           Advance();
           parsing_modifiers = true;
           if (modifiers_polarity == false) {
@@ -1598,10 +1594,6 @@ ParserState<mode>* ParserImpl<CharT, mode>::ParseOpenParenthesis(
         case 'm':
         case 'i':
         case 's': {
-          if (!v8_flags.js_regexp_modifiers) {
-            ReportError(Error::kInvalidGroup);
-            return nullptr;
-          }
           Advance();
           parsing_modifiers = true;
           Flag flag = TryFlagFromChar(next).value();
@@ -1621,7 +1613,6 @@ ParserState<mode>* ParserImpl<CharT, mode>::ParseOpenParenthesis(
         case '=':
           Advance(2);
           if (parsing_modifiers) {
-            DCHECK(v8_flags.js_regexp_modifiers);
             ReportError(Error::kInvalidGroup);
             return nullptr;
           }
@@ -1631,7 +1622,6 @@ ParserState<mode>* ParserImpl<CharT, mode>::ParseOpenParenthesis(
         case '!':
           Advance(2);
           if (parsing_modifiers) {
-            DCHECK(v8_flags.js_regexp_modifiers);
             ReportError(Error::kInvalidGroup);
             return nullptr;
           }
@@ -1641,7 +1631,6 @@ ParserState<mode>* ParserImpl<CharT, mode>::ParseOpenParenthesis(
         case '<':
           Advance();
           if (parsing_modifiers) {
-            DCHECK(v8_flags.js_regexp_modifiers);
             ReportError(Error::kInvalidGroup);
             return nullptr;
           }
