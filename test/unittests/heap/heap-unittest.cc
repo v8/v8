@@ -1555,5 +1555,64 @@ TEST_F(HeapTest, BytecodeArray) {
   EXPECT_NE(array->constant_pool().ptr(), old_constant_pool_address.ptr());
 }
 
+TEST_F(HeapTest, BytecodeFlushing) {
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+  v8_flags.turbofan = false;
+  i::v8_flags.optimize_for_size = false;
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+#ifdef V8_ENABLE_SPARKPLUG
+  v8_flags.always_sparkplug = false;
+#endif  // V8_ENABLE_SPARKPLUG
+  i::v8_flags.flush_bytecode = true;
+  i::v8_flags.allow_natives_syntax = true;
+
+  ManualGCScope manual_gc_scope(i_isolate());
+  v8::HandleScope scope(v8_isolate());
+  const char* source =
+      "function foo() {"
+      "  var x = 42;"
+      "  var y = 42;"
+      "  var z = x + y;"
+      "};"
+      "foo()";
+  DirectHandle<String> foo_name = factory()->InternalizeUtf8String("foo");
+
+  // This compile will add the code to the compilation cache.
+  {
+    v8::HandleScope new_scope(v8_isolate());
+    RunJS(source);
+  }
+
+  // Check function is compiled.
+  DirectHandle<Object> func_value =
+      Object::GetProperty(i_isolate(), i_isolate()->global_object(), foo_name)
+          .ToHandleChecked();
+  EXPECT_TRUE(IsJSFunction(*func_value));
+  DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
+  EXPECT_TRUE(function->shared()->is_compiled());
+
+  // The code will survive at least two GCs.
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+    InvokeMajorGC();
+  }
+  EXPECT_TRUE(function->shared()->is_compiled());
+
+  i::SharedFunctionInfo::EnsureOldForTesting(function->shared());
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+
+  // foo should no longer be compiled
+  EXPECT_FALSE(function->shared()->is_compiled());
+  EXPECT_FALSE(function->is_compiled(i_isolate()));
+  // Call foo to get it recompiled.
+  RunJS("foo()");
+  EXPECT_TRUE(function->shared()->is_compiled());
+  EXPECT_TRUE(function->is_compiled(i_isolate()));
+}
+
 }  // namespace internal
 }  // namespace v8
