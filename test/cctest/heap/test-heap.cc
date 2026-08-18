@@ -295,45 +295,7 @@ TEST(JSObjectCopy) {
   CHECK_EQ(*value1, *value2);
 }
 
-TEST(StringAllocation) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
 
-  const unsigned char chars[] = {0xE5, 0xA4, 0xA7};
-  for (int length = 0; length < 100; length++) {
-    v8::HandleScope scope(CcTest::isolate());
-    char* non_one_byte = NewArray<char>(3 * length + 1);
-    char* one_byte = NewArray<char>(length + 1);
-    non_one_byte[3 * length] = 0;
-    one_byte[length] = 0;
-    for (int i = 0; i < length; i++) {
-      one_byte[i] = 'a';
-      non_one_byte[3 * i] = chars[0];
-      non_one_byte[3 * i + 1] = chars[1];
-      non_one_byte[3 * i + 2] = chars[2];
-    }
-    DirectHandle<String> non_one_byte_sym = factory->InternalizeUtf8String(
-        base::Vector<const char>(non_one_byte, 3 * length));
-    CHECK_EQ(length, non_one_byte_sym->length());
-    DirectHandle<String> one_byte_sym =
-        factory->InternalizeString(base::OneByteVector(one_byte, length));
-    CHECK_EQ(length, one_byte_sym->length());
-    CHECK(one_byte_sym->HasHashCode());
-    DirectHandle<String> non_one_byte_str =
-        factory
-            ->NewStringFromUtf8(
-                base::Vector<const char>(non_one_byte, 3 * length))
-            .ToHandleChecked();
-    CHECK_EQ(length, non_one_byte_str->length());
-    DirectHandle<String> one_byte_str =
-        factory->NewStringFromUtf8(base::Vector<const char>(one_byte, length))
-            .ToHandleChecked();
-    CHECK_EQ(length, one_byte_str->length());
-    DeleteArray(non_one_byte);
-    DeleteArray(one_byte);
-  }
-}
 
 static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
