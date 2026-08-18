@@ -178,73 +178,7 @@ TEST(JSInterceptorMap) {
 
 
 
-TEST(JSObjectCopy) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
 
-  v8::HandleScope sc(CcTest::isolate());
-  DirectHandle<String> object_string(
-      Cast<String>(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
-  DirectHandle<Object> object =
-      Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
-                          object_string)
-          .ToHandleChecked();
-  DirectHandle<JSFunction> constructor = Cast<JSFunction>(object);
-  Handle<JSObject> obj = factory->NewJSObject(constructor);
-  DirectHandle<String> first = factory->InternalizeUtf8String("first");
-  DirectHandle<String> second = factory->InternalizeUtf8String("second");
-
-  DirectHandle<Smi> one(Smi::FromInt(1), isolate);
-  DirectHandle<Smi> two(Smi::FromInt(2), isolate);
-
-  Object::SetProperty(isolate, obj, first, one).Check();
-  Object::SetProperty(isolate, obj, second, two).Check();
-
-  Object::SetElement(isolate, obj, 0, first, ShouldThrow::kDontThrow).Check();
-  Object::SetElement(isolate, obj, 1, second, ShouldThrow::kDontThrow).Check();
-
-  // Make the clone.
-  DirectHandle<Object> value1, value2;
-  DirectHandle<JSObject> clone = factory->CopyJSObject(obj);
-  CHECK(!clone.is_identical_to(obj));
-
-  value1 = Object::GetElement(isolate, obj, 0).ToHandleChecked();
-  value2 = Object::GetElement(isolate, clone, 0).ToHandleChecked();
-  CHECK_EQ(*value1, *value2);
-  value1 = Object::GetElement(isolate, obj, 1).ToHandleChecked();
-  value2 = Object::GetElement(isolate, clone, 1).ToHandleChecked();
-  CHECK_EQ(*value1, *value2);
-
-  value1 = Object::GetProperty(isolate, obj, first).ToHandleChecked();
-  value2 = Object::GetProperty(isolate, clone, first).ToHandleChecked();
-  CHECK_EQ(*value1, *value2);
-  value1 = Object::GetProperty(isolate, obj, second).ToHandleChecked();
-  value2 = Object::GetProperty(isolate, clone, second).ToHandleChecked();
-  CHECK_EQ(*value1, *value2);
-
-  // Flip the values.
-  Object::SetProperty(isolate, clone, first, two).Check();
-  Object::SetProperty(isolate, clone, second, one).Check();
-
-  Object::SetElement(isolate, clone, 0, second, ShouldThrow::kDontThrow)
-      .Check();
-  Object::SetElement(isolate, clone, 1, first, ShouldThrow::kDontThrow).Check();
-
-  value1 = Object::GetElement(isolate, obj, 1).ToHandleChecked();
-  value2 = Object::GetElement(isolate, clone, 0).ToHandleChecked();
-  CHECK_EQ(*value1, *value2);
-  value1 = Object::GetElement(isolate, obj, 0).ToHandleChecked();
-  value2 = Object::GetElement(isolate, clone, 1).ToHandleChecked();
-  CHECK_EQ(*value1, *value2);
-
-  value1 = Object::GetProperty(isolate, obj, second).ToHandleChecked();
-  value2 = Object::GetProperty(isolate, clone, first).ToHandleChecked();
-  CHECK_EQ(*value1, *value2);
-  value1 = Object::GetProperty(isolate, obj, first).ToHandleChecked();
-  value2 = Object::GetProperty(isolate, clone, second).ToHandleChecked();
-  CHECK_EQ(*value1, *value2);
-}
 
 
 

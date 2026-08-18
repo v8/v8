@@ -950,5 +950,68 @@ TEST_F(ObjectTest, LookupIteratorWithStringLookupStartObject) {
   }
 }
 
+TEST_F(ObjectTest, JSObjectCopy) {
+  v8::HandleScope scope(isolate());
+  Factory* factory = i_isolate()->factory();
+  DirectHandle<JSFunction> constructor = i_isolate()->object_function();
+  Handle<JSObject> obj = factory->NewJSObject(constructor);
+  DirectHandle<String> first = factory->InternalizeUtf8String("first");
+  DirectHandle<String> second = factory->InternalizeUtf8String("second");
+
+  DirectHandle<Smi> one(Smi::FromInt(1), i_isolate());
+  DirectHandle<Smi> two(Smi::FromInt(2), i_isolate());
+
+  Object::SetProperty(i_isolate(), obj, first, one).Check();
+  Object::SetProperty(i_isolate(), obj, second, two).Check();
+
+  Object::SetElement(i_isolate(), obj, 0, first, ShouldThrow::kDontThrow)
+      .Check();
+  Object::SetElement(i_isolate(), obj, 1, second, ShouldThrow::kDontThrow)
+      .Check();
+
+  // Make the clone.
+  DirectHandle<JSObject> clone = factory->CopyJSObject(obj);
+  EXPECT_FALSE(clone.is_identical_to(obj));
+
+  DirectHandle<Object> value1 =
+      Object::GetElement(i_isolate(), obj, 0).ToHandleChecked();
+  DirectHandle<Object> value2 =
+      Object::GetElement(i_isolate(), clone, 0).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+  value1 = Object::GetElement(i_isolate(), obj, 1).ToHandleChecked();
+  value2 = Object::GetElement(i_isolate(), clone, 1).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+
+  value1 = Object::GetProperty(i_isolate(), obj, first).ToHandleChecked();
+  value2 = Object::GetProperty(i_isolate(), clone, first).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+  value1 = Object::GetProperty(i_isolate(), obj, second).ToHandleChecked();
+  value2 = Object::GetProperty(i_isolate(), clone, second).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+
+  // Flip the values on the clone.
+  Object::SetProperty(i_isolate(), clone, first, two).Check();
+  Object::SetProperty(i_isolate(), clone, second, one).Check();
+
+  Object::SetElement(i_isolate(), clone, 0, second, ShouldThrow::kDontThrow)
+      .Check();
+  Object::SetElement(i_isolate(), clone, 1, first, ShouldThrow::kDontThrow)
+      .Check();
+
+  value1 = Object::GetElement(i_isolate(), obj, 1).ToHandleChecked();
+  value2 = Object::GetElement(i_isolate(), clone, 0).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+  value1 = Object::GetElement(i_isolate(), obj, 0).ToHandleChecked();
+  value2 = Object::GetElement(i_isolate(), clone, 1).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+
+  value1 = Object::GetProperty(i_isolate(), obj, second).ToHandleChecked();
+  value2 = Object::GetProperty(i_isolate(), clone, first).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+  value1 = Object::GetProperty(i_isolate(), obj, first).ToHandleChecked();
+  value2 = Object::GetProperty(i_isolate(), clone, second).ToHandleChecked();
+  EXPECT_EQ(*value1, *value2);
+}
+
 }  // namespace internal
 }  // namespace v8
