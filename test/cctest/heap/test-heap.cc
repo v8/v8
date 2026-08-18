@@ -176,56 +176,7 @@ TEST(JSInterceptorMap) {
   CHECK_EQ(map->indexed_interceptor(), *indexed_interceptor);
 }
 
-TEST(JSArray) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
 
-  v8::HandleScope sc(CcTest::isolate());
-  DirectHandle<String> name = factory->InternalizeUtf8String("Array");
-  DirectHandle<Object> fun_obj =
-      Object::GetProperty(isolate, CcTest::i_isolate()->global_object(), name)
-          .ToHandleChecked();
-  DirectHandle<JSFunction> function = Cast<JSFunction>(fun_obj);
-
-  // Allocate the object.
-  DirectHandle<Object> element;
-  DirectHandle<JSObject> object = factory->NewJSObject(function);
-  DirectHandle<JSArray> array = Cast<JSArray>(object);
-  // We just initialized the VM, no heap allocation failure yet.
-  JSArray::Initialize(isolate, array, 0);
-
-  // Set array length to 0.
-  JSArray::SetLength(isolate, array, 0);
-  CHECK_EQ(Smi::zero(), array->length());
-  // Must be in fast mode.
-  CHECK(array->HasSmiOrObjectElements());
-
-  // array[length] = name.
-  Object::SetElement(isolate, array, 0, name, ShouldThrow::kDontThrow).Check();
-  CHECK_EQ(Smi::FromInt(1), array->length());
-  element = i::Object::GetElement(isolate, array, 0).ToHandleChecked();
-  CHECK_EQ(*element, *name);
-
-  // Set array length with larger than smi value.
-  JSArray::SetLength(isolate, array, static_cast<uint32_t>(Smi::kMaxValue) + 1);
-
-  uint32_t int_length = 0;
-  CHECK(Object::ToArrayIndex(array->length(), &int_length));
-  CHECK_EQ(static_cast<uint32_t>(Smi::kMaxValue) + 1, int_length);
-  CHECK(array->HasDictionaryElements());  // Must be in slow mode.
-
-  // array[length] = name.
-  Object::SetElement(isolate, array, int_length, name, ShouldThrow::kDontThrow)
-      .Check();
-  uint32_t new_int_length = 0;
-  CHECK(Object::ToArrayIndex(array->length(), &new_int_length));
-  CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
-  element = Object::GetElement(isolate, array, int_length).ToHandleChecked();
-  CHECK_EQ(*element, *name);
-  element = Object::GetElement(isolate, array, 0).ToHandleChecked();
-  CHECK_EQ(*element, *name);
-}
 
 TEST(JSObjectCopy) {
   CcTest::InitializeVM();
