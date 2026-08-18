@@ -1700,5 +1700,70 @@ TEST_F(HeapTest, MultiReferencedBytecodeFlushingWithSparkplug) {
   RunMultiReferencedBytecodeFlushingTest(this, /*sparkplug_compile=*/true);
 }
 
+TEST_F(HeapTest, JSInterceptorMap) {
+  DirectHandle<InterceptorInfo> named_interceptor =
+      factory()->NewInterceptorInfo(InterceptorKind::kNamed);
+  DirectHandle<InterceptorInfo> indexed_interceptor =
+      factory()->NewInterceptorInfo(InterceptorKind::kIndexed);
+
+  DirectHandle<Map> last_map;
+  {
+    HandleScope sc1(isolate());
+
+    const size_t N = 100;
+    DirectHandleVector<JSObject> objects(isolate());
+    objects.reserve(N);
+    DirectHandle<JSInterceptorMap> map;
+
+    for (size_t i = 0; i < N; i++) {
+      if (i % 10 == 0) {
+        // Create a fresh map every now and then.
+        const int inobject_properties = 2;
+        map = Cast<JSInterceptorMap>(factory()->NewExtendedMapWithMetaMap(
+            isolate()->meta_map(), ExtendedMapKind::kJSInterceptorMap,
+            JS_OBJECT_TYPE,
+            JSObject::kHeaderSize + inobject_properties * kTaggedSize,
+            TERMINAL_FAST_ELEMENTS_KIND, inobject_properties));
+        map->init_flags_and_clear_extended_padding();
+        map->set_named_interceptor(*named_interceptor);
+        map->set_indexed_interceptor(*indexed_interceptor);
+        map->set_fast_case_validity_cell(
+            ReadOnlyRoots(isolate()).invalid_prototype_validity_cell());
+      }
+
+      Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
+      Object::SetProperty(isolate(), obj, factory()->a_string(), obj).Check();
+      Object::SetProperty(isolate(), obj, factory()->b_string(), obj).Check();
+      Object::SetProperty(isolate(), obj, factory()->c_string(), obj).Check();
+      Object::SetProperty(isolate(), obj, factory()->d_string(), obj).Check();
+
+#ifdef VERIFY_HEAP
+      obj->HeapObjectVerify(isolate());
+      obj->map()->HeapObjectVerify(isolate());
+#endif  // VERIFY_HEAP
+      objects.emplace_back(obj);
+      if (i == N / 2) {
+        InvokeMajorGC();
+        InvokeMajorGC();
+      }
+    }
+
+    InvokeMajorGC();
+    InvokeMajorGC();
+    last_map = sc1.CloseAndEscape(map);
+  }
+  InvokeMajorGC();
+  InvokeMajorGC();
+
+  EXPECT_TRUE(IsJSObjectMap(*last_map));
+  EXPECT_TRUE(last_map->is_extended_map());
+
+  EXPECT_EQ(UncheckedCast<ExtendedMap>(last_map)->map_kind(),
+            ExtendedMapKind::kJSInterceptorMap);
+  DirectHandle<JSInterceptorMap> map = Cast<JSInterceptorMap>(last_map);
+  EXPECT_EQ(map->named_interceptor(), *named_interceptor);
+  EXPECT_EQ(map->indexed_interceptor(), *indexed_interceptor);
+}
+
 }  // namespace internal
 }  // namespace v8
