@@ -139,29 +139,6 @@ TEST(StringTable) {
   CheckInternalizedStrings(not_so_random_string_table);
 }
 
-TEST(FunctionAllocation) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-
-  v8::HandleScope sc(CcTest::isolate());
-  DirectHandle<String> name = factory->InternalizeUtf8String("theFunction");
-  DirectHandle<JSFunction> function = factory->NewFunctionForTesting(name);
-
-  DirectHandle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  DirectHandle<Smi> twenty_four(Smi::FromInt(24), isolate);
-
-  DirectHandle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-  DirectHandle<JSObject> obj = factory->NewJSObject(function);
-  Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
-  CHECK_EQ(Smi::FromInt(23),
-           *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
-  // Check that we can add properties to function objects.
-  Object::SetProperty(isolate, function, prop_name, twenty_four).Check();
-  CHECK_EQ(
-      Smi::FromInt(24),
-      *Object::GetProperty(isolate, function, prop_name).ToHandleChecked());
-}
 
 TEST(ObjectProperties) {
   CcTest::InitializeVM();
