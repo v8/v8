@@ -2818,7 +2818,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicExchangeWithWriteBarrier: {
       if constexpr (COMPRESS_POINTERS_BOOL) {
         ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(, Register32);
-        __ Add(i.OutputRegister(), i.OutputRegister(),
+        __ Orr(i.OutputRegister(), i.OutputRegister(),
                kPtrComprCageBaseRegister);
       } else {
         ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(, Register);

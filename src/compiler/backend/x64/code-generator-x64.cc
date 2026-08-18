@@ -7386,7 +7386,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Decompress pointer.
       if constexpr (COMPRESS_POINTERS_BOOL) {
         DCHECK_EQ(i.InputRegister(0), i.OutputRegister(0));
-        __ addq(i.InputRegister(0), kPtrComprCageBaseRegister);
+        __ orq(i.InputRegister(0), kPtrComprCageBaseRegister);
       }
       if (v8_flags.disable_write_barriers) break;
       // Emit write barrier.

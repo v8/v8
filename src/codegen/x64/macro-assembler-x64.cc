@@ -434,13 +434,13 @@ void MacroAssembler::DecompressTagged(Register destination,
                                       Operand field_operand) {
   ASM_CODE_COMMENT(this);
   movl(destination, field_operand);
-  addq(destination, kPtrComprCageBaseRegister);
+  orq(destination, kPtrComprCageBaseRegister);
 }
 
 void MacroAssembler::DecompressTagged(Register destination, Register source) {
   ASM_CODE_COMMENT(this);
   movl(destination, source);
-  addq(destination, kPtrComprCageBaseRegister);
+  orq(destination, kPtrComprCageBaseRegister);
 }
 
 void MacroAssembler::DecompressTagged(Register destination,

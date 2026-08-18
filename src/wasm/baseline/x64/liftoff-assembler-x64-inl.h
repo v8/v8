@@ -1024,7 +1024,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
   if (trapping_load_pc) *trapping_load_pc = pc_offset();
   if constexpr (COMPRESS_POINTERS_BOOL) {
     xchgl(result.gp(), dst_op);
-    addq(result.gp(), kPtrComprCageBaseRegister);
+    orq(result.gp(), kPtrComprCageBaseRegister);
   } else {
     xchgq(result.gp(), dst_op);
   }
