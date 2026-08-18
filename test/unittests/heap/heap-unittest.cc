@@ -1866,5 +1866,89 @@ TEST_F(HeapTest, CompilationCacheCachingBehaviorRetainScript) {
   RunCompilationCacheCachingBehaviorTest(this, true);
 }
 
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+TEST_F(HeapTest, OptimizeAfterBytecodeFlushingCandidate) {
+  if (v8_flags.single_generation) return;
+  v8_flags.turbofan = true;
+#ifdef V8_ENABLE_SPARKPLUG
+  v8_flags.always_sparkplug = false;
+#endif  // V8_ENABLE_SPARKPLUG
+  i::v8_flags.optimize_for_size = false;
+  i::v8_flags.incremental_marking = true;
+  i::v8_flags.flush_bytecode = true;
+  i::v8_flags.allow_natives_syntax = true;
+  ManualGCScope manual_gc_scope(i_isolate());
+
+  v8::HandleScope outer_scope(v8_isolate());
+  const char* source =
+      "function foo() {"
+      "  var x = 42;"
+      "  var y = 42;"
+      "  var z = x + y;"
+      "};"
+      "foo()";
+  DirectHandle<String> foo_name = factory()->InternalizeUtf8String("foo");
+
+  // This compile will add the code to the compilation cache.
+  {
+    v8::HandleScope scope(v8_isolate());
+    RunJS(source);
+  }
+
+  // Check function is compiled.
+  DirectHandle<Object> func_value =
+      Object::GetProperty(i_isolate(), i_isolate()->global_object(), foo_name)
+          .ToHandleChecked();
+  EXPECT_TRUE(IsJSFunction(*func_value));
+  DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
+  EXPECT_TRUE(function->shared()->is_compiled());
+
+  // The code will survive at least two GCs.
+  {
+    // In this test, we need to invoke GC without stack, otherwise some objects
+    // may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+    InvokeMajorGC();
+  }
+  EXPECT_TRUE(function->shared()->is_compiled());
+
+  i::SharedFunctionInfo::EnsureOldForTesting(function->shared());
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+
+  EXPECT_FALSE(function->shared()->is_compiled());
+  EXPECT_FALSE(function->is_compiled(i_isolate()));
+
+  // This compile will compile the function again.
+  {
+    v8::HandleScope scope(v8_isolate());
+    RunJS("foo();");
+  }
+
+  SharedFunctionInfo::EnsureOldForTesting(function->shared());
+  SimulateIncrementalMarking();
+
+  // Force optimization while incremental marking is active and while
+  // the function is enqueued as a candidate.
+  {
+    v8::HandleScope scope(v8_isolate());
+    RunJS(
+        "%PrepareFunctionForOptimization(foo); foo();"
+        "%OptimizeFunctionOnNextCall(foo); foo();");
+  }
+
+  // Simulate one final GC and make sure the candidate wasn't flushed.
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+  EXPECT_TRUE(function->shared()->is_compiled());
+  EXPECT_TRUE(function->is_compiled(i_isolate()));
+}
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+
 }  // namespace internal
 }  // namespace v8
