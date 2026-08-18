@@ -895,14 +895,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Iterator/concat/get-value-after-done': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'intl402/String/prototype/toLocaleLowerCase/validates-all-locale-identifiers': [SKIP],
   'intl402/String/prototype/toLocaleUpperCase/validates-all-locale-identifiers': [SKIP],
   'staging/sm/DataView/get-set-index-range': [SKIP],
