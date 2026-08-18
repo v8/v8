@@ -24,6 +24,7 @@
 #include "include/v8-object.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/compiler.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
@@ -1612,6 +1613,91 @@ TEST_F(HeapTest, BytecodeFlushing) {
   RunJS("foo()");
   EXPECT_TRUE(function->shared()->is_compiled());
   EXPECT_TRUE(function->is_compiled(i_isolate()));
+}
+
+namespace {
+void RunMultiReferencedBytecodeFlushingTest(HeapTest* test,
+                                            bool sparkplug_compile) {
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+  v8_flags.turbofan = false;
+  i::v8_flags.optimize_for_size = false;
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+#ifdef V8_ENABLE_SPARKPLUG
+  v8_flags.always_sparkplug = false;
+  v8_flags.flush_baseline_code = true;
+#else
+  if (sparkplug_compile) return;
+#endif  // V8_ENABLE_SPARKPLUG
+  i::v8_flags.flush_bytecode = true;
+  i::v8_flags.allow_natives_syntax = true;
+
+  ManualGCScope manual_gc_scope(test->i_isolate());
+  v8::HandleScope scope(test->v8_isolate());
+  const char* source =
+      "function foo() {"
+      "  var x = 42;"
+      "  var y = 42;"
+      "  var z = x + y;"
+      "};"
+      "foo()";
+  DirectHandle<String> foo_name = test->factory()->InternalizeUtf8String("foo");
+
+  // This compile will add the code to the compilation cache.
+  {
+    v8::HandleScope new_scope(test->v8_isolate());
+    test->RunJS(source);
+  }
+
+  // Check function is compiled.
+  DirectHandle<Object> func_value =
+      Object::GetProperty(test->i_isolate(), test->i_isolate()->global_object(),
+                          foo_name)
+          .ToHandleChecked();
+  EXPECT_TRUE(IsJSFunction(*func_value));
+  DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
+  DirectHandle<SharedFunctionInfo> shared(function->shared(),
+                                          test->i_isolate());
+  EXPECT_TRUE(shared->is_compiled());
+
+  // Make a copy of the SharedFunctionInfo which points to the same bytecode.
+  Handle<SharedFunctionInfo> copy =
+      test->factory()->CloneSharedFunctionInfo(shared);
+
+  if (sparkplug_compile) {
+    v8::HandleScope baseline_compilation_scope(test->v8_isolate());
+    IsCompiledScope is_compiled_scope =
+        copy->is_compiled_scope(test->i_isolate());
+    Compiler::CompileSharedWithBaseline(
+        test->i_isolate(), copy, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
+  }
+
+  i::SharedFunctionInfo::EnsureOldForTesting(*shared);
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        test->heap());
+    test->InvokeMajorGC();
+  }
+
+  // shared SFI is marked old but BytecodeArray is kept alive by copy.
+  EXPECT_TRUE(shared->is_compiled());
+  EXPECT_TRUE(copy->is_compiled());
+  EXPECT_TRUE(function->is_compiled(test->i_isolate()));
+
+  // The feedback metadata for both SharedFunctionInfo instances should have
+  // been reset.
+  EXPECT_TRUE(shared->HasFeedbackMetadata());
+  EXPECT_TRUE(copy->HasFeedbackMetadata());
+}
+}  // namespace
+
+TEST_F(HeapTest, MultiReferencedBytecodeFlushing) {
+  RunMultiReferencedBytecodeFlushingTest(this, /*sparkplug_compile=*/false);
+}
+
+TEST_F(HeapTest, MultiReferencedBytecodeFlushingWithSparkplug) {
+  RunMultiReferencedBytecodeFlushingTest(this, /*sparkplug_compile=*/true);
 }
 
 }  // namespace internal
