@@ -3842,6 +3842,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                           Builtin::kLocalePrototypeScript, kAdapt);
       SimpleInstallGetter(isolate(), prototype, factory->region_string(),
                           Builtin::kLocalePrototypeRegion, kAdapt);
+      SimpleInstallGetter(isolate(), prototype, factory->variants_string(),
+                          Builtin::kLocalePrototypeVariants, kAdapt);
       SimpleInstallGetter(isolate(), prototype, factory->baseName_string(),
                           Builtin::kLocalePrototypeBaseName, kAdapt);
       // Unicode extension getters.
@@ -6047,17 +6049,6 @@ void Genesis::InitializeGlobal_regexp_linear_flag() {
   // Store regexp prototype map again after change.
   native_context()->set_regexp_prototype_map(regexp_prototype->map());
 }
-
-#ifdef V8_INTL_SUPPORT
-void Genesis::InitializeGlobal_js_intl_locale_variants() {
-  if (!v8_flags.js_intl_locale_variants) return;
-  DirectHandle<JSObject> prototype(
-      Cast<JSObject>(isolate()->intl_locale_function()->prototype()),
-      isolate());
-  SimpleInstallGetter(isolate(), prototype, factory()->variants_string(),
-                      Builtin::kLocalePrototypeVariants, kAdapt);
-}
-#endif  // V8_INTL_SUPPORT
 
 void Genesis::InitializeGlobal_harmony_temporal() {
 #ifdef V8_TEMPORAL_SUPPORT

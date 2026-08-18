@@ -66,7 +66,6 @@ FEATURE_FLAGS = {
     'uint8array-base64': '--js-base-64',
     'RegExp.escape': '--js-regexp-escape',
     'upsert': '--js-upsert',
-    'Intl.Locale': '--js-intl-locale-variants',
     'nonextensible-applies-to-private': '--js-nonextensible-applies-to-private',
     'immutable-arraybuffer': '--js-immutable-arraybuffer',
     'import-defer': '--js-defer-import-eval',

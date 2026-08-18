@@ -923,12 +923,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kIteratorPrototypeIncludes:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_includes);
 
-#ifdef V8_INTL_SUPPORT
-    // --js-intl-locale-variants
-    case Builtin::kLocalePrototypeVariants:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_intl_locale_variants);
-#endif  // V8_INTL_SUPPORT
-
     default: {
       // Treat all other JS builtins as mandatory core JS language builtins.
       // This will allow us to detect optional builtins (because mandatory JS

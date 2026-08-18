@@ -391,33 +391,31 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
     }
   }
 
-  if (v8_flags.js_intl_locale_variants) {
-    // 8. Let variants be ? GetOption(options, "variants", string, empty,
-    // GetLocaleVariants(baseName)).
-    DirectHandle<String> variants_str;
-    Maybe<bool> maybe_variants =
-        GetStringOption(isolate, options, isolate->factory()->variants_string(),
-                        "ApplyOptionsToTag", &variants_str);
-    MAYBE_RETURN(maybe_variants, Nothing<bool>());
-    // 9. If variants is not undefined, then
-    if (maybe_variants.FromJust()) {
-      // a. If variants is the empty String, throw a RangeError exception.
-      // b. Let lowerVariants be the ASCII-lowercase of variants.
-      std::string variants_stdstr = variants_str->ToStdString();
-      // c. Let variantSubtags be StringSplitToList(lowerVariants, "-").
-      // d. For each element variant of variantSubtags, do
-      // i. If variant cannot be matched by the unicode_variant_subtag Unicode
-      // locale nonterminal, throw a RangeError exception.
-      builder->setVariant(variants_stdstr);
-      builder->build(status);
-      if (U_FAILURE(status) || variants_stdstr.empty()) {
-        return Just(false);
-      }
-      // e. If variantSubtags contains any duplicate elements, throw a
-      // RangeError exception.
-      if (DuplicateVariants(variants_stdstr)) {
-        return Just(false);
-      }
+  // 8. Let variants be ? GetOption(options, "variants", string, empty,
+  // GetLocaleVariants(baseName)).
+  DirectHandle<String> variants_str;
+  Maybe<bool> maybe_variants =
+      GetStringOption(isolate, options, isolate->factory()->variants_string(),
+                      "ApplyOptionsToTag", &variants_str);
+  MAYBE_RETURN(maybe_variants, Nothing<bool>());
+  // 9. If variants is not undefined, then
+  if (maybe_variants.FromJust()) {
+    // a. If variants is the empty String, throw a RangeError exception.
+    // b. Let lowerVariants be the ASCII-lowercase of variants.
+    std::string variants_stdstr = variants_str->ToStdString();
+    // c. Let variantSubtags be StringSplitToList(lowerVariants, "-").
+    // d. For each element variant of variantSubtags, do
+    // i. If variant cannot be matched by the unicode_variant_subtag Unicode
+    // locale nonterminal, throw a RangeError exception.
+    builder->setVariant(variants_stdstr);
+    builder->build(status);
+    if (U_FAILURE(status) || variants_stdstr.empty()) {
+      return Just(false);
+    }
+    // e. If variantSubtags contains any duplicate elements, throw a
+    // RangeError exception.
+    if (DuplicateVariants(variants_stdstr)) {
+      return Just(false);
     }
   }
 
