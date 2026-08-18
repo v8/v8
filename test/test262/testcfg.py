@@ -62,7 +62,6 @@ FEATURE_FLAGS = {
     'explicit-resource-management': '--js-explicit-resource-management',
     'decorators': '--js-decorators',
     'promise-try': '--js-promise-try',
-    'Atomics.pause': '--js-atomics-pause',
     'source-phase-imports': '--js-source-phase-imports --allow-natives-syntax',
     'Error.isError': '--js-error-iserror',
     'uint8array-base64': '--js-base-64',

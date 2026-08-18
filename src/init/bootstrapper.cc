@@ -4188,6 +4188,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                           Builtin::kAtomicsWaitAsync, 4, kAdapt);
     SimpleInstallFunction(isolate_, atomics_object, "notify",
                           Builtin::kAtomicsNotify, 3, kAdapt);
+    SimpleInstallFunction(isolate_, atomics_object, "pause",
+                          Builtin::kAtomicsPause, 0, kDontAdapt);
   }
 
   {  // -- T y p e d A r r a y
@@ -5559,16 +5561,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 
 void Genesis::InitializeGlobal_js_esm_ns_reexport() {}
 void Genesis::InitializeGlobal_js_pr_3883() {}
-
-void Genesis::InitializeGlobal_js_atomics_pause() {
-  if (!v8_flags.js_atomics_pause) return;
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-  DirectHandle<JSObject> atomics_object = Cast<JSObject>(
-      JSReceiver::GetProperty(isolate(), global, "Atomics").ToHandleChecked());
-  InstallFunctionWithBuiltinId(isolate(), atomics_object, "pause",
-                               Builtin::kAtomicsPause, 0, kDontAdapt);
-}
 
 void Genesis::InitializeGlobal_js_promise_try() {
   if (!v8_flags.js_promise_try) return;
