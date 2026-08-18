@@ -1950,5 +1950,65 @@ TEST_F(HeapTest, OptimizeAfterBytecodeFlushingCandidate) {
 }
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
+TEST_F(HeapTest, MultiReferencedBytecodeFlushingBothOld) {
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+  v8_flags.turbofan = false;
+  i::v8_flags.optimize_for_size = false;
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+#ifdef V8_ENABLE_SPARKPLUG
+  v8_flags.always_sparkplug = false;
+  v8_flags.flush_baseline_code = true;
+#endif  // V8_ENABLE_SPARKPLUG
+  i::v8_flags.flush_bytecode = true;
+  i::v8_flags.allow_natives_syntax = true;
+
+  ManualGCScope manual_gc_scope(i_isolate());
+  v8::HandleScope scope(v8_isolate());
+  const char* source =
+      "function foo() {"
+      "  var x = 42;"
+      "  var y = 42;"
+      "  var z = x + y;"
+      "};"
+      "foo()";
+  DirectHandle<String> foo_name = factory()->InternalizeUtf8String("foo");
+
+  // This compile will add the code to the compilation cache.
+  {
+    v8::HandleScope new_scope(v8_isolate());
+    RunJS(source);
+  }
+
+  // Check function is compiled.
+  DirectHandle<Object> func_value =
+      Object::GetProperty(i_isolate(), i_isolate()->global_object(), foo_name)
+          .ToHandleChecked();
+  EXPECT_TRUE(IsJSFunction(*func_value));
+  DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
+  DirectHandle<SharedFunctionInfo> shared(function->shared(), i_isolate());
+  EXPECT_TRUE(shared->is_compiled());
+
+  // Make a copy of the SharedFunctionInfo which points to the same bytecode.
+  Handle<SharedFunctionInfo> copy = factory()->CloneSharedFunctionInfo(shared);
+
+  // Verify that both SFIs share the same BytecodeArray.
+  EXPECT_EQ(shared->GetBytecodeArray(i_isolate()),
+            copy->GetBytecodeArray(i_isolate()));
+
+  i::SharedFunctionInfo::EnsureOldForTesting(*shared);
+  i::SharedFunctionInfo::EnsureOldForTesting(*copy);
+
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+
+  // Both should be decompiled (flushed) because both were old.
+  EXPECT_FALSE(shared->is_compiled());
+  EXPECT_FALSE(copy->is_compiled());
+}
+
 }  // namespace internal
 }  // namespace v8
