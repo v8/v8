@@ -855,27 +855,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kRegExpEscape:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_regexp_escape);
 
-    // --js-explicit-resource-management
-    case Builtin::kSuppressedErrorConstructor:
-    case Builtin::kDisposableStackConstructor:
-    case Builtin::kDisposableStackPrototypeUse:
-    case Builtin::kDisposableStackPrototypeDispose:
-    case Builtin::kDisposableStackPrototypeAdopt:
-    case Builtin::kDisposableStackPrototypeDefer:
-    case Builtin::kDisposableStackPrototypeMove:
-    case Builtin::kDisposableStackPrototypeGetDisposed:
-    case Builtin::kAsyncDisposableStackConstructor:
-    case Builtin::kAsyncDisposableStackPrototypeUse:
-    case Builtin::kAsyncDisposableStackPrototypeDisposeAsync:
-    case Builtin::kAsyncDisposableStackPrototypeAdopt:
-    case Builtin::kAsyncDisposableStackPrototypeDefer:
-    case Builtin::kAsyncDisposableStackPrototypeMove:
-    case Builtin::kAsyncDisposableStackPrototypeGetDisposed:
-    case Builtin::kIteratorPrototypeDispose:
-    case Builtin::kAsyncIteratorPrototypeAsyncDispose:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
-          v8_flags.js_explicit_resource_management);
-
     // --js-base-64
     case Builtin::kUint8ArrayFromBase64:
     case Builtin::kUint8ArrayFromHex:

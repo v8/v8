@@ -3437,6 +3437,11 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   InstallError(isolate_, global, factory->URIError_string(),
                Context::URI_ERROR_FUNCTION_INDEX);
 
+  // -- S u p p r e s s e d E r r o r
+  InstallError(isolate_, global, factory->SuppressedError_string(),
+               Context::SUPPRESSED_ERROR_FUNCTION_INDEX,
+               Builtin::kSuppressedErrorConstructor, 3);
+
   // Initialize the embedder data slot.
   // TODO(ishell): microtask queue pointer will be moved from native context
   // to the embedder data array so we don't need an empty embedder data array.
@@ -5086,6 +5091,100 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
         Builtin::kHandleApiCallAsConstructorDelegate, 0, kDontAdapt);
     native_context()->set_call_as_constructor_delegate(*delegate);
   }
+
+  {  // -- D i s p o s a b l e S t a c k
+    DirectHandle<Map> js_disposable_stack_map =
+        factory->NewContextfulMapForCurrentContext(
+            JS_DISPOSABLE_STACK_BASE_TYPE, sizeof(JSDisposableStackBase));
+    js_disposable_stack_map->SetConstructor(
+        native_context()->object_function());
+    native_context()->set_js_disposable_stack_map(*js_disposable_stack_map);
+    LOG(isolate(), MapDetails(*js_disposable_stack_map));
+
+    // SyncDisposableStack
+    DirectHandle<JSFunction> disposable_stack_function = InstallFunction(
+        isolate(), global, "DisposableStack", JS_SYNC_DISPOSABLE_STACK_TYPE,
+        sizeof(JSSyncDisposableStack), 0, factory->the_hole_value(),
+        Builtin::kDisposableStackConstructor, 0, kDontAdapt);
+    DirectHandle<JSObject> sync_disposable_stack_prototype(
+        Cast<JSObject>(disposable_stack_function->instance_prototype()),
+        isolate());
+    InstallWithIntrinsicDefaultProto(
+        isolate(), disposable_stack_function,
+        Context::JS_DISPOSABLE_STACK_FUNCTION_INDEX);
+
+    SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "use",
+                          Builtin::kDisposableStackPrototypeUse, 1, kAdapt);
+    DirectHandle<JSFunction> dispose = SimpleInstallFunction(
+        isolate(), sync_disposable_stack_prototype, "dispose",
+        Builtin::kDisposableStackPrototypeDispose, 0, kAdapt);
+    JSObject::AddProperty(isolate(), sync_disposable_stack_prototype,
+                          factory->dispose_symbol(), dispose, DONT_ENUM);
+    SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "adopt",
+                          Builtin::kDisposableStackPrototypeAdopt, 2, kAdapt);
+    SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "defer",
+                          Builtin::kDisposableStackPrototypeDefer, 1, kAdapt);
+    SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "move",
+                          Builtin::kDisposableStackPrototypeMove, 0, kAdapt);
+
+    InstallToStringTag(isolate(), sync_disposable_stack_prototype,
+                       "DisposableStack");
+    SimpleInstallGetter(isolate(), sync_disposable_stack_prototype,
+                        factory->disposed_string(),
+                        Builtin::kDisposableStackPrototypeGetDisposed, kAdapt);
+
+    // AsyncDisposableStack
+    DirectHandle<JSFunction> async_disposable_stack_function = InstallFunction(
+        isolate(), global, "AsyncDisposableStack",
+        JS_ASYNC_DISPOSABLE_STACK_TYPE, sizeof(JSAsyncDisposableStack), 0,
+        factory->the_hole_value(), Builtin::kAsyncDisposableStackConstructor, 0,
+        kDontAdapt);
+    DirectHandle<JSObject> async_disposable_stack_prototype(
+        Cast<JSObject>(async_disposable_stack_function->instance_prototype()),
+        isolate());
+    InstallWithIntrinsicDefaultProto(
+        isolate(), async_disposable_stack_function,
+        Context::JS_ASYNC_DISPOSABLE_STACK_FUNCTION_INDEX);
+
+    SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "use",
+                          Builtin::kAsyncDisposableStackPrototypeUse, 1,
+                          kAdapt);
+    DirectHandle<JSFunction> dispose_async = SimpleInstallFunction(
+        isolate(), async_disposable_stack_prototype, "disposeAsync",
+        Builtin::kAsyncDisposableStackPrototypeDisposeAsync, 0, kAdapt);
+    JSObject::AddProperty(isolate(), async_disposable_stack_prototype,
+                          factory->async_dispose_symbol(), dispose_async,
+                          DONT_ENUM);
+    SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "adopt",
+                          Builtin::kAsyncDisposableStackPrototypeAdopt, 2,
+                          kAdapt);
+    SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "defer",
+                          Builtin::kAsyncDisposableStackPrototypeDefer, 1,
+                          kAdapt);
+    SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "move",
+                          Builtin::kAsyncDisposableStackPrototypeMove, 0,
+                          kAdapt);
+
+    InstallToStringTag(isolate(), async_disposable_stack_prototype,
+                       "AsyncDisposableStack");
+    SimpleInstallGetter(
+        isolate(), async_disposable_stack_prototype, factory->disposed_string(),
+        Builtin::kAsyncDisposableStackPrototypeGetDisposed, kAdapt);
+
+    // Add symbols to iterator prototypes
+    DirectHandle<JSObject> iterator_prototype(
+        native_context()->initial_iterator_prototype(), isolate());
+    InstallFunctionAtSymbol(isolate(), iterator_prototype,
+                            factory->dispose_symbol(), "[Symbol.dispose]",
+                            Builtin::kIteratorPrototypeDispose, 0, kAdapt);
+
+    DirectHandle<JSObject> async_iterator_prototype(
+        native_context()->initial_async_iterator_prototype(), isolate());
+    InstallFunctionAtSymbol(
+        isolate(), async_iterator_prototype, factory->async_dispose_symbol(),
+        "[Symbol.asyncDispose]", Builtin::kAsyncIteratorPrototypeAsyncDispose,
+        0, kAdapt);
+  }
 }
 
 DirectHandle<JSFunction> Genesis::InstallTypedArray(
@@ -5865,106 +5964,7 @@ void Genesis::InitializeGlobal_sharedarraybuffer() {
                         isolate()->shared_array_buffer_fun(), DONT_ENUM);
 }
 
-void Genesis::InitializeGlobal_js_explicit_resource_management() {
-  if (!v8_flags.js_explicit_resource_management) return;
 
-  Factory* factory = isolate()->factory();
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-
-  // -- S u p p r e s s e d E r r o r
-  InstallError(isolate(), global, factory->SuppressedError_string(),
-               Context::SUPPRESSED_ERROR_FUNCTION_INDEX,
-               Builtin::kSuppressedErrorConstructor, 3);
-
-  // -- D i s p o s a b l e S t a c k
-  DirectHandle<Map> js_disposable_stack_map =
-      factory->NewContextfulMapForCurrentContext(JS_DISPOSABLE_STACK_BASE_TYPE,
-                                                 sizeof(JSDisposableStackBase));
-  js_disposable_stack_map->SetConstructor(native_context()->object_function());
-  native_context()->set_js_disposable_stack_map(*js_disposable_stack_map);
-  LOG(isolate(), MapDetails(*js_disposable_stack_map));
-
-  // SyncDisposableStack
-  DirectHandle<JSFunction> disposable_stack_function = InstallFunction(
-      isolate(), global, "DisposableStack", JS_SYNC_DISPOSABLE_STACK_TYPE,
-      sizeof(JSSyncDisposableStack), 0, factory->the_hole_value(),
-      Builtin::kDisposableStackConstructor, 0, kDontAdapt);
-  DirectHandle<JSObject> sync_disposable_stack_prototype(
-      Cast<JSObject>(disposable_stack_function->instance_prototype()),
-      isolate());
-  InstallWithIntrinsicDefaultProto(isolate(), disposable_stack_function,
-                                   Context::JS_DISPOSABLE_STACK_FUNCTION_INDEX);
-
-  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "use",
-                        Builtin::kDisposableStackPrototypeUse, 1, kAdapt);
-  DirectHandle<JSFunction> dispose = SimpleInstallFunction(
-      isolate(), sync_disposable_stack_prototype, "dispose",
-      Builtin::kDisposableStackPrototypeDispose, 0, kAdapt);
-  JSObject::AddProperty(isolate(), sync_disposable_stack_prototype,
-                        factory->dispose_symbol(), dispose, DONT_ENUM);
-  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "adopt",
-                        Builtin::kDisposableStackPrototypeAdopt, 2, kAdapt);
-  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "defer",
-                        Builtin::kDisposableStackPrototypeDefer, 1, kAdapt);
-  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "move",
-                        Builtin::kDisposableStackPrototypeMove, 0, kAdapt);
-
-  InstallToStringTag(isolate(), sync_disposable_stack_prototype,
-                     "DisposableStack");
-  SimpleInstallGetter(isolate(), sync_disposable_stack_prototype,
-                      factory->disposed_string(),
-                      Builtin::kDisposableStackPrototypeGetDisposed, kAdapt);
-
-  // AsyncDisposableStack
-  DirectHandle<JSFunction> async_disposable_stack_function = InstallFunction(
-      isolate(), global, "AsyncDisposableStack", JS_ASYNC_DISPOSABLE_STACK_TYPE,
-      sizeof(JSAsyncDisposableStack), 0, factory->the_hole_value(),
-      Builtin::kAsyncDisposableStackConstructor, 0, kDontAdapt);
-  DirectHandle<JSObject> async_disposable_stack_prototype(
-      Cast<JSObject>(async_disposable_stack_function->instance_prototype()),
-      isolate());
-  InstallWithIntrinsicDefaultProto(
-      isolate(), async_disposable_stack_function,
-      Context::JS_ASYNC_DISPOSABLE_STACK_FUNCTION_INDEX);
-
-  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "use",
-                        Builtin::kAsyncDisposableStackPrototypeUse, 1, kAdapt);
-  DirectHandle<JSFunction> dispose_async = SimpleInstallFunction(
-      isolate(), async_disposable_stack_prototype, "disposeAsync",
-      Builtin::kAsyncDisposableStackPrototypeDisposeAsync, 0, kAdapt);
-  JSObject::AddProperty(isolate(), async_disposable_stack_prototype,
-                        factory->async_dispose_symbol(), dispose_async,
-                        DONT_ENUM);
-  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "adopt",
-                        Builtin::kAsyncDisposableStackPrototypeAdopt, 2,
-                        kAdapt);
-  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "defer",
-                        Builtin::kAsyncDisposableStackPrototypeDefer, 1,
-                        kAdapt);
-  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "move",
-                        Builtin::kAsyncDisposableStackPrototypeMove, 0, kAdapt);
-
-  InstallToStringTag(isolate(), async_disposable_stack_prototype,
-                     "AsyncDisposableStack");
-  SimpleInstallGetter(
-      isolate(), async_disposable_stack_prototype, factory->disposed_string(),
-      Builtin::kAsyncDisposableStackPrototypeGetDisposed, kAdapt);
-
-  // Add symbols to iterator prototypes
-  DirectHandle<JSObject> iterator_prototype(
-      native_context()->initial_iterator_prototype(), isolate());
-  InstallFunctionAtSymbol(isolate(), iterator_prototype,
-                          factory->dispose_symbol(), "[Symbol.dispose]",
-                          Builtin::kIteratorPrototypeDispose, 0, kAdapt);
-
-  DirectHandle<JSObject> async_iterator_prototype(
-      native_context()->initial_async_iterator_prototype(), isolate());
-  InstallFunctionAtSymbol(
-      isolate(), async_iterator_prototype, factory->async_dispose_symbol(),
-      "[Symbol.asyncDispose]", Builtin::kAsyncIteratorPrototypeAsyncDispose, 0,
-      kAdapt);
-}
 
 void Genesis::InitializeGlobal_js_regexp_escape() {
   if (!v8_flags.js_regexp_escape) return;

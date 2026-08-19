@@ -375,7 +375,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_esm_ns_reexport,                                                      \
     "Support diamond-importing re-expored namespaces "                       \
     "(https://github.com/tc39/ecma262/pull/3715)")                           \
-  V(js_explicit_resource_management, "explicit resource management")         \
   V(js_iterator_join, "Iterator.prototype.join")                             \
   V(js_iterator_sequencing, "iterator sequencing")                           \
   V(js_joint_iteration, "joint iteration")                                   \
