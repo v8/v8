@@ -55,7 +55,6 @@
   V(Regress777177)                                          \
   V(Regress779503)                                          \
   V(Regress791582)                                          \
-  V(Regress845060)                                          \
   V(RegressMissingWriteBarrierInAllocate)                   \
   V(WriteBarrier_Marking)                                   \
   V(WriteBarrier_MarkingExtension)                          \

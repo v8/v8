@@ -1015,34 +1015,7 @@ TEST(LeakNativeContextViaMapProto) {
 
 
 
-HEAP_TEST(Regress845060) {
-  if (v8_flags.single_generation) return;
-  // Regression test for crbug.com/845060, where a raw pointer to a string's
-  // data was kept across an allocation. If the allocation causes GC and
-  // moves the string, such raw pointers become invalid.
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.stress_compaction = false;
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(CcTest::isolate());
-  Heap* heap = CcTest::heap();
 
-  // Preparation: create a string in new space.
-  Local<Value> str = CompileRun("var str = (new Array(10000)).join('x'); str");
-  CHECK(HeapLayout::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
-
-  // Use kReduceMemoryFootprintMask to unmap from space after scavenging.
-  heap->StartIncrementalMarking(i::GCFlag::kReduceMemoryFootprint,
-                                GarbageCollectionReason::kTesting);
-
-  // Run the test (which allocates results) until the original string was
-  // promoted to old space. Unmapping of from_space causes accesses to any
-  // stale raw pointers to crash.
-  CompileRun("while (%InYoungGeneration(str)) { str.split(''); }");
-  CHECK(!HeapLayout::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
-}
 
 TEST(OptimizedPretenuringNestedInObjectProperties) {
   v8_flags.allow_natives_syntax = true;

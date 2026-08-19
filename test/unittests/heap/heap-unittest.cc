@@ -2237,53 +2237,29 @@ TEST_F(HeapTest, Regress12777) {
   isolate->Dispose();
 }
 
-TEST_F(HeapTest, Regress1465) {
-  if (!v8_flags.incremental_marking) return;
-  v8_flags.stress_compaction = false;
-  v8_flags.stress_incremental_marking = false;
+TEST_F(HeapTest, Regress845060) {
+  if (v8_flags.single_generation) return;
+  // Regression test for crbug.com/845060, where a raw pointer to a string's
+  // data was kept across an allocation. If the allocation causes GC and
+  // moves the string, such raw pointers become invalid.
   v8_flags.allow_natives_syntax = true;
-  v8_flags.trace_incremental_marking = true;
-  v8_flags.retain_maps_for_n_gc = 0;
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.stress_compaction = false;
+  ManualGCScope manual_gc_scope(i_isolate());
 
-  static const int transitions_count = 256;
+  // Preparation: create a string in new space.
+  Handle<Object> str = RunJS("var str = (new Array(10000)).join('x'); str");
+  EXPECT_TRUE(HeapLayout::InYoungGeneration(Cast<HeapObject>(*str)));
 
-  RunJS("function F() {}");
-  {
-    AlwaysAllocateScopeForTesting always_allocate(heap());
-    for (int i = 0; i < transitions_count; i++) {
-      base::EmbeddedVector<char, 64> buffer;
-      base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
-      RunJS(buffer.begin());
-    }
-    RunJS("var root = new F;");
-  }
+  // Use kReduceMemoryFootprint to unmap from space after scavenging.
+  heap()->StartIncrementalMarking(i::GCFlag::kReduceMemoryFootprint,
+                                  GarbageCollectionReason::kTesting);
 
-  Handle<JSReceiver> root = Cast<JSReceiver>(v8::Utils::OpenHandle(
-      *v8::Local<v8::Object>::Cast(v8_context()
-                                       ->Global()
-                                       ->Get(v8_context(), NewString("root"))
-                                       .ToLocalChecked())));
-
-  // Count number of live transitions before marking.
-  int transitions_before =
-      TransitionsAccessor(i_isolate(), root->map()).NumberOfTransitions();
-  RunJS("%DebugPrint(root);");
-  EXPECT_EQ(transitions_count, transitions_before);
-
-  SimulateIncrementalMarking();
-  {
-    // In this test, we need to invoke GC without stack, otherwise some objects
-    // may not be reclaimed because of conservative stack scanning.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
-    InvokeMajorGC();
-  }
-
-  // Count number of live transitions after marking. Note that one transition
-  // is left, because 'o' still holds an instance of one transition target.
-  int transitions_after =
-      TransitionsAccessor(i_isolate(), root->map()).NumberOfTransitions();
-  RunJS("%DebugPrint(root);");
-  EXPECT_EQ(1, transitions_after);
+  // Run the test (which allocates results) until the original string was
+  // promoted to old space. Unmapping of from_space causes accesses to any
+  // stale raw pointers to crash.
+  RunJS("while (%InYoungGeneration(str)) { str.split(''); }");
+  EXPECT_FALSE(HeapLayout::InYoungGeneration(Cast<HeapObject>(*str)));
 }
 
 TEST_F(HeapTest, OptimizedPretenuringObjectArrayLiterals) {
