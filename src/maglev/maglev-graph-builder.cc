@@ -8852,11 +8852,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
   return BuildCallBuiltin<Builtin::kCloneFastJSArray>({receiver});
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIncludes(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return TryReduceStringPrototypeIndexOfIncludes(args, true);
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};

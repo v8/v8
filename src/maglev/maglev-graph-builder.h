@@ -909,7 +909,6 @@ class MaglevGraphBuilder {
   V(NumberParseInt)                              \
   V(SetPrototypeHas)                             \
   V(StringConstructor)                           \
-  V(StringPrototypeIncludes)                     \
   V(StringPrototypeIterator)
 
 #define DEFINE_BUILTIN_REDUCER(Name, ...)                           \
@@ -951,11 +950,6 @@ class MaglevGraphBuilder {
       const std::optional<InitialCallback>& initial_callback = {},
       const std::optional<ProcessElementCallback>& process_element_callback =
           {});
-
-  MaybeReduceResult TryReduceStringPrototypeIndexOfIncludes(CallArguments& args,
-                                                            bool is_includes) {
-    return reducer_.TryReduceStringPrototypeIndexOfIncludes(args, is_includes);
-  }
 
   MaybeReduceResult TryReduceGetProto(ValueNode* node);
 

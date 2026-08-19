@@ -6872,6 +6872,12 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeIndexOf(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeIncludes(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceStringPrototypeIndexOfIncludes(args, true);
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
     Builtin builtin_id, ValueNode* context, compiler::JSFunctionRef target,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {
