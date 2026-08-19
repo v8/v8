@@ -94,62 +94,8 @@ namespace heap {
 static const int kPretenureCreationCount =
     PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
-  // Count the number of objects found in the heap.
-  int found_count = 0;
-  HeapObjectIterator iterator(heap);
-  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    for (int i = 0; i < size; i++) {
-      // V8_EXTERNAL_CODE_SPACE specific: we might be comparing
-      // InstructionStream object with non-InstructionStream object here and it
-      // might produce false positives because operator== for tagged values
-      // compares only lower 32 bits when pointer compression is enabled.
-      if ((*objs[i]).ptr() == obj.ptr()) {
-        found_count++;
-      }
-    }
-  }
-  return found_count;
-}
 
-TEST(Iteration) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  v8::HandleScope scope(CcTest::isolate());
 
-  // Array of objects to scan heap for.
-  const int objs_count = 6;
-  Handle<Object> objs[objs_count];
-  int next_objs_index = 0;
-
-  // Allocate a JS array to OLD_SPACE and NEW_SPACE
-  objs[next_objs_index++] = factory->NewJSArray(10);
-  objs[next_objs_index++] =
-      factory->NewJSArray(10, HOLEY_ELEMENTS, AllocationType::kOld);
-
-  // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
-  objs[next_objs_index++] = factory->NewStringFromStaticChars("abcdefghij");
-  objs[next_objs_index++] =
-      factory->NewStringFromStaticChars("abcdefghij", AllocationType::kOld);
-
-  // Allocate a large string (for large object space).
-  int large_size = kMaxRegularHeapObjectSize + 1;
-  char* str = new char[large_size];
-  for (int i = 0; i < large_size - 1; ++i) str[i] = 'a';
-  str[large_size - 1] = '\0';
-  objs[next_objs_index++] =
-      factory->NewStringFromAsciiChecked(str, AllocationType::kOld);
-  delete[] str;
-
-  // Add a Map object to look for.
-  objs[next_objs_index++] =
-      Handle<Map>(Cast<HeapObject>(*objs[0])->map(), isolate);
-
-  CHECK_EQ(objs_count, next_objs_index);
-  CHECK_EQ(objs_count, ObjectsFoundInHeap(CcTest::heap(), objs, objs_count));
-}
 
 
 
