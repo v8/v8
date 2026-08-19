@@ -745,8 +745,9 @@ void MaglevPhiRepresentationSelector::UntagConstantInput(
     Float64 f64 = Float64::FromBits(
         base::double_to_uint64(constant->object().AsHeapNumber().value()));
     // We need to silence hole and undefined patterns as their
-    // interpretation will now change.
-    if (f64.has_undefined_or_hole_nan_high_bits()) f64 = f64.to_quiet_nan();
+    // interpretation will now change. Any other signalling NaN has to go too,
+    // so that a HoleyFloat64 only ever carries those two.
+    if (f64.is_signalling_nan()) f64 = f64.to_quiet_nan();
     phi->change_input(input_index, graph_->GetHoleyFloat64Constant(f64));
   } else if (truncating) {
     TRACE_UNTAGGING(TRACE_INPUT_LABEL

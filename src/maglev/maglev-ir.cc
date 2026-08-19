@@ -670,9 +670,9 @@ bool ValueNode::MayBeHoleOrUndefinedNan() const {
       return false;
 
     case Opcode::kFloat64Constant:
-      return Cast<Float64Constant>()->value().is_undefined_or_hole_nan();
+      return Cast<Float64Constant>()->value().is_signalling_nan();
     case Opcode::kHoleyFloat64Constant:
-      return Cast<HoleyFloat64Constant>()->value().is_undefined_or_hole_nan();
+      return Cast<HoleyFloat64Constant>()->value().is_signalling_nan();
 
     // Casts that reinterpret the bits without touching them, so they carry the
     // patterns exactly when their input does.
