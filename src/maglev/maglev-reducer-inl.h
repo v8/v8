@@ -6371,6 +6371,17 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceReturnReceiver(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringFromCharCode(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  if (args.count() != 1) return {};
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(
+      value, GetTruncatedInt32ForToNumber(args[0], NodeType::kNumberOrOddball));
+  return AddNewNode<BuiltinStringFromCharCode>({value});
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
     Builtin builtin_id, ValueNode* context, compiler::JSFunctionRef target,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {

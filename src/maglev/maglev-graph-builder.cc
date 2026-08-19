@@ -8861,16 +8861,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
   return BuildCallBuiltin<Builtin::kCloneFastJSArray>({receiver});
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceStringFromCharCode(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall()) return {};
-  if (args.count() != 1) return {};
-  ValueNode* value;
-  GET_VALUE_OR_ABORT(
-      value, GetTruncatedInt32ForToNumber(args[0], NodeType::kNumberOrOddball));
-  return AddNewNode<BuiltinStringFromCharCode>({value});
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstantStringAt(
     ValueNode* receiver, ValueNode* index, StringAtOOBMode oob_mode) {
   auto constant_receiver = TryGetConstant<HeapObject>(receiver);
