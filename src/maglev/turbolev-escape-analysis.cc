@@ -34,7 +34,7 @@ ValueNode* EscapeAnalysisData::Get(InlinedAllocation* base, int offset) {
   ObjectField addr = ObjectField{base, offset};
   Key key = TryGetKeyFor(addr);
   DCHECK(key.valid());
-  return field_values.Get(key);
+  return GetFieldValue(key);
 }
 
 Key EscapeAnalysisData::GetOrCreateKey(InlinedAllocation* base, int offset) {
@@ -133,9 +133,9 @@ ValueNode* EscapeAnalysisData::ResolveLoadBase(ValueNode* base, int offset,
       return fallback;
     }
     DCHECK(key.valid());
-    ValueNode* val = predecessor_index == -1 ? field_values.Get(key)
-                                             : field_values.GetPredecessorValue(
-                                                   key, predecessor_index);
+    ValueNode* val = predecessor_index == -1
+                         ? GetFieldValue(key)
+                         : GetPredecessorFieldValue(key, predecessor_index);
     if (val == nullptr) {
       // The key is valid, but the value is nullptr (e.g. because it is
       // uninitialized on this path, or merged to nullptr due to predecessor
@@ -1267,7 +1267,7 @@ class FieldValuesTracker : public CandidateAnalyzer {
         continue;
       }
 
-      ValueNode* backedge_val = field_values().Get(key);
+      ValueNode* backedge_val = data_.GetFieldValue(key);
 
       if (InlinedAllocation* backedge_alloc =
               data_.TryGetCandidateInlinedAllocation(backedge_val)) {
@@ -1835,7 +1835,7 @@ class Elider {
       }
       DCHECK(keys_mappings().contains(addr));
       Key key = keys_mappings().at(addr);
-      ValueNode* replacement = field_values().Get(key);
+      ValueNode* replacement = data_.GetFieldValue(key);
 
       if (replacement == nullptr || (replacement->value_representation() !=
                                      node->value_representation())) {

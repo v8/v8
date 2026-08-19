@@ -216,7 +216,7 @@ struct EscapeAnalysisData {
     ObjectField addr = ObjectField{alloc, 0};
     Key key = TryGetKeyFor(addr);
     DCHECK(key.valid());
-    return field_values.Get(key) != nullptr;
+    return GetFieldValue(key) != nullptr;
   }
 
   // {value} is being stored into {base}. As a result, if {base} is not
@@ -229,6 +229,16 @@ struct EscapeAnalysisData {
   void MarkAsEscaped(InlinedAllocation* alloc);
 
   bool HasEscaped(InlinedAllocation* alloc);
+
+  ValueNode* GetFieldValue(Key key) {
+    ValueNode* value = field_values.Get(key);
+    return value ? value->UnwrapIdentities() : nullptr;
+  }
+  ValueNode* GetPredecessorFieldValue(Key key, int predecessor_index) {
+    DCHECK_GE(predecessor_index, 0);
+    ValueNode* value = field_values.GetPredecessorValue(key, predecessor_index);
+    return value ? value->UnwrapIdentities() : nullptr;
+  }
 
   ValueNode* Get(InlinedAllocation* base, int field);
   Key GetOrCreateKey(InlinedAllocation* base, int field);
