@@ -4499,10 +4499,10 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, prototype, "values",
                           Builtin::kMapPrototypeValues, 0, kAdapt);
 
-    // TODO(olivf, 434977728): Remove initial_map_prototype once --js-upsert
-    // flag is removed.
-    USE(v8_flags.js_upsert);
-    native_context()->set_initial_map_prototype(*prototype);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsert",
+                          Builtin::kMapPrototypeGetOrInsert, 2, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
+                          Builtin::kMapPrototypeGetOrInsertComputed, 2, kAdapt);
     native_context()->set_initial_map_prototype_map(prototype->map());
 
     InstallSpeciesGetter(isolate_, js_map_fun);
@@ -4824,10 +4824,11 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
     InstallToStringTag(isolate_, prototype, "WeakMap");
 
-    // TODO(olivf, 434977728): Remove initial_weakmap_prototype once --js-upsert
-    // flag is removed.
-    USE(v8_flags.js_upsert);
-    native_context()->set_initial_weakmap_prototype(*prototype);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsert",
+                          Builtin::kWeakMapPrototypeGetOrInsert, 2, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
+                          Builtin::kWeakMapPrototypeGetOrInsertComputed, 2,
+                          kAdapt);
     native_context()->set_initial_weakmap_prototype_map(prototype->map());
   }
 
@@ -5769,30 +5770,6 @@ void Genesis::InitializeGlobal_js_joint_iteration() {
     LOG(isolate_, MapDetails(*map));
     SimpleInstallFunction(isolate_, iterator_function, "zipKeyed",
                           Builtin::kIteratorZipKeyed, 1, kDontAdapt);
-  }
-}
-
-void Genesis::InitializeGlobal_js_upsert() {
-  if (!v8_flags.js_upsert) return;
-
-  {
-    auto prototype =
-        handle(native_context()->initial_map_prototype(), isolate_);
-    SimpleInstallFunction(isolate_, prototype, "getOrInsert",
-                          Builtin::kMapPrototypeGetOrInsert, 2, kAdapt);
-    SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
-                          Builtin::kMapPrototypeGetOrInsertComputed, 2, kAdapt);
-    native_context()->set_initial_map_prototype_map(prototype->map());
-  }
-  {
-    auto prototype =
-        handle(native_context()->initial_weakmap_prototype(), isolate_);
-    SimpleInstallFunction(isolate_, prototype, "getOrInsert",
-                          Builtin::kWeakMapPrototypeGetOrInsert, 2, kAdapt);
-    SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
-                          Builtin::kWeakMapPrototypeGetOrInsertComputed, 2,
-                          kAdapt);
-    native_context()->set_initial_weakmap_prototype_map(prototype->map());
   }
 }
 

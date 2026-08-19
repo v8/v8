@@ -369,17 +369,16 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_import_attributes, "harmony import attributes") \
   V(harmony_temporal, "Temporal")
 
-#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                                 \
-  V(js_esm_ns_reexport,                                                      \
-    "Support diamond-importing re-expored namespaces "                       \
-    "(https://github.com/tc39/ecma262/pull/3715)")                           \
-  V(js_iterator_join, "Iterator.prototype.join")                             \
-  V(js_iterator_sequencing, "iterator sequencing")                           \
-  V(js_joint_iteration, "joint iteration")                                   \
-  V(js_pr_3883,                                                              \
-    "Let Promise.try not wrap the result in an extra promise in the "        \
-    "non-throwing case (https://github.com/tc39/ecma262/pull/3883)")         \
-  V(js_upsert, "upsert")
+#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                          \
+  V(js_esm_ns_reexport,                                               \
+    "Support diamond-importing re-expored namespaces "                \
+    "(https://github.com/tc39/ecma262/pull/3715)")                    \
+  V(js_iterator_join, "Iterator.prototype.join")                      \
+  V(js_iterator_sequencing, "iterator sequencing")                    \
+  V(js_joint_iteration, "joint iteration")                            \
+  V(js_pr_3883,                                                       \
+    "Let Promise.try not wrap the result in an extra promise in the " \
+    "non-throwing case (https://github.com/tc39/ecma262/pull/3883)")
 
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)

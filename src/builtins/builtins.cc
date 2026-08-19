@@ -852,13 +852,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kIteratorZipKeyed:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_joint_iteration);
 
-    // --js-upsert
-    case Builtin::kMapPrototypeGetOrInsert:
-    case Builtin::kMapPrototypeGetOrInsertComputed:
-    case Builtin::kWeakMapPrototypeGetOrInsert:
-    case Builtin::kWeakMapPrototypeGetOrInsertComputed:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_upsert);
-
     // --js-immutable-arraybuffer
     case Builtin::kArrayBufferPrototypeGetImmutable:
     case Builtin::kArrayBufferPrototypeTransferToImmutable:
