@@ -907,10 +907,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kArrayBufferPrototypeSliceToImmutable:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_immutable_arraybuffer);
 
-    // --js-sum-precise
-    case Builtin::kMathSumPrecise:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_sum_precise);
-
     // --enable-queue-microtask
     case Builtin::kGlobalQueueMicrotask:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.enable_queue_microtask);

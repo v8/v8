@@ -3545,6 +3545,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                           kAdapt);
     SimpleInstallFunction(isolate_, math, "sqrt", Builtin::kMathSqrt, 1,
                           kAdapt);
+    SimpleInstallFunction(isolate_, math, "sumPrecise",
+                          Builtin::kMathSumPrecise, 1, kAdapt);
     SimpleInstallFunction(isolate_, math, "tan", Builtin::kMathTan, 1, kAdapt);
     SimpleInstallFunction(isolate_, math, "tanh", Builtin::kMathTanh, 1,
                           kAdapt);
@@ -6079,17 +6081,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     JSObject::SetAccessor(date_prototype, name, accessor, DONT_ENUM).Check();
   }
 #endif  // V8_TEMPORAL_SUPPORT
-}
-
-void Genesis::InitializeGlobal_js_sum_precise() {
-  if (!v8_flags.js_sum_precise) return;
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-  DirectHandle<JSObject> math = Cast<JSObject>(
-      JSReceiver::GetProperty(isolate(), global, "Math").ToHandleChecked());
-
-  SimpleInstallFunction(isolate_, math, "sumPrecise", Builtin::kMathSumPrecise,
-                        1, kAdapt);
 }
 
 void Genesis::InitializeGlobal_queueMicrotask() {

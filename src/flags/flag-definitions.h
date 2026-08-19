@@ -384,7 +384,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
     "non-throwing case (https://github.com/tc39/ecma262/pull/3883)")         \
   V(js_promise_try, "Promise.try")                                           \
   V(js_regexp_escape, "RegExp.escape")                                       \
-  V(js_sum_precise, "Math.sumPrecise")                                       \
   V(js_upsert, "upsert")
 
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
