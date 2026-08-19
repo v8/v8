@@ -6878,6 +6878,19 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeIncludes(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeIterator(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  // Ensure that {receiver} is actually a String.
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+  compiler::MapRef map =
+      broker()->target_native_context().initial_string_iterator_map(broker());
+  VirtualObject* string_iterator = CreateJSStringIterator(map, receiver);
+  return BuildInlinedAllocation(string_iterator, AllocationType::kYoung);
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
     Builtin builtin_id, ValueNode* context, compiler::JSFunctionRef target,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {

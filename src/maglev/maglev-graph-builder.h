@@ -908,8 +908,7 @@ class MaglevGraphBuilder {
   V(ObjectPrototypeHasOwnProperty)               \
   V(NumberParseInt)                              \
   V(SetPrototypeHas)                             \
-  V(StringConstructor)                           \
-  V(StringPrototypeIterator)
+  V(StringConstructor)
 
 #define DEFINE_BUILTIN_REDUCER(Name, ...)                           \
   MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \

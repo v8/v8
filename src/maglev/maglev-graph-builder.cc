@@ -8852,20 +8852,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
   return BuildCallBuiltin<Builtin::kCloneFastJSArray>({receiver});
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall()) return {};
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  // Ensure that {receiver} is actually a String.
-  RETURN_IF_ABORT(BuildCheckString(receiver));
-  compiler::MapRef map =
-      broker()->target_native_context().initial_string_iterator_map(broker());
-  VirtualObject* string_iterator =
-      reducer_.CreateJSStringIterator(map, receiver);
-  return reducer_.BuildInlinedAllocation(string_iterator,
-                                         AllocationType::kYoung);
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetByteLength(
     compiler::JSFunctionRef target, CallArguments& args) {
   // We cannot check CanSpeculateCall here, since this is a getter.
