@@ -2237,29 +2237,75 @@ TEST_F(HeapTest, Regress12777) {
   isolate->Dispose();
 }
 
-TEST_F(HeapTest, Regress845060) {
-  if (v8_flags.single_generation) return;
-  // Regression test for crbug.com/845060, where a raw pointer to a string's
-  // data was kept across an allocation. If the allocation causes GC and
-  // moves the string, such raw pointers become invalid.
+TEST_F(HeapTest, LeakNativeContextViaFunction) {
   v8_flags.allow_natives_syntax = true;
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.stress_compaction = false;
-  ManualGCScope manual_gc_scope(i_isolate());
+  v8::Isolate* isolate = v8_isolate();
+  Heap* heap_instance = heap();
+  v8::HandleScope outer_scope(isolate);
+  v8::Persistent<v8::Context> ctx1p;
+  v8::Persistent<v8::Context> ctx2p;
+  {
+    v8::HandleScope scope(isolate);
+    ctx1p.Reset(isolate, v8::Context::New(isolate));
+    ctx2p.Reset(isolate, v8::Context::New(isolate));
+    v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
+  }
 
-  // Preparation: create a string in new space.
-  Handle<Object> str = RunJS("var str = (new Array(10000)).join('x'); str");
-  EXPECT_TRUE(HeapLayout::InYoungGeneration(Cast<HeapObject>(*str)));
+  {
+    // In this test, we need to invoke GC without stack, otherwise some objects
+    // may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        heap_instance);
+    InvokeMemoryReducingMajorGCs();
+  }
+  // HeapTest creates and enters a default context (context 0) which is
+  // unaffected by the test, so there are 3 global objects initially (default
+  // context + ctx1 + ctx2).
+  EXPECT_EQ(3, NumberOfGlobalObjects());
 
-  // Use kReduceMemoryFootprint to unmap from space after scavenging.
-  heap()->StartIncrementalMarking(i::GCFlag::kReduceMemoryFootprint,
-                                  GarbageCollectionReason::kTesting);
-
-  // Run the test (which allocates results) until the original string was
-  // promoted to old space. Unmapping of from_space causes accesses to any
-  // stale raw pointers to crash.
-  RunJS("while (%InYoungGeneration(str)) { str.split(''); }");
-  EXPECT_FALSE(HeapLayout::InYoungGeneration(Cast<HeapObject>(*str)));
+  {
+    v8::HandleScope inner_scope(isolate);
+    v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
+    v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
+    RunJS(ctx1, "var f = function() { return 42; };");
+    v8::Local<v8::Value> f =
+        ctx1->Global()
+            ->Get(ctx1, v8::String::NewFromUtf8Literal(isolate, "f"))
+            .ToLocalChecked();
+    ctx2->Enter();
+    EXPECT_TRUE(ctx2->Global()
+                    ->Set(ctx2, v8::String::NewFromUtf8Literal(isolate, "f"), f)
+                    .FromJust());
+    Handle<Object> res = RunJS(ctx2,
+                               "function g() { return f(); }"
+                               "%PrepareFunctionForOptimization(g);"
+                               "for (var i = 0; i < 10; ++i) g();"
+                               "%OptimizeFunctionOnNextCall(g);"
+                               "g();");
+    EXPECT_EQ(42, Object::NumberValue(*res));
+    EXPECT_TRUE(ctx2->Global()
+                    ->Set(ctx2, v8::String::NewFromUtf8Literal(isolate, "f"),
+                          v8::Int32::New(isolate, 0))
+                    .FromJust());
+    ctx2->Exit();
+    v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
+    ctx1p.Reset();
+    isolate->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
+  }
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        heap_instance);
+    InvokeMemoryReducingMajorGCs();
+  }
+  EXPECT_EQ(2, NumberOfGlobalObjects());
+  ctx2p.Reset();
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        heap_instance);
+    InvokeMemoryReducingMajorGCs();
+  }
+  EXPECT_EQ(1, NumberOfGlobalObjects());
 }
 
 TEST_F(HeapTest, OptimizedPretenuringObjectArrayLiterals) {
