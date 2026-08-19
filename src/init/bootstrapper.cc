@@ -1524,6 +1524,8 @@ void InstallError(Isolate* isolate, DirectHandle<JSObject> global,
   if (context_index == Context::ERROR_FUNCTION_INDEX) {
     SimpleInstallFunction(isolate, error_fun, "captureStackTrace",
                           Builtin::kErrorCaptureStackTrace, 2, kDontAdapt);
+    SimpleInstallFunction(isolate, error_fun, "isError", Builtin::kErrorIsError,
+                          1, kAdapt);
   }
 
   InstallWithIntrinsicDefaultProto(isolate, error_fun, context_index);
@@ -5700,14 +5702,6 @@ void Genesis::InitializeGlobal_js_promise_try() {
                                        isolate());
   InstallFunctionWithBuiltinId(isolate(), promise_fun, "try",
                                Builtin::kPromiseTry, 1, kDontAdapt);
-}
-
-void Genesis::InitializeGlobal_js_error_iserror() {
-  if (!v8_flags.js_error_iserror) return;
-  DirectHandle<JSFunction> error_fun(native_context()->error_function(),
-                                     isolate());
-  InstallFunctionWithBuiltinId(isolate(), error_fun, "isError",
-                               Builtin::kErrorIsError, 1, kAdapt);
 }
 
 void Genesis::InitializeGlobal_js_immutable_arraybuffer() {

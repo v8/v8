@@ -370,7 +370,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_temporal, "Temporal")
 
 #define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                                 \
-  V(js_error_iserror, "Error.isError")                                       \
   V(js_esm_ns_reexport,                                                      \
     "Support diamond-importing re-expored namespaces "                       \
     "(https://github.com/tc39/ecma262/pull/3715)")                           \
