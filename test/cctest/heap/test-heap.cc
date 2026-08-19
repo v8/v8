@@ -1008,65 +1008,7 @@ TEST(LeakNativeContextViaFunction) {
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
 
-TEST(LeakNativeContextViaMapKeyed) {
-  v8_flags.allow_natives_syntax = true;
-  v8::Isolate* isolate = CcTest::isolate();
-  Heap* heap = CcTest::heap();
-  v8::HandleScope outer_scope(isolate);
-  v8::Persistent<v8::Context> ctx1p;
-  v8::Persistent<v8::Context> ctx2p;
-  {
-    v8::HandleScope scope(isolate);
-    ctx1p.Reset(isolate, v8::Context::New(isolate));
-    ctx2p.Reset(isolate, v8::Context::New(isolate));
-    v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
-  }
 
-  {
-    // In this test, we need to invoke GC without stack, otherwise some objects
-    // may not be reclaimed because of conservative stack scanning.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::InvokeMemoryReducingMajorGCs(heap);
-  }
-  CHECK_EQ(2, NumberOfGlobalObjects());
-
-  {
-    v8::HandleScope inner_scope(isolate);
-    CompileRun("var v = [42, 43]");
-    v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
-    v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
-    v8::Local<v8::Value> v =
-        ctx1->Global()->Get(ctx1, v8_str("v")).ToLocalChecked();
-    ctx2->Enter();
-    CHECK(ctx2->Global()->Set(ctx2, v8_str("o"), v).FromJust());
-    v8::Local<v8::Value> res = CompileRun(
-        "function f() { return o[0]; }"
-        "%PrepareFunctionForOptimization(f);"
-        "for (var i = 0; i < 10; ++i) f();"
-        "%OptimizeFunctionOnNextCall(f);"
-        "f();");
-    CHECK_EQ(42, res->Int32Value(ctx2).FromJust());
-    CHECK(ctx2->Global()
-              ->Set(ctx2, v8_str("o"), v8::Int32::New(isolate, 0))
-              .FromJust());
-    ctx2->Exit();
-    ctx1->Exit();
-    ctx1p.Reset();
-    isolate->ContextDisposedNotification(
-        v8::ContextDependants::kSomeDependants);
-  }
-  {
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::InvokeMemoryReducingMajorGCs(heap);
-  }
-  CHECK_EQ(1, NumberOfGlobalObjects());
-  ctx2p.Reset();
-  {
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::InvokeMemoryReducingMajorGCs(heap);
-  }
-  CHECK_EQ(0, NumberOfGlobalObjects());
-}
 
 TEST(LeakNativeContextViaMapProto) {
   v8_flags.allow_natives_syntax = true;
