@@ -3151,6 +3151,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     native_context()->set_promise_withresolvers_result_map(*result_map);
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "withResolvers",
                                  Builtin::kPromiseWithResolvers, 0, kAdapt);
+    InstallFunctionWithBuiltinId(isolate_, promise_fun, "try",
+                                 Builtin::kPromiseTry, 1, kDontAdapt);
 
     SetConstructorInstanceType(isolate_, promise_fun,
                                JS_PROMISE_CONSTRUCTOR_TYPE);
@@ -5696,13 +5698,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 void Genesis::InitializeGlobal_js_esm_ns_reexport() {}
 void Genesis::InitializeGlobal_js_pr_3883() {}
 
-void Genesis::InitializeGlobal_js_promise_try() {
-  if (!v8_flags.js_promise_try) return;
-  DirectHandle<JSFunction> promise_fun(native_context()->promise_function(),
-                                       isolate());
-  InstallFunctionWithBuiltinId(isolate(), promise_fun, "try",
-                               Builtin::kPromiseTry, 1, kDontAdapt);
-}
+
 
 void Genesis::InitializeGlobal_js_immutable_arraybuffer() {
   if (!v8_flags.js_immutable_arraybuffer) return;

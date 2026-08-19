@@ -843,9 +843,7 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kSharedStructConstructor:
       RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);
 
-    // --js-promise-try
-    case Builtin::kPromiseTry:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_promise_try);
+
 
     // --js-regexp-escape
     case Builtin::kRegExpEscape:

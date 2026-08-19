@@ -59,7 +59,6 @@ FEATURE_FLAGS = {
     'import-attributes': '--harmony-import-attributes',
     'regexp-modifiers': '--js-regexp-modifiers',
     'decorators': '--js-decorators',
-    'promise-try': '--js-promise-try',
     'source-phase-imports': '--js-source-phase-imports --allow-natives-syntax',
     'RegExp.escape': '--js-regexp-escape',
     'upsert': '--js-upsert',
