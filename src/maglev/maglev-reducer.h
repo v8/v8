@@ -1244,6 +1244,7 @@ class MaglevReducer {
   V(ReturnReceiver)                            \
   V(StringFromCharCode)                        \
   V(StringPrototypeCharAt)                     \
+  V(StringPrototypeCharCodeAt)                 \
   IEEE_754_UNARY_LIST(V)                       \
   IEEE_754_BINARY_LIST(V)                      \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
@@ -1317,6 +1318,7 @@ class MaglevReducer {
                                               StringAtOOBMode oob_mode);
   MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t code);
   ReduceResult BuildLoadStringLength(ValueNode* string);
+  ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
 
   ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,
                                       InstanceType first, InstanceType last);

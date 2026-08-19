@@ -8888,66 +8888,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSubstring(
   return AddNewNode<StringSubstring>({receiver, from, to});
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall({SpeculationMode::kDisallowBoundsCheckSpeculation})) {
-    return {};
-  }
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  ValueNode* index;
-  if (args.count() == 0) {
-    // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
-    index = GetInt32Constant(0);
-  } else {
-    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(args[0]));
-  }
-  // Any other argument is ignored.
-
-  // Try to constant-fold if receiver and index are constant
-  if (auto cst = TryGetConstant<String>(receiver)) {
-    if (index->Is<Int32Constant>()) {
-      int idx = index->Cast<Int32Constant>()->value();
-      if (idx >= 0 && static_cast<uint32_t>(idx) < cst->length()) {
-        if (std::optional<uint16_t> value = cst->GetChar(broker(), idx)) {
-          return GetSmiConstant(*value);
-        }
-      }
-    }
-  }
-
-  // Ensure that {receiver} is actually a String.
-  RETURN_IF_ABORT(BuildCheckString(receiver));
-  // And index is below length.
-  ValueNode* length;
-  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
-
-  if (reducer_.current_speculation_mode() ==
-      SpeculationMode::kDisallowBoundsCheckSpeculation) {
-    return Select(
-        [&](BranchBuilder& builder) {
-          // Do unsafe conversions of length and index into uint32, to do an
-          // unsigned comparison. The index might actually be a negative signed
-          // value, but this "unsafe" cast will still work, converting it into a
-          // large unsigned value which compares greater than the length.
-          return BuildBranchIfUint32Compare(
-              builder, Operation::kLessThan,
-              // 'index' and 'length' are both int32, so no input conversion is
-              // needed.
-              AddNewNodeNoInputConversion<UnsafeInt32ToUint32>({index}),
-              AddNewNodeNoInputConversion<UnsafeInt32ToUint32>({length}));
-        },
-        [&]() -> ReduceResult { return BuildGetCharCodeAt(receiver, index); },
-        [&]() -> ReduceResult {
-          return GetRootConstant(RootIndex::kNanValue);
-        });
-  }
-
-  RETURN_IF_ABORT(TryBuildCheckInt32Condition(
-      index, length, AssertCondition::kUnsignedLessThan,
-      DeoptimizeReason::kOutOfBounds));
-  return BuildGetCharCodeAt(receiver, index);
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall({SpeculationMode::kDisallowBoundsCheckSpeculation})) {
@@ -17992,13 +17932,6 @@ int MaglevGraphBuilder::GetLoopDepth() const {
 
 ReduceResult MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
   return reducer_.BuildSmiUntag(node);
-}
-
-ReduceResult MaglevGraphBuilder::BuildGetCharCodeAt(ValueNode* string,
-                                                    ValueNode* index) {
-  return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
-      {string, index},
-      BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
 }
 
 #undef TRACE
