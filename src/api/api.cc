@@ -10464,26 +10464,12 @@ i::ValueHelper::InternalRepresentationType Isolate::GetDataFromSnapshotOnce(
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
 }
 
-Local<Value> Isolate::GetContinuationPreservedEmbedderData() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return ToApiHandle<Object>(i::direct_handle(
-      i_isolate->isolate_data()->continuation_preserved_embedder_data(),
-      i_isolate));
-#else   // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+Local<Data> Isolate::GetContinuationPreservedEmbedderData() {
+  return GetContinuationPreservedEmbedderDataV2();
 }
 
-void Isolate::SetContinuationPreservedEmbedderData(Local<Value> data) {
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  if (data.IsEmpty()) {
-    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(this));
-  }
-  i_isolate->isolate_data()->set_continuation_preserved_embedder_data(
-      *Utils::OpenDirectHandle(*data));
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+void Isolate::SetContinuationPreservedEmbedderData(Local<Data> data) {
+  SetContinuationPreservedEmbedderDataV2(data);
 }
 
 Local<Data> Isolate::GetContinuationPreservedEmbedderDataV2() {
