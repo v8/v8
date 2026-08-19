@@ -2056,5 +2056,59 @@ TEST_F(HeapTest, Regress10843) {
   isolate->Dispose();
 }
 
+TEST_F(HeapTest, Regress10560) {
+  i::v8_flags.flush_bytecode = true;
+  i::v8_flags.allow_natives_syntax = true;
+  // Disable flags that allocate a feedback vector eagerly.
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+  i::v8_flags.turbofan = false;
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+#ifdef V8_ENABLE_SPARKPLUG
+  v8_flags.always_sparkplug = false;
+#endif  // V8_ENABLE_SPARKPLUG
+  i::v8_flags.lazy_feedback_allocation = true;
+
+  ManualGCScope manual_gc_scope(i_isolate());
+  v8::HandleScope scope(v8_isolate());
+  const char* source =
+      "function foo() {"
+      "  var x = 42;"
+      "  var y = 42;"
+      "  var z = x + y;"
+      "};"
+      "foo()";
+  DirectHandle<String> foo_name = factory()->InternalizeUtf8String("foo");
+  RunJS(source);
+
+  // Check function is compiled.
+  DirectHandle<Object> func_value =
+      Object::GetProperty(i_isolate(), i_isolate()->global_object(), foo_name)
+          .ToHandleChecked();
+  EXPECT_TRUE(IsJSFunction(*func_value));
+  DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
+  EXPECT_TRUE(function->shared()->is_compiled());
+  EXPECT_FALSE(function->has_feedback_vector());
+
+  // Pre-age bytecode so it will be flushed on next run.
+  EXPECT_TRUE(function->shared()->HasBytecodeArray());
+  SharedFunctionInfo::EnsureOldForTesting(function->shared());
+
+  SimulateFullSpace(heap()->old_space());
+
+  // Just check bytecode isn't flushed still
+  EXPECT_TRUE(function->shared()->is_compiled());
+
+  heap()->set_force_gc_on_next_allocation(true);
+
+  // Allocate feedback vector.
+  IsCompiledScope is_compiled_scope(
+      function->shared()->is_compiled_scope(i_isolate()));
+  JSFunction::EnsureFeedbackVector(i_isolate(), function, &is_compiled_scope);
+
+  EXPECT_TRUE(function->has_feedback_vector());
+  EXPECT_TRUE(function->shared()->is_compiled());
+  EXPECT_TRUE(function->is_compiled(i_isolate()));
+}
+
 }  // namespace internal
 }  // namespace v8

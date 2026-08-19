@@ -2521,11 +2521,12 @@ class Heap final {
   // The Isolate constructs us.
   friend class Isolate;
 
-  // Used in cctest.
+  // Used in cctest and unittests.
   friend class heap::HeapTester;
   FRIEND_TEST(SpacesTest, InlineAllocationObserverCadence);
   FRIEND_TEST(SpacesTest, AllocationObserver);
   FRIEND_TEST(MinimalStackTest, MinimalStackInTurbofanAllocate);
+  FRIEND_TEST(HeapTest, Regress10560);
   friend class HeapInternalsBase;
 };
 
