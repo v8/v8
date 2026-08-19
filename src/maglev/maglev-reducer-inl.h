@@ -5089,6 +5089,47 @@ ReduceResult MaglevReducer<BaseT>::BuildGetCharCodeAt(ValueNode* string,
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeIndexOfIncludes(
+    CallArguments& args, bool is_includes) {
+  if (!CanSpeculateCall()) return {};
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+
+  ValueNode* search_element =
+      args.count() > 0 ? args[0]
+                       : GetRootConstant(RootIndex::kundefined_string);
+  RETURN_IF_ABORT(BuildCheckString(search_element));
+
+  ValueNode* start = args.count() > 1 ? args[1] : GetInt32Constant(0);
+  ValueNode* receiver_length;
+  GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
+
+  // min(max(start, 0), receiver_length)
+  ValueNode* max_value;
+  GET_VALUE_OR_ABORT(max_value, BuildInt32Max(start, GetInt32Constant(0)));
+  ValueNode* clamped_start;
+  GET_VALUE_OR_ABORT(clamped_start, BuildInt32Min(max_value, receiver_length));
+
+  // TODO(496266449): Change StringIndexOf value representation type to
+  // kSmi and remove this GetSmiValue call.
+  ValueNode* clamped_start_smi;
+  GET_VALUE_OR_ABORT(clamped_start_smi, GetSmiValue(clamped_start));
+
+  ValueNode* result;
+  GET_VALUE_OR_ABORT(result,
+                     (AddNewNode<StringIndexOf>(
+                         {receiver, search_element, clamped_start_smi})));
+
+  if (is_includes) {
+    return (AddNewNode<Int32Compare>({result, GetInt32Constant(0)},
+                                     Operation::kGreaterThanOrEqual));
+  }
+
+  return result;
+}
+
+template <typename BaseT>
 template <typename LoadNode>
 MaybeReduceResult MaglevReducer<BaseT>::TryBuildLoadDataView(
     const CallArguments& args, ExternalArrayType type) {
@@ -6822,6 +6863,12 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeStartsWith(
 
   sub_graph.Bind(&done);
   return sub_graph.get(ret_val);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeIndexOf(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceStringPrototypeIndexOfIncludes(args, false);
 }
 
 template <typename BaseT>

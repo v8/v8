@@ -909,7 +909,6 @@ class MaglevGraphBuilder {
   V(NumberParseInt)                              \
   V(SetPrototypeHas)                             \
   V(StringConstructor)                           \
-  V(StringPrototypeIndexOf)                      \
   V(StringPrototypeIncludes)                     \
   V(StringPrototypeIterator)
 
@@ -954,7 +953,9 @@ class MaglevGraphBuilder {
           {});
 
   MaybeReduceResult TryReduceStringPrototypeIndexOfIncludes(CallArguments& args,
-                                                            bool is_includes);
+                                                            bool is_includes) {
+    return reducer_.TryReduceStringPrototypeIndexOfIncludes(args, is_includes);
+  }
 
   MaybeReduceResult TryReduceGetProto(ValueNode* node);
 

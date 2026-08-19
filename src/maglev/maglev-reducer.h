@@ -1249,6 +1249,7 @@ class MaglevReducer {
   V(StringPrototypeSlice)                      \
   V(StringPrototypeSubstring)                  \
   V(StringPrototypeStartsWith)                 \
+  V(StringPrototypeIndexOf)                    \
   IEEE_754_UNARY_LIST(V)                       \
   IEEE_754_BINARY_LIST(V)                      \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
@@ -1323,6 +1324,8 @@ class MaglevReducer {
   MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t code);
   ReduceResult BuildLoadStringLength(ValueNode* string);
   ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
+  MaybeReduceResult TryReduceStringPrototypeIndexOfIncludes(CallArguments& args,
+                                                            bool is_includes);
 
   ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,
                                       InstanceType first, InstanceType last);
