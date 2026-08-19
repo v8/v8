@@ -909,7 +909,6 @@ class MaglevGraphBuilder {
   V(NumberParseInt)                              \
   V(SetPrototypeHas)                             \
   V(StringConstructor)                           \
-  V(StringPrototypeCodePointAt)                  \
   V(StringPrototypeSlice)                        \
   V(StringPrototypeSubstring)                    \
   V(StringPrototypeStartsWith)                   \
