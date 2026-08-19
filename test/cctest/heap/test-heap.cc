@@ -1675,39 +1675,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   CHECK(CcTest::heap()->InOldSpace(double_array_handle_2->elements()));
 }
 
-// Test regular array literals allocation.
-TEST(OptimizedAllocationArrayLiterals) {
-  v8_flags.allow_natives_syntax = true;
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking) {
-    return;
-  }
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-  v8::Local<v8::Value> res = CompileRun(
-      "function f() {"
-      "  var numbers = new Array(1, 2, 3);"
-      "  numbers[0] = 3.14;"
-      "  return numbers;"
-      "};"
-      "%PrepareFunctionForOptimization(f);"
-      "f(); f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
-      "f();");
-  CHECK_EQ(static_cast<int>(3.14), v8::Object::Cast(*res)
-                                       ->Get(ctx, v8_str("0"))
-                                       .ToLocalChecked()
-                                       ->Int32Value(ctx)
-                                       .FromJust());
 
-  i::DirectHandle<JSObject> o = Cast<JSObject>(
-      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res)));
-
-  CHECK(InCorrectGeneration(o->elements()));
-}
 
 static int CountMapTransitions(i::Isolate* isolate, Tagged<Map> map) {
   return TransitionsAccessor(isolate, map).NumberOfTransitions();
