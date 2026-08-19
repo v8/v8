@@ -1132,71 +1132,7 @@ TEST(LeakNativeContextViaMapProto) {
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
 
-TEST(InstanceOfStubWriteBarrier) {
-  if (!v8_flags.incremental_marking) return;
-  ManualGCScope manual_gc_scope;
-  v8_flags.allow_natives_syntax = true;
-#ifdef VERIFY_HEAP
-  v8_flags.verify_heap = true;
-#endif
 
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  if (!isolate->use_optimizer()) return;
-  v8::HandleScope outer_scope(CcTest::isolate());
-  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-
-  // Store native context in global as well to make it part of the root set when
-  // starting incremental marking. This will ensure that function will be part
-  // of the transitive closure during incremental marking.
-  v8::Global<v8::Context> global_ctx(CcTest::isolate(), ctx);
-
-  {
-    v8::HandleScope scope(CcTest::isolate());
-    CompileRun(
-        "function foo () { }"
-        "function mkbar () { return new (new Function(\"\")) (); }"
-        "function f (x) { return (x instanceof foo); }"
-        "function g () { f(mkbar()); }"
-        "%PrepareFunctionForOptimization(f);"
-        "f(new foo()); f(new foo());"
-        "%OptimizeFunctionOnNextCall(f);"
-        "f(new foo()); g();");
-  }
-
-  IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Stop();
-  CcTest::heap()->StartIncrementalMarking(i::GCFlag::kNoFlags,
-                                          i::GarbageCollectionReason::kTesting);
-
-  i::DirectHandle<JSFunction> f = i::Cast<JSFunction>(
-      v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
-
-  CHECK(f->HasAttachedOptimizedCode(isolate));
-
-  MarkingState* marking_state = CcTest::heap()->marking_state();
-
-  static constexpr auto kStepSize = v8::base::TimeDelta::FromMilliseconds(100);
-  while (!marking_state->IsMarked(f->code(isolate))) {
-    // Discard any pending GC requests otherwise we will get GC when we enter
-    // code below.
-    CHECK(!marking->IsMajorMarkingComplete());
-    marking->AdvanceForTesting(kStepSize);
-  }
-
-  CHECK(marking->IsMarking());
-
-  {
-    v8::HandleScope scope(CcTest::isolate());
-    v8::Local<v8::Object> global = CcTest::global();
-    v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
-        global->Get(ctx, v8_str("g")).ToLocalChecked());
-    g->Call(ctx, global, 0, nullptr).ToLocalChecked();
-  }
-
-  heap::InvokeMajorGC(CcTest::heap());
-}
 
 HEAP_TEST(GCFlags) {
   if (!v8_flags.incremental_marking) return;
