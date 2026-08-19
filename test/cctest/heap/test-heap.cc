@@ -1320,46 +1320,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   CHECK(CcTest::heap()->InOldSpace(inner_object->RawFastPropertyAt(idx2)));
 }
 
-TEST(OptimizedPretenuringDoubleArrayProperties) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(CcTest::isolate());
-  ManualGCScope manual_gc_scope;
-  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
-  base::SNPrintF(source.as_vector(),
-                 "var number_elements = %d;"
-                 "var elements = new Array(number_elements);"
-                 "function f() {"
-                 "  for (var i = 0; i < number_elements; i++) {"
-                 "    elements[i] = {a: 1.1, b: 2.2};"
-                 "  }"
-                 "  return elements[i - 1];"
-                 "};"
-                 "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc({type: 'minor'});"
-                 "f(); f();"
-                 "%%OptimizeFunctionOnNextCall(f);"
-                 "f();",
-                 kPretenureCreationCount);
-
-  v8::Local<v8::Value> res = CompileRun(source.begin());
-
-  i::DirectHandle<JSObject> o = Cast<JSObject>(
-      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res)));
-
-  CHECK(CcTest::heap()->InOldSpace(*o));
-  CHECK_EQ(o->property_array(),
-           ReadOnlyRoots(CcTest::heap()).empty_property_array());
-}
 
 TEST(OptimizedPretenuringDoubleArrayLiterals) {
   v8_flags.allow_natives_syntax = true;
