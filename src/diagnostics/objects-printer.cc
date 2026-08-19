@@ -1410,6 +1410,8 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
     os << "\n - enumerator: " << AS_PTR(indexed_enumerator(isolate));
     os << "\n - definer: " << AS_PTR(indexed_definer(isolate));
     os << "\n - index_of: " << AS_PTR(indexed_index_of(isolate));
+    os << "\n - iterable_to_list: "
+       << AS_PTR(indexed_iterable_to_list(isolate));
   }
 
   os << "\n --- flags: ";
