@@ -71,6 +71,7 @@ class AssemblerRISCVC : public AssemblerRiscvBase {
   void c_not(Register rd);
 #ifdef V8_TARGET_ARCH_RISCV64
   void c_zext_w(Register rd);
+  void c_sext_w(Register rd) { c_addiw(rd, 0); }
 #endif
 
   int CJumpOffset(Instr instr);
