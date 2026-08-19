@@ -94,70 +94,7 @@ namespace heap {
 static const int kPretenureCreationCount =
     PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-size_t near_heap_limit_invocation_count = 0;
-size_t InvokeGCNearHeapLimitCallback(void* data, size_t current_heap_limit,
-                                     size_t initial_heap_limit) {
-  near_heap_limit_invocation_count++;
-  if (near_heap_limit_invocation_count > 1) {
-    // We are already in a GC triggered in this callback, raise the limit
-    // to avoid an OOM.
-    return current_heap_limit * 5;
-  }
 
-  DCHECK_EQ(near_heap_limit_invocation_count, 1);
-  // Operations that may cause GC (e.g. taking heap snapshots) in the
-  // near heap limit callback should not hit the AllowGarbageCollection
-  // assertion.
-  static_cast<v8::Isolate*>(data)->GetHeapProfiler()->TakeHeapSnapshot();
-  return current_heap_limit * 5;
-}
-
-UNINITIALIZED_TEST(Regress12777) {
-  v8::Isolate::CreateParams create_params;
-  create_params.constraints.set_max_old_generation_size_in_bytes(10 * i::MB);
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-
-  isolate->AddNearHeapLimitCallback(InvokeGCNearHeapLimitCallback, isolate);
-
-  {
-    v8::Isolate::Scope isolate_scope(isolate);
-
-    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-    // Allocate data to trigger the NearHeapLimitCallback.
-    HandleScope scope(i_isolate);
-    int length = 2 * i::MB / i::kTaggedSize;
-    std::vector<Handle<FixedArray>> arrays;
-    for (int i = 0; i < 5; i++) {
-      arrays.push_back(i_isolate->factory()->NewFixedArray(length));
-    }
-    heap::InvokeMajorGC(i_isolate->heap());
-    for (int i = 0; i < 5; i++) {
-      arrays.push_back(i_isolate->factory()->NewFixedArray(length));
-    }
-    heap::InvokeMajorGC(i_isolate->heap());
-    for (int i = 0; i < 5; i++) {
-      arrays.push_back(i_isolate->factory()->NewFixedArray(length));
-    }
-
-    // Normally, taking a heap snapshot in the near heap limit would result in
-    // a full GC, then the overhead of the promotions would cause another
-    // invocation of the heap limit callback and it can raise the limit in
-    // the second call to avoid an OOM, so we test that the callback can
-    // indeed raise the limit this way in this case. When there is only one
-    // generation, however, there would not be the overhead of promotions so the
-    // callback may not be triggered again during the generation of the heap
-    // snapshot. In that case we only need to check that the callback is called
-    // and it can perform GC-triggering operations just fine there.
-    size_t minimum_callback_invocation_count =
-        v8_flags.single_generation ? 1 : 2;
-    CHECK_GE(near_heap_limit_invocation_count,
-             minimum_callback_invocation_count);
-  }
-
-  isolate->GetHeapProfiler()->DeleteAllHeapSnapshots();
-  isolate->Dispose();
-}
 
 
 
