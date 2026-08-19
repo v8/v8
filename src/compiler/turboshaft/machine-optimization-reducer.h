@@ -3383,13 +3383,17 @@ class MachineOptimizationReducer : public Next {
 
   JSHeapBroker* broker = __ data() -> broker();
   const OperationMatcher& matcher_ = __ matcher();
+  // TODO(victorgomes): This also applies to JS. The bit patterns for `the_hole`
+  // and `undefined` are signalling NaNs. Optimizing away an arithmetic
+  // operation skips NaN quieting, allowing these sentinel bit patterns to
+  // survive and be misinterpreted when stored in a FixedDoubleArray. This
+  // could be re-enabled if we prove that the node does not flow into a
+  // FixedDoubleArray store, or if we emit a silencing instead.
+  static constexpr bool signalling_nan_possible = true;
 #if V8_ENABLE_WEBASSEMBLY
-  // Note: `signalling_nan_possible` and `ensure_deterministic_nan` are always
-  // the same value; we introduce both to better express intent at use sites.
-  const bool signalling_nan_possible = __ data() -> is_wasm();
-  const bool ensure_deterministic_nan = signalling_nan_possible;
+  // Only wasm needs NaNs to be deterministic.
+  const bool ensure_deterministic_nan = __ data() -> is_wasm();
 #else
-  static constexpr bool signalling_nan_possible = false;
   static constexpr bool ensure_deterministic_nan = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 };

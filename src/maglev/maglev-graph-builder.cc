@@ -10451,9 +10451,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
     if (IsDoubleElementsKind(kind)) {
       GET_VALUE_OR_ABORT(value, BuildLoadFixedDoubleArrayElement(
                                     writable_elements_array, new_array_length));
-      RETURN_IF_ABORT(AddNewNode<StoreFixedDoubleArrayElement>(
-          {writable_elements_array, new_array_length,
-           GetFloat64Constant(Float64::FromBits(kHoleNanInt64))}));
+      RETURN_IF_ABORT(AddNewNode<StoreFixedDoubleArrayHole>(
+          {writable_elements_array, new_array_length}));
     } else {
       DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
       GET_VALUE_OR_ABORT(value, BuildLoadFixedArrayElement(

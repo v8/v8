@@ -3674,6 +3674,14 @@ class GraphBuildingNodeProcessor {
         Map(node->ValueInput()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::StoreFixedDoubleArrayHole* node,
+                                const maglev::ProcessingState& state) {
+    __ StoreFixedDoubleArrayElement(
+        Map(node->ElementsInput()),
+        __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
+        __ Float64Constant(internal::Float64::hole_nan()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::StoreFixedHoleyDoubleArrayElement* node,
                                 const maglev::ProcessingState& state) {
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE

@@ -470,6 +470,7 @@ class ExceptionHandlerInfo;
   V(StoreFixedArrayElementWithWriteBarrier)   \
   V(StoreFixedArrayElementNoWriteBarrier)     \
   V(StoreFixedDoubleArrayElement)             \
+  V(StoreFixedDoubleArrayHole)                \
   V(StoreFixedHoleyDoubleArrayElement)        \
   V(StoreInt32)                               \
   V(StoreFloat64)                             \
@@ -705,6 +706,7 @@ constexpr bool IsSimpleFieldStore(Opcode opcode) {
          opcode == Opcode::kStoreFixedArrayElementWithWriteBarrier ||
          opcode == Opcode::kStoreFixedArrayElementNoWriteBarrier ||
          opcode == Opcode::kStoreFixedDoubleArrayElement ||
+         opcode == Opcode::kStoreFixedDoubleArrayHole ||
          opcode == Opcode::kStoreFixedHoleyDoubleArrayElement ||
          opcode == Opcode::kStoreTrustedPointerFieldWithWriteBarrier ||
          opcode == Opcode::kStoreContextSlotWithWriteBarrier ||
@@ -723,6 +725,7 @@ constexpr bool IsElementsArrayWrite(Opcode opcode) {
 // allocated backing store.
 constexpr bool PreservesTaggedKeyedProperties(Opcode opcode) {
   return opcode == Opcode::kStoreFixedDoubleArrayElement ||
+         opcode == Opcode::kStoreFixedDoubleArrayHole ||
          opcode == Opcode::kStoreFixedHoleyDoubleArrayElement ||
          opcode == Opcode::kTransitionElementsKind ||
          opcode == Opcode::kTransitionElementsKindOrCheckMap;
@@ -8868,6 +8871,24 @@ class StoreFixedDoubleArrayElement
                                            ValueRepresentation::kFloat64> {
  public:
   explicit StoreFixedDoubleArrayElement(uint64_t bitfield) : Base(bitfield) {}
+
+  void VerifyInputs() const;
+};
+
+// Writes the hole into an element, marking it absent. This is the only way a
+// hole gets into a double array on purpose, which is what lets
+// StoreFixedDoubleArrayElement mean "stores a number".
+class StoreFixedDoubleArrayHole
+    : public FixedInputNodeT<2, StoreFixedDoubleArrayHole> {
+ public:
+  explicit StoreFixedDoubleArrayHole(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanWrite();
+  DECLARE_INPUTS(Elements, Index)
+  DECLARE_INPUT_TYPES(Tagged, Int32)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
 // Stores a value that can be undefined. HoleyFloat64 spells undefined in two
