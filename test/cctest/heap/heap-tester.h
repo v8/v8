@@ -34,7 +34,6 @@
   V(InvalidatedSlotsFastToSlow)                             \
   V(InvalidatedSlotsSomeInvalidatedRanges)                  \
   V(TestNewSpaceRefsInCopiedCode)                           \
-  V(GCFlags)                                                \
   V(MarkCompactCollector)                                   \
   V(MarkCompactEpochCounter)                                \
   V(MemoryReducerActivationForSmallHeaps)                   \

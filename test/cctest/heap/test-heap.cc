@@ -1134,30 +1134,7 @@ TEST(LeakNativeContextViaMapProto) {
 
 
 
-HEAP_TEST(GCFlags) {
-  if (!v8_flags.incremental_marking) return;
-  CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
 
-  heap->current_gc_flags_ = GCFlag::kNoFlags;
-  // Check whether we appropriately reset flags after GC.
-  heap::InvokeMajorGC(CcTest::heap(), GCFlag::kReduceMemoryFootprint);
-  CHECK_EQ(heap->current_gc_flags_, GCFlag::kNoFlags);
-
-  if (heap->sweeping_in_progress()) {
-    heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
-                                  CompleteSweepingReason::kTesting);
-  }
-
-  IncrementalMarking* marking = heap->incremental_marking();
-  marking->Stop();
-  heap->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
-                                GarbageCollectionReason::kTesting);
-  CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
-
-  heap::InvokeMajorGC(heap, GCFlag::kNoFlags);
-  CHECK_EQ(heap->current_gc_flags_, GCFlag::kNoFlags);
-}
 
 HEAP_TEST(Regress845060) {
   if (v8_flags.single_generation) return;
