@@ -1308,6 +1308,7 @@ class MaglevReducer {
                                          ElementsKind kind);
 
   MaybeReduceResult TryReduceStringLength(ValueNode* string);
+  ReduceResult BuildLoadStringLength(ValueNode* string);
 
   ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,
                                       InstanceType first, InstanceType last);

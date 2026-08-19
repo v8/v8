@@ -5015,6 +5015,16 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringLength(
 }
 
 template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildLoadStringLength(ValueNode* string) {
+  RETURN_IF_DONE(TryReduceStringLength(string));
+  ValueNode* result;
+  GET_VALUE_OR_ABORT(result, AddNewNode<StringLength>({string}));
+  RecordKnownProperty(string, PropertyKey::StringLength(), result, true,
+                      compiler::AccessMode::kLoad);
+  return result;
+}
+
+template <typename BaseT>
 template <typename LoadNode>
 MaybeReduceResult MaglevReducer<BaseT>::TryBuildLoadDataView(
     const CallArguments& args, ExternalArrayType type) {

@@ -6379,15 +6379,6 @@ void MaglevGraphBuilder::AdvanceThroughContinuationForPolymorphicPropertyLoad(
   }
 }
 
-ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
-  RETURN_IF_DONE(reducer_.TryReduceStringLength(string));
-  ValueNode* result;
-  GET_VALUE_OR_ABORT(result, AddNewNode<StringLength>({string}));
-  reducer_.RecordKnownProperty(string, PropertyKey::StringLength(), result,
-                               true, compiler::AccessMode::kLoad);
-  return result;
-}
-
 template <typename GenericAccessFunc>
 MaybeReduceResult MaglevGraphBuilder::TryBuildProxyPropertyAccess(
     ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
