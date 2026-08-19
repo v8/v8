@@ -2357,5 +2357,48 @@ TEST_F(HeapTest, OptimizedPretenuringNestedDoubleLiterals) {
   EXPECT_TRUE(heap()->InOldSpace(*double_array_handle_2));
   EXPECT_TRUE(heap()->InOldSpace(double_array_handle_2->elements()));
 }
+TEST_F(HeapTest, OptimizedPretenuringNestedInObjectProperties) {
+  v8_flags.allow_natives_syntax = true;
+  v8_flags.expose_gc = true;
+  if (!i_isolate()->use_optimizer()) return;
+  if (v8_flags.gc_global || v8_flags.stress_compaction ||
+      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
+    return;
+  }
+  v8::HandleScope scope(v8_isolate());
+  const char* extension_names[] = {"v8/gc"};
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate(), &extensions);
+  v8::Context::Scope context_scope(ctx);
+  ManualGCScope manual_gc_scope(i_isolate());
+  GrowNewSpaceToMaximumCapacity();
+
+  static const int kPretenureCreationCount =
+      PretenuringHandler::GetMinMementoCountForTesting() + 1;
+
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(
+      source.as_vector(),
+      "let number_elements = %d;"
+      "let elements = new Array(number_elements);"
+      "function f() {"
+      "  for (let i = 0; i < number_elements; i++) {"
+      "     let l =  {a: {b: {c: {d: {e: 2.2}, e: 3.3}, g: {h: 1.1}}}}; "
+      "    elements[i] = l.a.b.c.d;"
+      "  }"
+      "  return elements[number_elements-1];"
+      "};"
+      "%%PrepareFunctionForOptimization(f);"
+      "f(); gc({type: 'minor'}); gc({type: 'minor'});"
+      "f(); f();"
+      "%%OptimizeFunctionOnNextCall(f);"
+      "f();",
+      kPretenureCreationCount);
+
+  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.begin()));
+
+  EXPECT_TRUE(HeapLayout::InYoungGeneration(*o));
+}
 }  // namespace internal
 }  // namespace v8

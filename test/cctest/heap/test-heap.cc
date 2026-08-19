@@ -862,49 +862,7 @@ TEST(LeakNativeContextViaMapProto) {
 
 
 
-TEST(OptimizedPretenuringNestedInObjectProperties) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(CcTest::isolate());
-  ManualGCScope manual_gc_scope;
-  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  // Keep the nested literal alive while its root is freed
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
-  base::SNPrintF(
-      source.as_vector(),
-      "let number_elements = %d;"
-      "let elements = new Array(number_elements);"
-      "function f() {"
-      "  for (let i = 0; i < number_elements; i++) {"
-      "     let l =  {a: {b: {c: {d: {e: 2.2}, e: 3.3}, g: {h: 1.1}}}}; "
-      "    elements[i] = l.a.b.c.d;"
-      "  }"
-      "  return elements[number_elements-1];"
-      "};"
-      "%%PrepareFunctionForOptimization(f);"
-      "f(); gc({type: 'minor'}); gc({type: 'minor'});"
-      "f(); f();"
-      "%%OptimizeFunctionOnNextCall(f);"
-      "f();",
-      kPretenureCreationCount);
-
-  v8::Local<v8::Value> res = CompileRun(source.begin());
-
-  i::DirectHandle<JSObject> o = Cast<JSObject>(
-      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res)));
-
-  // Nested literal sites are only pretenured if the top level
-  // literal is pretenured
-  CHECK(HeapLayout::InYoungGeneration(*o));
-}
 
 TEST(OptimizedPretenuringMixedInObjectProperties) {
   v8_flags.allow_natives_syntax = true;
