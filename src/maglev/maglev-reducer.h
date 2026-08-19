@@ -52,6 +52,8 @@ enum class CpuOperation {
 
 // TODO(leszeks): Add a generic mechanism for marking nodes as optionally
 // supported.
+enum class StringAtOOBMode { kElement, kCharAt };
+
 inline bool IsSupported(CpuOperation op) {
   switch (op) {
     case CpuOperation::kFloat64Round:
@@ -1241,6 +1243,7 @@ class MaglevReducer {
   V(RegExpPrototypeTest)                       \
   V(ReturnReceiver)                            \
   V(StringFromCharCode)                        \
+  V(StringPrototypeCharAt)                     \
   IEEE_754_UNARY_LIST(V)                       \
   IEEE_754_BINARY_LIST(V)                      \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
@@ -1309,6 +1312,10 @@ class MaglevReducer {
                                          ElementsKind kind);
 
   MaybeReduceResult TryReduceStringLength(ValueNode* string);
+  MaybeReduceResult TryReduceConstantStringAt(ValueNode* receiver,
+                                              ValueNode* index,
+                                              StringAtOOBMode oob_mode);
+  MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t code);
   ReduceResult BuildLoadStringLength(ValueNode* string);
 
   ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,

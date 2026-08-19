@@ -4978,8 +4978,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     return {};
   }
 
-  RETURN_IF_DONE(TryReduceConstantStringAt(object, index_object,
-                                           StringAtOOBMode::kElement));
+  RETURN_IF_DONE(reducer_.TryReduceConstantStringAt(object, index_object,
+                                                    StringAtOOBMode::kElement));
 
   // Ensure that {object} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(object));
@@ -6516,15 +6516,6 @@ ReduceResult MaglevGraphBuilder::VisitGetNamedProperty() {
   ValueNode* context = GetContext();
   return SetAccumulator(
       AddNewNode<LoadNamedGeneric>({context, object}, name, feedback_source));
-}
-
-MaybeReduceResult MaglevGraphBuilder::GetConstantSingleCharacterStringFromCode(
-    uint16_t code) {
-  // Only handle the one-byte character case, which accesses roots.
-  if (code <= String::kMaxOneByteCharCode) {
-    return GetRootConstant(RootsTable::SingleCharacterStringIndex(code));
-  }
-  return {};
 }
 
 ReduceResult MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
@@ -8861,52 +8852,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
   return BuildCallBuiltin<Builtin::kCloneFastJSArray>({receiver});
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceConstantStringAt(
-    ValueNode* receiver, ValueNode* index, StringAtOOBMode oob_mode) {
-  auto constant_receiver = TryGetConstant<HeapObject>(receiver);
-  if (!constant_receiver) return {};
-  if (!constant_receiver->IsString()) {
-    return reducer_.EmitUnconditionalDeopt(DeoptimizeReason::kNotAString);
-  }
-  compiler::StringRef string = constant_receiver->AsString();
-  auto maybe_constant_index = TryGetInt32Constant(index);
-  if (!maybe_constant_index) return {};
-  int32_t constant_index = *maybe_constant_index;
-
-  if (static_cast<uint32_t>(constant_index) >= string.length()) {
-    switch (oob_mode) {
-      case StringAtOOBMode::kElement:
-        // For element access, a negative index triggers a named lookup rather
-        // than an element lookup; when this is the case, we shouldn't be trying
-        // to optimize an elements access at all, so deopt.
-        if (constant_index < 0) {
-          return reducer_.EmitUnconditionalDeopt(
-              DeoptimizeReason::kOutOfBounds);
-        }
-        // Otherwise, this is hole-like access, so guard against elements on the
-        // prototype to return undefined.
-        if (broker()->dependencies()->DependOnNoElementsProtector()) {
-          return GetRootConstant(RootIndex::kUndefinedValue);
-        }
-        // If the no elements protector is invalidated, unconditionally deopt.
-        // This shouldn't trigger a deopt look because the feedback should
-        // transition to megamorphic.
-        return reducer_.EmitUnconditionalDeopt(DeoptimizeReason::kOutOfBounds);
-      case StringAtOOBMode::kCharAt: {
-        // OOB for charAt is always the empty string.
-        return GetRootConstant(RootIndex::kempty_string);
-      }
-    }
-    UNREACHABLE();
-  }
-
-  if (std::optional<uint16_t> value =
-          string.GetChar(broker(), constant_index)) {
-    return GetConstantSingleCharacterStringFromCode(*value);
-  }
-  return {};
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSubstring(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
@@ -8941,63 +8886,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSubstring(
   ValueNode* to;
   GET_VALUE_OR_ABORT(to, BuildInt32Max(clamped_start, clamped_end));
   return AddNewNode<StringSubstring>({receiver, from, to});
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall({SpeculationMode::kDisallowBoundsCheckSpeculation})) {
-    return {};
-  }
-
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  ValueNode* index;
-  if (args.count() == 0) {
-    // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
-    index = GetInt32Constant(0);
-  } else {
-    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(args[0]));
-  }
-  // Any other argument is ignored.
-
-  RETURN_IF_DONE(
-      TryReduceConstantStringAt(receiver, index, StringAtOOBMode::kCharAt));
-
-  // Ensure that {receiver} is actually a String.
-  RETURN_IF_ABORT(BuildCheckString(receiver));
-  // And index is below length.
-  ValueNode* length;
-  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
-
-  auto GetCharAt = [&]() -> ReduceResult {
-    return AddNewNode<StringAt>({receiver, index});
-  };
-  if (reducer_.current_speculation_mode() ==
-      SpeculationMode::kDisallowBoundsCheckSpeculation) {
-    return Select(
-        [&](BranchBuilder& builder) {
-          // Do unsafe conversions of length and index into uint32, to do an
-          // unsigned comparison. The index might actually be a negative signed
-          // value, but this "unsafe" cast will still work, converting it into a
-          // large unsigned value which compares greater than the length.
-          return BuildBranchIfUint32Compare(
-              builder, Operation::kLessThan,
-              // 'index' and 'length' are both int32, so no input conversion is
-              // needed.
-              AddNewNodeNoInputConversion<UnsafeInt32ToUint32>({index}),
-              AddNewNodeNoInputConversion<UnsafeInt32ToUint32>({length}));
-        },
-        [&]() -> ReduceResult { return GetCharAt(); },
-        [&]() -> ReduceResult {
-          return GetRootConstant(RootIndex::kempty_string);
-        });
-  }
-
-  DCHECK_EQ(reducer_.current_speculation_mode(),
-            SpeculationMode::kAllowSpeculation);
-  RETURN_IF_ABORT(TryBuildCheckInt32Condition(
-      index, length, AssertCondition::kUnsignedLessThan,
-      DeoptimizeReason::kOutOfBounds));
-  return GetCharAt();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(

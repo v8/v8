@@ -571,8 +571,6 @@ class MaglevGraphBuilder {
             iterator_.GetConstantForOperand(operand_index, local_isolate()))));
   }
 
-  MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t);
-
   ValueNode* GetRegisterInput(Register reg);
 
   // Move an existing ValueNode between two registers. You can pass
@@ -911,7 +909,6 @@ class MaglevGraphBuilder {
   V(NumberParseInt)                              \
   V(SetPrototypeHas)                             \
   V(StringConstructor)                           \
-  V(StringPrototypeCharAt)                       \
   V(StringPrototypeCharCodeAt)                   \
   V(StringPrototypeCodePointAt)                  \
   V(StringPrototypeSlice)                        \
@@ -960,14 +957,6 @@ class MaglevGraphBuilder {
       const std::optional<InitialCallback>& initial_callback = {},
       const std::optional<ProcessElementCallback>& process_element_callback =
           {});
-
-  // OOB StringAt access behaves differently for elements (needs the elements
-  // protector, positive indices, and returns undefined) and charAt (allows
-  // negative indices, returns empty string).
-  enum class StringAtOOBMode { kElement, kCharAt };
-  MaybeReduceResult TryReduceConstantStringAt(ValueNode* object,
-                                              ValueNode* index,
-                                              StringAtOOBMode oob_mode);
 
   MaybeReduceResult TryReduceStringPrototypeIndexOfIncludes(CallArguments& args,
                                                             bool is_includes);
