@@ -879,6 +879,7 @@ void GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(
   // Add the isolate to the list of isolates sharing this backing store.
   GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
   base::MutexGuard scope_lock(&impl->mutex_);
+  CHECK(backing_store->globally_registered());
   SharedWasmMemoryData* shared_data =
       backing_store->get_shared_wasm_memory_data();
   auto& isolates = shared_data->isolates_;

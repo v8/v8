@@ -845,6 +845,7 @@ DirectHandle<WasmMemoryObject> WasmMemoryObject::New(
   } else if (backing_store && backing_store->is_shared()) {
     // Only Wasm memory can be shared (in contrast to asm.js memory).
     DCHECK(backing_store->is_wasm_memory());
+    GlobalBackingStoreRegistry::Register(backing_store);
     backing_store->AttachSharedWasmMemoryObject(isolate, memory_object);
   }
 
@@ -939,6 +940,7 @@ void WasmMemoryObject::SetNewBuffer(Isolate* isolate,
     // Only Wasm memory can be shared, and it always has a backing store.
     std::shared_ptr<BackingStore> backing_store = new_buffer->GetBackingStore();
     DCHECK(backing_store->is_wasm_memory());
+    GlobalBackingStoreRegistry::Register(backing_store);
     backing_store->AttachSharedWasmMemoryObject(isolate, memory);
   }
   if (is_resizable) {
