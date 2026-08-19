@@ -62,7 +62,6 @@ FEATURE_FLAGS = {
     'promise-try': '--js-promise-try',
     'source-phase-imports': '--js-source-phase-imports --allow-natives-syntax',
     'Error.isError': '--js-error-iserror',
-    'uint8array-base64': '--js-base-64',
     'RegExp.escape': '--js-regexp-escape',
     'upsert': '--js-upsert',
     'nonextensible-applies-to-private': '--js-nonextensible-applies-to-private',

@@ -370,7 +370,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_temporal, "Temporal")
 
 #define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                                 \
-  V(js_base_64, "Uint8Array to/from base64 and hex")                         \
   V(js_error_iserror, "Error.isError")                                       \
   V(js_esm_ns_reexport,                                                      \
     "Support diamond-importing re-expored namespaces "                       \

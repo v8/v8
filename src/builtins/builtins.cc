@@ -855,15 +855,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kRegExpEscape:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_regexp_escape);
 
-    // --js-base-64
-    case Builtin::kUint8ArrayFromBase64:
-    case Builtin::kUint8ArrayFromHex:
-    case Builtin::kUint8ArrayPrototypeToBase64:
-    case Builtin::kUint8ArrayPrototypeSetFromBase64:
-    case Builtin::kUint8ArrayPrototypeToHex:
-    case Builtin::kUint8ArrayPrototypeSetFromHex:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_base_64);
-
     // --js-iterator-sequencing:
     case Builtin::kIteratorConcat:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_sequencing);

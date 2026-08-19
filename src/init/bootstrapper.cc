@@ -4328,6 +4328,34 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   }
     TYPED_ARRAYS_BASE(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
+
+    std::array<DirectHandle<Name>, 2> fields{factory->read_string(),
+                                             factory->written_string()};
+    DirectHandle<Map> map = CreateLiteralObjectMapFromCache(isolate(), fields);
+    native_context()->set_set_unit8_array_result_map(*map);
+
+    DirectHandle<JSObject> uint8_array_function =
+        Cast<JSObject>(JSReceiver::GetProperty(isolate(), global, "Uint8Array")
+                           .ToHandleChecked());
+    SimpleInstallFunction(isolate(), uint8_array_function, "fromBase64",
+                          Builtin::kUint8ArrayFromBase64, 1, kDontAdapt);
+    SimpleInstallFunction(isolate(), uint8_array_function, "fromHex",
+                          Builtin::kUint8ArrayFromHex, 1, kDontAdapt);
+
+    DirectHandle<JSObject> uint8_array_prototype(
+        Cast<JSObject>(
+            Cast<JSFunction>(uint8_array_function)->instance_prototype()),
+        isolate());
+    SimpleInstallFunction(isolate(), uint8_array_prototype, "toBase64",
+                          Builtin::kUint8ArrayPrototypeToBase64, 0, kDontAdapt);
+    SimpleInstallFunction(isolate(), uint8_array_prototype, "setFromBase64",
+                          Builtin::kUint8ArrayPrototypeSetFromBase64, 1,
+                          kDontAdapt);
+    SimpleInstallFunction(isolate(), uint8_array_prototype, "toHex",
+                          Builtin::kUint8ArrayPrototypeToHex, 0, kDontAdapt);
+    SimpleInstallFunction(isolate(), uint8_array_prototype, "setFromHex",
+                          Builtin::kUint8ArrayPrototypeSetFromHex, 1,
+                          kDontAdapt);
   }
 
   {  // -- D a t a V i e w
@@ -6001,40 +6029,6 @@ void Genesis::InitializeGlobal_js_source_phase_imports() {
   SimpleInstallGetter(isolate(), abstract_module_source_prototype,
                       isolate()->factory()->to_string_tag_symbol(),
                       Builtin::kAbstractModuleSourceToStringTag, kAdapt);
-}
-
-void Genesis::InitializeGlobal_js_base_64() {
-  if (!v8_flags.js_base_64) return;
-
-  std::array<DirectHandle<Name>, 2> fields{
-      isolate()->factory()->read_string(),
-      isolate()->factory()->written_string()};
-  DirectHandle<Map> map = CreateLiteralObjectMapFromCache(isolate(), fields);
-  native_context()->set_set_unit8_array_result_map(*map);
-
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-  DirectHandle<JSObject> uint8_array_function =
-      Cast<JSObject>(JSReceiver::GetProperty(isolate(), global, "Uint8Array")
-                         .ToHandleChecked());
-  SimpleInstallFunction(isolate(), uint8_array_function, "fromBase64",
-                        Builtin::kUint8ArrayFromBase64, 1, kDontAdapt);
-  SimpleInstallFunction(isolate(), uint8_array_function, "fromHex",
-                        Builtin::kUint8ArrayFromHex, 1, kDontAdapt);
-
-  DirectHandle<JSObject> uint8_array_prototype(
-      Cast<JSObject>(
-          Cast<JSFunction>(uint8_array_function)->instance_prototype()),
-      isolate());
-  SimpleInstallFunction(isolate(), uint8_array_prototype, "toBase64",
-                        Builtin::kUint8ArrayPrototypeToBase64, 0, kDontAdapt);
-  SimpleInstallFunction(isolate(), uint8_array_prototype, "setFromBase64",
-                        Builtin::kUint8ArrayPrototypeSetFromBase64, 1,
-                        kDontAdapt);
-  SimpleInstallFunction(isolate(), uint8_array_prototype, "toHex",
-                        Builtin::kUint8ArrayPrototypeToHex, 0, kDontAdapt);
-  SimpleInstallFunction(isolate(), uint8_array_prototype, "setFromHex",
-                        Builtin::kUint8ArrayPrototypeSetFromHex, 1, kDontAdapt);
 }
 
 void Genesis::InitializeGlobal_regexp_linear_flag() {
