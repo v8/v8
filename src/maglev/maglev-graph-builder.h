@@ -909,7 +909,6 @@ class MaglevGraphBuilder {
   V(NumberParseInt)                              \
   V(SetPrototypeHas)                             \
   V(StringConstructor)                           \
-  V(StringPrototypeStartsWith)                   \
   V(StringPrototypeIndexOf)                      \
   V(StringPrototypeIncludes)                     \
   V(StringPrototypeIterator)
@@ -1182,9 +1181,6 @@ class MaglevGraphBuilder {
       std::pair<interpreter::Register, interpreter::Register> result);
 
   ReduceResult BuildSmiUntag(ValueNode* node);
-  ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index) {
-    return reducer_.BuildGetCharCodeAt(string, index);
-  }
 
   ReduceResult BuildCheckSmi(ValueNode* object);
   ReduceResult BuildCheckNumber(ValueNode* object);

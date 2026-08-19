@@ -1248,6 +1248,7 @@ class MaglevReducer {
   V(StringPrototypeCodePointAt)                \
   V(StringPrototypeSlice)                      \
   V(StringPrototypeSubstring)                  \
+  V(StringPrototypeStartsWith)                 \
   IEEE_754_UNARY_LIST(V)                       \
   IEEE_754_BINARY_LIST(V)                      \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
