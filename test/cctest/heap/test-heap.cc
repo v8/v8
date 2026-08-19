@@ -864,53 +864,7 @@ TEST(LeakNativeContextViaMapProto) {
 
 
 
-TEST(OptimizedPretenuringMixedInObjectProperties) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(CcTest::isolate());
-  ManualGCScope manual_gc_scope;
-  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
-  base::SNPrintF(source.as_vector(),
-                 "var number_elements = %d;"
-                 "var elements = new Array(number_elements);"
-                 "function f() {"
-                 "  for (var i = 0; i < number_elements; i++) {"
-                 "    elements[i] = {a: {c: 2.2, d: {}}, b: 1.1};"
-                 "  }"
-                 "  return elements[number_elements - 1];"
-                 "};"
-                 "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc({type: 'minor'});"
-                 "f(); f();"
-                 "%%OptimizeFunctionOnNextCall(f);"
-                 "f();",
-                 kPretenureCreationCount);
-
-  v8::Local<v8::Value> res = CompileRun(source.begin());
-
-  i::DirectHandle<JSObject> o = Cast<JSObject>(
-      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res)));
-
-  CHECK(CcTest::heap()->InOldSpace(*o));
-  FieldIndex idx1 = FieldIndex::ForPropertyIndex(o->map(), 0);
-  FieldIndex idx2 = FieldIndex::ForPropertyIndex(o->map(), 1);
-  CHECK(CcTest::heap()->InOldSpace(o->RawFastPropertyAt(idx1)));
-  CHECK(CcTest::heap()->InOldSpace(o->RawFastPropertyAt(idx2)));
-
-  Tagged<JSObject> inner_object = Cast<JSObject>(o->RawFastPropertyAt(idx1));
-  CHECK(CcTest::heap()->InOldSpace(inner_object));
-  CHECK(CcTest::heap()->InOldSpace(inner_object->RawFastPropertyAt(idx1)));
-  CHECK(CcTest::heap()->InOldSpace(inner_object->RawFastPropertyAt(idx2)));
-}
 
 
 

@@ -2450,5 +2450,55 @@ TEST_F(HeapTest, OptimizedPretenuringNestedObjectLiterals) {
   EXPECT_TRUE(heap()->InOldSpace(*int_array_handle_2));
   EXPECT_TRUE(heap()->InOldSpace(int_array_handle_2->elements()));
 }
+TEST_F(HeapTest, OptimizedPretenuringMixedInObjectProperties) {
+  v8_flags.allow_natives_syntax = true;
+  v8_flags.expose_gc = true;
+  if (!i_isolate()->use_optimizer()) return;
+  if (v8_flags.gc_global || v8_flags.stress_compaction ||
+      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
+    return;
+  }
+  v8::HandleScope scope(v8_isolate());
+  const char* extension_names[] = {"v8/gc"};
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate(), &extensions);
+  v8::Context::Scope context_scope(ctx);
+  ManualGCScope manual_gc_scope(i_isolate());
+  GrowNewSpaceToMaximumCapacity();
+
+  static const int kPretenureCreationCount =
+      PretenuringHandler::GetMinMementoCountForTesting() + 1;
+
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
+                 "var number_elements = %d;"
+                 "var elements = new Array(number_elements);"
+                 "function f() {"
+                 "  for (var i = 0; i < number_elements; i++) {"
+                 "    elements[i] = {a: {c: 2.2, d: {}}, b: 1.1};"
+                 "  }"
+                 "  return elements[number_elements - 1];"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc({type: 'minor'});"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
+
+  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.begin()));
+
+  EXPECT_TRUE(heap()->InOldSpace(*o));
+  FieldIndex idx1 = FieldIndex::ForPropertyIndex(o->map(), 0);
+  FieldIndex idx2 = FieldIndex::ForPropertyIndex(o->map(), 1);
+  EXPECT_TRUE(heap()->InOldSpace(o->RawFastPropertyAt(idx1)));
+  EXPECT_TRUE(heap()->InOldSpace(o->RawFastPropertyAt(idx2)));
+
+  Tagged<JSObject> inner_object = Cast<JSObject>(o->RawFastPropertyAt(idx1));
+  EXPECT_TRUE(heap()->InOldSpace(inner_object));
+  EXPECT_TRUE(heap()->InOldSpace(inner_object->RawFastPropertyAt(idx1)));
+  EXPECT_TRUE(heap()->InOldSpace(inner_object->RawFastPropertyAt(idx2)));
+}
 }  // namespace internal
 }  // namespace v8
