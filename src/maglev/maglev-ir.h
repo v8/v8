@@ -5874,11 +5874,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
         vobj::Field snd = FieldForOffset(offsetof(ConsString, second_));
         return callback(slots_[snd.slot_index], snd);
       }
-      if (object_type() == vobj::ObjectType::kHeapNumber) {
-        // HeapNumber materialization creates a literal object instead of
-        // slot traversal.
-        return true;
-      }
+      // TODO(victorgomes): Constrain which objects may contain mutable
+      // HeapNumbers. Immutable HeapNumbers can be stored as a literal object
+      // instead of traversing their slots.
     }
     for (int i = 0; i < slot_count(); i++) {
       vobj::Field field = FieldForSlot(i);
@@ -6243,8 +6241,8 @@ struct VirtualPrimitiveHeapObjectShape : VirtualHeapObjectShape {};
 
 struct VirtualHeapNumberShape : VirtualPrimitiveHeapObjectShape {
   using T = HeapNumber;
-  // Special handling needed; deopt materialization uses a special path.
-  // TODO(jgruber): .. but could it take the standard path instead?
+  // Special handling needed; instances may be mutable object fields and thus
+  // must never be deduplicated in deopt frames.
   static constexpr vobj::ObjectType kObjectType = vobj::ObjectType::kHeapNumber;
 #define FIELD_LIST(V) V(value, offsetof(T, value_), vobj::FieldType::kFloat64)
   DEF_SHAPE(VirtualPrimitiveHeapObjectShape, FIELD_LIST);
