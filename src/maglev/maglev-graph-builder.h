@@ -138,6 +138,7 @@ class MaglevGraphBuilder {
   BasicBlock* EndPrologue();
   void PeelLoop();
   void BuildLoopForPeeling();
+  void BuildLoopHeader(int offset);
 
   void OsrAnalyzePrequel();
 
@@ -394,6 +395,11 @@ class MaglevGraphBuilder {
 
   void RegisterPhisWithGraphLabeller(
       MergePointInterpreterFrameState& merge_state);
+
+  // Return true if the given offset is a loop header. Their merge state is
+  // only created once all the forward edges have been merged, so this can be
+  // true for offsets the graph builder hasn't reached yet.
+  bool IsLoopHeader(int offset) const { return loop_headers_.Contains(offset); }
 
   // Return true if the given offset is a merge point, i.e. there are jumps
   // targetting it.
@@ -1896,6 +1902,8 @@ class MaglevGraphBuilder {
   void PrewalkBytecode();
 
   ZoneVector<int> decremented_predecessor_offsets_;
+  // The set of loop headers reachable from the entrypoint.
+  BitVector loop_headers_;
   // The set of loop headers for which we decided to do loop peeling.
   BitVector loop_headers_to_peel_;
 
