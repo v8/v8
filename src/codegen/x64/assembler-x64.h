@@ -1567,6 +1567,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                    SIMDPrefix pp, LeadingOpcode m, VexW w, TupleType tuple_type,
                    OpMask mask = k0, MaskingType z = kMerging,
                    CpuFeature feature = AVX10_1);
+#endif  // V8_ENABLE_AVX10_1
 
   // Compressed-displacement (disp8*N) scale factor N in bytes, per Intel SDM
   // Vol.2 §2.6.5, Tables 2-34..2-36. {vlen} is the vector length in bytes
@@ -1605,7 +1606,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
         UNREACHABLE();
     }
   }
-#endif  // V8_ENABLE_AVX10_1
 
   // SSE instructions
   void sse_instr(XMMRegister dst, XMMRegister src, uint8_t escape,

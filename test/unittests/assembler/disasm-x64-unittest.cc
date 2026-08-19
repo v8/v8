@@ -66,15 +66,15 @@ Handle<Code> CreateDummyCode(Isolate* isolate) {
 
 TEST_F(DisasmX64Test, AVX512) {
   uint8_t buffer[128];
-  // vpcmpeqb (%rdi),%ymm16,%k0          -> 62 f3 7d 20 3f 07 00
+  // vpcmpb $0,(%rdi),%ymm16,%k0         -> 62 f3 7d 20 3f 07 00
   // kmovd  %k0,%eax                    -> c5 fb 93 c0
   // kmovd  %k0,%eax (malformed vex ~R) -> c5 7b 93 c0
-  // vpcmpeqb %ymm17,%ymm16,%k0          -> 62 fb 7d 20 3f c1 00
+  // vpcmpb $0,%ymm17,%ymm16,%k0         -> 62 b3 7d 20 3f c1 00
   memcpy(buffer,
          "\x62\xf3\x7d\x20\x3f\x07\x00"
          "\xc5\xfb\x93\xc0"
          "\xc5\x7b\x93\xc0"
-         "\x62\xfb\x7d\x20\x3f\xc1\x00",
+         "\x62\xb3\x7d\x20\x3f\xc1\x00",
          22);
 
   disasm::NameConverter converter;
@@ -85,7 +85,7 @@ TEST_F(DisasmX64Test, AVX512) {
   int len = d.InstructionDecode(out_buffer, pc);
   EXPECT_EQ(len, 7);
   EXPECT_STREQ(out_buffer.begin(),
-               "62f37d203f0700       vpcmpeqb k0,xmm16,[rdi],0x0");
+               "62f37d203f0700       vpcmpb k0,ymm16,[rdi],0x0");
 
   pc += len;
   len = d.InstructionDecode(out_buffer, pc);
@@ -99,12 +99,12 @@ TEST_F(DisasmX64Test, AVX512) {
   EXPECT_EQ(len, 4);
   EXPECT_STREQ(out_buffer.begin(), "c57b93c0             kmovd rax,k0");
 
-  // Verify decoding of upper EVEX AVX-512 register (xmm17 / ymm17).
+  // Verify decoding of upper EVEX AVX-512 register (ymm17) and vector width.
   pc += len;
   len = d.InstructionDecode(out_buffer, pc);
   EXPECT_EQ(len, 7);
   EXPECT_STREQ(out_buffer.begin(),
-               "62fb7d203fc100       vpcmpeqb k0,xmm16,xmm17,0x0");
+               "62b37d203fc100       vpcmpb k0,ymm16,ymm17,0x0");
 }
 
 TEST_F(DisasmX64Test, DisasmX64) {
@@ -1859,6 +1859,59 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAPX) {
   COMPARE_INSTR("shlq rax,[rbx],cl", shlq_cl(rax, Operand(rbx, 0)));
 }
 #endif  // V8_ENABLE_APX_F
+
+#ifdef V8_ENABLE_AVX10_1
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10) {
+  DisassemblerTester t;
+  std::string actual;
+  CpuFeatureScope fscope(&t.assm_, AVX10_1,
+                         CpuFeatureScope::kDontCheckSupported);
+
+  // vpmullq: reg-reg, high registers (R'/V'/B'), and reg-mem exercising the
+  // compressed-displacement (disp8*N) paths.
+  COMPARE_INSTR("vpmullq xmm3,xmm2,xmm1", vpmullq(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vpmullq xmm19,xmm18,xmm17", vpmullq(xmm19, xmm18, xmm17));
+  COMPARE_INSTR("vpmullq xmm3,xmm2,[rbx+0x40]",
+                vpmullq(xmm3, xmm2, Operand(rbx, 64)));
+  COMPARE_INSTR("vpmullq ymm3,ymm2,ymm1", vpmullq(ymm3, ymm2, ymm1));
+  COMPARE_INSTR("vpmullq ymm3,ymm2,[rbx+0x80]",
+                vpmullq(ymm3, ymm2, Operand(rbx, 128)));
+  COMPARE_INSTR(
+      "vpmullq xmm3,xmm2,[rbx+0x10]",  // divisible -> compressed disp8
+      vpmullq(xmm3, xmm2, Operand(rbx, 16)));
+  COMPARE_INSTR("vpmullq xmm3,xmm2,[rbx+0x14]",  // not divisible -> disp32
+                vpmullq(xmm3, xmm2, Operand(rbx, 20)));
+  COMPARE_INSTR("vpmullq xmm3,xmm2,[rbx+0xc80]",  // out of int8 -> disp32
+                vpmullq(xmm3, xmm2, Operand(rbx, 3200)));
+  COMPARE_INSTR("vpmullq xmm3,xmm2,[rbx+rcx*1+0x40]",  // SIB; CD8 64/16 = 4
+                vpmullq(xmm3, xmm2, Operand(rbx, rcx, times_1, 64)));
+
+  // vpsraq: variable count (xmm/m128) and imm8 (destination in EVEX.vvvv).
+  COMPARE_INSTR("vpsraq xmm3,xmm2,xmm1", vpsraq(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vpsraq xmm3,xmm2,[rbx+0x40]",
+                vpsraq(xmm3, xmm2, Operand(rbx, 64)));
+  COMPARE_INSTR("vpsraq xmm3,xmm2,5", vpsraq(xmm3, xmm2, uint8_t{5}));
+  COMPARE_INSTR("vpsraq ymm3,ymm2,5", vpsraq(ymm3, ymm2, uint8_t{5}));
+  COMPARE_INSTR("vpsraq xmm3,[rbx+0x40],5",
+                vpsraq(xmm3, Operand(rbx, 64), uint8_t{5}));
+
+  // vpabsq: unary.
+  COMPARE_INSTR("vpabsq xmm2,xmm1", vpabsq(xmm2, xmm1));
+  COMPARE_INSTR("vpabsq ymm2,ymm1", vpabsq(ymm2, ymm1));
+  COMPARE_INSTR("vpabsq xmm2,[rbx+0x40]", vpabsq(xmm2, Operand(rbx, 64)));
+
+  // vpminsq: binary.
+  COMPARE_INSTR("vpminsq xmm3,xmm2,xmm1", vpminsq(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vpminsq ymm3,ymm2,ymm1", vpminsq(ymm3, ymm2, ymm1));
+  COMPARE_INSTR("vpminsq xmm3,xmm2,[rbx+0x40]",
+                vpminsq(xmm3, xmm2, Operand(rbx, 64)));
+
+  // vpopcntb: unary (W0), including a high-register and a reg-mem case.
+  COMPARE_INSTR("vpopcntb xmm2,xmm1", vpopcntb(xmm2, xmm1));
+  COMPARE_INSTR("vpopcntb ymm18,ymm17", vpopcntb(ymm18, ymm17));
+  COMPARE_INSTR("vpopcntb xmm2,[rbx+0x20]", vpopcntb(xmm2, Operand(rbx, 32)));
+}
+#endif  // V8_ENABLE_AVX10_1
 
 #undef __
 
