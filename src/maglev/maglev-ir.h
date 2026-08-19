@@ -6077,8 +6077,7 @@ struct VirtualJSStringIteratorShape : VirtualJSObjectShape {
 struct VirtualJSMapIteratorShape : VirtualJSObjectShape {
   using T = JSCollectionIterator;
 #define FIELD_LIST(V)                                     \
-  V(table, offsetof(T, table_), vobj::FieldType::kTagged, \
-    vobj::FieldConstness::kConstAfterInit)                \
+  V(table, offsetof(T, table_), vobj::FieldType::kTagged) \
   V(index, offsetof(T, index_), vobj::FieldType::kTagged)
   DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST

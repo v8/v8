@@ -897,7 +897,9 @@ class MaglevGraphBuilder {
   V(DataViewPrototypeGetByteLength)              \
   V(FunctionPrototypeApply)                      \
   V(FunctionPrototypeCall)                       \
+  V(MapIteratorPrototypeNext)                    \
   V(MapPrototypeGet)                             \
+  V(SetIteratorPrototypeNext)                    \
   V(WeakMapPrototypeGet)                         \
   V(ObjectPrototypeGetProto)                     \
   V(ObjectGetPrototypeOf)                        \
@@ -1124,6 +1126,18 @@ class MaglevGraphBuilder {
   ValueNode* BuildElementsArray(ElementsKind elements_kind,
                                 base::Vector<ValueNode*> values);
   ReduceResult BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
+
+  MaybeReduceResult TryReduceCollectionIteratorPrototypeNext(
+      compiler::JSFunctionRef target, CallArguments& args,
+      CollectionKind collection_kind, int entry_size,
+      RootIndex empty_collection_root);
+
+  using BuildIteratorStepResultCallback =
+      base::FunctionRef<ReduceResult(ValueNode* value, ValueNode* is_done)>;
+  MaybeReduceResult BuildCollectionIteratorStep(
+      ValueNode* receiver, CollectionKind collection_kind, int entry_size,
+      RootIndex empty_collection_root,
+      BuildIteratorStepResultCallback build_result);
   ReduceResult BuildAndAllocateJSArray(
       compiler::MapRef map, ValueNode* length, ValueNode* elements,
       const compiler::SlackTrackingPrediction& slack_tracking_prediction,

@@ -9531,6 +9531,405 @@ MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
   return any_successful ? ReduceResult::Done() : ReduceResult::DoneWithAbort();
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceMapIteratorPrototypeNext(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceCollectionIteratorPrototypeNext(
+      target, args, CollectionKind::kMap, OrderedHashMap::kEntrySize,
+      RootIndex::kEmptyOrderedHashMap);
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceSetIteratorPrototypeNext(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceCollectionIteratorPrototypeNext(
+      target, args, CollectionKind::kSet, OrderedHashSet::kEntrySize,
+      RootIndex::kEmptyOrderedHashSet);
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceCollectionIteratorPrototypeNext(
+    compiler::JSFunctionRef target, CallArguments& args,
+    CollectionKind collection_kind, int entry_size,
+    RootIndex empty_collection_root) {
+  if (!CanSpeculateCall()) return {};
+  // The iterator result and the key-value array are built from this native
+  // context's maps, which is only correct if the callee's realm is ours.
+  if (!target.native_context(broker()).equals(
+          broker()->target_native_context())) {
+    MAGLEV_FAIL(" to reduce collection iterator next - cross-realm target");
+  }
+  ValueNode* receiver = args.receiver();
+  if (!receiver) return {};
+
+  // A bail inside the step reaches the caller as a failed reduction, so that
+  // the call falls back to the builtin.
+  return BuildCollectionIteratorStep(
+      receiver, collection_kind, entry_size, empty_collection_root,
+      [&](ValueNode* value, ValueNode* is_done) -> ReduceResult {
+        compiler::MapRef iter_result_map =
+            broker()->target_native_context().iterator_result_map(broker());
+        VirtualObject* iter_result =
+            reducer_.CreateJSIteratorResult(iter_result_map, value, is_done);
+        return reducer_.BuildInlinedAllocation(iter_result,
+                                               AllocationType::kYoung);
+      });
+}
+
+// Advances a Map/Set iterator by one entry, mirroring TurboFan's
+// JSCallReducer::ReduceCollectionIteratorPrototypeNext. {build_result} turns
+// the produced value and done flag into the result of the reduction, so a
+// for-of consumer can skip materializing a JSIteratorResult.
+MaybeReduceResult MaglevGraphBuilder::BuildCollectionIteratorStep(
+    ValueNode* receiver, CollectionKind collection_kind, int entry_size,
+    RootIndex empty_collection_root,
+    BuildIteratorStepResultCallback build_result) {
+  compiler::NativeContextRef native_context = broker()->target_native_context();
+  bool is_map_collection = collection_kind == CollectionKind::kMap;
+  // The iterator kinds of this native context, the common for-of kind first.
+  base::SmallVector<std::pair<InstanceType, compiler::MapRef>, 3> kind_maps;
+  if (is_map_collection) {
+    kind_maps = {{JS_MAP_KEY_VALUE_ITERATOR_TYPE,
+                  native_context.map_key_value_iterator_map(broker())},
+                 {JS_MAP_KEY_ITERATOR_TYPE,
+                  native_context.map_key_iterator_map(broker())},
+                 {JS_MAP_VALUE_ITERATOR_TYPE,
+                  native_context.map_value_iterator_map(broker())}};
+  } else {
+    kind_maps = {{JS_SET_VALUE_ITERATOR_TYPE,
+                  native_context.set_value_iterator_map(broker())},
+                 {JS_SET_KEY_VALUE_ITERATOR_TYPE,
+                  native_context.set_key_value_iterator_map(broker())}};
+  }
+
+  static_assert(OrderedHashMap::NextTableIndex() ==
+                OrderedHashSet::NextTableIndex());
+  static_assert(OrderedHashMap::NumberOfElementsIndex() ==
+                OrderedHashSet::NumberOfElementsIndex());
+  static_assert(OrderedHashMap::NumberOfDeletedElementsIndex() ==
+                OrderedHashSet::NumberOfDeletedElementsIndex());
+  static_assert(OrderedHashMap::NumberOfBucketsIndex() ==
+                OrderedHashSet::NumberOfBucketsIndex());
+  static_assert(OrderedHashMap::HashTableStartIndex() ==
+                OrderedHashSet::HashTableStartIndex());
+
+  MaglevSubGraphBuilder sub_builder(this, 4);
+  MaglevSubGraphBuilder::Variable var_index(0);
+  MaglevSubGraphBuilder::Variable var_value(1);
+  MaglevSubGraphBuilder::Variable var_done(2);
+  MaglevSubGraphBuilder::Variable var_kind(3);
+
+  // The kind is decided by comparing against {kind_maps}, so the receiver has
+  // to be one of them. Use its instance type statically when all possible maps
+  // agree; otherwise dispatch on the kind at runtime. The dynamic path is not a
+  // rare fallback: inside a resumable function nothing is known at the resume
+  // merge, and a site can be polymorphic in the iteration kind.
+  std::optional<InstanceType> static_instance_type;
+  bool kind_is_dynamic = false;
+
+  auto find_kind = [&](compiler::MapRef map) {
+    return std::find_if(
+        kind_maps.begin(), kind_maps.end(),
+        [&](auto& kind_map) { return map.equals(kind_map.second); });
+  };
+
+  if (InlinedAllocation* allocation = receiver->TryCast<InlinedAllocation>()) {
+    // A freshly allocated iterator (e.g. from an inlined entries() call)
+    // carries its map, and needs no check.
+    compiler::OptionalMapRef map = allocation->object()->map();
+    if (!map.has_value()) {
+      MAGLEV_FAIL(" to reduce collection iterator next - unknown receiver map");
+    }
+    auto kind_map = find_kind(*map);
+    if (kind_map == kind_maps.end()) {
+      MAGLEV_FAIL(
+          " to reduce collection iterator next - receiver is not an iterator "
+          "of this context");
+    }
+    static_instance_type = kind_map->first;
+    // The table transition below is a subgraph loop, which the virtual
+    // object tracking does not recognise as a loop: its loads would fold to
+    // the state from before the loop and never observe the stores on the
+    // backedge. Materialize the iterator so those become real memory
+    // accesses.
+    allocation->ForceEscaping();
+  } else if (MapInference inference(this, receiver);
+             auto possible_maps = inference.TryGetPossibleMaps()) {
+    if (possible_maps->is_empty()) {
+      return ReduceResult::DoneWithAbort();
+    }
+    for (compiler::MapRef map : *possible_maps) {
+      auto kind_map = find_kind(map);
+      if (kind_map == kind_maps.end()) {
+        MAGLEV_FAIL(
+            " to reduce collection iterator next - receiver is not an iterator "
+            "of this context");
+      }
+      if (!static_instance_type) {
+        static_instance_type = kind_map->first;
+      } else if (*static_instance_type != kind_map->first) {
+        kind_is_dynamic = true;
+      }
+    }
+    if (kind_is_dynamic) {
+      static_instance_type.reset();
+    }
+    RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
+  } else {
+    base::SmallVector<compiler::MapRef, 3> maps;
+    for (auto& [type, map] : kind_maps) maps.push_back(map);
+    RETURN_IF_ABORT(BuildCheckMaps(receiver, base::VectorOf(maps)));
+    kind_is_dynamic = true;
+  }
+
+  if (kind_is_dynamic) {
+    // The map is one of {kind_maps} by now, so the last kind needs no
+    // comparison of its own.
+    MaglevSubGraphBuilder::Label kind_determined(
+        &sub_builder, static_cast<int>(kind_maps.size()), {&var_kind});
+    ValueNode* receiver_map;
+    GET_VALUE_OR_ABORT(receiver_map, BuildLoadMap(receiver));
+    for (size_t i = 0; i + 1 < kind_maps.size(); i++) {
+      sub_builder.set(var_kind, GetInt32Constant(kind_maps[i].first));
+      RETURN_IF_ABORT(sub_builder.GotoIfTrue<BranchIfReferenceEqual>(
+          &kind_determined, {receiver_map, GetConstant(kind_maps[i].second)}));
+    }
+    sub_builder.set(var_kind, GetInt32Constant(kind_maps.back().first));
+    sub_builder.Goto(&kind_determined);
+    RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&kind_determined));
+    // Without this the phi untagging inserts a CheckedSmiSizedInt32 at the
+    // kind comparisons below, which deopt after the index store.
+    RETURN_IF_ABORT(
+        reducer_.RecordType(sub_builder.get(var_kind), NodeType::kSmi));
+  }
+
+  // Transition the iterator to the latest table if there were mutations
+  // (rehash/shrink) while iterating: an obsolete table's number-of-elements
+  // slot is reused as the link to its replacement, so the hot path only
+  // checks that the slot still holds a Smi.
+  {
+    MaglevSubGraphBuilder::Label table_is_current(&sub_builder, 1);
+    MaglevSubGraphBuilder::LoopLabel heal_loop = sub_builder.BeginLoop({});
+    ValueNode* table;
+    GET_VALUE_OR_ABORT(
+        table,
+        BuildLoadTaggedField(receiver, offsetof(JSCollectionIterator, table_),
+                             NodeType::kAnyHeapObject));
+    ValueNode* next_table;
+    GET_VALUE_OR_ABORT(
+        next_table,
+        AddNewNode<LoadFixedArrayElement>(
+            {table, GetInt32Constant(OrderedHashMap::NextTableIndex())},
+            LoadType::kUnknown));
+    RETURN_IF_ABORT(
+        sub_builder.GotoIfTrue<BranchIfSmi>(&table_is_current, {next_table}));
+    ValueNode* index;
+    GET_VALUE_OR_ABORT(
+        index,
+        BuildLoadTaggedField(receiver, offsetof(JSCollectionIterator, index_),
+                             NodeType::kSmi));
+    // Nothing has been stored to the iterator yet, so the frame state attached
+    // to the call can safely re-execute next() from the beginning.
+    ValueNode* healed_index =
+        BuildCallBuiltin<Builtin::kOrderedHashTableHealIndex>({table, index});
+    RETURN_IF_ABORT(reducer_.RecordType(healed_index, NodeType::kSmi));
+    RETURN_IF_ABORT(BuildStoreTaggedField(
+        receiver, healed_index, offsetof(JSCollectionIterator, index_),
+        StoreTaggedMode::kDefault));
+    RETURN_IF_ABORT(BuildStoreTaggedField(
+        receiver, next_table, offsetof(JSCollectionIterator, table_),
+        StoreTaggedMode::kDefault));
+    sub_builder.EndLoop(&heal_loop);
+    RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&table_is_current));
+  }
+
+  ValueNode* table;
+  GET_VALUE_OR_ABORT(
+      table,
+      BuildLoadTaggedField(receiver, offsetof(JSCollectionIterator, table_),
+                           NodeType::kAnyHeapObject));
+  ValueNode* index_tagged;
+  GET_VALUE_OR_ABORT(
+      index_tagged,
+      BuildLoadTaggedField(receiver, offsetof(JSCollectionIterator, index_),
+                           NodeType::kSmi));
+
+  ValueNode* number_of_buckets;
+  GET_VALUE_OR_ABORT(
+      number_of_buckets,
+      AddNewNode<LoadFixedArrayElement>(
+          {table, GetInt32Constant(OrderedHashMap::NumberOfBucketsIndex())},
+          LoadType::kSmi));
+  ValueNode* number_of_buckets_int32;
+  GET_VALUE_OR_ABORT(number_of_buckets_int32, GetInt32(number_of_buckets));
+  ValueNode* number_of_elements;
+  GET_VALUE_OR_ABORT(
+      number_of_elements,
+      AddNewNode<LoadFixedArrayElement>(
+          {table, GetInt32Constant(OrderedHashMap::NumberOfElementsIndex())},
+          LoadType::kSmi));
+  ValueNode* number_of_deleted;
+  GET_VALUE_OR_ABORT(
+      number_of_deleted,
+      AddNewNode<LoadFixedArrayElement>(
+          {table,
+           GetInt32Constant(OrderedHashMap::NumberOfDeletedElementsIndex())},
+          LoadType::kSmi));
+  ValueNode* number_of_elements_int32;
+  GET_VALUE_OR_ABORT(number_of_elements_int32, GetInt32(number_of_elements));
+  ValueNode* number_of_deleted_int32;
+  GET_VALUE_OR_ABORT(number_of_deleted_int32, GetInt32(number_of_deleted));
+  ValueNode* used_capacity;
+  GET_VALUE_OR_ABORT(used_capacity,
+                     AddNewNode<Int32Add>(
+                         {number_of_elements_int32, number_of_deleted_int32}));
+
+  int done_predecessors = static_instance_type.has_value()
+                              ? 2
+                              : 1 + static_cast<int>(kind_maps.size());
+  MaglevSubGraphBuilder::Label exhausted(&sub_builder, 1);
+  MaglevSubGraphBuilder::Label found(&sub_builder, 1);
+  MaglevSubGraphBuilder::Label done(&sub_builder, done_predecessors,
+                                    {&var_value, &var_done});
+
+  sub_builder.set(var_index, index_tagged);
+  sub_builder.set(var_value, GetRootConstant(RootIndex::kUndefinedValue));
+  sub_builder.set(var_done, GetBooleanConstant(true));
+
+  MaglevSubGraphBuilder::LoopLabel scan_loop =
+      sub_builder.BeginLoop({&var_index});
+  Phi* loop_index_tagged = sub_builder.get(var_index)->Cast<Phi>();
+  RETURN_IF_ABORT(reducer_.RecordType(loop_index_tagged, NodeType::kSmi));
+  ValueNode* loop_index;
+  GET_VALUE_OR_ABORT(loop_index, GetInt32(loop_index_tagged));
+  RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
+      &exhausted, {loop_index, used_capacity}, Operation::kLessThan));
+
+  ValueNode* entry_times_size;
+  GET_VALUE_OR_ABORT(
+      entry_times_size,
+      AddNewNode<Int32Multiply>({loop_index, GetInt32Constant(entry_size)}));
+  ValueNode* entry_offset;
+  GET_VALUE_OR_ABORT(
+      entry_offset,
+      AddNewNode<Int32Add>({entry_times_size, number_of_buckets_int32}));
+  ValueNode* entry_start;
+  GET_VALUE_OR_ABORT(
+      entry_start,
+      AddNewNode<Int32Add>(
+          {entry_offset,
+           GetInt32Constant(OrderedHashMap::HashTableStartIndex())}));
+  ValueNode* entry_key;
+  GET_VALUE_OR_ABORT(entry_key, AddNewNode<LoadFixedArrayElement>(
+                                    {table, entry_start}, LoadType::kUnknown));
+  ValueNode* next_index;
+  GET_VALUE_OR_ABORT(next_index, AddNewNode<Int32Increment>({loop_index}));
+  RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfRootConstant>(
+      &found, {entry_key}, RootIndex::kHashTableHoleValue));
+  sub_builder.set(var_index, next_index);
+  sub_builder.EndLoop(&scan_loop);
+
+  {
+    RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&found));
+    // No deopts are allowed after this store, since re-executing the builtin
+    // would advance the index a second time. The index is bounded by the
+    // table capacity, so it is Smi-sized and the store's input conversion
+    // tags it without a check.
+    RETURN_IF_ABORT(reducer_.RecordType(next_index, NodeType::kSmi));
+    RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
+        receiver, next_index, offsetof(JSCollectionIterator, index_),
+        StoreTaggedMode::kDefault));
+
+    auto load_entry_value = [&]() -> ReduceResult {
+      ValueNode* value_offset;
+      GET_VALUE_OR_ABORT(
+          value_offset,
+          AddNewNode<Int32Add>(
+              {entry_start, GetInt32Constant(OrderedHashMap::kValueOffset)}));
+      return AddNewNode<LoadFixedArrayElement>({table, value_offset},
+                                               LoadType::kUnknown);
+    };
+
+    sub_builder.set(var_done, GetBooleanConstant(false));
+    if (static_instance_type.has_value()) {
+      ValueNode* value = entry_key;
+      switch (*static_instance_type) {
+        case JS_MAP_KEY_ITERATOR_TYPE:
+        case JS_SET_VALUE_ITERATOR_TYPE:
+          break;
+        case JS_SET_KEY_VALUE_ITERATOR_TYPE:
+          GET_VALUE_OR_ABORT(
+              value, BuildAndAllocateKeyValueArray(entry_key, entry_key));
+          break;
+        case JS_MAP_VALUE_ITERATOR_TYPE:
+        case JS_MAP_KEY_VALUE_ITERATOR_TYPE: {
+          ValueNode* entry_value;
+          GET_VALUE_OR_ABORT(entry_value, load_entry_value());
+          value = entry_value;
+          if (*static_instance_type == JS_MAP_KEY_VALUE_ITERATOR_TYPE) {
+            GET_VALUE_OR_ABORT(
+                value, BuildAndAllocateKeyValueArray(entry_key, entry_value));
+          }
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+      sub_builder.set(var_value, value);
+      sub_builder.Goto(&done);
+    } else if (is_map_collection) {
+      ValueNode* kind = sub_builder.get(var_kind);
+      // The for-of kind is the common one, so settle it with a single
+      // comparison.
+      MaglevSubGraphBuilder::Label not_key_value(&sub_builder, 1);
+      RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
+          &not_key_value,
+          {kind, GetInt32Constant(JS_MAP_KEY_VALUE_ITERATOR_TYPE)},
+          Operation::kEqual));
+      {
+        ValueNode* entry_value;
+        GET_VALUE_OR_ABORT(entry_value, load_entry_value());
+        ValueNode* pair;
+        GET_VALUE_OR_ABORT(
+            pair, BuildAndAllocateKeyValueArray(entry_key, entry_value));
+        sub_builder.set(var_value, pair);
+        sub_builder.Goto(&done);
+      }
+      RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&not_key_value));
+      sub_builder.set(var_value, entry_key);
+      RETURN_IF_ABORT(sub_builder.GotoIfTrue<BranchIfInt32Compare>(
+          &done, {kind, GetInt32Constant(JS_MAP_KEY_ITERATOR_TYPE)},
+          Operation::kEqual));
+      ValueNode* entry_value;
+      GET_VALUE_OR_ABORT(entry_value, load_entry_value());
+      sub_builder.set(var_value, entry_value);
+      sub_builder.Goto(&done);
+    } else {
+      ValueNode* kind = sub_builder.get(var_kind);
+      sub_builder.set(var_value, entry_key);
+      RETURN_IF_ABORT(sub_builder.GotoIfTrue<BranchIfInt32Compare>(
+          &done, {kind, GetInt32Constant(JS_SET_VALUE_ITERATOR_TYPE)},
+          Operation::kEqual));
+      ValueNode* pair;
+      GET_VALUE_OR_ABORT(pair,
+                         BuildAndAllocateKeyValueArray(entry_key, entry_key));
+      sub_builder.set(var_value, pair);
+      sub_builder.Goto(&done);
+    }
+  }
+
+  {
+    RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&exhausted));
+    // Mark the iterator as exhausted, releasing the table.
+    RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
+        receiver, GetRootConstant(empty_collection_root),
+        offsetof(JSCollectionIterator, table_), StoreTaggedMode::kDefault));
+    sub_builder.set(var_value, GetRootConstant(RootIndex::kUndefinedValue));
+    sub_builder.set(var_done, GetBooleanConstant(true));
+    sub_builder.Goto(&done);
+  }
+
+  RETURN_IF_ABORT(sub_builder.TrimPredecessorsAndBind(&done));
+  return build_result(sub_builder.get(var_value), sub_builder.get(var_done));
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
@@ -12722,7 +13121,7 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateKeyValueArray(
       broker()->target_native_context().js_array_packed_elements_map(broker());
   VirtualObject* array;
   GET_VALUE_OR_ABORT(array, reducer_.CreateJSArray(map, map.instance_size(),
-                                                   GetInt32Constant(2)));
+                                                   GetSmiConstant(2)));
   array->set(offsetof(JSObject, elements_), elements);
   return reducer_.BuildInlinedAllocation(array, AllocationType::kYoung);
 }
