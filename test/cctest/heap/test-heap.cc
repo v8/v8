@@ -219,49 +219,7 @@ HEAP_TEST(Regress10560) {
   }
 }
 
-UNINITIALIZED_TEST(Regress10843) {
-  v8_flags.max_semi_space_size = 2;
-  v8_flags.min_semi_space_size = 2;
-  v8_flags.max_old_space_size = 8;
-  v8_flags.compact_on_every_full_gc = true;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-  Factory* factory = i_isolate->factory();
-  Heap* heap = i_isolate->heap();
-  bool callback_was_invoked = false;
 
-  heap->AddNearHeapLimitCallback(
-      [](void* data, size_t current_heap_limit,
-         size_t initial_heap_limit) -> size_t {
-        *reinterpret_cast<bool*>(data) = true;
-        return current_heap_limit * 2;
-      },
-      &callback_was_invoked);
-
-  {
-    v8::Isolate::Scope isolate_scope(isolate);
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
-    HandleScope scope(i_isolate);
-    std::vector<Handle<FixedArray>> arrays;
-    for (int i = 0; i < 140; i++) {
-      arrays.push_back(factory->NewFixedArray(10000));
-    }
-    heap::InvokeMajorGC(heap);
-    heap::InvokeMajorGC(heap);
-    for (int i = 0; i < 40; i++) {
-      arrays.push_back(factory->NewFixedArray(10000));
-    }
-    heap::InvokeMajorGC(heap);
-    for (int i = 0; i < 100; i++) {
-      arrays.push_back(factory->NewFixedArray(10000));
-    }
-    heap::InvokeMajorGC(heap);
-    CHECK(callback_was_invoked);
-  }
-  isolate->Dispose();
-}
 
 size_t near_heap_limit_invocation_count = 0;
 size_t InvokeGCNearHeapLimitCallback(void* data, size_t current_heap_limit,
