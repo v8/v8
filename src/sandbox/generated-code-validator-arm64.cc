@@ -20,21 +20,39 @@
 
 namespace v8::internal {
 
+namespace {
+
+struct Da64InstFormatter {
+  static std::string Format(const Da64Inst& instr) {
+    char formatted_instruction[128] = {'\0'};
+    da64_format(&instr, formatted_instruction);
+    return formatted_instruction;
+  }
+};
+
+}  // namespace
 void GeneratedCodeValidator::ValidateImpl(IsolateForSandbox isolate,
                                           Tagged<Code> code) {
+  DCHECK_EQ(code->instruction_size() % kInstrSize, 0);
+
+  ViolationsReporter reporter(code);
+
   InstructionIteratorSkippingData it(code);
 
   while (!it.IsDone()) {
     const uint8_t* pc = it.GetCurrent();
     // `instr` is currently unused but will be used soon for the actual
     // validation.
-    struct Da64Inst instr;
+    Da64Inst instr;
     da64_decode(*reinterpret_cast<const uint32_t*>(pc), &instr);
 
     if (instr.mnem == DA64I_UNKNOWN) {
-      FATAL(
-          "Generated code validator failed: invalid instruction at offset %td",
-          pc - reinterpret_cast<const uint8_t*>(code->instruction_start()));
+      reporter.ReportDisassemblyFailed(pc, kInstrSize);
+      return;
+    }
+    if (v8_flags.validate_generated_code_include_code) {
+      reporter.RecordDisassembledInstruction(pc, kInstrSize,
+                                             Da64InstFormatter::Format(instr));
     }
     it.Advance(kInstrSize);
   }

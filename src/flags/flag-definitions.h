@@ -3702,6 +3702,13 @@ DEFINE_EXPERIMENTAL_FEATURE(validate_generated_code,
 DEFINE_BOOL_READONLY(validate_generated_code, false,
                      "Enable generated code verifier")
 #endif
+DEFINE_DEVELOPER_FLAG(validate_generated_code_include_code,
+                      "Print the disassembled code as part of the generated "
+                      "code validator's output in case of violations.")
+DEFINE_DEVELOPER_FLAG(
+    validate_generated_code_non_fatal,
+    "Treat generated code validator violations as non-fatal. Can be "
+    "used to find all issues rather than exiting after the first one.")
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 // Sandbox fuzzing mode requires the memory corruption API.

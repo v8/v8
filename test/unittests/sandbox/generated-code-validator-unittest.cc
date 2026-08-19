@@ -76,7 +76,7 @@ TEST_F(GeneratedCodeValidatorTest, ValidateInvalidCode) {
   // This should crash.
   v8_flags.validate_generated_code = true;
   ASSERT_DEATH_IF_SUPPORTED(GeneratedCodeValidator::Validate(i_isolate, *code),
-                            "Generated code validator failed");
+                            "Failed to disassemble invalid instruction");
 }
 
 #undef __

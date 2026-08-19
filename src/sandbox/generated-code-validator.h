@@ -22,6 +22,28 @@ class GeneratedCodeValidator {
                                          Tagged<Code> code);
   static V8_EXPORT_PRIVATE bool IsValidated(Tagged<Code> code);
 
+  class ViolationsReporter {
+   public:
+    explicit ViolationsReporter(Tagged<Code> code);
+    ~ViolationsReporter();
+
+    void ReportDisassemblyFailed(const uint8_t* pc,
+                                 size_t max_instruction_size);
+    void RecordDisassembledInstruction(const uint8_t* pc,
+                                       size_t instruction_size,
+                                       std::string instr);
+
+   private:
+    void ReportViolation(const uint8_t* pc, std::string error);
+    void PrintPrologueIfNeeded();
+    void PrintEpilogueIfNeeded();
+
+    const Tagged<Code> code_;
+    const uint8_t* const code_start_;
+    std::stringstream disassembled_instructions_;
+    bool violations_found_ = false;
+  };
+
  private:
   // Helper class to iterate over the instructions of a Code object while
   // skipping inline data payload such as constant pools, jump tables, and
