@@ -1376,66 +1376,11 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   CHECK(CcTest::heap()->InOldSpace(double_array_handle_2->elements()));
 }
 
-
+#ifdef DEBUG
 
 static int CountMapTransitions(i::Isolate* isolate, Tagged<Map> map) {
   return TransitionsAccessor(isolate, map).NumberOfTransitions();
 }
-
-// Test that map transitions are cleared and maps are collected with
-// incremental marking as well.
-TEST(Regress1465) {
-  if (!v8_flags.incremental_marking) return;
-  v8_flags.stress_compaction = false;
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.trace_incremental_marking = true;
-  v8_flags.retain_maps_for_n_gc = 0;
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = CcTest::i_isolate();
-  Heap* heap = CcTest::heap();
-  v8::HandleScope scope(isolate);
-  static const int transitions_count = 256;
-
-  CompileRun("function F() {}");
-  {
-    AlwaysAllocateScopeForTesting always_allocate(heap);
-    for (int i = 0; i < transitions_count; i++) {
-      base::EmbeddedVector<char, 64> buffer;
-      base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
-      CompileRun(buffer.begin());
-    }
-    CompileRun("var root = new F;");
-  }
-
-  i::IndirectHandle<JSReceiver> root =
-      v8::Utils::OpenIndirectHandle(*v8::Local<v8::Object>::Cast(
-          CcTest::global()
-              ->Get(isolate->GetCurrentContext(), v8_str("root"))
-              .ToLocalChecked()));
-
-  // Count number of live transitions before marking.
-  int transitions_before = CountMapTransitions(i_isolate, root->map());
-  CompileRun("%DebugPrint(root);");
-  CHECK_EQ(transitions_count, transitions_before);
-
-  heap::SimulateIncrementalMarking(heap);
-  {
-    // In this test, we need to invoke GC without stack, otherwise some objects
-    // may not be reclaimed because of conservative stack scanning.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::InvokeMajorGC(heap);
-  }
-
-  // Count number of live transitions after marking.  Note that one transition
-  // is left, because 'o' still holds an instance of one transition target.
-  int transitions_after = CountMapTransitions(i_isolate, root->map());
-  CompileRun("%DebugPrint(root);");
-  CHECK_EQ(1, transitions_after);
-}
-
-#ifdef DEBUG
 
 static i::Handle<JSObject> GetByName(const char* name) {
   return i::Cast<i::JSObject>(

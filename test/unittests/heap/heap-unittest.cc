@@ -50,6 +50,7 @@
 #include "src/objects/internal-index.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/transitions-inl.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "test/common/noop-bytecode-verifier.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -2234,6 +2235,55 @@ TEST_F(HeapTest, Regress12777) {
     EXPECT_GT(near_heap_limit_invocation_count, 0u);
   }
   isolate->Dispose();
+}
+
+TEST_F(HeapTest, Regress1465) {
+  if (!v8_flags.incremental_marking) return;
+  v8_flags.stress_compaction = false;
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.allow_natives_syntax = true;
+  v8_flags.trace_incremental_marking = true;
+  v8_flags.retain_maps_for_n_gc = 0;
+
+  static const int transitions_count = 256;
+
+  RunJS("function F() {}");
+  {
+    AlwaysAllocateScopeForTesting always_allocate(heap());
+    for (int i = 0; i < transitions_count; i++) {
+      base::EmbeddedVector<char, 64> buffer;
+      base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
+      RunJS(buffer.begin());
+    }
+    RunJS("var root = new F;");
+  }
+
+  Handle<JSReceiver> root = Cast<JSReceiver>(v8::Utils::OpenHandle(
+      *v8::Local<v8::Object>::Cast(v8_context()
+                                       ->Global()
+                                       ->Get(v8_context(), NewString("root"))
+                                       .ToLocalChecked())));
+
+  // Count number of live transitions before marking.
+  int transitions_before =
+      TransitionsAccessor(i_isolate(), root->map()).NumberOfTransitions();
+  RunJS("%DebugPrint(root);");
+  EXPECT_EQ(transitions_count, transitions_before);
+
+  SimulateIncrementalMarking();
+  {
+    // In this test, we need to invoke GC without stack, otherwise some objects
+    // may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+
+  // Count number of live transitions after marking. Note that one transition
+  // is left, because 'o' still holds an instance of one transition target.
+  int transitions_after =
+      TransitionsAccessor(i_isolate(), root->map()).NumberOfTransitions();
+  RunJS("%DebugPrint(root);");
+  EXPECT_EQ(1, transitions_after);
 }
 
 }  // namespace internal
