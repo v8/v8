@@ -1078,7 +1078,6 @@
   'built-ins/Error/prototype/stack/setter-receiver-is-proxy': [SKIP],
   'built-ins/Error/prototype/stack/setter-this-not-object': [SKIP],
   'built-ins/Error/prototype/stack/setter-via-assignment': [SKIP],
-  'built-ins/TypedArray/prototype/set/immutable-buffer': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/round/same-date-starts-twice': [SKIP],
   'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-import-source-and-export': [SKIP],
   'language/module-code/source-phase-import/reexport-source-binding-named-import': [SKIP],
