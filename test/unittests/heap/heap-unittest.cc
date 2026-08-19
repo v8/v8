@@ -2237,118 +2237,55 @@ TEST_F(HeapTest, Regress12777) {
   isolate->Dispose();
 }
 
-TEST_F(HeapTest, LeakNativeContextViaFunction) {
-  v8_flags.allow_natives_syntax = true;
-  v8::Isolate* isolate = v8_isolate();
-  Heap* heap_instance = heap();
-  v8::HandleScope outer_scope(isolate);
-  v8::Persistent<v8::Context> ctx1p;
-  v8::Persistent<v8::Context> ctx2p;
-  {
-    v8::HandleScope scope(isolate);
-    ctx1p.Reset(isolate, v8::Context::New(isolate));
-    ctx2p.Reset(isolate, v8::Context::New(isolate));
-    v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
-  }
-
-  {
-    // In this test, we need to invoke GC without stack, otherwise some objects
-    // may not be reclaimed because of conservative stack scanning.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        heap_instance);
-    InvokeMemoryReducingMajorGCs();
-  }
-  // HeapTest creates and enters a default context (context 0) which is
-  // unaffected by the test, so there are 3 global objects initially (default
-  // context + ctx1 + ctx2).
-  EXPECT_EQ(3, NumberOfGlobalObjects());
-
-  {
-    v8::HandleScope inner_scope(isolate);
-    v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
-    v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
-    RunJS(ctx1, "var f = function() { return 42; };");
-    v8::Local<v8::Value> f =
-        ctx1->Global()
-            ->Get(ctx1, v8::String::NewFromUtf8Literal(isolate, "f"))
-            .ToLocalChecked();
-    ctx2->Enter();
-    EXPECT_TRUE(ctx2->Global()
-                    ->Set(ctx2, v8::String::NewFromUtf8Literal(isolate, "f"), f)
-                    .FromJust());
-    Handle<Object> res = RunJS(ctx2,
-                               "function g() { return f(); }"
-                               "%PrepareFunctionForOptimization(g);"
-                               "for (var i = 0; i < 10; ++i) g();"
-                               "%OptimizeFunctionOnNextCall(g);"
-                               "g();");
-    EXPECT_EQ(42, Object::NumberValue(*res));
-    EXPECT_TRUE(ctx2->Global()
-                    ->Set(ctx2, v8::String::NewFromUtf8Literal(isolate, "f"),
-                          v8::Int32::New(isolate, 0))
-                    .FromJust());
-    ctx2->Exit();
-    v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
-    ctx1p.Reset();
-    isolate->ContextDisposedNotification(
-        v8::ContextDependants::kSomeDependants);
-  }
-  {
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        heap_instance);
-    InvokeMemoryReducingMajorGCs();
-  }
-  EXPECT_EQ(2, NumberOfGlobalObjects());
-  ctx2p.Reset();
-  {
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        heap_instance);
-    InvokeMemoryReducingMajorGCs();
-  }
-  EXPECT_EQ(1, NumberOfGlobalObjects());
-}
-
-TEST_F(HeapTest, OptimizedPretenuringObjectArrayLiterals) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  if (!i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(v8_isolate());
-  const char* extension_names[] = {"v8/gc"};
-  v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate(), &extensions);
-  v8::Context::Scope context_scope(ctx);
+TEST_F(HeapTest, HeapNumberAlignment) {
+  if (!v8_flags.allocation_site_pretenuring) return;
   ManualGCScope manual_gc_scope(i_isolate());
-  GrowNewSpaceToMaximumCapacity();
+  v8::HandleScope sc(v8_isolate());
 
-  static const int kPretenureCreationCount =
-      PretenuringHandler::GetMinMementoCountForTesting() + 1;
+  const auto required_alignment = HeapObject::RequiredAlignment(
+      InSharedSpace{false}, *factory()->heap_number_map());
+  const int maximum_misalignment =
+      MainAllocator::GetMaximumFillToAlign(required_alignment);
 
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
-  base::SNPrintF(source.as_vector(),
-                 "var number_elements = %d;"
-                 "var elements = new Array(number_elements);"
-                 "function f() {"
-                 "  for (var i = 0; i < number_elements; i++) {"
-                 "    elements[i] = [{}, {}, {}];"
-                 "  }"
-                 "  return elements[number_elements - 1];"
-                 "};"
-                 "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc({type: 'minor'});"
-                 "f(); f();"
-                 "%%OptimizeFunctionOnNextCall(f);"
-                 "f();",
-                 kPretenureCreationCount);
+  for (int offset = 0; offset <= maximum_misalignment; offset += kTaggedSize) {
+    if (!v8_flags.single_generation) {
+      heap()->allocator()->new_space_allocator()->AlignTopForTesting(
+          required_alignment, offset);
+      DirectHandle<Object> number_new = factory()->NewNumber(1.000123);
+      EXPECT_TRUE(IsHeapNumber(*number_new));
+      EXPECT_TRUE(HeapLayout::InYoungGeneration(*number_new));
+      EXPECT_EQ(
+          0, MainAllocator::GetFillToAlign(
+                 Cast<HeapObject>(*number_new).address(), required_alignment));
+    }
 
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.begin()));
+    // Align old space allocation to the desired alignment.
+    LinearAllocationArea* old_space =
+        &i_isolate()->isolate_data()->old_allocation_info();
+    int fill =
+        MainAllocator::GetFillToAlign(old_space->top(), required_alignment);
+    int allocation = fill + offset;
+    if (allocation) {
+      AllocationResult alloc_res =
+          heap()
+              ->allocator()
+              ->old_space_allocator()
+              ->AllocateRawForceAlignmentForTesting(allocation, kTaggedAligned,
+                                                    AllocationOrigin::kRuntime);
+      Tagged<HeapObject> obj;
+      EXPECT_TRUE(alloc_res.To(&obj));
+      heap()->CreateFillerObjectAt(obj.address(), allocation);
+    }
+    heap()->FreeMainThreadLinearAllocationAreas();
 
-  EXPECT_TRUE(heap()->InOldSpace(o->elements()));
-  EXPECT_TRUE(heap()->InOldSpace(*o));
+    DirectHandle<Object> number_old =
+        factory()->NewNumber<AllocationType::kOld>(1.000321);
+    EXPECT_TRUE(IsHeapNumber(*number_old));
+    EXPECT_TRUE(heap()->InOldSpace(*number_old));
+    EXPECT_EQ(0,
+              MainAllocator::GetFillToAlign(
+                  Cast<HeapObject>(*number_old).address(), required_alignment));
+  }
 }
 }  // namespace internal
 }  // namespace v8

@@ -774,42 +774,7 @@ TEST(TestAlignedOverAllocation) {
   }
 }
 
-TEST(HeapNumberAlignment) {
-  if (!v8_flags.allocation_site_pretenuring) return;
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
-  HandleScope sc(isolate);
 
-  const auto required_alignment = HeapObject::RequiredAlignment(
-      InSharedSpace{false}, *factory->heap_number_map());
-  const int maximum_misalignment =
-      MainAllocator::GetMaximumFillToAlign(required_alignment);
-
-  for (int offset = 0; offset <= maximum_misalignment; offset += kTaggedSize) {
-    if (!v8_flags.single_generation) {
-      heap->allocator()->new_space_allocator()->AlignTopForTesting(
-          required_alignment, offset);
-      DirectHandle<Object> number_new = factory->NewNumber(1.000123);
-      CHECK(IsHeapNumber(*number_new));
-      CHECK(HeapLayout::InYoungGeneration(*number_new));
-      CHECK_EQ(
-          0, MainAllocator::GetFillToAlign(
-                 Cast<HeapObject>(*number_new).address(), required_alignment));
-    }
-
-    AlignOldSpace(required_alignment, offset);
-    DirectHandle<Object> number_old =
-        factory->NewNumber<AllocationType::kOld>(1.000321);
-    CHECK(IsHeapNumber(*number_old));
-    CHECK(heap->InOldSpace(*number_old));
-    CHECK_EQ(0,
-             MainAllocator::GetFillToAlign(
-                 Cast<HeapObject>(*number_old).address(), required_alignment));
-  }
-}
 
 static int NumberOfGlobalObjects() {
   int count = 0;
