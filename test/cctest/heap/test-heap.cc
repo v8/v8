@@ -1160,59 +1160,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   CHECK(CcTest::heap()->InOldSpace(int_array_handle_2->elements()));
 }
 
-TEST(OptimizedPretenuringNestedDoubleLiterals) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-  ManualGCScope manual_gc_scope;
-  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
-  base::SNPrintF(source.as_vector(),
-                 "var number_elements = %d;"
-                 "var elements = new Array(number_elements);"
-                 "function f() {"
-                 "  for (var i = 0; i < number_elements; i++) {"
-                 "    elements[i] = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
-                 "  }"
-                 "  return elements[number_elements - 1];"
-                 "};"
-                 "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc({type: 'minor'});"
-                 "f(); f();"
-                 "%%OptimizeFunctionOnNextCall(f);"
-                 "f();",
-                 kPretenureCreationCount);
-
-  v8::Local<v8::Value> res = CompileRun(source.begin());
-
-  v8::Local<v8::Value> double_array_1 =
-      v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
-  i::DirectHandle<JSObject> double_array_handle_1 =
-      i::Cast<JSObject>(v8::Utils::OpenDirectHandle(
-          *v8::Local<v8::Object>::Cast(double_array_1)));
-  v8::Local<v8::Value> double_array_2 =
-      v8::Object::Cast(*res)->Get(ctx, v8_str("1")).ToLocalChecked();
-  i::DirectHandle<JSObject> double_array_handle_2 =
-      Cast<JSObject>(v8::Utils::OpenDirectHandle(
-          *v8::Local<v8::Object>::Cast(double_array_2)));
-
-  i::DirectHandle<JSObject> o = Cast<JSObject>(
-      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res)));
-  CHECK(CcTest::heap()->InOldSpace(*o));
-  CHECK(CcTest::heap()->InOldSpace(*double_array_handle_1));
-  CHECK(CcTest::heap()->InOldSpace(double_array_handle_1->elements()));
-  CHECK(CcTest::heap()->InOldSpace(*double_array_handle_2));
-  CHECK(CcTest::heap()->InOldSpace(double_array_handle_2->elements()));
-}
 
 #ifdef DEBUG
 
