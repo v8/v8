@@ -843,12 +843,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kSharedStructConstructor:
       RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);
 
-
-
-    // --js-regexp-escape
-    case Builtin::kRegExpEscape:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_regexp_escape);
-
     // --js-iterator-sequencing:
     case Builtin::kIteratorConcat:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_sequencing);

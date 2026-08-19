@@ -60,7 +60,6 @@ FEATURE_FLAGS = {
     'regexp-modifiers': '--js-regexp-modifiers',
     'decorators': '--js-decorators',
     'source-phase-imports': '--js-source-phase-imports --allow-natives-syntax',
-    'RegExp.escape': '--js-regexp-escape',
     'upsert': '--js-upsert',
     'nonextensible-applies-to-private': '--js-nonextensible-applies-to-private',
     'immutable-arraybuffer': '--js-immutable-arraybuffer',
