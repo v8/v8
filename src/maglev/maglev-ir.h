@@ -10052,7 +10052,19 @@ class Phi : public ValueNodeT<Phi> {
     DCHECK_NOT_NULL(merge_state);
   }
 
-  Input backedge_input() { return input(input_count() - 1); }
+  // The back-edge is always the last input, but not always at index 1: a
+  // resumable loop can be entered through its resume edges alone, leaving its
+  // header without a forward edge.
+  int backedge_index() const {
+    DCHECK(is_loop_phi());
+    return input_count() - 1;
+  }
+  Input backedge_input() { return input(backedge_index()); }
+  ValueNode* backedge() { return backedge_input().node(); }
+  ValueNode* forward_edge() {
+    DCHECK_EQ(backedge_index(), 1);
+    return input_node(0);
+  }
 
   interpreter::Register owner() const { return owner_; }
   const MergePointInterpreterFrameState* merge_state() const {
@@ -10068,7 +10080,7 @@ class Phi : public ValueNodeT<Phi> {
   bool is_loop_phi() const;
 
   bool is_backedge_offset(int i) const {
-    return is_loop_phi() && i == input_count() - 1;
+    return is_loop_phi() && i == backedge_index();
   }
 
   void VerifyInputs() const;

@@ -1701,8 +1701,8 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
   // phis, or at least to go over the loop header twice.
   if (!block->has_phi()) return;
   for (Phi* phi : *block->phis()) {
-    int last_input_idx = phi->input_count() - 1;
-    ValueNode* backedge = phi->input(last_input_idx).node();
+    int backedge_index = phi->backedge_index();
+    ValueNode* backedge = phi->backedge();
     if (phi->value_representation() == ValueRepresentation::kTagged) {
       // If the backedge is a Phi that was untagged, but {phi} is tagged, then
       // we need to retag the backedge.
@@ -1718,7 +1718,7 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
         // is not tagged means that it's a Phi that we recently untagged.
         DCHECK(backedge->Is<Phi>());
         phi->change_input(
-            last_input_idx,
+            backedge_index,
             EnsurePhiTagged(backedge->Cast<Phi>(), reducer_.current_block(),
                             BasicBlockPosition::End(), /*state*/ nullptr,
                             /*predecessor_index*/ std::nullopt));
@@ -1737,7 +1737,7 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
                     ValueRepresentation::kFloat64 &&
                 phi->value_representation() ==
                     ValueRepresentation::kHoleyFloat64));
-        phi->change_input(last_input_idx, backedge->input(0).node());
+        phi->change_input(backedge_index, backedge->input(0).node());
       }
     }
   }
@@ -1827,11 +1827,12 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
     for (int i = 0; static_cast<size_t>(i) < predecessors.size(); i++) {
       phi->set_input(i, predecessors[i]);
     }
-    if (predecessors.size() != static_cast<size_t>(predecessor_count)) {
-      // The backedge is omitted from {predecessors}. With set the Phi as its
-      // own backedge.
-      DCHECK(new_block->is_loop());
-      phi->set_input(predecessor_count - 1, phi);
+    if (new_block->is_loop()) {
+      // The backedge is omitted from {predecessors}, since it hasn't been
+      // visited yet. We set the Phi as its own backedge.
+      DCHECK_EQ(predecessors.size(),
+                static_cast<size_t>(phi->backedge_index()));
+      phi->set_input(phi->backedge_index(), phi);
     }
     if (reducer_.has_graph_labeller()) reducer_.RegisterNode(phi);
     new_block->AddPhi(phi);

@@ -85,7 +85,7 @@ class RecomputeKnownNodeAspectsProcessor {
       // for all loops.
       known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
     } else if (block->is_loop()) {
-      DCHECK_GT(block->predecessor_count(), 1);
+      DCHECK_EQ(block->predecessor_count(), 2);
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
       KnownNodeAspects* backedge_known_node_aspects =
           block->state()->AsLoopHeader()->backedge_known_node_aspects();
