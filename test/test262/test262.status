@@ -862,15 +862,7 @@
 ####
 
 
-####
-# Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion': [SKIP],
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared': [SKIP],
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-detached': [SKIP],
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-resize-to-zero': [SKIP],
-  'built-ins/Atomics/wait/retrieve-length-before-index-coercion': [SKIP],
-  'built-ins/Atomics/waitAsync/retrieve-length-before-index-coercion': [SKIP],
   'harness/verifyProperty-value-error': [SKIP],
 }],
 # End roll-watcher patch

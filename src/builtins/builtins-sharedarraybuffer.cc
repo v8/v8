@@ -88,6 +88,8 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTypedArray> ValidateIntegerTypedArray(
 V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
     Isolate* isolate, DirectHandle<JSTypedArray> typed_array,
     Handle<Object> request_index) {
+  size_t typed_array_length = typed_array->GetLength();
+
   DirectHandle<Object> access_index_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, access_index_obj,
@@ -95,7 +97,6 @@ V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
                       MessageTemplate::kInvalidAtomicAccessIndex));
 
   size_t access_index;
-  size_t typed_array_length = typed_array->GetLength();
   if (!TryNumberToSize(*access_index_obj, &access_index) ||
       access_index >= typed_array_length) {
     isolate->Throw(*isolate->factory()->NewRangeError(
