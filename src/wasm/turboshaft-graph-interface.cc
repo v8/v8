@@ -1524,7 +1524,7 @@ class TurboshaftGraphBuildingInterface
         MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
 
     compiler::EnforceBoundsCheck enforce_bounds_check =
-        (wasm::kPartialOOBWritesAreNoops || type.size() == 1)
+        (v8_flags.wasm_partial_oob_writes_are_noops || type.size() == 1)
             ? compiler::kCanOmitBoundsCheck
             : compiler::kNeedsBoundsCheck;
 
@@ -1575,7 +1575,7 @@ class TurboshaftGraphBuildingInterface
         MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
 
     compiler::EnforceBoundsCheck enforce_bounds_check =
-        (wasm::kPartialOOBWritesAreNoops || type.size() == 1)
+        (v8_flags.wasm_partial_oob_writes_are_noops || type.size() == 1)
             ? compiler::kCanOmitBoundsCheck
             : compiler::kNeedsBoundsCheck;
 

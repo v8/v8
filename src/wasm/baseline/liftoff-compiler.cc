@@ -4656,9 +4656,10 @@ class LiftoffCompiler {
                i64_offset);
     } else {
       LiftoffRegister full_index = __ PopToRegister(pinned);
-      ForceCheck force_check = (kPartialOOBWritesAreNoops || type.size() == 1)
-                                   ? kDontForceCheck
-                                   : kDoForceCheck;
+      ForceCheck force_check =
+          (v8_flags.wasm_partial_oob_writes_are_noops || type.size() == 1)
+              ? kDontForceCheck
+              : kDoForceCheck;
       index =
           BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset,
                          full_index, pinned, force_check, kDontCheckAlignment);
@@ -4691,9 +4692,10 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
     LiftoffRegister full_index = __ PopToRegister(pinned);
-    ForceCheck force_check = (kPartialOOBWritesAreNoops || type.size() == 1)
-                                 ? kDontForceCheck
-                                 : kDoForceCheck;
+    ForceCheck force_check =
+        (v8_flags.wasm_partial_oob_writes_are_noops || type.size() == 1)
+            ? kDontForceCheck
+            : kDoForceCheck;
     Register index =
         BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
                        pinned, force_check, kDontCheckAlignment);

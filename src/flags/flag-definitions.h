@@ -2183,6 +2183,23 @@ DEFINE_BOOL(
     "enforce explicit bounds check even if the trap handler is available")
 // "no bounds checks" implies "no enforced bounds checks".
 DEFINE_NEG_NEG_IMPLICATION(wasm_bounds_checks, wasm_enforce_bounds_checks)
+
+// The Arm architecture does not specify the results in memory of
+// partially-in-bound writes, which does not align with the wasm spec. This
+// affects when trap handlers can be used for OOB detection; however, Mac
+// systems with Apple silicon currently do provide trapping behaviour for
+// partially-out-of-bound writes, so we assume we can rely on that on MacOS,
+// since doing so provides better performance for writes.
+DEFINE_BOOL(
+#if V8_TARGET_ARCH_RISCV64 || (V8_TARGET_ARCH_ARM64 && !V8_OS_MACOS)
+    wasm_partial_oob_writes_are_noops, false,
+#else
+    wasm_partial_oob_writes_are_noops, true,
+#endif
+    "assume partially out-of-bounds writes are no-ops and can use the trap "
+    "handler. Note that explicitly enabling this flag (if not enabled by "
+    "default) can affect the spec-compliance of V8.")
+
 DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
