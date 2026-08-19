@@ -312,111 +312,6 @@ DEFINE_BOOL(use_strict, false, "enforce strict mode")
 
 DEFINE_DEVELOPER_FLAG(trace_temporal, "trace temporal code")
 
-DEFINE_BOOL(harmony, false, "enable all completed harmony features")
-DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
-
-DEFINE_BOOL(js_staging, false, "enable all completed JavaScript features")
-DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
-
-// Update bootstrapper.cc whenever adding a new feature flag.
-
-// Features that are still work in progress (behind individual flags).
-//
-// The "harmony" naming is now outdated and will no longer be used for new JS
-// features. Use the JAVASCRIPT macros instead.
-//
-// TODO(v8:14214): Remove --harmony flags once transition is complete.
-#define HARMONY_INPROGRESS_BASE(V)                                             \
-  V(harmony_shadow_realm, "harmony ShadowRealm")                               \
-  V(harmony_struct, "harmony structs, shared structs, and shared arrays")
-
-#define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)       \
-  V(js_decorators, "decorators")                     \
-  V(js_source_phase_imports, "source phase imports") \
-  V(js_regexp_buffer_boundaries,                     \
-    "RegExp \\A \\z \\Z buffer boundary assertions")
-
-#ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V) \
-  HARMONY_INPROGRESS_BASE(V)  \
-  V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher")
-#define JAVASCRIPT_INPROGRESS_FEATURES(V) JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
-#else
-#define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
-#define JAVASCRIPT_INPROGRESS_FEATURES(V) JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
-#endif
-
-// Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V)
-
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V)             \
-  V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
-  V(js_import_text, "import text")                     \
-  V(js_import_bytes, "import bytes")                   \
-  V(js_defer_import_eval, "defer import eval")         \
-  V(js_iterator_includes, "Iterator.prototype.includes")
-
-#ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
-#define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
-#else
-#define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
-#define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
-#endif
-
-// Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                            \
-  V(harmony_import_attributes, "harmony import attributes") \
-  V(harmony_temporal, "Temporal")
-
-#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                          \
-  V(js_esm_ns_reexport,                                               \
-    "Support diamond-importing re-expored namespaces "                \
-    "(https://github.com/tc39/ecma262/pull/3715)")                    \
-  V(js_iterator_join, "Iterator.prototype.join")                      \
-  V(js_iterator_sequencing, "iterator sequencing")                    \
-  V(js_joint_iteration, "joint iteration")                            \
-  V(js_pr_3883,                                                       \
-    "Let Promise.try not wrap the result in an extra promise in the " \
-    "non-throwing case (https://github.com/tc39/ecma262/pull/3883)")
-
-#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
-#define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
-
-// Once a shipping feature has proved stable in the wild, it will be dropped
-// from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
-// and associated tests are moved from the harmony directory to the appropriate
-// esN directory.
-//
-// In-progress features are not code complete and are considered experimental,
-// i.e. not ready for fuzz testing.
-
-#define FLAG_INPROGRESS_FEATURES(id, description)                     \
-  DEFINE_BOOL(id, false,                                              \
-              "enable " #description " (in progress / experimental)") \
-  DEFINE_IMPLICATION(id, experimental)
-HARMONY_INPROGRESS(FLAG_INPROGRESS_FEATURES)
-JAVASCRIPT_INPROGRESS_FEATURES(FLAG_INPROGRESS_FEATURES)
-#undef FLAG_INPROGRESS_FEATURES
-
-#define FLAG_STAGED_FEATURES(id, description)    \
-  DEFINE_BOOL(id, false, "enable " #description) \
-  DEFINE_IMPLICATION(harmony, id)                \
-  DEFINE_IMPLICATION(js_staging, id)
-HARMONY_STAGED(FLAG_STAGED_FEATURES)
-JAVASCRIPT_STAGED_FEATURES(FLAG_STAGED_FEATURES)
-DEFINE_IMPLICATION(harmony, js_staging)
-#undef FLAG_STAGED_FEATURES
-
-#define FLAG_SHIPPING_FEATURES(id, description)    \
-  DEFINE_BOOL(id, true, "enable " #description)    \
-  DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, id) \
-  DEFINE_NEG_NEG_IMPLICATION(js_shipping, id)
-HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
-JAVASCRIPT_SHIPPING_FEATURES(FLAG_SHIPPING_FEATURES)
-DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, js_shipping)
-#undef FLAG_SHIPPING_FEATURES
-
 DEFINE_IMPLICATION(js_import_bytes, js_immutable_arraybuffer)
 
 DEFINE_BOOL(js_postmessage_share_immutable_arraybuffer, true,
@@ -607,24 +502,6 @@ DEFINE_REQUIREMENT(v8_flags.scavenger_chaos_mode_threshold <= 100)
 DEFINE_BOOL_READONLY(local_off_stack_check,
                      V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL,
                      "check for off-stack allocation of v8::Local")
-
-// This flag implies experimental features for our fuzzers without needing to
-// stage them yet. Once sufficiently stable, they should be moved to
-// --future, --wasm-staging or a similar flag that indicates its readiness
-// for staging.
-DEFINE_EXPERIMENTAL_FEATURE(
-    experimental_fuzzing,
-    "Implies all experimental pre-staged features that can already be "
-    "fuzzed but are not ready for staging yet.")
-
-#ifdef V8_ENABLE_FUTURE
-#define FUTURE_BOOL true
-#else
-#define FUTURE_BOOL false
-#endif
-DEFINE_BOOL(future, FUTURE_BOOL,
-            "Implies all staged features that we want to ship in the "
-            "not-too-far future")
 
 DEFINE_BOOL(force_emit_interrupt_budget_checks, false,
             "force emit tier-up logic from all non-turbofan code, even if it "
@@ -1983,7 +1860,126 @@ DEFINE_BOOL(verify_get_js_builtin_state, false,
             "Enable verification of Builtins::GetJSBuiltinState().")
 DEFINE_IMPLICATION(enable_slow_asserts, verify_get_js_builtin_state)
 
-// Flags for WebAssembly.
+// Declare command-line flags for V8 features.
+#include "src/flags/feature-flags.h"
+
+// This flag implies experimental features for our fuzzers without needing to
+// stage them yet. Once sufficiently stable, they should be moved to
+// --future, --wasm-staging or a similar flag that indicates its readiness
+// for staging.
+DEFINE_EXPERIMENTAL_FEATURE(
+    experimental_fuzzing,
+    "Implies all experimental pre-staged features that can already be "
+    "fuzzed but are not ready for staging yet.")
+
+#ifdef V8_ENABLE_FUTURE
+#define FUTURE_BOOL true
+#else
+#define FUTURE_BOOL false
+#endif
+DEFINE_BOOL(future, FUTURE_BOOL,
+            "Implies all staged features that we want to ship in the "
+            "not-too-far future")
+
+DEFINE_BOOL(harmony, false, "enable all completed harmony features")
+DEFINE_BOOL(js_staging, false, "enable all completed JavaScript features")
+DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
+
+DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
+DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
+
+#define DECL_EXPERIMENTAL_JS_FLAG(feature_name, description) \
+  DEFINE_EXPERIMENTAL_FEATURE(feature_name, "enable " description " for JS")
+#ifdef V8_ENABLE_WEBASSEMBLY
+#define DECL_EXPERIMENTAL_WASM_FLAG(feature_name, description)     \
+  DEFINE_EXPERIMENTAL_FEATURE(wasm_##feature_name,                 \
+                              "enable " description " for Wasm")   \
+  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name, \
+                                 wasm_##feature_name,              \
+                                 TEMPORARY_WASM_ALIAS_COMMENT)
+#else
+#define DECL_EXPERIMENTAL_WASM_FLAG(feature_name, description)
+#endif  // V8_ENABLE_WEBASSEMBLY
+#define DECL_EXPERIMENTAL_INTERNAL_FLAG(feature_name, description) \
+  DEFINE_EXPERIMENTAL_FEATURE(feature_name, "enable " description)
+FOREACH_EXPERIMENTAL_FEATURE_FLAG(DECL_EXPERIMENTAL_JS_FLAG,
+                                  DECL_EXPERIMENTAL_WASM_FLAG,
+                                  DECL_EXPERIMENTAL_INTERNAL_FLAG)
+#undef DECL_EXPERIMENTAL_JS_FLAG
+#undef DECL_EXPERIMENTAL_WASM_FLAG
+#undef DECL_EXPERIMENTAL_INTERNAL_FLAG
+
+#define DECL_PRE_STAGED_JS_FLAG(feature_name, description)                   \
+  DEFINE_EXPERIMENTAL_FEATURE(feature_name, "enable " description " for JS") \
+  DEFINE_IMPLICATION(experimental_fuzzing, feature_name)
+#ifdef V8_ENABLE_WEBASSEMBLY
+#define DECL_PRE_STAGED_WASM_FLAG(feature_name, description)       \
+  DEFINE_EXPERIMENTAL_FEATURE(wasm_##feature_name,                 \
+                              "enable " description " for Wasm")   \
+  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name, \
+                                 wasm_##feature_name,              \
+                                 TEMPORARY_WASM_ALIAS_COMMENT)     \
+  DEFINE_IMPLICATION(experimental_fuzzing, wasm_##feature_name)
+#else
+#define DECL_PRE_STAGED_WASM_FLAG(feature_name, description)
+#endif  // V8_ENABLE_WEBASSEMBLY
+#define DECL_PRE_STAGED_INTERNAL_FLAG(feature_name, description)   \
+  DEFINE_EXPERIMENTAL_FEATURE(feature_name, "enable " description) \
+  DEFINE_WEAK_IMPLICATION(experimental_fuzzing, feature_name)
+FOREACH_PRE_STAGED_FEATURE_FLAG(DECL_PRE_STAGED_JS_FLAG,
+                                DECL_PRE_STAGED_WASM_FLAG,
+                                DECL_PRE_STAGED_INTERNAL_FLAG)
+#undef DECL_PRE_STAGED_JS_FLAG
+#undef DECL_PRE_STAGED_WASM_FLAG
+#undef DECL_PRE_STAGED_INTERNAL_FLAG
+
+#define DECL_STAGED_JS_FLAG(feature_name, description)              \
+  DEFINE_BOOL(feature_name, false, "enable " description " for JS") \
+  DEFINE_WEAK_IMPLICATION(js_staging, feature_name)                 \
+  DEFINE_WEAK_IMPLICATION(harmony, feature_name)
+#ifdef V8_ENABLE_WEBASSEMBLY
+#define DECL_STAGED_WASM_FLAG(feature_name, description)                     \
+  DEFINE_BOOL(wasm_##feature_name, false, "enable " description " for Wasm") \
+  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name,           \
+                                 wasm_##feature_name,                        \
+                                 TEMPORARY_WASM_ALIAS_COMMENT)               \
+  DEFINE_WEAK_IMPLICATION(wasm_staging, wasm_##feature_name)
+#else
+#define DECL_STAGED_WASM_FLAG(feature_name, description)
+#endif  // V8_ENABLE_WEBASSEMBLY
+#define DECL_STAGED_INTERNAL_FLAG(feature_name, description) \
+  DEFINE_BOOL(feature_name, false, "enable " description)    \
+  DEFINE_WEAK_IMPLICATION(future, feature_name)
+FOREACH_STAGED_FEATURE_FLAG(DECL_STAGED_JS_FLAG, DECL_STAGED_WASM_FLAG,
+                            DECL_STAGED_INTERNAL_FLAG)
+DEFINE_IMPLICATION(harmony, js_staging)
+#undef DECL_STAGED_JS_FLAG
+#undef DECL_STAGED_WASM_FLAG
+#undef DECL_STAGED_INTERNAL_FLAG
+
+#define DECL_SHIPPED_JS_FLAG(feature_name, description)            \
+  DEFINE_BOOL(feature_name, true, "enable " description " for JS") \
+  DEFINE_NEG_NEG_IMPLICATION(js_shipping, feature_name)            \
+  DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, feature_name)
+#ifdef V8_ENABLE_WEBASSEMBLY
+#define DECL_SHIPPED_WASM_FLAG(feature_name, description)                   \
+  DEFINE_BOOL(wasm_##feature_name, true, "enable " description " for Wasm") \
+  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name,          \
+                                 wasm_##feature_name,                       \
+                                 TEMPORARY_WASM_ALIAS_COMMENT)
+#else
+#define DECL_SHIPPED_WASM_FLAG(feature_name, description)
+#endif  // V8_ENABLE_WEBASSEMBLY
+#define DECL_SHIPPED_INTERNAL_FLAG(feature_name, description) \
+  DEFINE_BOOL(feature_name, true, "enable " description)
+FOREACH_SHIPPED_FEATURE_FLAG(DECL_SHIPPED_JS_FLAG, DECL_SHIPPED_WASM_FLAG,
+                             DECL_SHIPPED_INTERNAL_FLAG)
+DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, js_shipping)
+#undef DECL_SHIPPED_JS_FLAG
+#undef DECL_SHIPPED_WASM_FLAG
+#undef DECL_SHIPPED_INTERNAL_FLAG
+
+// Non-feature flags for WebAssembly.
 #if V8_ENABLE_WEBASSEMBLY
 
 DEFINE_BOOL(wasm_generic_wrapper, true,
@@ -2142,29 +2138,6 @@ DEFINE_SIZE_T(wasm_deopts_per_function_limit, 10,
               "limit of wasm deopts for a single function after which no "
               "further deopt points are emitted in Turbofan")
 
-// Declare command-line flags for Wasm features. Warning: avoid using these
-// flags directly in the implementation. Instead accept
-// wasm::WasmEnabledFeatures for configurability.
-#include "src/wasm/wasm-feature-flags.h"
-
-#define DECL_WASM_FLAG(feat, desc, val)                                 \
-  DEFINE_BOOL(wasm_##feat, val, "enable " desc " for Wasm")             \
-  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feat, wasm_##feat, \
-                                 TEMPORARY_WASM_ALIAS_COMMENT)
-#define DECL_EXPERIMENTAL_WASM_FLAG(feat, desc, val)                    \
-  DEFINE_EXPERIMENTAL_FEATURE(wasm_##feat, "enable " desc " for Wasm")  \
-  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feat, wasm_##feat, \
-                                 TEMPORARY_WASM_ALIAS_COMMENT)
-// Experimental wasm features imply --experimental and get the " (experimental)"
-// suffix.
-FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(DECL_EXPERIMENTAL_WASM_FLAG)
-FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(DECL_EXPERIMENTAL_WASM_FLAG)
-// Staging and shipped features do not imply --experimental.
-FOREACH_WASM_STAGING_FEATURE_FLAG(DECL_WASM_FLAG)
-FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
-#undef DECL_WASM_FLAG
-#undef DECL_EXPERIMENTAL_WASM_FLAG
-
 // Unsafe additions to the GC proposal for performance experiments.
 DEFINE_TEST_ONLY_FLAG(
     wasm_assume_ref_cast_succeeds,
@@ -2195,18 +2168,6 @@ DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_js_interop, wasm_js_interop,
 DEFINE_IMPLICATION(wasm_js_interop, wasm_custom_descriptors)
 DEFINE_BOOL(wasm_custom_descriptors_permitted, true,
             "Emergency off-switch for Custom Descriptors Origin Trial")
-
-#define WASM_PRE_STAGING_IMPLICATION(feat, desc, val) \
-  DEFINE_IMPLICATION(experimental_fuzzing, wasm_##feat)
-FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(WASM_PRE_STAGING_IMPLICATION)
-#undef WASM_PRE_STAGING_IMPLICATION
-
-DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
-
-#define WASM_STAGING_IMPLICATION(feat, desc, val) \
-  DEFINE_IMPLICATION(wasm_staging, wasm_##feat)
-FOREACH_WASM_STAGING_FEATURE_FLAG(WASM_STAGING_IMPLICATION)
-#undef WASM_STAGING_IMPLICATION
 
 DEFINE_DEBUG_BOOL(
     wasm_opt, true,
@@ -2323,12 +2284,8 @@ DEFINE_DEBUG_BOOL(trace_wasm_instances, false,
 
 // Flags for WASM SIMD256 revectorize
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
-DEFINE_EXPERIMENTAL_FEATURE(
-    wasm_revectorize,
-    "enable 128 to 256 bit revectorization for WebAssembly SIMD")
 DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_revectorize, wasm_revectorize,
                                TEMPORARY_WASM_ALIAS_COMMENT)
-DEFINE_WEAK_IMPLICATION(experimental_fuzzing, wasm_revectorize)
 DEFINE_DEVELOPER_FLAG(trace_wasm_revectorize, "trace wasm revectorize")
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
@@ -3314,12 +3271,11 @@ DEFINE_INT(fast_properties_soft_limit, 12,
 DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
             "generate extra code for manipulating stats counters")
 
-#ifdef V8_ENABLE_SPARKPLUG_PLUS
-DEFINE_BOOL(sparkplug_plus, false, "enable dynamic patching on baseline code")
-DEFINE_WEAK_IMPLICATION(future, sparkplug_plus)
-#else
+#ifndef V8_ENABLE_SPARKPLUG_PLUS
+// If the Sparkplug+ build flag is enabled, we define the flag in
+// feature-flags.h instead of here to follow the regular launch process format.
 DEFINE_BOOL_READONLY(sparkplug_plus, false,
-                     "enable dynamic patching on baseline code")
+                     "enable dynamic patching on JS baseline code")
 #endif
 DEFINE_IMPLICATION(sparkplug_plus, short_builtin_calls)
 

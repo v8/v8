@@ -450,7 +450,8 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
 
 #define LIST_FEATURE(name, ...) WasmEnabledFeature::name,
   constexpr WasmEnabledFeatures kExperimentalFeatures{
-      FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(LIST_FEATURE)};
+      FOREACH_EXPERIMENTAL_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE, LIST_FEATURE,
+                                        IGNORE_NON_WASM_FEATURE)};
 #undef LIST_FEATURE
 
   // Bailout is allowed if any experimental feature is enabled.

@@ -561,7 +561,9 @@ constexpr std::array kSkippedTernOps = {kExprF16x8Qfma, kExprF16x8Qfms};
 // fp16 instructions in `kTernOps`.
 #define IS_EXPERIMENTAL_FP16(name, ...) \
   +(std::string_view(#name) == "fp16" ? 1 : 0)
-static_assert(FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(IS_EXPERIMENTAL_FP16) == 1,
+static_assert(FOREACH_EXPERIMENTAL_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE,
+                                                IS_EXPERIMENTAL_FP16,
+                                                IGNORE_NON_WASM_FEATURE) == 1,
               "move fp16 instructions to kTernOps before shipping fp16");
 #undef IS_EXPERIMENTAL_FP16
 

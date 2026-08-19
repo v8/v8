@@ -35,7 +35,7 @@
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/string-builder-multiline.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-feature-flags.h"
+#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -1204,9 +1204,12 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       // Enable all staged features.
 #define ENABLE_PRE_STAGED_AND_STAGED_FEATURES(feat, ...) \
   v8_flags.wasm_##feat = true;
-      FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(
-          ENABLE_PRE_STAGED_AND_STAGED_FEATURES)
-      FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_PRE_STAGED_AND_STAGED_FEATURES)
+      FOREACH_PRE_STAGED_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE,
+                                      ENABLE_PRE_STAGED_AND_STAGED_FEATURES,
+                                      IGNORE_NON_WASM_FEATURE)
+      FOREACH_STAGED_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE,
+                                  ENABLE_PRE_STAGED_AND_STAGED_FEATURES,
+                                  IGNORE_NON_WASM_FEATURE)
 #undef ENABLE_PRE_STAGED_AND_STAGED_FEATURES
 
       // Enable non-staged experimental features or other experimental flags

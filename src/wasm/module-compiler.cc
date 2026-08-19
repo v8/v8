@@ -33,7 +33,7 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-feature-flags.h"
+#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
@@ -1637,8 +1637,10 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
   };
 #define CHECK_USE_COUNTER(feat, ...) \
   static_assert(check_use_counter(WasmDetectedFeature::feat));
-  FOREACH_WASM_STAGING_FEATURE_FLAG(CHECK_USE_COUNTER)
-  FOREACH_WASM_SHIPPED_FEATURE_FLAG(CHECK_USE_COUNTER)
+  FOREACH_STAGED_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE, CHECK_USE_COUNTER,
+                              IGNORE_NON_WASM_FEATURE)
+  FOREACH_SHIPPED_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE, CHECK_USE_COUNTER,
+                               IGNORE_NON_WASM_FEATURE)
   FOREACH_WASM_NON_FLAG_FEATURE(CHECK_USE_COUNTER)
 #undef CHECK_USE_COUNTER
 

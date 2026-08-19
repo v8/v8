@@ -3702,6 +3702,7 @@ v8_header_set("v8_flags") {
   configs = [ ":internal_config" ]
 
   sources = [
+    "src/flags/feature-flags.h",
     "src/flags/flag-definitions.h",
     "src/flags/flags-impl.h",
     "src/flags/flags.h",
@@ -4998,7 +4999,6 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-engine.h",
       "src/wasm/wasm-export-wrapper-cache.h",
       "src/wasm/wasm-external-refs.h",
-      "src/wasm/wasm-feature-flags.h",
       "src/wasm/wasm-features.h",
       "src/wasm/wasm-import-wrapper-cache.h",
       "src/wasm/wasm-init-expr.h",

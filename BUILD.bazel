@@ -818,13 +818,11 @@ filegroup(
 filegroup(
     name = "v8_flags",
     srcs = [
+        "src/flags/feature-flags.h",
         "src/flags/flag-definitions.h",
         "src/flags/flags-impl.h",
         "src/flags/flags.h",
-    ] + select({
-        "is_v8_enable_webassembly": ["src/wasm/wasm-feature-flags.h"],
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 filegroup(
