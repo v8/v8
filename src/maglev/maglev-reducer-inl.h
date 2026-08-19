@@ -6618,6 +6618,72 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeCodePointAt(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeSlice(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  // Ensure that {receiver} is actually a String.
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+
+  if (args.count() == 1) {
+    // Reduce slice(-1).
+    if (std::optional<int32_t> index_const = TryGetInt32Constant(args[0]);
+        index_const && *index_const == -1) {
+      ValueNode* receiver_length;
+      GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
+
+      return Select(
+          [&](BranchBuilder& builder) {
+            return BuildBranchIfInt32Compare(builder, Operation::kEqual,
+                                             receiver_length,
+                                             GetInt32Constant(0));
+          },
+          [&] { return GetRootConstant(RootIndex::kempty_string); },
+          [&] {
+            ValueNode* index_last;
+            // TODO(marja): Consider TryReduceConstantStringAt.
+            GET_VALUE_OR_ABORT(index_last,
+                               (AddNewNode<Int32Subtract>(
+                                   {receiver_length, GetInt32Constant(1)})));
+            return AddNewNode<StringAt>({receiver, index_last});
+          });
+    }
+  }
+
+  ValueNode* start_index;
+  bool start_is_undefined = false;
+  if (args.count() >= 1) {
+    if (RootConstant* root_cst = args[0]->template TryCast<RootConstant>()) {
+      start_is_undefined = (root_cst->index() == RootIndex::kUndefinedValue);
+    }
+  }
+  if (args.count() == 0 || start_is_undefined) {
+    start_index = GetInt32Constant(0);
+  } else {
+    GET_VALUE_OR_ABORT(start_index, GetInt32(args[0]));
+  }
+
+  ValueNode* end_index;
+  bool end_is_undefined = false;
+  if (args.count() >= 2) {
+    if (RootConstant* root_cst = args[1]->template TryCast<RootConstant>()) {
+      end_is_undefined = (root_cst->index() == RootIndex::kUndefinedValue);
+    }
+  }
+  if (args.count() < 2 || end_is_undefined) {
+    // Use String::kMaxLength as sentinel, as it is >= receiver.length it
+    // will be set to receiver.length when the node is lowered. This avoids
+    // loading the string length here.
+    end_index = GetInt32Constant(String::kMaxLength);
+  } else {
+    GET_VALUE_OR_ABORT(end_index, GetInt32(args[1]));
+  }
+
+  return AddNewNode<StringSlice>({receiver, start_index, end_index});
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
     Builtin builtin_id, ValueNode* context, compiler::JSFunctionRef target,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {
