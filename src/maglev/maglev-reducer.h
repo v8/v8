@@ -1238,6 +1238,7 @@ class MaglevReducer {
   V(MathTrunc)                                 \
   V(ObjectIs)                                  \
   V(ObjectPrototypeIsPrototypeOf)              \
+  V(PromisePrototypeCatch)                     \
   V(PromisePrototypeThen)                      \
   V(PromiseResolveTrampoline)                  \
   V(RegExpPrototypeTest)                       \
@@ -1265,6 +1266,12 @@ class MaglevReducer {
 
   MaybeReduceResult TryReduceMapIteratorCreation(CallArguments& args,
                                                  IterationKind iteration_kind);
+
+  MaybeReduceResult TryReducePromiseThenImpl(const char* trace_name,
+                                             CallArguments& args,
+                                             ValueNode* on_fulfilled,
+                                             ValueNode* on_rejected,
+                                             bool needs_then_protector);
 
   // Reduces a TypedArray construct (not call — calling a TypedArray
   // constructor without new throws) to Builtin::kCreateTypedArray.
