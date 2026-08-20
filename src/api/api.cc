@@ -8318,11 +8318,6 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
                                    void* callback_data) {
   // Instead of relying on callers to check condition, this function returns
   // {kSlowPath} for situations it can't handle.
-  // Most code paths below don't allocate, and rely on {callback} not allocating
-  // either, but this isn't enforced with {DisallowHeapAllocation} to allow
-  // embedders to allocate error objects before terminating the iteration.
-  // Since {callback} must not allocate anyway, we can get away with fake
-  // handles, reducing per-element overhead.
   if (!CanUseFastIteration(isolate, array)) return FastIterateResult::kSlowPath;
   using Result = v8::Array::CallbackResult;
   DisallowJavascriptExecution no_js(isolate);
@@ -8334,14 +8329,12 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS: {
-      Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
-      for (uint32_t i = 0; i < length; i++) {
-        Tagged<Object> element = elements->get(static_cast<int>(i));
-        // TODO(13270): When we switch to CSS, we can pass {element} to
-        // the callback directly, without {fake_handle}.
-        IndirectHandle<Object> fake_handle(
-            reinterpret_cast<Address*>(&element));
-        Result result = callback(i, Utils::ToLocal(fake_handle), callback_data);
+      DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
+                                        isolate);
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
+        DirectHandle<Object> element(elements->get(static_cast<int>(i)),
+                                     isolate);
+        Result result = callback(i, Utils::ToLocal(element), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
         }
@@ -8354,16 +8347,16 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
-      Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
-      for (uint32_t i = 0; i < length; i++) {
-        Tagged<Object> element = elements->get(static_cast<int>(i));
-        // TODO(13270): When we switch to CSS, we can pass {element} to
-        // the callback directly, without {fake_handle}.
-        auto fake_handle =
-            IsTheHole(element)
-                ? isolate->factory()->undefined_value()
-                : IndirectHandle<Object>(reinterpret_cast<Address*>(&element));
-        Result result = callback(i, Utils::ToLocal(fake_handle), callback_data);
+      DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
+                                        isolate);
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
+        DirectHandle<Object> element(elements->get(static_cast<int>(i)),
+                                     isolate);
+        DirectHandle<Object> value =
+            IsTheHole(*element)
+                ? DirectHandle<Object>(isolate->factory()->undefined_value())
+                : element;
+        Result result = callback(i, Utils::ToLocal(value), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
         }
@@ -8379,10 +8372,10 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
         DirectHandle<Object> value;
         if (elements->is_the_hole(i)) {
-          value = Handle<Object>(isolate->factory()->undefined_value());
+          value = isolate->factory()->undefined_value();
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
         } else if (elements->is_undefined(i)) {
-          value = Handle<Object>(isolate->factory()->undefined_value());
+          value = isolate->factory()->undefined_value();
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
         } else {
           value = isolate->factory()->NewNumber(elements->get_scalar(i));
@@ -8396,32 +8389,32 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       return FastIterateResult::kFinished;
     }
     case DICTIONARY_ELEMENTS: {
-      DisallowGarbageCollection no_gc;
-      Tagged<NumberDictionary> dict = array->element_dictionary();
       struct Entry {
         uint32_t index;
         InternalIndex entry;
       };
       std::vector<Entry> sorted;
-      sorted.reserve(dict->NumberOfElements());
-      ReadOnlyRoots roots(isolate);
-      for (InternalIndex i : dict->IterateEntries()) {
-        Tagged<Object> key = dict->KeyAt(i);
-        if (!dict->IsKey(roots, key)) continue;
-        uint32_t index =
-            static_cast<uint32_t>(Object::NumberValue(Cast<Number>(key)));
-        sorted.push_back({index, i});
+      DirectHandle<NumberDictionary> dict(array->element_dictionary(), isolate);
+      {
+        DisallowGarbageCollection no_gc;
+        ReadOnlyRoots roots(isolate);
+        sorted.reserve(dict->NumberOfElements());
+        for (InternalIndex i : dict->IterateEntries()) {
+          Tagged<Object> key = dict->KeyAt(i);
+          if (!dict->IsKey(roots, key)) continue;
+          uint32_t index =
+              static_cast<uint32_t>(Object::NumberValue(Cast<Number>(key)));
+          sorted.push_back({index, i});
+        }
+        std::sort(
+            sorted.begin(), sorted.end(),
+            [](const Entry& a, const Entry& b) { return a.index < b.index; });
       }
-      std::sort(
-          sorted.begin(), sorted.end(),
-          [](const Entry& a, const Entry& b) { return a.index < b.index; });
-      for (const Entry& entry : sorted) {
-        Tagged<Object> value = dict->ValueAt(entry.entry);
-        // TODO(13270): When we switch to CSS, we can pass {element} to
-        // the callback directly, without {fake_handle}.
-        IndirectHandle<Object> fake_handle(reinterpret_cast<Address*>(&value));
+      FOR_WITH_HANDLE_SCOPE(isolate, size_t i = 0, i, i < sorted.size(), i++) {
+        const Entry& entry = sorted[i];
+        DirectHandle<Object> value(dict->ValueAt(entry.entry), isolate);
         Result result =
-            callback(entry.index, Utils::ToLocal(fake_handle), callback_data);
+            callback(entry.index, Utils::ToLocal(value), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
         }
