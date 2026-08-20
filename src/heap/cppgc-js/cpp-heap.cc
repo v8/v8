@@ -49,6 +49,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap.h"
+#include "src/heap/incremental-marking.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/traced-handles-marking-visitor.h"
@@ -1078,9 +1079,9 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
                          std::memory_order_relaxed);
     allocated_size_ += bytes_to_report;
 
-    if (v8_flags.incremental_marking) {
-      if (allocated_size_ > allocated_size_limit_for_check_) {
-        Heap* heap = isolate_->heap();
+    Heap* heap = isolate_->heap();
+    if (allocated_size_ > allocated_size_limit_for_check_) {
+      if (v8_flags.incremental_marking) {
         heap->StartIncrementalMarkingIfAllocationLimitIsReached(
             heap->main_thread_local_heap(),
             heap->GCFlagsForIncrementalMarking(),
@@ -1093,9 +1094,17 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
             heap->incremental_marking()->AdvanceOnAllocation();
           }
         }
-        allocated_size_limit_for_check_ =
-            allocated_size_ + kIncrementalMarkingCheckInterval;
+      } else if (heap->deserialization_complete()) {
+        if (heap->GlobalSpaceAvailable() == 0 ||
+            heap->OldGenerationSpaceAvailable() == 0) {
+          heap->CollectGarbage(
+              OLD_SPACE, heap->OldGenerationSpaceAvailable() == 0
+                             ? GarbageCollectionReason::kAllocationLimit
+                             : GarbageCollectionReason::kGlobalAllocationLimit);
+        }
       }
+      allocated_size_limit_for_check_ =
+          allocated_size_ + kIncrementalMarkingCheckInterval;
     }
   }
 }
