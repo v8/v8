@@ -2814,6 +2814,46 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64ShlWithChangeUint32ToUint64) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest,
+       Word64ShlBelow32WithChangeInt32ToInt64) {
+  TRACED_FORRANGE(int32_t, x, 1, 31) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
+    OpIndex const p0 = m.Parameter(0);
+    OpIndex const n =
+        m.Word64ShiftLeft(m.ChangeInt32ToInt64(p0), m.Int32Constant(x));
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Sbfiz, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(x, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(32, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       Word64ShlBelow32WithChangeUint32ToUint64) {
+  TRACED_FORRANGE(int32_t, x, 1, 31) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Uint32());
+    OpIndex const p0 = m.Parameter(0);
+    OpIndex const n =
+        m.Word64ShiftLeft(m.ChangeUint32ToUint64(p0), m.Int32Constant(x));
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ubfiz, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(x, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(32, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+  }
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, TruncateWord64ToWord32WithWord64Sar) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int64());
   OpIndex const p = m.Parameter(0);

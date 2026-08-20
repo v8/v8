@@ -2065,6 +2065,15 @@ void InstructionSelector::VisitWord64Shl(OpIndex node) {
            g.UseImmediate64(shift_by));
       return;
     }
+    if (base::IsInRange(shift_by, 1, 31) && CanCover(node, shift_op.left())) {
+      // A bitfield insert (sbfiz/ubfiz) sign/zero-extends the low 32 bits of
+      // the input and shifts them into place in a single instruction.
+      Emit(lhs.Is<Opmask::kChangeInt32ToInt64>() ? kArm64Sbfiz : kArm64Ubfiz,
+           g.DefineAsRegister(node),
+           g.UseRegister(lhs.Cast<ChangeOp>().input()),
+           g.UseImmediate(static_cast<int32_t>(shift_by)), g.UseImmediate(32));
+      return;
+    }
   }
   VisitRRO(this, kArm64Lsl, node, kShift64Imm);
 }
