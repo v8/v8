@@ -12795,7 +12795,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
               // signature and receiver is not a JSReceiver the signature check
               // in CallFunctionTemplate builtin will fail anyway, so we can
               // short cut it here and throw kIllegalInvocation immediately.
-              js_receiver = ToObject_Inline(context, receiver);
+              js_receiver = ConvertReceiver(context, receiver);
               break;
           }
           TNode<JSReceiver> holder_receiver = *holder;
