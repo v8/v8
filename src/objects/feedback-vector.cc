@@ -15,6 +15,7 @@
 #include "src/heap/local-factory-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector-inl.h"
@@ -1115,6 +1116,21 @@ SpeculationMode FeedbackNexus::GetSpeculationMode() {
   CHECK(IsSmi(call_count));
   uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
   return SpeculationModeField::decode(value);
+}
+
+std::optional<Tagged<Code>> FeedbackNexus::GetOptimizedOsrCode(
+    IsolateForSandbox isolate) const {
+  DCHECK_EQ(kind(), FeedbackSlotKind::kJumpLoop);
+  Tagged<MaybeObject> maybe_code = GetFeedback();
+  Tagged<HeapObject> heap_object;
+  if (maybe_code.GetHeapObjectIfWeak(&heap_object)) {
+    Tagged<CodeWrapper> code_wrapper = Cast<CodeWrapper>(heap_object);
+    Tagged<Code> code = code_wrapper->code(isolate, kAcquireLoad);
+    if (!code->marked_for_deoptimization()) {
+      return code;
+    }
+  }
+  return {};
 }
 
 CallFeedbackContent FeedbackNexus::GetCallFeedbackContent() {

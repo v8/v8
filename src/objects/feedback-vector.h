@@ -1084,6 +1084,10 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
       SpeculationModeField::Next<CallFeedbackContent, 1>;
   using CallCountField = CallFeedbackContentField::Next<uint32_t, 29>;
 
+  // For JumpLoop.
+  std::optional<Tagged<Code>> GetOptimizedOsrCode(
+      IsolateForSandbox isolate) const;
+
   // For InstanceOf ICs.
   MaybeDirectHandle<JSObject> GetConstructorFeedback() const;
 

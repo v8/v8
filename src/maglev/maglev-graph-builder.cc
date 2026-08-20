@@ -65,7 +65,6 @@
 #include "src/objects/arguments.h"
 #include "src/objects/contexts.h"
 #include "src/objects/elements-kind.h"
-#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
@@ -16709,8 +16708,8 @@ bool MaglevGraphBuilder::ShouldEmitOsrInterruptBudgetChecks(
       return true;
     }
     std::optional<Tagged<Code>> maybe_osr_code =
-        compilation_unit_->feedback().object()->GetOptimizedOsrCode(
-            broker()->isolate(), {}, feedback_slot);
+        FeedbackNexusForSlot(feedback_slot)
+            .GetOptimizedOsrCode(broker()->isolate());
     if (maybe_osr_code.has_value()) return true;
   }
   return false;
