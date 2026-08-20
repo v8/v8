@@ -181,6 +181,65 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     return result;
   }
 
+  V<Object> BuildCheckWasmObject(V<Object> input, V<Context> js_context,
+                                 CanonicalValueType type,
+                                 InstanceType instance_type) {
+    Block* done = __ NewBlock();
+    Block* type_error = __ NewBlock();
+    DCHECK(type.use_wasm_null());
+    ScopedVar<Object> result(this,
+                             __ template LoadRoot<RootIndex::kWasmNull>());
+
+    __ GotoIf(__ IsSmi(input), type_error, BranchHint::kFalse);
+
+    if (type.is_nullable()) {
+      __ GotoIf(
+          __ TaggedEqual(input, __ template LoadRoot<RootIndex::kNullValue>()),
+          done);
+    }
+
+    V<Map> map = LoadMap(input);
+    V<Word32> is_wasm_object_of_instance_type =
+        __ Word32Equal(__ LoadInstanceTypeField(map), instance_type);
+    __ GotoIfNot(is_wasm_object_of_instance_type, type_error,
+                 BranchHint::kTrue);
+
+    if (v8_flags.wasm_shared) {
+      V<WordPtr> flags = __ LoadPageFlags(V<HeapObject>::Cast(input));
+      V<WordPtr> page_flags = __ WordPtrBitwiseAnd(
+          flags, static_cast<uintptr_t>(MemoryChunk::kInSharedHeap));
+      if (type.is_shared()) {
+        __ GotoIf(__ WordPtrEqual(page_flags, 0), type_error);
+      } else {
+        __ GotoIfNot(__ WordPtrEqual(page_flags, 0), type_error);
+      }
+#ifdef DEBUG
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+      // Wasm GC objects (structs/arrays) are currently never allocated in
+      // read-only space. Verify this invariant to guard against future changes
+      // where constant Wasm objects might be placed in RO space.
+      V<Word32> lower32 = __ TruncateWordPtrToWord32(
+          __ BitcastTaggedToWordPtr(V<HeapObject>::Cast(input)));
+      TSA_DCHECK(this, __ Uint32LessThanOrEqual(
+                           __ Word32Constant(static_cast<uint32_t>(
+                               kContiguousReadOnlyReservationSize)),
+                           lower32));
+#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+#endif  // DEBUG
+    }
+
+    result = input;
+    __ Goto(done);
+
+    __ Bind(type_error);
+    __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
+                       js_context);
+    __ Unreachable();
+
+    __ Bind(done);
+    return result;
+  }
+
   V<Float32> BuildChangeTaggedToFloat32(
       V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
@@ -426,6 +485,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         }
         case GenericKind::kString:
           return BuildCheckString(input, context, type);
+        case GenericKind::kStruct:
+          return BuildCheckWasmObject(input, context, type, WASM_STRUCT_TYPE);
+        case GenericKind::kArray:
+          return BuildCheckWasmObject(input, context, type, WASM_ARRAY_TYPE);
 
         case GenericKind::kNoExtern:
         case GenericKind::kNoFunc:
@@ -434,8 +497,6 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         case GenericKind::kAny:
         case GenericKind::kEq:
         case GenericKind::kI31:
-        case GenericKind::kStruct:
-        case GenericKind::kArray:
           break;  // Fall through.
 
         case GenericKind::kVoid:

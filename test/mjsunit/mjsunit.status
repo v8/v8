@@ -134,6 +134,7 @@
   'harmony/promise-any-overflow-1': [SKIP],
   'migrations': [SKIP],
   'regress/regress-2073': [SKIP],
+  'wasm/wrapper-microbenchmark': [SKIP],
 
   ##############################################################################
   # Tests verifying CHECK and ASSERT.
