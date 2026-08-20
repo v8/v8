@@ -2543,5 +2543,66 @@ TEST_F(HeapTest, OptimizedPretenuringDoubleArrayLiterals) {
   EXPECT_TRUE(heap()->InOldSpace(o->elements()));
   EXPECT_TRUE(heap()->InOldSpace(*o));
 }
+
+TEST_F(HeapTest, OptimizedPretenuringNestedMixedArrayLiterals) {
+  v8_flags.allow_natives_syntax = true;
+  v8_flags.expose_gc = true;
+  if (!i_isolate()->use_optimizer()) return;
+  if (v8_flags.gc_global || v8_flags.stress_compaction ||
+      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
+    return;
+  }
+  v8::HandleScope scope(v8_isolate());
+  const char* extension_names[] = {"v8/gc"};
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate(), &extensions);
+  v8::Context::Scope context_scope(ctx);
+  ManualGCScope manual_gc_scope(i_isolate());
+  GrowNewSpaceToMaximumCapacity();
+
+  static const int kPretenureCreationCount =
+      PretenuringHandler::GetMinMementoCountForTesting() + 1;
+
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
+                 "var number_elements = %d;"
+                 "var elements = new Array(number_elements);"
+                 "function f() {"
+                 "  for (var i = 0; i < number_elements; i++) {"
+                 "    elements[i] = [[{}, {}, {}], [1.1, 2.2, 3.3]];"
+                 "  }"
+                 "  return elements[number_elements - 1];"
+                 "};"
+                 "%%PrepareFunctionForOptimization(f);"
+                 "f(); gc({type: 'minor'});"
+                 "f(); f();"
+                 "%%OptimizeFunctionOnNextCall(f);"
+                 "f();",
+                 kPretenureCreationCount);
+
+  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.begin()));
+
+  v8::Local<v8::Value> int_array = v8::Utils::ToLocal(o)
+                                       ->ToObject(ctx)
+                                       .ToLocalChecked()
+                                       ->Get(ctx, NewString("0"))
+                                       .ToLocalChecked();
+  i::DirectHandle<JSObject> int_array_handle = i::Cast<JSObject>(
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(int_array)));
+  v8::Local<v8::Value> double_array = v8::Utils::ToLocal(o)
+                                          ->ToObject(ctx)
+                                          .ToLocalChecked()
+                                          ->Get(ctx, NewString("1"))
+                                          .ToLocalChecked();
+  i::DirectHandle<JSObject> double_array_handle = i::Cast<JSObject>(
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(double_array)));
+
+  EXPECT_TRUE(heap()->InOldSpace(*o));
+  EXPECT_TRUE(heap()->InOldSpace(*int_array_handle));
+  EXPECT_TRUE(heap()->InOldSpace(int_array_handle->elements()));
+  EXPECT_TRUE(heap()->InOldSpace(*double_array_handle));
+  EXPECT_TRUE(heap()->InOldSpace(double_array_handle->elements()));
+}
 }  // namespace internal
 }  // namespace v8
