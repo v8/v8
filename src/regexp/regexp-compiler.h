@@ -11,6 +11,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
+#include "src/codegen/label.h"
 #include "src/regexp/regexp-flags.h"
 #include "src/regexp/regexp-nodes.h"
 
@@ -24,6 +25,15 @@ namespace regexp {
 class Diagnostics;
 class DynamicBitSet;
 class SpecialLoopState;
+
+class NonAssertingLabel : public Label {
+ public:
+  explicit NonAssertingLabel(Compiler* compiler) : compiler_(compiler) {}
+  ~NonAssertingLabel();
+
+ private:
+  Compiler* compiler_;
+};
 
 namespace compiler_constants {
 
@@ -503,7 +513,8 @@ class Trace {
 // regexp).
 class SpecialLoopState {
  public:
-  explicit SpecialLoopState(bool not_at_start, ChoiceNode* loop_choice_node);
+  SpecialLoopState(Compiler* compiler, bool not_at_start,
+                   ChoiceNode* loop_choice_node);
 
   void BindStepLabel(RegExpMacroAssembler* macro_assembler);
   void BindLoopTopLabel(RegExpMacroAssembler* macro_assembler);
@@ -514,8 +525,8 @@ class SpecialLoopState {
  private:
   // Step backwards (fixed length greed loop) or forwards (non-greedy
   // omnivourous loop.
-  Label step_label_;
-  Label loop_top_label_;
+  NonAssertingLabel step_label_;
+  NonAssertingLabel loop_top_label_;
   ChoiceNode* loop_choice_node_;
   Trace backtrack_trace_;
 };
