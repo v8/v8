@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "include/v8-callbacks.h"
+#include "include/v8-function.h"
 #include "include/v8-initialization.h"
 #include "include/v8-isolate.h"
 #include "include/v8-object.h"
@@ -2603,6 +2604,33 @@ TEST_F(HeapTest, OptimizedPretenuringNestedMixedArrayLiterals) {
   EXPECT_TRUE(heap()->InOldSpace(int_array_handle->elements()));
   EXPECT_TRUE(heap()->InOldSpace(*double_array_handle));
   EXPECT_TRUE(heap()->InOldSpace(double_array_handle->elements()));
+}
+
+TEST_F(HeapTest, IncrementalMarkingPreservesMonomorphicConstructor) {
+  if (!v8_flags.incremental_marking) return;
+  v8_flags.allow_natives_syntax = true;
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> ctx = v8_isolate()->GetCurrentContext();
+  // Prepare function f that contains a monomorphic IC for object
+  // originating from the same native context.
+  RunJS(ctx,
+        "function fun() { this.x = 1; };"
+        "function f(o) { return new o(); }"
+        "%EnsureFeedbackVectorForFunction(f);"
+        "f(fun); f(fun);");
+  DirectHandle<JSFunction> f = Cast<JSFunction>(
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
+          ctx->Global()
+              ->Get(ctx, v8::String::NewFromUtf8Literal(v8_isolate(), "f"))
+              .ToLocalChecked())));
+
+  DirectHandle<FeedbackVector> vector(f->feedback_vector(), i_isolate());
+  EXPECT_TRUE(vector->Get(FeedbackSlot(0)).IsWeakOrCleared());
+
+  SimulateIncrementalMarking();
+  InvokeMajorGC();
+
+  EXPECT_TRUE(vector->Get(FeedbackSlot(0)).IsWeakOrCleared());
 }
 }  // namespace internal
 }  // namespace v8

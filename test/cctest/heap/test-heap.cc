@@ -1181,33 +1181,6 @@ static void CheckVectorIC(DirectHandle<JSFunction> f, int slot_index,
   CHECK(nexus.ic_state() == desired_state);
 }
 
-TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
-  if (!v8_flags.incremental_marking) return;
-  v8_flags.allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-  // Prepare function f that contains a monomorphic IC for object
-  // originating from the same native context.
-  CompileRun(
-      "function fun() { this.x = 1; };"
-      "function f(o) { return new o(); }"
-      "%EnsureFeedbackVectorForFunction(f);"
-      "f(fun); f(fun);");
-  DirectHandle<JSFunction> f = Cast<JSFunction>(
-      v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
-
-  DirectHandle<FeedbackVector> vector(f->feedback_vector(),
-                                      CcTest::i_isolate());
-  CHECK(vector->Get(FeedbackSlot(0)).IsWeakOrCleared());
-
-  heap::SimulateIncrementalMarking(CcTest::heap());
-  heap::InvokeMajorGC(CcTest::heap());
-
-  CHECK(vector->Get(FeedbackSlot(0)).IsWeakOrCleared());
-}
-
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (!v8_flags.use_ic) return;
   if (!v8_flags.incremental_marking) return;
