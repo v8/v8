@@ -1080,15 +1080,8 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
     allocated_size_ += bytes_to_report;
 
     Heap* heap = isolate_->heap();
-    if (allocated_size_ > allocated_size_limit_for_check_ &&
-        heap->deserialization_complete()) {
-      LocalHeap* local_heap = heap->main_thread_local_heap();
-      if (!heap->ShouldExpandOldGenerationOnSlowAllocation(
-              local_heap, AllocationOrigin::kRuntime)) {
-        heap->CollectGarbageWithRetry(
-            local_heap, AllocationSpace::OLD_SPACE,
-            GarbageCollectionReason::kGlobalAllocationLimit);
-      } else if (v8_flags.incremental_marking) {
+    if (allocated_size_ > allocated_size_limit_for_check_) {
+      if (v8_flags.incremental_marking) {
         heap->StartIncrementalMarkingIfAllocationLimitIsReached(
             heap->main_thread_local_heap(),
             heap->GCFlagsForIncrementalMarking(),
@@ -1100,6 +1093,14 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
           } else {
             heap->incremental_marking()->AdvanceOnAllocation();
           }
+        }
+      } else if (heap->deserialization_complete()) {
+        if (heap->GlobalSpaceAvailable() == 0 ||
+            heap->OldGenerationSpaceAvailable() == 0) {
+          heap->CollectGarbage(
+              OLD_SPACE, heap->OldGenerationSpaceAvailable() == 0
+                             ? GarbageCollectionReason::kAllocationLimit
+                             : GarbageCollectionReason::kGlobalAllocationLimit);
         }
       }
       allocated_size_limit_for_check_ =
