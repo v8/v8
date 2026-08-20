@@ -8824,6 +8824,106 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
   return BuildCallBuiltin<Builtin::kCloneFastJSArray>({receiver});
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+
+  ValueNode* search_element =
+      args[0] ? args[0] : GetRootConstant(RootIndex::kundefined_string);
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+
+  if (!NodeTypeIs(GetType(search_element), NodeType::kString)) return {};
+
+  ValueNode* start_arg = GetValueOrUndefined(args[1]);
+  ValueNode* start =
+      start_arg->IsUndefinedValue() ? GetInt32Constant(0) : start_arg;
+
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+  RETURN_IF_ABORT(BuildCheckSmi(start));
+
+  ValueNode* receiver_length;
+  GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
+
+  // min(max(start, 0), receiver_length)
+  ValueNode* max_value;
+  GET_VALUE_OR_ABORT(max_value, BuildInt32Max(start, GetInt32Constant(0)));
+  ValueNode* min_value;
+  GET_VALUE_OR_ABORT(min_value, BuildInt32Min(max_value, receiver_length));
+  ValueNode* clamped_start;
+  GET_VALUE_OR_ABORT(clamped_start, GetInt32(min_value));
+
+  ValueNode* search_length;
+  GET_VALUE_OR_ABORT(search_length, BuildLoadStringLength(search_element));
+
+  // TODO(all): Introduce a ForInt32 helper.
+  MaglevSubGraphBuilder sub_graph(this, 2);
+  MaglevSubGraphBuilder::Variable ret_val(0);
+  MaglevSubGraphBuilder::Variable var_i(1);
+  MaglevSubGraphBuilder::Label done(&sub_graph, 2, {&ret_val});
+  MaglevSubGraphBuilder::Label return_false(&sub_graph, 2);
+
+  // receiver_length - clamped_start < search_length
+  ValueNode* remaining;
+  GET_VALUE_OR_ABORT(
+      remaining, AddNewNode<Int32Subtract>({receiver_length, clamped_start}));
+  RETURN_IF_ABORT(sub_graph.GotoIfTrue<BranchIfInt32Compare>(
+      &return_false, {remaining, search_length}, Operation::kLessThan));
+
+  // i = 0
+  sub_graph.set(var_i, GetInt32Constant(0));
+  MaglevSubGraphBuilder::LoopLabel loop_header = sub_graph.BeginLoop({&var_i});
+  MaglevSubGraphBuilder::Label return_true(&sub_graph, 1);
+
+  ValueNode* index_int32 = sub_graph.get(var_i);
+
+  // if (i < search_length) continue; else exit loop
+  RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfInt32Compare>(
+      &return_true, {index_int32, search_length}, Operation::kLessThan));
+
+  // pos = clamped_start + i
+  ValueNode* pos;
+  GET_VALUE_OR_ABORT(pos, AddNewNode<Int32Add>({clamped_start, index_int32}));
+
+  // TODO(dmercadier): without static knowledge about maps shapes (which we
+  // probably don't have), BuildGetCharCodeAt generates fairly expensive code
+  // since it needs to handle all string shapes. It would be more efficient to
+  // have a pre-processing before the loop that computes a single linear buffer
+  // for each string (+ maybe an index, for SlicedString in particular), that's
+  // then accessed directly in the loop (cf StringPrepareForGetCodeUnit in
+  // Turboshaft). Here in particular, the loop doesn't contain anything that can
+  // trigger a GC, so this should be safe.
+  ValueNode* lhs_ch;
+  GET_VALUE_OR_ABORT(lhs_ch, BuildGetCharCodeAt(receiver, pos));
+  ValueNode* rhs_ch;
+  GET_VALUE_OR_ABORT(rhs_ch, BuildGetCharCodeAt(search_element, index_int32));
+  ValueNode* is_equal;
+  GET_VALUE_OR_ABORT(is_equal, BuildTaggedEqual(lhs_ch, rhs_ch));
+
+  // If chars are not equal, return false.
+  RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfRootConstant>(
+      &return_false, {is_equal}, RootIndex::kTrueValue));
+
+  // i++; goto loop_header
+  ValueNode* next_index_int32;
+  GET_VALUE_OR_ABORT(
+      next_index_int32,
+      AddNewNode<Int32Add>({sub_graph.get(var_i), GetInt32Constant(1)}));
+  sub_graph.set(var_i, next_index_int32);
+  sub_graph.EndLoop(&loop_header);
+
+  sub_graph.Bind(&return_true);
+  sub_graph.set(ret_val, GetRootConstant(RootIndex::kTrueValue));
+  sub_graph.Goto(&done);
+
+  sub_graph.Bind(&return_false);
+  sub_graph.set(ret_val, GetRootConstant(RootIndex::kFalseValue));
+  sub_graph.Goto(&done);
+
+  sub_graph.Bind(&done);
+  return sub_graph.get(ret_val);
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetByteLength(
     compiler::JSFunctionRef target, CallArguments& args) {
   // We cannot check CanSpeculateCall here, since this is a getter.

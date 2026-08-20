@@ -914,7 +914,8 @@ class MaglevGraphBuilder {
   V(ObjectPrototypeHasOwnProperty)               \
   V(NumberParseInt)                              \
   V(SetPrototypeHas)                             \
-  V(StringConstructor)
+  V(StringConstructor)                           \
+  V(StringPrototypeStartsWith)
 
 #define DEFINE_BUILTIN_REDUCER(Name, ...)                           \
   MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \
@@ -1181,6 +1182,9 @@ class MaglevGraphBuilder {
       std::pair<interpreter::Register, interpreter::Register> result);
 
   ReduceResult BuildSmiUntag(ValueNode* node);
+  ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index) {
+    return reducer_.BuildGetCharCodeAt(string, index);
+  }
 
   ReduceResult BuildCheckSmi(ValueNode* object);
   ReduceResult BuildCheckNumber(ValueNode* object);

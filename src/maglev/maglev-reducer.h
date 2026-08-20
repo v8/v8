@@ -1248,7 +1248,6 @@ class MaglevReducer {
   V(StringPrototypeCodePointAt)                \
   V(StringPrototypeSlice)                      \
   V(StringPrototypeSubstring)                  \
-  V(StringPrototypeStartsWith)                 \
   V(StringPrototypeIndexOf)                    \
   V(StringPrototypeIncludes)                   \
   V(StringPrototypeIterator)                   \
