@@ -140,6 +140,7 @@ def _default_args():
                 "-Wno-invalid-offsetof",
                 "-Wno-deprecated-this-capture",
                 "-Wno-deprecated-declarations",
+                "-Wno-deprecated-attributes",
                 "-std=c++20",
             ],
             "@v8//bazel/config:is_gcc": [
