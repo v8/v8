@@ -784,7 +784,8 @@ Reduction LoadElimination::ReduceMapGuard(Node* node) {
 }
 
 Reduction LoadElimination::ReduceCheckMaps(Node* node) {
-  ZoneRefSet<Map> const& maps = CheckMapsParametersOf(node->op()).maps();
+  CheckMapsParameters const& p = CheckMapsParametersOf(node->op());
+  ZoneRefSet<Map> const& maps = p.maps();
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
@@ -793,6 +794,12 @@ Reduction LoadElimination::ReduceCheckMaps(Node* node) {
   if (state->LookupMaps(object, &object_maps)) {
     if (maps.contains(object_maps)) return Replace(effect);
     // TODO(turbofan): Compute the intersection.
+  }
+  if (p.flags() & (CheckMapsFlag::kTryMigrateInstance |
+                   CheckMapsFlag::kTryMigrateInstanceAndDeopt)) {
+    state = state->KillFields(object, MaybeHandle<Name>(), zone());
+    state = state->KillConstField(
+        object, IndexRange(0, kMaxTrackedFieldsPerObject), zone());
   }
   state = state->SetMaps(object, maps, zone());
   return UpdateState(node, state);
@@ -1452,7 +1459,17 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             state = state->KillElement(object, index, zone());
             break;
           }
-          case IrOpcode::kCheckMaps:
+          case IrOpcode::kCheckMaps: {
+            CheckMapsParameters const& p = CheckMapsParametersOf(current->op());
+            if (p.flags() & (CheckMapsFlag::kTryMigrateInstance |
+                             CheckMapsFlag::kTryMigrateInstanceAndDeopt)) {
+              Node* const object = NodeProperties::GetValueInput(current, 0);
+              state = state->KillFields(object, MaybeHandle<Name>(), zone());
+              state = state->KillConstField(
+                  object, IndexRange(0, kMaxTrackedFieldsPerObject), zone());
+            }
+            break;
+          }
           case IrOpcode::kStoreTypedElement: {
             // Doesn't affect anything we track with the state currently.
             break;
