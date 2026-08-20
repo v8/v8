@@ -4218,8 +4218,7 @@ class TurboshaftGraphBuildingInterface
             -> AllocateVector<compiler::turboshaft::EffectHandler>(
                              handlers.size());
     for (size_t i = 0; i < handlers.size(); ++i) {
-      DCHECK(handlers[i].tag.index >= 0 &&
-             handlers[i].tag.index < kV8MaxWasmTags);
+      DCHECK_LT(handlers[i].tag.index, decoder->module_->tags.size());
       asm_handlers[i].tag_and_kind.encode(
           handlers[i].kind == wasm::SwitchKind::kSwitch, handlers[i].tag.index);
       asm_handlers[i].block = __ NewBlock();
