@@ -431,11 +431,6 @@ static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
   return object->Get(context, v8_str.ToLocalChecked());
 }
 
-static Local<Value> GetValue(v8::Isolate* isolate, Local<Context> context,
-                             Local<v8::Object> object, const char* property) {
-  return TryGetValue(isolate, context, object, property).ToLocalChecked();
-}
-
 i::CppGCManaged<Worker>::Ptr GetWorkerFromInternalField(Isolate* isolate,
                                                         Local<Object> object) {
   if (object->InternalFieldCount() != 1) {
@@ -572,17 +567,38 @@ class TraceConfigParser {
     Context::Scope context_scope(context);
     HandleScope inner_scope(isolate);
 
+    TryCatch try_catch(isolate);
+    FillTraceConfigImpl(isolate, context, trace_config, json_str);
+    if (try_catch.HasCaught()) {
+      printf("Failed to parse trace config.\n\n");
+      Shell::ReportException(isolate, try_catch);
+      base::OS::ExitProcess(1);
+    }
+  }
+
+ private:
+  static void FillTraceConfigImpl(v8::Isolate* isolate, Local<Context> context,
+                                  platform::tracing::TraceConfig* trace_config,
+                                  base::Vector<char> json_str) {
+    if (json_str.size() > v8::String::kMaxLength) {
+      isolate->ThrowError("Trace config is too big.");
+      return;
+    }
     int length = base::checked_cast<int>(json_str.size());
     Local<String> source = String::NewFromUtf8(isolate, json_str.data(),
                                                NewStringType::kNormal, length)
                                .ToLocalChecked();
-    Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
+    Local<Value> result;
+    if (!JSON::Parse(context, source).ToLocal(&result)) return;
+    CHECK(result->IsObject());
+
     Local<v8::Object> trace_config_object = result.As<v8::Object>();
     // Try reading 'trace_config' property from a full chrome trace config.
     // https://chromium.googlesource.com/chromium/src/+/master/docs/memory-infra/memory_infra_startup_tracing.md#the-advanced-way
-    Local<Value> maybe_trace_config_object =
-        GetValue(isolate, context, trace_config_object, kTraceConfigParam);
-    if (maybe_trace_config_object->IsObject()) {
+    Local<Value> maybe_trace_config_object;
+    if (TryGetValue(isolate, context, trace_config_object, kTraceConfigParam)
+            .ToLocal(&maybe_trace_config_object) &&
+        maybe_trace_config_object->IsObject()) {
       trace_config_object = maybe_trace_config_object.As<Object>();
     }
 
@@ -594,16 +610,19 @@ class TraceConfigParser {
   static int UpdateIncludedCategoriesList(
       v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object,
       platform::tracing::TraceConfig* trace_config) {
-    Local<Value> value =
-        GetValue(isolate, context, object, kIncludedCategoriesParam);
+    Local<Value> value;
+    if (!TryGetValue(isolate, context, object, kIncludedCategoriesParam)
+             .ToLocal(&value)) {
+      return 0;
+    }
     if (value->IsArray()) {
       Local<Array> v8_array = value.As<Array>();
       for (int i = 0, length = v8_array->Length(); i < length; ++i) {
-        Local<Value> v = v8_array->Get(context, i)
-                             .ToLocalChecked()
-                             ->ToString(context)
-                             .ToLocalChecked();
-        String::Utf8Value str(isolate, v->ToString(context).ToLocalChecked());
+        Local<Value> v;
+        if (!v8_array->Get(context, i).ToLocal(&v)) return 0;
+        Local<String> str_val;
+        if (!v->ToString(context).ToLocal(&str_val)) return 0;
+        String::Utf8Value str(isolate, str_val);
         trace_config->AddIncludedCategory(*str);
       }
       return v8_array->Length();
@@ -8214,6 +8233,11 @@ int Shell::Main(int argc, char* argv[]) {
         if (options.trace_config) {
           base::OwnedVector<char> trace_config_json_str =
               ReadChars(options.trace_config);
+          if (trace_config_json_str.data() == nullptr) {
+            printf("Failed to read trace config from '%s'\n",
+                   options.trace_config.get());
+            base::OS::ExitProcess(1);
+          }
           trace_config = tracing::CreateTraceConfigFromJSON(
               isolate, trace_config_json_str.as_vector());
         } else {
