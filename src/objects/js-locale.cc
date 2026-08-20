@@ -287,28 +287,30 @@ bool JSLocale::StartsWithUnicodeLanguageId(std::string_view value) {
 }
 
 namespace {
-// Return true if variants contain duplicate elements.
-bool DuplicateVariants(std::string variants) {
+// Return false if variants contain duplicate elements or invalid delimiters.
+bool IsValidVariants(std::string_view variants) {
   // The length of one unicode_variant_subtag is between 4-8. To have
-  // duplicate, the length of the variants need to be >= 4+1+4 = 9.
+  // duplicate or multiple subtags, the length of the variants need to be >=
+  // 4+1+4 = 9.
   if (variants.length() >= 9) {
-    std::transform(
-        variants.begin(), variants.end(), variants.begin(),
-        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    size_t pos = 0;
-    size_t count = 1;
     std::set<std::string> set;
-    while ((pos = variants.find('-')) != std::string::npos) {
-      set.insert(variants.substr(0, pos));
-      variants.erase(0, pos + 1);
-      count++;
-    }
-    set.insert(variants);
-    if (count != set.size()) {
-      return true;
+    size_t start = 0;
+    for (size_t i = 0; i <= variants.length(); ++i) {
+      if (i == variants.length() || variants[i] == '-') {
+        std::string subtag(variants.substr(start, i - start));
+        std::transform(
+            subtag.begin(), subtag.end(), subtag.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (!set.insert(subtag).second) {
+          return false;
+        }
+        start = i + 1;
+      } else if (variants[i] == '_') {
+        return false;
+      }
     }
   }
-  return false;
+  return true;
 }
 Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
                               DirectHandle<JSReceiver> options,
@@ -416,7 +418,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
     }
     // e. If variantSubtags contains any duplicate elements, throw a
     // RangeError exception.
-    if (DuplicateVariants(variants_stdstr)) {
+    if (!IsValidVariants(variants_stdstr)) {
       return Just(false);
     }
   }
