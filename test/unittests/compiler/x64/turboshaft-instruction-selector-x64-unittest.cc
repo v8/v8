@@ -2984,6 +2984,106 @@ TEST_F(TurboshaftInstructionSelectorTest, SIMDF32x4SConvert) {
   EXPECT_EQ(1U, s[2]->OutputCount());
 }
 
+#ifdef V8_ENABLE_AVX10_1
+TEST_F(TurboshaftInstructionSelectorTest, I64x2MulAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  V<Simd128> lhs = m.Parameter<Simd128>(0);
+  V<Simd128> rhs = m.Parameter<Simd128>(1);
+  m.Return(m.I64x2Mul(lhs, rhs));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64IMul, s[0]->arch_opcode());
+  EXPECT_EQ(LaneSize::kL64, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(VectorLength::kV128, VectorLengthField::decode(s[0]->opcode()));
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(1))->IsUsedAtStart());
+}
+
+#ifdef V8_ENABLE_SIMD256
+TEST_F(TurboshaftInstructionSelectorTest, I64x4MulAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd256(), MachineType::Simd256(),
+                  MachineType::Simd256());
+  V<Simd256> lhs = m.Parameter<Simd256>(0);
+  V<Simd256> rhs = m.Parameter<Simd256>(1);
+  m.Return(m.Simd256Binop(lhs, rhs, Simd256BinopOp::Kind::kI64x4Mul));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64IMul, s[0]->arch_opcode());
+  EXPECT_EQ(LaneSize::kL64, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(VectorLength::kV256, VectorLengthField::decode(s[0]->opcode()));
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(1))->IsUsedAtStart());
+}
+#endif  // V8_ENABLE_SIMD256
+
+TEST_F(TurboshaftInstructionSelectorTest, I64x2ShrSAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Int32());
+  V<Simd128> input = m.Parameter<Simd128>(0);
+  V<Word32> shift = m.Parameter<Word32>(1);
+  m.Return(m.I64x2ShrS(input, shift));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64IShrS, s[0]->arch_opcode());
+  EXPECT_EQ(LaneSize::kL64, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(VectorLength::kV128, VectorLengthField::decode(s[0]->opcode()));
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, I8x16PopcntAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> input = m.Parameter<Simd128>(0);
+  m.Return(m.I8x16Popcnt(input));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64I8x16Popcnt, s[0]->arch_opcode());
+  EXPECT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, I64x2AbsAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> input = m.Parameter<Simd128>(0);
+  m.Return(m.I64x2Abs(input));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64IAbs, s[0]->arch_opcode());
+  EXPECT_EQ(LaneSize::kL64, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(VectorLength::kV128, VectorLengthField::decode(s[0]->opcode()));
+  EXPECT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
+}
+#endif  // V8_ENABLE_AVX10_1
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST_F(TurboshaftInstructionSelectorTest, AtomicStoreWithWriteBarrier) {

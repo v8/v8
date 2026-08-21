@@ -3071,8 +3071,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I8x16Popcnt: {
       __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                     kScratchDoubleReg, i.TempSimd128Register(0),
-                     i.TempRegister(1));
+                     i.TempRegister(1), kScratchDoubleReg,
+                     i.TempSimd128Register(0));
       break;
     }
     case kIA32S128Const: {

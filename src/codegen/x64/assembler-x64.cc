@@ -39,6 +39,12 @@ bool UseApxCcmp() {
   return v8_flags.enable_apx_f_ccmp && CpuFeatures::IsSupported(APX_F);
 }
 #endif
+
+#ifdef V8_ENABLE_AVX10_1
+bool UseAvx10_1() {
+  return v8_flags.enable_avx10_1 && CpuFeatures::IsSupported(AVX10_1);
+}
+#endif
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
 
@@ -4729,7 +4735,6 @@ void Assembler::emit_sse_operand(XMMRegister dst) {
   emit(0xD8 | dst.low_bits());
 }
 
-#ifdef V8_ENABLE_AVX10_1
 void Assembler::emit_sse_operand(XMMRegister reg, Operand adr,
                                  uint8_t cd8_scale) {
   if (cd8_scale > 0) {
@@ -4802,7 +4807,6 @@ void Assembler::vpsraq(XMMRegister dst, Operand src, uint8_t imm8) {
   vinstr_evex(0x72, xmm4, dst, src, k66, k0F, kW1, kFull);
   emit(imm8);
 }
-#endif  // V8_ENABLE_AVX10_1
 
 void Assembler::db(uint8_t data) {
   EnsureSpace ensure_space(this);

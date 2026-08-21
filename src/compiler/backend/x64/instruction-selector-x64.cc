@@ -5452,11 +5452,19 @@ void InstructionSelector::VisitI64x2ShrS(OpIndex node) {
              VectorLengthField::encode(VectorLength::kV128),
          dst, g.UseRegister(op.input()), g.UseImmediate(op.shift()));
   } else {
-    InstructionOperand temps[] = {g.TempSimd128Register()};
+    int temp_count = 0;
+    InstructionOperand temps[1];
+    InstructionOperand input;
+    if (UseAvx10_1()) {
+      input = g.UseRegister(op.input());
+    } else {
+      input = g.UseUniqueRegister(op.input());
+      temps[temp_count++] = g.TempSimd128Register();
+    }
+
     Emit(kX64IShrS | LaneSizeField::encode(LaneSize::kL64) |
              VectorLengthField::encode(VectorLength::kV128),
-         dst, g.UseUniqueRegister(op.input()), g.UseRegister(op.shift()),
-         arraysize(temps), temps);
+         dst, input, g.UseRegister(op.shift()), temp_count, temps);
   }
 }
 
@@ -5464,10 +5472,18 @@ void InstructionSelector::VisitI64x2Mul(OpIndex node) {
   X64OperandGenerator g(this);
   const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
   DCHECK_EQ(op.input_count, 2);
+
+  InstructionCode opcode = kX64IMul | LaneSizeField::encode(LaneSize::kL64) |
+                           VectorLengthField::encode(VectorLength::kV128);
+
+  if (UseAvx10_1()) {
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.left()),
+         g.UseRegister(op.right()));
+    return;
+  }
+
   InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kX64IMul | LaneSizeField::encode(LaneSize::kL64) |
-           VectorLengthField::encode(VectorLength::kV128),
-       g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
+  Emit(opcode, g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
        g.UseUniqueRegister(op.right()), arraysize(temps), temps);
 }
 
@@ -5476,10 +5492,18 @@ void InstructionSelector::VisitI64x4Mul(OpIndex node) {
   X64OperandGenerator g(this);
   const Simd256BinopOp& op = Cast<Simd256BinopOp>(node);
   DCHECK_EQ(op.input_count, 2);
+
+  InstructionCode opcode = kX64IMul | LaneSizeField::encode(LaneSize::kL64) |
+                           VectorLengthField::encode(VectorLength::kV256);
+
+  if (UseAvx10_1()) {
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.left()),
+         g.UseRegister(op.right()));
+    return;
+  }
+
   InstructionOperand temps[] = {g.TempSimd256Register()};
-  Emit(kX64IMul | LaneSizeField::encode(LaneSize::kL64) |
-           VectorLengthField::encode(VectorLength::kV256),
-       g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
+  Emit(opcode, g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
        g.UseUniqueRegister(op.right()), arraysize(temps), temps);
 #else
   UNREACHABLE();
@@ -6086,6 +6110,11 @@ void InstructionSelector::VisitI8x16Popcnt(OpIndex node) {
   X64OperandGenerator g(this);
   const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
   DCHECK_EQ(op.input_count, 1);
+
+  if (UseAvx10_1()) {
+    Emit(kX64I8x16Popcnt, g.DefineAsRegister(node), g.UseRegister(op.input()));
+    return;
+  }
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kX64I8x16Popcnt, g.DefineAsRegister(node),
        g.UseUniqueRegister(op.input()), arraysize(temps), temps);
@@ -6247,14 +6276,19 @@ void InstructionSelector::VisitI64x2Abs(OpIndex node) {
   X64OperandGenerator g(this);
   const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
   DCHECK_EQ(op.input_count, 1);
-  if (CpuFeatures::IsSupported(AVX)) {
-    Emit(kX64IAbs | LaneSizeField::encode(LaneSize::kL64) |
-             VectorLengthField::encode(VectorLength::kV128),
-         g.DefineAsRegister(node), g.UseUniqueRegister(op.input()));
+
+  InstructionCode opcode = kX64IAbs | LaneSizeField::encode(LaneSize::kL64) |
+                           VectorLengthField::encode(VectorLength::kV128);
+
+  if (UseAvx10_1()) {
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
+    return;
+  }
+
+  if (IsSupported(AVX)) {
+    Emit(opcode, g.DefineAsRegister(node), g.UseUniqueRegister(op.input()));
   } else {
-    Emit(kX64IAbs | LaneSizeField::encode(LaneSize::kL64) |
-             VectorLengthField::encode(VectorLength::kV128),
-         g.DefineSameAsFirst(node), g.UseRegister(op.input()));
+    Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(op.input()));
   }
 }
 

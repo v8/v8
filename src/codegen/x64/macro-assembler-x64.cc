@@ -2069,9 +2069,100 @@ void MacroAssembler::Cmp(Register dst, int32_t src) {
   }
 }
 
+void MacroAssembler::I64x2Abs(XMMRegister dst, XMMRegister src,
+                              XMMRegister scratch) {
+  if (UseAvx10_1()) {
+    ASM_CODE_COMMENT(this);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpabsq(dst, src);
+    return;
+  }
+  I64x2AbsPreAvx10(dst, src, scratch);
+}
+
+void MacroAssembler::I64x2ShrS(XMMRegister dst, XMMRegister src, uint8_t shift,
+                               XMMRegister xmm_tmp) {
+  DCHECK_GT(64, shift);
+  if (UseAvx10_1()) {
+    ASM_CODE_COMMENT(this);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpsraq(dst, src, shift);
+    return;
+  }
+  DCHECK(xmm_tmp.is_valid());
+  DCHECK_NE(xmm_tmp, dst);
+  DCHECK_NE(xmm_tmp, src);
+  I64x2ShrSPreAvx10(dst, src, shift, xmm_tmp);
+}
+
+void MacroAssembler::I64x2ShrS(XMMRegister dst, XMMRegister src, Register shift,
+                               XMMRegister xmm_tmp, XMMRegister xmm_shift,
+                               Register tmp_shift) {
+  DCHECK(xmm_shift.is_valid());
+  DCHECK(tmp_shift.is_valid());
+  DCHECK_NE(xmm_shift, dst);
+  DCHECK_NE(xmm_shift, src);
+  if (UseAvx10_1()) {
+    ASM_CODE_COMMENT(this);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    Move(tmp_shift, shift);
+    And(tmp_shift, Immediate(0x3F));
+    Movd(xmm_shift, tmp_shift);
+    vpsraq(dst, src, xmm_shift);
+    return;
+  }
+
+  DCHECK(xmm_tmp.is_valid());
+  DCHECK_NE(xmm_tmp, dst);
+  DCHECK_NE(xmm_tmp, src);
+  DCHECK_NE(xmm_tmp, xmm_shift);
+  I64x2ShrSPreAvx10(dst, src, shift, xmm_tmp, xmm_shift, tmp_shift);
+}
+
+void MacroAssembler::I64x2Mul(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                              XMMRegister tmp1, XMMRegister tmp2) {
+  if (UseAvx10_1()) {
+    ASM_CODE_COMMENT(this);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpmullq(dst, lhs, rhs);
+    return;
+  }
+  DCHECK(tmp1.is_valid());
+  DCHECK(tmp2.is_valid());
+  DCHECK(!AreAliased(dst, tmp1, tmp2));
+  DCHECK(!AreAliased(lhs, tmp1, tmp2));
+  DCHECK(!AreAliased(rhs, tmp1, tmp2));
+  I64x2MulPreAvx10(dst, lhs, rhs, tmp1, tmp2);
+}
+
+void MacroAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
+                                 Register scratch, XMMRegister tmp1,
+                                 XMMRegister tmp2) {
+  if (UseAvx10_1()) {
+    ASM_CODE_COMMENT(this);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpopcntb(dst, src);
+    return;
+  }
+  DCHECK(tmp1.is_valid());
+  DCHECK(tmp2.is_valid());
+  DCHECK(scratch.is_valid());
+  DCHECK(!AreAliased(dst, tmp1, tmp2));
+  DCHECK(!AreAliased(src, tmp1, tmp2));
+  I8x16PopcntPreAvx10(dst, src, tmp1, tmp2, scratch);
+}
+
 void MacroAssembler::I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                               YMMRegister tmp1, YMMRegister tmp2) {
   ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpmullq(dst, lhs, rhs);
+    return;
+  }
+
+  DCHECK(tmp1.is_valid());
+  DCHECK(tmp2.is_valid());
   DCHECK(!AreAliased(dst, tmp1, tmp2));
   DCHECK(!AreAliased(lhs, tmp1, tmp2));
   DCHECK(!AreAliased(rhs, tmp1, tmp2));

@@ -978,8 +978,9 @@ void SharedMacroAssemblerBase::I64x2Neg(XMMRegister dst, XMMRegister src,
   }
 }
 
-void SharedMacroAssemblerBase::I64x2Abs(XMMRegister dst, XMMRegister src,
-                                        XMMRegister scratch) {
+void SharedMacroAssemblerBase::I64x2AbsPreAvx10(XMMRegister dst,
+                                                XMMRegister src,
+                                                XMMRegister scratch) {
   ASM_CODE_COMMENT(this);
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);
@@ -1068,8 +1069,9 @@ void SharedMacroAssemblerBase::I64x2GeS(XMMRegister dst, XMMRegister src0,
   }
 }
 
-void SharedMacroAssemblerBase::I64x2ShrS(XMMRegister dst, XMMRegister src,
-                                         uint8_t shift, XMMRegister xmm_tmp) {
+void SharedMacroAssemblerBase::I64x2ShrSPreAvx10(XMMRegister dst,
+                                                 XMMRegister src, uint8_t shift,
+                                                 XMMRegister xmm_tmp) {
   ASM_CODE_COMMENT(this);
   DCHECK_GT(64, shift);
   DCHECK_NE(xmm_tmp, dst);
@@ -1111,15 +1113,16 @@ void SharedMacroAssemblerBase::I64x2ShrS(XMMRegister dst, XMMRegister src,
   Psubq(dst, xmm_tmp);
 }
 
-void SharedMacroAssemblerBase::I64x2ShrS(XMMRegister dst, XMMRegister src,
-                                         Register shift, XMMRegister xmm_tmp,
-                                         XMMRegister xmm_shift,
-                                         Register tmp_shift) {
+void SharedMacroAssemblerBase::I64x2ShrSPreAvx10(
+    XMMRegister dst, XMMRegister src, Register shift, XMMRegister xmm_tmp,
+    XMMRegister xmm_shift, Register tmp_shift) {
   ASM_CODE_COMMENT(this);
   DCHECK_NE(xmm_tmp, dst);
   DCHECK_NE(xmm_tmp, src);
   DCHECK_NE(xmm_shift, dst);
   DCHECK_NE(xmm_shift, src);
+  DCHECK_NE(xmm_tmp, XMMRegister::no_reg());
+  DCHECK_NE(xmm_tmp, xmm_shift);
   // tmp_shift can alias shift since we don't use shift after masking it.
 
   // See I64x2ShrS with constant shift for explanation of this algorithm.
@@ -1141,9 +1144,11 @@ void SharedMacroAssemblerBase::I64x2ShrS(XMMRegister dst, XMMRegister src,
   Psubq(dst, xmm_tmp);
 }
 
-void SharedMacroAssemblerBase::I64x2Mul(XMMRegister dst, XMMRegister lhs,
-                                        XMMRegister rhs, XMMRegister tmp1,
-                                        XMMRegister tmp2) {
+void SharedMacroAssemblerBase::I64x2MulPreAvx10(XMMRegister dst,
+                                                XMMRegister lhs,
+                                                XMMRegister rhs,
+                                                XMMRegister tmp1,
+                                                XMMRegister tmp2) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(dst, tmp1, tmp2));
   DCHECK(!AreAliased(lhs, tmp1, tmp2));

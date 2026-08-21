@@ -5188,14 +5188,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case LaneSize::kL64: {
             // I64x2ShrS
-            // TODO(zhin): there is vpsraq but requires AVX512
             XMMRegister dst = i.OutputSimd128Register();
             XMMRegister src = i.InputSimd128Register(0);
             if (HasImmediateInput(instr, 1)) {
               __ I64x2ShrS(dst, src, i.InputInt6(1), kScratchDoubleReg);
             } else {
-              __ I64x2ShrS(dst, src, i.InputRegister(1), kScratchDoubleReg,
-                           i.TempSimd128Register(0), kScratchRegister);
+              XMMRegister temp = UseAvx10_1() ? XMMRegister::no_reg()
+                                              : i.TempSimd128Register(0);
+              __ I64x2ShrS(dst, src, i.InputRegister(1), temp,
+                           kScratchDoubleReg, kScratchRegister);
             }
             break;
           }
@@ -5366,9 +5367,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case LaneSize::kL64: {
             // I64x2Mul
+            XMMRegister temp =
+                UseAvx10_1() ? XMMRegister::no_reg() : i.TempSimd128Register(0);
             __ I64x2Mul(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                        i.InputSimd128Register(1), i.TempSimd128Register(0),
-                        kScratchDoubleReg);
+                        i.InputSimd128Register(1), temp, kScratchDoubleReg);
             break;
           }
           default:
@@ -5388,9 +5390,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case LaneSize::kL64: {
             // I64x4Mul
+            YMMRegister temp =
+                UseAvx10_1() ? YMMRegister::no_reg() : i.TempSimd256Register(0);
             __ I64x4Mul(i.OutputSimd256Register(), i.InputSimd256Register(0),
-                        i.InputSimd256Register(1), i.TempSimd256Register(0),
-                        kScratchSimd256Reg);
+                        i.InputSimd256Register(1), temp, kScratchSimd256Reg);
             break;
           }
           default:
@@ -6871,9 +6874,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16Popcnt: {
-      __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                     i.TempSimd128Register(0), kScratchDoubleReg,
-                     kScratchRegister);
+      if (UseAvx10_1()) {
+        __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                       kScratchRegister);
+      } else {
+        __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                       kScratchRegister, i.TempSimd128Register(0),
+                       kScratchDoubleReg);
+      }
       break;
     }
     case kX64S128Load8Splat: {

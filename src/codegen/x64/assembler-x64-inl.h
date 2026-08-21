@@ -303,7 +303,6 @@ void Assembler::emit_vex_prefix(Register reg, Register vreg, Operand rm,
 }
 
 // Vector-form EVEX prefix, shared by AVX10.1 and APX.
-#if defined(V8_ENABLE_AVX10_1) || defined(V8_ENABLE_APX_F)
 void Assembler::emit_evex_byte1(XMMRegister reg, XMMRegister rm,
                                 LeadingOpcode m) {
   uint8_t rxb = static_cast<uint8_t>(
@@ -370,7 +369,6 @@ void Assembler::emit_evex_prefix(XMMRegister reg, XMMRegister vreg, Operand rm,
   emit_evex_byte2(w, vreg, rm, pp);
   emit_evex_byte3(l, vreg, aaa, z);
 }
-#endif  // V8_ENABLE_AVX10_1 || V8_ENABLE_APX_F
 
 Address Assembler::target_address_at(Address pc, Address constant_pool) {
   return ReadUnalignedValue<int32_t>(pc) + pc + 4;

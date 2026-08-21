@@ -3098,8 +3098,8 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
                                          LiftoffRegister src) {
-  I8x16Popcnt(dst.fp(), src.fp(), kScratchDoubleReg,
-              liftoff::kScratchDoubleReg2, kScratchRegister);
+  I8x16Popcnt(dst.fp(), src.fp(), kScratchRegister, kScratchDoubleReg,
+              liftoff::kScratchDoubleReg2);
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
@@ -4049,12 +4049,16 @@ void LiftoffAssembler::emit_i64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  static constexpr RegClass tmp_rc = reg_class_for(kS128);
-  LiftoffRegister tmp1 =
-      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs});
-  LiftoffRegister tmp2 =
-      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, tmp1});
-  I64x2Mul(dst.fp(), lhs.fp(), rhs.fp(), tmp1.fp(), tmp2.fp());
+  if (UseAvx10_1()) {
+    I64x2Mul(dst.fp(), lhs.fp(), rhs.fp());
+  } else {
+    static constexpr RegClass tmp_rc = reg_class_for(kS128);
+    LiftoffRegister tmp1 =
+        GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs});
+    LiftoffRegister tmp2 =
+        GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, tmp1});
+    I64x2Mul(dst.fp(), lhs.fp(), rhs.fp(), tmp1.fp(), tmp2.fp());
+  }
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_s(LiftoffRegister dst,

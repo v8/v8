@@ -43,6 +43,7 @@
 #include "src/objects/smi.h"
 #include "src/utils/ostreams.h"
 #include "test/common/assembler-tester.h"
+#include "test/common/flag-utils.h"
 #include "test/common/value-helper.h"
 #include "test/unittests/test-utils.h"
 #include "third_party/fp16/src/include/fp16.h"
@@ -1455,6 +1456,7 @@ TEST_F(MacroAssemblerX64Test, DeoptExitSizeIsFixed) {
   }
 }
 
+// Test the pre-AVX10 path.
 TEST_F(MacroAssemblerX64Test, I64x2Mul) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
@@ -1473,7 +1475,7 @@ TEST_F(MacroAssemblerX64Test, I64x2Mul) {
   __ movdqu(lhs, Operand(kCArgRegs[0], 0));
   __ movdqu(rhs, Operand(kCArgRegs[1], 0));
   // Calculation
-  __ I64x2Mul(dst, lhs, rhs, tmp1, tmp2);
+  __ I64x2MulPreAvx10(dst, lhs, rhs, tmp1, tmp2);
   // Store result array
   __ movdqu(Operand(kCArgRegs[2], 0), dst);
   __ ret(0);
@@ -1512,8 +1514,12 @@ TEST_F(MacroAssemblerX64Test, I64x2Mul) {
   }
 }
 
+// Test the pre-AVX10 path.
 TEST_F(MacroAssemblerX64Test, I64x4Mul) {
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+#ifdef V8_ENABLE_AVX10_1
+  FlagScope<bool> avx10_scope(&v8_flags.enable_avx10_1, false);
+#endif
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
@@ -2691,7 +2697,7 @@ TEST_F(MacroAssemblerX64Test, I64x2ShrS_SignReplication_63) {
     MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                         buffer->CreateView());
     masm.movdqu(xmm0, Operand(kCArgRegs[0], 0));
-    masm.I64x2ShrS(xmm0, xmm0, 63, xmm1);
+    masm.I64x2ShrSPreAvx10(xmm0, xmm0, 63, xmm1);
     masm.movdqu(Operand(kCArgRegs[1], 0), xmm0);
     masm.ret(0);
 
@@ -2716,7 +2722,7 @@ TEST_F(MacroAssemblerX64Test, I64x2ShrS_SignReplication_63) {
     MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true},
                         buffer->CreateView());
     masm.movdqu(xmm0, Operand(kCArgRegs[0], 0));
-    masm.I64x2ShrS(xmm0, xmm0, 13, xmm1);
+    masm.I64x2ShrSPreAvx10(xmm0, xmm0, 13, xmm1);
     masm.movdqu(Operand(kCArgRegs[1], 0), xmm0);
     masm.ret(0);
 

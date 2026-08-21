@@ -234,9 +234,24 @@ class V8_EXPORT_PRIVATE MacroAssembler
     cmp_tagged(src1, src2);
   }
 
+  // SIMD128
+  void I64x2Abs(XMMRegister dst, XMMRegister src, XMMRegister scratch);
+  void I64x2ShrS(XMMRegister dst, XMMRegister src, uint8_t shift,
+                 XMMRegister xmm_tmp);
+  void I64x2ShrS(XMMRegister dst, XMMRegister src, Register shift,
+                 XMMRegister xmm_tmp, XMMRegister xmm_shift,
+                 Register tmp_shift);
+  void I64x2Mul(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                XMMRegister tmp1 = XMMRegister::no_reg(),
+                XMMRegister tmp2 = XMMRegister::no_reg());
+  void I8x16Popcnt(XMMRegister dst, XMMRegister src, Register scratch,
+                   XMMRegister tmp1 = XMMRegister::no_reg(),
+                   XMMRegister tmp2 = XMMRegister::no_reg());
+
   // SIMD256
   void I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
-                YMMRegister tmp1, YMMRegister tmp2);
+                YMMRegister tmp1 = YMMRegister::no_reg(),
+                YMMRegister tmp2 = YMMRegister::no_reg());
   void F64x4Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                 YMMRegister scratch);
   void F64x4Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,

@@ -75,6 +75,12 @@ V8_EXPORT_PRIVATE inline bool UseApxCmovcc() { return false; }
 V8_EXPORT_PRIVATE inline bool UseApxCcmp() { return false; }
 #endif
 
+#ifdef V8_ENABLE_AVX10_1
+V8_EXPORT_PRIVATE bool UseAvx10_1();
+#else
+V8_EXPORT_PRIVATE inline bool UseAvx10_1() { return false; }
+#endif
+
 enum Condition : int {
   overflow = 0,
   no_overflow = 1,
@@ -349,7 +355,6 @@ class V8_EXPORT_PRIVATE Operand {
     return label_;
   }
 
-#ifdef V8_ENABLE_AVX10_1
   // Rewrite this memory operand's displacement into the EVEX compressed
   // displacement form (disp8*N) when possible. {*this} should carry a raw
   // (unscaled) displacement.
@@ -436,7 +441,6 @@ class V8_EXPORT_PRIVATE Operand {
     new_operand.memory_.buf[new_operand.memory_.len - 1] = cdisp8;
     return new_operand;
   }
-#endif  // V8_ENABLE_AVX10_1
 
   // Checks whether either base or index register is the given register.
   // Does not check the "reg" part of the Operand.
@@ -1550,7 +1554,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vinstr(uint8_t op, Reg1 dst, Reg2 src1, Op src2, SIMDPrefix pp,
               LeadingOpcode m, VexW w, CpuFeature feature = AVX2);
 
-#ifdef V8_ENABLE_AVX10_1
   void vinstr_evex(uint8_t op, XMMRegister dst, XMMRegister src1,
                    XMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w,
                    OpMask mask = k0, MaskingType z = kMerging,
@@ -1567,7 +1570,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                    SIMDPrefix pp, LeadingOpcode m, VexW w, TupleType tuple_type,
                    OpMask mask = k0, MaskingType z = kMerging,
                    CpuFeature feature = AVX10_1);
-#endif  // V8_ENABLE_AVX10_1
 
   // Compressed-displacement (disp8*N) scale factor N in bytes, per Intel SDM
   // Vol.2 §2.6.5, Tables 2-34..2-36. {vlen} is the vector length in bytes
@@ -2649,7 +2651,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // AVX10.1 instructions
-#ifdef V8_ENABLE_AVX10_1
   void vpmullq(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vinstr_evex(0x40, dst, src1, src2, k66, k0F38, kW1);
   }
@@ -2708,7 +2709,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vpopcntb(XMMRegister dst, Operand src) {
     vinstr_evex(0x54, dst, xmm0, src, k66, k0F38, kW0, kFull);
   }
-#endif  // V8_ENABLE_AVX10_1
 
   // BMI instruction
   void andnq(Register dst, Register src1, Register src2) {
@@ -3194,9 +3194,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                               VexW w);
 
   // Emit the vector-form EVEX prefix (reuses emit_evex_byte0() above). Shared
-  // by any EVEX-encoded feature, so it is available whenever AVX10.1 or APX is
-  // enabled.
-#if defined(V8_ENABLE_AVX10_1) || defined(V8_ENABLE_APX_F)
+  // by any EVEX-encoded feature (AVX10, APX).
   inline void emit_evex_byte1(XMMRegister reg, XMMRegister rm, LeadingOpcode m);
   inline void emit_evex_byte1(XMMRegister reg, Operand rm, LeadingOpcode m);
   inline void emit_evex_byte2(VexW w, XMMRegister v, SIMDPrefix pp);
@@ -3211,7 +3209,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                                VectorLength l, SIMDPrefix pp, LeadingOpcode mm,
                                VexW w, OpMask aaa = k0,
                                MaskingType z = kMerging);
-#endif  // V8_ENABLE_AVX10_1 || V8_ENABLE_APX_F
 
   // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also encodes
@@ -3252,9 +3249,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void emit_sse_operand(XMMRegister dst, Register src);
   void emit_sse_operand(Register dst, XMMRegister src);
   void emit_sse_operand(XMMRegister dst);
-#ifdef V8_ENABLE_AVX10_1
   void emit_sse_operand(XMMRegister reg, Operand adr, uint8_t cd8_scale);
-#endif
 
   // Emit machine code for one of the operations ADD, ADC, SUB, SBC,
   // AND, OR, XOR, or CMP.  The encodings of these operations are all

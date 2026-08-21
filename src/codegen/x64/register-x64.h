@@ -279,12 +279,10 @@ static_assert(static_cast<int>(kDoubleAfterLast) ==
 
 class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
  public:
-  // bit4() feeds the vector-form EVEX prefix emitter, which is shared by
-  // AVX10.1 and APX, so it must be available whenever either is enabled.
-#if defined(V8_ENABLE_AVX10_1) || defined(V8_ENABLE_APX_F)
   // Return the fifth bit of the register code as a 0 or 1. Used together with
   // high_bit() to encode xmm16-31 in the EVEX prefix.
   int bit4() const { return (code() >> 4) & 0x1; }
+#if defined(V8_ENABLE_AVX10_1) || defined(V8_ENABLE_APX_F)
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
   int high_bit() const { return (code() >> 3) & 0x1; }
@@ -308,6 +306,10 @@ static_assert(sizeof(XMMRegister) <= sizeof(int),
 
 class YMMRegister : public XMMRegister {
  public:
+  static constexpr YMMRegister no_reg() {
+    return YMMRegister(XMMRegister::no_reg());
+  }
+
   static constexpr YMMRegister from_code(int code) {
     V8_ASSUME(code >= 0 && code < XMMRegister::kNumRegisters);
     return YMMRegister(code);
@@ -319,6 +321,7 @@ class YMMRegister : public XMMRegister {
 
  private:
   friend class XMMRegister;
+  explicit constexpr YMMRegister(XMMRegister reg) : XMMRegister(reg) {}
   explicit constexpr YMMRegister(int code) : XMMRegister(code) {}
 };
 
