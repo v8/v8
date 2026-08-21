@@ -5927,6 +5927,86 @@ TEST(GetPrivateAutoAccessors) {
 }
 
 namespace {
+v8::Global<v8::Module> deferred_module_dependency;
+
+v8::MaybeLocal<v8::Module> DeferredModuleResolveCallback(
+    v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
+    v8::Local<v8::FixedArray> import_attributes,
+    v8::Local<v8::Module> referrer) {
+  return deferred_module_dependency.Get(CcTest::isolate());
+}
+}  // namespace
+
+// The inspector collects the private members of an object while JavaScript
+// execution is disallowed, so collecting them from a deferred module namespace
+// must not evaluate the module. See crbug.com/451791624.
+TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
+  i::v8_flags.js_defer_import_eval = true;
+  LocalContext env;
+  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::HandleScope scope(v8_isolate);
+  v8::Local<v8::Context> context = env.local();
+
+  v8::ScriptOrigin dependency_origin(v8_str("dependency"), 0, 0, false, -1,
+                                     v8::Local<v8::Value>(), false, false,
+                                     true);
+  v8::ScriptCompiler::Source dependency_source(
+      v8_str("globalThis.evaluated = true;\n"
+             "export const foo = 1;"),
+      dependency_origin);
+  deferred_module_dependency.Reset(
+      v8_isolate,
+      v8::ScriptCompiler::CompileModule(v8_isolate, &dependency_source)
+          .ToLocalChecked());
+
+  v8::ScriptOrigin script_origin(v8_str("test"), 0, 0, false, -1,
+                                 v8::Local<v8::Value>(), false, false, true);
+  v8::ScriptCompiler::Source script_compiler_source(
+      v8_str("import defer * as ns from 'dependency';\n"
+             "globalThis.ns = ns;"),
+      script_origin);
+  v8::Local<v8::Module> module =
+      v8::ScriptCompiler::CompileModule(v8_isolate, &script_compiler_source)
+          .ToLocalChecked();
+  CHECK(module->InstantiateModule(context, DeferredModuleResolveCallback)
+            .ToChecked());
+  module->Evaluate(context).ToLocalChecked();
+
+  // Importing the module namespace does not evaluate the deferred module.
+  CHECK(env->Global()
+            ->Get(context, v8_str("evaluated"))
+            .ToLocalChecked()
+            ->IsUndefined());
+
+  v8::Local<v8::Object> object = env->Global()
+                                     ->Get(context, v8_str("ns"))
+                                     .ToLocalChecked()
+                                     .As<v8::Object>();
+  v8::LocalVector<v8::Value> names(v8_isolate);
+  v8::LocalVector<v8::Value> values(v8_isolate);
+  int filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateFields) |
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateMethods) |
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateAccessors);
+  {
+    // Evaluating the deferred module here would be fatal.
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        v8_isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    CHECK(
+        v8::debug::GetPrivateMembers(context, object, filter, &names, &values));
+  }
+
+  CHECK_EQ(names.size(), 0);
+  CHECK(env->Global()
+            ->Get(context, v8_str("evaluated"))
+            .ToLocalChecked()
+            ->IsUndefined());
+
+  deferred_module_dependency.Reset();
+}
+
+namespace {
 class SetTerminateOnResumeDelegate : public v8::debug::DebugDelegate {
  public:
   enum Options {

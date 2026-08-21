@@ -1217,6 +1217,12 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSObject> object) {
     }
     return Just(false);
   }
+
+  if (filter_ & PRIVATE_NAMES_ONLY) {
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectPrivateNames(object));
+    return Just(true);
+  }
+
   if (IsJSDeferredModuleNamespace(*object)) [[unlikely]] {
     DirectHandle<JSDeferredModuleNamespace> ns =
         Cast<JSDeferredModuleNamespace>(object);
@@ -1224,10 +1230,6 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSObject> object) {
       JSDeferredModuleNamespace::EvaluateModuleSync(isolate_, ns);
       RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
     }
-  }
-  if (filter_ & PRIVATE_NAMES_ONLY) {
-    RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectPrivateNames(object));
-    return Just(true);
   }
 
   if (may_have_elements_) {
