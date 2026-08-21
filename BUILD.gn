@@ -6381,6 +6381,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/sandbox/js-dispatch-table.cc",
     "src/sandbox/sandbox.cc",
     "src/sandbox/sandboxable-thread.cc",
+    "src/sandbox/segmented-table.cc",
     "src/sandbox/testing.cc",
     "src/sandbox/trap-fuzzer.cc",
     "src/sandbox/trusted-pointer-scope.cc",

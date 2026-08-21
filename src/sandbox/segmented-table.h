@@ -6,10 +6,175 @@
 #define V8_SANDBOX_SEGMENTED_TABLE_H_
 
 #include "include/v8-internal.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/common/code-memory-access.h"
 
 namespace v8::internal {
+
+/**
+ * A table with a fixed maximum size split into segments.
+ *
+ * The table provides thread-safe methods to allocate and free segments. It is
+ * completely agnostic to entries stored on the Segments. See specific
+ * subclasses on how these tables are managed on Entry-level.
+ *
+ * The table also provides low-level allocation of read-only segments. Read-only
+ * segment handling is assumed to run single-threaded.
+ */
+class V8_EXPORT_PRIVATE SegmentedTableBase {
+ public:
+  // Use this scope to temporarily unseal the read-only segment (i.e. change
+  // permissions to RW).
+  class UnsealReadOnlySegmentScope;
+
+  static constexpr size_t BaseOffset();
+
+ protected:
+  // Base class for all segments that is agnostic to entry types.
+  class SegmentBase;
+
+#ifdef V8_TARGET_ARCH_64_BIT
+  // On 64 bit, we use a large address space reservation for the table memory.
+  static constexpr bool kUseContiguousMemory = true;
+  static constexpr size_t kSegmentSize = 64 * KB;
+#else
+  // On 32 bit, segments are individually mapped.
+  static constexpr bool kUseContiguousMemory = false;
+#ifdef V8_TARGET_OS_WIN
+  // On windows the allocation granularity is 64KB.
+  static constexpr size_t kSegmentSize = 64 * KB;
+#else
+  static constexpr size_t kSegmentSize = 16 * KB;
+#endif
+#endif  // V8_TARGET_ARCH_64_BIT
+
+  static constexpr uint32_t kInternalReadOnlySegmentsOffset = 0;
+  static constexpr size_t kAlignment = kSegmentSize;
+
+  // The sandbox relies on not being able to access any SegmentedTable out of
+  // bounds.
+  static_assert(kUseContiguousMemory || !V8_ENABLE_SANDBOX_BOOL);
+
+  SegmentedTableBase() = default;
+  SegmentedTableBase(const SegmentedTableBase&) = delete;
+  SegmentedTableBase& operator=(const SegmentedTableBase&) = delete;
+
+  // Initializes the table by reserving the backing memory.
+  void Initialize(size_t reservation_size, size_t read_only_reservation_size,
+                  bool wants_write_protection);
+
+  // Deallocates all memory associated with this table.
+  void TearDown();
+
+  // Returns true if this table has been initialized.
+  bool is_initialized() const {
+    DCHECK_IMPLIES(base_, reinterpret_cast<Address>(base_) == vas_->base());
+    return vas_ != nullptr;
+  }
+
+  // Returns the base address of this table.
+  Address base() const {
+    DCHECK(is_initialized());
+    return reinterpret_cast<Address>(base_);
+  }
+
+  // Tries to allocate a segment from the table.
+  std::optional<SegmentBase> TryAllocateSegment();
+
+  // Free the specified segment of this table.
+  //
+  // The memory of this segment will afterwards be inaccessible which is a
+  // requirement for sandbox security.
+  void FreeTableSegment(SegmentBase segment);
+
+  // Allocates a read-only segment.
+  SegmentBase AllocateReadOnlySegment();
+
+  // Resets the read-only segments. Doesn't actually free any of the pages.
+  // Returns the number of segments that were used.
+  uint32_t ResetReadOnlySegments();
+
+  // Returns the number of read-only segments allocated and in-use.
+  uint32_t read_only_segments_used() const { return read_only_segments_used_; }
+
+ private:
+  // Helpers to toggle the first segment's permissions between kRead (sealed)
+  // and kReadWrite (unsealed).
+  void SealReadOnlySegments();
+  void UnsealReadOnlySegments();
+
+  // The pointer to the base of the virtual address space backing this table.
+  // All entry accesses happen through this pointer. It is equivalent to
+  // `vas_->base()` and is effectively const after initialization since the
+  // backing memory is never reallocated.
+  void* base_ = nullptr;
+  // The virtual address space backing this table. This is used to manage the
+  // underlying OS pages, in particular to allocate and free the segments that
+  // make up the table.
+  VirtualAddressSpace* vas_ = nullptr;
+  // Used to keep track of actually used RO segments.
+  uint32_t read_only_segments_used_ = 0;
+  // RO reservation size.
+  size_t read_only_reservation_size_ = 0;
+};
+
+// static
+constexpr size_t SegmentedTableBase::BaseOffset() {
+  return offsetof(SegmentedTableBase, base_);
+}
+
+class SegmentedTableBase::SegmentBase {
+ public:
+  // Returns the segment starting at the specified offset from the base of the
+  // table.
+  static SegmentBase At(uint32_t offset) {
+    DCHECK(IsAligned(offset, kSegmentSize));
+    const uint32_t number = offset / kSegmentSize;
+    return SegmentBase(number);
+  }
+
+  // The segments of a table are numbered sequentially. This method returns
+  // the number of this segment.
+  constexpr uint32_t number() const { return number_; }
+
+  // Returns the offset of this segment from the table base.
+  constexpr uint32_t offset() const {
+    return number_ * SegmentedTableBase::kSegmentSize;
+  }
+
+  // Segments are ordered by their `number()`.
+  constexpr bool operator<(const SegmentBase& other) const {
+    return number_ < other.number_;
+  }
+  constexpr bool operator==(const SegmentBase& other) const {
+    return number_ == other.number_;
+  }
+  constexpr bool operator!=(const SegmentBase& other) const {
+    return number_ != other.number_;
+  }
+
+ protected:
+  // Initialize a segment given its number.
+  constexpr explicit SegmentBase(uint32_t number) : number_(number) {}
+
+  // A segment is identified by its number, which is its offset from the base
+  // of the table divided by the segment size.
+  const uint32_t number_;
+};
+
+class SegmentedTableBase::UnsealReadOnlySegmentScope final {
+ public:
+  explicit UnsealReadOnlySegmentScope(SegmentedTableBase* table)
+      : table_(table) {
+    table_->UnsealReadOnlySegments();
+  }
+
+  ~UnsealReadOnlySegmentScope() { table_->SealReadOnlySegments(); }
+
+ private:
+  SegmentedTableBase* const table_;
+};
 
 /**
  * A thread-safe table with a fixed maximum size split into segments.
@@ -30,7 +195,7 @@ namespace v8::internal {
  * - uint32_t GetNextFreelistEntry()
  */
 template <typename Entry, size_t size>
-class V8_EXPORT_PRIVATE SegmentedTable {
+class V8_EXPORT_PRIVATE SegmentedTable : public SegmentedTableBase {
  protected:
   // The table is organized into segments where a segment that holds entries.
   struct Segment;
@@ -54,31 +219,12 @@ class V8_EXPORT_PRIVATE SegmentedTable {
 
   static constexpr bool kIsWriteProtected = Entry::IsWriteProtected;
   static constexpr int kEntrySize = sizeof(Entry);
+  static constexpr size_t kEntriesPerSegment = kSegmentSize / kEntrySize;
 
 #ifdef V8_TARGET_ARCH_64_BIT
-  // On 64 bit, we use a large address space reservation for the table memory.
-  static constexpr bool kUseContiguousMemory = true;
   static constexpr size_t kReservationSize = size;
   static constexpr size_t kMaxCapacity = kReservationSize / kEntrySize;
-  static constexpr size_t kSegmentSize = 64 * KB;
-#else
-  // On 32 bit, segments are individually mapped.
-  static constexpr bool kUseContiguousMemory = false;
-#ifdef V8_TARGET_OS_WIN
-  // On windows the allocation granularity is 64KB.
-  static constexpr size_t kSegmentSize = 64 * KB;
-#else
-  static constexpr size_t kSegmentSize = 16 * KB;
-#endif
 #endif  // V8_TARGET_ARCH_64_BIT
-
-  // The sandbox relies on not being able to access any SegmentedTable out of
-  // bounds.
-  static_assert(kUseContiguousMemory || !V8_ENABLE_SANDBOX_BOOL);
-
-  static constexpr size_t kEntriesPerSegment = kSegmentSize / kEntrySize;
-  static constexpr size_t kAlignment = kSegmentSize;
-  static constexpr size_t kNumReadOnlySegments = 64 * KB / kSegmentSize;
 
   SegmentedTable() = default;
   SegmentedTable(const SegmentedTable&) = delete;
@@ -93,12 +239,6 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   // kIsWriteProtected is true).
   WritableRange GetWritableRange(Segment segment);
 
-  // Returns true if this table has been initialized.
-  bool is_initialized() const;
-
-  // Returns the base address of this table.
-  Address base() const;
-
   // Allocate a new segment in this table.
   //
   // The segment is initialized with freelist entries.
@@ -106,43 +246,17 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   // Same as above but fails if there is no space left.
   std::optional<std::pair<Segment, FreelistHead>>
   TryAllocateAndInitializeSegment();
-  std::optional<Segment> TryAllocateSegment();
 
   // Initialize a table segment with a freelist.
   //
   // Note that you don't need to call this function on segments allocated with
   // `AllocateAndInitializeSegment()` since those already get initialized.
   FreelistHead InitializeFreeList(Segment segment);
-
-  // Free the specified segment of this table.
-  //
-  // The memory of this segment will afterwards be inaccessible.
-  void FreeTableSegment(Segment segment);
-
-  // Initializes the table by reserving the backing memory, allocating an
-  // initial segment, and populating the freelist.
-  void Initialize();
-
-  // Deallocates all memory associated with this table.
-  void TearDown();
-
-  // The pointer to the base of the virtual address space backing this table.
-  // All entry accesses happen through this pointer.
-  // It is equivalent to |vas_->base()| and is effectively const after
-  // initialization since the backing memory is never reallocated.
-  Entry* base_ = nullptr;
-
-  // The virtual address space backing this table.
-  // This is used to manage the underlying OS pages, in particular to allocate
-  // and free the segments that make up the table.
-  VirtualAddressSpace* vas_ = nullptr;
-
-  // Used during set-up of read only segments.
-  uint32_t read_only_segments_used_ = 0;
 };
 
 template <typename Entry, size_t size>
-struct SegmentedTable<Entry, size>::Segment {
+struct SegmentedTable<Entry, size>::Segment
+    : public SegmentedTableBase::SegmentBase {
  public:
   // Returns the segment starting at the specified offset from the base of the
   // table.
@@ -151,14 +265,8 @@ struct SegmentedTable<Entry, size>::Segment {
   // Returns the segment containing the entry at the given index.
   static Segment Containing(uint32_t entry_index);
 
-  // The segments of a table are numbered sequentially. This method returns
-  // the number of this segment.
-  constexpr uint32_t number() const { return number_; }
-
-  // Returns the offset of this segment from the table base.
-  constexpr uint32_t offset() const {
-    return number_ * SegmentedTable::kSegmentSize;
-  }
+  // Returns the segment from the base class.
+  static Segment From(SegmentBase base) { return Segment(base); }
 
   // Returns the index of the first entry in this segment.
   constexpr uint32_t first_entry() const {
@@ -170,24 +278,11 @@ struct SegmentedTable<Entry, size>::Segment {
     return first_entry() + SegmentedTable::kEntriesPerSegment - 1;
   }
 
-  // Segments are ordered by their `number()`.
-  constexpr bool operator<(const Segment& other) const {
-    return number_ < other.number_;
-  }
-  constexpr bool operator==(const Segment& other) const {
-    return number_ == other.number_;
-  }
-  constexpr bool operator!=(const Segment& other) const {
-    return number_ != other.number_;
-  }
-
  private:
   // Initialize a segment given its number.
-  constexpr explicit Segment(uint32_t number) : number_(number) {}
-
-  // A segment is identified by its number, which is its offset from the base
-  // of the table divided by the segment size.
-  const uint32_t number_;
+  constexpr explicit Segment(uint32_t number) : SegmentBase(number) {}
+  // Create from untyped base class.
+  constexpr explicit Segment(SegmentBase base) : SegmentBase(base.number()) {}
 };
 
 template <typename Entry, size_t size>

@@ -524,6 +524,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "sandbox/sandbox-hardware-support-unittest.cc",
     "sandbox/sandbox-unittest.cc",
     "sandbox/sandbox-violation-unittest.cc",
+    "sandbox/segmented-table-unittest.cc",
     "sandbox/trap-fuzzer-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/unicode-unittest.cc",

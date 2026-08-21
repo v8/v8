@@ -2629,6 +2629,7 @@ filegroup(
         "src/sandbox/sandbox-malloc.h",
         "src/sandbox/sandboxed-pointer.h",
         "src/sandbox/sandboxed-pointer-inl.h",
+        "src/sandbox/segmented-table.cc",
         "src/sandbox/segmented-table.h",
         "src/sandbox/segmented-table-inl.h",
         "src/sandbox/tagged-payload.h",

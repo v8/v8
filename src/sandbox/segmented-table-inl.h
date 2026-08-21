@@ -13,15 +13,13 @@
 #include "src/sandbox/testing.h"
 #include "src/utils/allocation.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 template <typename Entry, size_t size>
 typename SegmentedTable<Entry, size>::Segment
 SegmentedTable<Entry, size>::Segment::At(uint32_t offset) {
   DCHECK(IsAligned(offset, kSegmentSize));
-  uint32_t number = offset / kSegmentSize;
-  return Segment(number);
+  return Segment(SegmentBase::At(offset));
 }
 
 template <typename Entry, size_t size>
@@ -33,107 +31,18 @@ SegmentedTable<Entry, size>::Segment::Containing(uint32_t entry_index) {
 
 template <typename Entry, size_t size>
 Entry& SegmentedTable<Entry, size>::at(uint32_t index) {
-  return base_[index];
+  return reinterpret_cast<Entry*>(this->base())[index];
 }
 
 template <typename Entry, size_t size>
 const Entry& SegmentedTable<Entry, size>::at(uint32_t index) const {
-  return base_[index];
+  return reinterpret_cast<Entry*>(this->base())[index];
 }
 
 template <typename Entry, size_t size>
 typename SegmentedTable<Entry, size>::WritableRange
 SegmentedTable<Entry, size>::GetWritableRange(Segment segment) {
-  return WritableRange(base_, segment);
-}
-
-template <typename Entry, size_t size>
-bool SegmentedTable<Entry, size>::is_initialized() const {
-  DCHECK(!base_ || reinterpret_cast<Address>(base_) == vas_->base());
-  return vas_ != nullptr;
-}
-
-template <typename Entry, size_t size>
-Address SegmentedTable<Entry, size>::base() const {
-  DCHECK(is_initialized());
-  return reinterpret_cast<Address>(base_);
-}
-
-template <typename Entry, size_t size>
-void SegmentedTable<Entry, size>::Initialize() {
-  DCHECK(!is_initialized());
-  DCHECK_EQ(vas_, nullptr);
-
-  VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
-
-#ifdef V8_TARGET_ARCH_64_BIT
-  static_assert(kUseContiguousMemory);
-  DCHECK(IsAligned(kReservationSize, root_space->allocation_granularity()));
-
-  std::optional<VirtualAddressSpace::MemoryProtectionKeyId> pkey;
-  if (kUseContiguousMemory && kIsWriteProtected && ThreadIsolation::Enabled()) {
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-    pkey = ThreadIsolation::pkey();
-#else
-    UNREACHABLE();
-#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
-  }
-
-  if (root_space->CanAllocateSubspaces()) {
-    auto subspace = root_space->AllocateSubspace(
-        VirtualAddressSpace::kNoHint, kReservationSize, kAlignment,
-        PagePermissions::kReadWrite, pkey);
-    vas_ = subspace.release();
-  } else {
-    // This may be required on old Windows versions that don't support
-    // VirtualAlloc2, which is required for subspaces. In that case, just
-    // use a fully-backed emulated subspace.
-    DCHECK(!pkey);
-    Address reservation_base = root_space->AllocatePages(
-        VirtualAddressSpace::kNoHint, kReservationSize, kAlignment,
-        PagePermissions::kNoAccess);
-    if (reservation_base) {
-      vas_ = new base::EmulatedVirtualAddressSubspace(
-          root_space, reservation_base, kReservationSize, kReservationSize);
-    }
-  }
-  if (!vas_) {
-    V8::FatalProcessOutOfMemory(
-        nullptr, "SegmentedTable::InitializeTable (subspace allocation)");
-  }
-  vas_->SetName(kPointerTableAddressSpaceName);
-#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-  // In-sandbox corruption of handles can lead to out-of-bounds accesses into
-  // our tables, but these will stay inside the table's reserved region and hit
-  // PROT_NONE mappings, so they are safe. They can be both read- and write
-  // accesses though as we also write new pointers into existing table entries.
-  // Writing is fine as long as the value is not attacker controlled. It's only
-  // when we write attacker-controlled data that we (likely) have a security
-  // problem (but then it doesn't matter whether it's out-of-bounds or not).
-  SandboxTesting::RegisterSafeMemoryRegion(
-      vas_->base(), vas_->size(), SandboxTesting::kReadAndWriteAccessIsSafe);
-#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
-#else
-  static_assert(!kUseContiguousMemory);
-  vas_ = root_space;
-#endif  // V8_TARGET_ARCH_64_BIT
-
-  base_ = reinterpret_cast<Entry*>(vas_->base());
-}
-
-template <typename Entry, size_t size>
-void SegmentedTable<Entry, size>::TearDown() {
-  DCHECK(is_initialized());
-
-#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-  SandboxTesting::UnregisterSafeMemoryRegion(vas_->base());
-#endif
-
-  base_ = nullptr;
-#ifdef V8_TARGET_ARCH_64_BIT
-  delete vas_;
-#endif
-  vas_ = nullptr;
+  return WritableRange(reinterpret_cast<Entry*>(this->base()), segment);
 }
 
 template <typename Entry, size_t size>
@@ -153,19 +62,6 @@ SegmentedTable<Entry, size>::InitializeFreeList(Segment segment) {
 }
 
 template <typename Entry, size_t size>
-std::optional<typename SegmentedTable<Entry, size>::Segment>
-SegmentedTable<Entry, size>::TryAllocateSegment() {
-  Address start =
-      vas_->AllocatePages(VirtualAddressSpace::kNoHint, kSegmentSize,
-                          kSegmentSize, PagePermissions::kReadWrite);
-  if (!start) {
-    return {};
-  }
-  uint32_t offset = static_cast<uint32_t>(start - vas_->base());
-  return Segment::At(offset);
-}
-
-template <typename Entry, size_t size>
 std::pair<typename SegmentedTable<Entry, size>::Segment,
           typename SegmentedTable<Entry, size>::FreelistHead>
 SegmentedTable<Entry, size>::AllocateAndInitializeSegment() {
@@ -180,21 +76,13 @@ template <typename Entry, size_t size>
 std::optional<std::pair<typename SegmentedTable<Entry, size>::Segment,
                         typename SegmentedTable<Entry, size>::FreelistHead>>
 SegmentedTable<Entry, size>::TryAllocateAndInitializeSegment() {
-  auto segment = TryAllocateSegment();
-  if (!segment) return {};
-  DCHECK_IMPLIES(!kUseContiguousMemory,
-                 (*segment).number() > kNumReadOnlySegments);
-  FreelistHead freelist = InitializeFreeList(*segment);
-  return {{*segment, freelist}};
+  auto segment_base = TryAllocateSegment();
+  if (!segment_base) return {};
+  auto segment = Segment::From(*segment_base);
+  FreelistHead freelist = InitializeFreeList(segment);
+  return {{segment, freelist}};
 }
 
-template <typename Entry, size_t size>
-void SegmentedTable<Entry, size>::FreeTableSegment(Segment segment) {
-  Address segment_start = vas_->base() + segment.offset();
-  vas_->FreePages(segment_start, kSegmentSize);
-}
-
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_SANDBOX_SEGMENTED_TABLE_INL_H_
