@@ -426,7 +426,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     Label next;
     __ Move(r4, ExternalReference::address_of_log_or_trace_osr());
     __ LoadU8(r4, MemOperand(r4));
-    __ andi(r0, r4, Operand(0xFF));  // Mask to the LSB.
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ andi(scratch, r4, Operand(0xFF));  // Mask to the LSB.
     __ beq(&next, cr0);
 
     {
@@ -471,10 +473,12 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
                 LeaveRC);
 
     // Compute the target address = code start + osr_offset
-    __ add(r0, r3, r4);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ add(scratch, r3, r4);
 
     // And "return" to the OSR entry point of the function.
-    __ mtlr(r0);
+    __ mtlr(scratch);
     __ blr();
   }
 }
