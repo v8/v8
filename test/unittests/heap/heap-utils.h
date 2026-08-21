@@ -225,6 +225,13 @@ class V8_NODISCARD DisableHandleChecksForMockingScope final {
 };
 #endif
 
+void AbandonCurrentlyFreeMemory(PagedSpace* space);
+
+Tagged<HeapObject> AllocateAligned(Heap* heap, MainAllocator* allocator,
+                                   int size, AllocationAlignment alignment);
+
+Address AlignOldSpace(Heap* heap, AllocationAlignment alignment, int offset);
+
 }  // namespace internal
 }  // namespace v8
 

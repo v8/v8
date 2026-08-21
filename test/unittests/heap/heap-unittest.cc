@@ -37,6 +37,7 @@
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-layout.h"
+#include "src/heap/main-allocator-inl.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page.h"
@@ -55,6 +56,7 @@
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/regexp/regexp.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "test/common/noop-bytecode-verifier.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -3203,6 +3205,269 @@ TEST_F(HeapTest, WeakMapInMonomorphicCompareNilIC) {
                 "   compareNilIC(obj);"
                 "   return proto;"
                 " })();");
+}
+
+TEST_F(HeapTest, TestSizeOfRegExpCode) {
+  if (!v8_flags.regexp_optimization) return;
+  v8_flags.stress_concurrent_allocation = false;
+
+  v8::HandleScope scope(v8_isolate());
+
+  EXPECT_EQ(static_cast<int>(RegExp::kMaxOptimizedPatternLength), 20 * KB);
+
+  // Compile a regexp that is much larger if we are using regexp optimizations.
+  RunJS(
+      "var reg_exp_source = '(?:a|bc|def|ghij|klmno|pqrstu)';"
+      "var half_size_reg_exp;"
+      "while (reg_exp_source.length < 20 * 1024) {"
+      "  half_size_reg_exp = reg_exp_source;"
+      "  reg_exp_source = reg_exp_source + reg_exp_source;"
+      "}"
+      // Flatten string.
+      "reg_exp_source.match(/f/);");
+
+  {
+    // In this test, we need to invoke GC without stack, otherwise some objects
+    // may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    // Get initial heap size after several full GCs, which will stabilize
+    // the heap size and return with sweeping finished completely.
+    InvokeMemoryReducingMajorGCs();
+    if (heap()->sweeping_in_progress()) {
+      heap()->EnsureSweepingCompleted(
+          Heap::SweepingForcedFinalizationMode::kV8Only,
+          CompleteSweepingReason::kTesting);
+    }
+  }
+  int initial_size = static_cast<int>(heap()->SizeOfObjects());
+
+  RunJS("'foo'.match(reg_exp_source);");
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMemoryReducingMajorGCs();
+  }
+  int size_with_regexp = static_cast<int>(heap()->SizeOfObjects());
+
+  RunJS("'foo'.match(half_size_reg_exp);");
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMemoryReducingMajorGCs();
+  }
+  int size_with_optimized_regexp = static_cast<int>(heap()->SizeOfObjects());
+
+  int size_of_regexp_code = size_with_regexp - initial_size;
+
+  // On some platforms the debug-code flag causes huge amounts of regexp code
+  // to be emitted, breaking this test.
+  if (!v8_flags.debug_code) {
+    EXPECT_LE(size_of_regexp_code, 1 * MB);
+  }
+
+  // Small regexp is half the size, but compiles to more than twice the code
+  // due to the optimization steps.
+  EXPECT_GE(size_with_optimized_regexp,
+            size_with_regexp + size_of_regexp_code * 2);
+}
+
+TEST_F(HeapTest, TestSizeOfObjects) {
+  v8_flags.stress_concurrent_allocation = false;
+
+  // Disable LAB, such that calculations with SizeOfObjects() and object size
+  // are correct.
+  heap()->DisableInlineAllocation();
+
+  // Get initial heap size after several full GCs, which will stabilize
+  // the heap size and return with sweeping finished completely.
+  {
+    // In this test, we need to invoke GC without stack, otherwise some objects
+    // may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMemoryReducingMajorGCs();
+    if (heap()->sweeping_in_progress()) {
+      heap()->EnsureSweepingCompleted(
+          Heap::SweepingForcedFinalizationMode::kV8Only,
+          CompleteSweepingReason::kTesting);
+    }
+  }
+  int initial_size = static_cast<int>(heap()->SizeOfObjects());
+
+  {
+    HandleScope scope(i_isolate());
+    // Allocate objects on several different old-space pages so that
+    // concurrent sweeper threads will be busy sweeping the old space on
+    // subsequent GC runs.
+    AlwaysAllocateScopeForTesting always_allocate(heap());
+    int filler_size = static_cast<int>(FixedArray::SizeFor(8192));
+    for (int i = 1; i <= 100; i++) {
+      i_isolate()->factory()->NewFixedArray(8192, AllocationType::kOld);
+      EXPECT_EQ(initial_size + i * filler_size,
+                static_cast<int>(heap()->SizeOfObjects()));
+    }
+  }
+
+  // The heap size should go back to initial size after a full GC, even
+  // though sweeping didn't finish yet.
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+  // Normally sweeping would not be complete here, but no guarantees.
+  EXPECT_EQ(initial_size, static_cast<int>(heap()->SizeOfObjects()));
+  // Waiting for sweeper threads should not change heap size.
+  if (heap()->sweeping_in_progress()) {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    heap()->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only,
+        CompleteSweepingReason::kTesting);
+  }
+  EXPECT_EQ(initial_size, static_cast<int>(heap()->SizeOfObjects()));
+}
+
+TEST_F(HeapTest, TestAlignmentCalculations) {
+  // Maximum fill amounts are consistent.
+  int maximum_double_misalignment = kDoubleSize - kTaggedSize;
+  int max_word_fill = MainAllocator::GetMaximumFillToAlign(kTaggedAligned);
+  EXPECT_EQ(0, max_word_fill);
+  int max_double_fill = MainAllocator::GetMaximumFillToAlign(kDoubleAligned);
+  EXPECT_EQ(maximum_double_misalignment, max_double_fill);
+  int max_double_unaligned_fill =
+      MainAllocator::GetMaximumFillToAlign(kDoubleUnaligned);
+  EXPECT_EQ(maximum_double_misalignment, max_double_unaligned_fill);
+
+  Address base = kNullAddress;
+  int fill = 0;
+
+  // Word alignment never requires fill.
+  fill = MainAllocator::GetFillToAlign(base, kTaggedAligned);
+  EXPECT_EQ(0, fill);
+  fill = MainAllocator::GetFillToAlign(base + kTaggedSize, kTaggedAligned);
+  EXPECT_EQ(0, fill);
+
+  // No fill is required when address is double aligned.
+  fill = MainAllocator::GetFillToAlign(base, kDoubleAligned);
+  EXPECT_EQ(0, fill);
+  // Fill is required if address is not double aligned.
+  fill = MainAllocator::GetFillToAlign(base + kTaggedSize, kDoubleAligned);
+  EXPECT_EQ(maximum_double_misalignment, fill);
+  // kDoubleUnaligned has the opposite fill amounts.
+  fill = MainAllocator::GetFillToAlign(base, kDoubleUnaligned);
+  EXPECT_EQ(maximum_double_misalignment, fill);
+  fill = MainAllocator::GetFillToAlign(base + kTaggedSize, kDoubleUnaligned);
+  EXPECT_EQ(0, fill);
+}
+
+TEST_F(HeapTest, TestAlignedAllocation) {
+  if (v8_flags.single_generation) return;
+  // Double misalignment is 4 on 32-bit platforms or when pointer compression
+  // is enabled, 0 on 64-bit ones when pointer compression is disabled.
+  const intptr_t double_misalignment = kDoubleSize - kTaggedSize;
+  Address start;
+  Tagged<HeapObject> obj;
+  Tagged<HeapObject> filler;
+  if (double_misalignment) {
+    MainAllocator* allocator = heap()->allocator()->new_space_allocator();
+
+    // Make one allocation to force allocating an allocation area. Using
+    // kDoubleSize to not change space alignment
+    AllocationResult dummy =
+        allocator->AllocateRaw(SafeHeapObjectSize(kDoubleSize), kDoubleAligned,
+                               AllocationOrigin::kRuntime, AllocationHint());
+    ASSERT_FALSE(dummy.IsFailure());
+    heap()->CreateFillerObjectAt(dummy.ToObjectChecked().address(),
+                                 kDoubleSize);
+
+    // Allocate a pointer sized object that must be double aligned at an
+    // aligned address.
+    start = allocator->AlignTopForTesting(kDoubleAligned, 0);
+    obj = AllocateAligned(heap(), allocator, kTaggedSize, kDoubleAligned);
+    EXPECT_TRUE(IsAligned(obj.address(), kDoubleAlignment));
+    // There is no filler.
+    EXPECT_EQ(start, obj.address());
+
+    // Allocate a second pointer sized object that must be double aligned at an
+    // unaligned address.
+    start = allocator->AlignTopForTesting(kDoubleAligned, kTaggedSize);
+    obj = AllocateAligned(heap(), allocator, kTaggedSize, kDoubleAligned);
+    EXPECT_TRUE(IsAligned(obj.address(), kDoubleAlignment));
+    // There is a filler object before the object.
+    filler = HeapObject::FromAddress(start);
+    EXPECT_NE(obj, filler);
+    EXPECT_TRUE(IsFreeSpaceOrFiller(filler));
+    EXPECT_EQ(filler->Size(), kTaggedSize);
+    EXPECT_EQ(start + double_misalignment, obj.address());
+
+    // Similarly for kDoubleUnaligned.
+    start = allocator->AlignTopForTesting(kDoubleUnaligned, 0);
+    obj = AllocateAligned(heap(), allocator, kTaggedSize, kDoubleUnaligned);
+    EXPECT_TRUE(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
+    EXPECT_EQ(start, obj.address());
+
+    start = allocator->AlignTopForTesting(kDoubleUnaligned, kTaggedSize);
+    obj = AllocateAligned(heap(), allocator, kTaggedSize, kDoubleUnaligned);
+    EXPECT_TRUE(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
+    // There is a filler object before the object.
+    filler = HeapObject::FromAddress(start);
+    EXPECT_NE(obj, filler);
+    EXPECT_TRUE(IsFreeSpaceOrFiller(filler));
+    EXPECT_EQ(filler->Size(), kTaggedSize);
+    EXPECT_EQ(start + kTaggedSize, obj.address());
+  }
+}
+
+// Test the case where allocation must be done from the free list, so filler
+// may precede or follow the object.
+TEST_F(HeapTest, TestAlignedOverAllocation) {
+  if (v8_flags.stress_concurrent_allocation) return;
+  ManualGCScope manual_gc_scope(i_isolate());
+  // Test checks for fillers before and behind objects and requires a fresh
+  // page and empty free list.
+  AbandonCurrentlyFreeMemory(heap()->old_space());
+  // Allocate a dummy object to properly set up the linear allocation info.
+  AllocationResult dummy =
+      heap()->allocator()->old_space_allocator()->AllocateRaw(
+          SafeHeapObjectSize(kTaggedSize), kTaggedAligned,
+          AllocationOrigin::kRuntime, AllocationHint());
+  ASSERT_FALSE(dummy.IsFailure());
+  heap()->CreateFillerObjectAt(dummy.ToObjectChecked().address(), kTaggedSize);
+
+  // Double misalignment is 4 on 32-bit platforms or when pointer compression
+  // is enabled, 0 on 64-bit ones when pointer compression is disabled.
+  const intptr_t double_misalignment = kDoubleSize - kTaggedSize;
+  Address start;
+  Tagged<HeapObject> obj;
+  Tagged<HeapObject> filler;
+  if (double_misalignment) {
+    start = AlignOldSpace(heap(), kDoubleAligned, 0);
+    obj = AllocateAligned(heap(), heap()->allocator()->old_space_allocator(),
+                          kTaggedSize, kDoubleAligned);
+    // The object is aligned.
+    EXPECT_TRUE(IsAligned(obj.address(), kDoubleAlignment));
+    // Try the opposite alignment case.
+    start = AlignOldSpace(heap(), kDoubleAligned, kTaggedSize);
+    obj = AllocateAligned(heap(), heap()->allocator()->old_space_allocator(),
+                          kTaggedSize, kDoubleAligned);
+    EXPECT_TRUE(IsAligned(obj.address(), kDoubleAlignment));
+    filler = HeapObject::FromAddress(start);
+    EXPECT_NE(obj, filler);
+    EXPECT_TRUE(IsFreeSpaceOrFiller(filler));
+    EXPECT_EQ(kTaggedSize, filler->Size());
+
+    // Similarly for kDoubleUnaligned.
+    start = AlignOldSpace(heap(), kDoubleUnaligned, 0);
+    obj = AllocateAligned(heap(), heap()->allocator()->old_space_allocator(),
+                          kTaggedSize, kDoubleUnaligned);
+    // The object is aligned.
+    EXPECT_TRUE(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
+    // Try the opposite alignment case.
+    start = AlignOldSpace(heap(), kDoubleUnaligned, kTaggedSize);
+    obj = AllocateAligned(heap(), heap()->allocator()->old_space_allocator(),
+                          kTaggedSize, kDoubleUnaligned);
+    EXPECT_TRUE(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
+    filler = HeapObject::FromAddress(start);
+    EXPECT_NE(obj, filler);
+    EXPECT_TRUE(IsFreeSpaceOrFiller(filler));
+    EXPECT_EQ(kTaggedSize, filler->Size());
+  }
 }
 
 }  // namespace internal
