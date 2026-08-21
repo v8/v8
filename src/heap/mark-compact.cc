@@ -2953,7 +2953,9 @@ class FullStringForwardingTableCleaner final
       }
       TryExternalize(original_string, record);
       TryInternalize(original_string, record);
-      original_string->set_raw_hash_field(record->raw_hash(isolate_));
+      if (!HeapLayout::InReadOnlySpace(original_string)) {
+        original_string->set_raw_hash_field(record->raw_hash(isolate_));
+      }
     } else {
       DisposeExternalResource(record);
     }
@@ -2973,11 +2975,27 @@ class FullStringForwardingTableCleaner final
     if (external_resource == nullptr) return;
 
     if (is_one_byte) {
+      // The string could have been internalized in the meantime and converted
+      // to a ThinString, with the actual string pointing to a
+      // non-externalizable string (e.g. in RO space).
+      if (V8_UNLIKELY(!original_string->SupportsExternalization(
+              v8::String::Encoding::ONE_BYTE_ENCODING))) {
+        DisposeExternalResource(record);
+        return;
+      }
       original_string->MakeExternalDuringGC(
           isolate_,
           reinterpret_cast<v8::String::ExternalOneByteStringResource*>(
               external_resource));
     } else {
+      // The string could have been internalized in the meantime and converted
+      // to a ThinString, with the actual string pointing to a
+      // non-externalizable string (e.g. in RO space).
+      if (V8_UNLIKELY(!original_string->SupportsExternalization(
+              v8::String::Encoding::TWO_BYTE_ENCODING))) {
+        DisposeExternalResource(record);
+        return;
+      }
       original_string->MakeExternalDuringGC(
           isolate_, reinterpret_cast<v8::String::ExternalStringResource*>(
                         external_resource));
