@@ -74,6 +74,7 @@ DirectHandle<SharedFunctionInfo> CreateSharedFunctionInfo(
   DirectHandle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->empty_string(), builtin, len, kAdapt, kind);
+  shared->set_language_mode(LanguageMode::kStrict);
   return shared;
 }
 
