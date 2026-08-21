@@ -1930,4 +1930,103 @@ TEST_F(ModuleTest, ExportStarMissingDefaultUseCounter) {
   global_use_counts = nullptr;
 }
 
+// Evaluating a deferred module from inside an embedder API callback must not
+// leave the module's exception pending on the isolate while the top-level
+// capability is rejected. V8 calls HostPromiseRejectionTracker from that
+// rejection, and the host is entitled to call back into V8 -- including into
+// paths that assert no exception is pending. See crbug.com/550083806.
+namespace {
+
+v8::Global<Module> deferred_throwing_dependency;
+
+MaybeLocal<Module> ResolveDeferredThrowingDependency(
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
+  return deferred_throwing_dependency.Get(Isolate::GetCurrent());
+}
+
+int deferred_rejections_reported = 0;
+
+// Models what an embedder does from its rejection hook: build an Error, which
+// enters a no-exception API scope and captures a stack trace over the frames
+// that are still live -- here, including the API callback below.
+void RecordRejectionAndBuildError(v8::PromiseRejectMessage message) {
+  if (message.GetEvent() != v8::kPromiseRejectWithNoHandler) return;
+  ++deferred_rejections_reported;
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->SetCaptureStackTraceForUncaughtExceptions(true);
+  v8::Exception::Error(String::NewFromUtf8Literal(isolate, "rejected"));
+}
+
+// An API callback that stringifies its argument. Calling it leaves an
+// API callback exit frame on the stack for the stack walk above to summarize.
+void StringifyCallback(const v8::FunctionCallbackInfo<Value>& info) {
+  Local<v8::String> unused;
+  // Deliberately ignore failure: the point is that ToString evaluates the
+  // deferred module, which throws.
+  (void)info[0]
+      ->ToString(Isolate::GetCurrent()->GetCurrentContext())
+      .ToLocal(&unused);
+}
+
+}  // namespace
+
+TEST_F(ModuleTest, DeferredModuleRejectionInsideApiCallback) {
+  i::FlagScope<bool> defer_imports(&i::v8_flags.js_defer_import_eval, true);
+  HandleScope scope(isolate());
+
+  deferred_rejections_reported = 0;
+  isolate()->SetPromiseRejectCallback(RecordRejectionAndBuildError);
+
+  // Install the API callback as a global function.
+  Local<v8::FunctionTemplate> tmpl =
+      v8::FunctionTemplate::New(isolate(), StringifyCallback);
+  CHECK(context()
+            ->Global()
+            ->Set(context(), NewString("stringify"),
+                  tmpl->GetFunction(context()).ToLocalChecked())
+            .FromJust());
+
+  // The dependency throws a primitive, so the rejection value is not already a
+  // native Error and the host hook has to fabricate one.
+  ScriptOrigin dependency_origin =
+      ModuleOrigin(NewString("dependency.js"), isolate());
+  ScriptCompiler::Source dependency_source(NewString("throw 123;"),
+                                           dependency_origin);
+  Local<Module> dependency =
+      ScriptCompiler::CompileModule(isolate(), &dependency_source)
+          .ToLocalChecked();
+  deferred_throwing_dependency.Reset(isolate(), dependency);
+
+  ScriptOrigin origin = ModuleOrigin(NewString("test.js"), isolate());
+  ScriptCompiler::Source source(
+      NewString("import defer * as ns from 'dependency.js';\n"
+                "globalThis.threw = false;\n"
+                "try { stringify(ns); } catch (e) { globalThis.threw = e; }\n"),
+      origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+  CHECK(module->InstantiateModule(context(), ResolveDeferredThrowingDependency)
+            .FromJust());
+
+  {
+    v8::TryCatch try_catch(isolate());
+    CHECK(!module->Evaluate(context()).IsEmpty());
+    CHECK(!try_catch.HasCaught());
+  }
+
+  // The rejection reached the host hook...
+  CHECK_EQ(1, deferred_rejections_reported);
+  // ...the deferred module ran and is errored...
+  CHECK_EQ(Module::kErrored, dependency->GetStatus());
+  // ...and the exception surfaced to JS through the API callback unchanged.
+  Local<Value> threw =
+      context()->Global()->Get(context(), NewString("threw")).ToLocalChecked();
+  CHECK(threw->IsNumber());
+  CHECK_EQ(123, threw.As<v8::Number>()->Value());
+
+  deferred_throwing_dependency.Reset();
+  isolate()->SetPromiseRejectCallback(nullptr);
+}
+
 }  // anonymous namespace

@@ -939,8 +939,18 @@ MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
   if (InnerModuleEvaluation(isolate, module, &stack, &dfs_index).is_null()) {
     if (!module->MaybeHandleEvaluationException(isolate, &stack)) return {};
     CHECK(try_catch.HasCaught());
+
+    // We are clearing the internal exception here because JSPromise::Reject can
+    // call Isolate::ReportPromiseReject that will trap to a host defined hook
+    // and given we are already registering this exception on promise
+    // capability, we shouldn't keep it as pending on isolate. This is important
+    // because host might have paths that call `Isolate::ReportPendingMessages`
+    // while `AllowExceptions::IsAllowed` is `false` and leaving such exception
+    // pending will cause a DCHECK failure.
+    isolate->clear_internal_exception();
     // d. Perform ! Call(capability.[[Reject]], undefined,
     //                   «result.[[Value]]»).
+
     JSPromise::Reject(capability, direct_handle(module->exception(), isolate));
   } else {  // 10. Else,
     // a. Assert: module.[[Status]] is either EVALUATING-ASYNC or EVALUATED.
