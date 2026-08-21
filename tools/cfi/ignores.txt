@@ -6,6 +6,10 @@ type:std::*
 # Following entries Taken from chromium's tools/cfi/blacklist.txt
 [cfi-icall]
 
+# Temporarily disable CFI unrelated/derived cast in std::shared_ptr
+# until upstream restores _LIBCPP_NO_CFI on __get_elem
+src:*third_party/libc*/*shared_ptr.h
+
 ######### Function pointers cast to incorrect type signatures
 
 # libicu is currently compiled such that in libicu the 'UChar' type is
