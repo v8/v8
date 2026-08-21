@@ -3232,5 +3232,230 @@ TEST_F(HeapTest, TestAlignedOverAllocation) {
   }
 }
 
+#ifdef DEBUG
+TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToZero) {
+  v8_flags.stress_compaction = false;
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.allow_natives_syntax = true;
+
+  static const int transitions_count = 10;
+  RunJS("function F() { }");
+  {
+    AlwaysAllocateScopeForTesting always_allocate(heap());
+    for (int i = 0; i < transitions_count; i++) {
+      base::EmbeddedVector<char, 64> buffer;
+      base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
+      RunJS(buffer.begin());
+    }
+  }
+  RunJS("var root = new F;");
+  DirectHandle<JSObject> root = RunJS<JSObject>("root");
+
+  // Count number of live transitions before marking.
+  int transitions_before =
+      TransitionsAccessor(i_isolate(), root->map()).NumberOfTransitions();
+  EXPECT_EQ(transitions_count, transitions_before);
+
+  // Get rid of o
+  RunJS(
+      "o = new F;"
+      "root = new F");
+  root = RunJS<JSObject>("root");
+
+  DirectHandle<String> prop_name = factory()->InternalizeUtf8String("funny");
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), i_isolate());
+  HeapAllocator::SetAllocationGcInterval(2);
+  v8_flags.gc_global = true;
+  v8_flags.retain_maps_for_n_gc = 0;
+  heap()->set_allocation_timeout(2);
+  Object::SetProperty(i_isolate(), root, prop_name, twenty_three).Check();
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMinorGC();
+  }
+
+  // Count number of live transitions after marking. Note that one transition
+  // is left, because 'o' still holds an instance of one transition target.
+  int transitions_after =
+      TransitionsAccessor(i_isolate(), Cast<Map>(root->map()->GetBackPointer()))
+          .NumberOfTransitions();
+  EXPECT_EQ(1, transitions_after);
+}
+
+TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToOne) {
+  v8_flags.stress_compaction = false;
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.allow_natives_syntax = true;
+
+  static const int transitions_count = 10;
+  RunJS("function F() {}");
+  {
+    AlwaysAllocateScopeForTesting always_allocate(heap());
+    for (int i = 0; i < transitions_count; i++) {
+      base::EmbeddedVector<char, 64> buffer;
+      base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
+      RunJS(buffer.begin());
+    }
+  }
+  RunJS("var root = new F;");
+  DirectHandle<JSObject> root = RunJS<JSObject>("root");
+
+  // Count number of live transitions before marking.
+  int transitions_before =
+      TransitionsAccessor(i_isolate(), root->map()).NumberOfTransitions();
+  EXPECT_EQ(transitions_count, transitions_before);
+
+  root = RunJS<JSObject>("root");
+  DirectHandle<String> prop_name = factory()->InternalizeUtf8String("funny");
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), i_isolate());
+  HeapAllocator::SetAllocationGcInterval(2);
+  v8_flags.gc_global = true;
+  v8_flags.retain_maps_for_n_gc = 0;
+  heap()->set_allocation_timeout(2);
+  Object::SetProperty(i_isolate(), root, prop_name, twenty_three).Check();
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMinorGC();
+  }
+
+  // Count number of live transitions after marking. Note that one transition
+  // is left, because 'o' still holds an instance of one transition target.
+  int transitions_after =
+      TransitionsAccessor(i_isolate(), Cast<Map>(root->map()->GetBackPointer()))
+          .NumberOfTransitions();
+  EXPECT_EQ(2, transitions_after);
+}
+
+TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToOnePropertyFound) {
+  v8_flags.stress_compaction = false;
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.allow_natives_syntax = true;
+
+  static const int transitions_count = 10;
+  RunJS("function F() {}");
+  {
+    AlwaysAllocateScopeForTesting always_allocate(heap());
+    for (int i = 0; i < transitions_count; i++) {
+      base::EmbeddedVector<char, 64> buffer;
+      base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
+      RunJS(buffer.begin());
+    }
+  }
+  RunJS("var root = new F;");
+  DirectHandle<JSObject> root = RunJS<JSObject>("root");
+
+  // Count number of live transitions before marking.
+  int transitions_before =
+      TransitionsAccessor(i_isolate(), root->map()).NumberOfTransitions();
+  EXPECT_EQ(transitions_count, transitions_before);
+
+  root = RunJS<JSObject>("root");
+  DirectHandle<String> prop_name = factory()->InternalizeUtf8String("prop9");
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), i_isolate());
+  HeapAllocator::SetAllocationGcInterval(0);
+  v8_flags.gc_global = true;
+  v8_flags.retain_maps_for_n_gc = 0;
+  heap()->set_allocation_timeout(0);
+  Object::SetProperty(i_isolate(), root, prop_name, twenty_three).Check();
+  InvokeMajorGC();
+
+  // Count number of live transitions after marking. Note that one transition
+  // is left, because 'o' still holds an instance of one transition target.
+  int transitions_after =
+      TransitionsAccessor(i_isolate(), Cast<Map>(root->map()->GetBackPointer()))
+          .NumberOfTransitions();
+  EXPECT_EQ(1, transitions_after);
+}
+#endif  // DEBUG
+
+TEST_F(HeapTest, ReleaseOverReservedPages) {
+  if (!v8_flags.compact) return;
+  v8_flags.trace_gc = true;
+  // The optimizer can allocate stuff, messing up the test.
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+  v8_flags.turbofan = false;
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+  // - Parallel compaction increases fragmentation, depending on how existing
+  //   memory is distributed. Since this is non-deterministic because of
+  //   concurrent sweeping, we disable it for this test.
+  // - Concurrent sweeping adds non determinism, depending on when memory is
+  //   available for further reuse.
+  // - Fast evacuation of pages may result in a different page count in old
+  //   space.
+  ManualGCScope manual_gc_scope(i_isolate());
+  v8_flags.page_promotion = false;
+  v8_flags.parallel_compaction = false;
+  // If there's snapshot available, we don't know whether 20 small arrays will
+  // fit on the initial pages.
+  if (!i_isolate()->snapshot_available()) return;
+  Factory* factory = i_isolate()->factory();
+  Heap* heap = this->heap();
+
+  // Ensure that the young generation is empty.
+  {
+    // In this test, we need to invoke GC without stack, otherwise some objects
+    // may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+    EmptyNewSpaceUsingGC();
+  }
+  static const int number_of_test_pages = 20;
+
+  // Prepare many pages with low live-bytes count.
+  PagedSpace* old_space = heap->old_space();
+  const int initial_page_count = old_space->CountTotalPages();
+  const int overall_page_count = number_of_test_pages + initial_page_count;
+
+  Global<v8::FixedArray> fixed_arrays[number_of_test_pages];
+  {
+    v8::HandleScope scope(v8_isolate());
+
+    for (int i = 0; i < number_of_test_pages; i++) {
+      AlwaysAllocateScopeForTesting always_allocate(heap);
+      {
+        DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+        SimulateFullSpace(old_space);
+      }
+      Handle<FixedArray> fixed_array =
+          factory->NewFixedArray(1, AllocationType::kOld);
+      fixed_arrays[i].Reset(v8_isolate(),
+                            v8::Utils::FixedArrayToLocal(fixed_array));
+    }
+  }
+
+  EXPECT_EQ(overall_page_count, old_space->CountTotalPages());
+
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+
+  // Triggering one GC will cause a lot of garbage to be discovered but
+  // even spread across all allocated pages.
+  InvokeMajorGC();
+  EXPECT_GE(overall_page_count, old_space->CountTotalPages());
+
+  // Triggering subsequent GCs should cause at least half of the pages
+  // to be released to the OS after at most two cycles.
+  InvokeMajorGC();
+  EXPECT_GE(overall_page_count, old_space->CountTotalPages());
+  InvokeMajorGC();
+  EXPECT_GE(number_of_test_pages,
+            (old_space->CountTotalPages() - initial_page_count) * 2);
+
+  // Triggering a last-resort GC should cause all pages to be released to the
+  // OS so that other processes can seize the memory.
+  const int page_count_before_memory_reducing_gcs =
+      old_space->CountTotalPages();
+  InvokeMemoryReducingMajorGCs();
+  // With precise object pinning, some pages may be pinned and thus not
+  // evacuated. It is therefore not guaranteed that the page count can return
+  // to the initial count.
+  EXPECT_GE(v8_flags.precise_object_pinning
+                ? page_count_before_memory_reducing_gcs
+                : initial_page_count,
+            old_space->CountTotalPages());
+}
+
 }  // namespace internal
 }  // namespace v8
