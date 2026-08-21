@@ -8172,10 +8172,11 @@ int Shell::Main(int argc, char* argv[]) {
 #ifdef V8_FUZZILLI
 
   if (options.fuzzilli_enable_builtins_coverage) {
-    cov_init_builtins_edges(static_cast<uint32_t>(
-        i::BasicBlockProfiler::Get()
-            ->GetCoverageBitmap(reinterpret_cast<i::Isolate*>(isolate))
-            .size()));
+    uint32_t count = i::BasicBlockProfiler::Get()->GetBuiltinsBlockCount(
+        reinterpret_cast<i::Isolate*>(isolate));
+    if (count > 0) {
+      cov_init_builtins_edges(count);
+    }
   }
 
   // Let the parent process (Fuzzilli) know we are ready.
@@ -8363,13 +8364,10 @@ int Shell::Main(int argc, char* argv[]) {
       // Send result to parent (fuzzilli) and reset edge guards.
       if (fuzzilli_reprl) {
         int status = result << 8;
-        std::vector<bool> bitmap;
-        if (options.fuzzilli_enable_builtins_coverage) {
-          bitmap = i::BasicBlockProfiler::Get()->GetCoverageBitmap(
-              reinterpret_cast<i::Isolate*>(isolate));
-          cov_update_builtins_basic_block_coverage(bitmap);
-        }
         if (options.fuzzilli_coverage_statistics) {
+          std::vector<bool> bitmap =
+              i::BasicBlockProfiler::Get()->GetCoverageBitmap(
+                  reinterpret_cast<i::Isolate*>(isolate));
           int tot = 0;
           for (bool b : bitmap) {
             if (b) tot++;
@@ -8381,16 +8379,19 @@ int Shell::Main(int argc, char* argv[]) {
                  << bitmap.size() << std::endl;
           iteration_counter++;
         }
+        uint8_t* shmem_edges = cov_get_shmem_edges();
+        if (options.fuzzilli_enable_builtins_coverage &&
+            cov_has_builtins_edges() && shmem_edges != nullptr) {
+          i::BasicBlockProfiler::Get()->UpdateBuiltinsCoverageAndReset(
+              reinterpret_cast<i::Isolate*>(isolate), cov_get_builtins_start(),
+              shmem_edges);
+        }
         // In REPRL mode, stdout and stderr can be regular files, so they need
         // to be flushed after every execution
         fflush(stdout);
         fflush(stderr);
         CHECK_EQ(write(REPRL_CWFD, &status, 4), 4);
         sanitizer_cov_reset_edgeguards();
-        if (options.fuzzilli_enable_builtins_coverage) {
-          i::BasicBlockProfiler::Get()->ResetCounts(
-              reinterpret_cast<i::Isolate*>(isolate));
-        }
       }
 #endif  // V8_FUZZILLI
     } while (fuzzilli_reprl);

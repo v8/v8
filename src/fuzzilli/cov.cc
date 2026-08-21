@@ -183,10 +183,7 @@ __attribute__((visibility("default"))) uint32_t
 sanitizer_cov_count_discovered_edges() {
   uint32_t on_edges_counter = 0;
   for (uint32_t i = 1; i < builtins_start; ++i) {
-    const uint32_t byteIndex = i >> 3;  // Divide by 8 using a shift operation
-    const uint32_t bitIndex = i & 7;  // Modulo 8 using a bitwise AND operation
-
-    if (shmem->edges[byteIndex] & (1 << bitIndex)) {
+    if (cov_is_edge_set(shmem->edges, i)) {
       ++on_edges_counter;
     }
   }
@@ -214,7 +211,7 @@ __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   uint32_t old_pkru = GrantDefaultPkeyAccessIfNecessary();
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
-  shmem->edges[index / 8] |= 1 << (index % 8);
+  cov_set_edge(shmem->edges, index);
 
 #ifndef USE_CHROMIUM_FUZZILLI
   // This is a hot path, so use a macro instead of an if statement.
@@ -244,6 +241,12 @@ void cov_init_builtins_edges(uint32_t num_edges) {
           num_edges);
 }
 
+bool cov_has_builtins_edges() { return builtins_edge_count > 0; }
+
+uint32_t cov_get_builtins_start() { return builtins_start; }
+
+uint8_t* cov_get_shmem_edges() { return shmem ? shmem->edges : nullptr; }
+
 // This function is ran once per REPRL loop. In case of crash the coverage of
 // crash will not be stored in shared memory. Therefore, it would be useful, if
 // we could store these coverage information into shared memory in real time.
@@ -255,10 +258,7 @@ void cov_update_builtins_basic_block_coverage(
   }
   for (uint32_t i = 0; i < cov_map.size(); ++i) {
     if (cov_map[i]) {
-      const uint32_t byteIndex = (i + builtins_start) >> 3;
-      const uint32_t bitIndex = (i + builtins_start) & 7;
-
-      shmem->edges[byteIndex] |= (1 << bitIndex);
+      cov_set_edge(shmem->edges, i + builtins_start);
     }
   }
 }
