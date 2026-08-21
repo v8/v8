@@ -952,8 +952,10 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  SaveFPRegsMode fp_mode, SmiCheck smi_check) {
   DCHECK(!AreAliased(object, value, slot_address));
   if (v8_flags.slow_debug_code) {
-    LoadTaggedField(r0, MemOperand(slot_address));
-    CmpS64(r0, value);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadTaggedField(scratch, MemOperand(slot_address));
+    CmpS64(scratch, value);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
