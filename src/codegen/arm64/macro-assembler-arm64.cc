@@ -3618,7 +3618,13 @@ void MacroAssembler::DecompressTagged(const Register& destination,
                                       Tagged_t immediate) {
   ASM_CODE_COMMENT(this);
   if (IsImmAddSub(immediate)) {
-    Orr(destination, kPtrComprCageBaseRegister,
+    // Runtime values decompress with Orr so that accidental
+    // double-decompression is idempotent, but a constant has no input that
+    // could already be decompressed, and the 4GB-aligned cage base makes Add
+    // equal to Orr for any 32-bit offset. Only Add can encode the offset
+    // directly, though -- Orr would need a (rarely matching) logical
+    // immediate and otherwise materializes through a scratch register.
+    Add(destination, kPtrComprCageBaseRegister,
         Immediate(immediate, RelocInfo::Mode::NO_INFO));
   } else {
     // Immediate is larger than 12 bit and therefore can't be encoded directly.
