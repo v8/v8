@@ -8278,8 +8278,31 @@ void BranchIfSmi::SetValueLocationConstraints() {
 }
 void BranchIfSmi::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
-  __ Branch(__ CheckSmi(ToRegister(ConditionInput())), if_true(), if_false(),
-            state.next_block());
+  // Mirrors Branch(Condition, ...) fallthrough handling, but goes through
+  // JumpIfSmi/JumpIfNotSmi so arm64 can use tbz/tbnz instead of tst+b.cond.
+  Register value = ToRegister(ConditionInput());
+  BasicBlock* next_block = state.next_block();
+  bool fallthrough_when_true = if_true() == next_block;
+  bool fallthrough_when_false = if_false() == next_block;
+  if (fallthrough_when_false) {
+    if (fallthrough_when_true) {
+      // If both paths are a fallthrough, do nothing. This case is
+      // reachable: edge splitting keeps branch targets distinct in the
+      // graph, but codegen jump threading (RealJumpTarget) can redirect
+      // both targets to the same block.
+      DCHECK_EQ(if_true(), if_false());
+      return;
+    }
+    // Jump over the false block if true, otherwise fall through into it.
+    __ JumpIfSmi(value, if_true()->label());
+  } else {
+    // Jump to the false block if true.
+    __ JumpIfNotSmi(value, if_false()->label());
+    // Jump to the true block if it's not the next block.
+    if (!fallthrough_when_true) {
+      __ Jump(if_true()->label());
+    }
+  }
 }
 
 void BranchIfRootConstant::SetValueLocationConstraints() {

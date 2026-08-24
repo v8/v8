@@ -169,17 +169,20 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   TemporaryRegisterScope temps(this);
 
   if (check_type == CheckType::kCheckHeapObject) {
-    // Check if {{value}} is Smi.
-    Condition is_smi = CheckSmi(value);
-    JumpToDeferredIf(
-        is_smi,
-        [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-           ZoneLabelRef is_false) {
-          // Check if {value} is not zero.
-          __ CompareSmiAndJumpIf(value, Smi::FromInt(0), kEqual, *is_false);
-          __ Jump(*is_true);
-        },
-        value, is_true, is_false);
+    // Check if {{value}} is Smi. Going through JumpIfSmi rather than a
+    // CheckSmi condition lets arm64 use tbz instead of tst+b.eq.
+    if (v8_flags.code_comments) {
+      RecordComment("-- Jump to deferred code");
+    }
+    JumpIfSmi(value, MakeDeferredCode(
+                         [](MaglevAssembler* masm, Register value,
+                            ZoneLabelRef is_true, ZoneLabelRef is_false) {
+                           // Check if {value} is not zero.
+                           __ CompareSmiAndJumpIf(value, Smi::FromInt(0),
+                                                  kEqual, *is_false);
+                           __ Jump(*is_true);
+                         },
+                         value, is_true, is_false));
   } else if (v8_flags.debug_code) {
     AssertNotSmi(value);
   }

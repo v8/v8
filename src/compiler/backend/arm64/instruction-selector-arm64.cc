@@ -3305,10 +3305,9 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, OpIndex node,
     case kSignedGreaterThanOrEqual: {
       // Here we handle sign tests, aka. comparisons with zero.
       if (value != 0) return false;
-      // We don't generate TBZ/TBNZ for deoptimisations, as they have a
-      // shorter range than conditional branches and generating them for
-      // deoptimisations results in more veneers.
-      if (cont->IsDeoptimize()) return false;
+      // Deoptimisations are handled like branches: TBZ/TBNZ have a shorter
+      // range than conditional branches, but deopt exits normally land
+      // within it, and the assembler veneers the rare out-of-range case.
       Arm64OperandGenerator g(selector);
       cont->Overwrite(MapForTbz(cond));
 
@@ -3340,7 +3339,8 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, OpIndex node,
         // Emit a tbz/tbnz if we are comparing with a single-bit mask:
         //   Branch(WordEqual(WordAnd(x, 1 << N), 1 << N), true, false)
         uint64_t actual_value;
-        if (cont->IsBranch() && base::bits::IsPowerOfTwo(value) &&
+        if ((cont->IsBranch() || cont->IsDeoptimize()) &&
+            base::bits::IsPowerOfTwo(value) &&
             selector->MatchUnsignedIntegralConstant(bitwise_and->right(),
                                                     &actual_value) &&
             actual_value == value && selector->CanCover(user, node)) {
@@ -4037,9 +4037,12 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
   // If there are several uses of the given operation, we will generate a TBZ
   // instruction for each. This is useful even if there are other uses of the
   // arithmetic result, because it moves dependencies further back.
+  // Deoptimizations take this path too: their exits are laid out at the end
+  // of the code and are normally within TBZ/TBNZ range; when a function
+  // outgrows it, the assembler routes the branch through a veneer.
   const Operation& value_op = Get(value);
 
-  if (cont->IsBranch()) {
+  if (cont->IsBranch() || cont->IsDeoptimize()) {
     if (value_op.Is<Opmask::kWord64Equal>()) {
       const ComparisonOp& equal = value_op.Cast<ComparisonOp>();
       if (MatchIntegralZero(equal.right())) {
