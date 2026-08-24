@@ -513,6 +513,7 @@ class DisassemblerX64 {
   bool leading_0f38() { return is_evex() ? evex_map2() : vex_0f38(); }
   bool leading_0f3a() { return is_evex() ? evex_map3() : vex_0f3a(); }
   int get_vreg() { return is_evex() ? (evex_vvvv() | evex_v4()) : vex_vreg(); }
+  bool vector_w() const { return is_evex() ? evex_w() : vex_w(); }
 
   OperandSize operand_size() {
     if (byte_size_operand_) return OPERAND_BYTE_SIZE;
@@ -1038,6 +1039,9 @@ int DisassemblerX64::SetCC(uint8_t* data) {
 
 const char* sf_str[4] = {"", "rl", "ra", "ll"};
 
+// TODO(v8:536954139): Audit shared VEX/EVEX opcode cases below. Cases using
+// PrintRightOperand or PrintRightAVXOperand may require PrintRightEVEXOperand
+// to correctly decode EVEX memory instructions.
 int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
   uint8_t opcode = *data;
   uint8_t* current = data + 1;
@@ -1333,12 +1337,12 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
         current += PrintRightAVXOperand(current);
         break;
       case 0x2A:
-        AppendToBuffer("%s %s,%s,", vex_w() ? "vcvtqsi2ss" : "vcvtlsi2ss",
+        AppendToBuffer("%s %s,%s,", vector_w() ? "vcvtqsi2ss" : "vcvtlsi2ss",
                        NameOfAVXRegister(regop), NameOfAVXRegister(vvvv));
         current += PrintRightOperand(current);
         break;
       case 0x2C:
-        AppendToBuffer("vcvttss2si%s %s,", vex_w() ? "q" : "",
+        AppendToBuffer("vcvttss2si%s %s,", vector_w() ? "q" : "",
                        NameOfCPURegister(regop));
         current += PrintRightAVXOperand(current);
         break;
@@ -1438,17 +1442,17 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
         current += PrintRightAVXOperand(current);
         break;
       case 0x2A:
-        AppendToBuffer("%s %s,%s,", vex_w() ? "vcvtqsi2sd" : "vcvtlsi2sd",
+        AppendToBuffer("%s %s,%s,", vector_w() ? "vcvtqsi2sd" : "vcvtlsi2sd",
                        NameOfAVXRegister(regop), NameOfAVXRegister(vvvv));
         current += PrintRightOperand(current);
         break;
       case 0x2C:
-        AppendToBuffer("vcvttsd2si%s %s,", vex_w() ? "q" : "",
+        AppendToBuffer("vcvttsd2si%s %s,", vector_w() ? "q" : "",
                        NameOfCPURegister(regop));
         current += PrintRightAVXOperand(current);
         break;
       case 0x2D:
-        AppendToBuffer("vcvtsd2si%s %s,", vex_w() ? "q" : "",
+        AppendToBuffer("vcvtsd2si%s %s,", vector_w() ? "q" : "",
                        NameOfCPURegister(regop));
         current += PrintRightAVXOperand(current);
         break;
@@ -1748,7 +1752,7 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
         current += PrintRightAVXOperand(current);
         break;
       case 0x6E:
-        AppendToBuffer("vmov%c %s,", vex_w() ? 'q' : 'd',
+        AppendToBuffer("vmov%c %s,", vector_w() ? 'q' : 'd',
                        NameOfAVXRegister(regop));
         current += PrintRightOperand(current);
         break;
@@ -1780,7 +1784,7 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
         AppendToBuffer(",%u", *current++);
         break;
       case 0x7E:
-        AppendToBuffer("vmov%c ", vex_w() ? 'q' : 'd');
+        AppendToBuffer("vmov%c ", vector_w() ? 'q' : 'd');
         current += PrintRightOperand(current);
         AppendToBuffer(",%s", NameOfAVXRegister(regop));
         break;

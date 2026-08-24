@@ -107,6 +107,29 @@ TEST_F(DisasmX64Test, AVX512) {
                "62b37d203fc100       vpcmpb k0,ymm16,ymm17,0x0");
 }
 
+TEST_F(DisasmX64Test, EVEXVectorW) {
+  uint8_t buffer[] = {
+      0x62, 0xf1, 0x7e, 0x08, 0x2a, 0xc0,  // vcvtlsi2ss xmm0,xmm0,rax
+      0x62, 0xf1, 0xfe, 0x08, 0x2a, 0xc0,  // vcvtqsi2ss xmm0,xmm0,rax
+  };
+
+  disasm::NameConverter converter;
+  disasm::Disassembler disassembler(converter);
+  v8::base::EmbeddedVector<char, 128> out_buffer;
+
+  uint8_t* pc = buffer;
+  int len = disassembler.InstructionDecode(out_buffer, pc);
+  EXPECT_EQ(len, 6);
+  EXPECT_STREQ(out_buffer.begin(),
+               "62f17e082ac0         vcvtlsi2ss xmm0,xmm0,rax");
+
+  pc += len;
+  len = disassembler.InstructionDecode(out_buffer, pc);
+  EXPECT_EQ(len, 6);
+  EXPECT_STREQ(out_buffer.begin(),
+               "62f1fe082ac0         vcvtqsi2ss xmm0,xmm0,rax");
+}
+
 TEST_F(DisasmX64Test, DisasmX64) {
   HandleScope handle_scope(isolate());
   uint8_t buffer[8192];
