@@ -2570,8 +2570,8 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   // buffer is stale. If it grows between the registration and the check, we
   // will see it's stale. If it grows after the check, we will receive a
   // broadcast and refresh the buffer on the next access.
-  GlobalBackingStoreRegistry::Register(backing_store);
-  backing_store->AttachSharedWasmMemoryObject(isolate_, result);
+  GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(isolate_, backing_store,
+                                                        result);
 
   if (buffer->GetByteLength() >= backing_store->byte_length()) {
     // Link the two.
