@@ -809,7 +809,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglevInlined) {
 RUNTIME_FUNCTION(Runtime_LogOrTraceOptimizedOSREntry) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(0, args.length());
-  CHECK(v8_flags.trace_osr || v8_flags.log_function_events);
+  CHECK(v8_flags.log_or_trace_osr);
 
   BytecodeOffset osr_offset = BytecodeOffset::None();
   Handle<JSFunction> function;
