@@ -3911,6 +3911,9 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
       } else {
         GET_VALUE_OR_ABORT(left, GetFloat64(left));
       }
+      if (left->MayBeHoleOrUndefinedNan()) {
+        GET_VALUE_OR_ABORT(left, AddNewNode<Float64ToSilencedFloat64>({left}));
+      }
       return left->Unwrap();
     }
     // TODO(dmercadier): we could still do strength reduction, like
