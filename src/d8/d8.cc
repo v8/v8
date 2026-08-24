@@ -7154,6 +7154,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #ifdef V8_FUZZILLI
     } else if (FlagMatches("--fuzzilli-enable-builtins-coverage", &argv[i])) {
       options.fuzzilli_enable_builtins_coverage = true;
+    } else if (FlagMatches("--no-fuzzilli-enable-builtins-coverage",
+                           &argv[i])) {
+      options.fuzzilli_enable_builtins_coverage = false;
     } else if (FlagMatches("--fuzzilli-coverage-statistics", &argv[i])) {
       options.fuzzilli_coverage_statistics = true;
 #endif
