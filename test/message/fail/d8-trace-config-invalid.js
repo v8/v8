@@ -4,3 +4,4 @@
 
 // Flags: --enable-tracing
 // Flags: --trace-config=test/message/fail/d8-trace-config-invalid.bad-json
+// Resources: test/message/fail/d8-trace-config-invalid.bad-json
