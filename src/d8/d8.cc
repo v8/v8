@@ -2548,8 +2548,9 @@ bool SendPerfControlCommand(const char* command) {
       return false;
     }
 
-    char ack[5];
+    char ack[6] = {0};
     ret = read(Shell::options.perf_ack_fd, ack, 5);
+    ack[5] = '\0';
     if (ret == -1) {
       fprintf(stderr, "perf_ack read error: %s\n", strerror(errno));
       return false;
