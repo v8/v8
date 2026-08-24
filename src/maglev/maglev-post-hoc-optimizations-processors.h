@@ -278,13 +278,13 @@ class LoopOptimizationProcessor {
     ValueNode* input = candidate->input(0).node();
     DCHECK(!IsLoopPhi(input));
     // For hoisting an instruction we need:
-    // * A unique loop entry block.
     // * Inputs live before the loop (i.e., not defined inside the loop).
     // * No hoisting over checks (done eagerly by clearing loop_effects).
-    // TODO(olivf): We should enforce loops having a unique entry block at graph
-    // building time.
-    if (current_block->predecessor_count() != 2) return false;
-    BasicBlock* loop_entry = current_block->predecessor_at(0);
+    // A resumable loop is also entered through resume edges that bypass its
+    // header, so it might not have a forward edge to hoist into at all.
+    if (current_block->state()->is_resumable_loop()) return false;
+    DCHECK_EQ(current_block->predecessor_count(), 2);
+    BasicBlock* loop_entry = current_block->forward_predecessor();
     if (loop_entry->successors().size() != 1) {
       return false;
     }

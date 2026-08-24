@@ -735,6 +735,13 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   if (immutable_proto) map->set_is_immutable_proto(true);
 
   JSFunction::SetInitialMap(isolate, result, map, Cast<JSObject>(prototype));
+  if (map->supports_fast_iterable_to_list()) {
+    // %CheckFastIterableToListPrototype() relies on the constness tracking
+    // which requires the prototype to be in fast mode.
+    DirectHandle<Map> proto_map(Cast<JSObject>(prototype)->map(), isolate);
+    Map::SetShouldBeFastPrototypeMap(proto_map, true, isolate);
+  }
+
   return result;
 }
 

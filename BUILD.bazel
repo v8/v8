@@ -818,13 +818,11 @@ filegroup(
 filegroup(
     name = "v8_flags",
     srcs = [
+        "src/flags/feature-flags.h",
         "src/flags/flag-definitions.h",
         "src/flags/flags-impl.h",
         "src/flags/flags.h",
-    ] + select({
-        "is_v8_enable_webassembly": ["src/wasm/wasm-feature-flags.h"],
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 filegroup(
@@ -1629,8 +1627,6 @@ filegroup(
         "src/common/ptr-compr-inl.h",
         "src/common/thread-local-storage.h",
         "src/common/scoped-modification.h",
-        "src/common/segmented-table.h",
-        "src/common/segmented-table-inl.h",
         "src/common/simd128.h",
         "src/common/synchronization-point-support.cc",
         "src/common/synchronization-point-support.h",
@@ -1656,6 +1652,8 @@ filegroup(
         "src/debug/debug-interface.h",
         "src/debug/debug-property-iterator.cc",
         "src/debug/debug-property-iterator.h",
+        "src/debug/debug-scope-info.cc",
+        "src/debug/debug-scope-info.h",
         "src/debug/debug-scope-iterator.cc",
         "src/debug/debug-scope-iterator.h",
         "src/debug/debug-scopes.cc",
@@ -2631,6 +2629,9 @@ filegroup(
         "src/sandbox/sandbox-malloc.h",
         "src/sandbox/sandboxed-pointer.h",
         "src/sandbox/sandboxed-pointer-inl.h",
+        "src/sandbox/segmented-table.cc",
+        "src/sandbox/segmented-table.h",
+        "src/sandbox/segmented-table-inl.h",
         "src/sandbox/tagged-payload.h",
         "src/sandbox/testing.cc",
         "src/sandbox/testing.h",

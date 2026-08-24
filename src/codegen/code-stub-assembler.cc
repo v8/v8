@@ -12795,7 +12795,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
               // signature and receiver is not a JSReceiver the signature check
               // in CallFunctionTemplate builtin will fail anyway, so we can
               // short cut it here and throw kIllegalInvocation immediately.
-              js_receiver = ToObject_Inline(context, receiver);
+              js_receiver = ConvertReceiver(context, receiver);
               break;
           }
           TNode<JSReceiver> holder_receiver = *holder;
@@ -15221,6 +15221,7 @@ TNode<IntPtrT> CodeStubAssembler::MemoryChunkFromAddress(
                  IntPtrConstant(~MemoryChunk::GetAlignmentMaskForAssembler()));
 }
 
+// LINT.IfChange(BasePageFromMemoryChunk)
 TNode<IntPtrT> CodeStubAssembler::BasePageFromMemoryChunk(
     TNode<IntPtrT> address) {
 #ifdef V8_ENABLE_SANDBOX
@@ -15237,17 +15238,34 @@ TNode<IntPtrT> CodeStubAssembler::BasePageFromMemoryChunk(
                         MemoryChunkConstants::kMetadataPointerTableSizeMask));
   TNode<IntPtrT> offset = ChangeInt32ToIntPtr(
       Word32Shl(index, UniqueUint32Constant(kBasePageTableEntrySizeLog2)));
+  static_assert(offsetof(IsolateGroup::BasePageTableEntry, metadata_) == 0);
   TNode<IntPtrT> metadata = Load<IntPtrT>(table, offset);
   // Check that the Metadata belongs to this Chunk, since an attacker with write
   // inside the sandbox could've swapped the index.
   TNode<IntPtrT> metadata_chunk = MemoryChunkFromAddress(
       Load<IntPtrT>(metadata, IntPtrConstant(BasePage::AreaStartOffset())));
   CSA_CHECK(this, WordEqual(metadata_chunk, address));
+
+  // Check that the page is accessible from the current isolate.
+  TNode<RawPtrT> isolate = Load<RawPtrT>(
+      table,
+      IntPtrAdd(offset, IntPtrConstant(offsetof(
+                            IsolateGroup::BasePageTableEntry, isolate_))));
+  TNode<RawPtrT> current_isolate = UncheckedCast<RawPtrT>(
+      ExternalConstant(ExternalReference::isolate_address()));
+  CSA_CHECK(
+      this,
+      Word32Or(WordEqual(isolate, current_isolate),
+               WordEqual(
+                   isolate,
+                   IntPtrConstant(IsolateGroup::BasePageTableEntry::
+                                      kReadOnlyOrSharedEntryIsolateSentinel))));
   return metadata;
 #else
   return Load<IntPtrT>(address, IntPtrConstant(MemoryChunk::MetadataOffset()));
 #endif
 }
+// LINT.ThenChange(/src/heap/memory-chunk-inl.h:BasePageFromMemoryChunk)
 
 TNode<IntPtrT> CodeStubAssembler::BasePageFromAddress(TNode<IntPtrT> address) {
   return BasePageFromMemoryChunk(MemoryChunkFromAddress(address));

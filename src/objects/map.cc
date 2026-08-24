@@ -2666,6 +2666,11 @@ void Map::SetPrototype(Isolate* isolate, DirectHandle<Map> map,
            HeapLayout::InWritableSharedSpace(*prototype));
   }
 
+  if (IsJSInterceptorMap(*map) && map->prototype() != *prototype) {
+    Cast<JSInterceptorMap>(*map)->set_fast_case_validity_cell(
+        ReadOnlyRoots(isolate).invalid_prototype_validity_cell());
+  }
+
   WriteBarrierMode wb_mode =
       IsNull(*prototype) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
   map->set_prototype(*prototype, wb_mode);

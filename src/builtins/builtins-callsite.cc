@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/contexts-inl.h"
@@ -112,6 +113,10 @@ BUILTIN(CallSitePrototypeGetFunction) {
     // not exist outside the ShadowRealm.
     CHECK_SHADOW_REALM_BOUNDARY_OR_RETURN_FAILURE(
         isolate, current_native_context, creation_context, method_name);
+
+    if (!creation_context->HasSameSecurityTokenAs(current_native_context)) {
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
   }
 
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetFunctionSloppyCall);
@@ -121,6 +126,25 @@ BUILTIN(CallSitePrototypeGetFunction) {
 BUILTIN(CallSitePrototypeGetFunctionName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getFunctionName");
+
+  Tagged<Object> func_obj = frame->function();
+  if (IsJSReceiver(func_obj)) {
+    // Get function's creation context. Return null if not available.
+    Tagged<JSReceiver> function_obj = Cast<JSReceiver>(func_obj);
+    std::optional<Tagged<NativeContext>> maybe_creation_context =
+        function_obj->GetCreationContext();
+    if (!maybe_creation_context.has_value()) {
+      return ReadOnlyRoots(isolate).null_value();
+    }
+    Tagged<NativeContext> creation_context = maybe_creation_context.value();
+    Tagged<NativeContext> current_native_context =
+        isolate->raw_native_context();
+
+    if (!creation_context->HasSameSecurityTokenAs(current_native_context)) {
+      return ReadOnlyRoots(isolate).null_value();
+    }
+  }
+
   return *CallSiteInfo::GetFunctionName(frame);
 }
 
@@ -190,6 +214,10 @@ BUILTIN(CallSitePrototypeGetThis) {
     // not exist outside the ShadowRealm.
     CHECK_SHADOW_REALM_BOUNDARY_OR_RETURN_FAILURE(
         isolate, current_native_context, creation_context, method_name);
+
+    if (!creation_context->HasSameSecurityTokenAs(current_native_context)) {
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
   }
   return this_obj;
 }

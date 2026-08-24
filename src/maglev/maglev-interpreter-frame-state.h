@@ -304,7 +304,6 @@ class MergePointInterpreterFrameState {
       compiler::OptionalScopeInfoRef context_scope_info);
 
   static LoopMergePointInterpreterFrameState* NewForLoop(
-      const InterpreterFrameState& start_state,
       const MaglevCompilationUnit& info, bool is_inline, Graph* graph,
       int merge_offset, int predecessor_count,
       const compiler::BytecodeLivenessState* liveness,
@@ -480,13 +479,6 @@ class MergePointInterpreterFrameState {
     // merged yet.
     DCHECK_IMPLIES(is_loop(), predecessor_count_ > 0);
     return is_loop() && predecessors_so_far_ < predecessor_count_;
-  }
-
-  bool is_unmerged_unreachable_loop() const {
-    // If there is only one predecessor, and it's not set, then this is a loop
-    // merge with no forward control flow entering it.
-    return is_unmerged_loop() && !is_resumable_loop() &&
-           predecessor_count_ == 1 && predecessors_so_far_ == 0;
   }
 
   bool IsUnreachableByForwardEdge() const;

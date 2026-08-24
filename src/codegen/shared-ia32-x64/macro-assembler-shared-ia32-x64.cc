@@ -743,8 +743,12 @@ void SharedMacroAssemblerBase::I16x8Q15MulRSatS(XMMRegister dst,
   Psllw(scratch, scratch, uint8_t{15});
 
   if (!CpuFeatures::IsSupported(AVX) && (dst != src1)) {
-    movaps(dst, src1);
-    src1 = dst;
+    if (dst == src2) {
+      std::swap(src1, src2);
+    } else {
+      movaps(dst, src1);
+      src1 = dst;
+    }
   }
 
   Pmulhrsw(dst, src1, src2);

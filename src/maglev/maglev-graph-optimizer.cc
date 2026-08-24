@@ -1293,6 +1293,22 @@ ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayElement(
     StoreFixedDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
       AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+  // A reduction can have replaced the value with one that carries the hole or
+  // undefined NaN since the store chose not to canonicalize.
+  ValueNode* value = node->ValueInput().node();
+  if (value->MayBeHoleOrUndefinedNan()) {
+    node->change_input(
+        StoreFixedDoubleArrayElement::kValueIndex,
+        reducer_.AddNewNodeNoInputConversion<Float64ToSilencedFloat64>(
+            {value}));
+  }
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayHole(
+    StoreFixedDoubleArrayHole* node, const ProcessingState& state) {
+  REMOVE_AND_RETURN_IF_DONE(
+      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
   return ProcessResult::kContinue;
 }
 
@@ -2710,6 +2726,12 @@ ProcessResult MaglevGraphOptimizer::VisitUnsafeHoleyFloat64ToFloat64(
 ProcessResult MaglevGraphOptimizer::VisitUnsafeFloat64ToHoleyFloat64(
     UnsafeFloat64ToHoleyFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  // A reduction can have replaced the input with one that carries the hole or
+  // undefined NaN since the widen was chosen, and widening those would give
+  // them back their meaning.
+  if (node->ValueInput().node()->MayBeHoleOrUndefinedNan()) {
+    node->OverwriteWith(Opcode::kChangeFloat64ToHoleyFloat64);
+  }
   return ProcessResult::kContinue;
 }
 

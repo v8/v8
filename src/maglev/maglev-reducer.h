@@ -52,6 +52,8 @@ enum class CpuOperation {
 
 // TODO(leszeks): Add a generic mechanism for marking nodes as optionally
 // supported.
+enum class StringAtOOBMode { kElement, kCharAt };
+
 inline bool IsSupported(CpuOperation op) {
   switch (op) {
     case CpuOperation::kFloat64Round:
@@ -690,7 +692,8 @@ class MaglevReducer {
     LazyDeoptFrameScope(MaglevReducer* reducer, ValueNode* context,
                         Builtin continuation,
                         compiler::OptionalJSFunctionRef maybe_js_target = {},
-                        base::Vector<ValueNode* const> parameters = {});
+                        base::Vector<ValueNode* const> parameters = {},
+                        bool is_with_catch = false);
     LazyDeoptFrameScope(MaglevReducer* reducer, ValueNode* context,
                         ValueNode* receiver, const MaglevCompilationUnit& unit,
                         SourcePosition position);
@@ -698,6 +701,11 @@ class MaglevReducer {
 
     LazyDeoptFrameScope* parent() const { return parent_; }
     const DeoptFrame::FrameData& data() const { return data_; }
+    bool is_with_catch() const {
+      return data_.tag() == DeoptFrame::FrameType::kBuiltinContinuationFrame &&
+             data_.get<DeoptFrame::BuiltinContinuationFrameData>()
+                 .is_with_catch;
+    }
 
    private:
     MaglevReducer* reducer_;
@@ -1010,6 +1018,7 @@ class MaglevReducer {
                                         ValueNode* done);
   VirtualObject* CreateJSStringIterator(compiler::MapRef map,
                                         ValueNode* string);
+  VirtualObject* CreateJSMapIterator(compiler::MapRef map, ValueNode* table);
   VirtualObject* CreateJSStringWrapper(ValueNode* value);
   VirtualObject* CreateJSPromiseObject();
   VirtualObject* CreateAsyncResumeTask(ValueNode* generator, ValueNode* value,
@@ -1212,6 +1221,9 @@ class MaglevReducer {
   V(DatePrototypeGetSeconds)                   \
   V(DatePrototypeGetTime)                      \
   V(FunctionPrototypeHasInstance)              \
+  V(MapPrototypeEntries)                       \
+  V(MapPrototypeKeys)                          \
+  V(MapPrototypeValues)                        \
   V(MathAbs)                                   \
   V(MathCeil)                                  \
   V(MathClz32)                                 \
@@ -1226,10 +1238,20 @@ class MaglevReducer {
   V(MathTrunc)                                 \
   V(ObjectIs)                                  \
   V(ObjectPrototypeIsPrototypeOf)              \
+  V(PromisePrototypeCatch)                     \
   V(PromisePrototypeThen)                      \
   V(PromiseResolveTrampoline)                  \
   V(RegExpPrototypeTest)                       \
   V(ReturnReceiver)                            \
+  V(StringFromCharCode)                        \
+  V(StringPrototypeCharAt)                     \
+  V(StringPrototypeCharCodeAt)                 \
+  V(StringPrototypeCodePointAt)                \
+  V(StringPrototypeSlice)                      \
+  V(StringPrototypeSubstring)                  \
+  V(StringPrototypeIndexOf)                    \
+  V(StringPrototypeIncludes)                   \
+  V(StringPrototypeIterator)                   \
   IEEE_754_UNARY_LIST(V)                       \
   IEEE_754_BINARY_LIST(V)                      \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
@@ -1241,6 +1263,15 @@ class MaglevReducer {
                                     CallArguments& args);
   MAGLEV_REDUCER_BUILTIN(DECLARE_BUILTIN_REDUCER)
 #undef DECLARE_BUILTIN_REDUCER
+
+  MaybeReduceResult TryReduceMapIteratorCreation(CallArguments& args,
+                                                 IterationKind iteration_kind);
+
+  MaybeReduceResult TryReducePromiseThenImpl(const char* trace_name,
+                                             CallArguments& args,
+                                             ValueNode* on_fulfilled,
+                                             ValueNode* on_rejected,
+                                             bool needs_then_protector);
 
   // Reduces a TypedArray construct (not call — calling a TypedArray
   // constructor without new throws) to Builtin::kCreateTypedArray.
@@ -1295,6 +1326,14 @@ class MaglevReducer {
                                          ElementsKind kind);
 
   MaybeReduceResult TryReduceStringLength(ValueNode* string);
+  MaybeReduceResult TryReduceConstantStringAt(ValueNode* receiver,
+                                              ValueNode* index,
+                                              StringAtOOBMode oob_mode);
+  MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t code);
+  ReduceResult BuildLoadStringLength(ValueNode* string);
+  ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
+  MaybeReduceResult TryReduceStringPrototypeIndexOfIncludes(CallArguments& args,
+                                                            bool is_includes);
 
   ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,
                                       InstanceType first, InstanceType last);

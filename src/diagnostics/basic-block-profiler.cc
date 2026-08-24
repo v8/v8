@@ -203,16 +203,60 @@ void BasicBlockProfiler::Log(Isolate* isolate, std::ostream& os) {
   }
 }
 
+uint32_t BasicBlockProfiler::GetBuiltinsBlockCount(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  Tagged<ArrayList> list(isolate->heap()->basic_block_profiling_data());
+  const uint32_t list_length = list->ulength().value();
+  uint32_t total = 0;
+  for (uint32_t i = 0; i < list_length; ++i) {
+    Tagged<OnHeapBasicBlockProfilerData> profiler_data =
+        Cast<OnHeapBasicBlockProfilerData>(list->get(i));
+    Tagged<FixedUInt32Array> counts =
+        Cast<FixedUInt32Array>(profiler_data->counts());
+    total += counts->length().value();
+  }
+  return total;
+}
+
+void BasicBlockProfiler::UpdateBuiltinsCoverageAndReset(Isolate* isolate,
+                                                        uint32_t builtins_start,
+                                                        uint8_t* shmem_edges) {
+  if (shmem_edges == nullptr) return;
+
+  DisallowGarbageCollection no_gc;
+  Tagged<ArrayList> list(isolate->heap()->basic_block_profiling_data());
+  const uint32_t list_length = list->ulength().value();
+  uint32_t edge_idx = builtins_start;
+  for (uint32_t i = 0; i < list_length; ++i) {
+    Tagged<OnHeapBasicBlockProfilerData> profiler_data =
+        Cast<OnHeapBasicBlockProfilerData>(list->get(i));
+    Tagged<FixedUInt32Array> counts =
+        Cast<FixedUInt32Array>(profiler_data->counts());
+    const uint32_t counts_len = counts->length().value();
+    uint32_t* data = reinterpret_cast<uint32_t*>(counts->begin());
+    for (uint32_t j = 0; j < counts_len; ++j, ++edge_idx) {
+      if (data[j] > 0) {
+        SetCoverageBit(shmem_edges, edge_idx);
+        data[j] = 0;
+      }
+    }
+  }
+}
+
 std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   Tagged<ArrayList> list(isolate->heap()->basic_block_profiling_data());
   std::vector<bool> out;
   const uint32_t list_length = list->ulength().value();
   for (uint32_t i = 0; i < list_length; ++i) {
-    BasicBlockProfilerData data(
-        Cast<OnHeapBasicBlockProfilerData>(list->get(i)));
-    for (size_t j = 0; j < data.n_blocks(); ++j) {
-      out.push_back(data.counts_[j] > 0);
+    Tagged<OnHeapBasicBlockProfilerData> profiler_data =
+        Cast<OnHeapBasicBlockProfilerData>(list->get(i));
+    Tagged<FixedUInt32Array> counts =
+        Cast<FixedUInt32Array>(profiler_data->counts());
+    const uint32_t counts_len = counts->length().value();
+    uint32_t* data = reinterpret_cast<uint32_t*>(counts->begin());
+    for (uint32_t j = 0; j < counts_len; ++j) {
+      out.push_back(data[j] > 0);
     }
   }
   return out;

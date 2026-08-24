@@ -778,12 +778,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NULL(scope_);
 
-  std::optional<base::ElapsedTimer> timer;
-  if (v8_flags.enable_parser_ablation && base::TimeTicks::IsHighResolution()) {
-    timer.emplace();
-    timer->Start();
-  }
-
   ScopedModification<Mode> mode_scope(
       &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ResetInfoId(kFunctionLiteralIdTopLevel);
@@ -891,16 +885,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
   if (has_error()) return nullptr;
 
   RecordFunctionLiteralSourceRange(result);
-
-  if (timer && timer->Elapsed().InNanoseconds() > 0) {
-    auto end = timer->Elapsed();
-    end += std::min(base::TimeDelta::FromSeconds(1),
-                    base::TimeDelta::FromMicroseconds(
-                        static_cast<double>(end.InMicroseconds()) *
-                        v8_flags.parser_ablation_amount));
-    while (timer->Elapsed() < end) {
-    }
-  }
 
   return result;
 }
@@ -1159,12 +1143,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
 
-  std::optional<base::ElapsedTimer> timer;
-  if (v8_flags.enable_parser_ablation && base::TimeTicks::IsHighResolution()) {
-    timer.emplace();
-    timer->Start();
-  }
-
   DCHECK(ast_value_factory());
   fni_.PushEnclosingName(raw_name);
 
@@ -1277,16 +1255,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   }
 
   info->set_max_info_id(GetLastInfoId());
-
-  if (timer && timer->Elapsed().InNanoseconds() > 0) {
-    auto end = timer->Elapsed();
-    end += std::min(base::TimeDelta::FromSeconds(1),
-                    base::TimeDelta::FromMicroseconds(
-                        static_cast<double>(end.InMicroseconds()) *
-                        v8_flags.parser_ablation_amount));
-    while (timer->Elapsed() < end) {
-    }
-  }
 
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());
   return result;
@@ -3117,29 +3085,12 @@ bool Parser::SkipFunction(int function_literal_id,
   // AST. This gathers the data needed to build a lazy function.
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
-  std::optional<base::ElapsedTimer> timer;
-  if (v8_flags.enable_preparser_ablation &&
-      base::TimeTicks::IsHighResolution()) {
-    timer.emplace();
-    timer->Start();
-  }
-
   reusable_preparser()->set_has_generator_in_scope_chain(
       has_generator_in_scope_chain());
   reusable_preparser()->set_max_drift(this->max_drift());
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
       function_literal_id, function_name, kind, function_syntax_kind,
       function_scope, use_counts_, produced_preparse_data);
-
-  if (timer && timer->Elapsed().InNanoseconds() > 0) {
-    auto end = timer->Elapsed();
-    end += std::min(base::TimeDelta::FromSeconds(1),
-                    base::TimeDelta::FromMicroseconds(
-                        static_cast<double>(end.InMicroseconds()) *
-                        v8_flags.preparser_ablation_amount));
-    while (timer->Elapsed() < end) {
-    }
-  }
 
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.

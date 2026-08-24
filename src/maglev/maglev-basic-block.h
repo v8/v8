@@ -177,6 +177,14 @@ class BasicBlock {
     return state_->predecessor_at(i);
   }
 
+  // Only loop headers of non-resumable loops are guaranteed to have a forward
+  // edge; a resumable loop can be entered through its resume edges alone.
+  BasicBlock* forward_predecessor() const {
+    DCHECK(is_loop());
+    DCHECK_EQ(predecessor_count(), 2);
+    return predecessor_at(0);
+  }
+
   BasicBlock* backedge_predecessor() const {
     DCHECK(is_loop());
     return predecessor_at(predecessor_count() - 1);

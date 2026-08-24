@@ -1036,7 +1036,7 @@ class Internals {
   // ExternalPointerTable, CppHeapPointerTable and TrustedPointerTable layout
   // guarantees.
   static const int kExternalEntityTableBasePointerOffset = 0;
-  static const int kExternalEntityTableSize = 3 * kApiSystemPointerSize;
+  static const int kExternalEntityTableSize = 4 * kApiSystemPointerSize;
 
   // IsolateData layout guarantees.
   static const int kIsolateCageBaseOffset = 0;

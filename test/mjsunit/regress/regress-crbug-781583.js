@@ -21,5 +21,5 @@ assertDoesNotThrow(() => gens1.pop().next());
 
 %OptimizeFunctionOnNextCall(generator);
 
-var gens2 = prepareGenerators(20000);
+var gens2 = prepareGenerators(50000);
 assertThrows(() => gens2.pop().next(), RangeError);

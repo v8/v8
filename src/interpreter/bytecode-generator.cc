@@ -2041,7 +2041,7 @@ void BytecodeGenerator::GenerateBodyStatements(int start) {
 void BytecodeGenerator::GenerateBodyStatementsWithoutImplicitFinalReturn(
     int start) {
   ZonePtrList<Statement>* body = info()->literal()->body();
-  if (v8_flags.js_explicit_resource_management && closure_scope() != nullptr &&
+  if (closure_scope() != nullptr &&
       (closure_scope()->has_using_declaration() ||
        closure_scope()->has_await_using_declaration())) {
     BuildDisposeScope([&]() { VisitStatements(body, start); },
@@ -2107,7 +2107,7 @@ void BytecodeGenerator::VisitBlock(Block* stmt) {
 }
 
 void BytecodeGenerator::VisitBlockMaybeDispose(Block* stmt) {
-  if (v8_flags.js_explicit_resource_management && stmt->scope() != nullptr &&
+  if (stmt->scope() != nullptr &&
       (stmt->scope()->has_using_declaration() ||
        stmt->scope()->has_await_using_declaration())) {
     BuildDisposeScope([&]() { VisitBlockDeclarationsAndStatements(stmt); },

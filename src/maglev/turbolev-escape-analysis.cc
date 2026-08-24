@@ -34,7 +34,7 @@ ValueNode* EscapeAnalysisData::Get(InlinedAllocation* base, int offset) {
   ObjectField addr = ObjectField{base, offset};
   Key key = TryGetKeyFor(addr);
   DCHECK(key.valid());
-  return field_values.Get(key);
+  return GetFieldValue(key);
 }
 
 Key EscapeAnalysisData::GetOrCreateKey(InlinedAllocation* base, int offset) {
@@ -133,9 +133,9 @@ ValueNode* EscapeAnalysisData::ResolveLoadBase(ValueNode* base, int offset,
       return fallback;
     }
     DCHECK(key.valid());
-    ValueNode* val = predecessor_index == -1 ? field_values.Get(key)
-                                             : field_values.GetPredecessorValue(
-                                                   key, predecessor_index);
+    ValueNode* val = predecessor_index == -1
+                         ? GetFieldValue(key)
+                         : GetPredecessorFieldValue(key, predecessor_index);
     if (val == nullptr) {
       // The key is valid, but the value is nullptr (e.g. because it is
       // uninitialized on this path, or merged to nullptr due to predecessor
@@ -425,7 +425,7 @@ BuiltinContinuationDeoptFrame* CloneBuiltinContinuationFrame(
       input_frame.context(),
       input_frame.is_javascript() ? input_frame.javascript_target()
                                   : compiler::OptionalJSFunctionRef(),
-      parent);
+      parent, input_frame.is_with_catch());
 }
 
 // TODO(dmercadier): share the frame cloning helpers with MaglevLoopPeeler
@@ -1097,7 +1097,7 @@ class FieldValuesTracker : public CandidateAnalyzer {
       //     to true).
       //
       // Note that when {is_loop_fixpoint_check} is false (for example, when an
-      // outer loop revisits an inner loop), the forward-edge predecessors of
+      // outer loop revisits an inner loop), the forward-edge predecessor of
       // the inner loop header may have changed across outer-loop iterations.
       // Therefore, we update any changed inputs on the reused Phi to match the
       // incoming predecessors.
@@ -1129,18 +1129,18 @@ class FieldValuesTracker : public CandidateAnalyzer {
       constexpr interpreter::Register kFakeOwner =
           interpreter::Register::invalid_value();
 
-      // When visiting a loop with multiple forward edge for the 1st time, we
-      // may need to insert a phi to merge the forward values but we won't have
-      // a backedge value yet. Still, we'll create a valid loop phi with enough
-      // inputs and we'll set itself as backedge input.
-      int phi_input_count =
-          block->is_loop() ? block->predecessor_count() : predecessor_count;
+      // A loop header has a single forward edge, so its first visit merges a
+      // single predecessor and returns above without reaching this point. By
+      // the time a loop phi is created here, the backedge has been visited too.
+      DCHECK_IMPLIES(
+          block->is_loop(),
+          predecessor_count == static_cast<int>(block->predecessor_count()));
       // TODO(dmercadier): instead of creating a proper Phi (which are 64 bytes
       // long + inputs!), we could have a custom "PseudoPhi" (name tbd)
       // structure that contains the bare minimum and would basically just be a
       // vector of Union(ValueNodes, PseudoPhi)., and only create real Phis in
       // the elider once we're sure that we're going to need them.
-      Phi* phi = NodeBase::New<Phi>(zone(), phi_input_count, state.value(),
+      Phi* phi = NodeBase::New<Phi>(zone(), predecessor_count, state.value(),
                                     kFakeOwner);
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
       // TODO(dmercadier): should we register Phis only once we're sure that
@@ -1150,10 +1150,6 @@ class FieldValuesTracker : public CandidateAnalyzer {
 #endif
       for (int i = 0; i < predecessor_count; i++) {
         phi->set_input(i, predecessors[i]);
-      }
-      if (block->is_loop() && predecessor_count < phi_input_count) {
-        DCHECK_EQ(predecessor_count, phi_input_count - 1);
-        phi->set_input(phi_input_count - 1, predecessors[0]);
       }
       phi->change_representation(predecessors[0]->value_representation());
       TRACE(">> Created new phi: " << PRINT_NODE(phi));
@@ -1189,17 +1185,10 @@ class FieldValuesTracker : public CandidateAnalyzer {
       // `data_.loop_stack`.
       MarkEscapingLoopPhiBackedges(loop_header);
 
-      // Loop phis backedges need to be patched in 2 situations:
-      //
-      //   - this is a loop with multiple forward edges that was requiring Phis
-      //     to merge forward values. In that case, during the first visit of
-      //     the loop, this Phi was created with itself as backedge (because it
-      //     needs a backedge value to be a valid loop phi); and we're now
-      //     patching this with the correct value of the backedge.
-      //
-      //   - we have just revisited the loop, and when creating the loop phis
-      //     initially we were using the old backedge value (since it's the only
-      //     one that we had); and we're now patching it with the correct value.
+      // Loop phis backedges need to be patched when we have just revisited the
+      // loop: when creating the loop phis initially we were using the old
+      // backedge value (since it's the only one that we had), and we're now
+      // patching it with the correct value.
       //
       // Note that the fact that a loop phi needs to be patched isn't a reason
       // to revisit the loop: while visiting the loop, phis are treated as
@@ -1257,7 +1246,6 @@ class FieldValuesTracker : public CandidateAnalyzer {
     // VariableReducer creates in Turboshaft.
     field_values().StartNewSnapshot({backedge_snapshot});
 
-    int backedge_index = header->predecessor_count() - 1;
     for (auto& [phi, key] : *new_phis().at(header)) {
       InlinedAllocation* alloc = key.data().base;
       if (data_.HasEscaped(alloc)) {
@@ -1267,7 +1255,7 @@ class FieldValuesTracker : public CandidateAnalyzer {
         continue;
       }
 
-      ValueNode* backedge_val = field_values().Get(key);
+      ValueNode* backedge_val = data_.GetFieldValue(key);
 
       if (InlinedAllocation* backedge_alloc =
               data_.TryGetCandidateInlinedAllocation(backedge_val)) {
@@ -1285,10 +1273,9 @@ class FieldValuesTracker : public CandidateAnalyzer {
 
       DCHECK_NOT_NULL(backedge_val);
       TRACE(">> Updating loop phi backedge: "
-            << PRINT_NODE(phi) << " backedge "
-            << PRINT_NODE(phi->input(backedge_index).node()) << " -> "
-            << PRINT_NODE(backedge_val));
-      phi->change_input(backedge_index, backedge_val);
+            << PRINT_NODE(phi) << " backedge " << PRINT_NODE(phi->backedge())
+            << " -> " << PRINT_NODE(backedge_val));
+      phi->change_input(phi->backedge_index(), backedge_val);
     }
 
     field_values().Seal();
@@ -1308,7 +1295,7 @@ class FieldValuesTracker : public CandidateAnalyzer {
 
     for (Phi* phi : *loop_header->phis()) {
       if (InlinedAllocation* alloc =
-              data_.TryGetCandidateInlinedAllocation(phi->backedge_input())) {
+              data_.TryGetCandidateInlinedAllocation(phi->backedge())) {
         TRACE("> Marking " << NODE_ID(alloc) << " as escaping");
         data_.MarkAsEscaped(alloc);
       }
@@ -1835,7 +1822,7 @@ class Elider {
       }
       DCHECK(keys_mappings().contains(addr));
       Key key = keys_mappings().at(addr);
-      ValueNode* replacement = field_values().Get(key);
+      ValueNode* replacement = data_.GetFieldValue(key);
 
       if (replacement == nullptr || (replacement->value_representation() !=
                                      node->value_representation())) {

@@ -114,8 +114,8 @@ void MergePointInterpreterFrameState::set_is_resumable_loop(Graph* graph) {
 // static
 LoopMergePointInterpreterFrameState*
 MergePointInterpreterFrameState::NewForLoop(
-    const InterpreterFrameState& start_state, const MaglevCompilationUnit& info,
-    bool is_inline, Graph* graph, int merge_offset, int predecessor_count,
+    const MaglevCompilationUnit& info, bool is_inline, Graph* graph,
+    int merge_offset, int predecessor_count,
     const compiler::BytecodeLivenessState* liveness,
     const compiler::LoopInfo* loop_info, bool has_been_peeled) {
   LoopMergePointInterpreterFrameState* state =
@@ -155,8 +155,10 @@ MergePointInterpreterFrameState::NewForLoop(
         if (assignments.ContainsParameter(reg.ToParameterIndex())) {
           entry = state->NewLoopPhi(info.zone(), reg);
         } else if (state->is_resumable_loop()) {
-          // Copy initial values out of the start state.
-          entry = start_state.get(reg);
+          // Copy initial values out of the graph parameters. Resumable loops
+          // are never inlined, so those are the function's own parameters.
+          DCHECK(!is_inline);
+          entry = graph->parameters()[reg.ToParameterIndex()];
           // Initialise the alternatives list for this value.
           new (&state->per_predecessor_alternatives_[i]) Alternatives::List();
           DCHECK(entry->Is<InitialValue>());

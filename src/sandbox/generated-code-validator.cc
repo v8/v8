@@ -112,6 +112,113 @@ void GeneratedCodeValidator::InstructionIteratorSkippingData::SkipCheck() {
   }
 }
 
+GeneratedCodeValidator::ViolationsReporter::ViolationsReporter(
+    Tagged<Code> code)
+    : code_(code),
+      code_start_(reinterpret_cast<const uint8_t*>(code->instruction_start())) {
+}
+
+GeneratedCodeValidator::ViolationsReporter::~ViolationsReporter() {
+  PrintEpilogueIfNeeded();
+}
+
+void GeneratedCodeValidator::ViolationsReporter::ReportDisassemblyFailed(
+    const uint8_t* pc, size_t max_instruction_size) {
+  if (v8_flags.validate_generated_code_include_code) {
+    RecordDisassembledInstruction(pc, max_instruction_size, "???");
+  }
+  ReportViolation(pc, "Failed to disassemble invalid instruction.");
+}
+
+void GeneratedCodeValidator::ViolationsReporter::RecordDisassembledInstruction(
+    const uint8_t* pc, size_t instruction_size, std::string instr) {
+  DCHECK(v8_flags.validate_generated_code_include_code);
+  DCHECK_GT(instruction_size, 0);
+  // Print offset in the instruction stream.
+  disassembled_instructions_ << "\t" << AsHex(pc - code_start_, 8, true)
+                             << "\t";
+  // Print raw bytes (with padding if needed).
+  for (size_t i = 0; i < instruction_size; ++i) {
+    disassembled_instructions_ << AsHex(pc[i], 2, false);
+  }
+  static constexpr size_t kMaxInstructionSizeForPadding = 8;
+  static constexpr char kInstructionPadding[] =
+      "              ";  // 14 whitespaces
+  if (kMaxInstructionSizeForPadding > instruction_size) {
+    disassembled_instructions_.write(
+        kInstructionPadding,
+        (kMaxInstructionSizeForPadding - instruction_size) * 2);
+  }
+  // Print disassembled instruction.
+  disassembled_instructions_ << "\t" << instr << "\n";
+}
+
+namespace {
+
+static constexpr char kGeneratedCodeValidatorTag[] =
+    "[Generated code validator]";
+
+std::string GetCodeName(Tagged<Code> code) {
+  if (code->is_builtin()) {
+    return Builtins::name(code->builtin_id());
+  }
+  if (code->uses_deoptimization_data()) {
+    Tagged<DeoptimizationData> data = code->deoptimization_data();
+    if (data->length().value() > 0) {
+      std::unique_ptr<char[]> debug_name =
+          data->GetSharedFunctionInfo()->DebugNameCStr();
+      std::string name(debug_name.get());
+      for (char& c : name) {
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_') {
+          c = '_';
+        }
+      }
+      return name;
+    }
+  }
+  return "unknown method";
+}
+
+}  // namespace
+
+void GeneratedCodeValidator::ViolationsReporter::ReportViolation(
+    const uint8_t* pc, std::string error) {
+  PrintPrologueIfNeeded();
+  v8::base::OS::PrintError("%s Offset %.8zx: %s\n", kGeneratedCodeValidatorTag,
+                           pc - code_start_, error.c_str());
+}
+
+void GeneratedCodeValidator::ViolationsReporter::PrintPrologueIfNeeded() {
+  if (violations_found_) {
+    // Prologue have already been printed.
+    return;
+  }
+  v8::base::OS::PrintError("%s Violations found for %s compiled at tier %s:\n",
+                           kGeneratedCodeValidatorTag,
+                           GetCodeName(code_).c_str(),
+                           CodeKindToString(code_->kind()));
+  violations_found_ = true;
+}
+
+void GeneratedCodeValidator::ViolationsReporter::PrintEpilogueIfNeeded() {
+  if (!violations_found_) {
+    return;
+  }
+
+  DCHECK_IMPLIES(!v8_flags.validate_generated_code_include_code,
+                 disassembled_instructions_.str().empty());
+  if (v8_flags.validate_generated_code_include_code) {
+    v8::base::OS::PrintError("%s Disassembled code is:\n%s",
+                             kGeneratedCodeValidatorTag,
+                             disassembled_instructions_.str().c_str());
+  }
+
+  if (v8_flags.validate_generated_code_non_fatal) {
+    return;
+  }
+  FATAL("Generated code validation failed. See stderr output for violations.");
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR

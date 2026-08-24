@@ -5,6 +5,7 @@
 #ifndef V8_DIAGNOSTICS_BASIC_BLOCK_PROFILER_H_
 #define V8_DIAGNOSTICS_BASIC_BLOCK_PROFILER_H_
 
+#include <cstdint>
 #include <iosfwd>
 #include <list>
 #include <memory>
@@ -92,6 +93,28 @@ class BasicBlockProfiler {
   // data. It is used to export coverage of builtins function loaded from
   // snapshot.
   V8_EXPORT_PRIVATE std::vector<bool> GetCoverageBitmap(Isolate* isolate);
+
+  // Fast zero-allocation count of total basic blocks across all builtins.
+  V8_EXPORT_PRIVATE uint32_t GetBuiltinsBlockCount(Isolate* isolate);
+
+  // Fast single-pass zero-allocation method to copy coverage into Fuzzilli's
+  // shared memory bitmap and reset block counters back to zero.
+  V8_EXPORT_PRIVATE void UpdateBuiltinsCoverageAndReset(Isolate* isolate,
+                                                        uint32_t builtins_start,
+                                                        uint8_t* shmem_edges);
+
+  // Helper functions for shared-memory coverage bitmask operations.
+  static inline void SetCoverageBit(uint8_t* bitmap, uint32_t index) {
+    const uint32_t byte_index = index >> 3;
+    const uint32_t bit_index = index & 7;
+    bitmap[byte_index] |= static_cast<uint8_t>(1 << bit_index);
+  }
+
+  static inline bool GetCoverageBit(const uint8_t* bitmap, uint32_t index) {
+    const uint32_t byte_index = index >> 3;
+    const uint32_t bit_index = index & 7;
+    return (bitmap[byte_index] & (1 << bit_index)) != 0;
+  }
 
   const DataList* data_list() { return &data_list_; }
 

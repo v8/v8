@@ -223,6 +223,11 @@ DirectHandle<Name> LookupIterator::name() const {
   return name_;
 }
 
+DirectHandle<Name> LookupIterator::name_for_transition() const {
+  DCHECK_IMPLIES(holder_.is_null(), !IsElement());
+  return name_;
+}
+
 DirectHandle<Name> LookupIterator::GetName() {
   if (name_.is_null()) {
     DCHECK(IsElement());

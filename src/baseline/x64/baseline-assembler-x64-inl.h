@@ -479,7 +479,7 @@ void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
 
     if (COMPRESS_POINTERS_BOOL &&
         compression_mode == CompressionMode::kForceDecompression) {
-      __ addq(tagged.reg(), kPtrComprCageBaseRegister);
+      __ orq(tagged.reg(), kPtrComprCageBaseRegister);
     }
   }
 }
@@ -499,7 +499,7 @@ void BaselineAssembler::StaContextSlotNoCell(Register context, Register value,
     }
     if (COMPRESS_POINTERS_BOOL) {
       // Decompress tagged pointer.
-      __ addq(tagged.reg(), kPtrComprCageBaseRegister);
+      __ orq(tagged.reg(), kPtrComprCageBaseRegister);
     }
   }
   StoreTaggedFieldWithWriteBarrier(context, Context::OffsetOfElementAt(index),

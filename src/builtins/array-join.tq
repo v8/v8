@@ -356,15 +356,15 @@ transitioning macro FastArrayJoin(
   // Check early if the separators might overflow.
   let len: uintptr = Convert<uintptr>(lengthNumber);
   // Fast array length is guaranteed to fit in Smi.
-  dcheck(len <= Convert<uintptr>(kMaxFastArrayLength));
-  static_assert(Convert<uintptr>(kMaxFastArrayLength) < kSmiMaxValue);
+  dcheck(len <= Convert<uintptr>(kFixedArrayMaxLength));
+  static_assert(Convert<uintptr>(kFixedArrayMaxLength) < kSmiMaxValue);
   // If separatorLength <= 1, fast arrays cannot overflow the separator counter
   // or exceed kStringMaxLength from separators alone, because their maximum
   // length is bounded by kMaxFastArrayLength (32MB) which is much smaller
   // than kStringMaxLength (268MB/536MB). Thus we only need to perform checks
   // if separatorLength > 1.
   static_assert(
-      (Convert<uintptr>(kMaxFastArrayLength) - 1) <=
+      (Convert<uintptr>(kFixedArrayMaxLength) - 1) <=
       Convert<uintptr>(kStringMaxLength));
 
   const separatorLength: intptr = sep.length_intptr;

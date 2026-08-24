@@ -2526,6 +2526,34 @@ Local<Module> Module::CreateSyntheticModule(
           i_host_defined_options)));
 }
 
+START_ALLOW_USE_DEPRECATED()
+Local<Module> Module::CreateSyntheticModule(
+    Isolate* v8_isolate, Local<String> module_name,
+    const std::span<const Local<String>>& export_names,
+    v8::Module::LegacySyntheticModuleEvaluationSteps evaluation_steps,
+    Local<Data> host_defined_options) {
+  // TODO(https://crbug.com/545375591): Remove once
+  // LegacySyntheticModuleEvaluationSteps is gone.
+#if (__GNUC__ >= 8) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+  // Cast from 'v8::MaybeLocal<v8::Value> (*)(v8::Local<v8::Context>,
+  // v8::Local<v8::Module>)' to 'v8::MaybeLocal<v8::Promise>
+  // (*)(v8::Local<v8::Context>, v8::Local<v8::Module>)'. Both return types are
+  // pointer-sized, trivially copyable handle wrappers, so they share the same
+  // representation. SyntheticModule::Evaluate() checks at runtime that the
+  // returned value really is a Promise.
+  auto promise_returning_steps =
+      reinterpret_cast<SyntheticModuleEvaluationSteps>(evaluation_steps);
+#if (__GNUC__ >= 8) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+  return CreateSyntheticModule(v8_isolate, module_name, export_names,
+                               promise_returning_steps, host_defined_options);
+}
+END_ALLOW_USE_DEPRECATED()
+
 Local<Data> Module::GetSyntheticModuleHostDefinedOptions() const {
   auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
@@ -3894,14 +3922,6 @@ bool Value::IsTypedArray() const {
 TYPED_ARRAYS_BASE(VALUE_IS_TYPED_ARRAY)
 #undef VALUE_IS_TYPED_ARRAY
 
-bool Value::IsFloat16Array() const {
-  auto obj = *Utils::OpenDirectHandle(this);
-  return i::IsJSTypedArray(obj) &&
-         i::Cast<i::JSTypedArray>(obj)->type() == i::kExternalFloat16Array &&
-         Utils::ApiCheck(i::v8_flags.js_float16array, "Value::IsFloat16Array",
-                         "Float16Array is not supported");
-}
-
 bool Value::IsDataView() const {
   auto obj = *Utils::OpenDirectHandle(this);
   return IsJSDataView(obj) || IsJSRabGsabDataView(obj);
@@ -4437,16 +4457,6 @@ void v8::TypedArray::CheckCast(Value* that) {
 
 TYPED_ARRAYS_BASE(CHECK_TYPED_ARRAY_CAST)
 #undef CHECK_TYPED_ARRAY_CAST
-
-void v8::Float16Array::CheckCast(Value* that) {
-  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::Cast",
-                  "Float16Array is not supported");
-  auto obj = *Utils::OpenDirectHandle(that);
-  Utils::ApiCheck(
-      i::IsJSTypedArray(obj) &&
-          i::Cast<i::JSTypedArray>(obj)->type() == i::kExternalFloat16Array,
-      "v8::Float16Array::Cast()", "Value is not a Float16Array");
-}
 
 void v8::DataView::CheckCast(Value* that) {
   auto obj = *Utils::OpenDirectHandle(that);
@@ -8308,11 +8318,6 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
                                    void* callback_data) {
   // Instead of relying on callers to check condition, this function returns
   // {kSlowPath} for situations it can't handle.
-  // Most code paths below don't allocate, and rely on {callback} not allocating
-  // either, but this isn't enforced with {DisallowHeapAllocation} to allow
-  // embedders to allocate error objects before terminating the iteration.
-  // Since {callback} must not allocate anyway, we can get away with fake
-  // handles, reducing per-element overhead.
   if (!CanUseFastIteration(isolate, array)) return FastIterateResult::kSlowPath;
   using Result = v8::Array::CallbackResult;
   DisallowJavascriptExecution no_js(isolate);
@@ -8324,14 +8329,12 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS: {
-      Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
-      for (uint32_t i = 0; i < length; i++) {
-        Tagged<Object> element = elements->get(static_cast<int>(i));
-        // TODO(13270): When we switch to CSS, we can pass {element} to
-        // the callback directly, without {fake_handle}.
-        IndirectHandle<Object> fake_handle(
-            reinterpret_cast<Address*>(&element));
-        Result result = callback(i, Utils::ToLocal(fake_handle), callback_data);
+      DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
+                                        isolate);
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
+        DirectHandle<Object> element(elements->get(static_cast<int>(i)),
+                                     isolate);
+        Result result = callback(i, Utils::ToLocal(element), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
         }
@@ -8344,16 +8347,16 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
-      Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
-      for (uint32_t i = 0; i < length; i++) {
-        Tagged<Object> element = elements->get(static_cast<int>(i));
-        // TODO(13270): When we switch to CSS, we can pass {element} to
-        // the callback directly, without {fake_handle}.
-        auto fake_handle =
-            IsTheHole(element)
-                ? isolate->factory()->undefined_value()
-                : IndirectHandle<Object>(reinterpret_cast<Address*>(&element));
-        Result result = callback(i, Utils::ToLocal(fake_handle), callback_data);
+      DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
+                                        isolate);
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
+        DirectHandle<Object> element(elements->get(static_cast<int>(i)),
+                                     isolate);
+        DirectHandle<Object> value =
+            IsTheHole(*element)
+                ? DirectHandle<Object>(isolate->factory()->undefined_value())
+                : element;
+        Result result = callback(i, Utils::ToLocal(value), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
         }
@@ -8369,10 +8372,10 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t i = 0, i, i < length, i++) {
         DirectHandle<Object> value;
         if (elements->is_the_hole(i)) {
-          value = Handle<Object>(isolate->factory()->undefined_value());
+          value = isolate->factory()->undefined_value();
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
         } else if (elements->is_undefined(i)) {
-          value = Handle<Object>(isolate->factory()->undefined_value());
+          value = isolate->factory()->undefined_value();
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
         } else {
           value = isolate->factory()->NewNumber(elements->get_scalar(i));
@@ -8386,32 +8389,32 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       return FastIterateResult::kFinished;
     }
     case DICTIONARY_ELEMENTS: {
-      DisallowGarbageCollection no_gc;
-      Tagged<NumberDictionary> dict = array->element_dictionary();
       struct Entry {
         uint32_t index;
         InternalIndex entry;
       };
       std::vector<Entry> sorted;
-      sorted.reserve(dict->NumberOfElements());
-      ReadOnlyRoots roots(isolate);
-      for (InternalIndex i : dict->IterateEntries()) {
-        Tagged<Object> key = dict->KeyAt(i);
-        if (!dict->IsKey(roots, key)) continue;
-        uint32_t index =
-            static_cast<uint32_t>(Object::NumberValue(Cast<Number>(key)));
-        sorted.push_back({index, i});
+      DirectHandle<NumberDictionary> dict(array->element_dictionary(), isolate);
+      {
+        DisallowGarbageCollection no_gc;
+        ReadOnlyRoots roots(isolate);
+        sorted.reserve(dict->NumberOfElements());
+        for (InternalIndex i : dict->IterateEntries()) {
+          Tagged<Object> key = dict->KeyAt(i);
+          if (!dict->IsKey(roots, key)) continue;
+          uint32_t index =
+              static_cast<uint32_t>(Object::NumberValue(Cast<Number>(key)));
+          sorted.push_back({index, i});
+        }
+        std::sort(
+            sorted.begin(), sorted.end(),
+            [](const Entry& a, const Entry& b) { return a.index < b.index; });
       }
-      std::sort(
-          sorted.begin(), sorted.end(),
-          [](const Entry& a, const Entry& b) { return a.index < b.index; });
-      for (const Entry& entry : sorted) {
-        Tagged<Object> value = dict->ValueAt(entry.entry);
-        // TODO(13270): When we switch to CSS, we can pass {element} to
-        // the callback directly, without {fake_handle}.
-        IndirectHandle<Object> fake_handle(reinterpret_cast<Address*>(&value));
+      FOR_WITH_HANDLE_SCOPE(isolate, size_t i = 0, i, i < sorted.size(), i++) {
+        const Entry& entry = sorted[i];
+        DirectHandle<Object> value(dict->ValueAt(entry.entry), isolate);
         Result result =
-            callback(entry.index, Utils::ToLocal(fake_handle), callback_data);
+            callback(entry.index, Utils::ToLocal(value), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
         }
@@ -9549,44 +9552,6 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
 TYPED_ARRAYS_BASE(TYPED_ARRAY_NEW)
 #undef TYPED_ARRAY_NEW
 
-Local<Float16Array> Float16Array::New(Local<ArrayBuffer> array_buffer,
-                                      size_t byte_offset, size_t length) {
-  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::New",
-                  "Float16Array is not supported");
-  i::Isolate* i_isolate = i::Isolate::Current();
-  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_Float16Array_New);
-  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  if (!Utils::ApiCheck(
-          length <= kMaxLength,
-          "v8::Float16Array::New(Local<ArrayBuffer>, size_t, size_t)",
-          "length exceeds max allowed value")) {
-    return {};
-  }
-  auto buffer = Utils::OpenDirectHandle(*array_buffer);
-  i::DirectHandle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
-      i::kExternalFloat16Array, buffer, byte_offset, length);
-  return Utils::ToLocalFloat16Array(obj);
-}
-Local<Float16Array> Float16Array::New(
-    Local<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,
-    size_t length) {
-  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::New",
-                  "Float16Array is not supported");
-  i::Isolate* i_isolate = i::Isolate::Current();
-  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_Float16Array_New);
-  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  if (!Utils::ApiCheck(
-          length <= kMaxLength,
-          "v8::Float16Array::New(Local<SharedArrayBuffer>, size_t, size_t)",
-          "length exceeds max allowed value")) {
-    return {};
-  }
-  auto buffer = Utils::OpenDirectHandle(*shared_array_buffer);
-  i::DirectHandle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
-      i::kExternalFloat16Array, buffer, byte_offset, length);
-  return Utils::ToLocalFloat16Array(obj);
-}
-
 // TODO(v8:11111): Support creating length tracking DataViews via the API.
 Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
                               size_t byte_offset, size_t byte_length) {
@@ -10499,26 +10464,12 @@ i::ValueHelper::InternalRepresentationType Isolate::GetDataFromSnapshotOnce(
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
 }
 
-Local<Value> Isolate::GetContinuationPreservedEmbedderData() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return ToApiHandle<Object>(i::direct_handle(
-      i_isolate->isolate_data()->continuation_preserved_embedder_data(),
-      i_isolate));
-#else   // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+Local<Data> Isolate::GetContinuationPreservedEmbedderData() {
+  return GetContinuationPreservedEmbedderDataV2();
 }
 
-void Isolate::SetContinuationPreservedEmbedderData(Local<Value> data) {
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  if (data.IsEmpty()) {
-    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(this));
-  }
-  i_isolate->isolate_data()->set_continuation_preserved_embedder_data(
-      *Utils::OpenDirectHandle(*data));
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+void Isolate::SetContinuationPreservedEmbedderData(Local<Data> data) {
+  SetContinuationPreservedEmbedderDataV2(data);
 }
 
 Local<Data> Isolate::GetContinuationPreservedEmbedderDataV2() {

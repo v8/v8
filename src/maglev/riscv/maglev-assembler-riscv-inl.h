@@ -347,12 +347,15 @@ inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
   CHECK(!SmiValuesAre32Bits());
   // NB: JumpIf expects the result in dedicated "flag" register.
   Register overflow_flag = MaglevAssembler::GetFlagsRegister();
-  // Smi is shifted left by 1, so double incoming integer using 64- and 32-bit
-  // addition operations and then compare the results to detect overflow. The
-  // order matters because the dst and src registers may be the same.
-  Add64(overflow_flag, src, src);
-  Add32(dst, src, src);
-  Sne(overflow_flag, overflow_flag, Operand(dst));
+  // Smi is shifted left by 1.
+  if (src == dst) {
+    Move(overflow_flag, src);
+    src = overflow_flag;
+  }
+  // overflow_flag = (bits[31] ^ bits[30]) >> 31
+  Sll32(dst, src, 1);
+  Xor(overflow_flag, src, dst);
+  Srl32(overflow_flag, overflow_flag, 31);
   return kNoOverflow;
 }
 
@@ -364,12 +367,12 @@ inline void MaglevAssembler::CheckInt32IsSmi(Register maybe_smi, Label* fail,
   if (scratch == Register::no_reg()) {
     scratch = temps.AcquireScratch();
   }
-  Register sum32 = scratch;
-  Register sum64 = temps.AcquireScratch();
-  Add32(sum32, maybe_smi, Operand(maybe_smi));
-  Add64(sum64, maybe_smi, Operand(maybe_smi));
-  // Overflow happened if sum64 != sum32.
-  MacroAssembler::Branch(fail, ne, sum64, Operand(sum32));
+  Register bit31 = scratch;
+  Register bit30 = temps.AcquireScratch();
+  Srl32(bit30, maybe_smi, 30);
+  Srl32(bit31, maybe_smi, 31);
+  And(bit30, bit30, Operand(1));
+  MacroAssembler::Branch(fail, ne, bit30, Operand(bit31));
 }
 
 inline void MaglevAssembler::SmiAddConstant(Register dst, Register src,
@@ -512,10 +515,13 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
 inline MemOperand MaglevAssembler::TypedArrayElementOperand(
     Register data_pointer, Register index, int element_size) {
   const int shift = ShiftFromScale(element_size);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  ZeroExtendWord(scratch, index);
   if (shift == 0) {
-    AddWord(data_pointer, data_pointer, index);
+    AddWord(data_pointer, data_pointer, scratch);
   } else {
-    CalcScaledAddress(data_pointer, data_pointer, index, shift);
+    CalcScaledAddress(data_pointer, data_pointer, scratch, shift);
   }
   return MemOperand(data_pointer);
 }
@@ -545,10 +551,13 @@ inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register index, int scale,
                                                     int offset) {
   const int shift = ShiftFromScale(scale);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  ZeroExtendWord(scratch, index);
   if (shift == 0) {
-    AddWord(result, object, index);
+    AddWord(result, object, scratch);
   } else {
-    CalcScaledAddress(result, object, index, shift);
+    CalcScaledAddress(result, object, scratch, shift);
   }
   LoadTaggedField(result, FieldMemOperand(result, offset));
 }
@@ -574,7 +583,9 @@ inline void MaglevAssembler::LoadExternalPointerField(Register result,
 void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
                                             Register index) {
   if (v8_flags.debug_code) {
-    AssertObjectType(array, FIXED_ARRAY_TYPE, AbortReason::kUnexpectedValue);
+    AssertObjectTypeInRange(array, FIRST_FIXED_ARRAY_TYPE,
+                            LAST_FIXED_ARRAY_TYPE,
+                            AbortReason::kUnexpectedValue);
     CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
                           AbortReason::kUnexpectedNegativeValue);
   }
@@ -591,11 +602,16 @@ inline void MaglevAssembler::LoadTaggedFieldWithoutDecompressing(
 void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
     Register result, Register array, Register index) {
   if (v8_flags.debug_code) {
-    AssertObjectType(array, FIXED_ARRAY_TYPE, AbortReason::kUnexpectedValue);
+    AssertObjectTypeInRange(array, FIRST_FIXED_ARRAY_TYPE,
+                            LAST_FIXED_ARRAY_TYPE,
+                            AbortReason::kUnexpectedValue);
     CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
                           AbortReason::kUnexpectedNegativeValue);
   }
-  CalcScaledAddress(result, array, index, kTaggedSizeLog2);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  ZeroExtendWord(scratch, index);
+  CalcScaledAddress(result, array, scratch, kTaggedSizeLog2);
   MacroAssembler::LoadTaggedFieldWithoutDecompressing(
       result, FieldMemOperand(result, OFFSET_OF_DATA_START(FixedArray)));
 }
@@ -611,7 +627,8 @@ void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
   }
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  CalcScaledAddress(scratch, array, index, kDoubleSizeLog2);
+  ZeroExtendWord(scratch, index);
+  CalcScaledAddress(scratch, array, scratch, kDoubleSizeLog2);
   LoadDouble(result,
              FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
@@ -620,7 +637,8 @@ inline void MaglevAssembler::StoreFixedDoubleArrayElement(
     Register array, Register index, DoubleRegister value) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  CalcScaledAddress(scratch, array, index, kDoubleSizeLog2);
+  ZeroExtendWord(scratch, index);
+  CalcScaledAddress(scratch, array, scratch, kDoubleSizeLog2);
   StoreDouble(value,
               FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
@@ -657,8 +675,11 @@ inline void MaglevAssembler::SetSlotAddressForTaggedField(Register slot_reg,
 
 inline void MaglevAssembler::SetSlotAddressForFixedArrayElement(
     Register slot_reg, Register object, Register index) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
   Add64(slot_reg, object, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
-  CalcScaledAddress(slot_reg, slot_reg, index, kTaggedSizeLog2);
+  ZeroExtendWord(scratch, index);
+  CalcScaledAddress(slot_reg, slot_reg, scratch, kTaggedSizeLog2);
 }
 
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
@@ -671,7 +692,8 @@ inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
     Register array, Register index, Register value) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  CalcScaledAddress(scratch, array, index, kTaggedSizeLog2);
+  ZeroExtendWord(scratch, index);
+  CalcScaledAddress(scratch, array, scratch, kTaggedSizeLog2);
   MacroAssembler::StoreTaggedField(
       value, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
 }
@@ -757,7 +779,7 @@ inline void MaglevAssembler::AddInt32(Register dst, Register src, int amount) {
 }
 
 inline void MaglevAssembler::AndInt32(Register dst, Register src, int mask) {
-  Add32(dst, src, Operand(mask));
+  And(dst, src, Operand(mask));
 }
 
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
@@ -935,8 +957,8 @@ inline void MaglevAssembler::LoadUnalignedFloat64AndReverseByteOrder(
     DoubleRegister dst, Register base, Register index) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register address = temps.AcquireScratch();
+  Register scratch = temps.AcquireScratch();
   Add64(address, base, index);
-  Register scratch = base;  // reuse base as scratch register
   LoadWord(scratch, MemOperand(address));
   ByteSwap(scratch, scratch, 8, address);
   MacroAssembler::Move(dst, scratch);
@@ -1670,8 +1692,6 @@ inline void MaglevAssembler::CompareIntPtrAndBranch(
       UNREACHABLE();  // not expected
   }
 
-  MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register lhs = temps.AcquireScratch();
   if (fallthrough_when_false) {
     if (fallthrough_when_true) {
       // If both paths are a fallthrough, do nothing.
@@ -1679,10 +1699,10 @@ inline void MaglevAssembler::CompareIntPtrAndBranch(
       return;
     }
     // Jump over the false block if true, otherwise fall through into it.
-    MacroAssembler::Branch(if_true, cond, lhs, Operand(value), true_distance);
+    MacroAssembler::Branch(if_true, cond, r1, Operand(value), true_distance);
   } else {
     // Jump to the false block if true.
-    MacroAssembler::Branch(if_false, NegateCondition(cond), lhs, Operand(value),
+    MacroAssembler::Branch(if_false, NegateCondition(cond), r1, Operand(value),
                            false_distance);
     // Jump to the true block if it's not the next block.
     if (!fallthrough_when_true) {

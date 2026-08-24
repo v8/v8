@@ -431,11 +431,6 @@ static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
   return object->Get(context, v8_str.ToLocalChecked());
 }
 
-static Local<Value> GetValue(v8::Isolate* isolate, Local<Context> context,
-                             Local<v8::Object> object, const char* property) {
-  return TryGetValue(isolate, context, object, property).ToLocalChecked();
-}
-
 i::CppGCManaged<Worker>::Ptr GetWorkerFromInternalField(Isolate* isolate,
                                                         Local<Object> object) {
   if (object->InternalFieldCount() != 1) {
@@ -572,17 +567,38 @@ class TraceConfigParser {
     Context::Scope context_scope(context);
     HandleScope inner_scope(isolate);
 
+    TryCatch try_catch(isolate);
+    FillTraceConfigImpl(isolate, context, trace_config, json_str);
+    if (try_catch.HasCaught()) {
+      printf("Failed to parse trace config.\n\n");
+      Shell::ReportException(isolate, try_catch);
+      base::OS::ExitProcess(1);
+    }
+  }
+
+ private:
+  static void FillTraceConfigImpl(v8::Isolate* isolate, Local<Context> context,
+                                  platform::tracing::TraceConfig* trace_config,
+                                  base::Vector<char> json_str) {
+    if (json_str.size() > v8::String::kMaxLength) {
+      isolate->ThrowError("Trace config is too big.");
+      return;
+    }
     int length = base::checked_cast<int>(json_str.size());
     Local<String> source = String::NewFromUtf8(isolate, json_str.data(),
                                                NewStringType::kNormal, length)
                                .ToLocalChecked();
-    Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
+    Local<Value> result;
+    if (!JSON::Parse(context, source).ToLocal(&result)) return;
+    CHECK(result->IsObject());
+
     Local<v8::Object> trace_config_object = result.As<v8::Object>();
     // Try reading 'trace_config' property from a full chrome trace config.
     // https://chromium.googlesource.com/chromium/src/+/master/docs/memory-infra/memory_infra_startup_tracing.md#the-advanced-way
-    Local<Value> maybe_trace_config_object =
-        GetValue(isolate, context, trace_config_object, kTraceConfigParam);
-    if (maybe_trace_config_object->IsObject()) {
+    Local<Value> maybe_trace_config_object;
+    if (TryGetValue(isolate, context, trace_config_object, kTraceConfigParam)
+            .ToLocal(&maybe_trace_config_object) &&
+        maybe_trace_config_object->IsObject()) {
       trace_config_object = maybe_trace_config_object.As<Object>();
     }
 
@@ -594,16 +610,19 @@ class TraceConfigParser {
   static int UpdateIncludedCategoriesList(
       v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object,
       platform::tracing::TraceConfig* trace_config) {
-    Local<Value> value =
-        GetValue(isolate, context, object, kIncludedCategoriesParam);
+    Local<Value> value;
+    if (!TryGetValue(isolate, context, object, kIncludedCategoriesParam)
+             .ToLocal(&value)) {
+      return 0;
+    }
     if (value->IsArray()) {
       Local<Array> v8_array = value.As<Array>();
       for (int i = 0, length = v8_array->Length(); i < length; ++i) {
-        Local<Value> v = v8_array->Get(context, i)
-                             .ToLocalChecked()
-                             ->ToString(context)
-                             .ToLocalChecked();
-        String::Utf8Value str(isolate, v->ToString(context).ToLocalChecked());
+        Local<Value> v;
+        if (!v8_array->Get(context, i).ToLocal(&v)) return 0;
+        Local<String> str_val;
+        if (!v->ToString(context).ToLocal(&str_val)) return 0;
+        String::Utf8Value str(isolate, str_val);
         trace_config->AddIncludedCategory(*str);
       }
       return v8_array->Length();
@@ -1138,6 +1157,10 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
     }
   }
 
+  HandleScope handle_scope(isolate);
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(report_exceptions == kReportExceptions);
+
   if (i::v8_flags.parse_only) {
     i::VMState<PARSER> state(i_isolate);
     i::DirectHandle<i::String> str = Utils::OpenDirectHandle(*(source_str));
@@ -1170,10 +1193,6 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
     }
     return true;
   }
-
-  HandleScope handle_scope(isolate);
-  TryCatch try_catch(isolate);
-  try_catch.SetVerbose(report_exceptions == kReportExceptions);
 
   // Explicitly check for stack overflows. This method can be called
   // recursively, and since we consume quite some stack space for the C++
@@ -1678,8 +1697,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   return result;
 }
 
-MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
-                                                   Local<Module> module) {
+MaybeLocal<Promise> Shell::JSONModuleEvaluationSteps(Local<Context> context,
+                                                     Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
   Local<Value> json_value =
@@ -1702,8 +1721,8 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
   return resolver->GetPromise();
 }
 
-MaybeLocal<Value> Shell::TextModuleEvaluationSteps(Local<Context> context,
-                                                   Local<Module> module) {
+MaybeLocal<Promise> Shell::TextModuleEvaluationSteps(Local<Context> context,
+                                                     Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
   Local<Value> text_value =
@@ -1726,8 +1745,8 @@ MaybeLocal<Value> Shell::TextModuleEvaluationSteps(Local<Context> context,
   return resolver->GetPromise();
 }
 
-MaybeLocal<Value> Shell::BytesModuleEvaluationSteps(Local<Context> context,
-                                                    Local<Module> module) {
+MaybeLocal<Promise> Shell::BytesModuleEvaluationSteps(Local<Context> context,
+                                                      Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
   Local<Value> bytes_value =
@@ -2157,6 +2176,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
     i::CppGCManaged<ModuleEmbedderData>::Ptr module_data =
         GetModuleDataFromContext(realm);
+
     Local<Module> root_module;
     auto module_it = module_data->module_map.find(
         std::make_pair(absolute_path, ModuleType::kJavaScript));
@@ -2528,8 +2548,9 @@ bool SendPerfControlCommand(const char* command) {
       return false;
     }
 
-    char ack[5];
+    char ack[6] = {0};
     ret = read(Shell::options.perf_ack_fd, ack, 5);
+    ack[5] = '\0';
     if (ret == -1) {
       fprintf(stderr, "perf_ack read error: %s\n", strerror(errno));
       return false;
@@ -6346,6 +6367,7 @@ void SourceGroup::ExecuteInThread() {
     for (int i = 0; i < Shell::options.stress_runs; ++i) {
       next_semaphore_.ParkedWait(
           reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate());
+      if (terminate_) break;
       {
         Global<Context> global_context;
         HandleScope scope(isolate);
@@ -6397,7 +6419,11 @@ void SourceGroup::WaitForThread(const i::ParkedScope& parked) {
 void SourceGroup::JoinThread(const i::ParkedScope& parked) {
   USE(parked);
   if (thread_ == nullptr) return;
+  terminate_ = true;
+  next_semaphore_.Signal();
   thread_->Join();
+  delete thread_;
+  thread_ = nullptr;
 }
 
 void SerializationDataQueue::Enqueue(std::unique_ptr<SerializationData> data) {
@@ -7128,6 +7154,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #ifdef V8_FUZZILLI
     } else if (FlagMatches("--fuzzilli-enable-builtins-coverage", &argv[i])) {
       options.fuzzilli_enable_builtins_coverage = true;
+    } else if (FlagMatches("--no-fuzzilli-enable-builtins-coverage",
+                           &argv[i])) {
+      options.fuzzilli_enable_builtins_coverage = false;
     } else if (FlagMatches("--fuzzilli-coverage-statistics", &argv[i])) {
       options.fuzzilli_coverage_statistics = true;
 #endif
@@ -7289,6 +7318,36 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   return true;
 }
 
+namespace {
+
+void WaitForAllWorkerAndIsolateThreads(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->main_thread_local_heap()->ExecuteMainThreadWhileParked(
+      [](const i::ParkedScope& parked) {
+        for (int i = 1; i < Shell::options.num_isolates; ++i) {
+          if (!Shell::options.bundle) {
+            Shell::options.isolate_sources[i].WaitForThread(parked);
+          }
+        }
+        Shell::WaitForRunningWorkers(parked);
+      });
+}
+
+void JoinAllWorkerAndIsolateThreads(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->main_thread_local_heap()->ExecuteMainThreadWhileParked(
+      [](const i::ParkedScope& parked) {
+        for (int i = 1; i < Shell::options.num_isolates; ++i) {
+          if (!Shell::options.bundle) {
+            Shell::options.isolate_sources[i].JoinThread(parked);
+          }
+        }
+        Shell::WaitForRunningWorkers(parked);
+      });
+}
+
+}  // namespace
+
 int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
@@ -7307,19 +7366,11 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
 
   // Park the main thread here to prevent deadlocks in shared GCs when
   // waiting in JoinThread.
-  i_isolate->main_thread_local_heap()->ExecuteMainThreadWhileParked(
-      [last_run](const i::ParkedScope& parked) {
-        for (int i = 1; i < options.num_isolates; ++i) {
-          if (!options.bundle) {
-            if (last_run) {
-              options.isolate_sources[i].JoinThread(parked);
-            } else {
-              options.isolate_sources[i].WaitForThread(parked);
-            }
-          }
-        }
-        WaitForRunningWorkers(parked);
-      });
+  if (last_run) {
+    JoinAllWorkerAndIsolateThreads(isolate);
+  } else {
+    WaitForAllWorkerAndIsolateThreads(isolate);
+  }
 
   // Other threads have terminated, we can now run the artificial
   // serialize-deserialize pass (which destructively mutates heap state).
@@ -8125,10 +8176,11 @@ int Shell::Main(int argc, char* argv[]) {
 #ifdef V8_FUZZILLI
 
   if (options.fuzzilli_enable_builtins_coverage) {
-    cov_init_builtins_edges(static_cast<uint32_t>(
-        i::BasicBlockProfiler::Get()
-            ->GetCoverageBitmap(reinterpret_cast<i::Isolate*>(isolate))
-            .size()));
+    uint32_t count = i::BasicBlockProfiler::Get()->GetBuiltinsBlockCount(
+        reinterpret_cast<i::Isolate*>(isolate));
+    if (count > 0) {
+      cov_init_builtins_edges(count);
+    }
   }
 
   // Let the parent process (Fuzzilli) know we are ready.
@@ -8186,6 +8238,11 @@ int Shell::Main(int argc, char* argv[]) {
         if (options.trace_config) {
           base::OwnedVector<char> trace_config_json_str =
               ReadChars(options.trace_config);
+          if (trace_config_json_str.data() == nullptr) {
+            printf("Failed to read trace config from '%s'\n",
+                   options.trace_config.get());
+            base::OS::ExitProcess(1);
+          }
           trace_config = tracing::CreateTraceConfigFromJSON(
               isolate, trace_config_json_str.as_vector());
         } else {
@@ -8210,9 +8267,15 @@ int Shell::Main(int argc, char* argv[]) {
         for (int i = 0; i < options.stress_runs; i++) {
           printf("============ Run %d/%d ============\n", i + 1,
                  options.stress_runs.get());
-          bool last_run = i == options.stress_runs - 1;
-          int this_result = RunMain(isolate, last_run);
-          if (this_result != 0) result = this_result;
+          bool is_last_run = i == options.stress_runs - 1;
+          int this_result = RunMain(isolate, is_last_run);
+          if (this_result != 0) {
+            result = this_result;
+            if (!is_last_run) {
+              JoinAllWorkerAndIsolateThreads(isolate);
+            }
+            break;
+          }
         }
       } else if (options.code_cache_options != ShellOptions::kNoProduceCache) {
         // Park the main thread here in case the new isolate wants to perform
@@ -8236,7 +8299,7 @@ int Shell::Main(int argc, char* argv[]) {
                 Initialize(isolate2, console2);
                 PerIsolateData data2(isolate2);
 
-                result = RunMain(isolate2, false);
+                result = RunMain(isolate2, /*last_run=*/false);
                 ResetOnProfileEndListener(isolate2);
               }
               // D8WasmAsyncResolvePromiseTask may be still in the runner at
@@ -8262,12 +8325,11 @@ int Shell::Main(int argc, char* argv[]) {
 
         printf("============ Run: Consume code cache ============\n");
         // Second run to consume the cache in current isolate
-        result = RunMain(isolate, true);
+        result = RunMain(isolate, /*last_run=*/true);
         options.compile_options.Overwrite(
             v8::ScriptCompiler::kNoCompileOptions);
       } else {
-        bool last_run = true;
-        result = RunMain(isolate, last_run);
+        result = RunMain(isolate, /*last_run=*/true);
       }
 
       // Run interactive shell if explicitly requested or if no script has been
@@ -8306,13 +8368,10 @@ int Shell::Main(int argc, char* argv[]) {
       // Send result to parent (fuzzilli) and reset edge guards.
       if (fuzzilli_reprl) {
         int status = result << 8;
-        std::vector<bool> bitmap;
-        if (options.fuzzilli_enable_builtins_coverage) {
-          bitmap = i::BasicBlockProfiler::Get()->GetCoverageBitmap(
-              reinterpret_cast<i::Isolate*>(isolate));
-          cov_update_builtins_basic_block_coverage(bitmap);
-        }
         if (options.fuzzilli_coverage_statistics) {
+          std::vector<bool> bitmap =
+              i::BasicBlockProfiler::Get()->GetCoverageBitmap(
+                  reinterpret_cast<i::Isolate*>(isolate));
           int tot = 0;
           for (bool b : bitmap) {
             if (b) tot++;
@@ -8324,16 +8383,19 @@ int Shell::Main(int argc, char* argv[]) {
                  << bitmap.size() << std::endl;
           iteration_counter++;
         }
+        uint8_t* shmem_edges = cov_get_shmem_edges();
+        if (options.fuzzilli_enable_builtins_coverage &&
+            cov_has_builtins_edges() && shmem_edges != nullptr) {
+          i::BasicBlockProfiler::Get()->UpdateBuiltinsCoverageAndReset(
+              reinterpret_cast<i::Isolate*>(isolate), cov_get_builtins_start(),
+              shmem_edges);
+        }
         // In REPRL mode, stdout and stderr can be regular files, so they need
         // to be flushed after every execution
         fflush(stdout);
         fflush(stderr);
         CHECK_EQ(write(REPRL_CWFD, &status, 4), 4);
         sanitizer_cov_reset_edgeguards();
-        if (options.fuzzilli_enable_builtins_coverage) {
-          i::BasicBlockProfiler::Get()->ResetCounts(
-              reinterpret_cast<i::Isolate*>(isolate));
-        }
       }
 #endif  // V8_FUZZILLI
     } while (fuzzilli_reprl);

@@ -131,6 +131,16 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   }
 
   void EmptyNewSpaceUsingGC() { InvokeMajorGC(); }
+
+  int NumberOfGlobalObjects() {
+    int count = 0;
+    HeapObjectIterator iterator(heap());
+    for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
+      if (IsJSGlobalObject(obj)) count++;
+    }
+    return count;
+  }
 };
 
 template <typename TMixin>
@@ -214,6 +224,13 @@ class V8_NODISCARD DisableHandleChecksForMockingScope final {
   DisableHandleChecksForMockingScope() {}
 };
 #endif
+
+void AbandonCurrentlyFreeMemory(PagedSpace* space);
+
+Tagged<HeapObject> AllocateAligned(Heap* heap, MainAllocator* allocator,
+                                   int size, AllocationAlignment alignment);
+
+Address AlignOldSpace(Heap* heap, AllocationAlignment alignment, int offset);
 
 }  // namespace internal
 }  // namespace v8

@@ -405,7 +405,9 @@ void MacroAssembler::Drop(int count) {
   }
 }
 
-void MacroAssembler::Drop(Register count, Register scratch) {
+void MacroAssembler::Drop(Register count) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   ShiftLeftU64(scratch, count, Operand(kSystemPointerSizeLog2));
   add(sp, sp, scratch);
 }
@@ -950,8 +952,10 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  SaveFPRegsMode fp_mode, SmiCheck smi_check) {
   DCHECK(!AreAliased(object, value, slot_address));
   if (v8_flags.slow_debug_code) {
-    LoadTaggedField(r0, MemOperand(slot_address));
-    CmpS64(r0, value);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    LoadTaggedField(scratch, MemOperand(slot_address));
+    CmpS64(scratch, value);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
@@ -1222,12 +1226,7 @@ void MacroAssembler::Prologue() {
   }
 }
 
-void MacroAssembler::DropArguments(Register count) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  ShiftLeftU64(scratch, count, Operand(kSystemPointerSizeLog2));
-  add(sp, sp, scratch);
-}
+void MacroAssembler::DropArguments(Register count) { Drop(count); }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
                                                      Register receiver) {
@@ -1349,9 +1348,9 @@ void MacroAssembler::EnterExitFrame(int stack_space,
     ClearRightImm(sp, sp,
                   Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
   }
-  li(r0, Operand::Zero());
-  StoreU64WithUpdate(
-      r0, MemOperand(sp, -kNumRequiredStackFrameSlots * kSystemPointerSize));
+  li(scratch, Operand::Zero());
+  StoreU64WithUpdate(scratch, MemOperand(sp, -kNumRequiredStackFrameSlots *
+                                                 kSystemPointerSize));
 
   // Set the exit frame sp value to point just before the return address
   // location.
@@ -5196,8 +5195,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   } else {
     // {argc_operand} was loaded into {argc_reg} above.
     __ AddS64(sp, sp, Operand(slots_to_drop_on_return * kSystemPointerSize));
-    __ ShiftLeftU64(r0, argc_reg, Operand(kSystemPointerSizeLog2));
-    __ AddS64(sp, sp, r0);
+    __ Drop(argc_reg);
   }
 
   __ blr();

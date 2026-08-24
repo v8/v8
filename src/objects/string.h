@@ -1209,6 +1209,9 @@ struct ObjectTraits<SlicedString> {
 V8_OBJECT class UncachedExternalString : public String {
  protected:
   ExternalPointerMember<kExternalStringResourceTag> resource_;
+
+  // To get the offset of the protected resource_ field.
+  friend class SandboxTesting;
 } V8_OBJECT_END;
 
 // The ExternalString class describes string values that are backed by
@@ -1263,6 +1266,8 @@ V8_OBJECT class ExternalString : public UncachedExternalString {
   friend class CodeStubAssembler;
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedExternalStringAsserts;
+  // To get the offset of the protected resource_data_ field.
+  friend class SandboxTesting;
 
  protected:
   ExternalPointerMember<kExternalStringResourceDataTag> resource_data_;

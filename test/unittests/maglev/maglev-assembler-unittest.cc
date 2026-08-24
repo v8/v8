@@ -275,7 +275,7 @@ TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32InfNegative) {
   FinalizeAndRun(&cannot_convert, &can_convert);
 }
 
-#if V8_TARGET_ARCH_LOONG64
+#if V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV64
 TEST_F(MaglevAssemblerTest, SetSlotAddressForFixedArrayElementLargeIndex) {
   as.CodeEntry();
   intptr_t base = intptr_t{0x300000000};
@@ -292,7 +292,7 @@ TEST_F(MaglevAssemblerTest, SetSlotAddressForFixedArrayElementLargeIndex) {
   as.jmp(&fail);
   FinalizeAndRun(&pass, &fail);
 }
-#endif  // V8_TARGET_ARCH_LOONG64
+#endif  // V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV64
 
 }  // namespace maglev
 }  // namespace internal

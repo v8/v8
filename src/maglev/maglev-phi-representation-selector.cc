@@ -745,8 +745,9 @@ void MaglevPhiRepresentationSelector::UntagConstantInput(
     Float64 f64 = Float64::FromBits(
         base::double_to_uint64(constant->object().AsHeapNumber().value()));
     // We need to silence hole and undefined patterns as their
-    // interpretation will now change.
-    if (f64.has_undefined_or_hole_nan_high_bits()) f64 = f64.to_quiet_nan();
+    // interpretation will now change. Any other signalling NaN has to go too,
+    // so that a HoleyFloat64 only ever carries those two.
+    if (f64.is_signalling_nan()) f64 = f64.to_quiet_nan();
     phi->change_input(input_index, graph_->GetHoleyFloat64Constant(f64));
   } else if (truncating) {
     TRACE_UNTAGGING(TRACE_INPUT_LABEL
@@ -1248,9 +1249,22 @@ ProcessResult MaglevPhiRepresentationSelector ::UpdateNodePhiInput(
     case ValueRepresentation::kFloat64:
       node->OverwriteWith<Float64ToString>();
       return ProcessResult::kContinue;
-    default:
+    case ValueRepresentation::kHoleyFloat64: {
+      // NumberToString is only emitted for inputs that are known to be numbers.
+      ValueNode* input =
+          AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>(
+              reducer_.current_block(), BasicBlockPosition::Start(), {phi});
+      node->OverwriteWith<Float64ToString>();
+      node->change_input(input_index, input);
+      return ProcessResult::kContinue;
+    }
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
@@ -1687,8 +1701,8 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
   // phis, or at least to go over the loop header twice.
   if (!block->has_phi()) return;
   for (Phi* phi : *block->phis()) {
-    int last_input_idx = phi->input_count() - 1;
-    ValueNode* backedge = phi->input(last_input_idx).node();
+    int backedge_index = phi->backedge_index();
+    ValueNode* backedge = phi->backedge();
     if (phi->value_representation() == ValueRepresentation::kTagged) {
       // If the backedge is a Phi that was untagged, but {phi} is tagged, then
       // we need to retag the backedge.
@@ -1704,7 +1718,7 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
         // is not tagged means that it's a Phi that we recently untagged.
         DCHECK(backedge->Is<Phi>());
         phi->change_input(
-            last_input_idx,
+            backedge_index,
             EnsurePhiTagged(backedge->Cast<Phi>(), reducer_.current_block(),
                             BasicBlockPosition::End(), /*state*/ nullptr,
                             /*predecessor_index*/ std::nullopt));
@@ -1723,7 +1737,7 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
                     ValueRepresentation::kFloat64 &&
                 phi->value_representation() ==
                     ValueRepresentation::kHoleyFloat64));
-        phi->change_input(last_input_idx, backedge->input(0).node());
+        phi->change_input(backedge_index, backedge->input(0).node());
       }
     }
   }
@@ -1813,11 +1827,12 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
     for (int i = 0; static_cast<size_t>(i) < predecessors.size(); i++) {
       phi->set_input(i, predecessors[i]);
     }
-    if (predecessors.size() != static_cast<size_t>(predecessor_count)) {
-      // The backedge is omitted from {predecessors}. With set the Phi as its
-      // own backedge.
-      DCHECK(new_block->is_loop());
-      phi->set_input(predecessor_count - 1, phi);
+    if (new_block->is_loop()) {
+      // The backedge is omitted from {predecessors}, since it hasn't been
+      // visited yet. We set the Phi as its own backedge.
+      DCHECK_EQ(predecessors.size(),
+                static_cast<size_t>(phi->backedge_index()));
+      phi->set_input(phi->backedge_index(), phi);
     }
     if (reducer_.has_graph_labeller()) reducer_.RegisterNode(phi);
     new_block->AddPhi(phi);

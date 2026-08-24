@@ -179,7 +179,16 @@ inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
       src_reg = temps.Acquire();
       assm->li(src_reg, src.i32_const());
     }
-    assm->StoreWord(src_reg, dst);
+    switch (src.kind()) {
+      case kI32:
+        assm->Sw(src_reg, dst);
+        break;
+      case kI64:
+        assm->StoreWord(src_reg, dst);
+        break;
+      default:
+        UNREACHABLE();
+    }
   } else if (src.is_reg()) {
     switch (src.kind()) {
       case kI16:

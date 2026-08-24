@@ -1091,35 +1091,50 @@ void FlagList::PrintFeatureFlagsJSON() {
 
   {
     std::vector<const char*> inprogress_flags;
+    std::vector<const char*> inprogress_harmony_flags;
     std::vector<const char*> staged_flags;
+    std::vector<const char*> staged_harmony_flags;
     std::vector<const char*> shipping_flags;
+    std::vector<const char*> shipping_harmony_flags;
 
-#define ADD_JS_INPROGRESS_FLAG(name, desc) inprogress_flags.push_back(#name);
-#define ADD_JS_STAGED_FLAG(name, desc) staged_flags.push_back(#name);
-#define ADD_JS_SHIPPING_FLAG(name, desc) shipping_flags.push_back(#name);
+#define IGNORE_FEATURE(name, desc)
 
-    JAVASCRIPT_INPROGRESS_FEATURES(ADD_JS_INPROGRESS_FLAG)
-    JAVASCRIPT_STAGED_FEATURES(ADD_JS_STAGED_FLAG)
-    JAVASCRIPT_SHIPPING_FEATURES(ADD_JS_SHIPPING_FLAG)
+#define ADD_JS_INPROGRESS_FLAG(name, desc)     \
+  if (strncmp("harmony_", #name, 8) == 0) {    \
+    inprogress_harmony_flags.push_back(#name); \
+  } else {                                     \
+    inprogress_flags.push_back(#name);         \
+  }
+#define ADD_JS_STAGED_FLAG(name, desc)      \
+  if (strncmp("harmony_", #name, 8) == 0) { \
+    staged_harmony_flags.push_back(#name);  \
+  } else {                                  \
+    staged_flags.push_back(#name);          \
+  }
+#define ADD_JS_SHIPPING_FLAG(name, desc)     \
+  if (strncmp("harmony_", #name, 8) == 0) {  \
+    shipping_harmony_flags.push_back(#name); \
+  } else {                                   \
+    shipping_flags.push_back(#name);         \
+  }
+
+    FOREACH_EXPERIMENTAL_FEATURE_FLAG(ADD_JS_INPROGRESS_FLAG, IGNORE_FEATURE,
+                                      IGNORE_FEATURE)
+    FOREACH_PRE_STAGED_FEATURE_FLAG(ADD_JS_INPROGRESS_FLAG, IGNORE_FEATURE,
+                                    IGNORE_FEATURE)
+    FOREACH_STAGED_FEATURE_FLAG(ADD_JS_STAGED_FLAG, IGNORE_FEATURE,
+                                IGNORE_FEATURE)
+    FOREACH_SHIPPED_FEATURE_FLAG(ADD_JS_SHIPPING_FLAG, IGNORE_FEATURE,
+                                 IGNORE_FEATURE)
 
     os << "  \"js\": ";
     PrintFeatureFlagsJSONObject(os, inprogress_flags, staged_flags,
                                 shipping_flags);
     os << ",\n";
-  }
-
-  {
-    std::vector<const char*> inprogress_flags;
-    std::vector<const char*> staged_flags;
-    std::vector<const char*> shipping_flags;
-
-    HARMONY_INPROGRESS(ADD_JS_INPROGRESS_FLAG)
-    HARMONY_STAGED(ADD_JS_STAGED_FLAG)
-    HARMONY_SHIPPING(ADD_JS_SHIPPING_FLAG)
 
     os << "  \"harmony\": ";
-    PrintFeatureFlagsJSONObject(os, inprogress_flags, staged_flags,
-                                shipping_flags);
+    PrintFeatureFlagsJSONObject(os, inprogress_harmony_flags,
+                                staged_harmony_flags, shipping_harmony_flags);
     os << ",\n";
   }
 
@@ -1129,16 +1144,20 @@ void FlagList::PrintFeatureFlagsJSON() {
     std::vector<const char*> staged_flags;
     std::vector<const char*> shipping_flags;
 
-#define ADD_WASM_INPROGRESS_FLAG(name, desc, val) \
+#define ADD_WASM_INPROGRESS_FLAG(name, desc) \
   inprogress_flags.push_back("wasm_" #name);
-#define ADD_WASM_STAGED_FLAG(name, desc, val) \
-  staged_flags.push_back("wasm_" #name);
-#define ADD_WASM_SHIPPED_FLAG(name, desc, val) \
+#define ADD_WASM_STAGED_FLAG(name, desc) staged_flags.push_back("wasm_" #name);
+#define ADD_WASM_SHIPPED_FLAG(name, desc) \
   shipping_flags.push_back("wasm_" #name);
 
-    FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(ADD_WASM_INPROGRESS_FLAG)
-    FOREACH_WASM_STAGING_FEATURE_FLAG(ADD_WASM_STAGED_FLAG)
-    FOREACH_WASM_SHIPPED_FEATURE_FLAG(ADD_WASM_SHIPPED_FLAG)
+    FOREACH_EXPERIMENTAL_FEATURE_FLAG(IGNORE_FEATURE, ADD_WASM_INPROGRESS_FLAG,
+                                      IGNORE_FEATURE)
+    FOREACH_PRE_STAGED_FEATURE_FLAG(IGNORE_FEATURE, ADD_WASM_INPROGRESS_FLAG,
+                                    IGNORE_FEATURE)
+    FOREACH_STAGED_FEATURE_FLAG(IGNORE_FEATURE, ADD_WASM_STAGED_FLAG,
+                                IGNORE_FEATURE)
+    FOREACH_SHIPPED_FEATURE_FLAG(IGNORE_FEATURE, ADD_WASM_SHIPPED_FLAG,
+                                 IGNORE_FEATURE)
 
     os << "  \"wasm\": ";
     PrintFeatureFlagsJSONObject(os, inprogress_flags, staged_flags,
@@ -1156,6 +1175,7 @@ void FlagList::PrintFeatureFlagsJSON() {
 #undef ADD_WASM_INPROGRESS_FLAG
 #undef ADD_WASM_STAGED_FLAG
 #undef ADD_WASM_SHIPPED_FLAG
+#undef IGNORE_FEATURE
 }
 
 namespace {

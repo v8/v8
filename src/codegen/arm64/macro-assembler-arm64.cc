@@ -3618,7 +3618,7 @@ void MacroAssembler::DecompressTagged(const Register& destination,
                                       Tagged_t immediate) {
   ASM_CODE_COMMENT(this);
   if (IsImmAddSub(immediate)) {
-    Add(destination, kPtrComprCageBaseRegister,
+    Orr(destination, kPtrComprCageBaseRegister,
         Immediate(immediate, RelocInfo::Mode::NO_INFO));
   } else {
     // Immediate is larger than 12 bit and therefore can't be encoded directly.
@@ -3626,7 +3626,7 @@ void MacroAssembler::DecompressTagged(const Register& destination,
     DCHECK_NE(destination, sp);
     Operand imm_operand =
         MoveImmediateForShiftedOp(destination, immediate, kAnyShift);
-    Add(destination, kPtrComprCageBaseRegister, imm_operand);
+    Orr(destination, kPtrComprCageBaseRegister, imm_operand);
   }
 }
 
@@ -3667,7 +3667,7 @@ int MacroAssembler::AtomicDecompressTagged(const Register& destination,
   Add(temp, base, index);
   int pc_offset_of_load = pc_offset();
   Ldar(destination.W(), temp);
-  Add(destination, kPtrComprCageBaseRegister, destination);
+  Orr(destination, kPtrComprCageBaseRegister, destination);
   return pc_offset_of_load;
 }
 
@@ -3819,22 +3819,13 @@ void MacroAssembler::RecordWriteField(
   Bind(&done);
 }
 
-void MacroAssembler::DecodeSandboxedPointer(Register value) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
-  Add(value, kPtrComprCageBaseRegister,
-      Operand(value, LSR, kSandboxedPointerShift));
-#else
-  UNREACHABLE();
-#endif
-}
-
 void MacroAssembler::LoadSandboxedPointerField(Register destination,
                                                MemOperand field_operand) {
 #ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   Ldr(destination, field_operand);
-  DecodeSandboxedPointer(destination);
+  Add(destination, kPtrComprCageBaseRegister,
+      Operand(destination, LSR, kSandboxedPointerShift));
 #else
   UNREACHABLE();
 #endif

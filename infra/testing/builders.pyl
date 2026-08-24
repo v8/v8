@@ -1457,7 +1457,7 @@
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'shards': 16},
-      {'name': 'test262', 'variant': 'extra', 'shards': 10},
+      {'name': 'test262', 'variant': 'extra', 'shards': 12},
       {'name': 'v8testing', 'shards': 5},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
       {'name': 'v8testing', 'variant': 'minor_ms'},
@@ -1465,7 +1465,7 @@
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'slow_path'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
-      {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
+      {'name': 'v8testing', 'variant': 'stress_concurrent_allocation', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining', 'shards': 2},
       {'name': 'v8testing', 'variant': 'turbofan_random_rescheduling'},
       {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
@@ -1791,7 +1791,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'shards': 3},
     ],
   },
   'V8 Linux64 ASAN': {
@@ -1813,7 +1813,7 @@
       {'name': 'v8testing', 'shards': 5},
       {'name': 'benchmarks', 'shards': 5},
       {'name': 'mozilla', 'shards': 5},
-      {'name': 'test262', 'shards': 12},
+      {'name': 'test262', 'shards': 16},
     ],
   },
   'V8 Linux64 GC Stress - custom snapshot': {

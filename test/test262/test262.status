@@ -862,15 +862,7 @@
 ####
 
 
-####
-# Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion': [SKIP],
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared': [SKIP],
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-detached': [SKIP],
-  'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-resize-to-zero': [SKIP],
-  'built-ins/Atomics/wait/retrieve-length-before-index-coercion': [SKIP],
-  'built-ins/Atomics/waitAsync/retrieve-length-before-index-coercion': [SKIP],
   'harness/verifyProperty-value-error': [SKIP],
 }],
 # End roll-watcher patch
@@ -896,14 +888,6 @@
   'language/expressions/assignmenttargettype/direct-callexpression-in-prefix-update': [SKIP],
   'language/expressions/assignmenttargettype/parenthesized-callexpression': [SKIP],
   'language/expressions/assignmenttargettype/parenthesized-callexpression-in-compound-assignment': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/Iterator/concat/get-value-after-done': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -1094,7 +1078,6 @@
   'built-ins/Error/prototype/stack/setter-receiver-is-proxy': [SKIP],
   'built-ins/Error/prototype/stack/setter-this-not-object': [SKIP],
   'built-ins/Error/prototype/stack/setter-via-assignment': [SKIP],
-  'built-ins/TypedArray/prototype/set/immutable-buffer': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/round/same-date-starts-twice': [SKIP],
   'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-import-source-and-export': [SKIP],
   'language/module-code/source-phase-import/reexport-source-binding-named-import': [SKIP],
@@ -1147,7 +1130,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/invokes-return': [SKIP],
   'built-ins/Promise/allKeyed/capability-resolve-throws-reject': [SKIP],
   'built-ins/Promise/allKeyed/get-value-not-called-for-non-enumerable': [SKIP],
   'built-ins/Promise/allKeyed/get-value-throws-reject': [SKIP],
@@ -1174,15 +1156,6 @@
   'built-ins/Promise/allSettledKeyed/resolve-from-same-thenable': [SKIP],
   'built-ins/Promise/allSettledKeyed/resolve-missing-reject-with-typeerror': [SKIP],
   'built-ins/Promise/allSettledKeyed/result-property-descriptors': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'intl402/Locale/prototype/getHourCycles/region-priority': [SKIP],
-  'intl402/Locale/prototype/getHourCycles/subdivision-region': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -1234,9 +1207,6 @@
   'built-ins/Iterator/prototype/chunks/underlying-iterator-advanced-in-parallel': [SKIP],
   'built-ins/Iterator/prototype/chunks/underlying-iterator-closed-in-parallel': [SKIP],
   'built-ins/Iterator/prototype/chunks/yields-distinct-arrays': [SKIP],
-  'built-ins/Iterator/prototype/includes/argument-effect-order': [SKIP],
-  'built-ins/Iterator/prototype/includes/argument-validation-failure-closes-underlying': [SKIP],
-  'built-ins/Iterator/prototype/includes/skipped-elements-too-large-rangeerror': [SKIP],
   'built-ins/Iterator/prototype/windows/argument-effect-order': [SKIP],
   'built-ins/Iterator/prototype/windows/argument-validation-failure-close-throws': [SKIP],
   'built-ins/Iterator/prototype/windows/argument-validation-failure-closes-underlying': [SKIP],

@@ -670,9 +670,9 @@ bool ValueNode::MayBeHoleOrUndefinedNan() const {
       return false;
 
     case Opcode::kFloat64Constant:
-      return Cast<Float64Constant>()->value().is_undefined_or_hole_nan();
+      return Cast<Float64Constant>()->value().is_signalling_nan();
     case Opcode::kHoleyFloat64Constant:
-      return Cast<HoleyFloat64Constant>()->value().is_undefined_or_hole_nan();
+      return Cast<HoleyFloat64Constant>()->value().is_signalling_nan();
 
     // Casts that reinterpret the bits without touching them, so they carry the
     // patterns exactly when their input does.
@@ -1057,6 +1057,11 @@ void InlinedAllocation::VerifyInputs() const {
 void UnsafeFloat64ToHoleyFloat64::VerifyInputs() const {
   Base::VerifyInputs();
   CHECK(!input_node(0)->UnwrapIdentities()->MayBeHoleOrUndefinedNan());
+}
+
+void StoreFixedDoubleArrayElement::VerifyInputs() const {
+  Base::VerifyInputs();
+  CHECK(!ValueInput().node()->UnwrapIdentities()->MayBeHoleOrUndefinedNan());
 }
 
 AllocationBlock* InlinedAllocation::allocation_block() {
@@ -3700,6 +3705,27 @@ template class StoreFixedDoubleArrayElementT<StoreFixedDoubleArrayElement,
                                              ValueRepresentation::kFloat64>;
 template class StoreFixedDoubleArrayElementT<
     StoreFixedHoleyDoubleArrayElement, ValueRepresentation::kHoleyFloat64>;
+
+void StoreFixedDoubleArrayHole::SetValueLocationConstraints() {
+  UseRegister(ElementsInput());
+  UseRegister(IndexInput());
+  set_double_temporaries_needed(1);
+}
+void StoreFixedDoubleArrayHole::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  Register elements = ToRegister(ElementsInput());
+  Register index = ToRegister(IndexInput());
+  if (v8_flags.debug_code) {
+    __ AssertObjectType(elements, FIXED_DOUBLE_ARRAY_TYPE,
+                        AbortReason::kUnexpectedValue);
+    __ CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
+                             AbortReason::kUnexpectedNegativeValue);
+  }
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  DoubleRegister hole = temps.AcquireDouble();
+  __ Move(hole, Float64::hole_nan());
+  __ StoreFixedDoubleArrayElement(elements, index, hole);
+}
 
 int StoreMap::MaxCallStackArgs() const {
   return WriteBarrierDescriptor::GetStackParameterCount();

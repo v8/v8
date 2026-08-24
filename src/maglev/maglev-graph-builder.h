@@ -138,6 +138,7 @@ class MaglevGraphBuilder {
   BasicBlock* EndPrologue();
   void PeelLoop();
   void BuildLoopForPeeling();
+  void BuildLoopHeader(int offset);
 
   void OsrAnalyzePrequel();
 
@@ -395,6 +396,11 @@ class MaglevGraphBuilder {
   void RegisterPhisWithGraphLabeller(
       MergePointInterpreterFrameState& merge_state);
 
+  // Return true if the given offset is a loop header. Their merge state is
+  // only created once all the forward edges have been merged, so this can be
+  // true for offsets the graph builder hasn't reached yet.
+  bool IsLoopHeader(int offset) const { return loop_headers_.Contains(offset); }
+
   // Return true if the given offset is a merge point, i.e. there are jumps
   // targetting it.
   bool IsOffsetAMergePoint(int offset) const {
@@ -570,8 +576,6 @@ class MaglevGraphBuilder {
         broker()->CanonicalPersistentHandle(Cast<T>(
             iterator_.GetConstantForOperand(operand_index, local_isolate()))));
   }
-
-  MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t);
 
   ValueNode* GetRegisterInput(Register reg);
 
@@ -897,7 +901,9 @@ class MaglevGraphBuilder {
   V(DataViewPrototypeGetByteLength)              \
   V(FunctionPrototypeApply)                      \
   V(FunctionPrototypeCall)                       \
+  V(MapIteratorPrototypeNext)                    \
   V(MapPrototypeGet)                             \
+  V(SetIteratorPrototypeNext)                    \
   V(WeakMapPrototypeGet)                         \
   V(ObjectPrototypeGetProto)                     \
   V(ObjectGetPrototypeOf)                        \
@@ -909,16 +915,7 @@ class MaglevGraphBuilder {
   V(NumberParseInt)                              \
   V(SetPrototypeHas)                             \
   V(StringConstructor)                           \
-  V(StringFromCharCode)                          \
-  V(StringPrototypeCharAt)                       \
-  V(StringPrototypeCharCodeAt)                   \
-  V(StringPrototypeCodePointAt)                  \
-  V(StringPrototypeSlice)                        \
-  V(StringPrototypeSubstring)                    \
-  V(StringPrototypeStartsWith)                   \
-  V(StringPrototypeIndexOf)                      \
-  V(StringPrototypeIncludes)                     \
-  V(StringPrototypeIterator)
+  V(StringPrototypeStartsWith)
 
 #define DEFINE_BUILTIN_REDUCER(Name, ...)                           \
   MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \
@@ -959,17 +956,6 @@ class MaglevGraphBuilder {
       const std::optional<InitialCallback>& initial_callback = {},
       const std::optional<ProcessElementCallback>& process_element_callback =
           {});
-
-  // OOB StringAt access behaves differently for elements (needs the elements
-  // protector, positive indices, and returns undefined) and charAt (allows
-  // negative indices, returns empty string).
-  enum class StringAtOOBMode { kElement, kCharAt };
-  MaybeReduceResult TryReduceConstantStringAt(ValueNode* object,
-                                              ValueNode* index,
-                                              StringAtOOBMode oob_mode);
-
-  MaybeReduceResult TryReduceStringPrototypeIndexOfIncludes(CallArguments& args,
-                                                            bool is_includes);
 
   MaybeReduceResult TryReduceGetProto(ValueNode* node);
 
@@ -1124,6 +1110,18 @@ class MaglevGraphBuilder {
   ValueNode* BuildElementsArray(ElementsKind elements_kind,
                                 base::Vector<ValueNode*> values);
   ReduceResult BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
+
+  MaybeReduceResult TryReduceCollectionIteratorPrototypeNext(
+      compiler::JSFunctionRef target, CallArguments& args,
+      CollectionKind collection_kind, int entry_size,
+      RootIndex empty_collection_root);
+
+  using BuildIteratorStepResultCallback =
+      base::FunctionRef<ReduceResult(ValueNode* value, ValueNode* is_done)>;
+  MaybeReduceResult BuildCollectionIteratorStep(
+      ValueNode* receiver, CollectionKind collection_kind, int entry_size,
+      RootIndex empty_collection_root,
+      BuildIteratorStepResultCallback build_result);
   ReduceResult BuildAndAllocateJSArray(
       compiler::MapRef map, ValueNode* length, ValueNode* elements,
       const compiler::SlackTrackingPrediction& slack_tracking_prediction,
@@ -1184,7 +1182,9 @@ class MaglevGraphBuilder {
       std::pair<interpreter::Register, interpreter::Register> result);
 
   ReduceResult BuildSmiUntag(ValueNode* node);
-  ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
+  ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index) {
+    return reducer_.BuildGetCharCodeAt(string, index);
+  }
 
   ReduceResult BuildCheckSmi(ValueNode* object);
   ReduceResult BuildCheckNumber(ValueNode* object);
@@ -1516,7 +1516,9 @@ class MaglevGraphBuilder {
                                               compiler::NameRef name) {
     return reducer_.TryReuseKnownPropertyLoad(lookup_start_object, name);
   }
-  ReduceResult BuildLoadStringLength(ValueNode* string);
+  ReduceResult BuildLoadStringLength(ValueNode* string) {
+    return reducer_.BuildLoadStringLength(string);
+  }
 
   // Converts the input node to a representation that's valid to store into an
   // array with elements kind |kind|.
@@ -1904,6 +1906,8 @@ class MaglevGraphBuilder {
   void PrewalkBytecode();
 
   ZoneVector<int> decremented_predecessor_offsets_;
+  // The set of loop headers reachable from the entrypoint.
+  BitVector loop_headers_;
   // The set of loop headers for which we decided to do loop peeling.
   BitVector loop_headers_to_peel_;
 

@@ -750,7 +750,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
   void Drop(int count);
-  void Drop(Register count, Register scratch = r0);
+  void Drop(Register count);
 
   void Ret() { blr(); }
   void Ret(Condition cond, CRegister cr = cr0) { bclr(cond, cr); }

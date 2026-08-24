@@ -666,7 +666,8 @@ if (v8_enable_sparkplug == "") {
   v8_enable_sparkplug = !v8_jitless
 }
 v8_enable_sparkplug_plus = v8_enable_sparkplug && (v8_current_cpu == "x64" ||
-                                                   v8_current_cpu == "arm64")
+                                                   v8_current_cpu == "arm64" ||
+                                                   v8_current_cpu == "loong64")
 if (v8_enable_maglev == "") {
   v8_enable_maglev =
       v8_enable_turbofan &&
@@ -1478,6 +1479,9 @@ config("features") {
   if (v8_fuzzilli) {
     defines += [ "V8_FUZZILLI" ]
   }
+  if (v8_enable_builtins_profiling) {
+    defines += [ "V8_ENABLE_BUILTINS_PROFILING" ]
+  }
   if (use_chromium_fuzzilli) {
     defines += [ "USE_CHROMIUM_FUZZILLI" ]
   }
@@ -1498,6 +1502,9 @@ config("features") {
   if (v8_enable_pointer_compression && v8_enable_builtins_gearbox &&
       v8_current_cpu == "x64") {
     defines += [ "V8_BUILTINS_GEARBOX" ]
+  }
+  if (v8_enable_builtins_optimization) {
+    defines += [ "V8_ENABLE_BUILTINS_OPTIMIZATION" ]
   }
   if (v8_enable_short_builtin_calls) {
     defines += [ "V8_SHORT_BUILTIN_CALLS" ]
@@ -3698,6 +3705,7 @@ v8_header_set("v8_flags") {
   configs = [ ":internal_config" ]
 
   sources = [
+    "src/flags/feature-flags.h",
     "src/flags/flag-definitions.h",
     "src/flags/flags-impl.h",
     "src/flags/flags.h",
@@ -3836,8 +3844,6 @@ v8_header_set("v8_internal_headers") {
     "src/common/ptr-compr-inl.h",
     "src/common/ptr-compr.h",
     "src/common/scoped-modification.h",
-    "src/common/segmented-table-inl.h",
-    "src/common/segmented-table.h",
     "src/common/simd128.h",
     "src/common/synchronization-point-support.h",
     "src/common/thread-local-storage.h",
@@ -4084,6 +4090,7 @@ v8_header_set("v8_internal_headers") {
     "src/debug/debug-frames.h",
     "src/debug/debug-interface.h",
     "src/debug/debug-property-iterator.h",
+    "src/debug/debug-scope-info.h",
     "src/debug/debug-scope-iterator.h",
     "src/debug/debug-scopes.h",
     "src/debug/debug-stack-trace-iterator.h",
@@ -4700,6 +4707,8 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/sandboxable-thread.h",
     "src/sandbox/sandboxed-pointer-inl.h",
     "src/sandbox/sandboxed-pointer.h",
+    "src/sandbox/segmented-table-inl.h",
+    "src/sandbox/segmented-table.h",
     "src/sandbox/tagged-payload.h",
     "src/sandbox/testing.h",
     "src/sandbox/trusted-pointer-scope.h",
@@ -4994,7 +5003,6 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-engine.h",
       "src/wasm/wasm-export-wrapper-cache.h",
       "src/wasm/wasm-external-refs.h",
-      "src/wasm/wasm-feature-flags.h",
       "src/wasm/wasm-features.h",
       "src/wasm/wasm-import-wrapper-cache.h",
       "src/wasm/wasm-init-expr.h",
@@ -6039,6 +6047,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/debug/debug-frames.cc",
     "src/debug/debug-interface.cc",
     "src/debug/debug-property-iterator.cc",
+    "src/debug/debug-scope-info.cc",
     "src/debug/debug-scope-iterator.cc",
     "src/debug/debug-scopes.cc",
     "src/debug/debug-stack-trace-iterator.cc",
@@ -6375,6 +6384,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/sandbox/js-dispatch-table.cc",
     "src/sandbox/sandbox.cc",
     "src/sandbox/sandboxable-thread.cc",
+    "src/sandbox/segmented-table.cc",
     "src/sandbox/testing.cc",
     "src/sandbox/trap-fuzzer.cc",
     "src/sandbox/trusted-pointer-scope.cc",

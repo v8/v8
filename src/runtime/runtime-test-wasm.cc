@@ -375,7 +375,7 @@ RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
 RUNTIME_FUNCTION(Runtime_IsWasmPartialOOBWriteNoop) {
   SealHandleScope shs(isolate);
   DisallowGarbageCollection no_gc;
-  return isolate->heap()->ToBoolean(wasm::kPartialOOBWritesAreNoops);
+  return isolate->heap()->ToBoolean(v8_flags.wasm_partial_oob_writes_are_noops);
 }
 
 RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {

@@ -31,6 +31,13 @@ namespace v8::internal::regexp {
 
 using namespace compiler_constants;  // NOLINT(build/namespaces)
 
+NonAssertingLabel::~NonAssertingLabel() {
+  if (V8_UNLIKELY(compiler_ != nullptr && compiler_->IsRegExpTooBig())) {
+    UnuseNear();
+    Unuse();
+  }
+}
+
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
 #define TRACE_COMPILER(compiler, msg)                    \
   do {                                                   \
@@ -352,7 +359,7 @@ Compiler::CompilationResult Compiler::Assemble(
   const Flags flags_before_emit = flags_;
   ZoneVector<WorkItem> work_list(zone());
   work_list_ = &work_list;
-  Label fail;
+  NonAssertingLabel fail(this);
   macro_assembler_->set_fail_label(&fail);
   if (!macro_assembler_->prologue_pushes_fail_label()) {
     // The fail label sits at the bottom of the backtrack stack: exhausting all
@@ -366,8 +373,6 @@ Compiler::CompilationResult Compiler::Assemble(
   Trace new_trace;
   if (start->Emit(this, &new_trace).IsError()) {
     work_list_ = nullptr;
-    fail.UnuseNear();
-    fail.Unuse();
     return ReportError();
   }
   macro_assembler_->BindJumpTarget(&fail);
@@ -828,16 +833,12 @@ EmitResult Trace::Flush(Compiler* compiler, Node* successor,
   }
 
   // Create a new trivial state and generate the node with that.
-  Label undo;
+  NonAssertingLabel undo(compiler);
   assembler->PushBacktrack(&undo);
   if (successor->KeepRecursing(compiler)) {
     Trace new_state;
     EmitResult r = successor->Emit(compiler, &new_state);
     if (V8_UNLIKELY(r.IsError())) {
-      // TODO(jgruber): If this pattern emerges elsewhere, let's wrap affected
-      // labels in a scope object and add a convenience macro.
-      undo.UnuseNear();
-      undo.Unuse();
       return r;
     }
   } else {
@@ -2503,8 +2504,8 @@ EmitResult AssertionNode::EmitBoundaryCheck(Compiler* compiler, Trace* trace) {
   bool at_boundary = (assertion_type_ == AssertionNode::AT_BOUNDARY);
   if (next_is_word_character == Trace::UNKNOWN) {
     const Flags flags = compiler->flags();
-    Label before_non_word;
-    Label before_word;
+    NonAssertingLabel before_non_word(compiler);
+    NonAssertingLabel before_word(compiler);
     if (trace->characters_preloaded() != 1) {
       assembler->LoadCurrentCharacter(trace->cp_offset(), &before_non_word);
     }
@@ -2512,7 +2513,7 @@ EmitResult AssertionNode::EmitBoundaryCheck(Compiler* compiler, Trace* trace) {
     EmitWordCheck(assembler, &before_word, &before_non_word, false);
     // Next character is not a word character.
     assembler->Bind(&before_non_word);
-    Label ok;
+    NonAssertingLabel ok(compiler);
     RETURN_IF_ERROR(BacktrackIfPrevious(compiler, trace,
                                         at_boundary ? kIsNonWord : kIsWord));
     assembler->GoTo(&ok);
@@ -3727,16 +3728,16 @@ int ChoiceNode::CalculatePreloadCharacters(Compiler* compiler,
 
 // This class is used when generating the alternatives in a choice node.  It
 // records the way the alternative is being code generated.
-class AlternativeGeneration : public Malloced {
+class AlternativeGeneration : public ZoneObject {
  public:
-  AlternativeGeneration()
-      : possible_success(),
+  explicit AlternativeGeneration(Compiler* compiler)
+      : possible_success(compiler),
         expects_preload(false),
-        after(),
+        after(compiler),
         quick_check_details() {}
-  Label possible_success;
+  NonAssertingLabel possible_success;
   bool expects_preload;
-  Label after;
+  NonAssertingLabel after;
   QuickCheckDetails quick_check_details;
 };
 
@@ -3745,37 +3746,22 @@ class AlternativeGeneration : public Malloced {
 class AlternativeGenerationList {
  public:
   AlternativeGenerationList(int count, Compiler* compiler)
-      : alt_gens_(count, compiler->zone()), compiler_(compiler) {
+      : alt_gens_(count, compiler->zone()) {
     Zone* zone = compiler->zone();
-    for (int i = 0; i < count && i < kAFew; i++) {
-      alt_gens_.Add(a_few_alt_gens_ + i, zone);
-    }
-    for (int i = kAFew; i < count; i++) {
-      alt_gens_.Add(new AlternativeGeneration(), zone);
+    for (int i = 0; i < count; i++) {
+      alt_gens_.Add(zone->New<AlternativeGeneration>(compiler), zone);
     }
   }
   ~AlternativeGenerationList() {
-    if (V8_UNLIKELY(compiler_->IsRegExpTooBig())) {
-      for (int i = 0; i < alt_gens_.length(); i++) {
-        alt_gens_[i]->possible_success.UnuseNear();
-        alt_gens_[i]->possible_success.Unuse();
-        alt_gens_[i]->after.UnuseNear();
-        alt_gens_[i]->after.Unuse();
-      }
-    }
-    for (int i = kAFew; i < alt_gens_.length(); i++) {
-      delete alt_gens_[i];
-      alt_gens_[i] = nullptr;
+    for (int i = 0; i < alt_gens_.length(); i++) {
+      alt_gens_[i]->~AlternativeGeneration();
     }
   }
 
   AlternativeGeneration* at(int i) { return alt_gens_[i]; }
 
  private:
-  static const int kAFew = 10;
   ZoneList<AlternativeGeneration*> alt_gens_;
-  AlternativeGeneration a_few_alt_gens_[kAFew];
-  Compiler* compiler_;
 };
 
 void BoyerMoorePositionInfo::Set(int character) {
@@ -4212,9 +4198,11 @@ bool BoyerMooreLookahead::BuildSkipTable(RegExpMacroAssembler* masm,
  *        S2--/
  */
 
-SpecialLoopState::SpecialLoopState(bool not_at_start,
+SpecialLoopState::SpecialLoopState(Compiler* compiler, bool not_at_start,
                                    ChoiceNode* loop_choice_node)
-    : loop_choice_node_(loop_choice_node) {
+    : step_label_(compiler),
+      loop_top_label_(compiler),
+      loop_choice_node_(loop_choice_node) {
   backtrack_trace_.set_backtrack(&step_label_);
   if (not_at_start) backtrack_trace_.set_at_start(Trace::FALSE_VALUE);
 }
@@ -4286,7 +4274,7 @@ EmitResult ChoiceNode::Emit(Compiler* compiler, Trace* trace) {
   preload.init();
   // This must be outside the 'if' because the trace we use for what
   // comes after the special_loop is inside it and needs the lifetime.
-  SpecialLoopState special_loop_state(not_at_start(), this);
+  SpecialLoopState special_loop_state(compiler, not_at_start(), this);
 
   int text_length = FixedLengthLoopLengthForAlternative(&alternatives_->at(0));
   AlternativeGenerationList alt_gens(choice_count, compiler);
@@ -4853,7 +4841,8 @@ std::optional<EmitResult> ChoiceNode::EmitSkipUntilOneOfMaskedSearch(
   // The scan reads the candidate at offset 0 and steps forward one char.
   constexpr int kScanCpOffset = 0;
   constexpr int kScanAdvanceBy = 1;
-  Label loop, advance, retry_alt1, alt0_body, alt1_body, fail;
+  NonAssertingLabel loop(compiler), advance(compiler), retry_alt1(compiler),
+      alt0_body(compiler), alt1_body(compiler), fail(compiler);
 
   masm->Bind(&loop);
   masm->SkipUntilOneOfMasked(kScanCpOffset, kScanAdvanceBy, union_qc.value(),
@@ -5724,7 +5713,7 @@ EmitResult ChoiceNode::EmitChoices(Compiler* compiler,
 
   // Landing stub for parked loop-exit backtracks from the body's inline
   // emission; see its use below and the binding after the loop.
-  Label parked_reentry;
+  NonAssertingLabel parked_reentry(compiler);
 
   // An inherited parked-position grant may flow into an alternative only if no
   // sibling can match at a position the park skips (/:|\w*\s/ on "c:" must
@@ -5867,8 +5856,8 @@ EmitResult ChoiceNode::EmitOutOfLineContinuation(
   if (not_at_start_) out_of_line_trace.set_at_start(Trace::FALSE_VALUE);
   const ZoneList<Guard*>* guards = alternative.guards();
   int guard_count = (guards == nullptr) ? 0 : guards->length();
-  Label reload_current_char;
-  Label parked_landing;
+  NonAssertingLabel reload_current_char(compiler);
+  NonAssertingLabel parked_landing(compiler);
   if (parked_grant != ParkedGrant::kNone) {
     // Parked loop-exit backtracks arrive with the position moved -- up to and
     // including the subject end (a kDisjoint or kBoundary continuation can fail
@@ -6004,7 +5993,7 @@ EmitResult ActionNode::Emit(Compiler* compiler, Trace* trace) {
         return on_success()->Emit(compiler, trace);
       }
       int clear_registers_from = data_.u_submatch.clear_register_from;
-      Label clear_registers_backtrack;
+      NonAssertingLabel clear_registers_backtrack(compiler);
       Trace new_trace = *trace;
       new_trace.set_backtrack(&clear_registers_backtrack);
       RETURN_IF_ERROR(on_success()->Emit(compiler, &new_trace));

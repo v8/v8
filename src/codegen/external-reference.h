@@ -111,6 +111,7 @@ enum class IsolateFieldId : uint8_t;
   V(address_of_float_neg_constant, "float_negate_constant")                    \
   V(address_of_log10_offset_table, "log10_offset_table")                       \
   V(address_of_min_int, "LDoubleConstant::min_int")                            \
+  V(address_of_js_pr_3883_flag, "v8_flags.js_pr_3883")                         \
   V(address_of_mock_arraybuffer_allocator_flag,                                \
     "v8_flags.mock_arraybuffer_allocator")                                     \
   V(address_of_one_half, "LDoubleConstant::one_half")                          \

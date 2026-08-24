@@ -75,6 +75,7 @@ DirectHandle<SharedFunctionInfo> CreateSharedFunctionInfo(
   DirectHandle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->empty_string(), builtin, len, kAdapt, kind);
+  shared->set_language_mode(LanguageMode::kStrict);
   return shared;
 }
 
@@ -1497,6 +1498,7 @@ void Heap::CreateInitialMutableObjects() {
 #ifdef V8_ENABLE_WEBASSEMBLY
   set_js_to_wasm_wrappers(roots.empty_weak_fixed_array());
   set_wasm_canonical_rtts(roots.empty_weak_fixed_array());
+  set_wasm_shared_canonical_rtts(roots.empty_weak_fixed_array());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   set_script_list(roots.empty_weak_array_list());

@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 
@@ -300,9 +301,12 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
         if (details.representation().Equals(Representation::Double())) {
           // We allowed coercion in `FitsRepresentation` above which means that
           // we may deal with a Smi here.
-          property_values[i] =
-              ToApiHandle<v8::Object>(isolate->factory()->NewHeapNumber(
-                  Object::NumberValue(Cast<Number>(*value))));
+          double value_as_double = Object::NumberValue(Cast<Number>(*value));
+          if (std::isnan(value_as_double)) {
+            value_as_double = std::numeric_limits<double>::quiet_NaN();
+          }
+          property_values[i] = ToApiHandle<v8::Object>(
+              isolate->factory()->NewHeapNumber(value_as_double));
         }
       }
       if (V8_LIKELY(can_use_cached_map)) {
