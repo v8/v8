@@ -1348,9 +1348,9 @@ void MacroAssembler::EnterExitFrame(int stack_space,
     ClearRightImm(sp, sp,
                   Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
   }
-  li(r0, Operand::Zero());
-  StoreU64WithUpdate(
-      r0, MemOperand(sp, -kNumRequiredStackFrameSlots * kSystemPointerSize));
+  li(scratch, Operand::Zero());
+  StoreU64WithUpdate(scratch, MemOperand(sp, -kNumRequiredStackFrameSlots *
+                                                 kSystemPointerSize));
 
   // Set the exit frame sp value to point just before the return address
   // location.
