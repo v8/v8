@@ -163,6 +163,9 @@ class V8_EXPORT_PRIVATE SharedMacroAssemblerBase : public MacroAssemblerBase {
   void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
               uint8_t imm8);
 
+  void Pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void Pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
+
   // Helper struct to implement functions that check for AVX support and
   // dispatch to the appropriate AVX/SSE instruction.
   template <typename Dst, typename Arg, typename... Args>
@@ -368,7 +371,6 @@ class V8_EXPORT_PRIVATE SharedMacroAssemblerBase : public MacroAssemblerBase {
   AVX_OP(Pmovmskb, pmovmskb)
   AVX_OP(Pmullw, pmullw)
   AVX_OP(Pmuludq, pmuludq)
-  AVX_OP(Pshufd, pshufd)
   AVX_OP(Pshufhw, pshufhw)
   AVX_OP(Pshuflw, pshuflw)
   AVX_OP(Pslld, pslld)

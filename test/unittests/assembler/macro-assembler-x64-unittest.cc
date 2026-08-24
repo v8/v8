@@ -2775,6 +2775,121 @@ TEST_F(MacroAssemblerX64Test, I8x16ShrS_SignReplication_7) {
   CHECK_LT(run_test(7), run_test(3));
 }
 
+TEST_F(MacroAssemblerX64Test, PshufdOptimization) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+
+  const XMMRegister xmm_regs[] = {xmm0,  xmm1,  xmm2,  xmm3, xmm4,  xmm5,
+                                  xmm6,  xmm7,  xmm8,  xmm9, xmm10, xmm11,
+                                  xmm12, xmm13, xmm14, xmm15};
+
+  for (XMMRegister dst : xmm_regs) {
+    for (XMMRegister src : xmm_regs) {
+      auto buffer = AllocateAssemblerBuffer();
+      MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{false},
+                          buffer->CreateView());
+      CpuFeatureScope avx2_scope(&masm, AVX2);
+
+      int size_before = masm.pc_offset();
+      masm.Pshufd(dst, src, 0);
+      int size = masm.pc_offset() - size_before;
+
+      uint8_t* code = masm.buffer_start() + size_before;
+
+      EXPECT_EQ(size, 5);
+
+      if (src.code() > 7) {
+        // When src is in xmm8-xmm15, VPBROADCASTD is 5 bytes:
+        // 3-byte VEX prefix (0xC4) + opcode 0x58 + ModR/M
+        EXPECT_EQ(code[0], 0xC4);
+        EXPECT_EQ(code[3], 0x58);
+      } else {
+        // When src is in xmm0-xmm7, VPSHUFD is 5 bytes:
+        // 2-byte VEX prefix (0xC5) + opcode 0x70 + ModR/M + imm8(0x00)
+        EXPECT_EQ(code[0], 0xC5);
+        EXPECT_EQ(code[2], 0x70);
+        EXPECT_EQ(code[4], 0x00);
+      }
+    }
+  }
+
+  // Non-zero shuffle should always emit VPSHUFD
+  for (XMMRegister dst : xmm_regs) {
+    for (XMMRegister src : xmm_regs) {
+      auto buffer = AllocateAssemblerBuffer();
+      MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{false},
+                          buffer->CreateView());
+      CpuFeatureScope avx2_scope(&masm, AVX2);
+
+      int size_before = masm.pc_offset();
+      masm.Pshufd(dst, src, 0x55);
+      int size = masm.pc_offset() - size_before;
+
+      uint8_t* code = masm.buffer_start() + size_before;
+
+      if (src.code() > 7) {
+        // 3-byte VEX (0xC4) + opcode 0x70 + ModR/M + imm8
+        EXPECT_EQ(size, 6);
+        EXPECT_EQ(code[0], 0xC4);
+        EXPECT_EQ(code[3], 0x70);
+        EXPECT_EQ(code[5], 0x55);
+      } else {
+        // 2-byte VEX (0xC5) + opcode 0x70 + ModR/M + imm8
+        EXPECT_EQ(size, 5);
+        EXPECT_EQ(code[0], 0xC5);
+        EXPECT_EQ(code[2], 0x70);
+        EXPECT_EQ(code[4], 0x55);
+      }
+    }
+  }
+
+  // Verify functional execution correctness of Pshufd(dst, src, 0)
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{false},
+                        buffer->CreateView());
+    CpuFeatureScope avx2_scope(&masm, AVX2);
+
+    // Save callee-saved registers on Windows x64 (xmm6-xmm15 are non-volatile).
+    masm.AllocateStackSpace(3 * kSimd128Size);
+    masm.movdqu(Operand(rsp, 0 * kSimd128Size), xmm8);
+    masm.movdqu(Operand(rsp, 1 * kSimd128Size), xmm9);
+    masm.movdqu(Operand(rsp, 2 * kSimd128Size), xmm10);
+
+    // Test combinations: high-high, high-low, low-high, low-low
+    masm.movdqu(xmm8, Operand(kCArgRegs[0], 0));
+    masm.Pshufd(xmm9, xmm8, 0);   // src > 7: vpbroadcastd
+    masm.Pshufd(xmm0, xmm8, 0);   // src > 7: vpbroadcastd
+    masm.Pshufd(xmm10, xmm0, 0);  // src <= 7: vpshufd
+    masm.Pshufd(xmm1, xmm0, 0);   // src <= 7: vpshufd
+    masm.movdqu(Operand(kCArgRegs[1], 0), xmm9);
+    masm.movdqu(Operand(kCArgRegs[1], 16), xmm0);
+    masm.movdqu(Operand(kCArgRegs[1], 32), xmm10);
+    masm.movdqu(Operand(kCArgRegs[1], 48), xmm1);
+
+    // Restore callee-saved registers.
+    masm.movdqu(xmm8, Operand(rsp, 0 * kSimd128Size));
+    masm.movdqu(xmm9, Operand(rsp, 1 * kSimd128Size));
+    masm.movdqu(xmm10, Operand(rsp, 2 * kSimd128Size));
+    masm.addq(rsp, Immediate(3 * kSimd128Size));
+    masm.ret(0);
+
+    buffer->MakeExecutable();
+    using F = void(const uint32_t*, uint32_t*);
+    auto f = GeneratedCode<F>::FromBuffer(isolate, buffer->start());
+
+    uint32_t input[4] = {0x12345678, 0x9ABCDEF0, 0x13579BDF, 0x2468ACE0};
+    uint32_t output[16] = {0};
+    f.Call(input, output);
+
+    for (int i = 0; i < 16; ++i) {
+      EXPECT_EQ(output[i], input[0]);
+    }
+  }
+}
+
 #undef __
 
 }  // namespace test_macro_assembler_x64

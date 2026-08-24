@@ -154,6 +154,33 @@ void SharedMacroAssemblerBase::Shufps(XMMRegister dst, XMMRegister src1,
   }
 }
 
+void SharedMacroAssemblerBase::Pshufd(XMMRegister dst, XMMRegister src,
+                                      uint8_t shuffle) {
+#if V8_TARGET_ARCH_X64
+  if (shuffle == 0 && CpuFeatures::IsSupported(AVX2) && src.code() > 7) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpbroadcastd(dst, src);
+    return;
+  }
+#endif
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpshufd(dst, src, shuffle);
+  } else {
+    pshufd(dst, src, shuffle);
+  }
+}
+
+void SharedMacroAssemblerBase::Pshufd(XMMRegister dst, Operand src,
+                                      uint8_t shuffle) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpshufd(dst, src, shuffle);
+  } else {
+    pshufd(dst, src, shuffle);
+  }
+}
+
 void SharedMacroAssemblerBase::F64x2ExtractLane(DoubleRegister dst,
                                                 XMMRegister src, uint8_t lane) {
   ASM_CODE_COMMENT(this);
