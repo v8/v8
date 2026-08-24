@@ -58,6 +58,11 @@ TEST_F(DebugScopeInfoTest, EmptyScript) {
   EXPECT_EQ(root.scope_index(), 0);
   EXPECT_EQ(root.start_position(), 0);
   EXPECT_EQ(root.end_position(), 0);
+  EXPECT_EQ(root.scope_type(), ScopeType::SCRIPT_SCOPE);
+  EXPECT_TRUE(root.is_script_scope());
+  EXPECT_FALSE(root.is_function_scope());
+  EXPECT_FALSE(root.is_block_scope());
+  EXPECT_TRUE(root.is_declaration_scope());
 }
 
 TEST_F(DebugScopeInfoTest, SingleScriptScope) {
@@ -69,6 +74,11 @@ TEST_F(DebugScopeInfoTest, SingleScriptScope) {
   EXPECT_EQ(root.scope_index(), 0);
   EXPECT_EQ(root.start_position(), 0);
   EXPECT_EQ(root.end_position(), 10);
+  EXPECT_EQ(root.scope_type(), ScopeType::SCRIPT_SCOPE);
+  EXPECT_TRUE(root.is_script_scope());
+  EXPECT_FALSE(root.is_function_scope());
+  EXPECT_FALSE(root.is_block_scope());
+  EXPECT_TRUE(root.is_declaration_scope());
 }
 
 TEST_F(DebugScopeInfoTest, NestedBlockScopes) {
@@ -81,18 +91,27 @@ TEST_F(DebugScopeInfoTest, NestedBlockScopes) {
   EXPECT_EQ(s0.scope_index(), 0);
   EXPECT_EQ(s0.start_position(), 0);
   EXPECT_EQ(s0.end_position(), 29);
+  EXPECT_EQ(s0.scope_type(), ScopeType::SCRIPT_SCOPE);
+  EXPECT_TRUE(s0.is_script_scope());
+  EXPECT_FALSE(s0.is_block_scope());
 
   // Block 2 scope (1)
   DebugScriptScope s1 = DebugScriptScope::FromIndex(info, 1);
   EXPECT_EQ(s1.scope_index(), 1);
   EXPECT_EQ(s1.start_position(), 15);
   EXPECT_EQ(s1.end_position(), 29);
+  EXPECT_EQ(s1.scope_type(), ScopeType::BLOCK_SCOPE);
+  EXPECT_TRUE(s1.is_block_scope());
+  EXPECT_FALSE(s1.is_script_scope());
 
   // Block 1 scope (2)
   DebugScriptScope s2 = DebugScriptScope::FromIndex(info, 2);
   EXPECT_EQ(s2.scope_index(), 2);
   EXPECT_EQ(s2.start_position(), 0);
   EXPECT_EQ(s2.end_position(), 14);
+  EXPECT_EQ(s2.scope_type(), ScopeType::BLOCK_SCOPE);
+  EXPECT_TRUE(s2.is_block_scope());
+  EXPECT_FALSE(s2.is_script_scope());
 }
 
 TEST_F(DebugScopeInfoTest, NestedFunctionScopes) {
@@ -105,18 +124,26 @@ TEST_F(DebugScopeInfoTest, NestedFunctionScopes) {
   EXPECT_EQ(s0.scope_index(), 0);
   EXPECT_EQ(s0.start_position(), 0);
   EXPECT_EQ(s0.end_position(), 33);
+  EXPECT_EQ(s0.scope_type(), ScopeType::SCRIPT_SCOPE);
+  EXPECT_TRUE(s0.is_script_scope());
 
   // Function foo scope (1)
   DebugScriptScope s1 = DebugScriptScope::FromIndex(info, 1);
   EXPECT_EQ(s1.scope_index(), 1);
   EXPECT_EQ(s1.start_position(), 12);
   EXPECT_EQ(s1.end_position(), 33);
+  EXPECT_EQ(s1.scope_type(), ScopeType::FUNCTION_SCOPE);
+  EXPECT_TRUE(s1.is_function_scope());
+  EXPECT_TRUE(s1.is_declaration_scope());
 
   // Inner block scope (2)
   DebugScriptScope s2 = DebugScriptScope::FromIndex(info, 2);
   EXPECT_EQ(s2.scope_index(), 2);
   EXPECT_EQ(s2.start_position(), 17);
   EXPECT_EQ(s2.end_position(), 31);
+  EXPECT_EQ(s2.scope_type(), ScopeType::BLOCK_SCOPE);
+  EXPECT_TRUE(s2.is_block_scope());
+  EXPECT_FALSE(s2.is_declaration_scope());
 }
 
 }  // namespace internal

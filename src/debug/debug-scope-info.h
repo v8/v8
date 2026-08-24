@@ -27,10 +27,17 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   static DebugScriptScope FromIndex(DirectHandle<DebugScriptScopeInfo> info,
                                     int scope_index);
 
-  // Position Accessors
+  // Position & Type Accessors
   int start_position() const;
   int end_position() const;
   int scope_index() const { return scope_index_; }
+  ScopeType scope_type() const;
+
+  // Scope Predicates
+  bool is_script_scope() const;
+  bool is_function_scope() const;
+  bool is_block_scope() const;
+  bool is_declaration_scope() const;
 
  private:
   DebugScriptScope(DirectHandle<DebugScriptScopeInfo> info, int scope_index,
@@ -38,6 +45,7 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
       : info_(info), scope_index_(scope_index), offset_(offset) {}
 
   const uint8_t* payload() const;
+  uint16_t flags() const;
 
   DirectHandle<DebugScriptScopeInfo> info_;
   int scope_index_;

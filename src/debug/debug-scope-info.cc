@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "src/ast/scopes.h"
+#include "src/base/bit-field.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
@@ -66,6 +67,9 @@ static_assert(std::is_standard_layout_v<ScopeRecord>);
 // Ensure ScopeRecord has no padding. Update when adding new fields.
 static_assert(sizeof(ScopeRecord) == 16);
 
+using ScopeTypeBits = base::BitField<ScopeType, 0, 4, uint16_t>;
+static_assert(ScopeTypeBits::kLastUsedBit < 16);
+
 int32_t GetScopeCount(Tagged<DebugScriptScopeInfo> info) {
   Tagged<ByteArray> bytes = info->numeric_data();
   DCHECK_GE(bytes->length().value(), kInt32Size);
@@ -86,6 +90,10 @@ const uint8_t* DebugScriptScope::payload() const {
   return info_->numeric_data()->begin() + offset_;
 }
 
+uint16_t DebugScriptScope::flags() const {
+  return base::ReadUnalignedValue<ScopeRecord>(payload()).flags;
+}
+
 DebugScriptScope DebugScriptScope::FromIndex(
     DirectHandle<DebugScriptScopeInfo> info, int scope_index) {
   CHECK_GE(scope_index, 0);
@@ -100,6 +108,30 @@ int DebugScriptScope::start_position() const {
 
 int DebugScriptScope::end_position() const {
   return base::ReadUnalignedValue<ScopeRecord>(payload()).end_position;
+}
+
+ScopeType DebugScriptScope::scope_type() const {
+  return ScopeTypeBits::decode(flags());
+}
+
+bool DebugScriptScope::is_script_scope() const {
+  return scope_type() == ScopeType::SCRIPT_SCOPE ||
+         scope_type() == ScopeType::REPL_MODE_SCOPE;
+}
+
+bool DebugScriptScope::is_function_scope() const {
+  return scope_type() == ScopeType::FUNCTION_SCOPE;
+}
+
+bool DebugScriptScope::is_block_scope() const {
+  return scope_type() == ScopeType::BLOCK_SCOPE ||
+         scope_type() == ScopeType::CLASS_SCOPE;
+}
+
+bool DebugScriptScope::is_declaration_scope() const {
+  return is_script_scope() || is_function_scope() ||
+         scope_type() == ScopeType::MODULE_SCOPE ||
+         scope_type() == ScopeType::EVAL_SCOPE;
 }
 
 Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
@@ -146,13 +178,14 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     Address record =
         reinterpret_cast<Address>(byte_array->begin()) + offsets[i];
     Scope* scope = all_scopes[i];
+    uint16_t flags = ScopeTypeBits::encode(scope->scope_type());
 
     base::WriteUnalignedValue<ScopeRecord>(
         record, ScopeRecord{
                     .start_position = scope->start_position(),
                     .end_position = scope->end_position(),
                     .parent_scope_index = -1,
-                    .flags = 0,
+                    .flags = flags,
                     .var_count = 0,
                 });
   }
