@@ -49,6 +49,34 @@ class DebugScopeInfoTest : public TestWithIsolate {
   }
 };
 
+namespace {
+
+void VerifyScopeTreeParity(Scope* ast_scope, DebugScriptScope debug_scope) {
+  EXPECT_EQ(ast_scope->start_position(), debug_scope.start_position());
+  EXPECT_EQ(ast_scope->end_position(), debug_scope.end_position());
+  EXPECT_EQ(ast_scope->scope_type(), debug_scope.scope_type());
+  EXPECT_EQ(ast_scope->is_script_scope(), debug_scope.is_script_scope());
+  EXPECT_EQ(ast_scope->is_function_scope(), debug_scope.is_function_scope());
+  EXPECT_EQ(ast_scope->is_block_scope(), debug_scope.is_block_scope());
+  EXPECT_EQ(ast_scope->is_declaration_scope(),
+            debug_scope.is_declaration_scope());
+
+  Scope* ast_child = ast_scope->inner_scope();
+  auto debug_child = debug_scope.first_child();
+
+  while (ast_child != nullptr) {
+    ASSERT_TRUE(debug_child.has_value());
+    EXPECT_TRUE(debug_child->parent().has_value());
+    EXPECT_EQ(debug_child->parent()->scope_index(), debug_scope.scope_index());
+    VerifyScopeTreeParity(ast_child, *debug_child);
+    ast_child = ast_child->sibling();
+    debug_child = debug_child->next_sibling();
+  }
+  EXPECT_FALSE(debug_child.has_value());
+}
+
+}  // namespace
+
 TEST_F(DebugScopeInfoTest, EmptyScript) {
   HandleScope scope(isolate());
   ParsedScript parsed = ParseAndSerialize("");
@@ -63,6 +91,11 @@ TEST_F(DebugScopeInfoTest, EmptyScript) {
   EXPECT_FALSE(root.is_function_scope());
   EXPECT_FALSE(root.is_block_scope());
   EXPECT_TRUE(root.is_declaration_scope());
+  EXPECT_FALSE(root.parent().has_value());
+  EXPECT_FALSE(root.first_child().has_value());
+  EXPECT_FALSE(root.next_sibling().has_value());
+
+  VerifyScopeTreeParity(parsed.script_scope(), root);
 }
 
 TEST_F(DebugScopeInfoTest, SingleScriptScope) {
@@ -79,6 +112,11 @@ TEST_F(DebugScopeInfoTest, SingleScriptScope) {
   EXPECT_FALSE(root.is_function_scope());
   EXPECT_FALSE(root.is_block_scope());
   EXPECT_TRUE(root.is_declaration_scope());
+  EXPECT_FALSE(root.parent().has_value());
+  EXPECT_FALSE(root.first_child().has_value());
+  EXPECT_FALSE(root.next_sibling().has_value());
+
+  VerifyScopeTreeParity(parsed.script_scope(), root);
 }
 
 TEST_F(DebugScopeInfoTest, NestedBlockScopes) {
@@ -94,6 +132,10 @@ TEST_F(DebugScopeInfoTest, NestedBlockScopes) {
   EXPECT_EQ(s0.scope_type(), ScopeType::SCRIPT_SCOPE);
   EXPECT_TRUE(s0.is_script_scope());
   EXPECT_FALSE(s0.is_block_scope());
+  EXPECT_FALSE(s0.parent().has_value());
+  EXPECT_FALSE(s0.next_sibling().has_value());
+  ASSERT_TRUE(s0.first_child().has_value());
+  EXPECT_EQ(s0.first_child()->scope_index(), 1);
 
   // Block 2 scope (1)
   DebugScriptScope s1 = DebugScriptScope::FromIndex(info, 1);
@@ -103,6 +145,11 @@ TEST_F(DebugScopeInfoTest, NestedBlockScopes) {
   EXPECT_EQ(s1.scope_type(), ScopeType::BLOCK_SCOPE);
   EXPECT_TRUE(s1.is_block_scope());
   EXPECT_FALSE(s1.is_script_scope());
+  ASSERT_TRUE(s1.parent().has_value());
+  EXPECT_EQ(s1.parent()->scope_index(), 0);
+  EXPECT_FALSE(s1.first_child().has_value());
+  ASSERT_TRUE(s1.next_sibling().has_value());
+  EXPECT_EQ(s1.next_sibling()->scope_index(), 2);
 
   // Block 1 scope (2)
   DebugScriptScope s2 = DebugScriptScope::FromIndex(info, 2);
@@ -112,6 +159,12 @@ TEST_F(DebugScopeInfoTest, NestedBlockScopes) {
   EXPECT_EQ(s2.scope_type(), ScopeType::BLOCK_SCOPE);
   EXPECT_TRUE(s2.is_block_scope());
   EXPECT_FALSE(s2.is_script_scope());
+  ASSERT_TRUE(s2.parent().has_value());
+  EXPECT_EQ(s2.parent()->scope_index(), 0);
+  EXPECT_FALSE(s2.first_child().has_value());
+  EXPECT_FALSE(s2.next_sibling().has_value());
+
+  VerifyScopeTreeParity(parsed.script_scope(), s0);
 }
 
 TEST_F(DebugScopeInfoTest, NestedFunctionScopes) {
@@ -126,6 +179,10 @@ TEST_F(DebugScopeInfoTest, NestedFunctionScopes) {
   EXPECT_EQ(s0.end_position(), 33);
   EXPECT_EQ(s0.scope_type(), ScopeType::SCRIPT_SCOPE);
   EXPECT_TRUE(s0.is_script_scope());
+  EXPECT_FALSE(s0.parent().has_value());
+  EXPECT_FALSE(s0.next_sibling().has_value());
+  ASSERT_TRUE(s0.first_child().has_value());
+  EXPECT_EQ(s0.first_child()->scope_index(), 1);
 
   // Function foo scope (1)
   DebugScriptScope s1 = DebugScriptScope::FromIndex(info, 1);
@@ -135,6 +192,11 @@ TEST_F(DebugScopeInfoTest, NestedFunctionScopes) {
   EXPECT_EQ(s1.scope_type(), ScopeType::FUNCTION_SCOPE);
   EXPECT_TRUE(s1.is_function_scope());
   EXPECT_TRUE(s1.is_declaration_scope());
+  ASSERT_TRUE(s1.parent().has_value());
+  EXPECT_EQ(s1.parent()->scope_index(), 0);
+  EXPECT_FALSE(s1.next_sibling().has_value());
+  ASSERT_TRUE(s1.first_child().has_value());
+  EXPECT_EQ(s1.first_child()->scope_index(), 2);
 
   // Inner block scope (2)
   DebugScriptScope s2 = DebugScriptScope::FromIndex(info, 2);
@@ -144,6 +206,77 @@ TEST_F(DebugScopeInfoTest, NestedFunctionScopes) {
   EXPECT_EQ(s2.scope_type(), ScopeType::BLOCK_SCOPE);
   EXPECT_TRUE(s2.is_block_scope());
   EXPECT_FALSE(s2.is_declaration_scope());
+  ASSERT_TRUE(s2.parent().has_value());
+  EXPECT_EQ(s2.parent()->scope_index(), 1);
+  EXPECT_FALSE(s2.first_child().has_value());
+  EXPECT_FALSE(s2.next_sibling().has_value());
+
+  VerifyScopeTreeParity(parsed.script_scope(), s0);
+}
+
+TEST_F(DebugScopeInfoTest, DeeplyNestedScopes) {
+  HandleScope scope(isolate());
+  // Scopes: 0 = Script, 1 = Function outer, 2 = Block 1, 3 = Block 2
+  ParsedScript parsed = ParseAndSerialize(
+      "function outer() { { let a = 1; { let nested = 42; } } }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_EQ(script.scope_type(), ScopeType::SCRIPT_SCOPE);
+  EXPECT_FALSE(script.parent().has_value());
+
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+  EXPECT_EQ(func->scope_index(), 1);
+  EXPECT_EQ(func->scope_type(), ScopeType::FUNCTION_SCOPE);
+  EXPECT_TRUE(func->parent().has_value());
+  EXPECT_EQ(func->parent()->scope_index(), 0);
+
+  auto block1 = func->first_child();
+  ASSERT_TRUE(block1.has_value());
+  EXPECT_EQ(block1->scope_index(), 2);
+  EXPECT_EQ(block1->scope_type(), ScopeType::BLOCK_SCOPE);
+  EXPECT_TRUE(block1->parent().has_value());
+  EXPECT_EQ(block1->parent()->scope_index(), 1);
+
+  auto block2 = block1->first_child();
+  ASSERT_TRUE(block2.has_value());
+  EXPECT_EQ(block2->scope_index(), 3);
+  EXPECT_EQ(block2->scope_type(), ScopeType::BLOCK_SCOPE);
+  EXPECT_TRUE(block2->parent().has_value());
+  EXPECT_EQ(block2->parent()->scope_index(), 2);
+  EXPECT_FALSE(block2->first_child().has_value());
+  EXPECT_FALSE(block2->next_sibling().has_value());
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+TEST_F(DebugScopeInfoTest, MultipleFunctionsAndSiblings) {
+  HandleScope scope(isolate());
+  // Scopes: 0 = Script, 1 = Function f1, 2 = Function f2
+  ParsedScript parsed = ParseAndSerialize(
+      "function f1() { let a = 1; } function f2() { let b = 2; }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_EQ(script.scope_type(), ScopeType::SCRIPT_SCOPE);
+
+  auto f1 = script.first_child();
+  ASSERT_TRUE(f1.has_value());
+  EXPECT_EQ(f1->scope_index(), 1);
+  EXPECT_EQ(f1->scope_type(), ScopeType::FUNCTION_SCOPE);
+  EXPECT_TRUE(f1->parent().has_value());
+  EXPECT_EQ(f1->parent()->scope_index(), 0);
+
+  auto f2 = f1->next_sibling();
+  ASSERT_TRUE(f2.has_value());
+  EXPECT_EQ(f2->scope_index(), 2);
+  EXPECT_EQ(f2->scope_type(), ScopeType::FUNCTION_SCOPE);
+  EXPECT_TRUE(f2->parent().has_value());
+  EXPECT_EQ(f2->parent()->scope_index(), 0);
+  EXPECT_FALSE(f2->next_sibling().has_value());
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
 }
 
 }  // namespace internal

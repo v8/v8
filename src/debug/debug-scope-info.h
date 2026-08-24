@@ -27,6 +27,11 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   static DebugScriptScope FromIndex(DirectHandle<DebugScriptScopeInfo> info,
                                     int scope_index);
 
+  // Tree Navigation
+  std::optional<DebugScriptScope> parent() const;
+  std::optional<DebugScriptScope> first_child() const;
+  std::optional<DebugScriptScope> next_sibling() const;
+
   // Position & Type Accessors
   int start_position() const;
   int end_position() const;
@@ -46,6 +51,7 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
 
   const uint8_t* payload() const;
   uint16_t flags() const;
+  int parent_index() const;
 
   DirectHandle<DebugScriptScopeInfo> info_;
   int scope_index_;

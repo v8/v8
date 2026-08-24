@@ -68,7 +68,9 @@ static_assert(std::is_standard_layout_v<ScopeRecord>);
 static_assert(sizeof(ScopeRecord) == 16);
 
 using ScopeTypeBits = base::BitField<ScopeType, 0, 4, uint16_t>;
-static_assert(ScopeTypeBits::kLastUsedBit < 16);
+using HasChildrenBit = ScopeTypeBits::Next<bool, 1>;
+using HasSiblingBit = HasChildrenBit::Next<bool, 1>;
+static_assert(HasSiblingBit::kLastUsedBit < 16);
 
 int32_t GetScopeCount(Tagged<DebugScriptScopeInfo> info) {
   Tagged<ByteArray> bytes = info->numeric_data();
@@ -102,12 +104,34 @@ DebugScriptScope DebugScriptScope::FromIndex(
   return DebugScriptScope(info, scope_index, offset);
 }
 
+std::optional<DebugScriptScope> DebugScriptScope::parent() const {
+  int parent_idx = parent_index();
+  if (parent_idx == -1) return std::nullopt;
+  return FromIndex(info_, parent_idx);
+}
+
+std::optional<DebugScriptScope> DebugScriptScope::first_child() const {
+  if (!HasChildrenBit::decode(flags())) return std::nullopt;
+  return FromIndex(info_, scope_index_ + 1);
+}
+
+std::optional<DebugScriptScope> DebugScriptScope::next_sibling() const {
+  if (!HasSiblingBit::decode(flags())) return std::nullopt;
+  const uint8_t* sibling_ptr = payload() + sizeof(ScopeRecord);
+  int sibling_idx = base::ReadUnalignedValue<int32_t>(sibling_ptr);
+  return FromIndex(info_, sibling_idx);
+}
+
 int DebugScriptScope::start_position() const {
   return base::ReadUnalignedValue<ScopeRecord>(payload()).start_position;
 }
 
 int DebugScriptScope::end_position() const {
   return base::ReadUnalignedValue<ScopeRecord>(payload()).end_position;
+}
+
+int DebugScriptScope::parent_index() const {
+  return base::ReadUnalignedValue<ScopeRecord>(payload()).parent_scope_index;
 }
 
 ScopeType DebugScriptScope::scope_type() const {
@@ -140,15 +164,24 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
   DCHECK(script_scope->is_script_scope());
 
   std::vector<Scope*> all_scopes;
+  std::unordered_map<Scope*, int> scope_to_index;
 
   auto collect = [&](auto& self, Scope* scope) -> void {
+    int index = static_cast<int>(all_scopes.size());
     all_scopes.push_back(scope);
+    scope_to_index.emplace(scope, index);
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
       self(self, inner);
     }
   };
   collect(collect, script_scope);
+
+  auto find_scope_index = [&](Scope* s) -> int {
+    if (s == nullptr) return -1;
+    auto it = scope_to_index.find(s);
+    return it != scope_to_index.end() ? it->second : -1;
+  };
 
   // Stage 1: Pre-calculate exact required byte size and scope offsets.
   size_t total_size = kInt32Size + all_scopes.size() * kUInt32Size;
@@ -158,6 +191,9 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
   for (size_t i = 0; i < all_scopes.size(); ++i) {
     offsets.push_back(static_cast<uint32_t>(total_size));
     total_size += sizeof(ScopeRecord);
+    if (all_scopes[i]->sibling() != nullptr) {
+      total_size += kInt32Size;
+    }
   }
 
   // Stage 2: Allocate a ByteArray and write directly into it with
@@ -178,16 +214,29 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     Address record =
         reinterpret_cast<Address>(byte_array->begin()) + offsets[i];
     Scope* scope = all_scopes[i];
-    uint16_t flags = ScopeTypeBits::encode(scope->scope_type());
+
+    int next_sibling = find_scope_index(scope->sibling());
+    bool has_sibling = next_sibling != -1;
+
+    uint16_t flags = 0;
+    flags = ScopeTypeBits::update(flags, scope->scope_type());
+    flags = HasChildrenBit::update(flags, scope->inner_scope() != nullptr);
+    flags = HasSiblingBit::update(flags, has_sibling);
 
     base::WriteUnalignedValue<ScopeRecord>(
-        record, ScopeRecord{
-                    .start_position = scope->start_position(),
-                    .end_position = scope->end_position(),
-                    .parent_scope_index = -1,
-                    .flags = flags,
-                    .var_count = 0,
-                });
+        record,
+        ScopeRecord{
+            .start_position = scope->start_position(),
+            .end_position = scope->end_position(),
+            .parent_scope_index = find_scope_index(scope->outer_scope()),
+            .flags = flags,
+            .var_count = 0,
+        });
+
+    if (has_sibling) {
+      base::WriteUnalignedValue<int32_t>(record + sizeof(ScopeRecord),
+                                         next_sibling);
+    }
   }
 
   Handle<FixedArray> string_table = isolate->factory()->empty_fixed_array();
@@ -225,6 +274,33 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
     DebugScriptScope scope = DebugScriptScope::FromIndex(info_handle, i);
     CHECK_EQ(scope.scope_index(), i);
     CHECK_LE(scope.start_position(), scope.end_position());
+
+    if (i == 0) {
+      CHECK(!scope.parent().has_value());
+    } else {
+      CHECK(scope.parent().has_value());
+      CHECK_GE(scope.parent()->scope_index(), 0);
+      CHECK_LT(scope.parent()->scope_index(), i);
+    }
+
+    if (auto first_child = scope.first_child()) {
+      CHECK_LT(i + 1, scope_count);
+      CHECK_EQ(first_child->scope_index(), i + 1);
+      CHECK(first_child->parent().has_value());
+      CHECK_EQ(first_child->parent()->scope_index(), i);
+    }
+
+    if (auto sibling = scope.next_sibling()) {
+      CHECK_GT(sibling->scope_index(), i);
+      CHECK_LT(sibling->scope_index(), scope_count);
+      if (i == 0) {
+        CHECK(!sibling->parent().has_value());
+      } else {
+        CHECK(sibling->parent().has_value());
+        CHECK_EQ(sibling->parent()->scope_index(),
+                 scope.parent()->scope_index());
+      }
+    }
   }
 }
 #endif  // VERIFY_HEAP
