@@ -2391,6 +2391,8 @@ void V8HeapExplorer::ExtractJSGeneratorObjectReferences(
   SetInternalReference(entry, "parameters_and_registers",
                        generator->parameters_and_registers(),
                        offsetof(JSGeneratorObject, parameters_and_registers_));
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "continuation",
+             generator->continuation());
 }
 
 void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,

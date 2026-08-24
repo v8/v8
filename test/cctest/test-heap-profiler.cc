@@ -2841,6 +2841,9 @@ TEST(JSGeneratorObject) {
       GetProperty(env.isolate(), g, v8::HeapGraphEdge::kInternal,
                   "parameters_and_registers");
   CHECK(parameters_and_registers);
+  const v8::HeapGraphNode* continuation = GetProperty(
+      env.isolate(), g, v8::HeapGraphEdge::kInternal, "continuation");
+  CHECK(continuation);
 }
 
 bool HasWeakEdge(const v8::HeapGraphNode* node) {
