@@ -402,7 +402,8 @@ void Subgraph<MaglevGraphOptimizer>::Bind(Label* label) {
 
   // Pull merged frame state + KNA back into variable_frame_, then move KNA
   // onto the reducer as the active aspects.
-  variable_frame_.CopyFrom(*dummy_unit_, *merge_state);
+  variable_frame_.CopyFrom(*dummy_unit_, *merge_state,
+                           /*preserve_known_node_aspects=*/true, zone_);
   reducer_->set_known_node_aspects(variable_frame_.known_node_aspects());
   variable_frame_.clear_known_node_aspects();
 
