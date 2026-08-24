@@ -220,10 +220,13 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
       // where constant Wasm objects might be placed in RO space.
       V<Word32> lower32 = __ TruncateWordPtrToWord32(
           __ BitcastTaggedToWordPtr(V<HeapObject>::Cast(input)));
-      TSA_DCHECK(this, __ Uint32LessThanOrEqual(
-                           __ Word32Constant(static_cast<uint32_t>(
-                               kContiguousReadOnlyReservationSize)),
-                           lower32));
+      // TSA_DCHECK is only usable in isolate-dependent code.
+      if (__ data()->isolate() != nullptr) {
+        TSA_DCHECK(this, __ Uint32LessThanOrEqual(
+                             __ Word32Constant(static_cast<uint32_t>(
+                                 kContiguousReadOnlyReservationSize)),
+                             lower32));
+      }
 #endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 #endif  // DEBUG
     }
