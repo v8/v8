@@ -161,6 +161,15 @@ TEST_F(DictionaryTemplateTest, HoleNanCanonicalization) {
   double val2 = value2.As<v8::Number>()->Value();
   EXPECT_TRUE(std::isnan(val2));
   EXPECT_NE(base::bit_cast<uint64_t>(val2), i::kHoleNanInt64);
+
+  // The property must be mutable and not in Read-Only space.
+  EXPECT_TRUE(instance2
+                  ->Set(context(), v8_str(isolate(), "a"),
+                        v8::Number::New(isolate(), 42.5))
+                  .ToChecked());
+  auto value2_mutated =
+      instance2->Get(context(), v8_str(isolate(), "a")).ToLocalChecked();
+  EXPECT_EQ(value2_mutated.As<v8::Number>()->Value(), 42.5);
 }
 
 }  // namespace v8
