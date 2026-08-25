@@ -5728,14 +5728,23 @@ void BytecodeGenerator::BuildDestructuringObjectAssignment(
   //
   // Since the first property access on null/undefined will also trigger a
   // TypeError, we can elide this check. The exception is when there are no
-  // properties and no rest property (this is an empty literal), or when the
-  // first property is a computed name and accessing it can have side effects.
+  // properties and no rest property (this is an empty literal), or when there
+  // is only a rest property (as it uses CloneObject, which does not throw on
+  // null/undefined), or when the first property is a computed name and
+  // accessing it can have side effects.
   //
   // TODO(leszeks): Also eliminate this check if the value is known to be
   // non-null (e.g. an object literal).
-  if (pattern->properties()->is_empty() ||
-      (pattern->properties()->at(0)->is_computed_name() &&
-       pattern->properties()->at(0)->kind() != ObjectLiteralProperty::SPREAD)) {
+  bool is_empty_pattern = pattern->properties()->is_empty();
+  bool is_only_rest_property =
+      pattern->properties()->length() == 1 &&
+      pattern->properties()->at(0)->kind() == ObjectLiteralProperty::SPREAD;
+  bool is_first_property_computed_name =
+      !is_empty_pattern && pattern->properties()->at(0)->is_computed_name() &&
+      pattern->properties()->at(0)->kind() != ObjectLiteralProperty::SPREAD;
+
+  if (is_empty_pattern || is_only_rest_property ||
+      is_first_property_computed_name) {
     BytecodeLabel is_null_or_undefined, not_null_or_undefined;
     builder()
         ->JumpIfUndefinedOrNull(&is_null_or_undefined)
@@ -5808,9 +5817,20 @@ void BytecodeGenerator::BuildDestructuringObjectAssignment(
       DCHECK_EQ(i, pattern->properties()->length() - 1);
       DCHECK(!value_key.is_valid());
       DCHECK_NULL(value_name);
-      builder()->CallRuntime(
-          Runtime::kInlineCopyDataPropertiesWithExcludedPropertiesOnStack,
-          rest_runtime_callargs);
+      if (pattern->properties()->length() == 1) {
+        // If there is only the rest property, we have no excluded properties.
+        // We can use the CloneObject bytecode instead of the more expensive
+        // CopyDataPropertiesWithExcludedPropertiesOnStack runtime call.
+        // E.g. for `let { ...rest } = obj;`.
+        DCHECK(pattern->builder()->has_rest_property());
+        int flags = CreateObjectLiteralFlags::Encode(0, false);
+        int clone_index = feedback_index(feedback_spec()->AddCloneObjectSlot());
+        builder()->CloneObject(value, flags, clone_index);
+      } else {
+        builder()->CallRuntime(
+            Runtime::kInlineCopyDataPropertiesWithExcludedPropertiesOnStack,
+            rest_runtime_callargs);
+      }
     } else if (value_name) {
       builder()->LoadNamedProperty(
           value, value_name, feedback_index(feedback_spec()->AddLoadICSlot()));

@@ -339,3 +339,29 @@ constant pool: [
 handlers: [
 ]
 
+---
+snippet: "
+  var a = {y:1, w:2, v:3};
+  var { ...y } = a;
+"
+frame size: 3
+parameter count: 1
+bytecode array length: 24
+bytecodes: [
+  /*   42 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
+                B(Star0),
+  /*   74 S> */ B(Mov), R(0), R(2),
+                B(JumpIfUndefinedOrNull), U8(4),
+                B(Jump), U8(7),
+  /*   63 E> */ B(CallRuntime), U16(Runtime::kThrowPatternAssignmentNonCoercible), R(2), RegCount8(1),
+  /*   68 E> */ B(CloneObject), R(2), Flag8(0x0), FBV(1),
+                B(Star1),
+                B(LdaUndefined),
+  /*   77 S> */ B(Return),
+]
+constant pool: [
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
+]
+handlers: [
+]
+
