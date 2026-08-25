@@ -4594,30 +4594,41 @@ void MacroAssembler::AddOverflow_d(Register dst, Register left,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  Register scratch2 = temps.Acquire();
-  Register right_reg = no_reg;
   if (!right.is_reg()) {
-    li(scratch, Operand(right));
-    right_reg = scratch;
-  } else {
-    right_reg = right.rm();
+    int64_t imm = right.immediate();
+    DCHECK(!AreAliased(overflow, dst));
+    if (dst == left) {
+      mov(scratch, left);
+      left = scratch;
+    }
+    Add_d(dst, left, right);
+    if (imm > 0) {
+      Slt(overflow, dst, left);
+    } else {
+      Sgt(overflow, dst, left);
+    }
+    return;
   }
 
+  Register right_reg = right.rm();
+  Register scratch2 = temps.Acquire();
+  DCHECK(left != scratch && right_reg != scratch && dst != scratch &&
+         overflow != scratch);
   DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
          overflow != scratch2);
-  DCHECK(overflow != left && overflow != right_reg);
+  // If left and right are the same register, dst must be a different register.
+  DCHECK(left != right_reg || dst != left);
 
-  if (dst == left || dst == right_reg) {
-    add_d(scratch2, left, right_reg);
-    xor_(overflow, scratch2, left);
-    xor_(scratch, scratch2, right_reg);
-    and_(overflow, overflow, scratch);
-    mov(dst, scratch2);
+  if (dst == left) {
+    slti(scratch, left, 0);
+    add_d(dst, right_reg, left);
+    slt(scratch2, dst, right_reg);
+    xor_(overflow, scratch, scratch2);
   } else {
+    slti(scratch, right_reg, 0);
     add_d(dst, left, right_reg);
-    xor_(overflow, dst, left);
-    xor_(scratch, dst, right_reg);
-    and_(overflow, overflow, scratch);
+    slt(scratch2, dst, left);
+    xor_(overflow, scratch, scratch2);
   }
 }
 
@@ -4627,31 +4638,30 @@ void MacroAssembler::SubOverflow_d(Register dst, Register left,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  Register scratch2 = temps.Acquire();
-  Register right_reg = no_reg;
   if (!right.is_reg()) {
-    li(scratch, Operand(right));
-    right_reg = scratch;
-  } else {
-    right_reg = right.rm();
+    int64_t imm = right.immediate();
+    if (dst == left) {
+      mov(scratch, left);
+      left = scratch;
+    }
+    Sub_d(dst, left, right);
+    if (imm < 0) {
+      Slt(overflow, dst, left);
+    } else {
+      Sgt(overflow, dst, left);
+    }
+    return;
   }
 
+  Register right_reg = right.rm();
+  Register scratch2 = temps.Acquire();
   DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
          overflow != scratch2);
-  DCHECK(overflow != left && overflow != right_reg);
 
-  if (dst == left || dst == right_reg) {
-    Sub_d(scratch2, left, right_reg);
-    xor_(overflow, left, scratch2);
-    xor_(scratch, left, right_reg);
-    and_(overflow, overflow, scratch);
-    mov(dst, scratch2);
-  } else {
-    sub_d(dst, left, right_reg);
-    xor_(overflow, left, dst);
-    xor_(scratch, left, right_reg);
-    and_(overflow, overflow, scratch);
-  }
+  slt(scratch2, left, right_reg);
+  sub_d(dst, left, right_reg);
+  slti(overflow, dst, 0);
+  xor_(overflow, overflow, scratch2);
 }
 
 void MacroAssembler::MulOverflow_w(Register dst, Register left,
@@ -4669,21 +4679,12 @@ void MacroAssembler::MulOverflow_w(Register dst, Register left,
     right_reg = right.rm();
   }
 
-  DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
-         overflow != scratch2);
-  DCHECK(overflow != left && overflow != right_reg);
+  DCHECK(dst != scratch2);
 
-  if (dst == left || dst == right_reg) {
-    Mul_w(scratch2, left, right_reg);
-    Mulh_w(overflow, left, right_reg);
-    mov(dst, scratch2);
-  } else {
-    Mul_w(dst, left, right_reg);
-    Mulh_w(overflow, left, right_reg);
-  }
-
-  srai_d(scratch2, dst, 32);
-  xor_(overflow, overflow, scratch2);
+  mulw_d_w(scratch2, left, right_reg);
+  slli_w(dst, scratch2, 0);
+  xor_(scratch2, scratch2, dst);
+  sltu(overflow, zero_reg, scratch2);
 }
 
 void MacroAssembler::MulOverflow_d(Register dst, Register left,
@@ -4703,19 +4704,13 @@ void MacroAssembler::MulOverflow_d(Register dst, Register left,
 
   DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
          overflow != scratch2);
-  DCHECK(overflow != left && overflow != right_reg);
 
-  if (dst == left || dst == right_reg) {
-    Mul_d(scratch2, left, right_reg);
-    Mulh_d(overflow, left, right_reg);
-    mov(dst, scratch2);
-  } else {
-    Mul_d(dst, left, right_reg);
-    Mulh_d(overflow, left, right_reg);
-  }
+  Mulh_d(scratch2, left, right_reg);
+  Mul_d(dst, left, right_reg);
 
-  srai_d(scratch2, dst, 63);
+  srai_d(overflow, dst, 63);
   xor_(overflow, overflow, scratch2);
+  sltu(overflow, zero_reg, overflow);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,

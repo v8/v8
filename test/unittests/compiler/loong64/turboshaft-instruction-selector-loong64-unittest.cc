@@ -1770,12 +1770,12 @@ std::ostream& operator<<(std::ostream& os, const OverflowBinopOp& bop) {
 // Note that multiplication isn't tested because multiplication doesn't set
 // flags on Arm64, and thus BranchIfOverflow fusion cannot happen.
 const OverflowBinopOp kOverflowBinaryOperationsForBranchFusion[] = {
-    {TSBinop::kInt32AddCheckOverflow, "Int32AddCheckOverflow", kLoong64Add_d,
+    {TSBinop::kInt32AddCheckOverflow, "Int32AddCheckOverflow", kLoong64AddOvf_w,
      false},
     {TSBinop::kInt64AddCheckOverflow, "Int64AddCheckOverflow", kLoong64AddOvf_d,
      true},
-    {TSBinop::kInt32SubCheckOverflow, "kInt32SubCheckOverflow", kLoong64Sub_d,
-     false},
+    {TSBinop::kInt32SubCheckOverflow, "kInt32SubCheckOverflow",
+     kLoong64SubOvf_w, false},
     {TSBinop::kInt64SubCheckOverflow, "kInt64SubCheckOverflow",
      kLoong64SubOvf_d, true},
     {TSBinop::kInt32MulCheckOverflow, "Int32MulCheckOverflow", kLoong64MulOvf_w,

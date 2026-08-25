@@ -111,6 +111,10 @@ class Loong64OperandGenerator final : public OperandGenerator {
         return false;
       case kLoong64Cmp32:
       case kLoong64Cmp64:
+      case kLoong64AddOvf_w:
+      case kLoong64SubOvf_w:
+      case kLoong64AddOvf_d:
+      case kLoong64SubOvf_d:
         return true;
       case kLoong64Sll_w:
       case kLoong64Srl_w:
@@ -336,12 +340,28 @@ static void VisitBinop(InstructionSelector* selector, turboshaft::OpIndex node,
 
   if (TryMatchImmediate(selector, &opcode, right_node, &input_count,
                         &inputs[1])) {
-    inputs[0] = g.UseRegister(left_node);
+    // If right node is an immediate, we will use left to check overflow
+    // so we hope left isn't overlapped by output.
+    if (!cont->IsNone() &&
+        (cont->condition() == FlagsCondition::kOverflow ||
+         cont->condition() == FlagsCondition::kNotOverflow)) {
+      inputs[0] = g.UseUniqueRegister(left_node);
+    } else {
+      inputs[0] = g.UseRegister(left_node);
+    }
     input_count++;
   } else if (has_reverse_opcode &&
              TryMatchImmediate(selector, &reverse_opcode, left_node,
                                &input_count, &inputs[1])) {
-    inputs[0] = g.UseRegister(right_node);
+    // If right node is an immediate, we will use left to check overflow
+    // so we hope left isn't overlapped by output.
+    if (!cont->IsNone() &&
+        (cont->condition() == FlagsCondition::kOverflow ||
+         cont->condition() == FlagsCondition::kNotOverflow)) {
+      inputs[0] = g.UseUniqueRegister(right_node);
+    } else {
+      inputs[0] = g.UseRegister(right_node);
+    }
     opcode = reverse_opcode;
     input_count++;
   } else {
@@ -2786,19 +2806,21 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
               binop && CanDoBranchIfOverflowFusion(node)) {
             const bool is64 = binop->rep == WordRepresentation::Word64();
             switch (binop->kind) {
-              case OverflowCheckedBinopOp::Kind::kSignedAdd:
+              case OverflowCheckedBinopOp::Kind::kSignedAdd: {
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(
-                    this, node, is64 ? kLoong64AddOvf_d : kLoong64Add_d, cont);
-              case OverflowCheckedBinopOp::Kind::kSignedSub:
+                ArchOpcode opcode = is64 ? kLoong64AddOvf_d : kLoong64AddOvf_w;
+                return VisitBinop(this, node, opcode, cont);
+              }
+              case OverflowCheckedBinopOp::Kind::kSignedSub: {
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(
-                    this, node, is64 ? kLoong64SubOvf_d : kLoong64Sub_d, cont);
-              case OverflowCheckedBinopOp::Kind::kSignedMul:
+                ArchOpcode opcode = is64 ? kLoong64SubOvf_d : kLoong64SubOvf_w;
+                return VisitBinop(this, node, opcode, cont);
+              }
+              case OverflowCheckedBinopOp::Kind::kSignedMul: {
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node,
-                                  is64 ? kLoong64MulOvf_d : kLoong64MulOvf_w,
-                                  cont);
+                ArchOpcode opcode = is64 ? kLoong64MulOvf_d : kLoong64MulOvf_w;
+                return VisitBinop(this, node, opcode, true, opcode, cont);
+              }
             }
           }
         }
@@ -2931,22 +2953,23 @@ void InstructionSelector::VisitInt32AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid() && IsUsed(ovf.value())) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop(this, node, kLoong64Add_d, &cont);
+    return VisitBinop(this, node, kLoong64AddOvf_w, true, kLoong64AddOvf_w,
+                      &cont);
   }
 
   FlagsContinuation cont;
-  VisitBinop(this, node, kLoong64Add_d, &cont);
+  VisitBinop(this, node, kLoong64AddOvf_w, true, kLoong64AddOvf_w, &cont);
 }
 
 void InstructionSelector::VisitInt32SubWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop(this, node, kLoong64Sub_d, &cont);
+    return VisitBinop(this, node, kLoong64SubOvf_w, &cont);
   }
 
   FlagsContinuation cont;
-  VisitBinop(this, node, kLoong64Sub_d, &cont);
+  VisitBinop(this, node, kLoong64SubOvf_w, &cont);
 }
 
 void InstructionSelector::VisitInt32MulWithOverflow(OpIndex node) {
@@ -2975,11 +2998,12 @@ void InstructionSelector::VisitInt64AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop(this, node, kLoong64AddOvf_d, &cont);
+    return VisitBinop(this, node, kLoong64AddOvf_d, true, kLoong64AddOvf_d,
+                      &cont);
   }
 
   FlagsContinuation cont;
-  VisitBinop(this, node, kLoong64AddOvf_d, &cont);
+  VisitBinop(this, node, kLoong64AddOvf_d, true, kLoong64AddOvf_d, &cont);
 }
 
 void InstructionSelector::VisitInt64SubWithOverflow(OpIndex node) {
