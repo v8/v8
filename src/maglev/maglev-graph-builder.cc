@@ -10214,9 +10214,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
                          {old_array_length,
                           GetInt32Constant(static_cast<int>(args.count()))}));
 
-  ValueNode* last_index;
-  GET_VALUE_OR_ABORT(last_index,
-                     AddNewNode<Int32Decrement>({new_array_length}));
+  // The last element will be stored at index old_length + count - 1, which
+  // for the common single-argument push is just the old length.
+  ValueNode* last_index = old_array_length;
+  if (args.count() > 1) {
+    GET_VALUE_OR_ABORT(last_index,
+                       AddNewNode<Int32Decrement>({new_array_length}));
+  }
 
   ValueNode* elements_array;
   GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(receiver));
@@ -10271,10 +10275,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
 
     for (int index = 0; index < static_cast<int>(args_to_store.size());
          index++) {
-      ValueNode* store_index;
-      GET_VALUE_OR_ABORT(
-          store_index,
-          AddNewNode<Int32Add>({old_array_length, GetInt32Constant(index)}));
+      // The element is stored at index old_length + index; don't emit an
+      // "old_length + 0" node for the first element.
+      ValueNode* store_index = old_array_length;
+      if (index != 0) {
+        GET_VALUE_OR_ABORT(
+            store_index,
+            AddNewNode<Int32Add>({old_array_length, GetInt32Constant(index)}));
+      }
 
       ValueNode* value = args_to_store[index];
 
