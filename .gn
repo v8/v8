@@ -7,8 +7,15 @@ import("//build/dotfile_settings.gni")
 # The location of the build configuration file.
 buildconfig = "//build/config/BUILDCONFIG.gn"
 
-# The hermetic Python interpreter to use by default.
-script_executable = "//third_party/cpython3/host/bin/python3"
+# The hermetic Python interpreter to use by default. Platforms without a
+# hermetic CPython CIPD package can opt out by setting
+# the V8_HERMETIC_PYTHON_BYPASS environment variable, which falls back to the
+# system python3 on $PATH.
+if (getenv("V8_HERMETIC_PYTHON_BYPASS") != "") {
+  script_executable = "python3"
+} else {
+  script_executable = "//third_party/cpython3/host/bin/python3"
+}
 
 # These are the targets to check headers for by default. The files in targets
 # matching these patterns (see "gn help label_pattern" for format) will have
