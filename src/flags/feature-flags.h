@@ -183,10 +183,7 @@
   /* --wasm-js-interop for now. */                                             \
   /* V8 side owner: jkummerow */                                               \
   /* Staged (without JS Interop) in v14.8 */                                   \
-  WASM_FEATURE(custom_descriptors, "custom descriptors")                       \
-                                                                               \
-  IF_SPARKPLUG_PLUS_ENABLED(INTERNAL_FEATURE, sparkplug_plus,                  \
-                            "dynamic patching on JS baseline code")
+  WASM_FEATURE(custom_descriptors, "custom descriptors")
 
 // #############################################################################
 // Shipped features (enabled by default).
@@ -222,6 +219,9 @@
   /* V8 side owner: thibaudm */                                                \
   /* Staged in v8.9 */                                                         \
   /* Shipped in v9.5 */                                                        \
-  WASM_FEATURE(legacy_eh, "legacy exception handling opcodes")
+  WASM_FEATURE(legacy_eh, "legacy exception handling opcodes")                 \
+                                                                               \
+  IF_SPARKPLUG_PLUS_ENABLED(INTERNAL_FEATURE, sparkplug_plus,                  \
+                            "dynamic patching on JS baseline code")
 
 #endif  // V8_FLAGS_FEATURE_FLAGS_H_

@@ -10,7 +10,6 @@
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
-#include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/execution/tiering-manager.h"
@@ -25,6 +24,7 @@
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/object-predicates-inl.h"
 #include "src/objects/objects.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/roots/roots.h"
 #include "src/strings/string-builder-inl.h"
 
@@ -1600,6 +1600,13 @@ void JSFunction::ClearAllTypeFeedbackInfoForTesting(Isolate* isolate) {
                               kHeapObjectTag - BytecodeArray::kHeaderSize,
                           kUninitializedEmbeddedFeedback);
     }
+  }
+  if (shared()->HasBaselineCode()) {
+    shared()->FlushBaselineCode();
+  }
+  if (ActiveTierIsBaseline(isolate)) {
+    ResetTieringRequests(isolate);
+    UpdateCode(isolate, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   }
 }
 
