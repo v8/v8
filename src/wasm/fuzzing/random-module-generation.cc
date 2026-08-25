@@ -4479,17 +4479,6 @@ class ModuleGen {
       uint8_t num_fields = (config >> 4) & 3;       // Bits 4-5
       uint8_t maybe_supertype = (config >> 6) & 3;  // Bits 6-7
       ModuleTypeIndex supertype = kNoSuperType;
-
-      // Can't have a descriptor if this is the last type in the recgroup or
-      // the last struct type.
-      bool can_have_descriptor =
-          v8_flags.wasm_custom_descriptors &&
-          current_type_index != current_rec_group_end &&
-          current_type_index < last_struct_type_index - 1;
-      if (have_descriptor && !can_have_descriptor) {
-        have_descriptor = false;
-      }
-
       uint32_t existing_struct_types =
           static_cast<uint32_t>(struct_types.size());
       if (is_descriptor) {
@@ -4520,16 +4509,26 @@ class ModuleGen {
           supertype = ModuleTypeIndex{
               struct_types[maybe_supertype % existing_struct_types]};
         }
+        // If the chosen supertype is final, it can't be a supertype.
+        if (builder_->GetType_Unsafe(supertype).is_final) {
+          supertype = kNoSuperType;
+        }
       }
+
+      // Can't have a descriptor if this is the last type in the recgroup or
+      // the last struct type, or if the chosen supertype has no descriptor.
+      bool can_have_descriptor =
+          v8_flags.wasm_custom_descriptors &&
+          current_type_index != current_rec_group_end &&
+          current_type_index < last_struct_type_index - 1 &&
+          (supertype == kNoSuperType ||
+           builder_->GetType_Unsafe(supertype).has_descriptor());
+      have_descriptor = have_descriptor && can_have_descriptor;
+
       do {
         if (supertype == kNoSuperType) break;
         const TypeDefinition& supertype_def =
             builder_->GetType_Unsafe(supertype);
-        // If the chosen supertype is final, it can't be a supertype.
-        if (supertype_def.is_final) {
-          supertype = kNoSuperType;
-          break;
-        }
         // If the chosen supertype has a descriptor, this type must have one
         // too, otherwise that can't be the supertype.
         if (supertype_def.has_descriptor()) {
