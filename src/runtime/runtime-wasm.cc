@@ -2978,15 +2978,16 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   stack->jmpbuf()->pc = wrapper->code()->instruction_start();
   trusted_instance_data->native_module()->RegisterStackEntryWrapper(
       std::move(wrapper));
-  stack->set_func_ref(*func_ref);
   stack->set_param_types(sig->parameters());
   stack->set_signature_id(sig->index());
-  wasm::StackMemory* stack_ptr = stack.get();
-  isolate->wasm_stacks().emplace_back(std::move(stack));
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject(stack_obj);
-  stack_ptr->set_current_continuation(*cont);
-  stack_ptr->set_stack_obj(*stack_obj);
+  // Set the references after the heap allocation, so that they are not
+  // immediately stale from a potential GC.
+  stack->set_func_ref(*func_ref);
+  stack->set_current_continuation(*cont);
+  stack->set_stack_obj(*stack_obj);
+  isolate->wasm_stacks().emplace_back(std::move(stack));
   return *cont;
 }
 

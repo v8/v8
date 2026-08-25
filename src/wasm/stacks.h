@@ -92,6 +92,7 @@ class StackMemory {
   }
   void set_current_continuation(Tagged<WasmContinuationObject> cont) {
     current_cont_ = cont;
+    contains_only_old_pointers_ = false;
   }
   void set_stack_obj(Tagged<WasmStackObject> stack) { stack_obj_ = stack; }
   Tagged<WasmStackObject> stack_obj() { return stack_obj_; }
