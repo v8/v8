@@ -161,7 +161,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7ac94dbda90fd375f7e1977771c049836f74d575',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '00493461e14d895e9a692505b75249019c0a0e35',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4277578aa9c45906e51ad33cac1a5a7ad5288010',
   'buildtools/linux64': {
@@ -278,7 +278,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '612d70c7ccb01d4a405e822ad0505206de636d7e',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ab9a80dd1ec669b1586e3b7a0197aafb5088c325',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -531,7 +531,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '3b916b9c566d0f6d917cef3debadb76b5846f8ad',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '82e4cb705f0d11b0f67e287b74e2fffbf373c94c',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '5f8c379d1fc89fe8eee16ae560dd5e514a4608da',
   'third_party/re2/src':
@@ -545,7 +545,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '13cb6e5d223dc49eadd082d3aef4c2a5b0e4c0a0',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '2010da84beb6d64c9aaa78bf47006d2e647ba83a',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '41a22304eefff90c361e598d7a755d0c3a76ab98',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -658,7 +658,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '0165316260f597826ab93d4580faebd56e4f002d',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '1a1bb2ccdb1b6a06037babf091253c77755d6479',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '5596c1d44f6f23d242850514d2d56daef0920bfd',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'e9dbe1bf6a2a5d2d4973725874259eed587cf18d',
   'third_party/abseil-cpp': {
