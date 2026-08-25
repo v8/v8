@@ -747,6 +747,8 @@ def _CheckLandOnChromiumBranch(input_api, output_api):
     target_branch = 'refs/heads/%s' % target_branch
   if not target_branch.startswith('refs/heads/chromium/'):
     return []
+  if '_' in target_branch:  # Allow merges to mini branches.
+    return []
 
   description = input_api.change.FullDescriptionText()
   if input_api.re.search(r'^LAND_ON_CHROMIUM_BRANCH=.+', description,
