@@ -2733,6 +2733,9 @@ DEFINE_INT(
     "When the sqrt heap limit is enabled, multiplier on the heap growth for "
     "HeapGrowingMode::kMinimal.")
 DEFINE_FLOAT(
+    sqrt_allocation_limits_min_growing_factor, 1.1,
+    "This is the lower bound for growing factor when using sqrt heap limit.")
+DEFINE_FLOAT(
     sqrt_allocation_limits_max_growing_factor, 4.0,
     "This is the upper bound for growing factor when using sqrt heap limit.")
 DEFINE_BOOL(gc_speed_uses_counters, false,
