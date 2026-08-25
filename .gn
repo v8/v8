@@ -7,9 +7,8 @@ import("//build/dotfile_settings.gni")
 # The location of the build configuration file.
 buildconfig = "//build/config/BUILDCONFIG.gn"
 
-# The python interpreter to use by default. On Windows, this will look
-# for python3.exe and python3.bat.
-script_executable = "python3"
+# The hermetic Python interpreter to use by default.
+script_executable = "//third_party/cpython3/host/bin/python3"
 
 # These are the targets to check headers for by default. The files in targets
 # matching these patterns (see "gn help label_pattern" for format) will have
