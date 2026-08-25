@@ -1,1 +1,0 @@
-Tests that destroying context during custom preview wrapping does not cause UAF.
