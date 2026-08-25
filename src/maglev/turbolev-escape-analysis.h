@@ -230,6 +230,20 @@ struct EscapeAnalysisData {
 
   bool HasEscaped(InlinedAllocation* alloc);
 
+  // Reads the value of a field, unwrapping any Identity nodes.
+  //
+  // Identity nodes can appear here because LoadFloat64 and
+  // LoadFixedDoubleArrayElement are not eagerly resolved during the
+  // CandidateAnalyzer phase (unlike LoadTaggedField) and are instead
+  // overwritten with Identity by the Elider. When an elided object's field
+  // stores the result of such a load, its field_values entry holds the raw
+  // load node, which turns into an Identity when the load is elided.
+  //
+  // Note: An alternative approach of eagerly resolving LoadFloat64 and
+  // LoadFixedDoubleArrayElement in CandidateAnalyzer (similar to
+  // LoadTaggedField) was explored in https://crrev.com/c/8287966, but
+  // unwrapping identities here is significantly simpler and avoids having to
+  // track additional load opcodes in loaded_values.
   ValueNode* GetFieldValue(Key key) {
     ValueNode* value = field_values.Get(key);
     return value ? value->UnwrapIdentities() : nullptr;
