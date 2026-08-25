@@ -8,6 +8,14 @@ assertThrows(() => console.assert(false), Error);
 assertThrows(() => console.assert(""), Error);
 assertThrows(() => console.assert(0), Error);
 
+class CustomError extends Error {}
+assertThrows(() => console.assert(false, {
+  toString() { throw new CustomError(); }
+}), CustomError);
+assertThrows(() => console.assert(false, "prefix", {
+  toString() { throw new CustomError(); }
+}), CustomError);
+
 let args = ["", {}, [], this, Array, 1, 1.4, true, false];
 
 console.log(...args);
