@@ -177,8 +177,6 @@
                                                                                \
   JS_FEATURE(js_defer_import_eval, "defer import eval")                        \
                                                                                \
-  JS_FEATURE(js_iterator_includes, "Iterator.prototype.includes")              \
-                                                                               \
   /* Custom Descriptors proposal. */                                           \
   /* https://github.com/WebAssembly/custom-descriptors */                      \
   /* Note: the JS Interop part of the proposal is enabled by */                \
@@ -216,6 +214,8 @@
   JS_FEATURE(js_pr_3883,                                                       \
              "Promise.try not wrapping the result in an extra promise in the " \
              "non-throwing case (https://github.com/tc39/ecma262/pull/3883)")  \
+                                                                               \
+  JS_FEATURE(js_iterator_includes, "Iterator.prototype.includes")              \
                                                                                \
   /* Legacy exception handling proposal. */                                    \
   /* https://github.com/WebAssembly/exception-handling */                      \
