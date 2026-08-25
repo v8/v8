@@ -1458,18 +1458,19 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     Label copy, skip;
     Register src = r9, dest = r8;
     addi(src, sp, Operand(-kSystemPointerSize));
-    ShiftLeftU64(r0, expected_parameter_count, Operand(kSystemPointerSizeLog2));
-    sub(sp, sp, r0);
+    ShiftLeftU64(scratch, expected_parameter_count,
+                 Operand(kSystemPointerSizeLog2));
+    sub(sp, sp, scratch);
     // Update stack pointer.
     addi(dest, sp, Operand(-kSystemPointerSize));
-    mr(r0, actual_parameter_count);
-    cmpi(r0, Operand::Zero());
+    mr(scratch, actual_parameter_count);
+    cmpi(scratch, Operand::Zero());
     ble(&skip);
-    mtctr(r0);
+    mtctr(scratch);
 
     bind(&copy);
-    LoadU64WithUpdate(r0, MemOperand(src, kSystemPointerSize));
-    StoreU64WithUpdate(r0, MemOperand(dest, kSystemPointerSize));
+    LoadU64WithUpdate(scratch, MemOperand(src, kSystemPointerSize));
+    StoreU64WithUpdate(scratch, MemOperand(dest, kSystemPointerSize));
     bdnz(&copy);
     bind(&skip);
   }
