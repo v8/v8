@@ -55,6 +55,7 @@
 #include "src/base/strong-alias.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/codegen/compiler.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/d8/d8-console.h"
 #include "src/d8/d8-platforms.h"
@@ -716,11 +717,32 @@ void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
                                      ScriptCompiler::CachedData::BufferOwned));
 }
 
+MaybeLocal<String> CreateStringFromExternalData(Isolate* isolate,
+                                                std::string_view source) {
+  int size = static_cast<int>(source.size());
+  if (i::v8_flags.use_external_strings &&
+      i::String::IsAscii(source.data(), size)) {
+    String::ExternalOneByteStringResource* resource =
+        new i::OwningExternalOneByteStringResource(source);
+    return String::NewExternalOneByte(isolate, resource);
+  }
+  return String::NewFromUtf8(isolate, source.data(), NewStringType::kNormal,
+                             size);
+}
+
 // Dummy external source stream which returns the whole source in one go.
 // TODO(leszeks): Also test chunking the data.
-class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
+class CompileSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
  public:
-  DummySourceStream(Isolate* isolate, Local<String> source) : done_(false) {
+  virtual MaybeLocal<String> GetSourceString(Isolate* isolate) = 0;
+};
+
+// Dummy external source stream which returns the whole source in one go.
+// TODO(leszeks): Also test chunking the data.
+class DummySourceStream : public CompileSourceStream {
+ public:
+  DummySourceStream(Isolate* isolate, Local<String> source)
+      : source_(source), done_(false) {
     source_length_ = source->Length();
     source_buffer_ = std::make_unique<uint16_t[]>(source_length_);
     source->Write(isolate, 0, source_length_, source_buffer_.get());
@@ -736,13 +758,18 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
     return source_length_ * 2;
   }
 
+  MaybeLocal<String> GetSourceString(Isolate* isolate) override {
+    return source_;
+  }
+
  private:
+  Local<String> source_;
   uint32_t source_length_;
   std::unique_ptr<uint16_t[]> source_buffer_;
   bool done_;
 };
 
-class FileSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
+class FileSourceStream : public CompileSourceStream {
  public:
   FileSourceStream(Isolate* isolate, const char* filename) {
     file_ = base::Fopen(filename, "rb");
@@ -768,15 +795,25 @@ class FileSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
       return 0;
     }
 
+    if (data_.size() + bytes_read > size_t{String::kMaxLength}) {
+      FATAL("Input file too large (> %d bytes)", String::kMaxLength);
+    }
+    data_.append(reinterpret_cast<const char*>(buffer.get()), bytes_read);
+
     *src = buffer.release();
     return bytes_read;
   }
 
   bool IsValid() const { return file_ != nullptr; }
 
+  MaybeLocal<String> GetSourceString(Isolate* isolate) override {
+    return CreateStringFromExternalData(isolate, data_);
+  }
+
  private:
   static constexpr size_t kChunkSize = 4096;
   FILE* file_ = nullptr;
+  std::string data_;
 };
 
 // Run a ScriptStreamingTask in a separate thread.
@@ -862,14 +899,12 @@ MaybeLocal<T> Shell::CompileSource(Isolate* isolate, Local<Context> context,
                                    const Source& source,
                                    const ScriptOrigin& origin) {
   if (options.streaming_compile) {
-    std::unique_ptr<v8::ScriptCompiler::ExternalSourceStream> source_stream;
+    std::unique_ptr<CompileSourceStream> source_stream;
     v8::ScriptCompiler::StreamedSource::Encoding encoding;
-    Local<String> source_string;
 
     if (source.type() == Source::Type::kString) {
-      source_string = source.string();
       source_stream =
-          std::make_unique<DummySourceStream>(isolate, source_string);
+          std::make_unique<DummySourceStream>(isolate, source.string());
       encoding = v8::ScriptCompiler::StreamedSource::TWO_BYTE;
     } else {
       DCHECK_EQ(source.type(), Source::Type::kFile);
@@ -896,10 +931,11 @@ MaybeLocal<T> Shell::CompileSource(Isolate* isolate, Local<Context> context,
     if (streaming_task) {
       StreamerThread::StartThreadForTaskAndJoin(streaming_task.get());
 
-      if (source_string.IsEmpty()) {
-        if (!source.ConvertToString(isolate).ToLocal(&source_string)) {
-          return MaybeLocal<T>();
-        }
+      auto* stream = static_cast<CompileSourceStream*>(
+          streamed_source.impl()->source_stream.get());
+      Local<String> source_string;
+      if (!stream->GetSourceString(isolate).ToLocal(&source_string)) {
+        return MaybeLocal<T>();
       }
       update_script_size(source_string->Length());
       return CompileStreamed<T>(context, &streamed_source, source_string,
@@ -5802,13 +5838,7 @@ MaybeLocal<String> Shell::ReadFile(Isolate* isolate, const char* name,
   static_assert(String::kMaxLength <= i::kMaxInt);
   int size = static_cast<int>(full_file_size);
   char* chars = static_cast<char*>(file->memory());
-  if (i::v8_flags.use_external_strings && i::String::IsAscii(chars, size)) {
-    String::ExternalOneByteStringResource* resource =
-        new i::OwningExternalOneByteStringResource(
-            std::string_view(chars, size));
-    return String::NewExternalOneByte(isolate, resource);
-  }
-  return String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size);
+  return CreateStringFromExternalData(isolate, std::string_view(chars, size));
 }
 
 void Shell::WriteChars(const char* name, uint8_t* buffer, size_t buffer_size) {
