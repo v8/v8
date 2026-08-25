@@ -837,6 +837,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "assembler/assembler-x64-unittest.cc",
       "assembler/disasm-x64-unittest.cc",
       "assembler/macro-assembler-x64-unittest.cc",
+      "regress/regress-536954139-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources +=

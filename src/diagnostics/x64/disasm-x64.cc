@@ -1059,32 +1059,6 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
   if (simd_prefix_66() && leading_0f38()) {
     int mod, regop, rm, vvvv = get_vreg();
     get_modrm(*current, &mod, &regop, &rm);
-    if (is_evex()) {
-      // AVX10-only EVEX instructions in the 66.0F38 map.
-      switch (opcode) {
-        case 0x1F:  // vpabsq (W1)
-          AppendToBuffer("vpabsq %s,", NameOfAVXRegister(regop));
-          current += PrintRightEVEXOperand(current, TupleType::kFull);
-          break;
-        case 0x39:  // vpminsq (W1)
-          AppendToBuffer("vpminsq %s,%s,", NameOfAVXRegister(regop),
-                         NameOfAVXRegister(vvvv));
-          current += PrintRightEVEXOperand(current, TupleType::kFull);
-          break;
-        case 0x40:  // vpmullq (W1)
-          AppendToBuffer("vpmullq %s,%s,", NameOfAVXRegister(regop),
-                         NameOfAVXRegister(vvvv));
-          current += PrintRightEVEXOperand(current, TupleType::kFull);
-          break;
-        case 0x54:  // vpopcntb (W0)
-          AppendToBuffer("vpopcntb %s,", NameOfAVXRegister(regop));
-          current += PrintRightEVEXOperand(current, TupleType::kFullMem);
-          break;
-        default:
-          UnimplementedInstruction();
-      }
-      return static_cast<int>(current - data);
-    }
     switch (opcode) {
       case 0x13:
         AppendToBuffer("vcvtph2ps %s,", NameOfAVXRegister(regop));
@@ -1097,6 +1071,22 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
       case 0x19:
         AppendToBuffer("vbroadcastsd %s,", NameOfAVXRegister(regop));
         current += PrintRightXMMOperand(current);
+        break;
+      case 0x1F:
+        if (is_evex() && evex_w()) {
+          AppendToBuffer("vpabsq %s,", NameOfAVXRegister(regop));
+          current += PrintRightEVEXOperand(current, TupleType::kFull);
+        } else {
+          UnimplementedInstruction();
+        }
+        break;
+      case 0x54:
+        if (is_evex() && !evex_w()) {
+          AppendToBuffer("vpopcntb %s,", NameOfAVXRegister(regop));
+          current += PrintRightEVEXOperand(current, TupleType::kFullMem);
+        } else {
+          UnimplementedInstruction();
+        }
         break;
       case 0xF7:
         AppendToBuffer("shlx%c %s,", operand_size_code(),
@@ -1112,9 +1102,19 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
 #define DECLARE_SSE_AVX_DIS_CASE(instruction, notUsed1, notUsed2, notUsed3, \
                                  opcode)                                    \
   case 0x##opcode: {                                                        \
-    AppendToBuffer("v" #instruction " %s,%s,", NameOfAVXRegister(regop),    \
-                   NameOfAVXRegister(vvvv));                                \
-    current += PrintRightAVXOperand(current);                               \
+    if (0x##opcode == 0x39 && is_evex() && evex_w()) {                      \
+      AppendToBuffer("vpminsq %s,%s,", NameOfAVXRegister(regop),            \
+                     NameOfAVXRegister(vvvv));                              \
+      current += PrintRightEVEXOperand(current, TupleType::kFull);          \
+    } else if (0x##opcode == 0x40 && is_evex() && evex_w()) {               \
+      AppendToBuffer("vpmullq %s,%s,", NameOfAVXRegister(regop),            \
+                     NameOfAVXRegister(vvvv));                              \
+      current += PrintRightEVEXOperand(current, TupleType::kFull);          \
+    } else {                                                                \
+      AppendToBuffer("v" #instruction " %s,%s,", NameOfAVXRegister(regop),  \
+                     NameOfAVXRegister(vvvv));                              \
+      current += PrintRightAVXOperand(current);                             \
+    }                                                                       \
     break;                                                                  \
   }
 
@@ -1175,20 +1175,6 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
   } else if (simd_prefix_66() && leading_0f3a()) {
     int mod, regop, rm, vvvv = get_vreg();
     get_modrm(*current, &mod, &regop, &rm);
-    if (is_evex()) {
-      // AVX10/AVX-512 vector instructions in the 66.0F3A map.
-      switch (opcode) {
-        case 0x3F:
-          AppendToBuffer("vpcmpb %s,%s,", NameOfKRegister(regop & 0x7),
-                         NameOfAVXRegister(vvvv));
-          current += PrintRightEVEXOperand(current, TupleType::kFullMem);
-          AppendToBuffer(",0x%x", *current++);
-          break;
-        default:
-          UnimplementedInstruction();
-      }
-      return static_cast<int>(current - data);
-    }
     switch (opcode) {
       case 0x00:
         AppendToBuffer("vpermq %s,", NameOfAVXRegister(regop));
@@ -1288,6 +1274,16 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
                        NameOfAVXRegister(vvvv));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", *current++);
+        break;
+      case 0x3F:
+        if (is_evex()) {
+          AppendToBuffer("vpcmpb %s,%s,", NameOfKRegister(regop & 0x7),
+                         NameOfAVXRegister(vvvv));
+          current += PrintRightEVEXOperand(current, TupleType::kFullMem);
+          AppendToBuffer(",0x%x", *current++);
+        } else {
+          UnimplementedInstruction();
+        }
         break;
       case 0x4A: {
         AppendToBuffer("vblendvps %s,%s,", NameOfAVXRegister(regop),
@@ -1709,25 +1705,6 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
   } else if (simd_prefix_66() && leading_0f()) {
     int mod, regop, rm, vvvv = get_vreg();
     get_modrm(*current, &mod, &regop, &rm);
-    if (is_evex()) {
-      // AVX10-only EVEX instructions in the 66.0F map.
-      switch (opcode) {
-        case 0x72:  // vpsraq xmm/ymm, xmm/ymm/m, imm8 (W1, /4); destination is
-                    // encoded in EVEX.vvvv.
-          AppendToBuffer("vpsraq %s,", NameOfAVXRegister(vvvv));
-          current += PrintRightEVEXOperand(current, TupleType::kFull);
-          AppendToBuffer(",%u", *current++);
-          break;
-        case 0xE2:  // vpsraq xmm/ymm, xmm/ymm, xmm/m128 (variable count, W1)
-          AppendToBuffer("vpsraq %s,%s,", NameOfAVXRegister(regop),
-                         NameOfAVXRegister(vvvv));
-          current += PrintRightEVEXOperand(current, TupleType::kMem128);
-          break;
-        default:
-          UnimplementedInstruction();
-      }
-      return static_cast<int>(current - data);
-    }
     switch (opcode) {
       case 0x10:
         AppendToBuffer("vmovupd %s,", NameOfAVXRegister(regop));
@@ -1772,10 +1749,16 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
         AppendToBuffer(",%u", *current++);
         break;
       case 0x72:
-        AppendToBuffer("vps%sd %s,", sf_str[regop / 2],
-                       NameOfAVXRegister(vvvv));
-        current += PrintRightAVXOperand(current);
-        AppendToBuffer(",%u", *current++);
+        if (is_evex() && evex_w() && regop == 4) {
+          AppendToBuffer("vpsraq %s,", NameOfAVXRegister(vvvv));
+          current += PrintRightEVEXOperand(current, TupleType::kFull);
+          AppendToBuffer(",%u", *current++);
+        } else {
+          AppendToBuffer("vps%sd %s,", sf_str[regop / 2],
+                         NameOfAVXRegister(vvvv));
+          current += PrintRightAVXOperand(current);
+          AppendToBuffer(",%u", *current++);
+        }
         break;
       case 0x73:
         AppendToBuffer("vps%sq %s,", sf_str[regop / 2],
@@ -1811,12 +1794,18 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
         AppendToBuffer("vpmovmskb %s,", NameOfCPURegister(regop));
         current += PrintRightAVXOperand(current);
         break;
-#define DECLARE_SSE_AVX_DIS_CASE(instruction, notUsed1, notUsed2, opcode) \
-  case 0x##opcode: {                                                      \
-    AppendToBuffer("v" #instruction " %s,%s,", NameOfAVXRegister(regop),  \
-                   NameOfAVXRegister(vvvv));                              \
-    current += PrintRightAVXOperand(current);                             \
-    break;                                                                \
+#define DECLARE_SSE_AVX_DIS_CASE(instruction, notUsed1, notUsed2, opcode)  \
+  case 0x##opcode: {                                                       \
+    if (0x##opcode == 0xE2 && is_evex() && evex_w()) {                     \
+      AppendToBuffer("vpsraq %s,%s,", NameOfAVXRegister(regop),            \
+                     NameOfAVXRegister(vvvv));                             \
+      current += PrintRightEVEXOperand(current, TupleType::kMem128);       \
+    } else {                                                               \
+      AppendToBuffer("v" #instruction " %s,%s,", NameOfAVXRegister(regop), \
+                     NameOfAVXRegister(vvvv));                             \
+      current += PrintRightAVXOperand(current);                            \
+    }                                                                      \
+    break;                                                                 \
   }
 
         SSE2_INSTRUCTION_LIST(DECLARE_SSE_AVX_DIS_CASE)
