@@ -2155,7 +2155,7 @@ class CalendarCache {
       DCHECK(U_SUCCESS(status));
     }
 
-    if (map_.size() > 8) {  // Cache at most 8 calendars.
+    if (map_.size() > 8) {  // Cache at most 9 calendars.
       map_.clear();
     }
     map_[key] = std::move(calendar);
@@ -2273,7 +2273,7 @@ class DateFormatCache {
       return static_cast<icu::SimpleDateFormat*>(it->second->clone());
     }
 
-    if (map_.size() > 8) {  // Cache at most 8 DateFormats.
+    if (map_.size() > 8) {  // Cache at most 9 DateFormats.
       map_.clear();
     }
     std::unique_ptr<icu::SimpleDateFormat> instance(
@@ -2541,6 +2541,10 @@ class DateTimePatternGeneratorCache {
         orig = icu::DateTimePatternGenerator::createInstance("root", status);
       }
       if (U_SUCCESS(status) && orig != nullptr) {
+        if (v8_flags.intl_date_time_pattern_generator_cache_eviction &&
+            map_.size() > 8) {  // Cache at most 9 generators.
+          map_.clear();
+        }
         map_[key].reset(orig);
       } else {
         DCHECK(status == U_MEMORY_ALLOCATION_ERROR);
