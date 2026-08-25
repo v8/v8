@@ -127,6 +127,9 @@
   # https://crbug.com/505063230
   'sandbox/regress-488362583': [SKIP],
 
+  # Fails on unrelated commit.
+  'sandbox/hardware-watchpoints/regress-524854777': [SKIP],
+
   ##############################################################################
   # Long-running tests.
   # We really should find better solutions for these.

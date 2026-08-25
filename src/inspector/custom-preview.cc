@@ -54,17 +54,6 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch,
   reportError(context, tryCatch);
 }
 
-InjectedScript* getInjectedScript(v8::Local<v8::Context> context,
-                                  int sessionId) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  V8InspectorImpl* inspector =
-      static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
-  std::shared_ptr<InspectedContext> inspectedContext =
-      inspector->getContext(InspectedContext::contextId(context));
-  if (!inspectedContext) return nullptr;
-  return inspectedContext->getInjectedScript(sessionId);
-}
-
 bool substituteObjectTags(int sessionId, const String16& groupName,
                           v8::Local<v8::Context> context,
                           v8::Local<v8::Array> jsonML, int maxDepth) {
@@ -114,7 +103,16 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
       return false;
     }
 
-    InjectedScript* injectedScript = getInjectedScript(context, sessionId);
+    V8InspectorImpl* inspector =
+        static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
+    std::shared_ptr<InspectedContext> inspectedContext =
+        inspector->getContext(InspectedContext::contextId(context));
+    if (!inspectedContext) {
+      reportError(context, tryCatch, "cannot find context with specified id");
+      return false;
+    }
+    InjectedScript* injectedScript =
+        inspectedContext->getInjectedScript(sessionId);
     if (!injectedScript) {
       reportError(context, tryCatch, "cannot find context with specified id");
       return false;
@@ -393,7 +391,16 @@ void generateCustomPreview(v8::Isolate* isolate, int sessionId,
                    .setHeader(toProtocolString(isolate, header))
                    .build();
     if (!bodyFunction.IsEmpty()) {
-      InjectedScript* injectedScript = getInjectedScript(context, sessionId);
+      V8InspectorImpl* inspector =
+          static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
+      std::shared_ptr<InspectedContext> inspectedContext =
+          inspector->getContext(InspectedContext::contextId(context));
+      if (!inspectedContext) {
+        reportError(context, tryCatch, "cannot find context with specified id");
+        return;
+      }
+      InjectedScript* injectedScript =
+          inspectedContext->getInjectedScript(sessionId);
       if (!injectedScript) {
         reportError(context, tryCatch, "cannot find context with specified id");
         return;
