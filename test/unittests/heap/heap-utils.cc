@@ -22,6 +22,19 @@
 namespace v8 {
 namespace internal {
 
+namespace heap {
+class HeapTester {
+ public:
+  static size_t OldGenerationSpaceAvailable(Heap* heap) {
+    return heap->OldGenerationSpaceAvailable();
+  }
+};
+}  // namespace heap
+
+size_t HeapInternalsBase::OldGenerationSpaceAvailable(Heap* heap) {
+  return heap::HeapTester::OldGenerationSpaceAvailable(heap);
+}
+
 void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
                                                    bool force_completion) {
   static constexpr auto kStepSize = v8::base::TimeDelta::FromMilliseconds(100);
@@ -378,6 +391,14 @@ Address AlignOldSpace(Heap* heap, AllocationAlignment alignment, int offset) {
   // Now force the remaining allocation onto the free list.
   heap->FreeMainThreadLinearAllocationAreas();
   return top;
+}
+
+void ForceEvacuationCandidate(NormalPage* page) {
+  Isolate* isolate = page->owner()->heap()->isolate();
+  SafepointScope safepoint(isolate, kGlobalSafepointForSharedSpaceIsolate);
+  CHECK(v8_flags.manual_evacuation_candidates_selection);
+  page->set_forced_evacuation_candidate_for_testing(true);
+  page->owner()->heap()->FreeLinearAllocationAreas();
 }
 
 }  // namespace internal

@@ -35,7 +35,6 @@
   V(InvalidatedSlotsSomeInvalidatedRanges)                  \
   V(TestNewSpaceRefsInCopiedCode)                           \
   V(MarkCompactCollector)                                   \
-  V(MarkCompactEpochCounter)                                \
   V(MemoryReducerActivationForSmallHeaps)                   \
   V(NoPromotion)                                            \
   V(NumberStringCacheSize)                                  \
@@ -51,11 +50,9 @@
   V(Regress587004)                                          \
   V(Regress589413)                                          \
   V(Regress658718)                                          \
-  V(Regress670675)                                          \
   V(Regress777177)                                          \
   V(Regress779503)                                          \
   V(Regress791582)                                          \
-  V(RegressMissingWriteBarrierInAllocate)                   \
   V(WriteBarrier_Marking)                                   \
   V(WriteBarrier_MarkingExtension)                          \
   V(WriteBarriersInCopyJSObject)                            \

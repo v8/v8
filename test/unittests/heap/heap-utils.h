@@ -14,8 +14,12 @@
 namespace v8 {
 namespace internal {
 
+class NormalPage;
+void ForceEvacuationCandidate(NormalPage* page);
+
 class HeapInternalsBase {
  protected:
+  size_t OldGenerationSpaceAvailable(Heap* heap);
   void SimulateIncrementalMarking(Heap* heap, bool force_completion);
   void SimulateFullSpace(
       v8::internal::NewSpace* space,
@@ -94,6 +98,10 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
 
   Heap* heap() const { return this->i_isolate()->heap(); }
 
+  size_t OldGenerationSpaceAvailable() {
+    return HeapInternalsBase::OldGenerationSpaceAvailable(heap());
+  }
+
   void SimulateIncrementalMarking(bool force_completion = true) {
     return HeapInternalsBase::SimulateIncrementalMarking(heap(),
                                                          force_completion);
@@ -128,6 +136,10 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     for (NormalPage* page : *heap()->old_space()) {
       page->MarkNeverAllocateForTesting();
     }
+  }
+
+  void ForceEvacuationCandidate(NormalPage* page) {
+    i::ForceEvacuationCandidate(page);
   }
 
   void EmptyNewSpaceUsingGC() { InvokeMajorGC(); }
@@ -202,6 +214,18 @@ class V8_NODISCARD ManualGCScope final {
   const bool flag_parallel_marking_;
   const bool flag_detect_ineffective_gcs_near_heap_limit_;
   const bool flag_cppheap_concurrent_marking_;
+};
+
+class V8_NODISCARD ManualEvacuationCandidatesSelectionScope final {
+ public:
+  explicit ManualEvacuationCandidatesSelectionScope(ManualGCScope&) {
+    DCHECK(!v8_flags.manual_evacuation_candidates_selection);
+    v8_flags.manual_evacuation_candidates_selection = true;
+  }
+  ~ManualEvacuationCandidatesSelectionScope() {
+    DCHECK(v8_flags.manual_evacuation_candidates_selection);
+    v8_flags.manual_evacuation_candidates_selection = false;
+  }
 };
 
 // DisableHandleChecksForMockingScope disables the checks for v8::Local and

@@ -3457,5 +3457,340 @@ TEST_F(HeapTest, ReleaseOverReservedPages) {
             old_space->CountTotalPages());
 }
 
+TEST_F(HeapTest, RememberedSet_InsertOnWriteBarrier) {
+  if (v8_flags.single_generation) return;
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  ManualGCScope manual_gc_scope(isolate());
+  SealCurrentObjects();
+  HandleScope scope(isolate());
+
+  // Allocate an object in old space.
+  DirectHandle<FixedArray> arr =
+      factory()->NewFixedArray(3, AllocationType::kOld);
+
+  // Add into 'arr' references to young objects.
+  {
+    HandleScope scope_inner(isolate());
+    DirectHandle<Object> number = factory()->NewHeapNumber(42);
+    arr->set(0, *number);
+    arr->set(1, *number);
+    arr->set(2, *number);
+    DirectHandle<Object> number_other = factory()->NewHeapNumber(24);
+    arr->set(2, *number_other);
+  }
+  // Remembered sets track *slots* pages with cross-generational pointers, so
+  // must have recorded three of them each exactly once.
+  EXPECT_EQ(size_t{3}, GetRememberedSetSize<OLD_TO_NEW>(isolate(), *arr));
+}
+
+TEST_F(HeapTest, RememberedSet_InsertInLargePage) {
+  if (v8_flags.single_generation) return;
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  ManualGCScope manual_gc_scope(isolate());
+  Factory* factory = isolate()->factory();
+  Heap* heap = isolate()->heap();
+  SealCurrentObjects();
+  HandleScope scope(isolate());
+
+  // Allocate an object in Large space.
+  const int count = std::max(FixedArray::kMaxRegularLength + 1, 128 * KB);
+  DirectHandle<FixedArray> arr =
+      factory->NewFixedArray(count, AllocationType::kOld);
+  EXPECT_TRUE(heap->lo_space()->Contains(*arr));
+  EXPECT_EQ(size_t{0}, GetRememberedSetSize<OLD_TO_NEW>(isolate(), *arr));
+
+  // Create OLD_TO_NEW references from the large object so that the
+  // corresponding slots end up in different SlotSets.
+  {
+    HandleScope short_lived(isolate());
+    DirectHandle<Object> number = factory->NewHeapNumber(42);
+    arr->set(0, *number);
+    arr->set(count - 1, *number);
+  }
+  EXPECT_EQ(size_t{2}, GetRememberedSetSize<OLD_TO_NEW>(isolate(), *arr));
+}
+
+TEST_F(HeapTest, RememberedSet_RemoveStaleOnScavenge) {
+  if (v8_flags.single_generation || v8_flags.stress_incremental_marking) return;
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  ManualGCScope manual_gc_scope(isolate());
+  Factory* factory = isolate()->factory();
+  Heap* heap = isolate()->heap();
+  SealCurrentObjects();
+  HandleScope scope(isolate());
+
+  // Allocate an object in old space and add into it references to young.
+  DirectHandle<FixedArray> arr =
+      factory->NewFixedArray(3, AllocationType::kOld);
+  {
+    HandleScope scope_inner(isolate());
+    DirectHandle<Object> number = factory->NewHeapNumber(42);
+    arr->set(0, *number);  // will be trimmed away
+    arr->set(1, *number);  // will be replaced with #undefined
+    arr->set(2, *number);  // will be promoted into old
+  }
+  EXPECT_EQ(size_t{3}, GetRememberedSetSize<OLD_TO_NEW>(isolate(), *arr));
+
+  arr->set(1, ReadOnlyRoots(heap).undefined_value());
+  DirectHandle<FixedArrayBase> tail(heap->LeftTrimFixedArray(*arr, 1),
+                                    isolate());
+
+  // The first slot should be removed from the remembered set since the length
+  // is now in that place and represented as a uint32_t.
+  EXPECT_EQ(size_t{2}, GetRememberedSetSize<OLD_TO_NEW>(isolate(), *tail));
+
+  // Run GC to promote the remaining young object and fixup the stale entries in
+  // the remembered set.
+  EmptyNewSpaceUsingGC();
+  EXPECT_EQ(size_t{0}, GetRememberedSetSize<OLD_TO_NEW>(isolate(), *tail));
+}
+
+// The OLD_TO_OLD remembered set is created temporary by GC and is cleared at
+// the end of the pass. There is no way to observe it so the test only checks
+// that compaction has happened and otherwise relies on code's self-validation.
+TEST_F(HeapTest, RememberedSet_OldToOld) {
+  if (v8_flags.stress_incremental_marking) return;
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  ManualGCScope manual_gc_scope(isolate());
+  ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
+  SealCurrentObjects();
+
+  v8::Global<v8::FixedArray> arr_global;
+  Tagged<FixedArray> prev_location;
+  {
+    HandleScope scope(isolate());
+
+    DirectHandle<FixedArray> arr =
+        factory()->NewFixedArray(10, AllocationType::kOld);
+    {
+      HandleScope short_lived(isolate());
+      factory()->NewFixedArray(100, AllocationType::kOld);
+    }
+    DirectHandle<Object> ref =
+        factory()->NewFixedArray(100, AllocationType::kOld);
+    arr->set(0, *ref);
+
+    // To force compaction of the old space, fill it with garbage and start a
+    // new page (so that the page with 'arr' becomes subject to compaction).
+    {
+      HandleScope short_lived(isolate());
+      SimulateFullSpace(heap()->old_space());
+      factory()->NewFixedArray(100, AllocationType::kOld);
+    }
+
+    ForceEvacuationCandidate(NormalPage::FromHeapObject(*arr));
+    prev_location = *arr;
+    arr_global.Reset(v8_isolate(), v8::Utils::FixedArrayToLocal(arr));
+  }
+  {
+    // This GC pass will evacuate the page with 'arr'/'ref' so it will have to
+    // create OLD_TO_OLD remembered set to track the reference.
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+  {
+    v8::HandleScope scope(v8_isolate());
+    DirectHandle<FixedArray> arr =
+        v8::Utils::OpenDirectHandle(*arr_global.Get(v8_isolate()));
+    EXPECT_NE(prev_location.ptr(), arr->ptr());
+  }
+}
+
+TEST_F(HeapTest, RememberedSetRemoveRange) {
+  if (v8_flags.single_generation) return;
+  HandleScope scope(isolate());
+
+  DirectHandle<FixedArray> array = factory()->NewFixedArray(
+      NormalPage::kPageSize / kTaggedSize, AllocationType::kOld);
+  MutablePage* chunk = MutablePage::FromHeapObject(isolate(), *array);
+  EXPECT_EQ(chunk->owner_identity(), LO_SPACE);
+  Address start = array->address();
+  // Maps slot to boolean indicator of whether the slot should be in the set.
+  std::map<Address, bool> slots;
+  slots[start + 0] = true;
+  slots[start + kTaggedSize] = true;
+  slots[start + NormalPage::kPageSize - kTaggedSize] = true;
+  slots[start + NormalPage::kPageSize] = true;
+  slots[start + NormalPage::kPageSize + kTaggedSize] = true;
+  slots[chunk->area_end() - kTaggedSize] = true;
+
+  for (auto x : slots) {
+    RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(
+        chunk, chunk->Offset(x.first));
+  }
+
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        EXPECT_TRUE(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
+
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, start + kTaggedSize,
+                                         SlotSet::FREE_EMPTY_BUCKETS);
+  slots[start] = false;
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        EXPECT_TRUE(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
+
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start + kTaggedSize,
+                                         start + NormalPage::kPageSize,
+                                         SlotSet::FREE_EMPTY_BUCKETS);
+  slots[start + kTaggedSize] = false;
+  slots[start + NormalPage::kPageSize - kTaggedSize] = false;
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        EXPECT_TRUE(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
+
+  RememberedSet<OLD_TO_NEW>::RemoveRange(
+      chunk, start, start + NormalPage::kPageSize + kTaggedSize,
+      SlotSet::FREE_EMPTY_BUCKETS);
+  slots[start + NormalPage::kPageSize] = false;
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        EXPECT_TRUE(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
+
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, chunk->area_end() - kTaggedSize,
+                                         chunk->area_end(),
+                                         SlotSet::FREE_EMPTY_BUCKETS);
+  slots[chunk->area_end() - kTaggedSize] = false;
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        EXPECT_TRUE(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
+}
+
+TEST_F(HeapTest, Regress670675) {
+  if (!v8_flags.incremental_marking) return;
+  ManualGCScope manual_gc_scope(isolate());
+  HandleScope scope(isolate());
+  Heap* heap = this->heap();
+  Isolate* isolate = this->isolate();
+  InvokeMajorGC();
+
+  heap->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+      CompleteSweepingReason::kTesting);
+  heap->tracer()->StopFullCycleIfFinished();
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (marking->IsStopped()) {
+    SafepointScope safepoint_scope(isolate,
+                                   kGlobalSafepointForSharedSpaceIsolate);
+    heap->tracer()->StartCycle(
+        GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+        "collector unittest", GCTracer::MarkingType::kIncremental);
+    marking->Start(GarbageCollector::MARK_COMPACTOR,
+                   i::GarbageCollectionReason::kTesting, "testing");
+  }
+  size_t array_length = 128 * KB;
+  size_t n = OldGenerationSpaceAvailable() / array_length;
+  for (size_t i = 0; i < n + 60; i++) {
+    {
+      HandleScope inner_scope(isolate);
+      isolate->factory()->NewFixedArray(static_cast<int>(array_length),
+                                        AllocationType::kOld);
+    }
+    if (marking->IsStopped()) break;
+    marking->AdvanceForTesting(v8::base::TimeDelta::FromMillisecondsD(0.1));
+  }
+  EXPECT_TRUE(marking->IsStopped());
+}
+
+TEST_F(HeapTest, RegressMissingWriteBarrierInAllocate) {
+  if (!v8_flags.incremental_marking) return;
+  ManualGCScope manual_gc_scope(isolate());
+  v8::HandleScope scope(v8_isolate());
+  Isolate* iso = isolate();
+  InvokeMajorGC();
+  SimulateIncrementalMarking(false);
+  DirectHandle<Map> map;
+  {
+    AlwaysAllocateScopeForTesting always_allocate(heap());
+    map = factory()->NewContextfulMapForCurrentContext(JS_OBJECT_TYPE,
+                                                       JSObject::kHeaderSize);
+  }
+  EXPECT_TRUE(heap()->incremental_marking()->black_allocation());
+  DirectHandle<JSObject> object;
+  {
+    AlwaysAllocateScopeForTesting always_allocate(heap());
+    object = direct_handle(
+        Cast<JSObject>(factory()->NewForTest(map, AllocationType::kOld)), iso);
+  }
+  // Initialize backing stores to ensure object is valid.
+  ReadOnlyRoots roots(iso);
+  object->set_raw_properties_or_hash(roots.empty_property_array(),
+                                     SKIP_WRITE_BARRIER);
+  object->set_elements(roots.empty_fixed_array(), SKIP_WRITE_BARRIER);
+
+  // The object is black. If Factory::New sets the map without write-barrier,
+  // then the map is white and will be freed prematurely.
+  SimulateIncrementalMarking(true);
+  InvokeMajorGC();
+  if (heap()->sweeping_in_progress()) {
+    heap()->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only,
+        CompleteSweepingReason::kTesting);
+  }
+  EXPECT_TRUE(IsMap(object->map()));
+}
+
+TEST_F(HeapTest, MarkCompactEpochCounter) {
+  if (!v8_flags.incremental_marking) return;
+  ManualGCScope manual_gc_scope(isolate());
+
+  unsigned epoch0 = heap()->mark_compact_collector()->epoch();
+  InvokeMajorGC();
+  unsigned epoch1 = heap()->mark_compact_collector()->epoch();
+  EXPECT_EQ(epoch0 + 1, epoch1);
+  SimulateIncrementalMarking();
+  InvokeMajorGC();
+  unsigned epoch2 = heap()->mark_compact_collector()->epoch();
+  EXPECT_EQ(epoch1 + 1, epoch2);
+  InvokeMinorGC();
+  unsigned epoch3 = heap()->mark_compact_collector()->epoch();
+  EXPECT_EQ(epoch2, epoch3);
+}
+
+TEST_F(TestWithPlatform, ReinitializeStringHashSeed) {
+  // Enable rehashing and create an isolate and context.
+  v8_flags.rehash_snapshot = true;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  for (int i = 1; i < 3; i++) {
+    v8_flags.hash_seed = 1337 * i;
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = allocator.get();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      EXPECT_EQ(static_cast<uint64_t>(1337 * i),
+                HashSeed(reinterpret_cast<Isolate*>(isolate)).seed());
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      EXPECT_FALSE(context.IsEmpty());
+      v8::Context::Scope context_scope(context);
+    }
+    isolate->Dispose();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
