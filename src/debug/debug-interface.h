@@ -525,6 +525,8 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
                                              int scope_index = 0) = 0;
 };
 
+V8_EXPORT_PRIVATE bool IsAPIFunctionWithSideEffects(v8::Local<v8::Value> value);
+
 void GlobalLexicalScopeNames(v8::Local<v8::Context> context,
                              std::vector<v8::Global<v8::String>>* names);
 

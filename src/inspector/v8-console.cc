@@ -1046,9 +1046,27 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(std::set<std::string_view>,
                                     "debug", "undebug", "monitor", "unmonitor",
                                     "inspect", "copy", "queryObjects"})
 
-bool IsUnsafeCommandLineAPIFn(v8::Local<v8::Value> name, v8::Isolate* isolate) {
+bool IsUnsafeCommandLineAPIFn(v8::Local<v8::Context> context,
+                              v8::Local<v8::Object> commandLineAPI,
+                              v8::Local<v8::Name> name, v8::Isolate* isolate) {
   std::string nameStr = toProtocolStringWithTypeCheck(isolate, name).utf8();
-  return UnsafeCommandLineAPIFns()->count(nameStr) > 0;
+  if (UnsafeCommandLineAPIFns()->count(nameStr) > 0) return true;
+
+  v8::Local<v8::Value> descriptor_val;
+  if (!commandLineAPI->GetOwnPropertyDescriptor(context, name)
+           .ToLocal(&descriptor_val) ||
+      !descriptor_val->IsObject()) {
+    return false;
+  }
+  v8::Local<v8::Object> descriptor = descriptor_val.As<v8::Object>();
+  v8::Local<v8::Value> value;
+  if (!descriptor
+           ->Get(context, v8::String::NewFromUtf8Literal(isolate, "value"))
+           .ToLocal(&value)) {
+    return false;
+  }
+
+  return v8::debug::IsAPIFunctionWithSideEffects(value);
 }
 
 }  // namespace
@@ -1074,7 +1092,8 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     if (global->Has(context, name).FromMaybe(true)) continue;
 
     const v8::SideEffectType get_accessor_side_effect_type =
-        IsUnsafeCommandLineAPIFn(name, isolate())
+        IsUnsafeCommandLineAPIFn(context, commandLineAPI, name.As<v8::Name>(),
+                                 isolate())
             ? v8::SideEffectType::kHasSideEffect
             : v8::SideEffectType::kHasNoSideEffect;
     if (!global

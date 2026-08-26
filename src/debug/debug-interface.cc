@@ -26,6 +26,7 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
+#include "src/objects/templates-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/strings/string-builder-inl.h"
 
@@ -1281,6 +1282,17 @@ MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
   MaybeLocal<Value> result = Utils::ToMaybeLocal(i::DebugEvaluate::Global(
       i_isolate, Utils::OpenHandle(*source), mode, repl_mode));
   return api_scope.EscapeMaybe(result);
+}
+
+bool IsAPIFunctionWithSideEffects(v8::Local<v8::Value> value) {
+  if (!value->IsFunction()) return false;
+  auto function = v8::Utils::OpenDirectHandle(*value.As<v8::Function>());
+  if (!i::IsJSFunction(*function)) return false;
+  i::DirectHandle<i::JSFunction> js_function = i::Cast<i::JSFunction>(function);
+  if (!js_function->shared()->IsApiFunction()) return false;
+  i::Tagged<i::FunctionTemplateInfo> info =
+      js_function->shared()->api_func_data();
+  return info->has_side_effects();
 }
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,

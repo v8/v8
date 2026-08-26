@@ -519,6 +519,30 @@ void InspectorIsolateData::quitMessageLoopOnPause() {
 
 void InspectorIsolateData::installAdditionalCommandLineAPI(
     v8::Local<v8::Context> context, v8::Local<v8::Object> object) {
+  // PoC: mirror Blink's
+  // ThreadDebuggerCommonImpl::installAdditionalCommandLineAPI
+  // (third_party/blink/renderer/core/inspector/thread_debugger_common_impl.cc),
+  // which installs `monitorEvents` / `unmonitorEvents` as own properties on the
+  // commandLineAPI object via CreateFunctionPropertyWithData(...,
+  // kHasSideEffect). The function body is irrelevant; only the side effect type
+  // matters for the IsUnsafeCommandLineAPIFn check in v8-console.cc.
+  {
+    v8::Context::Scope context_scope(context);
+    auto noop = [](const v8::FunctionCallbackInfo<v8::Value>&) {};
+    v8::Local<v8::Function> fn =
+        v8::Function::New(context, noop, v8::Local<v8::Value>(), 0,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect)
+            .ToLocalChecked();
+    object
+        ->Set(context,
+              v8::String::NewFromUtf8Literal(isolate(), "monitorEvents"), fn)
+        .Check();
+    object
+        ->Set(context,
+              v8::String::NewFromUtf8Literal(isolate(), "unmonitorEvents"), fn)
+        .Check();
+  }
   if (additional_console_api_.IsEmpty()) return;
   CHECK_EQ(v8::Isolate::GetCurrent(), isolate());
   v8::HandleScope handle_scope(isolate());
