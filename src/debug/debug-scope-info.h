@@ -37,12 +37,25 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   int end_position() const;
   int scope_index() const { return scope_index_; }
   ScopeType scope_type() const;
+  LanguageMode language_mode() const;
 
   // Scope Predicates
   bool is_script_scope() const;
   bool is_function_scope() const;
   bool is_block_scope() const;
   bool is_declaration_scope() const;
+  bool is_arrow_scope() const;
+  bool is_class_scope() const;
+  bool is_with_scope() const;
+  bool is_module_scope() const;
+  bool is_eval_scope() const;
+  bool is_catch_scope() const;
+  bool is_repl_mode_scope() const;
+  bool is_hidden() const;
+  bool has_this_declaration() const;
+  bool has_this_reference() const;
+  bool has_simple_parameters() const;
+  bool sloppy_eval_can_extend_vars() const;
 
  private:
   DebugScriptScope(DirectHandle<DebugScriptScopeInfo> info, int scope_index,

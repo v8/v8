@@ -70,7 +70,14 @@ static_assert(sizeof(ScopeRecord) == 16);
 using ScopeTypeBits = base::BitField<ScopeType, 0, 4, uint16_t>;
 using HasChildrenBit = ScopeTypeBits::Next<bool, 1>;
 using HasSiblingBit = HasChildrenBit::Next<bool, 1>;
-static_assert(HasSiblingBit::kLastUsedBit < 16);
+using IsHiddenBit = HasSiblingBit::Next<bool, 1>;
+using LanguageModeBit = IsHiddenBit::Next<LanguageMode, 1>;
+using IsArrowScopeBit = LanguageModeBit::Next<bool, 1>;
+using HasThisDeclarationBit = IsArrowScopeBit::Next<bool, 1>;
+using HasThisReferenceBit = HasThisDeclarationBit::Next<bool, 1>;
+using HasSimpleParametersBit = HasThisReferenceBit::Next<bool, 1>;
+using SloppyEvalCanExtendVarsBit = HasSimpleParametersBit::Next<bool, 1>;
+static_assert(SloppyEvalCanExtendVarsBit::kLastUsedBit < 16);
 
 int32_t GetScopeCount(Tagged<DebugScriptScopeInfo> info) {
   Tagged<ByteArray> bytes = info->numeric_data();
@@ -158,6 +165,58 @@ bool DebugScriptScope::is_declaration_scope() const {
          scope_type() == ScopeType::EVAL_SCOPE;
 }
 
+LanguageMode DebugScriptScope::language_mode() const {
+  return LanguageModeBit::decode(flags());
+}
+
+bool DebugScriptScope::is_arrow_scope() const {
+  return IsArrowScopeBit::decode(flags());
+}
+
+bool DebugScriptScope::is_class_scope() const {
+  return scope_type() == ScopeType::CLASS_SCOPE;
+}
+
+bool DebugScriptScope::is_with_scope() const {
+  return scope_type() == ScopeType::WITH_SCOPE;
+}
+
+bool DebugScriptScope::is_module_scope() const {
+  return scope_type() == ScopeType::MODULE_SCOPE;
+}
+
+bool DebugScriptScope::is_eval_scope() const {
+  return scope_type() == ScopeType::EVAL_SCOPE;
+}
+
+bool DebugScriptScope::is_catch_scope() const {
+  return scope_type() == ScopeType::CATCH_SCOPE;
+}
+
+bool DebugScriptScope::is_repl_mode_scope() const {
+  return scope_type() == ScopeType::REPL_MODE_SCOPE;
+}
+
+bool DebugScriptScope::is_hidden() const {
+  return IsHiddenBit::decode(flags());
+}
+
+bool DebugScriptScope::has_this_declaration() const {
+  return HasThisDeclarationBit::decode(flags());
+}
+
+bool DebugScriptScope::has_this_reference() const {
+  return HasThisReferenceBit::decode(flags());
+}
+
+bool DebugScriptScope::has_simple_parameters() const {
+  return HasSimpleParametersBit::decode(flags());
+}
+
+bool DebugScriptScope::sloppy_eval_can_extend_vars() const {
+  return SloppyEvalCanExtendVarsBit::decode(flags());
+}
+
 Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     Isolate* isolate, DeclarationScope* script_scope) {
   DCHECK_NOT_NULL(script_scope);
@@ -222,6 +281,19 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     flags = ScopeTypeBits::update(flags, scope->scope_type());
     flags = HasChildrenBit::update(flags, scope->inner_scope() != nullptr);
     flags = HasSiblingBit::update(flags, has_sibling);
+    flags = IsHiddenBit::update(flags, scope->is_hidden());
+    flags = LanguageModeBit::update(flags, scope->language_mode());
+    flags = HasThisReferenceBit::update(flags, scope->HasThisReference());
+    if (scope->is_declaration_scope()) {
+      DeclarationScope* decl_scope = scope->AsDeclarationScope();
+      flags = IsArrowScopeBit::update(flags, decl_scope->is_arrow_scope());
+      flags = HasThisDeclarationBit::update(flags,
+                                            decl_scope->has_this_declaration());
+      flags = HasSimpleParametersBit::update(
+          flags, decl_scope->has_simple_parameters());
+      flags = SloppyEvalCanExtendVarsBit::update(
+          flags, decl_scope->sloppy_eval_can_extend_vars());
+    }
 
     base::WriteUnalignedValue<ScopeRecord>(
         record,

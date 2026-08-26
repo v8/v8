@@ -60,6 +60,29 @@ void VerifyScopeTreeParity(Scope* ast_scope, DebugScriptScope debug_scope) {
   EXPECT_EQ(ast_scope->is_block_scope(), debug_scope.is_block_scope());
   EXPECT_EQ(ast_scope->is_declaration_scope(),
             debug_scope.is_declaration_scope());
+  EXPECT_EQ(ast_scope->is_class_scope(), debug_scope.is_class_scope());
+  EXPECT_EQ(ast_scope->is_with_scope(), debug_scope.is_with_scope());
+  EXPECT_EQ(ast_scope->is_module_scope(), debug_scope.is_module_scope());
+  EXPECT_EQ(ast_scope->is_eval_scope(), debug_scope.is_eval_scope());
+  EXPECT_EQ(ast_scope->is_catch_scope(), debug_scope.is_catch_scope());
+  EXPECT_EQ(ast_scope->is_repl_mode_scope(), debug_scope.is_repl_mode_scope());
+  EXPECT_EQ(ast_scope->is_hidden(), debug_scope.is_hidden());
+  EXPECT_EQ(ast_scope->language_mode(), debug_scope.language_mode());
+  EXPECT_EQ(ast_scope->HasThisReference(), debug_scope.has_this_reference());
+  if (ast_scope->is_declaration_scope()) {
+    DeclarationScope* decl = ast_scope->AsDeclarationScope();
+    EXPECT_EQ(decl->is_arrow_scope(), debug_scope.is_arrow_scope());
+    EXPECT_EQ(decl->has_this_declaration(), debug_scope.has_this_declaration());
+    EXPECT_EQ(decl->has_simple_parameters(),
+              debug_scope.has_simple_parameters());
+    EXPECT_EQ(decl->sloppy_eval_can_extend_vars(),
+              debug_scope.sloppy_eval_can_extend_vars());
+  } else {
+    EXPECT_FALSE(debug_scope.is_arrow_scope());
+    EXPECT_FALSE(debug_scope.has_this_declaration());
+    EXPECT_FALSE(debug_scope.has_simple_parameters());
+    EXPECT_FALSE(debug_scope.sloppy_eval_can_extend_vars());
+  }
 
   Scope* ast_child = ast_scope->inner_scope();
   auto debug_child = debug_scope.first_child();
@@ -276,6 +299,65 @@ TEST_F(DebugScopeInfoTest, MultipleFunctionsAndSiblings) {
   EXPECT_EQ(f2->parent()->scope_index(), 0);
   EXPECT_FALSE(f2->next_sibling().has_value());
 
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+TEST_F(DebugScopeInfoTest, ArrowAndNormalFunctionScope) {
+  HandleScope scope(isolate());
+  ParsedScript parsed =
+      ParseAndSerialize("let fn = (x) => { return x + 1; }; function g() {}");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(script.is_script_scope());
+  EXPECT_FALSE(script.is_arrow_scope());
+  EXPECT_FALSE(script.has_this_declaration());
+
+  // Function g scope (1) - child scopes are prepended in AST
+  auto normal = script.first_child();
+  ASSERT_TRUE(normal.has_value());
+  EXPECT_TRUE(normal->is_function_scope());
+  EXPECT_FALSE(normal->is_arrow_scope());
+  EXPECT_TRUE(normal->has_this_declaration());
+
+  // Arrow function fn scope (2)
+  auto arrow = normal->next_sibling();
+  ASSERT_TRUE(arrow.has_value());
+  EXPECT_TRUE(arrow->is_function_scope());
+  EXPECT_TRUE(arrow->is_arrow_scope());
+  EXPECT_FALSE(arrow->has_this_declaration());
+  EXPECT_TRUE(arrow->has_simple_parameters());
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+TEST_F(DebugScopeInfoTest, StrictAndNonSimpleParams) {
+  HandleScope scope(isolate());
+  ParsedScript parsed =
+      ParseAndSerialize("\"use strict\"; function f(a = 1) { eval(\"\"); }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_EQ(script.language_mode(), LanguageMode::kStrict);
+
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+  EXPECT_EQ(func->language_mode(), LanguageMode::kStrict);
+  EXPECT_FALSE(func->has_simple_parameters());
+  EXPECT_FALSE(func->sloppy_eval_can_extend_vars());
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+TEST_F(DebugScopeInfoTest, ComplexScopeTypes) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize(
+      "class C { m() {} }\n"
+      "try { } catch (e) { }\n"
+      "with ({}) { }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
   VerifyScopeTreeParity(parsed.script_scope(), script);
 }
 
