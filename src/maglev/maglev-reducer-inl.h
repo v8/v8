@@ -3954,6 +3954,9 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Min(ValueNode* lhs,
   DCHECK(ValueRepresentationIs(rhs->value_representation(),
                                ValueRepresentation::kFloat64));
   if (lhs == rhs) {
+    if (lhs->MayBeHoleOrUndefinedNan()) {
+      GET_VALUE_OR_ABORT(lhs, AddNewNode<Float64ToSilencedFloat64>({lhs}));
+    }
     return lhs->Unwrap();
   }
 
@@ -3992,6 +3995,9 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Max(ValueNode* lhs,
   DCHECK(ValueRepresentationIs(rhs->value_representation(),
                                ValueRepresentation::kFloat64));
   if (lhs == rhs) {
+    if (lhs->MayBeHoleOrUndefinedNan()) {
+      GET_VALUE_OR_ABORT(lhs, AddNewNode<Float64ToSilencedFloat64>({lhs}));
+    }
     return lhs->Unwrap();
   }
 
