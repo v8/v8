@@ -6,7 +6,7 @@
 
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
 
-#include "src/codegen/macro-assembler.h"
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/heap/factory-inl.h"
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"
@@ -16,9 +16,43 @@ namespace internal {
 
 using GeneratedCodeValidatorTest = TestWithContext;
 
+namespace {
+
+void CheckValidationSucceeds(Isolate* i_isolate, MacroAssembler& masm) {
+  // Delay validation until we're ready to call it explicitly.
+  v8_flags.validate_generated_code = false;
+  CodeDesc desc;
+  masm.GetCode(i_isolate, &desc);
+  DirectHandle<Code> code =
+      Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
+
+  // This should not crash.
+  v8_flags.validate_generated_code = true;
+  v8_flags.validate_generated_code_non_fatal = false;
+  GeneratedCodeValidator::Validate(i_isolate, *code);
+}
+
+void CheckValidationFails(Isolate* i_isolate, MacroAssembler& masm,
+                          std::string expected_error) {
+  // Delay validation until we're ready to call it explicitly.
+  v8_flags.validate_generated_code = false;
+  CodeDesc desc;
+  masm.GetCode(i_isolate, &desc);
+  DirectHandle<Code> code =
+      Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
+
+  // This should not crash.
+  v8_flags.validate_generated_code = true;
+  v8_flags.validate_generated_code_non_fatal = false;
+  ASSERT_DEATH_IF_SUPPORTED(GeneratedCodeValidator::Validate(i_isolate, *code),
+                            expected_error);
+}
+
+}  // namespace
+
 #define __ masm.
 
-TEST_F(GeneratedCodeValidatorTest, ValidateValidCode) {
+TEST_F(GeneratedCodeValidatorTest, DisassembleValidCode) {
   // This validation until we're ready to call it explicitly.
   v8_flags.validate_generated_code = false;
   Isolate* i_isolate = this->i_isolate();
@@ -36,19 +70,10 @@ TEST_F(GeneratedCodeValidatorTest, ValidateValidCode) {
 #error "Unsupported architecture for GeneratedCodeValidatorTest"
 #endif
 
-  CodeDesc desc;
-  masm.GetCode(i_isolate, &desc);
-  DirectHandle<Code> code =
-      Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
-
-  // This should not crash.
-  v8_flags.validate_generated_code = true;
-  GeneratedCodeValidator::Validate(i_isolate, *code);
+  CheckValidationSucceeds(i_isolate, masm);
 }
 
-TEST_F(GeneratedCodeValidatorTest, ValidateInvalidCode) {
-  // This validation until we're ready to call it explicitly.
-  v8_flags.validate_generated_code = false;
+TEST_F(GeneratedCodeValidatorTest, DisassembleInvalidCode) {
   Isolate* i_isolate = this->i_isolate();
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler masm(i_isolate, CodeObjectRequired{false},
@@ -68,15 +93,49 @@ TEST_F(GeneratedCodeValidatorTest, ValidateInvalidCode) {
 #error "Unsupported architecture for GeneratedCodeValidatorTest"
 #endif
 
-  CodeDesc desc;
-  masm.GetCode(i_isolate, &desc);
-  DirectHandle<Code> code =
-      Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
+  CheckValidationFails(i_isolate, masm,
+                       "Failed to disassemble invalid instruction");
+}
 
-  // This should crash.
-  v8_flags.validate_generated_code = true;
-  ASSERT_DEATH_IF_SUPPORTED(GeneratedCodeValidator::Validate(i_isolate, *code),
-                            "Failed to disassemble invalid instruction");
+TEST_F(GeneratedCodeValidatorTest, ValidateCageBaseModificationFails) {
+  static_assert(kPtrComprCageBaseRegister != no_reg);
+  Isolate* i_isolate = this->i_isolate();
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                      buffer->CreateView());
+
+#if V8_TARGET_ARCH_X64
+  __ movq(kPtrComprCageBaseRegister, Immediate(0));
+  __ ret(0);
+#elif V8_TARGET_ARCH_ARM64
+  __ Mov(kPtrComprCageBaseRegister, 0);
+  __ ret();
+#else
+#error "Unsupported architecture for GeneratedCodeValidatorTest"
+#endif
+
+  CheckValidationFails(i_isolate, masm,
+                       "Instruction accesses cage bage register at operand 0");
+}
+
+TEST_F(GeneratedCodeValidatorTest, ValidateDecompressionPasses) {
+  static_assert(kPtrComprCageBaseRegister != no_reg);
+  Isolate* i_isolate = this->i_isolate();
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                      buffer->CreateView());
+
+#if V8_TARGET_ARCH_X64
+  __ orq(rcx, kPtrComprCageBaseRegister);
+  __ ret(0);
+#elif V8_TARGET_ARCH_ARM64
+  __ Orr(x13, kPtrComprCageBaseRegister, x13);
+  __ ret();
+#else
+#error "Unsupported architecture for GeneratedCodeValidatorTest"
+#endif
+
+  CheckValidationSucceeds(i_isolate, masm);
 }
 
 #undef __

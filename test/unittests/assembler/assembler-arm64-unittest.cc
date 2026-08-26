@@ -280,6 +280,12 @@ using AtomicMemoryStoreSignature =
 
 class AssemblerArm64Test : public i::TestWithIsolate {
  public:
+  AssemblerArm64Test() {
+#ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
+    v8_flags.validate_generated_code = false;
+#endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
+  }
+
   void SmullHelper(int64_t expected, int64_t a, int64_t b);
   void BtiHelper(Register ipreg);
   void LdrLiteralRangeHelper(size_t range, LiteralPoolEmitOutcome outcome,
@@ -321,6 +327,9 @@ class AssemblerArm64Test : public i::TestWithIsolate {
   void AbsHelperW(int32_t value);
   void MinMaxHelper(MinMaxOp op, bool is_signed, uint64_t a, uint64_t b,
                     uint32_t wexp, uint64_t xexp);
+
+ private:
+  SaveFlags save_flags_;
 };
 
 void AssemblerArm64Test::SmullHelper(int64_t expected, int64_t a, int64_t b) {
