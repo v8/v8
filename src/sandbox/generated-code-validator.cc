@@ -6,7 +6,10 @@
 
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
 
+#include <algorithm>
+
 #include "src/objects/code-inl.h"
+#include "src/objects/code-kind.h"
 #include "src/sandbox/isolate-inl.h"
 
 namespace v8::internal {
@@ -130,6 +133,11 @@ void GeneratedCodeValidator::ViolationsReporter::ReportDisassemblyFailed(
   ReportViolation(pc, "Failed to disassemble invalid instruction.");
 }
 
+void GeneratedCodeValidator::ViolationsReporter::ReportViolationWithInstruction(
+    const uint8_t* pc, std::string instr, std::string error) {
+  ReportViolation(pc, error + ": " + instr);
+}
+
 void GeneratedCodeValidator::ViolationsReporter::RecordDisassembledInstruction(
     const uint8_t* pc, size_t instruction_size, std::string instr) {
   DCHECK(v8_flags.validate_generated_code_include_code);
@@ -218,6 +226,39 @@ void GeneratedCodeValidator::ViolationsReporter::PrintEpilogueIfNeeded() {
   }
   FATAL("Generated code validation failed. See stderr output for violations.");
 }
+
+// static
+bool GeneratedCodeValidator::Utils::IsEntryCode(const Tagged<Code> code) {
+  switch (code->kind()) {
+#if V8_ENABLE_WEBASSEMBLY
+    case CodeKind::C_WASM_ENTRY:
+#endif  // V8_ENABLE_WEBASSEMBLY
+    case CodeKind::FOR_TESTING:
+      return true;
+    case CodeKind::BUILTIN:
+      DCHECK(code->is_builtin());
+      static constexpr Builtin entry_builtins[] = {
+          Builtin::kJSEntry, Builtin::kJSConstructEntry,
+          Builtin::kJSRunMicrotasksEntry};
+      return std::find(std::begin(entry_builtins), std::end(entry_builtins),
+                       code->builtin_id()) != std::end(entry_builtins);
+    default:
+      return false;
+  }
+}
+
+// static
+bool GeneratedCodeValidator::Utils::IsDeoptCode(const Tagged<Code> code) {
+  static constexpr Builtin entry_builtins[] = {
+      Builtin::kDeoptimizationEntry_Eager, Builtin::kDeoptimizationEntry_Lazy,
+      Builtin::kDeoptimizationEntry_LazyAfterFastCall};
+  return code->is_builtin() &&
+         std::find(std::begin(entry_builtins), std::end(entry_builtins),
+                   code->builtin_id()) != std::end(entry_builtins);
+}
+
+GeneratedCodeValidator::State::State(const Tagged<Code> code)
+    : is_cage_base_reg_valid_(!Utils::IsEntryCode(code)) {}
 
 }  // namespace v8::internal
 
