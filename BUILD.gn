@@ -1777,16 +1777,7 @@ config("toolchain") {
   if (v8_current_cpu == "ppc64") {
     defines += [ "V8_TARGET_ARCH_PPC64" ]
     cflags += [ "-ffp-contract=off" ]
-    if (current_os == "aix" && !is_clang) {
-      cflags += [
-        # Work around AIX ceil, trunc and round oddities.
-        "-mcpu=power5+",
-        "-mfprnd",
-
-        # Work around AIX assembler popcntb bug.
-        "-mno-popcntb",
-      ]
-    } else if (!v8_target_is_simulator) {
+    if (!v8_target_is_simulator) {
       cflags += [ "-mcpu=pwr9" ]
     }
   }
