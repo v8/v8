@@ -1058,6 +1058,21 @@ class FieldValuesTracker : public CandidateAnalyzer {
       if (all_predecessors_equal) {
         // All of the predecessors have the same value recorded for {key}, so
         // there is no need to insert a Phi.
+        for (auto [phi, other_key] : old_phis_) {
+          if (other_key == key) {
+            // If there was already a Phi in {old_phis_} for {key}, then it
+            // might be referenced within the loop. We thus overwrite it with an
+            // Identity so that those references remain valid. Note that there
+            // is no need to trigger a loop revisit in such a case, since loop
+            // phis are anyways treated as opaque (which means that replacing a
+            // Phi with a non-phi doesn't invalidate any previous decisions).
+            // Also note that {phi} will not be added to the graph, but that's
+            // fine: the MaglevGraphOptimizer that runs after this phase will
+            // take care of rewiring the users to bypass this Identity.
+            phi->OverwriteWithIdentityTo(predecessors[0]);
+            break;
+          }
+        }
         return predecessors[0];
       }
 
