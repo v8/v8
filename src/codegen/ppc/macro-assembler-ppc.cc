@@ -1625,8 +1625,10 @@ void MacroAssembler::PushStackHandler() {
 
   // Link the current handler as the next handler.
   // Preserve r4-r8.
-  LoadU64(r0, AsMemOperand(IsolateFieldId::kHandler));
-  push(r0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadU64(scratch, AsMemOperand(IsolateFieldId::kHandler));
+  push(scratch);
 
   // Set this new handler as the current one.
   StoreU64(sp, AsMemOperand(IsolateFieldId::kHandler));
