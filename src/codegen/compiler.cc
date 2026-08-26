@@ -1202,6 +1202,8 @@ void AbortMaglevCompilationJob(Isolate* isolate,
   CompilerTracer::TraceAbortedMaglevCompile(isolate, function, reason);
   MaybeMarkMaglevCompilationFailed(function, osr_offset, reason);
   function->SetTieringInProgress(isolate, false, osr_offset);
+  function->shared()->set_cached_tiering_decision(
+      CachedTieringDecision::kDelayMaglev);
 }
 #endif  // V8_ENABLE_MAGLEV
 
