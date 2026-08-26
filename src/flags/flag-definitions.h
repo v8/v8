@@ -344,7 +344,7 @@ DEFINE_STRING(icu_datetime_compat_lang, "*",
               "limits ICU date time compat changes to the given language")
 DEFINE_BOOL(
     intl_date_time_pattern_generator_cache_eviction, false,
-    "enable 8-entry cache eviction in DateTimePatternGeneratorCache")
+    "enable 9-entry cache eviction in DateTimePatternGeneratorCache")
 #endif
 
 #ifdef V8_ENABLE_DOUBLE_CONST_STORE_CHECK

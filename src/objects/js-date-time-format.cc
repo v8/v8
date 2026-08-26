@@ -14,6 +14,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/base/logging.h"
+#include "src/base/small-map.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -2120,6 +2121,19 @@ std::unique_ptr<icu::TimeZone> JSDateTimeFormat::CreateTimeZone(
 
 namespace {
 
+constexpr size_t kMaxCacheSize = 9;
+
+template <typename T>
+using IntlCacheMap = base::SmallMap<std::map<std::string, std::unique_ptr<T>>,
+                                    kMaxCacheSize, std::equal_to<std::string>>;
+
+template <typename T>
+void ClearCacheIfFull(IntlCacheMap<T>& map) {
+  if (map.size() >= kMaxCacheSize) {
+    map.clear();
+  }
+}
+
 class CalendarCache {
  public:
   icu::Calendar* CreateCalendar(const icu::Locale& locale, icu::TimeZone* tz) {
@@ -2155,15 +2169,13 @@ class CalendarCache {
       DCHECK(U_SUCCESS(status));
     }
 
-    if (map_.size() > 8) {  // Cache at most 9 calendars.
-      map_.clear();
-    }
+    ClearCacheIfFull(map_);
     map_[key] = std::move(calendar);
     return map_[key]->clone();
   }
 
  private:
-  std::map<std::string, std::unique_ptr<icu::Calendar>> map_;
+  IntlCacheMap<icu::Calendar> map_;
   base::Mutex mutex_;
 };
 
@@ -2273,9 +2285,7 @@ class DateFormatCache {
       return static_cast<icu::SimpleDateFormat*>(it->second->clone());
     }
 
-    if (map_.size() > 8) {  // Cache at most 9 DateFormats.
-      map_.clear();
-    }
+    ClearCacheIfFull(map_);
     std::unique_ptr<icu::SimpleDateFormat> instance(
         CreateICUDateFormat(icu_locale, skeleton, generator, hc));
     if (instance == nullptr) return nullptr;
@@ -2284,7 +2294,7 @@ class DateFormatCache {
   }
 
  private:
-  std::map<std::string, std::unique_ptr<icu::SimpleDateFormat>> map_;
+  IntlCacheMap<icu::SimpleDateFormat> map_;
   base::Mutex mutex_;
 };
 
@@ -2541,9 +2551,8 @@ class DateTimePatternGeneratorCache {
         orig = icu::DateTimePatternGenerator::createInstance("root", status);
       }
       if (U_SUCCESS(status) && orig != nullptr) {
-        if (v8_flags.intl_date_time_pattern_generator_cache_eviction &&
-            map_.size() > 8) {  // Cache at most 9 generators.
-          map_.clear();
+        if (v8_flags.intl_date_time_pattern_generator_cache_eviction) {
+          ClearCacheIfFull(map_);
         }
         map_[key].reset(orig);
       } else {
@@ -2561,7 +2570,7 @@ class DateTimePatternGeneratorCache {
   }
 
  private:
-  std::map<std::string, std::unique_ptr<icu::DateTimePatternGenerator>> map_;
+  IntlCacheMap<icu::DateTimePatternGenerator> map_;
   base::Mutex mutex_;
 };
 
