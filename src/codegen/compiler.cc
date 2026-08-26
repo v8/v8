@@ -2714,6 +2714,9 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
   */
   Tagged<WeakFixedArray> infos = script->infos();
   uint32_t length = infos->ulength().value();
+  bool may_have_parallel_tasks =
+      flags_.post_parallel_compile_tasks_for_eager_toplevel() ||
+      flags_.post_parallel_compile_tasks_for_lazy();
   for (uint32_t i = 0; i < length; ++i) {
     Tagged<MaybeObject> maybe_obj = infos->get(i);
     Tagged<HeapObject> obj;
@@ -2721,10 +2724,16 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     if (Tagged<SharedFunctionInfo> shared; TryCast(obj, &shared)) {
       // Once all compilation jobs are over, and before merging, we expect that
       // a function is either compiled (HasBytecodeArray) or is ready for lazy
-      // compilation (HasUncompiledData). Function here are all user defined
-      // functions and should not have a builtin_id.
-      DCHECK(!shared->HasBuiltinId());
-      DCHECK(shared->HasBytecodeArray() || shared->HasUncompiledData(isolate));
+      // compilation (HasUncompiledData). Functions here are all user defined
+      // functions and should not have a builtin_id (unless parallel compilation
+      // is enabled and the function is still in the dispatcher queue).
+      DCHECK_IMPLIES(!may_have_parallel_tasks, !shared->HasBuiltinId());
+      DCHECK_IMPLIES(may_have_parallel_tasks,
+                     !shared->HasBuiltinId() ||
+                         shared->builtin_id() == Builtin::kCompileLazy);
+      DCHECK(shared->HasBytecodeArray() || shared->HasUncompiledData(isolate) ||
+             (may_have_parallel_tasks &&
+              shared->builtin_id() == Builtin::kCompileLazy));
     }
   }
 #endif
