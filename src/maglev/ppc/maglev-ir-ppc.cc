@@ -93,14 +93,16 @@ void Int32IncrementWithOverflow::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   Register out = ToRegister(result());
-    __ li(r0, Operand(1));
-    __ add(out, value, r0, SetOE);
-    __ MoveToCrFromXer(cr0);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
+  __ li(scratch, Operand(1));
+  __ add(out, value, scratch, SetOE);
+  __ MoveToCrFromXer(cr0);
 
-    // Output register must not be a register input into the eager deopt info.
-    DCHECK_REGLIST_EMPTY(RegList{out} &
-                         GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
-    __ EmitEagerDeoptIf(overflow32, DeoptimizeReason::kOverflow, this);
+  // Output register must not be a register input into the eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(overflow32, DeoptimizeReason::kOverflow, this);
 
   __ extsw(out, out);
 }
