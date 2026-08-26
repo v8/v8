@@ -3572,8 +3572,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Stack unwinding and popchk shadow stack  before function return.
   // The num_frames_above_handler been modified in
   // Runtime::kUnwindAndFindExceptionHandler.
-  ER num_frames_above_pending_handler_address = ER::Create(
-      IsolateAddressId::kNumFramesAbovePendingHandlerAddress, masm->isolate());
   __ LoadWord(t1,
               __ AsMemOperand(IsolateFieldId::kNumFramesAbovePendingHandler));
   Label popchk_start;
