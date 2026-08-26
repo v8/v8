@@ -4616,19 +4616,24 @@ void MacroAssembler::AddOverflow_d(Register dst, Register left,
          overflow != scratch);
   DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
          overflow != scratch2);
-  // If left and right are the same register, dst must be a different register.
-  DCHECK(left != right_reg || dst != left);
 
-  if (dst == left) {
+  if (dst != left) {
+    slti(scratch, right_reg, 0);
+    add_d(dst, left, right_reg);
+    slt(scratch2, dst, left);
+    xor_(overflow, scratch, scratch2);
+  } else if (left != right_reg) {
+    // dst == left
     slti(scratch, left, 0);
     add_d(dst, right_reg, left);
     slt(scratch2, dst, right_reg);
     xor_(overflow, scratch, scratch2);
   } else {
-    slti(scratch, right_reg, 0);
-    add_d(dst, left, right_reg);
-    slt(scratch2, dst, left);
-    xor_(overflow, scratch, scratch2);
+    // dst == left == right_reg
+    add_d(scratch2, left, left);
+    xor_(overflow, scratch2, left);
+    slti(overflow, overflow, 0);
+    mov(dst, scratch2);
   }
 }
 
