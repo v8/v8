@@ -5404,6 +5404,11 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableStringPrepareForGetCodeUnit(string);
   }
 
+  V<Object> LoadWasmTypeInfo(V<Map> map) {
+    int offset = offsetof(Map, constructor_or_back_pointer_or_native_context_);
+    return Load(map, LoadOp::Kind::TaggedBase().Immutable(),
+                MemoryRepresentation::TaggedPointer(), offset);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_ENABLE_SIMD128

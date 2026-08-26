@@ -146,7 +146,8 @@ class TypeCanonicalizer {
   SharedFlag IsShared(CanonicalTypeIndex index) const;
   bool has_descriptor(CanonicalTypeIndex index) const;
 
-  // Currently only used for heap verification.
+  // TODO(manoskouk): Implement a fast version of this if we have evidence that
+  // it is needed.
   uint8_t GetSubtypingDepth_Slow(CanonicalTypeIndex index) const {
     uint8_t depth = 0;
     const CanonicalType* type = canonical_types_[index];

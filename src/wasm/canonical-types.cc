@@ -618,7 +618,6 @@ void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
 SharedFlag TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {
   return canonical_types_[index]->is_shared;
 }
-// Currently only used for heap verification.
 bool TypeCanonicalizer::has_descriptor(CanonicalTypeIndex index) const {
   return canonical_types_[index]->descriptor.valid();
 }

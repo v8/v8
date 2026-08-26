@@ -932,7 +932,7 @@ class WasmLoweringReducer : public Next {
         __ TrapIfNot(is_wasm_obj, frame_state, TrapId::kTrapIllegalCast);
       }
 
-      V<Object> type_info = LoadWasmTypeInfo(map);
+      V<Object> type_info = __ LoadWasmTypeInfo(map);
       DCHECK_GE(rtt_depth, 0);
       // If the depth of the rtt is known to be less that the minimum supertype
       // array length, we can access the supertype without bounds-checking the
@@ -1011,7 +1011,7 @@ class WasmLoweringReducer : public Next {
         GOTO_IF_NOT(LIKELY(is_wasm_obj), end_label, 0);
       }
 
-      V<Object> type_info = LoadWasmTypeInfo(map);
+      V<Object> type_info = __ LoadWasmTypeInfo(map);
       DCHECK_GE(rtt_depth, 0);
       // If the depth of the rtt is known to be less that the minimum supertype
       // array length, we can access the supertype without bounds-checking the
@@ -1119,12 +1119,6 @@ class WasmLoweringReducer : public Next {
         __ Word32Sub(instance_type, FIRST_WASM_OBJECT_TYPE);
     return __ Uint32LessThanOrEqual(
         comparison_value, LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE);
-  }
-
-  V<Object> LoadWasmTypeInfo(V<Map> map) {
-    int offset = offsetof(Map, constructor_or_back_pointer_or_native_context_);
-    return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
-                   MemoryRepresentation::TaggedPointer(), offset);
   }
 
   std::pair<bool, bool> null_checks_for_struct_op(CheckForNull null_check,

@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --wasm-custom-descriptors
+// (for exact types)
+
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let instance = (() => {
@@ -45,6 +48,7 @@ let instance = (() => {
     struct: kWasmStructRef,
     array: kWasmArrayRef,
     raw_struct: struct,
+    raw_struct_exact: struct,
     raw_sub_struct: sub_struct,
     raw_array: array,
     typed_func: sig,
@@ -60,13 +64,18 @@ let instance = (() => {
 
   for (key in test_types) {
     let type = wasmRefNullType(test_types[key]);
+    if (key == 'raw_struct_exact') type = type.exact();
     builder.addFunction(key + '_id', makeSig([type], [type]))
         .addBody([kExprLocalGet, 0])
         .exportFunc();
+    let type_encoding = key == 'raw_struct_exact'
+        ? [kWasmExact, ...wasmSignedLeb(test_types[key])]
+        : wasmSignedLeb(test_types[key]);
     builder.addFunction(key + '_null', makeSig([], [type]))
-        .addBody([kExprRefNull, ...wasmSignedLeb(test_types[key])])
+        .addBody([kExprRefNull, ...type_encoding])
         .exportFunc();
     let non_null_type = wasmRefType(test_types[key]);
+    if (key == 'raw_struct_exact') type = type.exact();
     builder.addFunction(key + "_non_null_id",
                         makeSig([non_null_type], [non_null_type]))
         .addBody([kExprLocalGet, 0])
@@ -218,6 +227,14 @@ assertThrows(
 instance.exports.raw_struct_id(instance.exports.sub_struct_producer());
 assertThrows(
   () => instance.exports.raw_sub_struct_id(instance.exports.struct_producer()),
+  TypeError,
+  'type incompatibility when transforming from/to JS');
+
+// We can roundtrip a struct as an exact type, but not its subtype.
+instance.exports.raw_struct_exact_id(instance.exports.struct_producer());
+assertThrows(
+  () => instance.exports.raw_struct_exact_id(
+    instance.exports.sub_struct_producer()),
   TypeError,
   'type incompatibility when transforming from/to JS');
 
