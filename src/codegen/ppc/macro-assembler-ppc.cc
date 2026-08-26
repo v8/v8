@@ -1689,8 +1689,10 @@ void MacroAssembler::CompareTaggedRoot(const Register& obj, RootIndex index) {
   // Some smi roots contain system pointer size values like stack limits.
   DCHECK(base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                          RootIndex::kLastStrongOrReadOnlyRoot));
-  LoadRoot(r0, index);
-  CompareTagged(obj, r0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadRoot(scratch, index);
+  CompareTagged(obj, scratch);
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
