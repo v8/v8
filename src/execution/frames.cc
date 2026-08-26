@@ -685,6 +685,24 @@ bool StackFrameIteratorForProfiler::HasValidExitIfEntryFrame(
     const StackFrame* frame) const {
   if (!frame->is_entry() && !frame->is_construct_entry()) return true;
 
+  // See EntryFrame::GetCallerState. It checks the fast C call caller FP
+  // and if it's not null, it uses it. We need to be sure that caller FP
+  // address is valid to avoid an unaligned read in
+  // GetStateForFastCCallCallerFP.
+  Address next_fast_c_call_fp_address =
+      frame->fp() + EntryFrameConstants::kNextFastCallFrameFPOffset;
+  MSAN_MEMORY_IS_INITIALIZED(next_fast_c_call_fp_address, kSystemPointerSize);
+  Address next_fast_c_call_fp = Memory<Address>(next_fast_c_call_fp_address);
+  if (next_fast_c_call_fp != kNullAddress) {
+    if (!IsAligned(next_fast_c_call_fp, kSystemPointerSize) ||
+        !IsValidStackAddress(next_fast_c_call_fp)) {
+      return false;
+    }
+    // EntryFrame::GetCallerState will use this FP and won't read the
+    // next_exit_frame_fp, so we don't need to validate it.
+    return true;
+  }
+
   // See EntryFrame::GetCallerState. It computes the caller FP address
   // and calls ExitFrame::GetStateForFramePointer on it. We need to be
   // sure that caller FP address is valid.
