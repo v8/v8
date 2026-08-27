@@ -116,7 +116,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '940e80830ad7b176f7b5ef129ca2683006fb4c7e',
+  'partition_alloc_version': '46c370799fc1274f0bb0393abed545e57a482027',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -161,7 +161,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0aa1c79010213b38d8e4abb1499cdd84e1778685',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f86f716fabdcf632467c4f060659093cc4e19af1',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6f6a5dbf04b734214f3b1f386567d101ec9d607e',
   'buildtools/linux64': {
@@ -260,7 +260,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '1d18f6e11082de030c45fd55b556d15e3aa628a8',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '8646ee9101b75868402b313454744f667734db02',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -278,7 +278,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '50dfc838053981ae5d84530fce6822c30f37a9ab',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '10ecc97a648755dcb12c3e9d82ff4031f850b279',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -545,7 +545,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '13cb6e5d223dc49eadd082d3aef4c2a5b0e4c0a0',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'f58f7cbc8cc046f3bb7b41e951b1444f0b2e490c',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '9280b8221cc41c9b49025e4c7be3cb37a69645fc',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
