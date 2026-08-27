@@ -1428,7 +1428,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
   switch (node->ValueInput().node()->IsTheHole()) {
     case Tribool::kTrue: {
       return ThrowAndTruncate(Throw::kThrowAccessedUninitializedVariable,
-                              node->ValueInput().node());
+                              reducer_.GetConstant(node->name()));
     }
     case Tribool::kFalse:
       // Not the hole; removing.
