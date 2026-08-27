@@ -1984,7 +1984,13 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
       case MachineRepresentation::kTaggedPointer:  // Fall through.
       case MachineRepresentation::kTagged:
         DCHECK_EQ(AtomicWidthSize(width), kTaggedSize);
-        code = kRiscvStoreCompressTagged;
+        code = kRiscvAtomicStoreCompressTagged;
+        break;
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:
+        DCHECK(COMPRESS_POINTERS_BOOL);
+        DCHECK_EQ(width, AtomicWidth::kWord32);
+        code = kRiscvAtomicStoreCompressTagged;
         break;
       default:
         UNREACHABLE();

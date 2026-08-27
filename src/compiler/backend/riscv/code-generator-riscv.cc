@@ -2795,9 +2795,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvAtomicStoreCompressTagged: {
-      size_t index = 0;
-      MemOperand mem = i.MemoryOperand(&index);
-      __ AtomicStoreTaggedField(i.InputOrZeroRegister(index), mem, trapper);
+      MemOperand mem = i.MemoryOperand(1);
+      __ AtomicStoreTaggedField(i.InputOrZeroRegister(0), mem, trapper);
       break;
     }
     case kRiscvLoadDecompressTrapping: {
