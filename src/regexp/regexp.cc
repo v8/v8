@@ -6,6 +6,7 @@
 
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/handles/global-handles-inl.h"
@@ -1223,6 +1224,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
         is_one_byte = current_is_one_byte;
         continue;
       }
+      SYNCHRONIZATION_POINT("IrregexpExecRaw_JIT");
       // The stack is used to allocate registers for the compiled regexp code.
       // This means that in case of failure, the output registers array is left
       // untouched and contains the capture results from the previous successful
