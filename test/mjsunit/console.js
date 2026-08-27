@@ -30,6 +30,22 @@ console.timeEnd();
 console.time("a");
 console.timeEnd("a");
 
+assertThrows(() => console.time({
+  toString() { throw new CustomError(); }
+}), CustomError);
+
+assertThrows(() => console.timeEnd({
+  toString() { throw new CustomError(); }
+}), CustomError);
+
+assertThrows(() => console.timeLog({
+  toString() { throw new CustomError(); }
+}), CustomError);
+
+assertThrows(() => console.timeStamp({
+  toString() { throw new CustomError(); }
+}), CustomError);
+
 console.timeStamp();
 args.forEach(each => console.timeStamp(each));
 

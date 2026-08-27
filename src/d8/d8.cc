@@ -3739,11 +3739,8 @@ void Shell::WriteStdout(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void Shell::WriteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
-  String::Utf8Value file_name(isolate, info[0]);
-  if (*file_name == nullptr) {
-    ThrowError(isolate, "Error converting filename to string");
-    return;
-  }
+  SafeUtf8Value file_name(isolate, info[0]);
+  if (!file_name) return;
   FILE* file;
   if (info.Length() == 2 &&
       (info[1]->IsArrayBuffer() || info[1]->IsArrayBufferView())) {
@@ -3781,14 +3778,12 @@ void Shell::WriteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void Shell::ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
-  String::Utf8Value file_name(isolate, info[0]);
-  if (*file_name == nullptr) {
-    ThrowError(isolate, "Error converting filename to string");
-    return;
-  }
+  SafeUtf8Value file_name(isolate, info[0]);
+  if (!file_name) return;
   if (info.Length() == 2) {
-    String::Utf8Value format(isolate, info[1]);
-    if (*format && std::strcmp(*format, "binary") == 0) {
+    SafeUtf8Value format(isolate, info[1]);
+    if (!format) return;
+    if (std::strcmp(*format, "binary") == 0) {
       ReadBuffer(info);
       return;
     }
@@ -3804,11 +3799,8 @@ void Shell::CreateWasmMemoryMapDescriptor(
   Isolate* isolate = info.GetIsolate();
   CHECK(i::v8_flags.wasm_memory_control);
   DCHECK(i::ValidateCallbackInfo(info));
-  String::Utf8Value file_name(isolate, info[0]);
-  if (*file_name == nullptr) {
-    ThrowError(isolate, "Error converting filename to string");
-    return;
-  }
+  SafeUtf8Value file_name(isolate, info[0]);
+  if (!file_name) return;
 
   int file_descriptor = open(*file_name, O_RDWR);
 
@@ -3874,13 +3866,8 @@ void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   for (int i = 0; i < info.Length(); i++) {
     if (isolate->IsExecutionTerminating()) return;
     HandleScope handle_scope(isolate);
-    String::Utf8Value file_name(isolate, info[i]);
-    if (*file_name == nullptr) {
-      std::ostringstream oss;
-      oss << "Cannot convert file[" << i << "] name to string.";
-      ThrowError(isolate, oss.view());
-      return;
-    }
+    SafeUtf8Value file_name(isolate, info[i]);
+    if (!file_name) return;
     if (!ExecuteSource(
             isolate, Source::FromFile(*file_name),
             String::NewFromUtf8(isolate, *file_name).ToLocalChecked(),
@@ -4836,11 +4823,8 @@ void Shell::ChangeDirectoryCallback(
     ThrowError(isolate, "chdir() takes one argument");
     return;
   }
-  String::Utf8Value directory(isolate, info[0]);
-  if (*directory == nullptr) {
-    ThrowError(isolate, "os.chdir(): String conversion of argument failed.");
-    return;
-  }
+  SafeUtf8Value directory(isolate, info[0]);
+  if (!directory) return;
   if (!Shell::ChangeWorkingDirectory(*directory, /*print_error=*/false)) {
     ThrowError(isolate, "os.chdir(): Failed to change directory");
     return;
@@ -5774,11 +5758,8 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
   static_assert(sizeof(char) == sizeof(uint8_t),
                 "char and uint8_t should both have 1 byte");
   Isolate* isolate = info.GetIsolate();
-  String::Utf8Value filename(isolate, info[0]);
-  if (*filename == nullptr) {
-    ThrowError(isolate, "Error loading file");
-    return;
-  }
+  SafeUtf8Value filename(isolate, info[0]);
+  if (!filename) return;
 
   base::OwnedVector<char> data = ReadChars(*filename);
   if (data.data() == nullptr) {
@@ -6070,7 +6051,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     v8::HandleScope handle_scope(isolate);
     Local<Context> context = isolate->GetCurrentContext();
     info.GetReturnValue().Set(Undefined(isolate));
-    Local<String> message = info[0]->ToString(context).ToLocalChecked();
+    Local<String> message;
+    if (!info[0]->ToString(context).ToLocal(&message)) return;
     v8_inspector::V8InspectorSession* session =
         InspectorClient::GetSession(context);
     if (!session) return;

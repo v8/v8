@@ -62,6 +62,36 @@ inline Local<Value> ThrowException(Isolate* isolate, Local<Value> exception) {
   return isolate->ThrowException(exception);
 }
 
+// Converts a v8::Value to a UTF-8 string safely.
+// Unlike v8::String::Utf8Value, this does not swallow user exceptions or
+// terminate silently on string conversion failure.
+class SafeUtf8Value {
+ public:
+  SafeUtf8Value(Isolate* isolate, Local<Value> value)
+      : SafeUtf8Value(isolate, isolate->GetCurrentContext(), value) {}
+
+  SafeUtf8Value(Isolate* isolate, Local<Context> context, Local<Value> value) {
+    if (value.IsEmpty()) return;
+    Local<String> str;
+    if (value->ToString(context).ToLocal(&str)) {
+      utf8_.emplace(isolate, str);
+    }
+  }
+
+  bool is_valid() const { return utf8_.has_value(); }
+  explicit operator bool() const { return is_valid(); }
+
+  const char* operator*() const { return is_valid() ? **utf8_ : nullptr; }
+  char* operator*() { return is_valid() ? **utf8_ : nullptr; }
+  size_t length() const { return is_valid() ? utf8_->length() : 0; }
+  std::string_view as_view() const {
+    return is_valid() ? utf8_->as_view() : std::string_view();
+  }
+
+ private:
+  std::optional<v8::String::Utf8Value> utf8_;
+};
+
 class BackingStore;
 class CompiledWasmModule;
 class D8Console;

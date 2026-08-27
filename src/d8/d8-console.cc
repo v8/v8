@@ -58,10 +58,8 @@ static constexpr const char* kCpuProfileOutputFilename = "v8.prof";
 std::optional<std::string> GetTimerLabel(
     const debug::ConsoleCallArguments& args) {
   if (args.Length() == 0) return "default";
-  Isolate* isolate = args.GetIsolate();
-  v8::TryCatch try_catch(isolate);
-  v8::String::Utf8Value label(isolate, args[0]);
-  if (*label == nullptr) return std::nullopt;
+  SafeUtf8Value label(args.GetIsolate(), args[0]);
+  if (!label) return std::nullopt;
   return std::string(*label, label.length());
 }
 
