@@ -559,6 +559,9 @@
   # https://crbug.com/v8/13461
   'maglev/inner-function': [SKIP],
 
+  # https://crbug.com/552791801
+  'maglev/float64-conversions': [SKIP],
+
   # https://crbug.com/v8/13916
   'readonly': [SKIP],
 
