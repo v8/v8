@@ -3650,6 +3650,10 @@ void Shell::ResetOnProfileEndListener(Isolate* isolate) {
 
 void Shell::ProfilerTriggerSample(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
+  // If the inspector is enabled, then the installed console is not the
+  // D8Console.
+  if (options.enable_inspector) return;
+
   Isolate* isolate = info.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   D8Console* console =
