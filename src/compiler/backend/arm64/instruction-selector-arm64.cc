@@ -1687,6 +1687,33 @@ static bool TryMatchConditionalCompareChain(InstructionSelector* selector,
 
 }  // end namespace turboshaft
 
+// Per-arch ccmp cascade hooks (driven by TryCascadeCcmpFuseOrEmit in
+// instruction-selector.cc). ccmp is native on ARM64, so always available.
+bool InstructionSelector::SupportsCcmpBranchCascade() const { return true; }
+
+bool InstructionSelector::CcmpCascadeConstantOk(OpIndex node,
+                                                bool is_ccmp_operand) {
+  // Gate on the range each operand is actually emitted with: ccmp's immediate
+  // range is much narrower than cmp's. A constant in between would be emitted
+  // as a register by VisitCompareChain, but the now-dead fused block never
+  // materializes it (use without a definition).
+  Arm64OperandGenerator g(this);
+  return g.CanBeImmediate(
+      node, is_ccmp_operand ? kConditionalCompareImm : kArithmeticImm);
+}
+
+InstructionCode InstructionSelector::CcmpCmpOpcode(
+    RegisterRepresentation rep) const {
+  return Arm64GetCmpOpcode(rep, /*is_test=*/false);
+}
+
+void InstructionSelector::EmitCcmpCompareChain(
+    compare_chain::CompareSequence& sequence, RegisterRepresentation rep,
+    FlagsContinuation* cont) {
+  VisitCompareChain(this, sequence.left(), sequence.right(), rep,
+                    sequence.opcode(), kArithmeticImm, cont);
+}
+
 static void VisitLogical(InstructionSelector* selector, Zone* zone,
                          OpIndex node, WordRepresentation rep,
                          ArchOpcode opcode, bool left_can_cover,

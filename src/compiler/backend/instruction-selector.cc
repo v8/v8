@@ -93,6 +93,10 @@ InstructionSelector::InstructionSelector(
       node_count_(node_count),
       phi_states_(zone)
 #endif
+#if V8_TARGET_ARCH_ARM64 || defined(V8_ENABLE_APX_F)
+      ,
+      ccmp_cascade_info_(zone)
+#endif
 {
   turboshaft_use_map_.emplace(*schedule_, zone);
   trapping_loads_to_remove_.emplace(static_cast<int>(node_count), zone);
@@ -2736,6 +2740,178 @@ void InstructionSelector::VisitRetain(OpIndex node) {
   Emit(kArchNop, g.NoOutput(), g.UseAny(retain.retained()));
 }
 
+#if V8_TARGET_ARCH_ARM64 || defined(V8_ENABLE_APX_F)
+namespace {
+// Returns the sole Goto target of `block` iff `block` contains nothing but a
+// single Goto; otherwise nullptr.
+Block* GetSingleGotoTarget(const Block* block, const Graph* graph) {
+  const Operation& first = block->FirstOperation(*graph);
+  const GotoOp* goto_op = first.TryCast<GotoOp>();
+  if (!goto_op) return nullptr;
+  DCHECK_EQ(&first, &block->LastOperation(*graph));
+  return goto_op->destination;
+}
+
+// Follows a chain of empty single-Goto blocks (edge-split pads).
+// Returns the final real target, or the direct predecessor of `stop_before`
+// on the chain if provided.
+constexpr int kMaxGotoDepth = 16;
+const Block* ResolveThroughEmptyGotos(const Block* block, const Graph* graph,
+                                      const Block* stop_before = nullptr) {
+  for (int depth = 0; depth < kMaxGotoDepth; ++depth) {
+    Block* next = GetSingleGotoTarget(block, graph);
+    if (!next || next == stop_before) break;
+    block = next;
+  }
+  return block;
+}
+}  // namespace
+
+// Rewrites `if (x==C1) goto T1; else if (x==C2) goto T2; else goto F;` (T1/T2
+// identical or merging with matching phi inputs) into a single ccmp chain. CFG
+// analysis is arch-independent; ccmp emission goes through the per-arch hooks.
+//
+// The two branch blocks:
+//  * Block A is the head block. Its branch tests `x==C1` with if_true=T1 and
+//    if_false=Block B.
+//  * Block B is Block A's if_false successor. Its branch tests `x==C2` with
+//    if_true=T2 and if_false=F.
+//
+// Blocks are visited in reversed RPO, so Block B is visited before Block A.
+// That ordering drives the two stages, keyed on ccmp_cascade_info_:
+//  * Case 1 (visiting Block B): validate the pattern, record Block A in the map
+//    for Case 2 to consume, and rewrite Block B into a plain Goto to F. Block A
+//    is only recorded here, not yet rewritten.
+//  * Case 2 (visiting Block A): Block A is found in the map, so emit the fused
+//    ccmp branch in place of Block A's original branch.
+bool InstructionSelector::TryCascadeCcmpFuseOrEmit(OpIndex node, Block* tbranch,
+                                                   Block* fbranch) {
+  if (!SupportsCcmpBranchCascade()) return false;
+
+  const Block* block = current_block();
+  const Graph* graph = turboshaft_graph();
+
+  // Case 2: Current block is the head of a cascade (info stored by Case 1).
+  if (ccmp_cascade_info_.find(block->index().id()) !=
+      ccmp_cascade_info_.end()) {
+    EmitCascadeCcmpBranch(node);
+    return true;
+  }
+
+  // Case 1: Check if current block is the fused block (Block B).
+  if (block->PredecessorCount() != 1) return false;
+
+  const Block* block_a = block->LastPredecessor();
+
+  const Operation& a_last_op = block_a->LastOperation(*graph);
+  const BranchOp* branch_a = a_last_op.TryCast<BranchOp>();
+  if (!branch_a) return false;
+  if (branch_a->if_false != block) return false;
+
+  const BranchOp& branch_b = Cast<BranchOp>(node);
+
+  const ComparisonOp* cmp_a =
+      graph->Get(branch_a->condition()).TryCast<Opmask::kWord32Equal>();
+  const ComparisonOp* cmp_b =
+      graph->Get(branch_b.condition()).TryCast<Opmask::kWord32Equal>();
+  if (!cmp_a || !cmp_b) return false;
+  if (cmp_a->left() != cmp_b->left()) return false;
+
+  // Both comparisons must be exclusively used by their branch.
+  // If a comparison has other users (e.g. deoptimization frame states),
+  // the CCMP chain won't materialize the boolean result those users need.
+  if (!cmp_a->saturated_use_count.Is(1)) return false;
+  if (!cmp_b->saturated_use_count.Is(1)) return false;
+
+  // Only fuse when both RHS constants are cheap immediates. cmp_a is the
+  // initial compare, cmp_b the fused ccmp (tighter immediate range).
+  if (!CcmpCascadeConstantOk(cmp_a->right(), /*is_ccmp_operand=*/false)) {
+    return false;
+  }
+  if (!CcmpCascadeConstantOk(cmp_b->right(), /*is_ccmp_operand=*/true)) {
+    return false;
+  }
+
+  Block* t1 = branch_a->if_true;
+  Block* t2 = tbranch;
+  Block* final_false = fbranch;
+
+  // Both true edges must reach the same block (resolving through edge-split
+  // pads).
+  const Block* merge = ResolveThroughEmptyGotos(t1, graph);
+  if (merge != ResolveThroughEmptyGotos(t2, graph)) {
+    return false;
+  }
+
+  if (final_false->PredecessorCount() != 1) return false;
+
+  // Fusing routes x==C2 through T1's edge and drops the T2 edge, so the merge
+  // block's phis must take the same input from both edges; otherwise the
+  // T2-edge value is picked wrong and orphaned (use without a definition).
+  if (t1 != t2 && merge->HasPhis(*graph)) {
+    const Block* pred1 = ResolveThroughEmptyGotos(t1, graph, merge);
+    const Block* pred2 = ResolveThroughEmptyGotos(t2, graph, merge);
+    int idx1 = merge->GetPredecessorIndex(pred1);
+    int idx2 = merge->GetPredecessorIndex(pred2);
+    DCHECK_NE(idx1, Block::kInvalidPredecessorIndex);
+    DCHECK_NE(idx2, Block::kInvalidPredecessorIndex);
+    for (const Operation& phi_op : graph->operations(*merge)) {
+      const PhiOp* phi = phi_op.TryCast<PhiOp>();
+      if (!phi) continue;
+      if (phi->input(idx1) != phi->input(idx2)) return false;
+    }
+  }
+
+  for (const auto& pure_op :
+       base::IterateWithoutLast(graph->operations(*block))) {
+    if (!pure_op.Effects().hoistable_before_a_branch()) return false;
+  }
+
+  // Record Block A for Case 2 to consume, and make Block B a Goto to F:
+  // reaching Block B means the ccmp already proved x != C1 && x != C2, so its
+  // branch is dead.
+  ccmp_cascade_info_[block_a->index().id()] = {t1, final_false};
+  VisitGoto(final_false);
+
+  return true;
+}
+
+// Case 2 emission: builds the two-element ccmp chain (`x==C1` head, `x==C2`
+// fused) and branches to the head's original targets. Block B was already
+// rewritten to Goto->F by Case 1.
+void InstructionSelector::EmitCascadeCcmpBranch(OpIndex node) {
+  const Graph* graph = turboshaft_graph();
+  const BranchOp& head_branch = Cast<BranchOp>(node);
+  const ComparisonOp& head_cmp =
+      graph->Get(head_branch.condition()).Cast<ComparisonOp>();
+
+  const Block* fused_block = head_branch.if_false;
+  const BranchOp& fused_branch =
+      fused_block->LastOperation(*graph).Cast<BranchOp>();
+  const ComparisonOp& fused_cmp =
+      graph->Get(fused_branch.condition()).Cast<ComparisonOp>();
+
+  compare_chain::CompareSequence sequence;
+  sequence.InitialCompare(head_branch.condition(), head_cmp.left(),
+                          head_cmp.right(), CcmpCmpOpcode(head_cmp.rep));
+
+  FlagsCondition head_cond = FlagsCondition::kEqual;
+  FlagsCondition fused_cond = FlagsCondition::kEqual;
+  FlagsCondition ccmp_condition = NegateFlagsCondition(head_cond);
+  FlagsCondition default_flags = fused_cond;
+
+  sequence.AddConditionalCompare(CcmpCmpOpcode(fused_cmp.rep), ccmp_condition,
+                                 default_flags, fused_cmp.left(),
+                                 fused_cmp.right());
+
+  FlagsContinuation cont = FlagsContinuation::ForConditionalBranch(
+      sequence.ccmps(), sequence.num_ccmps(), fused_cond, head_branch.if_true,
+      head_branch.if_false);
+
+  EmitCcmpCompareChain(sequence, head_cmp.rep, &cont);
+}
+#endif  // V8_TARGET_ARCH_ARM64 || V8_ENABLE_APX_F
+
 void InstructionSelector::VisitControl(const Block* block) {
 #ifdef DEBUG
   // SSA deconstruction requires targets of branches not to have phis.
@@ -2780,6 +2956,10 @@ void InstructionSelector::VisitControl(const Block* block) {
       Block* fbranch = branch.if_false;
       if (tbranch == fbranch) {
         VisitGoto(tbranch);
+#if V8_TARGET_ARCH_ARM64 || defined(V8_ENABLE_APX_F)
+      } else if (TryCascadeCcmpFuseOrEmit(node, tbranch, fbranch)) {
+        // Cascade CCMP handled the branch.
+#endif
       } else {
         VisitBranch(node, tbranch, fbranch);
       }

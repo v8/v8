@@ -9,6 +9,7 @@
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/objects/objects-inl.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/compiler/backend/turboshaft-instruction-selector-unittest.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2288,6 +2289,245 @@ TEST_P(TurboshaftInstructionSelectorAddSub128Test,
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorAddSub128Test,
                          ::testing::ValuesIn(kAddOrSub128));
+
+// -----------------------------------------------------------------------------
+// CCMP branch-cascade fusion.
+
+namespace {
+// Returns the fused cascade instruction, or nullptr if the cascade was not
+// fused. The fused instruction is the one with a conditional-branch flags-mode.
+const Instruction* FindFusedCcmpBranch(
+    const TurboshaftInstructionSelectorTest::Stream& s) {
+  const Instruction* found = nullptr;
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (s[i]->flags_mode() == kFlags_conditional_branch) {
+      EXPECT_EQ(nullptr, found);
+      found = s[i];
+    }
+  }
+  return found;
+}
+}  // namespace
+
+TEST_F(TurboshaftInstructionSelectorTest, CcmpBranchCascadeEligible) {
+#ifdef V8_ENABLE_APX_F
+  FlagScope<bool> ccmp(&v8_flags.enable_apx_f_ccmp, true);
+  CpuFeatures::SetSupported(APX_F);
+#endif
+  if (!UseApxCcmp()) return;
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    const Instruction* ccmp_insn = FindFusedCcmpBranch(s);
+    ASSERT_NE(nullptr, ccmp_insn);
+    EXPECT_EQ(kX64Cmp32, ccmp_insn->arch_opcode());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    OpIndex shared = m.Parameter(1);
+    Block *t1 = m.NewBlock(), *t2 = m.NewBlock(), *b = m.NewBlock();
+    Block *merge = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(3)), t1, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(4)), t2, f);
+    m.Bind(t1);
+    m.Goto(merge);
+    m.Bind(t2);
+    m.Goto(merge);
+    m.Bind(merge);
+    OpIndex phi = m.Phi(MachineRepresentation::kWord32, shared, shared);
+    m.Return(phi);
+    m.Bind(f);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    EXPECT_NE(nullptr, FindFusedCcmpBranch(s));
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(100)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_NE(nullptr, FindFusedCcmpBranch(s));
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, CcmpBranchCascadeIneligible) {
+#ifdef V8_ENABLE_APX_F
+  FlagScope<bool> ccmp(&v8_flags.enable_apx_f_ccmp, true);
+  CpuFeatures::SetSupported(APX_F);
+#endif
+  if (!UseApxCcmp()) return;
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    OpIndex y = m.Parameter(1);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(y, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "different variables";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Int32LessThan(x, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "non-equality compare";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int64());
+    OpIndex x = m.Parameter(0);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word64Equal(x, m.Int64Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word64Equal(x, m.Int64Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "word64 representation";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    V<Word32> cond_a = m.Word32Equal(x, m.Int32Constant(1));
+    m.Branch(cond_a, t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(cond_a);
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "head compare has extra use";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    OpIndex y = m.Parameter(1);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, y), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s))
+        << "fused rhs is not an immediate";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *t1 = m.NewBlock(), *t2 = m.NewBlock(), *b = m.NewBlock();
+    Block* f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t1, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t2, f);
+    m.Bind(t1);
+    m.Return(m.Int32Constant(11));
+    m.Bind(t2);
+    m.Return(m.Int32Constant(33));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "true edges do not merge";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    OpIndex v1 = m.Parameter(1);
+    OpIndex v2 = m.Parameter(2);
+    Block *t1 = m.NewBlock(), *t2 = m.NewBlock(), *b = m.NewBlock();
+    Block *merge = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t1, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t2, f);
+    m.Bind(t1);
+    m.Goto(merge);
+    m.Bind(t2);
+    m.Goto(merge);
+    m.Bind(merge);
+    OpIndex phi = m.Phi(MachineRepresentation::kWord32, v1, v2);
+    m.Return(phi);
+    m.Bind(f);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "merge phi inputs differ";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    OpIndex x = m.Parameter(0);
+    Block *head = m.NewBlock(), *t = m.NewBlock(), *b = m.NewBlock();
+    Block* f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(5)), head, b);
+    m.Bind(head);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s))
+        << "fused block has multiple predecessors";
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                    MachineType::Pointer());
+    OpIndex x = m.Parameter(0);
+    OpIndex mem = m.Parameter(1);
+    Block *t = m.NewBlock(), *b = m.NewBlock(), *f = m.NewBlock();
+    m.Branch(m.Word32Equal(x, m.Int32Constant(1)), t, b);
+    m.Bind(b);
+    m.Store(MachineRepresentation::kWord32, mem, m.Int32Constant(0), x,
+            WriteBarrierKind::kNoWriteBarrier);
+    m.Branch(m.Word32Equal(x, m.Int32Constant(2)), t, f);
+    m.Bind(t);
+    m.Return(m.Int32Constant(11));
+    m.Bind(f);
+    m.Return(m.Int32Constant(22));
+    Stream s = m.Build();
+    EXPECT_EQ(nullptr, FindFusedCcmpBranch(s)) << "side effect in fused block";
+  }
+}
 
 #if V8_ENABLE_WEBASSEMBLY
 // -----------------------------------------------------------------------------
