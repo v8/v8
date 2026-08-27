@@ -95,7 +95,7 @@ v8_flag(name = "v8_code_comments")
 
 v8_flag(
     name = "v8_cppgc_microtask_queue",
-    default = False,
+    default = True,
 )
 
 v8_flag(

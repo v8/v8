@@ -11253,15 +11253,6 @@ MicrotaskQueue* MicrotaskQueue::New(Isolate* v8_isolate,
   microtask_queue->set_microtasks_policy(policy);
   return microtask_queue;
 }
-#else
-std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* v8_isolate,
-                                                    MicrotasksPolicy policy) {
-  auto microtask_queue =
-      i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(v8_isolate));
-  microtask_queue->set_microtasks_policy(policy);
-  std::unique_ptr<MicrotaskQueue> ret(std::move(microtask_queue));
-  return ret;
-}
 #endif  // V8_CPPGC_MICROTASK_QUEUE
 
 MicrotasksScope::MicrotasksScope(Local<Context> v8_context,
