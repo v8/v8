@@ -8,10 +8,8 @@ import("//build/dotfile_settings.gni")
 buildconfig = "//build/config/BUILDCONFIG.gn"
 
 # The hermetic Python interpreter to use by default. Platforms without a
-# hermetic CPython CIPD package can opt out by setting
-# the V8_HERMETIC_PYTHON_BYPASS environment variable, which falls back to the
-# system python3 on $PATH.
-if (getenv("V8_HERMETIC_PYTHON_BYPASS") != "") {
+# hermetic CPython CIPD package fallback to the system python3 on $PATH.
+if (host_cpu == "s390x" || host_cpu == "ppc64" || host_os == "zos") {
   script_executable = "python3"
 } else {
   script_executable = "//third_party/cpython3/host/bin/python3"
