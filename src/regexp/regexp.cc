@@ -1183,11 +1183,16 @@ int RegExpImpl::IrregexpPrepare(Isolate* isolate,
   DCHECK(subject->IsFlat());
 
   // Check representation of the underlying storage.
-  bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
-  if (!RegExpImpl::EnsureCompiledIrregexp(isolate, re_data, subject,
-                                          is_one_byte)) {
-    return -1;
-  }
+  // EnsureCompiledIrregexp can allocate and trigger GC, which may alter the
+  // underlying representation of subject.
+  bool is_one_byte;
+  do {
+    is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
+    if (!RegExpImpl::EnsureCompiledIrregexp(isolate, re_data, subject,
+                                            is_one_byte)) {
+      return -1;
+    }
+  } while (is_one_byte != String::IsOneByteRepresentationUnderneath(*subject));
 
   // Only reserve room for output captures. Internal registers are allocated by
   // the engine.
@@ -1210,11 +1215,20 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
   if (!regexp_data->ShouldProduceBytecode()) {
     do {
       EnsureCompiledIrregexp(isolate, regexp_data, subject, is_one_byte);
+      // EnsureCompiledIrregexp can allocate and trigger GC, which may alter the
+      // underlying representation of subject.
+      bool current_is_one_byte =
+          String::IsOneByteRepresentationUnderneath(*subject);
+      if (current_is_one_byte != is_one_byte) {
+        is_one_byte = current_is_one_byte;
+        continue;
+      }
       // The stack is used to allocate registers for the compiled regexp code.
       // This means that in case of failure, the output registers array is left
       // untouched and contains the capture results from the previous successful
       // match.  We can use that to set the last match info lazily.
-      int res = NativeRegExpMacroAssembler::Match(regexp_data, subject, output,
+      int res = NativeRegExpMacroAssembler::Match(regexp_data, subject,
+                                                  is_one_byte, output,
                                                   output_size, index, isolate);
       if (res != NativeRegExpMacroAssembler::RETRY) {
         DCHECK(res != NativeRegExpMacroAssembler::EXCEPTION ||
@@ -1258,8 +1272,13 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
         // The string has changed representation, and we must restart the
         // match. We need to reset the tier up to start over with compilation.
         if (v8_flags.regexp_tier_up) regexp_data->ResetLastTierUpTick();
-        is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
-        EnsureCompiledIrregexp(isolate, regexp_data, subject, is_one_byte);
+        // EnsureCompiledIrregexp can allocate and trigger GC, which may alter
+        // the underlying representation of subject.
+        do {
+          is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
+          EnsureCompiledIrregexp(isolate, regexp_data, subject, is_one_byte);
+        } while (is_one_byte !=
+                 String::IsOneByteRepresentationUnderneath(*subject));
       } else {
         DCHECK(result == IrregexpInterpreter::EXCEPTION ||
                result == IrregexpInterpreter::FALLBACK_TO_EXPERIMENTAL);
