@@ -217,8 +217,8 @@ void AssemblerRiscvBase::GenInstrS(uint8_t funct3, BaseOpcode opcode,
 
 void AssemblerRiscvBase::GenInstrB(uint8_t funct3, BaseOpcode opcode,
                                    Register rs1, Register rs2, int16_t imm13) {
-  DCHECK(is_uint3(funct3) && rs1.is_valid() && rs2.is_valid() &&
-         is_int13(imm13) && ((imm13 & 1) == 0));
+  CHECK(is_uint3(funct3) && rs1.is_valid() && rs2.is_valid() &&
+        is_int13(imm13) && ((imm13 & 1) == 0));
   Instr instr = opcode | ((imm13 & 0x800) >> 4) |  // bit  11
                 ((imm13 & 0x1e) << 7) |            // bits 4-1
                 (funct3 << kFunct3Shift) | (rs1.code() << kRs1Shift) |
@@ -237,7 +237,8 @@ void AssemblerRiscvBase::GenInstrU(BaseOpcode opcode, Register rd,
 
 void AssemblerRiscvBase::GenInstrJ(BaseOpcode opcode, Register rd,
                                    int32_t imm21) {
-  DCHECK(rd.is_valid() && is_int21(imm21) && ((imm21 & 1) == 0));
+  CHECK(is_int21(imm21));
+  DCHECK(rd.is_valid() && ((imm21 & 1) == 0));
   Instr instr = opcode | (rd.code() << kRdShift) |
                 (imm21 & 0xff000) |          // bits 19-12
                 ((imm21 & 0x800) << 9) |     // bit  11
