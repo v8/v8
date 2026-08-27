@@ -99,7 +99,7 @@ in_category(
             "enable_swarming": False,
             "coverage": "llvm",
         },
-        execution_timeout = 7200,
+        execution_timeout = 9000,
         notify_owners = ["machenbach@chromium.org"],
     ),
 )
