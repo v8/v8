@@ -111,7 +111,7 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
       reportError(context, tryCatch, "cannot find context with specified id");
       return false;
     }
-    InjectedScript* injectedScript =
+    std::shared_ptr<InjectedScript> injectedScript =
         inspectedContext->getInjectedScript(sessionId);
     if (!injectedScript) {
       reportError(context, tryCatch, "cannot find context with specified id");
@@ -399,7 +399,7 @@ void generateCustomPreview(v8::Isolate* isolate, int sessionId,
         reportError(context, tryCatch, "cannot find context with specified id");
         return;
       }
-      InjectedScript* injectedScript =
+      std::shared_ptr<InjectedScript> injectedScript =
           inspectedContext->getInjectedScript(sessionId);
       if (!injectedScript) {
         reportError(context, tryCatch, "cannot find context with specified id");

@@ -1865,7 +1865,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
   int frameOrdinal = 0;
   for (; !iterator->Done(); iterator->Advance(), frameOrdinal++) {
     int contextId = iterator->GetContextId();
-    InjectedScript* injectedScript = nullptr;
+    std::shared_ptr<InjectedScript> injectedScript;
     std::shared_ptr<InspectedContext> inspectedContext;
     if (contextId) {
       m_session->findInjectedScript(contextId, injectedScript,
@@ -1878,8 +1878,8 @@ Response V8DebuggerAgentImpl::currentCallFrames(
 
     std::unique_ptr<Array<Scope>> scopes;
     auto scopeIterator = iterator->GetScopeIterator();
-    Response res =
-        buildScopes(m_isolate, scopeIterator.get(), injectedScript, &scopes);
+    Response res = buildScopes(m_isolate, scopeIterator.get(),
+                               injectedScript.get(), &scopes);
     if (!res.IsSuccess()) return res;
 
     std::unique_ptr<RemoteObject> protocolReceiver;
@@ -2246,7 +2246,7 @@ void V8DebuggerAgentImpl::didPause(
     hitReasons.push_back(std::make_pair(
         protocol::Debugger::Paused::ReasonEnum::Assert, nullptr));
   } else if (breakReasons.contains(v8::debug::BreakReason::kException)) {
-    InjectedScript* injectedScript = nullptr;
+    std::shared_ptr<InjectedScript> injectedScript;
     std::shared_ptr<InspectedContext> inspectedContext;
     m_session->findInjectedScript(contextId, injectedScript, &inspectedContext);
     if (injectedScript) {

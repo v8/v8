@@ -66,7 +66,7 @@ class ConsoleHelper {
   int contextId() const { return InspectedContext::contextId(context()); }
   int groupId() const { return m_inspector->contextGroupId(contextId()); }
 
-  InjectedScript* injectedScript(int sessionId) {
+  std::shared_ptr<InjectedScript> injectedScript(int sessionId) {
     m_inspectedContext = m_inspector->getContext(groupId(), contextId());
     if (!m_inspectedContext) return nullptr;
     return m_inspectedContext->getInjectedScript(sessionId);
@@ -765,7 +765,8 @@ void V8Console::lastEvaluationResultCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info, int sessionId) {
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, v8::debug::ConsoleContext(), m_inspector);
-  InjectedScript* injectedScript = helper.injectedScript(sessionId);
+  std::shared_ptr<InjectedScript> injectedScript =
+      helper.injectedScript(sessionId);
   if (!injectedScript) return;
   info.GetReturnValue().Set(injectedScript->lastEvaluationResult());
 }
@@ -778,7 +779,8 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
 
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, v8::debug::ConsoleContext(), inspector);
-  InjectedScript* injectedScript = helper.injectedScript(sessionId);
+  std::shared_ptr<InjectedScript> injectedScript =
+      helper.injectedScript(sessionId);
   if (!injectedScript) return;
   std::unique_ptr<protocol::Runtime::RemoteObject> wrappedObject;
   protocol::Response response = injectedScript->wrapObject(
