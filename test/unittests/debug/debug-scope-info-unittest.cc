@@ -69,6 +69,12 @@ void VerifyScopeTreeParity(Scope* ast_scope, DebugScriptScope debug_scope) {
   EXPECT_EQ(ast_scope->is_hidden(), debug_scope.is_hidden());
   EXPECT_EQ(ast_scope->language_mode(), debug_scope.language_mode());
   EXPECT_EQ(ast_scope->HasThisReference(), debug_scope.has_this_reference());
+  EXPECT_EQ(ast_scope->NeedsContext(), debug_scope.needs_context());
+  if (ast_scope->NeedsContext()) {
+    EXPECT_EQ(ast_scope->UniqueIdInScript(), debug_scope.unique_id_in_script());
+  } else {
+    EXPECT_EQ(-3, debug_scope.unique_id_in_script());
+  }
   if (ast_scope->is_declaration_scope()) {
     DeclarationScope* decl = ast_scope->AsDeclarationScope();
     EXPECT_EQ(decl->is_arrow_scope(), debug_scope.is_arrow_scope());
@@ -359,6 +365,39 @@ TEST_F(DebugScopeInfoTest, ComplexScopeTypes) {
 
   DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
   VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+TEST_F(DebugScopeInfoTest, NeedsContextAndUniqueId) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize(
+      "function outer() {\n"
+      "  let x = 1;\n"
+      "  { let y = 2; return () => x + y; }\n"
+      "}\n"
+      "function noContext() { let a = 1; return a; }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+
+  // Function noContext (1)
+  auto no_ctx = script.first_child();
+  ASSERT_TRUE(no_ctx.has_value());
+  EXPECT_FALSE(no_ctx->needs_context());
+  EXPECT_EQ(no_ctx->unique_id_in_script(), -3);
+
+  // Function outer (2)
+  auto outer = no_ctx->next_sibling();
+  ASSERT_TRUE(outer.has_value());
+  EXPECT_TRUE(outer->needs_context());
+  EXPECT_GE(outer->unique_id_in_script(), 0);
+
+  // Inner block scope (3) inside outer
+  auto block = outer->first_child();
+  ASSERT_TRUE(block.has_value());
+  EXPECT_TRUE(block->needs_context());
+  EXPECT_GE(block->unique_id_in_script(), 0);
+  EXPECT_NE(block->unique_id_in_script(), outer->unique_id_in_script());
 }
 
 }  // namespace internal

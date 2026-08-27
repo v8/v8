@@ -56,6 +56,10 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   bool has_this_reference() const;
   bool has_simple_parameters() const;
   bool sloppy_eval_can_extend_vars() const;
+  bool needs_context() const;
+
+  // Context Info, returns a valid ID only when needs_context() == true.
+  int unique_id_in_script() const;
 
  private:
   DebugScriptScope(DirectHandle<DebugScriptScopeInfo> info, int scope_index,
