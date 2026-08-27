@@ -1471,6 +1471,42 @@ void BaselineCompiler::VisitShiftRightLogicalSmi() {
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 #undef VISIT_TYPED_BINARY_OPERATION
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
+bool BaselineCompiler::TryEmitInlineSmiUnary(
+    BinaryOperationFeedback::Type feedback_type, int feedback_index_offset) {
+  static_assert(kOperation == Operation::kIncrement ||
+                kOperation == Operation::kDecrement);
+  if (!v8_flags.sparkplug_inline_smi) {
+    return false;
+  }
+  if (feedback_type != BinaryOperationFeedback::Type::kSignedSmall) {
+    return false;
+  }
+
+  ASM_CODE_COMMENT_STRING(&masm_, "inlined Smi unary fast path");
+  constexpr int kDelta = kOperation == Operation::kIncrement ? 1 : -1;
+  Label slow, done;
+  __ JumpIfNotSmi(kInterpreterAccumulatorRegister, &slow, Label::kNear);
+  // Smi overflow bails out so that the stub records kNumber for the patcher.
+  __ SmiAddConstantAndJumpIfOverflow(kInterpreterAccumulatorRegister, kDelta,
+                                     &slow, Label::kNear);
+  __ Jump(&done);
+
+  __ Bind(&slow);
+  if (allow_sparkplug_plus_) {
+    CallBuiltin<kSmiBuiltin>(kInterpreterAccumulatorRegister,
+                             feedback_index_offset);
+  } else {
+    CallBuiltin<kGenericBuiltin>(kInterpreterAccumulatorRegister,
+                                 feedback_index_offset);
+  }
+  __ Bind(&done);
+
+  return true;
+}
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
 // Inc/Dec/Negate/BitwiseNot are single-operand bytecodes; the embedded
 // feedback lives at kUnaryEmbeddedFeedbackOperandIndex (unlike binop/compare
 // bytecodes, which use kEmbeddedFeedbackOperandIndex).
@@ -1485,9 +1521,20 @@ void BaselineCompiler::VisitShiftRightLogicalSmi() {
   using Feedback = BinaryOperationFeedback;                              \
   auto feedback_index_offset = iterator().GetEmbeddedFeedbackOffset(     \
       kUnaryEmbeddedFeedbackOperandIndex);                               \
+  auto feedback_type =                                                   \
+      Feedback::DecodeTypeIndex(static_cast<Feedback::TypeIndex>(        \
+          EmbeddedFeedback(kUnaryEmbeddedFeedbackOperandIndex)));        \
+  if constexpr (Operation::k##Name == Operation::kIncrement ||           \
+                Operation::k##Name == Operation::kDecrement) {           \
+    if (TryEmitInlineSmiUnary<Operation::k##Name,                        \
+                              Builtin::k##Name##_SignedSmall_Baseline,   \
+                              Builtin::k##Name##_Generic_Baseline>(      \
+            feedback_type, feedback_index_offset)) {                     \
+      return;                                                            \
+    }                                                                    \
+  }                                                                      \
   if (allow_sparkplug_plus_) {                                           \
-    switch (Feedback::DecodeTypeIndex(static_cast<Feedback::TypeIndex>(  \
-        EmbeddedFeedback(kUnaryEmbeddedFeedbackOperandIndex)))) {        \
+    switch (feedback_type) {                                             \
       TypedStubList(TYPED_UNOP_CASE, Name) default                       \
           : CallBuiltin<Builtin::k##Name##_Generic_Baseline>(            \
                 kInterpreterAccumulatorRegister, feedback_index_offset); \
@@ -1928,6 +1975,81 @@ void BaselineCompiler::VisitConstructForwardAllArgs() {
 }
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
+template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
+bool BaselineCompiler::TryEmitInlineSmiCompare(
+    CompareOperationFeedback::Type feedback_type, int feedback_index_offset) {
+  static_assert(IsComparisonOperation(kOperation));
+  if (!v8_flags.sparkplug_inline_smi) {
+    return false;
+  }
+  if (feedback_type != CompareOperationFeedback::Type::kSignedSmall) {
+    return false;
+  }
+
+  ASM_CODE_COMMENT_STRING(&masm_, "inlined Smi compare fast path");
+  Label slow, done;
+  {
+    BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+    Register lhs = scratch_scope.AcquireScratch();
+    __ Move(lhs, RegisterOperand(0));
+    if constexpr (kOperation == Operation::kEqual ||
+                  kOperation == Operation::kStrictEqual) {
+      // Equal Smis have identical tagged values, so check lhs first and let a
+      // tagged-equal hit return true without checking rhs. Only the not-equal
+      // edge needs to verify rhs before returning false.
+      __ JumpIfNotSmi(lhs, &slow, Label::kNear);
+    } else {
+      __ JumpIfNotBothSmi(lhs, kInterpreterAccumulatorRegister, &slow,
+                          Label::kNear);
+    }
+
+    SelectBooleanConstant(
+        kInterpreterAccumulatorRegister,
+        [&](Label* if_true, Label::Distance distance) {
+          if constexpr (kOperation == Operation::kEqual ||
+                        kOperation == Operation::kStrictEqual) {
+            __ JumpIfTagged(kEqual, lhs, kInterpreterAccumulatorRegister,
+                            if_true, distance);
+            // SelectBooleanConstant evaluates the condition before writing its
+            // output register, so the accumulator still holds the rhs on the
+            // path to `slow`.
+            __ JumpIfNotSmi(kInterpreterAccumulatorRegister, &slow,
+                            Label::kNear);
+          } else if constexpr (kOperation == Operation::kLessThan) {
+            __ JumpIfTagged(kLessThan, lhs, kInterpreterAccumulatorRegister,
+                            if_true, distance);
+          } else if constexpr (kOperation == Operation::kLessThanOrEqual) {
+            __ JumpIfTagged(kLessThanEqual, lhs,
+                            kInterpreterAccumulatorRegister, if_true, distance);
+          } else if constexpr (kOperation == Operation::kGreaterThan) {
+            __ JumpIfTagged(kLessThan, kInterpreterAccumulatorRegister, lhs,
+                            if_true, distance);
+          } else {
+            static_assert(kOperation == Operation::kGreaterThanOrEqual);
+            __ JumpIfTagged(kLessThanEqual, kInterpreterAccumulatorRegister,
+                            lhs, if_true, distance);
+          }
+        });
+  }
+  __ Jump(&done);
+
+  __ Bind(&slow);
+  if (allow_sparkplug_plus_) {
+    CallBuiltin<kSmiBuiltin>(RegisterOperand(0),
+                             kInterpreterAccumulatorRegister,
+                             feedback_index_offset);
+  } else {
+    CallBuiltin<kGenericBuiltin>(RegisterOperand(0),
+                                 kInterpreterAccumulatorRegister,
+                                 feedback_index_offset);
+  }
+  __ Bind(&done);
+
+  return true;
+}
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
 #define TYPED_COMPARE_CASE(type, name)                       \
   case CompareOperationFeedback::Type::k##type:              \
     CallBuiltin<Builtin::k##name##_##type##_Baseline>(       \
@@ -1939,9 +2061,17 @@ void BaselineCompiler::VisitConstructForwardAllArgs() {
   using Feedback = CompareOperationFeedback;                               \
   auto feedback_index_offset =                                             \
       iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex); \
+  auto feedback_type =                                                     \
+      Feedback::DecodeTypeIndex(static_cast<Feedback::TypeIndex>(          \
+          EmbeddedFeedback(kEmbeddedFeedbackOperandIndex)));               \
+  if (TryEmitInlineSmiCompare<Operation::k##Name,                          \
+                              Builtin::k##Name##_SignedSmall_Baseline,     \
+                              Builtin::k##Name##_Generic_Baseline>(        \
+          feedback_type, feedback_index_offset)) {                         \
+    return;                                                                \
+  }                                                                        \
   if (allow_sparkplug_plus_) {                                             \
-    switch (Feedback::DecodeTypeIndex(static_cast<Feedback::TypeIndex>(    \
-        EmbeddedFeedback(kEmbeddedFeedbackOperandIndex)))) {               \
+    switch (feedback_type) {                                               \
       TypedStubList(TYPED_COMPARE_CASE, Name) default                      \
           : CallBuiltin<Builtin::k##Name##_Generic_Baseline>(              \
                 RegisterOperand(0), kInterpreterAccumulatorRegister,       \

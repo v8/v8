@@ -80,6 +80,10 @@
   JS_FEATURE(js_regexp_buffer_boundaries,                                      \
              "RegExp \\A \\z \\Z buffer boundary assertions")                  \
                                                                                \
+  IF_SPARKPLUG_PLUS_ENABLED(INTERNAL_FEATURE, sparkplug_inline_smi,            \
+                            "inline the Smi fast path of embedded feedback "   \
+                            "operations into JS baseline code")                \
+                                                                               \
   /* Instruction Tracing tool convention (early prototype, might change) */    \
   /* Tool convention: https://github.com/WebAssembly/tool-conventions */       \
   /* V8 side owner: jabraham */                                                \

@@ -180,6 +180,43 @@ void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
   __ j(cc, target, distance);
 }
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+void BaselineAssembler::JumpIfNotBothSmi(Register lhs, Register rhs,
+                                         Label* target,
+                                         Label::Distance distance) {
+  ScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireScratch();
+  __ movq(tmp, lhs);
+  __ orq(tmp, rhs);
+  __ JumpIfNotSmi(tmp, target, distance);
+}
+
+void BaselineAssembler::JumpIfTagged(Condition cc, Register lhs, Register rhs,
+                                     Label* target, Label::Distance distance) {
+  __ cmp_tagged(lhs, rhs);
+  __ j(cc, target, distance);
+}
+
+void BaselineAssembler::SmiAddConstantAndJumpIfOverflow(
+    Register value, int constant, Label* overflow, Label::Distance distance) {
+  DCHECK(Smi::IsValid(constant));
+  ScratchRegisterScope scope(this);
+  Register tmp = scope.AcquireScratch();
+  if (SmiValuesAre31Bits()) {
+    __ movl(tmp, value);
+    __ addl(tmp, Immediate(Smi::FromInt(constant)));
+    __ j(kOverflow, overflow, distance);
+    __ movsxlq(value, tmp);
+  } else {
+    DCHECK(SmiValuesAre32Bits());
+    __ Move(tmp, Smi::FromInt(constant));
+    __ addq(tmp, value);
+    __ j(kOverflow, overflow, distance);
+    __ movq(value, tmp);
+  }
+}
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
 void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
                                         Label* target,
                                         Label::Distance distance) {

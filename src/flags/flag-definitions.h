@@ -3299,6 +3299,9 @@ DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
 // feature-flags.h instead of here to follow the regular launch process format.
 DEFINE_BOOL_READONLY(sparkplug_plus, false,
                      "enable dynamic patching on JS baseline code")
+DEFINE_BOOL_READONLY(sparkplug_inline_smi, false,
+                     "inline the Smi fast path of embedded feedback "
+                     "operations into baseline code")
 #endif
 DEFINE_IMPLICATION(sparkplug_plus, short_builtin_calls)
 
