@@ -157,4 +157,10 @@
   'proposals/stack-switching/stack-switching/cont': [SKIP],
 }],  # system == windows and asan
 
+##############################################################################
+['clang_coverage and mode == debug', {
+  # Slow tests.
+  'simd/simd_f*': [PASS, SLOW],
+}],  # 'clang_coverage and mode == debug'
+
 ]
