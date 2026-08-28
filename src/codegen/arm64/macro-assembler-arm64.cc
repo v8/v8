@@ -3611,7 +3611,15 @@ void MacroAssembler::DecompressTagged(const Register& destination,
 void MacroAssembler::DecompressTagged(const Register& destination,
                                       const Register& source) {
   ASM_CODE_COMMENT(this);
-  Orr(destination, kPtrComprCageBaseRegister, Operand(source, UXTW));
+  // Runtime values decompress with the cage base or'd in so that accidental
+  // double-decompression is idempotent, but Orr has no extended-register
+  // form, so or-ing a W source takes a scratch register and two instructions
+  // (ubfx + orr). The extended-register Add is a single instruction and
+  // computes the same function: Uxtw strips the high word -- an
+  // already-present cage base included, which is what keeps the idempotence
+  // -- and the 4GB-aligned cage base has no low bits to carry into, so
+  // adding equals or-ing for every source value.
+  Add(destination, kPtrComprCageBaseRegister, Operand(source, UXTW));
 }
 
 void MacroAssembler::DecompressTagged(const Register& destination,
