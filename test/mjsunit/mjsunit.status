@@ -1288,6 +1288,7 @@
   'regress/regress-354626177': [SKIP],
   'regress/wasm/regress-398439335': [SKIP],
   'turbolev/regress-488090094': [SKIP],
+  'turbolev/dataview-deopt-oob': [SKIP],
   'maglev/regress-498816446-3': [SKIP],
   'maglev/regress-521604719': [SKIP],
 
