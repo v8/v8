@@ -150,7 +150,6 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Push(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
-    LoadCodeInstructionStart(a2, a0, kJSEntrypointTag);
 
     // Restore target function, new target, actual argument count and dispatch
     // handle.
@@ -163,6 +162,13 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
+#ifndef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  Lwu(kJavaScriptCallDispatchHandleRegister,
+      FieldMemOperand(kJavaScriptCallTargetRegister,
+                      offsetof(JSFunction, dispatch_handle_)));
+#endif
+  LoadEntrypointFromJSDispatchTable(a2, kJavaScriptCallDispatchHandleRegister,
+                                    a5);
   Jump(a2);
 }
 
