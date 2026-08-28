@@ -1184,16 +1184,11 @@ int RegExpImpl::IrregexpPrepare(Isolate* isolate,
   DCHECK(subject->IsFlat());
 
   // Check representation of the underlying storage.
-  // EnsureCompiledIrregexp can allocate and trigger GC, which may alter the
-  // underlying representation of subject.
-  bool is_one_byte;
-  do {
-    is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
-    if (!RegExpImpl::EnsureCompiledIrregexp(isolate, re_data, subject,
-                                            is_one_byte)) {
-      return -1;
-    }
-  } while (is_one_byte != String::IsOneByteRepresentationUnderneath(*subject));
+  bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
+  if (!RegExpImpl::EnsureCompiledIrregexp(isolate, re_data, subject,
+                                          is_one_byte)) {
+    return -1;
+  }
 
   // Only reserve room for output captures. Internal registers are allocated by
   // the engine.
@@ -1216,14 +1211,6 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
   if (!regexp_data->ShouldProduceBytecode()) {
     do {
       EnsureCompiledIrregexp(isolate, regexp_data, subject, is_one_byte);
-      // EnsureCompiledIrregexp can allocate and trigger GC, which may alter the
-      // underlying representation of subject.
-      bool current_is_one_byte =
-          String::IsOneByteRepresentationUnderneath(*subject);
-      if (current_is_one_byte != is_one_byte) {
-        is_one_byte = current_is_one_byte;
-        continue;
-      }
       SYNCHRONIZATION_POINT("IrregexpExecRaw_JIT");
       // The stack is used to allocate registers for the compiled regexp code.
       // This means that in case of failure, the output registers array is left
@@ -1274,13 +1261,8 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
         // The string has changed representation, and we must restart the
         // match. We need to reset the tier up to start over with compilation.
         if (v8_flags.regexp_tier_up) regexp_data->ResetLastTierUpTick();
-        // EnsureCompiledIrregexp can allocate and trigger GC, which may alter
-        // the underlying representation of subject.
-        do {
-          is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
-          EnsureCompiledIrregexp(isolate, regexp_data, subject, is_one_byte);
-        } while (is_one_byte !=
-                 String::IsOneByteRepresentationUnderneath(*subject));
+        is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
+        EnsureCompiledIrregexp(isolate, regexp_data, subject, is_one_byte);
       } else {
         DCHECK(result == IrregexpInterpreter::EXCEPTION ||
                result == IrregexpInterpreter::FALLBACK_TO_EXPERIMENTAL);
