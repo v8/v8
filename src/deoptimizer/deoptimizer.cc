@@ -1535,7 +1535,8 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   // code generator).
   // Note that we explicitly allow deopts to exceed the limit by a certain
   // number of slack bytes.
-  CHECK_GT(
+  // GE and not GT because the runtime stack check allows SP == stack limit.
+  CHECK_GE(
       static_cast<uintptr_t>(caller_frame_top_) - total_output_frame_size,
       stack_guard->real_jslimit() - kStackLimitSlackForDeoptimizationInBytes);
 }
@@ -1928,7 +1929,8 @@ void Deoptimizer::DoComputeOutputFrames() {
   // code generator).
   // Note that we explicitly allow deopts to exceed the limit by a certain
   // number of slack bytes.
-  CHECK_GT(
+  // GE and not GT because the runtime stack check allows SP == stack limit.
+  CHECK_GE(
       static_cast<uintptr_t>(caller_frame_top_) - total_output_frame_size,
       stack_guard->real_jslimit() - kStackLimitSlackForDeoptimizationInBytes);
 }

@@ -1566,7 +1566,7 @@ inline Condition MaglevAssembler::FunctionEntryStackCheck(
     int stack_check_offset) {
   TemporaryRegisterScope temps(this);
   Register stack_cmp_reg = sp;
-  if (stack_check_offset >= kStackLimitSlackForDeoptimizationInBytes) {
+  if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
     stack_cmp_reg = temps.AcquireScratch();
     Sub(stack_cmp_reg, sp, stack_check_offset);
   }

@@ -1493,7 +1493,7 @@ inline Condition MaglevAssembler::FunctionEntryStackCheck(
   LoadStackLimit(interrupt_stack_limit, StackLimitKind::kInterruptStackLimit);
 
   Register stack_cmp_reg = sp;
-  if (stack_check_offset >= kStackLimitSlackForDeoptimizationInBytes) {
+  if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
     stack_cmp_reg = r0;
     AddS64(stack_cmp_reg, sp, Operand(-stack_check_offset));
   }
