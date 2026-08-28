@@ -4257,6 +4257,12 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
     Emit(cont->Encode(kArm64CompareAndBranch32), g.NoOutput(),
          g.UseRegister(value), g.Label(cont->true_block()),
          g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    // Deoptimization checks compare-and-branch too, saving the tst:
+    // their exits are laid out at the end of the code, within cbz/cbnz
+    // range, and AssembleArchDeoptBranch assembles this pseudo
+    // instruction exactly as AssembleArchBranch does.
+    EmitWithContinuation(kArm64CompareAndBranch32, g.UseRegister(value), cont);
   } else {
     VisitCompare(this, cont->Encode(kArm64Tst32), g.UseRegister(value),
                  g.UseRegister(value), cont);
