@@ -1164,7 +1164,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // The stack wrappers are compiled lazily and shared across modules, but the
   // cache itself only holds weak pointers. Keep strong pointers in the module
   // to keep them alive.
-  base::Mutex stack_wrapper_mutex_;
+  mutable base::Mutex stack_wrapper_mutex_;
   std::unordered_set<std::shared_ptr<WasmWrapperHandle>> stack_entry_wrappers_;
 };
 

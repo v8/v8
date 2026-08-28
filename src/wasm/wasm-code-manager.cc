@@ -2991,10 +2991,13 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   result += counter_updates_.EstimateCurrentMemoryConsumption() -
             sizeof(counter_updates_);
 
-  result += ContentSize(stack_entry_wrappers_);
-  for (const std::shared_ptr<WasmWrapperHandle>& wrapper :
-       stack_entry_wrappers_) {
-    result += wrapper->code()->EstimateCurrentMemoryConsumption();
+  {
+    base::MutexGuard lock(&stack_wrapper_mutex_);
+    result += ContentSize(stack_entry_wrappers_);
+    for (const std::shared_ptr<WasmWrapperHandle>& wrapper :
+         stack_entry_wrappers_) {
+      result += wrapper->code()->EstimateCurrentMemoryConsumption();
+    }
   }
 
   // We cannot hold the `allocation_mutex_` while calling
