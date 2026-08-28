@@ -358,23 +358,14 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   bind(&done);
 }
 
-void MacroAssembler::DecodeSandboxedPointer(Register value) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
-  srli_d(value, value, kSandboxedPointerShift);
-  Add_d(value, value, kPtrComprCageBaseRegister);
-#else
-  UNREACHABLE();
-#endif
-}
-
 void MacroAssembler::LoadSandboxedPointerField(Register destination,
                                                MemOperand field_operand,
                                                int* trap_pc) {
 #ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   Ld_d(destination, field_operand, trap_pc);
-  DecodeSandboxedPointer(destination);
+  srli_d(destination, destination, kSandboxedPointerShift);
+  Add_d(destination, kPtrComprCageBaseRegister, destination);
 #else
   UNREACHABLE();
 #endif
@@ -6090,18 +6081,18 @@ void MacroAssembler::DecompressTagged(Register dst, const MemOperand& src,
                                       int* trap_pc) {
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src, trap_pc);
-  Add_d(dst, kPtrComprCageBaseRegister, dst);
+  Or(dst, kPtrComprCageBaseRegister, dst);
 }
 
 void MacroAssembler::DecompressTagged(Register dst, Register src) {
   ASM_CODE_COMMENT(this);
   Bstrpick_d(dst, src, 31, 0);
-  Add_d(dst, kPtrComprCageBaseRegister, Operand(dst));
+  Or(dst, kPtrComprCageBaseRegister, dst);
 }
 
 void MacroAssembler::DecompressTagged(Register dst, Tagged_t immediate) {
   ASM_CODE_COMMENT(this);
-  Add_d(dst, kPtrComprCageBaseRegister, static_cast<int32_t>(immediate));
+  Or(dst, kPtrComprCageBaseRegister, static_cast<uint32_t>(immediate));
 }
 
 void MacroAssembler::DecompressProtected(const Register& destination,
@@ -6139,7 +6130,7 @@ void MacroAssembler::AtomicDecompressTagged(Register dst, const MemOperand& src,
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src, trap_pc);
   dbar(0);
-  Add_d(dst, kPtrComprCageBaseRegister, dst);
+  Or(dst, kPtrComprCageBaseRegister, dst);
 }
 
 // Calls an API function. Allocates HandleScope, extracts returned value

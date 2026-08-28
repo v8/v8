@@ -2331,8 +2331,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ amswap_db_w(i.OutputRegister(), i.InputRegister(2),
                        i.TempRegister(0));
         __ Bstrpick_d(i.OutputRegister(), i.OutputRegister(), 31, 0);
-        __ add_d(i.OutputRegister(), i.OutputRegister(),
-                 kPtrComprCageBaseRegister);
+        __ Or(i.OutputRegister(), i.OutputRegister(),
+              kPtrComprCageBaseRegister);
       } else {
         __ amswap_db_d(i.OutputRegister(), i.InputRegister(2),
                        i.TempRegister(0));

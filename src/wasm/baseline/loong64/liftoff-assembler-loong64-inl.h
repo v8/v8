@@ -1148,7 +1148,7 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
     if constexpr (COMPRESS_POINTERS_BOOL) {
       amswap_db_w(result.gp(), value.gp(), actual_addr);
       Bstrpick_d(result.gp(), result.gp(), 31, 0);
-      add_d(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+      Or(result.gp(), result.gp(), kPtrComprCageBaseRegister);
     } else {
       amswap_db_d(result.gp(), value.gp(), actual_addr);
     }

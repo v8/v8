@@ -1070,7 +1070,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
-  void DecodeSandboxedPointer(Register value);
   void LoadSandboxedPointerField(Register destination, MemOperand field_operand,
                                  int* trap_pc = NULL);
   void StoreSandboxedPointerField(Register value, MemOperand dst_field_operand,
