@@ -146,6 +146,15 @@ void CppHeap::CollectGarbageInYoungGenerationForTesting(
       internal::CppHeap::CollectionType::kMinor, stack_state);
 }
 
+void CppHeap::SetForceIncrementalSweepingForTesting(bool value) {
+  return internal::CppHeap::From(this)->SetForceIncrementalSweepingForTesting(
+      value);
+}
+
+void CppHeap::FinishSweepingForTesting() {
+  return internal::CppHeap::From(this)->FinishSweepingIfRunning();
+}
+
 namespace internal {
 
 namespace {
@@ -737,7 +746,15 @@ CppHeap::MarkingType CppHeap::SelectMarkingType() const {
 }
 
 CppHeap::SweepingType CppHeap::SelectSweepingType() const {
-  if (IsForceGC(current_gc_flags_)) return SweepingType::kAtomic;
+  // A forced GC normally sweeps atomically, which runs finalizers before the
+  // collection returns. Tests that need to observe an object after it has been
+  // found unreachable but before it is finalized opt out via
+  // SetForceIncrementalSweepingForTesting(), which leaves sweeping deferred as
+  // it would be in a natural GC.
+  if (IsForceGC(current_gc_flags_) &&
+      !force_incremental_sweeping_for_testing_) {
+    return SweepingType::kAtomic;
+  }
 
   return sweeping_support();
 }

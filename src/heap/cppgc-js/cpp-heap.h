@@ -211,6 +211,12 @@ class V8_EXPORT_PRIVATE CppHeap final
   void EnableDetachedGarbageCollectionsForTesting();
   void CollectGarbageForTesting(CollectionType, StackState);
   void UpdateGCCapabilitiesFromFlagsForTesting();
+  // Only meaningful for a heap attached to an isolate: CompactAndSweep()
+  // requires atomic sweeping when there is no isolate.
+  void SetForceIncrementalSweepingForTesting(bool value) {
+    DCHECK_IMPLIES(value, isolate_ != nullptr);
+    force_incremental_sweeping_for_testing_ = value;
+  }
 
   bool CurrentThreadIsHeapThread() const final;
 
@@ -266,6 +272,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   bool in_detached_testing_mode_ = false;
   bool force_incremental_marking_for_testing_ = false;
+  bool force_incremental_sweeping_for_testing_ = false;
   bool is_in_v8_marking_step_ = false;
 
   // Used size of objects. Reported to V8's regular heap growing strategy.
