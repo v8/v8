@@ -1685,11 +1685,16 @@ std::unique_ptr<icu::SimpleDateFormat> GetSimpleDateTimeForTemporal(
     JSDateTimeFormat::DateTimeStyle time_style,
     bool has_to_locale_string_time_zone) {
   DCHECK_NE(kind, PatternKind::kDate);
+  icu::UnicodeString original_skeleton = SkeletonFromDateFormat(date_format);
   icu::UnicodeString skeleton = GetSkeletonForPatternKind(
-      SkeletonFromDateFormat(date_format), explicit_components_in_options, kind,
-      date_style, time_style, has_to_locale_string_time_zone);
+      original_skeleton, explicit_components_in_options, kind, date_style,
+      time_style, has_to_locale_string_time_zone);
   if (skeleton.length() == 0) {
     return nullptr;
+  }
+  if (skeleton == original_skeleton) {
+    return std::unique_ptr<icu::SimpleDateFormat>(
+        static_cast<icu::SimpleDateFormat*>(date_format.clone()));
   }
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::SimpleDateFormat> result(
