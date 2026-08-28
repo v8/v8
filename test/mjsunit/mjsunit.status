@@ -3057,9 +3057,6 @@
 
   # Maglev deopts more aggressively on insufficient feedback.
   'array-literal-transitions': [SKIP],
-  'sealed-array-reduce': [SKIP],
-  'frozen-array-reduce': [SKIP],
-  'non-extensible-array-reduce': [SKIP],
 
   # Maglev doesn't inline String.prototype.includes.
   'optimized-string-includes': [SKIP],
