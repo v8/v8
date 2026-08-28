@@ -1425,7 +1425,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
   if (data->error != Error::kNone) {
     return false;
   }
-  data->error = AnalyzeRegExp(isolate, is_one_byte, flags, data->node);
+  data->error = AnalyzeRegExp(isolate, is_one_byte, data->node);
   if (data->error != Error::kNone) {
     return false;
   }

@@ -342,7 +342,7 @@ Compiler::Compiler(Isolate* isolate, Zone* zone, int capture_count, Flags flags,
       frequency_collator_(),
       isolate_(isolate),
       zone_(zone) {
-  accept_ = zone->New<EndNode>(EndNode::ACCEPT, zone);
+  accept_ = zone->New<EndNode>(EndNode::ACCEPT, flags, zone);
   DCHECK_GE(RegExpMacroAssembler::kMaxRegister, next_register_ - 1);
 }
 
@@ -356,7 +356,6 @@ Compiler::CompilationResult Compiler::Assemble(
     return CompilationResult::RegExpTooBig();
   };
 
-  const Flags flags_before_emit = flags_;
   ZoneVector<WorkItem> work_list(zone());
   work_list_ = &work_list;
   NonAssertingLabel fail(this);
@@ -384,7 +383,6 @@ Compiler::CompilationResult Compiler::Assemble(
     work_list.pop_back();
     node->set_on_work_list(false);
     if (!node->label()->is_bound()) {
-      set_flags(item.flags);
       if (node->Emit(this, &new_trace).IsError()) {
         work_list_ = nullptr;
         return ReportError();
@@ -395,9 +393,6 @@ Compiler::CompilationResult Compiler::Assemble(
     work_list_ = nullptr;
     return ReportError();
   }
-
-  // Restore initial flags for processing below.
-  set_flags(flags_before_emit);
 
   DirectHandle<HeapObject> code = macro_assembler_->GetCode(re_data, flags_);
   work_list_ = nullptr;
@@ -752,7 +747,7 @@ EmitResult Trace::Flush(Compiler* compiler, Node* successor,
       const bool uniform_prefix =
           parked_grant() == ParkedGrant::kParkedUniformPrefix ||
           parked_grant() == ParkedGrant::kParkedNonEmptyUniformPrefix;
-      switch (loop->atomic_loop_kind(compiler->flags())) {
+      switch (loop->atomic_loop_kind()) {
         case AtomicLoopKind::kNone:
           break;
         case AtomicLoopKind::kAtEnd:
@@ -922,34 +917,41 @@ void GuardedAlternative::AddGuard(Guard* guard, Zone* zone) {
   guards_->Add(guard, zone);
 }
 
-ActionNode* ActionNode::SetRegisterForLoop(int reg, int val, Node* on_success) {
+ActionNode* ActionNode::SetRegisterForLoop(int reg, int val, Node* on_success,
+                                           Flags flags) {
   return on_success->zone()->New<ActionNode>(SET_REGISTER_FOR_LOOP, on_success,
-                                             reg, reg, val);
+                                             flags, reg, reg, val);
 }
 
-ActionNode* ActionNode::IncrementRegister(int reg, Node* on_success) {
+ActionNode* ActionNode::IncrementRegister(int reg, Node* on_success,
+                                          Flags flags) {
   return on_success->zone()->New<ActionNode>(INCREMENT_REGISTER, on_success,
+                                             flags, reg);
+}
+
+ActionNode* ActionNode::StorePosition(int reg, Node* on_success, Flags flags) {
+  return on_success->zone()->New<ActionNode>(STORE_POSITION, on_success, flags,
                                              reg);
 }
 
-ActionNode* ActionNode::StorePosition(int reg, Node* on_success) {
-  return on_success->zone()->New<ActionNode>(STORE_POSITION, on_success, reg);
+ActionNode* ActionNode::RestorePosition(int reg, Node* on_success,
+                                        Flags flags) {
+  return on_success->zone()->New<ActionNode>(RESTORE_POSITION, on_success,
+                                             flags, reg);
 }
 
-ActionNode* ActionNode::RestorePosition(int reg, Node* on_success) {
-  return on_success->zone()->New<ActionNode>(RESTORE_POSITION, on_success, reg);
-}
-
-ActionNode* ActionNode::ClearCaptures(Interval range, Node* on_success) {
-  return on_success->zone()->New<ActionNode>(CLEAR_CAPTURES, on_success,
+ActionNode* ActionNode::ClearCaptures(Interval range, Node* on_success,
+                                      Flags flags) {
+  return on_success->zone()->New<ActionNode>(CLEAR_CAPTURES, on_success, flags,
                                              range.from(), range.to());
 }
 
 ActionNode* ActionNode::BeginPositiveSubmatch(int stack_reg, int position_reg,
                                               Node* body,
-                                              ActionNode* success_node) {
+                                              ActionNode* success_node,
+                                              Flags flags) {
   ActionNode* result =
-      body->zone()->New<ActionNode>(BEGIN_POSITIVE_SUBMATCH, body);
+      body->zone()->New<ActionNode>(BEGIN_POSITIVE_SUBMATCH, body, flags);
   result->data_.u_submatch.stack_pointer_register = stack_reg;
   result->data_.u_submatch.current_position_register = position_reg;
   result->data_.u_submatch.success_node = success_node;
@@ -957,9 +959,9 @@ ActionNode* ActionNode::BeginPositiveSubmatch(int stack_reg, int position_reg,
 }
 
 ActionNode* ActionNode::BeginNegativeSubmatch(int stack_reg, int position_reg,
-                                              Node* on_success) {
-  ActionNode* result =
-      on_success->zone()->New<ActionNode>(BEGIN_NEGATIVE_SUBMATCH, on_success);
+                                              Node* on_success, Flags flags) {
+  ActionNode* result = on_success->zone()->New<ActionNode>(
+      BEGIN_NEGATIVE_SUBMATCH, on_success, flags);
   result->data_.u_submatch.stack_pointer_register = stack_reg;
   result->data_.u_submatch.current_position_register = position_reg;
   return result;
@@ -968,9 +970,9 @@ ActionNode* ActionNode::BeginNegativeSubmatch(int stack_reg, int position_reg,
 ActionNode* ActionNode::PositiveSubmatchSuccess(int stack_reg, int position_reg,
                                                 int clear_register_count,
                                                 int clear_register_from,
-                                                Node* on_success) {
+                                                Node* on_success, Flags flags) {
   ActionNode* result = on_success->zone()->New<ActionNode>(
-      POSITIVE_SUBMATCH_SUCCESS, on_success);
+      POSITIVE_SUBMATCH_SUCCESS, on_success, flags);
   result->data_.u_submatch.stack_pointer_register = stack_reg;
   result->data_.u_submatch.current_position_register = position_reg;
   result->data_.u_submatch.clear_register_count = clear_register_count;
@@ -980,26 +982,20 @@ ActionNode* ActionNode::PositiveSubmatchSuccess(int stack_reg, int position_reg,
 
 ActionNode* ActionNode::EmptyMatchCheck(int start_register,
                                         int repetition_register,
-                                        int repetition_limit,
-                                        Node* on_success) {
+                                        int repetition_limit, Node* on_success,
+                                        Flags flags) {
   ActionNode* result =
-      on_success->zone()->New<ActionNode>(EMPTY_MATCH_CHECK, on_success);
+      on_success->zone()->New<ActionNode>(EMPTY_MATCH_CHECK, on_success, flags);
   result->data_.u_empty_match_check.start_register = start_register;
   result->data_.u_empty_match_check.repetition_register = repetition_register;
   result->data_.u_empty_match_check.repetition_limit = repetition_limit;
   return result;
 }
 
-ActionNode* ActionNode::ModifyFlags(Flags flags, Node* on_success) {
+ActionNode* ActionNode::EatsAtLeast(int characters, Node* on_success,
+                                    Flags flags) {
   ActionNode* result =
-      on_success->zone()->New<ActionNode>(MODIFY_FLAGS, on_success);
-  result->data_.u_modify_flags.flags = flags;
-  return result;
-}
-
-ActionNode* ActionNode::EatsAtLeast(int characters, Node* on_success) {
-  ActionNode* result =
-      on_success->zone()->New<ActionNode>(EATS_AT_LEAST, on_success);
+      on_success->zone()->New<ActionNode>(EATS_AT_LEAST, on_success, flags);
   result->data_.u_eats_at_least.characters = characters;
   return result;
 }
@@ -1040,139 +1036,6 @@ bool ContainsOnlyUtf16CodeUnits(unibrow::uchar* chars, int length) {
 }
 #endif  // DEBUG
 
-// Returns the number of characters in the equivalence class, omitting those
-// that cannot occur in the source string because it is Latin1.  This is called
-// both for unicode modes /ui and /vi, and also for legacy case independent
-// mode /i.  In the case of Unicode modes we handled surrogate pair expansions
-// earlier so at this point it's all about single-code-unit expansions.
-int GetCaseIndependentLetters(Isolate* isolate, base::uc16 character,
-                              Compiler* compiler, unibrow::uchar* letters,
-                              int letter_length) {
-  bool one_byte_subject = compiler->one_byte();
-  bool unicode = IsEitherUnicode(compiler->flags());
-  static const base::uc16 kMaxAscii = 0x7f;
-  if (!unicode && character <= kMaxAscii) {
-    // Fast case for common characters.
-    base::uc16 upper = character & ~0x20;
-    if ('A' <= upper && upper <= 'Z') {
-      letters[0] = upper;
-      letters[1] = upper | 0x20;
-      return 2;
-    }
-    letters[0] = character;
-    return 1;
-  }
-#ifdef V8_INTL_SUPPORT
-
-  if (!unicode && CaseFolding::IgnoreSet().contains(character)) {
-    if (one_byte_subject && character > String::kMaxOneByteCharCode) {
-      // This function promises not to return a character that is impossible
-      // for the subject encoding.
-      return 0;
-    }
-    letters[0] = character;
-    DCHECK(ContainsOnlyUtf16CodeUnits(letters, 1));
-    return 1;
-  }
-  bool in_special_add_set = CaseFolding::SpecialAddSet().contains(character);
-
-  icu::UnicodeSet set;
-  set.add(character);
-  set = set.closeOver(unicode ? USET_SIMPLE_CASE_INSENSITIVE
-                              : USET_CASE_INSENSITIVE);
-
-  UChar32 canon = 0;
-  if (in_special_add_set && !unicode) {
-    canon = CaseFolding::Canonicalize(character);
-  }
-
-  int32_t range_count = set.getRangeCount();
-  int items = 0;
-  for (int32_t i = 0; i < range_count; i++) {
-    UChar32 start = set.getRangeStart(i);
-    UChar32 end = set.getRangeEnd(i);
-    CHECK(end - start + items <= letter_length);
-    for (UChar32 cu = start; cu <= end; cu++) {
-      if (one_byte_subject && cu > String::kMaxOneByteCharCode) continue;
-      if (!unicode && in_special_add_set &&
-          CaseFolding::Canonicalize(cu) != canon) {
-        continue;
-      }
-      letters[items++] = static_cast<unibrow::uchar>(cu);
-    }
-  }
-  DCHECK(ContainsOnlyUtf16CodeUnits(letters, items));
-  return items;
-#else
-  int length =
-      isolate->jsregexp_uncanonicalize()->get(character, '\0', letters);
-  // Unibrow returns 0 or 1 for characters where case independence is
-  // trivial.
-  if (length == 0) {
-    letters[0] = character;
-    length = 1;
-  }
-
-  if (one_byte_subject) {
-    int new_length = 0;
-    for (int i = 0; i < length; i++) {
-      if (letters[i] <= String::kMaxOneByteCharCode) {
-        letters[new_length++] = letters[i];
-      }
-    }
-    length = new_length;
-  }
-
-  DCHECK(ContainsOnlyUtf16CodeUnits(letters, length));
-  return length;
-#endif  // V8_INTL_SUPPORT
-}
-
-inline bool EmitSimpleCharacter(Isolate* isolate, Compiler* compiler,
-                                base::uc16 c, Label* on_failure, int cp_offset,
-                                bool check, bool preloaded) {
-  RegExpMacroAssembler* assembler = compiler->macro_assembler();
-  bool bound_checked = false;
-  if (!preloaded) {
-    assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
-    bound_checked = true;
-  }
-  assembler->CheckNotCharacter(c, on_failure);
-  return bound_checked;
-}
-
-// Only emits non-letters (things that don't have case).  Only used for case
-// independent matches.
-inline bool EmitAtomNonLetter(Isolate* isolate, Compiler* compiler,
-                              base::uc16 c, Label* on_failure, int cp_offset,
-                              bool check, bool preloaded) {
-  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
-  bool one_byte = compiler->one_byte();
-  unibrow::uchar chars[4];
-  int length = GetCaseIndependentLetters(isolate, c, compiler, chars, 4);
-  if (length < 1) {
-    // This can't match.  Must be an one-byte subject and a non-one-byte
-    // character.  We do not need to do anything since the one-byte pass
-    // already handled this.
-    CHECK(one_byte);
-    return false;  // Bounds not checked.
-  }
-  bool checked = false;
-  // We handle the length > 1 case in a later pass.
-  if (length == 1) {
-    // GetCaseIndependentLetters promises not to return characters that can't
-    // match because of the subject encoding.  This case is already handled by
-    // the one-byte pass.
-    CHECK_IMPLIES(one_byte, chars[0] <= String::kMaxOneByteCharCodeU);
-    if (!preloaded) {
-      macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
-      checked = check;
-    }
-    macro_assembler->CheckNotCharacter(chars[0], on_failure);
-  }
-  return checked;
-}
-
 bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
                                bool one_byte, base::uc16 c1, base::uc16 c2,
                                Label* on_failure) {
@@ -1200,49 +1063,6 @@ bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
     return true;
   }
   return false;
-}
-
-// Only emits letters (things that have case).  Only used for case independent
-// matches.
-inline bool EmitAtomLetter(Isolate* isolate, Compiler* compiler, base::uc16 c,
-                           Label* on_failure, int cp_offset, bool check,
-                           bool preloaded) {
-  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
-  bool one_byte = compiler->one_byte();
-  unibrow::uchar chars[4];
-  int length = GetCaseIndependentLetters(isolate, c, compiler, chars, 4);
-  // The 0 and 1 case are handled by earlier passes.
-  if (length <= 1) return false;
-  // We may not need to check against the end of the input string
-  // if this character lies before a character that matched.
-  if (!preloaded) {
-    macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
-  }
-  Label ok;
-  switch (length) {
-    case 2: {
-      if (ShortCutEmitCharacterPair(macro_assembler, one_byte, chars[0],
-                                    chars[1], on_failure)) {
-      } else {
-        macro_assembler->CheckCharacter(chars[0], &ok);
-        macro_assembler->CheckNotCharacter(chars[1], on_failure);
-        macro_assembler->Bind(&ok);
-      }
-      break;
-    }
-    case 4:
-      macro_assembler->CheckCharacter(chars[3], &ok);
-      [[fallthrough]];
-    case 3:
-      macro_assembler->CheckCharacter(chars[0], &ok);
-      macro_assembler->CheckCharacter(chars[1], &ok);
-      macro_assembler->CheckNotCharacter(chars[2], on_failure);
-      macro_assembler->Bind(&ok);
-      break;
-    default:
-      UNREACHABLE();
-  }
-  return true;
 }
 
 void EmitBoundaryTest(RegExpMacroAssembler* masm, int border,
@@ -1709,6 +1529,183 @@ void EmitClassRanges(Compiler* compiler, RegExpMacroAssembler* macro_assembler,
 
 }  // namespace
 
+// Returns the number of characters in the equivalence class, omitting those
+// that cannot occur in the source string because it is Latin1.  This is called
+// both for unicode modes /ui and /vi, and also for legacy case independent
+// mode /i.  In the case of Unicode modes we handled surrogate pair expansions
+// earlier so at this point it's all about single-code-unit expansions.
+int TextNode::GetCaseIndependentLetters(Compiler* compiler,
+                                        base::uc16 character,
+                                        unibrow::uchar* letters,
+                                        int letter_length) const {
+  const bool one_byte_subject = compiler->one_byte();
+  const bool unicode = IsEitherUnicode(flags());
+  static const base::uc16 kMaxAscii = 0x7f;
+  if (!unicode && character <= kMaxAscii) {
+    // Fast case for common characters.
+    base::uc16 upper = character & ~0x20;
+    if ('A' <= upper && upper <= 'Z') {
+      letters[0] = upper;
+      letters[1] = upper | 0x20;
+      return 2;
+    }
+    letters[0] = character;
+    return 1;
+  }
+#ifdef V8_INTL_SUPPORT
+
+  if (!unicode && CaseFolding::IgnoreSet().contains(character)) {
+    if (one_byte_subject && character > String::kMaxOneByteCharCode) {
+      // This function promises not to return a character that is impossible
+      // for the subject encoding.
+      return 0;
+    }
+    letters[0] = character;
+    DCHECK(ContainsOnlyUtf16CodeUnits(letters, 1));
+    return 1;
+  }
+  bool in_special_add_set = CaseFolding::SpecialAddSet().contains(character);
+
+  icu::UnicodeSet set;
+  set.add(character);
+  set = set.closeOver(unicode ? USET_SIMPLE_CASE_INSENSITIVE
+                              : USET_CASE_INSENSITIVE);
+
+  UChar32 canon = 0;
+  if (in_special_add_set && !unicode) {
+    canon = CaseFolding::Canonicalize(character);
+  }
+
+  int32_t range_count = set.getRangeCount();
+  int items = 0;
+  for (int32_t i = 0; i < range_count; i++) {
+    UChar32 start = set.getRangeStart(i);
+    UChar32 end = set.getRangeEnd(i);
+    CHECK(end - start + items <= letter_length);
+    for (UChar32 cu = start; cu <= end; cu++) {
+      if (one_byte_subject && cu > String::kMaxOneByteCharCode) continue;
+      if (!unicode && in_special_add_set &&
+          CaseFolding::Canonicalize(cu) != canon) {
+        continue;
+      }
+      letters[items++] = static_cast<unibrow::uchar>(cu);
+    }
+  }
+  DCHECK(ContainsOnlyUtf16CodeUnits(letters, items));
+  return items;
+#else
+  int length = compiler->isolate()->jsregexp_uncanonicalize()->get(
+      character, '\0', letters);
+  // Unibrow returns 0 or 1 for characters where case independence is
+  // trivial.
+  if (length == 0) {
+    letters[0] = character;
+    length = 1;
+  }
+
+  if (one_byte_subject) {
+    int new_length = 0;
+    for (int i = 0; i < length; i++) {
+      if (letters[i] <= String::kMaxOneByteCharCode) {
+        letters[new_length++] = letters[i];
+      }
+    }
+    length = new_length;
+  }
+
+  DCHECK(ContainsOnlyUtf16CodeUnits(letters, length));
+  return length;
+#endif  // V8_INTL_SUPPORT
+}
+
+bool TextNode::EmitSimpleCharacter(Compiler* compiler, base::uc16 c,
+                                   Label* on_failure, int cp_offset, bool check,
+                                   bool preloaded) {
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
+  bool bound_checked = false;
+  if (!preloaded) {
+    assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
+    bound_checked = true;
+  }
+  assembler->CheckNotCharacter(c, on_failure);
+  return bound_checked;
+}
+
+// Only emits non-letters (things that don't have case).  Only used for case
+// independent matches.
+bool TextNode::EmitAtomNonLetter(Compiler* compiler, base::uc16 c,
+                                 Label* on_failure, int cp_offset, bool check,
+                                 bool preloaded) {
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  bool one_byte = compiler->one_byte();
+  unibrow::uchar chars[4];
+  int length = GetCaseIndependentLetters(compiler, c, chars, 4);
+  if (length < 1) {
+    // This can't match.  Must be an one-byte subject and a non-one-byte
+    // character.  We do not need to do anything since the one-byte pass
+    // already handled this.
+    CHECK(one_byte);
+    return false;  // Bounds not checked.
+  }
+  bool checked = false;
+  // We handle the length > 1 case in a later pass.
+  if (length == 1) {
+    // GetCaseIndependentLetters promises not to return characters that can't
+    // match because of the subject encoding.  This case is already handled by
+    // the one-byte pass.
+    CHECK_IMPLIES(one_byte, chars[0] <= String::kMaxOneByteCharCodeU);
+    if (!preloaded) {
+      macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
+      checked = check;
+    }
+    macro_assembler->CheckNotCharacter(chars[0], on_failure);
+  }
+  return checked;
+}
+
+// Only emits letters (things that have case).  Only used for case independent
+// matches.
+bool TextNode::EmitAtomLetter(Compiler* compiler, base::uc16 c,
+                              Label* on_failure, int cp_offset, bool check,
+                              bool preloaded) {
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  bool one_byte = compiler->one_byte();
+  unibrow::uchar chars[4];
+  int length = GetCaseIndependentLetters(compiler, c, chars, 4);
+  // The 0 and 1 case are handled by earlier passes.
+  if (length <= 1) return false;
+  // We may not need to check against the end of the input string
+  // if this character lies before a character that matched.
+  if (!preloaded) {
+    macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
+  }
+  Label ok;
+  switch (length) {
+    case 2: {
+      if (ShortCutEmitCharacterPair(macro_assembler, one_byte, chars[0],
+                                    chars[1], on_failure)) {
+      } else {
+        macro_assembler->CheckCharacter(chars[0], &ok);
+        macro_assembler->CheckNotCharacter(chars[1], on_failure);
+        macro_assembler->Bind(&ok);
+      }
+      break;
+    }
+    case 4:
+      macro_assembler->CheckCharacter(chars[3], &ok);
+      [[fallthrough]];
+    case 3:
+      macro_assembler->CheckCharacter(chars[0], &ok);
+      macro_assembler->CheckCharacter(chars[1], &ok);
+      macro_assembler->CheckNotCharacter(chars[2], on_failure);
+      macro_assembler->Bind(&ok);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return true;
+}
+
 Node::~Node() = default;
 
 Node::LimitResult Node::LimitVersions(Compiler* compiler, Trace* trace) {
@@ -1772,13 +1769,6 @@ void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
     case EATS_AT_LEAST:
       on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
       break;
-    case MODIFY_FLAGS: {
-      std::optional<Flags> old_flags = bm->compiler()->flags();
-      bm->compiler()->set_flags(flags());
-      on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
-      bm->compiler()->set_flags(*old_flags);
-      break;
-    }
     case BEGIN_POSITIVE_SUBMATCH:
       // We use the node after the lookaround to fill in the eats_at_least info
       // so we have to use the same node to fill in the Boyer-Moore info.
@@ -1809,14 +1799,6 @@ void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
       on_success()->GetQuickCheckDetails(details, compiler, filled_in,
                                          not_at_start, budget - 1);
       break;
-    case MODIFY_FLAGS: {
-      std::optional<Flags> old_flags = compiler->flags();
-      compiler->set_flags(flags());
-      on_success()->GetQuickCheckDetails(details, compiler, filled_in,
-                                         not_at_start, budget - 1);
-      compiler->set_flags(*old_flags);
-      break;
-    }
     case BEGIN_POSITIVE_SUBMATCH:
       // We use the node after the lookaround to fill in the eats_at_least info
       // so we have to use the same node to fill in the QuickCheck info.
@@ -2100,7 +2082,6 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
   // Do not collect any quick check details if the text node reads backward,
   // since it reads in the opposite direction than we use for quick checks.
   if (read_backward()) return;
-  Isolate* isolate = compiler->isolate();
   DCHECK(characters_filled_in < details->characters());
   int characters = details->characters();
   const uint32_t char_mask = CharMask(compiler->one_byte());
@@ -2112,10 +2093,9 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         QuickCheckDetails::Position* pos =
             details->positions(characters_filled_in);
         base::uc16 c = quarks[i];
-        if (IsIgnoreCase(compiler->flags())) {
+        if (IsIgnoreCase(flags())) {
           unibrow::uchar chars[4];
-          int length =
-              GetCaseIndependentLetters(isolate, c, compiler, chars, 4);
+          int length = GetCaseIndependentLetters(compiler, c, chars, 4);
           if (length == 0) {
             // This can happen because all case variants are non-Latin1, but we
             // know the input is Latin1.
@@ -2326,7 +2306,7 @@ bool RangesContainLatin1Equivalents(ZoneList<CharacterRange>* ranges) {
 }  // namespace
 
 bool TextNode::CanMatchLatin1(Compiler* compiler) {
-  Flags flags = compiler->flags();
+  Flags flags = this->flags();
   int element_count = elements()->length();
   for (int i = 0; i < element_count; i++) {
     TextElement elm = elements()->at(i);
@@ -2338,8 +2318,7 @@ bool TextNode::CanMatchLatin1(Compiler* compiler) {
           if (c > String::kMaxOneByteCharCode) return false;
         } else {
           unibrow::uchar chars[4];
-          int length = GetCaseIndependentLetters(compiler->isolate(), c,
-                                                 compiler, chars, 4);
+          int length = GetCaseIndependentLetters(compiler, c, chars, 4);
           if (length == 0 || chars[0] > String::kMaxOneByteCharCode) {
             return false;
           }
@@ -2503,7 +2482,6 @@ EmitResult AssertionNode::EmitBoundaryCheck(Compiler* compiler, Trace* trace) {
   }
   bool at_boundary = (assertion_type_ == AssertionNode::AT_BOUNDARY);
   if (next_is_word_character == Trace::UNKNOWN) {
-    const Flags flags = compiler->flags();
     NonAssertingLabel before_non_word(compiler);
     NonAssertingLabel before_word(compiler);
     if (trace->characters_preloaded() != 1) {
@@ -2518,7 +2496,6 @@ EmitResult AssertionNode::EmitBoundaryCheck(Compiler* compiler, Trace* trace) {
                                         at_boundary ? kIsNonWord : kIsWord));
     assembler->GoTo(&ok);
 
-    compiler->set_flags(flags);
     assembler->Bind(&before_word);
     RETURN_IF_ERROR(BacktrackIfPrevious(compiler, trace,
                                         at_boundary ? kIsWord : kIsNonWord));
@@ -2675,7 +2652,6 @@ void TextNode::TextEmitPass(Compiler* compiler, TextEmitPassType pass,
                             bool preloaded, Trace* trace,
                             bool first_element_checked, int* checked_up_to) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
-  Isolate* isolate = assembler->isolate();
   bool one_byte = compiler->one_byte();
   Label* backtrack = trace->backtrack();
   const QuickCheckDetails* quick_check = trace->quick_check_performed();
@@ -2696,14 +2672,13 @@ void TextNode::TextEmitPass(Compiler* compiler, TextEmitPassType pass,
         switch (pass) {
           case NON_LATIN1_MATCH: {
             DCHECK(one_byte);  // This pass is only done in one-byte mode.
-            if (IsIgnoreCase(compiler->flags())) {
+            if (IsIgnoreCase(flags())) {
               // We are compiling for a one-byte subject, case independent mode.
               // We have to check whether any of the case alternatives are in
               // the one-byte range.
               unibrow::uchar chars[4];
               // Only returns characters that are in the one-byte range.
-              int length =
-                  GetCaseIndependentLetters(isolate, quark, compiler, chars, 4);
+              int length = GetCaseIndependentLetters(compiler, quark, chars, 4);
               if (length == 0) {
                 assembler->GoTo(backtrack);
                 return;
@@ -2719,18 +2694,18 @@ void TextNode::TextEmitPass(Compiler* compiler, TextEmitPassType pass,
           }
           case NON_LETTER_CHARACTER_MATCH:
             bounds_checked =
-                EmitAtomNonLetter(isolate, compiler, quark, backtrack,
-                                  cp_offset + j, needs_bounds_check, preloaded);
+                EmitAtomNonLetter(compiler, quark, backtrack, cp_offset + j,
+                                  needs_bounds_check, preloaded);
             break;
           case SIMPLE_CHARACTER_MATCH:
-            bounds_checked = EmitSimpleCharacter(isolate, compiler, quark,
-                                                 backtrack, cp_offset + j,
-                                                 needs_bounds_check, preloaded);
+            bounds_checked =
+                EmitSimpleCharacter(compiler, quark, backtrack, cp_offset + j,
+                                    needs_bounds_check, preloaded);
             break;
           case CASE_CHARACTER_MATCH:
             bounds_checked =
-                EmitAtomLetter(isolate, compiler, quark, backtrack,
-                               cp_offset + j, needs_bounds_check, preloaded);
+                EmitAtomLetter(compiler, quark, backtrack, cp_offset + j,
+                               needs_bounds_check, preloaded);
             break;
           default:
             break;
@@ -2766,17 +2741,17 @@ int TextNode::Length() {
 TextNode* TextNode::CreateForCharacterRanges(Zone* zone,
                                              ZoneList<CharacterRange>* ranges,
                                              bool read_backward,
-                                             Node* on_success) {
+                                             Node* on_success, Flags flags) {
   DCHECK_NOT_NULL(ranges);
   // TODO(jgruber): There's no fundamental need to create this
   // ClassRanges; we could refactor to avoid the allocation.
   return zone->New<TextNode>(zone->New<ClassRanges>(zone, ranges),
-                             read_backward, on_success);
+                             read_backward, on_success, flags);
 }
 
 TextNode* TextNode::CreateForSurrogatePair(
     Zone* zone, CharacterRange lead, ZoneList<CharacterRange>* trail_ranges,
-    bool read_backward, Node* on_success) {
+    bool read_backward, Node* on_success, Flags flags) {
   ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(2, zone);
   if (lead.from() == lead.to()) {
     ZoneList<base::uc16> lead_surrogate(1, zone);
@@ -2792,12 +2767,12 @@ TextNode* TextNode::CreateForSurrogatePair(
   elms->Add(
       TextElement::FromClassRanges(zone->New<ClassRanges>(zone, trail_ranges)),
       zone);
-  return zone->New<TextNode>(elms, read_backward, on_success);
+  return zone->New<TextNode>(elms, read_backward, on_success, flags);
 }
 
 TextNode* TextNode::CreateForSurrogatePair(
     Zone* zone, ZoneList<CharacterRange>* lead_ranges, CharacterRange trail,
-    bool read_backward, Node* on_success) {
+    bool read_backward, Node* on_success, Flags flags) {
   ZoneList<CharacterRange>* trail_ranges = CharacterRange::List(zone, trail);
   ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(2, zone);
   elms->Add(
@@ -2806,7 +2781,7 @@ TextNode* TextNode::CreateForSurrogatePair(
   elms->Add(
       TextElement::FromClassRanges(zone->New<ClassRanges>(zone, trail_ranges)),
       zone);
-  return zone->New<TextNode>(elms, read_backward, on_success);
+  return zone->New<TextNode>(elms, read_backward, on_success, flags);
 }
 
 // This generates the code to match a text node.  A text node can contain
@@ -2858,7 +2833,7 @@ EmitResult TextNode::Emit(Compiler* compiler, Trace* trace) {
   for (int twice = 0; twice < 2; twice++) {
     bool is_preloaded_pass = twice == 0;
     if (is_preloaded_pass && trace->characters_preloaded() != 1) continue;
-    if (IsIgnoreCase(compiler->flags())) {
+    if (IsIgnoreCase(flags())) {
       TextEmitPass(compiler, NON_LETTER_CHARACTER_MATCH, is_preloaded_pass,
                    trace, first_elt_done, &bound_checked_to);
       TextEmitPass(compiler, CASE_CHARACTER_MATCH, is_preloaded_pass, trace,
@@ -2906,13 +2881,12 @@ EmitResult Trace::AdvanceCurrentPositionInTrace(int by, Compiler* compiler) {
   return EmitResult::Success();
 }
 
-void TextNode::MakeCaseIndependent(Isolate* isolate, bool is_one_byte,
-                                   Flags flags) {
-  if (!IsIgnoreCase(flags)) return;
+void TextNode::MakeCaseIndependent(Isolate* isolate, bool is_one_byte) {
+  if (!IsIgnoreCase(flags())) return;
 #ifdef V8_INTL_SUPPORT
   // This is done in an earlier step when generating the nodes from the AST
   // because we may have to split up into separate nodes.
-  if (NeedsUnicodeCaseEquivalents(flags)) return;
+  if (NeedsUnicodeCaseEquivalents(flags())) return;
 #endif
 
   int element_count = elements()->length();
@@ -3091,12 +3065,6 @@ class FirstCharacterSetBuilder {
         // continuation constrains: /(?!x)[a-c]/ still starts with [a-c].
         // on_success() is the choice node below, which walks just that.
         return AddNode(action->on_success(), depth + 1);
-      // Downstream characters follow the new flags, not the ones we hold, so
-      // every path through a modifier group gives up.  Groups off the walked
-      // path still leak their flags into the analysis, which is what
-      // materializes class ranges -- but AddText reads those same materialized
-      // ranges, so the set stays a superset of what the engine accepts.
-      case ActionNode::MODIFY_FLAGS:
       // Both fail or move the position depending on runtime state.
       case ActionNode::EMPTY_MATCH_CHECK:
       case ActionNode::RESTORE_POSITION:
@@ -3139,15 +3107,14 @@ class FirstCharacterSetBuilder {
     base::Vector<const base::uc16> data = elm.atom()->data();
     if (data.empty()) return false;
     const base::uc16 c = data[0];
-    if (!IsIgnoreCase(compiler_->flags())) {
+    if (!IsIgnoreCase(text->flags())) {
       out_->Add(CharacterRange::Singleton(c), zone_);
       return true;
     }
     // Atoms keep the character as written and only get their case variants at
     // emission time, so add the same closure emission uses.
     unibrow::uchar letters[4];
-    int length = GetCaseIndependentLetters(compiler_->isolate(), c, compiler_,
-                                           letters, 4);
+    int length = text->GetCaseIndependentLetters(compiler_, c, letters, 4);
     // Zero variants means none fit the subject encoding.  Unlike a backtrack,
     // that is a gap in our knowledge rather than a proof of no match, so give
     // up instead of contributing the empty set.
@@ -3315,7 +3282,7 @@ bool AppendTextElementMatchSet(TextElement& elm, Zone* node_zone, Flags flags,
 // position can hold, since every such position was consumed by a body
 // iteration.
 AtomicLoopBodyAnalysis AnalyzeAtomicLoopBody(
-    GuardedAlternative* alt, Node* loop, Flags flags, Zone* zone,
+    GuardedAlternative* alt, Node* loop, Zone* zone,
     ZoneList<CharacterRange>* body_set) {
   AtomicLoopBodyAnalysis result;
   Node* node = alt->node();
@@ -3336,8 +3303,8 @@ AtomicLoopBodyAnalysis AnalyzeAtomicLoopBody(
     } else {
       ZoneList<TextElement>* elms = text->elements();
       for (int i = 0; i < elms->length(); i++) {
-        if (!AppendTextElementMatchSet(elms->at(i), text->zone(), flags, zone,
-                                       body_set)) {
+        if (!AppendTextElementMatchSet(elms->at(i), text->zone(), text->flags(),
+                                       zone, body_set)) {
           result.set_known = false;
         }
       }
@@ -3382,7 +3349,6 @@ bool ContinuationAlwaysSucceeds(Node* node, int depth, int* budget) {
       case ActionNode::CLEAR_CAPTURES:
       case ActionNode::SET_REGISTER_FOR_LOOP:
       case ActionNode::INCREMENT_REGISTER:
-      case ActionNode::MODIFY_FLAGS:
       case ActionNode::EATS_AT_LEAST:
       case ActionNode::RESTORE_POSITION:
       case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
@@ -3463,8 +3429,7 @@ struct AtomicLoopContinuationAnalysis {
 };
 
 AtomicLoopContinuationAnalysis AnalyzeAtomicLoopContinuation(
-    GuardedAlternative* alt, Flags flags, Zone* zone,
-    ZoneList<CharacterRange>* first_set) {
+    GuardedAlternative* alt, Zone* zone, ZoneList<CharacterRange>* first_set) {
   AtomicLoopContinuationAnalysis result;
   if (alt->guards() != nullptr && alt->guards()->length() != 0) return result;
   Node* node = alt->node();
@@ -3504,7 +3469,6 @@ AtomicLoopContinuationAnalysis AnalyzeAtomicLoopContinuation(
         // characters match, so the FIRST walk stops.
         case ActionNode::SET_REGISTER_FOR_LOOP:
         case ActionNode::INCREMENT_REGISTER:
-        case ActionNode::MODIFY_FLAGS:
           first_alive = false;
           break;
         // RESTORE_POSITION rewrites the position; submatch actions consume
@@ -3538,7 +3502,7 @@ AtomicLoopContinuationAnalysis AnalyzeAtomicLoopContinuation(
           AppendClassRangesMatchSet(elm.class_ranges(), text->zone(), zone,
                                     first_set);
           result.first_set_known = true;
-        } else if (!IsIgnoreCase(flags)) {
+        } else if (!IsIgnoreCase(text->flags())) {
           DCHECK_EQ(elm.text_type(), TextElement::ATOM);
           first_set->Add(CharacterRange::Singleton(elm.atom()->data().at(0)),
                          zone);
@@ -3554,7 +3518,7 @@ AtomicLoopContinuationAnalysis AnalyzeAtomicLoopContinuation(
 // Classifies |loop| as an atomic loop: alt 0 a fixed-length greedy body
 // chain back to |loop|, alt 1 a continuation that provably cannot benefit
 // from retreating (per kind; see AtomicLoopKind).
-AtomicLoopKind ClassifyAtomicLoop(LoopChoiceNode* loop, Flags flags) {
+AtomicLoopKind ClassifyAtomicLoop(LoopChoiceNode* loop) {
   if (loop->alternatives()->length() != 2) return AtomicLoopKind::kNone;
   GuardedAlternative* body = &loop->alternatives()->at(0);
   GuardedAlternative* continuation = &loop->alternatives()->at(1);
@@ -3562,12 +3526,12 @@ AtomicLoopKind ClassifyAtomicLoop(LoopChoiceNode* loop, Flags flags) {
 
   ZoneList<CharacterRange> body_set(4, zone);
   AtomicLoopBodyAnalysis body_info =
-      AnalyzeAtomicLoopBody(body, loop, flags, zone, &body_set);
+      AnalyzeAtomicLoopBody(body, loop, zone, &body_set);
   if (!body_info.fixed_length_eligible) return AtomicLoopKind::kNone;
 
   ZoneList<CharacterRange> first_set(2, zone);
   AtomicLoopContinuationAnalysis cont =
-      AnalyzeAtomicLoopContinuation(continuation, flags, zone, &first_set);
+      AnalyzeAtomicLoopContinuation(continuation, zone, &first_set);
 
   // Mutually exclusive: a leading AT_END fails the always-succeeds walk (it
   // stops at the assertion), so only one of these fires.
@@ -3597,10 +3561,9 @@ AtomicLoopKind ClassifyAtomicLoop(LoopChoiceNode* loop, Flags flags) {
   return AtomicLoopKind::kNone;
 }
 
-AtomicLoopKind LoopChoiceNode::atomic_loop_kind(Flags flags) {
-  if (!atomic_loop_kind_valid_ || atomic_loop_kind_flags_ != flags) {
-    atomic_loop_kind_ = ClassifyAtomicLoop(this, flags);
-    atomic_loop_kind_flags_ = flags;
+AtomicLoopKind LoopChoiceNode::atomic_loop_kind() {
+  if (!atomic_loop_kind_valid_) {
+    atomic_loop_kind_ = ClassifyAtomicLoop(this);
     atomic_loop_kind_valid_ = true;
   }
   return atomic_loop_kind_;
@@ -3622,11 +3585,10 @@ AtomicLoopKind LoopChoiceNode::atomic_loop_kind(Flags flags) {
 // start position that matches (/(?:aa)+c/ on "aaaaac" must match "aaaac"@1).
 // The restore modes have no such restriction: they restore the position, so
 // they stay valid at any body width.
-DrainMode ChooseFixedLengthLoopDrainMode(ChoiceNode* choice, Trace* trace,
-                                         Flags flags) {
+DrainMode ChooseFixedLengthLoopDrainMode(ChoiceNode* choice, Trace* trace) {
   LoopChoiceNode* loop = choice->AsLoopChoiceNode();
   if (loop == nullptr) return DrainMode::kFull;
-  const AtomicLoopKind kind = loop->atomic_loop_kind(flags);
+  const AtomicLoopKind kind = loop->atomic_loop_kind();
   // Parking is unsound for a multi-code-unit body (see above); such loops fall
   // back to their widest reduced mode below.
   const bool parkable = kind != AtomicLoopKind::kNone &&
@@ -4279,15 +4241,10 @@ EmitResult ChoiceNode::Emit(Compiler* compiler, Trace* trace) {
   int text_length = FixedLengthLoopLengthForAlternative(&alternatives_->at(0));
   AlternativeGenerationList alt_gens(choice_count, compiler);
 
-  // Flags need to be reset to the state of the ChoiceNode at the beginning
-  // of each alternative (in-line and out-of-line), as flags might be modified
-  // when emitting an alternative.
-  Flags flags = compiler->flags();
   // Grant the search-loop body its parked-position grant (see
-  // ComputeSearchBodyParkedGrant, Trace::parked_grant).  Computed once here
+  // ComputeSearchBodyParkedGrant, Trace::parked_grant). Computed once here
   // rather than at each of its two consumers below (inline emission in
-  // EmitChoices and the out-of-line continuation loop), since compiler->flags()
-  // is reset per alternative and would no longer reflect this node.
+  // EmitChoices and the out-of-line continuation loop).
   LoopChoiceNode* loop_choice = AsLoopChoiceNode();
   const ParkedGrant body_parked_grant =
       loop_choice != nullptr
@@ -4297,8 +4254,7 @@ EmitResult ChoiceNode::Emit(Compiler* compiler, Trace* trace) {
     // If the continuation is provably retreat-insensitive, the drain
     // epilogue can be reduced or omitted entirely; see DrainMode and
     // ChooseFixedLengthLoopDrainMode.  Covers /\s+$/, /\w+\b=/, /[abc]*d/.
-    const DrainMode drain_mode =
-        ChooseFixedLengthLoopDrainMode(this, trace, flags);
+    const DrainMode drain_mode = ChooseFixedLengthLoopDrainMode(this, trace);
     // A reduced drain reaches here only on a fresh trace (cp_offset() == 0):
     // the trivial post-flush trace, or Trace::Flush's direct granted emission.
     // A pending cp advance would break the marker-equals-entry reasoning the
@@ -4311,12 +4267,12 @@ EmitResult ChoiceNode::Emit(Compiler* compiler, Trace* trace) {
       // Non-kFull only for a LoopChoiceNode, so AsLoopChoiceNode() is non-null.
       TRACE("* Atomic loop drain reduced: "
             << DrainModeName(drain_mode) << " (kind "
-            << AtomicLoopKindName(AsLoopChoiceNode()->atomic_loop_kind(flags))
+            << AtomicLoopKindName(AsLoopChoiceNode()->atomic_loop_kind())
             << ", grant " << ParkedGrantName(trace->parked_grant()) << ")");
     }
     trace = EmitFixedLengthLoop(compiler, trace, &alt_gens, &preload,
-                                &special_loop_state, text_length, flags,
-                                drain_mode, body_parked_grant);
+                                &special_loop_state, text_length, drain_mode,
+                                body_parked_grant);
     if (trace == nullptr) return EmitResult::Error();
   } else {
     bool bm_scan_emitted = false;
@@ -4344,7 +4300,7 @@ EmitResult ChoiceNode::Emit(Compiler* compiler, Trace* trace) {
       }
     }
 
-    RETURN_IF_ERROR(EmitChoices(compiler, &alt_gens, 0, trace, &preload, flags,
+    RETURN_IF_ERROR(EmitChoices(compiler, &alt_gens, 0, trace, &preload,
                                 body_parked_grant));
   }
 
@@ -4353,7 +4309,6 @@ EmitResult ChoiceNode::Emit(Compiler* compiler, Trace* trace) {
   // label was bound.
   int new_flush_budget = trace->flush_budget() / choice_count;
   for (int i = 0; i < choice_count; i++) {
-    compiler->set_flags(flags);
     AlternativeGeneration* alt_gen = alt_gens.at(i);
     Trace new_trace(*trace);
     // If there are actions to be flushed we have to limit how many times
@@ -4379,8 +4334,7 @@ EmitResult ChoiceNode::Emit(Compiler* compiler, Trace* trace) {
 Trace* ChoiceNode::EmitFixedLengthLoop(
     Compiler* compiler, Trace* trace, AlternativeGenerationList* alt_gens,
     PreloadState* preload, SpecialLoopState* fixed_length_loop_state,
-    int text_length, Flags flags, DrainMode drain_mode,
-    ParkedGrant body_parked_grant) {
+    int text_length, DrainMode drain_mode, ParkedGrant body_parked_grant) {
   TRACE("* Emit fixed length loop");
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   // Here we have special handling for greedy loops containing only text nodes
@@ -4441,8 +4395,8 @@ Trace* ChoiceNode::EmitFixedLengthLoop(
 
   // In a fixed length loop there is only one other choice, which is what
   // comes after the greedy quantifer.  Try to match that now.
-  result = EmitChoices(compiler, alt_gens, 1, new_trace, preload, flags,
-                       body_parked_grant);
+  result =
+      EmitChoices(compiler, alt_gens, 1, new_trace, preload, body_parked_grant);
   if (result.IsError()) return nullptr;
 
   // kOmit emitted no marker and no step label; everything below is the
@@ -4507,6 +4461,7 @@ namespace {
 struct UniformTextSource {
   ClassRanges* class_ranges = nullptr;
   base::uc16 atom_char = 0;
+  Flags flags = {};
   bool is_atom = false;
   bool is_empty = true;
 
@@ -4514,6 +4469,14 @@ struct UniformTextSource {
   // second source (a different class node, or a different literal character).
   bool Accumulate(TextNode* text) {
     if (text->read_backward()) return false;
+    // Atoms are identified by their raw character, but the set one accepts
+    // also depends on case folding, which a modifier group can change
+    // between the prefix and the loop body.
+    if (is_empty) {
+      flags = text->flags();
+    } else if (IsIgnoreCase(text->flags()) != IsIgnoreCase(flags)) {
+      return false;
+    }
     ZoneList<TextElement>* elms = text->elements();
     for (int i = 0; i < elms->length(); i++) {
       TextElement& elm = elms->at(i);
@@ -4585,7 +4548,7 @@ ParkedGrant LoopChoiceNode::ComputeSearchBodyParkedGrant(Compiler* compiler) {
     }
     if (ActionNode* action = node->AsActionNode()) {
       // Only register-only actions keep the prefix uniform; others reposition
-      // (RESTORE_POSITION, submatches) or change what matches (MODIFY_FLAGS).
+      // (RESTORE_POSITION, submatches).
       if (!action->IsRegisterOnlyAction()) return ParkedGrant::kParked;
       node = action->on_success();
       continue;
@@ -4596,8 +4559,7 @@ ParkedGrant LoopChoiceNode::ComputeSearchBodyParkedGrant(Compiler* compiler) {
       continue;
     }
     LoopChoiceNode* loop = node->AsLoopChoiceNode();
-    if (loop == nullptr ||
-        loop->atomic_loop_kind(compiler->flags()) == AtomicLoopKind::kNone) {
+    if (loop == nullptr || loop->atomic_loop_kind() == AtomicLoopKind::kNone) {
       return ParkedGrant::kParked;
     }
     // The loop body must draw from the same source as the prefix.
@@ -5285,7 +5247,7 @@ bool ChoiceNode::MaybeEmitFixedLengthConsumeScan(Compiler* compiler,
   // code point (a surrogate pair), so the loop's one-code-unit step-back could
   // land mid-pair. One-byte subjects (latin1, all BMP) and non-unicode two-byte
   // subjects (each code unit independent) are both fine.
-  if (!compiler->one_byte() && IsEitherUnicode(compiler->flags())) {
+  if (!compiler->one_byte() && IsEitherUnicode(flags())) {
     TRACE("* No consume scan (two-byte unicode: surrogate step-back unsafe)");
     return false;
   }
@@ -5381,7 +5343,7 @@ bool ChoiceNode::MaybeEmitFixedLengthConsumeScan(Compiler* compiler,
 // choice is not eligible (the caller falls through to the linear chain).
 std::optional<EmitResult> ChoiceNode::TryEmitMaskedValueDispatch(
     Compiler* compiler, AlternativeGenerationList* alt_gens, Trace* trace,
-    PreloadState* preload, Flags flags) {
+    PreloadState* preload) {
   static constexpr int kMinAlternatives = 4;
   static constexpr int kMinGroups = 3;
 
@@ -5645,7 +5607,6 @@ std::optional<EmitResult> ChoiceNode::TryEmitMaskedValueDispatch(
     }
     for (int i = 0; i < choice_count; i++) {
       if (group_of_alt[i] != g) continue;
-      compiler->set_flags(flags);
       Trace new_trace(*trace);
       new_trace.set_characters_preloaded(preload_characters);
       new_trace.set_bound_checked_up_to(preload_characters);
@@ -5689,15 +5650,15 @@ std::optional<EmitResult> ChoiceNode::TryEmitMaskedValueDispatch(
 EmitResult ChoiceNode::EmitChoices(Compiler* compiler,
                                    AlternativeGenerationList* alt_gens,
                                    int first_choice, Trace* trace,
-                                   PreloadState* preload, Flags flags,
+                                   PreloadState* preload,
                                    ParkedGrant body_parked_grant) {
   TRACE("* Emit Choices");
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   SetUpPreLoad(compiler, trace, preload);
 
   if (first_choice == 0) {
-    if (std::optional<EmitResult> dispatched = TryEmitMaskedValueDispatch(
-            compiler, alt_gens, trace, preload, flags)) {
+    if (std::optional<EmitResult> dispatched =
+            TryEmitMaskedValueDispatch(compiler, alt_gens, trace, preload)) {
       return *dispatched;
     }
   }
@@ -5732,7 +5693,6 @@ EmitResult ChoiceNode::EmitChoices(Compiler* compiler,
   }
 
   for (int i = first_choice; i < choice_count; i++) {
-    compiler->set_flags(flags);
     bool is_last = i == choice_count - 1;
     bool fall_through_on_failure = !is_last;
     GuardedAlternative alternative = alternatives_->at(i);
@@ -6006,11 +5966,6 @@ EmitResult ActionNode::Emit(Compiler* compiler, Trace* trace) {
       assembler->Backtrack();
       return EmitResult::Success();
     }
-    case MODIFY_FLAGS: {
-      compiler->set_flags(flags());
-      RETURN_IF_ERROR(on_success()->Emit(compiler, trace));
-      break;
-    }
     default:
       UNREACHABLE();
   }
@@ -6022,8 +5977,7 @@ EmitResult UnanchoredAdvanceNode::Emit(Compiler* compiler, Trace* trace) {
   if (!trace->is_trivial()) {
     return trace->Flush(compiler, this);
   }
-  assembler->UnanchoredAdvance(IsEitherUnicode(compiler->flags()),
-                               trace->backtrack());
+  assembler->UnanchoredAdvance(IsEitherUnicode(flags()), trace->backtrack());
 
   Trace successor_trace(*trace);
   successor_trace.InvalidateCurrentCharacter();
@@ -6063,8 +6017,8 @@ EmitResult BackReferenceNode::Emit(Compiler* compiler, Trace* trace) {
   RecursionCheck rc(compiler);
 
   DCHECK_EQ(start_reg_ + 1, end_reg_);
-  if (IsIgnoreCase(compiler->flags())) {
-    bool unicode = IsEitherUnicode(compiler->flags());
+  if (IsIgnoreCase(flags())) {
+    bool unicode = IsEitherUnicode(flags());
     assembler->CheckNotBackReferenceIgnoreCase(start_reg_, read_backward(),
                                                unicode, trace->backtrack());
   } else {
@@ -6075,7 +6029,7 @@ EmitResult BackReferenceNode::Emit(Compiler* compiler, Trace* trace) {
   if (read_backward()) trace->set_at_start(Trace::UNKNOWN);
 
   // Check that the back reference does not end inside a surrogate pair.
-  if (IsEitherUnicode(compiler->flags()) && !compiler->one_byte()) {
+  if (IsEitherUnicode(flags()) && !compiler->one_byte()) {
     assembler->CheckNotInSurrogatePair(trace->cp_offset(), trace->backtrack());
   }
   return on_success()->Emit(compiler, trace);
@@ -6267,11 +6221,8 @@ class EatsAtLeastPropagator : public AllStatic {
 template <typename... Propagators>
 class Analysis : public NodeVisitor {
  public:
-  Analysis(Isolate* isolate, bool is_one_byte, Flags flags)
-      : isolate_(isolate),
-        is_one_byte_(is_one_byte),
-        flags_(flags),
-        error_(Error::kNone) {}
+  Analysis(Isolate* isolate, bool is_one_byte)
+      : isolate_(isolate), is_one_byte_(is_one_byte), error_(Error::kNone) {}
 
   void EnsureAnalyzed(Node* that) {
     StackLimitCheck check(isolate());
@@ -6308,7 +6259,7 @@ class Analysis : public NodeVisitor {
   } while (false)
 
   void VisitText(TextNode* that) override {
-    that->MakeCaseIndependent(isolate(), is_one_byte_, flags());
+    that->MakeCaseIndependent(isolate(), is_one_byte_);
     EnsureAnalyzed(that->on_success());
     if (has_failed()) return;
     that->CalculateOffsets();
@@ -6316,9 +6267,6 @@ class Analysis : public NodeVisitor {
   }
 
   void VisitAction(ActionNode* that) override {
-    if (that->action_type() == ActionNode::MODIFY_FLAGS) {
-      set_flags(that->flags());
-    }
     EnsureAnalyzed(that->on_success());
     if (has_failed()) return;
     STATIC_FOR_EACH(Propagators::VisitAction(that));
@@ -6331,13 +6279,8 @@ class Analysis : public NodeVisitor {
   }
 
   void VisitChoice(ChoiceNode* that) override {
-    // Flags need to be reset to the state of the ChoiceNode at the beginning
-    // of each alternative, as flags might be modified when visiting an
-    // alternative.
-    Flags header_flags = flags();
     for (int i = 0; i < that->alternatives()->length(); i++) {
       EnsureAnalyzed(that->alternatives()->at(i).node());
-      set_flags(header_flags);
       if (has_failed()) return;
       STATIC_FOR_EACH(Propagators::VisitChoice(that, i));
     }
@@ -6347,41 +6290,26 @@ class Analysis : public NodeVisitor {
     DCHECK_EQ(that->alternatives()->length(), 2);  // Just loop and continue.
 
     // First propagate all information from the continuation node.
-    // Due to the unusual visitation order, we need to manage the flags manually
-    // as if we were visiting the loop node before visiting the continuation.
-    Flags orig_flags = flags();
-
     EnsureAnalyzed(that->continue_node());
     if (has_failed()) return;
-    // Propagators don't access global state (including flags), so we don't need
-    // to reset them here.
     STATIC_FOR_EACH(Propagators::VisitLoopChoiceContinueNode(that));
-
-    Flags continuation_flags = flags();
 
     // Check the loop last since it may need the value of this node
     // to get a correct result.
-    set_flags(orig_flags);
     EnsureAnalyzed(that->loop_node());
     if (has_failed()) return;
-    // Propagators don't access global state (including flags), so we don't need
-    // to reset them here.
     STATIC_FOR_EACH(Propagators::VisitLoopChoiceLoopNode(that));
-
-    set_flags(continuation_flags);
   }
 
   void VisitNegativeLookaroundChoice(
       NegativeLookaroundChoiceNode* that) override {
     DCHECK_EQ(that->alternatives()->length(), 2);  // Lookaround and continue.
 
-    Flags header_flags = flags();
     EnsureAnalyzed(that->lookaround_node());
     if (has_failed()) return;
     STATIC_FOR_EACH(
         Propagators::VisitNegativeLookaroundChoiceLookaroundNode(that));
 
-    set_flags(header_flags);
     EnsureAnalyzed(that->continue_node());
     if (has_failed()) return;
     STATIC_FOR_EACH(
@@ -6403,21 +6331,16 @@ class Analysis : public NodeVisitor {
 #undef STATIC_FOR_EACH
 
  private:
-  Flags flags() const { return flags_; }
-  void set_flags(Flags flags) { flags_ = flags; }
-
   Isolate* isolate_;
   const bool is_one_byte_;
-  Flags flags_;
   Error error_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
 };
 
-Error AnalyzeRegExp(Isolate* isolate, bool is_one_byte, Flags flags,
-                    Node* node) {
-  Analysis<AssertionPropagator, EatsAtLeastPropagator> analysis(
-      isolate, is_one_byte, flags);
+Error AnalyzeRegExp(Isolate* isolate, bool is_one_byte, Node* node) {
+  Analysis<AssertionPropagator, EatsAtLeastPropagator> analysis(isolate,
+                                                                is_one_byte);
   DCHECK_EQ(node->info()->been_analyzed, false);
   analysis.EnsureAnalyzed(node);
   DCHECK_IMPLIES(analysis.has_failed(), analysis.error() != Error::kNone);
@@ -6473,10 +6396,10 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
           return;
         }
         base::uc16 character = atom->data()[j];
-        if (IsIgnoreCase(bm->compiler()->flags())) {
+        if (IsIgnoreCase(flags())) {
           unibrow::uchar chars[4];
-          int length = GetCaseIndependentLetters(isolate, character,
-                                                 bm->compiler(), chars, 4);
+          int length =
+              GetCaseIndependentLetters(bm->compiler(), character, chars, 4);
           for (int k = 0; k < length; k++) {
             bm->Set(offset, chars[k]);
           }
@@ -6518,17 +6441,17 @@ Node* Compiler::OptionallyStepBackToLeadSurrogate(Node* on_success) {
   ZoneList<CharacterRange>* trail_surrogates = CharacterRange::List(
       zone(), CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd));
 
-  ChoiceNode* optional_step_back = zone()->New<ChoiceNode>(2, zone());
+  ChoiceNode* optional_step_back = zone()->New<ChoiceNode>(2, flags(), zone());
 
   int stack_register = UnicodeLookaroundStackRegister();
   int position_register = UnicodeLookaroundPositionRegister();
-  Node* step_back = TextNode::CreateForCharacterRanges(zone(), lead_surrogates,
-                                                       true, on_success);
+  Node* step_back = TextNode::CreateForCharacterRanges(
+      zone(), lead_surrogates, true, on_success, flags());
   Lookaround::Builder builder(true, step_back, this, stack_register,
                               position_register);
   REGISTER_NODE(step_back);
   Node* match_trail = TextNode::CreateForCharacterRanges(
-      zone(), trail_surrogates, false, builder.on_match_success());
+      zone(), trail_surrogates, false, builder.on_match_success(), flags());
   REGISTER_NODE(match_trail);
 
   optional_step_back->AddAlternative(
@@ -6563,11 +6486,11 @@ Node* Compiler::PreprocessRegExp(CompileData* data, bool is_one_byte) {
       // Unroll loop once, to take care of the case that might start
       // at the start of input.
       TRACE_GRAPH("* Unroll loop once");
-      ChoiceNode* first_step_node = zone()->New<ChoiceNode>(2, zone());
+      ChoiceNode* first_step_node = zone()->New<ChoiceNode>(2, flags(), zone());
       first_step_node->AddAlternative(GuardedAlternative(captured_body));
       first_step_node->AddAlternative(GuardedAlternative(zone()->New<TextNode>(
           zone()->New<ClassRanges>(StandardCharacterSet::kEverything), false,
-          loop_node)));
+          loop_node, flags())));
       REGISTER_NODE(first_step_node);
       node = first_step_node;
     } else {

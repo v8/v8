@@ -84,11 +84,9 @@ test(/(?!(?i:x|y))[K]/, ['K'], ['k']);
 test(/(?<!(?i:x|y))[K]/, ['K'], ['k']);
 test(/(?!(?-i:x|y))[K]/i, ['K', 'k']);
 
-// Emitting a modifier group must leave the outer flags behind. The graph has a
-// ModifyFlags node that restores them, but a branching body shares it between
-// its alternatives, so it is not necessarily emitted last. The trailing
-// alternatives are there to defer a node to the work list, which is then
-// emitted after the main walk, under the group's flags. Only the tail is case
+// Emitting a modifier group must not affect the flags of subsequent nodes.
+// Each node carries its own flags, so trailing alternatives and deferred
+// work-list nodes retain their respective flag scopes. Only the tail is case
 // independent; (?-i:) still rejects an uppercase X.
 test(
     /^K(?-i:(?:x|y))(?:a|b)(?:c|d)(?:e|f)(?:g|h)/i,

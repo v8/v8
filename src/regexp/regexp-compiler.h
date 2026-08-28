@@ -543,8 +543,7 @@ struct PreloadState {
 // Analysis performs assertion propagation and computes eats_at_least_ values.
 // See the comments on AssertionPropagator and EatsAtLeastPropagator for more
 // details.
-Error AnalyzeRegExp(Isolate* isolate, bool is_one_byte, Flags flags,
-                    Node* node);
+Error AnalyzeRegExp(Isolate* isolate, bool is_one_byte, Node* node);
 
 class FrequencyCollator {
  public:
@@ -654,13 +653,12 @@ class V8_EXPORT_PRIVATE Compiler {
 
   struct WorkItem {
     Node* node;
-    Flags flags;
   };
 
   inline void AddWork(Node* node) {
     if (!node->on_work_list() && !node->label()->is_bound()) {
       node->set_on_work_list(true);
-      work_list_->push_back({node, flags()});
+      work_list_->push_back({node});
     }
   }
 
