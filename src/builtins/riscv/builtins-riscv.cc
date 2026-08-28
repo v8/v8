@@ -2178,8 +2178,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
   // Check we are actually jumping to an OSR code object. This among other
   // things ensures that the object contains deoptimization data below.
-  __ Load32U(scratch,
-             FieldMemOperand(maybe_target_code, Code::kOsrOffsetOffset));
+  __ Lw(scratch, FieldMemOperand(maybe_target_code, Code::kOsrOffsetOffset));
   __ SbxCheck(ne, AbortReason::kExpectedOsrCode, scratch,
               Operand(BytecodeOffset::None().ToInt()));
 
