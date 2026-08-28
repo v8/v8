@@ -1375,6 +1375,7 @@ void BytecodeGraphBuilder::BuildFunctionEntryStackCheck() {
 }
 
 void BytecodeGraphBuilder::BuildIterationBodyStackCheck() {
+  if (V8_UNLIKELY(v8_flags.disable_loop_stack_checks)) return;
   Node* node =
       NewNode(javascript()->StackCheck(StackCheckKind::kJSIterationBody));
   environment()->RecordAfterState(node, Environment::kAttachFrameState);

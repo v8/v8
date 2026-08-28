@@ -1320,6 +1320,8 @@ DEFINE_INT(stress_runs, 0, "number of stress runs")
 DEFINE_INT(deopt_every_n_times, 0,
            "deoptimize every n times a deopt point is passed")
 DEFINE_BOOL(print_deopt_stress, false, "print number of possible deopt points")
+DEFINE_BOOL(disable_loop_stack_checks, false,
+            "disable loop stack checks (for testing/fuzzing only)")
 
 // Flags for TurboFan.
 #ifdef V8_ENABLE_TURBOFAN

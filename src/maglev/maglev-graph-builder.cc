@@ -14683,19 +14683,21 @@ ReduceResult MaglevGraphBuilder::VisitJumpLoop() {
   BytecodeOffset jump_loop_osr_offset =
       BytecodeOffset(iterator_.current_offset());
 
-  bool osr =
-      ShouldEmitOsrInterruptBudgetChecks(feedback_slot, jump_loop_osr_offset);
-  if (ShouldEmitInterruptBudgetChecks()) {
-    int reduction = relative_jump_bytecode_offset *
-                    v8_flags.osr_from_maglev_interrupt_scale_factor;
-    BytecodeOffset osr_offset =
-        osr ? jump_loop_osr_offset : BytecodeOffset::None();
-    FeedbackSlot slot = osr ? feedback_slot : FeedbackSlot::Invalid();
-    RETURN_IF_ABORT(AddNewNode<ReduceInterruptBudgetForLoop>(
-        {GetFeedbackCell()}, reduction > 0 ? reduction : 1, osr_offset,
-        loop_offset, slot));
-  } else {
-    RETURN_IF_ABORT(AddNewNode<HandleNoHeapWritesInterrupt>({}));
+  if (V8_LIKELY(!v8_flags.disable_loop_stack_checks)) {
+    bool osr =
+        ShouldEmitOsrInterruptBudgetChecks(feedback_slot, jump_loop_osr_offset);
+    if (ShouldEmitInterruptBudgetChecks()) {
+      int reduction = relative_jump_bytecode_offset *
+                      v8_flags.osr_from_maglev_interrupt_scale_factor;
+      BytecodeOffset osr_offset =
+          osr ? jump_loop_osr_offset : BytecodeOffset::None();
+      FeedbackSlot slot = osr ? feedback_slot : FeedbackSlot::Invalid();
+      RETURN_IF_ABORT(AddNewNode<ReduceInterruptBudgetForLoop>(
+          {GetFeedbackCell()}, reduction > 0 ? reduction : 1, osr_offset,
+          loop_offset, slot));
+    } else {
+      RETURN_IF_ABORT(AddNewNode<HandleNoHeapWritesInterrupt>({}));
+    }
   }
 
   bool is_peeled_loop = loop_headers_to_peel_.Contains(target);

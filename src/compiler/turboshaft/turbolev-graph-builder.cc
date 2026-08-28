@@ -5827,6 +5827,7 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::HandleNoHeapWritesInterrupt* node,
                                 const maglev::ProcessingState&) {
+    DCHECK(!v8_flags.disable_loop_stack_checks);
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
     __ JSLoopStackCheck(native_context(), frame_state);
     return maglev::ProcessResult::kContinue;
