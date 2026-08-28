@@ -719,6 +719,10 @@ void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
 
 MaybeLocal<String> CreateStringFromExternalData(Isolate* isolate,
                                                 std::string_view source) {
+  constexpr std::string_view kUtf8Bom = "\xEF\xBB\xBF";
+  if (source.starts_with(kUtf8Bom)) {
+    source.remove_prefix(kUtf8Bom.size());
+  }
   int size = static_cast<int>(source.size());
   if (i::v8_flags.use_external_strings &&
       i::String::IsAscii(source.data(), size)) {
