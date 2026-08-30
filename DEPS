@@ -99,7 +99,7 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:c1b663788ed1ecf2ffd53781c98ae2291ee002cf',
+  'gn_version': 'git_revision:d71c4a70bd2ece461a09cbd6321970b9247fdab2',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -344,7 +344,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '45120ee2331193c3650acc9c427ed267fab31d62',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '9dd191a2af70c4afc3f36f2742faceb27d30763f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '320824188c37e5c28738b9652a0ca8087c934bc9',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
