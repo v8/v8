@@ -106,7 +106,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:da6dab06f07af293f3695730868206f97c257661',
+  'siso_version': 'git_revision:efbbe7f1892211b5e9512576843a3c247b6a6d7c',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -116,7 +116,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '1f5d57db1b2c9dfcb5cabca3ec879fbe39f21619',
+  'partition_alloc_version': 'f0d1e646eb41d8736261d5d8d8f094404bac62ac',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -278,7 +278,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f70835271105ca56d2cd5382a0118152bc2bdeea',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2cc878ef8e3a0ae143d13e4aa04957ca3d6f9a58',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
