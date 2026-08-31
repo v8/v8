@@ -424,6 +424,8 @@ class ArrayBufferExtension final
 };
 
 V8_OBJECT class JSArrayBufferView : public JSAPIObjectWithEmbedderSlots {
+  V8_IT_ABSTRACT;
+
  public:
   // [buffer]: the underlying ArrayBuffer.
   inline Tagged<JSArrayBuffer> buffer() const;
@@ -486,6 +488,8 @@ static_assert(IsAligned(offsetof(JSArrayBufferView, raw_byte_length_),
                         kUIntptrSize));
 
 V8_OBJECT class JSTypedArray : public JSArrayBufferView {
+  V8_IT_OWN_TYPE;
+
  public:
   static constexpr size_t kMaxByteLength = JSArrayBuffer::kMaxByteLength;
   static_assert(kMaxByteLength == v8::TypedArray::kMaxByteLength);
@@ -633,6 +637,8 @@ V8_OBJECT class JSDetachedTypedArray : public JSTypedArray {
 } V8_OBJECT_END;
 
 V8_OBJECT class JSDataViewOrRabGsabDataView : public JSArrayBufferView {
+  V8_IT_ABSTRACT;
+
  public:
   // [data_pointer]: pointer to the actual data.
   inline void* data_pointer() const;
@@ -676,6 +682,7 @@ V8_OBJECT class JSRabGsabDataView : public JSDataViewOrRabGsabDataView {
 } V8_OBJECT_END;
 
 V8_OBJECT class TypedArrayConstructor : public JSFunctionWithPrototype {
+  V8_IT_ABSTRACT;
 } V8_OBJECT_END;
 V8_OBJECT class Uint8TypedArrayConstructor : public TypedArrayConstructor {
 } V8_OBJECT_END;

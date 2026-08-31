@@ -984,7 +984,6 @@ Tagged<String> ScopeInfo::ContextInlinedLocalName(int var) const {
   return context_local_names(var);
 }
 
-
 VariableMode ScopeInfo::ContextLocalMode(int var) const {
   int value = context_local_infos(var);
   return VariableModeBits::decode(value);

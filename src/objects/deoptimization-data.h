@@ -22,6 +22,8 @@ namespace internal {
 // This class holds data required during deoptimization. It does not have its
 // own instance type.
 class DeoptimizationLiteralArray : public TrustedWeakFixedArray {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   // Getters for literals. These include runtime checks that the pointer was not
   // cleared, if the literal was held weakly.
@@ -186,6 +188,8 @@ class DeoptimizationLiteral {
 // transform an optimized frame back into one or more unoptimized frames.
 enum class TranslationOpcode;
 class DeoptimizationFrameTranslation : public TrustedByteArray {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   struct FrameCount {
     int total_frame_count;
@@ -271,6 +275,8 @@ class DeoptimizationFrameTranslation::Iterator
 //
 // It can be empty.
 class DeoptimizationData : public ProtectedFixedArray {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   using SharedFunctionInfoWrapperOrSmi =
       UnionOf<Smi, SharedFunctionInfoWrapper>;

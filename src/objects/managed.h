@@ -98,6 +98,8 @@ class CppGCManagedWrapper final
 };
 
 V8_OBJECT class CppGCManagedBase : public HeapObject {
+  V8_IT_OWN_TYPE;
+
  public:
   DECL_VERIFIER(CppGCManagedBase)
   DECL_PRINTER(CppGCManagedBase)
@@ -130,6 +132,8 @@ V8_OBJECT
 template <class CppType>
 class CppGCManaged : public CppGCManagedBase {
  public:
+  V8_IT_REUSE_PARENT;
+
   V8_OBJECT_INNER_CLASS class Ptr final {
    public:
     V8_INLINE Ptr() = default;
@@ -266,6 +270,8 @@ V8_EXPORT_PRIVATE void ManagedObjectFinalizer(
 template <class CppType>
 class Managed : public Foreign {
  public:
+  V8_IT_REUSE_PARENT;
+
   // Exposes the underlying C++ object and keeps the ref counter incremented.
   //
   // Usage examples:
@@ -389,6 +395,8 @@ class Managed : public Foreign {
 template <class CppType>
 class TrustedManaged : public TrustedForeign {
  public:
+  V8_IT_REUSE_PARENT;
+
   // For every object, add a `->` operator which returns a pointer to this
   // object. This will allow smoother transition between T and Tagged<T>.
   TrustedManaged* operator->() { return this; }

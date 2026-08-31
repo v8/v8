@@ -303,6 +303,8 @@ struct ObjectTraits<SourceTextModule> {
 // SourceTextModuleInfo is to SourceTextModuleDescriptor what ScopeInfo is to
 // Scope.
 class SourceTextModuleInfo : public FixedArray {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   template <typename IsolateT>
   V8_EXPORT_PRIVATE static DirectHandle<SourceTextModuleInfo> New(

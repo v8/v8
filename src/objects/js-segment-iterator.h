@@ -78,6 +78,9 @@ V8_OBJECT class JSSegmentIterator : public JSObject {
 inline constexpr int JSSegmentIterator::kHeaderSize = sizeof(JSSegmentIterator);
 
 V8_OBJECT class JSSegmentDataObject : public JSObject {
+  V8_IT_REUSE_PARENT;
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   inline Tagged<String> segment() const;
   inline void set_segment(Tagged<String> value,
@@ -105,6 +108,9 @@ inline constexpr int JSSegmentDataObject::kHeaderSize =
     sizeof(JSSegmentDataObject);
 
 V8_OBJECT class JSSegmentDataObjectWithIsWordLike : public JSSegmentDataObject {
+  V8_IT_NO_AUTO_CHECKER;
+  V8_IT_REUSE_PARENT;
+
  public:
   inline Tagged<Boolean> is_word_like() const;
   inline void set_is_word_like(Tagged<Boolean> value,

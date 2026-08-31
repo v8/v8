@@ -1234,10 +1234,8 @@ const char* V8HeapExplorer::GetSystemEntryName(Tagged<HeapObject> object) {
     // The following lists include every non-String instance type.
     // This includes a few types that already have non-"system" names assigned
     // by AddEntry, but this is a convenient way to avoid manual upkeep here.
-    TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
-    TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
-    TORQUE_INSTANCE_CHECKERS_SINGLE_ONLY_DECLARED(MAKE_TORQUE_CASE)
-    TORQUE_INSTANCE_CHECKERS_MULTIPLE_ONLY_DECLARED(MAKE_TORQUE_CASE)
+    INSTANCE_TYPE_LIST_SINGLE(MAKE_TORQUE_CASE)
+    INSTANCE_TYPE_LIST_MULTIPLE(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
     // Strings were already handled by AddEntry.

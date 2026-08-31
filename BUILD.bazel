@@ -9,6 +9,7 @@ load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@v8_python_deps//:requirements.bzl", "requirement")
 load(
     "@v8//:bazel/defs.bzl",
+    "metagen_instance_types",
     "v8_binary",
     "v8_build_config",
     "v8_config",
@@ -181,6 +182,11 @@ v8_flag(
 )
 
 v8_flag(name = "v8_enable_experimental_tq_to_tsa")
+
+# Mirrors the GN arg of the same name: selects which instance-type
+# generator's output V8 compiles in, metagen or Torque's emission. Both
+# generators stay wired, so flipping it is a rebuild, not a regen.
+v8_flag(name = "v8_use_metagen_instance_types")
 
 v8_flag(
     name = "v8_use_host_cpu_arm_features",
@@ -552,6 +558,11 @@ v8_config(
         "V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
         "V8_TLS_USED_IN_LIBRARY",
     ] + select({
+        ":is_not_v8_use_metagen_instance_types": [
+            "V8_USE_METAGEN_INSTANCE_TYPES=0",
+        ],
+        "//conditions:default": [],
+    }) + select({
         "@v8//bazel/config:is_debug": [
             "DEBUG",
             "V8_ENABLE_CHECKS",
@@ -2099,6 +2110,7 @@ filegroup(
         "src/objects/abstract-code.h",
         "src/objects/abstract-code-inl.h",
         "src/objects/all-objects-inl.h",
+        "src/objects/all-objects.h",
         "src/objects/allocation-site.h",
         "src/objects/allocation-site-inl.h",
         "src/objects/allocation-site-scopes.h",
@@ -2198,6 +2210,7 @@ filegroup(
         "src/objects/instance-type.h",
         "src/objects/instance-type-checker.h",
         "src/objects/instance-type-inl.h",
+        "src/objects/instance-types-gen.h",
         "src/objects/internal-index.h",
         "src/objects/instruction-stream.cc",
         "src/objects/instruction-stream.h",
@@ -4454,11 +4467,189 @@ v8_torque_files(
         "class-forward-declarations.h",
         # "debug-macros.cc",
         # "debug-macros.h",
+        "debug-reader-classes-list.h",
+        "instance-type-checker-lists.h",
         "instance-types.h",
         "interface-descriptors.inc",
     ],
     icu_srcs = [":icu/torque_files"],
     noicu_srcs = [":noicu/torque_files"],
+)
+
+# Metagen: libclang-driven IT generator. Produces gen/metagen/instance-types.h
+# which `src/objects/instance-types-gen.h` includes when
+# V8_USE_METAGEN_INSTANCE_TYPES is on. The action stays wired either way, so
+# flipping the flag is a plain rebuild.
+filegroup(
+    name = "metagen_python_sources",
+    srcs = [
+        "tools/metagen/__init__.py",
+        "tools/metagen/clang_bootstrap.py",
+        "tools/metagen/compile_flags.py",
+        "tools/metagen/cpp_hier.py",
+        "tools/metagen/extract.py",
+        "tools/metagen/instance_types.py",
+        "tools/metagen/metagen.py",
+    ],
+)
+
+# V8 headers staged into the metagen action's sandbox so libclang can
+# resolve transitive #includes. Globbed wide on purpose: cheaper than
+# enumerating the transitive set, and the extra files only cost sandbox
+# materialization.
+filegroup(
+    name = "metagen_sandbox_headers",
+    srcs = glob([
+        "include/**/*.h",
+        "src/**/*.h",
+        "src/**/*.inc",
+        # Vendored third_party headers reached from V8's own (e.g.
+        # src/strings/unicode.h -> utf8-decoder.h). Enumerated rather
+        # than a blanket third_party/**, which would also stage the
+        # large gclient trees.
+        "third_party/utf8-decoder/**/*.h",
+        "third_party/simdutf/**/*.h",
+        "third_party/rapidhash-v8/**/*.h",
+        "third_party/fp16/**/*.h",
+        "third_party/wasm-api/**/*.h",
+        "third_party/siphash/**/*.h",
+        "third_party/vtune/**/*.h",
+    ]),
+)
+
+# Libclang runtime files: the Python bindings + host native library, both
+# from the llvm-libclang package (version-locked together). This filegroup
+# is consumed in the exec configuration, so the select follows the host
+# that runs metagen rather than the V8 target platform.
+filegroup(
+    name = "metagen_libclang_files",
+    srcs = [
+        "third_party/llvm-libclang/bindings/python/clang/__init__.py",
+        "third_party/llvm-libclang/bindings/python/clang/cindex.py",
+    ] + select({
+        "@v8//bazel/config:is_macos": [
+            "third_party/llvm-libclang/lib/libclang.dylib",
+        ],
+        "@v8//bazel/config:is_windows": [
+            "third_party/llvm-libclang/bin/libclang.dll",
+        ],
+        "//conditions:default": [
+            "third_party/llvm-libclang/lib/libclang.so",
+        ],
+    }),
+)
+
+# Clang's builtin headers (stddef.h, stdarg.h, the arch intrinsics).
+# Kept separate from the libclang files above because they are a
+# different input to the rule: metagen takes their directory explicitly
+# and passes it as -isystem. The llvm-libclang package ships the library
+# and the C API headers but no builtin headers, so these come from the
+# clang toolchain, which rolls from the same LLVM revision and therefore
+# matches the parsing library.
+filegroup(
+    name = "metagen_clang_builtin_headers",
+    srcs = glob([
+        "third_party/llvm-build/Release+Asserts/lib/clang/*/include/**",
+    ]),
+)
+
+# The harvest's checked-in C++ driver, shared with GN and metagen.py. It
+# includes src/objects/all-objects.h, whose feature-conditional groups
+# are selected by the normal V8 feature defines. Bazel always defines
+# V8_ENABLE_WEBASSEMBLY via :define_flags; V8_INTL_SUPPORT is added only by
+# the icu-prefixed action. Temporal is disabled because temporal_rs is not a
+# Bazel dependency.
+#
+# The headers themselves reach the action through the
+# `metagen_sandbox_headers` glob below, which already covers src/**.
+filegroup(
+    name = "metagen_driver",
+    srcs = ["tools/metagen/harvest-driver.cc"],
+)
+
+py_binary(
+    name = "metagen_tool",
+    srcs = [
+        "tools/metagen/__init__.py",
+        "tools/metagen/clang_bootstrap.py",
+        "tools/metagen/compile_flags.py",
+        "tools/metagen/cpp_hier.py",
+        "tools/metagen/extract.py",
+        "tools/metagen/instance_types.py",
+        "tools/metagen/metagen.py",
+    ],
+    # tools/metagen/ is a Python package, so the scripts import each
+    # other as `from metagen import ...`. That needs the package's
+    # parent -- tools/ -- on sys.path, not the package dir itself.
+    imports = ["tools"],
+    main = "tools/metagen/metagen.py",
+)
+
+metagen_instance_types(
+    name = "metagen_instance_types_h",
+    driver = ":metagen_driver",
+    clang_builtin_headers = [":metagen_clang_builtin_headers"],
+    libclang_files = [":metagen_libclang_files"],
+    python_srcs = [":metagen_python_sources"],
+    # V8 source-tree headers transitively #include'd from the input
+    # headers. The cc_compilation_context_from CcInfo only covers
+    # :v8_libbase and :define_flags, which doesn't reach src/objects,
+    # src/handles, src/wasm, etc. The natural target that would
+    # (:v8_libshared) depends on this rule's output, so we ship the
+    # headers as raw files in the action sandbox instead.
+    extra_sandbox_files = [":metagen_sandbox_headers"],
+    tool = ":metagen_tool",
+    # Source of the cflags fed to libclang: `:define_flags` carries V8's
+    # arch/feature defines, `:v8_libbase` the source-root / include/ /
+    # libc++ context, the cc toolchain the rest.
+    #
+    # The third_party libs need CcInfo rather than the sandbox glob
+    # because their includes resolve through the lib's own -I, which a
+    # glob cannot supply: abseil is included as absl/..., and fp16.h
+    # does #include "fp16/bitcasts.h". The rest are included by full
+    # path, resolve via -I., and the glob suffices.
+    cc_compilation_context_from = [
+        ":define_flags",
+        ":v8_libbase",
+        ":lib_fp16",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/container:node_hash_set",
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/functional:overload",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+    ],
+    # The icu variant of v8_library compiles with V8_INTL_SUPPORT (via
+    # ENABLE_I18N_SUPPORT_DEFINES copts, invisible to CcInfo) and the
+    # intl object sources, so its IT enum must include the intl types:
+    # the icu-prefixed harvest additionally parses the intl headers,
+    # with the same defines and with ICU's headers + include paths.
+    icu_cc_compilation_context_from = ["//external:icu"],
+    icu_extra_defines = [
+        "V8_INTL_SUPPORT",
+        "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC",
+        "UNISTR_FROM_CHAR_EXPLICIT=",
+    ],
+)
+
+# Header-only library wrapping the metagen output. strip_include_prefix
+# rewrites the include path so `#include "metagen/instance-types.h"`
+# resolves against the gen dir.
+cc_library(
+    name = "icu/metagen_instance_types_headers",
+    hdrs = [":icu/metagen_instance_types_h"],
+    copts = ["-Wno-implicit-fallthrough"],
+    strip_include_prefix = "icu",
+)
+
+cc_library(
+    name = "noicu/metagen_instance_types_headers",
+    hdrs = [":noicu/metagen_instance_types_h"],
+    copts = ["-Wno-implicit-fallthrough"],
+    strip_include_prefix = "noicu",
 )
 
 py_binary(
@@ -4695,18 +4886,22 @@ v8_library(
     copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [
         ":icu/generated_torque_definitions_headers",
+        ":icu/metagen_instance_types_headers",
         "//external:icu",
     ],
     icu_srcs = [
         ":generated_regexp_special_case",
         ":icu/generated_torque_definitions",
+        ":icu/metagen_instance_types_h",
         ":icu/v8_base_without_compiler_files",
     ],
     noicu_deps = [
         ":noicu/generated_torque_definitions_headers",
+        ":noicu/metagen_instance_types_headers",
     ],
     noicu_srcs = [
         ":noicu/generated_torque_definitions",
+        ":noicu/metagen_instance_types_h",
     ],
     deps = [
         ":lib_dragonbox",

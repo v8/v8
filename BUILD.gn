@@ -7,6 +7,7 @@
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
 import("//build/config/c++/c++.gni")
+import("//build/config/clang/clang.gni")
 import("//build/config/coverage/coverage.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/host_byteorder.gni")
@@ -42,6 +43,12 @@ emit_builtins_as_inline_asm = is_win && is_clang
 declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
+
+  # Selects which instance-type generator's output V8 compiles in:
+  # metagen (tools/metagen/) or Torque's emission. Both actions are wired
+  # in the build, so flipping this is a rebuild, not a regen. Sets
+  # -DV8_USE_METAGEN_INSTANCE_TYPES=0 when off.
+  v8_use_metagen_instance_types = false
 
   # Dynamically set an additional dependency from v8/custom_deps.
   v8_custom_deps = ""
@@ -1293,6 +1300,13 @@ config("features") {
     "V8_LOGGING_LEVEL=${v8_logging_level}",
   ]
 
+  # Selects metagen vs Torque instance-type output (see
+  # src/objects/instance-types-gen.h). The header defaults to metagen
+  # when this is undefined, so only the off case needs a define.
+  if (!v8_use_metagen_instance_types) {
+    defines += [ "V8_USE_METAGEN_INSTANCE_TYPES=0" ]
+  }
+
   configs = [
     ":v8_header_features",
     ":cppgc_header_features",
@@ -2040,7 +2054,8 @@ if (v8_postmortem_support) {
 
     # NOSORT
     inputs = [
-      "$target_gen_dir/torque-generated/instance-types.h",
+      "$target_gen_dir/metagen/instance-types.h",
+      "$target_gen_dir/torque-generated/debug-reader-classes-list.h",
       "src/objects/allocation-site.h",
       "src/objects/allocation-site-inl.h",
       "src/objects/cell.h",
@@ -2145,7 +2160,10 @@ if (v8_postmortem_support) {
     args = rebase_path(outputs, root_build_dir) +
            rebase_path(inputs, root_build_dir)
 
-    deps = [ ":run_torque" ]
+    deps = [
+      ":metagen_instance_types_h",
+      ":run_torque",
+    ]
   }
 }
 
@@ -2418,6 +2436,131 @@ if (v8_enable_webassembly) {
   }
 }
 
+# The checked-in translation unit metagen parses. It includes
+# src/objects/all-objects.h, whose feature-specific groups use the same
+# defines as their V8 sources.
+_metagen_driver_file = "tools/metagen/harvest-driver.cc"
+_metagen_out_dir = "$target_gen_dir/metagen"
+
+# metagen's libclang Python bindings and native library, declared as
+# inputs so a package roll re-runs the harvest.
+#
+# The `//` prefix is load-bearing: llvm-libclang lives in the checkout
+# root's third_party in both layouts (v8/ standalone, src/ under
+# Chromium), whereas a relative path would anchor at //v8/ in Chromium.
+_metagen_libclang_files = [
+  "//third_party/llvm-libclang/bindings/python/clang/cindex.py",
+  "//third_party/llvm-libclang/bindings/python/clang/__init__.py",
+]
+if (host_os == "mac") {
+  _metagen_libclang_files +=
+      [ "//third_party/llvm-libclang/lib/libclang.dylib" ]
+} else if (host_os == "win") {
+  _metagen_libclang_files += [ "//third_party/llvm-libclang/bin/libclang.dll" ]
+} else {
+  _metagen_libclang_files += [ "//third_party/llvm-libclang/lib/libclang.so" ]
+}
+
+# Clang's builtin headers (stddef.h, stdarg.h, the arch intrinsics).
+# llvm-libclang ships none, so they come from the clang toolchain, which
+# rolls from the same LLVM revision and therefore matches it.
+_metagen_builtin_headers_dir =
+    "$clang_base_path/lib/clang/$clang_version/include"
+_metagen_flags_target = ":v8_base_without_compiler"
+_metagen_flags_target_ninja =
+    get_label_info(_metagen_flags_target, "target_out_dir") +
+    "/v8_base_without_compiler.ninja"
+
+action("metagen_instance_types_h") {
+  visibility = [
+    ":*",
+    "tools/debug_helper/:*",
+  ]
+
+  script = "tools/metagen/metagen.py"
+
+  # The script obtains the parse flags through `gn desc`, so make the build
+  # configuration an explicit input. In particular, changing a feature define
+  # must re-run the driver even though the action command is unchanged.
+  deps = [ ":v8_dump_build_config" ]
+
+  # No deps on the generators: every generated header the harvested set
+  # reaches short-circuits to empty under V8_METAGEN_GENERATION_PASS
+  # (see builtins-definitions.h and factory-base.h), so the harvest runs
+  # independently of Torque and the bytecode-builtins-list generator.
+
+  # `inputs`, not `sources`: these headers belong to the V8 targets that
+  # compile them; this action only reads them.
+  inputs = [
+             "tools/metagen/clang_bootstrap.py",
+             "tools/metagen/compile_flags.py",
+             "tools/metagen/cpp_hier.py",
+             "tools/metagen/extract.py",
+             "tools/metagen/instance_types.py",
+             "tools/metagen/metagen.py",
+             _metagen_driver_file,
+             "$root_out_dir/v8_build_config.json",
+
+             # Proxy for the whole builtin-header directory, which has no
+             # GN glob: a toolchain roll rewrites stddef.h along with the
+             # rest, and the harvest cannot parse without it.
+             "$_metagen_builtin_headers_dir/stddef.h",
+           ] + _metagen_libclang_files
+
+  outputs = [ "$_metagen_out_dir/instance-types.h" ]
+
+  # The files the harvest read a fact out of, reported by the script.
+  # `inputs` above declares only the driver, so this is what re-runs the
+  # harvest when a class declaration or a marker changes.
+  #
+  # Binds to the first output, so output order matters if one is added.
+  depfile = "$_metagen_out_dir/instance-types.h.d"
+
+  args = [
+    "--depfile",
+    rebase_path(depfile, root_build_dir),
+    "--driver",
+    rebase_path(_metagen_driver_file, root_build_dir),
+    "--v8-root",
+    rebase_path(".", root_build_dir),
+    "--build-dir",
+    ".",  # The action runs with cwd=root_build_dir.
+    "--out",
+    rebase_path(_metagen_out_dir, root_build_dir),
+
+    # Representative compiled target whose flags metagen harvests via
+    # `gn desc`: its TUs include the headers metagen parses, so its
+    # config is the right one. Passed as a string, not a dep, to avoid a
+    # cycle with the targets that consume instance-types.h.
+    "--flags-from-target",
+    get_label_info(_metagen_flags_target, "label_no_toolchain"),
+
+    # GN does not allow its generated ninja files as explicit action inputs.
+    # Have metagen add the file containing the queried flags to its depfile.
+    "--flags-dependency",
+    rebase_path(_metagen_flags_target_ninja, root_build_dir),
+
+    # Package root, so metagen need not guess the checkout layout.
+    "--libclang-dir",
+    rebase_path("//third_party/llvm-libclang", root_build_dir),
+
+    # Passed explicitly rather than probed for, so a toolchain layout
+    # change surfaces here instead of as a parse failure.
+    "--clang-builtin-headers-dir",
+    rebase_path(_metagen_builtin_headers_dir, root_build_dir),
+  ]
+
+  if (is_win) {
+    # The SDK/UCRT include dirs reach the real compile through the
+    # toolchain's INCLUDE env var, not cflags, so gn desc cannot report
+    # them. Point metagen at that block to re-export INCLUDE.
+    args += [
+      "--toolchain-env",
+      "environment.$current_cpu",
+    ]
+  }
+}
+
 if (v8_enable_experimental_tq_to_tsa) {
   template("run_torque_to_tsa") {
     if (target_name == "") {
@@ -2531,9 +2674,11 @@ template("run_torque") {
       "$destination_folder/csa-types.h",
       "$destination_folder/debug-macros.cc",
       "$destination_folder/debug-macros.h",
+      "$destination_folder/debug-reader-classes-list.h",
       "$destination_folder/enum-verifiers.cc",
       "$destination_folder/exported-macros-assembler.cc",
       "$destination_folder/exported-macros-assembler.h",
+      "$destination_folder/instance-type-checker-lists.h",
       "$destination_folder/instance-types.h",
       "$destination_folder/interface-descriptors.inc",
     ]
@@ -4358,6 +4503,7 @@ v8_header_set("v8_internal_headers") {
     "src/numbers/ieee754.h",
     "src/numbers/math-random.h",
     "src/objects/all-objects-inl.h",
+    "src/objects/all-objects.h",
     "src/objects/allocation-site-inl.h",
     "src/objects/allocation-site-scopes-inl.h",
     "src/objects/allocation-site-scopes.h",
@@ -5490,6 +5636,7 @@ v8_header_set("v8_internal_headers") {
   deps = [
     ":cppgc_headers",
     ":generate_bytecode_builtins_list",
+    ":metagen_instance_types_h",
     ":run_torque",
     ":v8_abseil",
     ":v8_heap_base_headers",

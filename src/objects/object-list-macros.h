@@ -6,7 +6,7 @@
 #define V8_OBJECTS_OBJECT_LIST_MACROS_H_
 
 #include "src/base/macros.h"  // For IF_WASM.
-#include "torque-generated/instance-types.h"
+#include "src/objects/instance-types-gen.h"
 
 namespace v8 {
 namespace internal {

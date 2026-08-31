@@ -329,15 +329,12 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       Cast<HashSeedWrapper>(this)->HashSeedWrapperVerify(isolate);
       break;
 
-#define MAKE_TORQUE_CASE(Name, TYPE)                \
+#define MAKE_VERIFY_CASE(Name, TYPE)                \
   case TYPE:                                        \
     TrustedCast<Name>(this)->Name##Verify(isolate); \
     break;
-      // Every class that has its fields defined in a .tq file and corresponds
-      // to exactly one InstanceType value is included in the following list.
-      TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
-      TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
-#undef MAKE_TORQUE_CASE
+      HEAP_OBJECT_DIAGNOSTIC_DISPATCH_LIST(MAKE_VERIFY_CASE)
+#undef MAKE_VERIFY_CASE
 
     case HOLE_TYPE:
       Cast<Hole>(this)->HoleVerify(isolate);

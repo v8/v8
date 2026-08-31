@@ -137,6 +137,8 @@ static_assert(IsAligned(OFFSET_OF_DATA_START(PreparseData),
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
 V8_OBJECT class UncompiledData : public ExposedTrustedObject {
+  V8_IT_ABSTRACT;
+
  public:
   inline Tagged<String> inferred_name() const;
   inline void set_inferred_name(Tagged<String> value,
@@ -169,6 +171,8 @@ V8_OBJECT class UncompiledData : public ExposedTrustedObject {
 // data from the pre-parser, either because it's a leaf function or because the
 // pre-parser bailed out.
 V8_OBJECT class UncompiledDataWithoutPreparseData : public UncompiledData {
+  V8_IT_OWN_TYPE;
+
  public:
   DECL_PRINTER(UncompiledDataWithoutPreparseData)
   DECL_VERIFIER(UncompiledDataWithoutPreparseData)
@@ -179,6 +183,8 @@ V8_OBJECT class UncompiledDataWithoutPreparseData : public UncompiledData {
 // Class representing data for an uncompiled function that has pre-parsed scope
 // data.
 V8_OBJECT class UncompiledDataWithPreparseData : public UncompiledData {
+  V8_IT_OWN_TYPE;
+
  public:
   inline Tagged<PreparseData> preparse_data() const;
   inline void set_preparse_data(Tagged<PreparseData> value,

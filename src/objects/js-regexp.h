@@ -188,6 +188,8 @@ DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
 class RegExpDataWrapper;
 
 V8_OBJECT class RegExpData : public ExposedTrustedObject {
+  V8_IT_OWN_TYPE;
+
  public:
   enum class Type : uint8_t {
     ATOM,          // A simple string match.
@@ -394,6 +396,8 @@ V8_OBJECT class IrRegExpData : public RegExpData {
 // and `kInObjectPropertyCount` is the total count of in-object properties
 // relative to JSArray::kHeaderSize.
 V8_OBJECT class JSRegExpResult : public JSArray {
+  V8_IT_REUSE_PARENT;
+
  public:
   // TODO(joshualitt): We would like to add printers and verifiers to
   // JSRegExpResult, and maybe JSRegExpResultIndices, but both have the same
@@ -424,6 +428,8 @@ V8_OBJECT class JSRegExpResult : public JSArray {
 } V8_OBJECT_END;
 
 V8_OBJECT class JSRegExpResultWithIndices : public JSRegExpResult {
+  V8_IT_REUSE_PARENT;
+
  public:
   // Additional in-object property past JSRegExpResult's fields.
   static constexpr int kAdditionalInObjectPropertyCount = 1;
@@ -442,6 +448,8 @@ V8_OBJECT class JSRegExpResultWithIndices : public JSRegExpResult {
 // This class just holds constants used when creating the result.
 // After creation the result must be treated as a JSArray in all regards.
 V8_OBJECT class JSRegExpResultIndices : public JSArray {
+  V8_IT_REUSE_PARENT;
+
  public:
   static DirectHandle<JSRegExpResultIndices> BuildIndices(
       Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,

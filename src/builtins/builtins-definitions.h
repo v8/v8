@@ -5,12 +5,22 @@
 #ifndef V8_BUILTINS_BUILTINS_DEFINITIONS_H_
 #define V8_BUILTINS_BUILTINS_DEFINITIONS_H_
 
+#ifdef V8_METAGEN_GENERATION_PASS
+// During the metagen libclang harvest the generated headers may not
+// exist yet: the harvest runs before (and independently of) the
+// generators, so it must parse without them. Both lists only feed
+// BUILTIN_LIST's expansion downstream; defining them to empty keeps
+// the Builtin enum well-formed, minus entries the harvest never
+// references by name.
+#define BUILTIN_LIST_BYTECODE_HANDLERS(V_TSA, V)
+#define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)
+#define TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(V)
+#else
 #include "builtins-generated/bytecodes-builtins-list.h"
+#include "torque-generated/builtin-definitions.h"
+#endif
 #include "src/base/strong-alias.h"
 #include "src/common/globals.h"
-
-// include generated header
-#include "torque-generated/builtin-definitions.h"
 
 namespace v8 {
 namespace internal {

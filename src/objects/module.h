@@ -29,6 +29,8 @@ class ZoneForwardList;
 // to Abstract Module Record.
 // https://tc39.es/ecma262/#sec-abstract-module-records
 V8_OBJECT class Module : public HeapObject {
+  V8_IT_ABSTRACT;
+
  public:
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
@@ -169,6 +171,8 @@ struct ObjectTraits<Module> {
 // JSModuleNamespace object (representing module "bar") is created and bound to
 // the declared variable (foo).  A module can have at most one namespace object.
 V8_OBJECT class JSModuleNamespace : public JSSpecialObject {
+  V8_IT_OWN_TYPE;
+
  public:
   inline Tagged<Module> module() const;
   inline void set_module(Tagged<Module> value,

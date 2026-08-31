@@ -362,8 +362,6 @@ inline constexpr int WasmTableObject::kTrustedDataOffsetEnd =
     offsetof(WasmTableObject, trusted_data_) + kTrustedPointerSize - 1;
 inline constexpr int WasmTableObject::kHeaderSize = sizeof(WasmTableObject);
 
-
-
 // Representation of a WebAssembly.Memory JavaScript-level object.
 V8_OBJECT class WasmMemoryObject : public JSObject {
  public:
@@ -576,6 +574,8 @@ class FeedbackConstants {
 // This object lives in trusted space and is never modified from user space.
 V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
     : public ExposedTrustedObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   DECL_OPTIONAL_ACCESSORS(instance_object, Tagged<WasmInstanceObject>)
   DECL_OPTIONAL_ACCESSORS(native_context, Tagged<NativeContext>)
@@ -937,6 +937,8 @@ class WasmDispatchTableData {
 // WasmTrustedInstanceData which uses the table. It is used from generated code
 // for executing indirect calls.
 V8_OBJECT class WasmDispatchTable : public ExposedTrustedObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
 #if V8_ENABLE_DRUMBRAKE
   static const uint32_t kInvalidFunctionIndex = UINT_MAX;
@@ -1068,6 +1070,8 @@ V8_OBJECT class WasmDispatchTable : public ExposedTrustedObject {
 } V8_OBJECT_END;
 
 V8_OBJECT class WasmDispatchTableForImports : public TrustedObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   class BodyDescriptor;
 
@@ -1163,6 +1167,8 @@ V8_OBJECT class WasmDispatchTableForImports : public TrustedObject {
 
 // A Wasm exception that has been thrown out of Wasm code.
 V8_OBJECT class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   static DirectHandle<WasmExceptionPackage> New(
       Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
@@ -1219,6 +1225,8 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
 // A Wasm function that is wrapped and exported to JavaScript.
 // Representation of WebAssembly.Function JavaScript-level object.
 class WasmExportedFunction : public JSFunction {
+  V8_IT_REUSE_PARENT;
+
  public:
   V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Tagged<Object> object);
 
@@ -1248,6 +1256,8 @@ class WasmExportedFunction : public JSFunction {
 
 // An external function exposed to Wasm via the C/C++ API.
 class WasmCapiFunction : public JSFunction {
+  V8_IT_REUSE_PARENT;
+
  public:
   static bool IsWasmCapiFunction(Tagged<Object> object);
 
@@ -1270,6 +1280,8 @@ class WasmCapiFunction : public JSFunction {
 //  - {WasmExportedFunction}: A proper Wasm function exported from a module.
 //  - {WasmCapiFunction}: A function constructed via the C/C++ API.
 class WasmExternalFunction : public JSFunction {
+  V8_IT_REUSE_PARENT;
+
  public:
   static bool IsWasmExternalFunction(Tagged<Object> object);
 
@@ -1277,6 +1289,8 @@ class WasmExternalFunction : public JSFunction {
 };
 
 V8_OBJECT class WasmFunctionData : public ExposedTrustedObject {
+  V8_IT_OWN_TYPE;
+
  public:
   DECL_CODE_POINTER_ACCESSORS(wrapper_code)
   DECL_PROTECTED_POINTER_ACCESSORS(internal, WasmInternalFunction)
@@ -1720,6 +1734,8 @@ constexpr int WasmTypeInfo::SizeFor(int supertypes_length) {
 // WasmArray). It carries no fields of its own; subclasses lay out their
 // payload directly after the JSReceiver header.
 V8_OBJECT class WasmObject : public JSReceiver {
+  V8_IT_ABSTRACT;
+
  public:
   static const int kHeaderSize;
 
@@ -1735,6 +1751,8 @@ V8_OBJECT class WasmObject : public JSReceiver {
 inline constexpr int WasmObject::kHeaderSize = sizeof(WasmObject);
 
 V8_OBJECT class WasmStruct : public WasmObject {
+  V8_IT_ORDER(LAST);
+
  public:
   static const wasm::CanonicalStructType* GcSafeType(Tagged<Map> map);
   static inline int Size(const wasm::StructType* type);
@@ -1792,6 +1810,8 @@ int WasmStruct::Size(const wasm::CanonicalStructType* type) {
 }
 
 V8_OBJECT class WasmArray : public WasmObject {
+  V8_IT_ORDER(FIRST);
+
  public:
   inline uint32_t length() const;
   inline void set_length(uint32_t value);
@@ -1974,12 +1994,10 @@ V8_OBJECT class WasmFastApiCallData : public HeapObject {
 
   static constexpr int SizeFor() { return sizeof(WasmFastApiCallData); }
 
-
   TaggedMember<HeapObject> signature_;
   TaggedMember<Object> callback_data_;
   TaggedMember<MaybeObject> cached_map_;
 } V8_OBJECT_END;
-
 
 V8_OBJECT class WasmStringViewIter : public HeapObject {
  public:
@@ -2005,6 +2023,10 @@ V8_OBJECT class WasmStringViewIter : public HeapObject {
 } V8_OBJECT_END;
 
 V8_OBJECT class WasmNull : public HeapObject {
+  V8_IT_NO_AUTO_DISPATCH;
+  V8_IT_OWN_TYPE;
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
 #if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL
   // TODO(manoskouk): Make it smaller if able and needed.

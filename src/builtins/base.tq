@@ -263,14 +263,20 @@ extern class JSSetIteratorPrototype extends JSInternalPrototypeBase
 extern class JSStringIteratorPrototype extends JSInternalPrototypeBase
     generates 'JSObject';
 
+// OrderedHashMap/Set and OrderedNameDictionary are OrderedHashTable
+// instances. OrderedHashTable extends FixedArray directly (a separate
+// family from HashTable, with a different layout) and is a class template
+// with no instance type of its own, so FixedArray is their nearest
+// instance-typed base.
+extern class OrderedHashMap extends FixedArray;
+extern class OrderedHashSet extends FixedArray;
+extern class OrderedNameDictionary extends FixedArray;
+
 // The HashTable inheritance hierarchy doesn't actually look like this in C++
 // because it uses some class templates that we can't yet (and may never)
 // express in Torque, but this is the expected organization of instance types.
 @doNotGenerateCast
 extern class HashTable extends FixedArray generates 'FixedArray';
-extern class OrderedHashMap extends HashTable;
-extern class OrderedHashSet extends HashTable;
-extern class OrderedNameDictionary extends HashTable;
 extern class NameToIndexHashTable extends HashTable;
 extern class RegisteredSymbolTable extends HashTable;
 extern class NameDictionary extends HashTable;

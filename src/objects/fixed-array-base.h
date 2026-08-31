@@ -27,6 +27,8 @@ static constexpr uint32_t kMaxFixedArrayCapacity =
 // subclasses get them via inheritance and append their own fields after
 // kHeaderSize.
 V8_OBJECT class FixedArrayBase : public HeapObject {
+  V8_IT_ABSTRACT;
+
  public:
   static constexpr int kLengthOffset = sizeof(HeapObject);
 #if TAGGED_SIZE_8_BYTES
@@ -63,6 +65,8 @@ V8_OBJECT class FixedArrayBase : public HeapObject {
 // optional_padding_ fields but extends TrustedObject so its concrete
 // subclasses live in trusted space.
 V8_OBJECT class TrustedFixedArrayBase : public TrustedObject {
+  V8_IT_ABSTRACT;
+
  public:
   static constexpr int kLengthOffset = sizeof(TrustedObject);
 #if TAGGED_SIZE_8_BYTES

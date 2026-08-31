@@ -121,6 +121,8 @@ class StringShape {
 // All string values have a length field.
 V8_OBJECT class String : public Name {
  public:
+  V8_IT_ABSTRACT;
+  V8_IT_FLAG_BITS(7);
   enum Encoding { ONE_BYTE_ENCODING, TWO_BYTE_ENCODING };
 
   // Representation of the flat content of a String.
@@ -857,6 +859,9 @@ class SubStringRange {
 
 // The SeqString abstract class captures sequential string values.
 class SeqString : public String {
+  V8_IT_ABSTRACT;
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   // Truncate the string in-place if possible and return the result.
   // In case of new_length == 0, the empty string is returned without
@@ -881,12 +886,15 @@ class SeqString : public String {
 };
 
 V8_OBJECT class InternalizedString : public String {
+  V8_IT_NO_AUTO_CHECKER;
   // TODO(neis): Possibly move some stuff from String here.
 } V8_OBJECT_END;
 
 // The OneByteString class captures sequential one-byte string objects.
 // Each character in the OneByteString is an one-byte character.
 V8_OBJECT class SeqOneByteString : public SeqString {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   static const bool kHasOneByteEncoding = true;
   using Char = uint8_t;
@@ -964,6 +972,8 @@ struct ObjectTraits<SeqOneByteString> {
 // The TwoByteString class captures sequential unicode string objects.
 // Each character in the TwoByteString is a two-byte uint16_t.
 V8_OBJECT class SeqTwoByteString : public SeqString {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   static const bool kHasOneByteEncoding = false;
   using Char = uint16_t;
@@ -1043,6 +1053,8 @@ struct ObjectTraits<SeqTwoByteString> {
 // a ConsString can be obtained by concatenating the leaf string
 // values in a left-to-right depth-first traversal of the tree.
 V8_OBJECT class ConsString : public String {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   inline Tagged<String> first() const;
   inline void set_first(Tagged<String> value,
@@ -1098,7 +1110,6 @@ V8_OBJECT class ConsString : public String {
   TaggedMember<String> second_;
 } V8_OBJECT_END;
 
-
 template <>
 struct ObjectTraits<ConsString> {
   using BodyDescriptor =
@@ -1114,6 +1125,8 @@ struct ObjectTraits<ConsString> {
 // In terms of memory layout and most algorithms operating on strings,
 // ThinStrings can be thought of as "one-part cons strings".
 V8_OBJECT class ThinString : public String {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   inline Tagged<InternalizedString> actual() const;
   inline void set_actual(Tagged<InternalizedString> value,
@@ -1164,6 +1177,8 @@ struct ObjectTraits<ThinString> {
 // Currently missing features are:
 //  - truncating sliced string to enable otherwise unneeded parent to be GC'ed.
 V8_OBJECT class SlicedString : public String {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   inline Tagged<String> parent() const;
   inline void set_parent(Tagged<String> parent,
@@ -1207,6 +1222,8 @@ struct ObjectTraits<SlicedString> {
 
 // TODO(leszeks): Build this out into a full V8 class.
 V8_OBJECT class UncachedExternalString : public String {
+  V8_IT_REUSE_PARENT;
+
  protected:
   ExternalPointerMember<kExternalStringResourceTag> resource_;
 
@@ -1224,6 +1241,9 @@ V8_OBJECT class UncachedExternalString : public String {
 // The API expects that all ExternalStrings are created through the
 // API.  Therefore, ExternalStrings should not be used internally.
 V8_OBJECT class ExternalString : public UncachedExternalString {
+  V8_IT_ABSTRACT;
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   class BodyDescriptor;
 
@@ -1284,6 +1304,8 @@ struct ObjectTraits<ExternalString> {
 // The ExternalOneByteString class is an external string backed by an
 // one-byte string.
 V8_OBJECT class ExternalOneByteString : public ExternalString {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   static const bool kHasOneByteEncoding = true;
   using Char = uint8_t;
@@ -1318,6 +1340,8 @@ static_assert(sizeof(ExternalOneByteString) == sizeof(ExternalString));
 // The ExternalTwoByteString class is an external string backed by a UTF-16
 // encoded string.
 V8_OBJECT class ExternalTwoByteString : public ExternalString {
+  V8_IT_NO_AUTO_CHECKER;
+
  public:
   static const bool kHasOneByteEncoding = false;
   using Char = uint16_t;

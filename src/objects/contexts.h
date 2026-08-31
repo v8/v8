@@ -496,6 +496,7 @@ enum ContextLookupFlags {
 
 V8_OBJECT class Context : public HeapObject {
  public:
+  V8_IT_ABSTRACT;
   inline int length() const;
   inline void set_length(int value);
   inline int length(RelaxedLoadTag) const;
@@ -788,6 +789,8 @@ V8_OBJECT class FunctionContext : public Context {
 } V8_OBJECT_END;
 
 V8_OBJECT class NativeContext : public Context {
+  V8_IT_NO_AUTO_DISPATCH;
+
  public:
   // TODO(neis): Move some stuff from Context here.
 
