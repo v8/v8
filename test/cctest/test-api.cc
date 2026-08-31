@@ -30856,10 +30856,19 @@ TEST(CodeLikeFunction) {
   isolate->SetModifyCodeGenerationFromStringsCallback(
       [](v8::Local<v8::Context> context, v8::Local<v8::Value> source,
          bool is_code_like) -> v8::ModifyCodeGenerationFromStringsResult {
-        return {true, v8_str("(function anonymous(\n) {\nreturn 7;\n})\n")};
+        // This callback runs twice here. First for the CodeLike argument
+        // itself, where source is an object, and it should reply with just the
+        // function body. Second for the fully assembled function source, since
+        // codegen is disabled and V8 double checks the final result, where
+        // source is a string, and it should reply with a complete function
+        // instead of just a body fragment.
+        if (source->IsString()) {
+          return {true, v8_str("(function anonymous(\n) {\nreturn 9;\n})\n")};
+        }
+        return {true, v8_str("return 9;")};
       });
-  ExpectInt32("new Function(new Other())()", 7);
-  ExpectInt32("new Function(new CodeLike())()", 7);
+  ExpectInt32("new Function(new Other())()", 9);
+  ExpectInt32("new Function(new CodeLike())()", 9);
 
   // Modify callback always disallows:
   isolate->SetModifyCodeGenerationFromStringsCallback(
@@ -30877,10 +30886,271 @@ TEST(CodeLikeFunction) {
         bool ok = is_code_like ||
                   (source->IsObject() && source.As<v8::Object>()->IsCodeLike(
                                              v8::Isolate::GetCurrent()));
-        return {ok, v8_str("(function anonymous(\n) {\nreturn 7;\n})\n")};
+        if (source->IsString()) {
+          return {ok, v8_str("(function anonymous(\n) {\nreturn 9;\n})\n")};
+        }
+        return {ok, v8_str("return 9;")};
       });
   CHECK(CompileRun("new Function(new Other())()").IsEmpty());
-  ExpectInt32("new Function(new CodeLike())()", 7);
+  ExpectInt32("new Function(new CodeLike())()", 9);
+}
+
+TEST(CodeLikeFunctionToStringNotCalledWhenReplaced) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  static int to_string_call_count = 0;
+  to_string_call_count = 0;
+
+  // CodeLike object with a counting toString() method.
+  auto counting_to_string = v8::FunctionTemplate::New(
+      isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
+        to_string_call_count++;
+        info.GetReturnValue().Set(v8_str("this should never run"));
+      });
+  SetupCodeLike(&env, "CodeLike", counting_to_string, true);
+
+  // Callback returns a replacement, so toString() should never be called.
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+         bool is_code_like) -> v8::ModifyCodeGenerationFromStringsResult {
+        return {true, v8_str("return 9;")};
+      });
+
+  ExpectInt32("new Function(new CodeLike())()", 9);
+  CHECK_EQ(0, to_string_call_count);
+}
+
+TEST(CodeLikeFunctionToStringIsFallback) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  static int to_string_call_count = 0;
+  to_string_call_count = 0;
+
+  auto counting_string_fn = v8::FunctionTemplate::New(
+      isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
+        to_string_call_count++;
+        info.GetReturnValue().Set(v8_str("return 99;"));
+      });
+  SetupCodeLike(&env, "CodeLike", counting_string_fn, true);
+
+  // Callback allows codegen but supplies no replacement -> ToString() fallback
+  // runs.
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+         bool is_code_like) -> v8::ModifyCodeGenerationFromStringsResult {
+        return {true, v8::Local<v8::String>()};
+      });
+  ExpectInt32("new Function(new CodeLike())()", 99);
+  CHECK_EQ(1, to_string_call_count);
+
+  // Callback supplies a replacement -> ToString() must never run.
+  to_string_call_count = 0;
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+         bool is_code_like) -> v8::ModifyCodeGenerationFromStringsResult {
+        return {true, v8_str("return 42;")};
+      });
+  ExpectInt32("new Function(new CodeLike())()", 42);
+  CHECK_EQ(0, to_string_call_count);
+}
+
+TEST(CodeLikeFunctionCallbackSkippedOnAssembledSourceWhenCodegenAllowed) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  static int callback_call_count = 0;
+  callback_call_count = 0;
+
+  auto string_fn = v8::FunctionTemplate::New(
+      isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
+        info.GetReturnValue().Set(v8_str("return 4;"));
+      });
+  SetupCodeLike(&env, "CodeLike", string_fn, true);
+
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+         bool is_code_like) -> v8::ModifyCodeGenerationFromStringsResult {
+        callback_call_count++;
+        return {true, v8::Local<v8::String>()};  // fall back to ToString()
+      });
+
+  ExpectInt32("new Function(new CodeLike())()", 4);
+  // Codegen-from-strings is allowed by default, so
+  // ValidateDynamicCompilationSource's fast path returns the assembled
+  // String source directly without consulting the callback again — this
+  // is unrelated to per-argument consultation, it's the pre-existing
+  // behavior for the common (non-restricted) case.
+  CHECK_EQ(1, callback_call_count);
+}
+
+TEST(CodeLikeFunctionCallbackCalledOncePerCodeLikeArgument) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  static int callback_call_count = 0;
+  static int string_fn_call_count = 0;
+  callback_call_count = 0;
+  string_fn_call_count = 0;
+
+  auto string_fn = v8::FunctionTemplate::New(
+      isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
+        string_fn_call_count++;
+        // First CodeLike stringifies as the parameter, second as the body.
+        info.GetReturnValue().Set(
+            string_fn_call_count == 1 ? v8_str("a") : v8_str("return a;"));
+      });
+  SetupCodeLike(&env, "CodeLike", string_fn, true);
+
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+         bool is_code_like) -> v8::ModifyCodeGenerationFromStringsResult {
+        callback_call_count++;
+        return {true, v8::Local<v8::String>()};  // fall back to ToString()
+      });
+
+  ExpectInt32("new Function(new CodeLike(), new CodeLike())(9)", 9);
+  CHECK_EQ(2, callback_call_count);
+  CHECK_EQ(2, string_fn_call_count);
+}
+
+TEST(CodeLikeFunctionCallbackCalledOnlyForCodeLikeArgument) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  static int callback_call_count = 0;
+  callback_call_count = 0;
+
+  auto string_fn = v8::FunctionTemplate::New(
+      isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
+        info.GetReturnValue().Set(v8_str("return a;"));
+      });
+  SetupCodeLike(&env, "CodeLike", string_fn, true);
+
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+         bool is_code_like) -> v8::ModifyCodeGenerationFromStringsResult {
+        callback_call_count++;
+        return {true, v8::Local<v8::String>()};  // fall back to ToString()
+      });
+
+  // "a" is a plain string parameter and only the CodeLike body should reach
+  // the callback.
+  ExpectInt32("new Function('a', new CodeLike())(9)", 9);
+  CHECK_EQ(1, callback_call_count);
+}
+
+TEST(CodeLikeFunctionCallbackRejectionStopsArgumentConversion) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  static int callback_call_count = 0;
+  static int to_string_call_count = 0;
+  callback_call_count = 0;
+  to_string_call_count = 0;
+
+  auto string_fn = v8::FunctionTemplate::New(
+      isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
+        to_string_call_count++;
+        info.GetReturnValue().Set(v8_str("arg"));
+      });
+  SetupCodeLike(&env, "CodeLike", string_fn, true);
+
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+         bool is_code_like) -> v8::ModifyCodeGenerationFromStringsResult {
+        callback_call_count++;
+        return {false, v8::Local<v8::String>()};
+      });
+
+  // The callback rejects the first argument, before it or later arguments are
+  // converted with ToString().
+  CompileRun(
+      "var caught;"
+      "try {"
+      "  new Function(new CodeLike(), new CodeLike(), new CodeLike());"
+      "} catch (e) {"
+      "  caught = e;"
+      "}");
+  ExpectTrue("caught instanceof EvalError");
+  CHECK_EQ(1, callback_call_count);
+  CHECK_EQ(0, to_string_call_count);
+}
+
+TEST(CodeLikeOtherDynamicFunctionConstructorsUseCallback) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  static int callback_call_count = 0;
+  callback_call_count = 0;
+
+  auto string_fn = v8::FunctionTemplate::New(
+      isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
+        info.GetReturnValue().Set(v8_str("return 1;"));
+      });
+  SetupCodeLike(&env, "CodeLike", string_fn, true);
+
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+         bool is_code_like) -> v8::ModifyCodeGenerationFromStringsResult {
+        callback_call_count++;
+        return {true, v8::Local<v8::String>()};
+      });
+
+  CHECK(!CompileRun("new (function*() {}).constructor(new CodeLike());"
+                    "new (async function() {}).constructor(new CodeLike());"
+                    "new (async function*() {}).constructor(new CodeLike());")
+             .IsEmpty());
+  CHECK_EQ(3, callback_call_count);
+}
+
+TEST(CodeLikeFunctionMixedParameterList) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  static int callback_call_count = 0;
+  static int to_string_call_count = 0;
+  callback_call_count = 0;
+  to_string_call_count = 0;
+
+  auto string_fn = v8::FunctionTemplate::New(
+      isolate, [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
+        to_string_call_count++;
+        if (to_string_call_count == 1) {
+          info.GetReturnValue().Set(v8_str("a"));
+        } else {
+          info.GetReturnValue().Set(v8_str("return a + b;"));
+        }
+      });
+  SetupCodeLike(&env, "CodeLike", string_fn, true);
+
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+         bool is_code_like) -> v8::ModifyCodeGenerationFromStringsResult {
+        callback_call_count++;
+        return {true, v8::Local<v8::String>()};
+      });
+
+  ExpectInt32("new Function(new CodeLike(), 'b', new CodeLike())(4, 5)", 9);
+  CHECK_EQ(2, callback_call_count);
+  CHECK_EQ(2, to_string_call_count);
 }
 
 namespace {
