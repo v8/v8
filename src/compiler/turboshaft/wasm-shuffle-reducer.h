@@ -501,11 +501,15 @@ class WasmShuffleAnalyzer {
     load_lanes_[replace] = load_lane;
   }
 
-  bool IsShuffleToShift(const Simd128ShuffleOp& shuffle) const {
+  const ShuffleWindow* FindShiftWindow(const Simd128ShuffleOp& shuffle) const {
     for (const auto& window : shuffles_to_shift_) {
-      if (window.shuffle() == &shuffle) return true;
+      if (window.shuffle() == &shuffle) return &window;
     }
-    return false;
+    return nullptr;
+  }
+
+  bool IsShuffleToShift(const Simd128ShuffleOp& shuffle) const {
+    return FindShiftWindow(shuffle) != nullptr;
   }
 
   const SmallZoneVector<ShuffleWindow, 8>& shuffles_to_shift() const {

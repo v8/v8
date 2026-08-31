@@ -768,11 +768,14 @@ void WasmShuffleAnalyzer::ProcessShuffleOfLoads(const Simd128ShuffleOp& shuffle,
 void WasmShuffleAnalyzer::TryReduceFromMSB(OpIndex input,
                                            const Simd128ShuffleOp& shuffle,
                                            const ShuffleSide side) {
-  DemandedBytes demanded = GetDemandedBytes(&shuffle);
+  const ShuffleWindow* shift_window = FindShiftWindow(shuffle);
+  uint8_t start_index = shift_window ? shift_window->begin_index() : 0;
+  uint8_t count = shift_window ? shift_window->OutputDemanded().bytes()
+                               : GetDemandedBytes(&shuffle).bytes();
   std::optional<uint8_t> max = {};
 
-  for (unsigned i = 0; i < demanded.bytes(); ++i) {
-    uint8_t index = shuffle.shuffle[i];
+  for (unsigned i = 0; i < count; ++i) {
+    uint8_t index = shuffle.shuffle[start_index + i];
     if (InRange(index, side)) {
       max = std::max(static_cast<uint8_t>(index % kSimd128Size),
                      max.value_or(uint8_t{0}));
