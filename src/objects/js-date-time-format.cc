@@ -202,7 +202,11 @@ static std::vector<PatternItem> BuildPatternItems() {
                   {{"GGGGG", "narrow"}, {"GGGG", "long"}, {"GGG", "short"}},
                   kNarrowLongShort),
       PatternItem(Year::kShift, DateTimeProperty::kYear,
-                  {{"yy", "2-digit"}, {"y", "numeric"}}, k2DigitNumeric)};
+                  {{"yy", "2-digit"},
+                   {"y", "numeric"},
+                   {"YY", "2-digit"},
+                   {"Y", "numeric"}},
+                  k2DigitNumeric)};
   // Sometimes we get L instead of M for month - standalone name.
   items.push_back(PatternItem(Month::kShift, DateTimeProperty::kMonth,
                               {{"MMMMM", "narrow"},
@@ -3124,6 +3128,7 @@ DirectHandle<String> IcuDateFieldIdToDateType(int32_t field_id,
       return isolate->factory()->literal_string();
     case UDAT_YEAR_FIELD:
     case UDAT_EXTENDED_YEAR_FIELD:
+    case UDAT_YEAR_WOY_FIELD:
       return isolate->factory()->year_string();
     case UDAT_YEAR_NAME_FIELD:
       return isolate->factory()->yearName_string();
