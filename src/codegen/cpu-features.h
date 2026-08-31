@@ -112,6 +112,7 @@ enum CpuFeature {
   ZICOND,
   ZICFISS,
   RVC,
+  ZCB,
 #endif
 
   NUMBER_OF_CPU_FEATURES
