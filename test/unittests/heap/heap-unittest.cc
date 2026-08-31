@@ -46,6 +46,7 @@
 #include "src/heap/spaces-inl.h"
 #include "src/heap/trusted-range.h"
 #include "src/objects/bytecode-array-inl.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/instruction-stream-inl.h"
@@ -2967,6 +2968,253 @@ TEST_F(HeapTest, CompilationCacheRegeneration6) {
 
 TEST_F(HeapTest, CompilationCacheRegeneration7) {
   RunCompilationCacheRegenerationTest(this, true, true, true);
+}
+
+void CheckWeakness(HeapTest* test, const char* source) {
+  // ManualGCScope is necessary to finalize any active incremental marking and
+  // disable concurrent/stress marking. Otherwise, under flags like
+  // --stress-incremental-marking, the isolate (initialized before this test
+  // runs) may already have active marking retaining the object, preventing the
+  // weak reference from being cleared.
+  ManualGCScope manual_gc_scope(test->isolate());
+  v8_flags.stress_compaction = false;
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.allow_natives_syntax = true;
+
+  v8::Global<v8::Object> garbage;
+  {
+    v8::HandleScope scope(test->v8_isolate());
+    HandleScope i_scope(test->i_isolate());
+    v8::Local<v8::Object> obj =
+        v8::Utils::ToLocal(test->RunJS<JSObject>(source));
+    garbage.Reset(test->v8_isolate(), obj);
+  }
+  garbage.SetWeak();
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        test->heap());
+    test->InvokeMajorGC();
+  }
+  EXPECT_TRUE(garbage.IsEmpty());
+}
+
+TEST_F(HeapTest, WeakFunctionInConstructor) {
+  // ManualGCScope is necessary to finalize any active incremental marking and
+  // disable concurrent/stress marking so that the weak reference can be
+  // cleared.
+  ManualGCScope manual_gc_scope(isolate());
+  v8_flags.stress_compaction = false;
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.allow_natives_syntax = true;
+
+  RunJS(
+      "function createObj(obj) {"
+      "  return new obj();"
+      "}");
+  DirectHandle<JSFunction> createObj = RunJS<JSFunction>("createObj");
+
+  v8::Global<v8::Object> garbage;
+  {
+    v8::HandleScope scope(v8_isolate());
+    HandleScope i_scope(i_isolate());
+    const char* source =
+        " (function() {"
+        "   function hat() { this.x = 5; }"
+        "   %EnsureFeedbackVectorForFunction(hat);"
+        "   %EnsureFeedbackVectorForFunction(createObj);"
+        "   createObj(hat);"
+        "   createObj(hat);"
+        "   return hat;"
+        " })();";
+    v8::Local<v8::Object> obj = v8::Utils::ToLocal(RunJS<JSObject>(source));
+    garbage.Reset(v8_isolate(), obj);
+  }
+  garbage.SetWeak();
+  {
+    // In this test, we need to invoke GC without stack, otherwise some objects
+    // may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+  EXPECT_TRUE(garbage.IsEmpty());
+
+  // We've determined the constructor in createObj has had its weak cell
+  // cleared. Now, verify that one additional call with a new function
+  // allows monomorphicity.
+  DirectHandle<FeedbackVector> feedback_vector(createObj->feedback_vector(),
+                                               isolate());
+  for (int i = 0; i < 20; i++) {
+    Tagged<MaybeObject> slot_value = feedback_vector->Get(FeedbackSlot(0));
+    EXPECT_TRUE(slot_value.IsWeakOrCleared());
+    if (slot_value.IsCleared()) break;
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+
+  Tagged<MaybeObject> slot_value = feedback_vector->Get(FeedbackSlot(0));
+  EXPECT_TRUE(slot_value.IsCleared());
+  RunJS(
+      "function coat() { this.x = 6; }"
+      "createObj(coat);");
+  slot_value = feedback_vector->Get(FeedbackSlot(0));
+  EXPECT_TRUE(slot_value.IsWeak());
+}
+
+TEST_F(HeapTest, WeakMapInMonomorphicLoadIC) {
+  CheckWeakness(this,
+                "function loadIC(obj) {"
+                "  return obj.name;"
+                "}"
+                "%EnsureFeedbackVectorForFunction(loadIC);"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   loadIC(obj);"
+                "   loadIC(obj);"
+                "   loadIC(obj);"
+                "   return proto;"
+                " })();");
+}
+
+TEST_F(HeapTest, WeakMapInPolymorphicLoadIC) {
+  CheckWeakness(this,
+                "function loadIC(obj) {"
+                "  return obj.name;"
+                "}"
+                "%EnsureFeedbackVectorForFunction(loadIC);"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   loadIC(obj);"
+                "   loadIC(obj);"
+                "   loadIC(obj);"
+                "   var poly = Object.create(proto);"
+                "   poly.x = true;"
+                "   loadIC(poly);"
+                "   return proto;"
+                " })();");
+}
+
+TEST_F(HeapTest, WeakMapInMonomorphicKeyedLoadIC) {
+  CheckWeakness(this,
+                "function keyedLoadIC(obj, field) {"
+                "  return obj[field];"
+                "}"
+                "%EnsureFeedbackVectorForFunction(keyedLoadIC);"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   keyedLoadIC(obj, 'name');"
+                "   keyedLoadIC(obj, 'name');"
+                "   keyedLoadIC(obj, 'name');"
+                "   return proto;"
+                " })();");
+}
+
+TEST_F(HeapTest, WeakMapInPolymorphicKeyedLoadIC) {
+  CheckWeakness(this,
+                "function keyedLoadIC(obj, field) {"
+                "  return obj[field];"
+                "}"
+                "%EnsureFeedbackVectorForFunction(keyedLoadIC);"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   keyedLoadIC(obj, 'name');"
+                "   keyedLoadIC(obj, 'name');"
+                "   keyedLoadIC(obj, 'name');"
+                "   var poly = Object.create(proto);"
+                "   poly.x = true;"
+                "   keyedLoadIC(poly, 'name');"
+                "   return proto;"
+                " })();");
+}
+
+TEST_F(HeapTest, WeakMapInMonomorphicStoreIC) {
+  CheckWeakness(this,
+                "function storeIC(obj, value) {"
+                "  obj.name = value;"
+                "}"
+                "%EnsureFeedbackVectorForFunction(storeIC);"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   storeIC(obj, 'x');"
+                "   storeIC(obj, 'x');"
+                "   storeIC(obj, 'x');"
+                "   return proto;"
+                " })();");
+}
+
+TEST_F(HeapTest, WeakMapInPolymorphicStoreIC) {
+  CheckWeakness(this,
+                "function storeIC(obj, value) {"
+                "  obj.name = value;"
+                "}"
+                "%EnsureFeedbackVectorForFunction(storeIC);"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   storeIC(obj, 'x');"
+                "   storeIC(obj, 'x');"
+                "   storeIC(obj, 'x');"
+                "   var poly = Object.create(proto);"
+                "   poly.x = true;"
+                "   storeIC(poly, 'x');"
+                "   return proto;"
+                " })();");
+}
+
+TEST_F(HeapTest, WeakMapInMonomorphicKeyedStoreIC) {
+  CheckWeakness(this,
+                "function keyedStoreIC(obj, field, value) {"
+                "  obj[field] = value;"
+                "}"
+                "%EnsureFeedbackVectorForFunction(keyedStoreIC);"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   keyedStoreIC(obj, 'x');"
+                "   keyedStoreIC(obj, 'x');"
+                "   keyedStoreIC(obj, 'x');"
+                "   return proto;"
+                " })();");
+}
+
+TEST_F(HeapTest, WeakMapInPolymorphicKeyedStoreIC) {
+  CheckWeakness(this,
+                "function keyedStoreIC(obj, field, value) {"
+                "  obj[field] = value;"
+                "}"
+                "%EnsureFeedbackVectorForFunction(keyedStoreIC);"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   keyedStoreIC(obj, 'x');"
+                "   keyedStoreIC(obj, 'x');"
+                "   keyedStoreIC(obj, 'x');"
+                "   var poly = Object.create(proto);"
+                "   poly.x = true;"
+                "   keyedStoreIC(poly, 'x');"
+                "   return proto;"
+                " })();");
+}
+
+TEST_F(HeapTest, WeakMapInMonomorphicCompareNilIC) {
+  v8_flags.allow_natives_syntax = true;
+  CheckWeakness(this,
+                "function compareNilIC(obj) {"
+                "  return obj == null;"
+                "}"
+                "%EnsureFeedbackVectorForFunction(compareNilIC);"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   compareNilIC(obj);"
+                "   compareNilIC(obj);"
+                "   compareNilIC(obj);"
+                "   return proto;"
+                " })();");
 }
 
 TEST_F(HeapTest, TestSizeOfRegExpCode) {
