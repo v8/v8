@@ -800,6 +800,7 @@ RUNTIME_FUNCTION(Runtime_WasmWaitqueueNew) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
+  // Memory fence is implemented in Managed<>::From.
   auto ptr = std::make_shared<FutexManagedObjectWaitList>();
   DirectHandle<Managed<FutexManagedObjectWaitList>> managed =
       Managed<FutexManagedObjectWaitList>::From(

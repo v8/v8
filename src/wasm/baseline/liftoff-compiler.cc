@@ -7999,7 +7999,7 @@ class LiftoffCompiler {
       pinned.clear(value);
     }
 
-    if (type.is_shared) __ AtomicFence(AtomicMemoryOrder::kSeqCst);
+    if (type.is_shared) __ AtomicFence(AtomicMemoryOrder::kAcqRel);
 
     // If this assert fails then initialization of padding field might be
     // necessary.
@@ -8164,7 +8164,7 @@ class LiftoffCompiler {
                       ? compiler::kFullWriteBarrier
                       : compiler::kNoWriteBarrier);
 
-    if (is_shared) __ AtomicFence(AtomicMemoryOrder::kSeqCst);
+    if (is_shared) __ AtomicFence(AtomicMemoryOrder::kAcqRel);
 
     __ PushRegister(kRef, obj);
   }
@@ -8411,7 +8411,7 @@ class LiftoffCompiler {
                        element, false, pinned, elem_kind, write_barrier);
     }
 
-    if (is_shared) __ AtomicFence(AtomicMemoryOrder::kSeqCst);
+    if (is_shared) __ AtomicFence(AtomicMemoryOrder::kAcqRel);
 
     // Push the array onto the stack.
     __ PushRegister(kRef, array);

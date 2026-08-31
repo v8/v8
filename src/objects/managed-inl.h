@@ -35,6 +35,7 @@ template <class CppType>
 DirectHandle<Managed<CppType>> Managed<CppType>::From(
     Isolate* isolate, size_t estimated_size,
     std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
+  SharedObjectConditionalSafePublishGuard publish_guard(allocation_type);
   static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
   static_assert(IsManagedExternalPointerType(kTag));
   SharedFlag shared = SharedFlag(IsSharedAllocationType(allocation_type));
