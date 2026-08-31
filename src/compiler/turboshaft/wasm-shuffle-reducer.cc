@@ -569,6 +569,11 @@ bool WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
   // shuffle_out will be added to the shuffles_to_read_shifted list which will
   // update its shuffle array to look at indices 0 and 1, instead of 2 and 3.
 
+  // If shuffle_out is already scheduled to be shifted to expose a specific
+  // window at index 0, its unshifted elements cannot be used as shuffle_out
+  // without conflicting coordinate transformations.
+  if (IsShuffleToShift(shuffle_out)) return false;
+
   DemandedBytes shuffle_out_demanded = GetDemandedBytes(&shuffle_out);
   std::span<const uint8_t> shuffle_out_bytes(shuffle_out.shuffle,
                                              shuffle_out_demanded.bytes());
