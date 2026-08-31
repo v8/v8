@@ -6,6 +6,7 @@
 #define V8_DEBUG_DEBUG_SCOPE_INFO_H_
 
 #include <optional>
+#include <utility>
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
@@ -60,6 +61,12 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
 
   // Context Info, returns a valid ID only when needs_context() == true.
   int unique_id_in_script() const;
+
+  // Special Variables Info
+  // Returns a pair of {VariableAllocationInfo, index}. When allocated, the
+  // second element represents the stack slot index or context slot index of the
+  // receiver variable (or -1 if none/unallocated).
+  std::pair<VariableAllocationInfo, int> receiver_info() const;
 
  private:
   DebugScriptScope(DirectHandle<DebugScriptScopeInfo> info, int scope_index,

@@ -8,6 +8,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/scope-info.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "test/unittests/test-utils.h"
@@ -83,11 +84,22 @@ void VerifyScopeTreeParity(Scope* ast_scope, DebugScriptScope debug_scope) {
               debug_scope.has_simple_parameters());
     EXPECT_EQ(decl->sloppy_eval_can_extend_vars(),
               debug_scope.sloppy_eval_can_extend_vars());
+    if (decl->has_this_declaration()) {
+      Variable* var = decl->receiver();
+      VariableAllocationInfo expected_info =
+          var->location() == VariableLocation::CONTEXT
+              ? VariableAllocationInfo::CONTEXT
+              : VariableAllocationInfo::STACK;
+      EXPECT_EQ(debug_scope.receiver_info(),
+                (std::pair{expected_info, var->index()}));
+    }
   } else {
     EXPECT_FALSE(debug_scope.is_arrow_scope());
     EXPECT_FALSE(debug_scope.has_this_declaration());
     EXPECT_FALSE(debug_scope.has_simple_parameters());
     EXPECT_FALSE(debug_scope.sloppy_eval_can_extend_vars());
+    EXPECT_EQ(debug_scope.receiver_info(),
+              (std::pair{VariableAllocationInfo::NONE, -1}));
   }
 
   Scope* ast_child = ast_scope->inner_scope();
@@ -398,6 +410,40 @@ TEST_F(DebugScopeInfoTest, NeedsContextAndUniqueId) {
   EXPECT_TRUE(block->needs_context());
   EXPECT_GE(block->unique_id_in_script(), 0);
   EXPECT_NE(block->unique_id_in_script(), outer->unique_id_in_script());
+}
+
+TEST_F(DebugScopeInfoTest, ReceiverAllocationInfo) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize(
+      "function withThisContext() { return () => this; }\n"
+      "function normalFunc() { return 1; }\n"
+      "const arrow = () => 42;");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+
+  // Arrow function (1)
+  auto arrow_scope = script.first_child();
+  ASSERT_TRUE(arrow_scope.has_value());
+  EXPECT_FALSE(arrow_scope->has_this_declaration());
+  EXPECT_EQ(arrow_scope->receiver_info(),
+            (std::pair{VariableAllocationInfo::NONE, -1}));
+
+  // normalFunc (2)
+  auto normal_scope = arrow_scope->next_sibling();
+  ASSERT_TRUE(normal_scope.has_value());
+  EXPECT_TRUE(normal_scope->has_this_declaration());
+  EXPECT_EQ(normal_scope->receiver_info(),
+            (std::pair{VariableAllocationInfo::STACK, -1}));
+
+  // withThisContext (3)
+  auto with_this = normal_scope->next_sibling();
+  ASSERT_TRUE(with_this.has_value());
+  EXPECT_TRUE(with_this->has_this_declaration());
+  auto [this_loc, this_idx] = with_this->receiver_info();
+  EXPECT_EQ(this_loc, VariableAllocationInfo::CONTEXT);
+  EXPECT_GE(this_idx, 0);
 }
 
 }  // namespace internal

@@ -80,6 +80,28 @@ using SloppyEvalCanExtendVarsBit = HasSimpleParametersBit::Next<bool, 1>;
 using NeedsContextBit = SloppyEvalCanExtendVarsBit::Next<bool, 1>;
 static_assert(NeedsContextBit::kLastUsedBit < 16);
 
+// Encodes receiver allocation info into a 16-bit word:
+// - Bits 0..1: VariableAllocationInfo (NONE, STACK, CONTEXT, UNUSED)
+// - Bits 2..15: 14-bit signed slot/parameter index
+//
+// In V8, stack-allocated receiver variables have parameter index -1 (allocated
+// via DeclarationScope::AllocateReceiver). Therefore, the 14-bit index field is
+// treated as a signed two's-complement integer, requiring sign-extension upon
+// decoding.
+uint16_t EncodeAllocInfo(VariableAllocationInfo info, int index) {
+  DCHECK_GE(index, -1);
+  DCHECK_LE(index, 0x1FFF);
+  uint16_t raw_index = static_cast<uint16_t>(index & 0x3FFF);
+  return static_cast<uint16_t>(info) | (raw_index << 2);
+}
+
+std::pair<VariableAllocationInfo, int> DecodeAllocInfo(uint16_t val) {
+  int raw_index = static_cast<int>(val >> 2);
+  // Sign-extend 14-bit signed integer to int (e.g. 0x3FFF -> -1).
+  if (raw_index & 0x2000) raw_index |= ~0x3FFF;
+  return {static_cast<VariableAllocationInfo>(val & 3), raw_index};
+}
+
 int32_t GetScopeCount(Tagged<DebugScriptScopeInfo> info) {
   Tagged<ByteArray> bytes = info->numeric_data();
   DCHECK_GE(bytes->length().value(), kInt32Size);
@@ -231,6 +253,14 @@ int DebugScriptScope::unique_id_in_script() const {
   return base::ReadUnalignedValue<int32_t>(ptr);
 }
 
+std::pair<VariableAllocationInfo, int> DebugScriptScope::receiver_info() const {
+  if (!has_this_declaration()) return {VariableAllocationInfo::NONE, -1};
+  const uint8_t* ptr = payload() + sizeof(ScopeRecord);
+  if (HasSiblingBit::decode(flags())) ptr += kInt32Size;
+  if (NeedsContextBit::decode(flags())) ptr += kInt32Size;
+  return DecodeAllocInfo(base::ReadUnalignedValue<uint16_t>(ptr));
+}
+
 Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     Isolate* isolate, DeclarationScope* script_scope) {
   DCHECK_NOT_NULL(script_scope);
@@ -270,6 +300,10 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     if (all_scopes[i]->NeedsContext()) {
       total_size += kInt32Size;
     }
+    if (all_scopes[i]->is_declaration_scope() &&
+        all_scopes[i]->AsDeclarationScope()->has_this_declaration()) {
+      total_size += kUInt16Size;
+    }
   }
 
   // Stage 2: Allocate a ByteArray and write directly into it with
@@ -294,6 +328,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     int next_sibling = find_scope_index(scope->sibling());
     bool has_sibling = next_sibling != -1;
     bool needs_context = scope->NeedsContext();
+    bool has_this_decl = false;
 
     uint16_t flags = 0;
     flags = ScopeTypeBits::update(flags, scope->scope_type());
@@ -305,9 +340,9 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     flags = NeedsContextBit::update(flags, needs_context);
     if (scope->is_declaration_scope()) {
       DeclarationScope* decl_scope = scope->AsDeclarationScope();
+      has_this_decl = decl_scope->has_this_declaration();
       flags = IsArrowScopeBit::update(flags, decl_scope->is_arrow_scope());
-      flags = HasThisDeclarationBit::update(flags,
-                                            decl_scope->has_this_declaration());
+      flags = HasThisDeclarationBit::update(flags, has_this_decl);
       flags = HasSimpleParametersBit::update(
           flags, decl_scope->has_simple_parameters());
       flags = SloppyEvalCanExtendVarsBit::update(
@@ -336,6 +371,16 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
       // context so we don't need to waste the bytes.
       base::WriteUnalignedValue<int32_t>(record + optional_offset,
                                          scope->UniqueIdInScript());
+      optional_offset += kInt32Size;
+    }
+    if (has_this_decl) {
+      Variable* var = scope->AsDeclarationScope()->receiver();
+      VariableAllocationInfo info = var->location() == VariableLocation::CONTEXT
+                                        ? VariableAllocationInfo::CONTEXT
+                                        : VariableAllocationInfo::STACK;
+      base::WriteUnalignedValue<uint16_t>(record + optional_offset,
+                                          EncodeAllocInfo(info, var->index()));
+      optional_offset += kUInt16Size;
     }
   }
 
@@ -366,7 +411,7 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
 
   for (int i = 0; i < scope_count; ++i) {
     uint32_t offset = GetScopeOffset(this, i);
-    CHECK_EQ(offset % kUInt32Size, 0);
+    CHECK_EQ(offset % kUInt16Size, 0);
     CHECK_GE(offset, header_and_table_size);
     DebugScriptScope scope = DebugScriptScope::FromIndex(info_handle, i);
     CHECK_EQ(scope.scope_index(), i);
@@ -374,7 +419,8 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
 
     size_t record_size = sizeof(ScopeRecord) +
                          (scope.next_sibling().has_value() ? kInt32Size : 0) +
-                         (scope.needs_context() ? kInt32Size : 0);
+                         (scope.needs_context() ? kInt32Size : 0) +
+                         (scope.has_this_declaration() ? kUInt16Size : 0);
     CHECK_LE(offset + record_size,
              static_cast<size_t>(bytes->length().value()));
 
@@ -382,6 +428,11 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
       CHECK_GE(scope.unique_id_in_script(), -2);
     } else {
       CHECK_EQ(scope.unique_id_in_script(), -3);
+    }
+
+    if (!scope.has_this_declaration()) {
+      CHECK_EQ(scope.receiver_info(),
+               (std::pair{VariableAllocationInfo::NONE, -1}));
     }
 
     if (i == 0) {

@@ -539,7 +539,6 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   friend class ScopeIterator;
   friend class CodeStubAssembler;
   friend class TorqueGeneratedBitFieldAsserts;
-  friend std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var);
 
  public:
   // Relaxed-atomic flags word (ScopeFlags bit layout).
@@ -583,7 +582,8 @@ inline constexpr int ScopeInfo::ConvertOffsetToIndex(int offset) {
   return index;
 }
 
-std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           VariableAllocationInfo var);
 
 }  // namespace internal
 }  // namespace v8
