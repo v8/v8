@@ -437,7 +437,6 @@ NamedAccessFeedback::NamedAccessFeedback(
     bool has_deprecated_map_without_migration_target)
     : ProcessedFeedback(kNamedAccess, slot_kind),
       name_(name.UnpackIfThin(broker)),
-      original_name_maybe_thin_(name),
       maps_(maps),
       handlers_(handlers),
       has_deprecated_map_without_migration_target_(

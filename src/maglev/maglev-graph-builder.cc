@@ -6595,7 +6595,7 @@ ReduceResult MaglevGraphBuilder::BuildGetKeyedProperty(
     case compiler::ProcessedFeedback::kNamedAccess: {
       ValueNode* key = GetAccumulator();
       RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
-          key, processed_feedback.AsNamedAccess().original_name_maybe_thin(),
+          key, processed_feedback.AsNamedAccess().name(),
           DeoptimizeReason::kKeyedAccessChanged));
 
       compiler::NameRef name = processed_feedback.AsNamedAccess().name();
@@ -6646,14 +6646,14 @@ ReduceResult MaglevGraphBuilder::VisitGetKeyedProperty() {
           compiler::ProcessedFeedback::kElementAccess &&
       processed_feedback->AsElementAccess().transition_groups().empty()) {
     if (auto constant = TryGetConstant<Name>(GetAccumulator())) {
-      compiler::NameRef name = constant.value();
       // IsArrayIndex requires IsUniqueName, i.e. thin strings must be
-      // unpacked. Subtle: Refine() still takes the original `name`.
-      compiler::NameRef unpacked_name = name.UnpackIfThin(broker());
+      // unpacked.
+      compiler::NameRef unpacked_name =
+          constant.value().UnpackIfThin(broker());
       if (unpacked_name.IsUniqueName() &&
           !unpacked_name.object()->IsArrayIndex()) {
-        processed_feedback =
-            &processed_feedback->AsElementAccess().Refine(broker(), name);
+        processed_feedback = &processed_feedback->AsElementAccess().Refine(
+            broker(), unpacked_name);
       }
     }
   }
@@ -6867,7 +6867,7 @@ ReduceResult MaglevGraphBuilder::VisitGetPrivateField() {
     case compiler::ProcessedFeedback::kNamedAccess: {
       RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
           name.value(),
-          processed_feedback.AsNamedAccess().original_name_maybe_thin(),
+          processed_feedback.AsNamedAccess().name(),
           DeoptimizeReason::kKeyedAccessChanged));
 
       compiler::NameRef name_ref = processed_feedback.AsNamedAccess().name();
@@ -6999,7 +6999,7 @@ ReduceResult MaglevGraphBuilder::BuildSetKeyedProperty(
 
     case compiler::ProcessedFeedback::kNamedAccess: {
       RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
-          index, processed_feedback.AsNamedAccess().original_name_maybe_thin(),
+          index, processed_feedback.AsNamedAccess().name(),
           DeoptimizeReason::kKeyedAccessChanged));
 
       RETURN_IF_DONE(TryBuildNamedAccess(
@@ -11255,8 +11255,13 @@ ReduceResult MaglevGraphBuilder::BuildCheckInternalizedStringValueOrByReference(
           constant->equals(*expected_primitive)) {
         return ReduceResult::Done();
       }
-      // If it is a constant but not the expected primitive, it will definitely
-      // fail the BuildCheckValueByReference below and deopt.
+      // The constant may be a ThinString referring to the expected string.
+      if (constant->IsString() &&
+          constant->AsString().UnpackIfThin(broker()).equals(expected_string)) {
+        return ReduceResult::Done();
+      }
+      // Otherwise it will definitely fail the BuildCheckValueByReference below
+      // and deopt.
     } else {
       if (IntersectType(GetType(node), allowed_type) == NodeType::kNone) {
         return reducer_.EmitUnconditionalDeopt(reason);

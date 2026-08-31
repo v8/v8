@@ -1636,8 +1636,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Ensure that {key} matches the specified name (if {key} is given).
   if (key != nullptr) {
-    effect = BuildCheckEqualsName(feedback.original_name_maybe_thin(), key,
-                                  effect, &control);
+    effect = BuildCheckEqualsName(feedback.name(), key, effect, &control);
   }
 
   // Collect call nodes to rewire exception edges.
