@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/gc-tracer-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/main-allocator-inl.h"
 #include "src/heap/mark-compact.h"
@@ -252,8 +253,9 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
   return handles;
 }
 
-void FillCurrentSemiSpacePage(v8::internal::SemiSpaceNewSpace* space,
-                              std::vector<Handle<FixedArray>>* out_handles) {
+void FillCurrentSemiSpacePageButNBytes(
+    v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
+    std::vector<Handle<FixedArray>>* out_handles = nullptr) {
   // We cannot rely on `space->limit()` to point to the end of the current page
   // in the case where inline allocations are disabled, it actually points to
   // the current allocation pointer.
@@ -262,12 +264,19 @@ void FillCurrentSemiSpacePage(v8::internal::SemiSpaceNewSpace* space,
       space->heap()->NewSpaceTop() == space->heap()->NewSpaceLimit());
 
   int space_remaining = space->GetSpaceRemainingOnCurrentPageForTesting();
-  if (space_remaining == 0) return;
+  CHECK_GE(space_remaining, extra_bytes);
+  int new_linear_size = space_remaining - extra_bytes;
+  if (new_linear_size == 0) return;
   std::vector<Handle<FixedArray>> handles =
-      CreatePadding(space->heap(), space_remaining, i::AllocationType::kYoung);
+      CreatePadding(space->heap(), new_linear_size, i::AllocationType::kYoung);
   if (out_handles != nullptr) {
     out_handles->insert(out_handles->end(), handles.begin(), handles.end());
   }
+}
+
+void FillCurrentSemiSpacePage(v8::internal::SemiSpaceNewSpace* space,
+                              std::vector<Handle<FixedArray>>* out_handles) {
+  FillCurrentSemiSpacePageButNBytes(space, 0, out_handles);
 }
 
 void FillCurrentPagedSpacePage(v8::internal::NewSpace* space,
@@ -286,15 +295,23 @@ void FillCurrentPagedSpacePage(v8::internal::NewSpace* space,
 void HeapInternalsBase::FillCurrentPage(
     v8::internal::NewSpace* space,
     std::vector<Handle<FixedArray>>* out_handles) {
+  space->heap()->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(space->heap());
-  MainAllocator* allocator = space->heap()->allocator()->new_space_allocator();
-  allocator->FreeLinearAllocationArea();
   if (v8_flags.minor_ms) {
     FillCurrentPagedSpacePage(space, out_handles);
   } else {
     FillCurrentSemiSpacePage(SemiSpaceNewSpace::From(space), out_handles);
   }
-  allocator->FreeLinearAllocationArea();
+  space->heap()->FreeMainThreadLinearAllocationAreas();
+}
+
+void HeapInternalsBase::FillCurrentPageButNBytes(
+    v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
+    std::vector<Handle<FixedArray>>* out_handles) {
+  space->heap()->FreeMainThreadLinearAllocationAreas();
+  PauseAllocationObserversScope pause_observers(space->heap());
+  FillCurrentSemiSpacePageButNBytes(space, extra_bytes, out_handles);
+  space->heap()->FreeMainThreadLinearAllocationAreas();
 }
 
 bool IsNewObjectInCorrectGeneration(Tagged<HeapObject> object) {

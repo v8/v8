@@ -16,6 +16,7 @@ namespace internal {
 
 class NormalPage;
 void ForceEvacuationCandidate(NormalPage* page);
+class SemiSpaceNewSpace;
 
 class HeapInternalsBase {
  protected:
@@ -27,6 +28,9 @@ class HeapInternalsBase {
   void SimulateFullSpace(v8::internal::PagedSpace* space);
   void FillCurrentPage(v8::internal::NewSpace* space,
                        std::vector<Handle<FixedArray>>* out_handles = nullptr);
+  void FillCurrentPageButNBytes(
+      v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
+      std::vector<Handle<FixedArray>>* out_handles = nullptr);
 };
 
 inline void InvokeMajorGC(i::Isolate* isolate) {
@@ -114,6 +118,13 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   }
   void SimulateFullSpace(v8::internal::PagedSpace* space) {
     return HeapInternalsBase::SimulateFullSpace(space);
+  }
+
+  void FillCurrentPageButNBytes(
+      v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
+      std::vector<Handle<FixedArray>>* out_handles = nullptr) {
+    return HeapInternalsBase::FillCurrentPageButNBytes(space, extra_bytes,
+                                                       out_handles);
   }
 
   void GrowNewSpaceToMaximumCapacity() {

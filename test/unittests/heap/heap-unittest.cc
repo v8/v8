@@ -3792,5 +3792,362 @@ TEST_F(TestWithPlatform, ReinitializeStringHashSeed) {
   }
 }
 
+TEST_F(HeapTest, Regress169928) {
+  v8_flags.allow_natives_syntax = true;
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+  v8_flags.turbofan = false;
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+
+  // Some flags turn Scavenge collections into Mark-sweep collections
+  // and hence are incompatible with this test case.
+  if (v8_flags.gc_global || v8_flags.stress_compaction ||
+      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
+      v8_flags.minor_ms) {
+    return;
+  }
+
+  // Prepare the environment
+  RunJS(
+      "function fastliteralcase(literal, value) {"
+      "    literal[0] = value;"
+      "    return literal;"
+      "}"
+      "function get_standard_literal() {"
+      "    var literal = [1, 2, 3];"
+      "    return literal;"
+      "}"
+      "obj = fastliteralcase(get_standard_literal(), 1);"
+      "obj = fastliteralcase(get_standard_literal(), 1.5);"
+      "obj = fastliteralcase(get_standard_literal(), 2);");
+
+  // Prepare the heap: pre-allocate strings before page filling to avoid
+  // disturbing heap layout.
+  v8::Local<v8::String> mote_code_string =
+      NewString("fastliteralcase(mote, 2.5);");
+  v8::Local<v8::String> array_name = NewString("mote");
+  EXPECT_TRUE(context()
+                  ->Global()
+                  ->Set(context(), array_name, v8::Int32::New(v8_isolate(), 0))
+                  .FromJust());
+
+  // First make sure we flip spaces
+  InvokeMinorGC();
+
+  // Allocate the object.
+  DirectHandle<FixedArray> array_data =
+      factory()->NewFixedArray(2, AllocationType::kYoung);
+  array_data->set(0, Smi::FromInt(1));
+  array_data->set(1, Smi::FromInt(2));
+
+  FillCurrentPageButNBytes(
+      SemiSpaceNewSpace::From(heap()->new_space()),
+      JSArray::kHeaderSize + sizeof(AllocationMemento) + kTaggedSize);
+
+  DirectHandle<JSArray> array =
+      factory()->NewJSArrayWithElements(array_data, PACKED_SMI_ELEMENTS);
+
+  EXPECT_EQ(Smi::FromInt(2), array->length());
+  EXPECT_TRUE(array->HasSmiOrObjectElements());
+
+  // We need filler the size of AllocationMemento object, plus an extra
+  // fill pointer value.
+  Tagged<HeapObject> obj;
+  AllocationResult allocation =
+      heap()->allocator()->new_space_allocator()->AllocateRaw(
+          SafeHeapObjectSize(sizeof(AllocationMemento) + kTaggedSize),
+          kTaggedAligned, AllocationOrigin::kRuntime, AllocationHint());
+  EXPECT_TRUE(allocation.To(&obj));
+  Address addr_obj = obj.address();
+  heap()->CreateFillerObjectAt(addr_obj,
+                               sizeof(AllocationMemento) + kTaggedSize);
+
+  // Give the array a name, making sure not to allocate strings.
+  v8::Local<v8::Object> array_obj = v8::Utils::ToLocal(array);
+  EXPECT_TRUE(
+      context()->Global()->Set(context(), array_name, array_obj).FromJust());
+
+  // This should crash with a protection violation if running a build with the
+  // bug.
+  AlwaysAllocateScopeForTesting aa_scope(heap());
+  v8::Script::Compile(context(), mote_code_string)
+      .ToLocalChecked()
+      ->Run(context())
+      .ToLocalChecked();
+}
+
+TEST_F(HeapTest, LargeObjectSlotRecording) {
+  if (!v8_flags.incremental_marking) return;
+  if (!v8_flags.compact) return;
+  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope(isolate());
+
+  const int size = std::max(1000000, kMaxRegularHeapObjectSize + KB);
+  const int kStep = size / 10;
+
+  v8::Global<v8::FixedArray> lit_global;
+  v8::Global<v8::FixedArray> lo_global;
+  Tagged<FixedArray> old_location;
+  {
+    HandleScope scope(isolate());
+
+    // Create an object on an evacuation candidate.
+    SimulateFullSpace(heap()->old_space());
+    IndirectHandle<FixedArray> lit =
+        factory()->NewFixedArray(4, AllocationType::kOld);
+    MutablePage::FromHeapObject(isolate(), *lit)
+        ->set_forced_evacuation_candidate_for_testing(true);
+    old_location = *lit;
+
+    // Allocate a large object.
+    EXPECT_LT(kMaxRegularHeapObjectSize, size);
+    IndirectHandle<FixedArray> lo =
+        factory()->NewFixedArray(size, AllocationType::kOld);
+    EXPECT_TRUE(heap()->lo_space()->Contains(*lo));
+
+    // Start incremental marking to activate write barrier.
+    SimulateIncrementalMarking(false);
+
+    // Create references from the large object to the object on the evacuation
+    // candidate.
+    for (int i = 0; i < size; i += kStep) {
+      lo->set(i, *lit);
+      EXPECT_EQ(lo->get(i), old_location);
+    }
+
+    SimulateIncrementalMarking(true);
+    lit_global.Reset(v8_isolate(), Utils::FixedArrayToLocal(lit));
+    lo_global.Reset(v8_isolate(), Utils::FixedArrayToLocal(lo));
+  }
+
+  // Move the evacuation candidate object.
+  {
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+
+  {
+    v8::HandleScope scope(v8_isolate());
+    IndirectHandle<FixedArray> lit =
+        Utils::OpenHandle(*lit_global.Get(v8_isolate()));
+    IndirectHandle<FixedArray> lo =
+        Utils::OpenHandle(*lo_global.Get(v8_isolate()));
+    // Verify that the pointers in the large object got updated.
+    for (int i = 0; i < size; i += kStep) {
+      EXPECT_EQ(lo->get(i).ptr(), lit->ptr());
+      EXPECT_NE(lo->get(i).ptr(), old_location.ptr());
+    }
+  }
+}
+
+TEST_F(HeapTest, PersistentHandles) {
+  Isolate* isolate = i_isolate();
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(v8_isolate());
+  HandleScopeData* data = isolate->handle_scope_data();
+  IndirectHandle<Object> init(ReadOnlyRoots(heap).empty_string(), isolate);
+  while (data->next < data->limit) {
+    IndirectHandle<Object> obj(ReadOnlyRoots(heap).empty_string(), isolate);
+  }
+  // An entire block of handles has been filled.
+  // Next handle would require a new block.
+  EXPECT_EQ(data->next, data->limit);
+
+  PersistentHandlesScope persistent(isolate);
+  class DummyVisitor : public RootVisitor {
+   public:
+    void VisitRootPointers(Root root, const char* description,
+                           FullObjectSlot start, FullObjectSlot end) override {}
+  } visitor;
+  isolate->handle_scope_implementer()->Iterate(&visitor);
+  persistent.Detach();
+}
+
+void TestFillersFromPersistentHandles(Isolate* isolate, bool promote) {
+  // We assume that the fillers can only arise when left-trimming arrays.
+  ManualGCScope manual_gc_scope(isolate);
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
+
+  const size_t n = 10;
+  DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(n);
+
+  if (promote) {
+    // Age the array so it's ready for promotion on next GC.
+    InvokeMinorGC(isolate);
+  }
+  EXPECT_TRUE(HeapLayout::InYoungGeneration(*array));
+
+  PersistentHandlesScope persistent_scope(isolate);
+
+  // Trim the array three times to different sizes so all kinds of fillers are
+  // created and tracked by the persistent handles.
+  DirectHandle<FixedArrayBase> filler_1(*array, isolate);
+  DirectHandle<FixedArrayBase> filler_2(heap->LeftTrimFixedArray(*filler_1, 1),
+                                        isolate);
+  DirectHandle<FixedArrayBase> filler_3(heap->LeftTrimFixedArray(*filler_2, 2),
+                                        isolate);
+  DirectHandle<FixedArrayBase> tail(heap->LeftTrimFixedArray(*filler_3, 3),
+                                    isolate);
+
+  std::unique_ptr<PersistentHandles> persistent_handles(
+      persistent_scope.Detach());
+
+  // GC should retain the trimmed array but drop all of the three fillers.
+  InvokeMinorGC(isolate);
+  if (!v8_flags.single_generation) {
+    if (promote) {
+      EXPECT_TRUE(heap->InOldSpace(*tail));
+    } else {
+      EXPECT_TRUE(HeapLayout::InYoungGeneration(*tail));
+    }
+  }
+  EXPECT_EQ(n - 6, static_cast<size_t>(tail->length().value()));
+  EXPECT_FALSE(IsHeapObject(*filler_1));
+  EXPECT_FALSE(IsHeapObject(*filler_2));
+  EXPECT_FALSE(IsHeapObject(*filler_3));
+}
+
+TEST_F(HeapTest, DoNotEvacuateFillersFromPersistentHandles) {
+  if (v8_flags.single_generation || v8_flags.move_object_start) return;
+  TestFillersFromPersistentHandles(i_isolate(), false /*promote*/);
+}
+
+TEST_F(HeapTest, DoNotPromoteFillersFromPersistentHandles) {
+  if (v8_flags.single_generation || v8_flags.move_object_start) return;
+  TestFillersFromPersistentHandles(i_isolate(), true /*promote*/);
+}
+
+TEST_F(HeapTest, IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
+  if (!v8_flags.incremental_marking) return;
+  ManualGCScope manual_gc_scope(i_isolate());
+  RunJS(
+      "function f(n) {"
+      "    var a = new Array(n);"
+      "    for (var i = 0; i < n; i += 100) a[i] = i;"
+      "};"
+      "f(10 * 1024 * 1024);");
+  IncrementalMarking* marking = heap()->incremental_marking();
+  if (marking->IsStopped()) {
+    heap()->StartIncrementalMarking(GCFlag::kNoFlags,
+                                    GarbageCollectionReason::kTesting);
+  }
+  SimulateIncrementalMarking();
+  EXPECT_TRUE(marking->IsMajorMarkingComplete());
+}
+
+TEST_F(HeapTest, DisableInlineAllocation) {
+  v8_flags.allow_natives_syntax = true;
+  RunJS(
+      "function test() {"
+      "  var x = [];"
+      "  for (var i = 0; i < 10; i++) {"
+      "    x[i] = [ {}, [1,2,3], [1,x,3] ];"
+      "  }"
+      "}"
+      "function run() {"
+      "  %PrepareFunctionForOptimization(test);"
+      "  %OptimizeFunctionOnNextCall(test);"
+      "  test();"
+      "  %DeoptimizeFunction(test);"
+      "}");
+
+  // Warm-up with inline allocation enabled.
+  RunJS("test(); test(); run();");
+
+  // Run test with inline allocation disabled.
+  heap()->DisableInlineAllocation();
+  RunJS("run()");
+
+  // Run test with inline allocation re-enabled.
+  heap()->EnableInlineAllocation();
+  RunJS("run()");
+}
+
+TEST_F(HeapTest, EnsureAllocationSiteDependentCodesProcessed) {
+  if (!V8_ALLOCATION_SITE_TRACKING_BOOL) {
+    return;
+  }
+  v8_flags.allow_natives_syntax = true;
+  Isolate* isolate = i_isolate();
+  Heap* heap = this->heap();
+  GlobalHandles* global_handles = isolate->global_handles();
+
+  if (!isolate->use_optimizer()) return;
+
+  auto allocation_sites_count = [](Heap* heap) {
+    int count = 0;
+    for (Tagged<Object> site = heap->allocation_sites_list();
+         IsAllocationSite(site);) {
+      Tagged<AllocationSiteWithWeakNext> cur =
+          Cast<AllocationSiteWithWeakNext>(site);
+      EXPECT_TRUE(cur->HasWeakNext());
+      site = cur->weak_next();
+      count++;
+    }
+    return count;
+  };
+
+  // The allocation site at the head of the list is ours.
+  IndirectHandle<AllocationSite> site;
+  {
+    v8::HandleScope scope(v8_isolate());
+    v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+    v8::Context::Scope context_scope(context);
+
+    int count = allocation_sites_count(heap);
+    RunJS(context,
+          "var bar = function() { return (new Array()); };"
+          "%PrepareFunctionForOptimization(bar);"
+          "var a = bar();"
+          "bar();"
+          "bar();");
+
+    // One allocation site should have been created.
+    int new_count = allocation_sites_count(heap);
+    EXPECT_EQ(new_count, count + 1);
+    site = Cast<AllocationSite>(global_handles->Create(
+        Cast<AllocationSite>(heap->allocation_sites_list())));
+
+    RunJS(context, "%OptimizeFunctionOnNextCall(bar); bar();");
+
+    IndirectHandle<JSFunction> bar_handle =
+        Cast<JSFunction>(v8::Utils::OpenIndirectHandle(
+            *v8::Local<v8::Function>::Cast(context->Global()
+                                               ->Get(context, NewString("bar"))
+                                               .ToLocalChecked())));
+
+    // Expect a dependent code object for transitioning and pretenuring.
+    Tagged<DependentCode> dependency = site->dependent_code();
+    EXPECT_NE(dependency,
+              DependentCode::empty_dependent_code(ReadOnlyRoots(isolate)));
+    EXPECT_EQ(dependency->length().value(),
+              static_cast<uint32_t>(DependentCode::kSlotsPerEntry));
+    Tagged<MaybeObject> code =
+        dependency->Get(0 + DependentCode::kCodeSlotOffset);
+    EXPECT_TRUE(code.IsWeak());
+    EXPECT_EQ(bar_handle->code(isolate),
+              Cast<CodeWrapper>(code.GetHeapObjectAssumeWeak())->code(isolate));
+    Tagged<Smi> groups =
+        dependency->Get(0 + DependentCode::kGroupsSlotOffset).ToSmi();
+    EXPECT_EQ(static_cast<DependentCode::DependencyGroups>(groups.value()),
+              DependentCode::kAllocationSiteTransitionChangedGroup |
+                  DependentCode::kAllocationSiteTenuringChangedGroup);
+  }
+
+  // Now make sure that a gc should get rid of the function, even though we
+  // still have the allocation site alive.
+  for (int i = 0; i < 4; i++) {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+    InvokeMajorGC();
+  }
+
+  // The site still exists because of our global handle, but the code is no
+  // longer referred to by dependent_code().
+  EXPECT_TRUE(site->dependent_code()->Get(0).IsCleared());
+}
+
 }  // namespace internal
 }  // namespace v8
