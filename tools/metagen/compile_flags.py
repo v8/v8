@@ -199,8 +199,12 @@ def get_compile_args_from_gn_desc(
         "[metagen] gn not found under <source-root>/buildtools or on PATH.")
   out_rel = os.path.relpath(os.path.abspath(build_dir), source_root)
   try:
+    # -q ("don't print output on success") keeps stdout to the JSON alone.
+    # Without it gn prepends any build-file warning to the document -- an
+    # arm_float_abi that no declare_args() claims on the arm64 bots, say --
+    # and the parse below fails. A gn that actually fails still reports.
     proc = subprocess.run(
-        [gn, "desc", out_rel, target_label, "--format=json"],
+        [gn, "desc", "-q", out_rel, target_label, "--format=json"],
         cwd=source_root,
         capture_output=True,
         text=True,
