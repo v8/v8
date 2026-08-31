@@ -93,12 +93,29 @@ void VerifyScopeTreeParity(Scope* ast_scope, DebugScriptScope debug_scope) {
       EXPECT_EQ(debug_scope.receiver_info(),
                 (std::pair{expected_info, var->index()}));
     }
+    if (decl->arguments() != nullptr) {
+      EXPECT_TRUE(debug_scope.has_arguments());
+      Variable* var = decl->arguments();
+      VariableAllocationInfo expected_info =
+          var->location() == VariableLocation::CONTEXT
+              ? VariableAllocationInfo::CONTEXT
+              : VariableAllocationInfo::STACK;
+      EXPECT_EQ(debug_scope.arguments_info(),
+                (std::pair{expected_info, var->index()}));
+    } else {
+      EXPECT_FALSE(debug_scope.has_arguments());
+      EXPECT_EQ(debug_scope.arguments_info(),
+                (std::pair{VariableAllocationInfo::NONE, -1}));
+    }
   } else {
     EXPECT_FALSE(debug_scope.is_arrow_scope());
     EXPECT_FALSE(debug_scope.has_this_declaration());
     EXPECT_FALSE(debug_scope.has_simple_parameters());
+    EXPECT_FALSE(debug_scope.has_arguments());
     EXPECT_FALSE(debug_scope.sloppy_eval_can_extend_vars());
     EXPECT_EQ(debug_scope.receiver_info(),
+              (std::pair{VariableAllocationInfo::NONE, -1}));
+    EXPECT_EQ(debug_scope.arguments_info(),
               (std::pair{VariableAllocationInfo::NONE, -1}));
   }
 
@@ -444,6 +461,49 @@ TEST_F(DebugScopeInfoTest, ReceiverAllocationInfo) {
   auto [this_loc, this_idx] = with_this->receiver_info();
   EXPECT_EQ(this_loc, VariableAllocationInfo::CONTEXT);
   EXPECT_GE(this_idx, 0);
+}
+
+TEST_F(DebugScopeInfoTest, ArgumentsAllocationInfo) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize(
+      "function withArgsContext() { return () => arguments[0]; }\n"
+      "function withArgsStack() { return arguments[0]; }\n"
+      "function noArgs() { return 1; }\n"
+      "const arrow = () => 42;");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+
+  // Arrow function (1)
+  auto arrow_scope = script.first_child();
+  ASSERT_TRUE(arrow_scope.has_value());
+  EXPECT_FALSE(arrow_scope->has_arguments());
+  EXPECT_EQ(arrow_scope->arguments_info(),
+            (std::pair{VariableAllocationInfo::NONE, -1}));
+
+  // noArgs (2)
+  auto no_args = arrow_scope->next_sibling();
+  ASSERT_TRUE(no_args.has_value());
+  EXPECT_FALSE(no_args->has_arguments());
+  EXPECT_EQ(no_args->arguments_info(),
+            (std::pair{VariableAllocationInfo::NONE, -1}));
+
+  // withArgsStack (3)
+  auto with_args_stack = no_args->next_sibling();
+  ASSERT_TRUE(with_args_stack.has_value());
+  EXPECT_TRUE(with_args_stack->has_arguments());
+  auto [stack_loc, stack_idx] = with_args_stack->arguments_info();
+  EXPECT_EQ(stack_loc, VariableAllocationInfo::STACK);
+  EXPECT_GE(stack_idx, 0);
+
+  // withArgsContext (4)
+  auto with_args_context = with_args_stack->next_sibling();
+  ASSERT_TRUE(with_args_context.has_value());
+  EXPECT_TRUE(with_args_context->has_arguments());
+  auto [ctx_loc, ctx_idx] = with_args_context->arguments_info();
+  EXPECT_EQ(ctx_loc, VariableAllocationInfo::CONTEXT);
+  EXPECT_GE(ctx_idx, 0);
 }
 
 }  // namespace internal

@@ -56,6 +56,7 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   bool has_this_declaration() const;
   bool has_this_reference() const;
   bool has_simple_parameters() const;
+  bool has_arguments() const;
   bool sloppy_eval_can_extend_vars() const;
   bool needs_context() const;
 
@@ -67,6 +68,10 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   // second element represents the stack slot index or context slot index of the
   // receiver variable (or -1 if none/unallocated).
   std::pair<VariableAllocationInfo, int> receiver_info() const;
+  // Returns a pair of {VariableAllocationInfo, index}. When allocated, the
+  // second element represents the stack slot index or context slot index of the
+  // arguments variable (or -1 if none/unallocated).
+  std::pair<VariableAllocationInfo, int> arguments_info() const;
 
  private:
   DebugScriptScope(DirectHandle<DebugScriptScopeInfo> info, int scope_index,
