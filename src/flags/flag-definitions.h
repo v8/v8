@@ -2078,8 +2078,9 @@ DEFINE_DEBUG_BOOL(
     "enables a testing opcode in wasm that is only implemented in TurboFan")
 DEFINE_NEG_IMPLICATION(liftoff_only, enable_testing_opcode_in_wasm)
 // Do synchronous tier up (instead of in-background tierup) in single threaded
-// mode.
+// and predictable mode.
 DEFINE_IMPLICATION(single_threaded, wasm_sync_tier_up)
+DEFINE_IMPLICATION(predictable, wasm_sync_tier_up)
 DEFINE_DEBUG_BOOL(trace_liftoff, false,
                   "trace Liftoff, the baseline compiler for WebAssembly")
 DEFINE_DEVELOPER_FLAG(trace_wasm_memory,
@@ -4223,7 +4224,9 @@ DEFINE_NEG_IMPLICATION(predictable, parallel_compile_tasks_for_lazy)
 #ifdef V8_ENABLE_MAGLEV
 DEFINE_NEG_IMPLICATION(predictable, maglev_deopt_data_on_background)
 DEFINE_NEG_IMPLICATION(predictable, maglev_build_code_on_background)
+DEFINE_NEG_IMPLICATION(predictable, maglev_destroy_on_background)
 #endif  // V8_ENABLE_MAGLEV
+DEFINE_NEG_IMPLICATION(predictable, concurrent_cache_deserialization)
 // Avoid random seeds in predictable mode.
 DEFINE_VALUE_IMPLICATION(predictable && random_seed == 0, random_seed, 12347)
 
