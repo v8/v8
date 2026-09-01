@@ -82,6 +82,15 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   uint16_t flags() const;
   int parent_index() const;
 
+  // Chained offset calculation methods (private to DebugScriptScope).
+  size_t next_sibling_offset() const;
+  size_t context_id_offset() const;
+  size_t receiver_info_offset() const;
+  size_t arguments_info_offset() const;
+  size_t record_size() const;
+
+  friend class DebugScriptScopeInfo;
+
   DirectHandle<DebugScriptScopeInfo> info_;
   int scope_index_;
   uint32_t offset_;
