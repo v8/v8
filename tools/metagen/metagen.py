@@ -291,7 +291,22 @@ def main() -> int:
   # Standard Library" #error. Search order follows flag order among
   # -isystem dirs, so appending keeps libc++ first while still supplying
   # the builtins nothing else provides.
-  flags = prefix + raw_flags + [f"{sysinclude}{builtin_headers_dir}"]
+  # Tracing declares nothing the harvest reads, but all-objects.h reaches
+  # src/tracing/trace-event.h, whose perfetto path pulls in generated protos
+  # (perfetto is on in Chromium builds). Taking the non-perfetto path instead
+  # of ordering the action after protoc keeps the harvest at the front of the
+  # build; the harvested set is the same either way. These have to follow the
+  # queried flags to override the -D they carry, and the SDK and JSON-export
+  # defines go with it because v8config.h requires them to imply
+  # V8_USE_PERFETTO.
+  no_perfetto = [
+      "-UV8_USE_PERFETTO",
+      "-UV8_USE_PERFETTO_JSON_EXPORT",
+      "-UV8_USE_PERFETTO_SDK",
+  ]
+
+  flags = (
+      prefix + raw_flags + no_perfetto + [f"{sysinclude}{builtin_headers_dir}"])
 
   print(
       f"Harvesting class hierarchy from {os.path.relpath(driver_path, v8_root)} "

@@ -2484,10 +2484,17 @@ action("metagen_instance_types_h") {
   # must re-run the driver even though the action command is unchanged.
   deps = [ ":v8_dump_build_config" ]
 
-  # No deps on the generators: every generated header the harvested set
+  if (v8_generate_external_defines_header) {
+    # v8config.h includes the generated v8-gn.h in this configuration.
+    deps += [ ":gen_v8_gn" ]
+  }
+
+  # No deps on V8's own generators: every generated header the harvested set
   # reaches short-circuits to empty under V8_METAGEN_GENERATION_PASS
   # (see builtins-definitions.h and factory-base.h), so the harvest runs
   # independently of Torque and the bytecode-builtins-list generator.
+  # Perfetto's generated headers are kept out of the parse the same way, by
+  # undefining V8_USE_PERFETTO for it (see metagen.py).
 
   # `inputs`, not `sources`: these headers belong to the V8 targets that
   # compile them; this action only reads them.
