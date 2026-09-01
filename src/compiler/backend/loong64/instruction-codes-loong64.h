@@ -106,6 +106,7 @@ namespace compiler {
   V(Loong64Mov)                                      \
   V(Loong64Tst)                                      \
   V(Loong64Cmp32)                                    \
+  V(Loong64Cmp32Eq)                                  \
   V(Loong64Cmp64)                                    \
   V(Loong64Float32Cmp)                               \
   V(Loong64Float32Add)                               \

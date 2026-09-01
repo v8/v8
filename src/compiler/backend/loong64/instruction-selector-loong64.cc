@@ -109,8 +109,6 @@ class Loong64OperandGenerator final : public OperandGenerator {
       case kArchAtomicStoreWithWriteBarrier:
       case kArchAtomicStoreSkippedWriteBarrier:
         return false;
-      case kLoong64Cmp32:
-      case kLoong64Cmp64:
       case kLoong64AddOvf_w:
       case kLoong64SubOvf_w:
       case kLoong64AddOvf_d:
@@ -2285,7 +2283,11 @@ Instruction* VisitWordCompare(InstructionSelector* selector, OpIndex node,
   auto left = op.input(0);
   auto right = op.input(1);
 
-  // Match immediates on left or right side of comparison.
+  // If one of the two inputs is an immediate, make sure it's on the right.
+  if (!g.CanBeImmediate(right, opcode) && g.CanBeImmediate(left, opcode)) {
+    cont->Commute();
+    std::swap(left, right);
+  }
   if (g.CanBeImmediate(right, opcode)) {
     if (opcode == kLoong64Tst) {
       return VisitCompare(selector, opcode, g.UseRegister(left),
@@ -2311,36 +2313,6 @@ Instruction* VisitWordCompare(InstructionSelector* selector, OpIndex node,
         case kUnsignedGreaterThan:
           return VisitCompare(selector, opcode, g.UseUniqueRegister(left),
                               g.UseImmediate(right), cont);
-        default:
-          UNREACHABLE();
-      }
-    }
-  } else if (g.CanBeImmediate(left, opcode)) {
-    if (!commutative) cont->Commute();
-    if (opcode == kLoong64Tst) {
-      return VisitCompare(selector, opcode, g.UseRegister(right),
-                          g.UseImmediate(left), cont);
-    } else {
-      switch (cont->condition()) {
-        case kEqual:
-        case kNotEqual:
-          if (cont->IsSet()) {
-            return VisitCompare(selector, opcode, g.UseUniqueRegister(right),
-                                g.UseImmediate(left), cont);
-          } else {
-            return VisitCompare(selector, opcode, g.UseUniqueRegister(right),
-                                g.UseImmediate(left), cont);
-          }
-        case kSignedLessThan:
-        case kSignedGreaterThanOrEqual:
-        case kSignedLessThanOrEqual:
-        case kSignedGreaterThan:
-        case kUnsignedLessThan:
-        case kUnsignedGreaterThanOrEqual:
-        case kUnsignedLessThanOrEqual:
-        case kUnsignedGreaterThan:
-          return VisitCompare(selector, opcode, g.UseUniqueRegister(right),
-                              g.UseImmediate(left), cont);
         default:
           UNREACHABLE();
       }
@@ -2375,9 +2347,11 @@ void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
       lhs.outputs_rep()[0] == RegisterRepresentation::Tagged() ||
       lhs.outputs_rep()[0] == RegisterRepresentation::Compressed()) {
     need_sign_extension = true;
-    leftOp = g.TempRegister();
-    selector->Emit(kLoong64Sll_w, leftOp, g.UseRegister(op.input(0)),
-                   g.TempImmediate(0));
+    if (cont->IsNone() || cont->condition() != any_of(kEqual, kNotEqual)) {
+      leftOp = g.TempRegister();
+      selector->Emit(kLoong64Sll_w, leftOp, g.UseRegister(op.input(0)),
+                     g.TempImmediate(0));
+    }
   }
   if ((USE_SIMULATOR_BOOL && rhs.Is<DidntThrowOp>()) ||
       cmp.rep == RegisterRepresentation::Tagged() ||
@@ -2385,15 +2359,24 @@ void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
       rhs.outputs_rep()[0] == RegisterRepresentation::Tagged() ||
       rhs.outputs_rep()[0] == RegisterRepresentation::Compressed()) {
     need_sign_extension = true;
-    rightOp = g.TempRegister();
-    selector->Emit(kLoong64Sll_w, rightOp, g.UseRegister(op.input(1)),
-                   g.TempImmediate(0));
+    if (cont->IsNone() || cont->condition() != any_of(kEqual, kNotEqual)) {
+      rightOp = g.TempRegister();
+      selector->Emit(kLoong64Sll_w, rightOp, g.UseRegister(op.input(1)),
+                     g.TempImmediate(0));
+    }
   }
 
   if (need_sign_extension) {
-    Instruction* instr =
-        VisitCompare(selector, kLoong64Cmp32, leftOp, rightOp, cont);
-    selector->UpdateSourcePosition(instr, node);
+    if (cont->IsNone() || cont->condition() != any_of(kEqual, kNotEqual)) {
+      Instruction* instr =
+          VisitCompare(selector, kLoong64Cmp32, leftOp, rightOp, cont);
+      selector->UpdateSourcePosition(instr, node);
+    } else {
+      Instruction* instr =
+          VisitCompare(selector, kLoong64Cmp32Eq, g.UseRegister(op.input(0)),
+                       g.UseOperand(op.input(1), kLoong64Cmp32Eq), cont);
+      selector->UpdateSourcePosition(instr, node);
+    }
     return;
   }
 
@@ -2748,6 +2731,9 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
       if (const ComparisonOp* comparison = value_op.TryCast<ComparisonOp>()) {
         switch (comparison->rep.value()) {
           case RegisterRepresentation::Word32():
+#ifdef V8_COMPRESS_POINTERS
+          case RegisterRepresentation::Tagged():
+#endif
             cont->OverwriteAndNegateIfEqual(
                 GetComparisonFlagCondition(*comparison));
             return VisitWord32Compare(this, value, cont);
@@ -2916,8 +2902,8 @@ void InstructionSelector::VisitWord32Equal(OpIndex node) {
       if (RootsTable::IsReadOnly(root_index)) {
         Tagged_t ptr =
             MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
-        if (g.CanBeImmediate(ptr, kLoong64Cmp32)) {
-          VisitCompare(this, kLoong64Cmp32, g.UseRegister(left),
+        if (g.CanBeImmediate(ptr, kLoong64Cmp32Eq)) {
+          VisitCompare(this, kLoong64Cmp32Eq, g.UseRegister(left),
                        g.TempImmediate(int32_t(ptr)), &cont);
           return;
         }
