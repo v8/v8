@@ -68,6 +68,7 @@
     {"app_args": "--turboshaft-verify-reductions", "app_name": "d8", "probability": 0.1},
     {"app_args": "--maglev-assert-types", "app_name": "d8", "probability": 0.1},
     {"app_args": "--maglev-untagged-phis", "app_name": "d8", "probability": 0.5},
+    {"app_args": "--disable-loop-stack-checks", "app_name": "d8", "probability": 0.1},
     {"app_args": "--no-maglev-loop-peeling", "app_name": "d8", "probability": 0.1},
     {"app_args": "--maglev-disable-builtin-reducers", "app_name": "d8", "probability": 0.1},
     {"app_args": "--stress-wasm-code-gc", "app_name": "d8", "probability": 0.1},
