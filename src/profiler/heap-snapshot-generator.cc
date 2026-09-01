@@ -2447,6 +2447,8 @@ void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
   AddIntEdge(entry, HeapGraphEdge::kInternal, "scope_type", info->scope_type());
   AddStringEdge(entry, HeapGraphEdge::kInternal, "scope_type_name",
                 ToString(info->scope_type()));
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "scope_id",
+             info->UniqueIdInScript());
   AddIntEdge(entry, HeapGraphEdge::kInternal, "context_local_count",
              info->ContextLocalCount());
   AddIntEdge(entry, HeapGraphEdge::kInternal, "parameter_count",

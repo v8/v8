@@ -202,6 +202,12 @@ TEST_F(HeapSnapshotTest, ScopeInfoProperties) {
     ASSERT_NE(nullptr, scope_type_name_edge);
     EXPECT_STREQ("FUNCTION_SCOPE", scope_type_name_edge->to()->name());
 
+    std::optional<int> scope_id = GetIntEdge(scope_info, "scope_id");
+    ASSERT_TRUE(scope_id.has_value());
+    // scope id is the start position of that scope. So needs to be updated when
+    // the script changes.
+    EXPECT_EQ(88, scope_id.value());
+
     std::optional<int> parameter_count =
         GetIntEdge(scope_info, "parameter_count");
     ASSERT_TRUE(parameter_count.has_value());
@@ -252,6 +258,12 @@ TEST_F(HeapSnapshotTest, ScopeInfoProperties) {
         GetNamedEdge(*scope_info, "scope_type_name");
     ASSERT_NE(nullptr, scope_type_name_edge);
     EXPECT_STREQ("FUNCTION_SCOPE", scope_type_name_edge->to()->name());
+
+    std::optional<int> scope_id = GetIntEdge(scope_info, "scope_id");
+    ASSERT_TRUE(scope_id.has_value());
+    // scope id is the start position of that scope. So needs to be updated when
+    // the script changes.
+    EXPECT_EQ(30, scope_id.value());
 
     std::optional<int> parameter_count =
         GetIntEdge(scope_info, "parameter_count");
