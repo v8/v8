@@ -107,7 +107,8 @@ def GenerateCCFiles():
   print(">>> Generating generated C++ source files...")
   # This must be called after UpdateCompileCommands().
   assert os.path.exists(f"out/{DEFAULT_ARCH}.debug/build.ninja")
-  _Call(f"autoninja -C out/{DEFAULT_ARCH}.debug v8_generated_cc_files")
+  targets = "v8_generated_cc_files metagen_instance_types_h"
+  _Call(f"autoninja -C out/{DEFAULT_ARCH}.debug {targets}")
 
 
 def PrepareReclient():
