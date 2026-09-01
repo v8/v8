@@ -156,6 +156,18 @@ class InstructionChecker {
           return;
         }
         break;
+      // Add extended register is used for decompressing tagged pointers with
+      // zero-extension: add xd, x28, ws, uxtw #0.
+      case DA64I_ADD_EXT:
+        // Ensure that destination is not the cage base register, and that the
+        // RHS is zero-extended with uxtw #0.
+        if (!IsCageBaseReg(instr.ops[0]) && !IsCageBaseReg(instr.ops[2]) &&
+            (instr.ops[2].type == DA_OP_REGGPEXT) &&
+            (instr.ops[2].reggpext.ext == DA_EXT_UXTW) &&
+            (instr.ops[2].reggpext.shift == 0)) {
+          return;
+        }
+        break;
       // Stp is used by entry and deopt builtins to save the cage base
       // register's value in C++ code.
       case DA64I_STPX:

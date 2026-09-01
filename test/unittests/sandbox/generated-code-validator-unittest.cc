@@ -130,6 +130,8 @@ TEST_F(GeneratedCodeValidatorTest, ValidateDecompressionPasses) {
   __ ret(0);
 #elif V8_TARGET_ARCH_ARM64
   __ Orr(x13, kPtrComprCageBaseRegister, x13);
+  __ DecompressTagged(x13, x13);
+  __ Add(x13, kPtrComprCageBaseRegister, Operand(w13, UXTW, 0));
   __ ret();
 #else
 #error "Unsupported architecture for GeneratedCodeValidatorTest"
@@ -137,6 +139,49 @@ TEST_F(GeneratedCodeValidatorTest, ValidateDecompressionPasses) {
 
   CheckValidationSucceeds(i_isolate, masm);
 }
+
+#if V8_TARGET_ARCH_ARM64
+TEST_F(GeneratedCodeValidatorTest, ValidateInvalidDecompressionFails) {
+  static_assert(kPtrComprCageBaseRegister != no_reg);
+  Isolate* i_isolate = this->i_isolate();
+
+  // Test non-zero shift with UXTW.
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                        buffer->CreateView());
+    __ Add(x13, kPtrComprCageBaseRegister, Operand(w13, UXTW, 1));
+    __ ret();
+    CheckValidationFails(
+        i_isolate, masm,
+        "Instruction accesses cage bage register at operand 1");
+  }
+
+  // Test sign extension instead of zero extension.
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                        buffer->CreateView());
+    __ Add(x13, kPtrComprCageBaseRegister, Operand(w13, SXTW, 0));
+    __ ret();
+    CheckValidationFails(
+        i_isolate, masm,
+        "Instruction accesses cage bage register at operand 1");
+  }
+
+  // Test 64-bit extension instead of zero-extending 32-bit register.
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                        buffer->CreateView());
+    __ Add(x13, kPtrComprCageBaseRegister, Operand(x13, UXTX, 0));
+    __ ret();
+    CheckValidationFails(
+        i_isolate, masm,
+        "Instruction accesses cage bage register at operand 1");
+  }
+}
+#endif  // V8_TARGET_ARCH_ARM64
 
 #undef __
 
