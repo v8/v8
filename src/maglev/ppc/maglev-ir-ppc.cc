@@ -505,8 +505,10 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kNotInt32, this);
 
   // Check that the remainder is zero.
-  __ mullw(r0, out, right);
-  __ sub(r0, left, r0, LeaveOE, SetRC);
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
+  __ mullw(scratch, out, right);
+  __ sub(scratch, left, scratch, LeaveOE, SetRC);
   __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotInt32, this);
 
   __ extsw(out, out);
