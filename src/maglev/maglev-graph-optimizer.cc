@@ -636,7 +636,7 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(
   if (result.IsDoneWithAbort()) {
     return DeoptAndTruncate(DeoptimizeReason::kUnknown);
   }
-  return ProcessResult::kContinue;
+  return ProcessResult::kRevisit;
 }
 
 ProcessResult MaglevGraphOptimizer::RemoveCurrentNode() {

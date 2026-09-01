@@ -70,6 +70,8 @@ enum class ProcessResult {
               // splice.
   kRevisit,   // Process this node again. Note that the node is allowed to have
               // changed.
+              // TODO(dmercadier): add a DCHECK to ensure that processors
+              // converge and that we're not revisiting identical nodes.
   kTruncateBlock,  // Remove all nodes from this point from the basic block
                    // (including the current node) and do not call the following
                    // processors. If the node processor supports splicing and
