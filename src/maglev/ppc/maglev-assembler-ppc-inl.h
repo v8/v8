@@ -783,8 +783,10 @@ inline void MaglevAssembler::LoadUnalignedFloat32AndReverseByteOrder(
   Register scratch = scope.AcquireScratch();
   LoadU32(scratch, MemOperand(base, index));
   ByteReverseU32(scratch, scratch);
-  StoreU32(scratch, MemOperand(sp, -kSystemPointerSize));
-  LoadFloat32(dst, MemOperand(sp, -kSystemPointerSize));
+  subi(sp, sp, Operand(kSystemPointerSize));
+  StoreU32(scratch, MemOperand(sp));
+  LoadFloat32(dst, MemOperand(sp));
+  addi(sp, sp, Operand(kSystemPointerSize));
 }
 inline void MaglevAssembler::StoreUnalignedFloat32(Register base,
                                                    Register index,
@@ -795,8 +797,10 @@ inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat32(
     Register base, Register index, DoubleRegister src) {
   TemporaryRegisterScope scope(this);
   Register scratch = scope.AcquireScratch();
-  StoreFloat32(src, MemOperand(sp, -kSystemPointerSize));
-  LoadU32(scratch, MemOperand(sp, -kSystemPointerSize));
+  subi(sp, sp, Operand(kSystemPointerSize));
+  StoreFloat32(MemOperand(sp), src);
+  LoadU32(scratch, MemOperand(sp));
+  addi(sp, sp, Operand(kSystemPointerSize));
   ByteReverseU32(scratch, scratch);
   StoreU32(scratch, MemOperand(base, index));
 }
