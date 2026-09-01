@@ -6077,9 +6077,9 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
 
   static const int kContextGroupId = 1;
 
+  std::unique_ptr<v8_inspector::V8Inspector::Channel> channel_;
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
-  std::unique_ptr<v8_inspector::V8Inspector::Channel> channel_;
   bool is_paused = false;
   Global<Context> context_;
   Isolate* isolate_ = nullptr;
