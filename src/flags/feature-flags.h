@@ -150,12 +150,7 @@
   /* proposal. */                                                              \
   /* Part of https://github.com/WebAssembly/shared-everything-threads */       \
   /* V8 side owner: rezvan */                                                  \
-  WASM_FEATURE(acquire_release, "acquire_release memory ordering")             \
-                                                                               \
-  /* Wasm Re-vectorization (no proposal, engine optimization only). */         \
-  /* V8 side owner: jkummerow */                                               \
-  IF_REVEC_ENABLED(INTERNAL_FEATURE, wasm_revectorize,                         \
-                   "128 to 256 bit SIMD re-vectorization for Wasm")
+  WASM_FEATURE(acquire_release, "acquire_release memory ordering")
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --js-staging/--harmony,
@@ -187,7 +182,13 @@
   /* --wasm-js-interop for now. */                                             \
   /* V8 side owner: jkummerow */                                               \
   /* Staged (without JS Interop) in v14.8 */                                   \
-  WASM_FEATURE(custom_descriptors, "custom descriptors")
+  WASM_FEATURE(custom_descriptors, "custom descriptors")                       \
+                                                                               \
+  /* Wasm Re-vectorization (no proposal, engine optimization only). */         \
+  /* V8 side owner: jkummerow */                                               \
+  /* Staged in 15.4 */                                                         \
+  IF_REVEC_ENABLED(INTERNAL_FEATURE, wasm_revectorize,                         \
+                   "128 to 256 bit SIMD re-vectorization for Wasm")
 
 // #############################################################################
 // Shipped features (enabled by default).
