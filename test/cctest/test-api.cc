@@ -30959,69 +30959,6 @@ TEST(TestSetSabConstructorEnabledCallback) {
   CHECK(i_isolate->IsSharedArrayBufferConstructorEnabled(i_context));
 }
 
-namespace {
-void NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(i::ValidateCallbackInfo(info));
-  v8::Isolate* isolate = info.GetIsolate();
-  info.GetReturnValue().Set(v8::Number::New(isolate, 1));
-}
-}  // namespace
-
-TEST(EmbedderInstanceTypes) {
-  LocalContext env;
-  v8::Isolate* isolate = env.isolate();
-  v8::HandleScope scope(isolate);
-  i::v8_flags.experimental_embedder_instance_types = true;
-  Local<FunctionTemplate> node = FunctionTemplate::New(isolate);
-  Local<ObjectTemplate> proto_template = node->PrototypeTemplate();
-
-  enum JSApiInstanceType : uint16_t {
-    kGenericApiObject = 0,  // FunctionTemplateInfo::kNoJSApiObjectType.
-    kElement,
-    kHTMLElement,
-    kHTMLDivElement,
-  };
-
-  Local<FunctionTemplate> nodeType = v8::FunctionTemplate::New(
-      isolate, NodeTypeCallback, Local<Value>(),
-      v8::Signature::New(isolate, node), 0, v8::ConstructorBehavior::kThrow,
-      v8::SideEffectType::kHasSideEffect, nullptr, kGenericApiObject, kElement,
-      kHTMLDivElement);
-  proto_template->SetAccessorProperty(
-      String::NewFromUtf8Literal(isolate, "nodeType"), nodeType);
-
-  Local<FunctionTemplate> element = FunctionTemplate::New(
-      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
-      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
-      nullptr, kElement);
-  element->Inherit(node);
-
-  Local<FunctionTemplate> html_element = FunctionTemplate::New(
-      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
-      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
-      nullptr, kHTMLElement);
-  html_element->Inherit(element);
-
-  Local<FunctionTemplate> div_element = FunctionTemplate::New(
-      isolate, nullptr, Local<Value>(), Local<v8::Signature>(), 0,
-      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
-      nullptr, kHTMLDivElement);
-  div_element->Inherit(html_element);
-
-  CHECK(env->Global()
-            ->Set(env.local(), v8_str("div"),
-                  div_element->GetFunction(env.local())
-                      .ToLocalChecked()
-                      ->NewInstance(env.local())
-                      .ToLocalChecked())
-            .FromJust());
-
-  CompileRun("var x = div.nodeType;");
-
-  Local<Value> res =
-      env->Global()->Get(env.local(), v8_str("x")).ToLocalChecked();
-  CHECK_EQ(1, res->ToInt32(env.local()).ToLocalChecked()->Value());
-}
 
 template <typename T>
 void TestCopyAndMoveConstructionAndAssignment() {

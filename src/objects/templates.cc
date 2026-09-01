@@ -81,15 +81,6 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   // There is a constraint on the object; check.
   if (!IsJSObjectMap(map)) return false;
 
-  if (v8_flags.experimental_embedder_instance_types) {
-    DCHECK_IMPLIES(allowed_receiver_instance_type_range_start() == 0,
-                   allowed_receiver_instance_type_range_end() == 0);
-    if (base::IsInRange(map->instance_type(),
-                        allowed_receiver_instance_type_range_start(),
-                        allowed_receiver_instance_type_range_end())) {
-      return true;
-    }
-  }
 
   // Fetch the constructor function of the object.
   Tagged<Object> cons_obj = map->GetConstructor();

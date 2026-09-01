@@ -3037,11 +3037,6 @@ DEFINE_BOOL(
     "an existing Script if one is found in the Isolate compilation cache")
 DEFINE_BOOL(verify_code_merge, false, "Verify scope infos after merge")
 
-// Fix https://issues.chromium.org/u/1/issues/366783806 before enabling.
-DEFINE_BOOL(
-    experimental_embedder_instance_types, false,
-    "enable type checks based on instance types provided by the embedder")
-DEFINE_IMPLICATION(experimental_embedder_instance_types, experimental)
 
 // bootstrapper.cc
 DEFINE_BOOL(expose_gc, false, "expose gc extension")

@@ -443,9 +443,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
   if (!info->needs_access_check() &&
       IsUndefined(info->GetNamedPropertyHandler()) &&
       IsUndefined(info->GetIndexedPropertyHandler())) {
-    function_type = v8_flags.experimental_embedder_instance_types
-                        ? info->GetInstanceType()
-                        : JS_API_OBJECT_TYPE;
+    function_type = JS_API_OBJECT_TYPE;
     DCHECK(InstanceTypeChecker::IsJSApiObject(function_type));
   }
 
