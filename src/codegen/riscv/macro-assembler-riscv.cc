@@ -792,23 +792,14 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
 // ---------------------------------------------------------------------------
 // Instruction macros.
 #if V8_TARGET_ARCH_RISCV64
-void MacroAssembler::DecodeSandboxedPointer(Register value) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
-  SrlWord(value, value, kSandboxedPointerShift);
-  AddWord(value, value, kPtrComprCageBaseRegister);
-#else
-  UNREACHABLE();
-#endif
-}
-
 void MacroAssembler::LoadSandboxedPointerField(Register destination,
                                                const MemOperand& field_operand,
                                                Trapper&& trapper) {
 #ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   LoadWord(destination, field_operand, std::forward<Trapper>(trapper));
-  DecodeSandboxedPointer(destination);
+  SrlWord(destination, destination, kSandboxedPointerShift);
+  AddWord(destination, kPtrComprCageBaseRegister, destination);
 #else
   UNREACHABLE();
 #endif
@@ -7951,23 +7942,19 @@ void MacroAssembler::DecompressTagged(const Register& destination,
                                       Trapper&& trapper) {
   ASM_CODE_COMMENT(this);
   Lwu(destination, field_operand, std::forward<Trapper>(trapper));
-  AddWord(destination, kPtrComprCageBaseRegister, destination);
+  Or(destination, kPtrComprCageBaseRegister, destination);
 }
 
 void MacroAssembler::DecompressTagged(const Register& destination,
                                       const Register& source) {
   ASM_CODE_COMMENT(this);
-  if (CpuFeatures::IsSupported(ZBA)) {
-    adduw(destination, source, kPtrComprCageBaseRegister);
-  } else {
-    ZeroExtendWord(destination, source);
-    AddWord(destination, kPtrComprCageBaseRegister, Operand(destination));
-  }
+  ZeroExtendWord(destination, source);
+  Or(destination, kPtrComprCageBaseRegister, destination);
 }
 
 void MacroAssembler::DecompressTagged(Register dst, Tagged_t immediate) {
   ASM_CODE_COMMENT(this);
-  AddWord(dst, kPtrComprCageBaseRegister, static_cast<int32_t>(immediate));
+  Or(dst, kPtrComprCageBaseRegister, Operand(static_cast<uint32_t>(immediate)));
 }
 
 void MacroAssembler::DecompressProtected(const Register& destination,
@@ -8007,7 +7994,7 @@ void MacroAssembler::AtomicDecompressTagged(Register dst, const MemOperand& src,
   ASM_CODE_COMMENT(this);
   Lwu(dst, src, std::forward<Trapper>(trapper));
   sync();
-  AddWord(dst, kPtrComprCageBaseRegister, dst);
+  Or(dst, kPtrComprCageBaseRegister, dst);
 }
 
 #endif

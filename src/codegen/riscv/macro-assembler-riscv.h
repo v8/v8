@@ -811,7 +811,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
 #if V8_TARGET_ARCH_RISCV64
   void SignExtendWord(Register rd, Register rs) {
-    if (rd == rs && IsRvcReg(rs) && CpuFeatures::IsSupported(RVC)) {
+    if (rd == rs && IsRvcReg(rs) && CpuFeatures::IsSupported(ZCB)) {
       c_sext_w(rd);
     } else {
       sext_w(rd, rs);
@@ -1462,7 +1462,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
-  void DecodeSandboxedPointer(Register value);
   void LoadSandboxedPointerField(Register destination,
                                  const MemOperand& field_operand,
                                  Trapper&& trapper = [](int){});

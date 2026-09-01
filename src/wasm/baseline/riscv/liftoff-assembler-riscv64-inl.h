@@ -1000,7 +1000,8 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
     if (trapping_load_pc) *trapping_load_pc = pc_offset();
     if constexpr (COMPRESS_POINTERS_BOOL) {
       amoswap_w(true, true, result.gp(), actual_addr, value.gp());
-      AddWord(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+      ZeroExtendWord(result.gp(), result.gp());
+      Or(result.gp(), result.gp(), kPtrComprCageBaseRegister);
     } else {
       amoswap_d(true, true, result.gp(), actual_addr, value.gp());
     }
