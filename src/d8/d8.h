@@ -373,22 +373,10 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
 struct Realm {
   Global<Context> context;
-#ifndef V8_CPPGC_MICROTASK_QUEUE
-  std::unique_ptr<v8::MicrotaskQueue> microtask_queue;
-#endif
 
   Realm() = default;
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   Realm(Isolate* isolate, const Global<Context>& ctx) : context(isolate, ctx) {}
   Realm(Isolate* isolate, Local<Context> ctx) : context(isolate, ctx) {}
-#else
-  Realm(Isolate* isolate, const Global<Context>& ctx,
-        std::unique_ptr<v8::MicrotaskQueue> mq = nullptr)
-      : context(isolate, ctx), microtask_queue(std::move(mq)) {}
-  Realm(Isolate* isolate, Local<Context> ctx,
-        std::unique_ptr<v8::MicrotaskQueue> mq = nullptr)
-      : context(isolate, ctx), microtask_queue(std::move(mq)) {}
-#endif
 };
 
 class PerIsolateData {

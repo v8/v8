@@ -1079,7 +1079,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void OnPromiseAfter(DirectHandle<JSPromise> promise);
   void OnStackTraceCaptured(DirectHandle<StackTraceInfo> stack_trace);
   void OnTerminationDuringRunMicrotasks();
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   // Remove dead microtask queues from the list.
   void CompactMicrotaskQueues();
   void RegisterMicrotaskQueue(MicrotaskQueue* queue);
@@ -1088,7 +1087,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       const {
     return microtask_queues_;
   }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.
@@ -2843,14 +2841,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   cppgc::Persistent<MicrotaskQueue> default_microtask_queue_;
   // This list is used for visiting Microtask objects within live
   // microtask queues during atomic pause.
   std::vector<cppgc::WeakPersistent<MicrotaskQueue>> microtask_queues_;
-#else
-  MicrotaskQueue* default_microtask_queue_ = nullptr;
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   bool detailed_source_positions_for_profiling_;
   bool preprocessing_exception_ = false;

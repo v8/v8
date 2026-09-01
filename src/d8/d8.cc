@@ -2912,19 +2912,9 @@ MaybeLocal<Context> Shell::CreateRealm(
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
 
   v8::MicrotaskQueue* microtask_queue = nullptr;
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   if (create_own_microtask_queue) {
     microtask_queue = v8::MicrotaskQueue::New(isolate);
   }
-#else
-  std::unique_ptr<v8::MicrotaskQueue> new_mq;
-  if (create_own_microtask_queue) {
-    START_ALLOW_USE_DEPRECATED()
-    new_mq = v8::MicrotaskQueue::New(isolate);
-    END_ALLOW_USE_DEPRECATED()
-    microtask_queue = new_mq.get();
-  }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   Local<Context> context =
       Context::New(isolate, nullptr, global_template, global_object,
@@ -2935,16 +2925,9 @@ MaybeLocal<Context> Shell::CreateRealm(
 
   if (index < 0) {
     index = static_cast<int>(data->realms_.size());
-#ifdef V8_CPPGC_MICROTASK_QUEUE
     data->realms_.emplace_back(isolate, context);
-#else
-    data->realms_.emplace_back(isolate, context, std::move(new_mq));
-#endif
   } else {
     data->realms_[index].context.Reset(isolate, context);
-#ifndef V8_CPPGC_MICROTASK_QUEUE
-    data->realms_[index].microtask_queue = std::move(new_mq);
-#endif
   }
 
   data->realms_[index].context.AnnotateStrongRetainer(kGlobalHandleLabel);
@@ -2960,9 +2943,6 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> context = data->realms_[index].context.Get(isolate);
   data->realms_[index].context.Reset();
-#ifndef V8_CPPGC_MICROTASK_QUEUE
-  data->realms_[index].microtask_queue.reset();
-#endif
   context->DetachGlobal();
   // ContextDisposedNotification expects the disposed context to be entered.
   v8::Context::Scope scope(context);

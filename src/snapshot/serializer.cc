@@ -1174,19 +1174,6 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
     const bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
     OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
     bytes_processed_so_far_ += kExternalPointerSlotSize;
-
-#ifndef V8_CPPGC_MICROTASK_QUEUE
-  } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
-    // If necessary, output any raw data preceding this slot.
-    OutputRawData(slot.address());
-    // Serialize MicrotaskQueue* value as nullptr (it'll be set to correct
-    // value during deserialization anyway).
-    const bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
-    OutputExternalReference(kNullAddress, kSystemPointerSize, sandboxify,
-                            kNativeContextMicrotaskQueueTag);
-    bytes_processed_so_far_ += kExternalPointerSlotSize;
-#endif  // V8_CPPGC_MICROTASK_QUEUE
-
   } else {
     // Serialization of external references in other objects is handled
     // elsewhere or not supported.
@@ -1341,7 +1328,6 @@ void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
     sink_->Put(kJSDispatchEntry, "JSDispatchEntry");
     sink_->PutUint30(it->second, "EntryID");
   }
-
 }
 namespace {
 

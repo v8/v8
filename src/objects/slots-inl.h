@@ -350,7 +350,7 @@ CppHeapPointerSlot::GetAndClearContentForSerialization(
 #else
   Address content = ReadMaybeUnalignedValue<Address>(address());
   WriteMaybeUnalignedValue<Address>(address(), kNullAddress);
-#endif  // V8_CPPGC_MICROTASK_QUEUE
+#endif  // V8_COMPRESS_POINTERS
   return content;
 }
 
@@ -361,7 +361,7 @@ void CppHeapPointerSlot::RestoreContentAfterSerialization(
   Release_StoreHandle(content);
 #else
   WriteMaybeUnalignedValue<Address>(address(), content);
-#endif  // V8_CPPGC_MICROTASK_QUEUE
+#endif  // V8_COMPRESS_POINTERS
 }
 
 Tagged<Object> IndirectPointerSlot::load(IsolateForSandbox isolate) const {

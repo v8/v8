@@ -30873,17 +30873,10 @@ TEST(CodeLikeFunction) {
 }
 
 namespace {
-#ifdef V8_CPPGC_MICROTASK_QUEUE
 template <typename T>
 T* GetRaw(T* ptr) {
   return ptr;
 }
-#else
-template <typename T>
-T* GetRaw(const std::unique_ptr<T>& ptr) {
-  return ptr.get();
-}
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 }  // namespace
 
 THREADED_TEST(MicrotaskQueueOfContext) {

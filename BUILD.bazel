@@ -95,11 +95,6 @@ v8_flag(name = "v8_annotate_torque_ir")
 v8_flag(name = "v8_code_comments")
 
 v8_flag(
-    name = "v8_cppgc_microtask_queue",
-    default = True,
-)
-
-v8_flag(
     name = "v8_deprecation_warnings",
     default = True,
 )
@@ -518,7 +513,6 @@ v8_config(
     conditional_defines = {
         "v8_android_log_stdout": "V8_ANDROID_LOG_STDOUT",
         "v8_code_comments": "V8_CODE_COMMENTS",
-        "v8_cppgc_microtask_queue": "V8_CPPGC_MICROTASK_QUEUE",
         "v8_deprecation_warnings": "V8_DEPRECATION_WARNINGS",
         "v8_disallow_js_in_api_interrupts_is_checked": "V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED",
         "v8_imminent_deprecation_warnings": "V8_IMMINENT_DEPRECATION_WARNINGS",

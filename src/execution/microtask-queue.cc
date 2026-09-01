@@ -4,16 +4,13 @@
 
 #include "src/execution/microtask-queue.h"
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
-#include "include/cppgc/allocation.h"
-#include "include/cppgc/visitor.h"
-#include "include/v8-cppgc.h"
-#endif  // V8_CPPGC_MICROTASK_QUEUE
-
 #include <algorithm>
 #include <cstddef>
 #include <optional>
 
+#include "include/cppgc/allocation.h"
+#include "include/cppgc/visitor.h"
+#include "include/v8-cppgc.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/execution/isolate-inl.h"
@@ -43,22 +40,15 @@ const intptr_t MicrotaskQueue::kMinimumCapacity = 8;
 void MicrotaskQueue::SetUpDefaultMicrotaskQueue(Isolate* isolate) {
   DCHECK_NULL(isolate->default_microtask_queue());
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   cppgc::AllocationHandle& handle =
       isolate->heap()->cpp_heap()->GetAllocationHandle();
   MicrotaskQueue* microtask_queue =
       cppgc::MakeGarbageCollected<MicrotaskQueue>(handle);
   isolate->RegisterMicrotaskQueue(microtask_queue);
-#else
-  MicrotaskQueue* microtask_queue = new MicrotaskQueue;
-  microtask_queue->next_ = microtask_queue;
-  microtask_queue->prev_ = microtask_queue;
-#endif  // V8_CPPGC_MICROTASK_QUEUE
   isolate->set_default_microtask_queue(microtask_queue);
 }
 
 // static
-#ifdef V8_CPPGC_MICROTASK_QUEUE
 MicrotaskQueue* MicrotaskQueue::New(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate->default_microtask_queue());
 
@@ -71,41 +61,16 @@ MicrotaskQueue* MicrotaskQueue::New(Isolate* isolate) {
 
   return microtask_queue;
 }
-#else
-std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate) {
-  DCHECK_NOT_NULL(isolate->default_microtask_queue());
-
-  std::unique_ptr<MicrotaskQueue> microtask_queue(new MicrotaskQueue);
-
-  // Insert the new instance to the next of last MicrotaskQueue instance.
-  MicrotaskQueue* last = isolate->default_microtask_queue()->prev_;
-  microtask_queue->next_ = last->next_;
-  microtask_queue->prev_ = last;
-  last->next_->prev_ = microtask_queue.get();
-  last->next_ = microtask_queue.get();
-
-  return microtask_queue;
-}
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 MicrotaskQueue::MicrotaskQueue() = default;
 
 MicrotaskQueue::~MicrotaskQueue() {
-#ifndef V8_CPPGC_MICROTASK_QUEUE
-  if (next_ != this) {
-    DCHECK_NE(prev_, this);
-    next_->prev_ = prev_;
-    prev_->next_ = next_;
-  }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
   delete[] ring_buffer_;
 }
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
 void MicrotaskQueue::Trace(cppgc::Visitor* visitor) const {
   v8::MicrotaskQueue::Trace(visitor);
 }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 // static
 Address MicrotaskQueue::CallEnqueueMicrotask(Isolate* isolate,

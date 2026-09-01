@@ -5065,7 +5065,6 @@ void Isolate::PrintAndClearRegExpSubjectStrings() {
 }
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
 void Isolate::CompactMicrotaskQueues() {
   microtask_queues_.erase(
       std::remove_if(microtask_queues_.begin(), microtask_queues_.end(),
@@ -5076,7 +5075,6 @@ void Isolate::RegisterMicrotaskQueue(MicrotaskQueue* queue) {
   CompactMicrotaskQueues();
   microtask_queues_.push_back(queue);
 }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
@@ -5456,20 +5454,12 @@ Isolate::~Isolate() {
 
   DCHECK_NULL(builtins_effects_analyzer_);
 
-#ifdef V8_CPPGC_MICROTASK_QUEUE
   // Assert that |default_microtask_queue_| is the last MicrotaskQueue instance.
   CompactMicrotaskQueues();
   if (DEBUG_BOOL && default_microtask_queue_) {
     DCHECK_EQ(microtask_queues_.size(), 1);
   }
   default_microtask_queue_ = nullptr;
-#else
-  // Assert that |default_microtask_queue_| is the last MicrotaskQueue instance.
-  DCHECK_IMPLIES(default_microtask_queue_,
-                 default_microtask_queue_ == default_microtask_queue_->next());
-  delete default_microtask_queue_;
-  default_microtask_queue_ = nullptr;
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   // isolate_group_ released in caller, to ensure that all member destructors
   // run before potentially unmapping the isolate's VirtualMemoryArea.

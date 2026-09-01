@@ -1835,14 +1835,8 @@ class NativeContext::BodyDescriptor final : public BodyDescriptorBase {
                     NativeContext::kEndOfStrongFieldsOffset, v);
     IterateCustomWeakPointers(obj, NativeContext::kStartOfWeakFieldsOffset,
                               NativeContext::kEndOfWeakFieldsOffset, v);
-#ifdef V8_CPPGC_MICROTASK_QUEUE
     v->VisitCppHeapPointer(obj,
                            obj->RawCppHeapPointerField(kMicrotaskQueueOffset));
-#else
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(kMicrotaskQueueOffset,
-                                          kNativeContextMicrotaskQueueTag));
-#endif  // V8_CPPGC_MICROTASK_QUEUE
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

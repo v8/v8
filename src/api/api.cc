@@ -11245,7 +11245,6 @@ bool v8::Object::IsCodeLike(v8::Isolate* v8_isolate) const {
 }
 
 // static
-#ifdef V8_CPPGC_MICROTASK_QUEUE
 MicrotaskQueue* MicrotaskQueue::New(Isolate* v8_isolate,
                                     MicrotasksPolicy policy) {
   auto* microtask_queue =
@@ -11253,7 +11252,6 @@ MicrotaskQueue* MicrotaskQueue::New(Isolate* v8_isolate,
   microtask_queue->set_microtasks_policy(policy);
   return microtask_queue;
 }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 MicrotasksScope::MicrotasksScope(Local<Context> v8_context,
                                  MicrotasksScope::Type type)

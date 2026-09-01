@@ -4664,23 +4664,11 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
     v->Synchronize(VisitorSynchronization::kEternalHandles);
 
     // Iterate over pending Microtasks stored in MicrotaskQueues.
-#ifdef V8_CPPGC_MICROTASK_QUEUE
     for (const auto& weak_ptr : isolate_->microtask_queues()) {
       if (weak_ptr) {
         weak_ptr->IterateMicrotasks(v);
       }
     }
-#else
-    MicrotaskQueue* default_microtask_queue =
-        isolate_->default_microtask_queue();
-    if (default_microtask_queue) {
-      MicrotaskQueue* microtask_queue = default_microtask_queue;
-      do {
-        microtask_queue->IterateMicrotasks(v);
-        microtask_queue = microtask_queue->next();
-      } while (microtask_queue != default_microtask_queue);
-    }
-#endif  // V8_CPPGC_MICROTASK_QUEUE
     v->Synchronize(VisitorSynchronization::kMicroTasks);
 
     // Iterate over other strong roots (currently only identity maps and
