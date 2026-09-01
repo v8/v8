@@ -676,21 +676,29 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-#define DEF_BITWISE_BINOP(Instruction, opcode)                   \
-  void Instruction::SetValueLocationConstraints() {              \
-    UseRegister(LeftInput());                                    \
-    UseRegister(RightInput());                                   \
-    DefineAsRegister(this);                                      \
-  }                                                              \
-                                                                 \
-  void Instruction::GenerateCode(MaglevAssembler* masm,          \
-                                 const ProcessingState& state) { \
-    Register lhs = ToRegister(LeftInput());                      \
-    Register rhs = ToRegister(RightInput());                     \
-    Register out = ToRegister(result());                         \
-    __ opcode(out, lhs, Operand(rhs));                           \
-    /* TODO: is zero extension really needed here? */            \
-    __ ZeroExtendWord(out, out);                                 \
+#define DEF_BITWISE_BINOP(Instruction, opcode)                        \
+  void Instruction::SetValueLocationConstraints() {                   \
+    UseRegister(LeftInput());                                         \
+    if (TryGetInt12ConstantInput(this, kRightIndex)) {                \
+      UseAny(RightInput());                                           \
+    } else {                                                          \
+      UseRegister(RightInput());                                      \
+    }                                                                 \
+    DefineAsRegister(this);                                           \
+  }                                                                   \
+                                                                      \
+  void Instruction::GenerateCode(MaglevAssembler* masm,               \
+                                 const ProcessingState& state) {      \
+    Register left = ToRegister(LeftInput());                          \
+    Register out = ToRegister(result());                              \
+    if (!RightInput().operand().IsRegister()) {                       \
+      auto right_const = TryGetInt12ConstantInput(this, kRightIndex); \
+      DCHECK(right_const);                                            \
+      __ opcode(out, left, Operand(*right_const));                    \
+    } else {                                                          \
+      Register right = ToRegister(RightInput());                      \
+      __ opcode(out, left, right);                                    \
+    }                                                                 \
   }
 DEF_BITWISE_BINOP(Int32BitwiseAnd, And)
 DEF_BITWISE_BINOP(Int32BitwiseOr, Or)
@@ -715,10 +723,6 @@ DEF_BITWISE_BINOP(Int32BitwiseXor, Xor)
     if (Int32Constant* constant =                                \
             RightInput().node()->TryCast<Int32Constant>()) {     \
       uint32_t shift = constant->value() & 31;                   \
-      if (shift == 0) {                                          \
-        __ ZeroExtendWord(out, lhs);                             \
-        return;                                                  \
-      }                                                          \
       __ opcode(out, lhs, Operand(shift));                       \
     } else {                                                     \
       Register rhs = ToRegister(RightInput());                   \
@@ -740,7 +744,6 @@ void Int32BitwiseNot::GenerateCode(MaglevAssembler* masm,
   Register value = ToRegister(ValueInput());
   Register out = ToRegister(result());
   __ not_(out, value);
-  __ ZeroExtendWord(out, out);  // TODO(Yuri Gaevsky): is it really needed?
 }
 
 void Float64Add::SetValueLocationConstraints() {

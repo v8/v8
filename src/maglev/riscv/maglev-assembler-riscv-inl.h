@@ -673,7 +673,7 @@ inline void MaglevAssembler::LoadUnsignedField(Register result,
     Lhu(result, operand);
   } else {
     DCHECK_EQ(size, 4);
-    Lwu(result, operand);
+    Lw(result, operand);
   }
 }
 
@@ -807,15 +807,10 @@ inline void MaglevAssembler::AndInt32(Register dst, Register src, int mask) {
 }
 
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
-  // check if size of immediate exceeds 32 bits
-  if constexpr (sizeof(intptr_t) > sizeof(mask)) {
-    // set the upper bits of the immediate and so make sure that AND operation
-    // won't touch the upper part of target register
-    static constexpr intptr_t lsb_mask = 0xFFFFFFFF;
-    And(reg, reg, Operand(~lsb_mask | mask));
-  } else {
-    And(reg, reg, Operand(mask));
-  }
+  // Operand(mask) sign-extends the mask, so that ANDing a canonical
+  // (sign-extended) Word32 register with it yields a canonical result:
+  // the upper 32 bits of the result are always a copy of its bit 31.
+  And(reg, reg, Operand(mask));
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, int mask) {
@@ -944,7 +939,7 @@ void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 }
 
 inline void MaglevAssembler::LoadInt32(Register dst, MemOperand src) {
-  Load32U(dst, src);
+  Lw(dst, src);
 }
 inline void MaglevAssembler::StoreInt32(MemOperand dst, Register src) {
   Sw(src, dst);
@@ -2117,7 +2112,7 @@ inline void MaglevAssembler::LoadContextCellState(Register state,
 inline void MaglevAssembler::LoadContextCellInt32Value(Register value,
                                                        Register cell) {
   AssertContextCellState(cell, ContextCell::kInt32);
-  Lwu(value, FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+  Lw(value, FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
 }
 inline void MaglevAssembler::LoadContextCellFloat64Value(DoubleRegister value,
                                                          Register cell) {
