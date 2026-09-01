@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <type_traits>
 
 #include "src/api/api.h"
 #include "src/base/bounds.h"
@@ -3813,7 +3814,24 @@ void StoreTrustedPointerFieldWithWriteBarrier::GenerateCode(
 #endif
 }
 
-void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
+namespace {
+
+bool IsSigned(ExternalArrayType element_type) {
+  switch (element_type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                    \
+    DCHECK(std::is_integral_v<ctype>);            \
+    return std::is_signed_v<ctype>;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+#undef TYPED_ARRAY_CASE
+  }
+}
+
+}  // namespace
+
+void LoadInt32DataViewElement::SetValueLocationConstraints() {
   // Note: we're not actually using the object input (the DataView itself) since
   // {data_pointer_input} already contains the pointer to the data, but we're
   // still doing a `UseRegister(object_input())` in order to keep the DataView
@@ -3823,7 +3841,7 @@ void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
   UseRegister(DataPointerInput());
   UseRegister(IndexInput());
   if (IsIsLittleEndianInputConstant() ||
-      type_ == ExternalArrayType::kExternalInt8Array) {
+      compiler::ExternalArrayElementSize(external_array_type()) == 1) {
     UseAny(IsLittleEndianInput());
   } else {
     UseRegister(IsLittleEndianInput());
@@ -3831,33 +3849,42 @@ void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
   DefineAsRegister(this);
   set_temporaries_needed(1);
 }
-void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
-                                                const ProcessingState& state) {
+void LoadInt32DataViewElement::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
   Register data_pointer = ToRegister(DataPointerInput());
   Register index = ToRegister(IndexInput());
   Register result_reg = ToRegister(result());
 
-  int element_size = compiler::ExternalArrayElementSize(type_);
+  int element_size = compiler::ExternalArrayElementSize(external_array_type());
+  bool is_signed = IsSigned(external_array_type());
 
   // We need to make sure we don't clobber is_little_endian_input by writing to
   // the result register.
   Register reg_with_result = result_reg;
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  if (type_ != ExternalArrayType::kExternalInt8Array &&
-      !IsIsLittleEndianInputConstant() &&
+  if (element_size > 1 && !IsIsLittleEndianInputConstant() &&
       result_reg == ToRegister(IsLittleEndianInput())) {
     reg_with_result = temps.Acquire();
   }
 
-  __ LoadDataViewElement(reg_with_result, data_pointer, index, element_size);
+  if (is_signed) {
+    __ LoadDataViewElement(reg_with_result, data_pointer, index, element_size);
+  } else {
+    __ LoadUnsignedDataViewElement(reg_with_result, data_pointer, index,
+                                   element_size);
+  }
 
   // We ignore little endian argument if type is a byte size.
-  if (type_ != ExternalArrayType::kExternalInt8Array) {
+  if (element_size > 1) {
     if (IsIsLittleEndianInputConstant()) {
       if (FromConstantToBool(masm, IsLittleEndianInput().node()) ==
           V8_TARGET_BIG_ENDIAN_BOOL) {
         DCHECK_EQ(reg_with_result, result_reg);
-        __ ReverseByteOrder(result_reg, element_size);
+        if (is_signed) {
+          __ ReverseByteOrder(result_reg, element_size);
+        } else {
+          __ ReverseByteOrderUnsigned(result_reg, element_size);
+        }
       }
     } else {
       ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
@@ -3868,7 +3895,11 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
           V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
           false);
       __ bind(*reverse_byte_order);
-      __ ReverseByteOrder(reg_with_result, element_size);
+      if (is_signed) {
+        __ ReverseByteOrder(reg_with_result, element_size);
+      } else {
+        __ ReverseByteOrderUnsigned(reg_with_result, element_size);
+      }
       __ bind(*keep_byte_order);
       if (reg_with_result != result_reg) {
         __ Move(result_reg, reg_with_result);
@@ -3877,7 +3908,57 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void StoreSignedIntDataViewElement::SetValueLocationConstraints() {
+void LoadUint32DataViewElement::SetValueLocationConstraints() {
+  UseRegister(ObjectInput());
+  UseRegister(DataPointerInput());
+  UseRegister(IndexInput());
+  if (IsIsLittleEndianInputConstant()) {
+    UseAny(IsLittleEndianInput());
+  } else {
+    UseRegister(IsLittleEndianInput());
+  }
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void LoadUint32DataViewElement::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  Register data_pointer = ToRegister(DataPointerInput());
+  Register index = ToRegister(IndexInput());
+  Register result_reg = ToRegister(result());
+
+  Register reg_with_result = result_reg;
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  if (!IsIsLittleEndianInputConstant() &&
+      result_reg == ToRegister(IsLittleEndianInput())) {
+    reg_with_result = temps.Acquire();
+  }
+
+  __ LoadUnsignedDataViewElement(reg_with_result, data_pointer, index, 4);
+
+  if (IsIsLittleEndianInputConstant()) {
+    if (FromConstantToBool(masm, IsLittleEndianInput().node()) ==
+        V8_TARGET_BIG_ENDIAN_BOOL) {
+      DCHECK_EQ(reg_with_result, result_reg);
+      __ ReverseByteOrderUnsigned(result_reg, 4);
+    }
+  } else {
+    ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
+    DCHECK_NE(reg_with_result, ToRegister(IsLittleEndianInput()));
+    __ ToBoolean(
+        ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
+        V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+        V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
+        false);
+    __ bind(*reverse_byte_order);
+    __ ReverseByteOrderUnsigned(reg_with_result, 4);
+    __ bind(*keep_byte_order);
+    if (reg_with_result != result_reg) {
+      __ Move(result_reg, reg_with_result);
+    }
+  }
+}
+
+void StoreInt32DataViewElement::SetValueLocationConstraints() {
   // Note: we're not actually using the object input (the DataView itself) since
   // {data_pointer_input} already contains the pointer to the data, but we're
   // still doing a `UseRegister(object_input())` in order to keep the DataView
@@ -3886,25 +3967,25 @@ void StoreSignedIntDataViewElement::SetValueLocationConstraints() {
 
   UseRegister(DataPointerInput());
   UseRegister(IndexInput());
-  if (compiler::ExternalArrayElementSize(type_) > 1) {
+  if (compiler::ExternalArrayElementSize(external_array_type()) > 1) {
     UseAndClobberRegister(ValueInput());
   } else {
     UseRegister(ValueInput());
   }
   if (IsIsLittleEndianInputConstant() ||
-      type_ == ExternalArrayType::kExternalInt8Array) {
+      compiler::ExternalArrayElementSize(external_array_type()) == 1) {
     UseAny(IsLittleEndianInput());
   } else {
     UseRegister(IsLittleEndianInput());
   }
 }
-void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
+void StoreInt32DataViewElement::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
   Register data_pointer = ToRegister(DataPointerInput());
   Register index = ToRegister(IndexInput());
   Register value = ToRegister(ValueInput());
 
-  int element_size = compiler::ExternalArrayElementSize(type_);
+  int element_size = compiler::ExternalArrayElementSize(external_array_type());
 
   // We ignore little endian argument if type is a byte size.
   if (element_size > 1) {
@@ -3951,31 +4032,62 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(IndexInput());
   DoubleRegister result_reg = ToDoubleRegister(result());
 
-  if (IsIsLittleEndianInputConstant()) {
-    if (FromConstantToBool(masm, IsLittleEndianInput().node()) !=
-        V8_TARGET_BIG_ENDIAN_BOOL) {
-      __ LoadUnalignedFloat64(result_reg, data_pointer, index);
+  if (external_array_type() == ExternalArrayType::kExternalFloat64Array) {
+    if (IsIsLittleEndianInputConstant()) {
+      if (FromConstantToBool(masm, IsLittleEndianInput().node()) !=
+          V8_TARGET_BIG_ENDIAN_BOOL) {
+        __ LoadUnalignedFloat64(result_reg, data_pointer, index);
+      } else {
+        __ LoadUnalignedFloat64AndReverseByteOrder(result_reg, data_pointer,
+                                                   index);
+      }
     } else {
+      Label done;
+      ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
+      // TODO(leszeks): We're likely to be calling this on an existing boolean
+      // -- maybe that's a case we should fast-path here and reuse that boolean
+      // value?
+      __ ToBoolean(
+          ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
+          V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+          V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
+          true);
+      __ bind(*keep_byte_order);
+      __ LoadUnalignedFloat64(result_reg, data_pointer, index);
+      __ Jump(&done);
+      // We should swap the bytes if big endian.
+      __ bind(*reverse_byte_order);
       __ LoadUnalignedFloat64AndReverseByteOrder(result_reg, data_pointer,
                                                  index);
+      __ bind(&done);
     }
   } else {
-    Label done;
-    ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
-    // TODO(leszeks): We're likely to be calling this on an existing boolean --
-    // maybe that's a case we should fast-path here and reuse that boolean
-    // value?
-    __ ToBoolean(
-        ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
-        V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
-        V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order, true);
-    __ bind(*keep_byte_order);
-    __ LoadUnalignedFloat64(result_reg, data_pointer, index);
-    __ Jump(&done);
-    // We should swap the bytes if big endian.
-    __ bind(*reverse_byte_order);
-    __ LoadUnalignedFloat64AndReverseByteOrder(result_reg, data_pointer, index);
-    __ bind(&done);
+    DCHECK_EQ(external_array_type(), ExternalArrayType::kExternalFloat32Array);
+    if (IsIsLittleEndianInputConstant()) {
+      if (FromConstantToBool(masm, IsLittleEndianInput().node()) !=
+          V8_TARGET_BIG_ENDIAN_BOOL) {
+        __ LoadUnalignedFloat32(result_reg, data_pointer, index);
+      } else {
+        __ LoadUnalignedFloat32AndReverseByteOrder(result_reg, data_pointer,
+                                                   index);
+      }
+    } else {
+      Label done;
+      ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
+      __ ToBoolean(
+          ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
+          V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+          V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
+          true);
+      __ bind(*keep_byte_order);
+      __ LoadUnalignedFloat32(result_reg, data_pointer, index);
+      __ Jump(&done);
+      // We should swap the bytes if big endian.
+      __ bind(*reverse_byte_order);
+      __ LoadUnalignedFloat32AndReverseByteOrder(result_reg, data_pointer,
+                                                 index);
+      __ bind(&done);
+    }
   }
 }
 
@@ -4001,30 +4113,58 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(IndexInput());
   DoubleRegister value = ToDoubleRegister(ValueInput());
 
-  if (IsIsLittleEndianInputConstant()) {
-    if (FromConstantToBool(masm, IsLittleEndianInput().node()) !=
-        V8_TARGET_BIG_ENDIAN_BOOL) {
-      __ StoreUnalignedFloat64(data_pointer, index, value);
+  if (external_array_type() == ExternalArrayType::kExternalFloat64Array) {
+    if (IsIsLittleEndianInputConstant()) {
+      if (FromConstantToBool(masm, IsLittleEndianInput().node()) !=
+          V8_TARGET_BIG_ENDIAN_BOOL) {
+        __ StoreUnalignedFloat64(data_pointer, index, value);
+      } else {
+        __ ReverseByteOrderAndStoreUnalignedFloat64(data_pointer, index, value);
+      }
     } else {
+      Label done;
+      ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
+      // TODO(leszeks): We're likely to be calling this on an existing boolean
+      // -- maybe that's a case we should fast-path here and reuse that boolean
+      // value?
+      __ ToBoolean(
+          ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
+          V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+          V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
+          true);
+      __ bind(*keep_byte_order);
+      __ StoreUnalignedFloat64(data_pointer, index, value);
+      __ Jump(&done);
+      // We should swap the bytes if big endian.
+      __ bind(*reverse_byte_order);
       __ ReverseByteOrderAndStoreUnalignedFloat64(data_pointer, index, value);
+      __ bind(&done);
     }
   } else {
-    Label done;
-    ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
-    // TODO(leszeks): We're likely to be calling this on an existing boolean --
-    // maybe that's a case we should fast-path here and reuse that boolean
-    // value?
-    __ ToBoolean(
-        ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
-        V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
-        V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order, true);
-    __ bind(*keep_byte_order);
-    __ StoreUnalignedFloat64(data_pointer, index, value);
-    __ Jump(&done);
-    // We should swap the bytes if big endian.
-    __ bind(*reverse_byte_order);
-    __ ReverseByteOrderAndStoreUnalignedFloat64(data_pointer, index, value);
-    __ bind(&done);
+    DCHECK_EQ(external_array_type(), ExternalArrayType::kExternalFloat32Array);
+    if (IsIsLittleEndianInputConstant()) {
+      if (FromConstantToBool(masm, IsLittleEndianInput().node()) !=
+          V8_TARGET_BIG_ENDIAN_BOOL) {
+        __ StoreUnalignedFloat32(data_pointer, index, value);
+      } else {
+        __ ReverseByteOrderAndStoreUnalignedFloat32(data_pointer, index, value);
+      }
+    } else {
+      Label done;
+      ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
+      __ ToBoolean(
+          ToRegister(IsLittleEndianInput()), CheckType::kCheckHeapObject,
+          V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+          V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
+          true);
+      __ bind(*keep_byte_order);
+      __ StoreUnalignedFloat32(data_pointer, index, value);
+      __ Jump(&done);
+      // We should swap the bytes if big endian.
+      __ bind(*reverse_byte_order);
+      __ ReverseByteOrderAndStoreUnalignedFloat32(data_pointer, index, value);
+      __ bind(&done);
+    }
   }
 }
 

@@ -282,6 +282,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   inline void StoreField(MemOperand operand, Register value, int element_size);
   inline void ReverseByteOrder(Register value, int element_size);
+  inline void ReverseByteOrderUnsigned(Register value, int element_size);
 
   inline void BuildTypedArrayDataPointer(Register data_pointer,
                                          Register object);
@@ -292,6 +293,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                    Register index, int element_size);
   inline void LoadDataViewElement(Register result, Register data_pointer,
                                   Register index, int element_size);
+  inline void LoadUnsignedDataViewElement(Register result,
+                                          Register data_pointer, Register index,
+                                          int element_size);
 
   enum class CharCodeMaskMode { kValueIsInRange, kMustApplyMask };
 
@@ -502,6 +506,16 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void LoadFloat64(DoubleRegister dst, MemOperand src);
   inline void StoreFloat64(MemOperand dst, DoubleRegister src);
 
+  inline void LoadUnalignedFloat32(DoubleRegister dst, Register base,
+                                   Register index);
+  inline void LoadUnalignedFloat32AndReverseByteOrder(DoubleRegister dst,
+                                                      Register base,
+                                                      Register index);
+  inline void StoreUnalignedFloat32(Register base, Register index,
+                                    DoubleRegister src);
+  inline void ReverseByteOrderAndStoreUnalignedFloat32(Register base,
+                                                       Register index,
+                                                       DoubleRegister src);
   inline void LoadUnalignedFloat64(DoubleRegister dst, Register base,
                                    Register index);
   inline void LoadUnalignedFloat64AndReverseByteOrder(DoubleRegister dst,

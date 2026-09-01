@@ -546,6 +546,16 @@ inline void MaglevAssembler::LoadDataViewElement(Register result,
   LoadSignedField(result, MemOperand(addr), element_size);
 }
 
+inline void MaglevAssembler::LoadUnsignedDataViewElement(Register result,
+                                                         Register data_pointer,
+                                                         Register index,
+                                                         int element_size) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register addr = temps.AcquireScratch();
+  AddWord(addr, data_pointer, index);
+  LoadUnsignedField(result, MemOperand(addr), element_size);
+}
+
 inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
@@ -758,6 +768,20 @@ inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
   }
 }
 
+inline void MaglevAssembler::ReverseByteOrderUnsigned(Register value,
+                                                      int size) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  if (size == 2) {
+    ByteSwap(value, value, 4, scratch);
+    srli(value, value, 16);
+  } else if (size == 4) {
+    ByteSwap(value, value, 4, scratch);
+  } else {
+    DCHECK_EQ(size, 1);
+  }
+}
+
 inline void MaglevAssembler::IncrementInt32(Register reg) {
   Add32(reg, reg, Operand(1));
 }
@@ -943,6 +967,46 @@ inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
 }
 inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
   StoreDouble(src, dst);
+}
+
+inline void MaglevAssembler::LoadUnalignedFloat32(DoubleRegister dst,
+                                                  Register base,
+                                                  Register index) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register address = temps.AcquireScratch();
+  Add64(address, base, index);
+  LoadFloat32(dst, MemOperand(address));
+}
+inline void MaglevAssembler::LoadUnalignedFloat32AndReverseByteOrder(
+    DoubleRegister dst, Register base, Register index) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register address = temps.AcquireScratch();
+  Register scratch = temps.AcquireScratch();
+  Add64(address, base, index);
+  LoadWord(scratch, MemOperand(address));
+  ByteSwap(scratch, scratch, 4, address);
+  fmv_w_x(dst, scratch);
+  fcvt_d_s(dst, dst);
+}
+inline void MaglevAssembler::StoreUnalignedFloat32(Register base,
+                                                   Register index,
+                                                   DoubleRegister src) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register address = temps.AcquireScratch();
+  Add64(address, base, index);
+  StoreFloat32(MemOperand(address), src);
+}
+inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat32(
+    Register base, Register index, DoubleRegister src) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  DoubleRegister scratch_double = temps.AcquireScratchDouble();
+  Register address = temps.AcquireScratch();
+  fcvt_s_d(scratch_double, src);
+  MacroAssembler::Move(scratch, scratch_double);
+  ByteSwap(scratch, scratch, 4, address);
+  Add64(address, base, index);
+  Sw(scratch, MemOperand(address));
 }
 
 inline void MaglevAssembler::LoadUnalignedFloat64(DoubleRegister dst,

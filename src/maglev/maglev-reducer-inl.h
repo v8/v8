@@ -5213,41 +5213,120 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildStoreDataView(
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetInt8(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
+  return TryBuildLoadDataView<LoadInt32DataViewElement>(
       args, ExternalArrayType::kExternalInt8Array);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetInt8(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt8Array,
-      [&](ValueNode* value) { return value ? value : GetInt32Constant(0); });
+  return TryBuildStoreDataView<StoreInt32DataViewElement>(
+      args, ExternalArrayType::kExternalInt8Array, [&](ValueNode* value) {
+        return value ? GetTruncatedInt32ForToNumber(value,
+                                                    NodeType::kNumberOrOddball)
+                     : GetInt32Constant(0);
+      });
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetUint8(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryBuildLoadDataView<LoadInt32DataViewElement>(
+      args, ExternalArrayType::kExternalUint8Array);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetUint8(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryBuildStoreDataView<StoreInt32DataViewElement>(
+      args, ExternalArrayType::kExternalUint8Array, [&](ValueNode* value) {
+        return value ? GetTruncatedInt32ForToNumber(value,
+                                                    NodeType::kNumberOrOddball)
+                     : GetInt32Constant(0);
+      });
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetInt16(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
+  return TryBuildLoadDataView<LoadInt32DataViewElement>(
       args, ExternalArrayType::kExternalInt16Array);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetInt16(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt16Array,
-      [&](ValueNode* value) { return value ? value : GetInt32Constant(0); });
+  return TryBuildStoreDataView<StoreInt32DataViewElement>(
+      args, ExternalArrayType::kExternalInt16Array, [&](ValueNode* value) {
+        return value ? GetTruncatedInt32ForToNumber(value,
+                                                    NodeType::kNumberOrOddball)
+                     : GetInt32Constant(0);
+      });
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetUint16(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryBuildLoadDataView<LoadInt32DataViewElement>(
+      args, ExternalArrayType::kExternalUint16Array);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetUint16(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryBuildStoreDataView<StoreInt32DataViewElement>(
+      args, ExternalArrayType::kExternalUint16Array, [&](ValueNode* value) {
+        return value ? GetTruncatedInt32ForToNumber(value,
+                                                    NodeType::kNumberOrOddball)
+                     : GetInt32Constant(0);
+      });
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetInt32(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
+  return TryBuildLoadDataView<LoadInt32DataViewElement>(
       args, ExternalArrayType::kExternalInt32Array);
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetInt32(
     ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt32Array,
-      [&](ValueNode* value) { return value ? value : GetInt32Constant(0); });
+  return TryBuildStoreDataView<StoreInt32DataViewElement>(
+      args, ExternalArrayType::kExternalInt32Array, [&](ValueNode* value) {
+        return value ? GetTruncatedInt32ForToNumber(value,
+                                                    NodeType::kNumberOrOddball)
+                     : GetInt32Constant(0);
+      });
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetUint32(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryBuildLoadDataView<LoadUint32DataViewElement>(
+      args, ExternalArrayType::kExternalUint32Array);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetUint32(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryBuildStoreDataView<StoreInt32DataViewElement>(
+      args, ExternalArrayType::kExternalUint32Array, [&](ValueNode* value) {
+        return value ? GetTruncatedInt32ForToNumber(value,
+                                                    NodeType::kNumberOrOddball)
+                     : GetInt32Constant(0);
+      });
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetFloat32(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryBuildLoadDataView<LoadDoubleDataViewElement>(
+      args, ExternalArrayType::kExternalFloat32Array);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeSetFloat32(
+    ValueNode* context, compiler::JSFunctionRef target, CallArguments& args) {
+  return TryBuildStoreDataView<StoreDoubleDataViewElement>(
+      args, ExternalArrayType::kExternalFloat32Array, [&](ValueNode* value) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        // Produce the same bit pattern we would get through computation.
+        auto ud = Float64::FromBits(kUndefinedNanInt64);
+        const double silenced_nan = ud.to_quiet_nan().get_scalar();
+#else
+        const double silenced_nan = std::numeric_limits<double>::quiet_NaN();
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+        return value ? GetFloat64ForToNumber(value, NodeType::kNumberOrOddball)
+                     : GetFloat64Constant(silenced_nan);
+      });
 }
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceDataViewPrototypeGetFloat64(

@@ -1204,14 +1204,22 @@ class MaglevReducer {
   V(ArrayPrototypeEntries)                     \
   V(ArrayPrototypeKeys)                        \
   V(ArrayPrototypeValues)                      \
+  V(DataViewPrototypeGetFloat32)               \
   V(DataViewPrototypeGetFloat64)               \
   V(DataViewPrototypeGetInt16)                 \
   V(DataViewPrototypeGetInt32)                 \
   V(DataViewPrototypeGetInt8)                  \
+  V(DataViewPrototypeGetUint16)                \
+  V(DataViewPrototypeGetUint32)                \
+  V(DataViewPrototypeGetUint8)                 \
+  V(DataViewPrototypeSetFloat32)               \
   V(DataViewPrototypeSetFloat64)               \
   V(DataViewPrototypeSetInt16)                 \
   V(DataViewPrototypeSetInt32)                 \
   V(DataViewPrototypeSetInt8)                  \
+  V(DataViewPrototypeSetUint16)                \
+  V(DataViewPrototypeSetUint32)                \
+  V(DataViewPrototypeSetUint8)                 \
   V(DatePrototypeGetDate)                      \
   V(DatePrototypeGetDay)                       \
   V(DatePrototypeGetFullYear)                  \

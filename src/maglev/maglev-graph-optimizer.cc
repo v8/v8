@@ -1349,8 +1349,8 @@ ProcessResult MaglevGraphOptimizer::VisitStoreDoubleConstantTypedArrayElement(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStoreSignedIntDataViewElement(
-    StoreSignedIntDataViewElement* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitStoreInt32DataViewElement(
+    StoreInt32DataViewElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -2088,8 +2088,14 @@ ProcessResult MaglevGraphOptimizer::VisitLoadHoleyFixedDoubleArrayElement(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadSignedIntDataViewElement(
-    LoadSignedIntDataViewElement* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitLoadInt32DataViewElement(
+    LoadInt32DataViewElement* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadUint32DataViewElement(
+    LoadUint32DataViewElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

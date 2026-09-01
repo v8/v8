@@ -3919,7 +3919,7 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::LoadSignedIntDataViewElement* node,
+  maglev::ProcessResult Process(maglev::LoadInt32DataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
     // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
@@ -3935,7 +3935,7 @@ class GraphBuildingNodeProcessor {
                      is_little_endian, node->external_array_type()));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::LoadDoubleDataViewElement* node,
+  maglev::ProcessResult Process(maglev::LoadUint32DataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
     // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
@@ -3949,11 +3949,32 @@ class GraphBuildingNodeProcessor {
            __ LoadDataViewElement(
                Map(node->ObjectInput()), storage,
                __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())),
-               is_little_endian, ExternalArrayType::kExternalFloat64Array));
+               is_little_endian, ExternalArrayType::kExternalUint32Array));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadDoubleDataViewElement* node,
+                                const maglev::ProcessingState& state) {
+    V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
+    // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
+    // -> Bit) in SimplifiedOptimizationReducer, since the
+    // is_little_endian_input will often be a constant True/False boolean in
+    // practice.
+    V<Word32> is_little_endian =
+        ToBit(node->IsLittleEndianInput(),
+              TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
+    V<Float> value = V<Float>::Cast(__ LoadDataViewElement(
+        Map(node->ObjectInput()), storage,
+        __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())),
+        is_little_endian, node->external_array_type()));
+    if (node->external_array_type() ==
+        ExternalArrayType::kExternalFloat32Array) {
+      value = __ ChangeFloat32ToFloat64(V<Float32>::Cast(value));
+    }
+    SetMap(node, value);
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::StoreSignedIntDataViewElement* node,
+  maglev::ProcessResult Process(maglev::StoreInt32DataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
     // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
@@ -3970,6 +3991,7 @@ class GraphBuildingNodeProcessor {
         node->external_array_type());
     return maglev::ProcessResult::kContinue;
   }
+
   maglev::ProcessResult Process(maglev::StoreDoubleDataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
@@ -3980,11 +4002,15 @@ class GraphBuildingNodeProcessor {
     V<Word32> is_little_endian =
         ToBit(node->IsLittleEndianInput(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
+    OpIndex value = Map<Float64>(node->ValueInput());
+    if (node->external_array_type() ==
+        ExternalArrayType::kExternalFloat32Array) {
+      value = __ TruncateFloat64ToFloat32(value);
+    }
     __ StoreDataViewElement(
         Map(node->ObjectInput()), storage,
-        __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())),
-        Map<Float64>(node->ValueInput()), is_little_endian,
-        ExternalArrayType::kExternalFloat64Array);
+        __ ChangeInt32ToIntPtr(Map<Word32>(node->IndexInput())), value,
+        is_little_endian, node->external_array_type());
     return maglev::ProcessResult::kContinue;
   }
 

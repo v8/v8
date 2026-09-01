@@ -367,6 +367,14 @@ inline void MaglevAssembler::LoadDataViewElement(Register result,
   LoadSignedField(result, element_address, element_size);
 }
 
+inline void MaglevAssembler::LoadUnsignedDataViewElement(Register result,
+                                                         Register data_pointer,
+                                                         Register index,
+                                                         int element_size) {
+  MemOperand element_address = Operand(data_pointer, index, times_1, 0);
+  LoadUnsignedField(result, element_address, element_size);
+}
+
 inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
@@ -537,6 +545,18 @@ inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
   if (size == 2) {
     bswapl(value);
     sarl(value, Immediate(16));
+  } else if (size == 4) {
+    bswapl(value);
+  } else {
+    DCHECK_EQ(size, 1);
+  }
+}
+
+inline void MaglevAssembler::ReverseByteOrderUnsigned(Register value,
+                                                      int size) {
+  if (size == 2) {
+    bswapl(value);
+    shrl(value, Immediate(16));
   } else if (size == 4) {
     bswapl(value);
   } else {
@@ -719,6 +739,31 @@ inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
 }
 inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
   Movsd(dst, src);
+}
+
+inline void MaglevAssembler::LoadUnalignedFloat32(DoubleRegister dst,
+                                                  Register base,
+                                                  Register index) {
+  LoadFloat32(dst, Operand(base, index, times_1, 0));
+}
+inline void MaglevAssembler::LoadUnalignedFloat32AndReverseByteOrder(
+    DoubleRegister dst, Register base, Register index) {
+  movl(kScratchRegister, Operand(base, index, times_1, 0));
+  bswapl(kScratchRegister);
+  Movd(dst, kScratchRegister);
+  Cvtss2sd(dst, dst);
+}
+inline void MaglevAssembler::StoreUnalignedFloat32(Register base,
+                                                   Register index,
+                                                   DoubleRegister src) {
+  StoreFloat32(Operand(base, index, times_1, 0), src);
+}
+inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat32(
+    Register base, Register index, DoubleRegister src) {
+  Cvtsd2ss(kScratchDoubleReg, src);
+  Movd(kScratchRegister, kScratchDoubleReg);
+  bswapl(kScratchRegister);
+  movl(Operand(base, index, times_1, 0), kScratchRegister);
 }
 
 inline void MaglevAssembler::LoadUnalignedFloat64(DoubleRegister dst,
