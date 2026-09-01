@@ -1008,10 +1008,9 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerCodeGC) {
 }
 
 RUNTIME_FUNCTION(Runtime_EstimateCurrentMemoryConsumption) {
-  SealHandleScope shs(isolate);
-  DisallowGarbageCollection no_gc;
+  HandleScope shs(isolate);
   size_t result = wasm::GetWasmEngine()->EstimateCurrentMemoryConsumption();
-  return Smi::FromInt(static_cast<int>(result));
+  return *isolate->factory()->NewNumberFromSize(result);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompiledExportWrappersCount) {
