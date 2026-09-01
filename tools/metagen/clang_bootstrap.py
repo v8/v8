@@ -14,9 +14,9 @@ Usage from the metagen entry point:
     clang_bootstrap.bootstrap(libclang_dir=args.libclang_dir)
     from metagen import cpp_hier   # now safe
 
-There are two modes, and the caller must pick one explicitly -- see the
-mutually exclusive --libclang-dir / --libclang-from-python-env flags in
-metagen.py. Neither is reachable by omitting an argument.
+There are three modes, and the caller must pick exactly one explicitly --
+see the mutually exclusive --libclang-dir / --libclang-from-python-env /
+--libclang-so flags in metagen.py. None is reachable by omitting an argument.
 
 `bootstrap(libclang_dir=...)` -- bundled mode, used by GN and by
 standalone Bazel. Bindings and native library both come from the
@@ -49,7 +49,18 @@ by metagen.py's --clang-builtin-headers-dir.
 from __future__ import annotations
 
 import os
+import re
 import sys
+
+
+def _parse_clang_major(version: str) -> int | None:
+  """Pull the major version out of a `clang_getClangVersion()` string.
+
+  The string is free-form (e.g. "clang version 21.1.8 (Fedora 21.1.8-1)"),
+  so match the first dotted-number run rather than assume a fixed layout.
+  """
+  m = re.search(r"(\d+)\.\d+", version)
+  return int(m.group(1)) if m else None
 
 
 def bootstrap_from_python_env() -> None:
@@ -111,6 +122,56 @@ def bootstrap_from_python_env() -> None:
       f"[metagen] using environment-provided clang.cindex from {origin} "
       f"(library: {cindex.Config.library_file or 'wrapper-configured'})",
       file=sys.stderr)
+
+
+def bootstrap_native(native_so: str,
+                     bindings_dir: str,
+                     expect_major: int | None = None) -> None:
+  """Point cindex at an explicit system libclang and a bindings dir.
+
+  For platforms with no prebuilt llvm-libclang GCS package, the native
+  library is the distro's own libclang and the cindex bindings are
+  staged separately, so the two come from different paths rather than
+  one package.
+
+  `expect_major` is the clang toolchain major (GN's clang_version), if the
+  loaded libclang reports an older major, warn it may be out of step
+  with the builtin headers metagen parses against.
+  """
+  bindings = os.path.abspath(bindings_dir)
+  if not os.path.isfile(os.path.join(bindings, "clang", "cindex.py")):
+    print(
+        f"[metagen] clang.cindex bindings not found under\n"
+        f"  {bindings}\n(expected {os.path.join(bindings, 'clang', 'cindex.py')}"
+        f"). Point --libclang-bindings-dir at the dir holding the clang/ "
+        f"package.",
+        file=sys.stderr)
+    sys.exit(1)
+  sys.path.insert(0, bindings)
+
+  import clang.cindex as cindex  # noqa: E402
+
+  if not os.path.isfile(native_so):
+    print(
+        f"[metagen] libclang native library not found:\n  {native_so}",
+        file=sys.stderr)
+    sys.exit(1)
+  cindex.Config.set_library_file(native_so)
+
+  # Log the libclang version and warn if it is older than the clang
+  # toolchain, so a mismatch is discoverable.
+  get_version = getattr(cindex.Config(), "get_clang_version", None)
+  version = get_version() if get_version else None
+  major = _parse_clang_major(version) if version else None
+  print(
+      f"[metagen] native libclang: {version or 'version unknown'}",
+      file=sys.stderr)
+  if major is not None and expect_major is not None and major < expect_major:
+    print(
+        f"[metagen] warning: libclang major {major} is older than the clang "
+        f"toolchain ({expect_major}); the parse may not match its builtin "
+        f"headers.",
+        file=sys.stderr)
 
 
 def bootstrap(libclang_dir: str) -> None:

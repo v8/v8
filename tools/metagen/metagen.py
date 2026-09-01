@@ -82,6 +82,24 @@ def main() -> int:
       "path to pass). Opt-in on purpose: metagen never falls back to an "
       "ambient module just because --libclang-dir was omitted.")
   p.add_argument(
+      "--libclang-so",
+      default=None,
+      help="Absolute path to a native libclang shared library, for "
+      "platforms with no prebuilt llvm-libclang package.")
+  p.add_argument(
+      "--libclang-bindings-dir",
+      default=None,
+      help="Absolute path to the directory holding the clang.cindex "
+      "bindings (the dir that contains clang/cindex.py). Required with, and "
+      "only valid with, --libclang-so; the caller version-matches the two.")
+  p.add_argument(
+      "--expect-libclang-major",
+      default=None,
+      type=int,
+      help="Clang toolchain major version (GN's clang_version). Used with "
+      "--libclang-so to warn if the loaded libclang is older than the "
+      "toolchain whose builtin headers metagen parses against.")
+  p.add_argument(
       "--clang-builtin-headers-dir",
       required=True,
       help="Directory holding the clang builtin headers (stddef.h, "
@@ -157,10 +175,22 @@ def main() -> int:
   # applies whichever mode supplies the bindings.
   sys.setrecursionlimit(max(sys.getrecursionlimit(), 20000))
 
-  if bool(args.libclang_dir) == bool(args.libclang_from_python_env):
+  _modes = [
+      bool(args.libclang_dir),
+      bool(args.libclang_from_python_env),
+      bool(args.libclang_so)
+  ]
+  if sum(_modes) != 1:
     print(
-        "error: exactly one of --libclang-dir or "
-        "--libclang-from-python-env is required.",
+        "error: exactly one of --libclang-dir, "
+        "--libclang-from-python-env or --libclang-so is required.",
+        file=sys.stderr)
+    return 1
+  # A matched pair: one without the other is always a misconfiguration.
+  if bool(args.libclang_so) != bool(args.libclang_bindings_dir):
+    print(
+        "error: --libclang-so and --libclang-bindings-dir must be given "
+        "together.",
         file=sys.stderr)
     return 1
 
@@ -169,6 +199,11 @@ def main() -> int:
   from metagen import clang_bootstrap  # noqa: E402
   if args.libclang_from_python_env:
     clang_bootstrap.bootstrap_from_python_env()
+  elif args.libclang_so:
+    clang_bootstrap.bootstrap_native(
+        native_so=os.path.abspath(args.libclang_so),
+        bindings_dir=os.path.abspath(args.libclang_bindings_dir),
+        expect_major=args.expect_libclang_major)
   else:
     # GN and Bazel rebase the path against the build root before passing
     # it, so a relative value is relative to the current working
