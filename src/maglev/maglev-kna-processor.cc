@@ -62,6 +62,20 @@ ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(AssumeMap* node) {
   return RecordMaps(node->ObjectInput().node(), node->maps());
 }
 
+namespace {
+
+template <typename NodeT>
+NodeType AssumedOrStaticInputType(NodeT* node, NodeType default_type) {
+  if constexpr (requires { node->assumed_input_type(); }) {
+    DCHECK(NodeTypeIs(node->assumed_input_type(), default_type));
+    return node->assumed_input_type();
+  } else {
+    return default_type;
+  }
+}
+
+}  // namespace
+
 #define DEFINE_PROCESS_SAFE_CONV(Node, Alt, Type)                              \
   ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(Node* node) {  \
     NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
@@ -70,7 +84,7 @@ ProcessResult RecomputeKnownNodeAspectsProcessor::ProcessNode(AssumeMap* node) {
        * Should we remove this one as well? */                                 \
       info->alternative().set_##Alt(node);                                     \
     }                                                                          \
-    info->IntersectType(NodeType::k##Type);                                    \
+    info->IntersectType(AssumedOrStaticInputType(node, NodeType::k##Type));    \
     if (info->type() == NodeType::kNone) {                                     \
       if constexpr (Node::kProperties.can_eager_deopt()) {                     \
         ReduceResult result =                                                  \
