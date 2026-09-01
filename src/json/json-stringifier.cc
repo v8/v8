@@ -1064,6 +1064,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
       UNREACHABLE();
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_STRUCT_TYPE:
+    case WASM_CUSTOM_MAP_TYPE:
     case WASM_ARRAY_TYPE:
       return UNCHANGED;
 #endif

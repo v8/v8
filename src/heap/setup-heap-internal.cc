@@ -88,8 +88,9 @@ bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
       InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(instance_type);
   bool is_wasm_object = false;
 #if V8_ENABLE_WEBASSEMBLY
-  is_wasm_object =
-      instance_type == WASM_STRUCT_TYPE || instance_type == WASM_ARRAY_TYPE;
+  is_wasm_object = instance_type == WASM_STRUCT_TYPE ||
+                   instance_type == WASM_CUSTOM_MAP_TYPE ||
+                   instance_type == WASM_ARRAY_TYPE;
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK_IMPLIES(is_js_object &&
                      !Map::CanHaveFastTransitionableElementsKind(instance_type),

@@ -3226,20 +3226,21 @@ void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
   os << "\n";
 }
 
-void WasmStruct::WasmStructPrint(std::ostream& os) {
-  PrintHeader(os, "WasmStruct");
+namespace {
+void WasmStructPrintImpl(std::ostream& os, HeapObject* obj, int header_size) {
   const wasm::CanonicalStructType* struct_type =
       wasm::GetTypeCanonicalizer()->LookupStruct(
-          map()->wasm_type_info()->type_index());
-  if (struct_type->is_descriptor()) {
-    os << "\n - describes RTT: " << Brief(described_rtt());
+          obj->map()->wasm_type_info()->type_index());
+  if (!v8_flags.wasm_merged_descriptors && struct_type->is_descriptor()) {
+    os << "\n - describes RTT: "
+       << Brief(Cast<WasmStruct>(obj)->described_rtt());
   }
   os << "\n - fields (" << struct_type->field_count() << "):";
   for (uint32_t i = 0; i < struct_type->field_count(); i++) {
     wasm::CanonicalValueType field = struct_type->field(i);
     os << "\n   - " << field.short_name() << ": ";
-    uint32_t field_offset = struct_type->field_offset(i);
-    Address field_address = RawFieldAddress(field_offset);
+    uint32_t field_offset = header_size + struct_type->field_offset(i);
+    Address field_address = obj->GetFieldAddress(field_offset);
     switch (field.kind()) {
       case wasm::kI32:
         os << base::ReadUnalignedValue<int32_t>(field_address);
@@ -3267,11 +3268,11 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
       case wasm::kRefNull: {
         Tagged_t raw = base::ReadUnalignedValue<Tagged_t>(field_address);
 #if V8_COMPRESS_POINTERS
-        Address obj = V8HeapCompressionScheme::DecompressTagged(raw);
+        Address value = V8HeapCompressionScheme::DecompressTagged(raw);
 #else
-        Address obj = raw;
+        Address value = raw;
 #endif
-        os << Brief(Tagged<Object>(obj));
+        os << Brief(Tagged<Object>(value));
         break;
       }
       case wasm::kS128:
@@ -3293,6 +3294,21 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
     }
   }
   os << "\n";
+}
+}  // namespace
+
+void WasmStruct::WasmStructPrint(std::ostream& os) {
+  PrintHeader(os, "WasmStruct");
+  WasmStructPrintImpl(os, this, WasmStruct::kHeaderSize);
+}
+void WasmCustomMap::WasmCustomMapPrint(std::ostream& os) {
+  PrintHeader(os, "WasmCustomMap");
+  WasmStructPrintImpl(os, this, WasmCustomMap::kHeaderSize);
+}
+
+void WasmCustomMapWrapper::WasmCustomMapWrapperPrint(std::ostream& os) {
+  PrintHeader(os, "WasmCustomMapWrapper");
+  os << "\n - wrapped: " << Brief(wrapped());
 }
 
 void WasmArray::WasmArrayPrint(std::ostream& os) {

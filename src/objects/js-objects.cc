@@ -2736,6 +2736,8 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSSegments::kHeaderSize;
 #endif  // V8_INTL_SUPPORT
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_WRAPPER_TYPE:
+      return WasmCustomMapWrapper::kHeaderSize;
     case WASM_GLOBAL_OBJECT_TYPE:
       return WasmGlobalObject::kHeaderSize;
     case WASM_INSTANCE_OBJECT_TYPE:

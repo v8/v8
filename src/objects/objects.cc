@@ -2149,6 +2149,10 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_type == WASM_STRUCT_TYPE) {
     return WasmStruct::GcSafeSize(map);
   }
+  if (instance_type == WASM_CUSTOM_MAP_TYPE) {
+    // Not a typo: WasmCustomMap reuses some WasmStruct infrastructure.
+    return WasmStruct::GcSafeSize(map);
+  }
   if (instance_type == WASM_ARRAY_TYPE) {
     return WasmArray::SizeFor(map, UncheckedCast<WasmArray>(this)->length());
   }

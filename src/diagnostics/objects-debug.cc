@@ -3509,6 +3509,14 @@ void WasmStruct::WasmStructVerify(Isolate* isolate) {
   CHECK(Is<WasmStruct>(this));
 }
 
+void WasmCustomMap::WasmCustomMapVerify(Isolate* isolate) { UNIMPLEMENTED(); }
+
+void WasmCustomMapWrapper::WasmCustomMapWrapperVerify(Isolate* isolate) {
+  CHECK(Is<WasmCustomMapWrapper>(this));
+  CHECK(Is<WasmCustomMap>(wrapped()));
+  JSObjectVerify(isolate);
+}
+
 void WasmArray::WasmArrayVerify(Isolate* isolate) {
   CHECK(Is<WasmArray>(this));
 }

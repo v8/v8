@@ -1913,7 +1913,8 @@ wasm::WasmValue WasmTrustedInstanceData::GetGlobalValue(
 }
 
 const wasm::CanonicalStructType* WasmStruct::GcSafeType(Tagged<Map> map) {
-  DCHECK_EQ(WASM_STRUCT_TYPE, map->instance_type());
+  DCHECK(map->instance_type() == WASM_STRUCT_TYPE ||
+         map->instance_type() == WASM_CUSTOM_MAP_TYPE);
   Tagged<HeapObject> raw = Cast<HeapObject>(map->constructor_or_back_pointer());
   // The {WasmTypeInfo} might be in the middle of being moved, which is why we
   // can't read its map for a checked cast. But we can rely on its native type
@@ -1922,6 +1923,7 @@ const wasm::CanonicalStructType* WasmStruct::GcSafeType(Tagged<Map> map) {
   return wasm::GetTypeCanonicalizer()->LookupStruct(type_info->type_index());
 }
 
+// TODO(jkummerow): To be replaced by WasmCustomMap::AllocateUninitialized.
 // Allocates a Wasm Struct that is a descriptor for another type, leaving
 // its fields uninitialized.
 // Descriptor structs have a 1:1 relationship with the internal "RTT" (aka
@@ -1958,6 +1960,7 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
     wasm::ModuleTypeIndex index, DirectHandle<Map> map,
     DirectHandle<Object> first_field) {
+  DCHECK(!v8_flags.wasm_merged_descriptors);
   const wasm::WasmModule* module = trusted_data->module();
   const wasm::TypeDefinition& type = module->type(index);
   DCHECK(type.is_descriptor());
@@ -1994,13 +1997,91 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
   return descriptor;
 }
 
-wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
+// Allocates a Wasm Struct that is a descriptor for another type, leaving
+// its fields uninitialized.
+// Custom Descriptor structs are subtypes of Map, so they begin with all the
+// inherited Map fields, and add their custom struct fields afterwards.
+// RTTs with custom descriptors always are subtypes of the canonical RTT for
+// the same type, so that canonical RTT is installed as the super-RTT.
+// The RTT/map of the descriptor itself is provided by the caller as {map}.
+//
+// The eventual on-heap object structure will be something like the following,
+// where (A) is the object returned by this function. There will likely be
+// many instances of (C), and they will be allocated (much) later, by one or
+// more {struct.new} instructions that take (A) as input.
+// (D) is the {map} passed to this function.
+// Notably, (D) encodes how big (A) is; its instance_size field will have
+// the {kVariableSizeSentinel}, and it will use the {EncodeInstanceSizeInMap}
+// machinery to store the actual instance size.
+//
+//   Wasm struct (C):          Wasm Custom Map (A):
+//   +-----------+             +------------+
+//   | Map       |------------>| Map (D)    |
+//   +-----------+             +------------+
+//   | hash      |             | ...        |
+//   +-----------+             | Map fields |
+//   | fields... |             | ...        |
+//   |           |             +------------+
+//   +-----------+             | fields...  |
+//                             |            |
+//                             +------------+
+// static
+DirectHandle<WasmCustomMap> WasmCustomMap::AllocateUninitialized(
+    Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
+    wasm::ModuleTypeIndex index, DirectHandle<Map> map,
+    DirectHandle<Object> first_field) {
+  DCHECK(v8_flags.wasm_merged_descriptors);
+  const wasm::WasmModule* module = trusted_data->module();
+  const wasm::TypeDefinition& type = module->type(index);
+  DCHECK(type.is_descriptor());
+  // TODO(jkummerow): Figure out support for shared objects.
+  if (type.is_shared) UNIMPLEMENTED();
+  wasm::CanonicalTypeIndex described_index =
+      module->canonical_type_id(type.describes);
+  DirectHandle<Map> rtt_parent{
+      Cast<Map>(trusted_data->managed_object_maps()->get(type.describes.index)),
+      isolate};
+  DirectHandle<NativeContext> context(
+      Cast<NativeContext>(trusted_data->native_context()), isolate);
+  // There's always at least one supertype for {rtt_parent}.
+  const wasm::TypeDefinition& described_type = module->type(type.describes);
+  int num_supertypes = described_type.subtyping_depth + 1;
+  DirectHandle<JSPrototype> prototype;
+  if (v8_flags.wasm_js_interop && !IsSmi(*first_field) &&
+      IsJSReceiver(Cast<HeapObject>(*first_field))) {
+    prototype = direct_handle(Cast<JSReceiver>(*first_field), isolate);
+    // Optimize {prototype} as prototype, so that {Map::SetPrototype} below
+    // won't allocate while trying to do that implicitly.
+    if (IsJSObjectThatCanBeTrackedAsPrototype(*prototype)) {
+      JSObject::OptimizeAsPrototype(Cast<JSObject>(prototype), true);
+    }
+  }
+  int described_size = described_type.is_descriptor()
+                           ? WasmCustomMap::Size(described_type.struct_type)
+                           : WasmStruct::Size(described_type.struct_type);
+  InstanceType described_instance_type =
+      described_type.is_descriptor() ? WASM_CUSTOM_MAP_TYPE : WASM_STRUCT_TYPE;
+  DirectHandle<WasmCustomMap> descriptor =
+      isolate->factory()->NewWasmCustomMapUninitialized(
+          type.struct_type, described_index, described_size,
+          described_instance_type, rtt_parent, num_supertypes, map);
+  DisallowGarbageCollection no_gc;
+  if (!prototype.is_null()) {
+    Map::SetPrototype(isolate, descriptor, prototype);
+  }
+  return descriptor;
+}
+
+namespace {
+
+wasm::WasmValue GetFieldValueImpl(HeapObject* obj, uint32_t index,
+                                  int header_size) {
   const wasm::CanonicalStructType* type =
       wasm::GetTypeCanonicalizer()->LookupStruct(
-          map()->wasm_type_info()->type_index());
+          obj->map()->wasm_type_info()->type_index());
   wasm::CanonicalValueType field_type = type->field(index);
-  int field_offset = WasmStruct::kHeaderSize + type->field_offset(index);
-  Address field_address = this->field_address(field_offset);
+  int field_offset = header_size + type->field_offset(index);
+  Address field_address = obj->GetFieldAddress(field_offset);
   switch (field_type.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
   case wasm::valuetype:             \
@@ -2014,7 +2095,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
           base::ReadUnalignedValue<uint16_t>(field_address)));
     case wasm::kRef:
     case wasm::kRefNull: {
-      DirectHandle<Object> ref(TaggedField<Object>::load(this, field_offset),
+      DirectHandle<Object> ref(TaggedField<Object>::load(obj, field_offset),
                                Isolate::Current());
       return wasm::WasmValue(ref, field_type);
     }
@@ -2024,6 +2105,50 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
       UNREACHABLE();
   }
   UNREACHABLE();
+}
+
+}  // namespace
+
+// Atomic accesses to fields in descriptors require 8-byte alignment.
+static_assert(WasmCustomMap::kHeaderSize % 8 == 0);
+
+wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
+  return GetFieldValueImpl(this, index, WasmStruct::kHeaderSize);
+}
+
+wasm::WasmValue WasmCustomMap::GetFieldValue(uint32_t index) {
+  return GetFieldValueImpl(this, index, WasmCustomMap::kHeaderSize);
+}
+
+DirectHandle<WasmCustomMapWrapper> WasmCustomMap::CreateJSWrapper(
+    Isolate* isolate, DirectHandle<WasmCustomMap> wasm_custom_map) {
+  DCHECK(IsNull(wasm_custom_map->js_wrapper()));
+  SharedFlag shared = wasm_custom_map->wasm_type_info()->type().is_shared();
+  // Create a fresh map because WasmCustomMaps are conceptually tied to
+  // prototypes and shouldn't share their maps.
+  AllocationType map_allocation =
+      shared ? AllocationType::kSharedMap : AllocationType::kMap;
+  AllocationType obj_allocation =
+      shared ? AllocationType::kSharedOld : AllocationType::kOld;
+  DirectHandle<Map> meta_map(
+      wasm_custom_map->native_context_for_wrapper()->meta_map(), isolate);
+  constexpr int kNumProperties = 0;
+  constexpr int kInstanceSize = WasmCustomMapWrapper::kHeaderSize;
+  DirectHandle<Map> map = isolate->factory()->NewMapWithMetaMap(
+      meta_map, WASM_CUSTOM_MAP_WRAPPER_TYPE, kInstanceSize,
+      TERMINAL_FAST_ELEMENTS_KIND, kNumProperties, map_allocation);
+  DirectHandle<WasmCustomMapWrapper> wrapper =
+      Cast<WasmCustomMapWrapper>(isolate->factory()->NewJSObjectFromMap(
+          map, obj_allocation, DirectHandle<AllocationSite>::null(),
+          NewJSObjectType::kNoEmbedderFieldsAndNoApiWrapper));
+  wrapper->set_wrapped(*wasm_custom_map);
+  Tagged<JSPrototype> maybe_prototype = wasm_custom_map->map()->prototype();
+  if (!IsNull(maybe_prototype)) {
+    wrapper->map()->set_prototype(maybe_prototype);
+  }
+  wrapper->map()->set_is_extensible(false);
+  wasm_custom_map->set_js_wrapper(*wrapper);
+  return wrapper;
 }
 
 wasm::WasmValue WasmArray::GetElement(uint32_t index) {
@@ -2869,7 +2994,15 @@ DirectHandle<Map> CreateStructMap(
   // We have to use the variable size sentinel because the instance size
   // stored directly in a Map is capped at 255 pointer sizes.
   const int map_instance_size = kVariableSizeSentinel;
-  const InstanceType instance_type = WASM_STRUCT_TYPE;
+  int real_instance_size;
+  InstanceType instance_type;
+  if (type->is_descriptor() && v8_flags.wasm_merged_descriptors) {
+    instance_type = WASM_CUSTOM_MAP_TYPE;
+    real_instance_size = WasmCustomMap::Size(type);
+  } else {
+    instance_type = WASM_STRUCT_TYPE;
+    real_instance_size = WasmStruct::Size(type);
+  }
   // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   const wasm::CanonicalValueType no_array_element = wasm::kWasmBottom;
@@ -2888,13 +3021,13 @@ DirectHandle<Map> CreateStructMap(
     map = isolate->factory()->NewContextlessMap(
         instance_type, map_instance_size, elements_kind, inobject_properties);
   } else {
+    DCHECK(!v8_flags.wasm_merged_descriptors);
     map = isolate->factory()->NewContextfulMap(
         opt_native_context, instance_type, map_instance_size, elements_kind,
         inobject_properties);
   }
   map->set_wasm_type_info(*type_info);
   map->set_is_extensible(false);
-  const int real_instance_size = WasmStruct::Size(type);
   WasmStruct::EncodeInstanceSizeInMap(real_instance_size, *map);
   return map;
 }
@@ -3066,6 +3199,13 @@ inline bool ConvertToSharedIfExpected(Isolate* isolate,
   }
   return true;
 }
+
+inline DirectHandle<WasmCustomMap> UnwrapCustomMap(Isolate* isolate,
+                                                   DirectHandle<Object> value) {
+  DCHECK(IsWasmCustomMapWrapper(*value));
+  DirectHandle<WasmCustomMapWrapper> obj = Cast<WasmCustomMapWrapper>(value);
+  return direct_handle(obj->wrapped(), isolate);
+}
 }  // namespace
 
 MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
@@ -3144,6 +3284,15 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
         return {};
       }
       return value;
+    } else if (IsWasmCustomMapWrapper(*value)) {
+      DirectHandle<WasmCustomMap> wasm_obj = UnwrapCustomMap(isolate, value);
+      Tagged<WasmTypeInfo> type_info = wasm_obj->map()->wasm_type_info();
+      CanonicalTypeIndex actual_type = type_info->type_index();
+      if (!type_canonicalizer->IsCanonicalSubtype(actual_type, expected)) {
+        *error_message = "object is not a subtype of expected type";
+        return {};
+      }
+      return wasm_obj;
     } else {
       *error_message = "JS object does not match expected wasm type";
       return {};
@@ -3181,6 +3330,9 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
                                      error_message)) {
         return {};
       }
+      if (IsWasmCustomMapWrapper(*value)) {
+        return UnwrapCustomMap(isolate, value);
+      }
       if (!IsNull(*value)) return value;
       *error_message = "null is not allowed for (ref any)";
       return {};
@@ -3197,6 +3349,9 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
       }
       if (IsWasmStruct(*value)) {
         return value;
+      }
+      if (IsWasmCustomMapWrapper(*value)) {
+        return UnwrapCustomMap(isolate, value);
       }
       *error_message =
           "structref object must be null (if nullable) or a wasm struct";
@@ -3227,6 +3382,11 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
           return {};
         }
         return value;
+      } else if (IsWasmCustomMapWrapper(*value)) {
+        if (!CheckExpectedSharedness(isolate, value, expected, error_message)) {
+          return {};
+        }
+        return UnwrapCustomMap(isolate, value);
       }
       *error_message =
           "eqref object must be null (if nullable), or a wasm "
@@ -3324,6 +3484,11 @@ DirectHandle<Object> WasmToJSObject(Isolate* isolate,
     if (HeapLayout::InWritableSharedSpace(*string)) {
       return String::Unshare(isolate, string);
     }
+  } else if (IsWasmCustomMap(*value)) {
+    DirectHandle<WasmCustomMap> map = Cast<WasmCustomMap>(value);
+    Tagged<Object> maybe_wrapper = map->js_wrapper();
+    if (!IsNull(maybe_wrapper)) return direct_handle(maybe_wrapper, isolate);
+    return WasmCustomMap::CreateJSWrapper(isolate, map);
   }
   return value;
 }

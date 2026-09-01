@@ -1762,6 +1762,9 @@ V8_OBJECT class WasmStruct : public WasmObject {
                                              Tagged<Map> map);
   static inline int DecodeInstanceSizeFromMap(Tagged<Map> map);
 
+  // Useful for both WasmStruct and WasmCustomMap; {type} distinguishes.
+  static inline int FieldOffset(const wasm::StructType* type, int field_index);
+
   // Returns the address of the field at given offset.
   inline Address RawFieldAddress(int raw_offset);
 
@@ -1792,22 +1795,108 @@ V8_OBJECT class WasmStruct : public WasmObject {
 inline constexpr int WasmStruct::kHeaderSize = sizeof(WasmStruct);
 
 int WasmStruct::Size(const wasm::StructType* type) {
-  // Object size must fit into a Smi (because of filler objects), and its
+  // Object size must fit into a Smi (because of runtime functions), and its
   // computation must not overflow.
   static_assert(Smi::kMaxValue <= kMaxInt);
   DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  DCHECK_IMPLIES(v8_flags.wasm_merged_descriptors, !type->is_descriptor());
   return std::max(kHeaderSize + static_cast<int>(type->total_fields_size()),
                   Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
 }
 
 int WasmStruct::Size(const wasm::CanonicalStructType* type) {
-  // Object size must fit into a Smi (because of filler objects), and its
+  // Object size must fit into a Smi (because of runtime functions), and its
   // computation must not overflow.
   static_assert(Smi::kMaxValue <= kMaxInt);
   DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  DCHECK_IMPLIES(v8_flags.wasm_merged_descriptors, !type->is_descriptor());
   return std::max(kHeaderSize + static_cast<int>(type->total_fields_size()),
                   Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
 }
+
+V8_OBJECT class WasmCustomMap : public Map {
+ public:
+  static inline int Size(const wasm::StructType* type);
+  static inline int Size(const wasm::CanonicalStructType* type);
+
+  static DirectHandle<WasmCustomMap> AllocateUninitialized(
+      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
+      wasm::ModuleTypeIndex index, DirectHandle<Map> map,
+      DirectHandle<Object> first_field);
+
+  inline Tagged<Union<WasmCustomMapWrapper, Null>> js_wrapper() const;
+  inline void set_js_wrapper(Tagged<Union<WasmCustomMapWrapper, Null>> wrapper,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<NativeContext> native_context_for_wrapper() const;
+  inline void set_native_context_for_wrapper(
+      Tagged<NativeContext> context,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Returns the address of the field at given offset.
+  inline Address RawFieldAddress(int raw_offset);
+
+  // Returns the ObjectSlot for tagged value at given offset.
+  inline ObjectSlot RawField(int raw_offset);
+
+  V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
+
+  // Populates the {js_wrapper} slot with a suitable wrapper object.
+  static DirectHandle<WasmCustomMapWrapper> CreateJSWrapper(
+      Isolate* isolate, DirectHandle<WasmCustomMap> wasm_custom_map);
+
+  DECL_PRINTER(WasmCustomMap)
+  DECL_VERIFIER(WasmCustomMap)
+
+  class BodyDescriptor;
+
+  static const int kHeaderSize;
+
+  TaggedMember<Union<WasmCustomMapWrapper, Null>> js_wrapper_;
+  // To save memory, we could store the NativeContext in the {js_wrapper} field
+  // before allocating the wrapper, but that would make checking for the
+  // wrapper's presence more expensive.
+  TaggedMember<NativeContext> native_context_for_wrapper_;
+} V8_OBJECT_END;
+
+inline constexpr int WasmCustomMap::kHeaderSize = sizeof(WasmCustomMap);
+
+int WasmCustomMap::Size(const wasm::StructType* type) {
+  // Object size must fit into a Smi (because of runtime functions), and its
+  // computation must not overflow.
+  static_assert(Smi::kMaxValue <= kMaxInt);
+  static_assert(Heap::kMinObjectSizeInTaggedWords * kTaggedSize <= kHeaderSize);
+  DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  DCHECK(type->is_descriptor());
+  return kHeaderSize + static_cast<int>(type->total_fields_size());
+}
+
+int WasmCustomMap::Size(const wasm::CanonicalStructType* type) {
+  // Object size must fit into a Smi (because of runtime functions), and its
+  // computation must not overflow.
+  static_assert(Smi::kMaxValue <= kMaxInt);
+  static_assert(Heap::kMinObjectSizeInTaggedWords * kTaggedSize <= kHeaderSize);
+  DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  DCHECK(type->is_descriptor());
+  return kHeaderSize + static_cast<int>(type->total_fields_size());
+}
+
+V8_OBJECT class WasmCustomMapWrapper : public JSObject {
+ public:
+  inline Tagged<WasmCustomMap> wrapped() const;
+  inline void set_wrapped(Tagged<WasmCustomMap> custom_map,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(WasmCustomMapWrapper)
+  DECL_VERIFIER(WasmCustomMapWrapper)
+
+  static const int kHeaderSize;
+
+  TaggedMember<WasmCustomMap> wrapped_;
+} V8_OBJECT_END;
+
+inline constexpr int WasmCustomMapWrapper::kHeaderSize =
+    sizeof(WasmCustomMapWrapper);
 
 V8_OBJECT class WasmArray : public WasmObject {
   V8_IT_ORDER(FIRST);
@@ -2035,9 +2124,9 @@ V8_OBJECT class WasmNull : public HeapObject {
   static_assert(kSize % kMinimumOSPageSize == 0);
   // Any wasm struct offset should fit in the object.
   static_assert(kSize >=
-                WasmStruct::kHeaderSize +
+                std::max(WasmStruct::kHeaderSize, WasmCustomMap::kHeaderSize) +
                     (wasm::kMaxStructFieldIndexForImplicitNullCheck + 1) *
-                        kSimd128Size);
+                        wasm::kMaxValueTypeSize);
 #else
   static constexpr int kSize = sizeof(HeapObject);
 #endif

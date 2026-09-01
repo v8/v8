@@ -1660,6 +1660,7 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
     Tagged<WasmStruct> wasm_struct = UncheckedCast<WasmStruct>(obj);
     const wasm::CanonicalStructType* type = WasmStruct::GcSafeType(map);
     if (type->is_descriptor()) {
+      DCHECK(!v8_flags.wasm_merged_descriptors);
       // The associated Map is stored where the first field would otherwise be.
       DCHECK(type->field_count() == 0 || type->field_offset(0) != 0);
       v->VisitPointer(wasm_struct, wasm_struct->RawField(0));
@@ -1793,6 +1794,34 @@ class Map::BodyDescriptor final : public BodyDescriptorBase {
     return UncheckedCast<Map>(obj)->AllocatedSize();
   }
 };
+
+#if V8_ENABLE_WEBASSEMBLY
+
+class WasmCustomMap::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    Map::BodyDescriptor::IterateBody(map, obj, object_size, v);
+    IteratePointer(obj, offsetof(WasmCustomMap, js_wrapper_), v);
+
+    Tagged<WasmCustomMap> wasm_struct = UncheckedCast<WasmCustomMap>(obj);
+    // Not a typo: WasmCustomMap reuses some WasmStruct infrastructure.
+    const wasm::CanonicalStructType* type = WasmStruct::GcSafeType(map);
+    DCHECK(type->is_descriptor());
+    for (uint32_t i = 0; i < type->field_count(); i++) {
+      if (!type->field(i).is_ref()) continue;
+      int offset = static_cast<int>(type->field_offset(i));
+      v->VisitPointer(wasm_struct, wasm_struct->RawField(offset));
+    }
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    // Not a typo: WasmCustomMap reuses some WasmStruct infrastructure.
+    return WasmStruct::GcSafeSize(map);
+  }
+};
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
  public:

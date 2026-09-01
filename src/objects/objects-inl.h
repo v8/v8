@@ -235,6 +235,9 @@ DEF_CAST_TRAITS(TurboshaftWord64SetType)
 DEF_CAST_TRAITS(TurboshaftWord64Type)
 #if V8_ENABLE_WEBASSEMBLY
 DEF_CAST_TRAITS(WasmArray)
+DEF_CAST_TRAITS(WasmContinuationObject)
+DEF_CAST_TRAITS(WasmCustomMap)
+DEF_CAST_TRAITS(WasmCustomMapWrapper)
 DEF_CAST_TRAITS(WasmExceptionPackage)
 DEF_CAST_TRAITS(WasmFastApiCallData)
 DEF_CAST_TRAITS(WasmFuncRef)
@@ -245,11 +248,10 @@ DEF_CAST_TRAITS(WasmModuleObject)
 DEF_CAST_TRAITS(WasmNull)
 DEF_CAST_TRAITS(WasmObject)
 DEF_CAST_TRAITS(WasmResumeData)
+DEF_CAST_TRAITS(WasmStackObject)
 DEF_CAST_TRAITS(WasmStringViewIter)
 DEF_CAST_TRAITS(WasmStruct)
 DEF_CAST_TRAITS(WasmSuspendingObject)
-DEF_CAST_TRAITS(WasmContinuationObject)
-DEF_CAST_TRAITS(WasmStackObject)
 DEF_CAST_TRAITS(WasmTableObject)
 DEF_CAST_TRAITS(WasmTagObject)
 DEF_CAST_TRAITS(WasmTypeInfo)
@@ -967,7 +969,8 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
 #if V8_ENABLE_WEBASSEMBLY
   if (in_shared_space && v8_flags.wasm_shared) [[unlikely]] {
     int instance_type = map->instance_type();
-    if (instance_type == WASM_STRUCT_TYPE) {
+    if (instance_type == WASM_STRUCT_TYPE ||
+        instance_type == WASM_CUSTOM_MAP_TYPE) {
       // The map of a shared wasm struct needs to be in the shared space.
       DCHECK(HeapLayout::InWritableSharedSpace(map));
       return kDoubleAligned;
@@ -1134,7 +1137,8 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
     // to shared values in weak collections. For now, disallow them as weak
     // collection keys.
 #if V8_ENABLE_WEBASSEMBLY
-    if (v8_flags.wasm_shared && (IsWasmStruct(obj) || IsWasmArray(obj)) &&
+    if (v8_flags.wasm_shared &&
+        (IsWasmStruct(obj) || IsWasmCustomMap(obj) || IsWasmArray(obj)) &&
         HeapLayout::InAnySharedSpace(Cast<HeapObject>(obj))) {
       return false;
     }

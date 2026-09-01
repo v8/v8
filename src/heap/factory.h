@@ -916,6 +916,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmStruct> NewWasmStructUninitialized(const wasm::StructType* type,
                                                 DirectHandle<Map> map,
                                                 AllocationType allocation);
+  Handle<WasmCustomMap> NewWasmCustomMapUninitialized(
+      const wasm::StructType* descriptor,
+      wasm::CanonicalTypeIndex described_index, int described_size,
+      InstanceType described_instance_type, DirectHandle<Map> rtt_parent,
+      int num_supertypes, DirectHandle<Map> map);
 
   DirectHandle<WasmArray> NewWasmArray(wasm::ValueType element_type,
                                        uint32_t length,

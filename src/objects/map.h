@@ -121,6 +121,7 @@ enum InstanceType : uint16_t;
   V(ThinString)                      \
   V(TransitionArray)                 \
   IF_WASM(V, WasmArray)              \
+  IF_WASM(V, WasmCustomMap)          \
   IF_WASM(V, WasmFuncRef)            \
   IF_WASM(V, WasmGlobalObject)       \
   IF_WASM(V, WasmInstanceObject)     \

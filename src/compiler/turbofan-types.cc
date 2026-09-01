@@ -312,6 +312,8 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
 #endif  // V8_TEMPORAL_SUPPORT
     case JS_RAW_JSON_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_TYPE:
+    case WASM_CUSTOM_MAP_WRAPPER_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:

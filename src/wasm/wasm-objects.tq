@@ -321,6 +321,25 @@ extern class WasmArray extends WasmObject {
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 }
 
+// For Wasm structs with Custom Descriptor: begins with the regular fields
+// of a Map, then adds the custom descriptor's fields (which are accessible
+// to userspace).
+// When a WasmCustomMap is passed to JS (or converted to externref), we
+// switch to its {js_wrapper}.
+@cppObjectLayoutDefinition
+extern class WasmCustomMap extends Map {
+  js_wrapper: WasmCustomMapWrapper|Null;
+  // To save memory, we could store the NativeContext in the {js_wrapper} field
+  // before allocating the wrapper, but that would make checking for the
+  // wrapper's presence more expensive.
+  native_context_for_wrapper: NativeContext;
+}
+
+@cppObjectLayoutDefinition
+extern class WasmCustomMapWrapper extends JSObject {
+  wrapped: WasmCustomMap;
+}
+
 @cppObjectLayoutDefinition
 extern class WasmStringViewIter extends HeapObject {
   string: String;

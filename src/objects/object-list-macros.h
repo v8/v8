@@ -99,6 +99,7 @@ namespace internal {
   V(WeakFixedArray)                           \
   V(WeakHomomorphicFixedArray)                \
   IF_WASM(V, WasmArray)                       \
+  IF_WASM(V, WasmCustomMap)                   \
   IF_WASM(V, WasmDispatchTable)               \
   IF_WASM(V, WasmDispatchTableForImports)     \
   IF_WASM(V, WasmStruct)
@@ -286,6 +287,9 @@ namespace internal {
   V(TurboshaftWord64SetType)                    \
   V(TurboshaftWord64Type)                       \
   IF_WASM(V, WasmArray)                         \
+  IF_WASM(V, WasmContinuationObject)            \
+  IF_WASM(V, WasmCustomMap)                     \
+  IF_WASM(V, WasmCustomMapWrapper)              \
   IF_WASM(V, WasmExceptionPackage)              \
   IF_WASM(V, WasmFastApiCallData)               \
   IF_WASM(V, WasmFuncRef)                       \
@@ -296,11 +300,10 @@ namespace internal {
   IF_WASM(V, WasmNull)                          \
   IF_WASM(V, WasmObject)                        \
   IF_WASM(V, WasmResumeData)                    \
+  IF_WASM(V, WasmStackObject)                   \
   IF_WASM(V, WasmStringViewIter)                \
   IF_WASM(V, WasmStruct)                        \
   IF_WASM(V, WasmSuspendingObject)              \
-  IF_WASM(V, WasmContinuationObject)            \
-  IF_WASM(V, WasmStackObject)                   \
   IF_WASM(V, WasmTableObject)                   \
   IF_WASM(V, WasmTagObject)                     \
   IF_WASM(V, WasmTypeInfo)                      \

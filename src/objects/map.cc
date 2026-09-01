@@ -508,6 +508,10 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
       return kVisitWasmArray;
+    case WASM_CUSTOM_MAP_TYPE:
+      return kVisitWasmCustomMap;
+    case WASM_CUSTOM_MAP_WRAPPER_TYPE:
+      return kVisitJSObject;
     case WASM_FUNC_REF_TYPE:
       return kVisitWasmFuncRef;
     case WASM_GLOBAL_OBJECT_TYPE:

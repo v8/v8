@@ -1319,6 +1319,10 @@ void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Tagged<Map> map) {
   static_assert(0xFFFF > ((kHeaderSize + wasm::kMaxValueTypeSize *
                                              wasm::kV8MaxWasmStructFields) >>
                           kObjectAlignmentBits));
+  static_assert(0xFFFF >
+                ((WasmCustomMap::kHeaderSize +
+                  wasm::kMaxValueTypeSize * wasm::kV8MaxWasmStructFields) >>
+                 kObjectAlignmentBits));
   map->SetWasmByte1((instance_size >> kObjectAlignmentBits) & 0xff);
   map->SetWasmByte2(instance_size >> (8 + kObjectAlignmentBits));
 }
@@ -1333,11 +1337,18 @@ int WasmStruct::GcSafeSize(Tagged<Map> map) {
   return DecodeInstanceSizeFromMap(map);
 }
 
+int WasmStruct::FieldOffset(const wasm::StructType* type, int field_index) {
+  int header_size = type->is_descriptor() ? WasmCustomMap::kHeaderSize
+                                          : WasmStruct::kHeaderSize;
+  return header_size + type->field_offset(field_index);
+}
+
 Address WasmStruct::RawFieldAddress(int raw_offset) {
   int offset = WasmStruct::kHeaderSize + raw_offset;
   return FIELD_ADDR(Tagged<WasmStruct>(this), offset);
 }
 
+// TODO(jkummerow): Stop shadowing {HeapObject::RawField} maybe?
 ObjectSlot WasmStruct::RawField(int raw_offset) {
   return ObjectSlot(RawFieldAddress(raw_offset));
 }
@@ -1360,6 +1371,41 @@ void WasmStruct::set_described_rtt(Tagged<Map> value, WriteBarrierMode mode) {
   DCHECK(GcSafeType(map())->is_descriptor());
   TaggedField<Map, kHeaderSize>::store(Tagged<WasmStruct>(this), value);
   CONDITIONAL_WRITE_BARRIER(Tagged<HeapObject>(this), kHeaderSize, value, mode);
+}
+
+Address WasmCustomMap::RawFieldAddress(int raw_offset) {
+  int offset = WasmCustomMap::kHeaderSize + raw_offset;
+  return FIELD_ADDR(Tagged<WasmCustomMap>(this), offset);
+}
+
+// TODO(jkummerow): Stop shadowing {HeapObject::RawField} maybe?
+ObjectSlot WasmCustomMap::RawField(int raw_offset) {
+  return ObjectSlot(RawFieldAddress(raw_offset));
+}
+
+Tagged<Union<WasmCustomMapWrapper, Null>> WasmCustomMap::js_wrapper() const {
+  return js_wrapper_.load();
+}
+void WasmCustomMap::set_js_wrapper(
+    Tagged<Union<WasmCustomMapWrapper, Null>> wrapper, WriteBarrierMode mode) {
+  js_wrapper_.store(this, wrapper, mode);
+}
+
+Tagged<NativeContext> WasmCustomMap::native_context_for_wrapper() const {
+  return native_context_for_wrapper_.load();
+}
+void WasmCustomMap::set_native_context_for_wrapper(
+    Tagged<NativeContext> context, WriteBarrierMode mode) {
+  native_context_for_wrapper_.store(this, context, mode);
+}
+
+Tagged<WasmCustomMap> WasmCustomMapWrapper::wrapped() const {
+  return wrapped_.load();
+}
+
+void WasmCustomMapWrapper::set_wrapped(Tagged<WasmCustomMap> custom_map,
+                                       WriteBarrierMode mode) {
+  wrapped_.store(this, custom_map, mode);
 }
 
 uint32_t WasmArray::length() const { return length_; }

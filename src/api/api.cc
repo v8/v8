@@ -6995,6 +6995,7 @@ bool IsJSReceiverSafeToFreeze(i::InstanceType obj_type) {
       return true;
 #if V8_ENABLE_WEBASSEMBLY
     case i::WASM_ARRAY_TYPE:
+    case i::WASM_CUSTOM_MAP_TYPE:
     case i::WASM_STRUCT_TYPE:
     case i::WASM_TAG_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY

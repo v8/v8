@@ -2516,6 +2516,45 @@ Handle<WasmStruct> Factory::NewWasmStructUninitialized(
   return handle(result, isolate());
 }
 
+Handle<WasmCustomMap> Factory::NewWasmCustomMapUninitialized(
+    const wasm::StructType* descriptor,
+    wasm::CanonicalTypeIndex described_index, int described_size,
+    InstanceType described_instance_type, DirectHandle<Map> rtt_parent,
+    int num_supertypes, DirectHandle<Map> map) {
+  const SharedFlag shared = descriptor->is_shared();
+
+  const wasm::CanonicalValueType no_array_element = wasm::kWasmBottom;
+  // If we had a CanonicalHeapType, we could use that here.
+  wasm::CanonicalValueType heaptype = wasm::CanonicalValueType::Ref(
+      described_index, shared, wasm::RefTypeKind::kStruct);
+  DirectHandle<WasmTypeInfo> type_info = NewWasmTypeInfo(
+      heaptype, no_array_element, rtt_parent, num_supertypes, shared);
+
+  AllocationType allocation =
+      shared ? AllocationType::kSharedMap : AllocationType::kMap;
+  AllocationAlignment alignment = shared ? kDoubleAligned : kTaggedAligned;
+  const int descriptor_size = WasmCustomMap::Size(descriptor);
+  DCHECK_EQ(descriptor_size, WasmStruct::DecodeInstanceSizeFromMap(*map));
+  Tagged<HeapObject> raw = AllocateRaw(descriptor_size, allocation, alignment);
+  raw->set_map_after_allocation(isolate(), *map);
+  Tagged<WasmCustomMap> result = Cast<WasmCustomMap>(raw);
+  const int inobject_properties = 0;
+  // If NO_ELEMENTS were supported, we could use that here.
+  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  ReadOnlyRoots roots(isolate());
+  InitializeMap(result, described_instance_type, kVariableSizeSentinel,
+                elements_kind, inobject_properties, roots);
+  result->set_native_context_for_wrapper(isolate()->raw_native_context());
+  result->set_wasm_type_info(*type_info);
+  result->set_is_extensible(false);
+  result->set_immediate_supertype_map(*rtt_parent);
+  result->set_js_wrapper(*null_value());
+  WasmStruct::EncodeInstanceSizeInMap(described_size, result);
+  isolate()->counters()->maps_created()->Increment();
+  return handle(result, isolate());
+}
+
+// TODO(jkummerow): Replace with ...Uninitialized variant.
 DirectHandle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
                                                 wasm::WasmValue* args,
                                                 DirectHandle<Map> map) {
@@ -2867,6 +2906,7 @@ DirectHandle<Map> Factory::NewContextfulMap(
   DCHECK(InstanceTypeChecker::IsNativeContextSpecific(type) ||
 #if V8_ENABLE_WEBASSEMBLY
          InstanceTypeChecker::IsWasmStruct(type) ||
+         InstanceTypeChecker::IsWasmCustomMap(type) ||
 #endif  // V8_ENABLE_WEBASSEMBLY
          InstanceTypeChecker::IsMap(type));
   auto meta_map_provider = [native_context] {

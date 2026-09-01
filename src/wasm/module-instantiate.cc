@@ -1243,7 +1243,12 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
     } else if (module_->has_array(index)) {
       DCHECK_EQ(map->instance_type(), WASM_ARRAY_TYPE);
     } else if (module_->has_struct(index)) {
-      DCHECK_EQ(map->instance_type(), WASM_STRUCT_TYPE);
+      if (module_->types[i].is_descriptor() &&
+          v8_flags.wasm_merged_descriptors) {
+        DCHECK_EQ(map->instance_type(), WASM_CUSTOM_MAP_TYPE);
+      } else {
+        DCHECK_EQ(map->instance_type(), WASM_STRUCT_TYPE);
+      }
     }
   }
 #endif
