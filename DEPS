@@ -99,7 +99,7 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:150a9d6ba0aa7f407aa4feeabc5f03ce9aa7e04b',
+  'gn_version': 'git_revision:a99d46a9d04c770d6bb87387058e1d7b151758ce',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -278,7 +278,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cef9e9a3efbdfa7100c379755c3d4f9535fadcd1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cb70c994a656601dc6a0d423f49ff57503bd70bc',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
