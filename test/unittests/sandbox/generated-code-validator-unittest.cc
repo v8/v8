@@ -209,6 +209,43 @@ TEST_F(GeneratedCodeValidatorTest, ValidateRootRegisterPartialInitFails) {
 
 #endif  // V8_TARGET_ARCH_ARM64
 
+#if V8_TARGET_ARCH_X64
+
+TEST_F(GeneratedCodeValidatorTest, ValidateSegmentRegisterFails) {
+  Isolate* i_isolate = this->i_isolate();
+
+  // Instruction with segment override prefix.
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                        buffer->CreateView());
+    // mov rax, [fs:rax]
+    __ db(0x64);
+    __ db(0x48);
+    __ db(0x8B);
+    __ db(0x00);
+    __ ret(0);
+
+    CheckValidationFails(i_isolate, masm,
+                         "Instruction uses a segment register");
+  }
+  // Instruction with segment register operand.
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                        buffer->CreateView());
+    // mov fs, ax
+    __ db(0x8E);
+    __ db(0xE0);
+    __ ret(0);
+
+    CheckValidationFails(i_isolate, masm,
+                         "Instruction uses a segment register at operand 0");
+  }
+}
+
+#endif  // V8_TARGET_ARCH_X64
+
 #undef __
 
 }  // namespace internal

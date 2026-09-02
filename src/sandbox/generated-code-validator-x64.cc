@@ -57,6 +57,7 @@ class InstructionChecker {
       CheckNoWritesToCageBaseRegister(pc, instr);
       CheckNoWritesToRootRegister(pc, instr);
     }
+    CheckNoSegmentRegisters(pc, instr);
   }
 
  private:
@@ -196,6 +197,28 @@ class InstructionChecker {
         violations_reporter_.ReportViolationWithInstruction(
             pc, FdInstrFormatter::Format(instr),
             std::format("Instruction accesses root register at operand {0}",
+                        i));
+      }
+    }
+  }
+
+  // Verifies that the instruction does not use segment override prefixes or
+  // segment register operands. V8 executes in a flat 64-bit address space where
+  // segmentation is unused; manipulating segment registers is either privileged
+  // or reserved for OS/runtime thread-local storage (TLS) and can be used to
+  // escape the sandbox.
+  void CheckNoSegmentRegisters(const uint8_t* pc, const FdInstr& instr) {
+    if (FD_SEGMENT(&instr) != FD_REG_NONE) {
+      violations_reporter_.ReportViolationWithInstruction(
+          pc, FdInstrFormatter::Format(instr),
+          std::format("Instruction uses a segment register"));
+    }
+    for (int i = 0; i < kMaxOperands; ++i) {
+      if (FD_OP_TYPE(&instr, i) == FD_OT_REG &&
+          FD_OP_REG_TYPE(&instr, i) == FD_RT_SEG) {
+        violations_reporter_.ReportViolationWithInstruction(
+            pc, FdInstrFormatter::Format(instr),
+            std::format("Instruction uses a segment register at operand {0}",
                         i));
       }
     }
