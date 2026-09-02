@@ -1230,7 +1230,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeValue(
   return HandleDateTimeOthers(isolate, date_time_format, x, method_name);
 }
 
-char16_t EqualventSkeletonchar(char16_t in) {
+char16_t EquivalentSkeletonChar(char16_t in) {
   switch (in) {
     case 'L':
       return 'M';
@@ -1246,6 +1246,10 @@ char16_t EqualventSkeletonchar(char16_t in) {
       return 'z';
     case 'v':
       return 'z';
+    case 'r':
+      return 'y';
+    case 'U':
+      return 'y';
     default:
       return '\0';
   }
@@ -1256,7 +1260,7 @@ icu::UnicodeString AdjustDateTimeStyleFormat(
     const std::set<char16_t>& allowed_options) {
   std::set<char16_t> allowed(allowed_options);
   for (int ch : allowed_options) {
-    auto also = EqualventSkeletonchar(ch);
+    auto also = EquivalentSkeletonChar(ch);
     if (also) {
       allowed.emplace(also);
     }
@@ -1348,7 +1352,7 @@ icu::UnicodeString GetDateTimeFormat(const icu::UnicodeString& options,
     char16_t ch = options.charAt(i);
     if (required_options.find(ch) != required_options.end()) {
       to_be_added.erase(ch);
-      auto also = EqualventSkeletonchar(ch);
+      auto also = EquivalentSkeletonChar(ch);
       if (also) {
         to_be_added.erase(also);
       }
@@ -1399,6 +1403,9 @@ std::set<char16_t> ExplicitComponentsSet(int32_t components) {
   }
   if (Year::decode(components)) {
     result.insert('y');
+    result.insert('r');
+    result.insert('U');
+    result.insert('G');
   }
   if (Month::decode(components)) {
     result.insert('M');
@@ -1490,7 +1497,7 @@ icu::UnicodeString GetSkeletonForPatternKind(
             best_format,
             // Allowed options:  [[weekday]], [[era]], [[year]], [[month]],
             // [[day]]
-            {'E', 'c', 'G', 'y', 'M', 'L', 'd'});
+            {'E', 'c', 'G', 'y', 'r', 'U', 'M', 'L', 'd'});
       }
       // ii. Set dateTimeFormat.[[TemporalPlainYearMonthFormat]] to
       // AdjustDateTimeStyleFormat(formats, bestFormat, formatMatcher, «
@@ -1501,7 +1508,7 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // [[era]], [[year]], [[month]] »).
         return AdjustDateTimeStyleFormat(best_format,
                                          // Allowed options: [[year]], [[month]]
-                                         {'G', 'y', 'M', 'L'});
+                                         {'G', 'y', 'r', 'U', 'M', 'L'});
       }
       if (kind == PatternKind::kPlainMonthDay) {
         // iii. Set dateTimeFormat.[[TemporalPlainMonthDayFormat]] to
@@ -1539,8 +1546,8 @@ icu::UnicodeString GetSkeletonForPatternKind(
             // [[weekday]], [[era]], [[year]], [[month]],
             // [[day]], [[hour]], [[minute]], [[second]], [[dayPeriod]],
             // [[fractionalSecondDigits]]
-            {'E', 'c', 'G', 'y', 'M', 'L', 'd', 'h', 'H', 'k', 'K', 'j', 'm',
-             's', 'B', 'b', 'a', 'S'});
+            {'E', 'c', 'G', 'y', 'r', 'U', 'M', 'L', 'd', 'h', 'H', 'k', 'K',
+             'j', 'm', 's', 'B', 'b', 'a', 'S'});
       case PatternKind::kInstant:
         // k. Set dateTimeFormat.[[TemporalInstantFormat]] to bestFormat.
         return best_format;
@@ -1555,7 +1562,7 @@ icu::UnicodeString GetSkeletonForPatternKind(
     //    b. Let requiredOptions be « "weekday", "year", "month", "day",
     //    "dayPeriod", "hour", "minute", "second", "fractionalSecondDigits" ».
     static const std::initializer_list<char16_t> kRequiredAny{
-        'E', 'c', 'G', 'y', 'M', 'L', 'd', 'h', 'H',
+        'E', 'c', 'G', 'y', 'r', 'U', 'M', 'L', 'd', 'h', 'H',
         'k', 'K', 'j', 'm', 's', 'B', 'b', 'a', 'S'};
     // 10. Else,
     //     a. Assert: defaults is zoned-date-time or all.
@@ -1570,7 +1577,7 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // const std::set<char16_t> kRequireddate({{'E', 'c', 'G', 'y', 'M',
         // 'L', 'd'}});
         static const std::initializer_list<char16_t> kRequiredDate{
-            'E', 'c', 'G', 'y', 'M', 'L', 'd'};
+            'E', 'c', 'G', 'y', 'r', 'U', 'M', 'L', 'd'};
         // 6. If defaults is date, then
         //   a. Let defaultOptions be « "year", "month", "day" ».
         static const std::initializer_list<char16_t> kDefaultsDate{'y', 'M',
@@ -1587,7 +1594,7 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // 3. Else if required is year-month, then
         //    a. Let requiredOptions be « "year", "month" ».
         static const std::initializer_list<char16_t> kRequiredYearMonth{
-            'G', 'y', 'M', 'L'};
+            'G', 'y', 'r', 'U', 'M', 'L'};
         // 8. Else if defaults is year-month, then
         //    a. Let defaultOptions be « "year", "month" ».
         static const std::initializer_list<char16_t> kDefaultsYearMonth{'y',
