@@ -107,16 +107,36 @@ void VerifyScopeTreeParity(Scope* ast_scope, DebugScriptScope debug_scope) {
       EXPECT_EQ(debug_scope.arguments_info(),
                 (std::pair{VariableAllocationInfo::NONE, -1}));
     }
+    if (decl->function_var() != nullptr) {
+      EXPECT_TRUE(debug_scope.has_function_variable());
+      Variable* var = decl->function_var();
+      VariableAllocationInfo expected_info =
+          var->location() == VariableLocation::CONTEXT
+              ? VariableAllocationInfo::CONTEXT
+              : VariableAllocationInfo::STACK;
+      EXPECT_EQ(debug_scope.function_variable_info(),
+                (std::pair{expected_info, var->index()}));
+      EXPECT_TRUE(debug_scope.function_variable_name()->Equals(*var->name()));
+    } else {
+      EXPECT_FALSE(debug_scope.has_function_variable());
+      EXPECT_EQ(debug_scope.function_variable_info(),
+                (std::pair{VariableAllocationInfo::NONE, -1}));
+      EXPECT_TRUE(debug_scope.function_variable_name().is_null());
+    }
   } else {
     EXPECT_FALSE(debug_scope.is_arrow_scope());
     EXPECT_FALSE(debug_scope.has_this_declaration());
     EXPECT_FALSE(debug_scope.has_simple_parameters());
     EXPECT_FALSE(debug_scope.has_arguments());
+    EXPECT_FALSE(debug_scope.has_function_variable());
     EXPECT_FALSE(debug_scope.sloppy_eval_can_extend_vars());
     EXPECT_EQ(debug_scope.receiver_info(),
               (std::pair{VariableAllocationInfo::NONE, -1}));
     EXPECT_EQ(debug_scope.arguments_info(),
               (std::pair{VariableAllocationInfo::NONE, -1}));
+    EXPECT_EQ(debug_scope.function_variable_info(),
+              (std::pair{VariableAllocationInfo::NONE, -1}));
+    EXPECT_TRUE(debug_scope.function_variable_name().is_null());
   }
 
   Scope* ast_child = ast_scope->inner_scope();
@@ -504,6 +524,70 @@ TEST_F(DebugScopeInfoTest, ArgumentsAllocationInfo) {
   auto [ctx_loc, ctx_idx] = with_args_context->arguments_info();
   EXPECT_EQ(ctx_loc, VariableAllocationInfo::CONTEXT);
   EXPECT_GE(ctx_idx, 0);
+}
+
+TEST_F(DebugScopeInfoTest, FunctionVariableInfo) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize(
+      "const withFuncContext = function f1() { return () => f1; };\n"
+      "const withFuncStack = function f2() { return f2; };\n"
+      "const withFuncDup = function f1() { return f1; };\n"
+      "const unusedName = function f3() { return 1; };\n"
+      "function normalDecl() { return 1; }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+  EXPECT_TRUE(IsFixedArray(info->string_table()));
+  EXPECT_EQ(info->string_table()->length().value(), 2u);
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+
+  // normalDecl (1)
+  auto normal_decl = script.first_child();
+  ASSERT_TRUE(normal_decl.has_value());
+  EXPECT_FALSE(normal_decl->has_function_variable());
+  EXPECT_EQ(normal_decl->function_variable_info(),
+            (std::pair{VariableAllocationInfo::NONE, -1}));
+  EXPECT_TRUE(normal_decl->function_variable_name().is_null());
+
+  // unusedName (2)
+  auto unused_name = normal_decl->next_sibling();
+  ASSERT_TRUE(unused_name.has_value());
+  EXPECT_FALSE(unused_name->has_function_variable());
+  EXPECT_EQ(unused_name->function_variable_info(),
+            (std::pair{VariableAllocationInfo::NONE, -1}));
+  EXPECT_TRUE(unused_name->function_variable_name().is_null());
+
+  // withFuncDup (3)
+  auto with_func_dup = unused_name->next_sibling();
+  ASSERT_TRUE(with_func_dup.has_value());
+  EXPECT_TRUE(with_func_dup->has_function_variable());
+  auto [dup_loc, dup_idx] = with_func_dup->function_variable_info();
+  EXPECT_EQ(dup_loc, VariableAllocationInfo::STACK);
+  EXPECT_GE(dup_idx, 0);
+  EXPECT_TRUE(with_func_dup->function_variable_name()->Equals(
+      *isolate()->factory()->NewStringFromAsciiChecked("f1")));
+
+  // withFuncStack (4)
+  auto with_func_stack = with_func_dup->next_sibling();
+  ASSERT_TRUE(with_func_stack.has_value());
+  EXPECT_TRUE(with_func_stack->has_function_variable());
+  auto [stack_loc, stack_idx] = with_func_stack->function_variable_info();
+  EXPECT_EQ(stack_loc, VariableAllocationInfo::STACK);
+  EXPECT_GE(stack_idx, 0);
+  EXPECT_TRUE(with_func_stack->function_variable_name()->Equals(
+      *isolate()->factory()->NewStringFromAsciiChecked("f2")));
+
+  // withFuncContext (5)
+  auto with_func_context = with_func_stack->next_sibling();
+  ASSERT_TRUE(with_func_context.has_value());
+  EXPECT_TRUE(with_func_context->has_function_variable());
+  auto [ctx_loc, ctx_idx] = with_func_context->function_variable_info();
+  EXPECT_EQ(ctx_loc, VariableAllocationInfo::CONTEXT);
+  EXPECT_GE(ctx_idx, 0);
+  EXPECT_TRUE(with_func_context->function_variable_name()->Equals(
+      *isolate()->factory()->NewStringFromAsciiChecked("f1")));
+  EXPECT_EQ(with_func_context->function_variable_name(),
+            with_func_dup->function_variable_name());
 }
 
 }  // namespace internal

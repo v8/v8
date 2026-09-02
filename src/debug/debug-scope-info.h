@@ -18,6 +18,7 @@ namespace internal {
 
 class DeclarationScope;
 class Isolate;
+class String;
 
 // Stack-allocated cursor for navigating and querying serialized scope trees
 // stored in DebugScriptScopeInfo.
@@ -57,6 +58,7 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   bool has_this_reference() const;
   bool has_simple_parameters() const;
   bool has_arguments() const;
+  bool has_function_variable() const;
   bool sloppy_eval_can_extend_vars() const;
   bool needs_context() const;
 
@@ -72,6 +74,8 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   // second element represents the stack slot index or context slot index of the
   // arguments variable (or -1 if none/unallocated).
   std::pair<VariableAllocationInfo, int> arguments_info() const;
+  std::pair<VariableAllocationInfo, int> function_variable_info() const;
+  Tagged<String> function_variable_name() const;
 
  private:
   DebugScriptScope(DirectHandle<DebugScriptScopeInfo> info, int scope_index,
@@ -79,6 +83,7 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
       : info_(info), scope_index_(scope_index), offset_(offset) {}
 
   const uint8_t* payload() const;
+  const uint8_t* function_variable_payload() const;
   uint16_t flags() const;
   int parent_index() const;
 
@@ -87,6 +92,7 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   size_t context_id_offset() const;
   size_t receiver_info_offset() const;
   size_t arguments_info_offset() const;
+  size_t function_variable_offset() const;
   size_t record_size() const;
 
   friend class DebugScriptScopeInfo;
