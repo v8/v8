@@ -1526,6 +1526,7 @@ extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
     ElementsKind;
 
 extern operator '.length' macro LoadFastJSArrayLength(FastJSArray): Smi;
+extern operator '.length' macro LoadFastJSArrayLength(FastJSArrayForRead): Smi;
 operator '.length=' macro StoreFastJSArrayLength(
     array: FastJSArray, length: Smi): void {
   const array: JSArray = array;
