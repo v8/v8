@@ -206,6 +206,14 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     }                                       \
   } while (false)
 
+#define RETURN_IF_NOT_DONE_WITHOUT_ABORT(result) \
+  do {                                           \
+    auto res = (result);                         \
+    if (!res.IsDoneWithoutAbort()) {             \
+      return res;                                \
+    }                                            \
+  } while (false)
+
 #define PROCESS_AND_RETURN_IF_DONE(result, value_processor) \
   do {                                                      \
     auto res = (result);                                    \
@@ -1343,6 +1351,10 @@ class MaglevReducer {
   MaybeReduceResult TryReduceStringPrototypeIndexOfIncludes(CallArguments& args,
                                                             bool is_includes);
 
+  MaybeReduceResult BuildSpeculativeCheckInstanceType(ValueNode* object,
+                                                      NodeType target_type,
+                                                      InstanceType first,
+                                                      InstanceType last);
   ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,
                                       InstanceType first, InstanceType last);
   ReduceResult GetInt32ElementIndex(ValueNode* index_object);

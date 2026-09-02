@@ -24,6 +24,8 @@ class KnownNodeAspects;
 class TraceLogger;
 
 enum class EnsureTypeResult { kAlreadyHadType, kTypeUpdated, kContradiction };
+using UpdateTypeOnContradiction =
+    base::StrongAlias<struct UpdateTypeOnContradictionTag, bool>;
 
 using PossibleMaps = compiler::ZoneRefSet<Map>;
 
@@ -70,6 +72,7 @@ class NodeInfo {
   }
 
   NodeType type() const { return type_; }
+  void set_type(NodeType type) { type_ = type; }
   NodeType IntersectType(NodeType other) {
     return type_ = maglev::IntersectType(type_, other);
   }
@@ -548,30 +551,15 @@ class KnownNodeAspects {
 
   EnsureTypeResult EnsureType(compiler::JSHeapBroker* broker, ValueNode* node,
                               NodeType type, NodeType* old_type = nullptr) {
-    NodeType static_type = node->GetStaticType(broker);
-    if (old_type) *old_type = static_type;
-    if (NodeTypeIs(static_type, type, NodeTypeIsVariant::kAllowNone)) {
-      if (static_type == NodeType::kNone) {
-        return EnsureTypeResult::kContradiction;
-      }
-      return EnsureTypeResult::kAlreadyHadType;
-    }
-    NodeInfo* known_info = GetOrCreateInfoFor(broker, node);
-    if (old_type) *old_type = known_info->type();
-    if (NodeTypeIs(known_info->type(), type, NodeTypeIsVariant::kAllowNone)) {
-      if (known_info->type() == NodeType::kNone) {
-        return EnsureTypeResult::kContradiction;
-      }
-      return EnsureTypeResult::kAlreadyHadType;
-    }
-    known_info->IntersectType(type);
-    if (auto phi = node->TryCast<Phi>()) {
-      known_info->IntersectType(phi->type());
-    }
-    if (known_info->type() == NodeType::kNone) {
-      return EnsureTypeResult::kContradiction;
-    }
-    return EnsureTypeResult::kTypeUpdated;
+    return EnsureTypeHelper(broker, node, type, old_type,
+                            UpdateTypeOnContradiction{true});
+  }
+
+  EnsureTypeResult TryEnsureType(compiler::JSHeapBroker* broker,
+                                 ValueNode* node, NodeType type,
+                                 NodeType* old_type = nullptr) {
+    return EnsureTypeHelper(broker, node, type, old_type,
+                            UpdateTypeOnContradiction{false});
   }
 
   void Merge(const KnownNodeAspects& other, Zone* zone);
@@ -870,6 +858,50 @@ class KnownNodeAspects {
         virtual_objects_() {}
 
  private:
+  EnsureTypeResult EnsureTypeHelper(
+      compiler::JSHeapBroker* broker, ValueNode* node, NodeType type,
+      NodeType* old_type,
+      UpdateTypeOnContradiction update_type_on_contradiction) {
+    NodeType static_type = node->GetStaticType(broker);
+    if (old_type) *old_type = static_type;
+    if (NodeTypeIs(static_type, type, NodeTypeIsVariant::kAllowNone)) {
+      if (static_type == NodeType::kNone) {
+        return EnsureTypeResult::kContradiction;
+      }
+      return EnsureTypeResult::kAlreadyHadType;
+    }
+    NodeInfo* known_info = update_type_on_contradiction
+                               ? GetOrCreateInfoFor(broker, node)
+                               : TryGetInfoFor(node);
+    NodeType current_type = static_type;
+    if (known_info) {
+      current_type = known_info->type();
+      if (old_type) *old_type = current_type;
+      if (NodeTypeIs(current_type, type, NodeTypeIsVariant::kAllowNone)) {
+        if (current_type == NodeType::kNone) {
+          return EnsureTypeResult::kContradiction;
+        }
+        return EnsureTypeResult::kAlreadyHadType;
+      }
+    }
+    NodeType new_type = IntersectType(current_type, type);
+    if (auto phi = node->TryCast<Phi>()) {
+      new_type = IntersectType(new_type, phi->type());
+    }
+    if (new_type == NodeType::kNone) {
+      if (update_type_on_contradiction) {
+        DCHECK_NOT_NULL(known_info);
+        known_info->set_type(NodeType::kNone);
+      }
+      return EnsureTypeResult::kContradiction;
+    }
+    if (!known_info) {
+      known_info = GetOrCreateInfoFor(broker, node);
+    }
+    known_info->set_type(new_type);
+    return EnsureTypeResult::kTypeUpdated;
+  }
+
   bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value,
                              MaybeAssignedFlag assigned);
 

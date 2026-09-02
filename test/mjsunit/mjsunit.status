@@ -3097,8 +3097,6 @@
   'regress/regress-1371935': [SKIP],
   'regress/regress-9441': [SKIP],
 
-  # Maglev doesn't check detachment for DataView yet.
-  'compiler/dataview-detached': [SKIP],
 
   # Maglev doesn't lower CallWithSpread.
   'compiler/regress-385386138': [SKIP],

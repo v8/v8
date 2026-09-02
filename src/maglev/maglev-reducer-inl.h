@@ -4840,6 +4840,23 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathFround(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::BuildSpeculativeCheckInstanceType(
+    ValueNode* object, NodeType target_type, InstanceType first,
+    InstanceType last) {
+  NodeType known_type;
+  EnsureTypeResult ensure_res = known_node_aspects().TryEnsureType(
+      broker(), object, target_type, &known_type);
+  if (ensure_res == EnsureTypeResult::kAlreadyHadType) {
+    return ReduceResult::Done();
+  }
+  if (ensure_res == EnsureTypeResult::kContradiction) {
+    return {};
+  }
+  return AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
+                                       first, last);
+}
+
+template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildCheckInstanceType(ValueNode* object,
                                                           NodeType target_type,
                                                           InstanceType first,
@@ -5143,15 +5160,16 @@ template <typename LoadNode>
 MaybeReduceResult MaglevReducer<BaseT>::TryBuildLoadDataView(
     const CallArguments& args, ExternalArrayType type) {
   if (!CanSpeculateCall()) return {};
-  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
-    // TODO(victorgomes): Add checks whether the array has been detached or is
-    // immutable.
-    return {};
-  }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  RETURN_IF_ABORT(BuildCheckInstanceType(receiver, NodeType::kJSDataView,
-                                         JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
-  // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
+  RETURN_IF_NOT_DONE_WITHOUT_ABORT(BuildSpeculativeCheckInstanceType(
+      receiver, NodeType::kJSDataView, JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
+  bool depend_on_detaching =
+      broker()->dependencies()->DependOnArrayBufferDetachingProtector();
+  if (!depend_on_detaching) {
+    RETURN_IF_ABORT(AddNewNode<CheckTypedArrayValid>(
+        {receiver}, TypedArrayAccessMode::kRead));
+  }
+  // TODO(555676855): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   ValueNode* offset;
   if (args[0]) {
     GET_VALUE_OR_ABORT(offset, GetInt32ElementIndex(args[0]));
@@ -5178,15 +5196,18 @@ template <typename StoreNode, typename Function>
 MaybeReduceResult MaglevReducer<BaseT>::TryBuildStoreDataView(
     const CallArguments& args, ExternalArrayType type, Function&& getValue) {
   if (!CanSpeculateCall()) return {};
-  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector() ||
-      !broker()->dependencies()->DependOnArrayBufferMutableProtector()) {
-    // TODO(victorgomes): Add checks whether the array has been detached.
-    return {};
-  }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  RETURN_IF_ABORT(BuildCheckInstanceType(receiver, NodeType::kJSDataView,
-                                         JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
-  // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
+  RETURN_IF_NOT_DONE_WITHOUT_ABORT(BuildSpeculativeCheckInstanceType(
+      receiver, NodeType::kJSDataView, JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
+  bool depend_on_detaching =
+      broker()->dependencies()->DependOnArrayBufferDetachingProtector();
+  bool depend_on_mutable =
+      broker()->dependencies()->DependOnArrayBufferMutableProtector();
+  if (!depend_on_detaching || !depend_on_mutable) {
+    RETURN_IF_ABORT(AddNewNode<CheckTypedArrayValid>(
+        {receiver}, TypedArrayAccessMode::kWrite));
+  }
+  // TODO(555676855): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   ValueNode* offset;
   if (args[0]) {
     GET_VALUE_OR_ABORT(offset, GetInt32ElementIndex(args[0]));
