@@ -527,11 +527,6 @@ Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
       FixedArray::OffsetOfElementAt(type_index) - kHeapObjectTag));
 }
 
-namespace {
-constexpr int32_t kInt31MaxValue = 0x3fffffff;
-constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
-}  // namespace
-
 Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmAnyConvertExtern);
   Node* input = NodeProperties::GetValueInput(node, 0);
@@ -564,12 +559,12 @@ Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
     Node* int_value = gasm_.BuildChangeSmiToInt32(input);
 
     // Convert to heap number if the int32 does not fit into an i31ref.
-    gasm_.GotoIf(
-        gasm_.Int32LessThan(gasm_.Int32Constant(kInt31MaxValue), int_value),
-        &to_heap_number_label);
-    gasm_.GotoIf(
-        gasm_.Int32LessThan(int_value, gasm_.Int32Constant(kInt31MinValue)),
-        &to_heap_number_label);
+    gasm_.GotoIf(gasm_.Int32LessThan(gasm_.Int32Constant(wasm::kInt31MaxValue),
+                                     int_value),
+                 &to_heap_number_label);
+    gasm_.GotoIf(gasm_.Int32LessThan(int_value,
+                                     gasm_.Int32Constant(wasm::kInt31MinValue)),
+                 &to_heap_number_label);
     gasm_.Goto(&end_label, input);
 
     gasm_.Bind(&to_heap_number_label);
@@ -584,12 +579,12 @@ Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
       MachineType::Float64(), input,
       AccessBuilder::ForHeapNumberValue().offset - kHeapObjectTag);
   // Check range of float value.
-  gasm_.GotoIf(
-      gasm_.Float64LessThan(float_value, gasm_.Float64Constant(kInt31MinValue)),
-      &end_label, input);
-  gasm_.GotoIf(
-      gasm_.Float64LessThan(gasm_.Float64Constant(kInt31MaxValue), float_value),
-      &end_label, input);
+  gasm_.GotoIf(gasm_.Float64LessThan(
+                   float_value, gasm_.Float64Constant(wasm::kInt31MinValue)),
+               &end_label, input);
+  gasm_.GotoIf(gasm_.Float64LessThan(
+                   gasm_.Float64Constant(wasm::kInt31MaxValue), float_value),
+               &end_label, input);
   // Check if value is -0.
   Node* is_minus_zero = nullptr;
   if (mcgraph_->machine()->Is64()) {

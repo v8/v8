@@ -132,9 +132,6 @@ class WasmLoweringReducer : public Next {
     Label<> int_to_smi_label(&Asm());
     Label<> heap_number_label(&Asm());
 
-    constexpr int32_t kInt31MaxValue = 0x3fffffff;
-    constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
-
     if (is_nullable) {
       GOTO_IF(__ IsNull(object, wasm::kWasmExternRef), null_label);
     }
@@ -157,9 +154,9 @@ class WasmLoweringReducer : public Next {
       V<Word32> int_value = __ UntagSmi(V<Smi>::Cast(object));
 
       // Convert to heap number if the int32 does not fit into an i31ref.
-      GOTO_IF(__ Int32LessThan(kInt31MaxValue, int_value),
+      GOTO_IF(__ Int32LessThan(wasm::kInt31MaxValue, int_value),
               convert_to_heap_number_label);
-      GOTO_IF(__ Int32LessThan(int_value, kInt31MinValue),
+      GOTO_IF(__ Int32LessThan(int_value, wasm::kInt31MinValue),
               convert_to_heap_number_label);
       GOTO(end_label, object);
 
@@ -178,9 +175,11 @@ class WasmLoweringReducer : public Next {
     V<Float64> float_value =
         __ LoadHeapNumberValue(V<HeapNumber>::Cast(object));
     // Check range of float value.
-    GOTO_IF(__ Float64LessThan(float_value, __ Float64Constant(kInt31MinValue)),
+    GOTO_IF(__ Float64LessThan(float_value,
+                               __ Float64Constant(wasm::kInt31MinValue)),
             end_label, object);
-    GOTO_IF(__ Float64LessThan(__ Float64Constant(kInt31MaxValue), float_value),
+    GOTO_IF(__ Float64LessThan(__ Float64Constant(wasm::kInt31MaxValue),
+                               float_value),
             end_label, object);
     // Check if value is -0.
     V<Word32> is_minus_zero;

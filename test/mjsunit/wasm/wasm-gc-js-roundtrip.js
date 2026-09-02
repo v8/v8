@@ -82,6 +82,15 @@ let instance = (() => {
         .exportFunc();
   }
 
+  // Test that the wrappers behave correctly when a type follows an
+  // uninhabitable type.
+  let uninhabitable = wasmRefType(kWasmNullRef);
+  builder.addFunction(
+      "multi_value_uninhabitable",
+      makeSig([uninhabitable, kWasmI32], [uninhabitable, kWasmI32]))
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1])
+    .exportFunc();
+
   return builder.instantiate({});
 })();
 
@@ -168,6 +177,30 @@ instance.exports.eq_id(instance.exports.array_producer());
 // We can roundtrip an i31 as eqref/i31ref.
 instance.exports.eq_id(instance.exports.i31_as_eq_producer());
 instance.exports.i31_id(instance.exports.i31_as_eq_producer());
+// We can roundtrip a number in range as i31.
+instance.exports.i31_id(42);
+instance.exports.i31_id(42.0);
+const kInt31MaxValue = 0x3fffffff;
+const kInt31MinValue = -kInt31MaxValue - 1;
+instance.exports.i31_id(kInt31MaxValue);
+instance.exports.i31_id(kInt31MinValue);
+// We cannot roundtrip a double or a number outside i31 range as i31.
+assertThrows(
+    () => instance.exports.i31_id(kInt31MaxValue + 1), TypeError,
+    'type incompatibility when transforming from/to JS');
+assertThrows(
+    () => instance.exports.i31_id(kInt31MinValue - 1), TypeError,
+    'type incompatibility when transforming from/to JS');
+assertThrows(
+    () => instance.exports.i31_id(10.5), TypeError,
+    'type incompatibility when transforming from/to JS');
+assertThrows(
+    () => instance.exports.i31_id(-0.0), TypeError,
+    'type incompatibility when transforming from/to JS');
+// We cannot roundtrip a JS object as i31.
+assertThrows(
+    () => instance.exports.i31_id({}), TypeError,
+    'type incompatibility when transforming from/to JS');
 // We can roundtrip any null as any null supertype.
 instance.exports.eq_id(instance.exports.struct_null());
 instance.exports.eq_id(instance.exports.eq_null());
@@ -241,7 +274,18 @@ assertThrows(
 // We can roundtrip an extern.
 assertEquals(null, instance.exports.extern_id(instance.exports.extern_null()));
 
-// We can roundtrip null typed as one of the three null types though wasm.
+// We can roundtrip null typed as one of the three null types though wasm...
 for (const nullType of ["none", "nofunc", "noextern"]) {
   instance.exports[`${nullType}_id`](instance.exports[`${nullType}_null`]());
 }
+// ... but not their non-nullable (uninhabited) versions.
+for (const nullType of ["none", "nofunc", "noextern"]) {
+  assertThrows(
+    () => instance.exports[`${nullType}_non_null_id`](
+        instance.exports[`${nullType}_null`]()),
+    TypeError,
+    'type incompatibility when transforming from/to JS');
+}
+
+assertThrows(() => instance.exports.multi_value_uninhabitable(null, 0),
+             TypeError, 'type incompatibility when transforming from/to JS');

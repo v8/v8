@@ -2992,22 +2992,19 @@ DirectHandle<WasmExceptionTag> WasmExceptionTag::New(Isolate* isolate,
 }
 
 namespace {
-constexpr int32_t kInt31MaxValue = 0x3fffffff;
-constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
-
-// Tries to canonicalize a HeapNumber to an i31ref Smi. Returns the original
-// HeapNumber if it fails.
+// Tries to canonicalize a HeapNumber to an i31ref Smi. If it fails, tries to
+// share the input if necessary; otherwise returns the original HeapNumber.
 DirectHandle<Object> CanonicalizeHeapNumber(DirectHandle<Object> number,
                                             Isolate* isolate,
                                             SharedFlag is_shared) {
   auto heap_number = Cast<HeapNumber>(number);
   double double_value = heap_number->value();
-  if (double_value >= kInt31MinValue && double_value <= kInt31MaxValue &&
-      !IsMinusZero(double_value) &&
+  if (double_value >= wasm::kInt31MinValue &&
+      double_value <= wasm::kInt31MaxValue && !IsMinusZero(double_value) &&
       double_value == FastI2D(FastD2I(double_value))) {
     return direct_handle(Smi::FromInt(FastD2I(double_value)), isolate);
   }
-  if (is_shared && !HeapLayout::InWritableSharedSpace(*heap_number)) {
+  if (is_shared && !HeapLayout::InAnySharedSpace(*heap_number)) {
     return isolate->factory()->NewHeapNumber<AllocationType::kSharedOld>(
         double_value);
   }
@@ -3022,7 +3019,7 @@ DirectHandle<Object> CanonicalizeSmi(DirectHandle<Object> smi, Isolate* isolate,
 
   int32_t value = Cast<Smi>(*smi).value();
 
-  if (value <= kInt31MaxValue && value >= kInt31MinValue) {
+  if (value <= wasm::kInt31MaxValue && value >= wasm::kInt31MinValue) {
     return smi;
   } else if (is_shared) {
     return isolate->factory()->NewHeapNumber<AllocationType::kSharedOld>(value);
