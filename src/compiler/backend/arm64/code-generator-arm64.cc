@@ -3017,6 +3017,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(0).Format(f));                      \
     break;                                                              \
   }
+#define SIMD_LOW_NARROWING_CASE(Op, Instr)                              \
+  case Op: {                                                            \
+    const VectorFormat wide =                                           \
+        VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
+    const VectorFormat narrow = VectorFormatHalfWidth(wide);            \
+    __ Instr(i.OutputSimd128Register().Format(narrow),                  \
+             i.InputSimd128Register(0).Format(wide));                   \
+    break;                                                              \
+  }
+#define SIMD_HIGH_NARROWING_CASE(Op, Instr)                             \
+  case Op: {                                                            \
+    const VectorFormat wide =                                           \
+        VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
+    const VectorFormat narrow = VectorFormatHalfWidthDoubleLanes(wide); \
+    const VRegister dst = i.OutputSimd128Register().Format(narrow);     \
+    DCHECK_EQ(dst, i.InputSimd128Register(0).Format(narrow));           \
+    DCHECK_NE(dst.code(), i.InputSimd128Register(1).code());            \
+    __ Instr(dst, i.InputSimd128Register(1).Format(wide));              \
+    break;                                                              \
+  }
 #define SIMD_BINOP_CASE(Op, Instr, FORMAT)           \
   case Op:                                           \
     __ Instr(i.OutputSimd128Register().V##FORMAT(),  \
@@ -3124,6 +3144,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IMaxU, Umax);
       SIMD_DESTRUCTIVE_BINOP_LANE_SIZE_CASE(kArm64Mla, Mla);
       SIMD_DESTRUCTIVE_BINOP_LANE_SIZE_CASE(kArm64Mls, Mls);
+      SIMD_LOW_NARROWING_CASE(kArm64Sqxtn, Sqxtn);
+      SIMD_HIGH_NARROWING_CASE(kArm64Sqxtn2, Sqxtn2);
+      SIMD_LOW_NARROWING_CASE(kArm64Sqxtun, Sqxtun);
+      SIMD_HIGH_NARROWING_CASE(kArm64Sqxtun2, Sqxtun2);
     case kArm64Sxtl: {
       VectorFormat wide =
           VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode)));
@@ -3532,69 +3556,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt8(1));
       break;
     }
-    case kArm64I16x8SConvertI32x4: {
-      VRegister dst = i.OutputSimd128Register(),
-                src0 = i.InputSimd128Register(0),
-                src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
-      VRegister temp = scope.AcquireV(kFormat4S);
-      if (dst == src1) {
-        __ Mov(temp, src1.V4S());
-        src1 = temp;
-      }
-      __ Sqxtn(dst.V4H(), src0.V4S());
-      __ Sqxtn2(dst.V8H(), src1.V4S());
-      break;
-    }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IAddSatS, Sqadd);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64ISubSatS, Sqsub);
-    case kArm64I16x8UConvertI32x4: {
-      VRegister dst = i.OutputSimd128Register(),
-                src0 = i.InputSimd128Register(0),
-                src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
-      VRegister temp = scope.AcquireV(kFormat4S);
-      if (dst == src1) {
-        __ Mov(temp, src1.V4S());
-        src1 = temp;
-      }
-      __ Sqxtun(dst.V4H(), src0.V4S());
-      __ Sqxtun2(dst.V8H(), src1.V4S());
-      break;
-    }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IAddSatU, Uqadd);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64ISubSatU, Uqsub);
       SIMD_BINOP_CASE(kArm64I16x8Q15MulRSatS, Sqrdmulh, 8H);
     case kArm64I16x8BitMask: {
       __ I16x8BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
-      break;
-    }
-    case kArm64I8x16SConvertI16x8: {
-      VRegister dst = i.OutputSimd128Register(),
-                src0 = i.InputSimd128Register(0),
-                src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
-      VRegister temp = scope.AcquireV(kFormat8H);
-      if (dst == src1) {
-        __ Mov(temp, src1.V8H());
-        src1 = temp;
-      }
-      __ Sqxtn(dst.V8B(), src0.V8H());
-      __ Sqxtn2(dst.V16B(), src1.V8H());
-      break;
-    }
-    case kArm64I8x16UConvertI16x8: {
-      VRegister dst = i.OutputSimd128Register(),
-                src0 = i.InputSimd128Register(0),
-                src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope scope(masm());
-      VRegister temp = scope.AcquireV(kFormat8H);
-      if (dst == src1) {
-        __ Mov(temp, src1.V8H());
-        src1 = temp;
-      }
-      __ Sqxtun(dst.V8B(), src0.V8H());
-      __ Sqxtun2(dst.V16B(), src1.V8H());
       break;
     }
     case kArm64I8x16BitMask: {
@@ -3976,6 +3944,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
 #undef SIMD_UNOP_CASE
 #undef SIMD_UNOP_LANE_SIZE_CASE
+#undef SIMD_LOW_NARROWING_CASE
+#undef SIMD_HIGH_NARROWING_CASE
 #undef SIMD_BINOP_CASE
 #undef SIMD_BINOP_LANE_SIZE_CASE
 #undef SIMD_LOW_BINOP_LANE_SIZE_CASE

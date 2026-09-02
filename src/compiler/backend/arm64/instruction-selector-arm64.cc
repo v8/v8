@@ -4930,13 +4930,9 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
 
 #define SIMD_BINOP_LIST(V)                                        \
   V(I32x4Mul, kArm64IMul | LaneSizeField::encode(LaneSize::kL32)) \
-  V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4)                 \
   V(I16x8Mul, kArm64IMul | LaneSizeField::encode(LaneSize::kL16)) \
-  V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4)                 \
   V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)                     \
-  V(I16x8RelaxedQ15MulRS, kArm64I16x8Q15MulRSatS)                 \
-  V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8)                 \
-  V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8)
+  V(I16x8RelaxedQ15MulRS, kArm64I16x8Q15MulRSatS)
 
 #define SIMD_BINOP_LANE_SIZE_LIST(V)                               \
   V(F64x2Min, kArm64FMin, LaneSize::kL64)                          \
@@ -5389,6 +5385,23 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+#define SIMD_VISIT_INT_NARROWING(Name, Instr, LaneSize)                \
+  void InstructionSelector::Visit##Name(OpIndex node) {                \
+    Arm64OperandGenerator g(this);                                     \
+    const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);             \
+    const InstructionCode lane_size = LaneSizeField::encode(LaneSize); \
+    const InstructionOperand low = g.TempSimd128Register();            \
+    Emit(kArm64##Instr | lane_size, low, g.UseRegister(op.left()));    \
+    Emit(kArm64##Instr##2 | lane_size, g.DefineSameAsFirst(node), low, \
+         g.UseRegister(op.right()));                                   \
+  }
+
+SIMD_VISIT_INT_NARROWING(I16x8SConvertI32x4, Sqxtn, LaneSize::kL32)
+SIMD_VISIT_INT_NARROWING(I16x8UConvertI32x4, Sqxtun, LaneSize::kL32)
+SIMD_VISIT_INT_NARROWING(I8x16SConvertI16x8, Sqxtn, LaneSize::kL16)
+SIMD_VISIT_INT_NARROWING(I8x16UConvertI16x8, Sqxtun, LaneSize::kL16)
+#undef SIMD_VISIT_INT_NARROWING
 
 #define SIMD_VISIT_BINOP_LANE_SIZE(Name, instruction, LaneSize)          \
   void InstructionSelector::Visit##Name(OpIndex node) {                  \

@@ -3008,6 +3008,70 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
 
 #if V8_ENABLE_WEBASSEMBLY
 
+namespace {
+
+struct SIMDIntNarrowingInst {
+  const char* name;
+  TSBinop operation;
+  ArchOpcode narrow_opcode;
+  ArchOpcode narrow2_opcode;
+  int lane_size;
+};
+
+std::ostream& operator<<(std::ostream& os, const SIMDIntNarrowingInst& inst) {
+  return os << inst.name;
+}
+
+const SIMDIntNarrowingInst kSIMDIntNarrowingInstructions[] = {
+    {"I16x8SConvertI32x4", TSBinop::kI16x8SConvertI32x4, kArm64Sqxtn,
+     kArm64Sqxtn2, 32},
+    {"I16x8UConvertI32x4", TSBinop::kI16x8UConvertI32x4, kArm64Sqxtun,
+     kArm64Sqxtun2, 32},
+    {"I8x16SConvertI16x8", TSBinop::kI8x16SConvertI16x8, kArm64Sqxtn,
+     kArm64Sqxtn2, 16},
+    {"I8x16UConvertI16x8", TSBinop::kI8x16UConvertI16x8, kArm64Sqxtun,
+     kArm64Sqxtun2, 16},
+};
+
+}  // namespace
+
+using TurboshaftInstructionSelectorSIMDIntNarrowingTest =
+    TurboshaftInstructionSelectorTestWithParam<SIMDIntNarrowingInst>;
+
+TEST_P(TurboshaftInstructionSelectorSIMDIntNarrowingTest, Parameter) {
+  const SIMDIntNarrowingInst param = GetParam();
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  const V<Simd128> low = m.Parameter(0);
+  const V<Simd128> high = m.Parameter(1);
+  const OpIndex result = m.Emit(param.operation, low, high);
+  m.Return(result);
+  const Stream s = m.Build();
+
+  ASSERT_EQ(2U, s.size());
+
+  EXPECT_EQ(param.narrow_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(param.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+  ASSERT_EQ(1U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(low), s.ToVreg(s[0]->InputAt(0)));
+
+  EXPECT_EQ(param.narrow2_opcode, s[1]->arch_opcode());
+  EXPECT_EQ(param.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[1]->opcode())));
+  ASSERT_EQ(2U, s[1]->InputCount());
+  ASSERT_EQ(1U, s[1]->OutputCount());
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(high), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(result), s.ToVreg(s[1]->Output()));
+  EXPECT_TRUE(s.IsSameAsInput(s[1]->Output(), 0));
+}
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorSIMDIntNarrowingTest,
+                         ::testing::ValuesIn(kSIMDIntNarrowingInstructions));
+
 TEST_F(TurboshaftInstructionSelectorTest, I32x4DotI8x16I7x16AddS) {
   StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
                   MachineType::Simd128(), MachineType::Simd128());
