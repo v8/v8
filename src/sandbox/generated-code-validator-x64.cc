@@ -46,7 +46,7 @@ class InstructionChecker {
   void Check(const uint8_t* pc, const FdInstr& instr) {
     // REGEXP code doesn't follow the V8 ABI and instead uses standard C ABI.
     if (code_->kind() != CodeKind::REGEXP) {
-      CheckNoAccessesToCageBaseRegister(pc, instr);
+      CheckNoWritesToCageBaseRegister(pc, instr);
     }
   }
 
@@ -58,8 +58,8 @@ class InstructionChecker {
   // base register directly, so it's easier to enforce no accesses at all rather
   // than only no reads. This will not block using the case base register as a
   // base address for a memory operand.
-  void CheckNoAccessesToCageBaseRegister(const uint8_t* pc,
-                                         const FdInstr& instr) {
+  void CheckNoWritesToCageBaseRegister(const uint8_t* pc,
+                                       const FdInstr& instr) {
     static constexpr int kMaxOperands = 4;
     static_assert(kMaxOperands == (sizeof(instr.operands) / sizeof(FdOp)));
 

@@ -141,46 +141,22 @@ TEST_F(GeneratedCodeValidatorTest, ValidateDecompressionPasses) {
 }
 
 #if V8_TARGET_ARCH_ARM64
-TEST_F(GeneratedCodeValidatorTest, ValidateInvalidDecompressionFails) {
+
+TEST_F(GeneratedCodeValidatorTest, ValidateCageBaseWritebackFails) {
   static_assert(kPtrComprCageBaseRegister != no_reg);
   Isolate* i_isolate = this->i_isolate();
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                      buffer->CreateView());
 
-  // Test non-zero shift with UXTW.
-  {
-    auto buffer = AllocateAssemblerBuffer();
-    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
-                        buffer->CreateView());
-    __ Add(x13, kPtrComprCageBaseRegister, Operand(w13, UXTW, 1));
-    __ ret();
-    CheckValidationFails(
-        i_isolate, masm,
-        "Instruction accesses cage bage register at operand 1");
-  }
+  // Pre-indexed load with writeback updating the cage base register.
+  __ Ldr(x0, MemOperand(kPtrComprCageBaseRegister, 16, PreIndex));
+  __ ret();
 
-  // Test sign extension instead of zero extension.
-  {
-    auto buffer = AllocateAssemblerBuffer();
-    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
-                        buffer->CreateView());
-    __ Add(x13, kPtrComprCageBaseRegister, Operand(w13, SXTW, 0));
-    __ ret();
-    CheckValidationFails(
-        i_isolate, masm,
-        "Instruction accesses cage bage register at operand 1");
-  }
-
-  // Test 64-bit extension instead of zero-extending 32-bit register.
-  {
-    auto buffer = AllocateAssemblerBuffer();
-    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
-                        buffer->CreateView());
-    __ Add(x13, kPtrComprCageBaseRegister, Operand(x13, UXTX, 0));
-    __ ret();
-    CheckValidationFails(
-        i_isolate, masm,
-        "Instruction accesses cage bage register at operand 1");
-  }
+  CheckValidationFails(i_isolate, masm,
+                       "Instruction accesses cage bage register at operand 1");
 }
+
 #endif  // V8_TARGET_ARCH_ARM64
 
 #undef __

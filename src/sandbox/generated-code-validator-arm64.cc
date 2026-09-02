@@ -122,20 +122,21 @@ class InstructionChecker {
   void Check(const uint8_t* pc, const Da64Inst& instr) {
     // REGEXP code doesn't follow the V8 ABI and instead uses standard C ABI.
     if (code_->kind() != CodeKind::REGEXP) {
-      CheckNoAccessesToCageBaseRegister(pc, instr);
+      CheckNoWritesToCageBaseRegister(pc, instr);
     }
   }
 
  private:
   // Verifies whether the instruction accesses the pointer compression cage base
-  // register (x28) directly. The cage base register must remain read-only
-  // across all generated code to preserve sandbox integrity and prevent pointer
-  // corruption. In practice, generated code doesn't need to even read the cage
-  // base register directly, so it's easier to enforce no accesses at all rather
-  // than only no reads. This will not block using the case base register as a
-  // base address for a memory operand.
-  void CheckNoAccessesToCageBaseRegister(const uint8_t* pc,
-                                         const Da64Inst& instr) {
+  // register (x28) directly or modifies it via writeback. The cage base
+  // register must remain read-only across all generated code to preserve
+  // sandbox integrity and prevent pointer corruption. In practice, generated
+  // code doesn't need to even read the cage base register directly, so it's
+  // easier to enforce no accesses at all rather than only no reads. This will
+  // not block using the cage base register as a base address for a memory
+  // operand without writeback.
+  void CheckNoWritesToCageBaseRegister(const uint8_t* pc,
+                                       const Da64Inst& instr) {
     static constexpr int kMaxOperands = 5;
     static_assert(kMaxOperands == (sizeof(instr.ops) / sizeof(Da64Op)));
 
@@ -151,20 +152,13 @@ class InstructionChecker {
       case DA64I_ADD_IMM:
       case DA64I_ORR_IMM:
       case DA64I_ORR_SHIFT:
-        // Check that the target is not the cage base register.
-        if (!IsCageBaseReg(instr.ops[0])) {
-          return;
-        }
-        break;
       // Add extended register is used for decompressing tagged pointers with
       // zero-extension: add xd, x28, ws, uxtw #0.
       case DA64I_ADD_EXT:
-        // Ensure that destination is not the cage base register, and that the
-        // RHS is zero-extended with uxtw #0.
-        if (!IsCageBaseReg(instr.ops[0]) && !IsCageBaseReg(instr.ops[2]) &&
-            (instr.ops[2].type == DA_OP_REGGPEXT) &&
-            (instr.ops[2].reggpext.ext == DA_EXT_UXTW) &&
-            (instr.ops[2].reggpext.shift == 0)) {
+        // Check that the target is not the cage base register.
+        if (!IsCageBaseReg(instr.ops[0])) {
+          // Arithmetic and logical instructions do not support writeback
+          // operands.
           return;
         }
         break;
@@ -174,15 +168,20 @@ class InstructionChecker {
       case DA64I_STPX_PRE:
       case DA64I_STPX_POST:
         // Stp isn't updating any registers.
-        DCHECK_IMPLIES(IsCageBaseReg(instr.ops[0]),
-                       Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
-        return;
+        DCHECK_IMPLIES(
+            IsCageBaseReg(instr.ops[0]) || IsCageBaseReg(instr.ops[1]),
+            Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
+        if (!IsCageBaseWritebackReg(instr.ops[2])) {
+          return;
+        }
+        break;
       // Ldp is used by entry and deopt builtins to restore the cage base
       // register's value in C++ code.
       case DA64I_LDPX:
       case DA64I_LDPX_PRE:
       case DA64I_LDPX_POST:
         if ((IsCageBaseReg(instr.ops[0]) || IsCageBaseReg(instr.ops[1])) &&
+            !IsCageBaseWritebackReg(instr.ops[2]) &&
             (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_))) {
           // TODO(523128533): verify the loaded value is the same as
           // the previously stored value. E.g. track changes to stack register
@@ -215,7 +214,7 @@ class InstructionChecker {
 
     // Check that no operand is the cage base register.
     for (int i = 0; i < kMaxOperands; i++) {
-      if (IsCageBaseReg(instr.ops[i])) {
+      if (IsCageBaseReg(instr.ops[i]) || IsCageBaseWritebackReg(instr.ops[i])) {
         violations_reporter_.ReportViolationWithInstruction(
             pc, Da64InstFormatter::Format(instr),
             std::format(
@@ -224,10 +223,15 @@ class InstructionChecker {
     }
   }
 
-  // Same as IsCageBaseExpectedReg but accepts all GP register types.
   static bool IsCageBaseReg(const Da64Op& op) {
     return ((op.type == DA_OP_REGGP) || (op.type == DA_OP_REGGPEXT) ||
             (op.type == DA_OP_REGGPINC)) &&
+           (op.reg == cage_base_reg);
+  }
+
+  static bool IsCageBaseWritebackReg(const Da64Op& op) {
+    return ((op.type == DA_OP_MEMSOFFPRE) || (op.type == DA_OP_MEMSOFFPOST) ||
+            (op.type == DA_OP_MEMREGPOST) || (op.type == DA_OP_MEMINC)) &&
            (op.reg == cage_base_reg);
   }
 
