@@ -7,6 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/strong-alias.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
@@ -243,6 +244,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   void CheckAndEmitDeferredIndirectPointerWriteBarrier(
       Register object, int offset, Register value,
       RegisterSnapshot register_snapshot, IndirectPointerTag tag);
+
+  inline void MemoryBarrier(AtomicMemoryOrder order);
 
   // Preserves all registers that are in the register snapshot, but is otherwise
   // allowed to clobber both input registers if they are not in the snapshot.

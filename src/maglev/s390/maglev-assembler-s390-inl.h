@@ -1613,6 +1613,10 @@ inline void MaglevAssembler::MaybeEmitPlaceHolderForDeopt() {
   // Implemented only for x64.
 }
 
+inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder order) {
+  // S390 is TSO.
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

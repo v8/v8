@@ -1552,6 +1552,14 @@ inline void MaglevAssembler::MaybeEmitPlaceHolderForDeopt() {
   }
 }
 
+inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder order) {
+  // x64 is no weaker than release-acquire and only needs to emit an
+  // instruction for SeqCst memory barriers.
+  if (order == AtomicMemoryOrder::kSeqCst) {
+    mfence();
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

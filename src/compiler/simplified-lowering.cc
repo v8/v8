@@ -5019,6 +5019,8 @@ class RepresentationSelector {
       case IrOpcode::kDeadValue:
         ProcessInput<T>(node, 0, UseInfo::Any());
         return SetOutput<T>(node, MachineRepresentation::kNone);
+      case IrOpcode::kMemoryBarrier:
+        return SetOutput<T>(node, MachineRepresentation::kNone);
       case IrOpcode::kMajorGCForCompilerTesting:
         ProcessRemainingInputs<T>(node, 0);
         return SetOutput<T>(node, MachineRepresentation::kTagged);

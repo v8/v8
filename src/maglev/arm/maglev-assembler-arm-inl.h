@@ -1511,6 +1511,10 @@ inline void MaglevAssembler::LoadTaggedFieldWithoutDecompressing(
       result, FieldMemOperand(object, offset));
 }
 
+inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder order) {
+  dmb(ISH);
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

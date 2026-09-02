@@ -4268,6 +4268,18 @@ void CodeStubAssembler::StoreMapNoWriteBarrier(TNode<HeapObject> object,
   DcheckHasValidMap(object);
 }
 
+void CodeStubAssembler::StoreMapReleaseNoWriteBarrier(
+    TNode<HeapObject> object, RootIndex map_root_index) {
+  StoreMapReleaseNoWriteBarrier(object, CAST(LoadRoot(map_root_index)));
+}
+
+void CodeStubAssembler::StoreMapReleaseNoWriteBarrier(TNode<HeapObject> object,
+                                                      TNode<Map> map) {
+  MemoryBarrier(AtomicMemoryOrder::kAcqRel);
+  OptimizedStoreMap(object, map);
+  DcheckHasValidMap(object);
+}
+
 void CodeStubAssembler::StoreObjectFieldRoot(TNode<HeapObject> object,
                                              int offset, RootIndex root_index) {
   TNode<Object> root = LoadRoot(root_index);

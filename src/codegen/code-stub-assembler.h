@@ -1871,6 +1871,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreMapNoWriteBarrier(TNode<HeapObject> object,
                               RootIndex map_root_index);
   void StoreMapNoWriteBarrier(TNode<HeapObject> object, TNode<Map> map);
+  void StoreMapReleaseNoWriteBarrier(TNode<HeapObject> object,
+                                     RootIndex map_root_index);
+  void StoreMapReleaseNoWriteBarrier(TNode<HeapObject> object, TNode<Map> map);
   void StoreObjectFieldRoot(TNode<HeapObject> object, int offset,
                             RootIndex root);
 
