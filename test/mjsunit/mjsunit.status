@@ -1234,6 +1234,7 @@
   'regress/regress-1447383': [SKIP],
   'regress/regress-crbug-335592010': [SKIP],
   'regress/regress-352402863': [SKIP],
+  'regress/regress-549231120': [SKIP],
   'string-localecompare-inline': [SKIP],
 
   # Non-BMP characters currently aren't considered identifiers without i18n
