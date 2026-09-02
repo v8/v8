@@ -20,8 +20,7 @@ class InstructionChecker;
 
 class GeneratedCodeValidator {
  public:
-  static V8_EXPORT_PRIVATE void Validate(IsolateForSandbox isolate,
-                                         Tagged<Code> code);
+  static V8_EXPORT_PRIVATE void Validate(Isolate* isolate, Tagged<Code> code);
   static V8_EXPORT_PRIVATE bool IsValidated(Tagged<Code> code);
 
  private:
@@ -89,13 +88,15 @@ class GeneratedCodeValidator {
 
   // TODO(523128533): Propagate `State` between instructions based on data flow.
   struct State {
-    explicit State(const Tagged<Code> code);
+    explicit State(Isolate* isolate, const Tagged<Code> code);
 
+    Address current_root_reg_value_;
+    bool is_root_reg_valid_;
     // TODO(523128533): Check this field when checking memory writes to sandbox.
     bool is_cage_base_reg_valid_;
   };
 
-  static void ValidateImpl(IsolateForSandbox isolate, Tagged<Code> code);
+  static void ValidateImpl(Isolate* isolate, Tagged<Code> code);
 
   friend class InstructionChecker;
 };

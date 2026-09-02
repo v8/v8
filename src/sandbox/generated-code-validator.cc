@@ -21,8 +21,7 @@ bool ShouldValidateCode(Tagged<Code> code) {
 }  // namespace
 
 // static
-void GeneratedCodeValidator::Validate(IsolateForSandbox isolate,
-                                      Tagged<Code> code) {
+void GeneratedCodeValidator::Validate(Isolate* isolate, Tagged<Code> code) {
   if (!ShouldValidateCode(code)) {
     return;
   }
@@ -257,8 +256,15 @@ bool GeneratedCodeValidator::Utils::IsDeoptCode(const Tagged<Code> code) {
                    code->builtin_id()) != std::end(entry_builtins);
 }
 
-GeneratedCodeValidator::State::State(const Tagged<Code> code)
-    : is_cage_base_reg_valid_(!Utils::IsEntryCode(code)) {}
+GeneratedCodeValidator::State::State(Isolate* isolate, const Tagged<Code> code)
+    : current_root_reg_value_(
+          !Utils::IsEntryCode(code)
+              ? ExternalReference::isolate_root(isolate).raw()
+              : kNullAddress),
+      is_root_reg_valid_(!Utils::IsEntryCode(code)),
+      is_cage_base_reg_valid_(!Utils::IsEntryCode(code)) {
+  CHECK_NE(ExternalReference::isolate_root(isolate).raw(), kNullAddress);
+}
 
 }  // namespace v8::internal
 
