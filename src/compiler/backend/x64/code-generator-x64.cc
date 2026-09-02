@@ -2090,7 +2090,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               : AtomicStoreRecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
-      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(instr->opcode());
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -2114,6 +2113,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                            MachineRepresentation::kTagged, instr);
       } else {
         DCHECK_EQ(arch_opcode, kArchAtomicStoreWithWriteBarrier);
+        AtomicMemoryOrder order =
+            AtomicMemoryOrderField::decode(instr->opcode());
         EmitTSANAwareStore(zone(), this, masm(), operand, value, i,
                            DetermineStubCallMode(),
                            MachineRepresentation::kTagged, instr, order);
@@ -2142,7 +2143,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index);
-      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(instr->opcode());
 
       DCHECK(v8_flags.verify_write_barriers);
       auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
@@ -2157,6 +2157,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                            MachineRepresentation::kTagged, instr);
       } else {
         DCHECK_EQ(arch_opcode, kArchAtomicStoreSkippedWriteBarrier);
+        AtomicMemoryOrder order =
+            AtomicMemoryOrderField::decode(instr->opcode());
         EmitTSANAwareStore(zone(), this, masm(), operand, value, i,
                            DetermineStubCallMode(),
                            MachineRepresentation::kTagged, instr, order);
