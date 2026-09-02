@@ -958,7 +958,6 @@ ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
   }
   InlinedAllocation* allocation =
       ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
-  AddNonEscapingUses(allocation, static_cast<int>(values.size()));
   StoreTaggedMode store_mode = StoreTaggedMode::kInitializing;
   compiler::OptionalScopeInfoRef scope_info;
   if (vobject->has_static_map() && vobject->map()->IsContextMap()) {
@@ -982,6 +981,7 @@ ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
     }
     RETURN_IF_ABORT(BuildInitializeStore(desc, allocation, allocation_type,
                                          value, store_mode, maybe_assigned));
+    AddNonEscapingUses(allocation, 1);
   }
   if constexpr (ReducerBaseWithLoopEffectTracking<BaseT>) {
     if (base_->loop_effects()) {
