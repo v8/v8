@@ -2712,6 +2712,7 @@ DEFINE_BOOL(memory_reducer_for_small_heaps, true,
             "use memory reducer for small heaps")
 DEFINE_INT(memory_reducer_gc_count, 2,
            "Maximum number of memory reducer GCs scheduled")
+DEFINE_REQUIREMENT(v8_flags.memory_reducer_gc_count > 0)
 DEFINE_INT(memory_reducer_delay_ms, 8'000, "Delay before memory reducer start")
 DEFINE_REQUIREMENT(v8_flags.memory_reducer_delay_ms > 0)
 DEFINE_INT(gc_memory_reducer_start_delay_ms, 30'000,
