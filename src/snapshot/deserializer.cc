@@ -922,6 +922,9 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRepeatedRoot(SlotAccessor slot_accessor,
                                              int repeat_count) {
+  DCHECK(!next_reference_is_weak_);
+  DCHECK(!next_reference_is_indirect_pointer_);
+  DCHECK(!next_reference_is_protected_pointer);
   CHECK_LE(2, repeat_count);
 
   uint8_t id = source_.Get();
@@ -1579,8 +1582,9 @@ int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
     PrintF("%*sRootArrayConstants [%u] : %s\n", depth_, "",
            static_cast<int>(root_index), RootsTable::name(root_index));
   }
-  return slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG, 0,
-                             SKIP_WRITE_BARRIER);
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor(),
+                          SKIP_WRITE_BARRIER);
 }
 
 template <typename IsolateT>
