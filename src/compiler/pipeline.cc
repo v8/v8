@@ -3098,6 +3098,11 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
         std::cout << "Finished revec function "
                   << data.info()->GetDebugName().get() << std::endl;
       }
+      // Report the percentage of this function's SIMD128 operations that were
+      // combined into SIMD256. Recorded via {counter_updates} because
+      // compilation may run on a background thread with no current isolate.
+      counter_updates->AddSample(&Counters::wasm_revec_conversion_percent,
+                                 turboshaft_data.wasm_revec_percent());
     }
   }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC

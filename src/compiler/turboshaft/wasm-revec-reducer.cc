@@ -91,6 +91,20 @@ bool IsCompatibleOpAndKind(const Operation& op0, const Operation& op1) {
   return IsSupportedSameSimd128OpKind(op0, op1);
 }
 
+// Returns true if {op} is a SIMD128 operation, i.e. it produces a SIMD128
+// value or stores one. Used to compute the denominator for the SIMD256
+// conversion percentage.
+bool IsSimd128Operation(const Operation& op) {
+  for (RegisterRepresentation rep : op.outputs_rep()) {
+    if (rep == RegisterRepresentation::Simd128()) return true;
+  }
+  if (const StoreOp* store_op = op.TryCast<StoreOp>()) {
+    return store_op->stored_rep == MemoryRepresentation::Simd128();
+  }
+  // Store-lane has no output and is not a StoreOp, but is a SIMD128 operation.
+  return op.Is<Simd128LaneMemoryOp>();
+}
+
 // Save the result of a uint64_t subtraction.
 class OffsetDiff {
  public:
@@ -1463,6 +1477,9 @@ bool WasmRevecAnalyzer::IsSupportedReduceSeed(const Operation& op) {
 void WasmRevecAnalyzer::ProcessBlock(const Block& block) {
   StoreInfoSet simd128_stores(phase_zone_);
   for (const Operation& op : base::Reversed(graph_.operations(block))) {
+    if (IsSimd128Operation(op)) {
+      ++simd128_op_count_;
+    }
     if (const StoreOp* store_op = op.TryCast<StoreOp>()) {
       if (store_op->stored_rep == MemoryRepresentation::Simd128()) {
         StoreLoadInfo<StoreOp> info(&graph_, store_op);
@@ -1564,6 +1581,12 @@ void WasmRevecAnalyzer::Run() {
   use_map_ = phase_zone_->New<Simd128UseMap>(graph_, phase_zone_);
   if (DecideVectorize()) {
     should_reduce_ = true;
+    for (const auto& entry : revectorizable_node_) {
+      // Force-packed and intersect nodes still execute as two SIMD128
+      // operations plus a SimdPack128To256, so they are not combined into a
+      // SIMD256 operation and must not count towards the conversion ratio.
+      if (!entry.second->is_force_packing()) ++revectorized_simd128_count_;
+    }
     Print("Decided to vectorize");
   }
 }

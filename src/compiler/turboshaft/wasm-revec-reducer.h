@@ -610,6 +610,16 @@ class WasmRevecAnalyzer {
   void MergeSLPTree(SLPTree& slp_tree);
   bool ShouldReduce() const { return should_reduce_; }
 
+  // Percentage (0-100) of this function's SIMD128 operations that were
+  // combined into SIMD256 operations. Only meaningful once the analysis has
+  // decided to vectorize (i.e. when ShouldReduce() is true).
+  int revectorized_percent() const {
+    if (simd128_op_count_ == 0) return 0;
+    DCHECK_LE(revectorized_simd128_count_, simd128_op_count_);
+    return static_cast<int>(revectorized_simd128_count_ * 100 /
+                            simd128_op_count_);
+  }
+
   PackNode* GetPackNode(const OpIndex ig_index) {
     auto it = revectorizable_node_.find(ig_index);
     if (it != revectorizable_node_.end()) {
@@ -665,6 +675,12 @@ class WasmRevecAnalyzer {
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>
       revectorizable_intersect_node_{phase_zone_};
   bool should_reduce_{false};
+  // Numerator/denominator for revectorized_percent(): number of SIMD128
+  // operations combined into SIMD256, and the total number of SIMD128
+  // operations in the function. Force-packed and intersect nodes are excluded
+  // from the numerator.
+  size_t revectorized_simd128_count_{0};
+  size_t simd128_op_count_{0};
   Simd128UseMap* use_map_{nullptr};
   ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
   // Used as a local hash-set, always clear after use.
