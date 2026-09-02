@@ -1055,7 +1055,9 @@ void VisitStoreCommon(InstructionSelector* selector,
                        : kArchStoreWithWriteBarrier;
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-      code |= RecordWriteModeField::encode(record_write_mode);
+      code |= is_atomic
+                  ? AtomicStoreRecordWriteModeField::encode(record_write_mode)
+                  : RecordWriteModeField::encode(record_write_mode);
     }
     code |= AddressingModeField::encode(addressing_mode);
     if (atomic_order.has_value()) {
