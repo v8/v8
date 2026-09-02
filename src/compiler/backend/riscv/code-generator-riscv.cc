@@ -772,6 +772,23 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
       DCHECK(instr->arch_opcode() == kRiscvCmp32 ||
              instr->arch_opcode() == kRiscvCmp);
     }
+#if V8_TARGET_ARCH_RISCV64
+    if (COMPRESS_POINTERS_BOOL) {
+      // 32-bit comparisons must compare sign-extended values, since 32-bit
+      // producers may leave dirty upper bits in their result registers.
+      if (instr->arch_opcode() == kRiscvCmpZero32 ||
+          instr->arch_opcode() == kRiscvCmp32) {
+        Register temp = i.TempRegister(0);
+        __ SignExtendWord(temp, left);
+        left = temp;
+        if (instr->arch_opcode() == kRiscvCmp32 && i.InputOperand(1).is_reg()) {
+          Register temp1 = i.TempRegister(1);
+          __ SignExtendWord(temp1, i.InputOperand(1).rm());
+          right = Operand(temp1);
+        }
+      }
+    }
+#endif
     if ((output_rep == MachineRepresentation::kFloat32) ||
         (output_rep == MachineRepresentation::kFloat64)) {
       UNREACHABLE();

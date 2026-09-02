@@ -447,8 +447,11 @@ static Instruction* VisitCompare(InstructionSelector* selector,
   inputs[input_count++] = left;
   inputs[input_count++] = right;
   if (cont->IsSelect()) {
-    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
-    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
+    // Keep the values live until the end so that we can use operations that
+    // write registers to generate the condition, without accidentally
+    // overwriting the inputs.
+    inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
+    inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());
   }
 #ifdef V8_COMPRESS_POINTERS
   if (opcode == kRiscvCmp32) {
@@ -605,8 +608,8 @@ void EmitWordCompareZero(InstructionSelector* selector, OpIndex value,
   InstructionOperand inputs[4];
   inputs[input_count++] = g.UseRegisterOrImmediateZero(value);
   if (cont->IsSelect()) {
-    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
-    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
+    inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
+    inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());
   }
   selector->EmitWithContinuation(kRiscvCmpZero, 0, nullptr, input_count, inputs,
                                  cont);
@@ -622,8 +625,8 @@ void EmitWord32CompareZero(InstructionSelector* selector, OpIndex value,
   inputs[input_count++] = g.UseRegisterOrImmediateZero(value);
   InstructionOperand temps[] = {g.TempRegister()};
   if (cont->IsSelect()) {
-    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
-    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
+    inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
+    inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());
   }
   selector->EmitWithContinuation(kRiscvCmpZero32, 0, nullptr, input_count,
                                  inputs, arraysize(temps), temps, cont);
