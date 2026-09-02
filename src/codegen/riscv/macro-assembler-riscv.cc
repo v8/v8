@@ -7618,8 +7618,8 @@ void MacroAssembler::CallJSFunction(Register function_object,
   Register parameter_count = s1;
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  Lw(dispatch_handle,
-     FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
+  Lwu(dispatch_handle,
+      FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
   // Force a safe crash if the parameter count doesn't match.
@@ -7759,7 +7759,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   static_assert(kJSDispatchHandleShift == 0);
   SllWord(index, dispatch_handle, kJSDispatchTableEntrySizeLog2);
 #else
-  SrlWord(index, dispatch_handle, kJSDispatchHandleShift);
+  ZeroExtendWord(index, dispatch_handle);
+  SrlWord(index, index, kJSDispatchHandleShift);
   SllWord(index, index, kJSDispatchTableEntrySizeLog2);
 #endif
   AddWord(scratch, scratch, index);
@@ -7851,7 +7852,8 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
   DCHECK(!AreAliased(destination, scratch));
   ASM_CODE_COMMENT(this);
   Register index = destination;
-  SrlWord(index, dispatch_handle, kJSDispatchHandleShift);
+  ZeroExtendWord(index, dispatch_handle);
+  SrlWord(index, index, kJSDispatchHandleShift);
   SllWord(index, index, kJSDispatchTableEntrySizeLog2);
   Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   AddWord(scratch, scratch, index);
@@ -7866,7 +7868,8 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   ASM_CODE_COMMENT(this);
   Register index = parameter_count;
   Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
-  SrlWord(index, dispatch_handle, kJSDispatchHandleShift);
+  ZeroExtendWord(index, dispatch_handle);
+  SrlWord(index, index, kJSDispatchHandleShift);
   SllWord(index, index, kJSDispatchTableEntrySizeLog2);
   AddWord(scratch, scratch, index);
   LoadWord(entrypoint, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
