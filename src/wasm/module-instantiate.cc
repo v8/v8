@@ -354,11 +354,17 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
 }
 
 bool IsStringRef(wasm::CanonicalValueType type) {
-  return type.is_abstract_ref() && type.generic_kind() == GenericKind::kString;
+  // We could use {type == kWasmStringRef} for simplicity, but that would
+  // reject non-nullable types.
+  return type.is_abstract_ref() && !type.is_shared() &&
+         type.generic_kind() == GenericKind::kString;
 }
 
 bool IsExternRef(wasm::CanonicalValueType type) {
-  return type.is_abstract_ref() && type.generic_kind() == GenericKind::kExtern;
+  // We could use {type == kWasmExternRef} for simplicity, but that would
+  // reject non-nullable types.
+  return type.is_abstract_ref() && !type.is_shared() &&
+         type.generic_kind() == GenericKind::kExtern;
 }
 
 bool IsStringOrExternRef(wasm::CanonicalValueType type) {

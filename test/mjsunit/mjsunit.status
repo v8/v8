@@ -2783,6 +2783,7 @@
   # with single generation.
   'regress/regress-461969023': [SKIP],
   'regress/wasm/regress-536581698': [SKIP],
+  'regress/wasm/regress-552026580': [SKIP],
   # We need this here because it needs --fuzzing, and in that case we do not
   # check for contradictory flags.
   'regress/wasm/regress-510448957': [SKIP],
