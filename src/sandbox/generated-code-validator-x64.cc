@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/objects/code-kind.h"
 #include "src/sandbox/generated-code-validator.h"
-#include "v8-internal.h"
 
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
 
@@ -33,7 +31,7 @@ struct FdInstrFormatter {
 
 class InstructionChecker {
   static_assert(kPtrComprCageBaseRegister != no_reg);
-  static constexpr int cage_base_register = kPtrComprCageBaseRegister.code();
+  static constexpr int cage_base_reg = kPtrComprCageBaseRegister.code();
   static_assert(kRootRegister != no_reg);
   static constexpr int root_register = kRootRegister.code();
 
@@ -42,30 +40,26 @@ class InstructionChecker {
   using State = GeneratedCodeValidator::State;
 
  public:
-  InstructionChecker(Isolate* isolate, Tagged<Code> code,
-                     ViolationsReporter& violations_reproter)
-      : isolate_(isolate),
-        code_(code),
-        expected_root_register_value_(
-            ExternalReference::isolate_root(isolate_).raw()),
-        violations_reporter_(violations_reproter),
-        state_(isolate, code_) {}
+  InstructionChecker(Tagged<Code> code, ViolationsReporter& violations_reproter)
+      : code_(code), violations_reporter_(violations_reproter), state_(code_) {}
 
   void Check(const uint8_t* pc, const FdInstr& instr) {
     // REGEXP code doesn't follow the V8 ABI and instead uses standard C ABI.
     if (code_->kind() != CodeKind::REGEXP) {
-      CheckNoWritesToRestrictedRegisters(pc, instr);
+      CheckNoWritesToCageBaseRegister(pc, instr);
     }
   }
 
  private:
-  // Verifies whether the instruction writes to the pointer compression cage
-  // base register (r14) or the root register (r13) directly. These registers
-  // must remain read-only across all generated code to preserve sandbox
-  // integrity and prevent pointer corruption. This will not block using these
-  // register as a base address for a memory operand.
-  void CheckNoWritesToRestrictedRegisters(const uint8_t* pc,
-                                          const FdInstr& instr) {
+  // Verifies whether the instruction accesses the pointer compression cage base
+  // register (r14) directly. The cage base register must remain read-only
+  // across all generated code to preserve sandbox integrity and prevent pointer
+  // corruption. In practice, generated code doesn't need to even read the cage
+  // base register directly, so it's easier to enforce no accesses at all rather
+  // than only no reads. This will not block using the case base register as a
+  // base address for a memory operand.
+  void CheckNoWritesToCageBaseRegister(const uint8_t* pc,
+                                       const FdInstr& instr) {
     static constexpr int kMaxOperands = 4;
     static_assert(kMaxOperands == (sizeof(instr.operands) / sizeof(FdOp)));
 
@@ -79,71 +73,52 @@ class InstructionChecker {
       case FDI_SUB:
       // Or and Add instructions are used for decompressing tagged pointers.
       case FDI_OR:
-        // Check that the target is not the cage base register or root register.
+        // Check that the target is not the cage base register.
         if (!IsCageBaseReg(instr, 0)) {
           return;
         }
         break;
       // Push is used by entry and deopt builtins to save the cage
-      // base and root registers' values in C++ code.
+      // base register's value in C++ code.
       case FDI_PUSH:
         // Push isn't updating any registers.
         DCHECK_IMPLIES(IsCageBaseReg(instr, 0),
                        Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
-        DCHECK_IMPLIES(IsRootReg(instr, 0),
-                       Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
         return;
-      // Pop is used by entry and deopt builtins to restore the cage
-      // base and root registers' values in C++ code.
+      // Push is used by entry and deopt builtins to restore the cage
+      // base register's value in C++ code.
       case FDI_POP:
-        // TODO(523128533): Verify the popped values are the same as
-        // the previously pushed values. E.g. track changes to stack register
-        // and check that push and pop operate on the same offset (assuming
-        // calls don't violate it).
-        // TODO(523128533): Deopt builtins save and restore the these
-        // registers so that the deoptimizer can update register values as
-        // needed. Since these registers are callee saved and should not
-        // change, can we avoid saving and restoring it?
-        if (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_)) {
-          if (IsCageBaseReg(instr, 0)) {
-            state_.is_cage_base_reg_valid_ = false;
-            return;
-          }
-          if (IsRootReg(instr, 0)) {
-            state_.is_root_reg_valid_ = false;
-            return;
-          }
-        }
-        break;
-      // Mov is used by entry builtins to initialize the cage base and root
-      // registers.
-      case FDI_MOV:
-      case FDI_MOVABS:
-        if (!IsCageBaseReg(instr, 0) && !IsRootReg(instr, 0)) {
+        if (IsCageBaseReg(instr, 0) &&
+            (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_))) {
+          // TODO(523128533): For pop, verify the popped value is the same as
+          // the previously pushed value. E.g. track changes to stack register
+          // and check that push and pop operate on the same offset (assuming
+          // calls don't violate it).
+          // TODO(523128533): Deopt builtins save and restore the cage base
+          // register so that the deoptimizer can update register values as
+          // needed. Since the cage base register is callee saved and should not
+          // change, can we avoid saving and restoring it?
+          state_.is_cage_base_reg_valid_ = false;
           return;
         }
-        if (Utils::IsEntryCode(code_)) {
-          if (IsCageBaseReg(instr, 0) &&
-              IsExpectedMemoryOperand(instr, 1, root_register, FD_REG_NONE, 0,
-                                      IsolateData::cage_base_offset())) {
-            DCHECK_EQ(FDI_MOV, FD_TYPE(&instr));
-            CHECK(state_.is_root_reg_valid_);
-            state_.is_cage_base_reg_valid_ = true;
-            return;
-          }
-          if (IsRootReg(instr, 0) && IsValidRootRegInitialization(instr)) {
-            return;
-          }
+        break;
+      // Mov is used by entry builtins to initialize the cage base register.
+      // This instructions should only appear once per entry builtin.
+      case FDI_MOV:
+        if (IsCageBaseReg(instr, 0) && Utils::IsEntryCode(code_) &&
+            IsExpectedMemoryOperand(instr, 1, root_register, FD_REG_NONE, 0,
+                                    IsolateData::cage_base_offset())) {
+          state_.is_cage_base_reg_valid_ = true;
+          return;
         }
         break;
       default:
         // All other cases are not expected to accesses the cage base register
-        // or root register directly and fall through to the generic handling
-        // below.
+        // directly and fall through to the generic handling below.
         break;
     }
 
-    // Check that no operand is the cage base register or the root register.
+    // Check that no operand is the cage base register.
     for (int i = 0; i < kMaxOperands; i++) {
       if (IsCageBaseReg(instr, i)) {
         violations_reporter_.ReportViolationWithInstruction(
@@ -151,29 +126,14 @@ class InstructionChecker {
             std::format(
                 "Instruction accesses cage bage register at operand {0}", i));
       }
-      if (IsRootReg(instr, i)) {
-        violations_reporter_.ReportViolationWithInstruction(
-            pc, FdInstrFormatter::Format(instr),
-            std::format("Instruction accesses root register at operand {0}",
-                        i));
-      }
     }
   }
 
-  static bool IsExpectedReg(const FdInstr& instr, int op_idx,
-                            int expected_reg) {
+  static bool IsCageBaseReg(const FdInstr& instr, int op_idx) {
     return FD_OP_TYPE(&instr, op_idx) == FD_OT_REG &&
            (FD_OP_REG_TYPE(&instr, op_idx) == FD_RT_GPL ||
             FD_OP_REG_TYPE(&instr, op_idx) == FD_RT_GPH) &&
-           FD_OP_REG(&instr, op_idx) == expected_reg;
-  }
-
-  static bool IsRootReg(const FdInstr& instr, int op_idx) {
-    return IsExpectedReg(instr, op_idx, root_register);
-  }
-
-  static bool IsCageBaseReg(const FdInstr& instr, int op_idx) {
-    return IsExpectedReg(instr, op_idx, cage_base_register);
+           FD_OP_REG(&instr, op_idx) == cage_base_reg;
   }
 
   static bool IsExpectedMemoryOperand(const FdInstr& instr, int op_idx,
@@ -186,46 +146,20 @@ class InstructionChecker {
            (FD_OP_DISP(&instr, op_idx) == displacement);
   }
 
-  bool IsValidRootRegInitialization(const FdInstr& instr) {
-    DCHECK(IsRootReg(instr, 0));
-    switch (FD_TYPE(&instr)) {
-      case FDI_MOVABS:
-        DCHECK_EQ(FD_OT_IMM, FD_OP_TYPE(&instr, 1));
-        state_.current_root_reg_value_ = FD_OP_IMM(&instr, 1);
-        state_.is_root_reg_valid_ =
-            state_.current_root_reg_value_ == expected_root_register_value_;
-        break;
-      case FDI_MOV:
-        state_.is_root_reg_valid_ =
-            (code_->kind() == CodeKind::BUILTIN) &&
-            IsExpectedReg(instr, 1, kCArgRegs[0].code());
-        // Assumes builtins receive the correct value as their first
-        // argument.
-        state_.current_root_reg_value_ = state_.is_root_reg_valid_
-                                             ? expected_root_register_value_
-                                             : kNullAddress;
-        break;
-      default:
-        break;
-    }
-    return state_.is_root_reg_valid_;
-  }
-
-  Isolate* const isolate_;
   const Tagged<Code> code_;
-  const Address expected_root_register_value_;
   ViolationsReporter& violations_reporter_;
   State state_;
 };
 
-void GeneratedCodeValidator::ValidateImpl(Isolate* isolate, Tagged<Code> code) {
+void GeneratedCodeValidator::ValidateImpl(IsolateForSandbox isolate,
+                                          Tagged<Code> code) {
   const uint8_t* const code_start =
       reinterpret_cast<const uint8_t*>(code->instruction_start());
   const uint8_t* const code_end = code_start + code->instruction_size();
 
   ViolationsReporter reporter(code);
 
-  InstructionChecker instruction_checker(isolate, code, reporter);
+  InstructionChecker instruction_checker(code, reporter);
 
   InstructionIteratorSkippingData it(code);
 

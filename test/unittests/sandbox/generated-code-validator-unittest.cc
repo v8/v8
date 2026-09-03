@@ -118,27 +118,6 @@ TEST_F(GeneratedCodeValidatorTest, ValidateCageBaseModificationFails) {
                        "Instruction accesses cage bage register at operand 0");
 }
 
-TEST_F(GeneratedCodeValidatorTest, ValidateRootRegisterModificationFails) {
-  static_assert(kRootRegister != no_reg);
-  Isolate* i_isolate = this->i_isolate();
-  auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(i_isolate, CodeObjectRequired{false},
-                      buffer->CreateView());
-
-#if V8_TARGET_ARCH_X64
-  __ movq(kRootRegister, Immediate(0));
-  __ ret(0);
-#elif V8_TARGET_ARCH_ARM64
-  __ Mov(kRootRegister, 0);
-  __ ret();
-#else
-#error "Unsupported architecture for GeneratedCodeValidatorTest"
-#endif
-
-  CheckValidationFails(i_isolate, masm,
-                       "Instruction accesses root register at operand 0");
-}
-
 TEST_F(GeneratedCodeValidatorTest, ValidateDecompressionPasses) {
   static_assert(kPtrComprCageBaseRegister != no_reg);
   Isolate* i_isolate = this->i_isolate();
