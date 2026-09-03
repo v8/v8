@@ -218,15 +218,12 @@ uint32_t BasicBlockProfiler::GetBuiltinsBlockCount(Isolate* isolate) {
   return total;
 }
 
-void BasicBlockProfiler::UpdateBuiltinsCoverageAndReset(Isolate* isolate,
-                                                        uint32_t builtins_start,
-                                                        uint8_t* shmem_edges) {
-  if (shmem_edges == nullptr) return;
-
+void BasicBlockProfiler::ForEachExecutedBlockAndReset(
+    Isolate* isolate, base::FunctionRef<void(uint32_t)> callback) {
   DisallowGarbageCollection no_gc;
   Tagged<ArrayList> list(isolate->heap()->basic_block_profiling_data());
   const uint32_t list_length = list->ulength().value();
-  uint32_t edge_idx = builtins_start;
+  uint32_t block_index = 0;
   for (uint32_t i = 0; i < list_length; ++i) {
     Tagged<OnHeapBasicBlockProfilerData> profiler_data =
         Cast<OnHeapBasicBlockProfilerData>(list->get(i));
@@ -234,9 +231,9 @@ void BasicBlockProfiler::UpdateBuiltinsCoverageAndReset(Isolate* isolate,
         Cast<FixedUInt32Array>(profiler_data->counts());
     const uint32_t counts_len = counts->length().value();
     uint32_t* data = reinterpret_cast<uint32_t*>(counts->begin());
-    for (uint32_t j = 0; j < counts_len; ++j, ++edge_idx) {
+    for (uint32_t j = 0; j < counts_len; ++j, ++block_index) {
       if (data[j] > 0) {
-        SetCoverageBit(shmem_edges, edge_idx);
+        callback(block_index);
         data[j] = 0;
       }
     }

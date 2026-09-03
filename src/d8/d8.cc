@@ -8394,12 +8394,14 @@ int Shell::Main(int argc, char* argv[]) {
                  << bitmap.size() << std::endl;
           iteration_counter++;
         }
-        uint8_t* shmem_edges = cov_get_shmem_edges();
+        // This is run once per REPRL loop. In case of crash the coverage of
+        // crash will not be stored in shared memory. Therefore, it would be
+        // useful, if we could store these coverage information into shared
+        // memory in real time.
         if (options.fuzzilli_enable_builtins_coverage &&
-            cov_has_builtins_edges() && shmem_edges != nullptr) {
-          i::BasicBlockProfiler::Get()->UpdateBuiltinsCoverageAndReset(
-              reinterpret_cast<i::Isolate*>(isolate), cov_get_builtins_start(),
-              shmem_edges);
+            cov_has_builtins_edges()) {
+          i::BasicBlockProfiler::Get()->ForEachExecutedBlockAndReset(
+              reinterpret_cast<i::Isolate*>(isolate), cov_set_builtin_edge);
         }
         // In REPRL mode, stdout and stderr can be regular files, so they need
         // to be flushed after every execution

@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "src/base/functional/function-ref.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
@@ -97,24 +98,10 @@ class BasicBlockProfiler {
   // Fast zero-allocation count of total basic blocks across all builtins.
   V8_EXPORT_PRIVATE uint32_t GetBuiltinsBlockCount(Isolate* isolate);
 
-  // Fast single-pass zero-allocation method to copy coverage into Fuzzilli's
-  // shared memory bitmap and reset block counters back to zero.
-  V8_EXPORT_PRIVATE void UpdateBuiltinsCoverageAndReset(Isolate* isolate,
-                                                        uint32_t builtins_start,
-                                                        uint8_t* shmem_edges);
-
-  // Helper functions for shared-memory coverage bitmask operations.
-  static inline void SetCoverageBit(uint8_t* bitmap, uint32_t index) {
-    const uint32_t byte_index = index >> 3;
-    const uint32_t bit_index = index & 7;
-    bitmap[byte_index] |= static_cast<uint8_t>(1 << bit_index);
-  }
-
-  static inline bool GetCoverageBit(const uint8_t* bitmap, uint32_t index) {
-    const uint32_t byte_index = index >> 3;
-    const uint32_t bit_index = index & 7;
-    return (bitmap[byte_index] & (1 << bit_index)) != 0;
-  }
+  // Fast single-pass zero-allocation method to iterate over executed basic
+  // blocks across all builtins and reset block counters back to zero.
+  V8_EXPORT_PRIVATE void ForEachExecutedBlockAndReset(
+      Isolate* isolate, base::FunctionRef<void(uint32_t block_index)> callback);
 
   const DataList* data_list() { return &data_list_; }
 
