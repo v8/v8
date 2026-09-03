@@ -1057,11 +1057,16 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
               __ input_graph().Get(load_index).template Cast<LoadOp>();
 
           const int bytes_per_lane = is_32 ? 4 : 8;
-          // splat_index*bytes_per_lane is at most 28; load.offset is the WASM
-          // memarg immediate (up to INT32_MAX). Compute in int64 to avoid
-          // signed-int32 overflow that would sign-extend to a negative base.
+          // Mask splat_index to get the lane offset within the 128-bit vector.
+          // For 32-bit lanes: mask is 3 (bits 0-1), for 64-bit lanes: mask is 1
+          // (bit 0).
+          const int lane_mask = is_32 ? 3 : 1;
+          // splat_index*bytes_per_lane is at most 12 (for 32-bit) or 8 (for
+          // 64-bit); load.offset is the WASM memarg immediate (up to
+          // INT32_MAX). Compute in int64 to avoid signed-int32 overflow that
+          // would sign-extend to a negative base.
           const int64_t splat_index =
-              pnode->info().splat_index() * bytes_per_lane;
+              (pnode->info().splat_index() & lane_mask) * bytes_per_lane;
           const int64_t offset = splat_index + load.offset;
 
           V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()),
