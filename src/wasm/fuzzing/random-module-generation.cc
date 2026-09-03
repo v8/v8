@@ -4491,11 +4491,8 @@ class ModuleGen {
         // or the pre-selected number of structs would need to be allowed to
         // be exceeded.
         have_descriptor = false;
-        // If the described type isn't final, we won't make the descriptor
-        // final either -- any subtypes wouldn't know how to deal with that.
-        if (!builder_->GetType_Unsafe(is_descriptor_for).is_final) {
-          is_final = false;
-        }
+        // Described and descriptor types must have matching finality.
+        is_final = builder_->GetType_Unsafe(is_descriptor_for).is_final;
       } else if (existing_struct_types > 0 && have_supertype) {
         supertype = ModuleTypeIndex{
             struct_types[maybe_supertype % existing_struct_types]};
