@@ -18,6 +18,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/module-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -353,6 +354,39 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[WeakRefTarget]]"),
         direct_handle(js_weak_ref->target(), isolate));
+  } else if (IsJSDeferredModuleNamespace(*object)) {
+    auto ns = Cast<JSDeferredModuleNamespace>(object);
+
+    const char* status = nullptr;
+    switch (ns->module()->status()) {
+      case Module::kUnlinked:
+        status = "unlinked";
+        break;
+      case Module::kPreLinking:
+      case Module::kLinking:
+        status = "linking";
+        break;
+      case Module::kLinked:
+        status = "linked";
+        break;
+      case Module::kEvaluating:
+        status = "evaluating";
+        break;
+      case Module::kEvaluatingAsync:
+        status = "evaluating-async";
+        break;
+      case Module::kEvaluated:
+        status = "evaluated";
+        break;
+      case Module::kErrored:
+        status = "errored";
+        break;
+    }
+
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[ModuleStatus]]"),
+        isolate->factory()->NewStringFromAsciiChecked(status));
   } else if (IsJSArrayBuffer(*object)) {
     DirectHandle<JSArrayBuffer> js_array_buffer = Cast<JSArrayBuffer>(object);
     if (js_array_buffer->was_detached()) {

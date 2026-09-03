@@ -158,7 +158,8 @@ int InspectorIsolateData::GetContextGroupId(v8::Local<v8::Context> context) {
 
 void InspectorIsolateData::RegisterModule(v8::Local<v8::Context> context,
                                           std::vector<uint16_t> name,
-                                          v8::ScriptCompiler::Source* source) {
+                                          v8::ScriptCompiler::Source* source,
+                                          bool evaluate) {
   v8::Local<v8::Module> module;
   if (!v8::ScriptCompiler::CompileModule(isolate(), source).ToLocal(&module)) {
     return;
@@ -169,8 +170,10 @@ void InspectorIsolateData::RegisterModule(v8::Local<v8::Context> context,
            .FromMaybe(false)) {
     return;
   }
-  v8::Local<v8::Value> result;
-  if (!module->Evaluate(context).ToLocal(&result)) return;
+  if (evaluate) {
+    v8::Local<v8::Value> result;
+    if (!module->Evaluate(context).ToLocal(&result)) return;
+  }
   modules_[name] = v8::Global<v8::Module>(isolate_.get(), module);
 }
 

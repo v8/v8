@@ -4077,6 +4077,10 @@ bool Value::IsModuleNamespaceObject() const {
   return IsJSModuleNamespace(*Utils::OpenDirectHandle(this));
 }
 
+bool Value::IsDeferredModuleNamespaceObject() const {
+  return IsJSDeferredModuleNamespace(*Utils::OpenDirectHandle(this));
+}
+
 MaybeLocal<String> Value::ToString(Local<Context> context) const {
   auto obj = Utils::OpenDirectHandle(this);
   if (i::IsString(*obj)) return ToApiHandle<String>(obj);

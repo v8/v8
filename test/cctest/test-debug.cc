@@ -5935,28 +5935,21 @@ v8::MaybeLocal<v8::Module> DeferredModuleResolveCallback(
     v8::Local<v8::Module> referrer) {
   return deferred_module_dependency.Get(CcTest::isolate());
 }
-}  // namespace
 
-// The inspector collects the private members of an object while JavaScript
-// execution is disallowed, so collecting them from a deferred module namespace
-// must not evaluate the module. See crbug.com/451791624.
-TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
-  i::v8_flags.js_defer_import_eval = true;
-  LocalContext env;
+// Sets up `globalThis.ns`, the namespace of a deferred module whose body would
+// set `globalThis.evaluated`, and returns it. |dependency_source| must define
+// `globalThis.evaluated = true;` at the top level.
+v8::Local<v8::Object> SetUpDeferredModuleNamespace(
+    v8::Local<v8::Context> context, const char* dependency_source) {
   v8::Isolate* v8_isolate = CcTest::isolate();
-  v8::HandleScope scope(v8_isolate);
-  v8::Local<v8::Context> context = env.local();
-
   v8::ScriptOrigin dependency_origin(v8_str("dependency"), 0, 0, false, -1,
                                      v8::Local<v8::Value>(), false, false,
                                      true);
-  v8::ScriptCompiler::Source dependency_source(
-      v8_str("globalThis.evaluated = true;\n"
-             "export const foo = 1;"),
-      dependency_origin);
+  v8::ScriptCompiler::Source compiled_dependency_source(
+      v8_str(dependency_source), dependency_origin);
   deferred_module_dependency.Reset(
       v8_isolate,
-      v8::ScriptCompiler::CompileModule(v8_isolate, &dependency_source)
+      v8::ScriptCompiler::CompileModule(v8_isolate, &compiled_dependency_source)
           .ToLocalChecked());
 
   v8::ScriptOrigin script_origin(v8_str("test"), 0, 0, false, -1,
@@ -5973,15 +5966,32 @@ TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
   module->Evaluate(context).ToLocalChecked();
 
   // Importing the module namespace does not evaluate the deferred module.
-  CHECK(env->Global()
+  CHECK(context->Global()
             ->Get(context, v8_str("evaluated"))
             .ToLocalChecked()
             ->IsUndefined());
 
-  v8::Local<v8::Object> object = env->Global()
-                                     ->Get(context, v8_str("ns"))
-                                     .ToLocalChecked()
-                                     .As<v8::Object>();
+  return context->Global()
+      ->Get(context, v8_str("ns"))
+      .ToLocalChecked()
+      .As<v8::Object>();
+}
+}  // namespace
+
+// The inspector collects the private members of an object while JavaScript
+// execution is disallowed, so collecting them from a deferred module namespace
+// must not evaluate the module. See crbug.com/451791624.
+TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
+  i::v8_flags.js_defer_import_eval = true;
+  LocalContext env;
+  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::HandleScope scope(v8_isolate);
+  v8::Local<v8::Context> context = env.local();
+
+  v8::Local<v8::Object> object =
+      SetUpDeferredModuleNamespace(context,
+                                   "globalThis.evaluated = true;\n"
+                                   "export const foo = 1;");
   v8::LocalVector<v8::Value> names(v8_isolate);
   v8::LocalVector<v8::Value> values(v8_isolate);
   int filter =
@@ -6002,6 +6012,67 @@ TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
             ->Get(context, v8_str("evaluated"))
             .ToLocalChecked()
             ->IsUndefined());
+
+  deferred_module_dependency.Reset();
+}
+
+// The inspector enumerates the properties of an object while JavaScript
+// execution is disallowed. A deferred module namespace whose module has not run
+// yet therefore reports no properties at all: every export is uninitialized, so
+// listing one would either evaluate the module or throw for an export still in
+// TDZ. The [[ModuleStatus]] internal property describes such an object instead.
+TEST(PropertyIteratorDoesNotEvaluateDeferredModule) {
+  i::v8_flags.js_defer_import_eval = true;
+  LocalContext env;
+  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::HandleScope scope(v8_isolate);
+  v8::Local<v8::Context> context = env.local();
+
+  v8::Local<v8::Object> object =
+      SetUpDeferredModuleNamespace(context,
+                                   "globalThis.evaluated = true;\n"
+                                   "export const constExport = 1;\n"
+                                   "export let letExport = 2;");
+
+  {
+    // Evaluating the deferred module here would be fatal.
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        v8_isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    auto iterator = v8::debug::PropertyIterator::Create(context, object);
+    CHECK(iterator);
+    CHECK(iterator->Done());
+  }
+
+  CHECK(env->Global()
+            ->Get(context, v8_str("evaluated"))
+            .ToLocalChecked()
+            ->IsUndefined());
+
+  // Reading an export still evaluates the module, and the namespace then
+  // enumerates like any other one.
+  CHECK(!object->Get(context, v8_str("constExport")).IsEmpty());
+  CHECK(env->Global()
+            ->Get(context, v8_str("evaluated"))
+            .ToLocalChecked()
+            ->IsTrue());
+
+  std::vector<std::string> names;
+  auto iterator = v8::debug::PropertyIterator::Create(context, object);
+  CHECK(iterator);
+  while (!iterator->Done()) {
+    v8::Local<v8::Name> name = iterator->name();
+    if (name->IsString()) {
+      v8::String::Utf8Value utf8(v8_isolate, name);
+      names.push_back(*utf8);
+    }
+    CHECK(iterator->Advance().FromJust());
+  }
+  std::sort(names.begin(), names.end());
+  names.erase(std::unique(names.begin(), names.end()), names.end());
+  CHECK_EQ(names.size(), 2);
+  CHECK_EQ(names[0], "constExport");
+  CHECK_EQ(names[1], "letExport");
 
   deferred_module_dependency.Reset();
 }

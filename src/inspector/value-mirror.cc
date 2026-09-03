@@ -1139,6 +1139,10 @@ void getInternalPropertiesForPreview(
     allowlist.emplace_back("[[GeneratorState]]");
   } else if (object->IsWeakRef()) {
     allowlist.emplace_back("[[WeakRefTarget]]");
+  } else if (object->IsModuleNamespaceObject()) {
+    // Having it in the preview lets the front-end tell an unevaluated namespace
+    // from an evaluated one without a second round trip.
+    allowlist.emplace_back("[[ModuleStatus]]");
   }
   for (auto& mirror : mirrors) {
     if (std::find(allowlist.begin(), allowlist.end(), mirror.name) ==
@@ -1850,6 +1854,11 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   if (clientSubtype) {
     String16 subtype = toString16(clientSubtype->string());
     return clientMirror(context, object, subtype);
+  }
+  if (object->IsDeferredModuleNamespaceObject()) {
+    return std::make_unique<ObjectMirror>(
+        object, RemoteObject::SubtypeEnum::Deferredmodule,
+        descriptionForObject(isolate, object));
   }
   if (object->IsRegExp()) {
     v8::Local<v8::RegExp> regexp = object.As<v8::RegExp>();
