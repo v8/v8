@@ -1476,6 +1476,11 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   // Not useful for differential fuzzing: https://crbug.com/496356383
   RESET_WHEN_CORRECTNESS_FUZZING(heap_snapshot_on_gc);
 
+  // https://crbug.com/550629905
+#if V8_ENABLE_WEBASSEMBLY
+  RESET_WHEN_CORRECTNESS_FUZZING(wasm_pgo_to_file);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // https://crbug.com/369974230
   RESET_WHEN_FUZZING(expose_async_hooks);
 
