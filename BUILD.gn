@@ -48,7 +48,7 @@ declare_args() {
   # metagen (tools/metagen/) or Torque's emission. Both actions are wired
   # in the build, so flipping this is a rebuild, not a regen. Sets
   # -DV8_USE_METAGEN_INSTANCE_TYPES=0 when off.
-  v8_use_metagen_instance_types = true
+  v8_use_metagen_instance_types = false
 
   # Native libclang for the metagen instance-type harvest, for platforms
   # that have no prebuilt llvm-libclang package (currently ppc64 and s390x).
