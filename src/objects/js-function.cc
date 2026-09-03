@@ -924,7 +924,7 @@ void JSFunction::SetInitialMap(Isolate* isolate,
     if (function->TryGetPrototypeOrInitialMap(&pomd) &&
         pomd.has_non_instance_prototype) {
       pomd.non_instance_prototype_tuple->set_value1(*initial_map,
-                                                    kRelaxedStore);
+                                                    kReleaseStore);
     } else {
       function->set_prototype_or_initial_map(*initial_map, kReleaseStore);
     }

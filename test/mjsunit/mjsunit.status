@@ -571,6 +571,9 @@
 
   # The --stress-compaction flag prevents minor GCs.
   'weakrefs/minor-gc-*': [SKIP],
+
+  # GC stress sets --concurrent-recompilation-delay itself.
+  'compiler/regress-542923494': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################

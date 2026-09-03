@@ -41,6 +41,9 @@ V8_OBJECT class Tuple2 : public Struct {
   inline Tagged<Object> value1(RelaxedLoadTag) const;
   inline void set_value1(Tagged<Object> value, RelaxedStoreTag,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> value1(AcquireLoadTag) const;
+  inline void set_value1(Tagged<Object> value, ReleaseStoreTag,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<Object> value2() const;
   inline void set_value2(Tagged<Object> value,

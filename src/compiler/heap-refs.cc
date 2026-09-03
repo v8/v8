@@ -747,8 +747,8 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
       ObjectData* proto_or_map = prototype_or_initial_map_;
       if (proto_or_map->IsTuple2()) {
         Tagged<Tuple2> tuple = Cast<Tuple2>(*proto_or_map->object());
-        proto_or_map =
-            broker->GetOrCreateData(tuple->value1(), kAssumeMemoryFence);
+        proto_or_map = broker->GetOrCreateData(tuple->value1(kAcquireLoad),
+                                               kAssumeMemoryFence);
       }
 
       has_initial_map_ = proto_or_map->IsMap();
