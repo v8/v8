@@ -902,7 +902,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStoreWithWriteBarrier:  // Fall through.
     case kArchAtomicStoreWithWriteBarrier: {
       DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_None);
-      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
+      RecordWriteMode mode =
+          arch_opcode == kArchStoreWithWriteBarrier
+              ? RecordWriteModeField::decode(instr->opcode())
+              : AtomicStoreRecordWriteModeField::decode(instr->opcode());
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);

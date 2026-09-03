@@ -2131,4 +2131,22 @@ TEST_P(TurboshaftInstructionSelectorAddSub128Test,
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorAddSub128Test,
                          ::testing::ValuesIn(kAddOrSub128));
+
+TEST_F(TurboshaftInstructionSelectorTest, AtomicStoreWithWriteBarrier) {
+  if (v8_flags.disable_write_barriers) return;
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                  MachineType::Int64(), MachineType::AnyTagged());
+  m.Store(m.Parameter(0), m.Parameter(1), m.Parameter(2),
+          StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase).Atomic(),
+          MemoryRepresentation::TaggedPointer(),
+          WriteBarrierKind::kFullWriteBarrier, AtomicMemoryOrder::kSeqCst);
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build(kAllExceptNopInstructions);
+  ASSERT_EQ(3U, s.size());
+  EXPECT_EQ(kLoong64Add_d, s[0]->arch_opcode());
+  EXPECT_EQ(kArchAtomicStoreWithWriteBarrier, s[1]->arch_opcode());
+  EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
+  EXPECT_EQ(AtomicStoreRecordWriteModeField::decode(s[1]->opcode()),
+            RecordWriteMode::kValueIsAny);
+}
 }  // namespace v8::internal::compiler::turboshaft

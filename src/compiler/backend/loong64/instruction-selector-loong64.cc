@@ -2507,14 +2507,13 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
 
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchAtomicStoreSkippedWriteBarrier;
-      code |= RecordWriteModeField::encode(RecordWriteMode::kValueIsAny);
       temps[temp_count++] = g.TempRegister();
       temps[temp_count++] = g.TempRegister();
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
       code = kArchAtomicStoreWithWriteBarrier;
-      code |= RecordWriteModeField::encode(record_write_mode);
+      code |= AtomicStoreRecordWriteModeField::encode(record_write_mode);
     }
   } else {
     switch (rep) {
