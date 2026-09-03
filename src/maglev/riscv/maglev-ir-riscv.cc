@@ -145,7 +145,7 @@ void BuiltinStringFromCharCode::SetValueLocationConstraints() {
   if (CharCodeInput().node()->Is<Int32Constant>()) {
     UseAny(CharCodeInput());
   } else {
-    UseRegister(CharCodeInput());
+    UseAndClobberRegister(CharCodeInput());
   }
   set_temporaries_needed(2);
   DefineAsRegister(this);
