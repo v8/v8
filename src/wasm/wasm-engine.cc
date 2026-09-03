@@ -136,6 +136,13 @@ WasmOrphanedGlobalHandle* WasmEngine::NewOrphanedGlobalHandle(
   return orphan;
 }
 
+void WasmEngine::DestroyOrphanedGlobalHandle(WasmOrphanedGlobalHandle* that) {
+  // Acquire the lock because updating the linked list must not happen
+  // concurrently with {NewOrphanedGlobalHandle} inserting a node.
+  base::MutexGuard guard(&mutex_);
+  WasmOrphanedGlobalHandle::Destroy(that);
+}
+
 // static
 void WasmEngine::FreeAllOrphanedGlobalHandles(WasmOrphanedGlobalHandle* start) {
   // This is meant to be called from ~Isolate, so we no longer care about
@@ -213,7 +220,7 @@ class ClearWeakScriptHandleTask : public CancelableTask {
   // it might well be too late to do that safely).
 
   void RunInternal() override {
-    WasmOrphanedGlobalHandle::Destroy(handle_);
+    GetWasmEngine()->DestroyOrphanedGlobalHandle(handle_);
     handle_ = nullptr;
   }
 
