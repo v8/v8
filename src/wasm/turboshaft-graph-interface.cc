@@ -4789,6 +4789,14 @@ class TurboshaftGraphBuildingInterface
     __ MemoryBarrier(imm.order);
   }
 
+  void Publish(FullDecoder* decoder, const Value& value) {
+    // Overapproximate a release fence with an acquire-release fence.
+    // TODO(b/556394003): Model this as a separate operation so it can be
+    // optimized out when there are no intervening writes between object
+    // allocation and publication.
+    __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
+  }
+
   void Pause(FullDecoder* decoder) { __ Pause(); }
 
   void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,

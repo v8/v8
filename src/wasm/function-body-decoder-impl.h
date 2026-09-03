@@ -1566,6 +1566,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(AtomicOp, WasmOpcode opcode, const Value args[], const size_t argc,        \
     const MemoryAccessImmediate& imm, Value* result)                           \
   F(AtomicFence, const MemoryOrderImmediate& imm)                              \
+  F(Publish, const Value& value)                                               \
   F(Pause)                                                                     \
   F(MemoryInit, const MemoryInitImmediate& imm, const Value& dst,              \
     const Value& src, const Value& size)                                       \
@@ -2816,6 +2817,7 @@ class WasmDecoder : public Decoder {
             (ios.MemoryOrder(memory_order), ...);
             return length + memory_order.length;
           }
+          case kExprPublish:
           case kExprPause:
           case kExprWaitqueueNew:
           case kExprWaitqueueNotify:
@@ -7448,6 +7450,27 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CHECK_PROTOTYPE_OPCODE(shared);
         Value* result = Push(kWasmWaitqueueRef.AsNonNull());
         CALL_INTERFACE_IF_OK_AND_REACHABLE(WaitqueueNew, result);
+        return opcode_length;
+      }
+      case kExprPublish: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        Value value = Peek();
+        if (!VALIDATE(value.type.is_ref() || value.type == kWasmBottom)) {
+          PopTypeError(0, value, "reference type");
+          return 0;
+        }
+        // No-op for unshared types.
+        if (!value.type.is_shared()) {
+          return opcode_length;
+        }
+        // No-op for references to anything that cannot be a struct or array.
+        RefTypeKind kind = value.type.ref_type_kind();
+        if (kind == RefTypeKind::kStruct || kind == RefTypeKind::kArray ||
+            value.type.is_reference_to(GenericKind::kEq) ||
+            value.type.is_reference_to(GenericKind::kAny)) {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(Publish, value);
+        }
         return opcode_length;
       }
       case kExprArrayAtomicGet: {

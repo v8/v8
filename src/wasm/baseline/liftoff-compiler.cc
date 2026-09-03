@@ -6903,6 +6903,11 @@ class LiftoffCompiler {
     __ AtomicFence(imm.order);
   }
 
+  void Publish(FullDecoder* decoder, const Value& ref) {
+    // Overapproximate a release fence with an acquire-release fence.
+    __ AtomicFence(AtomicMemoryOrder::kAcqRel);
+  }
+
   void Pause(FullDecoder* decoder) { __ Pause(); }
 
   void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
