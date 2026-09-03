@@ -482,7 +482,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
           } else if (control->Is<Return>()) {
             printing_visitor_->os() << " " << control->id() << ".";
             break;
-          } else if (control->Is<Deopt>() || control->Is<Abort>()) {
+          } else if (control->Is<TerminalControlNode>()) {
             printing_visitor_->os() << " " << control->id() << "✖️";
             break;
           }
