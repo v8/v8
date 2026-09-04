@@ -503,6 +503,18 @@ PackNode* SLPTree::NewIntersectPackNode(const NodeGroup& node_group) {
   return intersect_pnode;
 }
 
+void SLPTree::AddLoadToShufflePackNode(OpIndex load_idx,
+                                       ShufflePackNode* pnode) {
+  auto it = load_to_shuffle_packnodes_.find(load_idx);
+  if (it == load_to_shuffle_packnodes_.end()) {
+    bool result;
+    std::tie(it, result) = load_to_shuffle_packnodes_.emplace(
+        load_idx, ZoneVector<ShufflePackNode*>(phase_zone_));
+    DCHECK(result);
+  }
+  it->second.push_back(pnode);
+}
+
 PackNode* SLPTree::NewCommutativePackNodeAndRecurse(const NodeGroup& node_group,
                                                     unsigned depth) {
   PackNode* pnode = NewPackNode(node_group);
@@ -649,9 +661,24 @@ ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
         return nullptr;
       }
     }
+    // The vector load-transform is emitted when the reducer visits the
+    // shared load transform itself (see WasmRevecReducer::REDUCE_INPUT_GRAPH
+    // (Simd128LoadTransform)), not when it visits the shuffles, so it can
+    // never be reordered past an intervening store. This is only sound if
+    // the load and the shuffles are reduced in the same relative order as
+    // they appear here, which requires them to be in the same block.
+    if (graph_.BlockIndexOf(shuffle0_left_idx) !=
+        graph_.BlockIndexOf(op_idx0)) {
+      TRACE(
+          "Load transform and shuffle are not in the same block for "
+          "k8x8U\n");
+      return nullptr;
+    }
     TRACE("match load extend 8x8->32x8\n");
-    return NewShufflePackNode(
+    ShufflePackNode* pnode = NewShufflePackNode(
         node_group, ShufflePackNode::SpecificInfo::Kind::kS256Load8x8U);
+    AddLoadToShufflePackNode(shuffle0_left_idx, pnode);
+    return pnode;
   }
   TRACE("Shuffle's left input is not k64Zero load transform.\n");
   return nullptr;
@@ -1352,6 +1379,9 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
         TRACE("Failed due to unsupported Simd128Shuffle op kind!\n");
         return nullptr;
       }
+      // Simd128Shuffle has no side effects, so emitting the vector
+      // load-transform at the load's position (earlier in the program) is safe.
+      DCHECK(op0.Effects() == OpEffects());
       // We pack shuffles only if it can match specific patterns. We should
       // avoid packing general shuffles because it will cause regression.
       const auto& shuffle0 = shuffle_op0.shuffle;
@@ -1381,18 +1411,50 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
           int index;
           if (SimdShuffle::TryMatchSplat<4>(shuffle0, &index) &&
               graph_.Get(op0.input(index >> 2)).opcode == Opcode::kLoad) {
+            OpIndex load_index = op0.input(index >> 2);
+            // The vector load-transform is emitted when the reducer visits
+            // the load itself (see WasmRevecReducer::REDUCE_INPUT_GRAPH
+            // (Load)), not when it visits the shuffle, so it can never be
+            // reordered past an intervening store. This is only sound if
+            // the load and the shuffle are reduced in the same relative
+            // order as they appear here, which requires them to be in the
+            // same block.
+            if (V8_UNLIKELY(graph_.BlockIndexOf(load_index) !=
+                            graph_.BlockIndexOf(node0))) {
+              TRACE(
+                  "Load and shuffle are not in the same block for "
+                  "k32Splat\n");
+              return nullptr;
+            }
             ShufflePackNode* pnode = NewShufflePackNode(
                 node_group,
                 ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform);
             pnode->info().set_splat_index(index);
+            AddLoadToShufflePackNode(load_index, pnode);
             return pnode;
           } else if (SimdShuffle::TryMatchSplat<2>(shuffle0, &index) &&
                      graph_.Get(op0.input(index >> 1)).opcode ==
                          Opcode::kLoad) {
+            OpIndex load_index = op0.input(index >> 1);
+            // The vector load-transform is emitted when the reducer visits
+            // the load itself (see WasmRevecReducer::REDUCE_INPUT_GRAPH
+            // (Load)), not when it visits the shuffle, so it can never be
+            // reordered past an intervening store. This is only sound if
+            // the load and the shuffle are reduced in the same relative
+            // order as they appear here, which requires them to be in the
+            // same block.
+            if (V8_UNLIKELY(graph_.BlockIndexOf(load_index) !=
+                            graph_.BlockIndexOf(node0))) {
+              TRACE(
+                  "Load and shuffle are not in the same block for "
+                  "k64Splat\n");
+              return nullptr;
+            }
             ShufflePackNode* pnode = NewShufflePackNode(
                 node_group,
                 ShufflePackNode::SpecificInfo::Kind::kS256Load64Transform);
             pnode->info().set_splat_index(index);
+            AddLoadToShufflePackNode(load_index, pnode);
             return pnode;
           }
         }
@@ -1455,6 +1517,23 @@ void WasmRevecAnalyzer::MergeSLPTree(SLPTree& slp_tree) {
                             entry.second.end());
     SLOW_DCHECK(std::unique(intersect_pnodes.begin(), intersect_pnodes.end()) ==
                 intersect_pnodes.end());
+  }
+
+  // Different SLPTrees (rooted at different store seeds) can independently
+  // match distinct shuffle patterns that share the same underlying load, so
+  // accumulate into the existing vector rather than dropping on key
+  // collision (as a plain unordered_map::merge would).
+  for (const auto& entry : slp_tree.GetLoadToShufflePackNodesMapping()) {
+    auto it = revectorizable_load_shuffle_node_.find(entry.first);
+    if (it == revectorizable_load_shuffle_node_.end()) {
+      bool result;
+      std::tie(it, result) = revectorizable_load_shuffle_node_.emplace(
+          entry.first, ZoneVector<ShufflePackNode*>(phase_zone_));
+      DCHECK(result);
+    }
+    ZoneVector<ShufflePackNode*>& shuffle_pnodes = it->second;
+    shuffle_pnodes.insert(shuffle_pnodes.end(), entry.second.begin(),
+                          entry.second.end());
   }
 
   revectorizable_node_.merge(slp_tree.GetNodeMapping());
