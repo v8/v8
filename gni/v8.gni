@@ -34,6 +34,12 @@ declare_args() {
   # Turns on compiler optimizations in V8 in Debug build.
   v8_optimized_debug = true
 
+  # Selects which instance-type generator's output V8 compiles in:
+  # metagen (tools/metagen/) or Torque's emission. When off, the metagen
+  # action is out of the build graph entirely, so nothing depends on the
+  # llvm-libclang package. Sets -DV8_USE_METAGEN_INSTANCE_TYPES=0 when off.
+  v8_use_metagen_instance_types = false
+
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
 

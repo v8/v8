@@ -184,8 +184,8 @@ v8_flag(
 v8_flag(name = "v8_enable_experimental_tq_to_tsa")
 
 # Mirrors the GN arg of the same name: selects which instance-type
-# generator's output V8 compiles in, metagen or Torque's emission. Both
-# generators stay wired, so flipping it is a rebuild, not a regen.
+# generator's output V8 compiles in, metagen or Torque's emission. When
+# off, the metagen action is not part of the build graph.
 v8_flag(name = "v8_use_metagen_instance_types")
 
 v8_flag(
@@ -4478,8 +4478,8 @@ v8_torque_files(
 
 # Metagen: libclang-driven IT generator. Produces gen/metagen/instance-types.h
 # which `src/objects/instance-types-gen.h` includes when
-# V8_USE_METAGEN_INSTANCE_TYPES is on. The action stays wired either way, so
-# flipping the flag is a plain rebuild.
+# V8_USE_METAGEN_INSTANCE_TYPES is on. :v8_libshared reaches the targets
+# below only under that flag.
 filegroup(
     name = "metagen_python_sources",
     srcs = [
@@ -4886,23 +4886,35 @@ v8_library(
     copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [
         ":icu/generated_torque_definitions_headers",
-        ":icu/metagen_instance_types_headers",
         "//external:icu",
-    ],
+    ] + select({
+        ":is_v8_use_metagen_instance_types": [
+            ":icu/metagen_instance_types_headers",
+        ],
+        "//conditions:default": [],
+    }),
     icu_srcs = [
         ":generated_regexp_special_case",
         ":icu/generated_torque_definitions",
-        ":icu/metagen_instance_types_h",
         ":icu/v8_base_without_compiler_files",
-    ],
+    ] + select({
+        ":is_v8_use_metagen_instance_types": [":icu/metagen_instance_types_h"],
+        "//conditions:default": [],
+    }),
     noicu_deps = [
         ":noicu/generated_torque_definitions_headers",
-        ":noicu/metagen_instance_types_headers",
-    ],
+    ] + select({
+        ":is_v8_use_metagen_instance_types": [
+            ":noicu/metagen_instance_types_headers",
+        ],
+        "//conditions:default": [],
+    }),
     noicu_srcs = [
         ":noicu/generated_torque_definitions",
-        ":noicu/metagen_instance_types_h",
-    ],
+    ] + select({
+        ":is_v8_use_metagen_instance_types": [":noicu/metagen_instance_types_h"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":lib_dragonbox",
         "//third_party/fast_float/src:fast_float",
