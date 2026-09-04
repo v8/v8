@@ -3082,6 +3082,53 @@ TEST_F(TurboshaftInstructionSelectorTest, I64x2AbsAVX10_1) {
   EXPECT_EQ(0U, s[0]->TempCount());
   EXPECT_TRUE(UnallocatedOperand::cast(s[0]->InputAt(0))->IsUsedAtStart());
 }
+
+TEST_F(TurboshaftInstructionSelectorTest, S128SelectAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> mask = m.Parameter<Simd128>(0);
+  V<Simd128> a = m.Parameter<Simd128>(1);
+  V<Simd128> b = m.Parameter<Simd128>(2);
+  m.Return(m.S128Select(mask, a, b));
+  // Build with AVX enabled: without AVX10.1 the AVX path uses DefineAsRegister
+  // (dst != mask), so this is the configuration where pinning dst to the mask
+  // is an observable AVX10.1-specific choice.
+  Stream s = m.Build(AVX);
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64SSelect, s[0]->arch_opcode());
+  EXPECT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  // vpternlogd needs dst == mask: the output is tied to input 0.
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
+}
+
+#ifdef V8_ENABLE_SIMD256
+TEST_F(TurboshaftInstructionSelectorTest, S256SelectAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  StreamBuilder m(this, MachineType::Simd256(), MachineType::Simd256(),
+                  MachineType::Simd256(), MachineType::Simd256());
+  V<Simd256> mask = m.Parameter<Simd256>(0);
+  V<Simd256> a = m.Parameter<Simd256>(1);
+  V<Simd256> b = m.Parameter<Simd256>(2);
+  m.Return(m.Simd256Ternary(mask, a, b, Simd256TernaryOp::Kind::kS256Select));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64SSelect, s[0]->arch_opcode());
+  EXPECT_EQ(VectorLength::kV256, VectorLengthField::decode(s[0]->opcode()));
+  EXPECT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(0U, s[0]->TempCount());
+  // vpternlogd needs dst == mask: the output is tied to input 0.
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
+}
+
+#endif  // V8_ENABLE_SIMD256
 #endif  // V8_ENABLE_AVX10_1
 
 #endif  // V8_ENABLE_WEBASSEMBLY

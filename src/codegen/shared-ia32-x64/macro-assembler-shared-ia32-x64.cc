@@ -1268,9 +1268,8 @@ void SharedMacroAssemblerBase::I64x2UConvertI32x4High(XMMRegister dst,
   }
 }
 
-void SharedMacroAssemblerBase::S128Not(XMMRegister dst, XMMRegister src,
-                                       XMMRegister scratch) {
-  ASM_CODE_COMMENT(this);
+void SharedMacroAssemblerBase::S128NotPreAvx10(XMMRegister dst, XMMRegister src,
+                                               XMMRegister scratch) {
   if (dst == src) {
     Pcmpeqd(scratch, scratch);
     Pxor(dst, scratch);
@@ -1280,10 +1279,11 @@ void SharedMacroAssemblerBase::S128Not(XMMRegister dst, XMMRegister src,
   }
 }
 
-void SharedMacroAssemblerBase::S128Select(XMMRegister dst, XMMRegister mask,
-                                          XMMRegister src1, XMMRegister src2,
-                                          XMMRegister scratch) {
-  ASM_CODE_COMMENT(this);
+void SharedMacroAssemblerBase::S128SelectPreAvx10(XMMRegister dst,
+                                                  XMMRegister mask,
+                                                  XMMRegister src1,
+                                                  XMMRegister src2,
+                                                  XMMRegister scratch) {
   // v128.select = v128.or(v128.and(v1, c), v128.andnot(v2, c)).
   // pandn(x, y) = !x & y, so we have to flip the mask and input.
   if (CpuFeatures::IsSupported(AVX)) {

@@ -2710,6 +2710,48 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr_evex(0x54, dst, xmm0, src, k66, k0F38, kW0, kFull);
   }
 
+  // vpternlogd/q — bitwise ternary logic.
+  void vpternlogd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                  uint8_t imm8, OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW0, mask, z);
+    emit(imm8);
+  }
+  void vpternlogd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
+                  OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW0, kFull, mask, z);
+    emit(imm8);
+  }
+  void vpternlogd(YMMRegister dst, YMMRegister src1, YMMRegister src2,
+                  uint8_t imm8, OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW0, mask, z);
+    emit(imm8);
+  }
+  void vpternlogd(YMMRegister dst, YMMRegister src1, Operand src2, uint8_t imm8,
+                  OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW0, kFull, mask, z);
+    emit(imm8);
+  }
+  void vpternlogq(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                  uint8_t imm8, OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW1, mask, z);
+    emit(imm8);
+  }
+  void vpternlogq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
+                  OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW1, kFull, mask, z);
+    emit(imm8);
+  }
+  void vpternlogq(YMMRegister dst, YMMRegister src1, YMMRegister src2,
+                  uint8_t imm8, OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW1, mask, z);
+    emit(imm8);
+  }
+  void vpternlogq(YMMRegister dst, YMMRegister src1, Operand src2, uint8_t imm8,
+                  OpMask mask = k0, MaskingType z = kMerging) {
+    vinstr_evex(0x25, dst, src1, src2, k66, k0F3A, kW1, kFull, mask, z);
+    emit(imm8);
+  }
+
   // BMI instruction
   void andnq(Register dst, Register src1, Register src2) {
     bmi1q(0xf2, dst, src1, src2);

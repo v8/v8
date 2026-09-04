@@ -1329,9 +1329,12 @@ TEST_F(MacroAssemblerX64Test, SIMDMacros) {
   CHECK_EQ(0, result);
 }
 
+// Test the pre-AVX10 path.
 TEST_F(MacroAssemblerX64Test, S256Select) {
   if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
-
+#ifdef V8_ENABLE_AVX10_1
+  FlagScope<bool> avx10_scope(&v8_flags.enable_avx10_1, false);
+#endif
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
@@ -1414,6 +1417,231 @@ TEST_F(MacroAssemblerX64Test, S256Select) {
     }
   }
 }
+
+#ifdef V8_ENABLE_AVX10_1
+// End-to-end execution tests for the AVX10.1 (vpternlogd) lowerings of
+// s128.not/select and s256.not/select.
+
+TEST_F(MacroAssemblerX64Test, S128NotAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const XMMRegister dst = xmm0;
+  const XMMRegister src = xmm1;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+
+  __ vmovdqu(src, Operand(kCArgRegs[0], 0));
+  __ S128Not(dst, src, kScratchDoubleReg);
+  __ vmovdqu(Operand(kCArgRegs[1], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<F1>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<uint64_t, 2>> test_cases = {
+      {0x0000000000000000, 0xFFFFFFFFFFFFFFFF},
+      {0x0123456789ABCDEF, 0xFEDCBA9876543210},
+      {0xAAAAAAAAAAAAAAAA, 0x5555555555555555}};
+
+  uint64_t input[2];
+  uint64_t output[2];
+
+  for (const auto& arr : test_cases) {
+    input[0] = arr[0];
+    input[1] = arr[1];
+
+    f.Call(input, output, nullptr);
+
+    for (int i = 0; i < 2; i++) {
+      CHECK_EQ(output[i], ~input[i]);
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, S128SelectAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  // The AVX10.1 lowering requires dst == mask.
+  const XMMRegister dst = xmm0;
+  const XMMRegister mask = xmm0;
+  const XMMRegister src1 = xmm1;
+  const XMMRegister src2 = xmm2;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+
+  __ vmovdqu(src1, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(src2, Operand(kCArgRegs[1], 0));
+  __ vmovdqu(mask, Operand(kCArgRegs[2], 0));
+  __ S128Select(dst, mask, src1, src2, kScratchDoubleReg);
+  __ vmovdqu(Operand(kCArgRegs[3], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<F2>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<uint64_t, 6>> test_cases = {
+      // {src1[0], src1[1], src2[0], src2[1], mask[0], mask[1]}
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB,
+       0xBBBBBBBBBBBBBBBB, 0x00112345F00FFFFF, 0x10112021BBAABBAA},
+      {0x0123456789ABCDEF, 0xFEDCBA9876543210, 0xFEDCBA9876543210,
+       0x0123456789ABCDEF, 0x0000000000000000, 0xFFFFFFFFFFFFFFFF},
+      {0x0123456789ABCDEF, 0xFEDCBA9876543210, 0x55555555AAAAAAAA,
+       0x00000000FFFFFFFF, 0xAAAAAAAA55555555, 0xFFFFFFFF00000000}};
+
+  uint64_t v1[2];
+  uint64_t v2[2];
+  uint64_t c[2];
+  uint64_t output[2];
+
+  for (const auto& arr : test_cases) {
+    v1[0] = arr[0];
+    v1[1] = arr[1];
+    v2[0] = arr[2];
+    v2[1] = arr[3];
+    c[0] = arr[4];
+    c[1] = arr[5];
+
+    f.Call(v1, v2, c, output);
+
+    for (int i = 0; i < 2; i++) {
+      CHECK_EQ(output[i], (v1[i] & c[i]) | (v2[i] & ~c[i]));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, S256NotAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister src = ymm1;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  __ vmovdqu(src, Operand(kCArgRegs[0], 0));
+  __ S256Not(dst, src, kScratchSimd256Reg);
+  __ vmovdqu(Operand(kCArgRegs[1], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<F1>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<uint64_t, 4>> test_cases = {
+      {0x0000000000000000, 0xFFFFFFFFFFFFFFFF, 0xAAAAAAAAAAAAAAAA,
+       0x5555555555555555},
+      {0x0123456789ABCDEF, 0xFEDCBA9876543210, 0x00112345F00FFFFF,
+       0x10112021BBAABBAA}};
+
+  uint64_t input[4];
+  uint64_t output[4];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 4; i++) input[i] = arr[i];
+
+    f.Call(input, output, nullptr);
+
+    for (int i = 0; i < 4; i++) {
+      CHECK_EQ(output[i], ~input[i]);
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, S256SelectAVX10_1) {
+  if (!UseAvx10_1()) return;
+
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired{true},
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  // The AVX10.1 lowering requires dst == mask.
+  const YMMRegister dst = ymm0;
+  const YMMRegister mask = ymm0;
+  const YMMRegister src1 = ymm1;
+  const YMMRegister src2 = ymm2;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  __ vmovdqu(src1, Operand(kCArgRegs[0], 0));
+  __ vmovdqu(src2, Operand(kCArgRegs[1], 0));
+  __ vmovdqu(mask, Operand(kCArgRegs[2], 0));
+  __ S256Select(dst, mask, src1, src2, kScratchSimd256Reg);
+  __ vmovdqu(Operand(kCArgRegs[3], 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<F2>::FromBuffer(i_isolate(), buffer->start());
+
+  std::vector<std::array<uint64_t, 12>> test_cases = {
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA,
+       0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB,
+       0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB, 0x00112345F00FFFFF,
+       0x10112021BBAABBAA, 0x0000000000000000, 0x0000000000000000},
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA,
+       0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB,
+       0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB, 0x1111111111111111,
+       0x1111111111111111, 0x0123456789ABCDEF, 0xFEDCBA9876543210},
+      {0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA,
+       0xAAAAAAAAAAAAAAAA, 0x5555555555555555, 0x5555555555555555,
+       0x5555555555555555, 0x5555555555555555, 0x0123456789ABCDEF,
+       0xFEDCBA9876543210, 0x55555555AAAAAAAA, 0x00000000FFFFFFFF},
+      {0x499602D2499602D2, 0x499602D2499602D2, 0x1234567812345678,
+       0x1234567812345678, 0xB669FD2EB669FD2E, 0xB669FD2EB669FD2E,
+       0x90ABCDEF90ABCDEF, 0x90ABCDEF90ABCDEF, 0xCDEFCDEFCDEFCDEF,
+       0xCDEFCDEFCDEFCDEF, 0xCDEFCDEFCDEFCDEF, 0xCDEFCDEFCDEFCDEF}};
+
+  uint64_t v1[4];
+  uint64_t v2[4];
+  uint64_t c[4];
+  uint64_t output[4];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 4; i++) {
+      v1[i] = arr[i];
+      v2[i] = arr[i + 4];
+      c[i] = arr[i + 8];
+    }
+
+    f.Call(v1, v2, c, output);
+
+    for (int i = 0; i < 4; i++) {
+      CHECK_EQ(output[i], (v1[i] & c[i]) | (v2[i] & ~c[i]));
+    }
+  }
+}
+#endif  // V8_ENABLE_AVX10_1
 
 TEST_F(MacroAssemblerX64Test, AreAliased) {
   DCHECK(!AreAliased(rax));

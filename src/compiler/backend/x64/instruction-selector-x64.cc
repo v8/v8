@@ -5294,13 +5294,19 @@ void InstructionSelector::VisitS128Select(OpIndex node) {
   const Simd128TernaryOp& op = Cast<Simd128TernaryOp>(node);
   DCHECK_EQ(op.input_count, 3);
 
+  const bool input1_is_zero = IsV128ZeroConst(this, op.input(1));
+  const bool input2_is_zero = IsV128ZeroConst(this, op.input(2));
+  // AVX10 vpternlogd requires dst to alias the mask.
+  const bool same_as_mask =
+      !IsSupported(AVX) || (UseAvx10_1() && !input1_is_zero && !input2_is_zero);
   InstructionOperand dst =
-      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  if (IsV128ZeroConst(this, op.input(2))) {
+      same_as_mask ? g.DefineSameAsFirst(node) : g.DefineAsRegister(node);
+
+  if (input2_is_zero) {
     // select(cond, input1, 0) -> and(cond, input1)
     Emit(kX64SAnd | VectorLengthField::encode(VectorLength::kV128), dst,
          g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
-  } else if (IsV128ZeroConst(this, op.input(1))) {
+  } else if (input1_is_zero) {
     // select(cond, 0, input2) -> and(not(cond), input2)
     Emit(kX64SAndNot | VectorLengthField::encode(VectorLength::kV128), dst,
          g.UseRegister(op.input(0)), g.UseRegister(op.input(2)));
@@ -5315,9 +5321,12 @@ void InstructionSelector::VisitS256Select(OpIndex node) {
 #ifdef V8_ENABLE_SIMD256
   X64OperandGenerator g(this);
   const Simd256TernaryOp& op = Cast<Simd256TernaryOp>(node);
-  Emit(kX64SSelect | VectorLengthField::encode(VectorLength::kV256),
-       g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-       g.UseRegister(op.input(1)), g.UseRegister(op.input(2)));
+  // vpternlogd requires dst to alias the mask.
+  InstructionOperand dst =
+      UseAvx10_1() ? g.DefineSameAsFirst(node) : g.DefineAsRegister(node);
+  Emit(kX64SSelect | VectorLengthField::encode(VectorLength::kV256), dst,
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)),
+       g.UseRegister(op.input(2)));
 #else
   UNREACHABLE();
 #endif

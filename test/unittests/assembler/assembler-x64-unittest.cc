@@ -3404,6 +3404,54 @@ TEST_F(AssemblerX64Test, AVX10IntegerArith) {
 }
 #endif  // V8_ENABLE_AVX10_1
 
+#ifdef V8_ENABLE_AVX10_1
+TEST_F(AssemblerX64Test, AVX10TernaryLogic) {
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+  uint8_t buffer[256];
+  Assembler masm(AssemblerOptions{},
+                 ExternalAssemblerBuffer(buffer, sizeof(buffer)));
+  // Encoding-only test: force-enable AVX10_1 so it runs on any host.
+  CpuFeatureScope fscope(&masm, AVX10_1, CpuFeatureScope::kDontCheckSupported);
+
+  // vpternlogd — W0. reg-reg, high registers (R'/V'/B'), one reg-mem case.
+  __ vpternlogd(xmm3, xmm2, xmm1, 0x33);
+  __ vpternlogd(xmm19, xmm18, xmm17, 0x33);
+  __ vpternlogd(xmm3, xmm2, Operand(rbx, 64), 0x33);
+  __ vpternlogd(ymm3, ymm2, ymm1, 0x33);
+  // vpternlogq — W1.
+  __ vpternlogq(xmm3, xmm2, xmm1, 0xca);
+  __ vpternlogq(ymm3, ymm2, ymm1, 0xca);
+  // Masking: {k1} merging and {k1}{z} zeroing.
+  __ vpternlogd(xmm3, xmm2, xmm1, 0x33, Assembler::k1);
+  __ vpternlogd(xmm3, xmm2, xmm1, 0x33, Assembler::k1, Assembler::kZeroing);
+
+  int instruction_length = masm.pc_offset();
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+  uint8_t expected[] = {
+      // vpternlogd xmm3,xmm2,xmm1,0x33
+      0x62, 0xf3, 0x6d, 0x08, 0x25, 0xd9, 0x33,
+      // vpternlogd xmm19,xmm18,xmm17,0x33   (high regs: R'/V'/B')
+      0x62, 0xa3, 0x6d, 0x00, 0x25, 0xd9, 0x33,
+      // vpternlogd xmm3,xmm2,[rbx+0x40],0x33   (CD8: 64/16 = 4)
+      0x62, 0xf3, 0x6d, 0x08, 0x25, 0x5b, 0x04, 0x33,
+      // vpternlogd ymm3,ymm2,ymm1,0x33
+      0x62, 0xf3, 0x6d, 0x28, 0x25, 0xd9, 0x33,
+      // vpternlogq xmm3,xmm2,xmm1,0xca   (W1)
+      0x62, 0xf3, 0xed, 0x08, 0x25, 0xd9, 0xca,
+      // vpternlogq ymm3,ymm2,ymm1,0xca
+      0x62, 0xf3, 0xed, 0x28, 0x25, 0xd9, 0xca,
+      // vpternlogd xmm3{k1},xmm2,xmm1,0x33   (masked, merging)
+      0x62, 0xf3, 0x6d, 0x09, 0x25, 0xd9, 0x33,
+      // vpternlogd xmm3{k1}{z},xmm2,xmm1,0x33   (masked, zeroing)
+      0x62, 0xf3, 0x6d, 0x89, 0x25, 0xd9, 0x33};
+  CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+#endif  // V8_ENABLE_AVX10_1
+
 TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
   // Support for a newer extension implies support for the older extensions.
   CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));

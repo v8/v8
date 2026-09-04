@@ -463,6 +463,17 @@ class DisassemblerX64 {
   int evex_v4() const { return (evex_byte3_ & 0x08) != 0 ? 0 : 16; }
   int evex_ndd_reg() const { return evex_vvvv() | evex_v4(); }
 
+  int evex_aaa() const {
+    DCHECK_EQ(evex_byte0_, EVEX_PREFIX);
+    return evex_byte3_ & 0x7;
+  }
+
+  // true: zeroing ({z}); false: merging.
+  bool evex_z() const {
+    DCHECK_EQ(evex_byte0_, EVEX_PREFIX);
+    return (evex_byte3_ & 0x80) != 0;
+  }
+
   int evex_reg(int modrm_regop) const {
     int r3 = (evex_byte1_ & 0x80) ? 0 : 8;
     int r4 = (evex_byte1_ & 0x10) ? 0 : 16;
@@ -561,6 +572,19 @@ class DisassemblerX64 {
     static const char* k_regs[] = {"k0", "k1", "k2", "k3",
                                    "k4", "k5", "k6", "k7"};
     return k_regs[reg];
+  }
+
+  // Returns the "{k1}" / "{k1}{z}" suffix for an EVEX-masked destination, or
+  // "" when there is no opmask (aaa == 0) or the instruction is not EVEX.
+  const char* EVEXMasking() const {
+    if (!is_evex() || evex_aaa() == 0) return "";
+    static constexpr const char* const kMasking[2][8] = {
+        {"", "{k1}", "{k2}", "{k3}", "{k4}", "{k5}", "{k6}", "{k7}"},
+        {"", "{k1}{z}", "{k2}{z}", "{k3}{z}", "{k4}{z}", "{k5}{z}", "{k6}{z}",
+         "{k7}{z}"},
+    };
+
+    return kMasking[evex_z() ? 1 : 0][evex_aaa()];
   }
 
   const char* NameOfAddress(uint8_t* addr) const {
@@ -1265,6 +1289,18 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
         current += PrintRightOperand(current);
         AppendToBuffer(",0x%x", *current++);
         break;
+      case 0x25: {
+        if (is_evex()) {
+          AppendToBuffer("vpternlog%c %s%s,%s,", evex_w() ? 'q' : 'd',
+                         NameOfAVXRegister(regop), EVEXMasking(),
+                         NameOfAVXRegister(vvvv));
+          current += PrintRightEVEXOperand(current, TupleType::kFull);
+          AppendToBuffer(",0x%x", *current++);
+        } else {
+          UnimplementedInstruction();
+        }
+        break;
+      }
       case 0x38:
         AppendToBuffer("vinserti128 %s,%s,", NameOfAVXRegister(regop),
                        NameOfAVXRegister(vvvv));

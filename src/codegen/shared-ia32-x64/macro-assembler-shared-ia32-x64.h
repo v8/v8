@@ -544,10 +544,10 @@ class V8_EXPORT_PRIVATE SharedMacroAssemblerBase : public MacroAssemblerBase {
   void I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src);
   void I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch);
-  void S128Not(XMMRegister dst, XMMRegister src, XMMRegister scratch);
+  void S128NotPreAvx10(XMMRegister dst, XMMRegister src, XMMRegister scratch);
   // Requires dst == mask when AVX is not supported.
-  void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
-                  XMMRegister src2, XMMRegister scratch);
+  void S128SelectPreAvx10(XMMRegister dst, XMMRegister mask, XMMRegister src1,
+                          XMMRegister src2, XMMRegister scratch);
   void S128Load8Splat(XMMRegister dst, Operand src, XMMRegister scratch);
   void S128Load16Splat(XMMRegister dst, Operand src, XMMRegister scratch);
   void S128Load32Splat(XMMRegister dst, Operand src);

@@ -384,6 +384,15 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    XMMRegister tmp1, XMMRegister tmp2) {
     I8x16PopcntPreAvx10(dst, src, tmp1, tmp2, scratch);
   }
+  void S128Not(XMMRegister dst, XMMRegister src, XMMRegister scratch) {
+    ASM_CODE_COMMENT(this);
+    S128NotPreAvx10(dst, src, scratch);
+  }
+  void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
+                  XMMRegister src2, XMMRegister scratch) {
+    ASM_CODE_COMMENT(this);
+    S128SelectPreAvx10(dst, mask, src1, src2, scratch);
+  }
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which

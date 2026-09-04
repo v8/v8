@@ -1943,6 +1943,25 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10) {
   COMPARE_INSTR("vpopcntb xmm2,xmm1", vpopcntb(xmm2, xmm1));
   COMPARE_INSTR("vpopcntb ymm18,ymm17", vpopcntb(ymm18, ymm17));
   COMPARE_INSTR("vpopcntb xmm2,[rbx+0x20]", vpopcntb(xmm2, Operand(rbx, 32)));
+
+  // vpternlogd/q: reg-reg, high registers, reg-mem, imm8, and masking suffix.
+  COMPARE_INSTR("vpternlogd xmm3,xmm2,xmm1,0x33",
+                vpternlogd(xmm3, xmm2, xmm1, 0x33));
+  COMPARE_INSTR("vpternlogd xmm19,xmm18,xmm17,0x33",
+                vpternlogd(xmm19, xmm18, xmm17, 0x33));
+  COMPARE_INSTR("vpternlogd xmm3,xmm2,[rbx+0x40],0x33",
+                vpternlogd(xmm3, xmm2, Operand(rbx, 64), 0x33));
+  COMPARE_INSTR("vpternlogd ymm3,ymm2,ymm1,0x33",
+                vpternlogd(ymm3, ymm2, ymm1, 0x33));
+  COMPARE_INSTR("vpternlogq xmm3,xmm2,xmm1,0xca",
+                vpternlogq(xmm3, xmm2, xmm1, 0xca));
+  COMPARE_INSTR("vpternlogq ymm19,ymm18,ymm17,0xca",
+                vpternlogq(ymm19, ymm18, ymm17, 0xca));
+  COMPARE_INSTR("vpternlogd xmm3{k1},xmm2,xmm1,0x33",
+                vpternlogd(xmm3, xmm2, xmm1, 0x33, Assembler::k1));
+  COMPARE_INSTR(
+      "vpternlogd xmm3{k1}{z},xmm2,xmm1,0x33",
+      vpternlogd(xmm3, xmm2, xmm1, 0x33, Assembler::k1, Assembler::kZeroing));
 }
 #endif  // V8_ENABLE_AVX10_1
 

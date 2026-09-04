@@ -2031,6 +2031,12 @@ void MacroAssembler::Cmpeqsd(XMMRegister dst, XMMRegister src) {
 void MacroAssembler::S256Not(YMMRegister dst, YMMRegister src,
                              YMMRegister scratch) {
   ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    // 0x33 = ~src1 (independent of dst and src2).
+    vpternlogd(dst, src, src, 0x33);
+    return;
+  }
   CpuFeatureScope avx2_scope(this, AVX2);
   if (dst == src) {
     vpcmpeqd(scratch, scratch, scratch);
@@ -2045,6 +2051,14 @@ void MacroAssembler::S256Select(YMMRegister dst, YMMRegister mask,
                                 YMMRegister src1, YMMRegister src2,
                                 YMMRegister scratch) {
   ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    // 0xCA = dst ? src1 : src2,
+    // so the destination must already hold the mask.
+    CHECK_EQ(dst, mask);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpternlogd(dst, src1, src2, 0xca);
+    return;
+  }
   CpuFeatureScope avx2_scope(this, AVX2);
   // v256.select = v256.or(v256.and(v1, c), v256.andnot(v2, c)).
   // pandn(x, y) = !x & y, so we have to flip the mask and input.
@@ -2166,6 +2180,33 @@ void MacroAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
   DCHECK(!AreAliased(dst, tmp1, tmp2));
   DCHECK(!AreAliased(src, tmp1, tmp2));
   I8x16PopcntPreAvx10(dst, src, tmp1, tmp2, scratch);
+}
+
+void MacroAssembler::S128Not(XMMRegister dst, XMMRegister src,
+                             XMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    // 0x33 = ~src1 (independent of dst and src2).
+    vpternlogd(dst, src, src, 0x33);
+    return;
+  }
+  S128NotPreAvx10(dst, src, scratch);
+}
+
+void MacroAssembler::S128Select(XMMRegister dst, XMMRegister mask,
+                                XMMRegister src1, XMMRegister src2,
+                                XMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    // 0xCA = dst ? src1 : src2,
+    // so the destination must already hold the mask.
+    CHECK_EQ(dst, mask);
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vpternlogd(dst, src1, src2, 0xca);
+    return;
+  }
+  S128SelectPreAvx10(dst, mask, src1, src2, scratch);
 }
 
 void MacroAssembler::I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,

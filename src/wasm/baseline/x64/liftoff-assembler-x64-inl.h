@@ -3457,8 +3457,9 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
   // Ensure that we don't overwrite any inputs with the movaps below.
   DCHECK_NE(dst, src1);
   DCHECK_NE(dst, src2);
-  if (!CpuFeatures::IsSupported(AVX) && dst != mask) {
-    movaps(dst.fp(), mask.fp());
+  // AVX10 vpternlogd and non-AVX fallback require dst == mask.
+  if ((UseAvx10_1() || !CpuFeatures::IsSupported(AVX)) && dst != mask) {
+    Movaps(dst.fp(), mask.fp());
     S128Select(dst.fp(), dst.fp(), src1.fp(), src2.fp(), kScratchDoubleReg);
   } else {
     S128Select(dst.fp(), mask.fp(), src1.fp(), src2.fp(), kScratchDoubleReg);
