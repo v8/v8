@@ -206,7 +206,11 @@ class InstructionChecker {
         if (!IsCageBaseReg(instr.ops[0])) {
           return;
         }
-        CHECK(!state_.is_cage_base_reg_valid_);
+        if (state_.is_cage_base_reg_valid_) {
+          violations_reporter_.ReportViolationWithInstruction(
+              pc, Da64InstFormatter::Format(instr),
+              std::format("Instruction overwrites a valid cage base register"));
+        }
         if (Utils::IsEntryCode(code_) &&
             IsExpectedOperand(instr.ops[1],
                               {.type = DA_OP_MEMSOFF,
@@ -247,6 +251,10 @@ class InstructionChecker {
   void CheckNoWritesToRootRegister(const uint8_t* pc, const Da64Inst& instr) {
     const bool expecting_init = root_reg_init_state_.in_progress;
     bool was_init = false;
+    // Flag to skip the generic validation at the end of this method. Used to
+    // prevent accidentally skipping the `expecting_init && !was_init` check
+    // below.
+    bool is_validated = false;
     switch (instr.mnem) {
       // Add and sub are also used for root relative indexing and accessing
       // isolate fields (or the isolate itself) via the root register.
@@ -261,11 +269,16 @@ class InstructionChecker {
         if (!IsRootReg(instr.ops[0])) {
           // Arithmetic and logical instructions do not support writeback
           // operands.
-          return;
+          is_validated = true;
+          break;
         }
-        CHECK(!state_.is_root_reg_valid_);
+        if (state_.is_root_reg_valid_) {
+          violations_reporter_.ReportViolationWithInstruction(
+              pc, Da64InstFormatter::Format(instr),
+              std::format("Instruction overwrites a valid root register"));
+        }
         if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
-          return;
+          is_validated = true;
         }
         break;
       // Stp is used by entry and deopt builtins to save the root register's
@@ -277,7 +290,7 @@ class InstructionChecker {
         CHECK_IMPLIES(IsRootReg(instr.ops[0]) || IsRootReg(instr.ops[1]),
                       Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
         if (!IsRootWritebackReg(instr.ops[2])) {
-          return;
+          is_validated = true;
         }
         break;
       // Ldp is used by entry and deopt builtins to restore the root registers'
@@ -298,7 +311,7 @@ class InstructionChecker {
             state_.is_root_reg_valid_ = false;
           }
           if (!IsRootWritebackReg(instr.ops[2])) {
-            return;
+            is_validated = true;
           }
         }
         break;
@@ -306,12 +319,17 @@ class InstructionChecker {
       case DA64I_MOVZ:
       case DA64I_MOVK:
         if (!IsRootReg(instr.ops[0])) {
-          return;
+          is_validated = true;
+          break;
         }
-        CHECK(!state_.is_root_reg_valid_);
+        if (state_.is_root_reg_valid_) {
+          violations_reporter_.ReportViolationWithInstruction(
+              pc, Da64InstFormatter::Format(instr),
+              std::format("Instruction overwrites a valid root register"));
+        }
         was_init = true;
         if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
-          return;
+          is_validated = true;
         }
         break;
       default:
@@ -325,6 +343,10 @@ class InstructionChecker {
       violations_reporter_.ReportViolationWithInstruction(
           pc, Da64InstFormatter::Format(instr),
           std::format("Root register initialization interrupted"));
+    }
+
+    if (is_validated) {
+      return;
     }
 
     // Check that no operand is the cage base register or the root register.
@@ -413,7 +435,8 @@ class InstructionChecker {
         // Assumes builtins receive the correct value as their first
         // argument.
         state_.is_root_reg_valid_ = (code_->kind() == CodeKind::BUILTIN) &&
-                                    IsExpectedReg(instr.ops[2], x0.code());
+                                    IsExpectedReg(instr.ops[2], x0.code()) &&
+                                    IsExpectedReg(instr.ops[1], xzr.code());
         break;
       default:
         break;

@@ -154,6 +154,29 @@ TEST_F(GeneratedCodeValidatorTest, ValidateCageBaseRegInitWithoutRootRegFails) {
       "Cage base register initialization uses invalid root register");
 }
 
+TEST_F(GeneratedCodeValidatorTest, ValidateOverwritingCageBaseRegFails) {
+  static_assert(kRootRegister != no_reg);
+  Isolate* i_isolate = this->i_isolate();
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                      buffer->CreateView());
+
+#if V8_TARGET_ARCH_X64
+  __ movq(kRootRegister, kCArgRegs[0]);
+#elif V8_TARGET_ARCH_ARM64
+  __ Mov(kRootRegister, x0);
+#else
+#error "Unsupported architecture for GeneratedCodeValidatorTest"
+#endif
+  __ LoadRootRelative(kPtrComprCageBaseRegister,
+                      IsolateData::cage_base_offset());
+  __ LoadRootRelative(kPtrComprCageBaseRegister,
+                      IsolateData::cage_base_offset());
+
+  CheckValidationFails(i_isolate, masm,
+                       "Instruction overwrites a valid cage base register");
+}
+
 TEST_F(GeneratedCodeValidatorTest, ValidateDecompressionPasses) {
   static_assert(kPtrComprCageBaseRegister != no_reg);
   Isolate* i_isolate = this->i_isolate();

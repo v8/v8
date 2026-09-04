@@ -113,7 +113,11 @@ class InstructionChecker {
         if (!IsCageBaseReg(instr, 0)) {
           return;
         }
-        CHECK(!state_.is_cage_base_reg_valid_);
+        if (state_.is_cage_base_reg_valid_) {
+          violations_reporter_.ReportViolationWithInstruction(
+              pc, FdInstrFormatter::Format(instr),
+              std::format("Instruction overwrites a valid cage base register"));
+        }
         if (Utils::IsEntryCode(code_) &&
             IsExpectedMemoryOperand(instr, 1, root_register, FD_REG_NONE, 0,
                                     IsolateData::cage_base_offset())) {
@@ -180,7 +184,11 @@ class InstructionChecker {
         if (!IsRootReg(instr, 0)) {
           return;
         }
-        CHECK(!state_.is_root_reg_valid_);
+        if (state_.is_root_reg_valid_) {
+          violations_reporter_.ReportViolationWithInstruction(
+              pc, FdInstrFormatter::Format(instr),
+              std::format("Instruction overwrites a valid root register"));
+        }
         if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
           return;
         }
@@ -256,7 +264,6 @@ class InstructionChecker {
       case FDI_MOVABS: {
         DCHECK_EQ(FD_OT_IMM, FD_OP_TYPE(&instr, 1));
         const int64_t imm_value = FD_OP_IMM(&instr, 1);
-        CHECK_LT(0, imm_value);
         state_.is_root_reg_valid_ =
             static_cast<const uint64_t>(imm_value) ==
             ExternalReference::isolate_root(isolate_).raw();
