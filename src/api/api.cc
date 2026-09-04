@@ -4361,6 +4361,10 @@ size_t v8::BackingStore::ByteLength() const {
   return reinterpret_cast<const i::BackingStore*>(this)->byte_length();
 }
 
+std::span<uint8_t> v8::BackingStore::ByteSpan() const {
+  return {static_cast<uint8_t*>(Data()), ByteLength()};
+}
+
 size_t v8::BackingStore::MaxByteLength() const {
   return reinterpret_cast<const i::BackingStore*>(this)->max_byte_length();
 }
