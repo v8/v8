@@ -918,7 +918,8 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
-  if (v8_flags.deopt_every_n_times || v8_flags.stress_flush_code) {
+  if (v8_flags.deopt_every_n_times || v8_flags.stress_flush_code ||
+      v8_flags.gc_interval > 0 || v8_flags.random_gc_interval > 0) {
     status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
   }
   if (v8_flags.optimize_on_next_call_optimizes_to_maglev) {
