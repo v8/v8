@@ -643,6 +643,7 @@ uint32_t ComputeFlagListHash() {
 #endif
 #if V8_ENABLE_WEBASSEMBLY
         flag.PointsTo(&v8_flags.wasm_sync_tier_up) ||
+        flag.PointsTo(&v8_flags.wasm_test_streaming) ||
 #endif
         flag.PointsTo(&v8_flags.parallel_scavenge) ||
         flag.PointsTo(&v8_flags.concurrent_marking) ||
@@ -1425,6 +1426,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(predictable_gc_schedule, stress_compaction);
   CONTRADICTION(single_threaded, stress_concurrent_inlining_attach_code);
 #if V8_ENABLE_WEBASSEMBLY
+  CONTRADICTION(wasm_test_streaming, predictable);
   CONTRADICTION(single_threaded, wasm_pgo_to_file);
   CONTRADICTION(single_threaded, wasm_generate_compilation_hints);
   CONTRADICTION(single_threaded, trace_wasm_generate_compilation_hints);

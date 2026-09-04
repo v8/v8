@@ -4229,6 +4229,9 @@ DEFINE_NEG_IMPLICATION(predictable, maglev_build_code_on_background)
 DEFINE_NEG_IMPLICATION(predictable, maglev_destroy_on_background)
 #endif  // V8_ENABLE_MAGLEV
 DEFINE_NEG_IMPLICATION(predictable, concurrent_cache_deserialization)
+#if V8_ENABLE_WEBASSEMBLY
+DEFINE_NEG_IMPLICATION(predictable, wasm_test_streaming)
+#endif  // V8_ENABLE_WEBASSEMBLY
 // Avoid random seeds in predictable mode.
 DEFINE_VALUE_IMPLICATION(predictable && random_seed == 0, random_seed, 12347)
 
