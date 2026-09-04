@@ -3961,7 +3961,11 @@ void CompilationStateImpl::TriggerOutstandingCallbacks() {
 
   // For dynamic tiering, trigger "compilation chunk finished" after a new chunk
   // of size {v8_flags.wasm_caching_threshold}.
-  if (v8_flags.wasm_dynamic_tiering &&
+  // Only emit the kFinishedCompilationChunk event after
+  // kFinishedBaselineCompilation, and only when a non-zero amount of code has
+  // been generated (the threshold flag could be set to zero).
+  if (v8_flags.wasm_dynamic_tiering && outstanding_baseline_units_ == 0 &&
+      bytes_since_last_chunk_ > 0 &&
       static_cast<size_t>(v8_flags.wasm_caching_threshold) <=
           bytes_since_last_chunk_) {
     // Trigger caching immediately if
