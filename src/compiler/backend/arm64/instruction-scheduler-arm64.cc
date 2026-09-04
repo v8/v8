@@ -152,6 +152,10 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kArm64Sxtl2:
     case kArm64Uxtl:
     case kArm64Uxtl2:
+    case kArm64Sshll:
+    case kArm64Sshll2:
+    case kArm64Ushll:
+    case kArm64Ushll2:
     case kArm64FSplat:
     case kArm64FAbs:
     case kArm64FSqrt:
@@ -165,6 +169,7 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kArm64IReplaceLane:
     case kArm64IShl:
     case kArm64IShll:
+    case kArm64IShll2:
     case kArm64IShrS:
     case kArm64IShrU:
     case kArm64SShl:
@@ -653,6 +658,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Mla:
     case kArm64Mls:
     case kArm64IShll:
+    case kArm64IShll2:
     case kArm64IShl:
     case kArm64IShrS:
     case kArm64IShrU:
@@ -669,6 +675,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Sxtl2:
     case kArm64Uxtl:
     case kArm64Uxtl2:
+    case kArm64Sshll:
+    case kArm64Sshll2:
+    case kArm64Ushll:
+    case kArm64Ushll2:
     case kArm64I32x4UConvertF32x4:
     case kArm64I32x4BitMask:
     case kArm64I32x4DotI8x16AddS:
@@ -1008,6 +1018,10 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArm64Sxtl2:
     case kArm64Uxtl:
     case kArm64Uxtl2:
+    case kArm64Sshll:
+    case kArm64Sshll2:
+    case kArm64Ushll:
+    case kArm64Ushll2:
     case kArm64FSplat:
     case kArm64FAbs:
     case kArm64FNeg:
@@ -1016,6 +1030,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArm64INeg:
     case kArm64IShl:
     case kArm64IShll:
+    case kArm64IShll2:
     case kArm64IShrS:
     case kArm64IShrU:
     case kArm64SShl:

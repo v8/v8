@@ -249,6 +249,85 @@ void VisitRRI(InstructionSelector* selector, InstructionCode opcode,
                    g.UseImmediate(op.lane));
   }
 }
+
+bool TryEmitShiftLeftLong(InstructionSelector* selector, OpIndex node,
+                          const Simd128ShiftOp& shift_op, LaneSize lane_size,
+                          int shift_amount) {
+  using Kind = Simd128UnaryOp::Kind;
+
+  if (auto* extension = selector->TryCast<Simd128UnaryOp>(shift_op.input())) {
+    const Kind kind = extension->kind;
+    const int source_lane_bits = LaneSizeBits(lane_size) / 2;
+    if (shift_amount <= source_lane_bits &&
+        ElementSizeInBits(Simd128UnaryOp::InputElementRep(kind)) ==
+            source_lane_bits &&
+        selector->CanCover(node, shift_op.input())) {
+      const bool is_full_width_shift = shift_amount == source_lane_bits;
+      ArchOpcode opcode;
+      if (is_full_width_shift) {
+        switch (kind) {
+          case Kind::kI16x8SConvertI8x16Low:
+          case Kind::kI32x4SConvertI16x8Low:
+          case Kind::kI64x2SConvertI32x4Low:
+          case Kind::kI16x8UConvertI8x16Low:
+          case Kind::kI32x4UConvertI16x8Low:
+          case Kind::kI64x2UConvertI32x4Low:
+            opcode = kArm64IShll;
+            break;
+          case Kind::kI16x8SConvertI8x16High:
+          case Kind::kI32x4SConvertI16x8High:
+          case Kind::kI64x2SConvertI32x4High:
+          case Kind::kI16x8UConvertI8x16High:
+          case Kind::kI32x4UConvertI16x8High:
+          case Kind::kI64x2UConvertI32x4High:
+            opcode = kArm64IShll2;
+            break;
+          default:
+            return false;
+        }
+      } else {
+        switch (kind) {
+          case Kind::kI16x8SConvertI8x16Low:
+          case Kind::kI32x4SConvertI16x8Low:
+          case Kind::kI64x2SConvertI32x4Low:
+            opcode = kArm64Sshll;
+            break;
+          case Kind::kI16x8SConvertI8x16High:
+          case Kind::kI32x4SConvertI16x8High:
+          case Kind::kI64x2SConvertI32x4High:
+            opcode = kArm64Sshll2;
+            break;
+          case Kind::kI16x8UConvertI8x16Low:
+          case Kind::kI32x4UConvertI16x8Low:
+          case Kind::kI64x2UConvertI32x4Low:
+            opcode = kArm64Ushll;
+            break;
+          case Kind::kI16x8UConvertI8x16High:
+          case Kind::kI32x4UConvertI16x8High:
+          case Kind::kI64x2UConvertI32x4High:
+            opcode = kArm64Ushll2;
+            break;
+          default:
+            return false;
+        }
+      }
+
+      Arm64OperandGenerator g(selector);
+      const InstructionCode code = opcode | LaneSizeField::encode(lane_size);
+      if (is_full_width_shift) {
+        selector->Emit(code, g.DefineAsRegister(node),
+                       g.UseRegister(extension->input()));
+      } else {
+        selector->Emit(code, g.DefineAsRegister(node),
+                       g.UseRegister(extension->input()),
+                       g.UseImmediate(shift_amount));
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 // If shift value is an immediate, we can call Shl, taking the shift
 // value modulo 2^width. Otherwise, emit code to perform the modulus
 // operation, and call Sshl.
@@ -262,7 +341,12 @@ void VisitSimdShl(InstructionSelector* selector, OpIndex node,
         static_cast<int>(constant & (LaneSizeBits(lane_size) - 1));
     if (amount == 0) {
       selector->EmitIdentity(node);
-    } else if (amount == 1) {
+      return;
+    }
+    if (TryEmitShiftLeftLong(selector, node, op, lane_size, amount)) {
+      return;
+    }
+    if (amount == 1) {
       selector->Emit(kArm64IAdd | LaneSizeField::encode(lane_size),
                      g.DefineAsRegister(node), g.UseRegister(op.input()),
                      g.UseRegister(op.input()));

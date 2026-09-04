@@ -2983,6 +2983,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ Instr(dst, i.InputSimd128Register(1).Format(wide));              \
     break;                                                              \
   }
+#define SIMD_SHIFT_LEFT_LONG_CASE(Op, Instr, SrcFormat, Shift)          \
+  case Op: {                                                            \
+    const VectorFormat dst_f =                                          \
+        VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
+    const VectorFormat src_f = SrcFormat(dst_f);                        \
+    __ Instr(i.OutputSimd128Register().Format(dst_f),                   \
+             i.InputSimd128Register(0).Format(src_f), Shift);           \
+    break;                                                              \
+  }
 #define SIMD_BINOP_CASE(Op, Instr, FORMAT)           \
   case Op:                                           \
     __ Instr(i.OutputSimd128Register().V##FORMAT(),  \
@@ -3129,6 +3138,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0).Format(narrow));
       break;
     }
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64Sshll, Sshll, VectorFormatHalfWidth,
+                                i.InputInt8(1));
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64Sshll2, Sshll2,
+                                VectorFormatHalfWidthDoubleLanes,
+                                i.InputInt8(1));
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64Ushll, Ushll, VectorFormatHalfWidth,
+                                i.InputInt8(1));
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64Ushll2, Ushll2,
+                                VectorFormatHalfWidthDoubleLanes,
+                                i.InputInt8(1));
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64IShll, Shll, VectorFormatHalfWidth,
+                                LaneSizeInBitsFromFormat(src_f));
+      SIMD_SHIFT_LEFT_LONG_CASE(kArm64IShll2, Shll2,
+                                VectorFormatHalfWidthDoubleLanes,
+                                LaneSizeInBitsFromFormat(src_f));
     case kArm64F64x2ConvertLowI32x4S: {
       VRegister dst = i.OutputSimd128Register().V2D();
       __ Sxtl(dst, i.InputSimd128Register(0).V2S());
@@ -3310,15 +3334,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Mov(dst, src1);
       }
       __ Mov(dst, i.InputInt8(1), src2);
-      break;
-    }
-    case kArm64IShll: {
-      int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
-      VectorFormat dst_f = VectorFormatFillQ(lane_size);
-      VectorFormat src_f = VectorFormatHalfWidth(dst_f);
-      int shift_value = lane_size / 2;
-      __ Shll(i.OutputSimd128Register().Format(dst_f),
-              i.InputSimd128Register(0).Format(src_f), shift_value);
       break;
     }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64SShl, Sshl);
@@ -3816,6 +3831,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef SIMD_UNOP_LANE_SIZE_CASE
 #undef SIMD_LOW_NARROWING_CASE
 #undef SIMD_HIGH_NARROWING_CASE
+#undef SIMD_SHIFT_LEFT_LONG_CASE
 #undef SIMD_BINOP_CASE
 #undef SIMD_BINOP_LANE_SIZE_CASE
 #undef SIMD_LOW_BINOP_LANE_SIZE_CASE

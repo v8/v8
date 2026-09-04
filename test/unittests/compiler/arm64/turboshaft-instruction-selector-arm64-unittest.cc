@@ -10586,6 +10586,74 @@ TEST_F(TurboshaftInstructionSelectorTest, SimdShiftToAdd) {
   }
 }
 
+namespace {
+
+struct SIMDShiftLeftLongTest {
+  const TSUnop extension;
+  const TSBinop shift;
+  const ArchOpcode regular_opcode;
+  const ArchOpcode full_width_opcode;
+  const int lane_bits;
+};
+
+#define SIMD_SHIFT_LEFT_LONG_TESTS(Dst, Src, LaneBits)                        \
+  {TSUnop::k##Dst##SConvert##Src##Low, TSBinop::k##Dst##Shl, kArm64Sshll,     \
+   kArm64IShll, LaneBits},                                                    \
+      {TSUnop::k##Dst##SConvert##Src##High, TSBinop::k##Dst##Shl,             \
+       kArm64Sshll2, kArm64IShll2, LaneBits},                                 \
+      {TSUnop::k##Dst##UConvert##Src##Low, TSBinop::k##Dst##Shl, kArm64Ushll, \
+       kArm64IShll, LaneBits},                                                \
+  {                                                                           \
+    TSUnop::k##Dst##UConvert##Src##High, TSBinop::k##Dst##Shl, kArm64Ushll2,  \
+        kArm64IShll2, LaneBits                                                \
+  }
+
+const SIMDShiftLeftLongTest kSIMDShiftLeftLongTests[] = {
+    SIMD_SHIFT_LEFT_LONG_TESTS(I16x8, I8x16, 16),
+    SIMD_SHIFT_LEFT_LONG_TESTS(I32x4, I16x8, 32),
+    SIMD_SHIFT_LEFT_LONG_TESTS(I64x2, I32x4, 64),
+};
+
+#undef SIMD_SHIFT_LEFT_LONG_TESTS
+
+}  // namespace
+
+TEST_F(TurboshaftInstructionSelectorTest, SimdShiftLeftLong) {
+  for (const SIMDShiftLeftLongTest& test : kSIMDShiftLeftLongTests) {
+    const int source_lane_bits = test.lane_bits / 2;
+    TRACED_FORRANGE(int, shift_amount, 1, source_lane_bits) {
+      StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+      const V<Simd128> input = m.Parameter(0);
+      const OpIndex extension = m.Emit(test.extension, input);
+      const OpIndex result =
+          m.Emit(test.shift, extension, m.Int32Constant(shift_amount));
+      m.Return(result);
+      const Stream s = m.Build();
+
+      if (shift_amount == source_lane_bits) {
+        ASSERT_EQ(1U, s.size());
+        EXPECT_EQ(test.full_width_opcode, s[0]->arch_opcode());
+        EXPECT_EQ(test.lane_bits,
+                  LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+        EXPECT_EQ(1U, s[0]->InputCount());
+        ASSERT_EQ(1U, s[0]->OutputCount());
+        EXPECT_EQ(s.ToVreg(input), s.ToVreg(s[0]->InputAt(0)));
+        EXPECT_EQ(s.ToVreg(result), s.ToVreg(s[0]->Output()));
+      } else {
+        ASSERT_EQ(1U, s.size());
+        EXPECT_EQ(test.regular_opcode, s[0]->arch_opcode());
+        EXPECT_EQ(test.lane_bits,
+                  LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+        EXPECT_EQ(2U, s[0]->InputCount());
+        ASSERT_EQ(1U, s[0]->OutputCount());
+        EXPECT_EQ(s.ToVreg(input), s.ToVreg(s[0]->InputAt(0)));
+        EXPECT_EQ(s.ToVreg(result), s.ToVreg(s[0]->Output()));
+        EXPECT_EQ(shift_amount, s.ToInt32(s[0]->InputAt(1)));
+      }
+    }
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorSIMDSubFamilyTest,
                          ::testing::ValuesIn(kSIMDSubFamilyTests));

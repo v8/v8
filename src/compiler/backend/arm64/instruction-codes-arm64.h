@@ -110,6 +110,10 @@ namespace compiler {
   V(Arm64Sxtl2)                         \
   V(Arm64Uxtl)                          \
   V(Arm64Uxtl2)                         \
+  V(Arm64Sshll)                         \
+  V(Arm64Sshll2)                        \
+  V(Arm64Ushll)                         \
+  V(Arm64Ushll2)                        \
   V(Arm64FSplat)                        \
   V(Arm64FAbs)                          \
   V(Arm64FSqrt)                         \
@@ -122,6 +126,7 @@ namespace compiler {
   V(Arm64IExtractLane)                  \
   V(Arm64IReplaceLane)                  \
   V(Arm64IShll)                         \
+  V(Arm64IShll2)                        \
   V(Arm64IShl)                          \
   V(Arm64IShrS)                         \
   V(Arm64IShrU)                         \
