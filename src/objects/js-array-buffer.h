@@ -12,6 +12,7 @@
 #include "src/objects/backing-store.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/external-pointer.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -319,7 +320,7 @@ class ArrayBufferExtension final
   bool IsMarked() const { return marked_.load(std::memory_order_relaxed); }
 
   void YoungMark() {
-    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
+    SBXCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
     set_young_gc_state(GcState::Copied);
   }
   void YoungMarkPromoted() {

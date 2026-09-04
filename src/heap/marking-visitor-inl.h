@@ -30,6 +30,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
@@ -269,6 +270,14 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
     return;
   }
   Address maybe_extension = table->Get(handle, slot.tag_range());
+  if (maybe_extension) {
+    ArrayBufferExtension* extension =
+        reinterpret_cast<ArrayBufferExtension*>(maybe_extension);
+    SBXCHECK_EQ(space == heap_->young_external_pointer_space()
+                    ? ArrayBufferExtension::Age::kYoung
+                    : ArrayBufferExtension::Age::kOld,
+                extension->age());
+  }
 #else   // !V8_COMPRESS_POINTERS
   if (slot.tag_range() != kArrayBufferExtensionTag) {
     return;
