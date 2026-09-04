@@ -483,6 +483,16 @@ UTEST_AMO_WITH_RES(amominu_w, false, false, uint32_t, 0xFBB1A75C, 0xA75C0A9C,
 UTEST_AMO_WITH_RES(amomaxu_w, false, false, uint32_t, 0xFBB1A75C, 0xA75C0A9C,
                    std::max((uint32_t)0xFBB1A75C, (uint32_t)0xA75C0A9C))
 
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_amo_w_sign_extends_result) {
+  auto fn = [](MacroAssembler& assm) {
+    __ amoswap_w(false, false, a1, a0, a2);
+    __ srli(a1, a1, 32);
+    __ sw(a1, a0, 0);
+  };
+  auto res = GenAndRunTestForAMO<uint32_t, int64_t>(0xFBB1A75C, 0xA75C0A9C, fn);
+  CHECK_EQ(-1, res);
+}
+
 // -- RV64A Standard Extension (in addition to RV32A) --
 UTEST_LR_SC(lr_d, sc_d, false, false, int64_t, 0xFBB10A9Cbfb76aa6)
 UTEST_AMO_WITH_RES(amoswap_d, false, false, int64_t, 0xFBB10A9Cbfb76aa6,

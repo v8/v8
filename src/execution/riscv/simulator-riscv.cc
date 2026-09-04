@@ -4435,9 +4435,10 @@ static inline bool is_invalid_fsqrt(T src1) {
   return (src1 < 0);
 }
 
-template <typename T, typename OP>
+template <typename T, typename OP, typename FormatResult>
 void Simulator::AtomicMemoryHelper(sreg_t rs1, T value, OP f,
-                                   Instruction* instr) {
+                                   Instruction* instr,
+                                   FormatResult format_result) {
   unsigned element_size = sizeof(T);
   uintptr_t address = rs1;
   DCHECK_EQ(address % element_size, 0);
@@ -4465,10 +4466,11 @@ void Simulator::AtomicMemoryHelper(sreg_t rs1, T value, OP f,
   }
 
   WriteMem<T>(address, result, instr);
-  set_rd(T(data));
+  set_rd(format_result(data));
 }
 
 void Simulator::DecodeRVRAType() {
+  auto format_word_result = [](auto result) { return sext32(result); };
   // TODO(riscv): Add macro for RISCV A extension
   // Special handling for A extension instructions because it uses func5
   // For all A extension instruction, V8 simulator is pure sequential. No
@@ -4515,7 +4517,8 @@ void Simulator::DecodeRVRAType() {
       }
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
-          [&](uint32_t lhs, uint32_t rhs) { return rhs; }, instr_.instr());
+          [&](uint32_t lhs, uint32_t rhs) { return rhs; }, instr_.instr(),
+          format_word_result);
       break;
     }
     case RO_AMOADD_W: {
@@ -4524,8 +4527,8 @@ void Simulator::DecodeRVRAType() {
       }
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)(rs2()),
-          [&](uint32_t lhs, uint32_t rhs) { return lhs + rhs; },
-          instr_.instr());
+          [&](uint32_t lhs, uint32_t rhs) { return lhs + rhs; }, instr_.instr(),
+          format_word_result);
       break;
     }
     case RO_AMOXOR_W: {
@@ -4534,8 +4537,8 @@ void Simulator::DecodeRVRAType() {
       }
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
-          [&](uint32_t lhs, uint32_t rhs) { return lhs ^ rhs; },
-          instr_.instr());
+          [&](uint32_t lhs, uint32_t rhs) { return lhs ^ rhs; }, instr_.instr(),
+          format_word_result);
       break;
     }
     case RO_AMOAND_W: {
@@ -4544,8 +4547,8 @@ void Simulator::DecodeRVRAType() {
       }
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
-          [&](uint32_t lhs, uint32_t rhs) { return lhs & rhs; },
-          instr_.instr());
+          [&](uint32_t lhs, uint32_t rhs) { return lhs & rhs; }, instr_.instr(),
+          format_word_result);
       break;
     }
     case RO_AMOOR_W: {
@@ -4554,8 +4557,8 @@ void Simulator::DecodeRVRAType() {
       }
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
-          [&](uint32_t lhs, uint32_t rhs) { return lhs | rhs; },
-          instr_.instr());
+          [&](uint32_t lhs, uint32_t rhs) { return lhs | rhs; }, instr_.instr(),
+          format_word_result);
       break;
     }
     case RO_AMOMIN_W: {
@@ -4565,7 +4568,7 @@ void Simulator::DecodeRVRAType() {
       AtomicMemoryHelper<int32_t>(
           rs1(), (int32_t)rs2(),
           [&](int32_t lhs, int32_t rhs) { return std::min(lhs, rhs); },
-          instr_.instr());
+          instr_.instr(), format_word_result);
       break;
     }
     case RO_AMOMAX_W: {
@@ -4575,7 +4578,7 @@ void Simulator::DecodeRVRAType() {
       AtomicMemoryHelper<int32_t>(
           rs1(), (int32_t)rs2(),
           [&](int32_t lhs, int32_t rhs) { return std::max(lhs, rhs); },
-          instr_.instr());
+          instr_.instr(), format_word_result);
       break;
     }
     case RO_AMOMINU_W: {
@@ -4585,7 +4588,7 @@ void Simulator::DecodeRVRAType() {
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
           [&](uint32_t lhs, uint32_t rhs) { return std::min(lhs, rhs); },
-          instr_.instr());
+          instr_.instr(), format_word_result);
       break;
     }
     case RO_AMOMAXU_W: {
@@ -4595,7 +4598,7 @@ void Simulator::DecodeRVRAType() {
       AtomicMemoryHelper<uint32_t>(
           rs1(), (uint32_t)rs2(),
           [&](uint32_t lhs, uint32_t rhs) { return std::max(lhs, rhs); },
-          instr_.instr());
+          instr_.instr(), format_word_result);
       break;
     }
 #ifdef V8_TARGET_ARCH_RISCV64
