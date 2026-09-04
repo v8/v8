@@ -4608,6 +4608,7 @@ metagen_instance_types(
         ":define_flags",
         ":v8_libbase",
         ":lib_fp16",
+        ":simdutf",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
@@ -4860,6 +4861,7 @@ cc_library(
     name = "simdutf",
     srcs = ["third_party/simdutf/simdutf.cpp"],
     hdrs = ["third_party/simdutf/simdutf.h"],
+    strip_include_prefix = "third_party/simdutf",
     copts = select({
         "@v8//bazel/config:is_clang": ["-std=c++20"],
         "@v8//bazel/config:is_gcc": ["-std=gnu++2a"],
