@@ -11,8 +11,8 @@
 // V8_USE_METAGEN_INSTANCE_TYPES=0 (the "features" config in BUILD.gn,
 // ":define_flags" in BUILD.bazel); when on it is left undefined and the
 // fallback below selects metagen, so every translation unit agrees regardless
-// of which configs it picks up. Both generators are wired in the build, so
-// flipping the arg requires only a rebuild, not a regen.
+// of which configs it picks up. Torque runs either way; the metagen harvest is
+// only in the build graph when the arg is on.
 #if !defined(V8_USE_METAGEN_INSTANCE_TYPES)
 #define V8_USE_METAGEN_INSTANCE_TYPES 1
 #endif

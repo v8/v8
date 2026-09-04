@@ -71,7 +71,6 @@ action("gen_heap_constants") {
 
 # Common sources and deps shared by the component and shared library targets.
 _debug_helper_sources = [
-  "$target_gen_dir/../../metagen/instance-types.h",
   "$target_gen_dir/../../torque-generated/class-debug-readers.cc",
   "$target_gen_dir/../../torque-generated/class-debug-readers.h",
   "$target_gen_dir/../../torque-generated/debug-macros.cc",
@@ -91,7 +90,6 @@ _debug_helper_sources = [
 _debug_helper_deps = [
   ":gen_heap_constants",
   "../..:generate_bytecode_builtins_list",
-  "../..:metagen_instance_types_h",
   "../..:run_torque",
   "../..:v8_abseil",
   "../..:v8_headers",
@@ -100,6 +98,10 @@ _debug_helper_deps = [
   "../..:v8_shared_internal_headers",
   "../..:v8_tracing",
 ]
+if (v8_use_metagen_instance_types) {
+  _debug_helper_sources += [ "$target_gen_dir/../../metagen/instance-types.h" ]
+  _debug_helper_deps += [ "../..:metagen_instance_types_h" ]
+}
 if (v8_enable_temporal_support) {
   _debug_helper_deps += [ "//third_party/rust/temporal_capi" ]
 }
