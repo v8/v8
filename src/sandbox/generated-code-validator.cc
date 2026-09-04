@@ -21,8 +21,7 @@ bool ShouldValidateCode(Tagged<Code> code) {
 }  // namespace
 
 // static
-void GeneratedCodeValidator::Validate(IsolateForSandbox isolate,
-                                      Tagged<Code> code) {
+void GeneratedCodeValidator::Validate(Isolate* isolate, Tagged<Code> code) {
   if (!ShouldValidateCode(code)) {
     return;
   }
@@ -258,7 +257,8 @@ bool GeneratedCodeValidator::Utils::IsDeoptCode(const Tagged<Code> code) {
 }
 
 GeneratedCodeValidator::State::State(const Tagged<Code> code)
-    : is_cage_base_reg_valid_(!Utils::IsEntryCode(code)) {}
+    : is_root_reg_valid_(!Utils::IsEntryCode(code)),
+      is_cage_base_reg_valid_(!Utils::IsEntryCode(code)) {}
 
 }  // namespace v8::internal
 

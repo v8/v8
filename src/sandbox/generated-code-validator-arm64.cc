@@ -107,22 +107,30 @@ static bool Da64OpEquals(const Da64Op& op1, const Da64Op& op2) {
 
 class InstructionChecker {
   static_assert(kPtrComprCageBaseRegister != no_reg);
-  static constexpr int cage_base_reg = kPtrComprCageBaseRegister.code();
+  static constexpr int cage_base_register = kPtrComprCageBaseRegister.code();
   static_assert(kRootRegister != no_reg);
   static constexpr int root_register = kRootRegister.code();
+  static constexpr int kMaxOperands = 5;
 
   using ViolationsReporter = GeneratedCodeValidator::ViolationsReporter;
   using Utils = GeneratedCodeValidator::Utils;
   using State = GeneratedCodeValidator::State;
 
  public:
-  InstructionChecker(Tagged<Code> code, ViolationsReporter& violations_reporter)
-      : code_(code), violations_reporter_(violations_reporter), state_(code_) {}
+  InstructionChecker(Isolate* isolate, Tagged<Code> code,
+                     ViolationsReporter& violations_reporter)
+      : isolate_(isolate),
+        code_(code),
+        violations_reporter_(violations_reporter),
+        state_(code_),
+        root_reg_init_state_(isolate_) {}
 
   void Check(const uint8_t* pc, const Da64Inst& instr) {
+    static_assert(kMaxOperands == (sizeof(instr.ops) / sizeof(Da64Op)));
     // REGEXP code doesn't follow the V8 ABI and instead uses standard C ABI.
     if (code_->kind() != CodeKind::REGEXP) {
       CheckNoWritesToCageBaseRegister(pc, instr);
+      CheckNoWritesToRootRegister(pc, instr);
     }
   }
 
@@ -130,16 +138,11 @@ class InstructionChecker {
   // Verifies whether the instruction accesses the pointer compression cage base
   // register (x28) directly or modifies it via writeback. The cage base
   // register must remain read-only across all generated code to preserve
-  // sandbox integrity and prevent pointer corruption. In practice, generated
-  // code doesn't need to even read the cage base register directly, so it's
-  // easier to enforce no accesses at all rather than only no reads. This will
-  // not block using the cage base register as a base address for a memory
-  // operand without writeback.
+  // sandbox integrity and prevent pointer corruption. This will not block using
+  // the cage base register as a base address for a memory operand without
+  // writeback.
   void CheckNoWritesToCageBaseRegister(const uint8_t* pc,
                                        const Da64Inst& instr) {
-    static constexpr int kMaxOperands = 5;
-    static_assert(kMaxOperands == (sizeof(instr.ops) / sizeof(Da64Op)));
-
     switch (instr.mnem) {
       // Subs is used as a comparison to assert that a register holds a heap
       // object in the main cage.
@@ -168,7 +171,7 @@ class InstructionChecker {
       case DA64I_STPX_PRE:
       case DA64I_STPX_POST:
         // Stp isn't updating any registers.
-        DCHECK_IMPLIES(
+        CHECK_IMPLIES(
             IsCageBaseReg(instr.ops[0]) || IsCageBaseReg(instr.ops[1]),
             Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
         if (!IsCageBaseWritebackReg(instr.ops[2])) {
@@ -180,28 +183,40 @@ class InstructionChecker {
       case DA64I_LDPX:
       case DA64I_LDPX_PRE:
       case DA64I_LDPX_POST:
-        if ((IsCageBaseReg(instr.ops[0]) || IsCageBaseReg(instr.ops[1])) &&
-            !IsCageBaseWritebackReg(instr.ops[2]) &&
-            (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_))) {
-          // TODO(523128533): verify the loaded value is the same as
-          // the previously stored value. E.g. track changes to stack register
-          // and check that stp and ldp operate on the same offset (assuming
-          // calls don't violate it).
-          // TODO(523128533): Deopt builtins save and restore the cage base
-          // register so that the deoptimizer can update register values as
-          // needed. Since the cage base register is callee saved and should not
-          // change, can we avoid saving and restoring it?
-          state_.is_cage_base_reg_valid_ = false;
-          return;
+        // TODO(523128533): verify the popped value is the same as the
+        // previously pushed value. E.g. track changes to stack register and
+        // check that push and pop operate on the same offset (assuming calls
+        // don't violate it).
+        // TODO(523128533): Deopt builtins save and restore the cage base
+        // register so that the deoptimizer can update register values as
+        // needed. Since the cage base register is callee saved and should not
+        // change, can we avoid saving and restoring it?
+        if (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_)) {
+          if ((IsCageBaseReg(instr.ops[0]) || IsCageBaseReg(instr.ops[1]))) {
+            state_.is_cage_base_reg_valid_ = false;
+          }
+          if (!IsCageBaseWritebackReg(instr.ops[2])) {
+            return;
+          }
         }
         break;
       // Ldur is used by entry builtins to initialize the cage base register.
       case DA64I_LDURX:
-        if (IsCageBaseReg(instr.ops[0]) && Utils::IsEntryCode(code_) &&
+        if (!IsCageBaseReg(instr.ops[0])) {
+          return;
+        }
+        CHECK(!state_.is_cage_base_reg_valid_);
+        if (Utils::IsEntryCode(code_) &&
             IsExpectedOperand(instr.ops[1],
                               {.type = DA_OP_MEMSOFF,
                                .reg = root_register,
                                .simm16 = IsolateData::cage_base_offset()})) {
+          if (!state_.is_root_reg_valid_) {
+            violations_reporter_.ReportViolationWithInstruction(
+                pc, Da64InstFormatter::Format(instr),
+                std::format("Cage base register initialization uses invalid "
+                            "root register"));
+          }
           state_.is_cage_base_reg_valid_ = true;
           return;
         }
@@ -223,34 +238,199 @@ class InstructionChecker {
     }
   }
 
-  static bool IsCageBaseReg(const Da64Op& op) {
+  // Verifies whether the instruction accesses the root register (x26) directly
+  // or modifies it via writeback. The root register must remain read-only
+  // across all generated code to preserve sandbox integrity and prevent pointer
+  // corruption. This will not block using the root register as a base address
+  // for a memory operand without writeback.
+  void CheckNoWritesToRootRegister(const uint8_t* pc, const Da64Inst& instr) {
+    const bool expecting_init = root_reg_init_state_.in_progress;
+    bool was_init = false;
+    switch (instr.mnem) {
+      // Add and sub are also used for root relative indexing and accessing
+      // isolate fields (or the isolate itself) via the root register.
+      case DA64I_ADD_SHIFT:
+      case DA64I_ADD_IMM:
+      case DA64I_ADD_EXT:
+      case DA64I_SUB_IMM:
+      // Orr is used for copying the root register value and by entry builtins
+      // to initialize the root register.
+      case DA64I_ORR_SHIFT:
+        // Check that the target is not the cage base register or root register.
+        if (!IsRootReg(instr.ops[0])) {
+          // Arithmetic and logical instructions do not support writeback
+          // operands.
+          return;
+        }
+        CHECK(!state_.is_root_reg_valid_);
+        if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
+          return;
+        }
+        break;
+      // Stp is used by entry and deopt builtins to save the root register's
+      // value in C++ code.
+      case DA64I_STPX:
+      case DA64I_STPX_PRE:
+      case DA64I_STPX_POST:
+        // Stp isn't updating any registers.
+        CHECK_IMPLIES(IsRootReg(instr.ops[0]) || IsRootReg(instr.ops[1]),
+                      Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
+        if (!IsRootWritebackReg(instr.ops[2])) {
+          return;
+        }
+        break;
+      // Ldp is used by entry and deopt builtins to restore the root registers'
+      // value in C++ code.
+      case DA64I_LDPX:
+      case DA64I_LDPX_PRE:
+      case DA64I_LDPX_POST:
+        // TODO(523128533): verify the popped value is the same as the
+        // previously pushed value. E.g. track changes to stack register and
+        // check that push and pop operate on the same offset (assuming calls
+        // don't violate it).
+        // TODO(523128533): Deopt builtins save and restore the root
+        // register so that the deoptimizer can update register values as
+        // needed. Since the root register is callee saved and should not
+        // change, can we avoid saving and restoring it?
+        if (Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_)) {
+          if ((IsRootReg(instr.ops[0]) || IsRootReg(instr.ops[1]))) {
+            state_.is_root_reg_valid_ = false;
+          }
+          if (!IsRootWritebackReg(instr.ops[2])) {
+            return;
+          }
+        }
+        break;
+      // Mov is used by entry builtins to initialize the root register.
+      case DA64I_MOVZ:
+      case DA64I_MOVK:
+        if (!IsRootReg(instr.ops[0])) {
+          return;
+        }
+        CHECK(!state_.is_root_reg_valid_);
+        was_init = true;
+        if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
+          return;
+        }
+        break;
+      default:
+        // All other cases are not expected to accesses the cage base register
+        // or root register directly and fall through to the generic handling
+        // below.
+        break;
+    }
+
+    if (expecting_init && !was_init) {
+      violations_reporter_.ReportViolationWithInstruction(
+          pc, Da64InstFormatter::Format(instr),
+          std::format("Root register initialization interrupted"));
+    }
+
+    // Check that no operand is the cage base register or the root register.
+    for (int i = 0; i < kMaxOperands; i++) {
+      if (IsRootReg(instr.ops[i]) || IsRootWritebackReg(instr.ops[i])) {
+        violations_reporter_.ReportViolationWithInstruction(
+            pc, Da64InstFormatter::Format(instr),
+            std::format("Instruction accesses root register at operand {0}",
+                        i));
+      }
+    }
+  }
+
+  static bool IsExpectedReg(const Da64Op& op, int expected_reg) {
     return ((op.type == DA_OP_REGGP) || (op.type == DA_OP_REGGPEXT) ||
             (op.type == DA_OP_REGGPINC)) &&
-           (op.reg == cage_base_reg);
+           (op.reg == expected_reg);
+  }
+
+  static bool IsCageBaseReg(const Da64Op& op) {
+    return IsExpectedReg(op, cage_base_register);
+  }
+
+  static bool IsRootReg(const Da64Op& op) {
+    return IsExpectedReg(op, root_register);
+  }
+
+  static bool IsExpectedWritebackReg(const Da64Op& op, int expected_reg) {
+    return ((op.type == DA_OP_MEMSOFFPRE) || (op.type == DA_OP_MEMSOFFPOST) ||
+            (op.type == DA_OP_MEMREGPOST) || (op.type == DA_OP_MEMINC)) &&
+           (op.reg == expected_reg);
   }
 
   static bool IsCageBaseWritebackReg(const Da64Op& op) {
-    return ((op.type == DA_OP_MEMSOFFPRE) || (op.type == DA_OP_MEMSOFFPOST) ||
-            (op.type == DA_OP_MEMREGPOST) || (op.type == DA_OP_MEMINC)) &&
-           (op.reg == cage_base_reg);
+    return IsExpectedWritebackReg(op, cage_base_register);
+  }
+
+  static bool IsRootWritebackReg(const Da64Op& op) {
+    return IsExpectedWritebackReg(op, root_register);
   }
 
   static bool IsExpectedOperand(const Da64Op& op, const Da64Op& expected) {
     return Da64OpEquals(op, expected);
   }
 
+  bool IsValidRootRegInitialization(const Da64Inst& instr) {
+    DCHECK(IsRootReg(instr.ops[0]));
+    switch (instr.mnem) {
+      case DA64I_MOVZ:
+        // Movz is the first in a sequence of movs to initialize the root
+        // register.
+        CHECK_EQ(root_reg_init_state_.current_value, kNullAddress);
+        CHECK(!root_reg_init_state_.in_progress);
+        [[fallthrough]];
+      case DA64I_MOVK: {
+        // Movk and Movz are used to construct the expected root register value.
+        const Da64Op& op = instr.ops[1];
+        DCHECK_EQ(DA_OP_UIMMSHIFT, op.type);
+        DCHECK_EQ(0, op.immshift.mask);
+        const Address previous_value = root_reg_init_state_.current_value;
+        root_reg_init_state_.current_value |=
+            (static_cast<uint64_t>(op.uimm16) << op.immshift.shift);
+        state_.is_root_reg_valid_ = root_reg_init_state_.current_value ==
+                                    root_reg_init_state_.expected_value_;
+        root_reg_init_state_.in_progress = !state_.is_root_reg_valid_;
+        // This is a valid initialization as long as it's making progress
+        // towards the expected value.
+        return (previous_value != root_reg_init_state_.current_value) &&
+               ((root_reg_init_state_.current_value &
+                 root_reg_init_state_.expected_value_) ==
+                root_reg_init_state_.current_value);
+      }
+      case DA64I_ORR_SHIFT:
+        CHECK(!root_reg_init_state_.in_progress);
+        // Assumes builtins receive the correct value as their first
+        // argument.
+        state_.is_root_reg_valid_ = (code_->kind() == CodeKind::BUILTIN) &&
+                                    IsExpectedReg(instr.ops[2], x0.code());
+        break;
+      default:
+        break;
+    }
+    return state_.is_root_reg_valid_;
+  }
+
+  Isolate* const isolate_;
   const Tagged<Code> code_;
   ViolationsReporter& violations_reporter_;
   State state_;
+  struct RootRegisterInitializationState {
+    explicit RootRegisterInitializationState(Isolate* isolate)
+        : expected_value_(ExternalReference::isolate_root(isolate).raw()) {
+      CHECK_NE(expected_value_, kNullAddress);
+    }
+
+    const Address expected_value_;
+    Address current_value = kNullAddress;
+    bool in_progress = false;
+  } root_reg_init_state_;
 };
 
-void GeneratedCodeValidator::ValidateImpl(IsolateForSandbox isolate,
-                                          Tagged<Code> code) {
+void GeneratedCodeValidator::ValidateImpl(Isolate* isolate, Tagged<Code> code) {
   DCHECK_EQ(code->instruction_size() % kInstrSize, 0);
 
   ViolationsReporter reporter(code);
 
-  InstructionChecker instruction_checker(code, reporter);
+  InstructionChecker instruction_checker(isolate, code, reporter);
 
   InstructionIteratorSkippingData it(code);
 
