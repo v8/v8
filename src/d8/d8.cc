@@ -7280,6 +7280,17 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     FATAL("Flag --expose-fast-api is incompatible with --stress-snapshot.");
   }
 
+  if (options.trace_enabled && i::v8_flags.predictable) {
+    if (check_d8_flag_contradictions) {
+      FATAL("Flag --enable-tracing is incompatible with --predictable.");
+    } else {
+      fprintf(stderr,
+              "Warning: disabling flag --enable-tracing due to conflicting "
+              "flags\n");
+      options.trace_enabled = false;
+    }
+  }
+
   // Set up isolated source groups.
   options.num_isolates = 1;
   for (int i = 1; i < argc; i++) {
