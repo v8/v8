@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/logging.h"
-#include "src/objects/code-kind.h"
 #include "src/sandbox/generated-code-validator.h"
 
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
 
+#include "src/base/logging.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/x64/register-x64.h"
 #include "src/objects/code-inl.h"
@@ -30,6 +29,14 @@ struct FdInstrFormatter {
 };
 
 }  // namespace
+
+#define VALIDATOR_CHECK(condition, message)                \
+  do {                                                     \
+    if (V8_UNLIKELY(!(condition))) {                       \
+      violations_reporter_.ReportViolationWithInstruction( \
+          pc, FdInstrFormatter::Format(instr), (message)); \
+    }                                                      \
+  } while (false)
 
 class InstructionChecker {
   static_assert(kPtrComprCageBaseRegister != no_reg);
@@ -87,8 +94,8 @@ class InstructionChecker {
       // base register's value in C++ code.
       case FDI_PUSH:
         // Push isn't updating any registers.
-        CHECK_IMPLIES(IsCageBaseReg(instr, 0),
-                      Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
+        DCHECK_IMPLIES(IsCageBaseReg(instr, 0),
+                       Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
         return;
       // Push is used by entry and deopt builtins to restore the cage
       // base register's value in C++ code.
@@ -113,20 +120,14 @@ class InstructionChecker {
         if (!IsCageBaseReg(instr, 0)) {
           return;
         }
-        if (state_.is_cage_base_reg_valid_) {
-          violations_reporter_.ReportViolationWithInstruction(
-              pc, FdInstrFormatter::Format(instr),
-              std::format("Instruction overwrites a valid cage base register"));
-        }
+        VALIDATOR_CHECK(!state_.is_cage_base_reg_valid_,
+                        "Instruction overwrites a valid cage base register");
         if (Utils::IsEntryCode(code_) &&
             IsExpectedMemoryOperand(instr, 1, root_register, FD_REG_NONE, 0,
                                     IsolateData::cage_base_offset())) {
-          if (!state_.is_root_reg_valid_) {
-            violations_reporter_.ReportViolationWithInstruction(
-                pc, FdInstrFormatter::Format(instr),
-                std::format("Cage base register initialization uses invalid "
-                            "root register"));
-          }
+          VALIDATOR_CHECK(
+              state_.is_root_reg_valid_,
+              "Cage base register initialization uses invalid root register");
           state_.is_cage_base_reg_valid_ = true;
           return;
         }
@@ -139,12 +140,10 @@ class InstructionChecker {
 
     // Check that no operand is the cage base register.
     for (int i = 0; i < kMaxOperands; i++) {
-      if (IsCageBaseReg(instr, i)) {
-        violations_reporter_.ReportViolationWithInstruction(
-            pc, FdInstrFormatter::Format(instr),
-            std::format(
-                "Instruction accesses cage bage register at operand {0}", i));
-      }
+      VALIDATOR_CHECK(
+          !IsCageBaseReg(instr, i),
+          std::format("Instruction accesses cage bage register at operand {0}",
+                      i));
     }
   }
 
@@ -158,8 +157,8 @@ class InstructionChecker {
       // value in C++ code.
       case FDI_PUSH:
         // Push isn't updating any registers.
-        CHECK_IMPLIES(IsRootReg(instr, 0),
-                      Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
+        DCHECK_IMPLIES(IsRootReg(instr, 0),
+                       Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
         return;
       // Pop is used by entry and deopt builtins to restore the root register's
       // value in C++ code.
@@ -184,11 +183,8 @@ class InstructionChecker {
         if (!IsRootReg(instr, 0)) {
           return;
         }
-        if (state_.is_root_reg_valid_) {
-          violations_reporter_.ReportViolationWithInstruction(
-              pc, FdInstrFormatter::Format(instr),
-              std::format("Instruction overwrites a valid root register"));
-        }
+        VALIDATOR_CHECK(!state_.is_root_reg_valid_,
+                        "Instruction overwrites a valid root register");
         if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
           return;
         }
@@ -201,12 +197,9 @@ class InstructionChecker {
 
     // Check that no operand is the cage base register or the root register.
     for (int i = 0; i < kMaxOperands; i++) {
-      if (IsRootReg(instr, i)) {
-        violations_reporter_.ReportViolationWithInstruction(
-            pc, FdInstrFormatter::Format(instr),
-            std::format("Instruction accesses root register at operand {0}",
-                        i));
-      }
+      VALIDATOR_CHECK(
+          !IsRootReg(instr, i),
+          std::format("Instruction accesses root register at operand {0}", i));
     }
   }
 
@@ -216,19 +209,13 @@ class InstructionChecker {
   // or reserved for OS/runtime thread-local storage (TLS) and can be used to
   // escape the sandbox.
   void CheckNoSegmentRegisters(const uint8_t* pc, const FdInstr& instr) {
-    if (FD_SEGMENT(&instr) != FD_REG_NONE) {
-      violations_reporter_.ReportViolationWithInstruction(
-          pc, FdInstrFormatter::Format(instr),
-          std::format("Instruction uses a segment register"));
-    }
+    VALIDATOR_CHECK(FD_SEGMENT(&instr) == FD_REG_NONE,
+                    "Instruction uses a segment register");
     for (int i = 0; i < kMaxOperands; ++i) {
-      if (FD_OP_TYPE(&instr, i) == FD_OT_REG &&
-          FD_OP_REG_TYPE(&instr, i) == FD_RT_SEG) {
-        violations_reporter_.ReportViolationWithInstruction(
-            pc, FdInstrFormatter::Format(instr),
-            std::format("Instruction uses a segment register at operand {0}",
-                        i));
-      }
+      VALIDATOR_CHECK(
+          !(FD_OP_TYPE(&instr, i) == FD_OT_REG &&
+            FD_OP_REG_TYPE(&instr, i) == FD_RT_SEG),
+          std::format("Instruction uses a segment register at operand {0}", i));
     }
   }
 
@@ -321,5 +308,7 @@ void GeneratedCodeValidator::ValidateImpl(Isolate* isolate, Tagged<Code> code) {
 }
 
 }  // namespace v8::internal
+
+#undef VALIDATOR_CHECK
 
 #endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR

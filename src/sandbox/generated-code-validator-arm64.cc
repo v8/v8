@@ -6,6 +6,7 @@
 
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
 
+#include "src/base/logging.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/arm64/instructions-arm64.h"
 #include "src/codegen/arm64/register-arm64.h"
@@ -105,6 +106,14 @@ static bool Da64OpEquals(const Da64Op& op1, const Da64Op& op2) {
 
 }  // namespace
 
+#define VALIDATOR_CHECK(condition, message)                 \
+  do {                                                      \
+    if (V8_UNLIKELY(!(condition))) {                        \
+      violations_reporter_.ReportViolationWithInstruction(  \
+          pc, Da64InstFormatter::Format(instr), (message)); \
+    }                                                       \
+  } while (false)
+
 class InstructionChecker {
   static_assert(kPtrComprCageBaseRegister != no_reg);
   static constexpr int cage_base_register = kPtrComprCageBaseRegister.code();
@@ -172,7 +181,7 @@ class InstructionChecker {
       case DA64I_STPX_PRE:
       case DA64I_STPX_POST:
         // Stp isn't updating any registers.
-        CHECK_IMPLIES(
+        DCHECK_IMPLIES(
             IsCageBaseReg(instr.ops[0]) || IsCageBaseReg(instr.ops[1]),
             Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
         if (!IsCageBaseWritebackReg(instr.ops[2])) {
@@ -206,22 +215,16 @@ class InstructionChecker {
         if (!IsCageBaseReg(instr.ops[0])) {
           return;
         }
-        if (state_.is_cage_base_reg_valid_) {
-          violations_reporter_.ReportViolationWithInstruction(
-              pc, Da64InstFormatter::Format(instr),
-              std::format("Instruction overwrites a valid cage base register"));
-        }
+        VALIDATOR_CHECK(!state_.is_cage_base_reg_valid_,
+                        "Instruction overwrites a valid cage base register");
         if (Utils::IsEntryCode(code_) &&
             IsExpectedOperand(instr.ops[1],
                               {.type = DA_OP_MEMSOFF,
                                .reg = root_register,
                                .simm16 = IsolateData::cage_base_offset()})) {
-          if (!state_.is_root_reg_valid_) {
-            violations_reporter_.ReportViolationWithInstruction(
-                pc, Da64InstFormatter::Format(instr),
-                std::format("Cage base register initialization uses invalid "
-                            "root register"));
-          }
+          VALIDATOR_CHECK(
+              state_.is_root_reg_valid_,
+              "Cage base register initialization uses invalid root register");
           state_.is_cage_base_reg_valid_ = true;
           return;
         }
@@ -234,12 +237,10 @@ class InstructionChecker {
 
     // Check that no operand is the cage base register.
     for (int i = 0; i < kMaxOperands; i++) {
-      if (IsCageBaseReg(instr.ops[i]) || IsCageBaseWritebackReg(instr.ops[i])) {
-        violations_reporter_.ReportViolationWithInstruction(
-            pc, Da64InstFormatter::Format(instr),
-            std::format(
-                "Instruction accesses cage bage register at operand {0}", i));
-      }
+      VALIDATOR_CHECK(
+          !IsCageBaseReg(instr.ops[i]) && !IsCageBaseWritebackReg(instr.ops[i]),
+          std::format("Instruction accesses cage bage register at operand {0}",
+                      i));
     }
   }
 
@@ -272,11 +273,8 @@ class InstructionChecker {
           is_validated = true;
           break;
         }
-        if (state_.is_root_reg_valid_) {
-          violations_reporter_.ReportViolationWithInstruction(
-              pc, Da64InstFormatter::Format(instr),
-              std::format("Instruction overwrites a valid root register"));
-        }
+        VALIDATOR_CHECK(!state_.is_root_reg_valid_,
+                        "Instruction overwrites a valid root register");
         if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
           is_validated = true;
         }
@@ -287,8 +285,8 @@ class InstructionChecker {
       case DA64I_STPX_PRE:
       case DA64I_STPX_POST:
         // Stp isn't updating any registers.
-        CHECK_IMPLIES(IsRootReg(instr.ops[0]) || IsRootReg(instr.ops[1]),
-                      Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
+        DCHECK_IMPLIES(IsRootReg(instr.ops[0]) || IsRootReg(instr.ops[1]),
+                       Utils::IsEntryCode(code_) || Utils::IsDeoptCode(code_));
         if (!IsRootWritebackReg(instr.ops[2])) {
           is_validated = true;
         }
@@ -322,11 +320,8 @@ class InstructionChecker {
           is_validated = true;
           break;
         }
-        if (state_.is_root_reg_valid_) {
-          violations_reporter_.ReportViolationWithInstruction(
-              pc, Da64InstFormatter::Format(instr),
-              std::format("Instruction overwrites a valid root register"));
-        }
+        VALIDATOR_CHECK(!state_.is_root_reg_valid_,
+                        "Instruction overwrites a valid root register");
         was_init = true;
         if (Utils::IsEntryCode(code_) && IsValidRootRegInitialization(instr)) {
           is_validated = true;
@@ -339,11 +334,8 @@ class InstructionChecker {
         break;
     }
 
-    if (expecting_init && !was_init) {
-      violations_reporter_.ReportViolationWithInstruction(
-          pc, Da64InstFormatter::Format(instr),
-          std::format("Root register initialization interrupted"));
-    }
+    VALIDATOR_CHECK(!(expecting_init && !was_init),
+                    "Root register initialization interrupted");
 
     if (is_validated) {
       return;
@@ -351,12 +343,9 @@ class InstructionChecker {
 
     // Check that no operand is the cage base register or the root register.
     for (int i = 0; i < kMaxOperands; i++) {
-      if (IsRootReg(instr.ops[i]) || IsRootWritebackReg(instr.ops[i])) {
-        violations_reporter_.ReportViolationWithInstruction(
-            pc, Da64InstFormatter::Format(instr),
-            std::format("Instruction accesses root register at operand {0}",
-                        i));
-      }
+      VALIDATOR_CHECK(
+          !IsRootReg(instr.ops[i]) && !IsRootWritebackReg(instr.ops[i]),
+          std::format("Instruction accesses root register at operand {0}", i));
     }
   }
 
@@ -364,11 +353,8 @@ class InstructionChecker {
   // unintended modification of CPU control flags or floating-point execution
   // state.
   void CheckNoSystemRegisterWrites(const uint8_t* pc, const Da64Inst& instr) {
-    if (instr.mnem == DA64I_MSR) {
-      violations_reporter_.ReportViolationWithInstruction(
-          pc, Da64InstFormatter::Format(instr),
-          std::format("Instruction writes to prohibited system registers"));
-    }
+    VALIDATOR_CHECK(instr.mnem != DA64I_MSR,
+                    "Instruction writes to prohibited system registers");
   }
 
   static bool IsExpectedReg(const Da64Op& op, int expected_reg) {
@@ -409,8 +395,8 @@ class InstructionChecker {
       case DA64I_MOVZ:
         // Movz is the first in a sequence of movs to initialize the root
         // register.
-        CHECK_EQ(root_reg_init_state_.current_value, kNullAddress);
-        CHECK(!root_reg_init_state_.in_progress);
+        DCHECK_EQ(root_reg_init_state_.current_value, kNullAddress);
+        DCHECK(!root_reg_init_state_.in_progress);
         [[fallthrough]];
       case DA64I_MOVK: {
         // Movk and Movz are used to construct the expected root register value.
@@ -431,7 +417,7 @@ class InstructionChecker {
                 root_reg_init_state_.current_value);
       }
       case DA64I_ORR_SHIFT:
-        CHECK(!root_reg_init_state_.in_progress);
+        DCHECK(!root_reg_init_state_.in_progress);
         // Assumes builtins receive the correct value as their first
         // argument.
         state_.is_root_reg_valid_ = (code_->kind() == CodeKind::BUILTIN) &&
@@ -488,5 +474,7 @@ void GeneratedCodeValidator::ValidateImpl(Isolate* isolate, Tagged<Code> code) {
 }
 
 }  // namespace v8::internal
+
+#undef VALIDATOR_CHECK
 
 #endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
