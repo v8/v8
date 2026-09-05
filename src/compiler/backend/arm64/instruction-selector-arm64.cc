@@ -1238,7 +1238,6 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
 void InstructionSelector::VisitLoadTransform(OpIndex node) {
   const Simd128LoadTransformOp& op = Cast<Simd128LoadTransformOp>(node);
   InstructionCode load_opcode = kArchNop;
-  InstructionCode extend_opcode = kArchNop;
   bool require_add = false;
   switch (op.transform_kind) {
     case Simd128LoadTransformOp::TransformKind::k8Splat:
@@ -1262,29 +1261,12 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
       require_add = true;
       break;
     case Simd128LoadTransformOp::TransformKind::k8x8S:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Sxtl | LaneSizeField::encode(LaneSize::kL16);
-      break;
     case Simd128LoadTransformOp::TransformKind::k8x8U:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Uxtl | LaneSizeField::encode(LaneSize::kL16);
-      break;
     case Simd128LoadTransformOp::TransformKind::k16x4S:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Sxtl | LaneSizeField::encode(LaneSize::kL32);
-      break;
     case Simd128LoadTransformOp::TransformKind::k16x4U:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Uxtl | LaneSizeField::encode(LaneSize::kL32);
-      break;
     case Simd128LoadTransformOp::TransformKind::k32x2S:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Sxtl | LaneSizeField::encode(LaneSize::kL64);
-      break;
     case Simd128LoadTransformOp::TransformKind::k32x2U:
-      load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Uxtl | LaneSizeField::encode(LaneSize::kL64);
-      break;
+      UNREACHABLE();
     case Simd128LoadTransformOp::TransformKind::k32Zero:
       load_opcode = kArm64LdrS;
       break;
@@ -1298,34 +1280,21 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
   DCHECK(!op.load_kind.maybe_unaligned);
 
   Arm64OperandGenerator g(this);
-  InstructionOperand inputs[2];
-  InstructionOperand outputs[1];
-
-  inputs[0] = g.UseRegister(op.base());
-  inputs[1] = g.UseRegister(op.index());
-
-  if (extend_opcode == kArchNop) {
-    outputs[0] = g.DefineAsRegister(node);
-  } else {
-    outputs[0] = g.TempSimd128Register();
-  }
+  InstructionOperand base = g.UseRegister(op.base());
+  InstructionOperand index = g.UseRegister(op.index());
 
   if (require_add) {
     // ld1r uses post-index, so construct address first.
     // TODO(v8:9886) If index can be immediate, use vldr without this add.
-    inputs[0] = EmitAddBeforeLoadOrStore(this, node, &load_opcode);
-    inputs[1] = g.TempImmediate(0);
-    load_opcode |= AddressingModeField::encode(kMode_MRI);
+    base = EmitAddBeforeLoadOrStore(this, node, &load_opcode);
+    index = g.TempImmediate(0);
   } else {
     load_opcode |= AddressingModeField::encode(kMode_MRR);
   }
   if (op.load_kind.with_trap_handler) {
     load_opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
-  Emit(load_opcode, 1, outputs, 2, inputs);
-  if (extend_opcode != kArchNop) {
-    Emit(extend_opcode, g.DefineSameAsFirst(node), outputs[0]);
-  }
+  Emit(load_opcode, g.DefineAsRegister(node), base, index);
 }
 #endif  // V8_ENABLE_SIMD128
 
