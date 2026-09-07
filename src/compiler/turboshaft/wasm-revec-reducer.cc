@@ -821,7 +821,7 @@ SLPTree::TryGetExtendIntToF32x4Info(OpIndex index) {
 
   // Get information for lane 0 (splat).
   const Simd128SplatOp* splat = graph_.Get(current).TryCast<Simd128SplatOp>();
-  if (!splat) {
+  if (!splat || splat->kind != Simd128SplatOp::Kind::kF32x4) {
     TRACE("Mismatch in splat\n");
     return {};
   }
