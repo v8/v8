@@ -8414,9 +8414,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
 
   ValueNode* result;
   CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
-  if (catch_block.ref) {
-    // The resume site has a catch handler: use the wrapper builtin that
-    // closes the generator and rethrows into the handler.
+  if (catch_block.ref && catch_block.exception_handler_was_used) {
+    // The resume site has a catch handler that has already seen exceptions:
+    // use the wrapper builtin that closes the generator and rethrows, so
+    // that a throwing generator doesn't deopt on every throw.
     LazyDeoptFrameScope lazy_deopt_scope(
         &reducer_, GetContext(),
         Builtin::kGeneratorPrototypeNextLazyDeoptContinuation, target,
