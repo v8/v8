@@ -425,7 +425,7 @@ BuiltinContinuationDeoptFrame* CloneBuiltinContinuationFrame(
       input_frame.context(),
       input_frame.is_javascript() ? input_frame.javascript_target()
                                   : compiler::OptionalJSFunctionRef(),
-      parent, input_frame.is_with_catch());
+      parent);
 }
 
 // TODO(dmercadier): share the frame cloning helpers with MaglevLoopPeeler
