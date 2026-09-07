@@ -783,5 +783,26 @@ TEST_F(FeedbackVectorTest, DefineNamedOwnIC) {
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
 
+TEST_F(FeedbackVectorTest, MaxLengthAndSizeFor) {
+  static_assert(FeedbackVector::SizeFor(0) == FeedbackVector::kHeaderSize);
+  static_assert(FeedbackVector::SizeFor(10) ==
+                FeedbackVector::kHeaderSize + 10 * kTaggedSize);
+  static_assert(FeedbackVector::SizeFor(FeedbackVector::kMaxLength) ==
+                FeedbackVector::kHeaderSize +
+                    FeedbackVector::kMaxLength * kTaggedSize);
+
+  EXPECT_EQ(FeedbackVector::kHeaderSize, FeedbackVector::SizeFor(0));
+  EXPECT_EQ(FeedbackVector::kHeaderSize + 10 * kTaggedSize,
+            FeedbackVector::SizeFor(10));
+  EXPECT_EQ(
+      FeedbackVector::kHeaderSize + FeedbackVector::kMaxLength * kTaggedSize,
+      FeedbackVector::SizeFor(FeedbackVector::kMaxLength));
+
+  ASSERT_DEATH_IF_SUPPORTED({ FeedbackVector::SizeFor(-1); }, ".*");
+  ASSERT_DEATH_IF_SUPPORTED(
+      { FeedbackVector::SizeFor(FeedbackVector::kMaxLength + 1); }, ".*");
+  ASSERT_DEATH_IF_SUPPORTED({ FeedbackVector::SizeFor(1 << 30); }, ".*");
+}
+
 }  // namespace internal
 }  // namespace v8
