@@ -3109,13 +3109,13 @@ DEFINE_INT(switch_table_min_cases, 6,
 DEFINE_REQUIREMENT(v8_flags.switch_table_min_cases > 0)
 // Note that enabling this stress mode might result in a failure to compile
 // even a top-level code.
-DEFINE_INT(stress_lazy_compilation, 0,
-           "stress lazy compilation by simulating stack overflow during "
-           "unoptimized bytecode generation with 1/n-th probability, "
-           "do nothing on 0")
+DEFINE_UINT(stress_lazy_compilation, 0,
+            "stress lazy compilation by simulating stack overflow during "
+            "unoptimized bytecode generation with 1/n-th probability, "
+            "do nothing on 0")
 // Correctness fuzzing treats stack overflows as crashes.
 DEFINE_VALUE_IMPLICATION(correctness_fuzzer_suppressions,
-                         stress_lazy_compilation, 0)
+                         stress_lazy_compilation, 0u)
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_BOOL(trace, false, "trace javascript function calls")

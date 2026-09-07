@@ -1697,15 +1697,15 @@ bool NeedsContextInitialization(DeclarationScope* scope) {
 
 void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   InitializeAstVisitor(stack_limit);
-  if (v8_flags.stress_lazy_compilation && local_isolate_->is_main_thread() &&
+  if (V8_UNLIKELY(v8_flags.stress_lazy_compilation) &&
+      local_isolate_->is_main_thread() &&
       !local_isolate_->AsIsolate()->bootstrapper()->IsActive()) {
     // Trigger stack overflow with 1/stress_lazy_compilation probability.
     // Do this only for the main thread compilations because querying random
     // numbers from background threads will make the random values dependent
     // on the thread scheduling and thus non-deterministic.
-    stack_overflow_ = local_isolate_->fuzzer_rng()->NextInt(
-                          v8_flags.stress_lazy_compilation &
-                          std::numeric_limits<int>::max()) == 0;
+    stack_overflow_ = local_isolate_->fuzzer_rng()->NextDouble() <
+                      (1.0 / v8_flags.stress_lazy_compilation);
   }
 
   // Initialize the incoming context.
