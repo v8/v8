@@ -7,6 +7,8 @@
 #include <iterator>
 
 #include "src/ast/scopes.h"
+#include "src/debug/debug-interface.h"
+#include "src/debug/debug.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/debug-objects-inl.h"
@@ -792,6 +794,69 @@ TEST_F(DebugScopeInfoTest, SyntheticAndReceiverVariables) {
   EXPECT_FALSE(arrow_has_receiver);
   EXPECT_TRUE(found_generator_obj);
   EXPECT_TRUE(found_private_member);
+}
+
+TEST_F(DebugScopeInfoTest, DebugScriptScopeInfoSideTable) {
+  HandleScope scope(isolate());
+  ParsedScript parsed1 = ParseAndSerialize("let a = 1;");
+  ParsedScript parsed2 = ParseAndSerialize("let b = 2;");
+
+  Handle<String> src1 =
+      isolate()->factory()->NewStringFromAsciiChecked("let a = 1;");
+  Handle<Script> script1 = isolate()->factory()->NewScript(src1);
+
+  Handle<String> src2 =
+      isolate()->factory()->NewStringFromAsciiChecked("let b = 2;");
+  Handle<Script> script2 = isolate()->factory()->NewScript(src2);
+
+  Debug* debug = isolate()->debug();
+
+  // Initially, no scope info in the debug side table.
+  EXPECT_TRUE(debug->GetScriptScopeInfo(script1).is_null());
+  EXPECT_TRUE(debug->GetScriptScopeInfo(script2).is_null());
+
+  // Set scope infos.
+  debug->SetScriptScopeInfo(script1, parsed1.scope_info);
+  debug->SetScriptScopeInfo(script2, parsed2.scope_info);
+
+  // Retrieve and verify cached scope infos.
+  auto cached1 = debug->GetScriptScopeInfo(script1);
+  ASSERT_FALSE(cached1.is_null());
+  EXPECT_EQ(*cached1, *parsed1.scope_info);
+
+  auto cached2 = debug->GetScriptScopeInfo(script2);
+  ASSERT_FALSE(cached2.is_null());
+  EXPECT_EQ(*cached2, *parsed2.scope_info);
+
+  // Update existing entry.
+  debug->SetScriptScopeInfo(script1, parsed2.scope_info);
+  auto updated1 = debug->GetScriptScopeInfo(script1);
+  ASSERT_FALSE(updated1.is_null());
+  EXPECT_EQ(*updated1, *parsed2.scope_info);
+
+  // ClearScriptScopeInfos clears all entries.
+  debug->ClearScriptScopeInfos();
+  EXPECT_TRUE(debug->GetScriptScopeInfo(script1).is_null());
+  EXPECT_TRUE(debug->GetScriptScopeInfo(script2).is_null());
+}
+
+TEST_F(DebugScopeInfoTest, SideTableClearedOnUnload) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("let x = 42;");
+  Handle<String> src =
+      isolate()->factory()->NewStringFromAsciiChecked("let x = 42;");
+  Handle<Script> script = isolate()->factory()->NewScript(src);
+
+  Debug* debug = isolate()->debug();
+  debug->SetScriptScopeInfo(script, parsed.scope_info);
+  EXPECT_FALSE(debug->GetScriptScopeInfo(script).is_null());
+
+  struct EmptyDelegate : public v8::debug::DebugDelegate {
+  } delegate;
+  v8::debug::SetDebugDelegate(v8_isolate(), &delegate);
+  v8::debug::SetDebugDelegate(v8_isolate(), nullptr);
+
+  EXPECT_TRUE(debug->GetScriptScopeInfo(script).is_null());
 }
 
 }  // namespace internal

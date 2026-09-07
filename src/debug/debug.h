@@ -27,6 +27,8 @@ namespace internal {
 // Forward declarations.
 class AbstractCode;
 class DebugScope;
+class DebugScriptScopeInfo;
+class EphemeronHashTable;
 class InterpretedFrame;
 class JavaScriptFrame;
 class JSGeneratorObject;
@@ -498,6 +500,12 @@ class V8_EXPORT_PRIVATE Debug {
 
   bool IsTemporaryObject(DirectHandle<HeapObject> object) const;
 
+  DirectHandle<DebugScriptScopeInfo> GetScriptScopeInfo(
+      DirectHandle<Script> script);
+  void SetScriptScopeInfo(DirectHandle<Script> script,
+                          DirectHandle<DebugScriptScopeInfo> info);
+  void ClearScriptScopeInfos();
+
  private:
   explicit Debug(Isolate* isolate);
   ~Debug();
@@ -699,6 +707,10 @@ class V8_EXPORT_PRIVATE Debug {
   // This is a global handle, lazily initialized.
   IndirectHandle<WeakArrayList> wasm_scripts_with_break_points_;
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  // Ephemeron table caching DebugScriptScopeInfo for Scripts.
+  // This is a global handle, lazily initialized.
+  IndirectHandle<EphemeronHashTable> script_scope_infos_;
 
   // This is a part of machinery for allowing to ignore side effects for one
   // call to this API function. See Function::NewInstanceWithSideEffectType().

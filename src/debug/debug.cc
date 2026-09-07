@@ -17,6 +17,7 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug-evaluate.h"
+#include "src/debug/debug-scope-info.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -32,6 +33,7 @@
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/slots.h"
@@ -187,6 +189,39 @@ Debug::Debug(Isolate* isolate)
 }
 
 Debug::~Debug() { DCHECK_NULL(debug_delegate_); }
+
+DirectHandle<DebugScriptScopeInfo> Debug::GetScriptScopeInfo(
+    DirectHandle<Script> script) {
+  if (script_scope_infos_.is_null()) return {};
+  Tagged<Object> obj = script_scope_infos_->Lookup(script);
+  if (IsTheHole(obj)) return {};
+  return direct_handle(Cast<DebugScriptScopeInfo>(obj), isolate_);
+}
+
+void Debug::SetScriptScopeInfo(DirectHandle<Script> script,
+                               DirectHandle<DebugScriptScopeInfo> info) {
+  HandleScope scope(isolate_);
+  Handle<EphemeronHashTable> table;
+  if (script_scope_infos_.is_null()) {
+    table = EphemeronHashTable::New(isolate_, 16);
+  } else {
+    table = script_scope_infos_;
+  }
+  table = EphemeronHashTable::Put(isolate_, table, script, info);
+  if (script_scope_infos_.is_null()) {
+    script_scope_infos_ = isolate_->global_handles()->Create(*table);
+  } else if (*table != *script_scope_infos_) {
+    GlobalHandles::Destroy(script_scope_infos_.location());
+    script_scope_infos_ = isolate_->global_handles()->Create(*table);
+  }
+}
+
+void Debug::ClearScriptScopeInfos() {
+  if (!script_scope_infos_.is_null()) {
+    GlobalHandles::Destroy(script_scope_infos_.location());
+    script_scope_infos_ = {};
+  }
+}
 
 BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
                                        JavaScriptFrame* frame) {
@@ -620,6 +655,7 @@ void Debug::Unload() {
   ClearStepping();
   RemoveAllCoverageInfos();
   ClearAllDebuggerHints();
+  ClearScriptScopeInfos();
   debug_delegate_ = nullptr;
 }
 
