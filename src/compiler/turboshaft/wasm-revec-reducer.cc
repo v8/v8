@@ -900,29 +900,27 @@ bool SLPTree::TryMatchExtendIntToF32x4(const NodeGroup& node_group,
     return false;
   }
 
-  // Use uint8_t to match start_lane type and avoid type mismatch.
-  uint8_t min_lane_index =
-      std::min(info0.value().start_lane, info1.value().start_lane);
-  uint8_t max_lane_index =
-      std::max(info0.value().start_lane, info1.value().start_lane);
-
-  // Check lane difference without std::abs on unsigned types.
-  if (max_lane_index - min_lane_index != 4) {
+  // The group is revectorized into a single 256-bit conversion of the eight
+  // lanes starting at {start_lane}, whose lower half feeds node_group[0] and
+  // whose upper half feeds node_group[1] (see GetExtractOpIfNeeded). So node0
+  // has to extend from the lower four lanes and node1 from the upper four.
+  // The reversed order would need an extra shuffle and is not supported.
+  const uint8_t start_lane = info0.value().start_lane;
+  if (info1.value().start_lane != start_lane + 4) {
     return false;
   }
   if (info0.value().lane_size == 1) {
-    if (min_lane_index != 0 && min_lane_index != 8) {
+    if (start_lane != 0 && start_lane != 8) {
       return false;
     }
   } else {
     DCHECK_EQ(info0.value().lane_size, 2);
-    if (min_lane_index != 0) {
+    if (start_lane != 0) {
       return false;
     }
   }
 
   *info = info0.value();
-  info->start_lane = min_lane_index;
   return true;
 }
 
