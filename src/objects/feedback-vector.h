@@ -513,6 +513,7 @@ V8_OBJECT class FeedbackVector : public HeapObject {
 
   static const int kHeaderSize;
   static const int kRawFeedbackSlotsOffset;
+  static const int kMaxLength;
 
   static constexpr int SizeFor(int length);
   static constexpr int OffsetOfElementAt(int index);
@@ -565,8 +566,12 @@ inline constexpr int FeedbackVector::kHeaderSize =
     OFFSET_OF_DATA_START(FeedbackVector);
 inline constexpr int FeedbackVector::kRawFeedbackSlotsOffset =
     OFFSET_OF_DATA_START(FeedbackVector);
+inline constexpr int FeedbackVector::kMaxLength =
+    (kMaxInt - kHeaderSize) / kTaggedSize;
 
 constexpr int FeedbackVector::SizeFor(int length) {
+  CHECK_GE(length, 0);
+  CHECK_LE(length, kMaxLength);
   return OFFSET_OF_DATA_START(FeedbackVector) + length * kTaggedSize;
 }
 constexpr int FeedbackVector::OffsetOfElementAt(int index) {
