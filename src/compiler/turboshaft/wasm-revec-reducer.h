@@ -1278,11 +1278,11 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     while (!inputs.empty()) {
       OpIndex idx = inputs.front();
       inputs.pop_front();
-      visited.insert(idx);
 
       const Operation& op = __ input_graph().Get(idx);
       for (OpIndex input : op.inputs()) {
-        if (input > start_marker && !visited.contains(input)) {
+        if (input > start_marker) {
+          if (!visited.insert(input).second) continue;
           inputs.push_back(input);
         }
       }
