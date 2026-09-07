@@ -610,6 +610,15 @@
       {'name': 'v8testing', 'shards': 8},
     ],
   },
+  'v8_linux64_no_metagen_dbg': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+      'cpu': 'x86-64',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 7},
+    ],
+  },
   'v8_linux64_no_pointer_compression_rel': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
@@ -1706,6 +1715,15 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 6},
+    ],
+  },
+  'V8 Linux64 - no metagen - debug': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+      'cpu': 'x86-64',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 7},
     ],
   },
   'V8 Linux64 - no pointer compression': {
