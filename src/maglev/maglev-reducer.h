@@ -872,13 +872,16 @@ class MaglevReducer {
       ValueNode* receiver, compiler::HeapObjectRef prototype);
   MaybeReduceResult TryBuildFastHasInPrototypeChain(
       ValueNode* object, compiler::HeapObjectRef prototype);
+  // Bound functions are unwrapped recursively; cap how deep we follow the
+  // bound_target_function chain to bound both graph size and stack usage.
+  static constexpr int kMaxBoundFunctionDepth = 5;
   MaybeReduceResult TryBuildFastOrdinaryHasInstance(
       ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
-      ValueNode* callable_node_if_not_constant);
-  MaybeReduceResult TryBuildFastInstanceOf(ValueNode* context,
-                                           ValueNode* object,
-                                           compiler::JSObjectRef callable_ref,
-                                           ValueNode* callable_node);
+      ValueNode* callable_node_if_not_constant,
+      int max_depth = kMaxBoundFunctionDepth);
+  MaybeReduceResult TryBuildFastInstanceOf(
+      ValueNode* context, ValueNode* object, compiler::JSObjectRef callable_ref,
+      ValueNode* callable_node, int max_depth = kMaxBoundFunctionDepth);
   MaybeReduceResult TryBuildFastInstanceOfWithFeedback(
       ValueNode* context, ValueNode* object, ValueNode* callable,
       compiler::FeedbackSource feedback_source);
@@ -911,7 +914,8 @@ class MaglevReducer {
 
   ReduceResult BuildOrdinaryHasInstance(
       ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
-      ValueNode* callable_node_if_not_constant);
+      ValueNode* callable_node_if_not_constant,
+      int max_depth = kMaxBoundFunctionDepth);
 
   template <bool flip = false>
   ReduceResult BuildToBoolean(ValueNode* value);

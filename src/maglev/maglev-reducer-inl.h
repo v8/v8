@@ -2678,18 +2678,20 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastHasInPrototypeChain(
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastOrdinaryHasInstance(
     ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
-    ValueNode* callable_node_if_not_constant) {
+    ValueNode* callable_node_if_not_constant, int max_depth) {
   const bool is_constant = callable_node_if_not_constant == nullptr;
   if (!is_constant) return {};
 
   if (callable.IsJSBoundFunction()) {
+    if (max_depth == 0) return {};
     compiler::JSBoundFunctionRef function = callable.AsJSBoundFunction();
     compiler::JSReceiverRef bound_target_function =
         function.bound_target_function(broker());
 
     if (bound_target_function.IsJSObject()) {
-      RETURN_IF_DONE(TryBuildFastInstanceOf(
-          context, object, bound_target_function.AsJSObject(), nullptr));
+      RETURN_IF_DONE(TryBuildFastInstanceOf(context, object,
+                                            bound_target_function.AsJSObject(),
+                                            nullptr, max_depth - 1));
     }
 
     return BuildCallBuiltinWithTaggedInputs<Builtin::kInstanceOf>(
@@ -2716,9 +2718,9 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastOrdinaryHasInstance(
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildOrdinaryHasInstance(
     ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
-    ValueNode* callable_node_if_not_constant) {
+    ValueNode* callable_node_if_not_constant, int max_depth) {
   RETURN_IF_DONE(TryBuildFastOrdinaryHasInstance(
-      context, object, callable, callable_node_if_not_constant));
+      context, object, callable, callable_node_if_not_constant, max_depth));
 
   return BuildCallBuiltinWithTaggedInputs<Builtin::kOrdinaryHasInstance>(
       context, {callable_node_if_not_constant ? callable_node_if_not_constant
@@ -2738,7 +2740,7 @@ ReduceResult MaglevReducer<BaseT>::BuildToBoolean(ValueNode* value) {
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
     ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
-    ValueNode* callable_node_if_not_constant) {
+    ValueNode* callable_node_if_not_constant, int max_depth) {
   compiler::MapRef receiver_map = callable.map(broker());
   compiler::NameRef name = broker()->has_instance_symbol();
   compiler::PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
@@ -2770,7 +2772,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
     }
 
     return BuildOrdinaryHasInstance(context, object, callable,
-                                    callable_node_if_not_constant);
+                                    callable_node_if_not_constant, max_depth);
   }
 
   if constexpr (!ReducerBaseCanBuildCall<BaseT>) {
@@ -2823,7 +2825,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
         // {callable}, so we can treat the callable as a compile-time constant
         // from here on, which lets BuildOrdinaryHasInstance take its fast
         // path instead of calling the OrdinaryHasInstance builtin.
-        return BuildOrdinaryHasInstance(context, object, callable, nullptr);
+        return BuildOrdinaryHasInstance(context, object, callable, nullptr,
+                                        max_depth);
       }
     }
 
