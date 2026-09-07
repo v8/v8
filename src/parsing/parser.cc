@@ -1742,18 +1742,22 @@ void Parser::ParseImportDeclaration() {
   if (module_namespace_binding != nullptr) {
     DCHECK(import_phase == ModuleImportPhase::kEvaluation ||
            import_phase == ModuleImportPhase::kDefer);
-    module()->AddStarImport(
+    bool is_new = module()->AddStarImport(
         module_namespace_binding, module_specifier, import_phase,
         import_attributes, module_namespace_binding_loc, specifier_loc, zone());
+    USE(is_new);
+    DCHECK_IMPLIES(!is_new, has_error());
   }
 
   if (import_default_binding != nullptr) {
     DCHECK_IMPLIES(import_phase == ModuleImportPhase::kSource,
                    v8_flags.js_source_phase_imports);
-    module()->AddImport(ast_value_factory()->default_string(),
-                        import_default_binding, module_specifier, import_phase,
-                        import_attributes, import_default_binding_loc,
-                        specifier_loc, zone());
+    bool is_new = module()->AddImport(
+        ast_value_factory()->default_string(), import_default_binding,
+        module_specifier, import_phase, import_attributes,
+        import_default_binding_loc, specifier_loc, zone());
+    USE(is_new);
+    DCHECK_IMPLIES(!is_new, has_error());
   }
 
   if (named_imports != nullptr) {
@@ -1763,9 +1767,12 @@ void Parser::ParseImportDeclaration() {
                                specifier_loc, zone());
     } else {
       for (const NamedImport* import : *named_imports) {
-        module()->AddImport(import->import_name, import->local_name,
-                            module_specifier, import_phase, import_attributes,
-                            import->location, specifier_loc, zone());
+        bool is_new = module()->AddImport(
+            import->import_name, import->local_name, module_specifier,
+            import_phase, import_attributes, import->location, specifier_loc,
+            zone());
+        USE(is_new);
+        DCHECK_IMPLIES(!is_new, has_error());
       }
     }
   }
@@ -1891,9 +1898,11 @@ void Parser::ParseExportStar() {
   const ImportAttributes* import_attributes = ParseImportWithOrAssertClause();
   ExpectSemicolon();
 
-  module()->AddStarImport(local_name, module_specifier,
-                          ModuleImportPhase::kEvaluation, import_attributes,
-                          local_name_loc, specifier_loc, zone());
+  bool is_new = module()->AddStarImport(
+      local_name, module_specifier, ModuleImportPhase::kEvaluation,
+      import_attributes, local_name_loc, specifier_loc, zone());
+  USE(is_new);
+  DCHECK(is_new);
   module()->AddExport(local_name, export_name, export_name_loc, zone());
 }
 
