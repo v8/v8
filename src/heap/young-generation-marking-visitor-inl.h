@@ -128,7 +128,7 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
   if (handle != kNullExternalPointerHandle) {
     ExternalPointerTable& table = isolate_->external_pointer_table();
     auto* space = isolate_->heap()->young_external_pointer_space();
-    table.Mark(space, handle, slot.address());
+    table.Mark(space, handle, slot.address(), slot.tag_range());
     if (slot.tag_range() == kArrayBufferExtensionTag) {
       maybe_extension = table.Get(handle, kArrayBufferExtensionTag);
     }

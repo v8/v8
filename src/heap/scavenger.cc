@@ -517,7 +517,8 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
       // For survivor objects, mark their EPT entries when they are
       // copied. Scavenger then sweeps the young EPT space at the end of
       // collection, reclaiming unmarked EPT entries.
-      table.Mark(heap->young_external_pointer_space(), handle, slot.address());
+      table.Mark(heap->young_external_pointer_space(), handle, slot.address(),
+                 slot.tag_range());
     } else {
       // When promoting, we just evacuate the entry from new to old space.
       // Usually the entry will be unmarked, unless the slot was initialized
@@ -527,7 +528,8 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
       handle = table.Evacuate(
           heap->young_external_pointer_space(),
           heap->old_external_pointer_space(), handle, slot.address(),
-          ExternalPointerTable::EvacuateMarkMode::kTransferMark);
+          ExternalPointerTable::EvacuateMarkMode::kTransferMark,
+          slot.tag_range());
     }
 
     ArrayBufferExtension* array_buffer_extension =

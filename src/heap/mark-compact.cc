@@ -1227,7 +1227,7 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
       DCHECK(!slot.tag_range().IsEmpty());
       DCHECK(IsSharedExternalPointerType(slot.tag_range()));
       ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-      table_->Mark(space_, handle, slot.address());
+      table_->Mark(space_, handle, slot.address(), slot.tag_range());
     }
     void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                        ObjectSlot end) override {
