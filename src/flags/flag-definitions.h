@@ -100,6 +100,11 @@
       TriggerImplication(v8_flags.flag < min_value, #flag "<" #min_value, \
                          &v8_flags.flag, #flag, min_value, false);
 
+#define DEFINE_MAX_VALUE_IMPLICATION(flag, max_value)                     \
+  changed |=                                                              \
+      TriggerImplication(v8_flags.flag > max_value, #max_value "<" #flag, \
+                         &v8_flags.flag, #flag, max_value, false);
+
 #define DEFINE_DISABLE_FLAG_IMPLICATION(whenflag, thenflag) \
   if (whenflag && thenflag) {                               \
     PrintF(stderr, "Warning: disabling flag --" #thenflag   \
@@ -163,6 +168,10 @@
 
 #ifndef DEFINE_MIN_VALUE_IMPLICATION
 #define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)
+#endif
+
+#ifndef DEFINE_MAX_VALUE_IMPLICATION
+#define DEFINE_MAX_VALUE_IMPLICATION(flag, max_value)
 #endif
 
 #ifndef DEFINE_DISABLE_FLAG_IMPLICATION
@@ -1844,6 +1853,7 @@ DEFINE_BOOL(profile_guided_optimization_for_empty_feedback_vector, true,
             "profile guided optimization for empty feedback vector")
 DEFINE_INT(invocation_count_for_early_optimization, 30,
            "invocation count threshold for early optimization")
+DEFINE_MAX_VALUE_IMPLICATION(invocation_count_for_early_optimization, 254)
 DEFINE_INT(invocation_count_for_maglev_with_delay, 600,
            "invocation count for maglev for functions which according to "
            "profile_guided_optimization are likely to deoptimize before "
@@ -4539,6 +4549,7 @@ DEFINE_IMPLICATION(gdbjit, log)
 #undef DEFINE_NEG_VALUE_VALUE_IMPLICATION
 #undef DEFINE_VALUE_IMPLICATION
 #undef DEFINE_MIN_VALUE_IMPLICATION
+#undef DEFINE_MAX_VALUE_IMPLICATION
 #undef DEFINE_DISABLE_FLAG_IMPLICATION
 #undef DEFINE_WEAK_VALUE_IMPLICATION
 #undef DEFINE_GENERIC_IMPLICATION
