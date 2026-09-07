@@ -11,6 +11,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/bit-field.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
@@ -412,17 +413,17 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     if (raw_name == nullptr) return -1;
     auto it = string_map.find(raw_name);
     if (it != string_map.end()) return it->second;
-    int32_t index = static_cast<int32_t>(string_table.size());
+    int32_t index = base::checked_cast<int32_t>(string_table.size());
     string_map.emplace(raw_name, index);
     string_table.push_back(raw_name);
     return index;
   };
 
   std::vector<Scope*> all_scopes;
-  std::unordered_map<Scope*, int> scope_to_index;
+  std::unordered_map<Scope*, int32_t> scope_to_index;
 
   auto collect = [&](auto& self, Scope* scope) -> void {
-    int index = static_cast<int>(all_scopes.size());
+    int32_t index = base::checked_cast<int32_t>(all_scopes.size());
     all_scopes.push_back(scope);
     scope_to_index.emplace(scope, index);
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
@@ -432,7 +433,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
   };
   collect(collect, script_scope);
 
-  auto find_scope_index = [&](Scope* s) -> int {
+  auto find_scope_index = [&](Scope* s) -> int32_t {
     if (s == nullptr) return -1;
     auto it = scope_to_index.find(s);
     return it != scope_to_index.end() ? it->second : -1;
@@ -444,7 +445,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
   offsets.reserve(all_scopes.size());
 
   for (size_t i = 0; i < all_scopes.size(); ++i) {
-    offsets.push_back(static_cast<uint32_t>(total_size));
+    offsets.push_back(base::checked_cast<uint32_t>(total_size));
     total_size += sizeof(ScopeRecord);
     if (all_scopes[i]->sibling() != nullptr) {
       total_size += kInt32Size;
@@ -464,7 +465,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
         all_scopes[i]->AsDeclarationScope()->function_var() != nullptr) {
       total_size += kUInt16Size + kInt32Size;
     }
-    int var_count = static_cast<int>(std::distance(
+    uint16_t var_count = base::checked_cast<uint16_t>(std::distance(
         all_scopes[i]->locals()->begin(), all_scopes[i]->locals()->end()));
     total_size += var_count * sizeof(DebugVariableEntry);
   }
@@ -472,10 +473,10 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
   // Stage 2: Allocate a ByteArray and write directly into it with
   // ByteArrayWriter.
   Handle<ByteArray> byte_array = isolate->factory()->NewByteArray(
-      static_cast<int>(total_size), AllocationType::kOld);
+      base::checked_cast<uint32_t>(total_size), AllocationType::kOld);
 
   ByteArrayWriter header_writer(reinterpret_cast<Address>(byte_array->begin()));
-  header_writer.Write<int32_t>(static_cast<int32_t>(all_scopes.size()));
+  header_writer.Write<int32_t>(base::checked_cast<int32_t>(all_scopes.size()));
 
   for (size_t i = 0; i < all_scopes.size(); ++i) {
     header_writer.Write<uint32_t>(offsets[i]);
@@ -486,7 +487,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
         reinterpret_cast<Address>(byte_array->begin()) + offsets[i];
     Scope* scope = all_scopes[i];
 
-    int next_sibling = find_scope_index(scope->sibling());
+    int32_t next_sibling = find_scope_index(scope->sibling());
     bool has_sibling = next_sibling != -1;
     bool needs_context = scope->NeedsContext();
     bool has_this_decl = false;
@@ -516,7 +517,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     flags = HasArgumentsBit::update(flags, has_arguments);
     flags = HasFunctionVarBit::update(flags, has_function_var);
 
-    int var_count = static_cast<int>(
+    uint16_t var_count = base::checked_cast<uint16_t>(
         std::distance(scope->locals()->begin(), scope->locals()->end()));
 
     ByteArrayWriter writer(record);
@@ -525,7 +526,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
         .end_position = scope->end_position(),
         .parent_scope_index = find_scope_index(scope->outer_scope()),
         .flags = flags,
-        .var_count = static_cast<uint16_t>(var_count),
+        .var_count = var_count,
     });
 
     if (has_sibling) {
@@ -583,7 +584,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
       var_flags = IsReceiverBit::update(var_flags, is_receiver);
 
       writer.Write<DebugVariableEntry>(DebugVariableEntry{
-          .slot_index = static_cast<int16_t>(var->index()),
+          .slot_index = base::checked_cast<int16_t>(var->index()),
           .location_mode_flags = var_flags,
           .initializer_position = var->initializer_position(),
           .name_index = get_or_insert_string(var->raw_name()),
@@ -599,9 +600,10 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
   if (string_table.empty()) {
     final_string_table = isolate->factory()->empty_fixed_array();
   } else {
-    Handle<FixedArray> table = isolate->factory()->NewFixedArray(
-        static_cast<int>(string_table.size()), AllocationType::kOld);
-    for (int i = 0; i < static_cast<int>(string_table.size()); ++i) {
+    uint32_t string_count = base::checked_cast<uint32_t>(string_table.size());
+    Handle<FixedArray> table =
+        isolate->factory()->NewFixedArray(string_count, AllocationType::kOld);
+    for (uint32_t i = 0; i < string_count; ++i) {
       table->set(i, *string_table[i]->string());
     }
     final_string_table = table;
