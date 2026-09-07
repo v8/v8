@@ -5,6 +5,7 @@
 #include "src/debug/debug-scope-info.h"
 
 #include <cstddef>
+#include <iterator>
 #include <type_traits>
 
 #include "src/ast/ast-value-factory.h"
@@ -71,6 +72,17 @@ static_assert(std::is_standard_layout_v<ScopeRecord>);
 // Ensure ScopeRecord has no padding. Update when adding new fields.
 static_assert(sizeof(ScopeRecord) == 16);
 
+struct DebugVariableEntry {
+  int16_t slot_index;
+  uint16_t location_mode_flags;
+  int32_t initializer_position;
+  int32_t name_index;
+};
+
+static_assert(std::is_trivial_v<DebugVariableEntry>);
+static_assert(std::is_standard_layout_v<DebugVariableEntry>);
+static_assert(sizeof(DebugVariableEntry) == 12);
+
 using ScopeTypeBits = base::BitField<ScopeType, 0, 4, uint16_t>;
 using HasChildrenBit = ScopeTypeBits::Next<bool, 1>;
 using HasSiblingBit = HasChildrenBit::Next<bool, 1>;
@@ -85,6 +97,12 @@ using NeedsContextBit = SloppyEvalCanExtendVarsBit::Next<bool, 1>;
 using HasArgumentsBit = NeedsContextBit::Next<bool, 1>;
 using HasFunctionVarBit = HasArgumentsBit::Next<bool, 1>;
 static_assert(HasFunctionVarBit::kLastUsedBit < 16);
+
+using VariableLocationBits = base::BitField<VariableLocation, 0, 4, uint16_t>;
+using VariableModeBits = VariableLocationBits::Next<VariableMode, 4>;
+using IsSyntheticBit = VariableModeBits::Next<bool, 1>;
+using IsReceiverBit = IsSyntheticBit::Next<bool, 1>;
+static_assert(IsReceiverBit::kLastUsedBit < 16);
 
 // Encodes receiver, arguments, or function variable allocation info into a
 // 16-bit word:
@@ -300,9 +318,13 @@ size_t DebugScriptScope::function_variable_offset() const {
          (HasArgumentsBit::decode(flags()) ? kUInt16Size : 0);
 }
 
-size_t DebugScriptScope::record_size() const {
+size_t DebugScriptScope::variables_offset() const {
   return function_variable_offset() +
          (HasFunctionVarBit::decode(flags()) ? (kUInt16Size + kInt32Size) : 0);
+}
+
+size_t DebugScriptScope::record_size() const {
+  return variables_offset() + variable_count() * sizeof(DebugVariableEntry);
 }
 
 int DebugScriptScope::unique_id_in_script() const {
@@ -345,6 +367,38 @@ Tagged<String> DebugScriptScope::function_variable_name() const {
   return Cast<String>(info_->string_table()->get(name_index));
 }
 
+int DebugScriptScope::variable_count() const {
+  return base::ReadUnalignedValue<ScopeRecord>(payload()).var_count;
+}
+
+const uint8_t* DebugScriptScope::variables_payload() const {
+  return payload() + variables_offset();
+}
+
+DebugVariableInfo DebugScriptScope::variable(int index) const {
+  CHECK_GE(index, 0);
+  CHECK_LT(index, variable_count());
+  const uint8_t* entry_ptr =
+      variables_payload() + index * sizeof(DebugVariableEntry);
+  DebugVariableEntry entry =
+      base::ReadUnalignedValue<DebugVariableEntry>(entry_ptr);
+  Tagged<String> name;
+  if (entry.name_index >= 0) {
+    DCHECK_LT(static_cast<uint32_t>(entry.name_index),
+              info_->string_table()->length().value());
+    name = Cast<String>(info_->string_table()->get(entry.name_index));
+  }
+  return DebugVariableInfo{
+      .name = name,
+      .location = VariableLocationBits::decode(entry.location_mode_flags),
+      .index = entry.slot_index,
+      .mode = VariableModeBits::decode(entry.location_mode_flags),
+      .initializer_position = entry.initializer_position,
+      .is_synthetic = IsSyntheticBit::decode(entry.location_mode_flags),
+      .is_receiver = IsReceiverBit::decode(entry.location_mode_flags),
+  };
+}
+
 Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     Isolate* isolate, DeclarationScope* script_scope) {
   DCHECK_NOT_NULL(script_scope);
@@ -355,7 +409,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
   ZoneAbslFlatHashMap<const AstRawString*, int32_t> string_map(zone);
 
   auto get_or_insert_string = [&](const AstRawString* raw_name) -> int32_t {
-    DCHECK_NOT_NULL(raw_name);
+    if (raw_name == nullptr) return -1;
     auto it = string_map.find(raw_name);
     if (it != string_map.end()) return it->second;
     int32_t index = static_cast<int32_t>(string_table.size());
@@ -410,6 +464,9 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
         all_scopes[i]->AsDeclarationScope()->function_var() != nullptr) {
       total_size += kUInt16Size + kInt32Size;
     }
+    int var_count = static_cast<int>(std::distance(
+        all_scopes[i]->locals()->begin(), all_scopes[i]->locals()->end()));
+    total_size += var_count * sizeof(DebugVariableEntry);
   }
 
   // Stage 2: Allocate a ByteArray and write directly into it with
@@ -459,13 +516,16 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     flags = HasArgumentsBit::update(flags, has_arguments);
     flags = HasFunctionVarBit::update(flags, has_function_var);
 
+    int var_count = static_cast<int>(
+        std::distance(scope->locals()->begin(), scope->locals()->end()));
+
     ByteArrayWriter writer(record);
     writer.Write<ScopeRecord>(ScopeRecord{
         .start_position = scope->start_position(),
         .end_position = scope->end_position(),
         .parent_scope_index = find_scope_index(scope->outer_scope()),
         .flags = flags,
-        .var_count = 0,
+        .var_count = static_cast<uint16_t>(var_count),
     });
 
     if (has_sibling) {
@@ -499,6 +559,35 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
       writer.Write<uint16_t>(EncodeAllocInfo(info, var->index()));
       int32_t name_index = get_or_insert_string(var->raw_name());
       writer.Write<int32_t>(name_index);
+    }
+
+    for (Variable* var : *scope->locals()) {
+      const AstRawString* raw = var->raw_name();
+      // LINT.IfChange(VariableIsSynthetic)
+      // Keep in sync with ScopeInfo::VariableIsSynthetic() in
+      // src/objects/scope-info.cc.
+      bool is_synthetic =
+          raw != nullptr &&
+          (raw->IsEmpty() || raw->FirstCharacter() == '.' ||
+           raw->IsPrivateName() || raw->IsOneByteEqualTo("this"));
+      // LINT.ThenChange(/src/objects/scope-info.cc:VariableIsSynthetic)
+      // LINT.IfChange(VariableIsReceiver)
+      // Keep in sync with Variable::IsReceiver() in src/ast/variables.h.
+      // Variable::IsReceiver() asserts IsParameter() in debug builds.
+      bool is_receiver = var->IsParameter() && var->IsReceiver();
+      // LINT.ThenChange(/src/ast/variables.h:VariableIsReceiver)
+      uint16_t var_flags = 0;
+      var_flags = VariableLocationBits::update(var_flags, var->location());
+      var_flags = VariableModeBits::update(var_flags, var->mode());
+      var_flags = IsSyntheticBit::update(var_flags, is_synthetic);
+      var_flags = IsReceiverBit::update(var_flags, is_receiver);
+
+      writer.Write<DebugVariableEntry>(DebugVariableEntry{
+          .slot_index = static_cast<int16_t>(var->index()),
+          .location_mode_flags = var_flags,
+          .initializer_position = var->initializer_position(),
+          .name_index = get_or_insert_string(var->raw_name()),
+      });
     }
 
     size_t expected_size =
@@ -584,6 +673,15 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
       CHECK_LT(static_cast<uint32_t>(name_index),
                string_table()->length().value());
       CHECK(IsString(string_table()->get(name_index)));
+    }
+
+    CHECK_EQ(scope.variable_count(),
+             base::ReadUnalignedValue<ScopeRecord>(scope.payload()).var_count);
+    for (int v = 0; v < scope.variable_count(); ++v) {
+      DebugVariableInfo var = scope.variable(v);
+      if (!var.name.is_null()) {
+        CHECK(IsString(var.name));
+      }
     }
 
     if (i == 0) {

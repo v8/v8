@@ -1054,6 +1054,7 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
   return MaybeAssignedFlagBit::decode(value);
 }
 
+// LINT.IfChange(VariableIsSynthetic)
 // static
 bool ScopeInfo::VariableIsSynthetic(Tagged<String> name) {
   // There's currently no flag stored on the ScopeInfo to indicate that a
@@ -1063,6 +1064,7 @@ bool ScopeInfo::VariableIsSynthetic(Tagged<String> name) {
   return name->length() == 0 || name->Get(0) == '.' || name->Get(0) == '#' ||
          name->Equals(GetReadOnlyRoots().this_string());
 }
+// LINT.ThenChange(/src/debug/debug-scope-info.cc:VariableIsSynthetic)
 
 int ScopeInfo::ModuleVariableCount() const {
   DCHECK_EQ(scope_type(), MODULE_SCOPE);

@@ -4,6 +4,8 @@
 
 #include "src/debug/debug-scope-info.h"
 
+#include <iterator>
+
 #include "src/ast/scopes.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
@@ -137,6 +139,36 @@ void VerifyScopeTreeParity(Scope* ast_scope, DebugScriptScope debug_scope) {
     EXPECT_EQ(debug_scope.function_variable_info(),
               (std::pair{VariableAllocationInfo::NONE, -1}));
     EXPECT_TRUE(debug_scope.function_variable_name().is_null());
+  }
+
+  int ast_var_count = static_cast<int>(
+      std::distance(ast_scope->locals()->begin(), ast_scope->locals()->end()));
+  EXPECT_EQ(ast_var_count, debug_scope.variable_count());
+
+  int var_idx = 0;
+  for (Variable* ast_var : *ast_scope->locals()) {
+    DebugVariableInfo debug_var = debug_scope.variable(var_idx++);
+    EXPECT_EQ(ast_var->location(), debug_var.location);
+    EXPECT_EQ(ast_var->mode(), debug_var.mode);
+    EXPECT_EQ(ast_var->index(), debug_var.index);
+    EXPECT_EQ(ast_var->initializer_position(), debug_var.initializer_position);
+    const AstRawString* raw = ast_var->raw_name();
+    // Keep in sync with ScopeInfo::VariableIsSynthetic() in
+    // src/objects/scope-info.cc.
+    bool expected_synthetic =
+        raw != nullptr &&
+        (raw->IsEmpty() || raw->FirstCharacter() == '.' ||
+         raw->IsPrivateName() || raw->IsOneByteEqualTo("this"));
+    EXPECT_EQ(expected_synthetic, debug_var.is_synthetic);
+    // Keep in sync with Variable::IsReceiver() in src/ast/variables.h.
+    bool expected_receiver = ast_var->IsParameter() && ast_var->IsReceiver();
+    EXPECT_EQ(expected_receiver, debug_var.is_receiver);
+    if (raw != nullptr) {
+      ASSERT_FALSE(debug_var.name.is_null());
+      EXPECT_TRUE(debug_var.name->Equals(*ast_var->name()));
+    } else {
+      EXPECT_TRUE(debug_var.name.is_null());
+    }
   }
 
   Scope* ast_child = ast_scope->inner_scope();
@@ -536,7 +568,7 @@ TEST_F(DebugScopeInfoTest, FunctionVariableInfo) {
       "function normalDecl() { return 1; }");
   DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
   EXPECT_TRUE(IsFixedArray(info->string_table()));
-  EXPECT_EQ(info->string_table()->length().value(), 2u);
+  EXPECT_EQ(info->string_table()->length().value(), 11u);
 
   DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
   VerifyScopeTreeParity(parsed.script_scope(), script);
@@ -588,6 +620,178 @@ TEST_F(DebugScopeInfoTest, FunctionVariableInfo) {
       *isolate()->factory()->NewStringFromAsciiChecked("f1")));
   EXPECT_EQ(with_func_context->function_variable_name(),
             with_func_dup->function_variable_name());
+}
+
+TEST_F(DebugScopeInfoTest, ScopeVariables) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize(
+      "let x = 1;\n"
+      "const y = 2;\n"
+      "var z = 3;\n"
+      "function foo(param1, param2) {\n"
+      "  let inner = () => x + param1;\n"
+      "  { let blockVar = 4; }\n"
+      "}");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+
+  EXPECT_GE(script.variable_count(), 4);
+  bool found_x = false, found_y = false, found_z = false, found_foo = false;
+  for (int i = 0; i < script.variable_count(); ++i) {
+    DebugVariableInfo var = script.variable(i);
+    if (!var.name.is_null()) {
+      if (var.name->Equals(
+              *isolate()->factory()->NewStringFromAsciiChecked("x"))) {
+        found_x = true;
+        EXPECT_EQ(var.mode, VariableMode::kLet);
+      } else if (var.name->Equals(
+                     *isolate()->factory()->NewStringFromAsciiChecked("y"))) {
+        found_y = true;
+        EXPECT_EQ(var.mode, VariableMode::kConst);
+      } else if (var.name->Equals(
+                     *isolate()->factory()->NewStringFromAsciiChecked("z"))) {
+        found_z = true;
+        EXPECT_EQ(var.mode, VariableMode::kVar);
+      } else if (var.name->Equals(
+                     *isolate()->factory()->NewStringFromAsciiChecked("foo"))) {
+        found_foo = true;
+      }
+    }
+  }
+  EXPECT_TRUE(found_x);
+  EXPECT_TRUE(found_y);
+  EXPECT_TRUE(found_z);
+  EXPECT_TRUE(found_foo);
+
+  // foo function scope
+  auto foo_scope = script.first_child();
+  ASSERT_TRUE(foo_scope.has_value());
+  EXPECT_GE(foo_scope->variable_count(), 3);
+  bool found_param1 = false, found_param2 = false, found_inner = false;
+  for (int i = 0; i < foo_scope->variable_count(); ++i) {
+    DebugVariableInfo var = foo_scope->variable(i);
+    if (!var.name.is_null()) {
+      if (var.name->Equals(
+              *isolate()->factory()->NewStringFromAsciiChecked("param1"))) {
+        found_param1 = true;
+        EXPECT_EQ(var.location, VariableLocation::CONTEXT);
+      } else if (var.name->Equals(
+                     *isolate()->factory()->NewStringFromAsciiChecked(
+                         "param2"))) {
+        found_param2 = true;
+        EXPECT_EQ(var.location, VariableLocation::PARAMETER);
+      } else if (var.name->Equals(
+                     *isolate()->factory()->NewStringFromAsciiChecked(
+                         "inner"))) {
+        found_inner = true;
+        EXPECT_EQ(var.mode, VariableMode::kLet);
+      }
+    }
+  }
+  EXPECT_TRUE(found_param1);
+  EXPECT_TRUE(found_param2);
+  EXPECT_TRUE(found_inner);
+}
+
+TEST_F(DebugScopeInfoTest, SyntheticAndReceiverVariables) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize(
+      "let normalVar = 1;\n"
+      "function normalFunc(param) { return this; }\n"
+      "function withThisContext() { return () => this; }\n"
+      "const arrowFunc = () => 42;\n"
+      "function* gen() { yield 1; }\n"
+      "class C { #priv() {} }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+
+  // Verify normal script variable is neither synthetic nor receiver.
+  bool found_normal_var = false;
+  for (int i = 0; i < script.variable_count(); ++i) {
+    DebugVariableInfo var = script.variable(i);
+    if (!var.name.is_null() &&
+        var.name->Equals(
+            *isolate()->factory()->NewStringFromAsciiChecked("normalVar"))) {
+      found_normal_var = true;
+      EXPECT_FALSE(var.is_synthetic);
+      EXPECT_FALSE(var.is_receiver);
+    }
+  }
+  EXPECT_TRUE(found_normal_var);
+
+  bool found_normal_this = false;
+  bool found_param = false;
+  bool found_context_this = false;
+  bool arrow_has_receiver = false;
+  bool found_generator_obj = false;
+  bool found_private_member = false;
+
+  auto inspect_scope = [&](auto& self,
+                           const DebugScriptScope& current) -> void {
+    for (int i = 0; i < current.variable_count(); ++i) {
+      DebugVariableInfo var = current.variable(i);
+      if (var.name.is_null()) continue;
+
+      if (var.name->Equals(*isolate()->factory()->this_string())) {
+        EXPECT_TRUE(var.is_synthetic);
+        if (var.is_receiver) {
+          EXPECT_EQ(var.location, VariableLocation::PARAMETER);
+          EXPECT_EQ(var.index, -1);
+          found_normal_this = true;
+        } else if (var.location == VariableLocation::CONTEXT) {
+          EXPECT_GE(var.index, 0);
+          found_context_this = true;
+        }
+      }
+
+      if (var.name->Equals(
+              *isolate()->factory()->NewStringFromAsciiChecked("param"))) {
+        found_param = true;
+        EXPECT_FALSE(var.is_synthetic);
+        EXPECT_FALSE(var.is_receiver);
+      }
+
+      if (var.name->Equals(*isolate()->factory()->NewStringFromAsciiChecked(
+              ".generator_object"))) {
+        found_generator_obj = true;
+        EXPECT_TRUE(var.is_synthetic);
+        EXPECT_FALSE(var.is_receiver);
+      }
+
+      if (var.name->length() > 0 &&
+          (var.name->Get(0) == '#' || var.name->Get(0) == '.')) {
+        EXPECT_TRUE(var.is_synthetic);
+        EXPECT_FALSE(var.is_receiver);
+        if (var.name->Get(0) == '#') {
+          found_private_member = true;
+        }
+      }
+    }
+
+    if (current.is_arrow_scope()) {
+      for (int i = 0; i < current.variable_count(); ++i) {
+        if (current.variable(i).is_receiver) {
+          arrow_has_receiver = true;
+        }
+      }
+    }
+
+    for (auto child = current.first_child(); child.has_value();
+         child = child->next_sibling()) {
+      self(self, *child);
+    }
+  };
+
+  inspect_scope(inspect_scope, script);
+
+  EXPECT_TRUE(found_normal_this);
+  EXPECT_TRUE(found_param);
+  EXPECT_TRUE(found_context_this);
+  EXPECT_FALSE(arrow_has_receiver);
+  EXPECT_TRUE(found_generator_obj);
+  EXPECT_TRUE(found_private_member);
 }
 
 }  // namespace internal
