@@ -387,7 +387,7 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_linux_arm64_dbg",
-    cq_properties = CQ.OPTIONAL,
+    cq_properties = CQ.on_files(".*generated-code-validator.*"),
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
 )
 
