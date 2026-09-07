@@ -21,8 +21,10 @@ namespace v8::internal::compiler {
 using RunUnwindingInfoTest = TestWithContext;
 
 TEST_F(RunUnwindingInfoTest, RunUnwindingInfo) {
+  SaveFlags save_flags;
   v8_flags.perf_prof_unwinding_info = true;
   v8_flags.jit_fuzzing = true;
+  FlagList::EnforceFlagImplications();
 
   FunctionTester tester(i_isolate(),
                         "(function (x) {\n"
