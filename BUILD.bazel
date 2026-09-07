@@ -4573,9 +4573,11 @@ py_binary(
         "tools/metagen/metagen.py",
     ],
     # tools/metagen/ is a Python package, so the scripts import each
-    # other as `from metagen import ...`. That needs the package's
-    # parent -- tools/ -- on sys.path, not the package dir itself.
-    imports = ["tools"],
+    # other as `from metagen import ...`, which needs the package's
+    # parent -- tools/ -- on sys.path rather than the package dir
+    # itself. metagen.py arranges that itself when run as a script,
+    # rather than through the `imports` attribute, which not every
+    # py_binary rule this file is built with supports.
     main = "tools/metagen/metagen.py",
 )
 

@@ -19,13 +19,14 @@ import argparse
 import os
 import sys
 
-if __name__ == "__main__" and __package__ is None:
-  # Direct script invocation (ninja runs `python3 tools/metagen/metagen.py`)
-  # puts tools/metagen/ on sys.path, not its parent, so the `metagen`
-  # package is not importable yet. Bazel's launcher handles this via the
-  # py_binary `imports` attribute; a plain script run has no such hook.
-  sys.path.insert(0,
-                  os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __name__ == "__main__":
+  # Running this file as a script -- ninja runs `python3
+  # tools/metagen/metagen.py`, Bazel's launcher execs it out of the
+  # runfiles tree -- puts tools/metagen/ on sys.path, not its parent, so
+  # the `metagen` package is not importable yet.
+  _PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+  if _PARENT not in sys.path:
+    sys.path.insert(0, _PARENT)
 
 # Don't import cpp_hier yet -- it pulls in clang.cindex at module-load
 # time, which requires the bindings to be resolvable. We bootstrap that
