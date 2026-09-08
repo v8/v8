@@ -63,22 +63,20 @@ builder.addFunction('test', kSig_v_v).addLocals(kWasmS128, 1)
   ]).exportFunc();
 
 const instance = builder.instantiate();
-const mem = new Int16Array(instance.exports.memory.buffer);
-const mem_f32 = new Float32Array(instance.exports.memory.buffer);
+const mem = new DataView(instance.exports.memory.buffer);
 
-mem[0] = 10; mem[1] = 20; mem[2] = 30; mem[3] = 40;
-mem[4] = 50; mem[5] = 60; mem[6] = 70; mem[7] = 80;
+for (let i = 0; i < 8; i++) mem.setInt16(2 * i, 10 * (i + 1), true);
 
 instance.exports.test();
 
 // Offset 16 holds lanes 4..7. The bug stored lanes 0..3 here instead.
-assertEquals(50, mem_f32[4]);
-assertEquals(60, mem_f32[5]);
-assertEquals(70, mem_f32[6]);
-assertEquals(80, mem_f32[7]);
+assertEquals(50, mem.getFloat32(16, true));
+assertEquals(60, mem.getFloat32(20, true));
+assertEquals(70, mem.getFloat32(24, true));
+assertEquals(80, mem.getFloat32(28, true));
 
 // Offset 32 holds lanes 0..3.
-assertEquals(10, mem_f32[8]);
-assertEquals(20, mem_f32[9]);
-assertEquals(30, mem_f32[10]);
-assertEquals(40, mem_f32[11]);
+assertEquals(10, mem.getFloat32(32, true));
+assertEquals(20, mem.getFloat32(36, true));
+assertEquals(30, mem.getFloat32(40, true));
+assertEquals(40, mem.getFloat32(44, true));

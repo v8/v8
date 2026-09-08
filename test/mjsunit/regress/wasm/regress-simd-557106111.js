@@ -93,11 +93,11 @@ main.addBody([
 const instance = builder.instantiate();
 instance.exports.main();
 
-let mem = new Uint32Array(instance.exports.memory.buffer);
+let mem = new DataView(instance.exports.memory.buffer);
 // Low 32 bits of the f64 1.0 splatted into lane 0. The bug replaced this with
 // float(1) == 0x3f800000. The high 32 bits of that f64 are overwritten by the
 // f32x4.replace_lane 1 below, so only lane 0 survives from the f64x2.splat.
-assertEquals(0, mem[0]);
-assertEquals(0x3f800000, mem[1]);
-assertEquals(0x3f800000, mem[2]);
-assertEquals(0x3f800000, mem[3]);
+assertEquals(0, mem.getUint32(0, true));
+assertEquals(0x3f800000, mem.getUint32(4, true));
+assertEquals(0x3f800000, mem.getUint32(8, true));
+assertEquals(0x3f800000, mem.getUint32(12, true));
