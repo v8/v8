@@ -279,6 +279,10 @@ static Address DetermineAddressSpaceLimit() {
   // configuration and there seems to be no easy way to retrieve the actual
   // number of virtual address bits from the CPU in userspace.
   hardware_virtual_address_bits = 40;
+#elif defined(V8_TARGET_ARCH_ARM64) && defined(V8_TARGET_OS_CHROMEOS)
+  // On Arm64 ChromeOS kernel is configured to have a 40-bit virtual address
+  // space (39 bits for userspace and kernel each).
+  hardware_virtual_address_bits = 40;
 #elif defined(V8_TARGET_OS_IOS)
   // On iOS, we only get 64 GB of userspace virtual address space even with the
   // "jumbo" extended virtual addressing entitlement, so assume a 37-bit virtual

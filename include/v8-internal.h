@@ -223,6 +223,11 @@ using SandboxedPointer_t = Address;
 // virtual address space for userspace. As such, limit the sandbox to 128GB (a
 // quarter of the total available address space).
 constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
+#elif defined(V8_TARGET_ARCH_ARM64) && defined(V8_TARGET_OS_CHROMEOS)
+// On ARM64 ChromeOS, kernel config is 39 bits of virtual address space for
+// userspace, limit the sandbox to 128GB (a quarter of the total available
+// address space).
+constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
 #elif defined(V8_TARGET_OS_IOS)
 // On iOS, we only get 64 GB of usable virtual address space even with the
 // "jumbo" extended virtual addressing entitlement. Limit the sandbox size to
@@ -305,6 +310,9 @@ static_assert(kMaxSafeBufferSizeForSandbox <= kSandboxGuardRegionSize,
 
 #if defined(V8_TARGET_OS_ANDROID)
 // On Android, we often won't have sufficient virtual address space available.
+constexpr size_t kAdditionalTrailingGuardRegionSize = 0;
+#elif defined(V8_TARGET_ARCH_ARM64) && defined(V8_TARGET_OS_CHROMEOS)
+// On ARM64 ChromeOS, kernel configs 39 bits of virtual address space.
 constexpr size_t kAdditionalTrailingGuardRegionSize = 0;
 #elif defined(V8_TARGET_ARCH_LOONG64)
 // Some hardwares like 2K3000 does not have sufficient virtual address space
