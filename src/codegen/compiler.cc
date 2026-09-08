@@ -3385,6 +3385,15 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     script = parse_info.CreateScript(
         isolate, source, kNullMaybeHandle,
         OriginOptionsForEval(outer_info->script(), parsing_while_debugging));
+    script->set_outer_language_mode(language_mode);
+    if (eval_position == kNoSourcePosition) {
+      script->set_compilation_kind(
+          restriction == ONLY_SINGLE_FUNCTION_LITERAL
+              ? Script::CompilationKind::kFunctionConstructor
+              : Script::CompilationKind::kIndirectEval);
+    } else {
+      script->set_compilation_kind(Script::CompilationKind::kDirectEval);
+    }
     script->set_eval_from_shared(*outer_info);
     if (eval_position == kNoSourcePosition) {
       // If the position is missing, attempt to get the code offset by

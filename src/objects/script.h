@@ -57,6 +57,15 @@ V8_OBJECT class Script : public Struct {
   // Script compilation state.
   enum class CompilationState { kInitial = 0, kCompiled = 1 };
 
+  // Script compilation kinds.
+  enum class CompilationKind {
+    kHost = 0,
+    kDirectEval = 1,
+    kIndirectEval = 2,
+    kFunctionConstructor = 3,
+    kWrapped = 4,
+  };
+
   // [source]: the script source.
   inline Tagged<UnionOf<String, Undefined>> source() const;
   inline void set_source(Tagged<UnionOf<String, Undefined>> value,
@@ -111,6 +120,16 @@ V8_OBJECT class Script : public Struct {
 
   // Whether the script is implicitly wrapped in a function.
   inline bool is_wrapped() const;
+
+  // [compilation_kind]: how the script was compiled (host, direct/indirect
+  // eval, Function constructor, or wrapped). Encoded in the 'flags' field.
+  inline CompilationKind compilation_kind() const;
+  inline void set_compilation_kind(CompilationKind kind);
+
+  // [outer_language_mode]: the lexical language mode of the enclosing scope.
+  // Encoded in the 'flags' field.
+  inline LanguageMode outer_language_mode() const;
+  inline void set_outer_language_mode(LanguageMode mode);
 
   // Whether the eval_from_shared field is set with a shared function info
   // for the eval site.
@@ -177,7 +196,6 @@ V8_OBJECT class Script : public Struct {
   // [compilation_type]: how the script was compiled. Encoded in the
   // 'flags' field.
   inline CompilationType compilation_type() const;
-  inline void set_compilation_type(CompilationType type);
 
   inline bool produce_compile_hints() const;
   inline void set_produce_compile_hints(bool produce_compile_hints);
@@ -393,15 +411,16 @@ V8_OBJECT class Script : public Struct {
   friend class TorqueGeneratedBitFieldAsserts;
 
   // Bit positions in the flags field.
-  using CompilationTypeBit =
-      base::BitField<Script::CompilationType, 0, 1, uint32_t>;
+  using CompilationKindBits =
+      base::BitField<Script::CompilationKind, 0, 3, uint32_t>;
   using CompilationStateBit =
-      CompilationTypeBit::Next<Script::CompilationState, 1>;
+      CompilationKindBits::Next<Script::CompilationState, 1>;
   using IsReplModeBit = CompilationStateBit::Next<bool, 1>;
   using OriginOptionsBits = IsReplModeBit::Next<int32_t, 4>;
   using BreakOnEntryBit = OriginOptionsBits::Next<bool, 1>;
   using ProduceCompileHintsBit = BreakOnEntryBit::Next<bool, 1>;
   using DeserializedBit = ProduceCompileHintsBit::Next<bool, 1>;
+  using OuterLanguageModeBit = DeserializedBit::Next<LanguageMode, 1>;
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -412,6 +431,7 @@ V8_OBJECT class Script : public Struct {
 V8_EXPORT_PRIVATE const char* ToString(Script::Type type);
 V8_EXPORT_PRIVATE const char* ToString(Script::CompilationType type);
 V8_EXPORT_PRIVATE const char* ToString(Script::CompilationState type);
+V8_EXPORT_PRIVATE const char* ToString(Script::CompilationKind type);
 
 }  // namespace internal
 }  // namespace v8
