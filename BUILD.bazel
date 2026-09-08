@@ -181,7 +181,10 @@ v8_flag(name = "v8_enable_experimental_tq_to_tsa")
 # Mirrors the GN arg of the same name: selects which instance-type
 # generator's output V8 compiles in, metagen or Torque's emission. When
 # off, the metagen action is not part of the build graph.
-v8_flag(name = "v8_use_metagen_instance_types")
+v8_flag(
+    name = "v8_use_metagen_instance_types",
+    default = True,
+)
 
 v8_flag(
     name = "v8_use_host_cpu_arm_features",
