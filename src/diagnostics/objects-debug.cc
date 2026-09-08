@@ -1706,7 +1706,8 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
     CHECK(IsAccessorInfo(*it.GetAccessors()));
   } else {
     CHECK(!it.IsFound() || it.state() != LookupIterator::ACCESSOR ||
-          !IsAccessorInfo(*it.GetAccessors()));
+          !IsAccessorInfo(*it.GetAccessors()) ||
+          *it.GetAccessors() == *isolate->factory()->lazy_closure_accessor());
   }
 
   CHECK_IMPLIES(shared()->HasBuiltinId(),
