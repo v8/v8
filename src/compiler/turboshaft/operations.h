@@ -8658,6 +8658,15 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   bool IsZero() const { return std::memcmp(kZero, value, kSimd128Size) == 0; }
 
   auto options() const { return std::tuple{value}; }
+  // {options()} decays {value} to a pointer, so the inherited {operator==} and
+  // {hash_value} would compare addresses.
+  bool operator==(const Simd128ConstantOp& other) const {
+    return std::memcmp(value, other.value, kSimd128Size) == 0;
+  }
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
+    return HashWithOptions(base::VectorOf(value));
+  }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -9681,6 +9690,16 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
   }
 
   auto options() const { return std::tuple{kind, shuffle}; }
+  // {options()} decays {shuffle} to a pointer, so the inherited {operator==}
+  // and {hash_value} would compare addresses.
+  bool operator==(const Simd128ShuffleOp& other) const {
+    return inputs() == other.inputs() && kind == other.kind &&
+           std::memcmp(shuffle, other.shuffle, kSimd128Size) == 0;
+  }
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
+    return HashWithOptions(kind, base::VectorOf(shuffle));
+  }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -9776,6 +9795,15 @@ struct Simd256ConstantOp : FixedArityOperationT<0, Simd256ConstantOp> {
   bool IsZero() const { return std::memcmp(kZero, value, kSimd256Size) == 0; }
 
   auto options() const { return std::tuple{value}; }
+  // {options()} decays {value} to a pointer, so the inherited {operator==} and
+  // {hash_value} would compare addresses.
+  bool operator==(const Simd256ConstantOp& other) const {
+    return std::memcmp(value, other.value, kSimd256Size) == 0;
+  }
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
+    return HashWithOptions(base::VectorOf(value));
+  }
   void PrintOptions(std::ostream& os) const;
 };
 
