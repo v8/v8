@@ -5262,8 +5262,6 @@ v8_header_set("v8_internal_headers") {
 
   if (v8_enable_wasm_simd256_revec) {
     sources += [
-      "src/compiler/linear-scheduler.h",
-      "src/compiler/revectorizer.h",
       "src/compiler/turboshaft/wasm-revec-phase.h",
       "src/compiler/turboshaft/wasm-revec-reducer.h",
     ]
@@ -6020,8 +6018,6 @@ if (v8_enable_webassembly) {
 
 if (v8_enable_wasm_simd256_revec) {
   v8_compiler_sources += [
-    "src/compiler/linear-scheduler.cc",
-    "src/compiler/revectorizer.cc",
     "src/compiler/turboshaft/wasm-revec-phase.cc",
     "src/compiler/turboshaft/wasm-revec-reducer.cc",
   ]

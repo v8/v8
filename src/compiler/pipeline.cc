@@ -142,7 +142,6 @@
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
-#include "src/compiler/revectorizer.h"
 #include "src/compiler/turboshaft/wasm-revec-phase.h"
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
@@ -179,9 +178,6 @@ class PipelineImpl final {
   // Substep B.1. Produce a scheduled graph.
   V8_WARN_UNUSED_RESULT bool ComputeScheduledGraph();
 
-#if V8_ENABLE_WASM_SIMD256_REVEC
-  V8_WARN_UNUSED_RESULT bool Revectorize();
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
   // Substep B.3. Run register allocation on the instruction sequence.
   V8_WARN_UNUSED_RESULT bool AllocateRegisters(CallDescriptor* call_descriptor,
@@ -1477,17 +1473,6 @@ struct ComputeSchedulePhase {
   }
 };
 
-#if V8_ENABLE_WASM_SIMD256_REVEC
-struct RevectorizePhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(Revectorizer)
-
-  void Run(TFPipelineData* data, Zone* temp_zone) {
-    Revectorizer revec(temp_zone, data->graph(), data->mcgraph(),
-                       data->source_positions());
-    revec.TryRevectorize(data->info()->GetDebugName().get());
-  }
-};
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 struct PrintGraphPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(PrintGraph)
@@ -3465,9 +3450,6 @@ bool PipelineImpl::ComputeScheduledGraph() {
   return true;
 }
 
-#if V8_ENABLE_WASM_SIMD256_REVEC
-bool PipelineImpl::Revectorize() { return Run<RevectorizePhase>(); }
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 OptimizedCompilationInfo* PipelineImpl::info() const { return data_->info(); }
 

@@ -5,12 +5,6 @@
 import("../../gni/cluster_build.gni")
 import("../../gni/v8.gni")
 
-if (v8_enable_webassembly) {
-  if (!v8_target_is_simulator && v8_current_cpu == "x64") {
-    v8_enable_wasm_simd256_revec = true
-  }
-}
-
 if (is_fuchsia) {
   import("//build/config/fuchsia/generate_runner_scripts.gni")
   import("//third_party/fuchsia-sdk/sdk/build/component.gni")
@@ -563,7 +557,6 @@ v8_cluster_source_set("v8_unittests_sources") {
     "base/virtual-address-space-unittest.cc",
     "base/hashing-unittest.cc",
     "compiler/run-variables-unittest.cc",
-    "compiler/linear-scheduler-unittest.cc",
     "compiler/linkage-unittest.cc",
     "heap/cppgc-js/cpp-heap-stack-start-marker-unittest.cc",
     "heap/cppgc-js/embedder-roots-handler-unittest.cc",
@@ -733,13 +726,6 @@ v8_cluster_source_set("v8_unittests_sources") {
     if (v8_current_cpu == "arm64") {
       sources += [ "compiler/turboshaft/wasm-shuffle-reducer-unittest.cc" ]
     }
-  }
-
-  if (v8_enable_wasm_simd256_revec) {
-    sources += [
-      "compiler/linear-scheduler-unittest.cc",
-      "compiler/revec-unittest.cc",
-    ]
   }
 
   if (v8_enable_wasm_gdb_remote_debugging) {
