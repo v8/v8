@@ -5003,6 +5003,16 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
         isolate, "setFlushDenormals",
         FunctionTemplate::New(isolate, Shell::SetFlushDenormals));
 
+    test_template->Set(
+        isolate, "createInterceptorObject",
+        FunctionTemplate::New(isolate, Shell::CreateInterceptorObject));
+    test_template->Set(
+        isolate, "createAccessCheckedObject",
+        FunctionTemplate::New(isolate, Shell::CreateAccessCheckedObject));
+    test_template->Set(
+        isolate, "createSpecialObject",
+        FunctionTemplate::New(isolate, Shell::CreateSpecialObject));
+
     d8_template->Set(isolate, "test", test_template);
   }
   {

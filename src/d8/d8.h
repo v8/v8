@@ -1012,6 +1012,12 @@ class Shell : public i::AllStatic {
   static Local<FunctionTemplate> CreateTestFastCApiTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateLeafInterfaceTypeTemplate(
       Isolate* isolate);
+  static void CreateInterceptorObject(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void CreateAccessCheckedObject(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void CreateSpecialObject(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& info, int index,
