@@ -811,17 +811,7 @@ class V8_EXPORT Object : public Value {
       int index, EmbedderDataTypeTag tag);
 
   void* GetAlignedPointerFromEmbedderDataInCreationContext(
-      v8::Isolate* isolate, int index, CppHeapPointerTag tag) {
-    // TODO(ahaas): This is a temporary implementation, the actual
-    // implementation will follow with the refactoring of EmbedderDataSlots.
-    // The refactoring will regress the existing API, as the fast path will move
-    // to this new API.
-    // By using this temporary implementation, blink's ScriptState can already
-    // switch to the new API, and thereby switch from the old fast path to the
-    // new fast path directly.
-    return GetAlignedPointerFromEmbedderDataInCreationContext(
-        isolate, index, kEmbedderDataTypeTagDefault);
-  }
+      v8::Isolate* isolate, int index, CppHeapPointerTag tag);
   /**
    * Checks whether a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
@@ -953,44 +943,11 @@ Local<Data> Object::GetInternalField(int index) {
 void* Object::GetAlignedPointerFromInternalField(v8::Isolate* isolate,
                                                  int index,
                                                  EmbedderDataTypeTag tag) {
-#if !defined(V8_ENABLE_CHECKS)
-  using A = internal::Address;
-  using I = internal::Internals;
-  A obj = internal::ValueHelper::ValueAsAddress(this);
-  // Fast path: If the object is a plain JSObject, which is the common case, we
-  // know where to find the internal fields and can return the value directly.
-  auto instance_type = I::GetInstanceType(obj);
-  if (V8_LIKELY(I::CanHaveInternalField(instance_type))) {
-    int offset = I::kJSAPIObjectWithEmbedderSlotsHeaderSize +
-                 (I::kEmbedderDataSlotSize * index) +
-                 I::kEmbedderDataSlotExternalPointerOffset;
-    A value = I::ReadExternalPointerField(isolate, obj, offset,
-                                          ToExternalPointerTag(tag));
-    return reinterpret_cast<void*>(value);
-  }
-#endif
   return SlowGetAlignedPointerFromInternalField(isolate, index, tag);
 }
 
 void* Object::GetAlignedPointerFromInternalField(int index,
                                                  EmbedderDataTypeTag tag) {
-#if !defined(V8_ENABLE_CHECKS)
-  using A = internal::Address;
-  using I = internal::Internals;
-  A obj = internal::ValueHelper::ValueAsAddress(this);
-  // Fast path: If the object is a plain JSObject, which is the common case, we
-  // know where to find the internal fields and can return the value directly.
-  auto instance_type = I::GetInstanceType(obj);
-  if (V8_LIKELY(I::CanHaveInternalField(instance_type))) {
-    int offset = I::kJSAPIObjectWithEmbedderSlotsHeaderSize +
-                 (I::kEmbedderDataSlotSize * index) +
-                 I::kEmbedderDataSlotExternalPointerOffset;
-    Isolate* isolate = I::GetCurrentIsolateForSandbox();
-    A value = I::ReadExternalPointerField(isolate, obj, offset,
-                                          ToExternalPointerTag(tag));
-    return reinterpret_cast<void*>(value);
-  }
-#endif
   return SlowGetAlignedPointerFromInternalField(index, tag);
 }
 
