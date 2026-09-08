@@ -702,9 +702,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'annexB/language/comments/single-line-html-close-first-line-1': [SKIP],
-  'annexB/language/comments/single-line-html-close-first-line-2': [SKIP],
-  'annexB/language/comments/single-line-html-close-first-line-3': [SKIP],
   'intl402/DateTimeFormat/timezone-legacy-non-iana': [SKIP],
 }],
 # End roll-watcher patch
