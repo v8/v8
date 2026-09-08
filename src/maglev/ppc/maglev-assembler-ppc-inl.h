@@ -228,8 +228,9 @@ inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
 inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
                                              Register scratch) {
   DCHECK(!SmiValuesAre32Bits());
+  TemporaryRegisterScope temps(this);
   if (scratch == Register::no_reg()) {
-    scratch = r0;
+    scratch = temps.AcquireScratch();
   }
   Condition cond = TrySmiTagInt32(scratch, obj);
   JumpIf(NegateCondition(cond), fail);
