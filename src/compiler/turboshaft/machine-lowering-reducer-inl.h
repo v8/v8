@@ -3621,6 +3621,13 @@ class MachineLoweringReducer : public Next {
                 FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
 
     IF_NOT (__ WordPtrEqual(__ BitcastTaggedToWordPtr(array_entry), weak_map)) {
+      // 0. Special receivers must deopt. Access checks and named interceptors
+      // imply special receiver.
+      V<Word32> instance_type = __ LoadInstanceTypeField(map);
+      __ DeoptimizeIf(
+          __ Uint32LessThanOrEqual(instance_type, LAST_SPECIAL_RECEIVER_TYPE),
+          frame_state, DeoptimizeReason::kWrongMap, feedback);
+
       // 1. Check descriptor count.
       V<Word32> bitfield3 =
           __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField3());

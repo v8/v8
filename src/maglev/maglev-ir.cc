@@ -2644,6 +2644,12 @@ void CheckHomomorphicMap::GenerateCode(MaglevAssembler* masm,
   int descriptor_index =
       LoadHandler::DescriptorIndexBits::decode(handler_value_);
 
+  // Reject special receivers. Access checks and named interceptors imply
+  // special receiver.
+  __ CompareInstanceTypeAndJumpIf(
+      map, LAST_SPECIAL_RECEIVER_TYPE, kUnsignedLessThanEqual,
+      __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap), Label::kFar);
+
   // 1. Check descriptor count.
   Register descriptor_count = scratch;
   __ LoadInt32(descriptor_count,
