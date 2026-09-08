@@ -271,7 +271,7 @@ void BaselineAssembler::JumpIfStaticRootToBoolean(
 
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                    Label* target, Label::Distance distance) {
-  __ cmpb(value, Immediate(byte));
+  __ Cmpb(value, byte);
   __ j(cc, target, distance);
 }
 

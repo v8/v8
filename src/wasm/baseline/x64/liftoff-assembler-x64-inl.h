@@ -2664,14 +2664,14 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
 void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
                                            Register lhs, int imm,
                                            const FreezeCacheState& frozen) {
-  cmpl(lhs, Immediate(imm));
+  Cmp(lhs, imm);
   j(cond, label);
 }
 
 void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
                                                Register lhs, int32_t imm,
                                                const FreezeCacheState& frozen) {
-  cmpq(lhs, Immediate(imm));
+  Cmpq(lhs, imm);
   j(cond, label);
 }
 

@@ -422,16 +422,16 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // If the result is zero, check if either lhs or rhs is negative.
   Label end;
-  __ cmpl(result, Immediate(0));
+  __ Cmp(result, 0);
   __ j(not_zero, &end);
   {
     __ orl(saved_left, right);
-    __ cmpl(saved_left, Immediate(0));
+    __ Cmp(saved_left, 0);
     // If one of them is negative, we must have a -0 result, which is non-int32,
     // so deopt.
     // TODO(leszeks): Consider splitting these deopts to have distinct deopt
     // reasons. Otherwise, the reason has to match the above.
-    __ EmitEagerDeoptIf(less, DeoptimizeReason::kOverflow, this);
+    __ EmitEagerDeoptIf(negative, DeoptimizeReason::kOverflow, this);
   }
   __ bind(&end);
 }
@@ -489,7 +489,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   ZoneLabelRef done(masm);
   ZoneLabelRef rhs_checked(masm);
 
-  __ cmpl(rhs, Immediate(0));
+  __ Cmp(rhs, 0);
   __ JumpToDeferredIf(
       less_equal,
       [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register rhs,
@@ -501,7 +501,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
       rhs_checked, rhs, this);
   __ bind(*rhs_checked);
 
-  __ cmpl(lhs, Immediate(0));
+  __ Cmp(lhs, 0);
   __ JumpToDeferredIf(
       less,
       [](MaglevAssembler* masm, ZoneLabelRef done, Register lhs, Register rhs,
@@ -568,7 +568,7 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   // REDUCE(WordBinopDeoptOnOverflow) in machine-lowering-reducer-inl.h
 
   // Check if {right} is positive (and not zero).
-  __ cmpl(right, Immediate(0));
+  __ Cmp(right, 0);
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(
       less_equal,
@@ -586,9 +586,9 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
 
         // Check if {left} is zero, as that would produce minus zero. Left is in
         // rax already.
-        __ cmpl(rax, Immediate(0));
+        __ Cmp(rax, 0);
         // TODO(leszeks): Better DeoptimizeReason = kMinusZero.
-        __ EmitEagerDeoptIf(equal, DeoptimizeReason::kNotInt32, node);
+        __ EmitEagerDeoptIf(zero, DeoptimizeReason::kNotInt32, node);
 
         // Check if {left} is kMinInt and {right} is -1, in which case we'd have
         // to return -kMinInt, which is not representable as Int32.
@@ -607,12 +607,12 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ idivl(right);
 
   // Check that the remainder is zero.
-  __ cmpl(rdx, Immediate(0));
+  __ Cmp(rdx, 0);
   // None of the mutated input registers should be a register input into the
   // eager deopt info.
   DCHECK_REGLIST_EMPTY(RegList{rax, rdx} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
-  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, this);
+  __ EmitEagerDeoptIf(not_zero, DeoptimizeReason::kNotInt32, this);
   DCHECK_EQ(ToRegister(result()), rax);
 }
 
@@ -736,7 +736,7 @@ void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   Register value = ToRegister(result());
   Label done;
-  __ cmpl(value, Immediate(0));
+  __ Cmp(value, 0);
   __ j(greater_equal, &done);
   __ negl(value);
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
@@ -1258,8 +1258,7 @@ void LoadDictionaryField::GenerateCode(MaglevAssembler* masm,
                            entry_index + NameDictionary::kEntryDetailsIndex));
     __ SmiUntag(scratch);
     __ andl(scratch, Immediate(PropertyDetails::KindField::kMask));
-    __ cmpl(scratch,
-            Immediate(PropertyDetails::KindField::encode(PropertyKind::kData)));
+    __ Cmp(scratch, PropertyDetails::KindField::encode(PropertyKind::kData));
     __ j(not_equal, deferred_fallback);
 
     __ LoadTaggedField(result_reg, properties,

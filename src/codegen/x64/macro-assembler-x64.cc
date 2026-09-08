@@ -2069,6 +2069,22 @@ void MacroAssembler::Cmp(Register dst, int32_t src) {
   }
 }
 
+void MacroAssembler::Cmpq(Register dst, int32_t src) {
+  if (src == 0) {
+    testq(dst, dst);
+  } else {
+    cmpq(dst, Immediate(src));
+  }
+}
+
+void MacroAssembler::Cmpb(Register dst, int32_t src) {
+  if (src == 0) {
+    testb(dst, dst);
+  } else {
+    cmpb(dst, Immediate(src));
+  }
+}
+
 void MacroAssembler::I64x2Abs(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch) {
   if (UseAvx10_1()) {

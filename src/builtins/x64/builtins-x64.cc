@@ -3190,7 +3190,7 @@ void Builtins::Generate_AdaptShadowStackForDeopt(MacroAssembler* masm) {
   __ popq(count_reg);
   // Now `kReturnRegister0` is the address we want to jump to.
 
-  __ cmpl(count_reg, Immediate(0));
+  __ Cmp(count_reg, 0);
   Label finished;
   __ j(equal, &finished, Label::kNear);
   // This will jump to CallToAdaptShadowStackForDeopt which call back into this
@@ -4362,7 +4362,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
   using ER = ExternalReference;
 
   Label no_stack_change;
-  __ cmpq(kOldSPRegister, Immediate(0));
+  __ Cmpq(kOldSPRegister, 0);
   __ j(equal, &no_stack_change);
   __ movq(rsp, kOldSPRegister);
 

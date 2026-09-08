@@ -229,6 +229,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Cmp(Register dst, Tagged<Smi> src);
   void Cmp(Operand dst, Tagged<Smi> src);
   void Cmp(Register dst, int32_t src);
+  void Cmpq(Register dst, int32_t src);
+  void Cmpb(Register dst, int32_t src);
 
   void CmpTagged(const Register& src1, const Register& src2) {
     cmp_tagged(src1, src2);

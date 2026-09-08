@@ -1115,7 +1115,7 @@ inline void MaglevAssembler::JumpIfNotSmi(Register src, Label* on_not_smi,
 
 void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                  Label* target, Label::Distance distance) {
-  cmpb(value, Immediate(byte));
+  Cmpb(value, byte);
   j(cc, target, distance);
 }
 
@@ -1290,7 +1290,7 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
 void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, int32_t value,
                                              Condition cond, Label* target,
                                              Label::Distance distance) {
-  cmpq(r1, Immediate(value));
+  Cmpq(r1, value);
   JumpIf(cond, target, distance);
 }
 
@@ -1316,7 +1316,7 @@ inline void MaglevAssembler::CompareIntPtrAndBranch(
     Register r1, int32_t value, Condition cond, Label* if_true,
     Label::Distance true_distance, bool fallthrough_when_true, Label* if_false,
     Label::Distance false_distance, bool fallthrough_when_false) {
-  cmpq(r1, Immediate(value));
+  Cmpq(r1, value);
   Branch(cond, if_true, true_distance, fallthrough_when_true, if_false,
          false_distance, fallthrough_when_false);
 }
