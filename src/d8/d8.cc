@@ -1186,6 +1186,10 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (i_isolate->is_execution_terminating()) return true;
 
+  HandleScope handle_scope(isolate);
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(report_exceptions == kReportExceptions);
+
   Local<String> source_str;
   if (i::v8_flags.parse_only ||
       options.code_cache_options ==
@@ -1196,10 +1200,6 @@ bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
       return false;
     }
   }
-
-  HandleScope handle_scope(isolate);
-  TryCatch try_catch(isolate);
-  try_catch.SetVerbose(report_exceptions == kReportExceptions);
 
   if (i::v8_flags.parse_only) {
     i::VMState<PARSER> state(i_isolate);
