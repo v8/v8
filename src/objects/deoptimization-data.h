@@ -198,17 +198,6 @@ class DeoptimizationFrameTranslation : public TrustedByteArray {
 
   class Iterator;
 
-#ifdef V8_USE_ZLIB
-  // Constants describing compressed DeoptimizationFrameTranslation layout. Only
-  // relevant if
-  // --turbo-compress-frame-translation is enabled.
-  static constexpr int kUncompressedSizeOffset = 0;
-  static constexpr int kUncompressedSizeSize = kInt32Size;
-  static constexpr int kCompressedDataOffset =
-      kUncompressedSizeOffset + kUncompressedSizeSize;
-  static constexpr int kDeoptimizationFrameTranslationElementSize = kInt32Size;
-#endif  // V8_USE_ZLIB
-
 #ifdef ENABLE_DISASSEMBLER
   void PrintFrameTranslation(
       std::ostream& os, int index,
@@ -243,7 +232,6 @@ class DeoptTranslationIterator {
   uint32_t NextUnsignedOperandAtPreviousIndex();
   void SkipOpcodeAndItsOperandsAtPreviousIndex();
 
-  std::vector<int32_t> uncompressed_contents_;
   const base::Vector<const uint8_t> buffer_;
   int index_;
 

@@ -1643,14 +1643,6 @@ DEFINE_BOOL(fast_api_allow_float_in_sim, false,
 // for other tests, which would just lead to errors or crashes.
 DEFINE_NEG_IMPLICATION(fuzzing, fast_api_allow_float_in_sim)
 
-#ifdef V8_USE_ZLIB
-DEFINE_BOOL(turbo_compress_frame_translations, false,
-            "compress deoptimization frame translations (experimental)")
-#else
-DEFINE_BOOL_READONLY(
-    turbo_compress_frame_translations, false,
-    "compress deoptimization frame translations (experimental)")
-#endif  // V8_USE_ZLIB
 DEFINE_BOOL(
     turbo_inline_js_wasm_calls, true,
     "inline JS->Wasm calls (specifically: inline JS-to-Wasm wrappers and then "
