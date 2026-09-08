@@ -90,8 +90,6 @@
   # https://crbug.com/485267831
   'regress/regress-485267831': [SKIP],
 
-  # https://crbug.com/532595489
-  'regress/regress-532595489': [FAIL, CRASH, NO_VARIANTS, ['not pointer_compression', SKIP]],
 
   # TODO(542447324): --shared-string-table together with
   # --transition-strings-during-gc-with-stack was never intended to work.

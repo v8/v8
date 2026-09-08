@@ -167,14 +167,27 @@ transitioning javascript builtin RegExpStringIteratorPrototypeNext(
     try {
       if (IsFastRegExpPermissive(iteratingRegExp)) {
         const regexp = UnsafeCast<JSRegExp>(iteratingRegExp);
-        const lastIndex = LoadLastIndexAsLength(regexp, true);
-        const matchIndices: RegExpMatchInfo =
-            RegExpPrototypeExecBodyWithoutResultFast(
-                regexp, iteratingString, lastIndex)
-            otherwise IfNoMatch;
-        match = ConstructNewResultFromMatchInfo(
-            regexp, matchIndices, iteratingString, lastIndex);
-        isFastRegExp = true;
+        // Only use the fast path if there aren't flag mismatches.
+        // Note that this condition uses bitwise operations to prevent
+        // short-circuit evaluation.
+        const isGlobal = FastFlagGetter(regexp, Flag::kGlobal);
+        const isUnicode = FastFlagGetter(regexp, Flag::kUnicode) |
+            FastFlagGetter(regexp, Flag::kUnicodeSets);
+        if ((isGlobal == flags.global) & (isUnicode == flags.unicode)) {
+          const lastIndex = LoadLastIndexAsLength(regexp, true);
+          const matchIndices: RegExpMatchInfo =
+              RegExpPrototypeExecBodyWithoutResultFast(
+                  regexp, iteratingString, lastIndex)
+              otherwise IfNoMatch;
+          match = ConstructNewResultFromMatchInfo(
+              regexp, matchIndices, iteratingString, lastIndex);
+          isFastRegExp = true;
+        } else {
+          match = RegExpExec(iteratingRegExp, iteratingString);
+          if (match == Null) {
+            goto IfNoMatch;
+          }
+        }
       } else {
         match = RegExpExec(iteratingRegExp, iteratingString);
         if (match == Null) {

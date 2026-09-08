@@ -1780,7 +1780,7 @@ TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
     // Must be in Smi range on the fast path. We control the value of {index}
     // on all call-sites and can never exceed the length of the string.
     static_assert(String::kMaxLength + 2 < Smi::kMaxValue);
-    // TODO(532595489): Hard CHECK for now as a quick fix.
+    // CSA_CHECK kept as defense-in-depth against unexpected fast-path overflow.
     CSA_CHECK(this, TaggedIsPositiveSmi(index_plus_one));
   }
 
