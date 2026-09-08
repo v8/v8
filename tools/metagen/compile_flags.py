@@ -251,35 +251,6 @@ def get_compile_args_from_gn_desc(
   return filtered, os.path.abspath(build_dir), cl_mode
 
 
-def load_toolchain_include(build_dir: str, env_file: str) -> str | None:
-  """Return the INCLUDE search path from a toolchain environment block.
-
-  On Windows the MSVC/UCRT SDK include dirs are not compile flags -- the
-  toolchain injects them through the INCLUDE env var (see Chromium's
-  build/toolchain/win/setup_toolchain.py), which `gn desc` does not
-  report and a plain GN action() does not inherit. GN writes the block to
-  `environment.<arch>` in the build dir; read INCLUDE back so the caller
-  can re-export it and clang-cl (libclang in cl-mode) resolves the SDK
-  headers exactly as the real compile does. These are the build's own
-  resolved paths, not hand-authored flags.
-
-  Returns None if the file is absent (e.g. non-Windows), leaving the
-  environment untouched.
-  """
-  path = env_file if os.path.isabs(env_file) else os.path.join(
-      build_dir, env_file)
-  if not os.path.isfile(path):
-    return None
-  with open(path, "rb") as f:
-    block = f.read().decode("utf-8", errors="replace")
-  # The block is a run of NUL-separated `KEY=VALUE` entries.
-  for entry in block.split("\0"):
-    key, sep, value = entry.partition("=")
-    if sep and key.upper() == "INCLUDE":
-      return value
-  return None
-
-
 def get_compile_args_from_file(path: str) -> tuple[list[str], str, bool]:
   """Bazel path: read the single-entry compile_commands.json the rule
   synthesizes (bazel/defs.bzl).

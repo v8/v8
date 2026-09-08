@@ -149,17 +149,27 @@ def main() -> int:
       "`gn desc` reports (e.g. //v8:v8_base_without_compiler). Required "
       "with --build-dir.")
   p.add_argument(
+      "--flags-toolchain",
+      default=None,
+      help="GN label of the toolchain to resolve --flags-from-target in "
+      "(e.g. //build/toolchain/linux:clang_x64). Defaults to the build's "
+      "default toolchain, which is only right when the action and the "
+      "target it queries share it.")
+  p.add_argument(
       "--flags-dependency",
       default=None,
       help="File materializing the GN target flags, recorded in --depfile "
       "so a flag change reruns metagen. Required with --build-dir when "
       "--depfile is used.")
   p.add_argument(
-      "--toolchain-env",
-      default=None,
-      help="Path (relative to --build-dir) of a toolchain environment "
-      "block, e.g. environment.x64. Windows only: its INCLUDE is "
-      "re-exported so clang-cl finds the SDK headers gn desc omits.")
+      "--extra-flag",
+      action="append",
+      default=[],
+      metavar="FLAG",
+      help="A parse flag the build system supplies outside the target's "
+      "cflags, repeatable. Windows: the SDK/UCRT include flags, which the "
+      "toolchain interpolates into its tool command template rather than "
+      "into cflags, so `gn desc` never reports them.")
   p.add_argument(
       "--compile-commands",
       default=None,
@@ -229,18 +239,12 @@ def main() -> int:
           file=sys.stderr)
       return 1
     build_dir = os.path.abspath(args.build_dir)
+    flags_target = args.flags_from_target
+    if args.flags_toolchain:
+      flags_target = f"{flags_target}({args.flags_toolchain})"
     raw_flags, parse_cwd, cl_mode = compile_flags.get_compile_args_from_gn_desc(
-        build_dir, args.flags_from_target)
-    flags_source = f"build_dir={build_dir} (gn desc {args.flags_from_target})"
-    # Windows: the SDK/UCRT include dirs reach the real compile via the
-    # toolchain's INCLUDE env var, not flags, so gn desc omits them and
-    # this action does not inherit them. Re-export the build's own
-    # INCLUDE (from environment.<arch>) so clang-cl resolves them.
-    if args.toolchain_env:
-      include = compile_flags.load_toolchain_include(build_dir,
-                                                     args.toolchain_env)
-      if include:
-        os.environ["INCLUDE"] = include
+        build_dir, flags_target)
+    flags_source = f"build_dir={build_dir} (gn desc {flags_target})"
   else:
     cc_json = os.path.abspath(args.compile_commands)
     raw_flags, parse_cwd, cl_mode = compile_flags.get_compile_args_from_file(
@@ -341,8 +345,11 @@ def main() -> int:
       "-UV8_USE_PERFETTO_SDK",
   ]
 
+  # Ahead of the queried flags, matching where the toolchain's command
+  # template puts them.
   flags = (
-      prefix + raw_flags + no_perfetto + [f"{sysinclude}{builtin_headers_dir}"])
+      prefix + args.extra_flag + raw_flags + no_perfetto +
+      [f"{sysinclude}{builtin_headers_dir}"])
 
   print(
       f"Harvesting class hierarchy from {os.path.relpath(driver_path, v8_root)} "

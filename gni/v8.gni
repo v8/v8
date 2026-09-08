@@ -456,6 +456,7 @@ template("v8_source_set") {
   } else {
     link_target_type = "source_set"
   }
+
   target(link_target_type, target_name) {
     forward_variables_from(invoker,
                            "*",
