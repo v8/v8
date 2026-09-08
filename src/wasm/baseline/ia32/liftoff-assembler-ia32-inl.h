@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/overflowing-math.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/backend/simd-shuffle.h"
@@ -1647,9 +1648,7 @@ void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
 
 void LiftoffAssembler::emit_i32_subi(Register dst, Register lhs, int32_t imm) {
   if (dst != lhs) {
-    // We'll have to implement an UB-safe version if we need this corner case.
-    DCHECK_NE(imm, kMinInt);
-    lea(dst, Operand(lhs, -imm));
+    lea(dst, Operand(lhs, base::NegateWithWraparound(imm)));
   } else {
     sub(dst, Immediate(imm));
   }

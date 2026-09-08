@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/overflowing-math.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/cpu-features.h"
@@ -1373,9 +1374,7 @@ void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
 
 void LiftoffAssembler::emit_i32_subi(Register dst, Register lhs, int32_t imm) {
   if (dst != lhs) {
-    // We'll have to implement an UB-safe version if we need this corner case.
-    DCHECK_NE(imm, kMinInt);
-    leal(dst, Operand(lhs, -imm));
+    leal(dst, Operand(lhs, base::NegateWithWraparound(imm)));
   } else {
     subl(dst, Immediate(imm));
   }

@@ -2935,7 +2935,8 @@ class LiftoffCompiler {
         return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_add,
                                         &LiftoffAssembler::emit_i32_addi);
       case kExprI32Sub:
-        return EmitBinOp<kI32, kI32>(&LiftoffAssembler::emit_i32_sub);
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_sub,
+                                        &LiftoffAssembler::emit_i32_subi);
       case kExprI32Mul:
         return EmitBinOp<kI32, kI32>(&LiftoffAssembler::emit_i32_mul);
       case kExprI32And:
