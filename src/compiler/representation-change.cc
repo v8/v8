@@ -1280,6 +1280,22 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     case IrOpcode::kNumberConstant: {
       if (!TypeCheckIsBigInt(use_info.type_check())) {
         double const fv = OpParameter<double>(node->op());
+        if (use_info.type_check() == TypeCheckKind::kUnsigned64) {
+          if (base::IsValueInRangeForNumericType<uint64_t>(fv)) {
+            uint64_t const uv = static_cast<uint64_t>(fv);
+            if (static_cast<double>(uv) == fv) {
+              if (uv == 0 && std::signbit(fv) &&
+                  use_info.minus_zero_check() ==
+                      CheckForMinusZeroMode::kCheckForMinusZero) {
+                break;
+              }
+              return InsertTypeOverrideForVerifier(
+                  NodeProperties::GetType(node), jsgraph()->Uint64Constant(uv));
+            }
+          }
+          break;
+        }
+
         if (base::IsValueInRangeForNumericType<int64_t>(fv)) {
           int64_t const iv = static_cast<int64_t>(fv);
           if (static_cast<double>(iv) == fv) {
