@@ -593,8 +593,9 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   Label rhs_not_power_of_2;
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register mask = temps.AcquireScratch();
+  Register scratch = temps.AcquireScratch();
   __ addi(mask, rhs, Operand(-1));
-  __ and_(r0, mask, rhs, SetRC);
+  __ and_(scratch, mask, rhs, SetRC);
   __ JumpIf(ne, &rhs_not_power_of_2);
 
   // {rhs} is power of 2.
