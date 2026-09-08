@@ -12307,38 +12307,41 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicGeneratorYieldResult(
   compiler::MapRef map =
       broker()->target_native_context().iterator_result_map(broker());
 
-  MaglevSubGraphBuilder sub_graph(this, 1);
-  MaglevSubGraphBuilder::Variable ret_val(0);
-  MaglevSubGraphBuilder::Label done_label(&sub_graph, 2, {&ret_val});
-  MaglevSubGraphBuilder::Label allocate_label(&sub_graph, 1);
-
   // Check if yielded_value_ is TheHole (signaling to skip allocating the result
   // object).
   ValueNode* current_yielded_value;
   GET_VALUE_OR_ABORT(current_yielded_value,
                      BuildLoadTaggedField(generator, offsetof(JSGeneratorObject,
                                                               yielded_value_)));
-  RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfRootConstant>(
-      &allocate_label, {current_yielded_value}, RootIndex::kTheHoleValue));
 
-  RETURN_IF_ABORT(BuildStoreTaggedField(
-      generator, value, offsetof(JSGeneratorObject, yielded_value_),
-      StoreTaggedMode::kDefault));
+  Subgraph<MaglevGraphBuilder> subgraph(&reducer_, 1);
+  Subgraph<MaglevGraphBuilder>::Variable ret_val(0);
 
-  sub_graph.set(ret_val, GetRootConstant(RootIndex::kTheHoleValue));
-  sub_graph.Goto(&done_label);
+  RETURN_IF_ABORT(subgraph.Branch(
+      {&ret_val},
+      [&](BranchBuilder& builder) {
+        return BuildBranchIfRootConstant(builder, current_yielded_value,
+                                         RootIndex::kTheHoleValue);
+      },
+      [&] {
+        RETURN_IF_ABORT(BuildStoreTaggedField(
+            generator, value, offsetof(JSGeneratorObject, yielded_value_),
+            StoreTaggedMode::kDefault));
+        subgraph.set(ret_val, GetRootConstant(RootIndex::kTheHoleValue));
+        return ReduceResult::Done();
+      },
+      [&] {
+        VirtualObject* iter_result = reducer_.CreateJSIteratorResult(
+            map, value, GetBooleanConstant(false));
+        ValueNode* alloc_result;
+        GET_VALUE_OR_ABORT(alloc_result,
+                           reducer_.BuildInlinedAllocation(
+                               iter_result, AllocationType::kYoung));
+        subgraph.set(ret_val, alloc_result);
+        return ReduceResult::Done();
+      }));
 
-  sub_graph.Bind(&allocate_label);
-  VirtualObject* iter_result =
-      reducer_.CreateJSIteratorResult(map, value, GetBooleanConstant(false));
-  ValueNode* alloc_result;
-  GET_VALUE_OR_ABORT(alloc_result, reducer_.BuildInlinedAllocation(
-                                       iter_result, AllocationType::kYoung));
-  sub_graph.set(ret_val, alloc_result);
-  sub_graph.Goto(&done_label);
-
-  sub_graph.Bind(&done_label);
-  SetAccumulator(sub_graph.get(ret_val));
+  SetAccumulator(subgraph.get(ret_val));
   return ReduceResult::Done();
 }
 
