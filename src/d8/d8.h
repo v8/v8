@@ -1046,10 +1046,13 @@ class Shell : public i::AllStatic {
                                      const Source& source,
                                      const ScriptOrigin& origin);
 
-  static ScriptCompiler::CachedData* LookupCodeCache(Isolate* isolate,
-                                                     Local<Value> name);
+  static ScriptCompiler::CachedData* LookupCodeCache(
+      Isolate* isolate, Local<Value> name,
+      ScriptType type = ScriptType::kClassic);
   static void StoreInCodeCache(Isolate* isolate, Local<Value> name,
-                               const ScriptCompiler::CachedData* data);
+                               const ScriptCompiler::CachedData* data,
+                               ScriptType type = ScriptType::kClassic);
+  static void ProduceModuleCodeCacheAfterExecute(Isolate* isolate);
 
   // We may have multiple isolates running concurrently, so the access to
   // the isolate_status_ needs to be concurrency-safe.
@@ -1057,9 +1060,12 @@ class Shell : public i::AllStatic {
   static std::map<Isolate*, bool> isolate_status_;
   static std::map<Isolate*, int> isolate_running_streaming_tasks_;
 
+  using CodeCacheKey = std::pair<std::string, ScriptType>;
+  using CodeCacheMap =
+      std::map<CodeCacheKey, std::unique_ptr<ScriptCompiler::CachedData>>;
+
   static base::LazyMutex cached_code_mutex_;
-  static std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
-      cached_code_map_;
+  static CodeCacheMap cached_code_map_;
   static std::atomic<int> unhandled_promise_rejections_;
 
 #if V8_ENABLE_WEBASSEMBLY

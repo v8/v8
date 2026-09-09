@@ -663,8 +663,7 @@ std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
 std::atomic<bool> Shell::script_executed_{false};
 std::atomic<bool> Shell::valid_fuzz_script_{false};
 base::LazyMutex Shell::cached_code_mutex_;
-std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
-    Shell::cached_code_map_;
+Shell::CodeCacheMap Shell::cached_code_map_;
 std::atomic<int> Shell::unhandled_promise_rejections_{0};
 bool Shell::fuzzilli_reprl_failed_ = false;
 
@@ -681,14 +680,16 @@ ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
 ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
-                                                   Local<Value> source) {
+                                                   Local<Value> source,
+                                                   ScriptType type) {
   i::ParkedMutexGuard lock_guard(
       reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate(),
       cached_code_mutex_.Pointer());
   CHECK(source->IsString());
-  v8::String::Utf8Value key(isolate, source);
-  DCHECK(*key);
-  auto entry = cached_code_map_.find(*key);
+  v8::String::Utf8Value source_str(isolate, source);
+  DCHECK(*source_str);
+  CodeCacheKey key(*source_str, type);
+  auto entry = cached_code_map_.find(key);
   if (entry != cached_code_map_.end() && entry->second) {
     int length = entry->second->length;
     uint8_t* cache = new uint8_t[length];
@@ -701,18 +702,20 @@ ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
 }
 
 void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
-                             const ScriptCompiler::CachedData* cache_data) {
+                             const ScriptCompiler::CachedData* cache_data,
+                             ScriptType type) {
   i::ParkedMutexGuard lock_guard(
       reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate(),
       cached_code_mutex_.Pointer());
   CHECK(source->IsString());
   if (cache_data == nullptr) return;
-  v8::String::Utf8Value key(isolate, source);
-  DCHECK(*key);
+  v8::String::Utf8Value source_str(isolate, source);
+  DCHECK(*source_str);
   int length = cache_data->length;
   uint8_t* cache = new uint8_t[length];
   memcpy(cache, cache_data->data, length);
-  cached_code_map_[*key] = std::unique_ptr<ScriptCompiler::CachedData>(
+  CodeCacheKey key(*source_str, type);
+  cached_code_map_[key] = std::unique_ptr<ScriptCompiler::CachedData>(
       new ScriptCompiler::CachedData(cache, length,
                                      ScriptCompiler::CachedData::BufferOwned));
 }
@@ -954,9 +957,13 @@ MaybeLocal<T> Shell::CompileSource(Isolate* isolate, Local<Context> context,
   update_script_size(source_string->Length());
 
   ScriptCompiler::CachedData* cached_code = nullptr;
-  if constexpr (std::is_same_v<T, Script>) {
-    if (options.compile_options & ScriptCompiler::kConsumeCodeCache) {
-      cached_code = LookupCodeCache(isolate, source_string);
+  if (options.compile_options & ScriptCompiler::kConsumeCodeCache) {
+    if constexpr (std::is_same_v<T, Script>) {
+      cached_code =
+          LookupCodeCache(isolate, source_string, ScriptType::kClassic);
+    } else if constexpr (std::is_same_v<T, Module>) {
+      cached_code =
+          LookupCodeCache(isolate, source_string, ScriptType::kModule);
     }
   }
   ScriptCompiler::Source script_source(source_string, origin, cached_code);
@@ -1076,6 +1083,10 @@ class ModuleEmbedderData {
 
   // Origin location used for resolving modules when referrer is null.
   std::string origin;
+
+  // List of compiled JavaScript modules awaiting code cache production.
+  std::vector<std::pair<Global<String>, Global<Module>>>
+      modules_pending_code_cache;
 };
 
 enum { kModuleEmbedderDataIndex, kInspectorClientIndex };
@@ -1621,6 +1632,19 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
                                origin)
              .ToLocal(&module)) {
       return MaybeLocal<Module>();
+    }
+    if (options.code_cache_options ==
+        ShellOptions::CodeCacheOptions::kProduceCache) {
+      ScriptCompiler::CachedData* cached_data =
+          ScriptCompiler::CreateCodeCache(module->GetUnboundModuleScript());
+      StoreInCodeCache(isolate, source_text.ToLocalChecked(), cached_data,
+                       ScriptType::kModule);
+      delete cached_data;
+    } else if (options.code_cache_options ==
+               ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute) {
+      module_data->modules_pending_code_cache.emplace_back(
+          Global<String>(isolate, source_text.ToLocalChecked()),
+          Global<Module>(isolate, module));
     }
   } else if (module_type == ModuleType::kJSON) {
     Local<Value> parsed_json;
@@ -2196,6 +2220,30 @@ void Shell::DoHostImportModuleDynamically(v8::Local<v8::Data> data) {
   }
 }
 
+void Shell::ProduceModuleCodeCacheAfterExecute(Isolate* isolate) {
+  if (options.code_cache_options !=
+          ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute ||
+      isolate->IsExecutionTerminating()) {
+    return;
+  }
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  Local<Context> realm =
+      data->realms_[data->realm_current_].context.Get(isolate);
+  Context::Scope context_scope(realm);
+  i::CppGCManaged<ModuleEmbedderData>::Ptr module_data =
+      GetModuleDataFromContext(realm);
+  for (const auto& [source_str, mod] :
+       module_data->modules_pending_code_cache) {
+    Local<Module> m = mod.Get(isolate);
+    ScriptCompiler::CachedData* cached_data =
+        ScriptCompiler::CreateCodeCache(m->GetUnboundModuleScript());
+    StoreInCodeCache(isolate, source_str.Get(isolate), cached_data,
+                     ScriptType::kModule);
+    delete cached_data;
+  }
+  module_data->modules_pending_code_cache.clear();
+}
+
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   HandleScope handle_scope(isolate);
   Global<Module> global_root_module;
@@ -2234,6 +2282,8 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     global_root_module.Reset(isolate, root_module);
 
     module_data->origin = absolute_path;
+
+    if (options.compile_only) return true;
 
     if (root_module
             ->InstantiateModule(realm, ResolveModuleCallback,
@@ -2307,6 +2357,8 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
       return false;
     }
   }
+
+  ProduceModuleCodeCacheAfterExecute(isolate);
 
   DCHECK(!try_catch.HasCaught());
   return true;
@@ -7260,6 +7312,17 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     }
   }
 #endif
+
+  if (options.compile_only &&
+      options.code_cache_options ==
+          ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute) {
+    fprintf(stderr,
+            "Flag --compile-only is incompatible with --cache=after-execute:\n"
+            "  --compile-only: Only parse and compile; do not execute.\n"
+            "  --cache=after-execute: Execute first, then serialize and cache "
+            "the post-execution state.\n");
+    return false;
+  }
 
   const char* usage =
       "Synopsis:\n"
