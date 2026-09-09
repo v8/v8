@@ -9141,8 +9141,8 @@ STORE_CONSTANT_TYPED_ARRAY(StoreIntConstantTypedArrayElement,
                            UINT8_CLAMPED_ELEMENTS, UINT16_ELEMENTS,
                            UINT16_ELEMENTS, UINT32_ELEMENTS)
 STORE_CONSTANT_TYPED_ARRAY(StoreDoubleConstantTypedArrayElement,
-                           OpProperties::CanWrite(), HoleyFloat64,
-                           FLOAT32_ELEMENTS, FLOAT64_ELEMENTS)
+                           OpProperties::CanWrite(), Float64, FLOAT32_ELEMENTS,
+                           FLOAT64_ELEMENTS)
 #undef STORE_CONSTANT_TYPED_ARRAY
 
 // StoreInt32DataViewElement handles stores for all integer DataView types
