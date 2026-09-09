@@ -210,6 +210,15 @@ inline void MemCopyAndSwitchEndianness(void* dst, const void* src,
       COPY_LOOP(uint32_t, bits::ByteReverse32);
     case 8:
       COPY_LOOP(uint64_t, bits::ByteReverse64);
+    case 16:
+      for (uint32_t i = 0; i < num_elements; i++) {
+        const uint8_t* s = reinterpret_cast<const uint8_t*>(src) + i * 16;
+        uint8_t* d = reinterpret_cast<uint8_t*>(dst) + i * 16;
+        for (size_t j = 0; j < 16; j++) {
+          d[j] = s[15 - j];
+        }
+      }
+      return;
     default:
       UNREACHABLE();
   }
