@@ -210,8 +210,9 @@ void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
 Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
                                        Address value, ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
-  DCHECK(!IsManagedExternalPointerType(tag));
   uint32_t index = HandleToIndex(handle);
+  FreeManagedResourceIfPresent(index);
+  TakeOwnershipOfManagedResourceIfNecessary(value, handle, tag);
   return at(index).ExchangeExternalPointer(value, tag);
 }
 
