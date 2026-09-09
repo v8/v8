@@ -228,10 +228,24 @@ class StoreLoadInfo {
 
   bool is_valid() const { return op_ != nullptr; }
 
+  const Operation* base() const { return base_; }
   const Operation* index() const { return index_; }
-  uint64_t indexc_ = 0;
+  uint64_t indexc() const { return indexc_; }
   uint64_t offset() const { return offset_; }
   const Op* op() const { return op_; }
+
+  // Comparison for ordering in StoreInfoSet. Must match operator-()
+  // compatibility check to ensure only compatible stores are grouped. ZoneSet
+  // discards entries that compare equal (neither < the other per strict weak
+  // ordering), so all distinguishing fields must be compared. E.g., without
+  // indexc comparison, stores with offset=0,indexc=0 and offset=0,indexc=64
+  // would compare equal and the second would be discarded from the set.
+  bool operator<(const StoreLoadInfo<Op>& other) const {
+    if (base_ != other.base_) return base_ < other.base_;
+    if (index_ != other.index_) return index_ < other.index_;
+    if (indexc_ != other.indexc_) return indexc_ < other.indexc_;
+    return offset_ < other.offset_;
+  }
 
  private:
   void set_invalid() { op_ = nullptr; }
@@ -240,15 +254,13 @@ class StoreLoadInfo {
   const Operation* base_;
   const Operation* index_;
   uint64_t offset_;
+  uint64_t indexc_ = 0;
 };
 
 struct StoreInfoCompare {
   bool operator()(const StoreLoadInfo<StoreOp>& lhs,
                   const StoreLoadInfo<StoreOp>& rhs) const {
-    if (lhs.index() != rhs.index()) {
-      return lhs.index() < rhs.index();
-    }
-    return lhs.offset() < rhs.offset();
+    return lhs < rhs;
   }
 };
 

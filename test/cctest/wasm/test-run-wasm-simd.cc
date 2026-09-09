@@ -11029,6 +11029,44 @@ TEST(RunWasmTurbofan_ProjectionRevecExpectFail) {
 #undef CALL_FUNCTION_WITH_DROP
 }
 
+TEST(RunWasmTurbofan_RegressStoreInfoCompareCollision) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  TSSimd256VerifyScope ts_scope(
+      r.zone(), [](const compiler::turboshaft::Graph& graph) {
+        for (const compiler::turboshaft::Operation& op :
+             graph.AllOperations()) {
+          if (const auto* store = op.TryCast<compiler::turboshaft::StoreOp>()) {
+            if (store->stored_rep ==
+                compiler::turboshaft::MemoryRepresentation::Simd256()) {
+              return true;
+            }
+          }
+        }
+        return false;
+      });
+
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  r.builder().AddMemoryElems<int32_t>(kWasmPageSize / 4,
+                                      wasm::AddressType::kI32);
+
+  r.Build(
+      {WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_I32V_1(42))),
+       // Store 3: offset = 16, indexc = 64
+       WASM_SIMD_STORE_MEM_OFFSET(16, WASM_I32V_2(64), WASM_LOCAL_GET(temp1)),
+       // Store 2: offset = 0, indexc = 64
+       WASM_SIMD_STORE_MEM(WASM_I32V_2(64), WASM_LOCAL_GET(temp1)),
+       // Store 1: offset = 0, indexc = 0 (decoy)
+       // Flaw in StoreInfoCompare: this store with offset 0 and constant index
+       // 0 collides with Store 2 (offset 0, constant index 64) and causes Store
+       // 2 to be dropped from the ZoneSet, suppressing vectorization.
+       WASM_SIMD_STORE_MEM(WASM_I32V_1(0), WASM_LOCAL_GET(temp1)), WASM_ONE});
+
+  r.Call(0);
+}
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #undef WASM_SIMD_CHECK_LANE_S
