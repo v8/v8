@@ -5066,6 +5066,8 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     test_template->Set(
         isolate, "createSpecialObject",
         FunctionTemplate::New(isolate, Shell::CreateSpecialObject));
+    test_template->Set(isolate, "setAccessPolicy",
+                       FunctionTemplate::New(isolate, Shell::SetAccessPolicy));
 
     d8_template->Set(isolate, "test", test_template);
   }

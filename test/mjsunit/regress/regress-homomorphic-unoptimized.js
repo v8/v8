@@ -39,10 +39,9 @@ if (fb !== undefined) {
 
 // 2. Access checked object: homomorphic IC must not bypass access checks.
 {
-  let allow = true;
-  let obj = d8.test.createAccessCheckedObject(() => allow);
+  let obj = d8.test.createAccessCheckedObject(true);
   obj.a = 42;
   assertEquals(42, load(obj));
-  allow = false;
+  d8.test.setAccessPolicy(obj, false);
   assertThrows(() => load(obj), TypeError);
 }

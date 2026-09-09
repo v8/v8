@@ -20,13 +20,12 @@
 
 // 3. Options with accessCheck.
 {
-  let allow = true;
   let obj = d8.test.createSpecialObject({
-    accessCheck: () => allow,
+    accessCheck: true,
   });
   obj.a = 42;
   assertEquals(42, obj.a);
-  allow = false;
+  d8.test.setAccessPolicy(obj, false);
   assertThrows(() => obj.a, TypeError);
 }
 
@@ -34,13 +33,12 @@
 // The interceptor is invoked on failed access checks (e.g. cross-origin
 // window/location handling).
 {
-  let allow = false;
   let obj = d8.test.createSpecialObject({
     interceptor: () => "intercepted-on-denied",
-    accessCheck: () => allow,
+    accessCheck: false,
   });
   assertEquals("intercepted-on-denied", obj.a);
-  allow = true;
+  d8.test.setAccessPolicy(obj, true);
   obj.a = 42;
   assertEquals(42, obj.a);
 }
@@ -51,3 +49,5 @@ assertThrows(() => d8.test.createSpecialObject(123), Error);
 assertThrows(() => d8.test.createSpecialObject("bad"), Error);
 assertThrows(() => d8.test.createSpecialObject({ interceptor: 123 }), Error);
 assertThrows(() => d8.test.createSpecialObject({ accessCheck: 123 }), Error);
+assertThrows(() => d8.test.createSpecialObject({ accessCheck: "bad" }), Error);
+assertThrows(() => d8.test.createSpecialObject({ accessCheck: () => true }), Error);

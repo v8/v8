@@ -4,26 +4,61 @@
 
 // 1. Allowed access.
 {
-  let allow = true;
-  let obj = d8.test.createAccessCheckedObject(() => allow);
+  let obj = d8.test.createAccessCheckedObject(true);
   obj.a = 42;
   assertEquals(42, obj.a);
 
   // 2. Denied access throws TypeError.
-  allow = false;
+  d8.test.setAccessPolicy(obj, false);
   assertThrows(() => obj.a, TypeError);
+
+  // 3. Restore access.
+  d8.test.setAccessPolicy(obj, true);
+  assertEquals(42, obj.a);
 }
 
-// 3. Exception in access check callback results in denied access (TypeError).
+// 4. "same-context" policy.
 {
-  let obj = d8.test.createAccessCheckedObject(() => {
-    throw new Error("access-check-error");
-  });
-  assertThrows(() => obj.a, TypeError);
+  let obj = d8.test.createAccessCheckedObject("same-context");
+  obj.a = 42;
+  assertEquals(42, obj.a);
+
+  let realm = Realm.create();
+  Realm.shared = obj;
+  let otherTypeError = Realm.eval(realm, "TypeError");
+  assertThrows(() => Realm.eval(realm, "Realm.shared.a"), otherTypeError);
+
+  d8.test.setAccessPolicy(obj, true);
+  assertEquals(42, Realm.eval(realm, "Realm.shared.a"));
 }
 
-// 4. Input validation.
+// 5. "security-token" policy.
+{
+  let obj = d8.test.createAccessCheckedObject("security-token");
+  obj.a = 42;
+  assertEquals(42, obj.a);
+
+  let realm = Realm.create();
+  Realm.shared = obj;
+  let otherTypeError = Realm.eval(realm, "TypeError");
+  assertThrows(() => Realm.eval(realm, "Realm.shared.a"), otherTypeError);
+
+  let sameTokenRealm = Realm.createAllowCrossRealmAccess();
+  assertEquals(42, Realm.eval(sameTokenRealm, "Realm.shared.a"));
+
+  d8.test.setAccessPolicy(obj, true);
+  assertEquals(42, Realm.eval(realm, "Realm.shared.a"));
+}
+
+// 6. Input validation.
 assertThrows(() => d8.test.createAccessCheckedObject(), Error);
 assertThrows(() => d8.test.createAccessCheckedObject(123), Error);
 assertThrows(() => d8.test.createAccessCheckedObject("bad"), Error);
 assertThrows(() => d8.test.createAccessCheckedObject({}), Error);
+assertThrows(() => d8.test.createAccessCheckedObject(() => true), Error);
+
+let obj = d8.test.createAccessCheckedObject(true);
+assertThrows(() => d8.test.setAccessPolicy(obj, "bad"), Error);
+assertThrows(() => d8.test.setAccessPolicy(obj, 123), Error);
+assertThrows(() => d8.test.setAccessPolicy({}, true), Error);
+assertThrows(() => d8.test.setAccessPolicy(123, true), Error);

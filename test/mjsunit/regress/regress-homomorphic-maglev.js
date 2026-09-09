@@ -52,10 +52,9 @@ function createNormalObject() {
   assertEquals(1, load(sample));
   assertOptimized(load);
 
-  let allow = true;
-  let obj = d8.test.createAccessCheckedObject(() => allow);
+  let obj = d8.test.createAccessCheckedObject(true);
   obj.a = 42;
-  allow = false;
+  d8.test.setAccessPolicy(obj, false);
 
   assertThrows(() => load(obj), TypeError);
   assertUnoptimized(load);

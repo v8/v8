@@ -1018,6 +1018,7 @@ class Shell : public i::AllStatic {
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void CreateSpecialObject(
       const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void SetAccessPolicy(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& info, int index,
