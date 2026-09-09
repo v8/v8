@@ -2555,6 +2555,17 @@ class BinaryOperationFeedback : public AllStatic {
     return Type::kAny;
   }
 
+  static constexpr const char* TypeIndexToString(TypeIndex index) {
+    switch (index) {
+#define CASE_NAME(name)    \
+  case TypeIndex::k##name: \
+    return #name;
+      BINARY_OPERATION_FEEDBACK_TYPES(CASE_NAME)
+#undef CASE_NAME
+    }
+    return "Unknown";
+  }
+
  private:
   static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {
 #define CALCULATE_TYPE_INDEX(name)                               \
@@ -2693,6 +2704,17 @@ class CompareOperationFeedback : public AllStatic {
 #undef CASE_TYPE
     }
     return Type::kAny;
+  }
+
+  static constexpr const char* TypeIndexToString(TypeIndex index) {
+    switch (index) {
+#define CASE_NAME(name)    \
+  case TypeIndex::k##name: \
+    return #name;
+      COMPARE_OPERATION_FEEDBACK_TYPES(CASE_NAME)
+#undef CASE_NAME
+    }
+    return "Unknown";
   }
 
   static constexpr uint32_t kNumTypeIndices =
