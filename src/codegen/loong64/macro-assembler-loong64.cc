@@ -582,7 +582,11 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
 
   Register index = destination;
   Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
-  srli_d(index, dispatch_handle, kJSDispatchHandleShift);
+  // JSDispatchHandle is an unsigned 32-bit value. bstrpick.d extracts bits
+  // [31:kJSDispatchHandleShift], zero-extending and shifting right in a single
+  // instruction, so handles with bit 31 set don't produce a negative table
+  // offset.
+  bstrpick_d(index, dispatch_handle, 31, kJSDispatchHandleShift);
   slli_d(destination, index, kJSDispatchTableEntrySizeLog2);
   Add_d(scratch, scratch, destination);
   Ld_d(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
@@ -595,7 +599,11 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
 
   Register index = destination;
   Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
-  srli_d(index, dispatch_handle, kJSDispatchHandleShift);
+  // JSDispatchHandle is an unsigned 32-bit value. bstrpick.d extracts bits
+  // [31:kJSDispatchHandleShift], zero-extending and shifting right in a single
+  // instruction, so handles with bit 31 set don't produce a negative table
+  // offset.
+  bstrpick_d(index, dispatch_handle, 31, kJSDispatchHandleShift);
   slli_d(destination, index, kJSDispatchTableEntrySizeLog2);
   Add_d(scratch, scratch, destination);
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
@@ -610,7 +618,11 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
 
   Register index = parameter_count;
   Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
-  srli_d(index, dispatch_handle, kJSDispatchHandleShift);
+  // JSDispatchHandle is an unsigned 32-bit value. bstrpick.d extracts bits
+  // [31:kJSDispatchHandleShift], zero-extending and shifting right in a single
+  // instruction, so handles with bit 31 set don't produce a negative table
+  // offset.
+  bstrpick_d(index, dispatch_handle, 31, kJSDispatchHandleShift);
   slli_d(parameter_count, index, kJSDispatchTableEntrySizeLog2);
   Add_d(scratch, scratch, parameter_count);
   Ld_d(entrypoint, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
@@ -4477,8 +4489,8 @@ void MacroAssembler::InvokeFunctionCode(
   DCHECK_IMPLIES(new_target.is_valid(), new_target == a3);
 
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
-  Ld_w(dispatch_handle,
-       FieldMemOperand(function, offsetof(JSFunction, dispatch_handle_)));
+  Ld_wu(dispatch_handle,
+        FieldMemOperand(function, offsetof(JSFunction, dispatch_handle_)));
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;
@@ -5830,7 +5842,7 @@ void MacroAssembler::CallJSFunction(Register function_object,
   Register parameter_count = s1;
   Register scratch = s2;
 
-  Ld_w(
+  Ld_wu(
       dispatch_handle,
       FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
