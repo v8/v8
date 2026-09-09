@@ -423,8 +423,9 @@ Node* JSInliningHeuristic::DuplicateStateValuesAndRename(Node* state_values,
                                                          StateCloneMode mode) {
   // Only rename in states that are not shared with other users. This needs to
   // be in sync with the condition in {CollectStateValuesOwnedUses}.
-  if (state_values->UseCount() > 1) return state_values;
-  Node* copy = mode == kChangeInPlace ? state_values : nullptr;
+  Node* copy = (mode == kChangeInPlace && state_values->UseCount() <= 1)
+                   ? state_values
+                   : nullptr;
   for (int i = 0; i < state_values->InputCount(); i++) {
     Node* input = state_values->InputAt(i);
     Node* processed;
