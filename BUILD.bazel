@@ -183,7 +183,7 @@ v8_flag(name = "v8_enable_experimental_tq_to_tsa")
 # off, the metagen action is not part of the build graph.
 v8_flag(
     name = "v8_use_metagen_instance_types",
-    default = True,
+    default = False,
 )
 
 v8_flag(
