@@ -782,9 +782,12 @@ void HeapObjectsMap::AddMergedNativeEntry(NativeObject addr,
                           ComputeAddressHash(canonical_addr));
   auto result = merged_native_entries_map_.insert(
       {addr, reinterpret_cast<size_t>(entry->value)});
-  if (!result.second) {
-    result.first->second = reinterpret_cast<size_t>(entry->value);
-  }
+  DCHECK(result.second);
+  USE(result);
+}
+
+void HeapObjectsMap::ClearMergedNativeEntries() {
+  merged_native_entries_map_.clear();
 }
 
 void HeapObjectsMap::StopHeapObjectsTracking() { time_intervals_.clear(); }
@@ -3574,6 +3577,11 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
   generator_ = generator;
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate_);
+
+  // Native objects can be replaced while their JS wrapper survives.
+  // Rebuild these associations each snapshot instead of retaining
+  // stale native addresses for live wrapper entries.
+  heap_object_map_->ClearMergedNativeEntries();
 
   if (isolate_->heap()->cpp_heap()) {
     CppGraphBuilder::Run(

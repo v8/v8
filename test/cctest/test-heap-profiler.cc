@@ -2181,6 +2181,84 @@ TEST(NativeSnapshotObjectIdMoving) {
   heap_profiler->StopTrackingHeapObjects();
 }
 
+TEST(NativeSnapshotObjectIdReplaced) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  v8::Persistent<v8::String> wrapper(isolate, v8_str("wrapper"));
+  int native1;
+  int native2;
+  int replacement;
+
+  EmbedderGraphBuilderForNativeSnapshotObjectId::BuildParameter parameter{
+      &wrapper, &native1, &native2};
+  auto callback =
+      EmbedderGraphBuilderForNativeSnapshotObjectId::BuildEmbedderGraph;
+  heap_profiler->AddBuildEmbedderGraphCallback(callback, &parameter);
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+
+  const auto wrapper_id = heap_profiler->GetObjectId(&native2);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, wrapper_id);
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(wrapper.Get(isolate)));
+
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(&native2));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(wrapper.Get(isolate)));
+
+  parameter.native2 = &replacement;
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(&replacement));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(wrapper.Get(isolate)));
+  CHECK_EQ(v8::HeapProfiler::kUnknownObjectId,
+           heap_profiler->GetObjectId(&native2));
+
+  heap_profiler->RemoveBuildEmbedderGraphCallback(callback, &parameter);
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+  CHECK_EQ(v8::HeapProfiler::kUnknownObjectId,
+           heap_profiler->GetObjectId(&replacement));
+}
+
+TEST(NativeSnapshotObjectIdUnmerged) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  v8::Persistent<v8::String> wrapper(isolate, v8_str("wrapper"));
+  int native1;
+  int native2;
+  int replacement;
+
+  EmbedderGraphBuilderForNativeSnapshotObjectId::BuildParameter parameter{
+      &wrapper, &native1, &native2};
+  auto callback =
+      EmbedderGraphBuilderForNativeSnapshotObjectId::BuildEmbedderGraph;
+  heap_profiler->AddBuildEmbedderGraphCallback(callback, &parameter);
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+
+  const auto wrapper_id = heap_profiler->GetObjectId(&native2);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, wrapper_id);
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(wrapper.Get(isolate)));
+
+  // The old native object stays in the graph without its former wrapper.
+  parameter.native1 = &native2;
+  parameter.native2 = &replacement;
+
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const auto unmerged_id = heap_profiler->GetObjectId(&native2);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, unmerged_id);
+  CHECK_NE(wrapper_id, unmerged_id);
+  CHECK_NOT_NULL(snapshot->GetNodeById(unmerged_id));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(&replacement));
+  CHECK_EQ(wrapper_id, heap_profiler->GetObjectId(wrapper.Get(isolate)));
+  CHECK_NOT_NULL(snapshot->GetNodeById(wrapper_id));
+
+  heap_profiler->RemoveBuildEmbedderGraphCallback(callback, &parameter);
+}
+
 TEST(DeleteAllHeapSnapshots) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());

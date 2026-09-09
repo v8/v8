@@ -366,6 +366,7 @@ class HeapObjectsMap {
       IsNativeObject is_native_object = IsNativeObject::kNo);
   SnapshotObjectId FindMergedNativeEntry(NativeObject addr);
   void AddMergedNativeEntry(NativeObject addr, Address canonical_addr);
+  void ClearMergedNativeEntries();
   V8_EXPORT_PRIVATE bool ContainsEntryWithIdForTesting(
       SnapshotObjectId id) const;
 
