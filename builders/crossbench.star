@@ -41,12 +41,12 @@ def crossbench_cbb_builder(builder_name, recipe_path, os, cpu, caches = None, pr
         builder = builder_name,
     )
 
-presubmit_builder("Crossbench Presubmit", "crossbench.try", timeout = 900, console = "crossbench")
-crossbench_cbb_builder("Crossbench End2End Mac arm64 Try", "perf/crossbench", "Mac", "arm64")
-crossbench_cbb_builder("Crossbench End2End Linux x64 Try", "perf/crossbench", "Ubuntu-22.04", "x86-64")
-crossbench_cbb_builder("Crossbench End2End Windows x64 Try", "perf/crossbench", "Windows-10", "x86-64")
+presubmit_builder("Presubmit", "crossbench.try", timeout = 900, console = "crossbench")
+crossbench_cbb_builder("e2e Mac arm64 Try", "perf/crossbench", "Mac", "arm64")
+crossbench_cbb_builder("e2e Linux x64 Try", "perf/crossbench", "Ubuntu-22.04", "x86-64")
+crossbench_cbb_builder("e2e Windows x64 Try", "perf/crossbench", "Windows-10", "x86-64")
 crossbench_cbb_builder(
-    "Crossbench End2End-Loadline Android x64 Try",
+    "e2e-Loadline Android x64 Try",
     "perf/crossbench_android",
     "Ubuntu-22.04",
     "x86-64",
@@ -61,7 +61,7 @@ crossbench_cbb_builder(
     },
 )
 crossbench_cbb_builder(
-    "Crossbench End2End-Speedometer Android x64 Try",
+    "e2e-Speedometer Android x64 Try",
     "perf/crossbench_android",
     "Ubuntu-22.04",
     "x86-64",
@@ -76,7 +76,7 @@ crossbench_cbb_builder(
     },
 )
 crossbench_cbb_builder(
-    "Crossbench End2End-Others Android x64 Try",
+    "e2e-Others Android x64 Try",
     "perf/crossbench_android",
     "Ubuntu-22.04",
     "x86-64",
@@ -119,26 +119,26 @@ luci.cq_group(
     ],
     verifiers = [
         luci.cq_tryjob_verifier(
-            builder = "Crossbench Presubmit",
+            builder = "Presubmit",
             disable_reuse = True,
         ),
         luci.cq_tryjob_verifier(
-            builder = "Crossbench End2End Mac arm64 Try",
+            builder = "e2e Mac arm64 Try",
         ),
         luci.cq_tryjob_verifier(
-            builder = "Crossbench End2End Linux x64 Try",
+            builder = "e2e Linux x64 Try",
         ),
         luci.cq_tryjob_verifier(
-            builder = "Crossbench End2End Windows x64 Try",
+            builder = "e2e Windows x64 Try",
         ),
         luci.cq_tryjob_verifier(
-            builder = "Crossbench End2End-Loadline Android x64 Try",
+            builder = "e2e-Loadline Android x64 Try",
         ),
         luci.cq_tryjob_verifier(
-            builder = "Crossbench End2End-Speedometer Android x64 Try",
+            builder = "e2e-Speedometer Android x64 Try",
         ),
         luci.cq_tryjob_verifier(
-            builder = "Crossbench End2End-Others Android x64 Try",
+            builder = "e2e-Others Android x64 Try",
         ),
     ],
 )
