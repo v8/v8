@@ -2231,21 +2231,40 @@ class LiftoffCompiler {
 
   void ContNew(FullDecoder* decoder, const ContIndexImmediate& imm,
                const Value& func_ref, Value* result) {
-    unsupported(decoder, kWasmfx,
-                "unimplemented Liftoff instruction: cont.new");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: cont.new");
+    }
   }
 
   void ContBind(FullDecoder* decoder, const ContIndexImmediate& orig_imm,
                 Value input_cont, const Value args[],
                 const ContIndexImmediate& new_imm, Value* result) {
-    unsupported(decoder, kWasmfx,
-                "unimplemented Liftoff instruction: cont.bind");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: cont.bind");
+    }
   }
 
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
               base::Vector<HandlerCase> handlers, const Value& cont_ref,
               const Value args[], const Value returns[]) {
-    unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: resume");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: resume");
+    }
   }
 
   void ResumeHandler(FullDecoder* decoder, const HandlerCase& handler,
@@ -2259,8 +2278,14 @@ class LiftoffCompiler {
                    const TagIndexImmediate& exc_imm,
                    base::Vector<wasm::HandlerCase> handlers, const Value& cont,
                    const Value args[], const Value returns[]) {
-    unsupported(decoder, kWasmfx,
-                "unimplemented Liftoff instruction: resume_throw");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: resume_throw");
+    }
   }
 
   void ResumeThrowRef(FullDecoder* decoder,
@@ -2268,14 +2293,27 @@ class LiftoffCompiler {
                       base::Vector<wasm::HandlerCase> handlers,
                       const Value& cont, const Value& exn,
                       const Value returns[]) {
-    unsupported(decoder, kWasmfx,
-                "unimplemented Liftoff instruction: resume_throw_ref");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: resume_throw_ref");
+    }
   }
 
   void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
               const ContIndexImmediate& con_imm, const Value& cont_ref,
               const Value args[], Value returns[]) {
-    unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: switch");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: switch");
+    }
   }
 
   void BeginEffectHandlers(FullDecoder* decoder) { UNREACHABLE(); }
@@ -2284,7 +2322,14 @@ class LiftoffCompiler {
 
   void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
                const Value args[], const Value returns[]) {
-    unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: suspend");
+    // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
+    // Otherwise, bail out to Turboshaft.
+    if (v8_flags.liftoff_only) {
+      UNIMPLEMENTED();
+    } else {
+      unsupported(decoder, kWasmfx,
+                  "unimplemented Liftoff instruction: suspend");
+    }
   }
 
   // Before emitting the conditional branch, {will_freeze} will be initialized
