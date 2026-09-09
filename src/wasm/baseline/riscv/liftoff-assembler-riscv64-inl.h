@@ -508,12 +508,35 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
   Register result_reg = result.gp();
   if (result_reg == value.gp() || result_reg == dst_addr ||
       result_reg == offset_reg) {
-    result_reg = __ GetUnusedRegister(kGpReg, pinned).gp();
+    result_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
   }
 
   UseScratchRegisterScope temps(lasm);
   Register actual_addr = liftoff::CalculateActualAddress(
       lasm, temps, dst_addr, offset_reg, offset_imm);
+
+  bool is_subword = type.value() == StoreType::kI64Store8 ||
+                    type.value() == StoreType::kI32Store8 ||
+                    type.value() == StoreType::kI64Store16 ||
+                    type.value() == StoreType::kI32Store16;
+  Register word = no_reg;
+  Register shift = no_reg;
+  if (is_subword) {
+    // TODO(riscv): use Zabha instruction if enabled
+    word = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
+    shift = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
+    Register addr = pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp();
+    __ mv(addr, actual_addr);
+    if (offset_reg != no_reg || offset_imm != 0) {
+      temps.Include(actual_addr);
+    }
+    actual_addr = addr;
+    bool is_doubleword = type.value() == StoreType::kI64Store8 ||
+                         type.value() == StoreType::kI64Store16;
+    __ andi(shift, actual_addr, is_doubleword ? 0x7 : 0x3);
+    __ Sub64(actual_addr, actual_addr, Operand(shift));
+    __ Sll32(shift, shift, 3);
+  }
 
   Label retry;
   __ bind(&retry);
@@ -612,22 +635,22 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
         break;
     }
   } else {
-    // Allocate an additional {temp} register to hold the result that should be
-    // stored to memory. Note that {temp} and {store_result} are not allowed to
-    // be the same register.
-    Register temp = temps.Acquire();
+    Register temp =
+        is_subword ? pinned.set(lasm->GetUnusedRegister(kGpReg, pinned)).gp()
+                   : temps.Acquire();
     if (trapping_load_pc) *trapping_load_pc = lasm->pc_offset();
-    // TODO(riscv): use Zabha instruction if enabled
     switch (type.value()) {
       case StoreType::kI64Store8:
-      case StoreType::kI32Store8:
-        __ lbu(result_reg, actual_addr, 0);
-        __ sync();
-        break;
       case StoreType::kI64Store16:
+        __ lr_d(true, false, word, actual_addr);
+        __ ExtractBits(result_reg, word, shift,
+                       type.value() == StoreType::kI64Store8 ? 8 : 16, false);
+        break;
+      case StoreType::kI32Store8:
       case StoreType::kI32Store16:
-        __ lhu(result_reg, actual_addr, 0);
-        __ sync();
+        __ lr_w(true, false, word, actual_addr);
+        __ ExtractBits(result_reg, word, shift,
+                       type.value() == StoreType::kI32Store8 ? 8 : 16, false);
         break;
       case StoreType::kI64Store32:
         __ lr_w(true, false, result_reg, actual_addr);
@@ -665,18 +688,16 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
     }
     switch (type.value()) {
       case StoreType::kI64Store8:
-      case StoreType::kI32Store8:
-        __ sync();
-        __ sb(temp, actual_addr, 0);
-        __ sync();
-        __ mv(store_result, zero_reg);
-        break;
       case StoreType::kI64Store16:
+        __ InsertBits(word, temp, shift,
+                      type.value() == StoreType::kI64Store8 ? 8 : 16);
+        __ sc_d(false, true, store_result, actual_addr, word);
+        break;
+      case StoreType::kI32Store8:
       case StoreType::kI32Store16:
-        __ sync();
-        __ sh(temp, actual_addr, 0);
-        __ sync();
-        __ mv(store_result, zero_reg);
+        __ InsertBits(word, temp, shift,
+                      type.value() == StoreType::kI32Store8 ? 8 : 16);
+        __ sc_w(false, true, store_result, actual_addr, word);
         break;
       case StoreType::kI64Store32:
       case StoreType::kI32Store:
