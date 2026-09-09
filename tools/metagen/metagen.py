@@ -143,6 +143,11 @@ def main() -> int:
       "cflags clang uses for that target. Mutually exclusive with "
       "--compile-commands.")
   p.add_argument(
+      "--source-root",
+      default=None,
+      help="GN source root (the directory containing the build's .gn file). "
+      "Required with --build-dir.")
+  p.add_argument(
       "--flags-from-target",
       default=None,
       help="GN label of a representative compiled target whose flags "
@@ -229,6 +234,11 @@ def main() -> int:
         "required.",
         file=sys.stderr)
     return 1
+  if bool(args.build_dir) != bool(args.source_root):
+    print(
+        "error: --build-dir and --source-root must be given together.",
+        file=sys.stderr)
+    return 1
 
   driver_path = os.path.abspath(args.driver)
 
@@ -243,7 +253,7 @@ def main() -> int:
     if args.flags_toolchain:
       flags_target = f"{flags_target}({args.flags_toolchain})"
     raw_flags, parse_cwd, cl_mode = compile_flags.get_compile_args_from_gn_desc(
-        build_dir, flags_target)
+        build_dir, flags_target, os.path.abspath(args.source_root))
     flags_source = f"build_dir={build_dir} (gn desc {flags_target})"
   else:
     cc_json = os.path.abspath(args.compile_commands)

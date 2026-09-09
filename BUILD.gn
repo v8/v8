@@ -2554,6 +2554,11 @@ if (v8_use_metagen_instance_types) {
       rebase_path(".", root_build_dir),
       "--build-dir",
       ".",  # The action runs with cwd=root_build_dir.
+
+      # metagen cannot find this by walking up from the build dir: on
+      # ChromeOS the build dir sits outside the checkout entirely.
+      "--source-root",
+      rebase_path("//", root_build_dir),
       "--out",
       rebase_path(_metagen_out_dir, root_build_dir),
 

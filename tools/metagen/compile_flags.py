@@ -120,21 +120,6 @@ def _find_gn(source_root: str) -> str | None:
   return shutil.which("gn")
 
 
-def _gn_source_root(build_dir: str) -> str | None:
-  """Return GN's source root: the nearest ancestor of build_dir holding
-  a `.gn` marker (GN's canonical root definition). This differs between
-  layouts -- the V8 checkout standalone, the Chromium `src/` root under
-  Chromium -- and is what `//` in gn desc output resolves against."""
-  d = os.path.abspath(build_dir)
-  while True:
-    if os.path.isfile(os.path.join(d, ".gn")):
-      return d
-    parent = os.path.dirname(d)
-    if parent == d:
-      return None
-    d = parent
-
-
 def _is_clang_cl(arg0: str) -> bool:
   """Detect clang-cl driver by argv[0]'s basename."""
   name = os.path.basename(arg0).lower()
@@ -175,8 +160,12 @@ def _filter(args: list[str], input_path: str) -> list[str]:
 
 
 def get_compile_args_from_gn_desc(
-    build_dir: str, target_label: str) -> tuple[list[str], str, bool]:
+    build_dir: str, target_label: str,
+    source_root: str) -> tuple[list[str], str, bool]:
   """GN path: reconstruct one target's compile flags via `gn desc`.
+
+  `source_root` is the directory holding the build's `.gn` marker. The
+  caller passes it in because the build dir need not sit under it.
 
   Returns (flags, cwd, cl_mode):
     flags    libclang args. Path-bearing flags (-I, -isystem, ...) are
@@ -187,12 +176,9 @@ def get_compile_args_from_gn_desc(
              `--driver-mode=cl` when this is set.
 
   cflags/cflags_cc are passed through verbatim; include_dirs are
-  source-absolute `//...` and rebased to absolute here.
+  source-absolute `//...` and rebased against `source_root` here.
   """
-  source_root = _gn_source_root(build_dir)
-  if source_root is None:
-    raise RuntimeError(
-        f"[metagen] no .gn source-root marker found above {build_dir}.")
+  source_root = os.path.abspath(source_root)
   gn = _find_gn(source_root)
   if not gn:
     raise RuntimeError(
