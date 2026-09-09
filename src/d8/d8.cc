@@ -954,8 +954,10 @@ MaybeLocal<T> Shell::CompileSource(Isolate* isolate, Local<Context> context,
   update_script_size(source_string->Length());
 
   ScriptCompiler::CachedData* cached_code = nullptr;
-  if (options.compile_options & ScriptCompiler::kConsumeCodeCache) {
-    cached_code = LookupCodeCache(isolate, source_string);
+  if constexpr (std::is_same_v<T, Script>) {
+    if (options.compile_options & ScriptCompiler::kConsumeCodeCache) {
+      cached_code = LookupCodeCache(isolate, source_string);
+    }
   }
   ScriptCompiler::Source script_source(source_string, origin, cached_code);
   MaybeLocal<T> result =
