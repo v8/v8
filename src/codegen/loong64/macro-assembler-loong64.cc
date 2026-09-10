@@ -1750,7 +1750,11 @@ void MacroAssembler::li(Register dst, Handle<HeapObject> value,
     IndirectLoadConstant(dst, value);
     return;
   }
-  li(dst, Operand(value), mode);
+  if (rmode == RelocInfo::COMPRESSED_EMBEDDED_OBJECT) {
+    li(dst, Operand(value, rmode), mode);
+  } else {
+    li(dst, Operand(value), mode);
+  }
 }
 
 void MacroAssembler::li(Register dst, ExternalReference reference,
