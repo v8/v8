@@ -176,12 +176,18 @@ def main() -> int:
       "toolchain interpolates into its tool command template rather than "
       "into cflags, so `gn desc` never reports them.")
   p.add_argument(
+      "-v", "--verbose", action="store_true", help="Enable verbose logging.")
+  p.add_argument(
       "--compile-commands",
       default=None,
       help="Path to a compile_commands.json the build system already "
       "wrote (Bazel emits one synthesized via cc_common). Same shape "
       "as compile_commands.json. Mutually exclusive with --build-dir.")
   args = p.parse_args()
+
+  def verbose_print(msg: str) -> None:
+    if args.verbose:
+      print(msg, file=sys.stderr)
 
   v8_root = os.path.abspath(args.v8_root)
 
@@ -361,19 +367,15 @@ def main() -> int:
       prefix + args.extra_flag + raw_flags + no_perfetto +
       [f"{sysinclude}{builtin_headers_dir}"])
 
-  print(
-      f"Harvesting class hierarchy from {os.path.relpath(driver_path, v8_root)} "
-      f"({flags_source})...",
-      file=sys.stderr)
+  verbose_print(f"Harvesting class hierarchy from "
+                f"{os.path.relpath(driver_path, v8_root)} ({flags_source})...")
   out_dir = os.path.abspath(args.out)
   os.makedirs(out_dir, exist_ok=True)
   path = os.path.join(out_dir, "instance-types.h")
 
   cpp_res = cpp_hier.scan_cpp(v8_root, driver_path, flags, parse_cwd=parse_cwd)
-  print(
-      f"  {len(cpp_res.classes)} classes, "
-      f"{len(cpp_res.provenance)} provenance files (from C++)",
-      file=sys.stderr)
+  verbose_print(f"  {len(cpp_res.classes)} classes, "
+                f"{len(cpp_res.provenance)} provenance files (from C++)")
   classes = cpp_res.classes
 
   # The files the harvest read a fact out of, not everything the parse
@@ -474,11 +476,11 @@ def main() -> int:
   if os.path.exists(path):
     with open(path) as f:
       if f.read() == generated:
-        print(f"Unchanged {path}", file=sys.stderr)
+        verbose_print(f"Unchanged {path}")
         return 0
   with open(path, "w") as f:
     f.write(generated)
-  print(f"Wrote {path}", file=sys.stderr)
+  verbose_print(f"Wrote {path}")
   return 0
 
 
