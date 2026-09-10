@@ -5302,15 +5302,18 @@ class GraphBuildingNodeProcessor {
         ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex,
         CheckForMinusZeroMode::kCheckForMinusZero, feedback);
     if constexpr (Is64()) {
-      // ArrayIndex is 32-bit in Maglev, but 64 in Turboshaft. This means that
-      // we have to convert it to 32-bit before the following `SetMap`, and we
-      // thus have to check that it actually fits in a Uint32.
-      __ DeoptimizeIfNot(__ Uint64LessThanOrEqual(
-                             result, std::numeric_limits<uint32_t>::max()),
+      // UntaggedKind::kArrayIndex produces signed Word64 in Turboshaft, but
+      // Maglev's CheckedObjectToIndex produces signed Int32. Ensure the value
+      // fits in a signed Int32 before mapping it (negative indices are valid
+      // and handled downstream by bounds checks).
+      V<Word32> i32 = __ TruncateWord64ToWord32(result);
+      __ DeoptimizeIfNot(__ Word64Equal(__ ChangeInt32ToInt64(i32), result),
                          frame_state, DeoptimizeReason::kNotInt32, feedback);
       RETURN_IF_UNREACHABLE();
+      SetMap(node, i32);
+    } else {
+      SetMap(node, result);
     }
-    SetMap(node, Is64() ? __ TruncateWord64ToWord32(result) : result);
     return maglev::ProcessResult::kContinue;
   }
   template <
