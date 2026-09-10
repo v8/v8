@@ -2303,9 +2303,18 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
   } else {
     if (kind == kI64) {
       MacroAssembler::Branch(label, cond, lhs, Operand(rhs));
-    } else {
-      DCHECK((kind == kI32) || (kind == kRef) || (kind == kRefNull));
+    } else if ((kind == kRef) || (kind == kRefNull) || (cond == eq) ||
+               (cond == ne)) {
+      DCHECK(cond == eq || cond == ne);
       MacroAssembler::CompareTaggedAndBranch(label, cond, lhs, Operand(rhs));
+    } else {
+      DCHECK(kind == kI32);
+      UseScratchRegisterScope temps(this);
+      Register scratch1 = temps.Acquire();
+      Register scratch2 = temps.Acquire();
+      slli_w(scratch1, lhs, 0);
+      slli_w(scratch2, rhs, 0);
+      MacroAssembler::Branch(label, cond, scratch1, Operand(scratch2));
     }
   }
 }
@@ -2313,7 +2322,10 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
 void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
                                            Register lhs, int32_t imm,
                                            const FreezeCacheState& frozen) {
-  MacroAssembler::CompareTaggedAndBranch(label, cond, lhs, Operand(imm));
+  UseScratchRegisterScope temps(this);
+  Register scratch1 = temps.Acquire();
+  slli_w(scratch1, lhs, 0);
+  MacroAssembler::Branch(label, cond, scratch1, Operand(imm));
 }
 
 void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,

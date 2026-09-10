@@ -4513,7 +4513,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
     Condition cc = FlagsConditionToConditionTst(condition);
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
-    __ And(scratch, i.InputRegister(0), i.InputOperand(1));
+
+    __ Tst(scratch, i.InputRegister(0), i.InputOperand(1));
     __ Branch(tlabel, cc, scratch, Operand(zero_reg));
   } else if (instr->arch_opcode() == kLoong64AddOvf_w ||
              instr->arch_opcode() == kLoong64SubOvf_w) {
@@ -4674,7 +4675,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     Condition cc = FlagsConditionToConditionTst(condition);
     UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
-    __ And(scratch, i.InputRegister(0), i.InputOperand(1));
+    __ Tst(scratch, i.InputRegister(0), i.InputOperand(1));
     if (cc == eq) {
       __ Sltu(result, scratch, 1);
     } else {
@@ -4850,7 +4851,7 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
       v_true = v_false;
       v_false = temp;
     }
-    __ And(scratch, i.InputRegister(0), i.InputOperand(1));
+    __ Tst(scratch, i.InputRegister(0), i.InputOperand(1));
     __ SelectWord(result, scratch, v_true, v_false);
     return;
   } else if (instr->arch_opcode() == kLoong64Cmp64 ||

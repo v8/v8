@@ -124,14 +124,29 @@ class Loong64OperandGenerator final : public OperandGenerator {
       case kLoong64Srl_d:
       case kLoong64Sra_d:
         return is_uint6(value);
-      case kLoong64And:
-      case kLoong64And32:
       case kLoong64Or:
       case kLoong64Or32:
       case kLoong64Xor:
       case kLoong64Xor32:
-      case kLoong64Tst:
         return is_uint12(value);
+      case kLoong64And:
+      case kLoong64And32: {
+        if (is_uint12(value)) return true;
+
+        uint64_t mask = value;
+        uint64_t mask_width = base::bits::CountPopulation(mask);
+        uint64_t mask_clz = base::bits::CountLeadingZeros64(mask);
+        return (mask_width != 0) && ((mask_width + mask_clz) == 64);
+      }
+      case kLoong64Tst: {
+        if (is_uint12(value)) return true;
+
+        uint64_t mask = value;
+        uint64_t mask_width = base::bits::CountPopulation(mask);
+        uint64_t mask_clz = base::bits::CountLeadingZeros64(mask);
+        uint64_t mask_ctz = base::bits::CountTrailingZeros64(mask);
+        return (mask_width != 0) && ((mask_width + mask_clz + mask_ctz) == 64);
+      }
       case kLoong64Ld_w:
       case kLoong64St_w:
       case kLoong64Ld_d:
@@ -489,6 +504,28 @@ void EmitLoad(InstructionSelector* selector, turboshaft::OpIndex node,
     opcode |= AddressingModeField::encode(kMode_Root);
     selector->Emit(opcode, 1, &output_op, input_count, inputs);
     return;
+  }
+
+  const Operation& index_op = selector->Get(index);
+  if (index_op.Is<Opmask::kWord64Add>() && selector->CanCover(node, index)) {
+    const WordBinopOp& add = index_op.Cast<WordBinopOp>();
+    const Operation& lhs = selector->Get(add.left());
+    // Select Alsl_d for (left << imm + right(imm)).
+    if (lhs.Is<Opmask::kWord64ShiftLeft>() &&
+        selector->CanCover(index, add.left()) &&
+        g.CanBeImmediate(add.right(), opcode)) {
+      const ShiftOp& shift = lhs.Cast<ShiftOp>();
+      if (int64_t shift_imm;
+          selector->MatchIntegralWord64Constant(shift.right(), &shift_imm)) {
+        auto temp = g.TempRegister();
+        selector->Emit(kLoong64Alsl_d, temp, g.UseRegister(shift.left()),
+                       g.UseRegister(base), g.UseImmediate(shift_imm));
+        selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                       g.DefineAsRegister(output.valid() ? output : node), temp,
+                       g.UseImmediate(add.right()));
+        return;
+      }
+    }
   }
 
   if (g.CanBeImmediate(index, opcode)) {
@@ -1891,13 +1928,8 @@ void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
     }
     EmitLoad(this, change_op.input(), opcode, node);
     return;
-  } else if (input_op.Is<Opmask::kWord32ShiftRightArithmetic>() &&
-             CanCover(node, change_op.input())) {
-    // TODO(LOONG_dev): May also optimize 'TruncateInt64ToInt32' here.
-    EmitIdentity(node);
   }
-  Emit(kLoong64Sll_w, g.DefineAsRegister(node),
-       g.UseRegister(change_op.input()), g.TempImmediate(0));
+  EmitIdentity(node);
 }
 
 bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {

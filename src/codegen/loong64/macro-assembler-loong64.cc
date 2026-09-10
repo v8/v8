@@ -917,7 +917,6 @@ void MacroAssembler::Sub_w(Register rd, Register rj, const Operand& rk) {
   if (rk.is_reg()) {
     sub_w(rd, rj, rk.rm());
   } else {
-    DCHECK(is_int32(rk.immediate()));
     if (is_int12(-rk.immediate()) && !MustUseReg(rk.rmode())) {
       // No subi_w instr, use addi_w(x, y, -imm).
       addi_w(rd, rj, static_cast<int32_t>(-rk.immediate()));
@@ -929,7 +928,12 @@ void MacroAssembler::Sub_w(Register rd, Register rj, const Operand& rk) {
         // Use load -imm and addu when loading -imm generates one instruction.
         li(scratch, -rk.immediate());
         add_w(rd, rj, scratch);
+      } else if (RelocInfo::IsFullEmbeddedObject(rk.rmode())) {
+        li(scratch,
+           Operand(rk.immediate(), RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
+        sub_w(rd, rj, scratch);
       } else {
+        DCHECK(is_int32(rk.immediate()));
         // li handles the relocation.
         li(scratch, rk);
         sub_w(rd, rj, scratch);
@@ -1150,16 +1154,26 @@ void MacroAssembler::And(Register rd, Register rj, const Operand& rk) {
   if (rk.is_reg()) {
     and_(rd, rj, rk.rm());
   } else {
-    if (is_uint12(rk.immediate()) && !MustUseReg(rk.rmode())) {
-      andi(rd, rj, static_cast<int32_t>(rk.immediate()));
-    } else {
-      // li handles the relocation.
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      DCHECK(rj != scratch);
-      li(scratch, rk);
-      and_(rd, rj, scratch);
+    if (!MustUseReg(rk.rmode())) {
+      uint64_t mask = rk.immediate();
+      if (is_uint12(mask)) {
+        andi(rd, rj, static_cast<int32_t>(rk.immediate()));
+        return;
+      }
+      uint64_t mask_width = base::bits::CountPopulation(mask);
+      uint64_t mask_clz = base::bits::CountLeadingZeros64(mask);
+      if ((mask_width != 0) && ((mask_width + mask_clz) == 64)) {
+        bstrpick_d(rd, rj, mask_width - 1, 0);
+        return;
+      }
     }
+
+    // li handles the relocation.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    DCHECK(rj != scratch);
+    li(scratch, rk);
+    and_(rd, rj, scratch);
   }
 }
 
@@ -1239,6 +1253,32 @@ void MacroAssembler::Orn(Register rd, Register rj, const Operand& rk) {
 void MacroAssembler::Neg(Register rj, const Operand& rk) {
   DCHECK(rk.is_reg());
   sub_d(rj, zero_reg, rk.rm());
+}
+
+// Performs a bitwise test on rj with mask rk.
+// NOTE: When rk is an immediate exceeding uint12 range and forms a contiguous
+// bitmask with trailing zeros (mask_ctz > 0), Tst() optimizes using bstrpick_d.
+// In this case, the value saved to 'rd' differs from 'And':
+// E.g., for rj = 0x30000 and mask rk = 0x30000 (mask_ctz = 16, > uint12):
+//   - And(): rd = 0x30000 (bitwise AND value)
+//   - Tst(): rd = 0x3     (extracted field value via bstrpick_d)
+// Registers or uint12 immediates fall back to And(). In all cases, rd == 0 if
+// and only if (rj & rk) == 0, making it safe for conditional branch testing
+// (eq/ne).
+void MacroAssembler::Tst(Register rd, Register rj, const Operand& rk) {
+  if (rk.is_reg() || is_uint12(rk.immediate())) {
+    And(rd, rj, rk);
+  } else {
+    uint64_t mask = rk.immediate();
+    uint64_t mask_width = base::bits::CountPopulation(mask);
+    uint64_t mask_clz = base::bits::CountLeadingZeros64(mask);
+    uint64_t mask_ctz = base::bits::CountTrailingZeros64(mask);
+    if ((mask_width != 0) && ((mask_width + mask_clz + mask_ctz) == 64)) {
+      bstrpick_d(rd, rj, mask_width + mask_ctz - 1, mask_ctz);
+    } else {
+      And(rd, rj, rk);
+    }
+  }
 }
 
 void MacroAssembler::Slt(Register rd, Register rj, const Operand& rk) {
@@ -3647,31 +3687,12 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rj,
 void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
                                             Register r1, const Operand& r2,
                                             bool need_link) {
+  DCHECK(cond == eq || cond == ne);
   if (COMPRESS_POINTERS_BOOL) {
     UseScratchRegisterScope temps(this);
     Register scratch0 = temps.Acquire();
-    slli_w(scratch0, r1, 0);
-    if (IsZero(r2)) {
-      Branch(label, cond, scratch0, Operand(zero_reg), need_link);
-    } else {
-      Register scratch1 = temps.Acquire();
-      if (r2.is_reg()) {
-        slli_w(scratch1, r2.rm(), 0);
-      } else {
-        if (RelocInfo::IsFullEmbeddedObject(r2.rmode())) {
-          li(scratch1,
-             Operand(r2.immediate(), RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
-        } else if (RelocInfo::IsCompressedEmbeddedObject(r2.rmode())) {
-          li(scratch1, r2);
-        } else if (RelocInfo::IsNoInfo(r2.rmode())) {
-          LiLower32BitHelper(scratch1, r2);
-        } else {
-          li(scratch1, r2);
-          slli_w(scratch1, scratch1, 0);
-        }
-      }
-      Branch(label, cond, scratch0, Operand(scratch1), need_link);
-    }
+    Sub_w(scratch0, r1, r2);
+    Branch(label, cond, scratch0, Operand(zero_reg), need_link);
   } else {
     Branch(label, cond, r1, r2, need_link);
   }
@@ -3854,6 +3875,7 @@ void MacroAssembler::Call(Register target, Condition cond, Register rj,
 void MacroAssembler::CompareTaggedRootAndBranch(const Register& obj,
                                                 RootIndex index, Condition cc,
                                                 Label* target) {
+  DCHECK(cc == eq || cc == ne);
   ASM_CODE_COMMENT(this);
   AssertSmiOrHeapObjectInMainCompressionCage(obj);
   UseScratchRegisterScope temps(this);
@@ -3882,6 +3904,7 @@ void MacroAssembler::CompareTaggedRootAndBranch(const Register& obj,
 void MacroAssembler::CompareRootAndBranch(const Register& obj, RootIndex index,
                                           Condition cc, Label* target,
                                           ComparisonMode mode) {
+  DCHECK(cc == eq || cc == ne);
   ASM_CODE_COMMENT(this);
   if (mode == ComparisonMode::kFullPointer ||
       !base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
@@ -6097,18 +6120,18 @@ void MacroAssembler::DecompressTagged(Register dst, const MemOperand& src,
                                       int* trap_pc) {
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src, trap_pc);
-  Or(dst, kPtrComprCageBaseRegister, dst);
+  or_(dst, kPtrComprCageBaseRegister, dst);
 }
 
 void MacroAssembler::DecompressTagged(Register dst, Register src) {
   ASM_CODE_COMMENT(this);
   Bstrpick_d(dst, src, 31, 0);
-  Or(dst, kPtrComprCageBaseRegister, dst);
+  or_(dst, kPtrComprCageBaseRegister, dst);
 }
 
 void MacroAssembler::DecompressTagged(Register dst, Tagged_t immediate) {
   ASM_CODE_COMMENT(this);
-  Or(dst, kPtrComprCageBaseRegister, static_cast<uint32_t>(immediate));
+  Or(dst, kPtrComprCageBaseRegister, Operand(immediate));
 }
 
 void MacroAssembler::DecompressProtected(const Register& destination,
@@ -6146,7 +6169,7 @@ void MacroAssembler::AtomicDecompressTagged(Register dst, const MemOperand& src,
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src, trap_pc);
   dbar(0);
-  Or(dst, kPtrComprCageBaseRegister, dst);
+  or_(dst, kPtrComprCageBaseRegister, dst);
 }
 
 // Calls an API function. Allocates HandleScope, extracts returned value
