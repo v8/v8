@@ -54,7 +54,7 @@ crossbench_cbb_builder(
         "test_driver": "crossbench/tests/end2end/android/loadline/runner.py",
         "test_run_config": [
             {
-                "sdk_version": 35,
+                "sdk_version": 37,
                 "avd_suffix": "",
             },
         ],
@@ -69,7 +69,7 @@ crossbench_cbb_builder(
         "test_driver": "crossbench/tests/end2end/android/speedometer/runner.py",
         "test_run_config": [
             {
-                "sdk_version": 35,
+                "sdk_version": 37,
                 "avd_suffix": "",
             },
         ],
@@ -84,7 +84,7 @@ crossbench_cbb_builder(
         "test_driver": "crossbench/tests/end2end/android/others/runner.py",
         "test_run_config": [
             {
-                "sdk_version": 35,
+                "sdk_version": 37,
                 "avd_suffix": "",
                 "extra_flags": [
                     "-m",
