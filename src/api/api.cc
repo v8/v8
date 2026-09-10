@@ -1078,8 +1078,8 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value,
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index, tag));
 }
 
-void Context::SetAlignedPointerInEmbedderData(int index, void* value,
-                                              CppHeapPointerTag tag) {
+void Context::SetAlignedPointerInEmbedderDataInternal(int index, void* value,
+                                                      CppHeapPointerTag tag) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
   i::Isolate* i_isolate = i::Isolate::Current();
   i::DirectHandle<i::EmbedderDataArray> data =

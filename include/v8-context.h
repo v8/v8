@@ -331,7 +331,8 @@ class V8_EXPORT Context : public Data {
     requires cppgc::IsGarbageCollectedTypeV<T>
   void SetAlignedPointerInEmbedderData(int index, T* value,
                                        CppHeapPointerTag tag) {
-    SetAlignedPointerInEmbedderData(index, static_cast<void*>(value), tag);
+    SetAlignedPointerInEmbedderDataInternal(index, static_cast<void*>(value),
+                                            tag);
   }
 
   /**
@@ -461,8 +462,8 @@ class V8_EXPORT Context : public Data {
   Local<Value> SlowGetEmbedderData(int index);
   Local<Data> SlowGetEmbedderDataV2(int index);
   void* SlowGetAlignedPointerFromEmbedderData(int index, CppHeapPointerTag tag);
-  void SetAlignedPointerInEmbedderData(int index, void* value,
-                                       CppHeapPointerTag tag);
+  void SetAlignedPointerInEmbedderDataInternal(int index, void* value,
+                                               CppHeapPointerTag tag);
 };
 
 // --- Implementation ---
