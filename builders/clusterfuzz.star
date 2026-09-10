@@ -29,12 +29,12 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Win64 ASAN - release builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "win64-release/d8-asan-win64-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "win64-release/d8-asan-win64-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Win64 ASAN - debug builder",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "win64-debug/d8-asan-win64-debug-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "win64-debug/d8-asan-win64-debug-v8-component", "bucket": "v8-asan"}},
     ),
 )
 
@@ -43,12 +43,12 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Mac64 ASAN - release builder",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "mac-release/d8-asan-mac-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "mac-release/d8-asan-mac-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Mac64 ASAN - debug builder",
         dimensions = {"os": "Mac", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "mac-debug/d8-asan-mac-debug-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "mac-debug/d8-asan-mac-debug-v8-component", "bucket": "v8-asan"}},
     ),
 )
 
@@ -57,93 +57,93 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clusterfuzz_archive": {"archive_path": "linux-release/d8-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clusterfuzz_archive": {"archive_path": "linux-release/d8-linux-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clusterfuzz_archive": {"archive_path": "linux-debug/d8-linux-debug-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clusterfuzz_archive": {"archive_path": "linux-debug/d8-linux-debug-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 - dumpling - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clusterfuzz_archive": {"archive_path": "linux-release/d8-dumpling-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clusterfuzz_archive": {"archive_path": "linux-release/d8-dumpling-linux-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-debug/d8-asan-linux-debug-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-debug/d8-asan-linux-debug-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN - undefined double - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-debug/d8-asan-undefined-double-linux-debug-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-debug/d8-asan-undefined-double-linux-debug-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN arm64 - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-debug/d8-arm64-asan-linux-debug-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-debug/d8-arm64-asan-linux-debug-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-asan-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-asan-linux-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN no inline - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-asan-no-inline-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-asan-no-inline-linux-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 CFI - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-cfi-linux-release-v8-component", "bucket": "v8-cfi", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-cfi-linux-release-v8-component", "bucket": "v8-cfi"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 TSAN - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clusterfuzz_archive": {"archive_path": "linux-release/d8-tsan-linux-release-v8-component", "bucket": "v8-tsan", "use_archive_path": True}},
+        properties = {"clusterfuzz_archive": {"archive_path": "linux-release/d8-tsan-linux-release-v8-component", "bucket": "v8-tsan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 UBSan - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-ubsan-linux-release-v8-component", "bucket": "v8-ubsan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-ubsan-linux-release-v8-component", "bucket": "v8-ubsan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clusterfuzz_archive": {"archive_path": "linux32-debug/d8-linux32-debug-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clusterfuzz_archive": {"archive_path": "linux32-debug/d8-linux32-debug-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux ASAN - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux32-debug/d8-asan-linux32-debug-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux32-debug/d8-asan-linux32-debug-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux ASAN arm - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-debug/d8-arm-asan-linux-debug-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-debug/d8-arm-asan-linux-debug-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux ASAN - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux32-release/d8-asan-linux32-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux32-release/d8-asan-linux32-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux ASAN no inline - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux32-release/d8-asan-no-inline-linux32-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux32-release/d8-asan-no-inline-linux32-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux MSAN chained origins",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-msan-chained-origins-linux-release-v8-component", "bucket": "v8-msan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-msan-chained-origins-linux-release-v8-component", "bucket": "v8-msan"}},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux MSAN no origins",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-msan-no-origins-linux-release-v8-component", "bucket": "v8-msan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-msan-no-origins-linux-release-v8-component", "bucket": "v8-msan"}},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
     ),
 )
@@ -153,32 +153,32 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 sandbox testing - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 fuzzilli sandbox testing - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-fuzzilli-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-fuzzilli-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-asan-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-asan-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN fuzzilli sandbox testing - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-asan-fuzzilli-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-asan-fuzzilli-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN arm64 fuzzilli sandbox testing - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-asan-arm64-fuzzilli-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-asan-arm64-fuzzilli-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 arm64 fuzzilli sandbox testing - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-arm64-fuzzilli-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clobber": True, "clusterfuzz_archive": {"archive_path": "linux-release/d8-arm64-fuzzilli-sandbox-testing-linux-release-v8-component", "bucket": "v8-asan"}},
     ),
     v8_builder(
         name = "V8 Linux64 - sandbox testing",
@@ -215,7 +215,7 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Centipede Linux64 ASAN  - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clusterfuzz_archive": {"archive_path": "linux-release/fuzztest-asan-linux-release-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clusterfuzz_archive": {"archive_path": "linux-release/fuzztest-asan-linux-release-v8-component", "bucket": "v8-asan"}},
         gclient_vars = [GCLIENT_VARS.CENTIPEDE],
         default_target = "v8_fuzztests",
         barrier = BARRIER.NONE,
@@ -223,7 +223,7 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Centipede Linux64 ASAN  - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"clusterfuzz_archive": {"archive_path": "linux-debug/fuzztest-asan-linux-debug-v8-component", "bucket": "v8-asan", "use_archive_path": True}},
+        properties = {"clusterfuzz_archive": {"archive_path": "linux-debug/fuzztest-asan-linux-debug-v8-component", "bucket": "v8-asan"}},
         gclient_vars = [GCLIENT_VARS.CENTIPEDE],
         default_target = "v8_fuzztests",
         barrier = BARRIER.NONE,
