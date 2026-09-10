@@ -222,10 +222,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     // Compute the property attributes. According to ECMA-262,
     // the property must be non-configurable except in eval.
     Tagged<Script> script = Cast<Script>(closure->shared()->script());
-    PropertyAttributes attr =
-        script->compilation_type() == Script::CompilationType::kEval
-            ? NONE
-            : DONT_DELETE;
+    PropertyAttributes attr = script->is_eval() ? NONE : DONT_DELETE;
 
     // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.d:
     // If hasRestrictedGlobal is true, throw a SyntaxError exception.

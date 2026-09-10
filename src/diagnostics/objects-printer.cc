@@ -3938,7 +3938,7 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - source_url: " << Brief(source_url());
   os << "\n - source_mapping_url: " << Brief(source_mapping_url());
   os << "\n - host_defined_options: " << Brief(host_defined_options());
-  os << "\n - compilation type: " << static_cast<int>(compilation_type());
+  os << "\n - compilation kind: " << ToString(compilation_kind());
   os << "\n - compiled lazy function positions: "
      << compiled_lazy_function_positions();
   bool is_wasm = false;

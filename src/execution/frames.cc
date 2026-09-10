@@ -2843,8 +2843,7 @@ FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
   DirectHandle<Script> script(Cast<Script>(shared->script()), isolate());
   DirectHandle<String> function_name =
       JSFunction::GetDebugName(isolate(), function_);
-  if (function_name->length() == 0 &&
-      script->compilation_type() == Script::CompilationType::kEval) {
+  if (function_name->length() == 0 && script->is_eval()) {
     function_name = isolate()->factory()->eval_string();
   }
   int bytecode_offset = code_offset();

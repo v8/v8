@@ -2091,10 +2091,10 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
              static_cast<int>(script->type()));
   AddStringEdge(entry, HeapGraphEdge::kInternal, "script_type_name",
                 ToString(script->type()));
-  AddIntEdge(entry, HeapGraphEdge::kInternal, "compilation_type",
-             static_cast<int>(script->compilation_type()));
-  AddStringEdge(entry, HeapGraphEdge::kInternal, "compilation_type_name",
-                ToString(script->compilation_type()));
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "compilation_kind",
+             static_cast<int>(script->compilation_kind()));
+  AddStringEdge(entry, HeapGraphEdge::kInternal, "compilation_kind_name",
+                ToString(script->compilation_kind()));
   AddIntEdge(entry, HeapGraphEdge::kInternal, "compilation_state",
              static_cast<int>(script->compilation_state()));
   AddStringEdge(entry, HeapGraphEdge::kInternal, "compilation_state_name",

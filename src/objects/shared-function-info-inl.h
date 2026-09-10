@@ -383,8 +383,7 @@ void SharedFunctionInfo::SetName(Tagged<String> name) {
 
 bool SharedFunctionInfo::is_script() const {
   return scope_info(kAcquireLoad)->is_script_scope() &&
-         Cast<Script>(script())->compilation_type() ==
-             Script::CompilationType::kHost;
+         Cast<Script>(script())->is_host();
 }
 
 bool SharedFunctionInfo::needs_script_context() const {

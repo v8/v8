@@ -3530,8 +3530,7 @@ Local<String> StackFrame::GetFunctionName() const {
 
 bool StackFrame::IsEval() const {
   auto self = Utils::OpenDirectHandle(this);
-  return self->script()->compilation_type() ==
-         i::Script::CompilationType::kEval;
+  return self->script()->has_eval_origin();
 }
 
 bool StackFrame::IsConstructor() const {

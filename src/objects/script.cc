@@ -31,16 +31,6 @@ const char* ToString(Script::Type type) {
   UNREACHABLE();
 }
 
-const char* ToString(Script::CompilationType type) {
-  switch (type) {
-    case Script::CompilationType::kHost:
-      return "host";
-    case Script::CompilationType::kEval:
-      return "eval";
-  }
-  UNREACHABLE();
-}
-
 const char* ToString(Script::CompilationState type) {
   switch (type) {
     case Script::CompilationState::kInitial:
@@ -117,7 +107,7 @@ Tagged<Script> Script::Iterator::Next() {
 
 // static
 int Script::GetEvalPosition(Isolate* isolate, DirectHandle<Script> script) {
-  DCHECK(script->compilation_type() == Script::CompilationType::kEval);
+  DCHECK(script->has_eval_origin());
   int position = script->eval_from_position();
   if (position < 0) {
     // Due to laziness, the position may not have been translated from code

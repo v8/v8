@@ -893,7 +893,7 @@ TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_DirectEval) {
       "outer();");
   DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
                                    isolate());
-  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+  EXPECT_TRUE(eval_script->is_eval());
 
   isolate()->debug()->ClearScriptScopeInfos();
   EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
@@ -922,7 +922,7 @@ TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_IndirectEval) {
       "outer();");
   DirectHandle<Script> eval_script(
       Cast<Script>(indirect_fn->shared()->script()), isolate());
-  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+  EXPECT_TRUE(eval_script->is_eval());
 
   isolate()->debug()->ClearScriptScopeInfos();
   EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
@@ -948,7 +948,7 @@ TEST_F(DebugScopeInfoTest,
       "eval('function inner() { return 1; } inner;');");
   DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
                                    isolate());
-  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+  EXPECT_TRUE(eval_script->is_eval());
   EXPECT_FALSE(eval_script->has_eval_from_scope_info());
 
   isolate()->debug()->ClearScriptScopeInfos();
@@ -978,7 +978,7 @@ TEST_F(DebugScopeInfoTest,
       "outer();");
   DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
                                    isolate());
-  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+  EXPECT_TRUE(eval_script->is_eval());
 
   isolate()->debug()->ClearScriptScopeInfos();
   EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
@@ -1007,7 +1007,7 @@ TEST_F(DebugScopeInfoTest,
       "outer();");
   DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
                                    isolate());
-  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+  EXPECT_TRUE(eval_script->is_eval());
 
   isolate()->debug()->ClearScriptScopeInfos();
   EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
@@ -1037,7 +1037,7 @@ TEST_F(DebugScopeInfoTest,
       "outer();");
   DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
                                    isolate());
-  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+  EXPECT_TRUE(eval_script->is_eval());
 
   isolate()->debug()->ClearScriptScopeInfos();
   EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
@@ -1062,7 +1062,7 @@ TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_IndirectEval_StrictBody) {
       "indirectInner;');");
   DirectHandle<Script> eval_script(
       Cast<Script>(indirect_fn->shared()->script()), isolate());
-  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+  EXPECT_TRUE(eval_script->is_eval());
 
   isolate()->debug()->ClearScriptScopeInfos();
   EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
@@ -1091,7 +1091,7 @@ TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_DirectEval_PostGC) {
       "outer();");
   DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
                                    isolate());
-  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+  EXPECT_TRUE(eval_script->is_eval());
 
   isolate()->debug()->ClearScriptScopeInfos();
   isolate()->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
@@ -1256,7 +1256,7 @@ TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_CacheMissDefaultArgs) {
       "outer();");
   DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
                                    isolate());
-  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+  EXPECT_TRUE(eval_script->is_eval());
 
   isolate()->debug()->ClearScriptScopeInfos();
   EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());

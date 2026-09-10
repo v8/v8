@@ -116,6 +116,20 @@ bool Script::is_wrapped() const {
   return is_wrapped;
 }
 
+bool Script::is_eval() const {
+  return compilation_kind() == CompilationKind::kDirectEval ||
+         compilation_kind() == CompilationKind::kIndirectEval;
+}
+
+bool Script::has_eval_origin() const {
+  return is_eval() ||
+         compilation_kind() == CompilationKind::kFunctionConstructor;
+}
+
+bool Script::is_host() const {
+  return compilation_kind() == CompilationKind::kHost;
+}
+
 LanguageMode Script::outer_language_mode() const {
   return OuterLanguageModeBit::decode(flags());
 }
@@ -201,7 +215,7 @@ void Script::set_break_on_entry(bool value) {
 
 uint32_t Script::flags() const {
   // Use a relaxed load since background compile threads read the
-  // {compilation_type()} while the foreground thread might update e.g. the
+  // {compilation_kind()} while the foreground thread might update e.g. the
   // {origin_options}.
   return flags_.Relaxed_Load().value();
 }
@@ -218,12 +232,6 @@ void Script::set_compilation_kind(CompilationKind kind) {
   set_flags(CompilationKindBits::update(flags(), kind));
 }
 
-Script::CompilationType Script::compilation_type() const {
-  return (compilation_kind() == CompilationKind::kHost ||
-          compilation_kind() == CompilationKind::kWrapped)
-             ? CompilationType::kHost
-             : CompilationType::kEval;
-}
 Script::CompilationState Script::compilation_state() {
   return CompilationStateBit::decode(flags());
 }

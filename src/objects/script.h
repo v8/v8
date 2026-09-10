@@ -51,9 +51,6 @@ V8_OBJECT class Script : public Struct {
     kInspector = 4
   };
 
-  // Script compilation types.
-  enum class CompilationType { kHost = 0, kEval = 1 };
-
   // Script compilation state.
   enum class CompilationState { kInitial = 0, kCompiled = 1 };
 
@@ -120,6 +117,15 @@ V8_OBJECT class Script : public Struct {
 
   // Whether the script is implicitly wrapped in a function.
   inline bool is_wrapped() const;
+
+  // Whether the script was compiled via eval (direct or indirect).
+  inline bool is_eval() const;
+
+  // Whether the script originated from an eval or Function constructor.
+  inline bool has_eval_origin() const;
+
+  // Whether the script is a top-level host script.
+  inline bool is_host() const;
 
   // [compilation_kind]: how the script was compiled (host, direct/indirect
   // eval, Function constructor, or wrapped). Encoded in the 'flags' field.
@@ -192,10 +198,6 @@ V8_OBJECT class Script : public Struct {
   // main thread.
   inline uint32_t flags() const;
   inline void set_flags(uint32_t new_flags);
-
-  // [compilation_type]: how the script was compiled. Encoded in the
-  // 'flags' field.
-  inline CompilationType compilation_type() const;
 
   inline bool produce_compile_hints() const;
   inline void set_produce_compile_hints(bool produce_compile_hints);
@@ -429,7 +431,6 @@ V8_OBJECT class Script : public Struct {
 } V8_OBJECT_END;
 
 V8_EXPORT_PRIVATE const char* ToString(Script::Type type);
-V8_EXPORT_PRIVATE const char* ToString(Script::CompilationType type);
 V8_EXPORT_PRIVATE const char* ToString(Script::CompilationState type);
 V8_EXPORT_PRIVATE const char* ToString(Script::CompilationKind type);
 
