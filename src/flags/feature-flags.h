@@ -170,8 +170,6 @@
                                                                                \
   JS_FEATURE(js_immutable_arraybuffer, "Immutable ArrayBuffer")                \
                                                                                \
-  JS_FEATURE(js_import_text, "import text")                                    \
-                                                                               \
   JS_FEATURE(js_import_bytes, "import bytes")                                  \
                                                                                \
   JS_FEATURE(js_defer_import_eval, "defer import eval")                        \
@@ -218,6 +216,8 @@
              "non-throwing case (https://github.com/tc39/ecma262/pull/3883)")  \
                                                                                \
   JS_FEATURE(js_iterator_includes, "Iterator.prototype.includes")              \
+                                                                               \
+  JS_FEATURE(js_import_text, "import text")                                    \
                                                                                \
   /* Legacy exception handling proposal. */                                    \
   /* https://github.com/WebAssembly/exception-handling */                      \
