@@ -77,6 +77,7 @@ LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]')
 FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
 ASSERT_OPTIMIZED_PATTERN = re.compile("assertOptimized")
 FLAGS_ENABLE_MAGLEV = re.compile("//\s*Flags:.*--maglev[^-].*\n")
+FLAGS_ENABLE_TURBOLEV = re.compile("//\s*Flags:.*--turbolev[^-].*\n")
 FLAGS_ENABLE_TURBOFAN = re.compile("//\s*Flags:.*--turbofan[^-].*\n")
 ASSERT_UNOPTIMIZED_PATTERN = re.compile("assertUnoptimized")
 
@@ -662,9 +663,10 @@ class SourceProcessor(SourceFileProcessor):
           not "mjsunit/mjsunit_numfuzz.js" in name):
         if ASSERT_OPTIMIZED_PATTERN.search(contents) and \
             not FLAGS_ENABLE_MAGLEV.search(contents) and \
+            not FLAGS_ENABLE_TURBOLEV.search(contents) and \
             not FLAGS_ENABLE_TURBOFAN.search(contents):
-          print("%s Flag --maglev or --turbofan should be set if " \
-                "assertOptimized() is used" % name)
+          print("%s Flag --maglev, --turbolev, or --turbofan should be " \
+                "set if assertOptimized() is used" % name)
           result = False
 
       match = self.runtime_function_call_pattern.search(contents)

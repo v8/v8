@@ -4593,8 +4593,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
                                         lookup_start_object);
     case compiler::PropertyAccessInfo::kModuleExport: {
       ValueNode* cell = GetConstant(access_info.constant().value().AsCell());
-      return BuildLoadTaggedField(cell, offsetof(Cell, maybe_value_),
-                                  NodeType::kUnknown, false, name);
+      return BuildLoadTaggedField(cell, offsetof(Cell, maybe_value_));
     }
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
