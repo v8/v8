@@ -1685,6 +1685,23 @@ int32_t* GlobalExecRunner::LastSuccessfulMatch() const {
   return &register_array_[index];
 }
 
+namespace {
+
+// The split cache is by far the largest of the regexp caches, so it is
+// allocated on first use rather than deserialized into every isolate. Enter is
+// the only place that has to materialize it: a lookup cannot hit before
+// something was entered, so it just misses.
+DirectHandle<FixedArray> EnsureRegExpSplitCache(Isolate* isolate) {
+  DirectHandle<FixedArray> cache = isolate->factory()->regexp_split_cache();
+  if (*cache != ReadOnlyRoots(isolate).empty_fixed_array()) return cache;
+  cache = isolate->factory()->NewFixedArrayWithZeroes(
+      ResultsCache::kRegExpSplitResultsCacheSize, AllocationType::kOld);
+  isolate->heap()->SetRegExpSplitCache(*cache);
+  return cache;
+}
+
+}  // namespace
+
 Tagged<Object> ResultsCache::Lookup(Heap* heap, Tagged<String> key_string,
                                     Tagged<Object> key_pattern,
                                     Tagged<FixedArray>* last_match_cache,
@@ -1701,6 +1718,7 @@ Tagged<Object> ResultsCache::Lookup(Heap* heap, Tagged<String> key_string,
     case REGEXP_SPLIT_SUBSTRINGS:
       DCHECK(IsRegExpDataWrapper(key_pattern));
       cache = heap->regexp_split_cache();
+      if (cache == ReadOnlyRoots(heap).empty_fixed_array()) return Smi::zero();
       break;
     case REGEXP_MULTIPLE_INDICES:
       DCHECK(IsRegExpDataWrapper(key_pattern));
@@ -1742,7 +1760,7 @@ void ResultsCache::Enter(Isolate* isolate, DirectHandle<String> key_string,
       break;
     case REGEXP_SPLIT_SUBSTRINGS:
       DCHECK(IsRegExpDataWrapper(*key_pattern));
-      cache = factory->regexp_split_cache();
+      cache = EnsureRegExpSplitCache(isolate);
       break;
     case REGEXP_MULTIPLE_INDICES:
       DCHECK(IsRegExpDataWrapper(*key_pattern));
@@ -1796,13 +1814,15 @@ void ResultsCache::Enter(Isolate* isolate, DirectHandle<String> key_string,
 Address ResultsCache::EnterRaw(Isolate* isolate, Address raw_key_string,
                                Address raw_pattern, Address raw_value_array,
                                Address raw_last_match_cache) {
-  DisallowGarbageCollection no_gc;
+  // Entering may allocate the cache, and allocation is allowed in a fast C
+  // call, so every argument has to be handlified before that can happen.
   HandleScope scope(isolate);
   DirectHandle<String> key_string(Cast<String>(Tagged<Object>(raw_key_string)),
                                   isolate);
   DirectHandle<JSRegExp> pattern(Cast<JSRegExp>(Tagged<Object>(raw_pattern)),
                                  isolate);
-  Tagged<JSArray> value_array = Cast<JSArray>(Tagged<Object>(raw_value_array));
+  DirectHandle<JSArray> value_array(
+      Cast<JSArray>(Tagged<Object>(raw_value_array)), isolate);
   DirectHandle<FixedArray> last_match_cache(
       Cast<FixedArray>(Tagged<Object>(raw_last_match_cache)), isolate);
 

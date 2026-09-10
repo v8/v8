@@ -190,6 +190,10 @@ void RegExpBuiltinsAssembler::TryRegExpSplitCacheLookup(
 
   TNode<FixedArray> cache =
       CAST(CodeAssembler::LoadRoot(RootIndex::kRegExpSplitCache));
+  // The cache is allocated on the first Enter; until then there is nothing to
+  // probe.
+  GotoIf(TaggedEqual(cache, EmptyFixedArrayConstant()), &miss);
+
   TNode<Object> key_pattern =
       LoadObjectField(data, offsetof(RegExpData, wrapper_));
 

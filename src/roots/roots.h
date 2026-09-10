@@ -396,7 +396,6 @@ class RootVisitor;
     NumberStringNotRegexpLikeProtector)                                        \
   /* Caches */                                                                 \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
-  V(FixedArray, regexp_split_cache, RegExpSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
   V(FixedArray, regexp_match_global_atom_cache, RegExpMatchGlobalAtomCache)    \
   /* Indirection lists for isolate-independent builtins */                     \
@@ -420,6 +419,8 @@ class RootVisitor;
   /* Caches */                                                              \
   V(SmiStringCache, smi_string_cache, SmiStringCache)                       \
   V(DoubleStringCache, double_string_cache, DoubleStringCache)              \
+  /* Allocated on first use, so it must be loaded rather than baked in. */  \
+  V(FixedArray, regexp_split_cache, RegExpSplitCache)                       \
   /* undefined or BigInt. Caching divisors used for modulo divisions. */    \
   V(Object, cached_bigint_divisor, CachedBigIntDivisor)                     \
   V(Object, next_cached_bigint_divisor, NextCachedBigIntDivisor)            \

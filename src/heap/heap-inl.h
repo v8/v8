@@ -156,6 +156,10 @@ void Heap::SetNextCachedBigIntDivisor(Tagged<BigInt> divisor) {
   set_next_cached_bigint_divisor(divisor);
 }
 
+void Heap::SetRegExpSplitCache(Tagged<FixedArray> cache) {
+  set_regexp_split_cache(cache);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 void Heap::SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts) {
   set_wasm_canonical_rtts(rtts);

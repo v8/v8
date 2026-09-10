@@ -909,6 +909,7 @@ class Heap final {
   V8_INLINE void SetDoubleStringCache(Tagged<DoubleStringCache> cache);
   V8_INLINE void SetCachedBigIntDivisor(Tagged<BigInt> divisor);
   V8_INLINE void SetNextCachedBigIntDivisor(Tagged<BigInt> divisor);
+  V8_INLINE void SetRegExpSplitCache(Tagged<FixedArray> cache);
 
 #if V8_ENABLE_WEBASSEMBLY
   V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);

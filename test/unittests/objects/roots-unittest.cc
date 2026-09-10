@@ -59,6 +59,7 @@ bool CanBeInReadOnlySpace(Factory* factory, Handle<Object> object) {
   V(shared_wasm_memories)                 \
   V(materialized_objects)                 \
   V(public_symbol_table)                  \
+  V(regexp_split_cache)                   \
   V(serialized_global_proxy_sizes)        \
   V(serialized_objects)                   \
   IF_WASM(V, js_to_wasm_wrappers)         \

@@ -2065,8 +2065,9 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   //  |  return addr    |                                v
   //  +-----------------+-----------------------------------------
 
-  // Find the code and compute the safepoint information.
-  Address inner_pointer = pc();
+  // Find the code and compute the safepoint information. The pc is
+  // unauthenticated when it comes from IsolateData, i.e. during a fast C call.
+  Address inner_pointer = maybe_unauthenticated_pc();
   InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
@@ -2100,56 +2101,57 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
   FullObjectSlot frame_header_limit(
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
-  // Parameters passed to the callee.
-#if V8_ENABLE_WEBASSEMBLY
-  // Frame layout without stack switching (stack grows upwards):
-  //
-  //         | callee      |
-  //         | frame       |
-  //         |-------------| <- sp()
-  //         | out params  |
-  //         |-------------| <- frame_header_base - spill_slot_space
-  //         | spill slots |
-  //         |-------------| <- frame_header_base
-  //         | frame header|
-  //         |-------------| <- fp()
-  //
-  // With stack-switching:
-  //
-  //        Secondary stack:      Central stack:
-  //
-  //                              | callee     |
-  //                              | frame      |
-  //                              |------------| <- sp()
-  //                              | out params |
-  //        |-------------|       |------------| <- maybe_stack_switch.target_sp
-  //        | spill slots |
-  //        |-------------| <- frame_header_base
-  //        | frame header|
-  //        |-------------| <- fp()
-  //
-  // The base (lowest address) of the outgoing stack parameters area is always
-  // sp(), and the limit (highest address) is either {frame_header_base -
-  // spill_slot_size} or {maybe_stack_switch.target_sp} depending on
-  // stack-switching.
-  wasm::StackMemory::StackSwitchInfo maybe_stack_switch;
-  if (iterator_->wasm_stack() != nullptr) {
-    maybe_stack_switch = iterator_->wasm_stack()->stack_switch_info();
-  }
-  FullObjectSlot parameters_limit(
-      maybe_stack_switch.has_value() && maybe_stack_switch.source_fp == fp()
-          ? maybe_stack_switch.target_sp
-          : frame_header_base.address() - spill_slots_size);
-#else
-  FullObjectSlot parameters_limit(frame_header_base.address() -
-                                  spill_slots_size);
-#endif
-  FullObjectSlot parameters_base(&Memory<Address>(sp()));
   FullObjectSlot spill_slots_end(frame_header_base.address() -
                                  spill_slots_size);
 
-  // Visit the rest of the parameters.
-  if (HasTaggedOutgoingParams(code)) {
+  // Visit the rest of the parameters. A fast C call has no outgoing parameters
+  // to visit, and its sp() is unknown.
+  if (!InFastCCall() && HasTaggedOutgoingParams(code)) {
+    // Parameters passed to the callee.
+#if V8_ENABLE_WEBASSEMBLY
+    // Frame layout without stack switching (stack grows upwards):
+    //
+    //         | callee      |
+    //         | frame       |
+    //         |-------------| <- sp()
+    //         | out params  |
+    //         |-------------| <- frame_header_base - spill_slot_space
+    //         | spill slots |
+    //         |-------------| <- frame_header_base
+    //         | frame header|
+    //         |-------------| <- fp()
+    //
+    // With stack-switching:
+    //
+    //        Secondary stack:      Central stack:
+    //
+    //                              | callee     |
+    //                              | frame      |
+    //                              |------------| <- sp()
+    //                              | out params |
+    //        |-------------|       |------------|
+    //        | spill slots |       ^ maybe_stack_switch.target_sp
+    //        |-------------| <- frame_header_base
+    //        | frame header|
+    //        |-------------| <- fp()
+    //
+    // The base (lowest address) of the outgoing stack parameters area is always
+    // sp(), and the limit (highest address) is either {frame_header_base -
+    // spill_slot_size} or {maybe_stack_switch.target_sp} depending on
+    // stack-switching.
+    wasm::StackMemory::StackSwitchInfo maybe_stack_switch;
+    if (iterator_->wasm_stack() != nullptr) {
+      maybe_stack_switch = iterator_->wasm_stack()->stack_switch_info();
+    }
+    FullObjectSlot parameters_limit(
+        maybe_stack_switch.has_value() && maybe_stack_switch.source_fp == fp()
+            ? maybe_stack_switch.target_sp
+            : frame_header_base.address() - spill_slots_size);
+#else
+    FullObjectSlot parameters_limit(frame_header_base.address() -
+                                    spill_slots_size);
+#endif
+    FullObjectSlot parameters_base(&Memory<Address>(sp()));
     v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
                          parameters_limit);
   }
