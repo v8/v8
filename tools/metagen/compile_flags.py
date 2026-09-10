@@ -24,9 +24,10 @@ instrumentation, warnings-as-errors) or that libclang rejects (input
 file, response files).
 
 The clang builtin headers (stddef.h etc.) are not handled here: the
-build system passes their directory explicitly via metagen.py's
---clang-builtin-headers-dir. Probing for them would read paths the
-build never declared, which a sandboxed action cannot do.
+build system points metagen.py at the toolchain that holds them, via
+--clang-resource-dir or --clang-builtin-headers-dir. Probing for them
+would read paths the build never declared, which a sandboxed action
+cannot do.
 """
 
 from __future__ import annotations
@@ -77,14 +78,9 @@ _DROP_TWO = frozenset({
 # a file it would not read (see also -fno-sanitize-ignorelist in
 # metagen.py, which suppresses the implicit ones).
 #
-# The -fmodule*/-fimplicit-module* family goes too. A build with
-# use_clang_modules compiles against prebuilt .pcm files and passes
-# -fno-implicit-modules to forbid building them on the fly; those .pcms
-# are real build artifacts the harvest neither has nor can produce, so
-# the parse dies on the first modular header ("module 'X' is needed but
-# has not been provided"). Dropping the whole family (not just
-# -fno-implicit-modules) keeps the harvest textual: leaving -fmodules on
-# would let libclang build implicit modules mid-harvest instead.
+# Also strip modules flags. Modular headers need prebuilt .pcm files that we
+# can't produce, so the parse has to stay textual. That includes
+# -fbuiltin-module-map, which modularizes whatever -resource-dir= points at.
 _DROP_PREFIX = (
     "-Werror",  # bare and -Werror=<warning>
     "-fcrash-diagnostics-dir=",
@@ -94,7 +90,9 @@ _DROP_PREFIX = (
     "-fsanitize-system-ignorelist=",
     "-fsanitize-blacklist=",  # the pre-LLVM-13 spelling
     "-fmodule",  # -fmodules, -fmodule-file=, -fmodule-map-file=, ...
+    "-fimplicit-module",  # -fimplicit-modules, ...-module-maps
     "-fno-implicit-module",  # -fno-implicit-modules, ...-module-maps
+    "-fbuiltin-module-map",
 )
 
 _CXX_INPUT_EXTS = (".cc", ".cpp", ".cxx", ".cppm", ".c++", ".C")

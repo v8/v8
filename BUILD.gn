@@ -2483,11 +2483,9 @@ if (v8_use_metagen_instance_types) {
     }
   }
 
-  # Clang's builtin headers (stddef.h, stdarg.h, the arch intrinsics).
-  # llvm-libclang ships none, so they come from the clang toolchain, which
-  # rolls from the same LLVM revision and therefore matches it.
-  _metagen_builtin_headers_dir =
-      "$clang_base_path/lib/clang/$clang_version/include"
+  # The clang toolchain's resource dir contains builting headers
+  # include/{stddef.h,stdarg.h,...}.
+  _metagen_clang_resource_dir = "$clang_base_path/lib/clang/$clang_version"
   _metagen_flags_target = ":v8_base_without_compiler"
   _metagen_flags_target_ninja =
       get_label_info(_metagen_flags_target, "target_out_dir") +
@@ -2533,7 +2531,7 @@ if (v8_use_metagen_instance_types) {
                # Proxy for the whole builtin-header directory, which has no
                # GN glob: a toolchain roll rewrites stddef.h along with the
                # rest, and the harvest cannot parse without it.
-               "$_metagen_builtin_headers_dir/stddef.h",
+               "$_metagen_clang_resource_dir/include/stddef.h",
              ] + _metagen_libclang_files
 
     outputs = [ "$_metagen_out_dir/instance-types.h" ]
@@ -2579,10 +2577,11 @@ if (v8_use_metagen_instance_types) {
       "--flags-dependency",
       rebase_path(_metagen_flags_target_ninja, root_build_dir),
 
-      # Passed explicitly rather than probed for, so a toolchain layout
-      # change surfaces here instead of as a parse failure.
-      "--clang-builtin-headers-dir",
-      rebase_path(_metagen_builtin_headers_dir, root_build_dir),
+      # We pass a resource dir, not an include dir, so the driver decides where
+      # the builtin headers sit: behind libc++, ahead of the Windows SDK's
+      # copies of stddef.h and the intrinsics. See tools/metagen/metagen.py.
+      "--clang-resource-dir",
+      rebase_path(_metagen_clang_resource_dir, root_build_dir),
     ]
 
     if (v8_metagen_libclang_so != "") {

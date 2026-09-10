@@ -155,20 +155,20 @@ def _class_info_from_cursor(
 def _dump_parse_failure(v8_root: str,
                         driver_path: str,
                         parse_flags: list[str],
+                        reason: str,
                         parse_cwd: str | None = None) -> None:
-  """Surface libclang's failure on an unrecoverable TU parse.
+  """Re-run the parse through the clang binary and forward its stderr.
 
-  libclang's Python binding loses diagnostics when CXTranslationUnit is
-  NULL (the from_source path raises TranslationUnitLoadError before
-  returning a TU). The clang binary, given the same driver + flags via
-  -fsyntax-only, prints the underlying error to stderr. Run it and
-  forward stderr so the user actually sees what's wrong (typically a
-  sysroot / target-triple / include-path issue) instead of an opaque
-  "Error parsing translation unit."
+  Covers both ways the parse fails. On an unrecoverable TU the Python
+  binding drops the diagnostics: CXTranslationUnit is NULL and
+  from_source raises, so all we have is "Error parsing translation
+  unit". On a TU that parsed with errors we have diagnostics but not the
+  `In file included from ...` stacks, which are what show a header
+  resolving to a different file than the build's compile uses. clang
+  prints both.
 
-  Best-effort: if the bundled clang is missing or the subprocess fails
-  to spawn, we just log that fact and let the original exception
-  propagate.
+  Best-effort: if the bundled clang is missing or won't spawn, we log
+  that and let the caller fail as it would have anyway.
   """
   # libclang's argv mirrors the GCC-style clang driver, not clang-cl.
   # On Linux/Mac the Chromium toolchain ships clang directly; on
@@ -190,8 +190,8 @@ def _dump_parse_failure(v8_root: str,
       clang_bin = candidate
       break
   print(
-      "[metagen] libclang refused the TU; re-running via clang -fsyntax-only "
-      "to surface diagnostics:",
+      f"[metagen] {reason}; re-running via clang -fsyntax-only to surface "
+      "diagnostics:",
       file=sys.stderr)
   print(f"[metagen]   clang: {clang_bin}", file=sys.stderr)
   print(f"[metagen]   driver: {driver_path}", file=sys.stderr)
@@ -264,8 +264,10 @@ def scan_cpp(v8_root: str,
       # so we have no diagnostics to read via libclang. Re-run the
       # parse via the clang binary as a subprocess; its stderr carries
       # the actual error.
-      _dump_parse_failure(v8_root, driver_path, parse_flags, parse_cwd)
+      _dump_parse_failure(v8_root, driver_path, parse_flags,
+                          "libclang refused the TU", parse_cwd)
       raise
+    _reject_recovery_ast(tu, v8_root, driver_path, parse_flags, parse_cwd)
     return _harvest_classes(tu, v8_root)
   finally:
     if saved_cwd is not None:
@@ -302,22 +304,34 @@ def _qualified_name(cursor: cindex.Cursor) -> str:
   return "::".join(reversed(parts))
 
 
-def _harvest_classes(tu, v8_root: str) -> ScanResult:
-  # Never consume Clang's recovery AST. A missing declaration can corrupt a
-  # base edge or field type while leaving enough cursors for generation to
-  # appear successful, which is especially unsafe for object layout metadata.
-  errors = [d for d in tu.diagnostics if d.severity >= cindex.Diagnostic.Error]
-  if errors:
-    for d in errors[:30]:
-      print(
-          f"[metagen] diag {d.severity} {d.location}: {d.spelling}",
-          file=sys.stderr)
-    print(
-        f"[metagen] libclang reported {len(errors)} error diagnostic(s); "
-        "refusing to harvest a recovery AST.",
-        file=sys.stderr)
-    sys.exit(1)
+def _reject_recovery_ast(tu,
+                         v8_root: str,
+                         driver_path: str,
+                         parse_flags: list[str],
+                         parse_cwd: str | None = None) -> None:
+  """Exit unless the TU parsed cleanly.
 
+  Never consume Clang's recovery AST. A missing declaration can corrupt a
+  base edge or field type while leaving enough cursors for generation to
+  appear successful, which is especially unsafe for object layout metadata.
+  """
+  errors = [d for d in tu.diagnostics if d.severity >= cindex.Diagnostic.Error]
+  if not errors:
+    return
+  for d in errors[:30]:
+    print(
+        f"[metagen] diag {d.severity} {d.location}: {d.spelling}",
+        file=sys.stderr)
+  if len(errors) > 30:
+    print(f"[metagen] ... and {len(errors) - 30} more", file=sys.stderr)
+  _dump_parse_failure(v8_root, driver_path, parse_flags,
+                      f"libclang reported {len(errors)} error diagnostic(s)",
+                      parse_cwd)
+  print("[metagen] refusing to harvest a recovery AST.", file=sys.stderr)
+  sys.exit(1)
+
+
+def _harvest_classes(tu, v8_root: str) -> ScanResult:
   # Pre-index every CLASS_TEMPLATE definition in the TU so the
   # inheritance walk can resolve template-instantiated base types
   # through partial specializations + parameter substitution. AND
