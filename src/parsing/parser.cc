@@ -943,6 +943,8 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
   DirectHandle<FixedArray> arguments =
       maybe_wrapped_arguments_.ToHandleChecked();
   uint32_t arguments_length = arguments->ulength().value();
+  SBXCHECK_LE(arguments_length, static_cast<uint32_t>(Code::kMaxArguments -
+                                                      kJSArgcReceiverSlots));
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
       zone->New<ZonePtrList<const AstRawString>>(arguments_length, zone);
   for (uint32_t i = 0; i < arguments_length; i++) {

@@ -53,7 +53,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       bytecode_generated_(false),
       constant_array_builder_(zone),
       handler_table_builder_(zone),
-      parameter_count_(parameter_count),
+      parameter_count_(base::checked_cast<uint16_t>(parameter_count)),
       max_arguments_(0),
       local_register_count_(locals_count),
       register_allocator_(fixed_register_count()),
