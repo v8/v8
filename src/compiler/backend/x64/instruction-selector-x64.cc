@@ -5062,7 +5062,7 @@ void InstructionSelector::VisitF16x8ReplaceLane(OpIndex node) {
   Emit(kX64FReplaceLane | LaneSizeField::encode(LaneSize::kL16) |
            VectorLengthField::encode(VectorLength::kV128),
        g.DefineSameAsFirst(node), g.UseRegister(op.into()),
-       g.UseImmediate(op.lane), g.Use(op.new_lane()));
+       g.UseImmediate(op.lane), g.UseRegister(op.new_lane()));
 }
 
 void InstructionSelector::VisitF32x4ReplaceLane(OpIndex node) {
