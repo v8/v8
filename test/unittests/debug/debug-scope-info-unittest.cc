@@ -6,6 +6,8 @@
 
 #include <iterator>
 
+#include "include/v8-function.h"
+#include "src/api/api-inl.h"
 #include "src/ast/scopes.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
@@ -21,7 +23,7 @@
 namespace v8 {
 namespace internal {
 
-class DebugScopeInfoTest : public TestWithIsolate {
+class DebugScopeInfoTest : public TestWithNativeContext {
  public:
   struct ParsedScript {
     std::unique_ptr<UnoptimizedCompileState> compile_state;
@@ -857,6 +859,476 @@ TEST_F(DebugScopeInfoTest, SideTableClearedOnUnload) {
   v8::debug::SetDebugDelegate(v8_isolate(), nullptr);
 
   EXPECT_TRUE(debug->GetScriptScopeInfo(script).is_null());
+}
+
+TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> foo = RunJS<JSFunction>(
+      "function foo() { let a = 1; function bar() { return a; } return bar; } "
+      "foo;");
+  DirectHandle<Script> script(Cast<Script>(foo->shared()->script()), isolate());
+
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(script).is_null());
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), script);
+  ASSERT_FALSE(info.is_null());
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+
+  EXPECT_EQ(*info, *EnsureDebugScriptScopeInfo(isolate(), script));
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(script).is_null());
+}
+
+TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_DirectEval) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "function outer() {\n"
+      "  'use strict';\n"
+      "  let outer_lexical = 42;\n"
+      "  return eval('function inner() { return outer_lexical; } inner;');\n"
+      "}\n"
+      "outer();");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), eval_script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kStrict);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(eval_script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_IndirectEval) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> indirect_fn = RunJS<JSFunction>(
+      "function outer() {\n"
+      "  'use strict';\n"
+      "  return (0, eval)('function indirectInner() { return 1; } "
+      "indirectInner;');\n"
+      "}\n"
+      "outer();");
+  DirectHandle<Script> eval_script(
+      Cast<Script>(indirect_fn->shared()->script()), isolate());
+  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), eval_script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kSloppy);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(eval_script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest,
+       EnsureDebugScriptScopeInfo_DirectEval_StrictCallerNoContext) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "'use strict';\n"
+      "eval('function inner() { return 1; } inner;');");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+  EXPECT_FALSE(eval_script->has_eval_from_scope_info());
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), eval_script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kStrict);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(eval_script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest,
+       EnsureDebugScriptScopeInfo_DirectEval_StrictFunctionNoContext) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "function outer() {\n"
+      "  'use strict';\n"
+      "  return eval('function inner() { return 1; } inner;');\n"
+      "}\n"
+      "outer();");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), eval_script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kStrict);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(eval_script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest,
+       EnsureDebugScriptScopeInfo_DirectEval_SloppyCallerSloppyEval) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "function outer() {\n"
+      "  var x = 1;\n"
+      "  return eval('function inner() { return x; } inner;');\n"
+      "}\n"
+      "outer();");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), eval_script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kSloppy);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(eval_script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest,
+       EnsureDebugScriptScopeInfo_DirectEval_SloppyCallerStrictEval) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "function outer() {\n"
+      "  var x = 1;\n"
+      "  return eval('\"use strict\"; function inner() { return x; } "
+      "inner;');\n"
+      "}\n"
+      "outer();");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), eval_script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kStrict);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(eval_script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_IndirectEval_StrictBody) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> indirect_fn = RunJS<JSFunction>(
+      "(0, eval)('\"use strict\"; function indirectInner() { return 1; } "
+      "indirectInner;');");
+  DirectHandle<Script> eval_script(
+      Cast<Script>(indirect_fn->shared()->script()), isolate());
+  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), eval_script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kStrict);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(eval_script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_DirectEval_PostGC) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "function outer() {\n"
+      "  'use strict';\n"
+      "  let outer_lexical = 42;\n"
+      "  return eval('function inner() { return outer_lexical; } inner;');\n"
+      "}\n"
+      "outer();");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  isolate()->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
+                                       i::GarbageCollectionReason::kTesting);
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), eval_script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kStrict);
+}
+
+TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_WrappedScript) {
+  v8::HandleScope scope(v8_isolate());
+  v8::ScriptCompiler::Source script_source(
+      NewString("let wrapped_x = 10; return wrapped_x;"));
+  v8::Local<v8::Function> fun =
+      v8::ScriptCompiler::CompileFunction(context(), &script_source)
+          .ToLocalChecked();
+  Handle<JSFunction> function = Cast<JSFunction>(Utils::OpenHandle(*fun));
+  DirectHandle<Script> script(Cast<Script>(function->shared()->script()),
+                              isolate());
+  EXPECT_TRUE(script->is_wrapped());
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kSloppy);
+
+  auto inner_scope = root_scope.first_child();
+  ASSERT_TRUE(inner_scope.has_value());
+  EXPECT_TRUE(inner_scope->is_function_scope());
+  EXPECT_EQ(inner_scope->language_mode(), LanguageMode::kSloppy);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest,
+       EnsureDebugScriptScopeInfo_WrappedScript_StrictMode) {
+  v8::HandleScope scope(v8_isolate());
+  v8::ScriptCompiler::Source script_source(
+      NewString("'use strict'; let wrapped_x = 10; return wrapped_x;"));
+  v8::Local<v8::Function> fun =
+      v8::ScriptCompiler::CompileFunction(context(), &script_source)
+          .ToLocalChecked();
+  Handle<JSFunction> function = Cast<JSFunction>(Utils::OpenHandle(*fun));
+  DirectHandle<Script> script(Cast<Script>(function->shared()->script()),
+                              isolate());
+  EXPECT_TRUE(script->is_wrapped());
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), script);
+  ASSERT_FALSE(info.is_null());
+
+  // The outer wrapper declaration scope (eval scope) is always sloppy mode.
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kSloppy);
+
+  // The inner wrapped function inherits the 'use strict' directive.
+  auto inner_scope = root_scope.first_child();
+  ASSERT_TRUE(inner_scope.has_value());
+  EXPECT_TRUE(inner_scope->is_function_scope());
+  EXPECT_EQ(inner_scope->language_mode(), LanguageMode::kStrict);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest,
+       EnsureDebugScriptScopeInfo_WrappedScript_ContextExtension) {
+  v8::HandleScope scope(v8_isolate());
+  RunJS("var ext_obj = {x: 42};");
+  v8::Local<v8::Object> ext[1];
+  ext[0] =
+      v8::Local<v8::Object>::Cast(context()
+                                      ->Global()
+                                      ->Get(context(), NewString("ext_obj"))
+                                      .ToLocalChecked());
+  v8::ScriptCompiler::Source script_source(
+      NewString("let local_y = 100; return x + local_y;"));
+  v8::Local<v8::Function> fun =
+      v8::ScriptCompiler::CompileFunction(context(), &script_source, 0, nullptr,
+                                          1, ext)
+          .ToLocalChecked();
+  Handle<JSFunction> function = Cast<JSFunction>(Utils::OpenHandle(*fun));
+  DirectHandle<Script> script(Cast<Script>(function->shared()->script()),
+                              isolate());
+  EXPECT_TRUE(script->is_wrapped());
+
+  DirectHandle<Context> fn_context(function->context(), isolate());
+  EXPECT_FALSE(IsNativeContext(*fn_context));
+
+  // Verify runtime execution resolves `x` from the context extension.
+  v8::Local<v8::Value> call_result =
+      fun->Call(context(), context()->Global(), 0, nullptr).ToLocalChecked();
+  EXPECT_EQ(142, call_result->Int32Value(context()).ToChecked());
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(script).is_null());
+
+  // Reparsing does not require the runtime context extension; it faithfully
+  // extracts internal AST scope topology and local variables without it.
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kSloppy);
+
+  auto inner_scope = root_scope.first_child();
+  ASSERT_TRUE(inner_scope.has_value());
+  EXPECT_TRUE(inner_scope->is_function_scope());
+  EXPECT_EQ(inner_scope->language_mode(), LanguageMode::kSloppy);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_CacheMissDefaultArgs) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> foo = RunJS<JSFunction>(
+      "function foo() { let a = 1; function bar() { return a; } return bar; } "
+      "foo;");
+  DirectHandle<Script> script(Cast<Script>(foo->shared()->script()), isolate());
+
+  // Verify on regular script without any handles.
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), script);
+  ASSERT_FALSE(info.is_null());
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+
+  // Also verify cache miss with default args on direct eval script.
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "function outer() {\n"
+      "  'use strict';\n"
+      "  let outer_lexical = 42;\n"
+      "  return eval('function inner() { return outer_lexical; } inner;');\n"
+      "}\n"
+      "outer();");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  EXPECT_EQ(eval_script->compilation_type(), Script::CompilationType::kEval);
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(eval_script).is_null());
+
+  Handle<DebugScriptScopeInfo> eval_info =
+      EnsureDebugScriptScopeInfo(isolate(), eval_script);
+  ASSERT_FALSE(eval_info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(eval_info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kStrict);
+}
+
+TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_FunctionConstructor) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> fun =
+      RunJS<JSFunction>("new Function('a', 'let b = 2; return a + b;');");
+  DirectHandle<Script> script(Cast<Script>(fun->shared()->script()), isolate());
+  EXPECT_EQ(script->compilation_kind(),
+            Script::CompilationKind::kFunctionConstructor);
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_eval_scope());
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
+}
+
+TEST_F(DebugScopeInfoTest, EnsureDebugScriptScopeInfo_Module) {
+  v8::HandleScope scope(v8_isolate());
+  v8::ScriptOrigin origin(NewString("module.js"), 0, 0, false, -1,
+                          v8::Local<v8::Value>(), false, false,
+                          true /* is_module */);
+  v8::ScriptCompiler::Source script_source(
+      NewString("let module_x = 42;\n"
+                "export function getX() { return module_x; }"),
+      origin);
+  v8::Local<v8::Module> module =
+      v8::ScriptCompiler::CompileModule(v8_isolate(), &script_source)
+          .ToLocalChecked();
+  DirectHandle<SharedFunctionInfo> sfi =
+      Utils::OpenHandle(*module->GetUnboundModuleScript());
+  DirectHandle<Script> script(Cast<Script>(sfi->script()), isolate());
+  EXPECT_TRUE(script->origin_options().IsModule());
+
+  isolate()->debug()->ClearScriptScopeInfos();
+  EXPECT_TRUE(isolate()->debug()->GetScriptScopeInfo(script).is_null());
+
+  Handle<DebugScriptScopeInfo> info =
+      EnsureDebugScriptScopeInfo(isolate(), script);
+  ASSERT_FALSE(info.is_null());
+
+  DebugScriptScope root_scope = DebugScriptScope::FromIndex(info, 0);
+  EXPECT_TRUE(root_scope.is_module_scope());
+  EXPECT_EQ(root_scope.language_mode(), LanguageMode::kStrict);
+
+  auto inner_scope = root_scope.first_child();
+  ASSERT_TRUE(inner_scope.has_value());
+  EXPECT_TRUE(inner_scope->is_function_scope());
+  EXPECT_EQ(inner_scope->language_mode(), LanguageMode::kStrict);
+
+  auto cached_info = isolate()->debug()->GetScriptScopeInfo(script);
+  ASSERT_FALSE(cached_info.is_null());
+  EXPECT_EQ(*info, *cached_info);
 }
 
 }  // namespace internal

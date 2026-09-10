@@ -18,6 +18,7 @@ namespace internal {
 
 class DeclarationScope;
 class Isolate;
+class Script;
 class String;
 
 // Structure holding deserialized variable information for debugger inspection.
@@ -123,6 +124,15 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
 // into a DebugScriptScopeInfo.
 V8_EXPORT_PRIVATE Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     Isolate* isolate, DeclarationScope* script_scope);
+
+// Ensures that `script` has an associated DebugScriptScopeInfo. If not yet
+// created, parses the script once eagerly, builds the scope info, and
+// caches it in the Debug ephemeron side table.
+//
+// All necessary scoping information (caller ScopeInfo for eval scripts,
+// wrapped arguments for wrapped scripts) is retained on the Script itself.
+V8_EXPORT_PRIVATE Handle<DebugScriptScopeInfo> EnsureDebugScriptScopeInfo(
+    Isolate* isolate, DirectHandle<Script> script);
 
 }  // namespace internal
 }  // namespace v8

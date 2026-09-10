@@ -14,12 +14,15 @@
 #include "src/base/numerics/safe_conversions.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
+#include "src/debug/debug.h"
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/parsing/parse-info.h"
+#include "src/parsing/parsing.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -403,7 +406,7 @@ DebugVariableInfo DebugScriptScope::variable(int index) const {
 Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     Isolate* isolate, DeclarationScope* script_scope) {
   DCHECK_NOT_NULL(script_scope);
-  DCHECK(script_scope->is_script_scope());
+  DCHECK(script_scope->is_toplevel_scope());
 
   Zone* zone = script_scope->zone();
   ZoneVector<const AstRawString*> string_table(zone);
@@ -432,12 +435,15 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     }
   };
   collect(collect, script_scope);
+  DCHECK(!all_scopes.empty());
+  DCHECK(!all_scopes[0]->is_with_scope());
 
   auto find_scope_index = [&](Scope* s) -> int32_t {
     if (s == nullptr) return -1;
     auto it = scope_to_index.find(s);
     return it != scope_to_index.end() ? it->second : -1;
   };
+  DCHECK_EQ(find_scope_index(all_scopes[0]->outer_scope()), -1);
 
   // Stage 1: Pre-calculate exact required byte size and scope offsets.
   size_t total_size = kInt32Size + all_scopes.size() * kUInt32Size;
@@ -520,11 +526,14 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     uint16_t var_count = base::checked_cast<uint16_t>(
         std::distance(scope->locals()->begin(), scope->locals()->end()));
 
+    int32_t parent_scope_index = find_scope_index(scope->outer_scope());
+    DCHECK_EQ(parent_scope_index == -1, i == 0);
+
     ByteArrayWriter writer(record);
     writer.Write<ScopeRecord>(ScopeRecord{
         .start_position = scope->start_position(),
         .end_position = scope->end_position(),
-        .parent_scope_index = find_scope_index(scope->outer_scope()),
+        .parent_scope_index = parent_scope_index,
         .flags = flags,
         .var_count = var_count,
     });
@@ -540,6 +549,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     }
     if (has_this_decl) {
       Variable* var = scope->AsDeclarationScope()->receiver();
+      DCHECK_NE(var->location(), VariableLocation::LOOKUP);
       VariableAllocationInfo info = var->location() == VariableLocation::CONTEXT
                                         ? VariableAllocationInfo::CONTEXT
                                         : VariableAllocationInfo::STACK;
@@ -547,6 +557,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     }
     if (has_arguments) {
       Variable* var = scope->AsDeclarationScope()->arguments();
+      DCHECK_NE(var->location(), VariableLocation::LOOKUP);
       VariableAllocationInfo info = var->location() == VariableLocation::CONTEXT
                                         ? VariableAllocationInfo::CONTEXT
                                         : VariableAllocationInfo::STACK;
@@ -554,6 +565,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     }
     if (has_function_var) {
       Variable* var = scope->AsDeclarationScope()->function_var();
+      DCHECK_NE(var->location(), VariableLocation::LOOKUP);
       VariableAllocationInfo info = var->location() == VariableLocation::CONTEXT
                                         ? VariableAllocationInfo::CONTEXT
                                         : VariableAllocationInfo::STACK;
@@ -563,6 +575,12 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     }
 
     for (Variable* var : *scope->locals()) {
+      DCHECK_EQ(var->scope(), scope);
+      // Variables declared in locals() must be statically allocated (or
+      // unallocated if unused). They must never require dynamic lookup against
+      // an outer context (e.g. VariableLocation::LOOKUP), which would indicate
+      // dependence on outer runtime scopes such as WithScopes.
+      DCHECK_NE(var->location(), VariableLocation::LOOKUP);
       const AstRawString* raw = var->raw_name();
       // LINT.IfChange(VariableIsSynthetic)
       // Keep in sync with ScopeInfo::VariableIsSynthetic() in
@@ -610,6 +628,50 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
   }
   return isolate->factory()->NewDebugScriptScopeInfo(byte_array,
                                                      final_string_table);
+}
+
+Handle<DebugScriptScopeInfo> EnsureDebugScriptScopeInfo(
+    Isolate* isolate, DirectHandle<Script> script) {
+  DirectHandle<DebugScriptScopeInfo> cached_info =
+      isolate->debug()->GetScriptScopeInfo(script);
+  if (!cached_info.is_null()) {
+    return handle(*cached_info, isolate);
+  }
+
+  // UnoptimizedCompileFlags::ForScriptCompile automatically initializes flags
+  // from the script object:
+  // - Sets is_toplevel(true) and preserves REPL and module flags.
+  // - Restores outer_language_mode and compilation kind (host, eval, wrapped,
+  //   Function constructor).
+  // - For wrapped scripts, sets function_syntax_kind to kWrapped and is_eval.
+  //
+  // Eager compilation ensures all inner function scopes are parsed rather
+  // than skipped. Marking as reparse prevents spawning background parallel
+  // compile tasks and preserves context allocation flags.
+  UnoptimizedCompileFlags flags =
+      UnoptimizedCompileFlags::ForScriptCompile(isolate, *script)
+          .set_is_eager(true);
+  flags.set_is_reparse(true);
+
+  MaybeDirectHandle<ScopeInfo> maybe_outer_scope;
+  if (script->has_eval_from_scope_info()) {
+    maybe_outer_scope =
+        direct_handle(Cast<ScopeInfo>(script->eval_from_scope_info()), isolate);
+  }
+
+  UnoptimizedCompileState compile_state;
+  ReusableUnoptimizedCompileState reusable_state(isolate);
+  ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+
+  if (!parsing::ParseProgram(&info, script, maybe_outer_scope, isolate,
+                             parsing::ReportStatisticsMode{false})) {
+    return Handle<DebugScriptScopeInfo>::null();
+  }
+
+  Handle<DebugScriptScopeInfo> debug_info =
+      SerializeDebugScriptScopeInfo(isolate, info.literal()->scope());
+  isolate->debug()->SetScriptScopeInfo(script, debug_info);
+  return debug_info;
 }
 
 #ifdef VERIFY_HEAP
