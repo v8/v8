@@ -4673,18 +4673,28 @@ class LiftoffCompiler {
     if (!CheckSupportedType(decoder, kind, "store")) return;
 
     LiftoffRegList pinned;
-    LiftoffRegister value = pinned.set(__ PopToRegister());
+    // Where the architecture has an immediate store form, store an integer
+    // constant directly instead of materializing it in a register first. Only
+    // i32 and i64 values are ever constant in the cache state, and Liftoff
+    // keeps i64 constants as sign-extended 32-bit values.
+    VarState value = __ PopVarState();
+    if (!LiftoffAssembler::kSupportsStoreConst || !value.is_const()) {
+      LiftoffRegister reg = pinned.set(__ LoadToRegister(value, pinned));
+      value.MakeRegister(reg);
+    }
 
     if (type.value() == StoreType::kF32StoreF16 &&
         !asm_.supports_f16_mem_access()) {
       type = StoreType::kI32Store16;
-      // {value} is always a float, so can't alias with {i16}.
+      // {value} is always a float, so it is never a constant and cannot
+      // alias with {i16}.
       DCHECK_EQ(kF32, kind);
+      DCHECK(value.is_reg());
       LiftoffRegister i16 = pinned.set(__ GetUnusedRegister(kGpReg, {}));
       auto conv_ref = ExternalReference::wasm_float32_to_float16();
       GenerateCCallWithStackBuffer(&i16, kVoid, kI16,
-                                   {VarState{kF32, value, 0}}, conv_ref);
-      value = i16;
+                                   {VarState{kF32, value.reg(), 0}}, conv_ref);
+      value.MakeRegister(i16);
     }
 
     uintptr_t offset = imm.offset;
@@ -4698,8 +4708,13 @@ class LiftoffCompiler {
       __ cache_state()->stack_state.pop_back();
       SCOPED_CODE_COMMENT("store to memory (constant offset)");
       Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
-      __ Store(mem, no_reg, offset, value, type, pinned, nullptr, true,
-               i64_offset);
+      if (value.is_const()) {
+        __ StoreConst(mem, no_reg, offset, value.i32_const(), type, nullptr,
+                      i64_offset);
+      } else {
+        __ Store(mem, no_reg, offset, value.reg(), type, pinned, nullptr, true,
+                 i64_offset);
+      }
     } else {
       LiftoffRegister full_index = __ PopToRegister(pinned);
       ForceCheck force_check =
@@ -4718,8 +4733,13 @@ class LiftoffCompiler {
       Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
       LiftoffRegList outer_pinned;
       if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
-      __ Store(mem, index, offset, value, type, outer_pinned,
-               &trapping_store_pc, true, i64_offset);
+      if (value.is_const()) {
+        __ StoreConst(mem, index, offset, value.i32_const(), type,
+                      &trapping_store_pc, i64_offset);
+      } else {
+        __ Store(mem, index, offset, value.reg(), type, outer_pinned,
+                 &trapping_store_pc, true, i64_offset);
+      }
       if (imm.memory->bounds_checks == kTrapHandler) {
         RegisterTrappingInstruction(decoder, trapping_store_pc);
       }

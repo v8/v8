@@ -706,6 +706,36 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   }
 }
 
+void LiftoffAssembler::StoreConst(Register dst_addr, Register offset_reg,
+                                  uintptr_t offset_imm, int32_t value,
+                                  StoreType type, uint32_t* trapping_store_pc,
+                                  bool i64_offset) {
+  if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  if (trapping_store_pc) *trapping_store_pc = pc_offset();
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8:
+      movb(dst_op, Immediate(value));
+      break;
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16:
+      movw(dst_op, Immediate(value));
+      break;
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32:
+      movl(dst_op, Immediate(value));
+      break;
+    case StoreType::kI64Store:
+      // The 32-bit immediate is sign-extended, matching how Liftoff keeps i64
+      // constants.
+      movq(dst_op, Immediate(value));
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* trapping_store_pc,
