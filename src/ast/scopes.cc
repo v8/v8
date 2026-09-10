@@ -3063,6 +3063,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
           }
         } else {
           scope_info = Cast<ScopeInfo>(info);
+          if (scope_info->IsEmpty()) continue;
         }
         while (true) {
           if (scope_info == outer) break;
