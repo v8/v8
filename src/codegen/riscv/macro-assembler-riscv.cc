@@ -56,6 +56,9 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 
   if (fp_mode == SaveFPRegsMode::kSave) {
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
+#if V8_ENABLE_SIMD128
+    bytes += kCallerSavedVR.Count() * kSimd128Size;
+#endif
   }
 
   return bytes;
@@ -73,6 +76,14 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   if (fp_mode == SaveFPRegsMode::kSave) {
     MultiPushFPU(kCallerSavedFPU);
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
+#if V8_ENABLE_SIMD128
+    // The vector registers are a separate register file from the FPU
+    // registers, so they must be saved independently. SaveVectorRegisters
+    // takes care of only accessing vector registers if the hardware supports
+    // SIMD, reserving the same amount of stack space in either case.
+    SaveVectorRegisters(kCallerSavedVR);
+    bytes += kCallerSavedVR.Count() * kSimd128Size;
+#endif
   }
 
   return bytes;
@@ -82,6 +93,10 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                    Register exclusion2, Register exclusion3) {
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
+#if V8_ENABLE_SIMD128
+    RestoreVectorRegisters(kCallerSavedVR);
+    bytes += kCallerSavedVR.Count() * kSimd128Size;
+#endif
     MultiPopFPU(kCallerSavedFPU);
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
   }
