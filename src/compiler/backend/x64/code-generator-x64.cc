@@ -2304,6 +2304,48 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Sub128:
       ASSEMBLE_BINOP_WIDE(subq, sbbq);
       break;
+    case kX64Add64_3: {
+      DCHECK_EQ(i.InputRegister(0), i.OutputRegister(0));
+      size_t last_input_index = instr->InputCount() - 1;
+      DCHECK(HasRegisterInput(instr, last_input_index));
+      Register carry_in = i.InputRegister(last_input_index);
+      Register out_low = i.OutputRegister(0);
+      Register out_high = no_reg;
+      Register temp = no_reg;
+      bool use_out_high = instr->OutputCount() > 1;
+      bool use_temp = false;
+      if (use_out_high) {
+        out_high = i.OutputRegister(1);
+        temp = i.TempRegister(0);
+        size_t end = instr->InputCount();
+        for (size_t j = 0; j < end; j++) {
+          if (HasRegisterInput(instr, j)) {
+            CHECK_NE(i.InputRegister(j), temp);
+            if (i.InputRegister(j) == out_high) {
+              use_temp = true;
+              out_high = temp;
+            }
+          }
+        }
+      }
+
+      // GCC style: just addc, no setcc.
+      if (use_out_high) __ xorq(out_high, out_high);
+      size_t index = 1;
+      if (HasAddressingMode(instr)) {
+        Operand b = i.MemoryOperand(&index);
+        __ addq(out_low, b);
+      } else {
+        ASSEMBLE_RHS(addq, out_low, index);
+      }
+      DCHECK_EQ(index, last_input_index);
+      if (use_out_high) __ adcq(out_high, Immediate(0));
+      __ addq(out_low, carry_in);
+      if (use_out_high) __ adcq(out_high, Immediate(0));
+      if (use_temp) __ movq(i.OutputRegister(1), temp);
+      break;
+    }
+
     case kX64And32:
       ASSEMBLE_BINOP(andl);
       break;

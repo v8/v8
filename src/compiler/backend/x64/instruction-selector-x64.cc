@@ -565,6 +565,7 @@ class X64OperandGenerator final : public OperandGenerator {
       case kX64Or:
       case kX64Xor:
       case kX64Add:
+      case kX64Add64_3:
       case kX64Add128:
       case kX64Sub128:
       case kX64Sub:
@@ -2546,6 +2547,44 @@ void InstructionSelector::VisitUint64Add128(OpIndex node) {
 
 void InstructionSelector::VisitUint64Sub128(OpIndex node) {
   VisitWideAddSub(this, node, false);
+}
+
+void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
+  X64OperandGenerator g(this);
+  InstructionOperand inputs[8];
+  size_t input_count = 0;
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  const auto& op = this->Get(node).Cast<Word64Add3Op>();
+  InstructionCode opcode = kX64Add64_3;
+
+  inputs[input_count++] = g.UseRegister(op.first());
+  auto b = op.second();
+  int effect_level = this->GetEffectLevel(node);
+  if (g.CanBeMemoryOperand(opcode, node, b, effect_level)) {
+    AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
+        b, inputs, &input_count,
+        X64OperandGenerator::RegisterUseKind::kUseUniqueRegister);
+    opcode |= AddressingModeField::encode(addressing_mode);
+  } else {
+    inputs[input_count++] = g.UseUnique(b);
+  }
+  inputs[input_count++] = g.UseUniqueRegister(op.third());
+  DCHECK_GE(arraysize(inputs), input_count);
+
+  OptionalOpIndex out_low = FindProjection(node, 0);
+  outputs[output_count++] =
+      g.DefineSameAsFirst(out_low.valid() ? out_low.value() : node);
+
+  OptionalOpIndex out_high = FindProjection(node, 1);
+  InstructionOperand temps[1];
+  size_t temp_count = 0;
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    outputs[output_count++] = g.DefineAsRegister(out_high.value());
+    temps[temp_count++] = g.TempRegister();
+  }
+
+  Emit(opcode, output_count, outputs, input_count, inputs, temp_count, temps);
 }
 
 void InstructionSelector::VisitInt32Div(OpIndex node) {

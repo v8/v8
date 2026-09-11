@@ -1603,6 +1603,61 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceOverflowCheckedBinop(left, right, kind, rep);
   }
 
+  // Checks if {al, ah} is the result of an add128(x, 0, y, 0) and {bh} is
+  // another constant 0 high half, and returns the nested add128 if so.
+  // Returns nullptr if it fails to match the pattern.
+  const Word64AddSub128BinopOp* TryMatchAdd3(V<Word64> al, V<Word64> ah,
+                                             V<Word64> bh) {
+    const ProjectionOp* p0 = matcher_.TryCast<ProjectionOp>(al);
+    if (!p0 || p0->index != 0) return nullptr;
+    const ProjectionOp* p1 = matcher_.TryCast<ProjectionOp>(ah);
+    if (!p1 || p1->index != 1) return nullptr;
+    if (p0->input() != p1->input()) return nullptr;
+    if (!matcher_.Get(al).saturated_use_count.Is(0) ||
+        !matcher_.Get(ah).saturated_use_count.Is(0)) {
+      return nullptr;
+    }
+    const Word64AddSub128BinopOp* nested =
+        matcher_.TryCast<Word64AddSub128BinopOp>(p0->input());
+    if (!nested) return nullptr;
+    if (nested->kind != Word64AddSub128BinopOp::Kind::kAdd) return nullptr;
+    int64_t cx, cy, cz;
+    if (!matcher_.MatchIntegralWord64Constant(nested->left_high(), &cx) ||
+        !matcher_.MatchIntegralWord64Constant(nested->right_high(), &cy) ||
+        !matcher_.MatchIntegralWord64Constant(bh, &cz)) {
+      return nullptr;
+    }
+    if (cx != 0 || cy != 0 || cz != 0) return nullptr;
+    return nested;
+  }
+
+  V<Word64Pair> REDUCE(Word64AddSub128Binop)(
+      V<Word64> al, V<Word64> ah, V<Word64> bl, V<Word64> bh,
+      Word64AddSub128BinopOp::Kind kind) {
+    if (ShouldSkipOptimizationStep()) {
+      return Next::ReduceWord64AddSub128Binop(al, ah, bl, bh, kind);
+    }
+
+    // TODO(ryandiaz): implement on arm64
+#ifdef V8_TARGET_ARCH_X64
+    if (kind == Word64AddSub128BinopOp::Kind::kAdd) {
+      // add128(add128(x, 0, y, 0), z, 0) -> add3(x, y, z)
+      if (const Word64AddSub128BinopOp* nested = TryMatchAdd3(al, ah, bh)) {
+        return __ Word64Add3(nested->left_low(), nested->right_low(), bl);
+      }
+
+      // add128(x, 0, add128(y, 0, z, 0)) -> add3(x, y, z)
+      if (const Word64AddSub128BinopOp* nested = TryMatchAdd3(bl, bh, ah)) {
+        return __ Word64Add3(al, nested->left_low(), nested->right_low());
+      }
+
+      // TODO(ryandiaz): sub128(sub128(x, 0, y, 0), z, 0) -> sub2(x, y, z)
+      // TODO(ryandiaz): sub128(x, 0, add128(y, 0, z, 0)) -> sub2(x, y, z)
+    }
+#endif  // V8_TARGET_ARCH_X64
+    return Next::ReduceWord64AddSub128Binop(al, ah, bl, bh, kind);
+  }
+
   V<Word32> REDUCE(Comparison)(V<Any> left, V<Any> right,
                                ComparisonOp::Kind kind,
                                RegisterRepresentation rep) {

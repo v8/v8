@@ -1405,6 +1405,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   void VisitWord64MulWide(turboshaft::OpIndex node, bool is_signed);
   void VisitUint64Add128(turboshaft::OpIndex node);
   void VisitUint64Sub128(turboshaft::OpIndex node);
+  void VisitUint64Add3WithCarry(turboshaft::OpIndex node);
 
   void TryPrepareScheduleFirstProjection(turboshaft::OpIndex maybe_projection);
 

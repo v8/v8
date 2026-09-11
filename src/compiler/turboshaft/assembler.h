@@ -4823,6 +4823,10 @@ class AssemblerOpInterface : public Next {
                                 Word64AddSub128BinopOp::Kind::kSub);
   }
 
+  V<Word64Pair> Word64Add3(V<Word64> a, V<Word64> b, V<Word64> c) {
+    return ReduceIfReachableWord64Add3(a, b, c);
+  }
+
   V<Word64Pair> Word64MulWide(V<Word64> left, V<Word64> right,
                               Word64MulWideOp::Kind kind) {
     return ReduceIfReachableWord64MulWide(left, right, kind);

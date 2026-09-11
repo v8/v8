@@ -2649,6 +2649,10 @@ void InstructionSelector::VisitUint64Sub128(OpIndex node) {
   VisitWideAddSub(this, node, false);
 }
 
+void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
+  UNIMPLEMENTED();
+}
+
 #if V8_ENABLE_SIMD128
 
 namespace {
