@@ -24,7 +24,6 @@
 #include "src/wasm/interpreter/wasm-interpreter.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
