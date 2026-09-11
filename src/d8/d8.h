@@ -366,6 +366,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
   // the worker_mutex_ and after checking the worker state.
   Isolate* isolate_ = nullptr;
   Isolate* parent_isolate_;
+  std::shared_ptr<TaskRunner> parent_task_runner_;
 
   // Only accessed by the worker thread.
   Global<Context> context_;

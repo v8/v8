@@ -6521,7 +6521,8 @@ Worker::Worker(Isolate* parent_isolate, const char* script,
                bool flush_denormals)
     : script_(i::StrDup(script)),
       flush_denormals_(flush_denormals),
-      parent_isolate_(parent_isolate) {
+      parent_isolate_(parent_isolate),
+      parent_task_runner_(g_platform->GetForegroundTaskRunner(parent_isolate)) {
   state_.store(State::kReady);
 }
 
@@ -6894,9 +6895,8 @@ void Worker::ExecuteInThread() {
   out_semaphore_.Signal();
   // Also post an cleanup task to the parent isolate, so that it sees that this
   // worker is terminated and can clean it up in a thread-safe way.
-  g_platform->GetForegroundTaskRunner(parent_isolate_)
-      ->PostTask(std::make_unique<CleanUpWorkerTask>(parent_isolate_,
-                                                     this->shared_from_this()));
+  parent_task_runner_->PostTask(std::make_unique<CleanUpWorkerTask>(
+      parent_isolate_, this->shared_from_this()));
 }
 
 void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -6921,8 +6921,8 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
     worker->out_queue_.Enqueue(std::move(data));
     worker->out_semaphore_.Signal();
-    g_platform->GetForegroundTaskRunner(worker->parent_isolate_)
-        ->PostTask(std::make_unique<CheckMessageFromWorkerTask>(
+    worker->parent_task_runner_->PostTask(
+        std::make_unique<CheckMessageFromWorkerTask>(
             worker->parent_isolate_, worker->shared_from_this()));
   }
 }
