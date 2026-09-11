@@ -3959,7 +3959,7 @@ void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void Shell::GetContinuationPreservedEmbedderData(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  Local<Data> data = isolate->GetContinuationPreservedEmbedderDataV2();
+  Local<Data> data = isolate->GetContinuationPreservedEmbedderData();
   DCHECK(!data.IsEmpty());
   if (!data->IsValue()) {
     data = Undefined(isolate);

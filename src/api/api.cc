@@ -10497,15 +10497,15 @@ i::ValueHelper::InternalRepresentationType Isolate::GetDataFromSnapshotOnce(
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
 }
 
-Local<Data> Isolate::GetContinuationPreservedEmbedderData() {
-  return GetContinuationPreservedEmbedderDataV2();
-}
-
-void Isolate::SetContinuationPreservedEmbedderData(Local<Data> data) {
-  SetContinuationPreservedEmbedderDataV2(data);
-}
-
 Local<Data> Isolate::GetContinuationPreservedEmbedderDataV2() {
+  return GetContinuationPreservedEmbedderData();
+}
+
+void Isolate::SetContinuationPreservedEmbedderDataV2(Local<Data> data) {
+  SetContinuationPreservedEmbedderData(data);
+}
+
+Local<Data> Isolate::GetContinuationPreservedEmbedderData() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   return ToApiHandle<Data>(i::direct_handle(
@@ -10516,7 +10516,7 @@ Local<Data> Isolate::GetContinuationPreservedEmbedderDataV2() {
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 }
 
-void Isolate::SetContinuationPreservedEmbedderDataV2(Local<Data> data) {
+void Isolate::SetContinuationPreservedEmbedderData(Local<Data> data) {
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   if (data.IsEmpty()) {

@@ -995,6 +995,7 @@ class V8_EXPORT Isolate {
    * if any. Returns undefiend if no continuation preserved embedder data was
    * set.
    */
+  V8_DEPRECATE_SOON("Use GetContinuationPreservedEmbedderData instead")
   Local<Data> GetContinuationPreservedEmbedderDataV2();
 
   /**
@@ -1002,6 +1003,7 @@ class V8_EXPORT Isolate {
    * continuation runs. If `data` is empty, the continuation preserved embedder
    * data is set to undefined.
    */
+  V8_DEPRECATE_SOON("Use SetContinuationPreservedEmbedderData instead")
   void SetContinuationPreservedEmbedderDataV2(Local<Data> data);
 
   /**
