@@ -410,12 +410,13 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
   // The synchronization mechanism to use here depends on the slot size:
   DCHECK_EQ(GetKind(slot), FeedbackSlotKind::kJumpLoop);
   DCHECK_GT(FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kJumpLoop), 1);
-  base::MutexGuard mutex_guard(isolate->feedback_vector_access());
 
   auto current = GetOptimizedOsrCode(isolate, {}, slot);
   if (V8_UNLIKELY(current && current.value()->kind() > code->kind())) {
     return;
   }
+
+  base::MutexGuard mutex_guard(isolate->feedback_vector_access());
   Set(slot, MakeWeak(code->wrapper()));
   set_maybe_has_optimized_osr_code(true, code->kind());
 }
