@@ -3178,16 +3178,14 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
 }
 
 namespace {
-Maybe<bool> StoreOwnElement(Isolate* isolate, DirectHandle<JSArray> array,
-                            Handle<Object> index, DirectHandle<Object> value) {
+V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> StoreOwnElement(
+    Isolate* isolate, DirectHandle<JSArray> array, Handle<Object> index,
+    DirectHandle<Object> value) {
   DCHECK(IsNumber(*index));
   PropertyKey key(isolate, index);
   LookupIterator it(isolate, array, key, LookupIterator::OWN);
 
-  MAYBE_RETURN(JSObject::DefineOwnPropertyIgnoreAttributes(
-                   &it, value, NONE, Just(ShouldThrow::kThrowOnError)),
-               Nothing<bool>());
-  return Just(true);
+  return JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE);
 }
 }  // namespace
 
@@ -3199,7 +3197,8 @@ MaybeDirectHandle<Object> StoreInArrayLiteralIC::Store(
 
   if (!v8_flags.use_ic || state() == NO_FEEDBACK ||
       MigrateDeprecated(isolate(), array)) {
-    MAYBE_RETURN_NULL(StoreOwnElement(isolate(), array, index, value));
+    RETURN_ON_EXCEPTION(isolate(),
+                        StoreOwnElement(isolate(), array, index, value));
     TraceIC("StoreInArrayLiteralIC", index);
     return value;
   }
@@ -3214,7 +3213,8 @@ MaybeDirectHandle<Object> StoreInArrayLiteralIC::Store(
   }
 
   Handle<Map> old_array_map(array->map(), isolate());
-  MAYBE_RETURN_NULL(StoreOwnElement(isolate(), array, index, value));
+  RETURN_ON_EXCEPTION(isolate(),
+                      StoreOwnElement(isolate(), array, index, value));
 
   if (IsSmi(*index)) {
     DCHECK(!old_array_map->is_abandoned_prototype_map());
@@ -3766,8 +3766,8 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Slow) {
   DirectHandle<Object> value = args.at(0);
   DirectHandle<Object> array = args.at(1);
   Handle<Object> index = args.at(2);
-  StoreOwnElement(isolate, Cast<JSArray>(array), index, value);
-  return *value;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, StoreOwnElement(isolate, Cast<JSArray>(array), index, value));
 }
 
 RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
@@ -3789,8 +3789,8 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   }
 
   if (IsStoreInArrayLiteralICKind(kind)) {
-    StoreOwnElement(isolate, Cast<JSArray>(object), key, value);
-    return *value;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, StoreOwnElement(isolate, Cast<JSArray>(object), key, value));
   } else {
     DCHECK(IsKeyedStoreICKind(kind) || IsSetNamedICKind(kind) ||
            IsDefineKeyedOwnICKind(kind));

@@ -872,7 +872,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
   F(DefineNamedOwnIC_Miss, 5, 1)             \
-  F(StoreInArrayLiteralIC_Slow, 5, 1)        \
+  F(StoreInArrayLiteralIC_Slow, 3, 1)        \
   F(StorePropertyPastInterceptor, 4, 1)      \
   F(CloneObjectIC_Slow, 2, 1)                \
   F(CloneObjectIC_Miss, 4, 1)                \
