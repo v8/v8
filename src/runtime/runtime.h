@@ -765,12 +765,12 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmSuspended, 2, 1)                                         \
   F(WasmAllocateContinuation, 3, 1)                              \
   F(ClearWasmSuspenderResumeField, 1, 1)                         \
-  F(WasmCastToSpecialPrimitiveArray, 2, 1)                       \
+  F(WasmCastToSpecialPrimitiveArray, 3, 1)                       \
   F(WasmStringAdd_NoMapCheck_Shared, 2, 1)                       \
   F(WasmStringNewSegmentWtf8, 5, 1)                              \
   F(WasmStringNewWtf8, 5, 1)                                     \
-  F(WasmStringNewWtf8Array, 5, 1)                                \
-  F(WasmStringNewWtf16, 4, 1)                                    \
+  F(WasmStringNewWtf8Array, 4, 1)                                \
+  F(WasmStringNewWtf16, 5, 1)                                    \
   F(WasmStringNewWtf16Array, 4, 1)                               \
   F(WasmStringConst, 2, 1)                                       \
   F(WasmStringMeasureUtf8, 1, 1)                                 \
@@ -778,7 +778,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmStringEncodeWtf8, 5, 1)                                  \
   F(WasmStringEncodeWtf16, 6, 1)                                 \
   F(WasmStringEncodeWtf8Array, 4, 1)                             \
-  F(WasmStringToUtf8Array, 1, 1)                                 \
+  F(WasmStringToUtf8Array, 2, 1)                                 \
   F(WasmStringAsWtf8, 1, 1)                                      \
   F(WasmStringViewWtf8Encode, 7, 1)                              \
   F(WasmStringViewWtf8Slice, 3, 1)                               \

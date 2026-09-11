@@ -147,15 +147,13 @@ DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
   DCHECK(unibrow::Utf8::ValidateEncoding(name_vec.begin(), name_vec.size()));
   auto* factory = isolate->factory();
   DCHECK_IMPLIES(shared, !internalize);
-  return internalize ? factory->InternalizeUtf8String(
-                           base::Vector<const char>::cast(name_vec))
-         : shared
-             ? factory
-                   ->NewSharedStringFromUtf8(
-                       base::Vector<const char>::cast(name_vec))
-                   .ToHandleChecked()
+  return internalize
+             ? factory->InternalizeUtf8String(
+                   base::Vector<const char>::cast(name_vec))
              : factory
-                   ->NewStringFromUtf8(base::Vector<const char>::cast(name_vec))
+                   ->NewStringFromUtf8(
+                       name_vec, UnicodeConfig(unibrow::Utf8Variant::kLossyUtf8,
+                                               SharedFlag{false}, shared))
                    .ToHandleChecked();
 }
 

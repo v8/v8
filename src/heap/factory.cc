@@ -968,91 +968,92 @@ MaybeHandle<String> NewStringFromUtf8Variant(Isolate* isolate,
   UNREACHABLE();
 }
 
+inline base::OwnedVector<uint8_t> CopyBytes(const base::Atomic8* src,
+                                            size_t length) {
+  auto copy = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+  base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(copy.data()), src,
+                       length);
+  return copy;
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+inline base::OwnedVector<uint16_t> CopyCodeUnits(const base::Atomic16* src,
+                                                 size_t length) {
+  auto copy = base::OwnedVector<uint16_t>::NewForOverwrite(length);
+  for (size_t i = 0; i < length; i++) {
+    auto dest = reinterpret_cast<base::Atomic16*>(copy.data() + i);
+    base::Relaxed_Store(dest, base::Relaxed_Load(src + i));
+  }
+  return copy;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 }  // namespace
 
 MaybeHandle<String> Factory::NewStringFromUtf8(
-    base::Vector<const uint8_t> string, unibrow::Utf8Variant utf8_variant,
+    base::Vector<const uint8_t> string, UnicodeConfig config,
     AllocationType allocation) {
   if (string.size() > kMaxInt) {
     // The Utf8Decode can't handle longer inputs, and we couldn't create
     // strings from them anyway.
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
-  auto peek_bytes = [&]() -> base::Vector<const uint8_t> { return string; };
-  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
+  base::OwnedVector<uint8_t> private_copy;
+  if (config.source_shared()) {
+    private_copy = CopyBytes(
+        reinterpret_cast<const base::Atomic8*>(string.data()), string.size());
+  }
+  auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
+    return config.source_shared() ? private_copy.as_vector() : string;
+  };
+  if (config.dest_shared()) {
+    return NewStringFromUtf8Variant(isolate(), peek_bytes, config.variant(),
+                                    SharedStringBuilder{},
+                                    AllocationType::kSharedOld);
+  }
+  return NewStringFromUtf8Variant(isolate(), peek_bytes, config.variant(),
                                   StringBuilder{}, allocation);
 }
 
 MaybeHandle<String> Factory::NewStringFromUtf8(base::Vector<const char> string,
                                                AllocationType allocation) {
   return NewStringFromUtf8(base::Vector<const uint8_t>::cast(string),
-                           unibrow::Utf8Variant::kLossyUtf8, allocation);
-}
-
-MaybeHandle<String> Factory::NewSharedStringFromUtf8(
-    base::Vector<const uint8_t> string, unibrow::Utf8Variant utf8_variant) {
-  if (string.size() > kMaxInt) {
-    // The Utf8Decode can't handle longer inputs, and we couldn't create
-    // strings from them anyway.
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
-  }
-  auto peek_bytes = [&]() -> base::Vector<const uint8_t> { return string; };
-  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
-                                  SharedStringBuilder{},
-                                  AllocationType::kSharedOld);
-}
-
-MaybeHandle<String> Factory::NewSharedStringFromUtf8(
-    base::Vector<const char> string) {
-  return NewSharedStringFromUtf8(base::Vector<const uint8_t>::cast(string),
-                                 unibrow::Utf8Variant::kLossyUtf8);
+                           UnicodeConfig(unibrow::Utf8Variant::kLossyUtf8),
+                           allocation);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
 MaybeDirectHandle<String> Factory::NewStringFromUtf8(
     DirectHandle<WasmArray> array, uint32_t start, uint32_t end,
-    unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
+    UnicodeConfig config) {
   DCHECK_EQ(sizeof(uint8_t), WasmArray::DecodeElementSizeFromMap(array->map()));
   DCHECK_LE(start, end);
   DCHECK_LE(end, array->length());
   // {end - start} can never be more than what the Utf8Decoder can handle.
   static_assert(WasmArray::MaxLength(sizeof(uint8_t)) <= kMaxInt);
-  auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
-    const uint8_t* contents =
-        reinterpret_cast<const uint8_t*>(array->ElementAddress(0));
-    return {contents + start, end - start};
-  };
-  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
-                                  StringBuilder{}, allocation);
-}
-
-MaybeDirectHandle<String> Factory::NewSharedStringFromUtf8(
-    DirectHandle<WasmArray> array, uint32_t start, uint32_t end,
-    unibrow::Utf8Variant utf8_variant) {
-  DCHECK_EQ(sizeof(uint8_t), WasmArray::DecodeElementSizeFromMap(array->map()));
-  DCHECK_LE(start, end);
-  DCHECK_LE(end, array->length());
-  // {end - start} can never be more than what the Utf8Decoder can handle.
-  static_assert(WasmArray::MaxLength(sizeof(uint8_t)) <= kMaxInt);
-
-  // We need a private copy of the array's contents. We have a pass that
-  // validates utf8/computes the string's length and one that copies the bytes,
-  // and we cannot afford to have concurrent modifications to the array between
-  // those.
 
   uint32_t length = end - start;
-  const base::Atomic8* contents =
-      reinterpret_cast<base::Atomic8*>(array->ElementAddress(start));
-  auto private_copy = base::OwnedVector<uint8_t>::NewForOverwrite(length);
-  base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(private_copy.data()),
-                       contents, length);
-
+  base::OwnedVector<uint8_t> private_copy;
+  if (config.source_shared()) {
+    private_copy = CopyBytes(
+        reinterpret_cast<const base::Atomic8*>(array->ElementAddress(start)),
+        length);
+  }
   auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
-    return private_copy.as_vector();
+    if (config.source_shared()) {
+      return private_copy.as_vector();
+    }
+    const uint8_t* contents =
+        reinterpret_cast<const uint8_t*>(array->ElementAddress(0));
+    return {contents + start, length};
   };
-  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
-                                  SharedStringBuilder{},
-                                  AllocationType::kSharedOld);
+  if (config.dest_shared()) {
+    return NewStringFromUtf8Variant(isolate(), peek_bytes, config.variant(),
+                                    SharedStringBuilder{},
+                                    AllocationType::kSharedOld);
+  }
+  return NewStringFromUtf8Variant(isolate(), peek_bytes, config.variant(),
+                                  StringBuilder{}, AllocationType::kYoung);
 }
 
 MaybeHandle<String> Factory::NewStringFromUtf8(
@@ -1089,54 +1090,38 @@ struct Wtf16Decoder {
 
 MaybeDirectHandle<String> Factory::NewStringFromUtf16(
     DirectHandle<WasmArray> array, uint32_t start, uint32_t end,
-    AllocationType allocation) {
+    UnicodeConfig config) {
   DCHECK_EQ(sizeof(uint16_t),
             WasmArray::DecodeElementSizeFromMap(array->map()));
   DCHECK_LE(start, end);
   DCHECK_LE(end, array->length());
   // {end - start} can never be more than what the Utf8Decoder can handle.
   static_assert(WasmArray::MaxLength(sizeof(uint16_t)) <= kMaxInt);
-  auto peek_bytes = [&]() -> base::Vector<const uint16_t> {
-    const uint16_t* contents =
-        reinterpret_cast<const uint16_t*>(array->ElementAddress(0));
-    return {contents + start, end - start};
-  };
-  return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
-                            NonSharedStringPolicy>(
-      isolate(), peek_bytes, allocation, MessageTemplate::kNone);
-}
-
-MaybeDirectHandle<String> Factory::NewSharedStringFromUtf16(
-    DirectHandle<WasmArray> array, uint32_t start, uint32_t end) {
-  DCHECK_EQ(sizeof(uint16_t),
-            WasmArray::DecodeElementSizeFromMap(array->map()));
-  DCHECK_LE(start, end);
-  DCHECK_LE(end, array->length());
-  // {end - start} can never be more than what the Utf8Decoder can handle.
-  static_assert(WasmArray::MaxLength(sizeof(uint16_t)) <= kMaxInt);
-
-  // We need a private copy of the array's contents. We have a pass that
-  // checks whether the string is one-byte and one that copies the bytes,
-  // and we cannot afford to have concurrent modifications to the array between
-  // those.
 
   uint32_t length = end - start;
-  const base::Atomic16* contents =
-      reinterpret_cast<base::Atomic16*>(array->ElementAddress(start));
-  auto private_copy = base::OwnedVector<uint16_t>::NewForOverwrite(length);
-
-  for (uint32_t i = 0; i < length; i++) {
-    auto dest = reinterpret_cast<base::Atomic16*>(private_copy.data() + i);
-    base::Relaxed_Store(dest, base::Relaxed_Load(contents + i));
+  base::OwnedVector<uint16_t> private_copy;
+  if (config.source_shared()) {
+    private_copy = CopyCodeUnits(
+        reinterpret_cast<const base::Atomic16*>(array->ElementAddress(start)),
+        length);
   }
-
   auto peek_bytes = [&]() -> base::Vector<const uint16_t> {
-    return private_copy.as_vector();
+    if (config.source_shared()) {
+      return private_copy.as_vector();
+    }
+    const uint16_t* contents =
+        reinterpret_cast<const uint16_t*>(array->ElementAddress(0));
+    return {contents + start, length};
   };
+  if (config.dest_shared()) {
+    return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
+                              SharedStringPolicy>(isolate(), peek_bytes,
+                                                  AllocationType::kSharedOld,
+                                                  MessageTemplate::kNone);
+  }
   return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
-                            SharedStringPolicy>(isolate(), peek_bytes,
-                                                AllocationType::kSharedOld,
-                                                MessageTemplate::kNone);
+                            NonSharedStringPolicy>(
+      isolate(), peek_bytes, AllocationType::kYoung, MessageTemplate::kNone);
 }
 
 MaybeDirectHandle<String> Factory::WasmStringAddShared(
@@ -1223,9 +1208,26 @@ MaybeDirectHandle<String> Factory::NewStringFromTwoByte(
 
 #if V8_ENABLE_WEBASSEMBLY
 MaybeDirectHandle<String> Factory::NewStringFromTwoByteLittleEndian(
-    base::Vector<const base::uc16> str, AllocationType allocation) {
+    base::Vector<const base::uc16> str, UnicodeConfig config) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  return NewStringFromTwoByte(str, allocation);
+  uint32_t length = static_cast<uint32_t>(str.length());
+  base::OwnedVector<uint16_t> private_copy;
+  if (config.source_shared()) {
+    private_copy = CopyCodeUnits(
+        reinterpret_cast<const base::Atomic16*>(str.data()), length);
+  }
+  auto peek_bytes = [&]() -> base::Vector<const uint16_t> {
+    return config.source_shared() ? private_copy.as_vector() : str;
+  };
+  if (config.dest_shared()) {
+    return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
+                              SharedStringPolicy>(isolate(), peek_bytes,
+                                                  AllocationType::kSharedOld,
+                                                  MessageTemplate::kNone);
+  }
+  return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
+                            NonSharedStringPolicy>(
+      isolate(), peek_bytes, AllocationType::kYoung, MessageTemplate::kNone);
 #elif defined(V8_TARGET_BIG_ENDIAN)
   // TODO(12868): Duplicate the guts of NewStringFromTwoByte, so that
   // copying and transcoding the data can be done in a single pass.

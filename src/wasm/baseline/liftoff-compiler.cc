@@ -22,6 +22,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
+#include "src/strings/unicode.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
@@ -9564,10 +9565,12 @@ class LiftoffCompiler {
 
     VarState memory_var{kI32, static_cast<int>(imm.index), 0};
 
-    LiftoffRegister variant_reg =
+    LiftoffRegister config_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(variant_reg, static_cast<int32_t>(variant));
-    VarState variant_var(kSmiKind, variant_reg, 0);
+    UnicodeConfig config(variant, imm.memory->is_shared,
+                         result->type.is_shared());
+    LoadSmi(config_reg, config.raw_as_int());
+    VarState config_var(kSmiKind, config_reg, 0);
 
     VarState& size_var = __ cache_state()->stack_state.end()[-1];
 
@@ -9577,7 +9580,7 @@ class LiftoffCompiler {
     CallBuiltin(
         Builtin::kWasmStringNewWtf8,
         MakeSig::Returns(kRefNull).Params(kIntPtrKind, kI32, kI32, kSmiKind),
-        {address, size_var, memory_var, variant_var}, decoder->position());
+        {address, size_var, memory_var, config_var}, decoder->position());
     __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -9597,19 +9600,19 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, array_reg.gp(), pinned, array.type);
     VarState array_var(kRef, array_reg, 0);
 
-    LiftoffRegister variant_reg =
+    LiftoffRegister config_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(variant_reg, static_cast<int32_t>(variant));
-    VarState variant_var(kSmiKind, variant_reg, 0);
-    VarState shared_var(kSmiKind, 0, 0);
+    UnicodeConfig config(variant, array.type.is_shared(),
+                         result->type.is_shared());
+    LoadSmi(config_reg, config.raw_as_int());
+    VarState config_var(kSmiKind, config_reg, 0);
 
-    CallBuiltin(
-        Builtin::kWasmStringNewWtf8Array,
-        MakeSig::Returns(kRefNull).Params(kI32, kI32, kRef, kSmiKind, kSmiKind),
-        {__ cache_state()->stack_state.end()[-2],  // start
-         __ cache_state()->stack_state.end()[-1],  // end
-         array_var, variant_var, shared_var},
-        decoder->position());
+    CallBuiltin(Builtin::kWasmStringNewWtf8Array,
+                MakeSig::Returns(kRefNull).Params(kI32, kI32, kRef, kSmiKind),
+                {__ cache_state()->stack_state.end()[-2],  // start
+                 __ cache_state()->stack_state.end()[-1],  // end
+                 array_var, config_var},
+                decoder->position());
     __ cache_state()->stack_state.pop_back(3);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -9620,17 +9623,25 @@ class LiftoffCompiler {
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
     FuzzerChargeSteps(decoder, 0);
+    LiftoffRegList pinned;
+
     VarState memory_var{kI32, static_cast<int32_t>(imm.index), 0};
+
+    LiftoffRegister config_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    UnicodeConfig config(imm.memory->is_shared, result->type.is_shared());
+    LoadSmi(config_reg, config.raw_as_int());
+    VarState config_var(kSmiKind, config_reg, 0);
 
     VarState& size_var = __ cache_state()->stack_state.end()[-1];
 
-    LiftoffRegList pinned;
     DCHECK(MatchingMemType(imm.memory, 1));
     VarState address = IndexToVarStateSaturating(1, &pinned);
 
-    CallBuiltin(Builtin::kWasmStringNewWtf16,
-                MakeSig::Returns(kRef).Params(kI32, kIntPtrKind, kI32),
-                {memory_var, address, size_var}, decoder->position());
+    CallBuiltin(
+        Builtin::kWasmStringNewWtf16,
+        MakeSig::Returns(kRef).Params(kI32, kIntPtrKind, kI32, kSmiKind),
+        {memory_var, address, size_var, config_var}, decoder->position());
     __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -9649,12 +9660,19 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, array_reg.gp(), pinned, array.type);
     VarState array_var(kRef, array_reg, 0);
 
+    LiftoffRegister config_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    UnicodeConfig config(array.type.is_shared(), result->type.is_shared());
+    LoadSmi(config_reg, config.raw_as_int());
+    VarState config_var(kSmiKind, config_reg, 0);
+
     CallBuiltin(Builtin::kWasmStringNewWtf16Array,
-                MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
+                MakeSig::Returns(kRef).Params(kRef, kI32, kI32, kSmiKind),
                 {
                     array_var,
                     __ cache_state()->stack_state.end()[-2],  // start
                     __ cache_state()->stack_state.end()[-1],  // end
+                    config_var,
                 },
                 decoder->position());
     __ cache_state()->stack_state.pop_back(3);

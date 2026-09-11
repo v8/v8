@@ -2291,15 +2291,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t memory = args.positive_smi_value_at(1);
-  uint32_t utf8_variant_value = args.positive_smi_value_at(2);
+  UnicodeConfig config(args.positive_smi_value_at(2));
   double offset_double = args.number_value_at(3);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
   uint32_t size = NumberToUint32(args[4]);
-
-  DCHECK(utf8_variant_value <=
-         static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
-
-  auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
   uint64_t mem_size = trusted_instance_data->memory_size(memory);
   if (!base::IsInBounds<uint64_t>(offset, size, mem_size)) {
@@ -2309,8 +2304,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
   const base::Vector<const uint8_t> bytes{
       trusted_instance_data->memory_base(memory) + offset, size};
   MaybeDirectHandle<v8::internal::String> result_string =
-      isolate->factory()->NewStringFromUtf8(bytes, utf8_variant);
-  if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
+      isolate->factory()->NewStringFromUtf8(bytes, config);
+  if (config.variant() == unibrow::Utf8Variant::kUtf8NoTrap) {
     // If the input was invalid, then the decoder has failed silently, and
     // the string.new_utf8_try instruction should return null.
     if (result_string.is_null() && !isolate->has_exception()) {
@@ -2323,24 +2318,16 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
-  uint32_t utf8_variant_value = args.positive_smi_value_at(0);
+  UnicodeConfig config(args.positive_smi_value_at(0));
   DirectHandle<WasmArray> array(Cast<WasmArray>(args[1]), isolate);
   uint32_t start = NumberToUint32(args[2]);
   uint32_t end = NumberToUint32(args[3]);
-  int shared = args.smi_value_at(4);
-
-  DCHECK(utf8_variant_value <=
-         static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
-  auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
   MaybeDirectHandle<v8::internal::String> result_string =
-      shared ? isolate->factory()->NewSharedStringFromUtf8(array, start, end,
-                                                           utf8_variant)
-             : isolate->factory()->NewStringFromUtf8(array, start, end,
-                                                     utf8_variant);
-  if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
+      isolate->factory()->NewStringFromUtf8(array, start, end, config);
+  if (config.variant() == unibrow::Utf8Variant::kUtf8NoTrap) {
     // If the input was invalid, then the decoder has failed silently, and
     // the string.new_utf8_array_try instruction should return null.
     if (result_string.is_null() && !isolate->has_exception()) {
@@ -2353,7 +2340,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       TrustedCast<WasmTrustedInstanceData>(args[0]);
@@ -2361,6 +2348,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   double offset_double = args.number_value_at(2);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
   uint32_t size_in_codeunits = NumberToUint32(args[3]);
+  UnicodeConfig config(args.positive_smi_value_at(4));
 
   uint64_t mem_size = trusted_instance_data->memory_size(memory);
   if (size_in_codeunits > kMaxUInt32 / 2 ||
@@ -2374,7 +2362,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   const uint8_t* bytes = trusted_instance_data->memory_base(memory) + offset;
   const base::uc16* codeunits = reinterpret_cast<const base::uc16*>(bytes);
   RETURN_RESULT_OR_TRAP(isolate->factory()->NewStringFromTwoByteLittleEndian(
-      {codeunits, size_in_codeunits}));
+      {codeunits, size_in_codeunits}, config));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
@@ -2383,11 +2371,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
   DirectHandle<WasmArray> array(Cast<WasmArray>(args[0]), isolate);
   uint32_t start = NumberToUint32(args[1]);
   uint32_t end = NumberToUint32(args[2]);
-  int shared = args.number_value_at(3);
+  UnicodeConfig config(args.positive_smi_value_at(3));
 
   RETURN_RESULT_OR_TRAP(
-      shared ? isolate->factory()->NewSharedStringFromUtf16(array, start, end)
-             : isolate->factory()->NewStringFromUtf16(array, start, end));
+      isolate->factory()->NewStringFromUtf16(array, start, end, config));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmSubstring) {

@@ -24,10 +24,6 @@
 // TODO(leszeks): Remove this by forward declaring JSRegExp::Flags.
 #include "src/objects/js-regexp.h"
 
-namespace unibrow {
-enum class Utf8Variant : uint8_t;
-}
-
 namespace v8 {
 namespace internal {
 
@@ -87,6 +83,7 @@ class SyntheticModule;
 class TemplateObjectDescription;
 template <typename T>
 class TrustedManaged;
+class UnicodeConfig;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 
@@ -339,6 +336,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       base::Vector<const char> str,
       AllocationType allocation = AllocationType::kYoung);
+
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       std::string_view str,
       AllocationType allocation = AllocationType::kYoung) {
@@ -346,27 +344,20 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      base::Vector<const uint8_t> str, unibrow::Utf8Variant utf8_variant,
+      base::Vector<const uint8_t> str, UnicodeConfig config,
       AllocationType allocation = AllocationType::kYoung);
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewSharedStringFromUtf8(
-      base::Vector<const char> str);
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewSharedStringFromUtf8(
-      std::string_view str) {
-    return NewSharedStringFromUtf8(base::StrVector(str));
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      base::Vector<const uint8_t> str,
+      unibrow::Utf8Variant utf8_variant = unibrow::Utf8Variant::kLossyUtf8,
+      AllocationType allocation = AllocationType::kYoung) {
+    return NewStringFromUtf8(str, UnicodeConfig(utf8_variant), allocation);
   }
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewSharedStringFromUtf8(
-      base::Vector<const uint8_t> str, unibrow::Utf8Variant utf8_variant);
 
 #if V8_ENABLE_WEBASSEMBLY
   V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewStringFromUtf8(
       DirectHandle<WasmArray> array, uint32_t begin, uint32_t end,
-      unibrow::Utf8Variant utf8_variant,
-      AllocationType allocation = AllocationType::kYoung);
-
-  V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewSharedStringFromUtf8(
-      DirectHandle<WasmArray> array, uint32_t begin, uint32_t end,
-      unibrow::Utf8Variant utf8_variant);
+      UnicodeConfig config);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       DirectHandle<ByteArray> array, uint32_t start, uint32_t end,
@@ -375,10 +366,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewStringFromUtf16(
       DirectHandle<WasmArray> array, uint32_t start, uint32_t end,
-      AllocationType allocation = AllocationType::kYoung);
-
-  V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewSharedStringFromUtf16(
-      DirectHandle<WasmArray> array, uint32_t start, uint32_t end);
+      UnicodeConfig config);
 
   V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> WasmStringAddShared(
       DirectHandle<String> left, DirectHandle<String> right);
@@ -396,9 +384,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Usually the two-byte encodings are in the native endianness, but for
   // WebAssembly linear memory, they are explicitly little-endian.
   V8_WARN_UNUSED_RESULT MaybeDirectHandle<String>
-  NewStringFromTwoByteLittleEndian(
-      base::Vector<const base::uc16> str,
-      AllocationType allocation = AllocationType::kYoung);
+  NewStringFromTwoByteLittleEndian(base::Vector<const base::uc16> str,
+                                   UnicodeConfig config);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   DirectHandle<JSStringIterator> NewJSStringIterator(Handle<String> string);
