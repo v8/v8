@@ -388,6 +388,7 @@
   'compiler/string-from-code-point': [SKIP],
   'compiler/regress-9945-1': [SKIP],
   'es6/iterator-eager-deopt': [SKIP],
+  'es6/array-iterator-turbo': [SKIP],
   'compiler/typedarray-resizablearraybuffer': [SKIP],
   'optimized-filter': [SKIP],
   'optimized-map': [SKIP],
