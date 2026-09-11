@@ -436,7 +436,7 @@ def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
       r'//.*({})'.format(base_function_pattern))
   exclusion_pattern = input_api.re.compile(
       r'::[A-Za-z0-9_]+({})|({})[^;]+'.format(base_function_pattern,
-                                              base_function_pattern) + '\{')
+                                              base_function_pattern) + r'\{')
 
   def FilterFile(affected_file):
     files_to_skip = (_EXCLUDED_PATHS +

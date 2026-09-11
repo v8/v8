@@ -74,11 +74,11 @@ LINT_RULES = """
 """.split()
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]')
-FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
+FLAGS_LINE = re.compile(r"//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
 ASSERT_OPTIMIZED_PATTERN = re.compile("assertOptimized")
-FLAGS_ENABLE_MAGLEV = re.compile("//\s*Flags:.*--maglev[^-].*\n")
-FLAGS_ENABLE_TURBOLEV = re.compile("//\s*Flags:.*--turbolev[^-].*\n")
-FLAGS_ENABLE_TURBOFAN = re.compile("//\s*Flags:.*--turbofan[^-].*\n")
+FLAGS_ENABLE_MAGLEV = re.compile(r"//\s*Flags:.*--maglev[^-].*\n")
+FLAGS_ENABLE_TURBOLEV = re.compile(r"//\s*Flags:.*--turbolev[^-].*\n")
+FLAGS_ENABLE_TURBOFAN = re.compile(r"//\s*Flags:.*--turbofan[^-].*\n")
 ASSERT_UNOPTIMIZED_PATTERN = re.compile("assertUnoptimized")
 
 TOOLS_PATH = dirname(abspath(__file__))
@@ -541,7 +541,7 @@ class SourceProcessor(SourceFileProcessor):
       print ("Runtime functions list is suspiciously short. "
              "Consider updating the presubmit script.")
       sys.exit(1)
-    str = '(\%\s+(' + '|'.join(runtime_functions) + '))[\s\(]'
+    str = r'(\%\s+(' + '|'.join(runtime_functions) + r'))[\s\(]'
     return re.compile(str)
 
   # Overwriting the one in the parent class.
@@ -789,7 +789,7 @@ class GCMoleProcessor(SourceFileProcessor):
   tools/gcmole/gcmole.py::build_file_list()
   """
   gcmole_re = re.compile('### gcmole(.*)')
-  arch_re = re.compile('\((.+)\) ###')
+  arch_re = re.compile(r'\((.+)\) ###')
 
   def IsRelevant(self, name):
     return True
