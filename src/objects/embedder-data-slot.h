@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_EMBEDDER_DATA_SLOT_H_
 #define V8_OBJECTS_EMBEDDER_DATA_SLOT_H_
 
+#include <type_traits>
 #include <utility>
 
 #include "include/cppgc/allocation.h"
@@ -133,9 +134,11 @@ class EmbedderDataSlot
   V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
       Isolate* isolate, Tagged<HeapObject> host, void* ptr,
       CppHeapPointerTag tag);
-  V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
-      Isolate* isolate, Tagged<HeapObject> host, void* ptr,
-      ExternalPointerTag tag);
+  template <typename T>
+    requires std::is_same_v<EmbedderDataArray, T> || std::is_same_v<JSObject, T>
+  static V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
+      Isolate* isolate, DirectHandle<T> host, int entry_or_embedder_field_index,
+      void* ptr, ExternalPointerTag tag);
 
 #ifdef V8_COMPRESS_POINTERS
   V8_INLINE void store_tagged_without_barrier(Tagged<Object> value);

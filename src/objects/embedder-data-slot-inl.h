@@ -12,6 +12,7 @@
 #include "include/v8-isolate.h"
 #include "src/base/memory.h"
 #include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/embedder-data-array.h"
 #include "src/objects/heap-object-field-inl.h"
@@ -205,16 +206,25 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
 #endif  // V8_COMPRESS_POINTERS
 }
 
-bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
-                                             Tagged<HeapObject> host, void* ptr,
-                                             ExternalPointerTag tag) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  cppgc::AllocationHandle& alloc_handle =
-      v8_isolate->GetCppHeap()->GetAllocationHandle();
-  auto* wrapper = cppgc::MakeGarbageCollected<EmbedderDataSlotWrapper>(
-      alloc_handle, ptr, tag);
-  return store_aligned_pointer(isolate, host, wrapper,
-                               CppHeapPointerTag::kEmbedderDataSlotTag);
+// static
+template <typename T>
+  requires std::is_same_v<EmbedderDataArray, T> ||
+           std::is_same_v<JSObject, T>
+bool EmbedderDataSlot::store_aligned_pointer(
+    Isolate* isolate, DirectHandle<T> host, int entry_or_embedder_field_index,
+    void* ptr, ExternalPointerTag tag) {
+  EmbedderDataSlotWrapper* wrapper = nullptr;
+  if (ptr != nullptr) {
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+    cppgc::AllocationHandle& alloc_handle =
+        v8_isolate->GetCppHeap()->GetAllocationHandle();
+    wrapper = cppgc::MakeGarbageCollected<EmbedderDataSlotWrapper>(alloc_handle,
+                                                                   ptr, tag);
+  }
+  DisallowGarbageCollection no_gc;
+  EmbedderDataSlot slot(*host, entry_or_embedder_field_index);
+  return slot.store_aligned_pointer(isolate, *host, wrapper,
+                                    CppHeapPointerTag::kEmbedderDataSlotTag);
 }
 
 #ifdef V8_COMPRESS_POINTERS
