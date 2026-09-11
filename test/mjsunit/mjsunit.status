@@ -1393,6 +1393,7 @@
   'tzoffset-transition-moscow': [PASS,FAIL],
   'tzoffset-transition-new-york': [PASS,FAIL],
   'tzoffset-seoul': [PASS,FAIL],
+  'tzoffset-fractional-los-angeles': [PASS,FAIL],
 
   # i18n is required for Intl
   'regress/regress-crbug-1052647': [PASS,FAIL],
@@ -1924,6 +1925,7 @@
   'tzoffset-transition-new-york': [SKIP],
   'tzoffset-transition-new-york-noi18n': [SKIP],
   'tzoffset-seoul': [SKIP],
+  'tzoffset-fractional-los-angeles': [SKIP],
   'tzoffset-seoul-noi18n': [SKIP],
 
   # Suspect to stress other tests when run in background.
@@ -1952,6 +1954,7 @@
   'tzoffset-transition-new-york': [SKIP],
   'tzoffset-transition-new-york-noi18n': [SKIP],
   'tzoffset-seoul': [SKIP],
+  'tzoffset-fractional-los-angeles': [SKIP],
   'tzoffset-seoul-noi18n': [SKIP],
   # Flaky OOM:
   'regress/regress-748069': [SKIP],

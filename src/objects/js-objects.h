@@ -1414,6 +1414,7 @@ V8_OBJECT class JSDate : public JSObject {
     kMillisecondUTC,
     kDaysUTC,
     kTimeInDayUTC,
+    // In milliseconds, see JSDate::GetUTCField.
     kTimezoneOffset
   };
 
