@@ -2522,13 +2522,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
   if (prop_info->kind == ParsePropertyKind::kNotSet &&
       base::IsInRange(peek(), Token::kGet, Token::kSet)) {
     Token::Value token = Next();
-    if (prop_info->ParsePropertyKindFromToken(peek())) {
+    if (prop_info->ParsePropertyKindFromToken(peek()) ||
+        V8_UNLIKELY(scanner()->literal_contains_escapes())) {
       prop_info->name = impl()->GetIdentifier();
       impl()->PushLiteralName(prop_info->name);
       return factory()->NewStringLiteral(prop_info->name, position());
-    }
-    if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
-      impl()->ReportUnexpectedToken(Token::kEscapedKeyword);
     }
     if (token == Token::kGet) {
       prop_info->kind = ParsePropertyKind::kAccessorGetter;
