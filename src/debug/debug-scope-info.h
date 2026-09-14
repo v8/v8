@@ -101,7 +101,7 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   const uint8_t* payload() const;
   const uint8_t* function_variable_payload() const;
   const uint8_t* variables_payload() const;
-  uint16_t flags() const;
+  uint32_t flags() const;
   int parent_index() const;
 
   // Chained offset calculation methods (private to DebugScriptScope).

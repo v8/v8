@@ -5,6 +5,7 @@
 #include "src/debug/debug-scope-info.h"
 
 #include <iterator>
+#include <string>
 
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
@@ -796,6 +797,148 @@ TEST_F(DebugScopeInfoTest, SyntheticAndReceiverVariables) {
   EXPECT_FALSE(arrow_has_receiver);
   EXPECT_TRUE(found_generator_obj);
   EXPECT_TRUE(found_private_member);
+}
+
+namespace {
+
+// Builds a source string by repeating `pattern` `count` times, substituting the
+// current index for each "%d".
+std::string Repeat(const char* pattern, int count) {
+  std::string result;
+  for (int i = 0; i < count; ++i) {
+    for (const char* p = pattern; *p != '\0'; ++p) {
+      if (p[0] == '%' && p[1] == 'd') {
+        result += std::to_string(i);
+        ++p;
+      } else {
+        result += *p;
+      }
+    }
+  }
+  return result;
+}
+
+// How many declarations each test generates. Chosen to be large enough that
+// the resulting indices and counts need the full 32-bit fields.
+constexpr int kManyContextVariables = 9000;
+constexpr int kManyParameters = 40000;
+constexpr int kManyLocals = 70000;
+
+}  // namespace
+
+// A sloppy direct eval forces context allocation of every variable, and
+// DeclarationScope::AllocateLocals() allocates the function variable last, so
+// it ends up with the highest context slot index in the scope.
+TEST_F(DebugScopeInfoTest, FunctionVariableWithLargeContextIndex) {
+  HandleScope scope(isolate());
+  std::string source = "var g = (function foo() {\n";
+  source += Repeat("  var v%d = %d;\n", kManyContextVariables);
+  source += "  eval(\"\");\n  return foo;\n});";
+  ParsedScript parsed = ParseAndSerialize(source.c_str());
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+  ASSERT_TRUE(func->has_function_variable());
+
+  auto [alloc_info, index] = func->function_variable_info();
+  EXPECT_EQ(alloc_info, VariableAllocationInfo::CONTEXT);
+  EXPECT_GT(index, kManyContextVariables);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// Same, for the 'arguments' variable, which is allocated after all parameters.
+TEST_F(DebugScopeInfoTest, ArgumentsWithLargeContextIndex) {
+  HandleScope scope(isolate());
+  std::string source = "function g(";
+  source += Repeat("q%d,", kManyContextVariables);
+  source += "qLast) { eval(\"\"); return arguments; }";
+  ParsedScript parsed = ParseAndSerialize(source.c_str());
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+  ASSERT_TRUE(func->has_arguments());
+
+  auto [alloc_info, index] = func->arguments_info();
+  EXPECT_EQ(alloc_info, VariableAllocationInfo::CONTEXT);
+  EXPECT_GT(index, kManyContextVariables);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// Parameters are part of Scope::locals() and their index goes up to
+// Code::kMaxArguments - 1.
+TEST_F(DebugScopeInfoTest, VariableWithLargeParameterSlotIndex) {
+  HandleScope scope(isolate());
+  std::string source = "function f(";
+  source += Repeat("p%d,", kManyParameters);
+  source += "pLast) { return p0; }";
+  ParsedScript parsed = ParseAndSerialize(source.c_str());
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+
+  int max_index = -1;
+  for (int i = 0; i < func->variable_count(); ++i) {
+    DebugVariableInfo var = func->variable(i);
+    if (var.location == VariableLocation::PARAMETER) {
+      if (var.index > max_index) max_index = var.index;
+    }
+  }
+  EXPECT_GE(max_index, kManyParameters);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// A single scope can declare a very large number of locals.
+TEST_F(DebugScopeInfoTest, ScopeWithVeryManyVariables) {
+  HandleScope scope(isolate());
+  std::string source = "function h() {\n";
+  source += Repeat("var w%d;\n", kManyLocals);
+  source += "return w0;\n}";
+  ParsedScript parsed = ParseAndSerialize(source.c_str());
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+  EXPECT_GE(func->variable_count(), kManyLocals);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// Same declarations, but a sloppy direct eval forces all of them into the
+// context. The highest context slot index then lands beyond 2^16, which is
+// what requires slot_index to be wider than 16 bits. (In the test above the
+// locals are unused and stay unallocated at index -1.)
+TEST_F(DebugScopeInfoTest, ContextSlotIndexAboveUint16Max) {
+  HandleScope scope(isolate());
+  std::string source = "function h() {\n";
+  source += Repeat("var w%d;\n", kManyLocals);
+  source += "eval(\"\");\nreturn w0;\n}";
+  ParsedScript parsed = ParseAndSerialize(source.c_str());
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+
+  int max_index = -1;
+  for (int i = 0; i < func->variable_count(); ++i) {
+    DebugVariableInfo var = func->variable(i);
+    if (var.location == VariableLocation::CONTEXT) {
+      if (var.index > max_index) max_index = var.index;
+    }
+  }
+  EXPECT_GT(max_index, 0xFFFF);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
 }
 
 TEST_F(DebugScopeInfoTest, DebugScriptScopeInfoSideTable) {
