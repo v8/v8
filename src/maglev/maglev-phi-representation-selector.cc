@@ -1788,10 +1788,27 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
   };
 
   if (!new_block->is_merge_block()) {
+    // A single predecessor, no merge required, we just reuse its snapshot.
     predecessors_.push_back(get_predecessor_snapshot(new_block->predecessor()));
+  } else if (new_block->is_loop()) {
+    if (!new_block->state()->is_resumable_loop()) {
+      // Non-resumable loops have a single forward edge that dominates the loop;
+      // we can thus just use it as the initial snapshot for the loop.
+      DCHECK_EQ(new_block->predecessor_count(), 2);
+      constexpr int kForwardPredecessorIndex = 0;
+      predecessors_.push_back(get_predecessor_snapshot(
+          new_block->predecessor_at(kForwardPredecessorIndex)));
+    } else {
+      // ... while resumable loops can be entered without going through the
+      // header. In that case we don't even attempt to reuse taggings from the
+      // predecessors and just start fresh. We're thus leaving {predecessors_}
+      // empty here.
+      DCHECK(predecessors_.empty());
+    }
   } else {
-    int skip_backedge = new_block->is_loop();
-    for (int i = 0; i < new_block->predecessor_count() - skip_backedge; i++) {
+    // A regular merge, we'll create Phis for Keys that have a value in all
+    // predecessors.
+    for (int i = 0; i < new_block->predecessor_count(); i++) {
       predecessors_.push_back(
           get_predecessor_snapshot(new_block->predecessor_at(i)));
     }
@@ -1811,28 +1828,17 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
       }
     }
 
-    // Only merge blocks should require Phis.
+    // Only non-loop merge blocks should require Phis.
     DCHECK(new_block->is_merge_block());
-
-    // Resumable loops are entered through their backedge, so the header
-    // doesn't dominate it and the self-reference set below wouldn't be valid.
-    if (new_block->state()->is_resumable_loop()) {
-      return static_cast<Phi*>(nullptr);
-    }
+    DCHECK(!new_block->is_loop());
+    DCHECK_EQ(new_block->predecessor_count(), predecessors.size());
 
     // We create a Phi to merge all of the existing taggings.
     int predecessor_count = new_block->predecessor_count();
     Phi* phi = Node::New<Phi>(zone(), predecessor_count, new_block->state(),
                               interpreter::Register());
-    for (int i = 0; static_cast<size_t>(i) < predecessors.size(); i++) {
+    for (int i = 0; i < predecessor_count; i++) {
       phi->set_input(i, predecessors[i]);
-    }
-    if (new_block->is_loop()) {
-      // The backedge is omitted from {predecessors}, since it hasn't been
-      // visited yet. We set the Phi as its own backedge.
-      DCHECK_EQ(predecessors.size(),
-                static_cast<size_t>(phi->backedge_index()));
-      phi->set_input(phi->backedge_index(), phi);
     }
     if (reducer_.has_graph_labeller()) reducer_.RegisterNode(phi);
     new_block->AddPhi(phi);
