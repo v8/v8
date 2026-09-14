@@ -486,7 +486,7 @@ inline void MaglevAssembler::SetSlotAddressForTaggedField(Register slot_reg,
 inline void MaglevAssembler::SetSlotAddressForFixedArrayElement(
     Register slot_reg, Register object, Register index) {
   TemporaryRegisterScope temps(this);
-  Register scratch = r0;
+  Register scratch = temps.AcquireScratch();
   AddS64(slot_reg, object,
          Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
   ShiftLeftU64(scratch, index, Operand(kTaggedSizeLog2));
