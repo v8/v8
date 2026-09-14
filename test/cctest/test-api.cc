@@ -32004,8 +32004,25 @@ TEST(LocalCasts) {
 class TestGarbagedCollectedData
     : public cppgc::GarbageCollected<TestGarbagedCollectedData> {
  public:
+  void MarkUsed() { was_used_ = true; }
+  bool was_used() const { return was_used_; }
   void Trace(cppgc::Visitor*) const {}
+
+ private:
+  bool was_used_ = false;
 };
+
+void ReadCppHeapExternalCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Local<v8::Data> data = info.DataV2();
+  CHECK(data->IsCppHeapExternal());
+  v8::Local<v8::CppHeapExternal>::Cast(data)
+      ->Value<TestGarbagedCollectedData>(
+          info.GetIsolate(),
+          v8::CppHeapPointerTagRange(v8::CppHeapPointerTag::kTagForTesting,
+                                     v8::CppHeapPointerTag::kTagForTesting))
+      ->MarkUsed();
+}
 
 class GCedWithCppHeapExternalJSRef
     : public cppgc::GarbageCollected<GCedWithCppHeapExternalJSRef> {
@@ -32172,6 +32189,59 @@ TEST(EmbedderDataAlignedPointers_CppHeapPointer) {
     CHECK_EQ(cpp_object.Get(),
              global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
                  isolate, 2, v8::CppHeapPointerTag::kTagForTesting));
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+TEST(FunctionTemplateCallbackDataV2_CppHeapExternal) {
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  create_params.cpp_heap =
+      v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),
+                          v8::CppHeapCreateParams({}))
+          .release();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
+  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+
+  {
+    LocalContext env(isolate);
+    v8::Global<v8::Function> function;
+    cppgc::WeakPersistent<TestGarbagedCollectedData> cpp_object(
+        cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
+            cpp_heap->GetAllocationHandle()));
+
+    {
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::CppHeapExternal> external =
+          v8::CppHeapExternal::New<TestGarbagedCollectedData>(
+              isolate, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
+      v8::Local<v8::FunctionTemplate> function_template =
+          v8::FunctionTemplate::New(isolate);
+      function_template->SetCallHandler(ReadCppHeapExternalCallback, external);
+      function.Reset(
+          isolate,
+          function_template->GetFunction(env.local()).ToLocalChecked());
+    }
+
+    {
+      i::EmbedderStackStateScope stack_scope(
+          heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
+          v8::StackState::kNoHeapPointers);
+      i::heap::InvokeMajorGC(heap);
+    }
+    CHECK(cpp_object.Get());
+
+    {
+      v8::HandleScope scope(isolate);
+      CHECK(!function.Get(isolate)
+                 ->Call(env.local(), v8::Undefined(isolate), 0, nullptr)
+                 .IsEmpty());
+    }
+    CHECK(cpp_object->was_used());
+    function.Reset();
   }
 
   isolate->Exit();

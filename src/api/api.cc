@@ -12204,28 +12204,40 @@ const CTypeInfo& CFunctionInfo::ArgumentInfo(unsigned int index) const {
 }
 
 namespace api_internal {
-V8_EXPORT v8::Local<v8::Value> GetFunctionTemplateData(
-    v8::Isolate* isolate, v8::Local<v8::Data> raw_target) {
+namespace {
+i::DirectHandle<i::Object> GetFunctionTemplateDataImpl(
+    v8::Isolate* isolate, v8::Local<v8::Data> raw_target,
+    const char* location) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::DirectHandle<i::Object> target = Utils::OpenDirectHandle(*raw_target);
   if (i::IsFunctionTemplateInfo(*target)) {
-    i::DirectHandle<i::Object> data(
+    return i::DirectHandle<i::Object>(
         i::Cast<i::FunctionTemplateInfo>(*target)->callback_data(kAcquireLoad),
         i_isolate);
-    return Utils::ToLocal(data);
-
-  } else if (i::IsJSFunction(*target)) {
+  }
+  if (i::IsJSFunction(*target)) {
     i::DirectHandle<i::JSFunction> target_func = i::Cast<i::JSFunction>(target);
     auto shared = target_func->shared();
     if (shared->IsApiFunction()) {
-      i::DirectHandle<i::Object> data(
+      return i::DirectHandle<i::Object>(
           shared->api_func_data()->callback_data(kAcquireLoad), i_isolate);
-      return Utils::ToLocal(data);
     }
   }
-  Utils::ApiCheck(false, "api_internal::GetFunctionTemplateData",
-                  "Target function is not an Api function");
+  Utils::ApiCheck(false, location, "Target function is not an Api function");
   UNREACHABLE();
+}
+}  // namespace
+
+V8_EXPORT v8::Local<v8::Value> GetFunctionTemplateData(
+    v8::Isolate* isolate, v8::Local<v8::Data> raw_target) {
+  return Utils::ToLocal(GetFunctionTemplateDataImpl(
+      isolate, raw_target, "api_internal::GetFunctionTemplateData"));
+}
+
+V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateDataV2(
+    v8::Isolate* isolate, v8::Local<v8::Data> raw_target) {
+  return ToApiHandle<Data>(GetFunctionTemplateDataImpl(
+      isolate, raw_target, "api_internal::GetFunctionTemplateDataV2"));
 }
 }  // namespace api_internal
 

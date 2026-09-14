@@ -35,6 +35,8 @@ class ConsoleCallArguments;
 namespace api_internal {
 V8_EXPORT v8::Local<v8::Value> GetFunctionTemplateData(
     v8::Isolate* isolate, v8::Local<v8::Data> raw_target);
+V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateDataV2(
+    v8::Isolate* isolate, v8::Local<v8::Data> raw_target);
 }  // namespace api_internal
 
 template <typename T>
@@ -135,6 +137,8 @@ class FunctionCallbackInfo {
   V8_INLINE bool IsConstructCall() const;
   /** The data argument specified when creating the callback. */
   V8_INLINE Local<Value> Data() const;
+  /** The data argument specified when creating the callback as `v8::Data`. */
+  V8_INLINE Local<v8::Data> DataV2() const;
   /** The current Isolate. */
   V8_INLINE Isolate* GetIsolate() const;
   /** The ReturnValue for the call. */
@@ -640,6 +644,12 @@ template <typename T>
 Local<Value> FunctionCallbackInfo<T>::Data() const {
   auto target = Local<v8::Data>::FromSlot(&values_[kTargetIndex]);
   return api_internal::GetFunctionTemplateData(GetIsolate(), target);
+}
+
+template <typename T>
+Local<v8::Data> FunctionCallbackInfo<T>::DataV2() const {
+  auto target = Local<v8::Data>::FromSlot(&values_[kTargetIndex]);
+  return api_internal::GetFunctionTemplateDataV2(GetIsolate(), target);
 }
 
 template <typename T>
