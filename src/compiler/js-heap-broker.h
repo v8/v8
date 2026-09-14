@@ -398,6 +398,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   friend class JSHeapBrokerScopeForTesting;
   friend class HeapObjectRef;
   friend class ObjectRef;
+  friend class JSFunctionData;
   friend class ObjectData;
   friend class PropertyCellData;
 
@@ -452,6 +453,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   READ_ONLY_ROOT_LIST(V)
 #undef V
 
+  // JSFunctionData::Cache creates data for the function's prototype, which may
+  // be another JSFunction. Caching straight from the constructor would thus
+  // recurse once per link of a prototype chain whose length is under script
+  // control, and overflow the stack. Construction instead only adds to this
+  // worklist, which TryGetOrCreateData drains iteratively before returning; no
+  // caller can observe an uncached JSFunctionData.
+  void AddToJSFunctionCacheWorklist(JSFunctionData* data);
+  void DrainJSFunctionCacheWorklist();
+
   Isolate* const isolate_;
 #if V8_COMPRESS_POINTERS
   const PtrComprCageBase cage_base_;
@@ -468,6 +478,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // The CanonicalHandlesMap is owned by the compilation info.
   CanonicalHandlesMap* canonical_handles_;
   unsigned trace_indentation_ = 0;
+  JSFunctionData* js_function_cache_worklist_ = nullptr;
+  bool is_draining_js_function_cache_worklist_ = false;
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;

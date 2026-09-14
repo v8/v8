@@ -59,7 +59,10 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
   TRACE(this, "Constructing heap broker");
 }
 
-JSHeapBroker::~JSHeapBroker() { DCHECK_NULL(local_isolate_); }
+JSHeapBroker::~JSHeapBroker() {
+  DCHECK_NULL(local_isolate_);
+  DCHECK_NULL(js_function_cache_worklist_);
+}
 
 std::string JSHeapBroker::Trace() const {
   std::ostringstream oss;
