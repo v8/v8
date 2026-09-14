@@ -125,10 +125,10 @@ void JSArrayBuffer::SetBackingStoreRefForSerialization(uint32_t ref) {
 void JSArrayBuffer::init_extension() {
 #if V8_COMPRESS_POINTERS
   // The extension field is lazily-initialized, so set it to null initially.
-  base::AsAtomic32::Release_Store(extension_handle_location(),
+  base::AsAtomic32::Relaxed_Store(extension_handle_location(),
                                   kNullExternalPointerHandle);
 #else
-  base::AsAtomicPointer::Release_Store(extension_location(), nullptr);
+  base::AsAtomicPointer::Relaxed_Store(extension_location(), nullptr);
 #endif  // V8_COMPRESS_POINTERS
 }
 
@@ -158,7 +158,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
   if (current_handle == kNullExternalPointerHandle) {
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
         isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
-    base::AsAtomic32::Relaxed_Store(extension_handle_location(), handle);
+    base::AsAtomic32::Release_Store(extension_handle_location(), handle);
     WriteBarrier::ForExternalPointer(this, ExternalPointerSlot(&extension_));
   } else {
     table.Set(current_handle, value, tag);

@@ -185,7 +185,7 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
       CppHeapPointerTable::Space* space =
           IsolateForPointerCompression(isolate).GetCppHeapPointerTableSpace();
       handle = table.AllocateAndInitializeEntry(space, value, tag);
-      slot.Relaxed_StoreHandle(handle);
+      slot.Release_StoreHandle(handle);
     } else {
       table.Set(handle, value, tag);
     }
@@ -244,7 +244,7 @@ bool EmbedderDataSlot::store_handle_without_barrier(
 
   CppHeapPointerSlot slot(address() + kCppHeapPointerOffset);
   DCHECK_EQ(slot.Relaxed_LoadHandle(), kNullCppHeapPointerHandle);
-  slot.Relaxed_StoreHandle(new_handle);
+  slot.Release_StoreHandle(new_handle);
 
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
