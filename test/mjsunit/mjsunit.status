@@ -3221,6 +3221,8 @@
   'shared-memory/regress-crbug-1395117': [SKIP],
   # Fails due to CWD changes in arguments processing.
   'd8/cwd/working_dir': [SKIP],
+  # Too slow.
+  'regress/regress-539212794': [SKIP],
 }],  # variant == code_serializer
 
 ##############################################################################
