@@ -3974,6 +3974,11 @@ Address WasmLiftoffSetupFrame::CallingPC() const {
       fp() + WasmLiftoffSetupFrameConstants::kCallingPCOffset));
 }
 
+void WasmLiftoffSetupFrame::ComputeCallerState(State* state) const {
+  TypedFrame::ComputeCallerState(state);
+  state->callee_pc = CallingPC();
+}
+
 void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot spilled_instance_slot(&Memory<Address>(
       fp() + WasmLiftoffSetupFrameConstants::kInstanceSpillOffset));
