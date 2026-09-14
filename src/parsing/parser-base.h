@@ -2673,14 +2673,16 @@ bool ParserBase<Impl>::ParseAccessorPropertyOrAutoAccessors(
   // Initializer[~In, ?Yield, ?Await]opt ;
   Consume(Token::kAccessor);
   *name_token_position = scanner()->peek_location().beg_pos;
+  // Ordinary fields and methods named "accessor" allow a line terminator.
+  if (ParseCurrentSymbolAsClassFieldOrMethod(prop_info, name_expression)) {
+    return true;
+  }
   // If there is a line terminator here, it cannot be an auto-accessor.
-  if (scanner()->HasLineTerminatorBeforeNext()) {
+  if (scanner()->HasLineTerminatorBeforeNext() ||
+      V8_UNLIKELY(scanner()->literal_contains_escapes())) {
     prop_info->kind = ParsePropertyKind::kClassField;
     prop_info->name = impl()->GetIdentifier();
     *name_expression = factory()->NewStringLiteral(prop_info->name, position());
-    return true;
-  }
-  if (ParseCurrentSymbolAsClassFieldOrMethod(prop_info, name_expression)) {
     return true;
   }
   *name_expression = ParseProperty(prop_info);
