@@ -2207,6 +2207,9 @@
   'wasm/shared-memory*': [FUZZ_RARE, PASS],
   # Fails due to CWD changes in arguments processing.
   'd8/cwd/working_dir': [SKIP],
+
+  # https://crbug.com/556584687
+  'turboshaft/regress-508265328-*': [SKIP],
 }], # num_fuzzer
 
 ##############################################################################
