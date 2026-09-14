@@ -4278,11 +4278,13 @@ class TurboshaftGraphBuildingInterface
       __ StoreOffHeap(arg_buffer, args[index].op,
                       MemoryRepresentationOffHeap(args[index].type), offset);
     });
+    current_resume_handlers_ = asm_handlers;
     asm_.set_effect_handlers_for_next_call(asm_handlers);
     V<WordPtr> result_buffer =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
                                     HandleEffects::kYes>(
             decoder, {stack, arg_buffer}, CheckForException::kCatchInThisFrame);
+    asm_.clear_effect_handlers();
     // Keep the continuation object alive to ensure that the external stack
     // pointer is not freed prematurely.
     __ Retain(V<Object>::Cast(cont_ref.op));
@@ -4291,7 +4293,7 @@ class TurboshaftGraphBuildingInterface
 
   void ResumeHandler(FullDecoder* decoder, const HandlerCase& handler,
                      size_t handler_index, Value* cont_val, Value* tag_params) {
-    __ Bind(asm_.effect_handlers_for_next_call()[handler_index].block);
+    __ Bind(current_resume_handlers_[handler_index].block);
     // Reuse the "CatchBlockBegin" pseudo op to mark the beginning of an effect
     // handler block. It works the same way but generates the continuation
     // object instead of the exception.
@@ -4330,6 +4332,7 @@ class TurboshaftGraphBuildingInterface
             TrustedFixedArray);
     V<WasmExceptionTag> tag = V<WasmExceptionTag>::Cast(
         __ LoadTrustedFixedArrayElement(instance_tags, exc_imm.index));
+    current_resume_handlers_ = asm_handlers;
     asm_.set_effect_handlers_for_next_call(asm_handlers);
     V<WordPtr> result_buffer =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResumeThrow,
@@ -4337,6 +4340,7 @@ class TurboshaftGraphBuildingInterface
             decoder,
             {stack, tag, array, instance_cache_.trusted_instance_data()},
             CheckForException::kCatchInThisFrame);
+    asm_.clear_effect_handlers();
     // Keep the continuation object alive to ensure that the external stack
     // pointer is not freed prematurely.
     __ Retain(V<Object>::Cast(cont_ref.op));
@@ -4352,11 +4356,13 @@ class TurboshaftGraphBuildingInterface
                       Value returns[]) {
     auto [stack, asm_handlers] =
         PrepareResume(decoder, handlers, cont_ref, cont_imm);
+    current_resume_handlers_ = asm_handlers;
     asm_.set_effect_handlers_for_next_call(asm_handlers);
     V<WordPtr> result_buffer =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResumeThrowRef,
                                     HandleEffects::kYes>(
             decoder, {stack, exn.op}, CheckForException::kCatchInThisFrame);
+    asm_.clear_effect_handlers();
     // Keep the continuation object alive to ensure that the external stack
     // pointer is not freed prematurely.
     __ Retain(V<Object>::Cast(cont_ref.op));
@@ -4440,7 +4446,7 @@ class TurboshaftGraphBuildingInterface
   }
 
   void EndEffectHandlers(FullDecoder* decoder) {
-    asm_.clear_effect_handlers();
+    current_resume_handlers_ = {};
     __ Bind(resume_return_block_);
     instance_cache_.ReloadCachedMemory();
   }
@@ -9681,6 +9687,10 @@ class TurboshaftGraphBuildingInterface
   // Target block after returning normally from a resume. Saved temporarily here
   // so that we can bind it later after generating the handler branches.
   TSBlock* resume_return_block_ = nullptr;
+  // Handler blocks for the resume instruction currently being decoded. Saved
+  // temporarily here so that {ResumeHandler} can bind each handler block after
+  // the asm handlers have already been cleared.
+  base::Vector<compiler::turboshaft::EffectHandler> current_resume_handlers_;
 
   // Manages code coverage instrumentation.
   std::unique_ptr<WasmCoverageInstrumentation<FullDecoder>>
