@@ -2283,12 +2283,12 @@ void InstructionSelector::VisitWord32Equal(OpIndex node) {
     RiscvOperandGenerator g(this);
     const RootsTable& roots_table = isolate()->roots_table();
     RootIndex root_index;
-    Handle<HeapObject> right;
+    Handle<HeapObject> heap_object;
     // HeapConstants and CompressedHeapConstants can be treated the same when
     // using them as an input to a 32-bit comparison. Check whether either is
     // present.
-    if (MatchHeapConstant(node, &right) && !right.is_null() &&
-        roots_table.IsRootHandle(right, &root_index)) {
+    if (MatchHeapConstant(right, &heap_object) && !heap_object.is_null() &&
+        roots_table.IsRootHandle(heap_object, &root_index)) {
       if (RootsTable::IsReadOnly(root_index)) {
         Tagged_t ptr =
             MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
