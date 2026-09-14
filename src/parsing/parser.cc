@@ -747,14 +747,18 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
   scanner_.Initialize();
   FunctionLiteral* result =
       DoParseProgram(isolate, info, script->eval_from_position());
-  HandleDebugMagicComments(isolate, script);
+  if (flags().allow_heap_allocation()) {
+    HandleDebugMagicComments(isolate, script);
+  }
   if (result == nullptr) return;
   result->scope()->set_is_hoisted_in_context(
       info->flags().is_hoisted_in_context());
-  MaybeProcessSourceRanges(info, result, stack_limit_);
+  if (flags().allow_heap_allocation()) {
+    MaybeProcessSourceRanges(info, result, stack_limit_);
+  }
   PostProcessParseResult(isolate, info, result);
 
-  if (V8_UNLIKELY(v8_flags.log_function_events)) {
+  if (V8_UNLIKELY(v8_flags.log_function_events) && !flags().is_reparse()) {
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name = "parse-eval";
     int start = -1;
@@ -850,12 +854,14 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
     }
     // Internalize the ast strings in the case of eval so we can check for
     // conflicting var declarations with outer scope-info-backed scopes.
-    if (flags().is_eval()) {
-      DCHECK(parsing_on_main_thread_);
-      DCHECK(!isolate->main_thread_local_heap()->IsParked());
-      info->ast_value_factory()->Internalize(isolate);
+    if (flags().allow_heap_allocation()) {
+      if (flags().is_eval()) {
+        DCHECK(parsing_on_main_thread_);
+        DCHECK(!isolate->main_thread_local_heap()->IsParked());
+        info->ast_value_factory()->Internalize(isolate);
+      }
+      CheckConflictingVarDeclarations(scope);
     }
-    CheckConflictingVarDeclarations(scope);
 
     // For sloppy eval though, we clear dynamic variables created for toplevel
     // var to avoid resolving to a variable when the variable and proxy are in
@@ -900,7 +906,9 @@ void Parser::PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
     info->set_allow_eval_cache(allow_eval_cache());
   }
 
-  info->ast_value_factory()->Internalize(isolate);
+  if (flags().allow_heap_allocation()) {
+    info->ast_value_factory()->Internalize(isolate);
+  }
 
   {
     RCS_SCOPE(info->runtime_call_stats(), RuntimeCallCounterId::kCompileAnalyse,

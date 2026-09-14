@@ -732,8 +732,8 @@ V8_OBJECT class Context : public HeapObject {
  private:
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
-  static bool IsBootstrappingOrValidParentContext(Tagged<Object> object,
-                                                  Tagged<Context> kid);
+  V8_EXPORT_PRIVATE static bool IsBootstrappingOrValidParentContext(
+      Tagged<Object> object, Tagged<Context> kid);
 #endif
 
   friend class Factory;

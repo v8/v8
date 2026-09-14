@@ -122,7 +122,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   // Parameters allocated in the context count as context allocated locals. If
   // no contexts are allocated for this scope ContextLength returns 0.
   int ContextLength() const;
-  int ContextHeaderLength() const;
+  V8_EXPORT_PRIVATE int ContextHeaderLength() const;
 
   // Returns true if the respective contexts have a context extension slot.
   V8_EXPORT_PRIVATE bool HasContextExtensionSlot() const;
@@ -199,7 +199,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   int EndPosition() const;
   void SetPositionInfo(int start, int end);
 
-  int UniqueIdInScript() const;
+  V8_EXPORT_PRIVATE int UniqueIdInScript() const;
 
   Tagged<SourceTextModuleInfo> ModuleDescriptorInfo() const;
 
@@ -217,7 +217,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
 
   // Return the name of a given context local.
   // It should only be used if inlined local names.
-  Tagged<String> ContextInlinedLocalName(int var) const;
+  V8_EXPORT_PRIVATE Tagged<String> ContextInlinedLocalName(int var) const;
 
   // Return the mode of the given context local.
   VariableMode ContextLocalMode(int var) const;

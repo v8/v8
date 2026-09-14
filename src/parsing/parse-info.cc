@@ -39,6 +39,7 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
       v8_flags.parallel_compile_tasks_for_eager_toplevel);
   set_post_parallel_compile_tasks_for_lazy(
       v8_flags.parallel_compile_tasks_for_lazy);
+  set_allow_heap_allocation(true);
 }
 
 // static
