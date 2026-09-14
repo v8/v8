@@ -453,7 +453,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
   for (size_t i = 0; i < all_scopes.size(); ++i) {
     offsets.push_back(base::checked_cast<uint32_t>(total_size));
     total_size += sizeof(ScopeRecord);
-    if (all_scopes[i]->sibling() != nullptr) {
+    if (find_scope_index(all_scopes[i]->sibling()) != -1) {
       total_size += kInt32Size;
     }
     if (all_scopes[i]->NeedsContext()) {
@@ -638,6 +638,8 @@ Handle<DebugScriptScopeInfo> EnsureDebugScriptScopeInfo(
     return handle(*cached_info, isolate);
   }
 
+  CHECK(IsString(script->source()));
+
   // UnoptimizedCompileFlags::ForScriptCompile automatically initializes flags
   // from the script object:
   // - Sets is_toplevel(true) and preserves REPL and module flags.
@@ -683,6 +685,7 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
   CHECK(Is<DebugScriptScopeInfo>(this));
   Object::VerifyPointer(isolate, numeric_data_.load());
   Object::VerifyPointer(isolate, string_table_.load());
+  CHECK(IsByteArray(numeric_data()));
   CHECK(IsFixedArray(string_table()));
 
   Tagged<ByteArray> bytes = numeric_data();
@@ -700,6 +703,8 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
     uint32_t offset = GetScopeOffset(this, i);
     CHECK_EQ(offset % kUInt16Size, 0);
     CHECK_GE(offset, header_and_table_size);
+    CHECK_LE(offset + sizeof(ScopeRecord),
+             static_cast<size_t>(bytes->length().value()));
     DebugScriptScope scope = DebugScriptScope::FromIndex(info_handle, i);
     CHECK_EQ(scope.scope_index(), i);
     CHECK_LE(scope.start_position(), scope.end_position());
@@ -764,15 +769,11 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
     }
 
     if (auto sibling = scope.next_sibling()) {
+      CHECK_GT(i, 0);
       CHECK_GT(sibling->scope_index(), i);
       CHECK_LT(sibling->scope_index(), scope_count);
-      if (i == 0) {
-        CHECK(!sibling->parent().has_value());
-      } else {
-        CHECK(sibling->parent().has_value());
-        CHECK_EQ(sibling->parent()->scope_index(),
-                 scope.parent()->scope_index());
-      }
+      CHECK(sibling->parent().has_value());
+      CHECK_EQ(sibling->parent()->scope_index(), scope.parent()->scope_index());
     }
   }
 }

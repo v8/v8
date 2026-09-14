@@ -145,7 +145,7 @@ void VerifyScopeTreeParity(Scope* ast_scope, DebugScriptScope debug_scope) {
     EXPECT_TRUE(debug_scope.function_variable_name().is_null());
   }
 
-  int ast_var_count = static_cast<int>(
+  int ast_var_count = base::checked_cast<int>(
       std::distance(ast_scope->locals()->begin(), ast_scope->locals()->end()));
   EXPECT_EQ(ast_var_count, debug_scope.variable_count());
 
