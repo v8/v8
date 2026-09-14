@@ -1074,8 +1074,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoWrite;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 #endif
 
@@ -1265,10 +1266,9 @@ struct BuiltinCallDescriptor {
     using results_t = std::tuple<V<WasmArray>>;
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties =
-        Operator::kNoDeopt | Operator::kNoThrow;
+    static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
+        base_effects.CanReadMemory().CanAllocate().CanThrowOrTrap();
   };
 
   struct WasmStringEncodeWtf16Array
@@ -1308,7 +1308,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
     static constexpr OpEffects kEffects =
-        base_effects.CanAllocateWithoutIdentity();
+        base_effects.CanAllocateWithoutIdentity().CanThrowOrTrap();
   };
 
   struct WasmStringToDouble : public Descriptor<WasmStringToDouble> {
