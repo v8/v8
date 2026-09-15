@@ -6009,8 +6009,50 @@ void AccessorAssembler::GenerateKeyedHasIC_Megamorphic() {
 
   auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
-  // TODO(magardn): implement HasProperty handling in KeyedLoadICGeneric
+
+  ExitPoint direct_exit(this);
+  TVARIABLE(MaybeObject, var_handler);
+  Label if_handler(this, &var_handler), miss(this, Label::kDeferred),
+      generic(this, Label::kDeferred);
+
+  GotoIf(TaggedIsSmi(receiver), &generic);
+
+  TNode<Map> receiver_map = LoadMap(CAST(receiver));
+  GotoIfNot(IsJSReceiverMap(receiver_map), &generic);
+
+  GotoIf(TaggedIsSmi(name), &generic);
+
+  TNode<HeapObject> key = CAST(name);
+  GotoIfNot(IsUniqueNameNoIndex(key), &generic);
+
+  // The stub cache is keyed by (JSReceiver map, unique non-index name).
+  TNode<Name> unique_name = CAST(key);
+  TryProbeStubCache(isolate()->has_stub_cache(), receiver, receiver_map,
+                    unique_name, &if_handler, &var_handler, &miss);
+
+  BIND(&if_handler);
+  {
+    LoadICParameters p(context, receiver, unique_name, slot, vector, receiver,
+                       receiver_map);
+    LazyLoadICParameters lazy_p(&p);
+    HandleLoadICHandlerCase(
+        &lazy_p, var_handler.value(), &miss, &direct_exit, ICMode::kNonGlobalIC,
+        OnNonExistent::kReturnUndefined, kOnlyProperties, LoadAccessMode::kHas);
+  }
+
+  BIND(&miss);
+  {
+    // Without a feedback vector the miss handler won't fill the cache, so
+    // don't pay for the runtime call.
+    GotoIf(IsUndefined(vector), &generic);
+    TailCallRuntime(Runtime::kKeyedHasIC_Miss, context, receiver, unique_name,
+                    slot, vector);
+  }
+
+  BIND(&generic);
   Return(HasProperty(context, receiver, name,
                      HasPropertyLookupMode::kHasProperty));
 }
