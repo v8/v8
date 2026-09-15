@@ -114,6 +114,25 @@ void CollectScopeTree(Scope* scope, int depth, HeapEntry* script_entry,
   // Collect all uses of context variables in this scope. Each use is a pair of
   // declaring scope id and context slot index.
   size_t uses_start = snapshot->source_scope_uses().size();
+
+  // `this` references are tracked on DeclarationScope via has_this_reference()
+  // rather than remaining in unresolved_list(). If this declaration scope
+  // accesses `this` and it was allocated to a context slot by the receiver
+  // scope, record it as a context variable use.
+  if (scope->is_declaration_scope() &&
+      scope->AsDeclarationScope()->has_this_reference()) {
+    DeclarationScope* receiver_scope =
+        scope->AsDeclarationScope()->GetReceiverScope();
+    Variable* receiver_var = receiver_scope->receiver();
+    if (receiver_var != nullptr && receiver_var->IsContextSlot() &&
+        receiver_var->scope() != nullptr) {
+      Scope* decl_scope = receiver_var->scope();
+      int slot_index =
+          receiver_var->index() - decl_scope->ContextHeaderLength();
+      snapshot->AddSourceScopeUse({decl_scope->UniqueIdInScript(), slot_index});
+    }
+  }
+
   for (VariableProxy* proxy : scope->unresolved_list()) {
     if (proxy->is_removed_from_unresolved()) continue;
     if (proxy->is_resolved() && proxy->var() != nullptr &&

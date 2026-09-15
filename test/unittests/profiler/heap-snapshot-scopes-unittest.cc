@@ -940,4 +940,62 @@ TEST_F(HeapSnapshotScopesTest, ModuleScope) {
   CheckContextSlots(inner_fn);
 }
 
+TEST_F(HeapSnapshotScopesTest, CapturedThis) {
+  DirectHandle<JSArray> funcs = RunJSForObject<JSArray>(
+      "function outer() {\n"
+      "  const first = () => this;\n"
+      "  const second = () => this;\n"
+      "  return [first, second];\n"
+      "}\n"
+      "outer.call({a: 1});\n");
+
+  TakeHeapSnapshot();
+
+  DirectHandle<JSFunction> first_fn = Cast<JSFunction>(
+      JSReceiver::GetElement(i_isolate(), funcs, 0).ToHandleChecked());
+  DirectHandle<JSFunction> second_fn = Cast<JSFunction>(
+      JSReceiver::GetElement(i_isolate(), funcs, 1).ToHandleChecked());
+
+  const SnapshotSourceScopeData* first_scope = GetScopeForClosure(*first_fn);
+  ASSERT_NE(nullptr, first_scope);
+  const SnapshotSourceScopeData* second_scope = GetScopeForClosure(*second_fn);
+  ASSERT_NE(nullptr, second_scope);
+
+  EXPECT_EQ(first_scope->parent, second_scope->parent);
+  const SnapshotSourceScopeData* outer_scope = first_scope->parent;
+  ASSERT_NE(nullptr, outer_scope);
+
+  const VariableDefinition* this_var = outer_scope->FindVariable("this");
+  ASSERT_NE(nullptr, this_var);
+  EXPECT_EQ(0, this_var->slot_index);
+  AssertUses(this_var, {first_scope, second_scope});
+
+  CheckContextSlots(first_fn);
+  CheckContextSlots(second_fn);
+}
+
+TEST_F(HeapSnapshotScopesTest, CapturedThisMultipleUses) {
+  DirectHandle<JSFunction> arrow_fn = RunJSForClosure(
+      "function outer() {\n"
+      "  return () => [this, this];\n"
+      "}\n"
+      "outer.call({a: 1});\n");
+
+  TakeHeapSnapshot();
+
+  const SnapshotSourceScopeData* arrow_scope = GetScopeForClosure(*arrow_fn);
+  ASSERT_NE(nullptr, arrow_scope);
+
+  const SnapshotSourceScopeData* outer_scope = arrow_scope->parent;
+  ASSERT_NE(nullptr, outer_scope);
+
+  const VariableDefinition* this_var = outer_scope->FindVariable("this");
+  ASSERT_NE(nullptr, this_var);
+  EXPECT_EQ(0, this_var->slot_index);
+  // The arrow function is only recorded once here (not both uses).
+  AssertUses(this_var, {arrow_scope});
+
+  CheckContextSlots(arrow_fn);
+}
+
 }  // namespace v8::internal
