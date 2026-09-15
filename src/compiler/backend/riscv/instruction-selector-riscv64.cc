@@ -1594,22 +1594,28 @@ void InstructionSelector::VisitChangeUint32ToUint64(OpIndex node) {
 bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
   DCHECK(!this->Get(node).Is<PhiOp>());
   const Operation& op = this->Get(node);
-  if (op.opcode == Opcode::kLoad) {
-    auto load = this->load_view(node);
-    LoadRepresentation load_rep = load.loaded_rep();
-    if (load_rep.IsUnsigned()) {
-      switch (load_rep.representation()) {
-        case MachineRepresentation::kWord8:
-        case MachineRepresentation::kWord16:
-        case MachineRepresentation::kWord32:
-          return true;
-        default:
-          return false;
+  switch (op.opcode) {
+    case Opcode::kProjection:
+      return ZeroExtendsWord32ToWord64NoPhis(op.Cast<ProjectionOp>().input());
+    case Opcode::kLoad: {
+      auto load = this->load_view(node);
+      LoadRepresentation load_rep = load.loaded_rep();
+      if (load_rep.IsUnsigned()) {
+        switch (load_rep.representation()) {
+          case MachineRepresentation::kWord8:
+          case MachineRepresentation::kWord16:
+          case MachineRepresentation::kWord32:
+            return true;
+          default:
+            return false;
+        }
       }
+      return false;
     }
+    default:
+      // All other 32-bit operations sign-extend to the upper 32 bits
+      return false;
   }
-  // All other 32-bit operations sign-extend to the upper 32 bits
-  return false;
 }
 
 void InstructionSelector::VisitTruncateInt64ToInt32(OpIndex node) {
