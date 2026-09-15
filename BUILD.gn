@@ -8469,7 +8469,10 @@ group("gn_all") {
 }
 
 group("v8_python_base") {
-  data = [ ".vpython3" ]
+  data = [
+    "vpython.toml",
+    "vpython.toml.uv.lock",
+  ]
 }
 
 # Enable fallbacks for files that might be hard to access on Clusterfuzz.
