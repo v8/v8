@@ -488,6 +488,9 @@
   'opt-elements-kind': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-4121': [SKIP],
+  # --concurrent-recompilation-delay sleeps before the compile starts, so the
+  # test's cell rotation finishes before the broker reads the cell.
+  'regress/regress-crbug-560233248': [SKIP],
   # Tests taking too long
   'regress/regress-1122': [SKIP],
   'regress/regress-353551': [SKIP],
