@@ -202,6 +202,8 @@
   'regress/regress-crbug-808192': [PASS, SLOW, NO_VARIANTS, ['arch not in (ia32, x64)', SKIP], ['tsan', SKIP]],
   'regress/regress-crbug-918301': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
   'regress/regress-crbug-1276923': [PASS, SLOW],
+  # Builds a chain of 80000 functions, which takes minutes with dchecks.
+  'regress/regress-crbug-388320179': [PASS, ['mode != release', SKIP]],
   'regress/regress-390568195': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['arch != x64', SKIP]],
   'regress/regress-447613219': [PASS, SLOW],
   'regress/regress-494583765' : [PASS, SLOW],
@@ -673,9 +675,6 @@
   'whitespaces': [SKIP],
   'baseline/*': [SKIP],
   'regress/regress-chromium-1194026': [SKIP],
-  # Builds a chain of 80000 functions; verifying the heap on every GC makes
-  # the setup loop quadratic and it times out before the compile it tests.
-  'regress/regress-crbug-388320179': [SKIP],
 
   # Unsuitable for GC stress because coverage information is lost on GC.
   'code-coverage-ad-hoc': [SKIP],
