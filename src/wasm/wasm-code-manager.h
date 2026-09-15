@@ -736,7 +736,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   bool HasCode(uint32_t index) const;
   bool HasCodeWithTier(uint32_t index, ExecutionTier tier) const;
 
-  void SetWasmSourceMap(std::unique_ptr<WasmModuleSourceMap> source_map);
+  // Protected by {allocation_mutex_}.
+  // Does nothing if {source_map_} is already populated.
+  void SetWasmSourceMapIfUnset(std::unique_ptr<WasmModuleSourceMap> source_map);
   WasmModuleSourceMap* GetWasmSourceMap() const V8_LIFETIME_BOUND;
 
   Address jump_table_start() const {
@@ -1048,8 +1050,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // tasks can keep this alive.
   std::shared_ptr<const WasmModule> module_;
 
-  std::unique_ptr<WasmModuleSourceMap> source_map_;
-
   // Wire bytes, held in a shared_ptr so they can be kept alive by the
   // {WireBytesStorage}, held by background compile tasks.
   std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes_;
@@ -1124,6 +1124,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Further accesses to the {DebugInfo} do not need to be protected by the
   // mutex.
   std::unique_ptr<DebugInfo> debug_info_;
+
+  std::unique_ptr<WasmModuleSourceMap> source_map_;
 
   std::unique_ptr<NamesProvider> names_provider_;
 
