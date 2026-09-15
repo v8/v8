@@ -2139,6 +2139,8 @@
 
   # Too slow.
   'wasm/futex': [SKIP],
+  # Builds a chain of 80000 functions; times out on the tsan bot.
+  'regress/regress-crbug-388320179': [SKIP],
 
   # https://crbug.com/496520250
   'maglev/regress-494492520': [SKIP],
