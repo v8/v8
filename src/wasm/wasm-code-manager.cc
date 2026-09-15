@@ -315,7 +315,7 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
       v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
       Local<v8::String> source_map_str =
           load_wasm_source_map(v8_isolate, external_url_string.c_str());
-      native_module_->SetWasmSourceMap(
+      native_module_->SetWasmSourceMapIfUnset(
           std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
     }
   }
@@ -1712,12 +1712,15 @@ bool NativeModule::HasCodeWithTier(uint32_t index, ExecutionTier tier) const {
          code_table_[declared_function_index(module(), index)]->tier() == tier;
 }
 
-void NativeModule::SetWasmSourceMap(
+void NativeModule::SetWasmSourceMapIfUnset(
     std::unique_ptr<WasmModuleSourceMap> source_map) {
+  base::RecursiveMutexGuard guard(&allocation_mutex_);
+  if (source_map_) return;
   source_map_ = std::move(source_map);
 }
 
 WasmModuleSourceMap* NativeModule::GetWasmSourceMap() const {
+  base::RecursiveMutexGuard guard(&allocation_mutex_);
   return source_map_.get();
 }
 
