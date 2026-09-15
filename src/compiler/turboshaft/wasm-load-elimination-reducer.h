@@ -528,12 +528,65 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
     Next::Analyze();
   }
 
-#define EMIT_OP(Name)                                                          \
+#if DEBUG
+  void EmitReportLoadEliminationError() {
+    CHECK(v8_flags.turboshaft_verify_load_elimination);
+    if (__ data()->pipeline_kind() == TurboshaftPipelineKind::kWasm) {
+      __ WasmCallRuntime(__ phase_zone(), Runtime::kAbort,
+                         {__ TagSmi(static_cast<int>(
+                             AbortReason::kTurboshaftLoadEliminationError))},
+                         __ NoContextConstant());
+    } else {
+      __ template CallRuntime<runtime::Abort>(
+          __ NoContextConstant(),
+          {.messageOrMessageId = __ SmiConstant(
+               Smi::FromEnum(AbortReason::kTurboshaftLoadEliminationError))});
+    }
+    __ Unreachable();
+  }
+
+#define VERIFY(Name, ig_index, op, replacement) /*             force 80 cols*/ \
+  if (v8_flags.turboshaft_verify_load_elimination) {                           \
+    OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op);           \
+    RegisterRepresentation actual_rep =                                        \
+        __ output_graph().Get(actual_idx).outputs_rep()[0];                    \
+    RegisterRepresentation replacement_rep =                                   \
+        __ output_graph().Get(replacement).outputs_rep()[0];                   \
+                                                                               \
+    if (actual_rep == RegisterRepresentation::Simd128()) {                     \
+      /* TODO(dmercadier): Implement along with support in LLE.*/              \
+      return replacement;                                                      \
+    }                                                                          \
+    /* No WLE support is implemented for mismatched (e.g. truncated) */        \
+    /* representations.*/                                                      \
+    DCHECK_EQ(actual_rep, replacement_rep);                                    \
+                                                                               \
+    IF_NOT (__ Equal(actual_idx, replacement, actual_rep)) {                   \
+      if (actual_rep == any_of(RegisterRepresentation::Float32(),              \
+                               RegisterRepresentation::Float64())) {           \
+        /* Equality might have returned false because both values are NaN.*/   \
+        IF (__ Word32BitwiseOr(                                                \
+                __ Equal(actual_idx, actual_idx, actual_rep),                  \
+                __ Equal(replacement, replacement, replacement_rep))) {        \
+          /* At least one of {actual_idx} and {replacement} is not NaN.*/      \
+          EmitReportLoadEliminationError();                                    \
+        }                                                                      \
+      } else {                                                                 \
+        EmitReportLoadEliminationError();                                      \
+      }                                                                        \
+    }                                                                          \
+  }
+#else
+#define VERIFY(Name, ig_index, op, replacement)
+#endif  // DEBUG
+
+#define EMIT_OP(Name) /*                                       force 80 cols*/ \
   OpIndex REDUCE_INPUT_GRAPH(Name)(OpIndex ig_index, const Name##Op& op) {     \
     if (v8_flags.turboshaft_wasm_load_elimination) {                           \
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);          \
       if (ig_replacement_index.valid()) {                                      \
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);       \
+        VERIFY(Name, ig_index, op, replacement)                                \
         return replacement;                                                    \
       }                                                                        \
     }                                                                          \
@@ -552,6 +605,7 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);
       if (ig_replacement_index.valid()) {
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);
+        VERIFY(StructGet, ig_index, op, replacement)
         return replacement;
       }
     }
