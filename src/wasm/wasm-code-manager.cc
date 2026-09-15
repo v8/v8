@@ -431,7 +431,7 @@ void WasmCode::TryLoadSourceMap(Isolate* isolate) const {
       load_wasm_source_map(v8_isolate, external_url_string.c_str());
   if (source_map_str.IsEmpty()) return;
 
-  native_module_->SetWasmSourceMap(
+  native_module_->SetWasmSourceMapIfUnset(
       std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
 }
 
@@ -1741,12 +1741,15 @@ bool NativeModule::HasCodeWithTier(uint32_t index, ExecutionTier tier) const {
          code_table_[declared_function_index(module(), index)]->tier() == tier;
 }
 
-void NativeModule::SetWasmSourceMap(
+void NativeModule::SetWasmSourceMapIfUnset(
     std::unique_ptr<WasmModuleSourceMap> source_map) {
+  base::RecursiveMutexGuard guard(&allocation_mutex_);
+  if (source_map_) return;
   source_map_ = std::move(source_map);
 }
 
 WasmModuleSourceMap* NativeModule::GetWasmSourceMap() const {
+  base::RecursiveMutexGuard guard(&allocation_mutex_);
   return source_map_.get();
 }
 
