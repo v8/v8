@@ -3314,12 +3314,9 @@ DEFINE_BOOL(super_ic, true, "use an IC for super property loads")
 
 DEFINE_EXPERIMENTAL_FEATURE(mega_dom_ic, "use MegaDOM IC state for API objects")
 
-DEFINE_BOOL(homomorphic_ic, false,
-            "use Homomorphic IC state for same-handler highly polymorphic ICs")
 DEFINE_UINT(homomorphic_ic_count, 8, "local cache size in homomorphic ICs")
 DEFINE_REQUIREMENT(
     base::bits::IsPowerOfTwo(v8_flags.homomorphic_ic_count.value()))
-DEFINE_IMPLICATION(future, homomorphic_ic)
 
 // objects.cc
 DEFINE_DEVELOPER_FLAG(trace_prototype_users,

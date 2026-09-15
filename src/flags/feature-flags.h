@@ -227,6 +227,10 @@
   WASM_FEATURE(legacy_eh, "legacy exception handling opcodes")                 \
                                                                                \
   IF_SPARKPLUG_PLUS_ENABLED(INTERNAL_FEATURE, sparkplug_plus,                  \
-                            "dynamic patching on JS baseline code")
+                            "dynamic patching on JS baseline code")            \
+                                                                               \
+  INTERNAL_FEATURE(homomorphic_ic,                                             \
+                   "Homomorphic IC state for same-handler highly polymorphic " \
+                   "ICs")
 
 #endif  // V8_FLAGS_FEATURE_FLAGS_H_
