@@ -106,7 +106,8 @@ using HasChildrenBit = ScopeTypeBits::Next<bool, 1>;
 using HasSiblingBit = HasChildrenBit::Next<bool, 1>;
 using IsHiddenBit = HasSiblingBit::Next<bool, 1>;
 using LanguageModeBit = IsHiddenBit::Next<LanguageMode, 1>;
-using IsArrowScopeBit = LanguageModeBit::Next<bool, 1>;
+using IsDeclarationScopeBit = LanguageModeBit::Next<bool, 1>;
+using IsArrowScopeBit = IsDeclarationScopeBit::Next<bool, 1>;
 using HasThisDeclarationBit = IsArrowScopeBit::Next<bool, 1>;
 using HasThisReferenceBit = HasThisDeclarationBit::Next<bool, 1>;
 using HasSimpleParametersBit = HasThisReferenceBit::Next<bool, 1>;
@@ -253,9 +254,7 @@ bool DebugScriptScope::is_block_scope() const {
 }
 
 bool DebugScriptScope::is_declaration_scope() const {
-  return is_script_scope() || is_function_scope() ||
-         scope_type() == ScopeType::MODULE_SCOPE ||
-         scope_type() == ScopeType::EVAL_SCOPE;
+  return IsDeclarationScopeBit::decode(flags());
 }
 
 LanguageMode DebugScriptScope::language_mode() const {
@@ -530,6 +529,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     flags = HasSiblingBit::update(flags, has_sibling);
     flags = IsHiddenBit::update(flags, scope->is_hidden());
     flags = LanguageModeBit::update(flags, scope->language_mode());
+    flags = IsDeclarationScopeBit::update(flags, scope->is_declaration_scope());
     flags = HasThisReferenceBit::update(flags, scope->HasThisReference());
     flags = NeedsContextBit::update(flags, needs_context);
     if (scope->is_declaration_scope()) {
@@ -736,6 +736,19 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
     size_t record_size = scope.record_size();
     CHECK_LE(offset + record_size,
              static_cast<size_t>(bytes->length().value()));
+
+    // Top-level and function scopes are always declaration scopes. Block
+    // scopes may or may not be (see IsDeclarationScopeBit).
+    CHECK_IMPLIES(scope.is_script_scope() || scope.is_function_scope() ||
+                      scope.is_module_scope() || scope.is_eval_scope(),
+                  scope.is_declaration_scope());
+    // The declaration-only flags must be clear for non-declaration scopes.
+    CHECK_IMPLIES(!scope.is_declaration_scope(),
+                  !scope.is_arrow_scope() && !scope.has_this_declaration() &&
+                      !scope.has_simple_parameters() &&
+                      !scope.has_arguments() &&
+                      !scope.has_function_variable() &&
+                      !scope.sloppy_eval_can_extend_vars());
 
     if (scope.needs_context()) {
       CHECK_GE(scope.unique_id_in_script(), -2);

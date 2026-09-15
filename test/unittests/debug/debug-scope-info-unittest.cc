@@ -453,6 +453,74 @@ TEST_F(DebugScopeInfoTest, ComplexScopeTypes) {
   VerifyScopeTreeParity(parsed.script_scope(), script);
 }
 
+// ParserBase::NewVarblockScope() creates a DeclarationScope with BLOCK_SCOPE
+// type for a function body with non-simple parameters, so is_declaration_scope
+// cannot be derived from the scope type. The body has to declare something,
+// otherwise Scope::FinalizeBlockScope() drops the scope again.
+TEST_F(DebugScopeInfoTest, VarblockScopeIsDeclarationScope) {
+  HandleScope scope(isolate());
+  ParsedScript parsed =
+      ParseAndSerialize("function f(a = 1) { let x = 2; return a + x; }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+  ASSERT_TRUE(func->is_function_scope());
+
+  auto varblock = func->first_child();
+  ASSERT_TRUE(varblock.has_value());
+  EXPECT_EQ(varblock->scope_type(), ScopeType::BLOCK_SCOPE);
+  EXPECT_TRUE(varblock->is_block_scope());
+  EXPECT_TRUE(varblock->is_declaration_scope());
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// The other NewVarblockScope() call site: class static initializer blocks.
+TEST_F(DebugScopeInfoTest, ClassStaticBlockIsDeclarationScope) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("class C { static { let x = 1; } }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  bool found_declaration_block_scope = false;
+  auto walk = [&](auto& self, const DebugScriptScope& current) -> void {
+    if (current.scope_type() == ScopeType::BLOCK_SCOPE &&
+        current.is_declaration_scope()) {
+      found_declaration_block_scope = true;
+    }
+    for (auto child = current.first_child(); child.has_value();
+         child = child->next_sibling()) {
+      self(self, *child);
+    }
+  };
+  walk(walk, script);
+  EXPECT_TRUE(found_declaration_block_scope);
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
+// A varblock scope can also survive FinalizeBlockScope() without declaring
+// anything, via sloppy_eval_can_extend_vars().
+TEST_F(DebugScopeInfoTest, VarblockScopeWithSloppyEval) {
+  HandleScope scope(isolate());
+  ParsedScript parsed = ParseAndSerialize("function f(a = 1) { eval(''); }");
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script = DebugScriptScope::FromIndex(info, 0);
+  auto func = script.first_child();
+  ASSERT_TRUE(func.has_value());
+
+  auto varblock = func->first_child();
+  ASSERT_TRUE(varblock.has_value());
+  EXPECT_EQ(varblock->scope_type(), ScopeType::BLOCK_SCOPE);
+  EXPECT_TRUE(varblock->is_declaration_scope());
+  EXPECT_TRUE(varblock->sloppy_eval_can_extend_vars());
+
+  VerifyScopeTreeParity(parsed.script_scope(), script);
+}
+
 TEST_F(DebugScopeInfoTest, NeedsContextAndUniqueId) {
   HandleScope scope(isolate());
   ParsedScript parsed = ParseAndSerialize(
