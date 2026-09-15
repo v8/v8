@@ -53,6 +53,14 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   ScopeType scope_type() const;
   LanguageMode language_mode() const;
 
+  // Returns true if `position` lies within this scope.
+  //
+  // `is_closure_found` controls how strict we are about the end position:
+  // while the closure scope hasn't been determined yet we also accept
+  // `position == end_position()`, since nested arrow functions can share their
+  // end position with the function they are embedded in.
+  bool ContainsPosition(int position, bool is_closure_found) const;
+
   // Scope Predicates
   bool is_script_scope() const;
   bool is_function_scope() const;
@@ -133,6 +141,20 @@ V8_EXPORT_PRIVATE Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
 // wrapped arguments for wrapped scripts) is retained on the Script itself.
 V8_EXPORT_PRIVATE Handle<DebugScriptScopeInfo> EnsureDebugScriptScopeInfo(
     Isolate* isolate, DirectHandle<Script> script);
+
+// Returns the number of scopes serialized in `info`.
+V8_EXPORT_PRIVATE int DebugScriptScopeCount(Tagged<DebugScriptScopeInfo> info);
+
+// Returns the scope that exactly matches the extent of the function described
+// by `start_position`, `end_position` and `scope_type`, or nullopt if `info`
+// doesn't contain such a scope.
+//
+// Matching the positions alone is not enough: scopes can share their exact
+// extent with a scope of a different type. A class declaration that spans the
+// whole script for example has the same positions as the script scope.
+V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindClosureScope(
+    DirectHandle<DebugScriptScopeInfo> info, int start_position,
+    int end_position, ScopeType scope_type);
 
 }  // namespace internal
 }  // namespace v8

@@ -231,6 +231,27 @@ int DebugScriptScope::end_position() const {
   return base::ReadUnalignedValue<ScopeRecord>(payload()).end_position;
 }
 
+bool DebugScriptScope::ContainsPosition(int position,
+                                        bool is_closure_found) const {
+  // In case the closure scope hasn't been found yet, we are less strict about
+  // recursing downwards. This might be the case for nested arrow functions
+  // that have the same end position.
+  const bool position_fits_end =
+      is_closure_found ? position < end_position() : position <= end_position();
+  // While we're evaluating a class, the calling function will have a class
+  // context on the stack with a range that starts at Token::kClass, and the
+  // source position will also point to Token::kClass. To identify the matching
+  // scope we include start in the accepted range for class scopes.
+  //
+  // Similarly "with" scopes can already have bytecodes where the source
+  // position points to the closing parenthesis with the "with" context
+  // already pushed.
+  const bool position_fits_start = is_class_scope() || is_with_scope()
+                                       ? start_position() <= position
+                                       : start_position() < position;
+  return position_fits_start && position_fits_end;
+}
+
 int DebugScriptScope::parent_index() const {
   return base::ReadUnalignedValue<ScopeRecord>(payload()).parent_scope_index;
 }
@@ -698,6 +719,28 @@ Handle<DebugScriptScopeInfo> EnsureDebugScriptScopeInfo(
       SerializeDebugScriptScopeInfo(isolate, info.literal()->scope());
   isolate->debug()->SetScriptScopeInfo(script, debug_info);
   return debug_info;
+}
+
+int DebugScriptScopeCount(Tagged<DebugScriptScopeInfo> info) {
+  return GetScopeCount(info);
+}
+
+std::optional<DebugScriptScope> FindClosureScope(
+    DirectHandle<DebugScriptScopeInfo> info, int start_position,
+    int end_position, ScopeType scope_type) {
+  // SerializeDebugScriptScopeInfo() emits scopes in DFS pre-order, so scanning
+  // the offset table linearly visits the scopes in the same order the AST
+  // traversal did.
+  const int scope_count = DebugScriptScopeCount(*info);
+  for (int i = 0; i < scope_count; ++i) {
+    DebugScriptScope scope = DebugScriptScope::FromIndex(info, i);
+    if (scope.scope_type() == scope_type &&
+        scope.start_position() == start_position &&
+        scope.end_position() == end_position) {
+      return scope;
+    }
+  }
+  return std::nullopt;
 }
 
 #ifdef VERIFY_HEAP
