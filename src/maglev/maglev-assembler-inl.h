@@ -315,6 +315,32 @@ inline void MaglevAssembler::StoreContextCellSmiValue(Register cell,
                                  value);
 }
 
+// static
+inline bool MaglevAssembler::CanStoreTaggedConstant(ValueNode* value) {
+  if (!kSupportsStoreTaggedConstant) return false;
+  switch (value->opcode()) {
+    case Opcode::kSmiConstant:
+    case Opcode::kHeapConstant:
+      return true;
+    case Opcode::kRootConstant:
+      return CanBeImmediate(value->Cast<RootConstant>()->index());
+    default:
+      return false;
+  }
+}
+
+#if !V8_TARGET_ARCH_X64
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
+    Register object, int offset, ValueNode* constant) {
+  // See {kSupportsStoreTaggedConstant}.
+  UNREACHABLE();
+}
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
+    Register object, int offset, Handle<HeapObject> constant) {
+  UNREACHABLE();
+}
+#endif  // !V8_TARGET_ARCH_X64
+
 #if !defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_LOONG64)
 
 inline void MaglevAssembler::CompareInstanceTypeAndJumpIf(
@@ -1165,6 +1191,57 @@ inline void MaglevAssembler::AssertElidedWriteBarrier(
       ok, object, value, snapshot);
 
   JumpIfNotSmi(value, deferred_write_barrier_check);
+  bind(*ok);
+#endif  // V8_VERIFY_WRITE_BARRIERS
+}
+
+inline void MaglevAssembler::AssertElidedWriteBarrier(
+    Register object, ValueNode* value, RegisterSnapshot snapshot) {
+#if V8_VERIFY_WRITE_BARRIERS
+  if (!v8_flags.verify_write_barriers) return;
+  DCHECK(CanStoreTaggedConstant(value));
+
+  // Smis and read-only roots never need a write barrier.
+  if (value->Is<SmiConstant>()) return;
+  if (value->Is<RootConstant>()) {
+    DCHECK(RootsTable::IsReadOnly(value->Cast<RootConstant>()->index()));
+    return;
+  }
+  AssertElidedWriteBarrier(object, value->Cast<HeapConstant>()->object(),
+                           snapshot);
+#endif  // V8_VERIFY_WRITE_BARRIERS
+}
+
+inline void MaglevAssembler::AssertElidedWriteBarrier(
+    Register object, compiler::HeapObjectRef value, RegisterSnapshot snapshot) {
+#if V8_VERIFY_WRITE_BARRIERS
+  if (!v8_flags.verify_write_barriers) return;
+
+  ZoneLabelRef ok(this);
+  Label* deferred_write_barrier_check = MakeDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef ok, Register object,
+         compiler::HeapObjectRef value, RegisterSnapshot snapshot) {
+        // Materialize the constant in the scratch register and borrow any
+        // other register for the check; this is verification-only code, so
+        // saving it around the check is fine.
+        TemporaryRegisterScope temps(masm);
+        Register value_reg = temps.AcquireScratch();
+        masm->Move(value_reg, value.object());
+        RegList candidates = kAllocatableGeneralRegisters;
+        candidates.clear(object);
+        Register scratch = candidates.first();
+        masm->Push(scratch);
+        Label done;
+        masm->PreCheckSkippedWriteBarrier(object, value_reg, scratch, &done);
+        masm->CallVerifySkippedWriteBarrierStubSaveRegisters(
+            object, value_reg, SaveFPRegsMode::kSave);
+        masm->bind(&done);
+        masm->Pop(scratch);
+        masm->Jump(*ok);
+      },
+      ok, object, value, snapshot);
+
+  Jump(deferred_write_barrier_check);
   bind(*ok);
 #endif  // V8_VERIFY_WRITE_BARRIERS
 }

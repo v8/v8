@@ -3749,7 +3749,6 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   Register object = WriteBarrierDescriptor::ObjectRegister();
   DCHECK_EQ(object, ToRegister(ValueInput()));
   Register value = temps.Acquire();
-  __ MoveTagged(value, map_.object());
 
   switch (kind()) {
     case Kind::kInlinedAllocation: {
@@ -3757,15 +3756,23 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
       auto inlined = ValueInput().node()->Cast<InlinedAllocation>();
       if (inlined->allocation_block()->allocation_type() ==
           AllocationType::kYoung) {
-        __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
-                                          value);
-        __ AssertElidedWriteBarrier(object, value, register_snapshot());
+        if (MaglevAssembler::kSupportsStoreTaggedConstant) {
+          __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
+                                            map_.object());
+          __ AssertElidedWriteBarrier(object, map_, register_snapshot());
+        } else {
+          __ MoveTagged(value, map_.object());
+          __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
+                                            value);
+          __ AssertElidedWriteBarrier(object, value, register_snapshot());
+        }
         break;
       }
       [[fallthrough]];
     }
     case Kind::kInitializing:
     case Kind::kTransitioning:
+      __ MoveTagged(value, map_.object());
       __ StoreTaggedFieldWithWriteBarrier(object, offsetof(HeapObject, map_),
                                           value, register_snapshot(),
                                           MaglevAssembler::kValueIsCompressed,
@@ -6090,15 +6097,28 @@ void StoreInt32::GenerateCode(MaglevAssembler* masm,
 
 void StoreTaggedFieldNoWriteBarrier::SetValueLocationConstraints() {
   UseRegister(ObjectInput());
-  UseRegister(ValueInput());
+  if (MaglevAssembler::CanStoreTaggedConstant(ValueInput().node())) {
+    // The constant is stored as an immediate and needs no register.
+    UseAny(ValueInput());
+  } else {
+    UseRegister(ValueInput());
+  }
 }
 void StoreTaggedFieldNoWriteBarrier::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register object = ToRegister(ObjectInput());
-  Register value = ToRegister(ValueInput());
 
   __ AssertNotSmi(object);
 
+  if (ValueInput().operand().IsConstant()) {
+    ValueNode* constant = ValueInput().node();
+    DCHECK(MaglevAssembler::CanStoreTaggedConstant(constant));
+    __ StoreTaggedFieldNoWriteBarrier(object, offset(), constant);
+    __ AssertElidedWriteBarrier(object, constant, register_snapshot());
+    return;
+  }
+
+  Register value = ToRegister(ValueInput());
   __ StoreTaggedFieldNoWriteBarrier(object, offset(), value);
   __ AssertElidedWriteBarrier(object, value, register_snapshot());
 }
