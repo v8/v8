@@ -112,6 +112,18 @@ class FunctionContextSpecialization final : public AllStatic {
     if (HeapConstant* n = context->TryCast<HeapConstant>()) {
       return n->ref().AsContext().previous(unit->broker(), depth);
     }
+    if (InitialValue* n = context->TryCast<InitialValue>()) {
+      if (!unit->info()->toplevel_is_osr() &&
+          n->source() == interpreter::Register::current_context()) {
+        if (compiler::OptionalContextRef outer =
+                unit->info()->specialization_context()) {
+          if (*depth >= unit->info()->specialization_context_distance()) {
+            *depth -= unit->info()->specialization_context_distance();
+            return outer->previous(unit->broker(), depth);
+          }
+        }
+      }
+    }
     return {};
   }
 };
@@ -765,13 +777,21 @@ ValueNode* MaglevGraphBuilder::GetInlinedArgument(int i) {
 
 void MaglevGraphBuilder::BuildRegisterFrameInitialization(
     ValueNode* context, ValueNode* closure, ValueNode* new_target) {
-  if (closure == nullptr &&
-      compilation_unit_->info()->specialize_to_function_context()) {
-    compiler::JSFunctionRef function = compiler::MakeRefAssumeMemoryFence(
-        broker(), broker()->CanonicalPersistentHandle(
-                      compilation_unit_->info()->toplevel_function()));
-    closure = GetConstant(function);
-    context = GetConstant(function.context(broker()));
+  if (closure == nullptr) {
+    if (compilation_unit_->info()->specialize_to_function_context()) {
+      compiler::JSFunctionRef function = compiler::MakeRefAssumeMemoryFence(
+          broker(), broker()->CanonicalPersistentHandle(
+                        compilation_unit_->info()->toplevel_function()));
+      closure = GetConstant(function);
+      context = GetConstant(function.context(broker()));
+    } else if (!compilation_unit_->info()->toplevel_is_osr() &&
+               compilation_unit_->info()->specialization_context_distance() ==
+                   0) {
+      if (compiler::OptionalContextRef outer =
+              compilation_unit_->info()->specialization_context()) {
+        context = GetConstant(*outer);
+      }
+    }
   }
 
   auto InitializeRegister = [&](interpreter::Register reg,
