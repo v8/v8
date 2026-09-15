@@ -329,9 +329,10 @@ V8_OBJECT class JSReceiver : public HeapObject {
       DirectHandle<Object> value, bool from_javascript,
       ShouldThrow should_throw);
 
-  inline static Handle<Object> GetDataProperty(Isolate* isolate,
-                                               DirectHandle<JSReceiver> object,
-                                               DirectHandle<Name> name);
+  inline static Handle<Object> GetDataProperty(
+      Isolate* isolate, DirectHandle<JSReceiver> object,
+      DirectHandle<Name> name,
+      AllowAllocation allow_allocation = AllowAllocation{true});
   V8_EXPORT_PRIVATE static Handle<Object> GetDataProperty(
       LookupIterator* it,
       AllowAllocation allow_allocation = AllowAllocation{true});
