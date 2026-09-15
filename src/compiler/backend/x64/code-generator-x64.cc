@@ -687,8 +687,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
                             InstructionCode opcode, Instruction* instr,
                             int pc) {
   const MemoryAccessMode access_mode = instr->memory_access_mode();
-  if (access_mode == kMemoryAccessTrappingMemOutOfBounds ||
-      access_mode == kMemoryAccessTrappingNullDereference) {
+  if (access_mode == kMemoryAccessTrapping) {
     codegen->RecordTrappingInstruction(pc);
   }
 }

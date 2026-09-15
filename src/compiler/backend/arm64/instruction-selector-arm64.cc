@@ -1120,7 +1120,7 @@ void InstructionSelector::VisitLoadLane(OpIndex node) {
   opcode |= LaneSizeField::encode(
       LaneSizeFromBits(static_cast<uint8_t>(load.lane_size() * kBitsPerByte)));
   if (load.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   Arm64OperandGenerator g(this);
@@ -1135,7 +1135,7 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
   opcode |= LaneSizeField::encode(
       LaneSizeFromBits(static_cast<uint8_t>(store.lane_size() * kBitsPerByte)));
   if (store.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   Arm64OperandGenerator g(this);
@@ -1235,7 +1235,7 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
     load_opcode |= AddressingModeField::encode(kMode_MRR);
   }
   if (op.load_kind.with_trap_handler) {
-    load_opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    load_opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   Emit(load_opcode, 1, outputs, 2, inputs);
   if (extend_opcode != kArchNop) {
@@ -1374,13 +1374,8 @@ void InstructionSelector::VisitLoad(OpIndex node) {
   MemoryRepresentation load_rep = load.ts_loaded_rep();
   std::tie(opcode, immediate_mode) =
       GetLoadOpcodeAndImmediate(load_rep, load.ts_result_rep());
-  bool traps_on_null;
-  if (load.is_trapping(&traps_on_null)) {
-    if (traps_on_null) {
-      opcode |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-    } else {
-      opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
-    }
+  if (load.is_trapping()) {
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   EmitLoad(this, node, opcode, immediate_mode, load_rep);
 }
@@ -1448,8 +1443,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
       code |= RecordWriteModeField::encode(record_write_mode);
     }
     code |= AddressingModeField::encode(addressing_mode);
-    if (store_view.is_store_trap_on_null()) {
-      code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
+    if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
+      code |= AccessModeField::encode(kMemoryAccessTrapping);
     }
     InstructionOperand temps[1];
     size_t temp_count = 0;
@@ -1529,10 +1524,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
     opcode |= AddressingModeField::encode(kMode_MRR);
   }
 
-  if (store_view.is_store_trap_on_null()) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-  } else if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+  if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   Emit(opcode, 0, nullptr, input_count, inputs);
@@ -3832,7 +3825,7 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   if (CpuFeatures::IsSupported(LSE)) {
     InstructionOperand temps[] = {g.TempRegister()};
@@ -3867,7 +3860,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   if (CpuFeatures::IsSupported(LSE)) {
     InstructionOperand temps[] = {g.TempRegister()};
@@ -3941,11 +3934,8 @@ void VisitAtomicLoad(InstructionSelector* selector, OpIndex node,
       UNREACHABLE();
   }
 
-  bool traps_on_null;
-  if (load.is_trapping(&traps_on_null)) {
-    code |= AccessModeField::encode(traps_on_null
-                                        ? kMemoryAccessTrappingNullDereference
-                                        : kMemoryAccessTrappingMemOutOfBounds);
+  if (load.is_trapping()) {
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   code |=
@@ -4039,10 +4029,8 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     code |= AtomicWidthField::encode(width);
   }
 
-  if (store.is_store_trap_on_null()) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-  } else if (store_params.kind() == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+  if (store_params.kind() == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   code |= AddressingModeField::encode(kMode_MRR);
@@ -4066,7 +4054,7 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
-    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
 
   if (CpuFeatures::IsSupported(LSE)) {
@@ -6941,7 +6929,7 @@ void InstructionSelector::VisitSimd128LoadPairDeinterleave(OpIndex node) {
   InstructionCode opcode = kArm64S128LoadPairDeinterleave;
   opcode |= LaneSizeField::encode(LaneSizeFromBits(load.lane_size()));
   if (load.load_kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   OptionalOpIndex first = FindProjection(node, 0);
   OptionalOpIndex second = FindProjection(node, 1);

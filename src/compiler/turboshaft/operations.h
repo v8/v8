@@ -3045,9 +3045,6 @@ struct LoadOp : OperationT<LoadOp> {
     bool maybe_unaligned : 1;
     // There is a Wasm trap handler for out-of-bounds accesses.
     bool with_trap_handler : 1;
-    // The wasm trap handler is used for null accesses. Note that this requires
-    // with_trap_handler as well.
-    bool trap_on_null : 1;
     // If {load_eliminable} is true, then:
     //   - Stores/Loads at this address cannot overlap. Concretely, it means
     //     that something like this cannot happen:
@@ -3095,7 +3092,6 @@ struct LoadOp : OperationT<LoadOp> {
       return {.tagged_base = true,
               .maybe_unaligned = false,
               .with_trap_handler = false,
-              .trap_on_null = false,
               .load_eliminable = true,
               .is_immutable = false,
               .is_atomic = false};
@@ -3104,7 +3100,6 @@ struct LoadOp : OperationT<LoadOp> {
       return {.tagged_base = false,
               .maybe_unaligned = false,
               .with_trap_handler = false,
-              .trap_on_null = false,
               .load_eliminable = true,
               .is_immutable = false,
               .is_atomic = false};
@@ -3113,7 +3108,6 @@ struct LoadOp : OperationT<LoadOp> {
       return {.tagged_base = false,
               .maybe_unaligned = true,
               .with_trap_handler = false,
-              .trap_on_null = false,
               .load_eliminable = true,
               .is_immutable = false,
               .is_atomic = false};
@@ -3122,7 +3116,6 @@ struct LoadOp : OperationT<LoadOp> {
       return {.tagged_base = false,
               .maybe_unaligned = false,
               .with_trap_handler = true,
-              .trap_on_null = false,
               .load_eliminable = true,
               .is_immutable = false,
               .is_atomic = false};
@@ -3131,7 +3124,6 @@ struct LoadOp : OperationT<LoadOp> {
       return {.tagged_base = true,
               .maybe_unaligned = false,
               .with_trap_handler = true,
-              .trap_on_null = true,
               .load_eliminable = true,
               .is_immutable = false,
               .is_atomic = false};
@@ -3167,8 +3159,7 @@ struct LoadOp : OperationT<LoadOp> {
              maybe_unaligned == other.maybe_unaligned &&
              with_trap_handler == other.with_trap_handler &&
              load_eliminable == other.load_eliminable &&
-             is_immutable == other.is_immutable &&
-             is_atomic == other.is_atomic && trap_on_null == other.trap_on_null;
+             is_immutable == other.is_immutable && is_atomic == other.is_atomic;
     }
   };
   Kind kind;

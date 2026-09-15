@@ -285,11 +285,7 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const FlagsCondition& fc);
 
-enum MemoryAccessMode {
-  kMemoryAccessDirect = 0,
-  kMemoryAccessTrappingMemOutOfBounds = 1,
-  kMemoryAccessTrappingNullDereference = 2,
-};
+enum MemoryAccessMode { kMemoryAccessDirect = 0, kMemoryAccessTrapping = 1 };
 
 enum class AtomicWidth { kWord32, kWord64 };
 
