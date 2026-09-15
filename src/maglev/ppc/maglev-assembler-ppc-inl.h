@@ -1373,8 +1373,10 @@ inline void MaglevAssembler::CompareSmiAndAssert(Register src,
                                                  AbortReason reason) {
   if (!v8_flags.debug_code) return;
   AssertSmi(src);
-  mov(r0, Operand(value.ptr()));
-  CompareTagged(src, r0);
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  mov(scratch, Operand(value.ptr()));
+  CompareTagged(src, scratch);
   Assert(cond, reason);
 }
 
