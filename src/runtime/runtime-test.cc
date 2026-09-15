@@ -659,13 +659,12 @@ namespace {
 
 void FinalizeOptimization(Isolate* isolate) {
   DCHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->WaitUntilCompilationJobsDone();
+  isolate->WaitForConcurrentOptimizationJobs();
   isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
   isolate->optimizing_compile_dispatcher()->set_finalize(true);
 
 #if V8_ENABLE_MAGLEV
   if (isolate->maglev_concurrent_dispatcher()->is_enabled()) {
-    isolate->maglev_concurrent_dispatcher()->AwaitCompileJobs();
     isolate->maglev_concurrent_dispatcher()->FinalizeFinishedJobs();
   }
 #endif  // V8_ENABLE_MAGLEV
@@ -1035,14 +1034,7 @@ RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
 }
 
 RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
-  if (isolate->concurrent_recompilation_enabled()) {
-    isolate->optimizing_compile_dispatcher()->WaitUntilCompilationJobsDone();
-#if V8_ENABLE_MAGLEV
-    if (isolate->maglev_concurrent_dispatcher()->is_enabled()) {
-      isolate->maglev_concurrent_dispatcher()->AwaitCompileJobs();
-    }
-#endif  // V8_ENABLE_MAGLEV
-  }
+  isolate->WaitForConcurrentOptimizationJobs();
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

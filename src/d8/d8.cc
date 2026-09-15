@@ -7557,9 +7557,33 @@ void Shell::CollectGarbage(Isolate* isolate) {
 }
 
 namespace {
+
+// Concurrent compilation doesn't post a task when a job finishes; instead it
+// requests an interrupt which finalizes the job the next time JavaScript runs.
+// Since we might not run any JavaScript any more, wait for the jobs and handle
+// the interrupts explicitly. Returns true if any job was finalized.
+bool FinalizeBackgroundCompilationJobs(i::Isolate* i_isolate) {
+  i_isolate->WaitForConcurrentOptimizationJobs();
+  i::StackGuard* stack_guard = i_isolate->stack_guard();
+  bool has_finished_jobs = stack_guard->CheckInstallCode();
+#ifdef V8_ENABLE_MAGLEV
+  has_finished_jobs |= stack_guard->CheckInstallMaglevCode();
+#endif  // V8_ENABLE_MAGLEV
+  if (!has_finished_jobs) return false;
+
+  // If there's a pending termination exception, this will handle it instead of
+  // installing code. This is intentional as it emulates how V8 normally works.
+  stack_guard->HandleInterrupts();
+  return true;
+}
+
 bool ProcessMessages(
     Isolate* isolate,
-    const std::function<platform::MessageLoopBehavior()>& behavior) {
+    const std::function<platform::MessageLoopBehavior()>& behavior,
+    bool wait_for_background_tasks = false) {
+  // TODO(marja): now we need to pass the MessageLoopBehavior and
+  // wait_for_background_tasks separately - can they be merged?
+
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::SaveAndSwitchContext saved_context(i_isolate, {});
   SealHandleScope shs(isolate);
@@ -7596,7 +7620,14 @@ bool ProcessMessages(
       }
     }
 
-    if (!ran_a_task) break;
+    if (!ran_a_task) {
+      if (!wait_for_background_tasks) break;
+      if (!FinalizeBackgroundCompilationJobs(i_isolate)) break;
+      if (isolate->IsExecutionTerminating()) {
+        return exit_with_success;
+      }
+      DCHECK(!try_catch.HasCaught());
+    }
   }
   if (g_default_platform->IdleTasksEnabled(isolate)) {
     v8::platform::RunIdleTasks(g_default_platform, isolate,
@@ -7630,7 +7661,8 @@ bool Shell::CompleteMessageLoop(Isolate* isolate) {
     }
     return ran_tasks;
   }
-  return ProcessMessages(isolate, get_waiting_behaviour);
+  return ProcessMessages(isolate, get_waiting_behaviour,
+                         options.wait_for_background_tasks);
 }
 
 bool Shell::FinishExecuting(Isolate* isolate, const Global<Context>& context) {

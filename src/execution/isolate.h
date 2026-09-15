@@ -1797,6 +1797,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // compile dispatcher's queue.
   void AbortConcurrentOptimization(BlockingBehavior blocking_behavior);
 
+  // Waits until all concurrent optimization jobs of this Isolate have
+  // finished. Finished jobs request an interrupt for installing their code, so
+  // they are finalized the next time interrupts are handled.
+  void WaitForConcurrentOptimizationJobs();
+
   int id() const { return id_; }
 
   bool was_locker_ever_used() const {

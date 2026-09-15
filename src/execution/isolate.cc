@@ -6883,6 +6883,17 @@ void Isolate::AbortConcurrentOptimization(BlockingBehavior behavior) {
 #endif
 }
 
+void Isolate::WaitForConcurrentOptimizationJobs() {
+  if (concurrent_recompilation_enabled()) {
+    optimizing_compile_dispatcher()->WaitUntilCompilationJobsDone();
+  }
+#ifdef V8_ENABLE_MAGLEV
+  if (maglev_concurrent_dispatcher()->is_enabled()) {
+    maglev_concurrent_dispatcher()->AwaitCompileJobs();
+  }
+#endif  // V8_ENABLE_MAGLEV
+}
+
 std::shared_ptr<CompilationStatistics> Isolate::GetTurboStatistics() {
   if (turbo_statistics_ == nullptr) {
     turbo_statistics_.reset(new CompilationStatistics());
