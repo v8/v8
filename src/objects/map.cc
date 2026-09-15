@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/hashing.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
@@ -2371,8 +2372,8 @@ Handle<Map> Map::CopyReplaceDescriptor(
 }
 
 int Map::Hash(Isolate* isolate, Tagged<HeapObject> prototype) {
-  // For performance reasons we only hash the 2 most variable fields of a map:
-  // prototype and bit_field2.
+  // Hash the prototype, instance type and bit_field2, mixing their bits before
+  // NormalizedMapCache reduces the hash to a cache index.
 
   int prototype_hash;
   if (IsNull(prototype)) {
@@ -2383,7 +2384,10 @@ int Map::Hash(Isolate* isolate, Tagged<HeapObject> prototype) {
     prototype_hash = receiver->GetOrCreateIdentityHash(isolate).value();
   }
 
-  return prototype_hash ^ bit_field2();
+  size_t hash =
+      base::Hasher::Combine(prototype_hash, static_cast<int>(bit_field2()),
+                            static_cast<int>(instance_type()));
+  return static_cast<int>(hash & 0x7FFFFFFF);
 }
 
 namespace {
