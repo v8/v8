@@ -2526,6 +2526,12 @@ if (v8_use_metagen_instance_types) {
                "tools/metagen/instance_types.py",
                "tools/metagen/metagen.py",
                _metagen_driver_file,
+
+               # The driver's aggregate header. It declares no classes, so
+               # metagen records no fact from it and it is absent from the
+               # depfile, but its include list determines which headers the
+               # harvest parses. PRESUBMIT.py checks that the list is complete.
+               "src/objects/all-objects.h",
                "$root_out_dir/v8_build_config.json",
 
                # Proxy for the whole builtin-header directory, which has no
