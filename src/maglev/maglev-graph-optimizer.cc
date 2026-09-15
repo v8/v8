@@ -2950,7 +2950,31 @@ ProcessResult MaglevGraphOptimizer::VisitNumberToString(
 
 ProcessResult MaglevGraphOptimizer::VisitUpdateJSArrayLength(
     UpdateJSArrayLength* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* length = node->LengthInput().node();
+  ValueNode* index = node->IndexInput().node();
+
+  if (auto result = reducer_.TryFoldInt32Condition(
+          AssertCondition::kUnsignedLessThan, index, length)) {
+    if (result.value()) {
+      return ReplaceWith(length);
+    }
+  }
+
+  const auto r_index = GetRange(index);
+  const auto r_length = GetRange(length);
+  if (r_index && r_length) {
+    if (const auto result = TryFoldCompareWithRanges(
+            AssertCondition::kUnsignedLessThan, *r_index, *r_length)) {
+      if (result.value()) {
+        return ReplaceWith(length);
+      }
+    }
+    if (r_index->IsUint32() && r_length->IsUint32() &&
+        IsRangeLessEqual(index, length)) {
+      return ReplaceWith(length);
+    }
+  }
+
   return ProcessResult::kContinue;
 }
 
