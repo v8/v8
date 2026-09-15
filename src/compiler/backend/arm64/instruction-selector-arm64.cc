@@ -55,6 +55,13 @@ class Arm64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
+  InstructionOperand UseUniqueOperand(OpIndex node, ImmediateMode mode) {
+    if (CanBeImmediate(node, mode)) {
+      return UseImmediate(node);
+    }
+    return UseUniqueRegister(node);
+  }
+
   bool IsImmediateZero(OpIndex node) {
     if (const ConstantOp* constant =
             selector()->Get(node).TryCast<ConstantOp>()) {
@@ -2650,7 +2657,27 @@ void InstructionSelector::VisitUint64Sub128(OpIndex node) {
 }
 
 void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
-  UNIMPLEMENTED();
+  Arm64OperandGenerator g(this);
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  const auto& op = this->Get(node).Cast<Word64Add3Op>();
+
+  inputs[input_count++] = g.UseRegister(op.first());
+  inputs[input_count++] = g.UseOperand(op.second(), kArithmeticImm);
+  inputs[input_count++] = g.UseUniqueOperand(op.third(), kArithmeticImm);
+
+  OptionalOpIndex out_low = FindProjection(node, 0);
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
+
+  OptionalOpIndex out_high = FindProjection(node, 1);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    outputs[output_count++] = g.DefineAsRegister(out_high.value());
+  }
+
+  Emit(kArm64Add64_3, output_count, outputs, input_count, inputs);
 }
 
 #if V8_ENABLE_SIMD128

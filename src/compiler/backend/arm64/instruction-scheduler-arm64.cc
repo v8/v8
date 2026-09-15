@@ -344,6 +344,7 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kArm64Imod32:
     case kArm64Umod:
     case kArm64Umod32:
+    case kArm64Add64_3:
     case kArm64Add128:
     case kArm64Sub128:
       return ArchInstResource::kIntMulti;
@@ -426,6 +427,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
   switch (instr->arch_opcode()) {
     case kArm64Add:
     case kArm64Add32:
+    case kArm64Add64_3:
     case kArm64Add128:
     case kArm64Sub128:
     case kArm64And:

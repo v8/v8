@@ -1642,6 +1642,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputOperand2_32(1));
       }
       break;
+    case kArm64Add64_3: {
+      Register low_out = i.OutputRegister(0);
+      bool use_out_high = instr->OutputCount() > 1;
+      if (use_out_high) {
+        Register high_out = i.OutputRegister(1);
+        __ Adds(low_out, i.InputRegister(0), i.InputOperand2_64(1));
+        __ Cset(high_out, hs);
+        __ Adds(low_out, low_out, i.InputOperand64(2));
+        __ Cinc(high_out, high_out, hs);
+      } else {
+        __ Add(low_out, i.InputRegister(0), i.InputOperand2_64(1));
+        __ Add(low_out, low_out, i.InputOperand64(2));
+      }
+      break;
+    }
     case kArm64Add128: {
       Register low_out = i.OutputRegister(0);
       Register high_out = i.OutputRegister(1);
