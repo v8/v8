@@ -2242,7 +2242,12 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
       // Matching IR:
       // 7: Word64And
       // 8: Word64Equal(#7)
-      VisitWordCompare(this, value, kRiscvTst64, cont, true);
+      // For Word32And the operands may have dirty bits in the upper 32 bits
+      // (e.g. from Word32Xor with -1, which lowers to a 64-bit xori), so the
+      // zero test must normalize the 32-bit result before branching.
+      bool is_32 = value_op.Is<Opmask::kWord32BitwiseAnd>();
+      VisitWordCompare(this, value, is_32 ? kRiscvTst32 : kRiscvTst64, cont,
+                       true);
       return;
     }
   }
@@ -2250,27 +2255,25 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
   // Continuation could not be combined with a compare, emit compare against
   // 0.
   const ComparisonOp* comparison = this->Get(user).TryCast<ComparisonOp>();
-#ifdef V8_COMPRESS_POINTERS
-  if ((comparison &&
-       comparison->rep.value() == RegisterRepresentation::Word64()) ||
-      value_op.Is<Opmask::kWord32BitwiseAnd>() ||
-      value_op.Is<Opmask::kTruncateWord64ToWord32>() ||
+  // 32-bit ALU results are not guaranteed to have their upper 32 bits
+  // correctly extended on riscv64 (e.g. Word32Xor with -1 lowers to a
+  // full-width xori), so a Word32 value must use a zero test that normalizes
+  // the upper bits before branching. Note that a null |comparison| means the
+  // branch condition is a Word32 value directly (BranchOp::condition() is
+  // always Word32). Values that are known to be properly extended can use the
+  // cheaper full-width test.
+  bool is_64_bit =
+      comparison &&
+      (comparison->rep.value() == RegisterRepresentation::Word64() ||
+       (!COMPRESS_POINTERS_BOOL &&
+        comparison->rep.value() != RegisterRepresentation::Word32()));
+  if (is_64_bit || value_op.Is<Opmask::kTruncateWord64ToWord32>() ||
       IsLoadWord32OrSmaller(this, value) ||
       IsSignExtendWord32ToWord64(value_op)) {
-    // If the value_op is sign-extended or lw/lhu/lh/lbu/lb, we can use
-    // EmitWordCompareZero to emit a 32-bit compare zero.
     return EmitWordCompareZero(this, value, cont);
   } else {
     return EmitWord32CompareZero(this, value, cont);
   }
-#else
-  if (comparison &&
-      comparison->rep.value() == RegisterRepresentation::Word32()) {
-    return EmitWord32CompareZero(this, value, cont);
-  } else {
-    return EmitWordCompareZero(this, value, cont);
-  }
-#endif
 }
 
 void InstructionSelector::VisitWord32Equal(OpIndex node) {
