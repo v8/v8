@@ -392,6 +392,21 @@ TEST_F(CommonOperatorTest, Projection) {
   }
 }
 
+TEST_F(CommonOperatorTest, DeoptimizeParameters) {
+  FeedbackSource feedback1;
+  FeedbackSource feedback2(IndirectHandle<FeedbackVector>(), FeedbackSlot(0));
+  DeoptimizeParameters p1(DeoptimizeReason::kNotASmi, feedback1);
+  DeoptimizeParameters p2(DeoptimizeReason::kNotASmi, feedback1);
+  DeoptimizeParameters p3(DeoptimizeReason::kWrongMap, feedback1);
+  DeoptimizeParameters p4(DeoptimizeReason::kNotASmi, feedback2);
+  EXPECT_EQ(p1, p2);
+  EXPECT_EQ(hash_value(p1), hash_value(p2));
+  EXPECT_NE(p1, p3);
+  EXPECT_NE(hash_value(p1), hash_value(p3));
+  EXPECT_NE(p1, p4);
+  EXPECT_NE(hash_value(p1), hash_value(p4));
+}
+
 }  // namespace
 }  // namespace common_operator_unittest
 }  // namespace compiler
