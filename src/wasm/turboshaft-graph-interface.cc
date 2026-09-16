@@ -8981,7 +8981,9 @@ class TurboshaftGraphBuildingInterface
         }
         case kRef:
         case kRefNull:
-          value.op = __ LoadFixedArrayElement(exception_values_array, index);
+          value.op = __ AnnotateWasmType(
+              __ LoadFixedArrayElement(exception_values_array, index),
+              value.type);
           index++;
           break;
         case kI8:
