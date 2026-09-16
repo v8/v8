@@ -708,10 +708,10 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
                    trapper);                                                   \
     __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1),  \
                    size, sign_extend);                                         \
-    __ ExtractBits(i.TempRegister(2), i.InputRegister(2), 0, size,             \
+    __ ExtractBits(i.TempRegister(3), i.InputRegister(2), 0, size,             \
                    sign_extend);                                               \
-    DCHECK_NE(i.TempRegister(2), i.OutputRegister(0));                         \
-    __ BranchShort(&exit, ne, i.TempRegister(2),                               \
+    DCHECK_NE(i.TempRegister(3), i.OutputRegister(0));                         \
+    __ BranchShort(&exit, ne, i.TempRegister(3),                               \
                    Operand(i.OutputRegister(0)));                              \
     __ InsertBits(i.TempRegister(2), i.InputRegister(3), i.TempRegister(1),    \
                   size);                                                       \

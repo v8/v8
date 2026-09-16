@@ -1039,13 +1039,14 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   inputs[input_count++] = g.UseUniqueRegister(new_value);
   InstructionOperand outputs[1];
   outputs[0] = g.UseUniqueRegister(node);
-  InstructionOperand temp[3];
+  InstructionOperand temp[4];
   temp[0] = g.TempRegister();
   temp[1] = g.TempRegister();
   temp[2] = g.TempRegister();
+  temp[3] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
+  selector->Emit(code, 1, outputs, input_count, inputs, 4, temp);
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(OpIndex node) {

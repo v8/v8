@@ -2479,7 +2479,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
 
   InstructionOperand outputs[] = {g.UseUniqueRegister(node)};
   InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
-                                g.TempRegister()};
+                                g.TempRegister(), g.TempRegister()};
 
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
