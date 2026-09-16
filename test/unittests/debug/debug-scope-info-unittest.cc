@@ -1572,6 +1572,15 @@ std::optional<DebugScriptScope> FindFirstScopeOfType(
   return std::nullopt;
 }
 
+// Returns the source position of `needle` in `source`, so that tests can spell
+// out break positions as source snippets instead of magic numbers.
+int PositionOf(const char* source, const char* needle) {
+  std::string_view haystack(source);
+  size_t position = haystack.find(needle);
+  CHECK_NE(position, std::string_view::npos);
+  return static_cast<int>(position);
+}
+
 }  // namespace
 
 TEST_F(DebugScopeInfoTest, ContainsPosition) {
@@ -1792,6 +1801,135 @@ TEST_F(DebugScopeInfoTest, FindClosureScopeForModuleScope) {
                        ScopeType::MODULE_SCOPE);
   ASSERT_TRUE(found.has_value());
   EXPECT_EQ(found->scope_index(), 0);
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeNestedBlocks) {
+  HandleScope scope(isolate());
+  const char* source =
+      "function foo() { let a = 1; { let b = 2; { let c = 3; } } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  ASSERT_TRUE(foo.is_function_scope());
+
+  DebugScriptScope outer_block =
+      FindInnermostScope(foo, PositionOf(source, "let b") + 1);
+  EXPECT_EQ(outer_block.scope_index(), 2);
+  EXPECT_TRUE(outer_block.is_block_scope());
+
+  DebugScriptScope inner_block =
+      FindInnermostScope(foo, PositionOf(source, "let c") + 1);
+  EXPECT_EQ(inner_block.scope_index(), 3);
+  EXPECT_TRUE(inner_block.is_block_scope());
+
+  // Positions outside of any block resolve to the closure scope itself.
+  DebugScriptScope function_scope =
+      FindInnermostScope(foo, PositionOf(source, "let a") + 1);
+  EXPECT_EQ(function_scope.scope_index(), foo.scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeStartsAtClosureScope) {
+  HandleScope scope(isolate());
+  // The block scope of `bar` is not a descendant of `foo`, so searching from
+  // `foo` for a position inside `bar` must not leave `foo`.
+  const char* source =
+      "function foo() { let a = 1; } function bar() { { let b = 2; } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script_scope = DebugScriptScope::FromIndex(info, 0);
+  DebugScriptScope foo =
+      FindInnermostScope(script_scope, PositionOf(source, "let a") + 1);
+  ASSERT_TRUE(foo.is_function_scope());
+
+  DebugScriptScope found =
+      FindInnermostScope(foo, PositionOf(source, "let b") + 1);
+  EXPECT_EQ(found.scope_index(), foo.scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeCatchScope) {
+  HandleScope scope(isolate());
+  const char* source = "function foo() { try { } catch (e) { let a = 1; } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  ASSERT_TRUE(foo.is_function_scope());
+
+  DebugScriptScope found =
+      FindInnermostScope(foo, PositionOf(source, "let a") + 1);
+  // The catch scope holds `e` and has the catch body block scope as its child.
+  EXPECT_TRUE(found.is_block_scope() || found.is_catch_scope());
+  std::optional<DebugScriptScope> catch_scope =
+      FindFirstScopeOfType(info, ScopeType::CATCH_SCOPE);
+  ASSERT_TRUE(catch_scope.has_value());
+  EXPECT_GE(found.start_position(), catch_scope->start_position());
+  EXPECT_LE(found.end_position(), catch_scope->end_position());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeWithScope) {
+  HandleScope scope(isolate());
+  const char* source = "function foo() { with ({}) { let a = 1; } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  std::optional<DebugScriptScope> with_scope =
+      FindFirstScopeOfType(info, ScopeType::WITH_SCOPE);
+  ASSERT_TRUE(with_scope.has_value());
+
+  // "with" scopes accept their start position, because the context can already
+  // be pushed while the source position still points at the header.
+  DebugScriptScope found =
+      FindInnermostScope(foo, with_scope->start_position());
+  EXPECT_EQ(found.scope_index(), with_scope->scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeClassScope) {
+  HandleScope scope(isolate());
+  const char* source = "function foo() { class C { m() {} } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  std::optional<DebugScriptScope> class_scope =
+      FindFirstScopeOfType(info, ScopeType::CLASS_SCOPE);
+  ASSERT_TRUE(class_scope.has_value());
+
+  // Class scopes accept their start position, because the class context is
+  // already pushed while the source position still points at Token::kClass.
+  DebugScriptScope found =
+      FindInnermostScope(foo, class_scope->start_position());
+  EXPECT_EQ(found.scope_index(), class_scope->scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeNestedArrowFunctions) {
+  HandleScope scope(isolate());
+  // Both arrow functions end at the same position, so the tightest fit is
+  // decided by the start position.
+  const char* source = "const f = a => b => a + b;";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope script_scope = DebugScriptScope::FromIndex(info, 0);
+  DebugScriptScope found =
+      FindInnermostScope(script_scope, PositionOf(source, "a + b") + 1);
+  EXPECT_EQ(found.scope_index(), 2);
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeOutsideOfClosureScope) {
+  HandleScope scope(isolate());
+  const char* source = "function foo() { let a = 1; } let b = 2;";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  // A position that isn't covered by `foo` at all still returns `foo`, there
+  // is nothing tighter to descend into.
+  DebugScriptScope found =
+      FindInnermostScope(foo, PositionOf(source, "let b") + 1);
+  EXPECT_EQ(found.scope_index(), foo.scope_index());
 }
 
 }  // namespace internal

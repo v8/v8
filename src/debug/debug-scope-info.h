@@ -156,6 +156,16 @@ V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindClosureScope(
     DirectHandle<DebugScriptScopeInfo> info, int start_position,
     int end_position, ScopeType scope_type);
 
+// Returns the innermost scope around `position` at or below `closure_scope`,
+// i.e. the scope a debugger paused at `position` starts iterating from.
+//
+// V8's scope tree doesn't guarantee that siblings don't overlap, so all
+// descendants of `closure_scope` are considered and the one with the tightest
+// bounds around `position` wins. `closure_scope` itself is returned if no
+// descendant is a better fit.
+V8_EXPORT_PRIVATE DebugScriptScope
+FindInnermostScope(DebugScriptScope closure_scope, int position);
+
 }  // namespace internal
 }  // namespace v8
 

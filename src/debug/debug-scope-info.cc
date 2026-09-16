@@ -743,6 +743,35 @@ std::optional<DebugScriptScope> FindClosureScope(
   return std::nullopt;
 }
 
+namespace {
+
+// Visits all descendants of `scope` and narrows `*best` down to the scope with
+// the tightest bounds around `position`.
+void NarrowToInnermostScope(DebugScriptScope scope, int position,
+                            DebugScriptScope* best) {
+  for (std::optional<DebugScriptScope> child = scope.first_child();
+       child.has_value(); child = child->next_sibling()) {
+    // Update `*best` if `child` contains `position` and is a tighter fit than
+    // the currently best scope. Generators have the same source position as
+    // the scope they belong to, so we also check for equality.
+    if (child->ContainsPosition(position, /*is_closure_found=*/true) &&
+        child->start_position() >= best->start_position() &&
+        child->end_position() <= best->end_position()) {
+      *best = *child;
+    }
+    NarrowToInnermostScope(*child, position, best);
+  }
+}
+
+}  // namespace
+
+DebugScriptScope FindInnermostScope(DebugScriptScope closure_scope,
+                                    int position) {
+  DebugScriptScope best = closure_scope;
+  NarrowToInnermostScope(closure_scope, position, &best);
+  return best;
+}
+
 #ifdef VERIFY_HEAP
 // DebugScriptScopeInfo::DebugScriptScopeInfoVerify is placed here instead of in
 // objects-debug.cc to keep the exact layout of numeric_data local to
