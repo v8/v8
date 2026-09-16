@@ -59,6 +59,7 @@ namespace v8::internal::wasm {
   V(WasmThrowRef)                                                              \
   V(WasmRethrowExplicitContext)                                                \
   V(WasmHandleStackOverflow)                                                   \
+  V(WasmReturnFromSegment)                                                     \
   V(WasmTraceEnter)                                                            \
   V(WasmTraceExit)                                                             \
   V(WasmTraceMemory)                                                           \

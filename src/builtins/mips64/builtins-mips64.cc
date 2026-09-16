@@ -3322,6 +3322,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   __ Trap();
 }
+
+void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
+  __ Trap();
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_DoubleToI(MacroAssembler* masm) {

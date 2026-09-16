@@ -5496,6 +5496,8 @@ void CodeGenerator::AssembleConstructFrame() {
         regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
         regs_to_save.set(
             WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+        regs_to_save.set(
+            WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
         for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
         __ MultiPush(regs_to_save);
         DoubleRegList fp_regs_to_save;
@@ -5506,10 +5508,13 @@ void CodeGenerator::AssembleConstructFrame() {
           simd128_regs_to_save.set(reg);
         __ SaveVectorRegisters(simd128_regs_to_save);
         __ li(WasmHandleStackOverflowDescriptor::GapRegister(), stack_space);
-        __ AddWord(
-            WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-            Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
-                    CommonFrameConstants::kFixedFrameSizeAboveFp));
+        __ AddWord(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+                   Operand((call_descriptor->ParameterSlotCount() +
+                            call_descriptor->ReturnSlotCount()) *
+                               kSystemPointerSize +
+                           CommonFrameConstants::kFixedFrameSizeAboveFp));
+        __ li(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
+              call_descriptor->ParameterSlotCount() * kSystemPointerSize);
         __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
                 RelocInfo::WASM_STUB_CALL);
         // If the call successfully grew the stack, we don't expect it to have
@@ -5606,54 +5611,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
                 Operand(static_cast<intptr_t>(0)));
     }
   }
-
-#if V8_ENABLE_WEBASSEMBLY
-  if (call_descriptor->IsAnyWasmFunctionCall() &&
-      v8_flags.wasm_growable_stacks) {
-    Label done;
-    {
-      UseScratchRegisterScope temps{masm()};
-      Register scratch = temps.Acquire();
-      __ LoadWord(scratch,
-                  MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-      __ BranchShort(
-          &done, ne, scratch,
-          Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-    }
-    RegList regs_to_save;
-    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
-    __ MultiPush(regs_to_save);
-
-    DoubleRegList fp_regs_to_save;
-    for (auto reg : wasm::kFpReturnRegisters) fp_regs_to_save.set(reg);
-    __ MultiPushFPU(fp_regs_to_save);
-    Simd128RegList simd128_regs_to_save;
-    for (auto reg : wasm::kSimd128ReturnRegisters)
-      simd128_regs_to_save.set(reg);
-    __ SaveVectorRegisters(simd128_regs_to_save);
-
-    __ li(kCArgRegs[0], ExternalReference::isolate_address());
-    {
-      UseScratchRegisterScope temps{masm()};
-      Register scratch = temps.Acquire();
-      __ PrepareCallCFunction(1, scratch);
-    }
-    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
-    __ mv(fp, kReturnRegister0);
-    __ RestoreVectorRegisters(simd128_regs_to_save);
-    __ MultiPopFPU(fp_regs_to_save);
-    __ MultiPop(regs_to_save);
-    if (masm()->options().enable_simulator_code) {
-      UseScratchRegisterScope temps(masm());
-      temps.Exclude(kSimulatorBreakArgument);
-      __ RecordComment("-- Set simulator stack limit --");
-      __ LoadStackLimit(kSimulatorBreakArgument,
-                        StackLimitKind::kRealStackLimit);
-      __ break_(kExceptionIsSwitchStackLimit, false);
-    }
-    __ bind(&done);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Functions with JS linkage have at least one parameter (the receiver).
   // If {parameter_slots} == 0, it means it is a builtin with

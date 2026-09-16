@@ -103,7 +103,8 @@ TEST_F(LiftoffFrameAlignmentTest, AlignFrameSizeAndPatchPrepareStackFrame) {
     assm.RecordUsedSpillOffset(used_spill_offset);
     assm.AlignFrameSize();
     assm.PatchPrepareStackFrame(prepare_offset, &safepoint_table_builder,
-                                feedback_vector_slot, /*stack_param_slots=*/0);
+                                feedback_vector_slot, /*stack_param_slots=*/0,
+                                /*stack_return_slots=*/0);
 
     assm.movq(rax, rbp);
     assm.subq(rax, rsp);
