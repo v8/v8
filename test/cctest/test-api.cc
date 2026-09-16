@@ -28833,6 +28833,8 @@ struct BasicApiChecker {
     // TODO(mslekova): Refactor the data checking.
     CHECK(options.data->IsNumber());
     CHECK_EQ(Local<v8::Number>::Cast(options.data)->Value(), 42.5);
+    v8::Local<v8::Data> data = options.DataV2();
+    CHECK_EQ(options.data, data.As<v8::Value>());
     return Impl::FastCallback(receiver, argument, options);
   }
   static Ret FastCallbackNoOptions(v8::Local<v8::Object> receiver,
