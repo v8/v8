@@ -561,8 +561,11 @@ v8::Local<v8::ObjectTemplate> V8Console::taskTemplate() {
   v8::Local<v8::FunctionTemplate> consTemplate =
       v8::FunctionTemplate::New(isolate);
   v8::Local<v8::ObjectTemplate> taskTemplate = consTemplate->InstanceTemplate();
+  v8::Local<v8::Signature> signature =
+      v8::Signature::New(isolate, consTemplate);
   v8::Local<v8::FunctionTemplate> funcTemplate =
-      v8::FunctionTemplate::New(isolate, &TaskInfo::runTask);
+      v8::FunctionTemplate::New(isolate, &TaskInfo::runTask,
+                                v8::Local<v8::Value>(), signature);
   taskTemplate->Set(isolate, "run", funcTemplate);
 
   m_taskTemplate.Reset(isolate, taskTemplate);
@@ -594,10 +597,6 @@ void TaskInfo::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Function> function = info[0].As<v8::Function>();
 
   v8::Local<v8::Object> task = info.This();
-  if (!task->IsApiWrapper()) {
-    isolate->ThrowError("'run' called with illegal receiver.");
-    return;
-  }
   TaskInfo* taskInfo =
       v8::Object::Unwrap<TaskInfo::kPointerTag, TaskInfo>(isolate, task);
   if (!taskInfo) {
