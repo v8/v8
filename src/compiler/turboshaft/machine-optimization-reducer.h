@@ -1638,7 +1638,8 @@ class MachineOptimizationReducer : public Next {
       return Next::ReduceWord64AddSub128Binop(al, ah, bl, bh, kind);
     }
 
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
     if (kind == Word64AddSub128BinopOp::Kind::kAdd) {
       // add128(add128(x, 0, y, 0), z, 0) -> add3(x, y, z)
       if (const Word64AddSub128BinopOp* nested = TryMatchAdd3(al, ah, bh)) {
@@ -1653,7 +1654,8 @@ class MachineOptimizationReducer : public Next {
       // TODO(ryandiaz): sub128(sub128(x, 0, y, 0), z, 0) -> sub2(x, y, z)
       // TODO(ryandiaz): sub128(x, 0, add128(y, 0, z, 0)) -> sub2(x, y, z)
     }
-#endif  // defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
+#endif  // defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||
+        // defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
     return Next::ReduceWord64AddSub128Binop(al, ah, bl, bh, kind);
   }
 
