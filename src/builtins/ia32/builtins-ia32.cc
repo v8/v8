@@ -3852,6 +3852,9 @@ namespace {
 // forwards the value, the onRejected variant throws the value.
 
 void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
+  __ cmp(kJavaScriptCallArgCountRegister, Immediate(JSParameterCount(1)));
+  __ Check(equal, AbortReason::kJSSignatureMismatch);
+
   __ EnterFrame(StackFrame::WASM_JSPI);
 
   Register closure = kJSFunctionRegister;  // edi

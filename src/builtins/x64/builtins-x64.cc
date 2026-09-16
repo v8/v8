@@ -3938,18 +3938,17 @@ namespace {
 // forwards the value, the onRejected variant throws the value.
 
 void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
+  __ cmpq(kJavaScriptCallArgCountRegister, Immediate(JSParameterCount(1)));
+  __ Check(equal, AbortReason::kJSSignatureMismatch);
+
   __ EnterFrame(StackFrame::WASM_JSPI);
 
-  Register param_count = rax;
-  __ decq(param_count);                    // Exclude receiver.
   Register closure = kJSFunctionRegister;  // rdi
 
   __ AllocateStackSpace(WasmJspiFrameConstants::kNumSpillSlots *
                         kSystemPointerSize);
   // Set a sentinel value for the spill slots visited by the GC.
   ResetWasmJspiFrameStackSlots(masm);
-
-  param_count = no_reg;
 
   // -------------------------------------------
   // Load suspender from closure.
