@@ -348,11 +348,13 @@ void WasmCode::Validate() const {
                 std::numeric_limits<uint16_t>::max());
 
 #ifdef DEBUG
+#ifdef ENABLE_SLOW_DCHECKS
   NativeModule::CallIndirectTargetMap function_index_map;
   if (native_module_) {
     function_index_map =
         native_module_->CreateIndirectCallTargetToFunctionIndexMap();
   }
+#endif
   // Scope for foreign WasmCode pointers.
   WasmCodeRefScope code_ref_scope;
   // We expect certain relocation info modes to never appear in {WasmCode}
@@ -365,36 +367,38 @@ void WasmCode::Validate() const {
       case RelocInfo::WASM_CALL: {
         Address target = it.rinfo()->wasm_call_address();
         WasmCode* code = native_module_->Lookup(target);
-        CHECK_NOT_NULL(code);
-        CHECK_EQ(WasmCode::kJumpTable, code->kind());
-        CHECK(code->contains(target));
+        DCHECK_NOT_NULL(code);
+        DCHECK_EQ(WasmCode::kJumpTable, code->kind());
+        DCHECK(code->contains(target));
         break;
       }
       case RelocInfo::WASM_STUB_CALL: {
         Address target = it.rinfo()->wasm_stub_call_address();
         WasmCode* code = native_module_->Lookup(target);
-        CHECK_NOT_NULL(code);
-        CHECK_EQ(WasmCode::kJumpTable, code->kind());
-        CHECK(code->contains(target));
+        DCHECK_NOT_NULL(code);
+        DCHECK_EQ(WasmCode::kJumpTable, code->kind());
+        DCHECK(code->contains(target));
         break;
       }
       case RelocInfo::WASM_CANONICAL_SIG_ID: {
         uint32_t sig_id = it.rinfo()->wasm_canonical_sig_id();
-        CHECK_LE(sig_id, GetTypeCanonicalizer()->GetCurrentNumberOfTypes());
+        DCHECK_LE(sig_id, GetTypeCanonicalizer()->GetCurrentNumberOfTypes());
         break;
       }
       case RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY: {
+#ifdef ENABLE_SLOW_DCHECKS
         WasmCodePointer call_target =
             it.rinfo()->wasm_code_pointer_table_entry();
         uint32_t function_index = function_index_map.at(call_target);
-        CHECK_EQ(call_target,
-                 native_module_->GetCodePointerHandle(function_index));
+        DCHECK_EQ(call_target,
+                  native_module_->GetCodePointerHandle(function_index));
+#endif
         break;
       }
       case RelocInfo::INTERNAL_REFERENCE:
       case RelocInfo::INTERNAL_REFERENCE_ENCODED: {
         Address target = it.rinfo()->target_internal_reference();
-        CHECK(contains(target));
+        DCHECK(contains(target));
         break;
       }
       case RelocInfo::EXTERNAL_REFERENCE:
