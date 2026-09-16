@@ -3762,7 +3762,8 @@ struct StoreOp : OperationT<StoreOp> {
                       memory_order(),
                       offset,
                       element_size_log2,
-                      maybe_initializing_or_transitioning};
+                      maybe_initializing_or_transitioning,
+                      indirect_pointer_tag()};
   }
 };
 
