@@ -7260,7 +7260,7 @@ TEST_F(TurboshaftInstructionSelectorTest, AtomicStoreWithWriteBarrier) {
   EXPECT_EQ(kArm64Sub, s[0]->arch_opcode());
   EXPECT_EQ(kArchAtomicStoreWithWriteBarrier, s[1]->arch_opcode());
   EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
-  EXPECT_EQ(AtomicStoreRecordWriteModeField::decode(s[1]->opcode()),
+  EXPECT_EQ(RecordWriteModeField::decode(s[1]->opcode()),
             RecordWriteMode::kValueIsAny);
 }
 

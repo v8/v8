@@ -2083,10 +2083,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchAtomicStoreWithWriteBarrier: {
       // {EmitTSANAwareStore} calls RecordTrapInfoIfNeeded. No need to do it
       // here.
-      RecordWriteMode mode =
-          arch_opcode == kArchStoreWithWriteBarrier
-              ? RecordWriteModeField::decode(instr->opcode())
-              : AtomicStoreRecordWriteModeField::decode(instr->opcode());
+      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);

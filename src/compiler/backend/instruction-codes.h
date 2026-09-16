@@ -372,9 +372,9 @@ using InstructionCode = uint32_t;
 // So, the following instruction types use the MiscField in the following ways:
 // -- Atomics
 // Field                        | Bits
+// RecordWriteMode              | 3
 // AtomicWidth                  | 2
 // AtomicMemoryOrder            | 2
-// AtomicStoreRecordWriteMode   | 3
 // AccessMode                   | 2
 //
 // -- Write barriers
@@ -411,39 +411,34 @@ static_assert(
 using FlagsModeField = AddressingModeField::Next<FlagsMode, 3>;
 using FlagsConditionField = FlagsModeField::Next<FlagsCondition, 5>;
 
+// Write modes for writes with barrier.
+using RecordWriteModeField = FlagsConditionField::Next<RecordWriteMode, 3>;
 // AtomicWidthField is used for the various Atomic opcodes. Only used on 64bit
 // architectures. All atomic instructions on 32bit architectures are assumed to
 // be 32bit wide.
-using AtomicWidthField = FlagsConditionField::Next<AtomicWidth, 2>;
+using AtomicWidthField = RecordWriteModeField::Next<AtomicWidth, 2>;
 // AtomicMemoryOrderField is used for the various Atomic opcodes. This field is
 // not used on all architectures. It is used on architectures where the codegen
 // for kSeqCst and kAcqRel differ only by emitting fences.
 using AtomicMemoryOrderField = AtomicWidthField::Next<AtomicMemoryOrder, 2>;
-using AtomicStoreRecordWriteModeField =
-    AtomicMemoryOrderField::Next<RecordWriteMode, 3>;
-
-// Write modes for writes with barrier.
-using RecordWriteModeField = FlagsConditionField::Next<RecordWriteMode, 3>;
+// Denotes whether the instruction needs to emit an accompanying landing pad for
+// the trap handler.
+using AccessModeField = AtomicMemoryOrderField::Next<MemoryAccessMode, 2>;
 
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.
 using LaneSizeField = FlagsConditionField::Next<LaneSize, 2>;
 using VectorLengthField = LaneSizeField::Next<VectorLength, 2>;
 
-// Denotes whether the instruction needs to emit an accompanying landing pad for
-// the trap handler.
-using AccessModeField =
-    AtomicStoreRecordWriteModeField::Next<MemoryAccessMode, 2>;
-
 // Since AccessModeField is defined in terms of atomics, this assert ensures it
 // does not overlap with other fields it is used with.
-static_assert(AtomicStoreRecordWriteModeField::kLastUsedBit >=
+static_assert(AtomicMemoryOrderField::kLastUsedBit >=
               RecordWriteModeField::kLastUsedBit);
 #ifdef V8_TARGET_ARCH_X64
-static_assert(AtomicStoreRecordWriteModeField::kLastUsedBit >=
+static_assert(AtomicMemoryOrderField::kLastUsedBit >=
               VectorLengthField::kLastUsedBit);
 #else
-static_assert(AtomicStoreRecordWriteModeField::kLastUsedBit >=
+static_assert(AtomicMemoryOrderField::kLastUsedBit >=
               LaneSizeField::kLastUsedBit);
 #endif
 

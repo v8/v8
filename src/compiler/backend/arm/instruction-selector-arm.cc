@@ -807,12 +807,11 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
 
       if (!atomic_order) {
         code = kArchStoreWithWriteBarrier;
-        code |= RecordWriteModeField::encode(record_write_mode);
       } else {
         code = kArchAtomicStoreWithWriteBarrier;
         code |= AtomicMemoryOrderField::encode(*atomic_order);
-        code |= AtomicStoreRecordWriteModeField::encode(record_write_mode);
       }
+      code |= RecordWriteModeField::encode(record_write_mode);
     }
 
     InstructionOperand temps[1];
