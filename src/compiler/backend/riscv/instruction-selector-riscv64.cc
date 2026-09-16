@@ -40,6 +40,9 @@ bool RiscvOperandGenerator::CanBeImmediate(int64_t value,
     case kRiscvTst32:
     case kRiscvXor:
       return is_int12(value);
+    case kRiscvCmp32:
+    case kRiscvCmp32Eq:
+      return is_int12(static_cast<int32_t>(value));
     case kRiscvLb:
     case kRiscvLbu:
     case kRiscvSb:
@@ -1814,6 +1817,30 @@ void VisitFullWord32Compare(InstructionSelector* selector, OpIndex node,
 
 void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
                         FlagsContinuation* cont) {
+  RiscvOperandGenerator g(selector);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  // For equality/inequality only the low 32 bits matter. Compute the 32-bit
+  // difference with Sub32 (which sign-extends its result) and compare against
+  // zero. This avoids the two Shl64 normalization instructions emitted by
+  // VisitFullWord32Compare. The reasoning holds regardless of the (possibly
+  // dirty) upper 32 bits of the operands.
+  if (!cont->IsNone() &&
+      (cont->condition() == kEqual || cont->condition() == kNotEqual)) {
+    OpIndex left = op.input(0);
+    OpIndex right = op.input(1);
+    // Make sure an immediate, if any, ends up on the right.
+    if (!g.CanBeImmediate(right, kRiscvCmp32Eq) &&
+        g.CanBeImmediate(left, kRiscvCmp32Eq)) {
+      cont->Commute();
+      std::swap(left, right);
+    }
+    Instruction* instr =
+        VisitCompare(selector, kRiscvCmp32Eq, g.UseRegister(left),
+                     g.UseOperand(right, kRiscvCmp32Eq), cont);
+    selector->UpdateSourcePosition(instr, node);
+    return;
+  }
   VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
 }
 
@@ -2271,8 +2298,8 @@ void InstructionSelector::VisitWord32Equal(OpIndex node) {
       if (RootsTable::IsReadOnly(root_index)) {
         Tagged_t ptr =
             MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
-        if (g.CanBeImmediate(ptr, kRiscvCmp32)) {
-          VisitCompare(this, kRiscvCmp32, g.UseRegister(left),
+        if (g.CanBeImmediate(ptr, kRiscvCmp32Eq)) {
+          VisitCompare(this, kRiscvCmp32Eq, g.UseRegister(left),
                        g.TempImmediate(static_cast<int32_t>(ptr)), &cont);
           return;
         }

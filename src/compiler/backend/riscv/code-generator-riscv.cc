@@ -782,6 +782,7 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
     Condition cc = FlagsConditionToConditionCmp(condition);
     Register left = i.InputRegister(0);
     Operand right = i.InputOperand(1);
+    UseScratchRegisterScope temps(masm());
     if (instr->arch_opcode() == kRiscvCmpZero ||
         instr->arch_opcode() == kRiscvCmpZero32) {
       right = Operand(zero_reg);
@@ -789,6 +790,15 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
                instr->arch_opcode() == kRiscvTst64) {
       left = kScratchReg;
       right = Operand(zero_reg);
+#if V8_TARGET_ARCH_RISCV64
+    } else if (instr->arch_opcode() == kRiscvCmp32Eq) {
+      // Only the low 32 bits matter; Sub32 sign-extends its result, so it can
+      // be compared directly against zero.
+      Register scratch = temps.Acquire();
+      __ Sub32(scratch, i.InputRegister(0), i.InputOperand(1));
+      left = scratch;
+      right = Operand(zero_reg);
+#endif
     } else {
       DCHECK(instr->arch_opcode() == kRiscvCmp32 ||
              instr->arch_opcode() == kRiscvCmp);
@@ -1768,6 +1778,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvCmp:
 #ifdef V8_TARGET_ARCH_RISCV64
     case kRiscvCmp32:
+    case kRiscvCmp32Eq:
     case kRiscvCmpZero32:
 #endif
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
@@ -4845,6 +4856,15 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
 #if V8_TARGET_ARCH_RISCV64
+  } else if (instr->arch_opcode() == kRiscvCmp32Eq) {
+    // Sub32 only looks at the low 32 bits and sign-extends its result, so
+    // comparing it against zero is a valid (and cheaper) equality test.
+    Condition cc = FlagsConditionToConditionCmp(condition);
+    DCHECK(cc == eq || cc == ne);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ Sub32(scratch, i.InputRegister(0), i.InputOperand(1));
+    __ Branch(tlabel, cc, scratch, Operand(zero_reg));
   } else if (instr->arch_opcode() == kRiscvCmp ||
              instr->arch_opcode() == kRiscvCmp32) {
 #elif V8_TARGET_ARCH_RISCV32
@@ -5042,7 +5062,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     __ Sgtu(result, kScratchReg, zero_reg);
 #if V8_TARGET_ARCH_RISCV64
   } else if (instr->arch_opcode() == kRiscvCmp ||
-             instr->arch_opcode() == kRiscvCmp32) {
+             instr->arch_opcode() == kRiscvCmp32 ||
+             instr->arch_opcode() == kRiscvCmp32Eq) {
 #elif V8_TARGET_ARCH_RISCV32
   } else if (instr->arch_opcode() == kRiscvCmp) {
 #endif
@@ -5050,6 +5071,18 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     Register left = i.InputRegister(0);
     Operand right = i.InputOperand(1);
 #if V8_TARGET_ARCH_RISCV64
+    if (instr->arch_opcode() == kRiscvCmp32Eq) {
+      // Only the low 32 bits matter for equality; Sub32 sign-extends its
+      // result, so a zero test on it is exact.
+      DCHECK(cc == eq || cc == ne);
+      __ Sub32(result, left, right);
+      if (cc == eq) {
+        __ Seqz(result, result);
+      } else {
+        __ Snez(result, result);
+      }
+      return;
+    }
     if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kRiscvCmp32)) {
       Register temp0 = i.TempRegister(0);
       Register temp1 = right.is_reg() ? i.TempRegister(1) : no_reg;

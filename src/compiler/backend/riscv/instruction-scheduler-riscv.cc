@@ -58,6 +58,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvTruncUlD:
     case kRiscvTruncUlS:
     case kRiscvCmp32:
+    case kRiscvCmp32Eq:
     case kRiscvCmpZero32:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvAdd32:
@@ -1798,6 +1799,7 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kRiscvCtzw:
     case kRiscvCpopw:
     case kRiscvCmp32:
+    case kRiscvCmp32Eq:
     case kRiscvCmpZero32:
     case kRiscvAdd32:
     case kRiscvSub32:
