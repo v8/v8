@@ -93,11 +93,18 @@ void CollectScopeTree(Scope* scope, int depth, HeapEntry* script_entry,
   // magic marker as e.g. -3 or kMaxInt.
   info.depth = depth;
 
-  // Class scopes contain private fields and methods for which uses across
-  // closures are currently not tracked.
-  // We omit context variables for such scopes to disable dead context analysis.
   std::vector<Variable*> context_vars;
-  if (!scope->is_class_scope()) {
+
+  if (scope->is_class_scope()) {
+    // Class scopes contain private fields and methods for which uses across
+    // closures are currently not tracked. Omit context variables to disable
+    // dead context analysis.
+  } else if (scope->inner_scope_calls_eval()) {
+    // If this scope or any of its inner scopes contains a direct eval call,
+    // variables might be dynamically accessed at runtime. Omit context
+    // variables to disable dead context analysis.
+  } else {
+    // In all other cases record the context-allocated variables.
     for (Variable* var : *scope->locals()) {
       if (var->IsContextSlot()) {
         context_vars.push_back(var);
@@ -106,6 +113,7 @@ void CollectScopeTree(Scope* scope, int depth, HeapEntry* script_entry,
     std::sort(context_vars.begin(), context_vars.end(),
               [](Variable* a, Variable* b) { return a->index() < b->index(); });
   }
+
   info.scope_context_vars_count = static_cast<uint32_t>(context_vars.size());
   for (Variable* var : context_vars) {
     snapshot->AddSourceScopeContextVar(names->GetCopy(var->raw_name()));

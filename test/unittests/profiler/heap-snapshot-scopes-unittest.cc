@@ -286,7 +286,7 @@ class HeapSnapshotScopesTest : public TestWithContext {
 
       if (curr_scope->variables.empty()) {
         // Context variable emission was disabled for this scope (e.g., class
-        // scope).
+        // scope or a scope containing/enclosing direct eval).
       } else {
         int local_count = scope_info->ContextLocalCount();
         EXPECT_EQ(curr_scope->variables.size(),
@@ -996,6 +996,201 @@ TEST_F(HeapSnapshotScopesTest, CapturedThisMultipleUses) {
   AssertUses(this_var, {arrow_scope});
 
   CheckContextSlots(arrow_fn);
+}
+
+TEST_F(HeapSnapshotScopesTest, EvalScript) {
+  DirectHandle<JSFunction> inner_fn = RunJSForClosure(
+      "eval(\n"
+      "    'function evalOuter() {\\n' +\n"
+      "    '  let evalVar = 1;\\n' +\n"
+      "    '  let unused = 2;\\n' +\n"
+      "    '  return function evalInner() {\\n' +\n"
+      "    '    return evalVar;\\n' +\n"
+      "    '  };\\n' +\n"
+      "    '}\\n' +\n"
+      "    'evalOuter();\\n');\n");
+
+  TakeHeapSnapshot();
+
+  const SnapshotSourceScopeData* inner_scope = GetScopeForClosure(*inner_fn);
+  ASSERT_NE(nullptr, inner_scope);
+
+  const SnapshotSourceScopeData* outer_scope = inner_scope->parent;
+  ASSERT_NE(nullptr, outer_scope);
+
+  const SnapshotSourceScopeData* eval_scope = outer_scope->parent;
+  ASSERT_NE(nullptr, eval_scope);
+  EXPECT_EQ(-2, eval_scope->scope_id);
+  EXPECT_EQ(0, eval_scope->depth);
+  EXPECT_EQ(nullptr, eval_scope->parent);
+
+  const VariableDefinition* eval_var = outer_scope->FindVariable("evalVar");
+  ASSERT_NE(nullptr, eval_var);
+  EXPECT_EQ(0, eval_var->slot_index);
+  AssertUses(eval_var, {inner_scope});
+  EXPECT_EQ(nullptr, outer_scope->FindVariable("unused"));
+
+  CheckContextSlots(inner_fn);
+}
+
+TEST_F(HeapSnapshotScopesTest, EvalScriptWithEnclosingScope) {
+  DirectHandle<JSFunction> inner_fn = RunJSForClosure(
+      "function outer() {\n"
+      "  let outerVar = 1;\n"
+      "  return eval(\n"
+      "      'let evalVar = 2;\\n' +\n"
+      "      'function inner() {\\n' +\n"
+      "      '  return outerVar + evalVar;\\n' +\n"
+      "      '}\\n' +\n"
+      "      'inner;\\n');\n"
+      "}\n"
+      "outer();\n");
+
+  TakeHeapSnapshot();
+
+  const SnapshotSourceScopeData* inner_scope = GetScopeForClosure(*inner_fn);
+  ASSERT_NE(nullptr, inner_scope);
+
+  const SnapshotSourceScopeData* eval_scope = inner_scope->parent;
+  ASSERT_NE(nullptr, eval_scope);
+  EXPECT_EQ(-2, eval_scope->scope_id);
+  EXPECT_EQ(0, eval_scope->depth);
+  EXPECT_EQ(nullptr, eval_scope->parent);
+
+  const VariableDefinition* eval_var = eval_scope->FindVariable("evalVar");
+  ASSERT_NE(nullptr, eval_var);
+  EXPECT_EQ(0, eval_var->slot_index);
+  AssertUses(eval_var, {inner_scope});
+
+  DirectHandle<JSFunction> outer_fn = RunJSForClosure("outer");
+  const SnapshotSourceScopeData* outer_scope = GetScopeForClosure(*outer_fn);
+  ASSERT_NE(nullptr, outer_scope);
+
+  // Since outer calls eval directly, variable emission is disabled for its
+  // scope to disable dead context analysis.
+  EXPECT_EQ(0u, outer_scope->variables.size());
+  EXPECT_EQ(nullptr, outer_scope->FindVariable("outerVar"));
+
+  // Since eval scripts are parsed self-contained during heap snapshot
+  // generation without deserializing the outer ScopeInfo chain, inner only
+  // resolves uses of variables declared within the eval script (evalVar).
+  // References to outerVar are unresolved / treated as dynamic globals.
+  std::vector<std::pair<int, int>> expected_uses = {
+      {eval_scope->scope_id, eval_var->slot_index},
+  };
+  EXPECT_EQ(inner_scope->uses, expected_uses);
+
+  CheckContextSlots(outer_fn);
+}
+
+TEST_F(HeapSnapshotScopesTest, StrictEvalScript) {
+  // Eval inside a strict function inherits strict mode from the caller.
+  // In strict mode eval, 'var' declarations are scoped to the eval scope
+  // itself rather than leaking out, and can be allocated to context slots.
+  DirectHandle<JSFunction> inner_fn = RunJSForClosure(
+      "function outer() {\n"
+      "  'use strict';\n"
+      "  return eval(\n"
+      "      'var evalVar = 1;\\n' +\n"
+      "      'function inner() {\\n' +\n"
+      "      '  return evalVar;\\n' +\n"
+      "      '}\\n' +\n"
+      "      'inner;\\n');\n"
+      "}\n"
+      "outer();\n");
+
+  TakeHeapSnapshot();
+
+  const SnapshotSourceScopeData* inner_scope = GetScopeForClosure(*inner_fn);
+  ASSERT_NE(nullptr, inner_scope);
+
+  const SnapshotSourceScopeData* eval_scope = inner_scope->parent;
+  ASSERT_NE(nullptr, eval_scope);
+  EXPECT_EQ(-2, eval_scope->scope_id);
+  EXPECT_EQ(0, eval_scope->depth);
+  EXPECT_EQ(nullptr, eval_scope->parent);
+
+  // In strict eval, 'var evalVar' is a local of the eval scope and allocated
+  // to a context slot since 'inner' closes over it.
+  const VariableDefinition* eval_var = eval_scope->FindVariable("evalVar");
+  ASSERT_NE(nullptr, eval_var);
+  EXPECT_EQ(0, eval_var->slot_index);
+  AssertUses(eval_var, {inner_scope});
+
+  DirectHandle<JSFunction> outer_fn = RunJSForClosure("outer");
+  CheckContextSlots(outer_fn);
+}
+
+TEST_F(HeapSnapshotScopesTest, DirectEvalDisablesVariableEmission) {
+  // Test that direct eval in an inner scope disables variable emission
+  // for both the inner scope and its enclosing outer scopes, while an
+  // unaffected sibling function still has its context variables emitted.
+  DirectHandle<JSArray> funcs = RunJSForObject<JSArray>(
+      "function enclosing() {\n"
+      "  let outerVar = 1;\n"
+      "  function middle() {\n"
+      "    let middleVar = 2;\n"
+      "    eval('middleVar');\n"
+      "  }\n"
+      "  function sibling() {\n"
+      "    let siblingVar = 3;\n"
+      "    return function innerOfSibling() {\n"
+      "      return siblingVar;\n"
+      "    };\n"
+      "  }\n"
+      "  middle();\n"
+      "  const inner = sibling();\n"
+      "  return [enclosing, middle, sibling, inner];\n"
+      "}\n"
+      "enclosing();\n");
+
+  TakeHeapSnapshot();
+
+  DirectHandle<JSFunction> enclosing_fn = Cast<JSFunction>(
+      JSReceiver::GetElement(i_isolate(), funcs, 0).ToHandleChecked());
+  DirectHandle<JSFunction> middle_fn = Cast<JSFunction>(
+      JSReceiver::GetElement(i_isolate(), funcs, 1).ToHandleChecked());
+  DirectHandle<JSFunction> sibling_fn = Cast<JSFunction>(
+      JSReceiver::GetElement(i_isolate(), funcs, 2).ToHandleChecked());
+  DirectHandle<JSFunction> inner_fn = Cast<JSFunction>(
+      JSReceiver::GetElement(i_isolate(), funcs, 3).ToHandleChecked());
+
+  const SnapshotSourceScopeData* enclosing_scope =
+      GetScopeForClosure(*enclosing_fn);
+  ASSERT_NE(nullptr, enclosing_scope);
+
+  // Both enclosing and middle contain or have inner scope calling eval,
+  // so variable emission must be disabled for both.
+  EXPECT_EQ(0u, enclosing_scope->variables.size());
+  EXPECT_EQ(nullptr, enclosing_scope->FindVariable("outerVar"));
+
+  const SnapshotSourceScopeData* middle_scope = GetScopeForClosure(*middle_fn);
+  ASSERT_NE(nullptr, middle_scope);
+  EXPECT_EQ(enclosing_scope, middle_scope->parent);
+  EXPECT_EQ(0u, middle_scope->variables.size());
+  EXPECT_EQ(nullptr, middle_scope->FindVariable("middleVar"));
+
+  // The sibling function does not call eval and none of its inner scopes
+  // call eval, so its context variables must still be emitted.
+  const SnapshotSourceScopeData* sibling_scope =
+      GetScopeForClosure(*sibling_fn);
+  ASSERT_NE(nullptr, sibling_scope);
+  EXPECT_EQ(enclosing_scope, sibling_scope->parent);
+
+  const VariableDefinition* sibling_var =
+      sibling_scope->FindVariable("siblingVar");
+  ASSERT_NE(nullptr, sibling_var);
+  EXPECT_EQ(0, sibling_var->slot_index);
+
+  const SnapshotSourceScopeData* inner_scope = GetScopeForClosure(*inner_fn);
+  ASSERT_NE(nullptr, inner_scope);
+  EXPECT_EQ(sibling_scope, inner_scope->parent);
+  AssertUses(sibling_var, {inner_scope});
+
+  CheckContextSlots(enclosing_fn);
+  CheckContextSlots(middle_fn);
+  CheckContextSlots(sibling_fn);
+  CheckContextSlots(inner_fn);
 }
 
 }  // namespace v8::internal
