@@ -1542,8 +1542,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvAdd128: {
       Register out_low = i.OutputRegister(0);
       Register out_high = i.OutputRegister(1);
+      DCHECK(!AreAliased(out_low, out_high, i.InputRegister(0)));
       __ AddWord(out_low, i.InputRegister(0), i.InputOperand(1));
-      __ Sltu(kScratchReg, out_low, i.InputOperand(1));
+      __ Sltu(kScratchReg, out_low, i.InputRegister(0));
       __ AddWord(out_high, i.InputRegister(2), i.InputOperand(3));
       __ AddWord(out_high, out_high, kScratchReg);
       break;

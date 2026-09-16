@@ -1107,7 +1107,8 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   InstructionOperand outputs[2];
   size_t output_count = 0;
 
-  inputs[input_count++] = g.UseRegister(op.left_low());
+  inputs[input_count++] = is_add ? g.UseUniqueRegister(op.left_low())
+                                 : g.UseRegister(op.left_low());
   inputs[input_count++] = g.UseRegister(op.right_low());
 
   inputs[input_count++] = g.UseUniqueRegister(op.left_high());
