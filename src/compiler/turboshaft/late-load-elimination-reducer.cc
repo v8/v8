@@ -800,13 +800,7 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
       // edge of the inner loop should reflect this restriction.
       predecessor_alias_snapshots_.push_back(pred_snapshots->alias_snapshot);
       predecessor_memory_snapshots_.push_back(pred_snapshots->memory_snapshot);
-      if (p->NeighboringPredecessor() != nullptr || !block->IsLoop() ||
-          block->LastPredecessor() != p) {
-        // We only add a MapSnapshot predecessor for non-backedge predecessor.
-        // This is because maps coming from inside of the loop may be wrong
-        // until a specific check has been executed.
-        predecessor_maps_snapshots_.push_back(pred_snapshots->maps_snapshot);
-      }
+      predecessor_maps_snapshots_.push_back(pred_snapshots->maps_snapshot);
     }
   }
 
@@ -839,9 +833,13 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
       if (is_empty(pred)) {
         // One of the predecessors doesn't have maps for this object, so we have
         // to assume that this object could have any map.
-        return MapMaskAndOr{};
+        minmax = MapMaskAndOr{};
+        break;
       }
       minmax = CombineMinMax(minmax, pred);
+    }
+    if (for_loop_revisit && minmax != predecessors[kForwardEdgeOffset]) {
+      loop_needs_revisit = true;
     }
     return minmax;
   };
