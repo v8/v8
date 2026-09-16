@@ -1567,7 +1567,7 @@ constexpr v8::ExternalPointerTypeTag kTestPtrTag = 16;
 
 static void callback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(i::ValidateCallbackInfo(args));
-  void* ptr = v8::External::Cast(*args.Data())->Value(kTestPtrTag);
+  void* ptr = v8::External::Cast(*args.DataV2())->Value(kTestPtrTag);
   CHECK_EQ(expected_ptr, ptr);
   args.GetReturnValue().Set(true);
 }
@@ -8025,12 +8025,12 @@ static void CallFun(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.IsConstructCall()) {
     CHECK(args.This()
               ->Set(args.GetIsolate()->GetCurrentContext(), v8_str("data"),
-                    args.Data())
+                    args.DataV2().As<Value>())
               .FromJust());
     args.GetReturnValue().SetNull();
     return;
   }
-  args.GetReturnValue().Set(args.Data());
+  args.GetReturnValue().Set(args.DataV2().As<Value>());
 }
 
 
@@ -12141,7 +12141,8 @@ void FastApiCallback_TrivialSignature(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), info.This())
             .FromJust());
-  CHECK(info.Data()
+  CHECK(info.DataV2()
+            .As<Value>()
             ->Equals(isolate->GetCurrentContext(), v8_str("method_data"))
             .FromJust());
   info.GetReturnValue().Set(
@@ -22121,7 +22122,7 @@ class RequestInterruptTestBase {
       const v8::FunctionCallbackInfo<Value>& info) {
     RequestInterruptTestBase* test =
         reinterpret_cast<RequestInterruptTestBase*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     info.GetReturnValue().Set(test->ShouldContinue());
   }
 
@@ -22324,7 +22325,7 @@ class RequestInterruptTestWithMathAbs
 
     RequestInterruptTestBase* test =
         reinterpret_cast<RequestInterruptTestBase*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     test->WakeUpInterruptor();
   }
 
@@ -22332,7 +22333,7 @@ class RequestInterruptTestWithMathAbs
       const v8::FunctionCallbackInfo<Value>& info) {
     RequestInterruptTestBase* test =
         reinterpret_cast<RequestInterruptTestBase*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     info.GetReturnValue().Set(test->should_continue());
   }
 };
@@ -22411,7 +22412,7 @@ class RequestInterruptTestWithCppIterator
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     RequestInterruptTestWithCppIterator* test =
         reinterpret_cast<RequestInterruptTestWithCppIterator*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     v8::Isolate* isolate = info.GetIsolate();
     Local<v8::ObjectTemplate> tmpl = test->iterator_template_.Get(isolate);
     Local<v8::Object> iterator =
@@ -22423,7 +22424,7 @@ class RequestInterruptTestWithCppIterator
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     RequestInterruptTestWithCppIterator* test =
         reinterpret_cast<RequestInterruptTestWithCppIterator*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     v8::Isolate* isolate = info.GetIsolate();
     Local<v8::Context> context = isolate->GetCurrentContext();
 
@@ -22537,9 +22538,10 @@ TEST(RequestInterruptDisallowsJavascript) {
 static v8::Global<Value> function_new_expected_env_global;
 static void FunctionNewCallback(const v8::FunctionCallbackInfo<Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  CHECK(function_new_expected_env_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(), info.Data())
-            .FromJust());
+  CHECK(
+      function_new_expected_env_global.Get(isolate)
+          ->Equals(isolate->GetCurrentContext(), info.DataV2().As<v8::Value>())
+          .FromJust());
   info.GetReturnValue().Set(17);
 }
 
@@ -22781,7 +22783,7 @@ class ApiCallOptimizationChecker {
   static void OptimizationCallback(
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    CHECK_EQ(data, info.Data());
+    CHECK_EQ(data, info.DataV2().As<Value>().As<Object>());
     CHECK_EQ(receiver, info.This());
     if (info.Length() == 1) {
       CHECK(v8_num(1)

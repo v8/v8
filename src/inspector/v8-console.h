@@ -137,7 +137,7 @@ class V8Console final : public v8::Object::Wrappable,
   template <void (V8Console::*func)(const v8::FunctionCallbackInfo<v8::Value>&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
     V8Console* console = v8::Object::Unwrap<kPointerTag, V8Console>(
-        info.GetIsolate(), info.Data().As<v8::Object>());
+        info.GetIsolate(), info.DataV2().As<v8::Value>().As<v8::Object>());
     CHECK_NOT_NULL(console);
     CHECK_NOT_NULL(console->m_inspector);
     (console->*func)(info);
@@ -145,7 +145,7 @@ class V8Console final : public v8::Object::Wrappable,
   template <void (V8Console::*func)(const v8::FunctionCallbackInfo<v8::Value>&,
                                     int)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+    v8::Local<v8::Array> data = info.DataV2().As<v8::Value>().As<v8::Array>();
     v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     v8::Local<v8::Value> console_value;
     if (!data->Get(context, 0).ToLocal(&console_value) ||
@@ -167,7 +167,7 @@ class V8Console final : public v8::Object::Wrappable,
   template <void (V8Console::*func)(const v8::debug::ConsoleCallArguments&,
                                     const v8::debug::ConsoleContext&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+    v8::Local<v8::Array> data = info.DataV2().As<v8::Value>().As<v8::Array>();
     v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     v8::Local<v8::Value> console_value;
     if (!data->Get(context, 0).ToLocal(&console_value) ||

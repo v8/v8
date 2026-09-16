@@ -1095,7 +1095,7 @@ void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   auto context = isolate->GetCurrentContext();
   auto global = context->Global();
-  auto target_function_name = info.Data().As<v8::String>();
+  auto target_function_name = info.DataV2().As<v8::Value>().As<v8::String>();
   v8::Local<v8::Function> target;
   {
     Local<Value> result;

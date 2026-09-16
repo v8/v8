@@ -136,6 +136,7 @@ class FunctionCallbackInfo {
   /** Indicates whether this is a regular call or a construct call. */
   V8_INLINE bool IsConstructCall() const;
   /** The data argument specified when creating the callback. */
+  V8_DEPRECATE_SOON("Use DataV2 instead")
   V8_INLINE Local<Value> Data() const;
   /** The data argument specified when creating the callback as `v8::Data`. */
   V8_INLINE Local<v8::Data> DataV2() const;

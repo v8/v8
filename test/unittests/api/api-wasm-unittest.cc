@@ -88,12 +88,13 @@ void WasmStreamingCallbackTestCallbackIsCalled(
   i::Handle<i::Object> global_handle =
       reinterpret_cast<i::Isolate*>(info.GetIsolate())
           ->global_handles()
-          ->Create(*Utils::OpenDirectHandle(*info.Data()));
+          ->Create(*Utils::OpenDirectHandle(*info.DataV2()));
   i::GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
                              WasmStreamingTestFinalizer,
                              WeakCallbackType::kParameter);
 }
 
+START_ALLOW_USE_DEPRECATED()
 void WasmStreamingCallbackTestFinishWithSuccess(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
@@ -146,6 +147,7 @@ void WasmStreamingMoreFunctionsCanBeSerializedCallback(
       WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});
 }
+END_ALLOW_USE_DEPRECATED()
 
 TEST_F(ApiWasmTest, WasmStreamingCallback) {
   TestWasmStreaming(WasmStreamingCallbackTestCallbackIsCalled,

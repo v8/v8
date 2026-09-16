@@ -169,7 +169,8 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::Local<v8::Object> bodyConfig = info.Data().As<v8::Object>();
+  v8::Local<v8::Object> bodyConfig =
+      info.DataV2().As<v8::Value>().As<v8::Object>();
 
   v8::Local<v8::Value> objectValue;
   if (!bodyConfig->Get(context, toV8String(isolate, "object"))

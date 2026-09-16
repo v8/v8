@@ -12534,7 +12534,7 @@ bool ValidateFunctionCallbackInfo(const FunctionCallbackInfo<T>& info) {
   CHECK_EQ(i_isolate, Isolate::Current());
   CHECK(!i_isolate->GetIncumbentContext().is_null());
   CHECK(info.This()->IsObject());
-  CHECK(!info.Data().IsEmpty());
+  CHECK(!info.DataV2().IsEmpty());
   CHECK(info.GetReturnValue().Get()->IsValue());
   return true;
 }

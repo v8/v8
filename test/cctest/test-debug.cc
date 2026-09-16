@@ -4275,7 +4275,7 @@ class ArchiveRestoreThread : public v8::internal::SandboxableThread,
       v8::Local<v8::Context> context = v8::Context::New(isolate_);
       v8::Context::Scope context_scope(context);
       auto callback = [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-        v8::Local<v8::Value> value = info.Data();
+        v8::Local<v8::Value> value = info.DataV2().As<v8::Value>();
         CHECK(value->IsExternal());
         auto art = static_cast<ArchiveRestoreThread*>(
             v8::Local<v8::External>::Cast(value)->Value(
@@ -6364,7 +6364,7 @@ void RejectPromiseThroughCppInternal(
     const v8::FunctionCallbackInfo<v8::Value>& info, bool silent) {
   CHECK(i::ValidateCallbackInfo(info));
   auto data = reinterpret_cast<std::pair<v8::Isolate*, LocalContext*>*>(
-      info.Data().As<v8::External>()->Value(kDataTag));
+      info.DataV2().As<v8::External>()->Value(kDataTag));
 
   v8::Local<v8::String> value1 =
       v8::String::NewFromUtf8Literal(data->first, "foo");

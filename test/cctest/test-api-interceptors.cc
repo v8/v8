@@ -103,17 +103,17 @@ void SimpleSetterImpl(Local<String> name_str,
 }
 
 void SimpleGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Local<String> name_str = args.Data().As<String>();
+  Local<String> name_str = args.DataV2().As<Value>().As<String>();
   SimpleGetterImpl(name_str, args);
 }
 
 void SimpleSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  Local<String> name_str = info.Data().As<String>();
+  Local<String> name_str = info.DataV2().As<Value>().As<String>();
   SimpleSetterImpl(name_str, info);
 }
 
 void SymbolGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  Local<Name> name = info.Data().As<Name>();
+  Local<Name> name = info.DataV2().As<Value>().As<Name>();
   CHECK(name->IsSymbol());
   v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
@@ -122,7 +122,7 @@ void SymbolGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 void SymbolSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  Local<Name> name = info.Data().As<Name>();
+  Local<Name> name = info.DataV2().As<Value>().As<Name>();
   CHECK(name->IsSymbol());
   v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
