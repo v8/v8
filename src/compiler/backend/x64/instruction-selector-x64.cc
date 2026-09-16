@@ -2269,10 +2269,10 @@ void InstructionSelector::VisitInt32Sub(OpIndex node) {
   if (g.CanBeImmediate(right)) {
     int32_t imm = g.GetImmediateIntegerValue(right);
     if (imm == 0) {
-      if (this->Get(left).outputs_rep()[0] ==
-          RegisterRepresentation::Word32()) {
+      if (ZeroExtendsWord32ToWord64(left)) {
         // {EmitIdentity} reuses the virtual register of the first input
-        // for the output. This is exactly what we want here.
+        // for the output. This is only safe if it is known to zero-extend
+        // (as the int32 subtraction advertises itself as zero-extending.)
         EmitIdentity(node);
       } else {
         // Emit "movl" for subtraction of 0.
