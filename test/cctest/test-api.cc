@@ -28831,10 +28831,11 @@ struct BasicApiChecker {
   static Ret FastCallback(v8::Local<v8::Object> receiver, Value argument,
                           v8::FastApiCallbackOptions& options) {
     // TODO(mslekova): Refactor the data checking.
-    CHECK(options.data->IsNumber());
-    CHECK_EQ(Local<v8::Number>::Cast(options.data)->Value(), 42.5);
     v8::Local<v8::Data> data = options.DataV2();
-    CHECK_EQ(options.data, data.As<v8::Value>());
+    CHECK(data->IsValue());
+    v8::Local<v8::Value> value = data.As<v8::Value>();
+    CHECK(value->IsNumber());
+    CHECK_EQ(Local<v8::Number>::Cast(value)->Value(), 42.5);
     return Impl::FastCallback(receiver, argument, options);
   }
   static Ret FastCallbackNoOptions(v8::Local<v8::Object> receiver,
