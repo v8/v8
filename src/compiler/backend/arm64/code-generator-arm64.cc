@@ -2664,17 +2664,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register tag = handle;  // Reuse handle for tag
         __ Lsr(tag, destination, kTrustedPointerTableTagShift);
 
-        UseScratchRegisterScope scope(masm());
-        Register scratch = scope.AcquireX();
-        __ Mov(scratch, 0);
         if (tag_range.Size() == 1) {
           __ Cmp(tag.W(), static_cast<int32_t>(tag_range.first));
-          __ CmovX(destination, scratch, ne);
+          __ CzeroX(destination, ne);
         } else {
           __ Sub(tag.W(), tag.W(), static_cast<int32_t>(tag_range.first));
           __ Cmp(tag.W(),
                  static_cast<int32_t>(tag_range.last - tag_range.first));
-          __ CmovX(destination, scratch, hi);
+          __ CzeroX(destination, hi);
         }
 
         __ And(destination, destination, kTrustedPointerTablePayloadMask);
