@@ -1193,4 +1193,41 @@ TEST_F(HeapSnapshotScopesTest, DirectEvalDisablesVariableEmission) {
   CheckContextSlots(inner_fn);
 }
 
+TEST_F(HeapSnapshotScopesTest, WithStatement) {
+  DirectHandle<JSFunction> inner_fn = RunJSForClosure(
+      "function outer(obj) {\n"
+      "  let outerCaptured = 1;\n"
+      "  let outerUnused = 2;\n"
+      "  with (obj) {\n"
+      "    return function inner() {\n"
+      "      return outerCaptured;\n"
+      "    };\n"
+      "  }\n"
+      "}\n"
+      "outer({a: 10});\n");
+
+  TakeHeapSnapshot();
+
+  const SnapshotSourceScopeData* inner_scope = GetScopeForClosure(*inner_fn);
+  ASSERT_NE(nullptr, inner_scope);
+
+  const SnapshotSourceScopeData* with_scope = inner_scope->parent;
+  ASSERT_NE(nullptr, with_scope);
+  EXPECT_TRUE(with_scope->variables.empty());
+
+  const SnapshotSourceScopeData* outer_scope = with_scope->parent;
+  ASSERT_NE(nullptr, outer_scope);
+
+  const VariableDefinition* outer_captured =
+      outer_scope->FindVariable("outerCaptured");
+  ASSERT_NE(nullptr, outer_captured);
+  EXPECT_EQ(0, outer_captured->slot_index);
+  EXPECT_EQ(nullptr, outer_scope->FindVariable("outerUnused"));
+
+  // The potential use of outerCaptured should be reported.
+  AssertUses(outer_captured, {inner_scope});
+
+  CheckContextSlots(inner_fn);
+}
+
 }  // namespace v8::internal

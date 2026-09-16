@@ -143,12 +143,21 @@ void CollectScopeTree(Scope* scope, int depth, HeapEntry* script_entry,
 
   for (VariableProxy* proxy : scope->unresolved_list()) {
     if (proxy->is_removed_from_unresolved()) continue;
-    if (proxy->is_resolved() && proxy->var() != nullptr &&
-        proxy->var()->IsContextSlot() && proxy->var()->scope() != nullptr) {
-      Scope* decl_scope = proxy->var()->scope();
-      int slot_index =
-          proxy->var()->index() - decl_scope->ContextHeaderLength();
-      snapshot->AddSourceScopeUse({decl_scope->UniqueIdInScript(), slot_index});
+    if (proxy->is_resolved() && proxy->var() != nullptr) {
+      Variable* var = proxy->var();
+      // Lookups passing through an intervening scope (e.g. a `with` scope)
+      // are resolved dynamically, but track the outer local variable via
+      // local_if_not_shadowed(). Use the underlying local variable to record
+      // the context use.
+      if (var->is_dynamic() && var->has_local_if_not_shadowed()) {
+        var = var->local_if_not_shadowed();
+      }
+      if (var->IsContextSlot() && var->scope() != nullptr) {
+        Scope* decl_scope = var->scope();
+        int slot_index = var->index() - decl_scope->ContextHeaderLength();
+        snapshot->AddSourceScopeUse(
+            {decl_scope->UniqueIdInScript(), slot_index});
+      }
     }
   }
   info.scope_uses_count =
