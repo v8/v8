@@ -29,6 +29,8 @@ bool RiscvOperandGenerator::CanBeImmediate(int64_t value,
     case kRiscvShr64:
       return is_uint6(value);
     case kRiscvAdd32:
+    case kRiscvAddOvf32:
+    case kRiscvSubOvf32:
     case kRiscvAnd32:
     case kRiscvAnd:
     case kRiscvAdd64:
@@ -2189,35 +2191,15 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
                 TryCast<OverflowCheckedBinopOp>(node);
             binop && CanDoBranchIfOverflowFusion(node)) {
           const bool is64 = binop->rep == WordRepresentation::Word64();
-          OpIndex right_node = binop->input(1);
-          RiscvOperandGenerator g(this);
-          // Check if the right-hand side operand can be encoded as an immediate
-          // value for a 32-bit operand add/sub. This is used to
-          // determine whether we can utilize the more efficient overflow
-          // checking path specifically designed for 32-bit operations with
-          // immediate operands.
-          const bool use_32 = g.CanBeImmediate(right_node, kRiscvAdd32);
           switch (binop->kind) {
             case OverflowCheckedBinopOp::Kind::kSignedAdd: {
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              ArchOpcode opcode = kRiscvAddOvfWord;
-              if (!is64) {
-                if (use_32)
-                  opcode = kRiscvAdd32;
-                else
-                  opcode = kRiscvAdd64;
-              }
+              ArchOpcode opcode = is64 ? kRiscvAddOvfWord : kRiscvAddOvf32;
               return VisitBinop<Int32BinopMatcher>(this, node, opcode, cont);
             }
             case OverflowCheckedBinopOp::Kind::kSignedSub: {
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              ArchOpcode opcode = kRiscvSubOvfWord;
-              if (!is64) {
-                if (use_32)
-                  opcode = kRiscvSub32;
-                else
-                  opcode = kRiscvSub64;
-              }
+              ArchOpcode opcode = is64 ? kRiscvSubOvfWord : kRiscvSubOvf32;
               return VisitBinop<Int32BinopMatcher>(this, node, opcode, cont);
             }
             case OverflowCheckedBinopOp::Kind::kSignedMul:
@@ -2333,19 +2315,7 @@ void InstructionSelector::VisitInt32AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid() && IsUsed(ovf.value())) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    const Operation& binop = Get(node);
-    OpIndex right_node = binop.input(1);
-    RiscvOperandGenerator g(this);
-    // Check if the right-hand side operand can be encoded as an immediate
-    // value for a 32-bit operand add/sub. This is used to
-    // determine whether we can utilize the more efficient overflow
-    // checking path specifically designed for 32-bit operations with
-    // immediate operands.
-    // TODO(yahan): Implement the 32-bit overflow fast check with Constant which
-    // don't be encoded into instructions.
-    const bool use_32 = g.CanBeImmediate(right_node, kRiscvAdd32);
-    return VisitBinop<Int32BinopMatcher>(
-        this, node, use_32 ? kRiscvAdd32 : kRiscvAdd64, &cont);
+    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvAddOvf32, &cont);
   }
   FlagsContinuation cont;
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvAdd64, &cont);
@@ -2355,12 +2325,7 @@ void InstructionSelector::VisitInt32SubWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid() && IsUsed(ovf.value())) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    const Operation& binop = Get(node);
-    OpIndex right_node = binop.input(1);
-    RiscvOperandGenerator g(this);
-    const bool use_32 = g.CanBeImmediate(right_node, kRiscvSub32);
-    return VisitBinop<Int32BinopMatcher>(
-        this, node, use_32 ? kRiscvSub32 : kRiscvSub64, &cont);
+    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvSubOvf32, &cont);
   }
   FlagsContinuation cont;
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvSub64, &cont);

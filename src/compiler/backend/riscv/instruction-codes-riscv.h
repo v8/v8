@@ -50,6 +50,8 @@ namespace compiler {
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
   V(RiscvAdd64)                                      \
   V(RiscvSub64)                                      \
+  V(RiscvAddOvf32)                                   \
+  V(RiscvSubOvf32)                                   \
   V(RiscvAdd128)                                     \
   V(RiscvSub128)                                     \
   V(RiscvMulHigh64)                                  \
