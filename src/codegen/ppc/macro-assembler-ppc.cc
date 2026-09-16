@@ -2043,8 +2043,10 @@ void MacroAssembler::AssertUnreachable(AbortReason reason) {
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
-  mov(r0, Operand(kMaxUInt32));
-  CmpS64(int32_register, r0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  mov(scratch, Operand(kMaxUInt32));
+  CmpS64(int32_register, scratch);
   Check(le, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
 }
 
