@@ -265,7 +265,6 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
   already_resolved_ = true;
 #endif
   set_language_mode(scope_info->language_mode());
-  DCHECK_EQ(ContextHeaderLength(), num_heap_slots_);
   set_private_name_lookup_skips_outer_class(
       scope_info->PrivateNameLookupSkipsOuterClass());
   // We don't really need to use the preparsed scope data; this is just to
@@ -395,7 +394,7 @@ void Scope::SetDefaults() {
            IsHoistedInContextField::encode(false);
 
   num_stack_slots_ = 0;
-  num_heap_slots_ = ContextHeaderLength();
+  num_heap_slots_ = 0;
 
   set_language_mode(LanguageMode::kSloppy);
 }
@@ -449,7 +448,6 @@ Scope* Scope::DeserializeScopeChain(
       DeclarationScope* eval_scope =
           zone->New<DeclarationScope>(zone, EVAL_SCOPE, ast_value_factory,
                                       isolate->factory()->empty_scope_info());
-      eval_scope->num_heap_slots_ = 0;
       int position = script->eval_from_position();
       eval_scope->set_start_position(position);
       eval_scope->set_end_position(position);
@@ -501,6 +499,7 @@ Scope* Scope::DeserializeScopeChain(
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
+      script_scope->num_heap_slots_ = scope_info->ContextLength();
       script_scope->set_start_position(scope_info->StartPosition());
       script_scope->set_end_position(scope_info->EndPosition());
       DCHECK(!scope_info->HasOuterScopeInfo());
@@ -559,6 +558,7 @@ Scope* Scope::DeserializeScopeChain(
     if (current_scope != nullptr) {
       outer_scope->AddInnerScope(current_scope);
     }
+    outer_scope->num_heap_slots_ = scope_info->ContextLength();
     outer_scope->set_start_position(scope_info->StartPosition());
     outer_scope->set_end_position(scope_info->EndPosition());
 
@@ -975,7 +975,7 @@ Scope* Scope::FinalizeBlockScope() {
          !AsDeclarationScope()->sloppy_eval_can_extend_vars());
 
   // This block does not need a context.
-  num_heap_slots_ = 0;
+  DCHECK_EQ(0, num_heap_slots_);
 
   // Mark scope as removed by making it its own sibling.
 #ifdef DEBUG
@@ -2656,7 +2656,8 @@ void Scope::AllocateStackSlot(Variable* var) {
 
 
 void Scope::AllocateHeapSlot(Variable* var) {
-  var->AllocateTo(VariableLocation::CONTEXT, num_heap_slots_++);
+  var->AllocateTo(VariableLocation::CONTEXT,
+                  ContextHeaderLength() + num_heap_slots_++);
 }
 
 void DeclarationScope::AllocateParameterLocals() {
@@ -2840,10 +2841,7 @@ void Scope::AllocateVariablesRecursively() {
   this->ForEach([](Scope* scope) -> Iteration {
     DCHECK(!scope->already_resolved_);
     if (WasLazilyParsed(scope)) return Iteration::kContinue;
-    if (scope->sloppy_eval_can_extend_vars()) {
-      scope->num_heap_slots_ = Context::MIN_CONTEXT_EXTENDED_SLOTS;
-    }
-    DCHECK_EQ(scope->ContextHeaderLength(), scope->num_heap_slots_);
+    DCHECK_EQ(0, scope->num_heap_slots_);
 
     // Allocate variables for this scope.
     // Parameters must be allocated first, if any.
@@ -2855,24 +2853,11 @@ void Scope::AllocateVariablesRecursively() {
     }
     scope->AllocateNonParameterLocalsAndDeclaredGlobals();
 
-    // Force allocation of a context for this scope if necessary. For a 'with'
-    // scope and for a function scope that makes an 'eval' call we need a
-    // context, even if no local variables were statically allocated in the
-    // scope. Likewise for modules. Also force a context, if the scope is
-    // stricter than the outer scope.
-    bool must_have_context =
-        scope->is_with_scope() || scope->is_module_scope() ||
-        scope->ForceContextForLanguageMode() ||
-        (scope->is_function_scope() &&
-         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
-        (scope->is_block_scope() && scope->is_declaration_scope() &&
-         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
-
-    // If we didn't allocate any locals in the local context, then we only
-    // need the minimal number of slots if we must have a context.
-    if (scope->num_heap_slots_ == scope->ContextHeaderLength() &&
-        !must_have_context) {
-      scope->num_heap_slots_ = 0;
+    // If we need a context, ensure num_heap_slots_ includes space for the
+    // context header.
+    if (scope->num_heap_slots_ > 0 || scope->HasContextExtensionSlot() ||
+        scope->ForceContextForLanguageMode()) {
+      scope->num_heap_slots_ += scope->ContextHeaderLength();
     }
 
     // If the number of context slots are over the function context threshold,
@@ -2882,9 +2867,6 @@ void Scope::AllocateVariablesRecursively() {
       scope->set_has_context_cells(false);
     }
 
-    // Allocation done.
-    DCHECK(scope->num_heap_slots_ == 0 ||
-           scope->num_heap_slots_ >= scope->ContextHeaderLength());
     return Iteration::kDescend;
   });
 }
@@ -3028,6 +3010,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
     if (Scope* outer = scope->GetOuterScopeWithContext()) {
       DCHECK((std::is_same_v<Isolate, v8::internal::Isolate>));
       outer_scope = outer->scope_info_;
+      CHECK(!outer_scope.ToHandleChecked()->IsEmpty());
     }
   }
 
@@ -3190,14 +3173,6 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
   if (scope->scope_info_.is_null()) {
     scope->scope_info_ = ScopeInfo::Create(isolate, scope->zone(), scope,
                                            outer_scope, scope->function_kind());
-  }
-
-  // Ensuring that the outer script scope has a scope info avoids having
-  // special case for native contexts vs other contexts.
-  if (parse_info->script_scope() &&
-      parse_info->script_scope()->scope_info_.is_null()) {
-    parse_info->script_scope()->scope_info_ =
-        isolate->factory()->empty_scope_info();
   }
 }
 

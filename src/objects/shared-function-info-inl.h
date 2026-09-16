@@ -705,18 +705,16 @@ DEF_GETTER(SharedFunctionInfo, outer_scope_info,
 }
 
 bool SharedFunctionInfo::HasOuterScopeInfo() const {
-  Tagged<ScopeInfo> outer_info;
   Tagged<ScopeInfo> info = scope_info(kAcquireLoad);
   if (info->IsEmpty()) {
     if (is_compiled()) return false;
     Tagged<UnionOf<ScopeInfo, TheHole>> maybe_outer_info = outer_scope_info();
     if (IsTheHole(maybe_outer_info)) return false;
-    outer_info = Cast<ScopeInfo>(maybe_outer_info);
-  } else {
-    if (!info->HasOuterScopeInfo()) return false;
-    outer_info = info->OuterScopeInfo();
+    DCHECK(!Cast<ScopeInfo>(maybe_outer_info)->IsEmpty());
+    return true;
   }
-  return !outer_info->IsEmpty();
+  DCHECK_IMPLIES(info->HasOuterScopeInfo(), !info->OuterScopeInfo()->IsEmpty());
+  return info->HasOuterScopeInfo();
 }
 
 Tagged<ScopeInfo> SharedFunctionInfo::GetOuterScopeInfo() const {
