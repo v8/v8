@@ -4607,20 +4607,33 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
 #if V8_TARGET_ARCH_RISCV64
     UseScratchRegisterScope temps(this);
     Register scratch0 = temps.Acquire();
-    SignExtendWord(scratch0, r1);
-    if (IsZero(r2)) {
+    if (cond == eq || cond == ne) {
+      // Equality only depends on the low 32 bits, and a 32-bit subtraction
+      // sign-extends its result, so it is zero exactly when those low 32 bits
+      // match. This avoids sign-extending both operands first.
+      if (r2.is_reg()) {
+        Sub32(scratch0, r1, r2);
+      } else {
+        DCHECK(!MustUseReg(r2.rmode()));
+        Sub32(scratch0, r1, Operand(static_cast<int32_t>(r2.immediate())));
+      }
       Branch(label, cond, scratch0, Operand(zero_reg));
     } else {
-      Register scratch1 = temps.Acquire();
-      if (r2.is_reg()) {
-        SignExtendWord(scratch1, r2.rm());
+      SignExtendWord(scratch0, r1);
+      if (IsZero(r2)) {
+        Branch(label, cond, scratch0, Operand(zero_reg));
       } else {
-        li(scratch1, r2);
-        if (!base::IsInRange(r2.immediate(), 0, 0x7FFFFFFF)) {
-          SignExtendWord(scratch1, scratch1);
+        Register scratch1 = temps.Acquire();
+        if (r2.is_reg()) {
+          SignExtendWord(scratch1, r2.rm());
+        } else {
+          li(scratch1, r2);
+          if (!base::IsInRange(r2.immediate(), 0, 0x7FFFFFFF)) {
+            SignExtendWord(scratch1, scratch1);
+          }
         }
+        Branch(label, cond, scratch0, Operand(scratch1));
       }
-      Branch(label, cond, scratch0, Operand(scratch1));
     }
 #else
     UNREACHABLE();
