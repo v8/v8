@@ -2402,7 +2402,7 @@ void InstructionSelector::VisitWord64Ror(OpIndex node) {
   V(Float64Max, kArm64Float64Max) \
   V(Float32Min, kArm64Float32Min) \
   V(Float64Min, kArm64Float64Min) \
-  IF_SIMD128(V, I8x16Swizzle, kArm64I8x16Swizzle)
+  IF_SIMD128(V, I8x16Swizzle, kArm64S128Tbl1)
 
 #define RR_VISITOR(Name, opcode)                        \
   void InstructionSelector::Visit##Name(OpIndex node) { \
@@ -6543,6 +6543,119 @@ void EmitShuffle2(InstructionSelector* selector, OpIndex node, OpIndex input0,
   }
 }
 
+template <int32_t lane_size>
+void EmitShuffle4(InstructionSelector* selector, OpIndex node, OpIndex input0,
+                  OpIndex input1, std::array<uint8_t, 4> shuffle) {
+  Arm64OperandGenerator g(selector);
+
+  // Find first duplicate lane, if any.
+  std::array<unsigned, 32> lane_counts = {0};
+  for (uint8_t lane : shuffle) {
+    DCHECK_LT(lane, lane_counts.size());
+    ++lane_counts[lane];
+  }
+  int32_t duplicate_lane = -1;
+  for (size_t lane = 0; lane < lane_counts.size(); ++lane) {
+    if (lane_counts[lane] > 1) {
+      duplicate_lane = static_cast<int32_t>(lane);
+      break;
+    }
+  }
+
+  if (duplicate_lane == -1) {
+    // If no duplicate lane is found, then use a TBL if we've got a single
+    // source.
+    if (input0 == input1) {
+      if constexpr (lane_size == 8) {
+        uint32_t mask = SimdShuffle::Pack4Lanes(&shuffle[0]);
+        InstructionOperand mask_vector = g.TempSimd128Register();
+        selector->Emit(kArm64S128Const, mask_vector, g.UseImmediate(mask),
+                       g.UseImmediate(mask), g.UseImmediate(mask),
+                       g.UseImmediate(mask));
+        selector->Emit(kArm64S128Tbl1, g.DefineAsRegister(node),
+                       g.UseRegister(input0), mask_vector);
+        return;
+      } else if constexpr (lane_size == 16) {
+        std::array<uint8_t, kSimd128HalfSize> mask;
+        for (size_t i = 0; i < shuffle.size(); ++i) {
+          uint8_t lane = shuffle[i];
+          DCHECK_LT(lane, kSimd128HalfSize);
+          mask[i * 2] = static_cast<uint8_t>(lane * 2);
+          mask[i * 2 + 1] = static_cast<uint8_t>(lane * 2 + 1);
+        }
+        uint32_t mask_lo = SimdShuffle::Pack4Lanes(&mask[0]);
+        uint32_t mask_hi = SimdShuffle::Pack4Lanes(&mask[4]);
+        InstructionOperand mask_vector = g.TempSimd128Register();
+        selector->Emit(kArm64S128Const, mask_vector, g.UseImmediate(mask_lo),
+                       g.UseImmediate(mask_hi), g.UseImmediate(mask_lo),
+                       g.UseImmediate(mask_hi));
+        selector->Emit(kArm64S128Tbl1, g.DefineAsRegister(node),
+                       g.UseRegister(input0), mask_vector);
+        return;
+      }
+    }
+    // If none is found, we'll just duplicate the first lane.
+    duplicate_lane = shuffle[0];
+  }
+
+  bool is_only_dup = true;
+  for (uint8_t lane : shuffle) {
+    if (lane != duplicate_lane) {
+      is_only_dup = false;
+      break;
+    }
+  }
+
+  // Insert the dup.
+  OpIndex input = GetInput<lane_size>(input0, input1, duplicate_lane);
+  InstructionOperand dup_output =
+      is_only_dup ? g.DefineAsRegister(node) : g.TempSimd128Register();
+  selector->Emit(
+      kArm64S128Dup | LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+      dup_output, g.UseUniqueRegister(input),
+      g.UseImmediate(AdjustLane<lane_size>(duplicate_lane)));
+
+  if (is_only_dup) return;
+
+  // We have to ensure that node has a definition and we would like to do
+  // that with the last operation that is emitted, so discover the greatest
+  // index at which we could do it.
+  uint32_t define_at_index = 0;
+  for (int i = shuffle.size() - 1; i >= 0; --i) {
+    if (shuffle[i] != duplicate_lane) {
+      define_at_index = i;
+      break;
+    }
+  }
+
+  // Populate the remaining lanes with MoveLane.
+  InstructionOperand current = dup_output;
+  for (unsigned i = 0; i < shuffle.size(); ++i) {
+    int32_t lane = shuffle[i];
+    if (lane == duplicate_lane) continue;
+
+    OpIndex input = GetInput<lane_size>(input0, input1, lane);
+    lane = AdjustLane<lane_size>(lane);
+
+    if (define_at_index == i) {
+      selector->Emit(kArm64S128MoveLane |
+                         LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+                     g.DefineSameAsFirst(node), current,
+                     g.UseUniqueRegister(input), g.UseImmediate(lane),
+                     g.UseImmediate(i));
+    } else {
+      InstructionOperand next = g.TempSimd128Register();
+      int next_vreg = UnallocatedOperand::cast(next).virtual_register();
+      selector->Emit(kArm64S128MoveLane |
+                         LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+                     g.DefineSameAsFirstForVreg(next_vreg), current,
+                     g.UseUniqueRegister(input), g.UseImmediate(lane),
+                     g.UseImmediate(i));
+      current = g.UseRegisterForVreg(next_vreg);
+    }
+  }
+}
+
 }  // namespace
 
 void InstructionSelector::VisitI8x1Shuffle(OpIndex node) {
@@ -6595,11 +6708,7 @@ void InstructionSelector::VisitI8x4Shuffle(OpIndex node) {
   if (SimdShuffle::TryMatch16x2Shuffle(shuffle.data(), shuffle16x2.data())) {
     EmitShuffle2<16>(this, node, input0, input1, shuffle16x2);
   } else {
-    InstructionOperand src0, src1;
-    ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
-    Emit(kArm64I8x16Shuffle, g.DefineAsRegister(node), src0, src1,
-         g.UseImmediate(SimdShuffle::Pack4Lanes(&shuffle[0])),
-         g.UseImmediate(0), g.UseImmediate(0), g.UseImmediate(0));
+    EmitShuffle4<8>(this, node, input0, input1, shuffle);
   }
 }
 
@@ -6641,6 +6750,9 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
       Emit(kArm64S128Dup | LaneSizeField::encode(LaneSize::kL16),
            g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseImmediate(index));
+      return;
+    } else {
+      EmitShuffle4<16>(this, node, input0, input1, shuffle16x4);
       return;
     }
   }
@@ -6724,9 +6836,7 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
              g.UseImmediate(from), g.UseImmediate(to));
       }
     } else {
-      Emit(kArm64S32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-           g.UseRegister(input1),
-           g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle32x4.data())));
+      EmitShuffle4<32>(this, node, input0, input1, shuffle32x4);
     }
     return;
   }
