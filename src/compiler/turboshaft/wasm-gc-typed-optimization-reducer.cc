@@ -473,6 +473,9 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
               target.index().id(), branch.condition().id(),
               OpcodeName(condition.opcode), graph_.Index(branch).id(),
               OpcodeName(branch.opcode));
+          RefineTypeKnowledge(check.object(), wasm::kWasmBottom, branch);
+        } else if (check.config.to.is_nullable()) {
+          RefineTypeKnowledgeNotNull(check.object(), branch);
         }
       }
     } break;
@@ -489,6 +492,7 @@ void WasmGCTypeAnalyzer::ProcessBranchOnTarget(const BranchOp& branch,
               target.index().id(), branch.condition().id(),
               OpcodeName(condition.opcode), graph_.Index(branch).id(),
               OpcodeName(branch.opcode));
+          RefineTypeKnowledge(is_null.object(), wasm::kWasmBottom, branch);
           return;
         }
         RefineTypeKnowledge(is_null.object(),
