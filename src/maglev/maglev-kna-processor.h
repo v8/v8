@@ -70,8 +70,12 @@ class RecomputeKnownNodeAspectsProcessor {
 
   NodeBase* current_node() const { return current_node_; }
 
+  bool CanEagerDeopt() const {
+    return current_node()->properties().has_eager_deopt_info();
+  }
+
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
-    CHECK(current_node()->properties().has_eager_deopt_info());
+    CHECK(CanEagerDeopt());
     return &current_node()->eager_deopt_info()->top_frame();
   }
 

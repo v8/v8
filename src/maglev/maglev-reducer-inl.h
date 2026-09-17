@@ -2758,6 +2758,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
         access_info.lookup_start_object_maps(), kStartAtPrototype);
 
     if (callable_node_if_not_constant) {
+      if (!CanEagerDeopt()) return {};
       RETURN_IF_ABORT(BuildCheckMaps(
           callable_node_if_not_constant,
           base::VectorOf(access_info.lookup_start_object_maps())));
@@ -2765,6 +2766,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
       if (receiver_map.is_stable()) {
         broker()->dependencies()->DependOnStableMap(receiver_map);
       } else {
+        if (!CanEagerDeopt()) return {};
         RETURN_IF_ABORT(BuildCheckMaps(
             GetConstant(callable),
             base::VectorOf(access_info.lookup_start_object_maps())));
@@ -2813,6 +2815,11 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
       callable_node = GetConstant(callable);
     }
 
+    // If we reach this point, then we've passed the
+    // ReducerBaseCanBuildCall<BaseT> check, which only holds for the
+    // GraphBuilder, for which CanEagerDeopt is true, which means that we can
+    // emit a CheckMaps.
+    DCHECK(CanEagerDeopt());
     RETURN_IF_ABORT(BuildCheckMaps(
         callable_node, base::VectorOf(access_info.lookup_start_object_maps())));
 

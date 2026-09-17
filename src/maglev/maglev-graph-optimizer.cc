@@ -85,7 +85,7 @@ MaglevGraphOptimizer::GetDeoptFrameForLazyDeopt(bool can_throw) {
 }
 
 DeoptFrame* MaglevGraphOptimizer::GetDeoptFrameForEagerDeopt() {
-  CHECK(current_node()->properties().has_eager_deopt_info());
+  CHECK(CanEagerDeopt());
   DeoptFrame* frame = &current_node()->eager_deopt_info()->top_frame();
 
   auto* eager_scope = reducer_.current_eager_deopt_scope();
@@ -720,7 +720,7 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   // TODO(victorgomes): The GetXXX functions may emit a conversion node that
   // might eager deopt. We need to find a correct eager deopt frame for them if
   // current_node_ does not have a deopt info.
-  if (!current_node_->properties().has_eager_deopt_info()) {
+  if (!CanEagerDeopt()) {
     return {};
   }
   switch (use_repr) {

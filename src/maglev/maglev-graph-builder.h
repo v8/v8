@@ -219,6 +219,8 @@ class MaglevGraphBuilder {
   int inlining_depth() const { return compilation_unit_->inlining_depth(); }
 
   DeoptFrame* GetLatestCheckpointedFrame();
+  // A checkpointed frame can always be built while the graph is being built.
+  bool CanEagerDeopt() const { return true; }
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
     return GetLatestCheckpointedFrame();
   }

@@ -304,9 +304,13 @@ concept ReducerBaseWithKNASetter = requires(BaseT* b, KnownNodeAspects* kna) {
   b->set_known_node_aspects(kna);
 };
 
+// Bases that can emit eager deopting nodes provide both an eager deopt frame
+// and a predicate telling whether one is available at the current position.
 template <typename BaseT>
-concept ReducerBaseWithEagerDeopt =
-    requires(BaseT* b) { b->GetDeoptFrameForEagerDeopt(); };
+concept ReducerBaseWithEagerDeopt = requires(BaseT* b) {
+  b->GetDeoptFrameForEagerDeopt();
+  b->CanEagerDeopt();
+};
 
 template <typename BaseT>
 concept ReducerBaseWithAbruptBlockEnd =
@@ -744,6 +748,20 @@ class MaglevReducer {
 
   EagerDeoptFrameScope* current_eager_deopt_scope() const {
     return current_eager_deopt_scope_;
+  }
+
+  // Whether an eager deopt frame is available at the current position, ie,
+  // whether a reduction is allowed to emit nodes that can eager deopt. This is
+  // always the case while building the graph, but not while optimizing it: a
+  // node that only has lazy deopt info has no eager deopt frame to clone, and
+  // its lazy deopt frame cannot be used instead, since that one describes the
+  // state *after* the bytecode rather than the state needed to re-execute it.
+  bool CanEagerDeopt() const {
+    if constexpr (ReducerBaseWithEagerDeopt<BaseT>) {
+      return base_->CanEagerDeopt();
+    } else {
+      return false;
+    }
   }
 
   MaglevReducer(BaseT* base, Graph* graph,

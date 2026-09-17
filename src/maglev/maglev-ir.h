@@ -4847,6 +4847,11 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   // The implementation currently calls runtime.
   // Eager deopt frame is attached, since MaglevGraphOptimizer can reduce this
   // node, and the reduction emits map checks, which can eager deopt.
+  // Unlike generic call nodes like CallBuiltin where attaching eager deopt
+  // frames would be too heavyweight (and are instead handled via
+  // MaglevReducer::CanEagerDeopt), TestInstanceOf is a dedicated opcode where
+  // attaching the frame is cheap and preserves speculative reductions in the
+  // optimizer.
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::JSCall();
   DECLARE_INPUTS(Context, Object, Callable)
