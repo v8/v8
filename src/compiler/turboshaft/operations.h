@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_OPERATIONS_H_
 #define V8_COMPILER_TURBOSHAFT_OPERATIONS_H_
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -1121,6 +1122,44 @@ bool OptionsTupleEquals(const Tuple& a, const Tuple& b,
                         std::index_sequence<I...>) {
   return (OptionEquals(std::get<I>(a), std::get<I>(b)) && ...);
 }
+
+// Detects options that the default `operator==` and `hash_value` below would
+// compare and hash by address instead of by value.
+//
+// A raw C array decays to a pointer when the options tuple is built, so an
+// operation that puts one in `options()` silently gets address comparison.
+// Pointers to class types are fine: options like `Block*` or
+// `wasm::StructType*` point to interned objects and are meant to be compared
+// by identity. `const char*` is fine for the same reason, it denotes a string
+// literal. Note that `uint8_t` is `unsigned char`, a distinct type from
+// `char`, so string options stay allowed while decayed byte arrays are caught.
+template <typename T>
+struct IsComparedByAddress {
+  using Type = std::remove_cvref_t<T>;
+  using Pointee = std::remove_cv_t<std::remove_pointer_t<Type>>;
+  static constexpr bool value =
+      std::is_array_v<Type> ||
+      (std::is_pointer_v<Type> && std::is_arithmetic_v<Pointee> &&
+       !std::is_same_v<Pointee, char>);
+};
+
+template <typename Options>
+struct OptionsAreComparedByValue;
+template <typename... Ts>
+struct OptionsAreComparedByValue<std::tuple<Ts...>>
+    : std::bool_constant<(!IsComparedByAddress<Ts>::value && ...)> {};
+
+template <typename Options>
+constexpr void CheckOptionsAreComparedByValue() {
+  // Checking this here rather than in the class body is required: `Derived`
+  // is still incomplete while this CRTP base is instantiated, so `options()`
+  // can only be inspected from a member function body. This also limits the
+  // check to operations that actually use the default comparison, rather
+  // than ones that define their own `operator==` or `hash_value`.
+  static_assert(OptionsAreComparedByValue<std::remove_cvref_t<Options>>::value,
+                "options() must not contain a raw C array, it decays to a "
+                "pointer and would be compared by address. Use std::array.");
+}
 }  // namespace detail
 
 // This template knows the complete type of the operation and is plugged into
@@ -1249,6 +1288,8 @@ struct OperationT : Operation {
     return derived_this() == other.derived_this();
   }
   bool operator==(const Base& other) const {
+    detail::CheckOptionsAreComparedByValue<
+        decltype(derived_this().options())>();
     auto lhs_options = derived_this().options();
     auto rhs_options = other.derived_this().options();
     return derived_this().inputs() == other.derived_this().inputs() &&
@@ -1263,6 +1304,8 @@ struct OperationT : Operation {
   }
   size_t hash_value(
       HashingStrategy strategy = HashingStrategy::kDefault) const {
+    detail::CheckOptionsAreComparedByValue<
+        decltype(derived_this().options())>();
     return HashWithOptions(derived_this().options());
   }
 
@@ -8655,14 +8698,17 @@ struct StringPrepareForGetCodeUnitOp
 
 struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   static constexpr uint8_t kZero[kSimd128Size] = {};
-  uint8_t value[kSimd128Size];
+  std::array<uint8_t, kSimd128Size> value;
 
   static constexpr OpEffects effects = OpEffects();
 
   explicit Simd128ConstantOp(const uint8_t incoming_value[kSimd128Size])
       : Base() {
-    std::copy(incoming_value, incoming_value + kSimd128Size, value);
+    std::copy(incoming_value, incoming_value + kSimd128Size, value.begin());
   }
+  explicit Simd128ConstantOp(
+      const std::array<uint8_t, kSimd128Size>& incoming_value)
+      : Base(), value(incoming_value) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Simd128()>();
@@ -8677,18 +8723,11 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
     // TODO(14108): Validate.
   }
 
-  bool IsZero() const { return std::memcmp(kZero, value, kSimd128Size) == 0; }
+  bool IsZero() const {
+    return std::memcmp(kZero, value.data(), kSimd128Size) == 0;
+  }
 
   auto options() const { return std::tuple{value}; }
-  // {options()} decays {value} to a pointer, so the inherited {operator==} and
-  // {hash_value} would compare addresses.
-  bool operator==(const Simd128ConstantOp& other) const {
-    return std::memcmp(value, other.value, kSimd128Size) == 0;
-  }
-  size_t hash_value(
-      HashingStrategy strategy = HashingStrategy::kDefault) const {
-    return HashWithOptions(base::VectorOf(value));
-  }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -9658,7 +9697,7 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
     kI8x16,
   };
 
-  uint8_t shuffle[kSimd128Size] = {0};
+  std::array<uint8_t, kSimd128Size> shuffle = {0};
   const Kind kind;
 
   static constexpr OpEffects effects = OpEffects();
@@ -9696,8 +9735,12 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
         count = 16;
         break;
     }
-    std::copy_n(incoming_shuffle, count, shuffle);
+    std::copy_n(incoming_shuffle, count, shuffle.begin());
   }
+
+  Simd128ShuffleOp(V<Simd128> left, V<Simd128> right, Kind kind,
+                   const std::array<uint8_t, kSimd128Size>& incoming_shuffle)
+      : Base(left, right), shuffle(incoming_shuffle), kind(kind) {}
 
   V<Simd128> left() const { return input<Simd128>(0); }
   V<Simd128> right() const { return input<Simd128>(1); }
@@ -9712,16 +9755,6 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
   }
 
   auto options() const { return std::tuple{kind, shuffle}; }
-  // {options()} decays {shuffle} to a pointer, so the inherited {operator==}
-  // and {hash_value} would compare addresses.
-  bool operator==(const Simd128ShuffleOp& other) const {
-    return inputs() == other.inputs() && kind == other.kind &&
-           std::memcmp(shuffle, other.shuffle, kSimd128Size) == 0;
-  }
-  size_t hash_value(
-      HashingStrategy strategy = HashingStrategy::kDefault) const {
-    return HashWithOptions(kind, base::VectorOf(shuffle));
-  }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -9792,14 +9825,17 @@ struct Simd128LoadPairDeinterleaveOp
 
 struct Simd256ConstantOp : FixedArityOperationT<0, Simd256ConstantOp> {
   static constexpr uint8_t kZero[kSimd256Size] = {};
-  uint8_t value[kSimd256Size];
+  std::array<uint8_t, kSimd256Size> value;
 
   static constexpr OpEffects effects = OpEffects();
 
   explicit Simd256ConstantOp(const uint8_t incoming_value[kSimd256Size])
       : Base() {
-    std::copy(incoming_value, incoming_value + kSimd256Size, value);
+    std::copy(incoming_value, incoming_value + kSimd256Size, value.begin());
   }
+  explicit Simd256ConstantOp(
+      const std::array<uint8_t, kSimd256Size>& incoming_value)
+      : Base(), value(incoming_value) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Simd256()>();
@@ -9814,18 +9850,11 @@ struct Simd256ConstantOp : FixedArityOperationT<0, Simd256ConstantOp> {
     // TODO(14108): Validate.
   }
 
-  bool IsZero() const { return std::memcmp(kZero, value, kSimd256Size) == 0; }
+  bool IsZero() const {
+    return std::memcmp(kZero, value.data(), kSimd256Size) == 0;
+  }
 
   auto options() const { return std::tuple{value}; }
-  // {options()} decays {value} to a pointer, so the inherited {operator==} and
-  // {hash_value} would compare addresses.
-  bool operator==(const Simd256ConstantOp& other) const {
-    return std::memcmp(value, other.value, kSimd256Size) == 0;
-  }
-  size_t hash_value(
-      HashingStrategy strategy = HashingStrategy::kDefault) const {
-    return HashWithOptions(base::VectorOf(value));
-  }
   void PrintOptions(std::ostream& os) const;
 };
 

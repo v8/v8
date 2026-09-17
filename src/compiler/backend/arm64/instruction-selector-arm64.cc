@@ -5006,7 +5006,7 @@ void InstructionSelector::VisitS128Const(OpIndex node) {
   static_assert(sizeof(val) == kSimd128Size);
   const Simd128ConstantOp& constant =
       this->Get(node).template Cast<Simd128ConstantOp>();
-  memcpy(val, constant.value, kSimd128Size);
+  memcpy(val, constant.value.data(), kSimd128Size);
   Emit(kArm64S128Const, g.DefineAsRegister(node), g.UseImmediate(val[0]),
        g.UseImmediate(val[1]), g.UseImmediate(val[2]), g.UseImmediate(val[3]));
 }
@@ -5062,7 +5062,7 @@ std::optional<BicImmParam> BicImmConstHelper(const Operation& op,
   const int kUint32Immediates = 4;
   uint32_t val[kUint32Immediates];
   static_assert(sizeof(val) == kSimd128Size);
-  memcpy(val, op.Cast<Simd128ConstantOp>().value, kSimd128Size);
+  memcpy(val, op.Cast<Simd128ConstantOp>().value.data(), kSimd128Size);
   // If 4 uint32s are not the same, cannot emit Bic
   if (!(val[0] == val[1] && val[1] == val[2] && val[2] == val[3])) {
     return std::nullopt;
@@ -5445,13 +5445,13 @@ MulWithDup TryMatchMulWithDup(InstructionSelector* selector, OpIndex node) {
   // in a loop, which won't cover the shuffle since they are different basic
   // blocks.
   if (left.Is<Simd128ShuffleOp>() &&
-      SimdShuffle::TryMatchSplat<LANES>(left.Cast<Simd128ShuffleOp>().shuffle,
-                                        &index)) {
+      SimdShuffle::TryMatchSplat<LANES>(
+          left.Cast<Simd128ShuffleOp>().shuffle.data(), &index)) {
     dup_node = left.input(index < LANES ? 0 : 1);
     input = mul.right();
   } else if (right.Is<Simd128ShuffleOp>() &&
              SimdShuffle::TryMatchSplat<LANES>(
-                 right.Cast<Simd128ShuffleOp>().shuffle, &index)) {
+                 right.Cast<Simd128ShuffleOp>().shuffle.data(), &index)) {
     dup_node = right.input(index < LANES ? 0 : 1);
     input = mul.left();
   }

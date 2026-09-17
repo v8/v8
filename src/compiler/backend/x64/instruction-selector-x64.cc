@@ -1225,7 +1225,7 @@ void InstructionSelector::VisitS256Const(OpIndex node) {
   static const int kUint32Immediates = kSimd256Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
   const Simd256ConstantOp& constant = Cast<Simd256ConstantOp>(node);
-  memcpy(val, constant.value, kSimd256Size);
+  memcpy(val, constant.value.data(), kSimd256Size);
   // If all bytes are zeros or ones, avoid emitting code for generic constants
   bool all_zeros = std::all_of(std::begin(val), std::end(val),
                                [](uint32_t v) { return v == 0; });
@@ -4931,7 +4931,7 @@ void InstructionSelector::VisitS128Const(OpIndex node) {
   static const int kUint32Immediates = kSimd128Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
   const Simd128ConstantOp& constant = Cast<Simd128ConstantOp>(node);
-  memcpy(val, constant.value, kSimd128Size);
+  memcpy(val, constant.value.data(), kSimd128Size);
   // If all bytes are zeros or ones, avoid emitting code for generic constants
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
   bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
@@ -5308,7 +5308,7 @@ static bool MatchSimd128Constant(InstructionSelector* selector, OpIndex node,
   DCHECK_NOT_NULL(constant);
   const Operation& op = selector->Get(node);
   if (auto c = op.TryCast<Simd128ConstantOp>()) {
-    std::memcpy(constant, c->value, kSimd128Size);
+    *constant = c->value;
     return true;
   }
   return false;

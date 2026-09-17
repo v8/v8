@@ -2695,10 +2695,10 @@ class MachineOptimizationReducer : public Next {
         goto no_change;
       case MachineRepresentation::kWord8: {
         if (shuffles.size() == 4) {
-          const uint8_t* shuffle1 = shuffles[0]->shuffle;
-          const uint8_t* shuffle2 = shuffles[1]->shuffle;
-          const uint8_t* shuffle3 = shuffles[2]->shuffle;
-          const uint8_t* shuffle4 = shuffles[3]->shuffle;
+          const uint8_t* shuffle1 = shuffles[0]->shuffle.data();
+          const uint8_t* shuffle2 = shuffles[1]->shuffle.data();
+          const uint8_t* shuffle3 = shuffles[2]->shuffle.data();
+          const uint8_t* shuffle4 = shuffles[3]->shuffle.data();
           if (SimdShuffle::TryMatch8x16UpperToLowerReduce(shuffle1, shuffle2,
                                                           shuffle3, shuffle4)) {
             V<Simd128> reduce = __ Simd128Reduce(
@@ -2710,9 +2710,9 @@ class MachineOptimizationReducer : public Next {
       }
       case MachineRepresentation::kWord16: {
         if (shuffles.size() == 3) {
-          const uint8_t* shuffle1 = shuffles[0]->shuffle;
-          const uint8_t* shuffle2 = shuffles[1]->shuffle;
-          const uint8_t* shuffle3 = shuffles[2]->shuffle;
+          const uint8_t* shuffle1 = shuffles[0]->shuffle.data();
+          const uint8_t* shuffle2 = shuffles[1]->shuffle.data();
+          const uint8_t* shuffle3 = shuffles[2]->shuffle.data();
           if (SimdShuffle::TryMatch16x8UpperToLowerReduce(shuffle1, shuffle2,
                                                           shuffle3)) {
             V<Simd128> reduce = __ Simd128Reduce(
@@ -2724,8 +2724,8 @@ class MachineOptimizationReducer : public Next {
       }
       case MachineRepresentation::kWord32: {
         if (shuffles.size() == 2) {
-          const uint8_t* shuffle1 = shuffles[0]->shuffle;
-          const uint8_t* shuffle2 = shuffles[1]->shuffle;
+          const uint8_t* shuffle1 = shuffles[0]->shuffle.data();
+          const uint8_t* shuffle2 = shuffles[1]->shuffle.data();
           if (SimdShuffle::TryMatch32x4UpperToLowerReduce(shuffle1, shuffle2)) {
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kI32x4AddReduce);
@@ -2736,8 +2736,8 @@ class MachineOptimizationReducer : public Next {
       }
       case MachineRepresentation::kFloat32: {
         if (shuffles.size() == 2) {
-          const uint8_t* shuffle1 = shuffles[0]->shuffle;
-          const uint8_t* shuffle2 = shuffles[1]->shuffle;
+          const uint8_t* shuffle1 = shuffles[0]->shuffle.data();
+          const uint8_t* shuffle2 = shuffles[1]->shuffle.data();
           if (SimdShuffle::TryMatch32x4PairwiseReduce(shuffle1, shuffle2)) {
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kF32x4AddReduce);
@@ -2750,7 +2750,7 @@ class MachineOptimizationReducer : public Next {
       case MachineRepresentation::kFloat64: {
         if (shuffles.size() == 1) {
           uint8_t shuffle64x2[2];
-          if (SimdShuffle::TryMatch64x2Shuffle(shuffles[0]->shuffle,
+          if (SimdShuffle::TryMatch64x2Shuffle(shuffles[0]->shuffle.data(),
                                                shuffle64x2) &&
               SimdShuffle::TryMatch64x2Reduce(shuffle64x2)) {
             V<Simd128> reduce =
@@ -2783,7 +2783,7 @@ class MachineOptimizationReducer : public Next {
 
     switch (lane) {
       case 0:
-        return __ Simd128Constant(constant_input->value);
+        return __ Simd128Constant(constant_input->value.data());
       case 1:
         return __ Simd128Constant(&constant_input->value[kSimd256Size / 2]);
       default:

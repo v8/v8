@@ -340,12 +340,14 @@ class WasmShuffleAnalyzer {
     }
 
     // Pointer to the beginning of the window.
-    const uint8_t* begin() const { return shuffle_->shuffle + begin_index(); }
+    const uint8_t* begin() const {
+      return shuffle_->shuffle.data() + begin_index();
+    }
 
     // Pointer to the past-the-end element of the window.
     const uint8_t* end() const {
       if (begin_index() + OutputDemanded().bytes() >= kSimd128Size) {
-        return shuffle()->shuffle + kSimd128Size;
+        return shuffle()->shuffle.data() + kSimd128Size;
       }
       return begin() + OutputDemanded().bytes();
     }
@@ -760,7 +762,7 @@ class WasmShuffleReducer : public Next {
 #endif  // V8_TARGET_ARCH_ARM64
 
     std::array<uint8_t, kSimd128Size> shuffle_bytes = {0};
-    std::copy(shuffle.shuffle, shuffle.shuffle + kSimd128Size,
+    std::copy(shuffle.shuffle.begin(), shuffle.shuffle.end(),
               shuffle_bytes.begin());
     DemandedBytes demanded_bytes = analyzer_->GetDemandedBytes(&shuffle);
     bool emit_new_shuffle = !demanded_bytes.IsLow(kSimd128Size);

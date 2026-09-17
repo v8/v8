@@ -229,7 +229,8 @@ namespace {
 bool IsTopBottomInterleave(const Simd128ShuffleOp* shuffle_op) {
   if (shuffle_op && shuffle_op->left() == shuffle_op->right()) {
     std::array<uint8_t, kSimd128Size> shuffle_bytes;
-    std::copy_n(shuffle_op->shuffle, kSimd128Size, shuffle_bytes.begin());
+    std::copy_n(shuffle_op->shuffle.begin(), kSimd128Size,
+                shuffle_bytes.begin());
     return SimdShuffle::TryMatchCanonical(shuffle_bytes) ==
            SimdShuffle::CanonicalShuffle::kS16x8TopBottomInterleave;
   }
@@ -575,7 +576,7 @@ bool WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
   if (IsShuffleToShift(shuffle_out)) return false;
 
   DemandedBytes shuffle_out_demanded = GetDemandedBytes(&shuffle_out);
-  std::span<const uint8_t> shuffle_out_bytes(shuffle_out.shuffle,
+  std::span<const uint8_t> shuffle_out_bytes(shuffle_out.shuffle.data(),
                                              shuffle_out_demanded.bytes());
   for (uint8_t bytes : {8, 4, 2, 1}) {
     auto shuffle_in_demanded = DemandedBytes::Low(bytes);
@@ -722,7 +723,7 @@ void WasmShuffleAnalyzer::ProcessShuffleOfLoads(const Simd128ShuffleOp& shuffle,
   if (GetDemandedBytes(&shuffle).IsAll()) {
     // Full width shuffles.
     SimdShuffle::ShuffleArray shuffle_bytes;
-    std::copy_n(shuffle.shuffle, kSimd128Size, shuffle_bytes.begin());
+    std::copy_n(shuffle.shuffle.begin(), kSimd128Size, shuffle_bytes.begin());
     auto canonical = SimdShuffle::TryMatchCanonical(shuffle_bytes);
     switch (canonical) {
       default:

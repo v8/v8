@@ -950,7 +950,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return true;
     }
 
-    const uint8_t* data() const { return op128_->shuffle; }
+    const uint8_t* data() const { return op128_->shuffle.data(); }
 
     turboshaft::OpIndex input(int index) const {
       DCHECK_LT(index, op128_->input_count);

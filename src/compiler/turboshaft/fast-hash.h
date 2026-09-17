@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_FAST_HASH_H_
 #define V8_COMPILER_TURBOSHAFT_FAST_HASH_H_
 
+#include <array>
 #include <optional>
 #include <tuple>
 
@@ -97,6 +98,13 @@ template <typename T>
 struct fast_hash<MaybeIndirectHandle<T>> {
   V8_INLINE size_t operator()(MaybeIndirectHandle<T> v) const {
     return fast_hash<Address>()(v.address());
+  }
+};
+
+template <typename T, size_t N>
+struct fast_hash<std::array<T, N>> {
+  V8_INLINE size_t operator()(const std::array<T, N>& v) const {
+    return fast_hash_range(v.begin(), v.end());
   }
 };
 
