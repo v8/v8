@@ -3957,7 +3957,13 @@ Address WasmLiftoffSetupFrame::CallingPC() const {
 
 void WasmLiftoffSetupFrame::ComputeCallerState(State* state) const {
   TypedFrame::ComputeCallerState(state);
-  state->callee_pc = CallingPC();
+  // Unlike {CallingPC}, which only runs at safepoints, this can run on a
+  // profiler tick: the setup builtin sets the frame marker a few instructions
+  // before it signs and spills the calling PC, so the slot can still be
+  // unsigned here. Don't authenticate it; {callee_pc} is only a lookup key,
+  // never a branch target.
+  state->callee_pc = unauthenticated_pc(reinterpret_cast<Address*>(
+      fp() + WasmLiftoffSetupFrameConstants::kCallingPCOffset));
 }
 
 void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
