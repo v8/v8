@@ -983,7 +983,7 @@ static bool isCommandLineAPIGetter(const String16& name) {
 void V8Console::CommandLineAPIScope::accessorGetterCallback(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+  v8::Local<v8::Array> data = info.DataV2().As<v8::Value>().As<v8::Array>();
   v8::Local<v8::Value> data0;
   if (!data->Get(context, kCommandLineAPIIndex).ToLocal(&data0) ||
       !data0->IsObject()) {
@@ -1013,7 +1013,7 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
     v8::Local<v8::Name> name, v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+  v8::Local<v8::Array> data = info.DataV2().As<v8::Value>().As<v8::Array>();
   v8::Local<v8::Value> data0;
   if (!data->Get(context, kCommandLineAPIIndex).ToLocal(&data0) ||
       !data0->IsObject()) {

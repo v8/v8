@@ -12551,7 +12551,7 @@ bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
         *i::PropertyCallbackArguments::GetPropertyName(info);
     CHECK(i::IsName(name));
   }
-  CHECK(info.Data()->IsValue());
+  CHECK(info.DataV2()->IsValue());
   USE(info.ShouldThrowOnError());
   if (!std::is_same_v<T, void>) {
     CHECK(info.GetReturnValue().Get()->IsValue());

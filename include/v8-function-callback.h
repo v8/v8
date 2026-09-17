@@ -238,6 +238,7 @@ class PropertyCallbackInfo {
    * `NamedPropertyHandlerConfiguration` or
    * `IndexedPropertyHandlerConfiguration.`
    */
+  V8_DEPRECATE_SOON("Use DataV2 instead")
   V8_INLINE Local<Value> Data() const;
 
   /**

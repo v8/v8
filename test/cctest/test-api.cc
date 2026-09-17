@@ -2925,7 +2925,7 @@ void SymbolAccessorGetterReturnsDefault(
   v8::Isolate* isolate = info.GetIsolate();
   Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description(isolate)->IsUndefined()) return;
-  info.GetReturnValue().Set(info.Data());
+  info.GetReturnValue().Set(info.DataV2().As<Value>());
 }
 
 static void ThrowingSymbolAccessorGetter(
@@ -6874,7 +6874,8 @@ static void GetXValue(Local<Name> name,
                       const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
-  CHECK(info.Data()
+  CHECK(info.DataV2()
+            .As<v8::Value>()
             ->Equals(CcTest::isolate()->GetCurrentContext(), v8_str("donut"))
             .FromJust());
   CHECK(name->Equals(CcTest::isolate()->GetCurrentContext(), v8_str("x"))
@@ -7173,7 +7174,8 @@ static void Get239Value(Local<Name> name,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
-  CHECK(info.Data()
+  CHECK(info.DataV2()
+            .As<v8::Value>()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("donut"))
             .FromJust());
   CHECK(name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("239"))
@@ -7217,7 +7219,10 @@ static void SetXValue(Local<Name> name, Local<Value> value,
   CHECK(i::ValidateCallbackInfo(info));
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
   CHECK(value->Equals(context, v8_num(4)).FromJust());
-  CHECK(info.Data()->Equals(context, v8_str("donut")).FromJust());
+  CHECK(info.DataV2()
+            .As<v8::Value>()
+            ->Equals(context, v8_str("donut"))
+            .FromJust());
   CHECK(name->Equals(context, v8_str("x")).FromJust());
   CHECK(xValue.IsEmpty());
   xValue.Reset(info.GetIsolate(), value);
@@ -12124,7 +12129,7 @@ v8::Intercepted InterceptorCallICFastApi(
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   CheckReturnValue(info, FUNCTION_ADDR(InterceptorCallICFastApi));
   int* call_count = reinterpret_cast<int*>(
-      v8::External::Cast(*info.Data())->Value(kIntPointerTag));
+      v8::External::Cast(*info.DataV2())->Value(kIntPointerTag));
   ++(*call_count);
   if ((*call_count) % 20 == 0) {
     i::heap::InvokeMajorGC(CcTest::heap());
@@ -22242,7 +22247,7 @@ class RequestInterruptTestWithNativeAccessor
     CHECK(i::ValidateCallbackInfo(info));
     RequestInterruptTestBase* test =
         reinterpret_cast<RequestInterruptTestBase*>(
-            info.Data().As<v8::External>()->Value(kTestPtrTag));
+            info.DataV2().As<v8::External>()->Value(kTestPtrTag));
     info.GetReturnValue().Set(test->ShouldContinue());
   }
 };
