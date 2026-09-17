@@ -40,16 +40,15 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   static const int kScopeDetailsFunctionIndex = 5;
   static const int kScopeDetailsSize = 6;
 
-  enum class ReparseStrategy {
-    kFunctionLiteral,
-    // Checks whether the paused function (and its scope chain) already has
-    // its blocklist calculated and re-parses the whole script if not.
-    // Otherwise only the function literal is re-parsed.
-    kScriptIfNeeded,
+  enum class CalculateBlocklists {
+    kNo,
+    // Calculates the block lists debug-evaluate needs for the paused function
+    // and its scope chain, unless they are already cached.
+    kIfNeeded,
   };
 
   ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
-                ReparseStrategy strategy);
+                CalculateBlocklists calculate_blocklists);
 
   ScopeIterator(Isolate* isolate, DirectHandle<JSFunction> function);
   ScopeIterator(Isolate* isolate, Handle<JSGeneratorObject> generator);
@@ -160,7 +159,7 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   int GetSourcePosition() const;
 
-  void TryParseAndRetrieveScopes(ReparseStrategy strategy);
+  void TryParseAndRetrieveScopes(CalculateBlocklists calculate_blocklists);
 
   void UnwrapEvaluationContext();
 
