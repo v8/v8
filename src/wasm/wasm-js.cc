@@ -165,11 +165,11 @@ void WasmStreaming::SetUrl(const char* url, size_t length) {
 
 // static
 std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
-                                                     Local<Value> value) {
+                                                     Local<Data> data) {
   TRACE_EVENT("v8.wasm", "wasm.WasmStreaming.Unpack");
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
   auto managed =
-      i::Cast<i::CppGCManaged<WasmStreaming>>(Utils::OpenDirectHandle(*value));
+      i::Cast<i::CppGCManaged<WasmStreaming>>(Utils::OpenDirectHandle(*data));
   return managed->ptr().as_shared_ptr();
 }
 
@@ -784,10 +784,8 @@ void WasmStreamingCallbackForTesting(
   WasmJSApiScope js_api_scope{info, "WebAssembly.compile()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
 
-  START_ALLOW_USE_DEPRECATED()
   std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(info.GetIsolate(), info.Data());
-  END_ALLOW_USE_DEPRECATED()
+      v8::WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
 
   // We don't check the buffer length up front, to allow d8 to test that the
   // streaming decoder implementation handles overly large inputs correctly.
@@ -806,10 +804,8 @@ void WasmStreamingCallbackForTesting(
 void WasmStreamingPromiseFailedCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
-  START_ALLOW_USE_DEPRECATED()
   std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(info.GetIsolate(), info.Data());
-  END_ALLOW_USE_DEPRECATED()
+      v8::WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
   streaming->Abort(info[0]);
 }
 

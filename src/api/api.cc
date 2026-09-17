@@ -12304,7 +12304,7 @@ void WasmStreaming::SetUrl(const char* url, size_t length) { UNREACHABLE(); }
 
 // static
 std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* v8_isolate,
-                                                     Local<Value> value) {
+                                                     Local<Data> data) {
   FATAL("WebAssembly is disabled");
 }
 #endif  // !V8_ENABLE_WEBASSEMBLY
