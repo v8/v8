@@ -3650,6 +3650,36 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     }
   }
 
+  // Define private accessors early, using only a single call to the runtime for
+  // each pair of corresponding getters and setters, in the order the first
+  // component is declared.
+  for (auto accessors : private_accessors.ordered_accessors()) {
+    RegisterAllocationScope inner_register_scope(this);
+    RegisterList accessors_reg = register_allocator()->NewRegisterList(2);
+    ClassLiteral::Property* getter = accessors.second->getter;
+    ClassLiteral::Property* setter = accessors.second->setter;
+    Variable* accessor_pair_var;
+    if (getter && getter->kind() == ClassLiteral::Property::AUTO_ACCESSOR) {
+      DCHECK_EQ(setter, getter);
+      AutoAccessorInfo* auto_accessor_info = getter->auto_accessor_info();
+      VisitForRegisterValue(auto_accessor_info->generated_getter(),
+                            accessors_reg[0]);
+      VisitForRegisterValue(auto_accessor_info->generated_setter(),
+                            accessors_reg[1]);
+      accessor_pair_var =
+          auto_accessor_info->property_private_name_proxy()->var();
+    } else {
+      VisitLiteralAccessor(getter, accessors_reg[0]);
+      VisitLiteralAccessor(setter, accessors_reg[1]);
+      accessor_pair_var = getter != nullptr ? getter->private_name_var()
+                                            : setter->private_name_var();
+    }
+    builder()->CallRuntime(Runtime::kCreatePrivateAccessors, accessors_reg);
+    DCHECK_NOT_NULL(accessor_pair_var);
+    BuildVariableAssignment(accessor_pair_var, Token::kInit,
+                            HoleCheckMode::kElided);
+  }
+
   {
     RegisterAllocationScope register_scope(this);
     RegisterList args = register_allocator()->NewGrowableRegisterList();
@@ -3767,36 +3797,6 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     DCHECK(class_variable->IsStackLocal() || class_variable->IsContextSlot());
     builder()->LoadAccumulatorWithRegister(class_constructor);
     BuildVariableAssignment(class_variable, Token::kInit,
-                            HoleCheckMode::kElided);
-  }
-
-  // Define private accessors, using only a single call to the runtime for
-  // each pair of corresponding getters and setters, in the order the first
-  // component is declared.
-  for (auto accessors : private_accessors.ordered_accessors()) {
-    RegisterAllocationScope inner_register_scope(this);
-    RegisterList accessors_reg = register_allocator()->NewRegisterList(2);
-    ClassLiteral::Property* getter = accessors.second->getter;
-    ClassLiteral::Property* setter = accessors.second->setter;
-    Variable* accessor_pair_var;
-    if (getter && getter->kind() == ClassLiteral::Property::AUTO_ACCESSOR) {
-      DCHECK_EQ(setter, getter);
-      AutoAccessorInfo* auto_accessor_info = getter->auto_accessor_info();
-      VisitForRegisterValue(auto_accessor_info->generated_getter(),
-                            accessors_reg[0]);
-      VisitForRegisterValue(auto_accessor_info->generated_setter(),
-                            accessors_reg[1]);
-      accessor_pair_var =
-          auto_accessor_info->property_private_name_proxy()->var();
-    } else {
-      VisitLiteralAccessor(getter, accessors_reg[0]);
-      VisitLiteralAccessor(setter, accessors_reg[1]);
-      accessor_pair_var = getter != nullptr ? getter->private_name_var()
-                                            : setter->private_name_var();
-    }
-    builder()->CallRuntime(Runtime::kCreatePrivateAccessors, accessors_reg);
-    DCHECK_NOT_NULL(accessor_pair_var);
-    BuildVariableAssignment(accessor_pair_var, Token::kInit,
                             HoleCheckMode::kElided);
   }
 
