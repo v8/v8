@@ -1103,6 +1103,26 @@ template <class Op>
 struct HasStaticEffects<Op, std::void_t<decltype(Op::effects)>>
     : std::bool_constant<true> {};
 
+namespace detail {
+template <typename T>
+bool OptionEquals(const T& a, const T& b) {
+  return a == b;
+}
+template <typename T>
+bool OptionEquals(IndirectHandle<T> a, IndirectHandle<T> b) {
+  return a.equals(b);
+}
+template <typename T>
+bool OptionEquals(MaybeIndirectHandle<T> a, MaybeIndirectHandle<T> b) {
+  return a.equals(b);
+}
+template <typename Tuple, size_t... I>
+bool OptionsTupleEquals(const Tuple& a, const Tuple& b,
+                        std::index_sequence<I...>) {
+  return (OptionEquals(std::get<I>(a), std::get<I>(b)) && ...);
+}
+}  // namespace detail
+
 // This template knows the complete type of the operation and is plugged into
 // the inheritance hierarchy. It removes boilerplate from the concrete
 // `Operation` subclasses, defining everything that can be expressed
@@ -1229,8 +1249,13 @@ struct OperationT : Operation {
     return derived_this() == other.derived_this();
   }
   bool operator==(const Base& other) const {
+    auto lhs_options = derived_this().options();
+    auto rhs_options = other.derived_this().options();
     return derived_this().inputs() == other.derived_this().inputs() &&
-           derived_this().options() == other.derived_this().options();
+           detail::OptionsTupleEquals(
+               lhs_options, rhs_options,
+               std::make_index_sequence<
+                   std::tuple_size_v<decltype(lhs_options)>>{});
   }
   template <typename... Args>
   size_t HashWithOptions(const Args&... args) const {
@@ -6799,17 +6824,6 @@ struct TransitionAndStoreArrayElementOp
     UNREACHABLE();
   }
 
-  size_t hash_value(
-      HashingStrategy strategy = HashingStrategy::kDefault) const {
-    DCHECK_EQ(strategy, HashingStrategy::kDefault);
-    return HashWithOptions(fast_map.address(), double_map.address());
-  }
-
-  bool operator==(const TransitionAndStoreArrayElementOp& other) const {
-    return kind == other.kind && fast_map.equals(other.fast_map) &&
-           double_map.equals(other.double_map);
-  }
-
   auto options() const { return std::tuple{kind, fast_map, double_map}; }
 };
 
@@ -7017,15 +7031,6 @@ struct CheckedClosureOp : FixedArityOperationT<2, CheckedClosureOp> {
 
   void Validate(const Graph& graph) const {
     DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
-  }
-
-  bool operator==(const CheckedClosureOp& other) const {
-    return feedback_cell.address() == other.feedback_cell.address();
-  }
-  size_t hash_value(
-      HashingStrategy strategy = HashingStrategy::kDefault) const {
-    DCHECK_EQ(strategy, HashingStrategy::kDefault);
-    return HashWithOptions(feedback_cell.address());
   }
 
   auto options() const { return std::tuple{feedback_cell}; }

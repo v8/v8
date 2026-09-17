@@ -10,6 +10,8 @@
 
 #include "src/base/hashing.h"
 #include "src/base/vector.h"
+#include "src/handles/handles.h"
+#include "src/handles/maybe-handles.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -81,6 +83,20 @@ template <typename T>
 struct fast_hash<base::Vector<T>> {
   V8_INLINE size_t operator()(base::Vector<T> v) const {
     return fast_hash_range(v.begin(), v.end());
+  }
+};
+
+template <typename T>
+struct fast_hash<IndirectHandle<T>> {
+  V8_INLINE size_t operator()(IndirectHandle<T> v) const {
+    return fast_hash<Address>()(v.address());
+  }
+};
+
+template <typename T>
+struct fast_hash<MaybeIndirectHandle<T>> {
+  V8_INLINE size_t operator()(MaybeIndirectHandle<T> v) const {
+    return fast_hash<Address>()(v.address());
   }
 };
 
