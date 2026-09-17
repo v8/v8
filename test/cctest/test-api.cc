@@ -75,6 +75,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/init/v8.h"
 #include "src/logging/metrics.h"
+#include "src/objects/api-callbacks-inl.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/hash-table-inl.h"
@@ -32029,6 +32030,18 @@ void ReadCppHeapExternalCallback(
       ->MarkUsed();
 }
 
+void ReadCppHeapExternalPropertyCallback(
+    v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Local<v8::Data> data = info.DataV2();
+  CHECK(data->IsCppHeapExternal());
+  v8::Local<v8::CppHeapExternal>::Cast(data)
+      ->Value<TestGarbagedCollectedData>(
+          info.GetIsolate(),
+          v8::CppHeapPointerTagRange(v8::CppHeapPointerTag::kTagForTesting,
+                                     v8::CppHeapPointerTag::kTagForTesting))
+      ->MarkUsed();
+}
+
 class GCedWithCppHeapExternalJSRef
     : public cppgc::GarbageCollected<GCedWithCppHeapExternalJSRef> {
  public:
@@ -32247,6 +32260,69 @@ TEST(FunctionTemplateCallbackDataV2_CppHeapExternal) {
     }
     CHECK(cpp_object->was_used());
     function.Reset();
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+TEST(PropertyCallbackInfoDataV2_CppHeapExternal) {
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  create_params.cpp_heap =
+      v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),
+                          v8::CppHeapCreateParams({}))
+          .release();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
+  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+
+  {
+    LocalContext env(isolate);
+    v8::Global<v8::Object> object;
+    cppgc::WeakPersistent<TestGarbagedCollectedData> cpp_object(
+        cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
+            cpp_heap->GetAllocationHandle()));
+
+    {
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Name> name = v8_str("property");
+      v8::Local<v8::Object> local_object = v8::Object::New(isolate);
+      CHECK(local_object
+                ->SetNativeDataProperty(env.local(), name,
+                                        ReadCppHeapExternalPropertyCallback)
+                .FromJust());
+
+      v8::Local<v8::CppHeapExternal> external =
+          v8::CppHeapExternal::New<TestGarbagedCollectedData>(
+              isolate, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
+      // Keep producer inputs Value-typed until the output migration completes.
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      i::LookupIterator it(i_isolate,
+                           v8::Utils::OpenDirectHandle(*local_object),
+                           v8::Utils::OpenDirectHandle(*name),
+                           i::LookupIterator::OWN_SKIP_INTERCEPTOR);
+      CHECK_EQ(i::LookupIterator::ACCESSOR, it.state());
+      i::Cast<i::AccessorInfo>(it.GetAccessors())
+          ->set_data(*v8::Utils::OpenDirectHandle(*external));
+      object.Reset(isolate, local_object);
+    }
+
+    {
+      i::EmbedderStackStateScope stack_scope(
+          heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
+          v8::StackState::kNoHeapPointers);
+      i::heap::InvokeMajorGC(heap);
+    }
+    CHECK(cpp_object.Get());
+
+    {
+      v8::HandleScope scope(isolate);
+      CHECK(
+          !object.Get(isolate)->Get(env.local(), v8_str("property")).IsEmpty());
+    }
+    CHECK(cpp_object->was_used());
+    object.Reset();
   }
 
   isolate->Exit();

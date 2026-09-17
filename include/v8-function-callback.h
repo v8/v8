@@ -241,6 +241,11 @@ class PropertyCallbackInfo {
   V8_INLINE Local<Value> Data() const;
 
   /**
+   * \return The data set in the callback configuration as `v8::Data`.
+   */
+  V8_INLINE Local<v8::Data> DataV2() const;
+
+  /**
    * \return The object in the prototype chain of the receiver that has the
    * interceptor. Suppose you have `x` and its prototype is `y`, and `y`
    * has an interceptor. Then `info.This()` is `x` and `info.Holder()` is `y`.
@@ -690,6 +695,14 @@ Local<Value> PropertyCallbackInfo<T>::Data() const {
   internal::Address data =
       I::ReadTaggedPointerField(callback_info, I::kCallbackInfoDataOffset);
   return Local<Value>::New(GetIsolate(), data);
+}
+
+template <typename T>
+Local<v8::Data> PropertyCallbackInfo<T>::DataV2() const {
+  internal::Address callback_info = args_[kCallbackInfoIndex];
+  internal::Address data =
+      I::ReadTaggedPointerField(callback_info, I::kCallbackInfoDataOffset);
+  return Local<v8::Data>::New(GetIsolate(), data);
 }
 
 template <typename T>
