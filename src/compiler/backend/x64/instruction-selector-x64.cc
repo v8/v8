@@ -2551,7 +2551,9 @@ void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
   inputs[input_count++] = g.UseRegister(op.first());
   auto b = op.second();
   int effect_level = this->GetEffectLevel(node);
-  if (g.CanBeMemoryOperand(opcode, node, b, effect_level)) {
+  if (g.CanBeImmediate(b)) {
+    inputs[input_count++] = g.UseImmediate(b);
+  } else if (g.CanBeMemoryOperand(opcode, node, b, effect_level)) {
     AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
         b, inputs, &input_count,
         X64OperandGenerator::RegisterUseKind::kUseUniqueRegister);
@@ -2567,14 +2569,11 @@ void InstructionSelector::VisitUint64Add3WithCarry(OpIndex node) {
       g.DefineSameAsFirst(out_low.valid() ? out_low.value() : node);
 
   OptionalOpIndex out_high = FindProjection(node, 1);
-  InstructionOperand temps[1];
-  size_t temp_count = 0;
   if (out_high.valid() && IsUsed(out_high.value())) {
     outputs[output_count++] = g.DefineAsRegister(out_high.value());
-    temps[temp_count++] = g.TempRegister();
   }
 
-  Emit(opcode, output_count, outputs, input_count, inputs, temp_count, temps);
+  Emit(opcode, output_count, outputs, input_count, inputs);
 }
 
 void InstructionSelector::VisitInt32Div(OpIndex node) {

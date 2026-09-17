@@ -2306,26 +2306,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register carry_in = i.InputRegister(last_input_index);
       Register out_low = i.OutputRegister(0);
       Register out_high = no_reg;
-      Register temp = no_reg;
       bool use_out_high = instr->OutputCount() > 1;
-      bool use_temp = false;
       if (use_out_high) {
         out_high = i.OutputRegister(1);
-        temp = i.TempRegister(0);
-        size_t end = instr->InputCount();
-        for (size_t j = 0; j < end; j++) {
+        DCHECK_NE(out_high, out_low);
+        for (size_t j = 0; j < instr->InputCount(); ++j) {
           if (HasRegisterInput(instr, j)) {
-            CHECK_NE(i.InputRegister(j), temp);
-            if (i.InputRegister(j) == out_high) {
-              use_temp = true;
-              out_high = temp;
-            }
+            DCHECK_NE(i.InputRegister(j), out_high);
           }
         }
+        // GCC style: just addc, no setcc.
+        __ xorq(out_high, out_high);
       }
 
-      // GCC style: just addc, no setcc.
-      if (use_out_high) __ xorq(out_high, out_high);
       size_t index = 1;
       if (HasAddressingMode(instr)) {
         Operand b = i.MemoryOperand(&index);
@@ -2337,7 +2330,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (use_out_high) __ adcq(out_high, Immediate(0));
       __ addq(out_low, carry_in);
       if (use_out_high) __ adcq(out_high, Immediate(0));
-      if (use_temp) __ movq(i.OutputRegister(1), temp);
       break;
     }
 

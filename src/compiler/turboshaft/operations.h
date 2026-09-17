@@ -1895,6 +1895,9 @@ struct Word64MulWideOp : FixedArityOperationT<2, Word64MulWideOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+// 3-way 64-bit addition: computes (a + b + c) returning a pair of Word64:
+// - projection 0: low 64-bit sum ((a + b + c) mod 2^64)
+// - projection 1: carry-out ((a + b + c) >> 64, with values in {0, 1, 2})
 struct Word64Add3Op : FixedArityOperationT<3, Word64Add3Op> {
   static constexpr OpEffects effects = OpEffects();
 
