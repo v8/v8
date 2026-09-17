@@ -5731,6 +5731,60 @@ MulWithDup TryMatchMulWithDup(InstructionSelector* selector, OpIndex node) {
 
   return {input, dup_node, index};
 }
+
+bool TryEmitI64x2MixedSignExtMul(InstructionSelector* selector, OpIndex node) {
+  const Simd128BinopOp& op = selector->Cast<Simd128BinopOp>(node);
+  using Kind = Simd128UnaryOp::Kind;
+  const auto* signed_ext = selector->TryCast<Simd128UnaryOp>(op.left());
+  const auto* unsigned_ext = selector->TryCast<Simd128UnaryOp>(op.right());
+  if (signed_ext && unsigned_ext && selector->CanCover(node, op.left()) &&
+      selector->CanCover(node, op.right())) {
+    if (signed_ext->kind ==
+        any_of(Kind::kI64x2UConvertI32x4Low, Kind::kI64x2UConvertI32x4High)) {
+      std::swap(signed_ext, unsigned_ext);
+    }
+    const bool low = signed_ext->kind == Kind::kI64x2SConvertI32x4Low &&
+                     unsigned_ext->kind == Kind::kI64x2UConvertI32x4Low;
+    const bool high = signed_ext->kind == Kind::kI64x2SConvertI32x4High &&
+                      unsigned_ext->kind == Kind::kI64x2UConvertI32x4High;
+    if (low || high) {
+      Arm64OperandGenerator g(selector);
+
+      // Let a and b be the original signed and unsigned 32-bit lanes.
+      InstructionOperand signed_input = g.UseRegister(signed_ext->input());
+      InstructionOperand unsigned_input = g.UseRegister(unsigned_ext->input());
+
+      // Replicate b's top bit across each 32-bit lane.
+      //   mask = b[31] ? 0xffffffff : 0
+      InstructionOperand sign_mask = g.TempSimd128Register();
+      selector->Emit(kArm64IShrS | LaneSizeField::encode(LaneSize::kL32),
+                     sign_mask, unsigned_input, g.TempImmediate(31));
+
+      // Select a where b would be negative if interpreted as signed.
+      //   correction_lanes = b[31] ? a : 0
+      InstructionOperand correction_lanes = g.TempSimd128Register();
+      selector->Emit(kArm64S128And, correction_lanes, sign_mask, signed_input);
+
+      // Shift the selected low or high lanes into the upper 32 bits.
+      //   correction = correction_lanes * 2^32
+      InstructionOperand correction = g.TempSimd128Register();
+      selector->Emit((high ? kArm64IShll2 : kArm64IShll) |
+                         LaneSizeField::encode(LaneSize::kL64),
+                     correction, correction_lanes);
+
+      // Multiply the lanes as signed and accumulate the correction.
+      // If b < 2^31, signed32(b) = b and correction = 0.
+      // If b >= 2^31, signed32(b) = b - 2^32 and correction = a * 2^32.
+      //   result = a * signed32(b) + correction = a * b
+      selector->Emit((high ? kArm64Smlal2 : kArm64Smlal) |
+                         LaneSizeField::encode(LaneSize::kL64),
+                     g.DefineSameAsFirst(node), correction, signed_input,
+                     unsigned_input);
+      return true;
+    }
+  }
+  return false;
+}
 }  // namespace
 
 void InstructionSelector::VisitF32x4Mul(OpIndex node) {
@@ -5758,6 +5812,8 @@ void InstructionSelector::VisitF64x2Mul(OpIndex node) {
 }
 
 void InstructionSelector::VisitI64x2Mul(OpIndex node) {
+  if (TryEmitI64x2MixedSignExtMul(this, node)) return;
+
   Arm64OperandGenerator g(this);
   const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
   OpIndex left = op.left();
