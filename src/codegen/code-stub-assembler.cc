@@ -6683,10 +6683,14 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
   }
 }
 
+template <class T>
 void CodeStubAssembler::CopyRange(TNode<HeapObject> dst_object, int dst_offset,
                                   TNode<HeapObject> src_object, int src_offset,
                                   TNode<IntPtrT> length_in_tagged,
                                   WriteBarrierMode mode) {
+  DCHECK(mode == UPDATE_WRITE_BARRIER || mode == SKIP_WRITE_BARRIER);
+  const WriteBarrierMode barrier_mode =
+      std::is_same_v<T, Smi> ? SKIP_WRITE_BARRIER : mode;
   // TODO(jgruber): This could be a lot more involved (e.g. better code when
   // write barriers can be skipped). Extend as needed.
   BuildFastLoop<IntPtrT>(
@@ -6694,15 +6698,11 @@ void CodeStubAssembler::CopyRange(TNode<HeapObject> dst_object, int dst_offset,
       [=, this](TNode<IntPtrT> index) {
         TNode<IntPtrT> current_src_offset =
             IntPtrAdd(TimesTaggedSize(index), IntPtrConstant(src_offset));
-        TNode<Object> value = LoadObjectField(src_object, current_src_offset);
+        TNode<T> value =
+            LoadCopyRangeElement<T>(src_object, current_src_offset);
         TNode<IntPtrT> current_dst_offset =
             IntPtrAdd(TimesTaggedSize(index), IntPtrConstant(dst_offset));
-        if (mode == UNSAFE_SKIP_WRITE_BARRIER) {
-          UnsafeStoreNoWriteBarrier(
-              MachineRepresentation::kTagged, dst_object,
-              IntPtrSub(current_dst_offset, IntPtrConstant(kHeapObjectTag)),
-              value);
-        } else if (mode == SKIP_WRITE_BARRIER) {
+        if (barrier_mode == SKIP_WRITE_BARRIER) {
           StoreObjectFieldNoWriteBarrier(dst_object, current_dst_offset, value);
         } else {
           StoreObjectField(dst_object, current_dst_offset, value);
@@ -6710,6 +6710,13 @@ void CodeStubAssembler::CopyRange(TNode<HeapObject> dst_object, int dst_offset,
       },
       1, kLoopUnrolling, IndexAdvanceMode::kPost);
 }
+
+template V8_EXPORT_PRIVATE void CodeStubAssembler::CopyRange<Object>(
+    TNode<HeapObject>, int, TNode<HeapObject>, int, TNode<IntPtrT>,
+    WriteBarrierMode);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::CopyRange<Smi>(
+    TNode<HeapObject>, int, TNode<HeapObject>, int, TNode<IntPtrT>,
+    WriteBarrierMode);
 
 template <typename TIndex>
 void CodeStubAssembler::CopyFixedArrayElements(
@@ -21857,9 +21864,9 @@ TNode<ArrayList> CodeStubAssembler::ArrayListEnsureSpace(
   GotoIf(Word32Equal(array_length, Uint32Constant(0)), &done);
   StoreObjectFieldNoWriteBarrier(new_array, offsetof(ArrayList, length_),
                                  array_length);
-  CopyRange(new_array, ArrayList::OffsetOfElementAt(0), array,
-            ArrayList::OffsetOfElementAt(0),
-            Signed(ChangeUint32ToWord(array_length)));
+  CopyRange<Object>(new_array, ArrayList::OffsetOfElementAt(0), array,
+                    ArrayList::OffsetOfElementAt(0),
+                    Signed(ChangeUint32ToWord(array_length)));
   Goto(&done);
 
   BIND(&overflow);
@@ -21903,8 +21910,8 @@ TNode<FixedArray> CodeStubAssembler::ArrayListElements(TNode<ArrayList> array) {
   static constexpr ElementsKind kind = ElementsKind::PACKED_ELEMENTS;
   TNode<IntPtrT> length = Signed(ChangeUint32ToWord(ArrayListGetLength(array)));
   TNode<FixedArray> elements = CAST(AllocateFixedArray(kind, length));
-  CopyRange(elements, FixedArray::OffsetOfElementAt(0), array,
-            ArrayList::OffsetOfElementAt(0), length);
+  CopyRange<Object>(elements, FixedArray::OffsetOfElementAt(0), array,
+                    ArrayList::OffsetOfElementAt(0), length);
   return elements;
 }
 
