@@ -1865,7 +1865,7 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
     code = kArchAtomicStoreWithWriteBarrier;
-    code |= AtomicStoreRecordWriteModeField::encode(record_write_mode);
+    code |= RecordWriteModeField::encode(record_write_mode);
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     switch (rep) {
