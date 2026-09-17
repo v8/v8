@@ -210,6 +210,8 @@
   'regress/regress-7558019': [PASS, SLOW],
   'regress/regress-499721612': [PASS, SLOW],
   'regress/regress-498010834': [PASS, SLOW],
+  'regress/regress-506499280-extended': [PASS, SLOW],
+  'regress/regress-558568713': [PASS, SLOW, NO_VARIANTS],
   'regress/regress-rab-proto-oob': [PASS, SLOW, ['tsan', SKIP]],
   'regress/regress-crbug-503557995-b': [PASS, ['mode != release or simulator_run', SKIP]],
   'regress/wasm/regress-810973': [PASS, SLOW],
