@@ -4397,6 +4397,9 @@ DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, max_wasm_functions)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
                                       wasm_max_initial_code_space_reservation)
+// Disable wasm_max_initial_code_space_reservation in fuzzing, as a wrong value
+// can lead to crashes.
+DEFINE_VALUE_IMPLICATION(fuzzing, wasm_max_initial_code_space_reservation, 0)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
                                       wasm_wrapper_tiering_budget)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
