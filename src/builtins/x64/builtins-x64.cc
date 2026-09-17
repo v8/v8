@@ -3489,6 +3489,7 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
 void ReloadParentStack(MacroAssembler* masm, Register promise,
                        Register return_value, Register context, Register tmp1,
                        Register tmp2) {
+  DCHECK_NE(tmp1, tmp2);
   Register active_stack = tmp1;
   __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
 
@@ -3497,7 +3498,10 @@ void ReloadParentStack(MacroAssembler* masm, Register promise,
   // Switch stack!
   SwitchStacks(masm, ExternalReference::wasm_return_jspi_stack(), parent,
                nullptr, no_reg, {promise, return_value, context, parent});
+  __ movq(tmp1, MemOperand(parent, wasm::kStackPcOffset));
   LoadJumpBuffer(masm, parent, false);
+  __ movq(MemOperand(rbp, WasmJspiFrameConstants::kParentReturnAddressOffset),
+          tmp1);
 }
 
 // Loads the context field of the WasmTrustedInstanceData or WasmImportData
@@ -3621,6 +3625,8 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
   }
 
   __ bind(return_promise);
+  // The initial wrapper and a resume callback have different argument cleanup.
+  __ jmp(MemOperand(rbp, WasmJspiFrameConstants::kParentReturnAddressOffset));
 }
 
 void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
@@ -3820,6 +3826,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   Label return_promise;
   if (stack_switch) {
     SwitchBackAndReturnPromise(masm, r8, rdi, mode, &return_promise);
+    __ Trap();  // Unreachable.
   }
   __ bind(&suspend);
   __ endbr64();
