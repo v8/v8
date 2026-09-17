@@ -1588,6 +1588,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(JSPromise, reactions_or_result_);
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
         offsetof(PromiseReaction, fulfill_handler_);
+    fields[PROMISE_REACTION_TYPE]["reject_handler"] =
+        offsetof(PromiseReaction, reject_handler_);
     fields[FEEDBACK_CELL_TYPE]["value"] = offsetof(FeedbackCell, value_);
     fields[FEEDBACK_VECTOR_TYPE]["length"] = offsetof(FeedbackVector, length_);
     fields[FEEDBACK_VECTOR_TYPE]["data"] =
