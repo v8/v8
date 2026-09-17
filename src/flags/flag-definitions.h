@@ -3190,8 +3190,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_IMPLICATION(parallel_compile_tasks_for_lazy, lazy_compile_dispatcher)
 
 // cpu-profiler.cc
-DEFINE_INT(cpu_profiler_sampling_interval, 1000,
-           "CPU profiler sampling interval in microseconds")
+DEFINE_UINT(cpu_profiler_sampling_interval, 1000,
+            "CPU profiler sampling interval in microseconds")
 
 // debugger
 DEFINE_BOOL(simulator_debugger, false,
