@@ -294,6 +294,13 @@ bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
   if (IsAlwaysSharedSpaceJSObjectMap(receiver_map)) {
     return true;
   }
+#if V8_ENABLE_WEBASSEMBLY
+  // Wasm objects have a fixed layout and must never transition their map.
+  if (IsWasmObjectMap(receiver_map)) {
+    return true;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // Extending non-extensible objects with private fields is currently allowed,
   // but we're disallowing it soon.
   DCHECK(!receiver_map->is_extensible());
