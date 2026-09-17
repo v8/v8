@@ -1041,13 +1041,16 @@ void CallBuiltin::MarkTaggedInputsAsDecompressing() {
 
 void StoreTaggedFieldNoWriteBarrier::VerifyInputs() const {
   Base::VerifyInputs();
-  auto host_alloc = input(kObjectIndex).node()->TryCast<InlinedAllocation>();
-  auto value_alloc = input(kValueIndex).node()->TryCast<InlinedAllocation>();
-  if (host_alloc && value_alloc &&
-      host_alloc->allocation_block() == value_alloc->allocation_block()) {
-    CHECK_EQ(host_alloc->allocation_block()->allocation_type(),
-             AllocationType::kYoung);
-  }
+  // Here we'd like to verify that the write barrier can legitimately be
+  // skipped. However, we cannot, since this might be in dead code and our
+  // information might be inconsistent. This is because: 1) in Turbolev, we
+  // occasionally run the verifier before running GraphOptimizer which would
+  // delete dead branches and 2) we generally cannot detect upfront when we're
+  // in dead code.
+
+  // TODO(562805652): Could run the check for pure maglev (non-turbolev)
+  // compilations without eager inlining, if we were able to have that info
+  // here.
 }
 
 void InlinedAllocation::VerifyInputs() const {
