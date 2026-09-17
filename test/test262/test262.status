@@ -768,7 +768,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   'language/destructuring/binding/keyed-destructuring-property-reference-target-evaluation-order-with-bindings': [SKIP],
-  'language/expressions/delete/super-property-uninitialized-this': [SKIP],
 }],
 # End roll-watcher patch
 ####

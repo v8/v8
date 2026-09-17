@@ -7453,6 +7453,7 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
     DCHECK(!property->IsPrivateReference());
     if (property->IsSuperAccess()) {
       // Delete of super access is not allowed.
+      BuildThisVariableLoad();
       VisitForEffect(property->key());
       builder()->CallRuntime(Runtime::kThrowUnsupportedSuperError);
     } else {
