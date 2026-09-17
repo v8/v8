@@ -2223,10 +2223,10 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
   int stack_passed_arguments =
       CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
   int stack_space = kNumRequiredStackFrameSlots;
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
 
   if (frame_alignment > kSystemPointerSize) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
     // Make stack end at alignment and make room for stack arguments
     // -- preserving original value of sp.
     mr(scratch, sp);
@@ -2242,8 +2242,9 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
   }
 
   // Allocate frame with required slots to make ABI work.
-  li(r0, Operand::Zero());
-  StoreU64WithUpdate(r0, MemOperand(sp, -stack_space * kSystemPointerSize));
+  li(scratch, Operand::Zero());
+  StoreU64WithUpdate(scratch,
+                     MemOperand(sp, -stack_space * kSystemPointerSize));
 }
 
 void MacroAssembler::MovToFloatParameter(DoubleRegister src) { Move(d1, src); }
