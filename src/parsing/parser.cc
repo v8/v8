@@ -106,6 +106,7 @@ FunctionLiteral* Parser::MakeAutoAccessorGetter(VariableProxy* name_proxy,
   }
   // TODO(42202709): Enable lazy compilation by adding custom handling in
   //                 `Parser::DoParseFunction`.
+  function_scope->set_force_eager_compilation(true);
   FunctionLiteral* getter = factory()->NewFunctionLiteral(
       nullptr, function_scope, body, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
@@ -137,6 +138,7 @@ FunctionLiteral* Parser::MakeAutoAccessorSetter(VariableProxy* name_proxy,
   }
   // TODO(42202709): Enable lazy compilation by adding custom handling in
   //                 `Parser::DoParseFunction`.
+  function_scope->set_force_eager_compilation(true);
   FunctionLiteral* setter = factory()->NewFunctionLiteral(
       nullptr, function_scope, body, 0, 1, 0,
       FunctionLiteral::kNoDuplicateParameters,
