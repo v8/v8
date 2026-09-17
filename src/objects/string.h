@@ -1322,6 +1322,9 @@ V8_OBJECT class ExternalOneByteString : public ExternalString {
   // Used only during serialization.
   inline void set_resource(Isolate* isolate, const Resource* buffer);
 
+  inline const Resource* ExchangeResource(Isolate* isolate,
+                                          const Resource* resource);
+
   // Update the pointer cache to the external character array.
   // The cached pointer is always valid, as the external character array does =
   // not move during lifetime.  Deserialization is the only exception, after
@@ -1357,6 +1360,9 @@ V8_OBJECT class ExternalTwoByteString : public ExternalString {
 
   // Used only during serialization.
   inline void set_resource(Isolate* isolate, const Resource* buffer);
+
+  inline const Resource* ExchangeResource(Isolate* isolate,
+                                          const Resource* resource);
 
   // Update the pointer cache to the external character array.
   // The cached pointer is always valid, as the external character array does =
