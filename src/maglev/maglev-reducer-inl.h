@@ -3695,6 +3695,13 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
       if (base::bits::SignedMulOverflow32(cst_left, cst_right, &result)) {
         return {};
       }
+      // The product is -0 if it is zero and either operand is negative (the
+      // other is then +0). -0 is not representable as an Int32 constant, so
+      // bail out and let Int32MultiplyWithOverflow handle it, as the -x fold
+      // above does.
+      if (result == 0 && (cst_left < 0 || cst_right < 0)) {
+        return {};
+      }
       return GetInt32Constant(result);
     case Operation::kModulus:
       // TODO(v8:7700): Constant fold mod.
