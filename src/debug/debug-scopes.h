@@ -6,6 +6,7 @@
 #define V8_DEBUG_DEBUG_SCOPES_H_
 
 #include "src/debug/debug-frames.h"
+#include "src/debug/debug-scope-info.h"
 #include "src/parsing/parse-info.h"
 
 namespace v8 {
@@ -92,9 +93,6 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   bool ClosureScopeHasThisReference() const;
 
-  // Populate the set with collected non-local variable names.
-  DirectHandle<StringSet> GetLocals() { return locals_; }
-
   // Similar to JSFunction::GetName return the function's name or it's inferred
   // name.
   DirectHandle<Object> GetFunctionDebugName() const;
@@ -132,12 +130,25 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   Handle<Context> context_;
   Handle<Script> script_;
-  Handle<StringSet> locals_;
   DeclarationScope* closure_scope_ = nullptr;
   Scope* start_scope_ = nullptr;
   Scope* current_scope_ = nullptr;
+  // Serialized scope tree of the paused script and indices into it.
+  // `current_scope_index_` is set to -1 once iteration leaves `closure_scope_`
+  // (matching `function_` becoming null).
+  Handle<DebugScriptScopeInfo> debug_scope_info_;
+  int start_scope_index_ = -1;
+  int closure_scope_index_ = -1;
+  int current_scope_index_ = -1;
   bool seen_script_scope_ = false;
   bool calculate_blocklists_ = false;
+
+  DebugScriptScope current_scope() const {
+    return DebugScriptScope::FromIndex(debug_scope_info_, current_scope_index_);
+  }
+  DebugScriptScope closure_scope() const {
+    return DebugScriptScope::FromIndex(debug_scope_info_, closure_scope_index_);
+  }
 
   inline JavaScriptFrame* GetFrame() const {
     return frame_inspector_->javascript_frame();
@@ -147,7 +158,6 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   void AdvanceOneContext();
   void AdvanceScope();
   void AdvanceContext();
-  void CollectLocalsFromCurrentScope();
 
   // Calculates all the block list starting at the current scope and stores
   // them in the global "LocalsBlocklistCache".
