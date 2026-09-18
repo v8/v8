@@ -545,36 +545,55 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
     __ Unreachable();
   }
 
-#define VERIFY(Name, ig_index, op, replacement) /*             force 80 cols*/ \
-  if (v8_flags.turboshaft_verify_load_elimination) {                           \
-    OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op);           \
-    RegisterRepresentation actual_rep =                                        \
-        __ output_graph().Get(actual_idx).outputs_rep()[0];                    \
-    RegisterRepresentation replacement_rep =                                   \
-        __ output_graph().Get(replacement).outputs_rep()[0];                   \
-                                                                               \
-    if (actual_rep == RegisterRepresentation::Simd128()) {                     \
-      /* TODO(dmercadier): Implement along with support in LLE.*/              \
-      return replacement;                                                      \
-    }                                                                          \
-    /* No WLE support is implemented for mismatched (e.g. truncated) */        \
-    /* representations.*/                                                      \
-    DCHECK_EQ(actual_rep, replacement_rep);                                    \
-                                                                               \
-    IF_NOT (__ Equal(actual_idx, replacement, actual_rep)) {                   \
-      if (actual_rep == any_of(RegisterRepresentation::Float32(),              \
-                               RegisterRepresentation::Float64())) {           \
-        /* Equality might have returned false because both values are NaN.*/   \
-        IF (__ Word32BitwiseOr(                                                \
-                __ Equal(actual_idx, actual_idx, actual_rep),                  \
-                __ Equal(replacement, replacement, replacement_rep))) {        \
-          /* At least one of {actual_idx} and {replacement} is not NaN.*/      \
-          EmitReportLoadEliminationError();                                    \
-        }                                                                      \
-      } else {                                                                 \
-        EmitReportLoadEliminationError();                                      \
-      }                                                                        \
-    }                                                                          \
+  void VerifySingleReplacement(OpIndex actual_idx, OpIndex replacement) {
+    RegisterRepresentation actual_rep =
+        __ output_graph().Get(actual_idx).outputs_rep()[0];
+    RegisterRepresentation replacement_rep =
+        __ output_graph().Get(replacement).outputs_rep()[0];
+
+    if (actual_rep == RegisterRepresentation::Simd128()) {
+      // TODO(dmercadier): Implement along with support in LLE.
+      return;
+    }
+
+    // No WLE support is implemented for mismatched (e.g. truncated)
+    // representations.
+    DCHECK_EQ(actual_rep, replacement_rep);
+    IF_NOT (__ Equal(actual_idx, replacement, actual_rep)) {
+      if (actual_rep == any_of(RegisterRepresentation::Float32(),
+                               RegisterRepresentation::Float64())) {
+        // Equality might have returned false because both values are NaN.
+        IF (__ Word32BitwiseOr(
+                __ Equal(actual_idx, actual_idx, actual_rep),
+                __ Equal(replacement, replacement, replacement_rep))) {
+          // At least one of {actual_idx} and {replacement} is not NaN.
+          EmitReportLoadEliminationError();
+        }
+      } else {
+        EmitReportLoadEliminationError();
+      }
+    }
+  }
+
+  void VerifyReplacement(OpIndex actual_idx, OpIndex replacement) {
+    if (const MakeTupleOp* actual_tuple =
+            __ output_graph().Get(actual_idx).template TryCast<MakeTupleOp>()) {
+      const MakeTupleOp& replacement_tuple =
+          __ output_graph().Get(replacement).template Cast<MakeTupleOp>();
+      DCHECK_EQ(actual_tuple->input_count, replacement_tuple.input_count);
+      for (int i = 0; i < actual_tuple->input_count; ++i) {
+        VerifySingleReplacement(actual_tuple->input(i),
+                                replacement_tuple.input(i));
+      }
+      return;
+    }
+    VerifySingleReplacement(actual_idx, replacement);
+  }
+
+#define VERIFY(Name, ig_index, op, replacement)                      \
+  if (v8_flags.turboshaft_verify_load_elimination) {                 \
+    OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op); \
+    VerifyReplacement(actual_idx, replacement);                      \
   }
 #else
 #define VERIFY(Name, ig_index, op, replacement)
