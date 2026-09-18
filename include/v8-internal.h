@@ -583,16 +583,7 @@ enum class ManagedTypeId : uint32_t {
   kWasmFuncData,
   kWasmManagedData,
   kWasmNativeModule,
-  kIcuBreakIterator,
   kIcuBreakIteratorWithText,
-  kIcuLocale,
-  kIcuSimpleDateFormat,
-  kIcuDateIntervalFormat,
-  kIcuRelativeDateTimeFormatter,
-  kIcuListFormatter,
-  kIcuCollator,
-  kIcuPluralRules,
-  kIcuLocalizedNumberFormatter,
   kTemporalDuration,
   kTemporalInstant,
   kTemporalPlainDate,
@@ -609,8 +600,17 @@ enum class ManagedTypeId : uint32_t {
 
 #define SHARED_MANAGED_TAG_LIST(V) V(WasmFutexManagedObjectWaitListTag)
 
-#define MANAGED_TAG_LIST(V)  \
-  SHARED_MANAGED_TAG_LIST(V)
+#define MANAGED_TAG_LIST(V)          \
+  SHARED_MANAGED_TAG_LIST(V)         \
+  V(IcuBreakIteratorTag)             \
+  V(IcuListFormatterTag)             \
+  V(IcuLocaleTag)                    \
+  V(IcuSimpleDateFormatTag)          \
+  V(IcuDateIntervalFormatTag)        \
+  V(IcuRelativeDateTimeFormatterTag) \
+  V(IcuLocalizedNumberFormatterTag)  \
+  V(IcuPluralRulesTag)               \
+  V(IcuCollatorTag)
 
 #define FOREIGN_TAG_LIST(V)                               \
   V(GenericForeignTag)                                    \
