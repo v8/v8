@@ -1081,6 +1081,9 @@ class MaglevReducer {
   ReduceResult BuildAndAllocateJSArrayIterator(ValueNode* array,
                                                IterationKind iteration_kind);
   void ClearCurrentAllocationBlock();
+  void SetCurrentAllocationBlock(AllocationBlock* block) {
+    current_allocation_block_ = block;
+  }
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
   AllocationBlock* current_allocation_block() const {
     return current_allocation_block_;

@@ -524,9 +524,12 @@ void MaglevGraphOptimizer::PreProcessNode(Node* node,
 }
 
 void MaglevGraphOptimizer::PostProcessNode(Node* node) {
-  if (node->opcode() != Opcode::kAllocationBlock &&
-      (node->properties().can_allocate() || node->properties().can_deopt() ||
-       node->properties().can_throw())) {
+  if (auto* allocation_block = node->TryCast<AllocationBlock>()) {
+    // This allocation is now the most recent young allocation, so it is the
+    // only block that subsequent allocations may be folded into.
+    reducer_.SetCurrentAllocationBlock(allocation_block);
+  } else if (node->properties().can_allocate() ||
+             node->properties().can_deopt() || node->properties().can_throw()) {
     reducer_.ClearCurrentAllocationBlock();
   }
 #ifdef DEBUG
