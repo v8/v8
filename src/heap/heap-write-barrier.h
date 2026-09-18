@@ -230,7 +230,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   V8_NOINLINE V8_PRESERVE_MOST static void GenerationalBarrierSlow(
       Tagged<HeapObject> object, Address slot, Tagged<HeapObject> value);
   static inline void GenerationalBarrierForCppHeapPointer(
-      Tagged<CppHeapPointerWrapperObjectT> host, void* value);
+      Heap* heap, Tagged<CppHeapPointerWrapperObjectT> host, void* value);
 
   V8_NOINLINE V8_PRESERVE_MOST static void SharedSlow(
       Tagged<TrustedObject> host, ProtectedPointerSlot slot,
