@@ -309,8 +309,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
 
   template <typename IsolateT>
   static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,
-                                  MaybeDirectHandle<ScopeInfo> outer_scope,
-                                  FunctionKind closure_function_kind);
+                                  MaybeDirectHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static DirectHandle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeDirectHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static DirectHandle<ScopeInfo> CreateForEmptyFunction(

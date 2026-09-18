@@ -992,6 +992,13 @@ bool KnownNodeAspects::SetContextCachedValue(ValueNode* context, int offset,
                                              ValueNode* value,
                                              MaybeAssignedFlag assigned) {
   value = value->UnwrapIdentities();
+  if (assigned == kNotAssigned) {
+    if (auto* root_const = value->TryCast<RootConstant>();
+        root_const && root_const->index() == RootIndex::kTheHoleValue) {
+      loaded_context_constants_.erase({context, offset});
+      return false;
+    }
+  }
   auto& target_map = (assigned == kMaybeAssigned) ? loaded_context_slots_
                                                   : loaded_context_constants_;
 

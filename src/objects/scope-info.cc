@@ -112,8 +112,7 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
 // static
 template <typename IsolateT>
 Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
-                                    MaybeDirectHandle<ScopeInfo> outer_scope,
-                                    FunctionKind closure_function_kind) {
+                                    MaybeDirectHandle<ScopeInfo> outer_scope) {
   // Collect variables.
   int context_local_count = 0;
   int module_vars_count = 0;
@@ -215,8 +214,10 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                             scope->AsModuleScope()->module());
   }
 
+  FunctionKind function_kind = FunctionKind::kNormalFunction;
   bool sloppy_eval_can_extend_vars = false;
   if (scope->is_declaration_scope()) {
+    function_kind = scope->AsDeclarationScope()->function_kind();
     sloppy_eval_can_extend_vars =
         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars();
   }
@@ -282,7 +283,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         FunctionVariableBits::encode(function_name_info) |
         HasInferredFunctionNameBit::encode(has_inferred_function_name) |
         HasSimpleParametersBit::encode(has_simple_parameters) |
-        FunctionKindBits::encode(closure_function_kind) |
+        FunctionKindBits::encode(function_kind) |
         HasOuterScopeInfoBit::encode(has_outer_scope_info) |
         IsDebugEvaluateScopeBit::encode(false) |
         ForceContextAllocationBit::encode(
@@ -516,13 +517,11 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ScopeInfo> ScopeInfo::Create(
         Isolate* isolate, Zone* zone, Scope* scope,
-        MaybeDirectHandle<ScopeInfo> outer_scope,
-        FunctionKind closure_function_kind);
+        MaybeDirectHandle<ScopeInfo> outer_scope);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ScopeInfo> ScopeInfo::Create(
         LocalIsolate* isolate, Zone* zone, Scope* scope,
-        MaybeDirectHandle<ScopeInfo> outer_scope,
-        FunctionKind closure_function_kind);
+        MaybeDirectHandle<ScopeInfo> outer_scope);
 
 // static
 DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(

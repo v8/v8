@@ -15627,9 +15627,34 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
                                 GetConstant(name));
     case Tribool::kFalse:
       return ReduceResult::Done();
-    case Tribool::kMaybe:
+    case Tribool::kMaybe: {
       DCHECK(value->is_tagged());
-      return AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
+      // Temporarily clear the cached constant value before emitting
+      // ThrowReferenceErrorIfHole so that known_node_aspects() merged into the
+      // exception handler (the catch block) does not cache this load. On the
+      // exception path, the value is guaranteed to be the_hole, and the catch
+      // block may resume a generator that initializes the const variable.
+      // Restore the cached value afterward for the non-throwing fallthrough
+      // path where the value is known not to be the_hole.
+      // TODO(verwaest): Look into making loaded_context_constants_ monotonic,
+      // e.g. by folding the hole check into the context load rather than
+      // temporarily clearing the cached constant here.
+      ValueNode** cached_slot = nullptr;
+      if (auto* load = value->TryCast<LoadContextSlotNoCells>();
+          load && load->maybe_assigned() == kNotAssigned) {
+        ValueNode*& slot = known_node_aspects().GetContextCachedValue(
+            load->input(0).node(), load->offset(), kNotAssigned);
+        if (slot == value) {
+          cached_slot = &slot;
+          *cached_slot = nullptr;
+        }
+      }
+      ReduceResult res = AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
+      if (cached_slot) {
+        *cached_slot = value;
+      }
+      return res;
+    }
   }
   UNREACHABLE();
 }

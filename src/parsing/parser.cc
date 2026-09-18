@@ -55,8 +55,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   ScopedPtrList<Statement> body(pointer_buffer());
 
   {
-    FunctionState function_state(&function_state_, &scope_, function_scope,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, function_scope);
 
     // https://tc39.es/ecma262/#sec-runtime-semantics-classdefinitionevaluation
     //
@@ -100,8 +99,7 @@ FunctionLiteral* Parser::MakeAutoAccessorGetter(VariableProxy* name_proxy,
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
   {
-    FunctionState function_state(&function_state_, &scope_, function_scope,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, function_scope);
     body.Add(factory()->NewAutoAccessorGetterBody(name_proxy, pos));
   }
   // TODO(42202709): Enable lazy compilation by adding custom handling in
@@ -132,8 +130,7 @@ FunctionLiteral* Parser::MakeAutoAccessorSetter(VariableProxy* name_proxy,
                                    VariableMode::kTemporary, false, false,
                                    ast_value_factory(), kNoSourcePosition);
   {
-    FunctionState function_state(&function_state_, &scope_, function_scope,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, function_scope);
     body.Add(factory()->NewAutoAccessorSetterBody(name_proxy, pos));
   }
   // TODO(42202709): Enable lazy compilation by adding custom handling in
@@ -693,9 +690,6 @@ void Parser::DeserializeScopeChain(
     if (info->has_module_in_scope_chain()) {
       set_has_module_in_scope_chain();
     }
-    if (info->has_generator_in_scope_chain()) {
-      set_has_generator_in_scope_chain(true);
-    }
   }
 }
 
@@ -804,8 +798,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
     DeclarationScope* scope = outer->AsDeclarationScope();
     scope->set_start_position(0);
 
-    FunctionState function_state(&function_state_, &scope_, scope,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, scope);
     ScopedPtrList<Statement> body(pointer_buffer());
     int beg_pos = scanner()->location().beg_pos;
     if (flags().is_module()) {
@@ -975,8 +968,7 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
 
   // Set function and block state for the outer eval scope.
   DCHECK(outer_scope->is_eval_scope());
-  FunctionState function_state(&function_state_, &scope_, outer_scope,
-                               &has_generator_in_scope_chain_);
+  FunctionState function_state(&function_state_, &scope_, outer_scope);
 
   const AstRawString* function_name = nullptr;
   Scanner::Location location(0, 0);
@@ -1170,8 +1162,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     Scope* outer = original_scope_;
     DeclarationScope* outer_function = outer->GetClosureScope();
     DCHECK(outer);
-    FunctionState function_state(&function_state_, &scope_, outer_function,
-                                 &has_generator_in_scope_chain_);
+    FunctionState function_state(&function_state_, &scope_, outer_function);
     BlockState block_state(&scope_, outer);
     DCHECK(is_sloppy(outer->language_mode()) ||
            is_strict(info->language_mode()));
@@ -1283,8 +1274,7 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
   // Insert a FunctionState with the closest outer Declaration scope
   DeclarationScope* nearest_decl_scope = original_scope_->GetDeclarationScope();
   DCHECK_NOT_NULL(nearest_decl_scope);
-  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope,
-                               &has_generator_in_scope_chain_);
+  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
 
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.
@@ -3052,8 +3042,7 @@ bool Parser::SkipFunction(int function_literal_id,
                           DeclarationScope* function_scope, int* num_parameters,
                           int* function_length,
                           ProducedPreparseData** produced_preparse_data) {
-  FunctionState function_state(&function_state_, &scope_, function_scope,
-                               &has_generator_in_scope_chain_);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
   function_scope->set_zone(&preparser_zone_);
 
   DCHECK_NE(kNoSourcePosition, function_scope->start_position());
@@ -3106,8 +3095,6 @@ bool Parser::SkipFunction(int function_literal_id,
   // AST. This gathers the data needed to build a lazy function.
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
-  reusable_preparser()->set_has_generator_in_scope_chain(
-      has_generator_in_scope_chain());
   reusable_preparser()->set_max_drift(this->max_drift());
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
       function_literal_id, function_name, kind, function_syntax_kind,
@@ -3212,8 +3199,7 @@ void Parser::ParseFunction(
   ScopedModification<Mode> mode_scope(
       &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
 
-  FunctionState function_state(&function_state_, &scope_, function_scope,
-                               &has_generator_in_scope_chain_);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
 
   bool is_wrapped = function_syntax_kind == FunctionSyntaxKind::kWrapped;
 
