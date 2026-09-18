@@ -922,15 +922,14 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
 
 bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
                                 ScopeType scope_type) const {
-  if (mode == Mode::STACK && current_scope_->is_declaration_scope() &&
-      current_scope_->AsDeclarationScope()->has_this_declaration()) {
+  if (mode == Mode::STACK && current_scope().has_this_declaration()) {
     // TODO(bmeurer): We should refactor the general variable lookup
     // around "this", since the current way is rather hacky when the
     // receiver is context-allocated.
-    auto this_var = current_scope_->AsDeclarationScope()->receiver();
+    auto [this_alloc, this_index] = current_scope().receiver_info();
     Handle<Object> receiver =
-        this_var->location() == VariableLocation::CONTEXT
-            ? handle(context_->GetNoCell(this_var->index()), isolate_)
+        this_alloc == VariableAllocationInfo::CONTEXT
+            ? handle(context_->GetNoCell(this_index), isolate_)
         : frame_inspector_ == nullptr ? handle(generator_->receiver(), isolate_)
                                       : frame_inspector_->GetReceiver();
     if (visitor(isolate_->factory()->this_string(), receiver, scope_type)) {
@@ -938,30 +937,30 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
     }
   }
 
-  if (current_scope_->is_function_scope()) {
-    Variable* function_var =
-        current_scope_->AsDeclarationScope()->function_var();
-    if (function_var != nullptr) {
-      Handle<JSFunction> function = frame_inspector_ == nullptr
-                                        ? function_
-                                        : frame_inspector_->GetFunction();
-      Handle<String> name = function_var->name();
-      if (visitor(name, function, scope_type)) return true;
-    }
+  if (current_scope().has_function_variable()) {
+    DirectHandle<JSFunction> function = frame_inspector_ == nullptr
+                                            ? function_
+                                            : frame_inspector_->GetFunction();
+    DirectHandle<String> name(current_scope().function_variable_name(),
+                              isolate_);
+    if (visitor(name, function, scope_type)) return true;
   }
 
-  for (Variable* var : *current_scope_->locals()) {
-    if (ScopeInfo::VariableIsSynthetic(*var->name())) {
+  DebugScriptScope scope = current_scope();
+  auto [args_alloc, args_index] = scope.arguments_info();
+  for (int i = 0; i < scope.variable_count(); ++i) {
+    DebugVariableInfo var = scope.variable(i);
+    if (var.is_synthetic) {
       // We want to materialize "new.target" for debug-evaluate.
       if (mode != Mode::STACK ||
-          !var->name()->Equals(*isolate_->factory()->dot_new_target_string())) {
+          !var.name->Equals(*isolate_->factory()->dot_new_target_string())) {
         continue;
       }
     }
 
-    int index = var->index();
+    int index = var.index;
     Handle<Object> value;
-    switch (var->location()) {
+    switch (var.location) {
       case VariableLocation::LOOKUP:
         UNREACHABLE();
 
@@ -980,7 +979,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           CHECK_LT(static_cast<uint32_t>(index),
                    parameters_and_registers->ulength().value());
           value = handle(parameters_and_registers->get(index), isolate_);
-        } else if (var->IsReceiver()) {
+        } else if (var.is_receiver) {
           value = frame_inspector_->GetReceiver();
         } else {
           JavaScriptFrame* frame = GetFrame();
@@ -1017,14 +1016,13 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           value = frame_inspector_->GetExpression(index);
           if (IsOptimizedOut(*value)) {
             // We'll rematerialize this later.
-            if (current_scope_->is_declaration_scope() &&
-                current_scope_->AsDeclarationScope()->arguments() == var) {
+            if (args_alloc == VariableAllocationInfo::STACK &&
+                args_index == var.index) {
               continue;
             }
-          } else if (IsLexicalVariableMode(var->mode()) &&
-                     IsUndefined(*value) &&
+          } else if (IsLexicalVariableMode(var.mode) && IsUndefined(*value) &&
                      GetSourcePosition() != kNoSourcePosition &&
-                     GetSourcePosition() <= var->initializer_position()) {
+                     GetSourcePosition() <= var.initializer_position) {
             // Variables that are `undefined` could also mean an elided hole
             // write. We explicitly check the static scope information if we
             // are currently stopped before the variable is actually initialized
@@ -1042,9 +1040,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           value = isolate_->factory()->the_hole_value();
           break;
         }
-        DCHECK(var->IsContextSlot());
-        DCHECK_EQ(context_->scope_info()->ContextSlotIndex(*var->name()),
-                  index);
+        DCHECK_EQ(context_->scope_info()->ContextSlotIndex(var.name), index);
         value =
             indirect_handle(Context::Get(context_, index, isolate_), isolate_);
         break;
@@ -1053,12 +1049,14 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
         if (mode == Mode::STACK) continue;
         // if (var->IsExport()) continue;
         DirectHandle<SourceTextModule> module(context_->module(), isolate_);
-        value = SourceTextModule::LoadVariable(isolate_, module, var->index());
+        value = SourceTextModule::LoadVariable(isolate_, module, var.index);
         break;
       }
     }
 
-    if (visitor(var->name(), value, scope_type)) return true;
+    if (visitor(direct_handle(var.name, isolate_), value, scope_type)) {
+      return true;
+    }
   }
   return false;
 }
@@ -1085,8 +1083,8 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
       // Hide |this| in arrow functions that may be embedded in other functions
       // but don't force |this| to be context-allocated. Otherwise we'd find the
       // wrong |this| value.
-      if (!closure_scope_->has_this_declaration() &&
-          !closure_scope_->HasThisReference()) {
+      if (!closure_scope().has_this_declaration() &&
+          !closure_scope().has_this_reference()) {
         if (visitor(isolate_->factory()->this_string(),
                     isolate_->factory()->undefined_value(), scope_type)) {
           return;
@@ -1097,19 +1095,19 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
       // suspended generators. We'd need to read the arguments out from the
       // suspended generator rather than from an activation as
       // FunctionGetArguments does.
-      if (frame_inspector_ != nullptr && !closure_scope_->is_arrow_scope()) {
-        Variable* arguments_var = closure_scope_->arguments();
-        bool arguments_optimized_out = arguments_var == nullptr;
+      if (frame_inspector_ != nullptr && !closure_scope().is_arrow_scope()) {
+        auto [args_alloc, args_index] = closure_scope().arguments_info();
+        bool arguments_optimized_out =
+            args_alloc == VariableAllocationInfo::NONE;
         JavaScriptFrame* frame = GetFrame();
         if (!arguments_optimized_out &&
-            arguments_var->location() == VariableLocation::LOCAL) {
-          int index = arguments_var->index();
+            args_alloc == VariableAllocationInfo::STACK) {
           if (frame->is_unoptimized()) {
-            CHECK_GE(index, 0);
-            CHECK_LT(index, frame->ComputeExpressionsCount());
+            CHECK_GE(args_index, 0);
+            CHECK_LT(args_index, frame->ComputeExpressionsCount());
           }
           arguments_optimized_out =
-              IsOptimizedOut(*frame_inspector_->GetExpression(index));
+              IsOptimizedOut(*frame_inspector_->GetExpression(args_index));
         }
 
         if (arguments_optimized_out) {

@@ -173,8 +173,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   void UnwrapEvaluationContext();
 
-  using Visitor = std::function<bool(Handle<String> name, Handle<Object> value,
-                                     ScopeType scope_type)>;
+  using Visitor =
+      std::function<bool(DirectHandle<String> name, DirectHandle<Object> value,
+                         ScopeType scope_type)>;
 
   Handle<JSObject> WithContextExtension();
 
