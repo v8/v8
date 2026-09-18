@@ -97,9 +97,9 @@ void TracedNodeBlock::FreeNode(TracedNode* node, Address zap_value) {
   used_--;
 }
 
-void SetSlotThreadSafe(Address** slot, Address* val) {
-  reinterpret_cast<std::atomic<Address*>*>(slot)->store(
-      val, std::memory_order_relaxed);
+void SetSlotThreadSafe(Address** slot, Address* val,
+                       std::memory_order order = std::memory_order_relaxed) {
+  reinterpret_cast<std::atomic<Address*>*>(slot)->store(val, order);
 }
 
 void TracedHandles::RefillUsableNodeBlocks() {
@@ -207,7 +207,7 @@ void TracedHandles::Copy(const TracedNode& from_node, Address** to) {
       Create(from_node.raw_object(), reinterpret_cast<Address*>(to),
              TracedReferenceStoreMode::kAssigningStore,
              TracedReferenceHandling::kDefault);
-  SetSlotThreadSafe(to, o.location());
+  SetSlotThreadSafe(to, o.location(), std::memory_order_release);
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     Object::ObjectVerify(Tagged<Object>(**to), isolate_);

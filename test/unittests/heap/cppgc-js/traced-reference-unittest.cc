@@ -8,8 +8,11 @@
 #include "include/v8-cppgc.h"
 #include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
+#include "src/base/platform/platform.h"
 #include "src/handles/global-handles.h"
+#include "src/heap/cppgc-internal/marker.h"
 #include "src/heap/cppgc-internal/visitor.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/marking-state-inl.h"
 #include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -436,6 +439,77 @@ TEST_F(TracedReferencePreFinalizerTest,
   // free, creating `ref2` reused `ref1`'s node and overwrote its object.
   EXPECT_EQ(ref1, first);
   EXPECT_NE(ref1, ref2);
+}
+
+namespace {
+
+class ConcurrentMarkerThread final : public v8::base::Thread {
+ public:
+  ConcurrentMarkerThread(
+      cppgc::Visitor& visitor,
+      const std::vector<v8::TracedReference<v8::Object>>& refs,
+      std::atomic<bool>& stop)
+      : v8::base::Thread(Options("ConcurrentMarkerThread")),
+        visitor_(visitor),
+        refs_(refs),
+        stop_(stop) {}
+
+  void Run() override {
+    while (!stop_.load(std::memory_order_relaxed)) {
+      for (const auto& ref : refs_) {
+        visitor_.Trace(ref);
+      }
+    }
+  }
+
+ private:
+  cppgc::Visitor& visitor_;
+  const std::vector<v8::TracedReference<v8::Object>>& refs_;
+  std::atomic<bool>& stop_;
+};
+
+}  // namespace
+
+using TracedReferenceUnifiedHeapTest = UnifiedHeapTest;
+
+TEST_F(TracedReferenceUnifiedHeapTest, Regress40059554) {
+  // Regression test: https://crbug.com/40059554
+  if (!v8_flags.incremental_marking) return;
+
+  static constexpr size_t kNumHandles = 8192;
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Object> obj = v8::Object::New(v8_isolate());
+  std::vector<v8::TracedReference<v8::Object>> refs(kNumHandles);
+
+  // Populate TracedNodeBlock free lists with zapped nodes.
+  for (auto& ref : refs) {
+    ref.Reset(v8_isolate(), obj);
+  }
+  for (auto& ref : refs) {
+    ref.Reset();
+  }
+
+  SimulateIncrementalMarking(false);
+
+  std::atomic<bool> stop{false};
+  ConcurrentMarkerThread marker_thread(cpp_heap().AsBase().marker()->Visitor(),
+                                       refs, stop);
+  CHECK(marker_thread.Start());
+
+  // Create new references while the concurrent marker is already active. This
+  // stress-tests the publication of the new traced handle's node.
+  for (auto& ref : refs) {
+    ref.Reset(v8_isolate(), obj);
+  }
+
+  // Anything below this point is just cleanup. The crash would have already
+  // ocurred before the concurrent thread is stopped.
+  stop.store(true, std::memory_order_relaxed);
+  marker_thread.Join();
+
+  for (auto& ref : refs) {
+    ref.Reset();
+  }
 }
 
 }  // namespace internal
