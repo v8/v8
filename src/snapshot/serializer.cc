@@ -709,20 +709,16 @@ void Serializer::ObjectSerializer::SerializeNativeContext() {
 }
 
 void Serializer::ObjectSerializer::SerializeExternalString() {
-  // For external strings with known resources, we replace the resource field
-  // with the encoded external reference, which we restore upon deserialize.
-  // For the rest we serialize them to look like ordinary sequential strings.
+  // For external strings with known resources, their external pointer slots
+  // are serialized via VisitExternalPointer. For the rest we serialize them
+  // to look like ordinary sequential strings.
   auto string = Cast<ExternalString>(object_);
   Address resource = string->resource_as_address(isolate());
   ExternalReferenceEncoder::Value reference;
   if (serializer_->external_reference_encoder_.TryEncode(resource).To(
           &reference)) {
     DCHECK(reference.is_from_api());
-    // The string stays live in this isolate, so both external pointer fields
-    // have to be put back once it has been serialized.
-    auto refs = string->SetResourceRefForSerialization(reference.index());
     SerializeObject();
-    string->RestoreResourceRefs(isolate(), refs);
   } else {
     SerializeExternalStringAsSequentialString();
   }
@@ -1165,7 +1161,8 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
       InstanceTypeChecker::IsJSExternalObject(instance_type) ||
       InstanceTypeChecker::IsAccessorInfo(instance_type) ||
       InstanceTypeChecker::IsInterceptorInfo(instance_type) ||
-      InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
+      InstanceTypeChecker::IsFunctionTemplateInfo(instance_type) ||
+      InstanceTypeChecker::IsExternalString(instance_type)) {
     // If necessary, output any raw data preceding this slot.
     OutputRawData(slot.address());
 #ifdef V8_ENABLE_SANDBOX
@@ -1182,6 +1179,11 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
     Address value = slot.load(isolate());
     ExternalPointerTag tag = kExternalPointerNullTag;
 #endif  // V8_ENABLE_SANDBOX
+    if (slot.tag_range() == kExternalStringResourceDataTag) {
+      // resource_data_ is initialized in PostProcessExternalString.
+      value = kNullAddress;
+      tag = kExternalPointerNullTag;
+    }
     const bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
     OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
     bytes_processed_so_far_ += kExternalPointerSlotSize;
@@ -1193,8 +1195,6 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         InstanceTypeChecker::IsJSTypedArray(instance_type) ||
         // See ObjectSerializer::SerializeJSArrayBuffer().
         InstanceTypeChecker::IsJSArrayBuffer(instance_type) ||
-        // See ObjectSerializer::SerializeExternalString().
-        InstanceTypeChecker::IsExternalString(instance_type) ||
         // Serialization of external pointers stored in
         // JSSynchronizationPrimitive is not supported.
         // TODO(v8:12547): JSSynchronizationPrimitives should also be sanitized

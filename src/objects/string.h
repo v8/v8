@@ -1263,16 +1263,7 @@ V8_OBJECT class ExternalString : public UncachedExternalString {
   inline Address resource_as_address(Isolate* isolate) const;
   // TODO(pthier): Pass isolate from all callers and remove this overload.
   inline Address resource_as_address() const;
-  inline void set_address_as_resource(Isolate* isolate, Address address);
-  inline uint32_t GetResourceRefForDeserialization();
-  // The previous contents of the external pointer fields, as returned by
-  // SetResourceRefForSerialization() and put back by RestoreResourceRefs().
-  struct ResourceRefs {
-    ExternalPointer_t resource;
-    ExternalPointer_t resource_data;
-  };
-  inline ResourceRefs SetResourceRefForSerialization(uint32_t ref);
-  inline void RestoreResourceRefs(Isolate* isolate, ResourceRefs refs);
+  inline void InitResourceDataAfterDeserialization(Isolate* isolate);
 
   // Disposes string's resource object if it has not already been disposed.
   inline void DisposeResource(Isolate* isolate);
