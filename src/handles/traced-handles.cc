@@ -201,8 +201,20 @@ void TracedHandles::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   FreeNode(&node, kTracedHandleEagerResetZapValue);
 }
 
+namespace {
+
+bool IsTracedHandleZapValue(Address value) {
+  CHECK_NE(kGlobalHandleZapValue, value);
+  return value == kTracedHandleEagerResetZapValue ||
+         value == kTracedHandleMinorGCResetZapValue ||
+         value == kTracedHandleMinorGCWeakResetZapValue ||
+         value == kTracedHandleFullGCResetZapValue;
+}
+
+}  // namespace
+
 void TracedHandles::Copy(const TracedNode& from_node, Address** to) {
-  DCHECK_NE(kGlobalHandleZapValue, from_node.raw_object());
+  DCHECK(!IsTracedHandleZapValue(from_node.raw_object()));
   FullObjectSlot o =
       Create(from_node.raw_object(), reinterpret_cast<Address*>(to),
              TracedReferenceStoreMode::kAssigningStore,
@@ -221,8 +233,8 @@ void TracedHandles::Move(TracedNode& from_node, Address** from, Address** to) {
   // Deal with old "to".
   auto* to_node = TracedNode::FromLocation(*to);
   DCHECK_IMPLIES(*to, to_node->is_in_use());
-  DCHECK_IMPLIES(*to, kGlobalHandleZapValue != to_node->raw_object());
-  DCHECK_NE(kGlobalHandleZapValue, from_node.raw_object());
+  DCHECK_IMPLIES(*to, !IsTracedHandleZapValue(to_node->raw_object()));
+  DCHECK(!IsTracedHandleZapValue(from_node.raw_object()));
   if (*to) {
     auto& to_node_block = TracedNodeBlock::From(*to_node);
     Destroy(to_node_block, *to_node);
@@ -842,9 +854,10 @@ bool TracedHandles::IsValidInUseNode(const Address* location) {
   const TracedNode* node = TracedNode::FromLocation(location);
   // This method is called after mark bits have been cleared.
   DCHECK(!node->markbit());
-  CHECK_IMPLIES(node->is_in_use(), node->raw_object() != kGlobalHandleZapValue);
-  CHECK_IMPLIES(!node->is_in_use(),
-                node->raw_object() == kGlobalHandleZapValue);
+  // Released nodes are zapped with one of the `kTracedHandle*ZapValue`s, see
+  // `TracedNodeBlock::FreeNode()`, and never with `kGlobalHandleZapValue`.
+  CHECK_IMPLIES(node->is_in_use(), !IsTracedHandleZapValue(node->raw_object()));
+  CHECK_IMPLIES(!node->is_in_use(), IsTracedHandleZapValue(node->raw_object()));
   return node->is_in_use();
 }
 
