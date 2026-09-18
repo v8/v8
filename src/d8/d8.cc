@@ -5064,8 +5064,9 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
         isolate, "createAccessCheckedObject",
         FunctionTemplate::New(isolate, Shell::CreateAccessCheckedObject));
     test_template->Set(
-        isolate, "createSpecialObject",
-        FunctionTemplate::New(isolate, Shell::CreateSpecialObject));
+        isolate, "createAccessCheckedInterceptorObject",
+        FunctionTemplate::New(isolate,
+                              Shell::CreateAccessCheckedInterceptorObject));
     test_template->Set(isolate, "setAccessPolicy",
                        FunctionTemplate::New(isolate, Shell::SetAccessPolicy));
 
