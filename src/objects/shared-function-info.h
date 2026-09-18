@@ -518,7 +518,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
 
  public:
   static constexpr IndirectPointerTagRange kTrustedDataIndirectPointerRange =
-      kAllIndirectPointerTags;
+      kSFITrustedDataIndirectPointerRange;
 
   inline bool IsApiFunction() const;
   inline bool is_class_constructor() const;
@@ -959,9 +959,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   inline Tagged<BytecodeArray> GetBytecodeArrayInternal(Isolate* isolate) const;
 
  public:
-  // trusted_function_data may point at any concrete ExposedTrustedObject, so
-  // the indirect-pointer tag range covers all trusted tags.
-  TrustedPointerMember<ExposedTrustedObject, kAllIndirectPointerTags>
+  TrustedPointerMember<ExposedTrustedObject, kTrustedDataIndirectPointerRange>
       trusted_function_data_;
   TaggedMember<Object> untrusted_function_data_;
   TaggedMember<NameOrScopeInfoT> name_or_scope_info_;

@@ -287,6 +287,10 @@ void Serializer::PutRoot(RootIndex root) {
     PrintF("\n");
   }
 
+  SBXCHECK_IMPLIES(RootsTable::IsInTrustedObjectMapList(root),
+                   RootsTable::IsInSerializableTrustedObjectMapList(root) ||
+                       allow_serializing_all_trusted_objects());
+
   // Assert that the first 32 root array items are a conscious choice. They are
   // chosen so that the most common ones can be encoded more efficiently.
   static_assert(static_cast<int>(RootIndex::kArgumentsMarker) ==

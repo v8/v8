@@ -209,15 +209,13 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
     i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
   }
 
-  ReadOnlySerializer read_only_serializer(i_isolate,
-                                          Snapshot::kDefaultSerializerFlags);
+  Snapshot::SerializerFlags flags(Snapshot::kAllowSerializingAllTrustedObjects);
+  ReadOnlySerializer read_only_serializer(i_isolate, flags);
   read_only_serializer.Serialize();
 
-  SharedHeapSerializer shared_space_serializer(
-      i_isolate, Snapshot::kDefaultSerializerFlags);
+  SharedHeapSerializer shared_space_serializer(i_isolate, flags);
 
-  StartupSerializer ser(i_isolate, Snapshot::kDefaultSerializerFlags,
-                        &shared_space_serializer);
+  StartupSerializer ser(i_isolate, flags, &shared_space_serializer);
   ser.SerializeStrongReferences(no_gc);
 
   ser.SerializeWeakReferencesAndDeferred();
@@ -428,22 +426,22 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
       isolate->read_only_heap()->OnCreateHeapObjectsComplete(isolate);
     }
 
+    Snapshot::SerializerFlags flags(
+        Snapshot::kAllowSerializingAllTrustedObjects);
     SnapshotByteSink read_only_sink;
-    ReadOnlySerializer read_only_serializer(isolate,
-                                            Snapshot::kDefaultSerializerFlags);
+    ReadOnlySerializer read_only_serializer(isolate, flags);
     read_only_serializer.Serialize();
 
-    SharedHeapSerializer shared_space_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags);
+    SharedHeapSerializer shared_space_serializer(isolate, flags);
 
     SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &shared_space_serializer);
+    StartupSerializer startup_serializer(isolate, flags,
+                                         &shared_space_serializer);
     startup_serializer.SerializeStrongReferences(no_gc);
 
     SnapshotByteSink context_sink;
     ContextSerializer context_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
+        isolate, flags, &startup_serializer,
         SerializeEmbedderFieldsCallback(v8::SerializeInternalFieldsCallback()));
     context_serializer.Serialize(&raw_context, no_gc);
 
@@ -622,23 +620,22 @@ static void SerializeCustomContext(
         i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
       }
 
+      Snapshot::SerializerFlags flags(
+          Snapshot::kAllowSerializingAllTrustedObjects);
       SnapshotByteSink read_only_sink;
-      ReadOnlySerializer read_only_serializer(
-          i_isolate, Snapshot::kDefaultSerializerFlags);
+      ReadOnlySerializer read_only_serializer(i_isolate, flags);
       read_only_serializer.Serialize();
 
-      SharedHeapSerializer shared_space_serializer(
-          i_isolate, Snapshot::kDefaultSerializerFlags);
+      SharedHeapSerializer shared_space_serializer(i_isolate, flags);
 
       SnapshotByteSink startup_sink;
-      StartupSerializer startup_serializer(i_isolate,
-                                           Snapshot::kDefaultSerializerFlags,
+      StartupSerializer startup_serializer(i_isolate, flags,
                                            &shared_space_serializer);
       startup_serializer.SerializeStrongReferences(no_gc);
 
       SnapshotByteSink context_sink;
       ContextSerializer context_serializer(
-          i_isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
+          i_isolate, flags, &startup_serializer,
           SerializeEmbedderFieldsCallback(
               v8::SerializeInternalFieldsCallback()));
       context_serializer.Serialize(&raw_context, no_gc);
