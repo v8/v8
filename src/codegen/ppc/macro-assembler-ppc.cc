@@ -2372,12 +2372,14 @@ void MacroAssembler::CheckPageFlag(
     Register scratch,  // scratch may be same register as object
     int mask, Condition cc, Label* condition_met) {
   DCHECK(cc == ne || cc == eq);
-  DCHECK(scratch != r0);
   ClearRightImm(scratch, object, Operand(kPageSizeBits));
   LoadU64(scratch, MemOperand(scratch, MemoryChunk::FlagsOffset()));
 
-  mov(r0, Operand(mask));
-  and_(r0, scratch, r0, SetRC);
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+  DCHECK_NE(scratch, temp);
+  mov(temp, Operand(mask));
+  and_(temp, scratch, temp, SetRC);
 
   if (cc == ne) {
     bne(condition_met, cr0);
