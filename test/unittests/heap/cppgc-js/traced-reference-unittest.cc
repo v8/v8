@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/cppgc/allocation.h"
+#include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/prefinalizer.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/cppgc-internal/visitor.h"
 #include "src/heap/marking-state-inl.h"
+#include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -370,6 +374,68 @@ TEST_F(TracedReferenceTest, WriteBarrierForOnStackMove) {
     EXPECT_FALSE(
         state.IsUnmarked(Cast<HeapObject>(*Utils::OpenDirectHandle(*local))));
   }
+}
+
+namespace {
+
+// A garbage-collected object that resets its own TracedReference from a
+// pre-finalizer. Blink reaches the same shape via
+// DOMTimer::Dispose() -> ScheduledAction::Dispose().
+class ResettingPreFinalizer final
+    : public cppgc::GarbageCollected<ResettingPreFinalizer> {
+  CPPGC_USING_PRE_FINALIZER(ResettingPreFinalizer, Dispose);
+
+ public:
+  ResettingPreFinalizer(v8::Isolate* isolate, v8::Local<v8::Object> object)
+      : ref_(isolate, object) {}
+
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(ref_); }
+
+  void Dispose() { ref_.Reset(); }
+
+ private:
+  v8::TracedReference<v8::Object> ref_;
+};
+
+}  // namespace
+
+using TracedReferencePreFinalizerTest = UnifiedHeapTest;
+
+// A pre-finalizer only runs on an object the collector already found to be
+// dead, so that object was never traced, and `ResetDeadNodes()` released its
+// TracedNode earlier in the same atomic pause. If the object's pre-finalizer
+// resets the TracedReference, it would release its TracedNode a second time.
+//
+// Note that the pre-finalizer here does not misuse the API: cppgc documents
+// that a pre-finalizer "may access the whole object graph, irrespective of
+// whether objects are considered dead or alive".
+TEST_F(TracedReferencePreFinalizerTest,
+       PreFinalizerResetDoesNotDoubleFreeNode) {
+  // Settle the heap first so that the node allocated below is the only traced
+  // node dying in the next GC, and hence would become the free list head.
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+
+  {
+    v8::HandleScope handles(v8_isolate());
+    // Deliberately not rooted: it must be dead by the next GC.
+    cppgc::MakeGarbageCollected<ResettingPreFinalizer>(
+        allocation_handle(), v8_isolate(), v8::Object::New(v8_isolate()));
+  }
+
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+
+  v8::HandleScope handles(v8_isolate());
+  v8::Local<v8::Object> first = v8::Object::New(v8_isolate());
+  v8::Local<v8::Object> second = v8::Object::New(v8_isolate());
+  ASSERT_TRUE(first != second);
+
+  v8::TracedReference<v8::Object> ref1(v8_isolate(), first);
+  v8::TracedReference<v8::Object> ref2(v8_isolate(), second);
+
+  // The two references must be backed by distinct TracedNodes. With the double
+  // free, creating `ref2` reused `ref1`'s node and overwrote its object.
+  EXPECT_EQ(ref1, first);
+  EXPECT_NE(ref1, ref2);
 }
 
 }  // namespace internal
