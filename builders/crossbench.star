@@ -76,6 +76,21 @@ crossbench_cbb_builder(
     },
 )
 crossbench_cbb_builder(
+    "e2e-WebPower Android x64 Try",
+    "perf/crossbench_android",
+    "Ubuntu-22.04",
+    "x86-64",
+    properties = {
+        "test_driver": "crossbench/tests/end2end/android/web_power/runner.py",
+        "test_run_config": [
+            {
+                "sdk_version": 37,
+                "avd_suffix": "",
+            },
+        ],
+    },
+)
+crossbench_cbb_builder(
     "e2e-Others Android x64 Try",
     "perf/crossbench_android",
     "Ubuntu-22.04",
@@ -136,6 +151,9 @@ luci.cq_group(
         ),
         luci.cq_tryjob_verifier(
             builder = "e2e-Speedometer Android x64 Try",
+        ),
+        luci.cq_tryjob_verifier(
+            builder = "e2e-WebPower Android x64 Try",
         ),
         luci.cq_tryjob_verifier(
             builder = "e2e-Others Android x64 Try",
