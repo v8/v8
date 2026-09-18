@@ -405,14 +405,15 @@ DebugScriptScope::function_variable_info() const {
   return DecodeAllocInfo(base::ReadUnalignedValue<int32_t>(ptr));
 }
 
-Tagged<String> DebugScriptScope::function_variable_name() const {
+Tagged<InternalizedString> DebugScriptScope::function_variable_name() const {
   const uint8_t* ptr = function_variable_payload();
   if (!ptr) return {};
   int32_t name_index = base::ReadUnalignedValue<int32_t>(ptr + kInt32Size);
-  DCHECK_GE(name_index, 0);
-  DCHECK_LT(static_cast<uint32_t>(name_index),
-            info_->string_table()->length().value());
-  return Cast<String>(info_->string_table()->get(name_index));
+  CHECK_GE(name_index, 0);
+  CHECK_LT(static_cast<uint32_t>(name_index),
+           info_->string_table()->length().value());
+  return CheckedCast<InternalizedString>(
+      info_->string_table()->get(name_index));
 }
 
 int DebugScriptScope::variable_count() const {
@@ -430,12 +431,11 @@ DebugVariableInfo DebugScriptScope::variable(int index) const {
       variables_payload() + index * sizeof(DebugVariableEntry);
   DebugVariableEntry entry =
       base::ReadUnalignedValue<DebugVariableEntry>(entry_ptr);
-  Tagged<String> name;
-  if (entry.name_index >= 0) {
-    DCHECK_LT(static_cast<uint32_t>(entry.name_index),
-              info_->string_table()->length().value());
-    name = Cast<String>(info_->string_table()->get(entry.name_index));
-  }
+  CHECK_GE(entry.name_index, 0);
+  CHECK_LT(static_cast<uint32_t>(entry.name_index),
+           info_->string_table()->length().value());
+  Tagged<InternalizedString> name = CheckedCast<InternalizedString>(
+      info_->string_table()->get(entry.name_index));
   return DebugVariableInfo{
       .name = name,
       .location = VariableLocationBits::decode(entry.location_mode_flags),
@@ -457,7 +457,7 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
   ZoneAbslFlatHashMap<const AstRawString*, int32_t> string_map(zone);
 
   auto get_or_insert_string = [&](const AstRawString* raw_name) -> int32_t {
-    if (raw_name == nullptr) return -1;
+    CHECK_NOT_NULL(raw_name);
     auto it = string_map.find(raw_name);
     if (it != string_map.end()) return it->second;
     int32_t index = base::checked_cast<int32_t>(string_table.size());
@@ -667,7 +667,9 @@ Handle<DebugScriptScopeInfo> SerializeDebugScriptScopeInfo(
     Handle<FixedArray> table =
         isolate->factory()->NewFixedArray(string_count, AllocationType::kOld);
     for (uint32_t i = 0; i < string_count; ++i) {
-      table->set(i, *string_table[i]->string());
+      DirectHandle<InternalizedString> str = string_table[i]->string();
+      CHECK(IsInternalizedString(*str));
+      table->set(i, *str);
     }
     final_string_table = table;
   }
@@ -850,16 +852,15 @@ void DebugScriptScopeInfo::DebugScriptScopeInfoVerify(Isolate* isolate) {
       CHECK_GE(name_index, 0);
       CHECK_LT(static_cast<uint32_t>(name_index),
                string_table()->length().value());
-      CHECK(IsString(string_table()->get(name_index)));
+      CHECK(IsInternalizedString(string_table()->get(name_index)));
     }
 
     CHECK_EQ(scope.variable_count(),
              base::ReadUnalignedValue<ScopeRecord>(scope.payload()).var_count);
     for (int v = 0; v < scope.variable_count(); ++v) {
       DebugVariableInfo var = scope.variable(v);
-      if (!var.name.is_null()) {
-        CHECK(IsString(var.name));
-      }
+      CHECK(!var.name.is_null());
+      CHECK(IsInternalizedString(var.name));
     }
 
     if (i == 0) {

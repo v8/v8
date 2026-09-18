@@ -304,11 +304,13 @@ class Variable final : public ZoneObject {
   }
   // LINT.ThenChange(/src/debug/debug-scope-info.cc:VariableIsReceiver)
 
+  // LINT.IfChange(VariableIsExport)
   bool IsExport() const {
     DCHECK_EQ(location(), VariableLocation::MODULE);
     DCHECK_NE(index(), 0);
     return index() > 0;
   }
+  // LINT.ThenChange(/src/debug/debug-scope-info.h:VariableIsExport)
 
   void AllocateTo(VariableLocation location, int index) {
     DCHECK(IsUnallocated() ||

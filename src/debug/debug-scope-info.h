@@ -17,19 +17,27 @@ namespace v8 {
 namespace internal {
 
 class DeclarationScope;
+class InternalizedString;
 class Isolate;
 class Script;
-class String;
 
 // Structure holding deserialized variable information for debugger inspection.
 struct DebugVariableInfo {
-  Tagged<String> name;
+  Tagged<InternalizedString> name;
   VariableLocation location;
   int index;
   VariableMode mode;
   int initializer_position;
   bool is_synthetic;
   bool is_receiver;
+
+  // LINT.IfChange(VariableIsExport)
+  bool is_export() const {
+    DCHECK_EQ(location, VariableLocation::MODULE);
+    DCHECK_NE(index, 0);
+    return index > 0;
+  }
+  // LINT.ThenChange(/src/ast/variables.h:VariableIsExport)
 };
 
 // Stack-allocated cursor for navigating and querying serialized scope trees
@@ -95,7 +103,7 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   // arguments variable (or -1 if none/unallocated).
   std::pair<VariableAllocationInfo, int> arguments_info() const;
   std::pair<VariableAllocationInfo, int> function_variable_info() const;
-  Tagged<String> function_variable_name() const;
+  Tagged<InternalizedString> function_variable_name() const;
 
   // Local Variables Info
   int variable_count() const;

@@ -1154,16 +1154,18 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
 
 bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
                                           DirectHandle<Object> new_value) {
-  // TODO(verwaest): Walk parameters backwards, not forwards.
-  // TODO(verwaest): Use VariableMap rather than locals() list for lookup.
-  for (Variable* var : *current_scope_->locals()) {
-    if (String::Equals(isolate_, var->name(), variable_name)) {
-      int index = var->index();
-      switch (var->location()) {
+  Tagged<InternalizedString> internalized_name =
+      CheckedCast<InternalizedString>(*variable_name);
+  DebugScriptScope scope = current_scope();
+  for (int i = 0; i < scope.variable_count(); ++i) {
+    DebugVariableInfo var = scope.variable(i);
+    if (var.name == internalized_name) {
+      int index = var.index;
+      switch (var.location) {
         case VariableLocation::LOOKUP:
         case VariableLocation::UNALLOCATED:
           // Drop assignments to unallocated locals.
-          DCHECK(var->is_this() ||
+          DCHECK(*variable_name == ReadOnlyRoots(isolate_).this_string() ||
                  *variable_name == ReadOnlyRoots(isolate_).arguments_string());
           return false;
 
@@ -1172,7 +1174,7 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
           return false;
 
         case VariableLocation::PARAMETER: {
-          if (var->is_this()) return false;
+          if (var.is_receiver) return false;
           if (frame_inspector_ == nullptr) {
             // Set the variable in the suspended generator.
             DCHECK(!generator_.is_null());
@@ -1216,8 +1218,6 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
           return true;
 
         case VariableLocation::CONTEXT:
-          DCHECK(var->IsContextSlot());
-
           // We know of at least one open bug where the context and scope chain
           // don't match (https://crbug.com/753338).
           // Skip the write if the context's ScopeInfo doesn't know anything
@@ -1230,9 +1230,9 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
           return true;
 
         case VariableLocation::MODULE:
-          if (!var->IsExport()) return false;
+          if (!var.is_export()) return false;
           DirectHandle<SourceTextModule> module(context_->module(), isolate_);
-          SourceTextModule::StoreVariable(module, var->index(), new_value);
+          SourceTextModule::StoreVariable(module, var.index, new_value);
           return true;
       }
       UNREACHABLE();
