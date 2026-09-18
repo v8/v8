@@ -716,6 +716,11 @@ MaybeAssignedFlag MaglevReducer<BaseT>::GetContextMaybeAssigned(
   }
   int header_length = scope_info.ContextHeaderLength();
   if (index < header_length) {
+    DCHECK_EQ(index, Context::EXTENSION_INDEX);
+    if (scope_info.SloppyEvalCanExtendVars()) {
+      *mode = VariableMode::kVar;
+      return kMaybeAssigned;
+    }
     *mode = VariableMode::kConst;
     return kNotAssigned;
   }
