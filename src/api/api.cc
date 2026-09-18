@@ -3542,6 +3542,10 @@ bool StackFrame::IsUserJavaScript() const {
   return Utils::OpenDirectHandle(this)->script()->IsUserJavaScript();
 }
 
+bool StackFrame::IsScriptOpaque() const {
+  return Utils::OpenDirectHandle(this)->script()->origin_options().IsOpaque();
+}
+
 // --- J S O N ---
 
 MaybeLocal<Value> JSON::Parse(Local<Context> context, Local<String> json_string,
