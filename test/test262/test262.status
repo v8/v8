@@ -1242,4 +1242,18 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/Locale/constructor-options-firstDayOfWeek-valid': [SKIP],
+  'intl402/Locale/constructor-unicode-extension-uvalue-yes': [SKIP],
+  'intl402/Locale/prototype/calendar/canonicalize-case': [SKIP],
+  'intl402/Locale/prototype/collation/canonicalize-case': [SKIP],
+  'intl402/Locale/prototype/firstDayOfWeek/valid-id': [SKIP],
+  'intl402/Locale/prototype/firstDayOfWeek/valid-options': [SKIP],
+  'intl402/Locale/prototype/numberingSystem/canonicalize-case': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
