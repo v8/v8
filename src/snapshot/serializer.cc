@@ -1309,6 +1309,7 @@ void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
     // Currently we cannot see pending objects here, but we may need to support
     // them in the future. They should already be supported by the deserializer.
     Handle<Code> code(jdt.GetCode(handle), isolate());
+    SBXCHECK(code->is_builtin());
     CHECK(!serializer_->SerializePendingObject(*code));
     serializer_->SerializeObject(code, SlotType::kAnySlot);
   } else {
