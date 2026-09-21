@@ -145,11 +145,6 @@
   /* V8 side owner: jkummerow */                                               \
   WASM_FEATURE(imported_strings_utf8, "imported strings (utf8 features)")      \
                                                                                \
-  /* Wide Arithmetic proposal */                                               \
-  /* https://github.com/WebAssembly/wide-arithmetic */                         \
-  /* V8 side owner: ryandiaz */                                                \
-  WASM_FEATURE(wide_arithmetic, "wide arithmetic")                             \
-                                                                               \
   /* Acquire-Release memory ordering from Shared-Everything Threads */         \
   /* proposal. */                                                              \
   /* Part of https://github.com/WebAssembly/shared-everything-threads */       \
@@ -190,7 +185,13 @@
   /* V8 side owner: jkummerow */                                               \
   /* Staged in 15.4 */                                                         \
   IF_REVEC_ENABLED(INTERNAL_FEATURE, wasm_revectorize,                         \
-                   "128 to 256 bit SIMD re-vectorization for Wasm")
+                   "128 to 256 bit SIMD re-vectorization for Wasm")            \
+                                                                               \
+  /* Wide Arithmetic proposal */                                               \
+  /* https://github.com/WebAssembly/wide-arithmetic */                         \
+  /* V8 side owner: ryandiaz */                                                \
+  /* Staged in 15.7 */                                                         \
+  WASM_FEATURE(wide_arithmetic, "wide arithmetic")
 
 // #############################################################################
 // Shipped features (enabled by default).
