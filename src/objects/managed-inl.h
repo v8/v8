@@ -35,7 +35,6 @@ template <class CppType>
 DirectHandle<Managed<CppType>> Managed<CppType>::From(
     Isolate* isolate, size_t estimated_size,
     std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
-  SharedObjectConditionalSafePublishGuard publish_guard(allocation_type);
   static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
   static_assert(IsManagedExternalPointerType(kTag));
   SharedFlag shared = SharedFlag(IsSharedAllocationType(allocation_type));
@@ -51,6 +50,8 @@ DirectHandle<Managed<CppType>> Managed<CppType>::From(
           reinterpret_cast<Address>(destructor), allocation_type));
   IndirectHandle<Object> global_handle =
       isolate->global_handles()->Create(*handle);
+  SharedObjectConditionalSafePublishGuard publish_guard(*handle,
+                                                        allocation_type);
   destructor->global_handle_location_ = global_handle.location();
   GlobalHandles::MakeWeak(destructor->global_handle_location_, destructor,
                           &ManagedObjectFinalizer,

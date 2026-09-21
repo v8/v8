@@ -2064,6 +2064,11 @@ DirectHandle<WasmCustomMap> WasmCustomMap::AllocateUninitialized(
           type.struct_type, described_index, described_size,
           described_instance_type, rtt_parent, num_supertypes, map);
   DisallowGarbageCollection no_gc;
+  DCHECK(!type.is_shared);
+  // TODO(manoskouk): If the above check is violated (i.e. we have shared custom
+  // descriptors), remove it and add a publish guard:
+  // SharedObjectConditionalSafePublishGuard publish_guard(*descriptor,
+  //                                                       type.is_shared);
   if (!prototype.is_null()) {
     Map::SetPrototype(isolate, descriptor, prototype);
   }
@@ -3024,6 +3029,7 @@ DirectHandle<Map> CreateStructMap(
         opt_native_context, instance_type, map_instance_size, elements_kind,
         inobject_properties);
   }
+  SharedObjectConditionalSafePublishGuard publish_guard(*map, shared);
   map->set_wasm_type_info(*type_info);
   map->set_is_extensible(false);
   WasmStruct::EncodeInstanceSizeInMap(real_instance_size, *map);
@@ -3056,6 +3062,7 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
              : isolate->factory()->NewContextlessMap(
                    instance_type, map_instance_size, elements_kind,
                    inobject_properties);
+  SharedObjectConditionalSafePublishGuard publish_guard(*map, shared);
   map->set_wasm_type_info(*type_info);
   map->SetInstanceDescriptors(*isolate->factory()->empty_descriptor_array(), 0,
                               SKIP_WRITE_BARRIER);

@@ -371,6 +371,7 @@ DirectHandle<HeapObject> Factory::NewFillerObject(int size,
           size, allocation, origin, alignment);
   heap->CreateFillerObjectAt(result.address(), size,
                              ClearFreedMemoryMode{false}, allocation);
+  SharedObjectConditionalSafePublishGuard publish_guard(result, allocation);
   return DirectHandle<HeapObject>(result, isolate());
 }
 
@@ -897,7 +898,6 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
       return isolate->factory()->LookupSingleCharacterStringFromCode(codepoint);
     }
     // Allocate string.
-    SharedObjectConditionalSafePublishGuard publish_guard(allocation);
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
@@ -905,18 +905,19 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
                                             allocation));
 
     DisallowGarbageCollection no_gc;
+    SharedObjectConditionalSafePublishGuard publish_guard(*result, allocation);
     decoder.Decode(result->GetChars(no_gc), peek_bytes());
     return result;
   }
 
   // Allocate string.
-  SharedObjectConditionalSafePublishGuard publish_guard(allocation);
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                              StringPolicy::AllocateTwoByteString(
                                  isolate, decoder.utf16_length(), allocation));
 
   DisallowGarbageCollection no_gc;
+  SharedObjectConditionalSafePublishGuard publish_guard(*result, allocation);
   decoder.Decode(result->GetChars(no_gc), peek_bytes());
   return result;
 }
@@ -1144,6 +1145,8 @@ MaybeDirectHandle<String> Factory::WasmStringAddShared(
     DirectHandle<SeqOneByteString> result =
         NewRawSharedOneByteString(length).ToHandleChecked();
     DisallowGarbageCollection no_gc;
+    SharedObjectConditionalSafePublishGuard publish_guard(*result,
+                                                          SharedFlag{true});
     SharedStringAccessGuardIfNeeded access_guard(isolate());
     uint8_t* dest = result->GetChars(no_gc, access_guard);
     {
@@ -1433,6 +1436,8 @@ Handle<String> Factory::NewCopiedSubstringShared(DirectHandle<String> str,
     Handle<SeqOneByteString> result =
         NewRawSharedOneByteString(length).ToHandleChecked();
     DisallowGarbageCollection no_gc;
+    SharedObjectConditionalSafePublishGuard publish_guard(*result,
+                                                          SharedFlag{true});
     uint8_t* dest = result->GetChars(no_gc);
     String::WriteToFlat(*str, dest, begin, length);
     return result;
@@ -1440,6 +1445,8 @@ Handle<String> Factory::NewCopiedSubstringShared(DirectHandle<String> str,
     Handle<SeqTwoByteString> result =
         NewRawSharedTwoByteString(length).ToHandleChecked();
     DisallowGarbageCollection no_gc;
+    SharedObjectConditionalSafePublishGuard publish_guard(*result,
+                                                          SharedFlag{true});
     base::uc16* dest = result->GetChars(no_gc);
     String::WriteToFlat(*str, dest, begin, length);
     return result;
@@ -2406,9 +2413,9 @@ DirectHandle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
                                               DirectHandle<Map> map,
                                               AllocationType allocation,
                                               WriteBarrierMode write_barrier) {
-  SharedObjectConditionalSafePublishGuard publish_guard(allocation);
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map, allocation);
   DisallowGarbageCollection no_gc;
+  SharedObjectConditionalSafePublishGuard publish_guard(result, allocation);
   if (element_type.is_numeric()) {
     if (initial_value.zero_byte_representation()) {
       memset(reinterpret_cast<void*>(result->ElementAddress(0)), 0,
@@ -2431,10 +2438,10 @@ DirectHandle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
 DirectHandle<WasmArray> Factory::NewWasmArrayFromElements(
     const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
     DirectHandle<Map> map, AllocationType allocation) {
-  SharedObjectConditionalSafePublishGuard publish_guard(allocation);
   uint32_t length = static_cast<uint32_t>(elements.size());
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map, allocation);
   DisallowGarbageCollection no_gc;
+  SharedObjectConditionalSafePublishGuard publish_guard(result, allocation);
   if (type->element_type().is_numeric()) {
     for (uint32_t i = 0; i < length; i++) {
       Address address = result->ElementAddress(i);
@@ -2454,9 +2461,9 @@ DirectHandle<WasmArray> Factory::NewWasmArrayFromMemory(
     uint32_t length, DirectHandle<Map> map, AllocationType allocation,
     wasm::CanonicalValueType element_type, base::Vector<const uint8_t> source) {
   DCHECK(element_type.is_numeric());
-  SharedObjectConditionalSafePublishGuard publish_guard(allocation);
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map, allocation);
   DisallowGarbageCollection no_gc;
+  SharedObjectConditionalSafePublishGuard publish_guard(result, allocation);
 #if V8_TARGET_BIG_ENDIAN
   MemCopyAndSwitchEndianness(reinterpret_cast<void*>(result->ElementAddress(0)),
                              source.data(), length,
@@ -2477,7 +2484,6 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
     DirectHandle<Map> map, AllocationType allocation,
     wasm::CanonicalValueType element_type) {
   DCHECK(element_type.is_ref());
-  SharedObjectConditionalSafePublishGuard publish_guard(allocation);
 
   // If the element segment has not been initialized yet, lazily initialize it
   // now.
@@ -2494,6 +2500,7 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
 
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map, allocation);
   DisallowGarbageCollection no_gc;
+  SharedObjectConditionalSafePublishGuard publish_guard(result, allocation);
   if (length > 0) {
     WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
     if (allocation == AllocationType::kYoung) wb_mode = SKIP_WRITE_BARRIER;
@@ -2560,16 +2567,18 @@ Handle<WasmCustomMap> Factory::NewWasmCustomMapUninitialized(
 DirectHandle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
                                                 wasm::WasmValue* args,
                                                 DirectHandle<Map> map) {
-  SharedObjectConditionalSafePublishGuard publish_guard(type->is_shared());
   AllocationAlignment alignment =
       type->is_shared() ? kDoubleAligned : kTaggedAligned;
   Tagged<HeapObject> raw = AllocateRaw(
       WasmStruct::Size(type),
       type->is_shared() ? AllocationType::kSharedOld : AllocationType::kYoung,
       alignment);
+  DisallowGarbageCollection no_gc;
   raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmStruct> result = Cast<WasmStruct>(raw);
   result->set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
+  SharedObjectConditionalSafePublishGuard publish_guard(result,
+                                                        type->is_shared());
   for (uint32_t i = 0; i < type->field_count(); i++) {
     int offset = type->field_offset(i);
     if (type->field(i).is_numeric()) {
@@ -2734,7 +2743,6 @@ Handle<Map> Factory::NewMapImpl(MetaMapProviderFunc&& meta_map_provider,
                                 int instance_size, ElementsKind elements_kind,
                                 int inobject_properties,
                                 AllocationType allocation_type) {
-  SharedObjectConditionalSafePublishGuard publish_guard(allocation_type);
   static_assert(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   DCHECK(!InstanceTypeChecker::MayHaveMapCheckFastCase(type));
   DCHECK_IMPLIES(InstanceTypeChecker::IsJSObject(type) &&
