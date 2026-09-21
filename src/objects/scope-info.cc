@@ -770,8 +770,7 @@ ScopeType ScopeInfo::scope_type() const {
 }
 
 bool ScopeInfo::is_script_scope() const {
-  return !this->IsEmpty() &&
-         (scope_type() == SCRIPT_SCOPE || scope_type() == REPL_MODE_SCOPE);
+  return scope_type() == SCRIPT_SCOPE || scope_type() == REPL_MODE_SCOPE;
 }
 
 bool ScopeInfo::SloppyEvalCanExtendVars() const {
@@ -791,7 +790,6 @@ bool ScopeInfo::is_declaration_scope() const {
 }
 
 int ScopeInfo::ContextLength() const {
-  if (this->IsEmpty()) return 0;
   int context_locals = ContextLocalCount();
   bool function_name_context_slot = HasContextAllocatedFunctionName();
   bool force_context = ForceContextAllocationBit::decode(Flags());
@@ -878,10 +876,12 @@ bool ScopeInfo::IsSloppyNormalJSFunction() const {
 }
 
 bool ScopeInfo::CanOnlyAccessFixedFormalParameters() const {
+  // Empty ScopeInfo (e.g. for builtins) has Flags() == 0, which is filtered out
+  // by both !IsSloppyNormalJSFunction() and HasSimpleParameters().
+  DCHECK_IMPLIES(IsEmpty(), IsSloppyNormalJSFunction());
+  DCHECK_IMPLIES(IsEmpty(), !HasSimpleParameters());
   FunctionKind function_kind = this->function_kind();
   return
-      // Filter out builtins.
-      !IsEmpty() &&
       // Can't be a SloppyNormalJSFunction.
       !IsSloppyNormalJSFunction() &&
       // TODO(dcarney): Make this function kind filter exact. It's currently
@@ -1122,8 +1122,7 @@ int ScopeInfo::ContextSlotIndex(Tagged<String> name,
   DisallowGarbageCollection no_gc;
   DCHECK(IsInternalizedString(name));
   DCHECK_NOT_NULL(lookup_result);
-
-  if (this->IsEmpty()) return -1;
+  DCHECK_IMPLIES(this->IsEmpty(), ContextLocalCount() == 0);
 
   int index = HasInlinedLocalNames()
                   ? InlinedLocalNamesLookup(name)
