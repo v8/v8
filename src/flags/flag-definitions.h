@@ -2926,6 +2926,8 @@ DEFINE_BOOL_READONLY(debug_code, false, "")
 DEFINE_BOOL_READONLY(trap_on_abort, true, "")
 DEFINE_BOOL_READONLY(slow_debug_code, false, "")
 #endif
+DEFINE_BOOL(enforce_x64_16byte_alignment, false,
+            "enforce 16-byte stack alignment on x64 platforms")
 #ifdef V8_CODE_COMMENTS
 DEFINE_BOOL(code_comments, false,
             "emit comments in code disassembly; for more readable source "
@@ -4412,6 +4414,7 @@ DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_1)
 DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_2)
 // Features we don't currently want to fuzz.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, cppgc_young_generation)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, enforce_x64_16byte_alignment)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
 // The memory corruption API is only allowed in sandbox testing/fuzzing mode.
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags &&

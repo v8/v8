@@ -3465,21 +3465,25 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
 void MacroAssembler::Call(ExternalReference ext) {
   // TODO(350324877): can we DCHECK that the sandboxing mode is correct here?
   LoadAddress(kScratchRegister, ext);
+  AssertSpAlignedForCall();
   call(kScratchRegister);
 }
 
 void MacroAssembler::Call(Operand op) {
   // TODO(350324877): can we DCHECK that the sandboxing mode is correct here?
   if (!CpuFeatures::IsSupported(INTEL_ATOM)) {
+    AssertSpAlignedForCall();
     call(op);
   } else {
     movq(kScratchRegister, op);
+    AssertSpAlignedForCall();
     call(kScratchRegister);
   }
 }
 
 void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
   Move(kScratchRegister, destination, rmode);
+  AssertSpAlignedForCall();
   call(kScratchRegister);
 }
 
@@ -3493,6 +3497,7 @@ void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   }
   DCHECK_EQ(sandboxing_mode(), code_object->sandboxing_mode());
   DCHECK(RelocInfo::IsCodeTarget(rmode));
+  AssertSpAlignedForCall();
   call(code_object, rmode);
 }
 
@@ -3615,6 +3620,7 @@ void MacroAssembler::LoadCodeInstructionStart(Register destination,
 void MacroAssembler::CallCodeObject(Register code_object,
                                     CodeEntrypointTag tag) {
   LoadCodeInstructionStart(code_object, code_object, tag);
+  AssertSpAlignedForCall();
   call(code_object);
 }
 
@@ -3648,6 +3654,7 @@ void MacroAssembler::CallJSFunction(Register function_object,
   // CallJSDispatchEntry below and crbug.com/412398354 for more details.
   cmpl(rbx, Immediate(argument_count));
   SbxCheck(less_equal, AbortReason::kJSSignatureMismatch);
+  AssertSpAlignedForCall();
   call(rcx);
 }
 
@@ -3660,6 +3667,7 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   LoadEntrypointFromJSDispatchTable(rcx, kJavaScriptCallDispatchHandleRegister);
   CHECK_EQ(argument_count,
            isolate()->js_dispatch_table().GetParameterCount(dispatch_handle));
+  AssertSpAlignedForCall();
   call(rcx);
 }
 
@@ -3720,6 +3728,7 @@ void MacroAssembler::CallWasmCodePointer(Register target,
   if (call_jump_mode == CallJumpMode::kTailCall) {
     jmp(target_op);
   } else {
+    AssertSpAlignedForCall();
     call(target_op);
   }
 }
@@ -3740,9 +3749,11 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
   shll(target, Immediate(kNumClearedHighBits));
   shrl(target, Immediate(kNumClearedHighBits - kLeftShift));
 
+  AssertSpAlignedForCall();
   call(Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
 #else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
+  AssertSpAlignedForCall();
   call(Operand(kScratchRegister, target, ScaleFactor::times_8, 0));
 #endif
 }
@@ -4122,6 +4133,13 @@ Immediate MacroAssembler::ClearedValue() const {
 }
 
 #ifdef V8_ENABLE_DEBUG_CODE
+
+void MacroAssembler::AssertSpAlignedForCall() {
+  if (v8_flags.enforce_x64_16byte_alignment && v8_flags.debug_code) {
+    CheckStackAlignment();
+  }
+}
+
 void MacroAssembler::AssertNotSmi(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
