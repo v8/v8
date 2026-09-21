@@ -257,9 +257,6 @@
 #define DEFINE_DEBUG_BOOL DEFINE_BOOL_READONLY
 #endif
 
-#define TEMPORARY_WASM_ALIAS_COMMENT \
-  "temporary alias, to be dropped in V8 v15.3"
-
 //
 // Flags in all modes.
 //
@@ -1718,13 +1715,8 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
 DEFINE_BOOL(wasm_simd_opt, true, "enable optimizations for Webassembly SIMD")
 DEFINE_EXPERIMENTAL_FEATURE(future_wasm_simd_opt,
                             "enable extra optimizations for Webassembly SIMD")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_simd_opt, future_wasm_simd_opt,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_EXPERIMENTAL_FEATURE(wasm_deinterleave_loads,
                             "enable deinterleaving loads for Webassembly SIMD")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_deinterleave_loads,
-                               wasm_deinterleave_loads,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_IMPLICATION(future_wasm_simd_opt, wasm_simd_opt)
 DEFINE_IMPLICATION(wasm_deinterleave_loads, wasm_simd_opt)
 #endif  // V8_TARGET_ARCH_ARM64
@@ -1898,12 +1890,9 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #define DECL_EXPERIMENTAL_JS_FLAG(feature_name, description) \
   DEFINE_EXPERIMENTAL_FEATURE(feature_name, "enable " description " for JS")
 #ifdef V8_ENABLE_WEBASSEMBLY
-#define DECL_EXPERIMENTAL_WASM_FLAG(feature_name, description)     \
-  DEFINE_EXPERIMENTAL_FEATURE(wasm_##feature_name,                 \
-                              "enable " description " for Wasm")   \
-  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name, \
-                                 wasm_##feature_name,              \
-                                 TEMPORARY_WASM_ALIAS_COMMENT)
+#define DECL_EXPERIMENTAL_WASM_FLAG(feature_name, description) \
+  DEFINE_EXPERIMENTAL_FEATURE(wasm_##feature_name,             \
+                              "enable " description " for Wasm")
 #else
 #define DECL_EXPERIMENTAL_WASM_FLAG(feature_name, description)
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1923,9 +1912,6 @@ FOREACH_EXPERIMENTAL_FEATURE_FLAG(DECL_EXPERIMENTAL_JS_FLAG,
 #define DECL_PRE_STAGED_WASM_FLAG(feature_name, description)       \
   DEFINE_EXPERIMENTAL_FEATURE(wasm_##feature_name,                 \
                               "enable " description " for Wasm")   \
-  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name, \
-                                 wasm_##feature_name,              \
-                                 TEMPORARY_WASM_ALIAS_COMMENT)     \
   DEFINE_IMPLICATION(experimental_fuzzing, wasm_##feature_name)
 #else
 #define DECL_PRE_STAGED_WASM_FLAG(feature_name, description)
@@ -1947,9 +1933,6 @@ FOREACH_PRE_STAGED_FEATURE_FLAG(DECL_PRE_STAGED_JS_FLAG,
 #ifdef V8_ENABLE_WEBASSEMBLY
 #define DECL_STAGED_WASM_FLAG(feature_name, description)                     \
   DEFINE_BOOL(wasm_##feature_name, false, "enable " description " for Wasm") \
-  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name,           \
-                                 wasm_##feature_name,                        \
-                                 TEMPORARY_WASM_ALIAS_COMMENT)               \
   DEFINE_WEAK_IMPLICATION(wasm_staging, wasm_##feature_name)
 #else
 #define DECL_STAGED_WASM_FLAG(feature_name, description)
@@ -1969,11 +1952,8 @@ DEFINE_IMPLICATION(harmony, js_staging)
   DEFINE_NEG_NEG_IMPLICATION(js_shipping, feature_name)            \
   DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, feature_name)
 #ifdef V8_ENABLE_WEBASSEMBLY
-#define DECL_SHIPPED_WASM_FLAG(feature_name, description)                   \
-  DEFINE_BOOL(wasm_##feature_name, true, "enable " description " for Wasm") \
-  DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_##feature_name,          \
-                                 wasm_##feature_name,                       \
-                                 TEMPORARY_WASM_ALIAS_COMMENT)
+#define DECL_SHIPPED_WASM_FLAG(feature_name, description) \
+  DEFINE_BOOL(wasm_##feature_name, true, "enable " description " for Wasm")
 #else
 #define DECL_SHIPPED_WASM_FLAG(feature_name, description)
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2102,14 +2082,10 @@ DEFINE_INT(wasm_debug_mask_for_testing, 0,
 DEFINE_DEVELOPER_FLAG(
     wasm_pgo_to_file,
     "experimental: dump Wasm PGO information to a local file (for testing)")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_pgo_to_file, wasm_pgo_to_file,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_NEG_IMPLICATION(wasm_pgo_to_file, single_threaded)
 DEFINE_DEVELOPER_FLAG(
     wasm_pgo_from_file,
     "experimental: read and use Wasm PGO data from a local file (for testing)")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_pgo_from_file,
-                               wasm_pgo_from_file, TEMPORARY_WASM_ALIAS_COMMENT)
 
 #if V8_ENABLE_DRUMBRAKE
 // Wasm is put into interpreter-only mode. We repeat flag implications down
@@ -2150,29 +2126,16 @@ DEFINE_SIZE_T(wasm_deopts_per_function_limit, 10,
 DEFINE_TEST_ONLY_FLAG(
     wasm_assume_ref_cast_succeeds,
     "assume ref.cast always succeeds and skip the related type check")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_assume_ref_cast_succeeds,
-                               wasm_assume_ref_cast_succeeds,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_TEST_ONLY_FLAG(wasm_ref_cast_nop,
                       "enable unsafe ref.cast_nop instruction")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_ref_cast_nop,
-                               wasm_ref_cast_nop, TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_TEST_ONLY_FLAG(
     wasm_skip_null_checks,
     "skip null checks for call.ref and array and struct operations")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_skip_null_checks,
-                               wasm_skip_null_checks,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_TEST_ONLY_FLAG(wasm_skip_bounds_checks, "skip array bounds checks")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_skip_bounds_checks,
-                               wasm_skip_bounds_checks,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 
 // Experimental variants of the Custom Descriptors prototype implementation.
 DEFINE_EXPERIMENTAL_FEATURE(
     wasm_js_interop, "enable JS Interop part of Custom Descriptors proposal")
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_js_interop, wasm_js_interop,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_IMPLICATION(wasm_js_interop, wasm_custom_descriptors)
 DEFINE_BOOL(wasm_custom_descriptors_permitted, true,
             "Emergency off-switch for Custom Descriptors Origin Trial")
@@ -2312,8 +2275,6 @@ DEFINE_DEBUG_BOOL(trace_wasm_instances, false,
 
 // Flags for WASM SIMD256 revectorize
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
-DEFINE_ALIAS_BOOL_WITH_COMMENT(experimental_wasm_revectorize, wasm_revectorize,
-                               TEMPORARY_WASM_ALIAS_COMMENT)
 DEFINE_DEVELOPER_FLAG(trace_wasm_revectorize, "trace wasm revectorize")
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
@@ -4555,8 +4516,6 @@ DEFINE_IMPLICATION(gdbjit, log)
 #undef DEFINE_ALIAS_INT
 #undef DEFINE_ALIAS_STRING
 #undef DEFINE_ALIAS_FLOAT
-
-#undef TEMPORARY_WASM_ALIAS_COMMENT
 
 #undef FLAG_MODE_DECLARE
 #undef FLAG_MODE_DEFINE_DEFAULTS
