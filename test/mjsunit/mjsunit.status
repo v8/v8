@@ -1325,32 +1325,10 @@
   'regexp-tier-up-multiple': [SKIP],
   'regress/regress-996234': [SKIP],
 
-  # These tests rely on TurboFan being enabled.
+  # These tests rely on TurboFan being enabled and suppress flag contradiction
+  # checks (--flag-processing-mode=ignore-contradictions or --fuzzing).
   'ensure-growing-store-learns': [SKIP],
-  'compiler/call-with-arraylike-or-spread*': [SKIP],
-  'compiler/fast-api-calls': [SKIP],
-  'compiler/fast-api-attributes': [SKIP],
-  'compiler/fast-api-interface-types': [SKIP],
-  'compiler/fast-api-deopt': [SKIP],
-  'regress/regress-505551322': [SKIP],
-  'regress/regress-508672637': [SKIP],
-  'regress/regress-fast-api-uint64-negative': [SKIP],
-  'compiler/regress-crbug-1201011': [SKIP],
-  'compiler/regress-crbug-1201057': [SKIP],
-  'compiler/regress-crbug-1201082': [SKIP],
-  'compiler/regress-331909453': [SKIP],
-  'compiler/regress-crbug-1457532': [SKIP],
   'regress/regress-390675705': [SKIP],
-  'regress/regress-395028748': [SKIP],
-  'regress/regress-424627229': [SKIP],
-  'regress/regress-438321229': [SKIP],
-
-  'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
-  'regress/wasm/regress-368086282': [SKIP],
-  'regress/wasm/regress-438770394': [SKIP],
-
-  'maglev/extras-cped': [SKIP],
-  'turboshaft/extras-cped': [SKIP],
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
@@ -2502,29 +2480,9 @@
 
 ##############################################################################
 ['variant == nooptimization', {
-
-  # Tests that depend on optimization (beyond doing assertOptimized).
+  # Uses --flag-processing-mode=ignore-contradictions, which suppresses the
+  # flag contradiction error with --turbofan.
   'ensure-growing-store-learns': [SKIP],
-  'regress/regress-1049982-1': [SKIP],
-  'regress/regress-1049982-2': [SKIP],
-
-  'maglev/extras-cped': [SKIP],
-  'turboshaft/extras-cped': [SKIP],
-
-  # Wasm serialization relies on TurboFan to be available, hence does not work
-  # in the 'nooptimization' variant.
-  'regress/wasm/regress-7785': [SKIP],
-
-  # Tests that require wasm tier up.
-  'wasm/recognize-imports': [SKIP],
-  'wasm/speculative-inlining': [SKIP],
-  'wasm/wasm-dynamic-tiering': [SKIP],
-  'regress/wasm/regress-1179065': [SKIP],
-  'regress/wasm/regress-334687959': [SKIP],
-
-  # These tests require Turbolev (--turbofan) which nooptimization disables.
-  'wasm/wasm-wrapper-inlining-turbolev': [SKIP],
-  'wasm/wrapper-inlining-lazy-deopt-turbolev': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
