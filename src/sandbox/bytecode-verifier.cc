@@ -295,6 +295,7 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
     case Runtime::kSwissTableValueAt:
     case Runtime::kSwissTableKeyAt:
     case Runtime::kDebugPrintPtr:
+    case Runtime::kCopyDataPropertiesWithExcludedPropertiesOnStack:
 #if V8_ENABLE_SPARKPLUG_PLUS
     case Runtime::kPatchCompareOpBaselineCode:
     case Runtime::kPatchCompareOpBaselineCodeAndThrow:
