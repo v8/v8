@@ -36,4 +36,4 @@ runTestOpt(5);
 runTestOpt(5.5);
 runTestOpt({});
 
-assertTrue(isMaglevved(testOpt));
+assertMaglevved(testOpt);

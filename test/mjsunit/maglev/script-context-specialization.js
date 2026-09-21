@@ -21,10 +21,10 @@ const f2 = createClosure();
 assertEquals(42, f1());
 %OptimizeMaglevOnNextCall(f1);
 assertEquals(42, f1());
-assertTrue(isMaglevved(f1));
+assertMaglevved(f1);
 
 %PrepareFunctionForOptimization(f2);
 assertEquals(42, f2());
 %OptimizeMaglevOnNextCall(f2);
 assertEquals(42, f2());
-assertTrue(isMaglevved(f2));
+assertMaglevved(f2);
