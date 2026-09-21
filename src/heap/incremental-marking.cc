@@ -306,7 +306,7 @@ void IncrementalMarking::StartMarkingMajor() {
     isolate()->PrintWithTimestamp("[IncrementalMarking] Running\n");
   }
 
-  if (heap()->cpp_heap()) {
+  {
     // `StartMarking()` may call back into V8 in corner cases, requiring that
     // marking (including write barriers) is fully set up.
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
@@ -470,7 +470,7 @@ std::pair<v8::base::TimeDelta, size_t> IncrementalMarking::CppHeapStep(
     StepOrigin step_origin) {
   DCHECK(IsMarking());
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
-  if (!cpp_heap || !cpp_heap->incremental_marking_supported()) {
+  if (!cpp_heap->incremental_marking_supported()) {
     return {};
   }
 
@@ -686,9 +686,7 @@ size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {
   // as the full marker marks both the young and old generations.
   size_t estimated_live_bytes = OldGenerationSizeOfObjects();
   if (v8_flags.incremental_marking_unified_schedule) {
-    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
-      estimated_live_bytes += cpp_heap->used_size();
-    }
+    estimated_live_bytes += CppHeap::From(heap_->cpp_heap())->used_size();
   }
   const size_t marked_bytes_limit =
       schedule_->GetNextIncrementalStepDuration(estimated_live_bytes);
@@ -763,7 +761,7 @@ bool IncrementalMarking::ShouldFinalize() const {
              ->mark_compact_collector()
              ->local_marking_worklists()
              ->IsEmpty() &&
-         (!cpp_heap || cpp_heap->ShouldFinalizeIncrementalMarking());
+         cpp_heap->ShouldFinalizeIncrementalMarking();
 }
 
 void IncrementalMarking::FetchBytesMarkedConcurrently() {

@@ -620,10 +620,9 @@ void TracedHandles::ProcessWeakYoungObjects(
 
   auto* heap = isolate_->heap();
   // ResetRoot() below should not trigger allocations in CppGC.
-  if (auto* cpp_heap = CppHeap::From(heap->cpp_heap())) {
-    cpp_heap->EnterDisallowGCScope();
-    cpp_heap->EnterNoGCScope();
-  }
+  auto* cpp_heap = CppHeap::From(heap->cpp_heap());
+  cpp_heap->EnterDisallowGCScope();
+  cpp_heap->EnterNoGCScope();
 
 #ifdef DEBUG
   size_t num_young_blocks = 0;
@@ -696,10 +695,8 @@ void TracedHandles::ProcessWeakYoungObjects(
     DCHECK_GT(locally_freed, 0);
   }
 
-  if (auto* cpp_heap = CppHeap::From(isolate_->heap()->cpp_heap())) {
-    cpp_heap->LeaveNoGCScope();
-    cpp_heap->LeaveDisallowGCScope();
-  }
+  cpp_heap->LeaveNoGCScope();
+  cpp_heap->LeaveDisallowGCScope();
 }
 
 void TracedHandles::Iterate(RootVisitor* visitor) {

@@ -130,10 +130,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   // The garbage collection and the filling of references in GenerateSnapshot
   // should scan the same part of the stack.
   heap()->stack().SetMarkerIfNeededAndCallback([this, &options, &result]() {
-    std::optional<CppClassNamesAsHeapObjectNameScope> use_cpp_class_name;
-    if (heap()->cpp_heap()) {
-      use_cpp_class_name.emplace(heap()->cpp_heap());
-    }
+    CppClassNamesAsHeapObjectNameScope use_cpp_class_name(heap()->cpp_heap());
 
     HeapSnapshotGenerator generator(result, options.control,
                                     options.context_name_resolver, heap(),

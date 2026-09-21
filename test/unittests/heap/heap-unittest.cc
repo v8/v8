@@ -451,17 +451,14 @@ void ShrinkNewSpace(NewSpace* new_space) {
   tracer->StopAtomicPause();
   tracer->StopObservablePause(GarbageCollector::MARK_COMPACTOR,
                               base::TimeTicks::Now());
-  if (heap->cpp_heap()) {
-    cppgc::internal::StatsCollector* stats_collector =
-        CppHeap::From(heap->cpp_heap())->stats_collector();
-    stats_collector->NotifyMarkingStarted(
-        cppgc::internal::CollectionType::kMajor,
-        cppgc::Heap::MarkingType::kAtomic,
-        cppgc::internal::MarkingConfig::IsForcedGC::kNotForced);
-    stats_collector->NotifyMarkingCompleted(0);
-    stats_collector->NotifySweepingCompleted(
-        cppgc::Heap::SweepingType::kAtomic);
-  }
+  cppgc::internal::StatsCollector* stats_collector =
+      CppHeap::From(heap->cpp_heap())->stats_collector();
+  stats_collector->NotifyMarkingStarted(
+      cppgc::internal::CollectionType::kMajor,
+      cppgc::Heap::MarkingType::kAtomic,
+      cppgc::internal::MarkingConfig::IsForcedGC::kNotForced);
+  stats_collector->NotifyMarkingCompleted(0);
+  stats_collector->NotifySweepingCompleted(cppgc::Heap::SweepingType::kAtomic);
   tracer->NotifyFullSweepingCompletedAndStopCycleIfFinished();
 }
 }  // namespace

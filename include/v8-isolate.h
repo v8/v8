@@ -1259,8 +1259,7 @@ class V8_EXPORT Isolate {
   void SetReleaseCppHeapCallbackForTesting(ReleaseCppHeapCallback callback);
 
   /**
-   * \returns the C++ heap managed by V8. Only available if such a heap has been
-   *   attached using `AttachCppHeap()`.
+   * \returns the C++ heap managed by V8.
    */
   CppHeap* GetCppHeap() const;
 

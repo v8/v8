@@ -3722,11 +3722,9 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
   // stale native addresses for live wrapper entries.
   heap_object_map_->ClearMergedNativeEntries();
 
-  if (isolate_->heap()->cpp_heap()) {
-    CppGraphBuilder::Run(
-        v8::internal::CppHeap::From(isolate_->heap()->cpp_heap()), generator_,
-        generator_->TakeCppHeapWrappers());
-  }
+  CppGraphBuilder::Run(
+      *v8::internal::CppHeap::From(isolate_->heap()->cpp_heap()), generator_,
+      generator_->TakeCppHeapWrappers());
 
   if (v8_flags.heap_profiler_use_embedder_graph &&
       snapshot_->profiler()->HasBuildEmbedderGraphCallback()) {
