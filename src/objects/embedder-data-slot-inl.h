@@ -136,8 +136,7 @@ bool EmbedderDataSlot::ToAlignedPointer(
     IsolateForPointerCompression isolate, void** out_pointer,
     ExternalPointerTagRange tag_range) const {
   void* raw_ptr = nullptr;
-  if (!ToAlignedPointer(isolate, &raw_ptr,
-                        {CppHeapPointerTag::kEmbedderDataSlotTag})) {
+  if (!ToAlignedPointer(isolate, &raw_ptr, {kEmbedderDataSlotTag})) {
     *out_pointer = nullptr;
     return false;
   }
@@ -224,7 +223,7 @@ bool EmbedderDataSlot::store_aligned_pointer(
   DisallowGarbageCollection no_gc;
   EmbedderDataSlot slot(*host, entry_or_embedder_field_index);
   return slot.store_aligned_pointer(isolate, *host, wrapper,
-                                    CppHeapPointerTag::kEmbedderDataSlotTag);
+                                    kEmbedderDataSlotTag);
 }
 
 #ifdef V8_COMPRESS_POINTERS

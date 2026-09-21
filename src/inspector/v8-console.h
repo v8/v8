@@ -15,6 +15,7 @@
 #include "include/v8-traced-handle.h"
 #include "src/base/macros.h"
 #include "src/debug/interface-types.h"
+#include "src/sandbox/cppheap-pointer-tag.h"
 #include "v8-isolate.h"
 
 namespace v8 {
@@ -34,7 +35,7 @@ class V8Console final : public v8::Object::Wrappable,
                         public v8::debug::ConsoleDelegate {
  public:
   static constexpr v8::CppHeapPointerTag kPointerTag =
-      v8::CppHeapPointerTag::kInspectorV8ConsoleTag;
+      v8::internal::kInspectorV8ConsoleTag;
 
   v8::Local<v8::Object> wrapConsole(v8::Local<v8::Context> context);
   void Trace(cppgc::Visitor* visitor) const override;
@@ -266,7 +267,7 @@ class V8Console final : public v8::Object::Wrappable,
 class TaskInfo : public v8::Object::Wrappable {
  public:
   static constexpr v8::CppHeapPointerTag kPointerTag =
-      v8::CppHeapPointerTag::kInspectorTaskInfoTag;
+      v8::internal::kInspectorTaskInfoTag;
 
   TaskInfo(v8::Isolate* isolate, V8Console* console);
   ~TaskInfo() override;

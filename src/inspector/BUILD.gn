@@ -80,7 +80,10 @@ v8_header_set("inspector_test_headers") {
 
   public_deps = [ "../..:v8_headers" ]
 
-  sources = [ "test-interface.h" ]
+  sources = [
+    "../../src/sandbox/cppheap-pointer-tag.h",
+    "test-interface.h",
+  ]
 }
 
 v8_source_set("inspector_string_conversions") {

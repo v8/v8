@@ -312,16 +312,15 @@ MicrotaskQueue* NativeContext::microtask_queue() const {
 MicrotaskQueue* NativeContext::microtask_queue(
     IsolateForPointerCompression isolate) const {
   return reinterpret_cast<MicrotaskQueue*>(
-      ReadCppHeapPointerField<CppHeapPointerTag::kMicrotaskQueueTag,
-                              CppHeapPointerTag::kMicrotaskQueueTag>(
+      ReadCppHeapPointerField<kMicrotaskQueueTag, kMicrotaskQueueTag>(
           kMicrotaskQueueOffset, isolate));
 }
 
 void NativeContext::set_microtask_queue(IsolateForPointerCompression isolate,
                                         MicrotaskQueue* queue) {
-  WriteLazilyInitializedCppHeapPointerField(
-      kMicrotaskQueueOffset, isolate, reinterpret_cast<Address>(queue),
-      CppHeapPointerTag::kMicrotaskQueueTag);
+  WriteLazilyInitializedCppHeapPointerField(kMicrotaskQueueOffset, isolate,
+                                            reinterpret_cast<Address>(queue),
+                                            kMicrotaskQueueTag);
   WriteBarrier::ForCppHeapPointer(Tagged<NativeContext>(this),
                                   RawCppHeapPointerField(kMicrotaskQueueOffset),
                                   queue);

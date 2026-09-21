@@ -32030,8 +32030,7 @@ void ReadCppHeapExternalCallback(
   v8::Local<v8::CppHeapExternal>::Cast(data)
       ->Value<TestGarbagedCollectedData>(
           info.GetIsolate(),
-          v8::CppHeapPointerTagRange(v8::CppHeapPointerTag::kTagForTesting,
-                                     v8::CppHeapPointerTag::kTagForTesting))
+          v8::CppHeapPointerTagRange(i::kTagForTesting, i::kTagForTesting))
       ->MarkUsed();
 }
 
@@ -32042,8 +32041,7 @@ void ReadCppHeapExternalPropertyCallback(
   v8::Local<v8::CppHeapExternal>::Cast(data)
       ->Value<TestGarbagedCollectedData>(
           info.GetIsolate(),
-          v8::CppHeapPointerTagRange(v8::CppHeapPointerTag::kTagForTesting,
-                                     v8::CppHeapPointerTag::kTagForTesting))
+          v8::CppHeapPointerTagRange(i::kTagForTesting, i::kTagForTesting))
       ->MarkUsed();
 }
 
@@ -32055,8 +32053,8 @@ class GCedWithCppHeapExternalJSRef
       : isolate_(isolate) {
     v8::HandleScope scope(isolate_);
     v8::Local<v8::CppHeapExternal> external =
-        v8::CppHeapExternal::New<TestGarbagedCollectedData>(
-            isolate, data, v8::CppHeapPointerTag::kTagForTesting);
+        v8::CppHeapExternal::New<TestGarbagedCollectedData>(isolate, data,
+                                                            i::kTagForTesting);
     v8_cpp_heap_external_.Reset(isolate_, external);
   }
 
@@ -32067,8 +32065,7 @@ class GCedWithCppHeapExternalJSRef
     auto external = v8::Local<v8::CppHeapExternal>::Cast(data);
     return external->Value<TestGarbagedCollectedData>(
         isolate_,
-        v8::CppHeapPointerTagRange(v8::CppHeapPointerTag::kTagForTesting,
-                                   v8::CppHeapPointerTag::kTagForTesting));
+        v8::CppHeapPointerTagRange(i::kTagForTesting, i::kTagForTesting));
   }
 
   void Trace(cppgc::Visitor* v) const { v->Trace(v8_cpp_heap_external_); }
@@ -32140,7 +32137,7 @@ TEST(ContinuationPreservedEmbedderData_CppHeapExternal) {
             cpp_heap->GetAllocationHandle()));
     v8::Local<v8::CppHeapExternal> external =
         v8::CppHeapExternal::New<TestGarbagedCollectedData>(
-            isolate, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
+            isolate, cpp_object.Get(), i::kTagForTesting);
     isolate->SetContinuationPreservedEmbedderData(external);
 
     v8::Local<v8::Data> result =
@@ -32149,9 +32146,8 @@ TEST(ContinuationPreservedEmbedderData_CppHeapExternal) {
     TestGarbagedCollectedData* data =
         v8::Local<v8::CppHeapExternal>::Cast(result)
             ->Value<TestGarbagedCollectedData>(
-                isolate, v8::CppHeapPointerTagRange(
-                             v8::CppHeapPointerTag::kTagForTesting,
-                             v8::CppHeapPointerTag::kTagForTesting));
+                isolate, v8::CppHeapPointerTagRange(i::kTagForTesting,
+                                                    i::kTagForTesting));
     CHECK_EQ(data, cpp_object.Get());
   }
 
@@ -32180,38 +32176,37 @@ TEST(EmbedderDataAlignedPointers_CppHeapPointer) {
 
     // Null pointer test.
     (*env)->SetAlignedPointerInEmbedderData(
-        0, static_cast<TestGarbagedCollectedData*>(nullptr),
-        v8::CppHeapPointerTag::kTagForTesting);
+        0, static_cast<TestGarbagedCollectedData*>(nullptr), i::kTagForTesting);
     CHECK_EQ(
         nullptr,
         (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
-            isolate, 0, v8::CppHeapPointerTag::kTagForTesting));
+            isolate, 0, i::kTagForTesting));
     CHECK_EQ(nullptr, obj->GetAlignedPointerFromEmbedderDataInCreationContext(
-                          isolate, 0, v8::CppHeapPointerTag::kTagForTesting));
+                          isolate, 0, i::kTagForTesting));
 
     // Valid cppgc object test.
-    (*env)->SetAlignedPointerInEmbedderData(
-        1, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
+    (*env)->SetAlignedPointerInEmbedderData(1, cpp_object.Get(),
+                                            i::kTagForTesting);
     CHECK_EQ(
         cpp_object.Get(),
         (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
-            isolate, 1, v8::CppHeapPointerTag::kTagForTesting));
+            isolate, 1, i::kTagForTesting));
     CHECK_EQ(cpp_object.Get(),
              obj->GetAlignedPointerFromEmbedderDataInCreationContext(
-                 isolate, 1, v8::CppHeapPointerTag::kTagForTesting));
+                 isolate, 1, i::kTagForTesting));
 
     // Detached global proxy test.
     v8::Local<v8::Object> global_obj = env->Global();
-    (*env)->SetAlignedPointerInEmbedderData(
-        2, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
+    (*env)->SetAlignedPointerInEmbedderData(2, cpp_object.Get(),
+                                            i::kTagForTesting);
     CHECK_EQ(cpp_object.Get(),
              global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
-                 isolate, 2, v8::CppHeapPointerTag::kTagForTesting));
+                 isolate, 2, i::kTagForTesting));
 
     env->DetachGlobal();
     CHECK_EQ(cpp_object.Get(),
              global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
-                 isolate, 2, v8::CppHeapPointerTag::kTagForTesting));
+                 isolate, 2, i::kTagForTesting));
   }
 
   isolate->Exit();
@@ -32240,7 +32235,7 @@ TEST(FunctionTemplateCallbackDataV2_CppHeapExternal) {
       v8::HandleScope scope(isolate);
       v8::Local<v8::CppHeapExternal> external =
           v8::CppHeapExternal::New<TestGarbagedCollectedData>(
-              isolate, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
+              isolate, cpp_object.Get(), i::kTagForTesting);
       v8::Local<v8::FunctionTemplate> function_template =
           v8::FunctionTemplate::New(isolate);
       function_template->SetCallHandler(ReadCppHeapExternalCallback, external);
@@ -32300,7 +32295,7 @@ TEST(PropertyCallbackInfoDataV2_CppHeapExternal) {
 
       v8::Local<v8::CppHeapExternal> external =
           v8::CppHeapExternal::New<TestGarbagedCollectedData>(
-              isolate, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
+              isolate, cpp_object.Get(), i::kTagForTesting);
       // Keep producer inputs Value-typed until the output migration completes.
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       i::LookupIterator it(i_isolate,

@@ -2608,6 +2608,7 @@ filegroup(
         "src/sandbox/external-pointer-table-inl.h",
         "src/sandbox/cppheap-pointer.h",
         "src/sandbox/cppheap-pointer-inl.h",
+        "src/sandbox/cppheap-pointer-tag.h",
         "src/sandbox/cppheap-pointer-table.cc",
         "src/sandbox/cppheap-pointer-table.h",
         "src/sandbox/cppheap-pointer-table-inl.h",
