@@ -10763,6 +10763,7 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
       OpProperties::JSCall() | OpProperties::DeferredCall();
   DECLARE_INPUTS(Target, Context, Receiver, NewTarget)
 
+  JSDispatchHandle dispatch_handle() const { return dispatch_handle_; }
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
   }

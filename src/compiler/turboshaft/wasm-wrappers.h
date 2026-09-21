@@ -600,7 +600,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   V<Float32> BuildChangeTaggedToFloat32(
       V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
-    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
+    CHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     ScopedVar<Float32> result(this, V<Float32>::Invalid());
     IF (__ IsSmi(value)) {
       // TODO(dlehmann,wasm-runtime): If `ChangeInt32ToFloat32(x)` is exactly
@@ -640,7 +640,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   V<Float64> BuildChangeTaggedToFloat64(
       V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
-    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
+    CHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     ScopedVar<Float64> result(this, V<Float64>::Invalid());
     IF (__ IsSmi(value)) {
       result = __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(value)));
@@ -672,7 +672,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   V<Word32> BuildChangeTaggedToInt32(
       V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
-    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
+    CHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     if (is_inlining_into_js_) {
       // When inlining into JS, emit a "high-level" JS conversion to allow
       // further optimizations. These are lowered in the MachineLoweringPhase
@@ -708,7 +708,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   OpIndex BuildChangeBigIntToInt64(
       V<Object> input, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
-    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
+    CHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     // When inlining JS-to-Wasm wrappers, eagerly deopt for values that are
     // not BigInt to avoid calling ToBigInt, which could trigger user JS via
     // valueOf/Symbol.toPrimitive (same rationale as for i32/f32/f64).

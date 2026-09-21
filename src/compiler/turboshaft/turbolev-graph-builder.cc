@@ -1481,6 +1481,13 @@ class GraphBuildingNodeProcessor {
       return nullptr;
     }
 
+    SBXCHECK_EQ(node->expected_parameter_count(), JSParameterCount(wasm_arity));
+    // WasmInJSInliningReducer requires every argument to be wrapped in a
+    // ProcessWasmArgument node to provide the caller's eager deopt FrameState.
+    for (int i = 0; i < wasm_arity; ++i) {
+      SBXCHECK(node->arg(i).node()->Is<maglev::ProcessWasmArgument>());
+    }
+
     if (!__ data()->TrySetWasmInstanceForInlining(native_module->module(),
                                                   instance_handle)) {
       TRACE_WASM_INLINING(
@@ -1542,8 +1549,8 @@ class GraphBuildingNodeProcessor {
     JSWasmCallParameters* wasm_call_params = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
     SharedFunctionInfoRef shared = node->shared_function_info();
-    Tagged<Code> code = shared.object()->GetCode(isolate_);
-    Tagged<Object> data = shared.object()->GetTrustedData(isolate_);
+    Tagged<Code> code =
+        isolate_->js_dispatch_table().GetCode(node->dispatch_handle());
     // If the code is a JS-to-Wasm wrapper (either the generic builtin or a
     // compiled wrapper), we might be able to inline it.
     bool is_calling_js_to_wasm_wrapper_builtin =
@@ -1552,7 +1559,7 @@ class GraphBuildingNodeProcessor {
     if (v8_flags.wasm_in_js_inlining_wrapper &&
         is_calling_js_to_wasm_wrapper_builtin) {
       Tagged<WasmExportedFunctionData> function_data;
-      if (TryCast(TrustedCast<TrustedObject>(data), &function_data)) {
+      if (TryCast(shared.object()->GetTrustedData(isolate_), &function_data)) {
         Tagged<WasmTrustedInstanceData> instance_data =
             function_data->instance_data();
         wasm::NativeModule* native_module = instance_data->native_module();

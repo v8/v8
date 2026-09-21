@@ -983,8 +983,7 @@ class MaglevReducer {
       compiler::FeedbackSource const& feedback_source);
 
 #if V8_ENABLE_WEBASSEMBLY
-  bool ShouldWrapArgsForWasmInlining(compiler::SharedFunctionInfoRef shared,
-                                     JSDispatchHandle dispatch_handle);
+  bool ShouldWrapArgsForWasmInlining(JSDispatchHandle dispatch_handle);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   compiler::OptionalStringRef GetStringFromInt32(int32_t value);

@@ -3392,19 +3392,15 @@ CallBuiltin* MaglevReducer<BaseT>::BuildCallBuiltin(
 // LINT.IfChange(WasmWrapperInliningConditions)
 template <typename BaseT>
 bool MaglevReducer<BaseT>::ShouldWrapArgsForWasmInlining(
-    compiler::SharedFunctionInfoRef shared, JSDispatchHandle dispatch_handle) {
+    JSDispatchHandle dispatch_handle) {
   if (!is_turbolev()) return false;
   if (!v8_flags.wasm_in_js_inlining_wrapper) return false;
-  // The SharedFunctionInfo of a Wasm exported function does not carry a
-  // builtin ID, so the check below filters out regular JS builtins.
-  // However, the Code installed in the dispatch table can be either:
+  // The Code installed in the dispatch table for a Wasm exported function can
+  // be either:
   //  - The generic kJSToWasmWrapper builtin (used before a per-signature
   //    wrapper has been compiled), or
   //  - A jitted per-signature wrapper (CodeKind::JS_TO_WASM_FUNCTION).
-  // We detect both cases by inspecting the Code object directly.
-  if (!shared.object()->HasWasmExportedFunctionData(local_isolate())) {
-    return false;
-  }
+  // We detect both cases by inspecting the Code object via the dispatch table.
   Tagged<Code> code =
       local_isolate()->js_dispatch_table().GetCode(dispatch_handle);
   return code->builtin_id() == Builtin::kJSToWasmWrapper ||
@@ -3422,7 +3418,7 @@ ReduceResult MaglevReducer<BaseT>::BuildCallKnownJSFunction(
     compiler::FeedbackSource const& feedback_source) {
 #if V8_ENABLE_WEBASSEMBLY
   const bool wrap_args_for_wasm =
-      ShouldWrapArgsForWasmInlining(shared, dispatch_handle);
+      ShouldWrapArgsForWasmInlining(dispatch_handle);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   size_t input_count = arg_count + CallKnownJSFunction::kFixedInputCount;
