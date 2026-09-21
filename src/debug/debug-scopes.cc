@@ -5,19 +5,15 @@
 #include "src/debug/debug-scopes.h"
 
 #include <algorithm>
-#include <memory>
 #include <optional>
 
-#include "src/ast/ast.h"
-#include "src/ast/scopes.h"
+#include "src/ast/modules.h"
 #include "src/debug/debug-scope-info.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/string-set.h"
-#include "src/parsing/parse-info.h"
-#include "src/parsing/parsing.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -86,139 +82,12 @@ void ScopeIterator::Restart() {
   DCHECK_NOT_NULL(frame_inspector_);
   function_ = frame_inspector_->GetFunction();
   context_ = Cast<Context>(frame_inspector_->GetContext());
-  current_scope_ = start_scope_;
   current_scope_index_ = start_scope_index_;
-  DCHECK_NOT_NULL(current_scope_);
   DCHECK_NE(current_scope_index_, -1);
   UnwrapEvaluationContext();
   seen_script_scope_ = false;
   calculate_blocklists_ = false;
 }
-
-namespace {
-
-// Takes the scope of a parsed script, a function and a break location
-// inside the function. The result is the innermost lexical scope around
-// the break point, which serves as the starting point of the ScopeIterator.
-// And the scope of the function that was passed in (called closure scope).
-//
-// The start scope is guaranteed to be either the closure scope itself,
-// or a child of the closure scope.
-class ScopeChainRetriever {
- public:
-  ScopeChainRetriever(DeclarationScope* scope,
-                      DirectHandle<JSFunction> function, int position)
-      : scope_(scope),
-        break_scope_start_(function->shared()->StartPosition()),
-        break_scope_end_(function->shared()->EndPosition()),
-        break_scope_type_(function->shared()->scope_info()->scope_type()),
-        position_(position) {
-    DCHECK_NOT_NULL(scope);
-    RetrieveScopes();
-  }
-
-  DeclarationScope* ClosureScope() { return closure_scope_; }
-  Scope* StartScope() { return start_scope_; }
-
- private:
-  DeclarationScope* scope_;
-  const int break_scope_start_;
-  const int break_scope_end_;
-  const ScopeType break_scope_type_;
-  const int position_;
-
-  DeclarationScope* closure_scope_ = nullptr;
-  Scope* start_scope_ = nullptr;
-
-  void RetrieveScopes() {
-    // 1. Find the closure scope with a DFS.
-    RetrieveClosureScope(scope_);
-    DCHECK_NOT_NULL(closure_scope_);
-
-    // 2. Starting from the closure scope search inwards. Given that V8's scope
-    //    tree doesn't guarantee that siblings don't overlap, we look at all
-    //    scopes and pick the one with the tightest bounds around `position_`.
-    start_scope_ = closure_scope_;
-    RetrieveStartScope(closure_scope_);
-    DCHECK_NOT_NULL(start_scope_);
-  }
-
-  bool RetrieveClosureScope(Scope* scope) {
-    // The closure scope is the scope that matches exactly the function we
-    // paused in.
-    // Note that comparing the position alone is not enough and we also need to
-    // match the scope type. E.g. class member initializer have the exact same
-    // scope positions as their class scope.
-    if (break_scope_type_ == scope->scope_type() &&
-        break_scope_start_ == scope->start_position() &&
-        break_scope_end_ == scope->end_position()) {
-      closure_scope_ = scope->AsDeclarationScope();
-      return true;
-    }
-
-    for (Scope* inner_scope = scope->inner_scope(); inner_scope != nullptr;
-         inner_scope = inner_scope->sibling()) {
-      if (RetrieveClosureScope(inner_scope)) return true;
-    }
-    return false;
-  }
-
-  void RetrieveStartScope(Scope* scope) {
-    const int start = scope->start_position();
-    const int end = scope->end_position();
-
-    // Update start_scope_ if scope contains `position_` and scope is a tighter
-    // fit than the currently set start_scope_.
-    // Generators have the same source position so we also check for equality.
-    if (ContainsPosition(scope) && start >= start_scope_->start_position() &&
-        end <= start_scope_->end_position()) {
-      start_scope_ = scope;
-    }
-
-    for (Scope* inner_scope = scope->inner_scope(); inner_scope != nullptr;
-         inner_scope = inner_scope->sibling()) {
-      RetrieveStartScope(inner_scope);
-    }
-  }
-
-  bool ContainsPosition(Scope* scope) {
-    const int start = scope->start_position();
-    const int end = scope->end_position();
-    // In case the closure_scope_ hasn't been found yet, we are less strict
-    // about recursing downwards. This might be the case for nested arrow
-    // functions that have the same end position.
-    const bool position_fits_end =
-        closure_scope_ ? position_ < end : position_ <= end;
-    // While we're evaluating a class, the calling function will have a class
-    // context on the stack with a range that starts at Token::kClass, and the
-    // source position will also point to Token::kClass.  To identify the
-    // matching scope we include start in the accepted range for class scopes.
-    //
-    // Similarly "with" scopes can already have bytecodes where the source
-    // position points to the closing parenthesis with the "with" context
-    // already pushed.
-    const bool position_fits_start =
-        scope->is_class_scope() || scope->is_with_scope() ? start <= position_
-                                                          : start < position_;
-    return position_fits_start && position_fits_end;
-  }
-};
-
-// Walks a ScopeInfo outwards until it finds a EVAL scope.
-MaybeDirectHandle<ScopeInfo> FindEvalScope(Isolate* isolate,
-                                           Tagged<ScopeInfo> start_scope) {
-  Tagged<ScopeInfo> scope = start_scope;
-  while (scope->scope_type() != ScopeType::EVAL_SCOPE &&
-         scope->HasOuterScopeInfo()) {
-    scope = scope->OuterScopeInfo();
-  }
-
-  return scope->scope_type() == ScopeType::EVAL_SCOPE
-             ? MaybeHandle<ScopeInfo>(scope, isolate)
-             : kNullMaybeHandle;
-}
-
-}  // namespace
 
 void ScopeIterator::TryParseAndRetrieveScopes(
     CalculateBlocklists calculate_blocklists) {
@@ -226,7 +95,6 @@ void ScopeIterator::TryParseAndRetrieveScopes(
   DirectHandle<SharedFunctionInfo> shared_info(function_->shared(), isolate_);
   DirectHandle<ScopeInfo> scope_info(shared_info->scope_info(), isolate_);
   if (IsUndefined(shared_info->script())) {
-    current_scope_ = closure_scope_ = nullptr;
     current_scope_index_ = closure_scope_index_ = start_scope_index_ = -1;
     context_ = handle(function_->context(), isolate_);
     function_ = Handle<JSFunction>();
@@ -255,144 +123,49 @@ void ScopeIterator::TryParseAndRetrieveScopes(
     calculate_blocklists_ = IsTheHole(maybe_block_list);
   }
 
-  // Reparse the code and analyze the scopes. For function scopes only the
-  // closure is re-parsed, for top-level scopes (script, eval, module) the
-  // whole script is.
   DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate_);
-
-  // Pick between flags for a single function compilation, or an eager
-  // compilation of the whole script.
-  UnoptimizedCompileFlags flags =
-      scope_info->scope_type() == FUNCTION_SCOPE
-          ? UnoptimizedCompileFlags::ForFunctionCompile(isolate_, *shared_info)
-          : UnoptimizedCompileFlags::ForScriptCompile(isolate_, *script)
-                .set_is_eager(true);
-  flags.set_is_reparse(true);
-
-  MaybeDirectHandle<ScopeInfo> maybe_outer_scope;
-  if (flags.is_toplevel() && script->is_eval()) {
-    // Re-parsing a full eval script requires us to correctly set the outer
-    // language mode and potentially an outer scope info.
-    //
-    // We walk the runtime scope chain and look for an EVAL scope. If we don't
-    // find one, we assume sloppy mode and no outer scope info.
-
-    DCHECK(flags.is_eval());
-
-    DirectHandle<ScopeInfo> eval_scope;
-    if (FindEvalScope(isolate_, *scope_info).ToHandle(&eval_scope)) {
-      flags.set_outer_language_mode(eval_scope->language_mode());
-      if (eval_scope->HasOuterScopeInfo()) {
-        maybe_outer_scope =
-            direct_handle(eval_scope->OuterScopeInfo(), isolate_);
-      }
-    } else {
-      DCHECK_EQ(flags.outer_language_mode(), LanguageMode::kSloppy);
-      DCHECK(maybe_outer_scope.is_null());
-    }
-  } else if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
-    flags.set_is_eval(true);
-    if (!IsNativeContext(*context_)) {
-      maybe_outer_scope = direct_handle(context_->scope_info(), isolate_);
-    }
-    // Language mode may be inherited from the eval caller.
-    // Retrieve it from shared function info.
-    flags.set_outer_language_mode(shared_info->language_mode());
-  } else if (scope_info->scope_type() == MODULE_SCOPE) {
-    DCHECK(script->origin_options().IsModule());
-    DCHECK(flags.is_module());
-  } else {
-    DCHECK(scope_info->is_script_scope() ||
-           scope_info->scope_type() == FUNCTION_SCOPE);
-  }
-
-  UnoptimizedCompileState compile_state;
-
-  reusable_compile_state_ =
-      std::make_unique<ReusableUnoptimizedCompileState>(isolate_);
-  info_ = std::make_unique<ParseInfo>(isolate_, flags, &compile_state,
-                                      reusable_compile_state_.get());
-
-  const bool parse_result =
-      flags.is_toplevel()
-          ? parsing::ParseProgram(info_.get(), script, maybe_outer_scope,
-                                  isolate_,
-                                  parsing::ReportStatisticsMode{false})
-          : parsing::ParseFunction(info_.get(), shared_info, isolate_,
-                                   parsing::ReportStatisticsMode{false});
-
-  if (parse_result) {
-    DeclarationScope* literal_scope = info_->literal()->scope();
-
-    ScopeChainRetriever scope_chain_retriever(literal_scope, function_,
-                                              GetSourcePosition());
-    start_scope_ = scope_chain_retriever.StartScope();
-    current_scope_ = start_scope_;
-
-    // In case of a FUNCTION_SCOPE, the ScopeIterator expects
-    // {closure_scope_} to be set to the scope of the function.
-    closure_scope_ = scope_info->scope_type() == FUNCTION_SCOPE
-                         ? scope_chain_retriever.ClosureScope()
-                         : literal_scope;
-
-    debug_scope_info_ = EnsureDebugScriptScopeInfo(isolate_, script);
-    if (debug_scope_info_.is_null()) {
-      // Serializing the scope tree can fail, e.g. on stack overflow.
-      context_ = Handle<Context>();
-      return;
-    }
-
-    // For a FUNCTION_SCOPE we locate the paused function's scope in the
-    // serialized tree. For top-level scopes (EVAL_SCOPE, SCRIPT_SCOPE,
-    // MODULE_SCOPE) the closure scope is the root scope (index 0).
-    std::optional<DebugScriptScope> debug_closure_scope =
-        scope_info->scope_type() == FUNCTION_SCOPE
-            ? FindClosureScope(debug_scope_info_, shared_info->StartPosition(),
-                               shared_info->EndPosition(),
-                               scope_info->scope_type())
-            : DebugScriptScope::FromIndex(debug_scope_info_, 0);
-    DCHECK(debug_closure_scope.has_value());
-    if (!debug_closure_scope.has_value()) {
-      context_ = Handle<Context>();
-      return;
-    }
-    closure_scope_index_ = debug_closure_scope->scope_index();
-    start_scope_index_ =
-        FindInnermostScope(*debug_closure_scope, GetSourcePosition())
-            .scope_index();
-    current_scope_index_ = start_scope_index_;
-
-    if (ignore_nested_scopes) {
-      current_scope_ = closure_scope_;
-      start_scope_ = current_scope_;
-      current_scope_index_ = closure_scope_index_;
-      start_scope_index_ = current_scope_index_;
-      // ignore_nested_scopes is only used for the return-position breakpoint,
-      // so we can safely assume that the closure context for the current
-      // function exists if it needs one.
-      if (closure_scope().needs_context()) {
-        context_ = handle(context_->closure_context(), isolate_);
-      }
-    }
-
-    DCHECK_EQ(current_scope().start_position(),
-              current_scope_->start_position());
-    DCHECK_EQ(current_scope().end_position(), current_scope_->end_position());
-    DCHECK_EQ(current_scope().scope_type(), current_scope_->scope_type());
-
-    MaybeCollectAndStoreLocalBlocklists();
-    UnwrapEvaluationContext();
-  } else {
+  debug_scope_info_ = EnsureDebugScriptScopeInfo(isolate_, script);
+  if (debug_scope_info_.is_null()) {
     // A failed reparse indicates that the preparser has diverged from the
     // parser, that the preparse data given to the initial parse was faulty, or
     // a stack overflow.
-    // TODO(leszeks): This error is pretty unexpected, so we could report the
-    // error in debug mode. Better to not fail in release though, in case it's
-    // just a stack overflow.
-
     // Silently fail by presenting an empty context chain.
     context_ = Handle<Context>();
+    return;
   }
+
+  // For a FUNCTION_SCOPE we locate the paused function's scope in the
+  // serialized tree. For top-level scopes (EVAL_SCOPE, SCRIPT_SCOPE,
+  // MODULE_SCOPE) the closure scope is the root scope (index 0).
+  std::optional<DebugScriptScope> debug_closure_scope =
+      scope_info->scope_type() == FUNCTION_SCOPE
+          ? FindClosureScope(debug_scope_info_, shared_info->StartPosition(),
+                             shared_info->EndPosition(),
+                             scope_info->scope_type())
+          : DebugScriptScope::FromIndex(debug_scope_info_, 0);
+  if (!debug_closure_scope.has_value()) {
+    context_ = Handle<Context>();
+    return;
+  }
+  closure_scope_index_ = debug_closure_scope->scope_index();
+  start_scope_index_ =
+      FindInnermostScope(*debug_closure_scope, GetSourcePosition())
+          .scope_index();
+  current_scope_index_ = start_scope_index_;
+
+  if (ignore_nested_scopes) {
+    current_scope_index_ = closure_scope_index_;
+    start_scope_index_ = current_scope_index_;
+    // ignore_nested_scopes is only used for the return-position breakpoint,
+    // so we can safely assume that the closure context for the current
+    // function exists if it needs one.
+    if (closure_scope().needs_context()) {
+      context_ = handle(context_->closure_context(), isolate_);
+    }
+  }
+
+  MaybeCollectAndStoreLocalBlocklists();
+  UnwrapEvaluationContext();
 }
 
 void ScopeIterator::UnwrapEvaluationContext() {
@@ -518,15 +291,10 @@ bool ScopeIterator::NeedsContext() const {
 }
 
 bool ScopeIterator::AdvanceOneScope() {
-  if (!current_scope_ || !current_scope_->outer_scope()) return false;
-
-  current_scope_ = current_scope_->outer_scope();
+  if (current_scope_index_ == -1) return false;
   std::optional<DebugScriptScope> parent = current_scope().parent();
-  CHECK(parent.has_value());
+  if (!parent.has_value()) return false;
   current_scope_index_ = parent->scope_index();
-  DCHECK_EQ(current_scope().start_position(), current_scope_->start_position());
-  DCHECK_EQ(current_scope().end_position(), current_scope_->end_position());
-  DCHECK_EQ(current_scope().scope_type(), current_scope_->scope_type());
   return true;
 }
 
@@ -541,7 +309,7 @@ void ScopeIterator::AdvanceScope() {
 
   do {
     if (NeedsAndHasContext()) {
-      // current_scope_ needs a context so moving one scope up requires us to
+      // current_scope() needs a context so moving one scope up requires us to
       // also move up one context.
       AdvanceOneContext();
     }
@@ -575,13 +343,12 @@ void ScopeIterator::Next() {
       context_ = handle(context_->previous(), isolate_);
     }
     if (leaving_closure) {
-      current_scope_ = nullptr;
       current_scope_index_ = -1;
     }
   } else if (!InInnerScope()) {
     AdvanceContext();
   } else {
-    DCHECK_NOT_NULL(current_scope_);
+    DCHECK_NE(current_scope_index_, -1);
     if (leaving_closure) {
       // DebugScriptScope represents the entire script's scope tree, so calling
       // AdvanceScope() here would step into the enclosing outer scope. Outside
@@ -591,7 +358,6 @@ void ScopeIterator::Next() {
       if (NeedsAndHasContext()) {
         AdvanceOneContext();
       }
-      current_scope_ = nullptr;
       current_scope_index_ = -1;
     } else {
       AdvanceScope();

@@ -7,13 +7,11 @@
 
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scope-info.h"
-#include "src/parsing/parse-info.h"
 
 namespace v8 {
 namespace internal {
 
 class JavaScriptFrame;
-class ParseInfo;
 
 // Iterate over the actual scopes visible from a stack frame or from a closure.
 // The iteration proceeds from the innermost visible nested scope outwards.
@@ -108,7 +106,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   void DebugPrint();
 #endif
 
-  bool InInnerScope() const { return !function_.is_null(); }
+  bool InInnerScope() const {
+    return !function_.is_null() && current_scope_index_ != -1;
+  }
   bool HasContext() const;
   bool NeedsContext() const;
   bool NeedsAndHasContext() const { return NeedsContext() && HasContext(); }
@@ -119,8 +119,6 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
  private:
   Isolate* isolate_;
-  std::unique_ptr<ReusableUnoptimizedCompileState> reusable_compile_state_;
-  std::unique_ptr<ParseInfo> info_;
   FrameInspector* const frame_inspector_ = nullptr;
   Handle<JSGeneratorObject> generator_;
 
@@ -130,12 +128,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   Handle<Context> context_;
   Handle<Script> script_;
-  DeclarationScope* closure_scope_ = nullptr;
-  Scope* start_scope_ = nullptr;
-  Scope* current_scope_ = nullptr;
   // Serialized scope tree of the paused script and indices into it.
-  // `current_scope_index_` is set to -1 once iteration leaves `closure_scope_`
-  // (matching `function_` becoming null).
+  // `current_scope_index_` is set to -1 once iteration leaves
+  // `closure_scope_index_` (matching `function_` becoming null).
   Handle<DebugScriptScopeInfo> debug_scope_info_;
   int start_scope_index_ = -1;
   int closure_scope_index_ = -1;
@@ -163,8 +158,8 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   // them in the global "LocalsBlocklistCache".
   //
   // Is a no-op unless `calculate_blocklists_` is true and
-  // current_scope_ == closure_scope_. Otherwise `context_` does not match
-  // with current_scope_/closure_scope_.
+  // current_scope_index_ == closure_scope_index_. Otherwise `context_` does not
+  // match with the closure scope.
   void MaybeCollectAndStoreLocalBlocklists() const;
 
   int GetSourcePosition() const;
