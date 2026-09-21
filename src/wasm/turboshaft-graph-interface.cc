@@ -3912,7 +3912,7 @@ class TurboshaftGraphBuildingInterface
       BIND(if_catch, caught_exception);
       // The first unpacked value is the exception itself in the case of a JS
       // exception.
-      values[0].op = caught_exception;
+      values[0].op = __ AnnotateWasmType(caught_exception, values[0].type);
     } else {
       TSBlock* if_catch = __ NewBlock();
       __ Branch(ConditionWithHint(__ TaggedEqual(caught_tag, expected_tag)),
@@ -3984,7 +3984,8 @@ class TurboshaftGraphBuildingInterface
     if (catch_case.kind == kCatchAll || catch_case.kind == kCatchAllRef) {
       if (catch_case.kind == kCatchAllRef) {
         DCHECK_EQ(values.size(), 1);
-        values.last().op = block->exception;
+        values.last().op =
+            __ AnnotateWasmType(block->exception, values.last().type);
       }
       BrOrRet(decoder, catch_case.br_imm.depth);
       return;
@@ -4038,7 +4039,6 @@ class TurboshaftGraphBuildingInterface
           if (catch_case.kind == kCatchRef) {
             UnpackWasmException(decoder, block->exception,
                                 values.SubVector(0, values.size() - 1));
-            values.last().op = block->exception;
           } else {
             UnpackWasmException(decoder, block->exception, values);
           }
@@ -4053,7 +4053,11 @@ class TurboshaftGraphBuildingInterface
       BIND(if_catch, caught_exception);
       // The first unpacked value is the exception itself in the case of a JS
       // exception.
-      values[0].op = caught_exception;
+      values[0].op = __ AnnotateWasmType(caught_exception, values[0].type);
+      if (catch_case.kind == kCatchRef) {
+        values.last().op =
+            __ AnnotateWasmType(block->exception, values.last().type);
+      }
     } else {
       TSBlock* if_catch = __ NewBlock();
       __ Branch(ConditionWithHint(__ TaggedEqual(caught_tag, expected_tag)),
@@ -4062,7 +4066,8 @@ class TurboshaftGraphBuildingInterface
       if (catch_case.kind == kCatchRef) {
         UnpackWasmException(decoder, block->exception,
                             values.SubVector(0, values.size() - 1));
-        values.last().op = block->exception;
+        values.last().op =
+            __ AnnotateWasmType(block->exception, values.last().type);
       } else {
         UnpackWasmException(decoder, block->exception, values);
       }
@@ -4299,8 +4304,8 @@ class TurboshaftGraphBuildingInterface
     // Reuse the "CatchBlockBegin" pseudo op to mark the beginning of an effect
     // handler block. It works the same way but generates the continuation
     // object instead of the exception.
-    OpIndex cont = __ CatchBlockBegin();
-    OpIndex arg_buffer = __ WasmFXArgBuffer();
+    V<Object> cont = __ CatchBlockBegin();
+    V<WordPtr> arg_buffer = __ WasmFXArgBuffer();
 
     // Unpack tag params.
     const FunctionSig* sig = handler.tag.tag->sig;
@@ -4315,7 +4320,7 @@ class TurboshaftGraphBuildingInterface
     });
 
     instance_cache_.ReloadCachedMemory();
-    cont_val->op = cont;
+    cont_val->op = __ AnnotateWasmType(cont, cont_val->type);
     DCHECK_EQ(kOnSuspend, handler.kind);
     BrOrRet(decoder, handler.maybe_depth.br.depth);
   }
