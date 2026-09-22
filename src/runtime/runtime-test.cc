@@ -2150,8 +2150,8 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                              DirectHandle<SharedFunctionInfo> shared) final {}
     void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind,
                         Address pc, int fp_to_sp_delta) final {}
-    void CodeDependencyChangeEvent(Tagged<Code> code,
-                                   Tagged<SharedFunctionInfo> shared,
+    void CodeDependencyChangeEvent(DirectHandle<Code> code,
+                                   DirectHandle<SharedFunctionInfo> shared,
                                    const char* reason) final {}
     void WeakCodeClearEvent() final {}
 
