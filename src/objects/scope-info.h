@@ -292,7 +292,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   void SetIsDebugEvaluateScope();
 
   // Return the outer ScopeInfo if present.
-  Tagged<ScopeInfo> OuterScopeInfo() const;
+  V8_EXPORT_PRIVATE Tagged<ScopeInfo> OuterScopeInfo() const;
 
   bool is_script_scope() const;
 

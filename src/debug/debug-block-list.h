@@ -13,7 +13,19 @@ namespace internal {
 
 class DebugScriptScope;
 class Isolate;
+class SharedFunctionInfo;
 class StringSet;
+
+// Ensures that the locals block-lists for `shared_info` and all its enclosing
+// context-allocating scopes within the script are calculated and stored in
+// `Isolate::locals_block_list_cache()`.
+//
+// Each scope `S` with a `ScopeInfo` receives a block-list (`StringSet`)
+// containing the names of all stack-allocated variables declared in `[S, K)`
+// (from `S` inclusive up to the next enclosing context-allocating scope `K`
+// exclusive). Returns the block-list for `shared_info->scope_info()`.
+V8_EXPORT_PRIVATE Handle<StringSet> EnsureLocalsBlockList(
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info);
 
 // Calculates the block-list of stack-allocated variables declared in
 // `[scope, K)`, walking from `scope` (inclusive) up to the nearest enclosing
