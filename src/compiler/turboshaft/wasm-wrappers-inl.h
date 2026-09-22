@@ -506,9 +506,10 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
           call_descriptor, compiler::CanThrow{true},
           compiler::LazyDeoptOnThrow{false}, __ graph_zone());
 
+      V<Context> callee_context = LoadContextFromJSFunction(callable_node);
       // Determine receiver at runtime.
       args[0] =
-          BuildReceiverNode(callable_node, native_context, undefined_node);
+          BuildReceiverNode(callable_node, callee_context, undefined_node);
       DCHECK_EQ(pos, pushed_count + 1);
       args[pos++] = undefined_node;  // new target
       args[pos++] =
@@ -516,7 +517,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       args[pos++] = __ Word32Constant(kPlaceholderDispatchHandle.value());
 #endif
-      args[pos++] = LoadContextFromJSFunction(callable_node);
+      args[pos++] = callee_context;
       call = __ Call(callable_node, OpIndex::Invalid(), base::VectorOf(args),
                      ts_call_descriptor);
       break;

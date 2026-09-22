@@ -901,8 +901,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         compiler::AccessBuilder::ForJSFunctionSharedFunctionInfo());
   }
 
-  OpIndex BuildReceiverNode(OpIndex callable_node, OpIndex native_context,
-                            V<Undefined> undefined_node) {
+  V<Object> BuildReceiverNode(V<JSFunction> callable_node,
+                              V<Context> callee_context,
+                              V<Undefined> undefined_node) {
     // Check function strict bit.
     V<SharedFunctionInfo> shared_function_info =
         LoadSharedFunctionInfo(callable_node);
@@ -918,8 +919,14 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     IF (strict_check) {
       strict_d = undefined_node;
     } ELSE {
-      strict_d =
-          __ LoadFixedArrayElement(native_context, Context::GLOBAL_PROXY_INDEX);
+      V<Map> context_map = LoadMap(callee_context);
+      V<NativeContext> callee_native_context =
+          __ template LoadField<NativeContext>(
+              context_map, compiler::AccessBuilder::ForMapNativeContext());
+      strict_d = __ template LoadField<Object>(
+          callee_native_context,
+          compiler::AccessBuilder::ForContextSlotKnownPointer(
+              Context::GLOBAL_PROXY_INDEX));
     }
     return strict_d;
   }
