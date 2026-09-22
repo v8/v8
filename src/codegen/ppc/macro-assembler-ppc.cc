@@ -4788,7 +4788,8 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 void MacroAssembler::CallJSFunction(Register function_object,
                                     uint16_t argument_count) {
   Register code = kJavaScriptCallCodeStartRegister;
-  Register dispatch_handle = r0;
+  UseScratchRegisterScope temps(this);
+  Register dispatch_handle = temps.Acquire();
   LoadU32(
       dispatch_handle,
       FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
