@@ -913,7 +913,7 @@
   'wasm/memory-control': [SKIP],
   'regress/wasm/regress-493307331': [SKIP],
 
-  # --experimental-wasm-acquire-release
+  # --wasm-acquire-release
   'wasm/acq-rel-fence': [SKIP],
   'wasm/acq-rel-load-and-store': [SKIP],
   'wasm/acq-rel-rmw-operations': [SKIP],
@@ -1149,7 +1149,7 @@
   'regress/wasm/regress-simd-520944504': [SKIP],
   'wasm/wide-arithmetic': [SKIP],
 
-  # --experimental-wasm-imported-strings-utf8
+  # --wasm-imported-strings-utf8
   'regress/wasm/regress-525472599': [SKIP],
 
   # --wasm-deopt
