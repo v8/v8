@@ -3549,6 +3549,17 @@ class GraphBuildingNodeProcessor {
     }
     return MemoryRepresentation::AnyTagged();
   }
+  // Write barrier kind for tagged stores for which Maglev already established
+  // that no write barrier is needed. With write barrier verification enabled,
+  // such stores are marked as "skipped" rather than as "no barrier", which
+  // makes the backend emit a runtime check.
+  WriteBarrierKind ElidedWriteBarrierKind(MemoryRepresentation mem_repr) {
+    if (!v8_flags.verify_write_barriers ||
+        mem_repr == MemoryRepresentation::TaggedSigned()) {
+      return WriteBarrierKind::kNoWriteBarrier;
+    }
+    return WriteBarrierKind::kSkippedWriteBarrier;
+  }
   WriteBarrierKind WriteBarrierKindFor(MemoryRepresentation mem_repr) {
     if (mem_repr == MemoryRepresentation::TaggedSigned()) {
       return WriteBarrierKind::kNoWriteBarrier;
@@ -3561,11 +3572,11 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::StoreTaggedFieldNoWriteBarrier* node,
                                 const maglev::ProcessingState& state) {
+    MemoryRepresentation mem_repr = TaggedMemoryRepresentation(
+        node->ValueInput().node()->GetStaticType(broker_));
     __ Store(Map(node->ObjectInput()), Map(node->ValueInput()),
-             StoreOp::Kind::TaggedBase(),
-             TaggedMemoryRepresentation(
-                 node->ValueInput().node()->GetStaticType(broker_)),
-             WriteBarrierKind::kNoWriteBarrier, node->offset(),
+             StoreOp::Kind::TaggedBase(), mem_repr,
+             ElidedWriteBarrierKind(mem_repr), node->offset(),
              node->initializing_or_transitioning());
     return maglev::ProcessResult::kContinue;
   }
@@ -3610,7 +3621,8 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     __ Store(Map(node->CellInput()), Map(node->ValueInput()),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
-             WriteBarrierKind::kNoWriteBarrier, node->offset(), false);
+             ElidedWriteBarrierKind(MemoryRepresentation::AnyTagged()),
+             node->offset(), false);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreInt32ContextCell* node,
@@ -3640,10 +3652,11 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(
       maglev::StoreFixedArrayElementNoWriteBarrier* node,
       const maglev::ProcessingState& state) {
-    __ StoreFixedArrayElement(Map(node->ElementsInput()),
-                              __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
-                              Map(node->ValueInput()),
-                              WriteBarrierKind::kNoWriteBarrier);
+    __ StoreFixedArrayElement(
+        Map(node->ElementsInput()),
+        __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
+        Map(node->ValueInput()),
+        ElidedWriteBarrierKind(MemoryRepresentation::AnyTagged()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(

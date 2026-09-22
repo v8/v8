@@ -1483,11 +1483,8 @@ void VisitStoreCommon(InstructionSelector* selector,
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-#if DEBUG
-    MachineRepresentation mach_rep = store_rep.representation();
-    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(mach_rep) ||
-           CanBeTaggedSigned(mach_rep));
-#endif  // DEBUG
+    DCHECK(
+        CanBeTaggedOrCompressedOrIndirectPointer(store_rep.representation()));
     // Uncompressed stores should not happen if we need a write barrier.
     CHECK((store.ts_stored_rep() !=
            MemoryRepresentation::AnyUncompressedTagged()) &&
