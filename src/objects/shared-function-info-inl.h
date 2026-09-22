@@ -20,7 +20,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/abstract-code.h"
-#include "src/objects/contexts-inl.h"
+#include "src/objects/contexts.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/function-kind.h"

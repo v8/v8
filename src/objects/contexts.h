@@ -687,8 +687,9 @@ V8_OBJECT class Context : public HeapObject {
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name = nullptr);
 
-  static inline int FunctionMapIndex(LanguageMode language_mode,
-                                     FunctionKind kind, bool has_shared_name);
+  V8_EXPORT_PRIVATE static int FunctionMapIndex(LanguageMode language_mode,
+                                                FunctionKind kind,
+                                                bool has_shared_name);
 
   static int ArrayMapIndex(ElementsKind elements_kind) {
     DCHECK(IsFastElementsKind(elements_kind));

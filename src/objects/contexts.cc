@@ -105,6 +105,56 @@ Handle<ScriptContextTable> ScriptContextTable::Add(
   return result;
 }
 
+#define CHECK_FOLLOWS2(v1, v2) static_assert((v1 + 1) == (v2))
+
+int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
+                              bool has_shared_name) {
+  if (IsClassConstructor(kind)) {
+    // Like the strict function map, but with no 'name' accessor. 'name'
+    // needs to be the last property and it is added during instantiation,
+    // in case a static property with the same name exists"
+    return CLASS_FUNCTION_MAP_INDEX;
+  }
+
+  int base = 0;
+  if (IsGeneratorFunction(kind)) {
+    CHECK_FOLLOWS2(GENERATOR_FUNCTION_MAP_INDEX,
+                   GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX);
+    CHECK_FOLLOWS2(ASYNC_GENERATOR_FUNCTION_MAP_INDEX,
+                   ASYNC_GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX);
+
+    base = IsAsyncFunction(kind) ? ASYNC_GENERATOR_FUNCTION_MAP_INDEX
+                                 : GENERATOR_FUNCTION_MAP_INDEX;
+
+  } else if (IsAsyncFunction(kind) || IsModuleWithTopLevelAwait(kind)) {
+    CHECK_FOLLOWS2(ASYNC_FUNCTION_MAP_INDEX,
+                   ASYNC_FUNCTION_WITH_NAME_MAP_INDEX);
+
+    base = ASYNC_FUNCTION_MAP_INDEX;
+
+  } else if (IsStrictFunctionWithoutPrototype(kind)) {
+    CHECK_FOLLOWS2(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+                   METHOD_WITH_NAME_MAP_INDEX);
+
+    base = STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
+
+  } else {
+    CHECK_FOLLOWS2(SLOPPY_FUNCTION_MAP_INDEX,
+                   SLOPPY_FUNCTION_WITH_NAME_MAP_INDEX);
+    CHECK_FOLLOWS2(STRICT_FUNCTION_MAP_INDEX,
+                   STRICT_FUNCTION_WITH_NAME_MAP_INDEX);
+
+    base = is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
+                                    : SLOPPY_FUNCTION_MAP_INDEX;
+  }
+  int offset = static_cast<int>(!has_shared_name);
+  DCHECK_EQ(0, offset & ~1);
+
+  return base + offset;
+}
+
+#undef CHECK_FOLLOWS2
+
 void Context::Initialize(Isolate* isolate) {
   Tagged<ScopeInfo> scope_info = this->scope_info();
   int header = scope_info->ContextHeaderLength();
