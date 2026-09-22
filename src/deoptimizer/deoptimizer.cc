@@ -936,15 +936,9 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
            DeoptimizeReasonToString(reason));
   }
   if (!v8_flags.log_deopt) return;
-  no_gc.Release();
-  {
-    HandleScope handle_scope(isolate);
-    PROFILE(isolate,
-            CodeDependencyChangeEvent(
-                direct_handle(code, isolate),
-                direct_handle(deopt_data->GetSharedFunctionInfo(), isolate),
-                DeoptimizeReasonToString(reason)));
-  }
+  PROFILE(isolate,
+          CodeDependencyChangeEvent(code, deopt_data->GetSharedFunctionInfo(),
+                                    DeoptimizeReasonToString(reason)));
 }
 
 // static
