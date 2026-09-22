@@ -4613,8 +4613,13 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
       // match. This avoids sign-extending both operands first.
       if (r2.is_reg()) {
         Sub32(scratch0, r1, r2);
+      } else if (MustUseReg(r2.rmode())) {
+        // A relocatable immediate (e.g. a Handle<HeapObject>) is a handle
+        // location, not the value to compare against; materialize it first
+        // so the relocation is recorded and the real value is compared.
+        li(scratch0, r2);
+        Sub32(scratch0, r1, scratch0);
       } else {
-        DCHECK(!MustUseReg(r2.rmode()));
         Sub32(scratch0, r1, Operand(static_cast<int32_t>(r2.immediate())));
       }
       Branch(label, cond, scratch0, Operand(zero_reg));
