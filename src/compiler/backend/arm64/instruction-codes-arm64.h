@@ -96,7 +96,8 @@ namespace compiler {
   V(Arm64S128LowUnzipRight)             \
   V(Arm64Ssra)                          \
   V(Arm64Usra)                          \
-  V(Arm64S128Tbl1)                      \
+  V(Arm64S32x4Shuffle)                  \
+  V(Arm64I8x16Swizzle)                  \
   V(Arm64I8x16Shuffle)                  \
   V(Arm64S128Extract)                   \
   V(Arm64S128ExtractNarrow)             \
