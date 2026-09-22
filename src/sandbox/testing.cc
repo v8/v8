@@ -4,6 +4,7 @@
 
 #include "src/sandbox/testing.h"
 
+#include <atomic>
 #include <cstring>
 #include <vector>
 
@@ -1076,6 +1077,11 @@ void FilterCrash(const char* reason) {
 struct sigaction g_old_handlers[NSIG];
 constexpr int kSignalsToHandle[] = {SIGABRT, SIGTRAP, SIGBUS, SIGILL, SIGSEGV};
 
+std::atomic<bool> g_is_sandbox_violation{false};
+#ifdef V8_USE_ADDRESS_SANITIZER
+bool g_is_asan_fault_harmless = false;
+#endif
+
 void UninstallCrashFilter() {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
@@ -1306,6 +1312,8 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
   // If we get here, we've detected a sandbox violation.
   PrintToStderr("\n## V8 sandbox violation detected!\n\n");
 
+  g_is_sandbox_violation = true;
+
   if (access_type == MemoryAccessType::kRead) {
     PrintToStderr(
         "The sandbox violation was a *read* access which is technically not a "
@@ -1333,9 +1341,6 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
 
 #ifdef V8_USE_ADDRESS_SANITIZER
 namespace {
-
-enum class ASanFaultStatus { kNone, kHarmless, kViolation };
-ASanFaultStatus g_asan_fault_status = ASanFaultStatus::kNone;
 
 bool IsHarmlessMemcpyParamOverlap() {
   const void* src_addr = nullptr;
@@ -1405,12 +1410,13 @@ extern "C" V8_EXPORT_PRIVATE void __asan_on_error() {
   if (!__asan_report_present()) {
     // Should not occur normally, but falling back to treating this as an error
     // as defense-in-depth.
-    g_asan_fault_status = ASanFaultStatus::kViolation;
+    g_is_sandbox_violation = true;
     return;
   }
 
-  // Never downgrade sandbox violations.
-  if (g_asan_fault_status == ASanFaultStatus::kViolation) return;
+  // Prevent unnecessary/confusing reporting if we already know the crash
+  // classification.
+  if (g_is_sandbox_violation) return;
 
   const char* const description = __asan_get_report_description();
   const Address faultaddr =
@@ -1418,16 +1424,24 @@ extern "C" V8_EXPORT_PRIVATE void __asan_on_error() {
   const MemoryAccessType access_type = __asan_get_report_access_type() == 0
                                            ? MemoryAccessType::kRead
                                            : MemoryAccessType::kWrite;
-  g_asan_fault_status = IsHarmlessASanFault(description, faultaddr, access_type)
-                            ? ASanFaultStatus::kHarmless
-                            : ASanFaultStatus::kViolation;
+  if (IsHarmlessASanFault(description, faultaddr, access_type)) {
+    g_is_asan_fault_harmless = true;
+  } else {
+    g_is_sandbox_violation = true;
+  }
 }
 #endif  // V8_USE_ADDRESS_SANITIZER
 
 #ifdef V8_USE_ANY_SANITIZER
 void SanitizerFaultHandler() {
 #ifdef V8_USE_ADDRESS_SANITIZER
-  if (g_asan_fault_status == ASanFaultStatus::kHarmless) {
+  if (!g_is_sandbox_violation && !g_is_asan_fault_harmless) {
+    PrintToStderr(
+        "Warning: ASan death callback triggered before the fault could be "
+        "classified. Falling back to treating it as a sandbox violation.\n");
+  }
+
+  if (g_is_asan_fault_harmless && !g_is_sandbox_violation) {
     PrintToStderr("Exiting process after harmless fault...\n");
     int status =
         SandboxTesting::mode() == SandboxTesting::Mode::kForFuzzing ? -1 : 0;

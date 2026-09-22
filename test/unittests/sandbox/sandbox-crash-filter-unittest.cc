@@ -8,14 +8,20 @@
 #include <cstring>
 #include <memory>
 
-#if defined(V8_USE_ADDRESS_SANITIZER)
-#include <sanitizer/asan_interface.h>
-#endif
-
 #include "include/v8-platform.h"
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/testing.h"
 #include "test/unittests/test-utils.h"
+
+#if defined(V8_USE_ADDRESS_SANITIZER)
+#include <sanitizer/asan_interface.h>
+#endif
+
+#ifdef V8_OS_LINUX
+#include <sys/mman.h>
+#include <unistd.h>
+#undef MAP_TYPE
+#endif
 
 #ifdef V8_ENABLE_SANDBOX
 
@@ -41,6 +47,30 @@ TEST_F(SandboxCrashFilterTest, SandboxCrashFilterUnaddressableAccess) {
 }
 
 #ifdef V8_USE_ADDRESS_SANITIZER
+
+// Verifies that a crash on an unknown address is treated as a sandbox
+// violation, and that the ASan crash filter does not contradict this
+// classification (by e.g. ignoring it as a null address).
+TEST_F(SandboxCrashFilterTest, UnmappedMemoryViolation) {
+  EXPECT_EXIT(
+      {
+        SandboxTesting::Enable(SandboxTesting::Mode::kForTesting);
+        // Allocate a page and immediately free it to guarantee an unmapped
+        // address without relying on hardcoded constants.
+        size_t page_size = sysconf(_SC_PAGESIZE);
+        void* dest = mmap(nullptr, page_size, PROT_READ | PROT_WRITE,
+                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        CHECK(dest != MAP_FAILED);
+        munmap(dest, page_size);
+
+        volatile char* p = reinterpret_cast<volatile char*>(dest);
+        *p = 42;
+      },
+      testing::ExitedWithCode(1),
+      testing::AllOf(testing::HasSubstr("V8 sandbox violation detected!"),
+                     testing::Not(testing::HasSubstr(
+                         "Caught ASan fault without a fault address"))));
+}
 
 // Verifies that a memcpy strictly contained within the sandbox is safely
 // ignored.
