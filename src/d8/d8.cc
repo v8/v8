@@ -7561,21 +7561,28 @@ namespace {
 
 // Concurrent compilation doesn't post a task when a job finishes; instead it
 // requests an interrupt which finalizes the job the next time JavaScript runs.
-// Since we might not run any JavaScript any more, wait for the jobs and handle
-// the interrupts explicitly. Returns true if any job was finalized.
+// Since we might not run any JavaScript any more, wait for the jobs and install
+// their code explicitly. Returns true if any job was finalized.
 bool FinalizeBackgroundCompilationJobs(i::Isolate* i_isolate) {
   i_isolate->WaitForConcurrentOptimizationJobs();
+  // Note that we must not handle the interrupts instead: we're not running
+  // JavaScript and there's no current context, which the handlers of the other
+  // interrupts (e.g. the API interrupt the inspector uses for pausing) rely on.
   i::StackGuard* stack_guard = i_isolate->stack_guard();
-  bool has_finished_jobs = stack_guard->CheckInstallCode();
+  bool has_finished_jobs = false;
+  if (stack_guard->CheckInstallCode()) {
+    stack_guard->ClearInstallCode();
+    i_isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+    has_finished_jobs = true;
+  }
 #ifdef V8_ENABLE_MAGLEV
-  has_finished_jobs |= stack_guard->CheckInstallMaglevCode();
+  if (stack_guard->CheckInstallMaglevCode()) {
+    stack_guard->ClearInstallMaglevCode();
+    i_isolate->maglev_concurrent_dispatcher()->FinalizeFinishedJobs();
+    has_finished_jobs = true;
+  }
 #endif  // V8_ENABLE_MAGLEV
-  if (!has_finished_jobs) return false;
-
-  // If there's a pending termination exception, this will handle it instead of
-  // installing code. This is intentional as it emulates how V8 normally works.
-  stack_guard->HandleInterrupts();
-  return true;
+  return has_finished_jobs;
 }
 
 bool ProcessMessages(
