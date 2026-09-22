@@ -4,6 +4,7 @@
 
 #include "src/sandbox/sandbox.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "include/v8-internal.h"
@@ -115,33 +116,6 @@ void DefaultInSandboxAllocator::LazyInitialize() {
   region_alloc_ = std::make_unique<base::RegionAllocator>(
       backing_memory_base, backing_memory_size, kAllocationGranularity);
   end_of_accessible_region_ = region_alloc_->begin();
-
-  // Install an on-merge callback to discard or decommit unused pages.
-  region_alloc_->set_on_merge_callback([this](Address start, size_t size) {
-    mutex_.AssertHeld();
-    Address end = start + size;
-    if (end == region_alloc_->end() &&
-        start <= end_of_accessible_region_ - kChunkSize) {
-      // Can shrink the accessible region.
-      Address new_end_of_accessible_region = RoundUp(start, kChunkSize);
-      size_t size_to_decommit =
-          end_of_accessible_region_ - new_end_of_accessible_region;
-      if (!sandbox_->address_space()->DecommitPages(
-              new_end_of_accessible_region, size_to_decommit)) {
-        V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
-      }
-      end_of_accessible_region_ = new_end_of_accessible_region;
-    } else if (size >= 2 * kChunkSize) {
-      // Can discard pages. The pages stay accessible, so the size of the
-      // accessible region doesn't change.
-      Address chunk_start = RoundUp(start, kChunkSize);
-      Address chunk_end = RoundDown(start + size, kChunkSize);
-      if (!sandbox_->address_space()->DiscardSystemPages(
-              chunk_start, chunk_end - chunk_start)) {
-        V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
-      }
-    }
-  });
 }
 
 DefaultInSandboxAllocator::~DefaultInSandboxAllocator() {
@@ -233,7 +207,39 @@ void DefaultInSandboxAllocator::Free(void* data) {
 
   base::MutexGuard guard(&mutex_);
   CHECK(is_initialized());
-  region_alloc_->FreeRegion(reinterpret_cast<Address>(data));
+  Address address = reinterpret_cast<Address>(data);
+  base::AddressRegion free_region;
+  size_t size = region_alloc_->FreeRegion(address, &free_region);
+  if (size == 0) return;
+
+  // Return the memory of chunks that are now entirely free to the OS.
+  if (free_region.end() == region_alloc_->end() &&
+      free_region.begin() <= end_of_accessible_region_ - kChunkSize) {
+    // The free region reaches the end of the backing memory: shrink the
+    // accessible region.
+    Address new_end_of_accessible_region =
+        RoundUp(free_region.begin(), kChunkSize);
+    size_t size_to_decommit =
+        end_of_accessible_region_ - new_end_of_accessible_region;
+    if (!sandbox_->address_space()->DecommitPages(new_end_of_accessible_region,
+                                                  size_to_decommit)) {
+      V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
+    }
+    end_of_accessible_region_ = new_end_of_accessible_region;
+  } else {
+    // Discard the pages; they stay accessible. Only chunks overlapping the
+    // freed region can have become entirely free: the rest of |free_region|
+    // was free before and was discarded when it became free.
+    Address chunk_start = std::max(RoundUp(free_region.begin(), kChunkSize),
+                                   RoundDown(address, kChunkSize));
+    Address chunk_end = std::min(RoundDown(free_region.end(), kChunkSize),
+                                 RoundUp(address + size, kChunkSize));
+    if (chunk_start < chunk_end &&
+        !sandbox_->address_space()->DiscardSystemPages(
+            chunk_start, chunk_end - chunk_start)) {
+      V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
+    }
+  }
 }
 
 }  // namespace
