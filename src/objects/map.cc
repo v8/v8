@@ -1853,6 +1853,9 @@ DirectHandle<Map> Map::AsLanguageMode(
     Isolate* isolate, DirectHandle<Map> initial_map,
     DirectHandle<SharedFunctionInfo> shared_info) {
   DCHECK(InstanceTypeChecker::IsJSFunction(initial_map->instance_type()));
+#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
+  return initial_map;
+#else
   // Initial map for sloppy mode function is stored in the function
   // constructor. Initial maps for strict mode are cached as special transitions
   // using |strict_function_transition_symbol| as a key.
@@ -1888,6 +1891,7 @@ DirectHandle<Map> Map::AsLanguageMode(
                            SPECIAL_TRANSITION);
   }
   return map;
+#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 }
 
 Handle<Map> Map::CopyForElementsTransition(Isolate* isolate,
