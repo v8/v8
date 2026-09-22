@@ -116,6 +116,10 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     DCHECK(HasContext());
     return context_;
   }
+  std::optional<DebugScriptScope> CurrentDebugScope() const {
+    if (current_scope_index_ == -1) return std::nullopt;
+    return current_scope();
+  }
 
  private:
   Isolate* isolate_;

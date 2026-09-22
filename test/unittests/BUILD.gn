@@ -349,6 +349,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "d8/memory-access-information-unittest.cc",
     "date/date-cache-unittest.cc",
     "date/date-unittest.cc",
+    "debug/debug-block-list-unittest.cc",
     "debug/debug-property-iterator-unittest.cc",
     "debug/debug-scope-info-unittest.cc",
     "deoptimizer/deoptimization-unittest.cc",

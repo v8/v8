@@ -1652,6 +1652,8 @@ filegroup(
         "src/date/dateparser-inl.h",
         "src/debug/debug.cc",
         "src/debug/debug.h",
+        "src/debug/debug-block-list.cc",
+        "src/debug/debug-block-list.h",
         "src/debug/debug-coverage.cc",
         "src/debug/debug-coverage.h",
         "src/debug/debug-evaluate.cc",
