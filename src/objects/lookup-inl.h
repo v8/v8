@@ -305,9 +305,13 @@ bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
   // but we're disallowing it soon.
   DCHECK(!receiver_map->is_extensible());
   DCHECK(name_->IsAnyPrivate());
-  if (name_->IsAnyPrivateName()) {
-    isolate()->CountUsage(v8::Isolate::kExtendingNonExtensibleWithPrivate);
+  // Internal private symbols are engine implementation details and can always
+  // be added to non-extensible objects.
+  if (name_->IsPrivateInternal()) {
+    return false;
   }
+  DCHECK(name_->IsAnyPrivateName());
+  isolate()->CountUsage(v8::Isolate::kExtendingNonExtensibleWithPrivate);
   return v8_flags.js_nonextensible_applies_to_private;
 }
 
