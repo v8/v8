@@ -876,10 +876,7 @@ bool ScopeInfo::IsSloppyNormalJSFunction() const {
 }
 
 bool ScopeInfo::CanOnlyAccessFixedFormalParameters() const {
-  // Empty ScopeInfo (e.g. for builtins) has Flags() == 0, which is filtered out
-  // by both !IsSloppyNormalJSFunction() and HasSimpleParameters().
-  DCHECK_IMPLIES(IsEmpty(), IsSloppyNormalJSFunction());
-  DCHECK_IMPLIES(IsEmpty(), !HasSimpleParameters());
+  DCHECK(!IsEmpty());
   FunctionKind function_kind = this->function_kind();
   return
       // Can't be a SloppyNormalJSFunction.
@@ -908,8 +905,6 @@ bool ScopeInfo::HasContextAllocatedFunctionName() const {
 bool ScopeInfo::HasInferredFunctionName() const {
   return HasInferredFunctionNameBit::decode(Flags());
 }
-
-bool ScopeInfo::HasPositionInfo() const { return !this->IsEmpty(); }
 
 bool ScopeInfo::HasSharedFunctionName() const {
   return FunctionName() != SharedFunctionInfo::kNoSharedNameSentinel;
@@ -981,17 +976,17 @@ Tagged<String> ScopeInfo::FunctionDebugName() const {
 }
 
 int ScopeInfo::StartPosition() const {
-  DCHECK(HasPositionInfo());
+  DCHECK(!this->IsEmpty());
   return position_info_start();
 }
 
 int ScopeInfo::EndPosition() const {
-  DCHECK(HasPositionInfo());
+  DCHECK(!this->IsEmpty());
   return position_info_end();
 }
 
 void ScopeInfo::SetPositionInfo(int start, int end) {
-  DCHECK(HasPositionInfo());
+  DCHECK(!this->IsEmpty());
   DCHECK_LE(start, end);
   set_position_info_start(start);
   set_position_info_end(end);
@@ -1296,13 +1291,9 @@ uint32_t ScopeInfo::Hash() {
   // Hash ScopeInfo based on its start and end position.
   // Note: Ideally we'd also have the script ID. But since we only use the
   // hash in a debug-evaluate cache, we don't worry too much about collisions.
-  if (HasPositionInfo()) {
-    return static_cast<uint32_t>(base::hash_combine(
-        flags(kRelaxedLoad), StartPosition(), EndPosition()));
-  }
-
+  DCHECK(!this->IsEmpty());
   return static_cast<uint32_t>(
-      base::hash_combine(flags(kRelaxedLoad), context_local_count()));
+      base::hash_combine(flags(kRelaxedLoad), StartPosition(), EndPosition()));
 }
 
 std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {

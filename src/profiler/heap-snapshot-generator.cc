@@ -2599,12 +2599,10 @@ void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
     SetInternalReference(entry, "outer_scope_info", info->OuterScopeInfo(),
                          info->OuterScopeInfoOffset());
   }
-  if (info->HasPositionInfo()) {
-    AddIntEdge(entry, HeapGraphEdge::kInternal, "start_position",
-               info->StartPosition());
-    AddIntEdge(entry, HeapGraphEdge::kInternal, "end_position",
-               info->EndPosition());
-  }
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "start_position",
+             info->StartPosition());
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "end_position",
+             info->EndPosition());
   if (!info->HasInlinedLocalNames()) {
     TagObject(info->context_local_names_hashtable(), "(context local names)",
               HeapEntry::kCode);

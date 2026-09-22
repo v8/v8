@@ -4202,10 +4202,8 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
     os << "\n - has context extension slot";
   }
 
-  if (HasPositionInfo()) {
-    os << "\n - start position: " << StartPosition();
-    os << "\n - end position: " << EndPosition();
-  }
+  os << "\n - start position: " << StartPosition();
+  os << "\n - end position: " << EndPosition();
   os << "\n - length: " << length();
   if (length() > 0) {
     PrintScopeInfoList(this, os, "context slots", ContextLocalCount());

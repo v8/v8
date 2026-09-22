@@ -379,6 +379,8 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   static constexpr int kAgeSize = sizeof(uint16_t);
   static constexpr uint16_t kMaxAge = UINT16_MAX;
 
+  inline bool HasScopeInfo() const;
+  inline bool HasScopeInfo(AcquireLoadTag tag) const;
   DECL_ACQUIRE_GETTER(scope_info, Tagged<ScopeInfo>)
   // Deprecated, use the ACQUIRE version instead.
   DECL_GETTER(scope_info, Tagged<ScopeInfo>)

@@ -303,7 +303,11 @@ uint32_t SharedFunctionInfo::unused_parameter_bits() const {
 }
 
 bool SharedFunctionInfo::CanOnlyAccessFixedFormalParameters() const {
-  return scope_info(kAcquireLoad)->CanOnlyAccessFixedFormalParameters();
+  if (Tagged<ScopeInfo> info;
+      TryCast(name_or_scope_info(kAcquireLoad), &info)) {
+    return info->CanOnlyAccessFixedFormalParameters();
+  }
+  return false;
 }
 
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_without_receiver()
@@ -389,7 +393,9 @@ bool SharedFunctionInfo::is_script() const {
 }
 
 bool SharedFunctionInfo::needs_script_context() const {
-  return is_script() && scope_info(kAcquireLoad)->ContextLocalCount() > 0;
+  if (!is_toplevel()) return false;
+  Tagged<ScopeInfo> info = scope_info(kAcquireLoad);
+  return info->is_script_scope() && info->ContextLocalCount() > 0;
 }
 
 Tagged<AbstractCode> SharedFunctionInfo::abstract_code(Isolate* isolate) {
@@ -645,6 +651,14 @@ void SharedFunctionInfo::DontAdaptArguments() {
   set_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
+bool SharedFunctionInfo::HasScopeInfo() const {
+  return HasScopeInfo(kAcquireLoad);
+}
+
+bool SharedFunctionInfo::HasScopeInfo(AcquireLoadTag tag) const {
+  return IsScopeInfo(name_or_scope_info(tag));
+}
+
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, Tagged<ScopeInfo>) {
   Tagged<Object> maybe_scope_info = name_or_scope_info(tag);
   if (IsScopeInfo(maybe_scope_info)) {
@@ -707,23 +721,26 @@ DEF_GETTER(SharedFunctionInfo, outer_scope_info,
 }
 
 bool SharedFunctionInfo::HasOuterScopeInfo() const {
-  Tagged<ScopeInfo> info = scope_info(kAcquireLoad);
-  if (info->IsEmpty()) {
-    if (is_compiled()) return false;
-    Tagged<UnionOf<ScopeInfo, TheHole>> maybe_outer_info = outer_scope_info();
-    if (IsTheHole(maybe_outer_info)) return false;
-    DCHECK(!Cast<ScopeInfo>(maybe_outer_info)->IsEmpty());
-    return true;
+  if (Tagged<ScopeInfo> info;
+      TryCast(name_or_scope_info(kAcquireLoad), &info)) {
+    DCHECK_IMPLIES(info->HasOuterScopeInfo(),
+                   !info->OuterScopeInfo()->IsEmpty());
+    return info->HasOuterScopeInfo();
   }
-  DCHECK_IMPLIES(info->HasOuterScopeInfo(), !info->OuterScopeInfo()->IsEmpty());
-  return info->HasOuterScopeInfo();
+  if (is_compiled()) return false;
+  Tagged<UnionOf<ScopeInfo, TheHole>> maybe_outer_info = outer_scope_info();
+  if (IsTheHole(maybe_outer_info)) return false;
+  DCHECK(!Cast<ScopeInfo>(maybe_outer_info)->IsEmpty());
+  return true;
 }
 
 Tagged<ScopeInfo> SharedFunctionInfo::GetOuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
-  Tagged<ScopeInfo> info = scope_info(kAcquireLoad);
-  if (info->IsEmpty()) return Cast<ScopeInfo>(outer_scope_info());
-  return info->OuterScopeInfo();
+  if (Tagged<ScopeInfo> info;
+      TryCast(name_or_scope_info(kAcquireLoad), &info)) {
+    return info->OuterScopeInfo();
+  }
+  return Cast<ScopeInfo>(outer_scope_info());
 }
 
 Tagged<ScopeInfo> SharedFunctionInfo::TryGetScopeInfoForMerge() const {
@@ -761,7 +778,7 @@ void SharedFunctionInfo::set_outer_scope_info(
   DCHECK(!is_compiled());
   DCHECK(IsTheHole(raw_outer_scope_info_or_feedback_metadata()));
   DCHECK(IsTheHole(value) || IsScopeInfo(value));
-  DCHECK(scope_info()->IsEmpty());
+  DCHECK(!HasScopeInfo());
   set_raw_outer_scope_info_or_feedback_metadata(value, mode);
 }
 

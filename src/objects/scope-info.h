@@ -169,9 +169,6 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   V8_EXPORT_PRIVATE void SetFunctionName(Tagged<UnionOf<Smi, String>> name);
   V8_EXPORT_PRIVATE void SetInferredFunctionName(Tagged<String> name);
 
-  // Does this scope belong to a function?
-  bool HasPositionInfo() const;
-
   bool IsWrappedFunctionScope() const;
 
   // Return if contexts are allocated for this scope.

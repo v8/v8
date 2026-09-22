@@ -242,7 +242,7 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
                     Context::MIN_CONTEXT_SLOTS + index);
   }
 
-  DCHECK(scope_info->HasPositionInfo());
+  DCHECK(!scope_info->IsEmpty());
   set_start_position(scope_info->StartPosition());
   set_end_position(scope_info->EndPosition());
 }
@@ -2952,7 +2952,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
         Tagged<ScopeInfo> scope_info;
         if (Is<SharedFunctionInfo>(info)) {
           Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(info);
-          if (!sfi->scope_info()->IsEmpty()) {
+          if (sfi->HasScopeInfo()) {
             scope_info = sfi->scope_info();
           } else if (sfi->HasOuterScopeInfo()) {
             scope_info = sfi->GetOuterScopeInfo();
@@ -2961,7 +2961,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
           }
         } else {
           scope_info = Cast<ScopeInfo>(info);
-          if (scope_info->IsEmpty()) continue;
+          DCHECK(!scope_info->IsEmpty());
         }
         while (true) {
           if (scope_info == outer) break;
