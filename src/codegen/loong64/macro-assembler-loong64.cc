@@ -1424,8 +1424,10 @@ void MacroAssembler::Rotr_d(Register rd, Register rj, const Operand& rk) {
 }
 
 void MacroAssembler::Alsl_w(Register rd, Register rj, Register rk, uint8_t sa) {
-  DCHECK(sa >= 1 && sa <= 31);
-  if (sa <= 4) {
+  DCHECK(sa >= 0 && sa <= 31);
+  if (sa == 0) {
+    add_w(rd, rj, rk);
+  } else if (sa <= 4) {
     alsl_w(rd, rj, rk, sa);
   } else {
     UseScratchRegisterScope temps(this);
@@ -1437,8 +1439,10 @@ void MacroAssembler::Alsl_w(Register rd, Register rj, Register rk, uint8_t sa) {
 }
 
 void MacroAssembler::Alsl_d(Register rd, Register rj, Register rk, uint8_t sa) {
-  DCHECK(sa >= 1 && sa <= 63);
-  if (sa <= 4) {
+  DCHECK(sa >= 0 && sa <= 63);
+  if (sa == 0) {
+    add_d(rd, rj, rk);
+  } else if (sa <= 4) {
     alsl_d(rd, rj, rk, sa);
   } else {
     UseScratchRegisterScope temps(this);
@@ -3687,12 +3691,36 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rj,
 void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
                                             Register r1, const Operand& r2,
                                             bool need_link) {
-  DCHECK(cond == eq || cond == ne);
   if (COMPRESS_POINTERS_BOOL) {
     UseScratchRegisterScope temps(this);
     Register scratch0 = temps.Acquire();
-    Sub_w(scratch0, r1, r2);
-    Branch(label, cond, scratch0, Operand(zero_reg), need_link);
+    if (cond == eq || cond == ne) {
+      Sub_w(scratch0, r1, r2);
+      Branch(label, cond, scratch0, Operand(zero_reg), need_link);
+    } else {
+      slli_w(scratch0, r1, 0);
+      if (IsZero(r2)) {
+        Branch(label, cond, scratch0, Operand(zero_reg), need_link);
+      } else {
+        Register scratch1 = temps.Acquire();
+        if (r2.is_reg()) {
+          slli_w(scratch1, r2.rm(), 0);
+        } else {
+          if (RelocInfo::IsFullEmbeddedObject(r2.rmode())) {
+            li(scratch1,
+               Operand(r2.immediate(), RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
+          } else if (RelocInfo::IsCompressedEmbeddedObject(r2.rmode())) {
+            li(scratch1, r2);
+          } else if (RelocInfo::IsNoInfo(r2.rmode())) {
+            LiLower32BitHelper(scratch1, r2);
+          } else {
+            li(scratch1, r2);
+            slli_w(scratch1, scratch1, 0);
+          }
+        }
+        Branch(label, cond, scratch0, Operand(scratch1), need_link);
+      }
+    }
   } else {
     Branch(label, cond, r1, r2, need_link);
   }

@@ -1650,12 +1650,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Cmp64:
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
-    case kLoong64CheckWord32ComparisonInputs: {
+    case kLoong64CheckWord32SignExtend: {
       Register scratch = i.OutputRegister();
       __ slli_w(scratch, i.InputRegister(0), 0);
       __ Check(eq, AbortReason::kUnexpectedValue, scratch, i.InputRegister(0));
-      __ slli_w(scratch, i.InputRegister(1), 0);
-      __ Check(eq, AbortReason::kUnexpectedValue, scratch, i.InputRegister(1));
+      if (instr->InputCount() > 1) {
+        __ slli_w(scratch, i.InputRegister(1), 0);
+        __ Check(eq, AbortReason::kUnexpectedValue, scratch,
+                 i.InputRegister(1));
+      }
       break;
     }
     case kLoong64Mov:

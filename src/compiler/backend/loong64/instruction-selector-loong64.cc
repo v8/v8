@@ -524,13 +524,16 @@ void EmitLoad(InstructionSelector* selector, turboshaft::OpIndex node,
       const ShiftOp& shift = lhs.Cast<ShiftOp>();
       if (int64_t shift_imm;
           selector->MatchIntegralWord64Constant(shift.right(), &shift_imm)) {
-        auto temp = g.TempRegister();
-        selector->Emit(kLoong64Alsl_d, temp, g.UseRegister(shift.left()),
-                       g.UseRegister(base), g.UseImmediate(shift_imm));
-        selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
-                       g.DefineAsRegister(output.valid() ? output : node), temp,
-                       g.UseImmediate(add.right()));
-        return;
+        int32_t shift_value = static_cast<int32_t>(shift_imm);
+        if (shift_value >= 0 && shift_value <= 4) {
+          auto temp = g.TempRegister();
+          selector->Emit(kLoong64Alsl_d, temp, g.UseRegister(shift.left()),
+                         g.UseRegister(base), g.UseImmediate(shift_value));
+          selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                         g.DefineAsRegister(output.valid() ? output : node),
+                         temp, g.UseImmediate(add.right()));
+          return;
+        }
       }
     }
   }
@@ -1400,7 +1403,7 @@ void InstructionSelector::VisitInt32Add(OpIndex node) {
     if (int32_t shift_value, constant_left;
         MatchIntegralWord32Constant(shift.right(), &shift_value) &&
         !MatchIntegralWord32Constant(add.left(), &constant_left)) {
-      if (shift_value >= 1 && shift_value <= 4) {
+      if (shift_value >= 0 && shift_value <= 4) {
         Emit(kLoong64Alsl_w, g.DefineAsRegister(node),
              g.UseRegister(shift.left()), g.UseRegister(add.left()),
              g.TempImmediate(shift_value));
@@ -1415,7 +1418,7 @@ void InstructionSelector::VisitInt32Add(OpIndex node) {
     if (int32_t shift_value, constant_right;
         MatchIntegralWord32Constant(shift.right(), &shift_value) &&
         !MatchIntegralWord32Constant(add.right(), &constant_right)) {
-      if (shift_value >= 1 && shift_value <= 4) {
+      if (shift_value >= 0 && shift_value <= 4) {
         Emit(kLoong64Alsl_w, g.DefineAsRegister(node),
              g.UseRegister(shift.left()), g.UseRegister(add.right()),
              g.TempImmediate(shift_value));
@@ -1449,7 +1452,7 @@ void InstructionSelector::VisitInt64Add(OpIndex node) {
         !MatchIntegralWord64Constant(add.left(), &constant_left)) {
       int32_t shift_value = static_cast<int32_t>(shift_imm);
 
-      if (shift_value >= 1 && shift_value <= 4) {
+      if (shift_value >= 0 && shift_value <= 4) {
         Emit(kLoong64Alsl_d, g.DefineAsRegister(node),
              g.UseRegister(shift.left()), g.UseRegister(add.left()),
              g.TempImmediate(shift_value));
@@ -1465,7 +1468,7 @@ void InstructionSelector::VisitInt64Add(OpIndex node) {
         MatchIntegralWord64Constant(shift.right(), &shift_imm) &&
         !MatchIntegralWord64Constant(add.right(), &constant_right)) {
       int32_t shift_value = static_cast<int32_t>(shift_imm);
-      if (shift_value >= 1 && shift_value <= 4) {
+      if (shift_value >= 0 && shift_value <= 4) {
         Emit(kLoong64Alsl_d, g.DefineAsRegister(node),
              g.UseRegister(shift.left()), g.UseRegister(add.right()),
              g.TempImmediate(shift_value));
@@ -1953,6 +1956,12 @@ void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
     EmitLoad(this, change_op.input(), opcode, node);
     return;
   }
+  if (v8_flags.debug_code) {
+    if (!USE_SIMULATOR_BOOL || !input_op.Is<DidntThrowOp>()) {
+      Emit(kLoong64CheckWord32SignExtend, g.TempRegister(),
+           g.UseRegister(change_op.input()));
+    }
+  }
   EmitIdentity(node);
 }
 
@@ -2326,12 +2335,6 @@ static Instruction* VisitCompare(InstructionSelector* selector,
     inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
     inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
   }
-#ifdef V8_COMPRESS_POINTERS
-  if (opcode == kLoong64Cmp32) {
-    return selector->EmitWithContinuation(opcode, 0, nullptr, input_count,
-                                          inputs, cont);
-  }
-#endif
   return selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs,
                                         cont);
 }
@@ -2452,8 +2455,10 @@ void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
         RootsTable::IsReadOnly(root_index)) {
       Tagged_t ptr =
           MacroAssemblerBase::ReadOnlyRootPtr(root_index, selector->isolate());
-      imm = ptr;
-      has_imm = true;
+      if (g.CanBeImmediate(ptr, kLoong64Cmp32Eq)) {
+        imm = ptr;
+        has_imm = true;
+      }
     }
   }
 
@@ -2508,7 +2513,7 @@ void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
   }
 
   if (v8_flags.debug_code) {
-    selector->Emit(kLoong64CheckWord32ComparisonInputs, g.TempRegister(),
+    selector->Emit(kLoong64CheckWord32SignExtend, g.TempRegister(),
                    g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
   }
   Instruction* instr =
@@ -3025,7 +3030,7 @@ void InstructionSelector::VisitWord32Equal(OpIndex node) {
             MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
         if (g.CanBeImmediate(ptr, kLoong64Cmp32Eq)) {
           VisitCompare(this, kLoong64Cmp32Eq, g.UseRegister(left),
-                       g.TempImmediate(int32_t(ptr)), &cont);
+                       g.TempImmediate(static_cast<int32_t>(ptr)), &cont);
           return;
         }
       }
