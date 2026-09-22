@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -473,7 +474,7 @@ std::string ToTitleCaseTimezoneLocation(const std::string& input) {
       // Special case Au/Es/Of to be lower case.
       if (word_length == 2) {
         size_t pos = title_cased.length() - 2;
-        std::string substr = title_cased.substr(pos, 2);
+        std::string_view substr = std::string_view(title_cased).substr(pos, 2);
         if (substr == "Of" || substr == "Es" || substr == "Au") {
           title_cased[pos] = LocaleIndependentAsciiToLower(title_cased[pos]);
         }
