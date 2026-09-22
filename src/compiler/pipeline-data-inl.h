@@ -45,16 +45,15 @@
 namespace v8::internal::compiler {
 
 inline Maybe<OuterContext> GetModuleOrScriptContext(
-    OptimizedCompilationInfo* info) {
+    OptimizedCompilationInfo* info, Isolate* isolate) {
+  DCHECK(v8_flags.always_specialize_for_script_context);
   if (info->closure().is_null()) return Nothing<OuterContext>();
   Tagged<Context> current = info->closure()->context();
   size_t distance = 0;
   while (!IsNativeContext(current)) {
-    if (current->IsModuleContext() ||
-        (v8_flags.always_specialize_for_script_context &&
-         current->IsScriptContext())) {
-      return Just(OuterContext(
-          info->CanonicalHandle(current, Isolate::Current()), distance));
+    if (current->IsModuleContext() || current->IsScriptContext()) {
+      return Just(
+          OuterContext(info->CanonicalHandle(current, isolate), distance));
     }
     current = current->previous();
     distance++;
@@ -356,8 +355,8 @@ class TFPipelineData {
       DCHECK(info()->has_context());
       specialization_context_ = Just(OuterContext(
           info()->CanonicalHandle(info()->context(), isolate()), 0));
-    } else {
-      specialization_context_ = GetModuleOrScriptContext(info());
+    } else if (v8_flags.always_specialize_for_script_context) {
+      specialization_context_ = GetModuleOrScriptContext(info(), isolate());
     }
   }
 

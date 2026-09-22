@@ -112,14 +112,16 @@ class FunctionContextSpecialization final : public AllStatic {
     if (HeapConstant* n = context->TryCast<HeapConstant>()) {
       return n->ref().AsContext().previous(unit->broker(), depth);
     }
-    if (InitialValue* n = context->TryCast<InitialValue>()) {
-      if (!unit->info()->toplevel_is_osr() &&
-          n->source() == interpreter::Register::current_context()) {
-        if (compiler::OptionalContextRef outer =
-                unit->info()->specialization_context()) {
-          if (*depth >= unit->info()->specialization_context_distance()) {
-            *depth -= unit->info()->specialization_context_distance();
-            return outer->previous(unit->broker(), depth);
+    if (v8_flags.always_specialize_for_script_context) {
+      if (InitialValue* n = context->TryCast<InitialValue>()) {
+        if (!unit->info()->toplevel_is_osr() &&
+            n->source() == interpreter::Register::current_context()) {
+          if (compiler::OptionalContextRef outer =
+                  unit->info()->specialization_context()) {
+            if (*depth >= unit->info()->specialization_context_distance()) {
+              *depth -= unit->info()->specialization_context_distance();
+              return outer->previous(unit->broker(), depth);
+            }
           }
         }
       }
@@ -784,7 +786,8 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization(
                         compilation_unit_->info()->toplevel_function()));
       closure = GetConstant(function);
       context = GetConstant(function.context(broker()));
-    } else if (!compilation_unit_->info()->toplevel_is_osr() &&
+    } else if (v8_flags.always_specialize_for_script_context &&
+               !compilation_unit_->info()->toplevel_is_osr() &&
                compilation_unit_->info()->specialization_context_distance() ==
                    0) {
       if (compiler::OptionalContextRef outer =

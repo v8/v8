@@ -729,8 +729,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
           ReadOnlyRoots(isolate).one_closure_cell_map() &&
       !compilation_info()->is_osr()) {
     compilation_info()->set_function_context_specializing();
+    data_.ChooseSpecializationContext();
+  } else if (v8_flags.always_specialize_for_script_context &&
+             !compilation_info()->is_osr()) {
+    data_.ChooseSpecializationContext();
   }
-  data_.ChooseSpecializationContext();
 
   if (compilation_info()->source_positions()) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(

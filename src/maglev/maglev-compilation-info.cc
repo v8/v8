@@ -68,7 +68,10 @@ FindSpecializationContext(DirectHandle<JSFunction> function,
                           BytecodeOffset osr_offset,
                           compiler::JSHeapBroker* broker,
                           bool specialize_to_function_context) {
-  if (osr_offset != BytecodeOffset::None()) return {{}, 0};
+  if (!v8_flags.always_specialize_for_script_context ||
+      osr_offset != BytecodeOffset::None()) {
+    return {{}, 0};
+  }
   compiler::JSFunctionRef func_ref = compiler::MakeRefAssumeMemoryFence(
       broker, broker->CanonicalPersistentHandle(*function));
   compiler::ContextRef current = func_ref.context(broker);
@@ -82,8 +85,7 @@ FindSpecializationContext(DirectHandle<JSFunction> function,
       break;
     }
     if (instance_type == MODULE_CONTEXT_TYPE ||
-        (v8_flags.always_specialize_for_script_context &&
-         instance_type == SCRIPT_CONTEXT_TYPE)) {
+        instance_type == SCRIPT_CONTEXT_TYPE) {
       return {current, distance};
     }
     size_t step = 1;
