@@ -883,6 +883,11 @@ Response V8RuntimeAgentImpl::getHeapUsage(double* out_usedSize,
 
 void V8RuntimeAgentImpl::terminateExecution(
     std::unique_ptr<TerminateExecutionCallback> callback) {
+  if (m_session->clientTrustLevel() != V8Inspector::kFullyTrusted) {
+    callback->sendFailure(Response::ServerError(
+        "Runtime.terminateExecution is not allowed for untrusted clients"));
+    return;
+  }
   v8::HandleScope handles(m_inspector->isolate());
   v8::Local<v8::Context> defaultContext =
       m_inspector->client()->ensureDefaultContextInGroup(
