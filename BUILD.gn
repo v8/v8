@@ -885,6 +885,10 @@ assert(
     !v8_enable_memory_corruption_api || !is_lsan,
     "The Memory Corruption API cannot be enabled together with LSan as both attach to the d8 process via ptrace")
 
+# ASan sandbox crash filters aren't wired up properly in component builds.
+assert(!v8_enable_memory_corruption_api || !is_component_build,
+       "The Memory Corruption API cannot be enabled in a component build")
+
 assert(!v8_enable_sandbox_hardware_support || v8_enable_sandbox,
        "The sandbox must be enabled to enable sandbox hardware support")
 
