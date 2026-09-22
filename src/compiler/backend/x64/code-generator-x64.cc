@@ -8362,10 +8362,20 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   if (!saves.is_empty()) {  // Save callee-saved registers.
     frame->AllocateSavedCalleeRegisterSlots(saves.Count());
   }
+  if (v8_flags.enforce_x64_16byte_alignment) {
+    frame->AlignFrame(2 * kSystemPointerSize);
+  }
 }
 
 void CodeGenerator::AssembleConstructFrame() {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
+
+  if (v8_flags.enforce_x64_16byte_alignment) {
+    // The frame has been previously padded in CodeGenerator::FinishFrame().
+    DCHECK_EQ(frame()->GetTotalFrameSlotCount() % 2, 0);
+    DCHECK_EQ(frame()->GetReturnSlotCount() % 2, 0);
+  }
+
   if (frame_access_state()->has_frame()) {
     int pc_base = __ pc_offset();
 
