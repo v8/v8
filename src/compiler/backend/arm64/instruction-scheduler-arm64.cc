@@ -137,8 +137,7 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kArm64S128LowUnzipRight:
     case kArm64Ssra:
     case kArm64Usra:
-    case kArm64S32x4Shuffle:
-    case kArm64I8x16Swizzle:
+    case kArm64S128Tbl1:
     case kArm64I8x16Shuffle:
     case kArm64S128Extract:
     case kArm64S128MoveLane:
@@ -710,8 +709,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Usra:
     case kArm64S128MoveLane:
     case kArm64S128MoveReg:
-    case kArm64S32x4Shuffle:
-    case kArm64I8x16Swizzle:
+    case kArm64S128Tbl1:
     case kArm64I8x16Shuffle:
     case kArm64S128Extract:
     case kArm64S128ExtractNarrow:
@@ -1070,6 +1068,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArm64Bcax:
     case kArm64Eor3:
     case kArm64Xar:
+    case kArm64S128Tbl1:
       return kDefaultSimdLatency;
 
     // pmin/pmax lower to compare plus bitselect.
@@ -1146,8 +1145,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArm64F16x8DemoteF64x2Zero:
     case kArm64I32x4BitMask:
     case kArm64I64x2BitMask:
-    case kArm64I8x16Swizzle:
-    case kArm64S32x4Shuffle:
     case kArm64I8x16Shuffle:
       return kLongSimdLatency;
 
