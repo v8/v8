@@ -832,8 +832,16 @@ template <typename Char>
 const Char* String::GetDirectStringChars(
     const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
     const SharedStringAccessGuardIfNeeded& access_guard) const {
-  DCHECK(StringShape(this).IsDirect());
-  return StringShape(this).IsExternal()
+  return GetDirectStringChars<Char>(StringShape(this), no_gc, access_guard);
+}
+
+template <typename Char>
+const Char* String::GetDirectStringChars(
+    StringShape shape, const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
+  DCHECK(shape.IsValidFor(this));
+  DCHECK(shape.IsDirect());
+  return shape.IsExternal()
              ? Cast<typename CharTraits<Char>::ExternalString>(this)->GetChars()
              : Cast<typename CharTraits<Char>::String>(this)->GetChars(
                    no_gc, access_guard);

@@ -627,6 +627,57 @@ class CharBuffer {
   Char inlined_[kInlinedBufferSize];
   std::unique_ptr<Char[]> outofline_;
 };
+
+// Copies the `length` characters of the direct string `str`, whose shape is
+// `shape`, into `sink`, zero-extending them if `sink` is two-byte and `str` is
+// one-byte.
+template <typename Char>
+V8_INLINE void CopyDirectStringChars(
+    Char* sink, Tagged<String> str, StringShape shape, uint32_t length,
+    const DisallowGarbageCollection& no_gc,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
+  if constexpr (sizeof(Char) == 1) {
+    // A cons string is one-byte only if both of its halves are, so a one-byte
+    // sink never needs a narrowing conversion here.
+    DCHECK(shape.IsOneByte());
+    CopyChars(sink,
+              str->GetDirectStringChars<uint8_t>(shape, no_gc, access_guard),
+              length);
+  } else if (shape.IsOneByte()) {
+    // A one-byte half of a two-byte cons string, which is the most common
+    // reason for a two-byte cons string to exist in the first place. CopyChars
+    // widens it into the two-byte sink.
+    CopyChars(sink,
+              str->GetDirectStringChars<uint8_t>(shape, no_gc, access_guard),
+              length);
+  } else {
+    CopyChars(sink,
+              str->GetDirectStringChars<uint16_t>(shape, no_gc, access_guard),
+              length);
+  }
+}
+
+template <typename Char>
+V8_INLINE bool TryCopyConsStringDirect(
+    Tagged<ConsString> cons, Char* sink, uint32_t length,
+    const DisallowGarbageCollection& no_gc,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
+  Tagged<String> first = cons->first();
+  Tagged<String> second = cons->second();
+  const StringShape first_shape(first);
+  const StringShape second_shape(second);
+  if (!first_shape.IsDirect() || !second_shape.IsDirect()) {
+    return false;
+  }
+  const uint32_t first_length = first->length();
+  DCHECK_EQ(length, first_length + second->length());
+  CopyDirectStringChars(sink, first, first_shape, first_length, no_gc,
+                        access_guard);
+  CopyDirectStringChars(sink + first_length, second, second_shape,
+                        length - first_length, no_gc, access_guard);
+  return true;
+}
+
 }  // namespace
 
 // static
@@ -664,8 +715,13 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
   SharedStringAccessGuardIfNeeded access_guard(isolate);
   if (IsConsString(source)) {
     DCHECK(!source->IsFlat());
+    DCHECK_EQ(start, 0u);
+    DCHECK_EQ(length, source->length());
     buffer.Reset(length);
-    String::WriteToFlat(source, buffer.Data(), 0, length, access_guard);
+    if (!TryCopyConsStringDirect<Char>(Cast<ConsString>(source), buffer.Data(),
+                                       length, no_gc, access_guard)) {
+      String::WriteToFlat(source, buffer.Data(), 0, length, access_guard);
+    }
     chars = buffer.Data();
   } else {
     chars = source->GetDirectStringChars<Char>(no_gc, access_guard) + start;

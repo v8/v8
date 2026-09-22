@@ -237,6 +237,14 @@ V8_OBJECT class String : public Name {
       const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
+  // Get chars from sequential or external strings. For callers that already
+  // have this string's shape at hand, avoiding a redundant map load.
+  template <typename Char>
+  inline const Char* GetDirectStringChars(
+      StringShape shape,
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
+      const SharedStringAccessGuardIfNeeded& access_guard) const;
+
   // Returns the address of the character at an offset into this string.
   // Requires: this->IsFlat()
   const uint8_t* AddressOfCharacterAt(uint32_t start_index,
