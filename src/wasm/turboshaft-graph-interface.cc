@@ -9127,7 +9127,8 @@ class TurboshaftGraphBuildingInterface
           BuiltinCallDescriptor::WasmAllocateDescriptorStruct>(
           decoder, {rtt, __ Word32Constant(imm.index.index), first_field});
       struct_value = __ AnnotateWasmType(
-          struct_value, ValueType::Ref(decoder->module_->heap_type(imm.index)));
+          struct_value,
+          ValueType::Ref(decoder->module_->heap_type(imm.index)).AsExact());
     } else {
       struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, imm.index);
     }
