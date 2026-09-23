@@ -886,15 +886,16 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name,
   if (cache == nullptr) {
     DCHECK_NULL(function_);
     cache = this;
-  } else if (function_ != nullptr) {
-    return function_;
   }
   DCHECK(this->IsOuterScopeOf(cache));
   DCHECK_NULL(cache->variables_.Lookup(name));
-  VariableKind kind = is_sloppy(language_mode()) ? SLOPPY_FUNCTION_NAME_VARIABLE
-                                                 : NORMAL_VARIABLE;
-  function_ = zone()->New<Variable>(this, name, VariableMode::kConst, kind,
-                                    kCreatedInitialized);
+  if (function_ == nullptr) {
+    VariableKind kind = is_sloppy(language_mode())
+                            ? SLOPPY_FUNCTION_NAME_VARIABLE
+                            : NORMAL_VARIABLE;
+    function_ = zone()->New<Variable>(this, name, VariableMode::kConst, kind,
+                                      kCreatedInitialized);
+  }
   if (sloppy_eval_can_extend_vars()) {
     cache->NonLocal(name, VariableMode::kDynamic);
   } else {
@@ -1398,16 +1399,7 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
         // anything, so we can't conflict with anything either. The one
         // exception is the binding variable in catch scopes, which is handled
         // by the if above.
-        if (!IsLexicalVariableMode(other_var->mode())) {
-          if (current->sloppy_eval_can_extend_vars()) {
-            // See the comment for RemoveDynamic. In addition to removing
-            // dynamic variables we also need to remove function_ since
-            // otherwise we won't recreate a masking dynamic variable during
-            // scope resolution, causing divergent compilation.
-            current->AsDeclarationScope()->function_ = nullptr;
-          }
-          break;
-        }
+        if (!IsLexicalVariableMode(other_var->mode())) break;
         return decl;
       }
       current = current->outer_scope();
