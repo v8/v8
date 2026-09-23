@@ -618,54 +618,44 @@ uint32_t Serializer::ObjectSerializer::SerializeBackingStore(
 }
 
 void Serializer::ObjectSerializer::SerializeJSTypedArray() {
+  uint32_t ref = kEmptyBackingStoreRefSentinel;
   {
     DisallowGarbageCollection no_gc;
     Tagged<JSTypedArray> typed_array = Cast<JSTypedArray>(*object_);
-    if (typed_array->is_on_heap()) {
-      typed_array->RemoveExternalPointerCompensationForSerialization(isolate());
-    } else {
-      if (!typed_array->IsDetachedOrOutOfBounds()) {
-        // Explicitly serialize the backing store now.
-        Tagged<JSArrayBuffer> buffer =
-            Cast<JSArrayBuffer>(typed_array->buffer());
-        // We cannot store byte_length or max_byte_length larger than uint32
-        // range in the snapshot.
-        size_t byte_length_size = buffer->GetByteLength();
-        CHECK_LE(byte_length_size,
-                 size_t{std::numeric_limits<uint32_t>::max()});
-        uint32_t byte_length = static_cast<uint32_t>(byte_length_size);
-        Maybe<uint32_t> max_byte_length = Nothing<uint32_t>();
-        if (buffer->is_resizable_by_js()) {
-          CHECK_LE(buffer->max_byte_length(),
-                   std::numeric_limits<uint32_t>::max());
-          max_byte_length =
-              Just(static_cast<uint32_t>(buffer->max_byte_length()));
-        }
-        size_t byte_offset = typed_array->byte_offset();
-
-        // We need to calculate the backing store from the data pointer
-        // because the ArrayBuffer may already have been serialized.
-        void* backing_store = reinterpret_cast<void*>(
-            reinterpret_cast<Address>(typed_array->DataPtr()) - byte_offset);
-
-        uint32_t ref =
-            SerializeBackingStore(backing_store, byte_length, max_byte_length);
-        typed_array->SetExternalBackingStoreRefForSerialization(ref);
-      } else {
-        typed_array->SetExternalBackingStoreRefForSerialization(0);
+    if (!typed_array->is_on_heap() && !typed_array->IsDetachedOrOutOfBounds()) {
+      // Explicitly serialize the backing store now.
+      Tagged<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(typed_array->buffer());
+      // We cannot store byte_length or max_byte_length larger than uint32
+      // range in the snapshot.
+      size_t byte_length_size = buffer->GetByteLength();
+      CHECK_LE(byte_length_size, size_t{std::numeric_limits<uint32_t>::max()});
+      uint32_t byte_length = static_cast<uint32_t>(byte_length_size);
+      Maybe<uint32_t> max_byte_length = Nothing<uint32_t>();
+      if (buffer->is_resizable_by_js()) {
+        CHECK_LE(buffer->max_byte_length(),
+                 std::numeric_limits<uint32_t>::max());
+        max_byte_length =
+            Just(static_cast<uint32_t>(buffer->max_byte_length()));
       }
+      size_t byte_offset = typed_array->byte_offset();
+
+      // We need to calculate the backing store from the data pointer
+      // because the ArrayBuffer may already have been serialized.
+      void* backing_store = reinterpret_cast<void*>(
+          reinterpret_cast<Address>(typed_array->DataPtr()) - byte_offset);
+
+      ref = SerializeBackingStore(backing_store, byte_length, max_byte_length);
     }
   }
   SerializeObject();
+  sink_->PutUint30(ref, "BackingStoreRef");
 }
 
 void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
-  ArrayBufferExtension* extension;
-  void* backing_store;
+  uint32_t ref = kEmptyBackingStoreRefSentinel;
   {
     DisallowGarbageCollection no_gc;
     Tagged<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(*object_);
-    backing_store = buffer->backing_store();
     // We cannot store byte_length or max_byte_length larger than uint32 range
     // in the snapshot.
     size_t byte_length_size = buffer->GetByteLength();
@@ -676,27 +666,15 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
       CHECK_LE(buffer->max_byte_length(), std::numeric_limits<uint32_t>::max());
       max_byte_length = Just(static_cast<uint32_t>(buffer->max_byte_length()));
     }
-    extension = buffer->extension();
 
     // Only serialize non-empty backing stores.
-    if (buffer->IsEmpty()) {
-      buffer->SetBackingStoreRefForSerialization(kEmptyBackingStoreRefSentinel);
-    } else {
-      uint32_t ref =
-          SerializeBackingStore(backing_store, byte_length, max_byte_length);
-      buffer->SetBackingStoreRefForSerialization(ref);
+    if (!buffer->IsEmpty()) {
+      ref = SerializeBackingStore(buffer->backing_store(), byte_length,
+                                  max_byte_length);
     }
-
-    // Ensure deterministic output by setting extension to null during
-    // serialization.
-    buffer->set_extension(nullptr);
   }
   SerializeObject();
-  {
-    Tagged<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(*object_);
-    buffer->set_backing_store(isolate(), backing_store);
-    buffer->set_extension(extension);
-  }
+  sink_->PutUint30(ref, "BackingStoreRef");
 }
 
 void Serializer::ObjectSerializer::SerializeNativeContext() {
@@ -1162,6 +1140,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
       InstanceTypeChecker::IsAccessorInfo(instance_type) ||
       InstanceTypeChecker::IsInterceptorInfo(instance_type) ||
       InstanceTypeChecker::IsFunctionTemplateInfo(instance_type) ||
+      InstanceTypeChecker::IsJSArrayBuffer(instance_type) ||
       InstanceTypeChecker::IsExternalString(instance_type)) {
     // If necessary, output any raw data preceding this slot.
     OutputRawData(slot.address());
@@ -1179,8 +1158,12 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
     Address value = slot.load(isolate());
     ExternalPointerTag tag = kExternalPointerNullTag;
 #endif  // V8_ENABLE_SANDBOX
-    if (slot.tag_range() == kExternalStringResourceDataTag) {
-      // resource_data_ is initialized in PostProcessExternalString.
+    if (slot.tag_range() == kExternalStringResourceDataTag ||
+        slot.tag_range() == kArrayBufferExtensionTag) {
+      // resource_data_ is initialized in PostProcessExternalString, and
+      // extension_ in PostProcessNewJSReceiver. Serializing them as null also
+      // keeps the snapshot deterministic, as both hold values that are only
+      // meaningful within the serializing isolate.
       value = kNullAddress;
       tag = kExternalPointerNullTag;
     }
@@ -1191,10 +1174,6 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
     // Serialization of external references in other objects is handled
     // elsewhere or not supported.
     DCHECK(
-        // See ObjectSerializer::SerializeJSTypedArray().
-        InstanceTypeChecker::IsJSTypedArray(instance_type) ||
-        // See ObjectSerializer::SerializeJSArrayBuffer().
-        InstanceTypeChecker::IsJSArrayBuffer(instance_type) ||
         // Serialization of external pointers stored in
         // JSSynchronizationPrimitive is not supported.
         // TODO(v8:12547): JSSynchronizationPrimitives should also be sanitized
@@ -1402,6 +1381,22 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       static uint8_t field_value[kSystemPointerSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,
+                               sizeof(field_value), field_value);
+    } else if (IsJSTypedArray(*object_)) {
+      // The external_pointer field contains a raw value that will be
+      // recomputed after deserialization, so write zeros to keep the snapshot
+      // deterministic.
+      static uint8_t field_value[kSystemPointerSize] = {0};
+      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
+                               offsetof(JSTypedArray, external_pointer_),
+                               sizeof(field_value), field_value);
+    } else if (IsJSArrayBuffer(*object_)) {
+      // The backing_store field contains a raw value that will be
+      // recomputed after deserialization, so write zeros to keep the snapshot
+      // deterministic.
+      static uint8_t field_value[kSystemPointerSize] = {0};
+      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
+                               offsetof(JSArrayBuffer, backing_store_),
                                sizeof(field_value), field_value);
     } else if (IsSeqString(*object_)) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to

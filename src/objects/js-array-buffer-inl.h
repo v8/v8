@@ -112,16 +112,6 @@ size_t JSArrayBuffer::GetByteLength() const {
   return byte_length();
 }
 
-uint32_t JSArrayBuffer::GetBackingStoreRefForDeserialization() const {
-  return static_cast<uint32_t>(
-      ReadField<Address>(offsetof(JSArrayBuffer, backing_store_)));
-}
-
-void JSArrayBuffer::SetBackingStoreRefForSerialization(uint32_t ref) {
-  WriteField<Address>(offsetof(JSArrayBuffer, backing_store_),
-                      static_cast<Address>(ref));
-}
-
 void JSArrayBuffer::init_extension() {
 #if V8_COMPRESS_POINTERS
   // The extension field is lazily-initialized, so set it to null initially.
@@ -495,33 +485,13 @@ Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
 #endif
 }
 
-uint32_t JSTypedArray::GetExternalBackingStoreRefForDeserialization() const {
-  DCHECK(!is_on_heap());
-  return static_cast<uint32_t>(
-      ReadField<Address>(offsetof(JSTypedArray, external_pointer_)));
-}
-
-void JSTypedArray::SetExternalBackingStoreRefForSerialization(uint32_t ref) {
-  DCHECK(!is_on_heap());
-  WriteField<Address>(offsetof(JSTypedArray, external_pointer_),
-                      static_cast<Address>(ref));
-}
-
-void JSTypedArray::RemoveExternalPointerCompensationForSerialization(
-    Isolate* isolate) {
+void JSTypedArray::InitOnHeapDataPtrAfterDeserialization(Isolate* isolate) {
   DCHECK(is_on_heap());
+  DCHECK_EQ(external_pointer_.value(), kNullAddress);
   Address offset =
-      external_pointer() - ExternalPointerCompensationForOnHeapArray(isolate);
-  WriteField<Address>(offsetof(JSTypedArray, external_pointer_), offset);
-}
-
-void JSTypedArray::AddExternalPointerCompensationForDeserialization(
-    Isolate* isolate) {
-  DCHECK(is_on_heap());
-  Address pointer =
-      ReadField<Address>(offsetof(JSTypedArray, external_pointer_)) +
-      ExternalPointerCompensationForOnHeapArray(isolate);
-  set_external_pointer(isolate, pointer);
+      OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag + byte_offset();
+  set_external_pointer(
+      isolate, offset + ExternalPointerCompensationForOnHeapArray(isolate));
 }
 
 void* JSTypedArray::DataPtr() {

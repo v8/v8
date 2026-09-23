@@ -545,20 +545,17 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
     }
   } else if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
     auto typed_array = Cast<JSTypedArray>(*obj);
+    uint32_t store_index = source_.GetUint30();
     // Note: ByteArray objects must not be deferred s.t. they are
     // available here for is_on_heap(). See also: CanBeDeferred.
     // Fixup typed array pointers.
     if (typed_array->is_on_heap()) {
-      typed_array->AddExternalPointerCompensationForDeserialization(
-          main_thread_isolate());
+      typed_array->InitOnHeapDataPtrAfterDeserialization(main_thread_isolate());
     } else {
-      // Serializer writes backing store ref as a DataPtr() value.
-      uint32_t store_index =
-          typed_array->GetExternalBackingStoreRefForDeserialization();
-      auto backing_store = backing_stores_[store_index];
-      if (backing_store && backing_store->buffer_start()) {
+      auto bs = backing_store(store_index);
+      if (bs && bs->buffer_start()) {
         typed_array->SetOffHeapDataPtr(main_thread_isolate(),
-                                       backing_store->buffer_start(),
+                                       bs->buffer_start(),
                                        typed_array->byte_offset());
       } else {
         // Directly set the data pointer to point to the
@@ -571,7 +568,7 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
     }
   } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     auto buffer = Cast<JSArrayBuffer>(*obj);
-    uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
+    uint32_t store_index = source_.GetUint30();
     buffer->init_extension();
     if (store_index == kEmptyBackingStoreRefSentinel) {
       buffer->set_backing_store(main_thread_isolate(),
