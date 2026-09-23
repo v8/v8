@@ -11706,6 +11706,11 @@ EmbedderStateTag CpuProfile::GetSampleEmbedderState(int index) const {
   return profile->sample(index).embedder_state_tag;
 }
 
+void* CpuProfile::GetSampleContext(int index) const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return profile->sample(index).sample_context;
+}
+
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return profile->start_time().since_origin().InMicroseconds();
@@ -11742,15 +11747,15 @@ CpuProfiler* CpuProfiler::New(Isolate* v8_isolate,
       reinterpret_cast<i::Isolate*>(v8_isolate), naming_mode, logging_mode));
 }
 
-CpuProfilingOptions::CpuProfilingOptions(CpuProfilingMode mode,
-                                         unsigned max_samples,
-                                         int sampling_interval_us,
-                                         MaybeLocal<Context> filter_context,
-                                         CpuProfileSource profile_source)
+CpuProfilingOptions::CpuProfilingOptions(
+    CpuProfilingMode mode, unsigned max_samples, int sampling_interval_us,
+    MaybeLocal<Context> filter_context, CpuProfileSource profile_source,
+    SampleContextExtractor sample_context_extractor)
     : mode_(mode),
       max_samples_(max_samples),
       sampling_interval_us_(sampling_interval_us),
-      profile_source_(profile_source) {
+      profile_source_(profile_source),
+      sample_context_extractor_(sample_context_extractor) {
   if (!filter_context.IsEmpty()) {
     Local<Context> local_filter_context = filter_context.ToLocalChecked();
     filter_context_.Reset(v8::Isolate::GetCurrent(), local_filter_context);
