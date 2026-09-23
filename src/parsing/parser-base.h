@@ -5346,6 +5346,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     if (should_save_class_variable) {
       class_scope->class_variable()->set_is_used();
       class_scope->class_variable()->ForceContextAllocation();
+      // Static brand checks elide the hole check and can observe `the_hole`
+      // before the class is initialized. Mark as assigned so `the_hole` is not
+      // propagated across initialization.
+      class_scope->class_variable()->set_maybe_assigned();
     }
   }
 

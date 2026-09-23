@@ -232,12 +232,13 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
     DCHECK_EQ(scope_info->ContextLocalInitFlag(index),
               InitializationFlag::kNeedsInitialization);
     DCHECK_EQ(scope_info->ContextLocalMaybeAssignedFlag(index),
-              MaybeAssignedFlag::kNotAssigned);
+              MaybeAssignedFlag::kMaybeAssigned);
     Variable* var = DeclareClassVariable(
         ast_value_factory,
         ast_value_factory->GetString(name,
                                      SharedStringAccessGuardIfNeeded(isolate)),
         scope_info->EndPosition());
+    var->set_maybe_assigned();
     var->AllocateTo(VariableLocation::CONTEXT,
                     Context::MIN_CONTEXT_SLOTS + index);
   }

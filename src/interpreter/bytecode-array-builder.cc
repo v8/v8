@@ -829,14 +829,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
       OutputLdaImmutableContextSlot(context, slot_index, depth);
     }
   } else {
-    DCHECK_NE(VariableMode::kConst, variable->mode());
     if (variable->scope()->has_context_cells()) {
+      DCHECK_NE(VariableMode::kConst, variable->mode());
       if (context.is_current_context() && depth == 0) {
         OutputLdaCurrentContextSlot(slot_index);
       } else {
         OutputLdaContextSlot(context, slot_index, depth);
       }
     } else {
+      DCHECK(variable->mode() != VariableMode::kConst ||
+             (variable->scope()->is_class_scope() &&
+              variable->scope()->AsClassScope()->class_variable() == variable));
       if (context.is_current_context() && depth == 0) {
         OutputLdaCurrentContextSlotNoCell(slot_index);
       } else {
