@@ -173,20 +173,23 @@ Isolate::CreateParams GetDefaultIsolateCreateParams() {
   return create_params;
 }
 
-// Base class for shell ArrayBuffer allocators. It forwards all operations to
-// the default v8 allocator.
-class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
+// ArrayBuffer allocator that never allocates over 10MB.
+class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
+  explicit MockArrayBufferAllocator(v8::ArrayBuffer::Allocator* allocator)
+      : allocator_(allocator) {}
+
+ protected:
   void* Allocate(size_t length) override {
-    return allocator_->Allocate(length);
+    return allocator_->Allocate(Adjust(length));
   }
 
   void* AllocateUninitialized(size_t length) override {
-    return allocator_->AllocateUninitialized(length);
+    return allocator_->AllocateUninitialized(Adjust(length));
   }
 
   void Free(void* data, size_t length) override {
-    allocator_->Free(data, length);
+    allocator_->Free(data, Adjust(length));
   }
 
   PageAllocator* GetPageAllocator() override {
@@ -194,79 +197,23 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
   }
 
  private:
-  std::unique_ptr<Allocator> allocator_ =
-      std::unique_ptr<Allocator>(NewDefaultAllocator());
-};
-
-// ArrayBuffer allocator that can use virtual memory to improve performance.
-class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
- public:
-  void* Allocate(size_t length) override {
-    if (length >= kVMThreshold) return AllocateVM(length);
-    return ArrayBufferAllocatorBase::Allocate(length);
-  }
-
-  void* AllocateUninitialized(size_t length) override {
-    if (length >= kVMThreshold) return AllocateVM(length);
-    return ArrayBufferAllocatorBase::AllocateUninitialized(length);
-  }
-
-  void Free(void* data, size_t length) override {
-    if (length >= kVMThreshold) {
-      FreeVM(data, length);
-    } else {
-      ArrayBufferAllocatorBase::Free(data, length);
-    }
-  }
-
- private:
-  static constexpr size_t kVMThreshold = 65536;
-
-  void* AllocateVM(size_t length) {
-    DCHECK_LE(kVMThreshold, length);
-    v8::PageAllocator* page_allocator = GetPageAllocator();
-    size_t page_size = page_allocator->AllocatePageSize();
-    size_t allocated = RoundUp(length, page_size);
-    return i::AllocatePages(page_allocator, allocated, page_size,
-                            PageAllocator::kReadWrite);
-  }
-
-  void FreeVM(void* data, size_t length) {
-    v8::PageAllocator* page_allocator = GetPageAllocator();
-    size_t page_size = page_allocator->AllocatePageSize();
-    size_t allocated = RoundUp(length, page_size);
-    i::FreePages(page_allocator, data, allocated);
-  }
-};
-
-// ArrayBuffer allocator that never allocates over 10MB.
-class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
- protected:
-  void* Allocate(size_t length) override {
-    return ArrayBufferAllocatorBase::Allocate(Adjust(length));
-  }
-
-  void* AllocateUninitialized(size_t length) override {
-    return ArrayBufferAllocatorBase::AllocateUninitialized(Adjust(length));
-  }
-
-  void Free(void* data, size_t length) override {
-    return ArrayBufferAllocatorBase::Free(data, Adjust(length));
-  }
-
- private:
   size_t Adjust(size_t length) {
     const size_t kAllocationLimit = 10 * i::MB;
     return length > kAllocationLimit ? i::AllocatePageSize() : length;
   }
+
+  v8::ArrayBuffer::Allocator* allocator_;
 };
 
 // ArrayBuffer allocator that can be equipped with a limit to simulate system
 // OOM.
-class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
+class MockArrayBufferAllocatorWithLimit : public MockArrayBufferAllocator {
  public:
-  explicit MockArrayBufferAllocatiorWithLimit(size_t allocation_limit)
-      : limit_(allocation_limit), space_left_(allocation_limit) {}
+  MockArrayBufferAllocatorWithLimit(v8::ArrayBuffer::Allocator* allocator,
+                                    size_t allocation_limit)
+      : MockArrayBufferAllocator(allocator),
+        limit_(allocation_limit),
+        space_left_(allocation_limit) {}
 
  protected:
   void* Allocate(size_t length) override {
@@ -287,7 +234,7 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
 
   void Free(void* data, size_t length) override {
     space_left_ += length;
-    return MockArrayBufferAllocator::Free(data, length);
+    MockArrayBufferAllocator::Free(data, length);
   }
 
   size_t MaxAllocationSize() const override { return limit_; }
@@ -307,11 +254,15 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
 // The purpose is to allow stability-testing of huge (typed) arrays without
 // actually consuming huge amounts of physical memory.
 // This is currently only available on Linux because it relies on {mremap}.
-class MultiMappedAllocator : public ArrayBufferAllocatorBase {
+class MultiMappedAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  explicit MultiMappedAllocator(v8::ArrayBuffer::Allocator* allocator)
+      : allocator_(allocator) {}
+
  protected:
   void* Allocate(size_t length) override {
     if (length < kChunkSize) {
-      return ArrayBufferAllocatorBase::Allocate(length);
+      return allocator_->Allocate(length);
     }
     // We use mmap, which initializes pages to zero anyway.
     return AllocateUninitialized(length);
@@ -319,7 +270,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
 
   void* AllocateUninitialized(size_t length) override {
     if (length < kChunkSize) {
-      return ArrayBufferAllocatorBase::AllocateUninitialized(length);
+      return allocator_->AllocateUninitialized(length);
     }
     size_t rounded_length = RoundUp(length, kChunkSize);
     int prot = PROT_READ | PROT_WRITE;
@@ -393,7 +344,8 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
 
   void Free(void* data, size_t length) override {
     if (length < kChunkSize) {
-      return ArrayBufferAllocatorBase::Free(data, length);
+      allocator_->Free(data, length);
+      return;
     }
     base::MutexGuard lock_guard(&regions_mutex_);
     void* real_alloc = regions_[data];
@@ -408,10 +360,15 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     regions_.erase(data);
   }
 
+  PageAllocator* GetPageAllocator() override {
+    return allocator_->GetPageAllocator();
+  }
+
  private:
   // Aiming for a "Huge Page" (2M on Linux x64) to go easy on the TLB.
   static constexpr size_t kChunkSize = 2 * 1024 * 1024;
 
+  v8::ArrayBuffer::Allocator* allocator_;
   std::unordered_map<void*, void*> regions_;
   base::Mutex regions_mutex_;
 };
@@ -8221,16 +8178,18 @@ int Shell::Main(int argc, char* argv[]) {
 
   int result = 0;
   Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
-  ShellArrayBufferAllocator shell_array_buffer_allocator;
-  MockArrayBufferAllocator mock_arraybuffer_allocator;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> default_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  MockArrayBufferAllocator mock_arraybuffer_allocator(default_allocator.get());
   const size_t memory_limit =
       options.mock_arraybuffer_allocator_limit * options.num_isolates;
-  MockArrayBufferAllocatiorWithLimit mock_arraybuffer_allocator_with_limit(
+  MockArrayBufferAllocatorWithLimit mock_arraybuffer_allocator_with_limit(
+      default_allocator.get(),
       memory_limit >= options.mock_arraybuffer_allocator_limit
           ? memory_limit
           : std::numeric_limits<size_t>::max());
 #ifdef V8_OS_LINUX
-  MultiMappedAllocator multi_mapped_mock_allocator;
+  MultiMappedAllocator multi_mapped_mock_allocator(default_allocator.get());
 #endif  // V8_OS_LINUX
   if (options.mock_arraybuffer_allocator) {
     if (memory_limit) {
@@ -8243,7 +8202,7 @@ int Shell::Main(int argc, char* argv[]) {
     Shell::array_buffer_allocator = &multi_mapped_mock_allocator;
 #endif  // V8_OS_LINUX
   } else {
-    Shell::array_buffer_allocator = &shell_array_buffer_allocator;
+    Shell::array_buffer_allocator = default_allocator.get();
   }
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
 #ifdef ENABLE_VTUNE_JIT_INTERFACE

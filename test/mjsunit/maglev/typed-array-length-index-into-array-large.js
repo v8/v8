@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --maglev
-// Flags: --typed-array-length-loading
+// Flags: --typed-array-length-loading --mock-arraybuffer-allocator
 
 // Use a top-level HOLEY_SMI_ELEMENTS array so that the test function doesn't
 // get confused about unexpected ElementsKinds in configs which don't have

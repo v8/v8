@@ -2537,9 +2537,22 @@
 
 ##############################################################################
 ['system != linux', {
-  # Multi-mapped mock allocator is only available on Linux.
+  # Multi-mapped mock allocator is only available on Linux. These tests allocate
+  # >2 GiB ArrayBuffer backing stores (exceeding PartitionAlloc's max allocation
+  # size) and access elements beyond the single OS page allocated by
+  # --mock-arraybuffer-allocator.
+  'maglev/regress-525732296': [SKIP],
+  'maglev/typed-array-length-index-into-typed-array': [SKIP],
+  'maglev/typed-array-length-index-into-typed-array-large': [SKIP],
+  'regress/regress-499527555': [SKIP],
+  'regress/regress-499527555-2': [SKIP],
+  'regress/regress-509312809': [SKIP],
   'regress/regress-crbug-1041232': [SKIP],
   'regress/regress-crbug-1104608': [SKIP],
+  'turbolev/dataview-deopt-oob': [SKIP],
+  'turbolev/regress-488090094': [SKIP],
+  'turbolev/typed-array-length-index-into-typed-array': [SKIP],
+  'turbolev/typed-array-length-index-into-typed-array-large': [SKIP],
 
   # WebAssembly memory control is only implemented on Linux so far.
   'wasm/memory-control': [SKIP],
@@ -3246,9 +3259,24 @@
 ['sandbox_hardware_support', {
   # Skip tests for unsupported features. See https://crbug.com/428674890.
 
-  # Multi-mapped mock allocator is not currently supported.
+  # Multi-mapped mock allocator is not currently supported with hardware
+  # sandboxing (mremap overwrites the sandbox pkey on the remapped pages).
+  # These tests allocate >2 GiB ArrayBuffer backing stores (exceeding
+  # PartitionAlloc's max allocation size) and access elements beyond the single
+  # OS page allocated by --mock-arraybuffer-allocator.
+  'maglev/regress-525732296': [SKIP],
+  'maglev/typed-array-length-index-into-typed-array': [SKIP],
+  'maglev/typed-array-length-index-into-typed-array-large': [SKIP],
+  'regress/regress-499527555': [SKIP],
+  'regress/regress-499527555-2': [SKIP],
+  'regress/regress-509312809': [SKIP],
   'regress/regress-crbug-1041232': [SKIP],
+  'regress/regress-crbug-1104608': [SKIP],
   'regress/regress-crbug-1209152': [SKIP],
+  'turbolev/dataview-deopt-oob': [SKIP],
+  'turbolev/regress-488090094': [SKIP],
+  'turbolev/typed-array-length-index-into-typed-array': [SKIP],
+  'turbolev/typed-array-length-index-into-typed-array-large': [SKIP],
 
   # Wasm code coverage is not currently supported.
   'regress/wasm/regress-488943662': [SKIP],

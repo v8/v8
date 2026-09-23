@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --maglev
-// Flags: --typed-array-length-loading
+// Flags: --typed-array-length-loading --multi-mapped-mock-allocator
 // Flags: --no-optimize-maglev-optimizes-to-turbofan
 
 function foo(size) {
