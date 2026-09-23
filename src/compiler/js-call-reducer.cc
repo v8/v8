@@ -462,10 +462,10 @@ enum class ArrayIndexOfIncludesVariant { kIncludes, kIndexOf };
 // builtins.
 class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
  public:
+  // Not all users consult turbo_inline_array_builtins; ReduceArrayPrototypePush
+  // inlines unconditionally.
   IteratingArrayBuiltinReducerAssembler(JSCallReducer* reducer, Node* node)
-      : JSCallReducerAssembler(reducer, node) {
-    DCHECK(v8_flags.turbo_inline_array_builtins);
-  }
+      : JSCallReducerAssembler(reducer, node) {}
 
   TNode<Object> ReduceArrayPrototypeForEach(MapInference* inference,
                                             const bool has_stability_dependency,
@@ -6580,6 +6580,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeAt(Node* node) {
 }
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
+// Inlined even with --no-turbo-inline-array-builtins, which gates the iterating
+// array builtins; push is hot enough to always be worth inlining.
 Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
