@@ -878,6 +878,23 @@ void InstallFunction(Isolate* isolate, Handle<JSObject> holder,
   InstallFunc(isolate, holder, func, name, num_parameters, false);
 }
 
+// Sandbox.getMetadata() -> Object
+void SandboxGetMetadata(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+
+  Handle<JSObject> metadata =
+      factory->NewJSObject(i_isolate->object_function());
+  JSObject::AddProperty(
+      i_isolate, metadata,
+      factory->NewStringFromAsciiChecked("trustedPointerHandleShift"),
+      factory->NewNumberFromUint(kTrustedPointerHandleShift), NONE);
+
+  info.GetReturnValue().Set(Utils::ToLocal(metadata));
+}
+
 void InstallConstructor(Isolate* isolate, Handle<JSObject> holder,
                         FunctionCallback func, const char* name,
                         int num_parameters) {
@@ -901,6 +918,7 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   InstallGetter(isolate, sandbox, SandboxGetBase, "base");
   InstallGetter(isolate, sandbox, SandboxGetByteLength, "byteLength");
   InstallConstructor(isolate, sandbox, SandboxMemoryView, "MemoryView", 2);
+  InstallFunction(isolate, sandbox, SandboxGetMetadata, "getMetadata", 0);
   InstallFunction(isolate, sandbox, SandboxGetAddressOf, "getAddressOf", 1);
   InstallFunction(isolate, sandbox, SandboxGetObjectAt, "getObjectAt", 1);
   InstallFunction(isolate, sandbox, SandboxIsValidObjectAt, "isValidObjectAt",
