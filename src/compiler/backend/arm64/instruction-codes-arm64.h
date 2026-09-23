@@ -126,6 +126,8 @@ namespace compiler {
   V(Arm64IShl)                          \
   V(Arm64IShrS)                         \
   V(Arm64IShrU)                         \
+  V(Arm64SShl)                          \
+  V(Arm64UShl)                          \
   V(Arm64IMul)                          \
   V(Arm64I32x4UConvertF32x4)            \
   V(Arm64I32x4BitMask)                  \

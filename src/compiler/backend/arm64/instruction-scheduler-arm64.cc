@@ -168,6 +168,8 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kArm64IShll:
     case kArm64IShrS:
     case kArm64IShrU:
+    case kArm64SShl:
+    case kArm64UShl:
     case kArm64IMul:
     case kArm64I32x4UConvertF32x4:
     case kArm64I32x4BitMask:
@@ -655,6 +657,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64IShl:
     case kArm64IShrS:
     case kArm64IShrU:
+    case kArm64SShl:
+    case kArm64UShl:
     case kArm64IMul:
     case kArm64I64x2BitMask:
     case kArm64I32x4SConvertF32x4:
@@ -1016,6 +1020,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArm64IShll:
     case kArm64IShrS:
     case kArm64IShrU:
+    case kArm64SShl:
+    case kArm64UShl:
     case kArm64FAdd:
     case kArm64FSub:
     case kArm64FMin:

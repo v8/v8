@@ -3004,6 +3004,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ASSEMBLE_IEEE754_UNOP
 
 #if V8_ENABLE_WEBASSEMBLY
+#define SIMD_SHIFT_IMM_CASE(Op, Instr)                                 \
+  case Op: {                                                           \
+    const int lane_size = LaneSizeBits(LaneSizeField::decode(opcode)); \
+    VectorFormat f = VectorFormatFillQ(lane_size);                     \
+    DCHECK(instr->InputAt(1)->IsImmediate());                          \
+    __ Instr(i.OutputSimd128Register().Format(f),                      \
+             i.InputSimd128Register(0).Format(f),                      \
+             i.InputIntFromLaneSize(1, lane_size));                    \
+    break;                                                             \
+  }
+
 #define SIMD_UNOP_CASE(Op, Instr, FORMAT)            \
   case Op:                                           \
     __ Instr(i.OutputSimd128Register().V##FORMAT(),  \
@@ -3126,6 +3137,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(2).Format(f));                      \
     break;                                                              \
   }
+      SIMD_SHIFT_IMM_CASE(kArm64IShl, Shl);
+      SIMD_SHIFT_IMM_CASE(kArm64IShrS, Sshr);
+      SIMD_SHIFT_IMM_CASE(kArm64IShrU, Ushr);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64FMin, Fmin);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64FMax, Fmax);
       SIMD_UNOP_LANE_SIZE_CASE(kArm64FAbs, Fabs);
@@ -3372,84 +3386,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(0).Format(src_f), shift_value);
       break;
     }
-    case kArm64IShl: {
-      // If shift value is an immediate, we can call Shl, taking the shift
-      // value modulo 2^width. Otherwise, emit code to perform the modulus
-      // operation, and call Sshl.
-      const int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
-      VectorFormat format = VectorFormatFillQ(lane_size);
-      if (instr->InputAt(1)->IsImmediate()) {
-        __ Shl(i.OutputSimd128Register().Format(format),
-               i.InputSimd128Register(0).Format(format),
-               i.InputIntFromLaneSize(1, lane_size));
-      } else {
-        UseScratchRegisterScope temps(masm());
-        VRegister tmp = temps.AcquireQ();
-        Register shift =
-            (lane_size == 64) ? temps.AcquireX() : temps.AcquireW();
-        int mask = lane_size - 1;
-        __ And(shift, i.InputRegister32(1), mask);
-        __ Dup(tmp.Format(format), shift);
-        __ Sshl(i.OutputSimd128Register().Format(format),
-                i.InputSimd128Register(0).Format(format), tmp.Format(format));
-      }
-      break;
-    }
-    case kArm64IShrS: {
-      // If shift value is an immediate, we can call Sshr, taking the shift
-      // value modulo 2^width. Otherwise, emit code to perform the modulus
-      // operation, and call Sshl, passing in the negative shift value (treated
-      // as right shift).
-      const int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
-      VectorFormat format = VectorFormatFillQ(lane_size);
-      if (instr->InputAt(1)->IsImmediate()) {
-        int shift = i.InputIntFromLaneSize(1, lane_size);
-        if (shift == lane_size - 1) {
-          __ Cmlt(i.OutputSimd128Register().Format(format),
-                  i.InputSimd128Register(0).Format(format), 0);
-        } else {
-          __ Sshr(i.OutputSimd128Register().Format(format),
-                  i.InputSimd128Register(0).Format(format), shift);
-        }
-      } else {
-        UseScratchRegisterScope temps(masm());
-        VRegister tmp = temps.AcquireQ();
-        Register shift =
-            (lane_size == 64) ? temps.AcquireX() : temps.AcquireW();
-        int mask = lane_size - 1;
-        __ And(shift, i.InputRegister32(1), mask);
-        __ Dup(tmp.Format(format), shift);
-        __ Neg(tmp.Format(format), tmp.Format(format));
-        __ Sshl(i.OutputSimd128Register().Format(format),
-                i.InputSimd128Register(0).Format(format), tmp.Format(format));
-      }
-      break;
-    }
-    case kArm64IShrU: {
-      // If shift value is an immediate, we can call Ushr, taking the shift
-      // value modulo 2^width. Otherwise, emit code to perform the modulus
-      // operation, and call Ushl, passing in the negative shift value (treated
-      // as right shift).
-      const int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
-      VectorFormat format = VectorFormatFillQ(lane_size);
-      if (instr->InputAt(1)->IsImmediate()) {
-        __ Ushr(i.OutputSimd128Register().Format(format),
-                i.InputSimd128Register(0).Format(format),
-                i.InputIntFromLaneSize(1, lane_size));
-      } else {
-        UseScratchRegisterScope temps(masm());
-        VRegister tmp = temps.AcquireQ();
-        Register shift =
-            (lane_size == 64) ? temps.AcquireX() : temps.AcquireW();
-        int mask = lane_size - 1;
-        __ And(shift, i.InputRegister32(1), mask);
-        __ Dup(tmp.Format(format), shift);
-        __ Neg(tmp.Format(format), tmp.Format(format));
-        __ Ushl(i.OutputSimd128Register().Format(format),
-                i.InputSimd128Register(0).Format(format), tmp.Format(format));
-      }
-      break;
-    }
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64SShl, Sshl);
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64UShl, Ushl);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IAdd, Add);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64ISub, Sub);
       SIMD_CM_G_CASE(kArm64IEq, eq);
@@ -3942,6 +3880,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   return kSuccess;
 }
 
+#undef SIMD_SHIFT_IMM_CASE
 #undef SIMD_UNOP_CASE
 #undef SIMD_UNOP_LANE_SIZE_CASE
 #undef SIMD_LOW_NARROWING_CASE
