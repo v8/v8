@@ -230,7 +230,9 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 }
 
 void LiftoffAssembler::AlignFrameSize() {
-  max_used_spill_offset_ = RoundUp(max_used_spill_offset_, kSystemPointerSize);
+  int alignment = v8_flags.enforce_x64_16byte_alignment ? 2 * kSystemPointerSize
+                                                        : kSystemPointerSize;
+  max_used_spill_offset_ = RoundUp(max_used_spill_offset_, alignment);
 }
 
 void LiftoffAssembler::PatchPrepareStackFrame(
@@ -245,6 +247,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     frame_size -= kSystemPointerSize;
   }
   DCHECK_EQ(0, frame_size % kSystemPointerSize);
+  DCHECK_IMPLIES(v8_flags.enforce_x64_16byte_alignment,
+                 GetTotalFrameSize() % (2 * kSystemPointerSize) == 0);
 
   // We can't run out of space when patching, just pass anything big enough to
   // not cause the assembler to try to grow the buffer.
