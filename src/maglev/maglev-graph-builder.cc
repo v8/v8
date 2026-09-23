@@ -16416,6 +16416,8 @@ bool MaglevGraphBuilder::Build() {
   DCHECK(!is_inline());
   if (should_abort_compilation_) return false;
 
+  compilation_unit_->info()->InitializeSpecializationContext();
+
   DCHECK_EQ(inlining_id_, SourcePosition::kNotInlined);
   reducer_.SetBytecodeOffset(entrypoint_);
   reducer_.SetStartSourcePosition(inlining_id_);

@@ -193,10 +193,14 @@ class MaglevCompilationInfo final {
     return specialize_to_function_context_;
   }
 
+  void InitializeSpecializationContext();
+
   compiler::OptionalContextRef specialization_context() const {
+    DCHECK(specialization_context_initialized_);
     return specialization_context_;
   }
   size_t specialization_context_distance() const {
+    DCHECK(specialization_context_initialized_);
     return specialization_context_distance_;
   }
 
@@ -290,6 +294,9 @@ class MaglevCompilationInfo final {
 
   compiler::OptionalContextRef specialization_context_;
   size_t specialization_context_distance_ = 0;
+#ifdef DEBUG
+  bool specialization_context_initialized_ = false;
+#endif
 
   // 1) PersistentHandles created via PersistentHandlesScope inside of
   //    CompilationHandleScope.
