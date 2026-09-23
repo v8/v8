@@ -109,13 +109,13 @@ class CliAgentPlatform(AgentPlatform):
     pass
 
 
-class GeminiPlatform(CliAgentPlatform):
-  """Implementation for Gemini CLI MCP configuration."""
+class JetskiPlatform(CliAgentPlatform):
+  """Implementation for Jetski MCP configuration."""
 
-  NAME = "gemini"
-  BINARY = "gemini"
-  COMMAND: ClassVar[str] = "mcp"
-  EXTRA_ARGS: ClassVar[list[str]] = ["--scope", "user"]
+  NAME = "jetski"
+  BINARY = "jetski-cli"
+  COMMAND: ClassVar[str] = "plugin"
+  EXTRA_ARGS: ClassVar[list[str]] = []
 
   def __init__(self) -> None:
     super().__init__()
@@ -136,15 +136,6 @@ class GeminiPlatform(CliAgentPlatform):
     cmd.extend([server_name, config["command"]] + config["args"])
     self._run(cmd, check=True)
     return config
-
-
-class JetskiPlatform(GeminiPlatform):
-  """Implementation for Jetski MCP configuration."""
-
-  NAME = "jetski"
-  BINARY = "jetski-cli"
-  COMMAND = "plugin"
-  EXTRA_ARGS = []
 
 
 class ClaudeDesktopPlatform(AgentPlatform):
@@ -200,7 +191,6 @@ class ClaudeCLIPlatform(CliAgentPlatform):
 
 
 AGENT_PLATFORMS: Final[list[type[AgentPlatform]]] = [
-    GeminiPlatform,
     JetskiPlatform,
     ClaudeDesktopPlatform,
     ClaudeCLIPlatform,
