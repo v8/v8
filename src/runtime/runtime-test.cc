@@ -1200,6 +1200,23 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_SetDispatchTableGCInterval) {
+  SealHandleScope shs(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  CONVERT_INT32_ARG_FUZZ_SAFE(interval, 0);
+  isolate->heap()->set_dispatch_table_gc_interval(interval);
+#else   // !V8_ENABLE_ALLOCATION_TIMEOUT
+  static std::atomic_flag printed_warning = ATOMIC_FLAG_INIT;
+  if (!printed_warning.test_and_set()) {
+    base::OS::PrintError(
+        "Warning: %%SetDispatchTableGCInterval has no effect in this build. "
+        "Set the `v8_enable_test_features` GN arg to enable it.\n");
+  }
+#endif  // !V8_ENABLE_ALLOCATION_TIMEOUT
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 namespace {
 
 int FixedArrayLenFromSize(int size) {

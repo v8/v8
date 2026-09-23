@@ -5614,9 +5614,10 @@ JSDispatchHandle Factory::NewJSDispatchHandle(uint16_t parameter_count,
                                               DirectHandle<Code> code,
                                               JSDispatchTable::Space* space) {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  if (v8_flags.dispatch_table_gc_interval > 0) [[unlikely]] {
+  const int gc_interval = isolate()->heap()->dispatch_table_gc_interval();
+  if (gc_interval > 0) [[unlikely]] {
     if (isolate()->heap()->increment_dispatch_table_allocations() %
-            v8_flags.dispatch_table_gc_interval ==
+            gc_interval ==
         0) {
       isolate()->heap()->CollectAllGarbage(GCFlag::kNoFlags,
                                            GarbageCollectionReason::kTesting);

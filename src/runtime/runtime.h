@@ -678,6 +678,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ScheduleGCInStackCheck, 0, 1)                                        \
   F(SerializeDeserializeNow, 0, 1)                                       \
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1)                            \
+  F(SetDispatchTableGCInterval, 1, 1)                                    \
   F(SetBatterySaverMode, 1, 1)                                           \
   F(SetForceSlowPath, 1, 1)                                              \
   F(SetIteratorProtector, 0, 1)                                          \

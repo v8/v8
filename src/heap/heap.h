@@ -291,6 +291,10 @@ class Heap final {
   int increment_dispatch_table_allocations() {
     return ++dispatch_table_allocations_;
   }
+  int dispatch_table_gc_interval() const { return dispatch_table_gc_interval_; }
+  void set_dispatch_table_gc_interval(int interval) {
+    dispatch_table_gc_interval_ = interval;
+  }
 #endif
 
   // Emits GC events for DevTools timeline.
@@ -2390,6 +2394,7 @@ class Heap final {
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   int dispatch_table_allocations_ = 0;
+  int dispatch_table_gc_interval_ = v8_flags.dispatch_table_gc_interval;
 #endif
 
   std::vector<HeapObjectAllocationTracker*> allocation_trackers_;
