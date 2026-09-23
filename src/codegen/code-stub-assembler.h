@@ -4523,12 +4523,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void TailCallJSCode(TNode<Code> code, TNode<Context> context,
                       TNode<JSFunction> function, TNode<Object> new_target,
                       TNode<Int32T> arg_count,
-                      TNode<JSDispatchHandleT> dispatch_handle);
+                      TNode<JSDispatchHandleT> dispatch_handle,
+                      TNode<Uint16T> expected_parameter_count);
   // Same as above, but the code object is loaded from the dispatch table
-  // entry and thus the parameter count check is not necessary.
+  // entry. Still checks that the dispatch table entry's parameter count has
+  // not changed. In regular execution, the dispatch entry is kept alive via
+  // the target JSFunction on the stack, so it cannot be reclaimed during a
+  // runtime call. However, with in-sandbox memory corruption, a dispatch
+  // handle may not be kept alive and its entry could be swept and reallocated
+  // with a different parameter count during a GC.
   void TailCallJSCode(TNode<Context> context, TNode<JSFunction> function,
                       TNode<Object> new_target, TNode<Int32T> arg_count,
-                      TNode<JSDispatchHandleT> dispatch_handle);
+                      TNode<JSDispatchHandleT> dispatch_handle,
+                      TNode<Uint16T> expected_parameter_count);
 
   // Indicate that this code must support a dynamic parameter count.
   //

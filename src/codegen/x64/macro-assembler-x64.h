@@ -984,6 +984,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                              Register dispatch_handle);
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle);
+  void PushDispatchHandle(Register dispatch_handle, Register scratch);
+  void PopDispatchHandle(Register dispatch_handle, Register scratch);
 
   void LoadProtectedPointerField(Register destination, Operand field_operand);
 

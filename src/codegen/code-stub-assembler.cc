@@ -2240,19 +2240,24 @@ TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
   return Load<Uint16T>(table, offset);
 }
 
-
 void CodeStubAssembler::TailCallJSCode(
     TNode<Code> code, TNode<Context> context, TNode<JSFunction> function,
     TNode<Object> new_target, TNode<Int32T> arg_count,
-    TNode<JSDispatchHandleT> dispatch_handle) {
+    TNode<JSDispatchHandleT> dispatch_handle,
+    TNode<Uint16T> expected_parameter_count) {
 #ifdef V8_ENABLE_SANDBOX
-  // Check that the code has a matching parameter count. This ensures that
-  // the target code will correctly tear down parameters when leaving.
+  // Check that the code and dispatch table entry still have the expected
+  // parameter count. This ensures that the target code matches the native
+  // argument frame and will correctly tear down parameters when leaving.
   static_assert(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
   CSA_SBXCHECK(
       this,
-      Word32Equal(LoadCodeParameterCount(code),
+      Word32Equal(expected_parameter_count,
                   LoadParameterCountFromJSDispatchTable(dispatch_handle)));
+  CSA_SBXCHECK(this, Word32Equal(LoadCodeParameterCount(code),
+                                 expected_parameter_count));
+#else
+  USE(expected_parameter_count);
 #endif  // V8_ENABLE_SANDBOX
 
   CodeAssembler::TailCallJSCode(code, context, function, new_target, arg_count,
@@ -2262,7 +2267,21 @@ void CodeStubAssembler::TailCallJSCode(
 void CodeStubAssembler::TailCallJSCode(
     TNode<Context> context, TNode<JSFunction> function,
     TNode<Object> new_target, TNode<Int32T> arg_count,
-    TNode<JSDispatchHandleT> dispatch_handle) {
+    TNode<JSDispatchHandleT> dispatch_handle,
+    TNode<Uint16T> expected_parameter_count) {
+#ifdef V8_ENABLE_SANDBOX
+  // In regular execution, the dispatch entry is kept alive via the target
+  // JSFunction on the stack. However, with in-sandbox memory corruption, a
+  // dispatch handle may not be kept alive and its entry could be swept and
+  // reallocated with a different parameter count during a GC in the runtime.
+  static_assert(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
+  CSA_SBXCHECK(
+      this,
+      Word32Equal(expected_parameter_count,
+                  LoadParameterCountFromJSDispatchTable(dispatch_handle)));
+#else
+  USE(expected_parameter_count);
+#endif  // V8_ENABLE_SANDBOX
   TNode<Code> code = LoadCodeObjectFromJSDispatchTable(dispatch_handle);
 
   CodeAssembler::TailCallJSCode(code, context, function, new_target, arg_count,

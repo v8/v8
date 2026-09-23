@@ -517,8 +517,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register code = kJavaScriptCallCodeStartRegister;  // a2
   Register scratch = t2;
-  __ Lw(dispatch_handle,
-        FieldMemOperand(a5, offsetof(JSFunction, dispatch_handle_)));
+  __ Lwu(dispatch_handle,
+         FieldMemOperand(a5, offsetof(JSFunction, dispatch_handle_)));
   __ LoadEntrypointAndParameterCountFromJSDispatchTable(
       code, argc, dispatch_handle, scratch);
   // In case the formal parameter count is kDontAdaptArgumentsSentinel the
@@ -1225,17 +1225,16 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ Push(kJavaScriptCallNewTargetRegister);
 #if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
     defined(V8_TARGET_ARCH_RISCV64)
-    // No need to SmiTag as dispatch handles always look like Smis.
-    static_assert(kJSDispatchHandleShift > 0);
-    __ AssertSmi(kJavaScriptCallDispatchHandleRegister);
-    __ Push(kJavaScriptCallDispatchHandleRegister);
+    __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                          feedback_vector);
 #endif
     __ SmiTag(frame_size);
     __ Push(frame_size);
     __ CallRuntime(Runtime::kStackGuardWithGap);
 #if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
     defined(V8_TARGET_ARCH_RISCV64)
-    __ Pop(kJavaScriptCallDispatchHandleRegister);
+    __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                         feedback_vector);
 #endif
     __ Pop(kJavaScriptCallNewTargetRegister);
   }

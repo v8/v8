@@ -1956,6 +1956,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle,
       Register scratch);
+  void PushDispatchHandle(Register dispatch_handle, Register scratch1,
+                          Register scratch2);
+  void PopDispatchHandle(Register dispatch_handle, Register scratch1,
+                         Register scratch2);
 #endif  // V8_TARGET_ARCH_RISCV64
   // Load a protected pointer field.
   void LoadProtectedPointerField(Register destination,
