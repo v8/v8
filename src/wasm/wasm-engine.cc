@@ -679,7 +679,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, std::move(native_module), script);
+      WasmModuleObject::New(isolate, script);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
@@ -1026,7 +1026,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
       GetOrCreateScript(isolate, shared_native_module, source_url);
   native_module->LogWasmCodes(isolate, *script);
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, std::move(shared_native_module), script);
+      WasmModuleObject::New(isolate, script);
   {
     base::MutexGuard lock(&mutex_);
     DCHECK(isolates_.contains(isolate));

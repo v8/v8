@@ -167,11 +167,9 @@ V8_OBJECT class WasmModuleObject : public JSObject {
   static const int kScriptOffsetEnd;
   static const int kHeaderSize;
 
-  // Creates a new {WasmModuleObject} for an existing {NativeModule} that is
-  // reference counted and might be shared between multiple Isolates.
+  // Creates a new {WasmModuleObject} for an existing {Script} of type {kWasm}.
   V8_EXPORT_PRIVATE static DirectHandle<WasmModuleObject> New(
-      Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      DirectHandle<Script> script);
+      Isolate* isolate, DirectHandle<Script> script);
 
   // Get the module name, if set. Returns an empty handle otherwise.
   static MaybeDirectHandle<String> GetModuleNameOrNull(

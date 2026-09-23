@@ -2568,7 +2568,7 @@ void AsyncCompileJob::FinishCompile(
         stream_ ? base::VectorOf(stream_->url()) : base::Vector<const char>();
     auto script =
         GetWasmEngine()->GetOrCreateScript(isolate, native_module, source_url);
-    module_object = WasmModuleObject::New(isolate, native_module, script);
+    module_object = WasmModuleObject::New(isolate, script);
   }
 
   // We should only get here if compilation succeeded.
@@ -2622,10 +2622,10 @@ void AsyncCompileJob::FinishCompile(
 
   // Finish the wasm script now and make it public to the debugger.
   DirectHandle<Script> script(module_object->script(), isolate);
+  DCHECK_EQ(script->type(), Script::Type::kWasm);
   auto sourcemap_symbol =
       module->debug_symbols[WasmDebugSymbols::Type::SourceMap];
-  if (script->type() == Script::Type::kWasm &&
-      sourcemap_symbol.type != WasmDebugSymbols::Type::None &&
+  if (sourcemap_symbol.type != WasmDebugSymbols::Type::None &&
       !sourcemap_symbol.external_url.is_empty()) {
     ModuleWireBytes wire_bytes(native_module->wire_bytes());
     MaybeDirectHandle<String> src_map_str =

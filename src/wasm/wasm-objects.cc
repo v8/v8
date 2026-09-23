@@ -115,25 +115,13 @@ using WasmModule = wasm::WasmModule;
 
 // static
 DirectHandle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    DirectHandle<Script> script) {
-  DirectHandle<CppGCManaged<wasm::NativeModule>> managed_native_module;
-  if (script->type() == Script::Type::kWasm) {
-    managed_native_module = direct_handle(
-        Cast<CppGCManaged<wasm::NativeModule>>(
-            script->wasm_managed_native_module()),
-        isolate);
-  } else {
-    const WasmModule* module = native_module->module();
-    size_t memory_estimate =
-        native_module->committed_code_space() +
-        wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
-    managed_native_module = CppGCManaged<wasm::NativeModule>::Create(
-        isolate, memory_estimate, std::move(native_module));
-  }
+    Isolate* isolate, DirectHandle<Script> script) {
+  DCHECK_EQ(script->type(), Script::Type::kWasm);
   DirectHandle<WasmModuleObject> module_object = Cast<WasmModuleObject>(
       isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
-  module_object->set_managed_native_module(*managed_native_module);
+  module_object->set_managed_native_module(
+      Cast<CppGCManaged<wasm::NativeModule>>(
+          script->wasm_managed_native_module()));
   module_object->set_script(*script);
   return module_object;
 }
@@ -1560,17 +1548,16 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   instance_object->set_module_object(*module_object);
   trusted_data->set_instance_object(*instance_object);
 
-  // Insert the new instance into the scripts weak list of instances. This
+  // Insert the new instance into the script's weak list of instances. This
   // list is used for breakpoints affecting all instances belonging to the
   // script.
-  if (module_object->script()->type() == Script::Type::kWasm) {
-    DirectHandle<WeakArrayList> weak_instance_list(
-        module_object->script()->wasm_weak_instance_list(), isolate);
-    weak_instance_list =
-        WeakArrayList::Append(isolate, weak_instance_list,
-                              MaybeObjectDirectHandle::Weak(instance_object));
-    module_object->script()->set_wasm_weak_instance_list(*weak_instance_list);
-  }
+  DCHECK_EQ(module_object->script()->type(), Script::Type::kWasm);
+  DirectHandle<WeakArrayList> weak_instance_list(
+      module_object->script()->wasm_weak_instance_list(), isolate);
+  weak_instance_list =
+      WeakArrayList::Append(isolate, weak_instance_list,
+                            MaybeObjectDirectHandle::Weak(instance_object));
+  module_object->script()->set_wasm_weak_instance_list(*weak_instance_list);
 
   return trusted_data;
 }

@@ -1280,8 +1280,8 @@ STREAM_TEST(TestIncrementalCaching) {
   {
     DirectHandle<Script> script = GetWasmEngine()->GetOrCreateScript(
         i_isolate, tester.native_module().as_shared_ptr(), kNoSourceUrl);
-    DirectHandle<WasmModuleObject> module_object = WasmModuleObject::New(
-        i_isolate, tester.native_module().as_shared_ptr(), script);
+    DirectHandle<WasmModuleObject> module_object =
+        WasmModuleObject::New(i_isolate, script);
     ErrorThrower thrower(i_isolate, "Instantiation");
     // We instantiated before, so the second instantiation must also succeed:
     instance = indirect_handle(
