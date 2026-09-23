@@ -2203,6 +2203,10 @@
 
   # https://crbug.com/556584687
   'turboshaft/regress-508265328-*': [SKIP],
+
+  # https://crbug.com/564743658
+  # Flag implications override the flag setting in the test.
+  'wasm/multiple-code-spaces': [SKIP],
 }], # num_fuzzer
 
 ##############################################################################
