@@ -46,7 +46,7 @@ for item in agents_src.iterdir():
 
   dest_item = agents_dest / item.name
 
-  if item.name not in ["agents", "skills", "rules", "plugins"]:
+  if item.name not in ["skills", "rules", "plugins"]:
     # For other items, symlink directly
     if not dest_item.exists():
       create_symlink(item, dest_item)
