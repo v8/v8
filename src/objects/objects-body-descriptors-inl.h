@@ -1416,8 +1416,6 @@ class WasmImportData::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IterateProtectedPointer(
         obj, offsetof(WasmImportData, protected_importing_instance_data_), v);
-    IterateProtectedPointer(
-        obj, offsetof(WasmImportData, protected_call_origin_), v);
     IteratePointer(obj, offsetof(WasmImportData, native_context_), v);
     IteratePointer(obj, offsetof(WasmImportData, callable_), v);
     IteratePointer(obj, offsetof(WasmImportData, wrapper_budget_), v);

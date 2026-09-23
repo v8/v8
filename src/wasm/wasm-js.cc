@@ -2290,11 +2290,11 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
   if (func_index >= num_imported_functions) {
     implicit_arg = trusted_instance_data;
   } else {
-    implicit_arg = i_isolate->factory()->NewWasmImportData(direct_handle(
+    implicit_arg = direct_handle(
         i::TrustedCast<i::WasmImportData>(
             trusted_instance_data->dispatch_table_for_imports()->implicit_arg(
                 func_index)),
-        i_isolate));
+        i_isolate);
   }
 
   i::DirectHandle<i::WasmInternalFunction> internal =
@@ -2303,9 +2303,6 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
           trusted_instance_data->GetCallTarget(func_index), sig);
   i::DirectHandle<i::WasmFuncRef> func_ref =
       i_isolate->factory()->NewWasmFuncRef(internal, rtt);
-  if (func_index < num_imported_functions) {
-    i::TrustedCast<i::WasmImportData>(implicit_arg)->set_call_origin(*internal);
-  }
 
   i::DirectHandle<i::JSFunction> result = i::WasmExportedFunction::New(
       i_isolate, trusted_instance_data, func_ref, internal,

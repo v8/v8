@@ -690,20 +690,6 @@ void WasmImportData::clear_importing_instance_data() {
   protected_importing_instance_data_.store(this, {}, SKIP_WRITE_BARRIER);
 }
 
-Tagged<TrustedObject> WasmImportData::call_origin() const {
-  DCHECK(has_call_origin());
-  return protected_call_origin_.load();
-}
-void WasmImportData::set_call_origin(Tagged<TrustedObject> value,
-                                     WriteBarrierMode mode) {
-  protected_call_origin_.store(this, value, mode);
-}
-bool WasmImportData::has_call_origin() const {
-  return !protected_call_origin_.load().is_null();
-}
-void WasmImportData::clear_call_origin() {
-  protected_call_origin_.store(this, {}, SKIP_WRITE_BARRIER);
-}
 
 Tagged<NativeContext> WasmImportData::native_context() const {
   return native_context_.load();
@@ -747,13 +733,6 @@ void WasmImportData::set_suspend(wasm::Suspend value) {
   set_bit_field(SuspendField::update(bit_field(), value));
 }
 
-uint32_t WasmImportData::table_slot() const {
-  return TableSlotField::decode(bit_field());
-}
-
-void WasmImportData::set_table_slot(uint32_t value) {
-  set_bit_field(TableSlotField::update(bit_field(), value));
-}
 
 void WasmImportData::clear_padding() {
 #if TAGGED_SIZE_8_BYTES

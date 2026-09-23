@@ -568,45 +568,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   isolate->set_context(import_data->native_context());
 
   const wasm::CanonicalSig* sig = import_data->sig();
-  DirectHandle<Object> origin(import_data->call_origin(), isolate);
   wasm::WasmCodeRefScope code_ref_scope;
-
-  if (IsWasmInternalFunction(*origin)) {
-    // The tierup for `WasmInternalFunction` is special, as there may not be an
-    // instance.
-    int expected_arity = static_cast<int>(sig->parameter_count());
-    wasm::ImportCallKind kind;
-    if (IsJSFunction(import_data->callable())) {
-      Tagged<SharedFunctionInfo> shared =
-          Cast<JSFunction>(import_data->callable())->shared();
-      expected_arity =
-          shared->internal_formal_parameter_count_without_receiver();
-      kind = wasm::ImportCallKind::kJSFunction;
-    } else {
-      kind = wasm::ImportCallKind::kUseCallBuiltin;
-    }
-    wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-    wasm::Suspend suspend = import_data->suspend();
-    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
-        cache->GetCompiled(isolate, {kind, sig, expected_arity, suspend});
-    DCHECK_EQ(TrustedCast<WasmInternalFunction>(*origin)->call_target(),
-              wrapper_handle->code_pointer());
-    cache->PublishCounterUpdates(isolate);
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-#ifdef DEBUG
-  int table_slot = import_data->table_slot();
-  DirectHandle<WasmDispatchTable> dispatch_table;
-  DirectHandle<WasmDispatchTableForImports> dispatch_table_for_imports;
-  if (IsWasmDispatchTable(*origin)) {
-    dispatch_table = TrustedCast<WasmDispatchTable>(origin);
-    DCHECK_EQ(sig->index(), dispatch_table->sig(table_slot));
-  } else {
-    dispatch_table_for_imports =
-        CheckedCast<WasmDispatchTableForImports>(origin);
-  }
-#endif  // DEBUG
 
   // Compile a wrapper for the target callable.
   DirectHandle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
@@ -623,29 +585,16 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   callable = resolved.callable();  // Update to ultimate target.
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
   int expected_arity = static_cast<int>(sig->parameter_count());
-  if (kind == wasm::ImportCallKind ::kJSFunction) {
+  if (kind == wasm::ImportCallKind::kJSFunction) {
     expected_arity = Cast<JSFunction>(callable)
                          ->shared()
                          ->internal_formal_parameter_count_without_receiver();
   }
 
-  // Lookup or compile a wrapper.
+  // Lookup or compile a wrapper. The returned wrapper handle is not needed
+  // because GetCompiled updates the code pointer table entry in-place.
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-  std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
-      cache->GetCompiled(isolate, {kind, sig, expected_arity, suspend});
-
-#ifdef DEBUG
-  // Check consistency of the dispatch table's target code pointer. The code
-  // pointer is owned by the import wrapper cache and was updated when compiling
-  // the wrapper.
-  if (!dispatch_table.is_null()) {
-    DCHECK_EQ(dispatch_table->target(table_slot),
-              wrapper_handle->code_pointer());
-  } else {
-    DCHECK_EQ(dispatch_table_for_imports->target(table_slot),
-              wrapper_handle->code_pointer());
-  }
-#endif  // DEBUG
+  cache->GetCompiled(isolate, {kind, sig, expected_arity, suspend});
 
   cache->PublishCounterUpdates(isolate);
 

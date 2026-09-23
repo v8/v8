@@ -881,8 +881,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<HeapObject> callable, wasm::Suspend suspend,
       MaybeDirectHandle<WasmTrustedInstanceData> importing_instance_data,
       const wasm::CanonicalSig* sig);
-  DirectHandle<WasmImportData> NewWasmImportData(
-      DirectHandle<WasmImportData> ref);
 
   DirectHandle<WasmFastApiCallData> NewWasmFastApiCallData(
       DirectHandle<HeapObject> signature, DirectHandle<Object> callback_data);

@@ -2193,18 +2193,9 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
         *importing_instance_data.ToHandleChecked());
   }
   result->set_wrapper_budget(*wrapper_budget_cell);
-  result->clear_call_origin();
   result->set_sig(sig);
   result->clear_padding();
   return direct_handle(result, isolate());
-}
-
-DirectHandle<WasmImportData> Factory::NewWasmImportData(
-    DirectHandle<WasmImportData> import_data) {
-  return NewWasmImportData(
-      handle(import_data->callable(), isolate()), import_data->suspend(),
-      handle(import_data->importing_instance_data(), isolate()),
-      import_data->sig());
 }
 
 DirectHandle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
