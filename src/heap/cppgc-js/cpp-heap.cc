@@ -760,6 +760,19 @@ CppHeap::SweepingType CppHeap::SelectSweepingType() const {
 }
 
 void CppHeap::UpdateGCCapabilitiesFromFlags() {
+  // Runtime flags may only reduce what the embedder requested via
+  // CppHeapCreateParams; they must never grant more. The std::min calls below
+  // do that directly. The marking else-branch does it by assigning kAtomic,
+  // which is the least capable value. All of this depends on the enumerators
+  // being ordered from least to most capable; reordering them would silently
+  // grant more than was requested.
+  static_assert(MarkingType::kAtomic < MarkingType::kIncremental);
+  static_assert(MarkingType::kIncremental <
+                MarkingType::kIncrementalAndConcurrent);
+  static_assert(SweepingType::kAtomic < SweepingType::kIncremental);
+  static_assert(SweepingType::kIncremental <
+                SweepingType::kIncrementalAndConcurrent);
+
   CHECK_IMPLIES(v8_flags.cppheap_concurrent_marking,
                 v8_flags.cppheap_incremental_marking);
   if (v8_flags.cppheap_concurrent_marking) {
@@ -772,9 +785,13 @@ void CppHeap::UpdateGCCapabilitiesFromFlags() {
     marking_support_ = MarkingType::kAtomic;
   }
 
-  sweeping_support_ = v8_flags.single_threaded_gc
-                          ? CppHeap::SweepingType::kIncremental
-                          : CppHeap::SweepingType::kIncrementalAndConcurrent;
+  // Assigning unconditionally here would raise an embedder-requested kAtomic
+  // back up, silently ignoring CppHeapCreateParams::sweeping_support.
+  sweeping_support_ =
+      std::min(sweeping_support_,
+               v8_flags.single_threaded_gc
+                   ? CppHeap::SweepingType::kIncremental
+                   : CppHeap::SweepingType::kIncrementalAndConcurrent);
 }
 
 void CppHeap::InitializeMarking(
