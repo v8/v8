@@ -1712,9 +1712,8 @@ void V8FileLogger::CodeDisableOptEvent(
   msg.WriteToLogFile();
 }
 
-void V8FileLogger::ProcessDeoptEvent(DirectHandle<Code> code,
-                                     SourcePosition position, const char* kind,
-                                     const char* reason) {
+void V8FileLogger::ProcessDeoptEvent(Tagged<Code> code, SourcePosition position,
+                                     const char* kind, const char* reason) {
   VMStateIfMainThread<LOGGING> state(isolate_);
   MSG_BUILDER();
   msg << Event::kCodeDeopt << kNext << Time() << kNext
@@ -1725,7 +1724,7 @@ void V8FileLogger::ProcessDeoptEvent(DirectHandle<Code> code,
   int inlining_id = -1;
   int script_offset = -1;
   if (position.IsKnown()) {
-    position.Print(deopt_location, *code);
+    position.Print(deopt_location, code);
     inlining_id = position.InliningId();
     script_offset = position.ScriptOffset();
   } else {
@@ -1742,13 +1741,13 @@ void V8FileLogger::CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind,
   if (!is_logging() || !v8_flags.log_deopt) return;
   VMStateIfMainThread<LOGGING> state(isolate_);
   Deoptimizer::DeoptInfo info = Deoptimizer::ComputeDeoptInfo(*code, pc);
-  ProcessDeoptEvent(code, info.position, Deoptimizer::MessageFor(kind),
+  ProcessDeoptEvent(*code, info.position, Deoptimizer::MessageFor(kind),
                     DeoptimizeReasonToString(info.deopt_reason));
 }
 
-void V8FileLogger::CodeDependencyChangeEvent(
-    DirectHandle<Code> code, DirectHandle<SharedFunctionInfo> sfi,
-    const char* reason) {
+void V8FileLogger::CodeDependencyChangeEvent(Tagged<Code> code,
+                                             Tagged<SharedFunctionInfo> sfi,
+                                             const char* reason) {
   if (!is_logging() || !v8_flags.log_deopt) return;
   VMStateIfMainThread<LOGGING> state(isolate_);
   SourcePosition position(sfi->StartPosition(), -1);
