@@ -141,9 +141,12 @@ void WriteBarrier::MarkingSlow(Tagged<JSArrayBuffer> host,
 }
 
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
-                               ExternalPointerSlot slot) {
+                               ExternalPointerSlot slot,
+                               ExternalPointerHandle handle) {
 #ifdef V8_COMPRESS_POINTERS
   if (!slot.HasExternalPointerHandle()) return;
+
+  DCHECK_EQ(handle, slot.Relaxed_LoadHandle());
 
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   IsolateForPointerCompression isolate(marking_barrier->heap()->isolate());
@@ -154,7 +157,6 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
       isolate.GetExternalPointerTableSpaceFor(slot.tag_range(), host.address());
   DCHECK(!space->is_internal_read_only_space());
 
-  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   table.Mark(space, handle, slot.address(), slot.tag_range());
 
   if (marking_barrier->is_minor() && HeapLayout::InYoungGeneration(host)) {

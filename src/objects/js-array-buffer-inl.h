@@ -159,7 +159,8 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
         isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
     base::AsAtomic32::Release_Store(extension_handle_location(), handle);
-    WriteBarrier::ForExternalPointer(this, ExternalPointerSlot(&extension_));
+    WriteBarrier::ForExternalPointer(this, ExternalPointerSlot(&extension_),
+                                     handle);
   } else {
     table.Set(current_handle, value, tag);
   }
