@@ -4800,7 +4800,8 @@ void MacroAssembler::CallJSFunction(Register function_object,
 void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
                                          uint16_t argument_count) {
   Register code = kJavaScriptCallCodeStartRegister;
-  Register dispatch_handle_reg = r0;
+  UseScratchRegisterScope temps(this);
+  Register dispatch_handle_reg = temps.Acquire();
   mov(dispatch_handle_reg,
       Operand(dispatch_handle.value(), RelocInfo::JS_DISPATCH_HANDLE));
   // WARNING: This entrypoint load is only safe because we are storing a
