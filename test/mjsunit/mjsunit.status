@@ -1307,6 +1307,12 @@
 ['arch != arm64', {
   'wasm/half-shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
+  'wasm/interleaved-loads': [SKIP],
+  'regress/wasm/regress-simd-467479137': [SKIP],
+  'regress/wasm/regress-simd-549328680': [SKIP],
+  'regress/wasm/regress-simd-549328680-2': [SKIP],
+  'regress/wasm/regress-simd-511097641': [SKIP],
+  'regress/wasm/regress-simd-525600038': [SKIP],
 }],
 
 ##############################################################################

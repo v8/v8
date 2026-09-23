@@ -8912,6 +8912,140 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
     }
   }
 
+  static bool IsLaneWise(Kind kind) {
+    // Preserve lane count and operate on corresponding lanes independently.
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI16x8ExtMulLowI8x16S:
+      case Kind::kI16x8ExtMulHighI8x16S:
+      case Kind::kI16x8ExtMulLowI8x16U:
+      case Kind::kI16x8ExtMulHighI8x16U:
+      case Kind::kI32x4ExtMulLowI16x8S:
+      case Kind::kI32x4ExtMulHighI16x8S:
+      case Kind::kI32x4ExtMulLowI16x8U:
+      case Kind::kI32x4ExtMulHighI16x8U:
+      case Kind::kI64x2ExtMulLowI32x4S:
+      case Kind::kI64x2ExtMulHighI32x4S:
+      case Kind::kI64x2ExtMulLowI32x4U:
+      case Kind::kI64x2ExtMulHighI32x4U:
+      case Kind::kI8x16SConvertI16x8:
+      case Kind::kI8x16UConvertI16x8:
+      case Kind::kI16x8SConvertI32x4:
+      case Kind::kI16x8UConvertI32x4:
+        return false;
+      case Kind::kI8x16Swizzle:
+      case Kind::kI8x16RelaxedSwizzle:
+      case Kind::kI32x4DotI16x8S:
+      case Kind::kI16x8DotI8x16I7x16S:
+      case Kind::kI32x4AddPairwise:
+      case Kind::kI32x4DotI8x16S:
+        return false;
+      case Kind::kI8x16Eq:
+      case Kind::kI8x16Ne:
+      case Kind::kI8x16GtS:
+      case Kind::kI8x16GtU:
+      case Kind::kI8x16GeS:
+      case Kind::kI8x16GeU:
+      case Kind::kI16x8Eq:
+      case Kind::kI16x8Ne:
+      case Kind::kI16x8GtS:
+      case Kind::kI16x8GtU:
+      case Kind::kI16x8GeS:
+      case Kind::kI16x8GeU:
+      case Kind::kI32x4Eq:
+      case Kind::kI32x4Ne:
+      case Kind::kI32x4GtS:
+      case Kind::kI32x4GtU:
+      case Kind::kI32x4GeS:
+      case Kind::kI32x4GeU:
+      case Kind::kF32x4Eq:
+      case Kind::kF32x4Ne:
+      case Kind::kF32x4Lt:
+      case Kind::kF32x4Le:
+      case Kind::kF64x2Eq:
+      case Kind::kF64x2Ne:
+      case Kind::kF64x2Lt:
+      case Kind::kF64x2Le:
+      case Kind::kS128And:
+      case Kind::kS128AndNot:
+      case Kind::kS128Or:
+      case Kind::kS128Xor:
+      case Kind::kI8x16Add:
+      case Kind::kI8x16AddSatS:
+      case Kind::kI8x16AddSatU:
+      case Kind::kI8x16Sub:
+      case Kind::kI8x16SubSatS:
+      case Kind::kI8x16SubSatU:
+      case Kind::kI8x16MinS:
+      case Kind::kI8x16MinU:
+      case Kind::kI8x16MaxS:
+      case Kind::kI8x16MaxU:
+      case Kind::kI8x16RoundingAverageU:
+      case Kind::kI16x8Q15MulRSatS:
+      case Kind::kI16x8Add:
+      case Kind::kI16x8AddSatS:
+      case Kind::kI16x8AddSatU:
+      case Kind::kI16x8Sub:
+      case Kind::kI16x8SubSatS:
+      case Kind::kI16x8SubSatU:
+      case Kind::kI16x8Mul:
+      case Kind::kI16x8MinS:
+      case Kind::kI16x8MinU:
+      case Kind::kI16x8MaxS:
+      case Kind::kI16x8MaxU:
+      case Kind::kI16x8RoundingAverageU:
+      case Kind::kI32x4Add:
+      case Kind::kI32x4Sub:
+      case Kind::kI32x4Mul:
+      case Kind::kI32x4MinS:
+      case Kind::kI32x4MinU:
+      case Kind::kI32x4MaxS:
+      case Kind::kI32x4MaxU:
+      case Kind::kI64x2Add:
+      case Kind::kI64x2Sub:
+      case Kind::kI64x2Mul:
+      case Kind::kI64x2Eq:
+      case Kind::kI64x2Ne:
+      case Kind::kI64x2GtS:
+      case Kind::kI64x2GeS:
+      case Kind::kF32x4Add:
+      case Kind::kF32x4Sub:
+      case Kind::kF32x4Mul:
+      case Kind::kF32x4Div:
+      case Kind::kF32x4Min:
+      case Kind::kF32x4Max:
+      case Kind::kF32x4Pmin:
+      case Kind::kF32x4Pmax:
+      case Kind::kF64x2Add:
+      case Kind::kF64x2Sub:
+      case Kind::kF64x2Mul:
+      case Kind::kF64x2Div:
+      case Kind::kF64x2Min:
+      case Kind::kF64x2Max:
+      case Kind::kF64x2Pmin:
+      case Kind::kF64x2Pmax:
+      case Kind::kF32x4RelaxedMin:
+      case Kind::kF32x4RelaxedMax:
+      case Kind::kF64x2RelaxedMin:
+      case Kind::kF64x2RelaxedMax:
+      case Kind::kI16x8RelaxedQ15MulRS:
+      case Kind::kF16x8Add:
+      case Kind::kF16x8Sub:
+      case Kind::kF16x8Mul:
+      case Kind::kF16x8Div:
+      case Kind::kF16x8Min:
+      case Kind::kF16x8Max:
+      case Kind::kF16x8Pmin:
+      case Kind::kF16x8Pmax:
+      case Kind::kF16x8Eq:
+      case Kind::kF16x8Ne:
+      case Kind::kF16x8Lt:
+      case Kind::kF16x8Le:
+        return true;
+    }
+  }
+
   static constexpr OpEffects effects = OpEffects();
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -8930,6 +9064,140 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
   V<Simd128> left() const { return input<Simd128>(0); }
   V<Simd128> right() const { return input<Simd128>(1); }
 
+  static MachineRepresentation input_element_rep(Kind kind) {
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI8x16Eq:
+      case Kind::kI8x16Ne:
+      case Kind::kI8x16GtS:
+      case Kind::kI8x16GtU:
+      case Kind::kI8x16GeS:
+      case Kind::kI8x16GeU:
+      case Kind::kS128And:
+      case Kind::kS128AndNot:
+      case Kind::kS128Or:
+      case Kind::kS128Xor:
+      case Kind::kI8x16Add:
+      case Kind::kI8x16AddSatS:
+      case Kind::kI8x16AddSatU:
+      case Kind::kI8x16Sub:
+      case Kind::kI8x16SubSatS:
+      case Kind::kI8x16SubSatU:
+      case Kind::kI8x16MinS:
+      case Kind::kI8x16MinU:
+      case Kind::kI8x16MaxS:
+      case Kind::kI8x16MaxU:
+      case Kind::kI8x16RoundingAverageU:
+      case Kind::kI16x8ExtMulLowI8x16S:
+      case Kind::kI16x8ExtMulHighI8x16S:
+      case Kind::kI16x8ExtMulLowI8x16U:
+      case Kind::kI16x8ExtMulHighI8x16U:
+        return MachineRepresentation::kWord8;
+      case Kind::kI16x8Eq:
+      case Kind::kI16x8Ne:
+      case Kind::kI16x8GtS:
+      case Kind::kI16x8GtU:
+      case Kind::kI16x8GeS:
+      case Kind::kI16x8GeU:
+      case Kind::kI8x16SConvertI16x8:
+      case Kind::kI8x16UConvertI16x8:
+      case Kind::kI16x8Q15MulRSatS:
+      case Kind::kI16x8Add:
+      case Kind::kI16x8AddSatS:
+      case Kind::kI16x8AddSatU:
+      case Kind::kI16x8Sub:
+      case Kind::kI16x8SubSatS:
+      case Kind::kI16x8SubSatU:
+      case Kind::kI16x8Mul:
+      case Kind::kI16x8MinS:
+      case Kind::kI16x8MinU:
+      case Kind::kI16x8MaxS:
+      case Kind::kI16x8MaxU:
+      case Kind::kI16x8RoundingAverageU:
+      case Kind::kI16x8RelaxedQ15MulRS:
+      case Kind::kI32x4ExtMulLowI16x8S:
+      case Kind::kI32x4ExtMulHighI16x8S:
+      case Kind::kI32x4ExtMulLowI16x8U:
+      case Kind::kI32x4ExtMulHighI16x8U:
+        return MachineRepresentation::kWord16;
+      case Kind::kI32x4Eq:
+      case Kind::kI32x4Ne:
+      case Kind::kI32x4GtS:
+      case Kind::kI32x4GtU:
+      case Kind::kI32x4GeS:
+      case Kind::kI32x4GeU:
+      case Kind::kI16x8SConvertI32x4:
+      case Kind::kI16x8UConvertI32x4:
+      case Kind::kI32x4Add:
+      case Kind::kI32x4Sub:
+      case Kind::kI32x4Mul:
+      case Kind::kI32x4MinS:
+      case Kind::kI32x4MinU:
+      case Kind::kI32x4MaxS:
+      case Kind::kI32x4MaxU:
+      case Kind::kI64x2ExtMulLowI32x4S:
+      case Kind::kI64x2ExtMulHighI32x4S:
+      case Kind::kI64x2ExtMulLowI32x4U:
+      case Kind::kI64x2ExtMulHighI32x4U:
+        return MachineRepresentation::kWord32;
+      case Kind::kF32x4Eq:
+      case Kind::kF32x4Ne:
+      case Kind::kF32x4Lt:
+      case Kind::kF32x4Le:
+      case Kind::kF32x4Add:
+      case Kind::kF32x4Sub:
+      case Kind::kF32x4Mul:
+      case Kind::kF32x4Div:
+      case Kind::kF32x4Min:
+      case Kind::kF32x4Max:
+      case Kind::kF32x4Pmin:
+      case Kind::kF32x4Pmax:
+      case Kind::kF32x4RelaxedMin:
+      case Kind::kF32x4RelaxedMax:
+        return MachineRepresentation::kFloat32;
+      case Kind::kF16x8Eq:
+      case Kind::kF16x8Ne:
+      case Kind::kF16x8Lt:
+      case Kind::kF16x8Le:
+      case Kind::kF16x8Add:
+      case Kind::kF16x8Sub:
+      case Kind::kF16x8Mul:
+      case Kind::kF16x8Div:
+      case Kind::kF16x8Min:
+      case Kind::kF16x8Max:
+      case Kind::kF16x8Pmin:
+      case Kind::kF16x8Pmax:
+        return MachineRepresentation::kFloat16;
+      case Kind::kI64x2Add:
+      case Kind::kI64x2Sub:
+      case Kind::kI64x2Mul:
+      case Kind::kI64x2Eq:
+      case Kind::kI64x2Ne:
+      case Kind::kI64x2GtS:
+      case Kind::kI64x2GeS:
+        return MachineRepresentation::kWord64;
+      case Kind::kF64x2Eq:
+      case Kind::kF64x2Ne:
+      case Kind::kF64x2Lt:
+      case Kind::kF64x2Le:
+      case Kind::kF64x2Add:
+      case Kind::kF64x2Sub:
+      case Kind::kF64x2Mul:
+      case Kind::kF64x2Div:
+      case Kind::kF64x2Min:
+      case Kind::kF64x2Max:
+      case Kind::kF64x2Pmin:
+      case Kind::kF64x2Pmax:
+      case Kind::kF64x2RelaxedMin:
+      case Kind::kF64x2RelaxedMax:
+        return MachineRepresentation::kFloat64;
+    }
+  }
+
+  MachineRepresentation input_element_rep() const {
+    return input_element_rep(kind);
+  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -9031,6 +9299,168 @@ struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
 
   Kind kind;
 
+  static MachineRepresentation InputElementRep(Kind kind) {
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kS128Not:
+      case Kind::kI8x16Abs:
+      case Kind::kI8x16Neg:
+      case Kind::kI8x16Popcnt:
+      case Kind::kI16x8SConvertI8x16Low:
+      case Kind::kI16x8SConvertI8x16High:
+      case Kind::kI16x8UConvertI8x16Low:
+      case Kind::kI16x8UConvertI8x16High:
+      case Kind::kI16x8ExtAddPairwiseI8x16S:
+      case Kind::kI16x8ExtAddPairwiseI8x16U:
+      case Kind::kSimd128ReverseBytes:
+        return MachineRepresentation::kWord8;
+      case Kind::kI16x8Abs:
+      case Kind::kI16x8Neg:
+      case Kind::kI32x4SConvertI16x8Low:
+      case Kind::kI32x4SConvertI16x8High:
+      case Kind::kI32x4UConvertI16x8Low:
+      case Kind::kI32x4UConvertI16x8High:
+      case Kind::kI32x4ExtAddPairwiseI16x8S:
+      case Kind::kI32x4ExtAddPairwiseI16x8U:
+      case Kind::kF16x8SConvertI16x8:
+      case Kind::kF16x8UConvertI16x8:
+        return MachineRepresentation::kWord16;
+      case Kind::kI32x4Abs:
+      case Kind::kI32x4Neg:
+      case Kind::kF32x4SConvertI32x4:
+      case Kind::kF32x4UConvertI32x4:
+      case Kind::kI64x2SConvertI32x4Low:
+      case Kind::kI64x2SConvertI32x4High:
+      case Kind::kI64x2UConvertI32x4Low:
+      case Kind::kI64x2UConvertI32x4High:
+      case Kind::kF64x2ConvertLowI32x4S:
+      case Kind::kF64x2ConvertLowI32x4U:
+        return MachineRepresentation::kWord32;
+      case Kind::kF32x4Abs:
+      case Kind::kF32x4Neg:
+      case Kind::kF32x4Sqrt:
+      case Kind::kI32x4SConvertF32x4:
+      case Kind::kI32x4UConvertF32x4:
+      case Kind::kI32x4RelaxedTruncF32x4S:
+      case Kind::kI32x4RelaxedTruncF32x4U:
+      case Kind::kF32x4Ceil:
+      case Kind::kF32x4Floor:
+      case Kind::kF32x4Trunc:
+      case Kind::kF32x4NearestInt:
+      case Kind::kF64x2PromoteLowF32x4:
+      case Kind::kF16x8DemoteF32x4Zero:
+        return MachineRepresentation::kFloat32;
+      case Kind::kF16x8Abs:
+      case Kind::kF16x8Neg:
+      case Kind::kF16x8Sqrt:
+      case Kind::kF16x8Ceil:
+      case Kind::kF16x8Floor:
+      case Kind::kF16x8Trunc:
+      case Kind::kF16x8NearestInt:
+      case Kind::kI16x8SConvertF16x8:
+      case Kind::kI16x8UConvertF16x8:
+      case Kind::kF32x4PromoteLowF16x8:
+        return MachineRepresentation::kFloat16;
+      case Kind::kI64x2Abs:
+      case Kind::kI64x2Neg:
+        return MachineRepresentation::kWord64;
+      case Kind::kF64x2Abs:
+      case Kind::kF64x2Neg:
+      case Kind::kF64x2Sqrt:
+      case Kind::kF64x2Ceil:
+      case Kind::kF64x2Floor:
+      case Kind::kF64x2Trunc:
+      case Kind::kF64x2NearestInt:
+      case Kind::kF32x4DemoteF64x2Zero:
+      case Kind::kI32x4TruncSatF64x2SZero:
+      case Kind::kI32x4TruncSatF64x2UZero:
+      case Kind::kI32x4RelaxedTruncF64x2SZero:
+      case Kind::kI32x4RelaxedTruncF64x2UZero:
+      case Kind::kF16x8DemoteF64x2Zero:
+        return MachineRepresentation::kFloat64;
+    }
+  }
+
+  static bool IsLaneWise(Kind kind) {
+    // Preserve lane count and operate on corresponding lanes independently.
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI16x8SConvertI8x16Low:
+      case Kind::kI16x8SConvertI8x16High:
+      case Kind::kI16x8UConvertI8x16Low:
+      case Kind::kI16x8UConvertI8x16High:
+      case Kind::kI32x4SConvertI16x8Low:
+      case Kind::kI32x4SConvertI16x8High:
+      case Kind::kI32x4UConvertI16x8Low:
+      case Kind::kI32x4UConvertI16x8High:
+      case Kind::kI64x2SConvertI32x4Low:
+      case Kind::kI64x2SConvertI32x4High:
+      case Kind::kI64x2UConvertI32x4Low:
+      case Kind::kI64x2UConvertI32x4High:
+      case Kind::kI16x8ExtAddPairwiseI8x16S:
+      case Kind::kI16x8ExtAddPairwiseI8x16U:
+      case Kind::kI32x4ExtAddPairwiseI16x8S:
+      case Kind::kI32x4ExtAddPairwiseI16x8U:
+      case Kind::kF32x4DemoteF64x2Zero:
+      case Kind::kF64x2PromoteLowF32x4:
+      case Kind::kI32x4TruncSatF64x2SZero:
+      case Kind::kI32x4TruncSatF64x2UZero:
+      case Kind::kF64x2ConvertLowI32x4S:
+      case Kind::kF64x2ConvertLowI32x4U:
+      case Kind::kI32x4RelaxedTruncF64x2SZero:
+      case Kind::kI32x4RelaxedTruncF64x2UZero:
+      case Kind::kF16x8DemoteF32x4Zero:
+      case Kind::kF16x8DemoteF64x2Zero:
+      case Kind::kF32x4PromoteLowF16x8:
+      case Kind::kSimd128ReverseBytes:
+        return false;
+      case Kind::kS128Not:
+      case Kind::kI8x16Abs:
+      case Kind::kI8x16Neg:
+      case Kind::kI8x16Popcnt:
+      case Kind::kI16x8Abs:
+      case Kind::kI16x8Neg:
+      case Kind::kI32x4Abs:
+      case Kind::kI32x4Neg:
+      case Kind::kI64x2Abs:
+      case Kind::kI64x2Neg:
+      case Kind::kF32x4Abs:
+      case Kind::kF32x4Neg:
+      case Kind::kF32x4Sqrt:
+      case Kind::kF64x2Abs:
+      case Kind::kF64x2Neg:
+      case Kind::kF64x2Sqrt:
+      case Kind::kI32x4SConvertF32x4:
+      case Kind::kI32x4UConvertF32x4:
+      case Kind::kF32x4SConvertI32x4:
+      case Kind::kF32x4UConvertI32x4:
+      case Kind::kI32x4RelaxedTruncF32x4S:
+      case Kind::kI32x4RelaxedTruncF32x4U:
+      case Kind::kF16x8Abs:
+      case Kind::kF16x8Neg:
+      case Kind::kF16x8Sqrt:
+      case Kind::kF16x8Ceil:
+      case Kind::kF16x8Floor:
+      case Kind::kF16x8Trunc:
+      case Kind::kF16x8NearestInt:
+      case Kind::kI16x8SConvertF16x8:
+      case Kind::kI16x8UConvertF16x8:
+      case Kind::kF16x8SConvertI16x8:
+      case Kind::kF16x8UConvertI16x8:
+      case Kind::kF32x4Ceil:
+      case Kind::kF32x4Floor:
+      case Kind::kF32x4Trunc:
+      case Kind::kF32x4NearestInt:
+      case Kind::kF64x2Ceil:
+      case Kind::kF64x2Floor:
+      case Kind::kF64x2Trunc:
+      case Kind::kF64x2NearestInt:
+        return true;
+    }
+  }
+
   static constexpr OpEffects effects = OpEffects();
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -9046,6 +9476,9 @@ struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
 
   V<Simd128> input() const { return Base::input<Simd128>(0); }
 
+  MachineRepresentation input_element_rep() const {
+    return InputElementRep(kind);
+  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -9115,6 +9548,50 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
 
   static constexpr OpEffects effects = OpEffects();
 
+  static MachineRepresentation InputElementRep(Kind kind) {
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI8x16Shl:
+      case Kind::kI8x16ShrS:
+      case Kind::kI8x16ShrU:
+        return MachineRepresentation::kWord8;
+      case Kind::kI16x8Shl:
+      case Kind::kI16x8ShrS:
+      case Kind::kI16x8ShrU:
+        return MachineRepresentation::kWord16;
+      case Kind::kI32x4Shl:
+      case Kind::kI32x4ShrS:
+      case Kind::kI32x4ShrU:
+        return MachineRepresentation::kWord32;
+      case Kind::kI64x2Shl:
+      case Kind::kI64x2ShrS:
+      case Kind::kI64x2ShrU:
+        return MachineRepresentation::kWord64;
+    }
+  }
+
+  static bool IsLaneWise(Kind kind) {
+    // Preserve lane count and operate on corresponding lanes independently.
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI8x16Shl:
+      case Kind::kI8x16ShrS:
+      case Kind::kI8x16ShrU:
+      case Kind::kI16x8Shl:
+      case Kind::kI16x8ShrS:
+      case Kind::kI16x8ShrU:
+      case Kind::kI32x4Shl:
+      case Kind::kI32x4ShrS:
+      case Kind::kI32x4ShrU:
+      case Kind::kI64x2Shl:
+      case Kind::kI64x2ShrS:
+      case Kind::kI64x2ShrU:
+        return true;
+    }
+  }
+
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Simd128()>();
   }
@@ -9131,6 +9608,9 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
   V<Simd128> input() const { return Base::input<Simd128>(0); }
   V<Word32> shift() const { return Base::input<Word32>(1); }
 
+  MachineRepresentation input_element_rep() const {
+    return InputElementRep(kind);
+  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -9264,6 +9744,53 @@ struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
 
   Kind kind;
 
+  static bool IsLaneWise(Kind kind) {
+    // Preserve lane count and operate on corresponding lanes independently.
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kI32x4DotI8x16I7x16AddS:
+        return false;
+      case Kind::kS128Select:
+      case Kind::kI8x16RelaxedLaneSelect:
+      case Kind::kI16x8RelaxedLaneSelect:
+      case Kind::kI32x4RelaxedLaneSelect:
+      case Kind::kI64x2RelaxedLaneSelect:
+      case Kind::kF32x4Qfma:
+      case Kind::kF32x4Qfms:
+      case Kind::kF64x2Qfma:
+      case Kind::kF64x2Qfms:
+      case Kind::kF16x8Qfma:
+      case Kind::kF16x8Qfms:
+        return true;
+    }
+  }
+
+  static MachineRepresentation InputElementRep(Kind kind) {
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Kind::kS128Select:
+      case Kind::kI8x16RelaxedLaneSelect:
+        return MachineRepresentation::kWord8;
+      case Kind::kI16x8RelaxedLaneSelect:
+        return MachineRepresentation::kWord16;
+      case Kind::kI32x4RelaxedLaneSelect:
+        return MachineRepresentation::kWord32;
+      case Kind::kF32x4Qfma:
+      case Kind::kF32x4Qfms:
+        return MachineRepresentation::kFloat32;
+      case Kind::kI64x2RelaxedLaneSelect:
+        return MachineRepresentation::kWord64;
+      case Kind::kF64x2Qfma:
+      case Kind::kF64x2Qfms:
+        return MachineRepresentation::kFloat64;
+      case Kind::kF16x8Qfma:
+      case Kind::kF16x8Qfms:
+        return MachineRepresentation::kFloat16;
+    }
+  }
+
   static constexpr OpEffects effects = OpEffects();
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -9285,6 +9812,9 @@ struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
   V<Simd128> second() const { return input<Simd128>(1); }
   V<Simd128> third() const { return input<Simd128>(2); }
 
+  MachineRepresentation input_element_rep() const {
+    return InputElementRep(kind);
+  }
 
   auto options() const { return std::tuple{kind}; }
 };
