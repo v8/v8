@@ -3113,7 +3113,7 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
     if (status() == kLinked) {
       CHECK(IsJSGeneratorObject(code()));
     } else if (status() == kLinking) {
-      CHECK(IsJSFunction(code()));
+      CHECK(IsJSFunction(code()) || IsJSGeneratorObject(code()));
     } else if (status() == kPreLinking) {
       CHECK(IsSharedFunctionInfo(code()));
     } else if (status() == kUnlinked) {
@@ -3124,7 +3124,7 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
     CHECK(!HasAsyncEvaluationOrdinal());
   }
 
-  CHECK_EQ(requested_modules()->length(), info()->module_requests()->length());
+  VerifyRequestedModules();
 }
 
 void SyntheticModule::SyntheticModuleVerify(Isolate* isolate) {
