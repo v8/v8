@@ -97,16 +97,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   wasm.cast_null_to_null();
 })();
 
-(function TestWaitNotify() {
-  print(arguments.callee.name);
-
-  let value0 = 42;
-  let value1 = 10;
+function TestWaitNotify(type, const_op, value0, value1) {
+  print(`${arguments.callee.name} ${type}`);
 
   let builder = new WasmModuleBuilder();
 
   let struct = builder.addStruct(
-      {fields: [makeField(kWasmI32, true),
+      {fields: [makeField(type, true),
                 makeField(wasmRefNullType(kWasmWaitqueueRef).shared(), true)],
        shared: true});
 
@@ -114,12 +111,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let global = builder.addGlobal(
       struct_type, true, false,
-      [kExprI32Const, value0, kAtomicPrefix, kExprWaitqueueNew,
+      [...const_op(value0), kAtomicPrefix, kExprWaitqueueNew,
        kGCPrefix, kExprStructNew, struct]);
 
   builder.addExportOfKind("global", kExternalGlobal, global.index);
 
-  builder.addFunction("make", makeSig([kWasmI32], [struct_type]))
+  builder.addFunction("make", makeSig([type], [struct_type]))
     .addBody([kExprLocalGet, 0, kAtomicPrefix, kExprWaitqueueNew,
               kGCPrefix, kExprStructNew, struct])
     .exportFunc();
@@ -137,7 +134,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   builder.addFunction(
-      "wait", makeSig([struct_type, kWasmI32, kWasmI64], [kWasmI32]))
+      "wait", makeSig([struct_type, type, kWasmI64], [kWasmI32]))
     .addBody([kExprLocalGet, 0,
               kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 1,
               kExprLocalGet, 1, kExprLocalGet, 2,
@@ -145,7 +142,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   builder.addFunction(
-      "wait_null_struct", makeSig([kWasmI32, kWasmI64], [kWasmI32]))
+      "wait_null_struct", makeSig([type, kWasmI64], [kWasmI32]))
     .addBody([kExprRefNull, struct, kAtomicPrefix, kExprWaitqueueNew,
               kExprLocalGet, 0, kExprLocalGet, 1,
               kAtomicPrefix, kExprStructWait, struct, 0])
@@ -153,7 +150,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction(
       "wait_null_waitqueue",
-      makeSig([struct_type, kWasmI32, kWasmI64], [kWasmI32]))
+      makeSig([struct_type, type, kWasmI64], [kWasmI32]))
     .addBody([kExprLocalGet, 0,
               kExprRefNull, kWasmSharedTypeForm, kWaitqueueRefCode,
               kExprLocalGet, 1, kExprLocalGet, 2,
@@ -286,4 +283,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   worker.terminate();
   worker2.terminate();
-})();
+}
+
+TestWaitNotify(kWasmI32, wasmI32Const, 42, 10);
+TestWaitNotify(kWasmI64, wasmI64Const, (1n << 40n) + 42n, (1n << 40n) + 10n);
+TestWaitNotify(
+    wasmRefNullType(kWasmEqRef).shared(),
+    v => [...wasmI32Const(v), kGCPrefix, kExprRefI31Shared], 42, 10);

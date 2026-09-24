@@ -7158,8 +7158,10 @@ class LiftoffCompiler {
 
   void StructWait(FullDecoder* decoder, const Value& /* struct_obj */,
                   const FieldImmediate& imm, const Value& /* waitqueue */,
-                  const Value& /* expected_value */,
+                  const Value& expected_value_arg,
                   const Value& /* timeout_ns */, Value* /* result */) {
+    ValueKind kind = expected_value_arg.type.kind();
+    DCHECK(kind == kI32 || kind == kI64 || is_reference(kind));
     VarState timeout_ns_i64 = __ PopVarState();
 
     // Convert the timeout from I64 to a BigInt.
@@ -7168,21 +7170,39 @@ class LiftoffCompiler {
         MakeSig::Returns(kRef).Params(kI64), {timeout_ns_i64},
         decoder->position());
 
-    // We need to pop these three values after the previous builtin call,
+    VarState timeout{kRef, LiftoffRegister{kReturnRegister0}, 0};
+    VarState expected_value = __ cache_state() -> stack_state.back();
+    if (kind == kI64) {
+      // Put the timeout BigInt on the value stack so that it gets preserved
+      // across a potential GC triggered by the BigInt allocation below.
+      __ PushRegister(kRef, LiftoffRegister{kReturnRegister0});
+      CallBuiltin(
+          kNeedI64RegPair ? Builtin::kI32PairToBigInt : Builtin::kI64ToBigInt,
+          MakeSig::Returns(kRef).Params(kI64), {expected_value},
+          decoder->position());
+      timeout = __ PopVarState();
+      expected_value = VarState{kRef, LiftoffRegister{kReturnRegister0}, 0};
+    }
+    __ DropValues(1);
+
+    // We need to pop these values after the previous builtin call(s),
     // because register VarStates will get spilled and registers will be
-    // overwritten by it.
-    VarState expected_value = __ PopVarState();
+    // overwritten by them.
     VarState waitqueue = __ PopVarState();
     VarState struct_obj = __ PopVarState();
 
     int offset = WasmStruct::kHeaderSize +
                  imm.struct_imm.struct_type->field_offset(imm.field_imm.index);
+    Builtin target = kind == kI32   ? Builtin::kWasmManagedObjectWait32
+                     : kind == kI64 ? Builtin::kWasmManagedObjectWait64
+                                    : Builtin::kWasmManagedObjectWaitRef;
+    ValueKind expected_kind = kind == kI32 ? kI32 : kRef;
     // Null check happens within the builtin.
     CallBuiltin(
-        Builtin::kWasmManagedObjectWait,
-        MakeSig::Params(kRef, kI32, kI32, kRef, kRef).Returns(kI32),
+        target,
+        MakeSig::Params(kRef, kI32, expected_kind, kRef, kRef).Returns(kI32),
         {struct_obj, VarState{kI32, offset, 0}, expected_value, waitqueue,
-         VarState{kRef, LiftoffRegister{kReturnRegister0}, 0}},
+         timeout},
         decoder->position());
     __ PushRegister(kI32, LiftoffRegister{kReturnRegister0});
     MaybeOSR();

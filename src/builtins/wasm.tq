@@ -44,8 +44,12 @@ extern runtime WasmI32AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, Number, BigInt): Smi;
 extern runtime WasmI64AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, BigInt, BigInt): Smi;
-extern runtime WasmManagedObjectWait(
+extern runtime WasmManagedObjectWait32(
     Context, HeapObject, Smi, Number, HeapObject, BigInt): Smi;
+extern runtime WasmManagedObjectWait64(
+    Context, HeapObject, Smi, BigInt, HeapObject, BigInt): Smi;
+extern runtime WasmManagedObjectWaitRef(
+    Context, HeapObject, Smi, Object, HeapObject, BigInt): Smi;
 extern runtime WasmWaitqueueNew(Context): HeapObject;
 extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
     JSAny;
@@ -705,12 +709,30 @@ builtin WasmI64AtomicWait(
   return Unsigned(SmiToInt32(result));
 }
 
-builtin WasmManagedObjectWait(
+builtin WasmManagedObjectWait32(
     object: HeapObject, fieldOffset: int32, expectedValue: int32,
     waitqueue: HeapObject, timeout: BigInt): uint32 {
-  const result: Smi = runtime::WasmManagedObjectWait(
+  const result: Smi = runtime::WasmManagedObjectWait32(
       LoadContextFromFrame(), object, SmiFromInt32(fieldOffset),
       ChangeInt32ToTagged(expectedValue), waitqueue, timeout);
+  return Unsigned(SmiToInt32(result));
+}
+
+builtin WasmManagedObjectWait64(
+    object: HeapObject, fieldOffset: int32, expectedValue: BigInt,
+    waitqueue: HeapObject, timeout: BigInt): uint32 {
+  const result: Smi = runtime::WasmManagedObjectWait64(
+      LoadContextFromFrame(), object, SmiFromInt32(fieldOffset), expectedValue,
+      waitqueue, timeout);
+  return Unsigned(SmiToInt32(result));
+}
+
+builtin WasmManagedObjectWaitRef(
+    object: HeapObject, fieldOffset: int32, expectedValue: Object,
+    waitqueue: HeapObject, timeout: BigInt): uint32 {
+  const result: Smi = runtime::WasmManagedObjectWaitRef(
+      LoadContextFromFrame(), object, SmiFromInt32(fieldOffset), expectedValue,
+      waitqueue, timeout);
   return Unsigned(SmiToInt32(result));
 }
 

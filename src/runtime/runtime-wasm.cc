@@ -718,15 +718,13 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
                                     timeout_ns->AsInt64());
 }
 
-RUNTIME_FUNCTION(Runtime_WasmManagedObjectWait) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
-  Tagged<HeapObject> object = Cast<HeapObject>(args[0]);
-  int field_offset = args.smi_value_at(1);
-  int32_t expected_value = static_cast<int32_t>(args.number_value_at(2));
-  Tagged<HeapObject> waitqueue = Cast<HeapObject>(args[3]);
-  Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
-
+namespace {
+template <typename T>
+Tagged<Object> WasmManagedObjectWait(Isolate* isolate,
+                                     Tagged<HeapObject> object,
+                                     int field_offset, T expected_value,
+                                     Tagged<HeapObject> waitqueue,
+                                     Tagged<BigInt> timeout_ns) {
   TSAN_ACQUIRE(object.address());
   TSAN_ACQUIRE(waitqueue.address());
 
@@ -742,10 +740,51 @@ RUNTIME_FUNCTION(Runtime_WasmManagedObjectWait) {
         {isolate->factory()->NewStringFromAsciiChecked("struct.wait")});
   }
 
-  return FutexEmulation::WaitWasmManagedObject(
+  return FutexEmulation::WaitWasmManagedObject<T>(
       isolate, object, field_offset,
       Cast<Managed<FutexManagedObjectWaitList>>(waitqueue), expected_value,
       timeout_ns->AsInt64());
+}
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmManagedObjectWait32) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  Tagged<HeapObject> object = Cast<HeapObject>(args[0]);
+  int field_offset = args.smi_value_at(1);
+  int32_t expected_value = static_cast<int32_t>(args.number_value_at(2));
+  Tagged<HeapObject> waitqueue = Cast<HeapObject>(args[3]);
+  Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
+
+  return WasmManagedObjectWait<int32_t>(isolate, object, field_offset,
+                                        expected_value, waitqueue, timeout_ns);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmManagedObjectWait64) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  Tagged<HeapObject> object = Cast<HeapObject>(args[0]);
+  int field_offset = args.smi_value_at(1);
+  Tagged<BigInt> expected_value = Cast<BigInt>(args[2]);
+  Tagged<HeapObject> waitqueue = Cast<HeapObject>(args[3]);
+  Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
+
+  return WasmManagedObjectWait<int64_t>(isolate, object, field_offset,
+                                        expected_value->AsInt64(), waitqueue,
+                                        timeout_ns);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmManagedObjectWaitRef) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  Tagged<HeapObject> object = Cast<HeapObject>(args[0]);
+  int field_offset = args.smi_value_at(1);
+  Tagged<Object> expected_value = args[2];
+  Tagged<HeapObject> waitqueue = Cast<HeapObject>(args[3]);
+  Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
+
+  return WasmManagedObjectWait<Tagged<Object>>(
+      isolate, object, field_offset, expected_value, waitqueue, timeout_ns);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmWaitqueueNew) {

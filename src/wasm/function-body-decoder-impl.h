@@ -7419,18 +7419,24 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         const StructType* struct_type = field.struct_imm.struct_type;
         ValueType field_type = struct_type->field(field.field_imm.index);
-        if (field_type != kWasmI32) {
+        if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64 ||
+                      IsSubtypeOf(field_type.AsNonShared(), kWasmEqRef,
+                                  this->module_))) {
           this->DecodeError(
-              "%s: Field %d of type %d must be of type i32, found %s "
-              "instead",
+              "%s: Field %d of type %d must be of type i32, i64, or subtype "
+              "of eqref, found %s instead",
               WasmOpcodes::OpcodeName(opcode), field.struct_imm.index,
               field.field_imm.index, field_type.name().c_str());
           return 0;
         }
 
+        ValueType expected_type =
+            field_type.is_ref()
+                ? (field_type.is_shared() ? kWasmSharedEqRef : kWasmEqRef)
+                : field_type;
         auto [struct_obj, waitqueue, expected_value, timeout_ns] =
             Pop(ValueType::RefNull(field.struct_imm.heap_type()),
-                kWasmWaitqueueRef, kWasmI32, kWasmI64);
+                kWasmWaitqueueRef, expected_type, kWasmI64);
         Value* result = Push(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructWait, struct_obj, field,
                                            waitqueue, expected_value,
