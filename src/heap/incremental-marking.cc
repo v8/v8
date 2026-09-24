@@ -884,7 +884,7 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   }
 
   if (v8_flags.trace_incremental_marking ||
-      heap_->is_gc_tracing_category_enabled()) [[unlikely]] {
+      heap_->is_gc_extra_tracing_category_enabled()) [[unlikely]] {
     const auto v8_max_duration = max_duration - cpp_heap_duration;
     const auto v8_marked_bytes_limit =
         marked_bytes_limit > cpp_heap_marked_bytes
@@ -907,10 +907,10 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
           max_duration.InMillisecondsF());
     }
 
-    if (heap_->is_gc_tracing_category_enabled()) [[unlikely]] {
+    if (heap_->is_gc_extra_tracing_category_enabled()) [[unlikely]] {
       TRACE_EVENT_INSTANT(
-          TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCIncrementalMarkingStep",
-          "value",
+          TRACE_DISABLED_BY_DEFAULT("v8.gc_extra"),
+          "V8.GCIncrementalMarkingStep", "value",
           [step_origin, overall_duration, v8_marked_bytes,
            v8_marked_bytes_limit, v8_time, v8_max_duration,
            marking_speed_in_bytes_per_ms, cpp_heap_marked_bytes,

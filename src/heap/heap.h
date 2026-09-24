@@ -395,6 +395,10 @@ class Heap final {
     return *gc_tracing_category_enabled_;
   }
 
+  bool is_gc_extra_tracing_category_enabled() const {
+    return *gc_extra_tracing_category_enabled_;
+  }
+
   enum class StackScanMode { kNone, kFull, kSelective };
   StackScanMode ConservativeStackScanningModeForMinorGC() const {
     if (v8_flags.scavenger_conservative_object_pinning) {
@@ -2458,6 +2462,7 @@ class Heap final {
   std::atomic<uint64_t> total_allocated_bytes_ = 0;
 
   const uint8_t* gc_tracing_category_enabled_ = nullptr;
+  const uint8_t* gc_extra_tracing_category_enabled_ = nullptr;
   size_t notify_context_disposed_counter_ = 1;
 
   // Classes in "heap" can be friends.

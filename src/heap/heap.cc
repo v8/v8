@@ -302,7 +302,10 @@ Heap::Heap()
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
                          .disable_sibling_merge()),
       gc_tracing_category_enabled_(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-          TRACE_DISABLED_BY_DEFAULT("v8.gc"))) {
+          TRACE_DISABLED_BY_DEFAULT("v8.gc"))),
+      gc_extra_tracing_category_enabled_(
+          TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+              TRACE_DISABLED_BY_DEFAULT("v8.gc_extra"))) {
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) {
     // Because the track may not get any events of its own it must manually emit
