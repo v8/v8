@@ -2272,9 +2272,8 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
   i::DirectHandle<i::Code> wrapper;
   if (!i::wasm::IsJSCompatibleSignature(sig)) {
     // If the signature is incompatible with JS, the original export will have
-    // compiled an incompatible signature wrapper, so just reuse that.
-    wrapper =
-        i::DirectHandle<i::Code>(data->wrapper_code(i_isolate), i_isolate);
+    // compiled an incompatible signature wrapper, so fetch it from the cache.
+    wrapper = i::WasmExportedFunction::GetWrapper(i_isolate, sig);
   } else {
     wrapper = BUILTIN_CODE(i_isolate, WasmPromising);
   }

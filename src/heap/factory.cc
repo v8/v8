@@ -2320,7 +2320,6 @@ DirectHandle<WasmStackObject> Factory::NewWasmStackObject(
 }
 
 DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
-    DirectHandle<Code> export_wrapper,
     DirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int wrapper_budget,
@@ -2335,7 +2334,6 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
   result->set_internal(*internal_function);
-  result->set_wrapper_code(*export_wrapper);
   result->set_instance_data(*instance_data);
   result->set_function_index(func_index);
   result->set_wrapper_budget(*wrapper_budget_cell);
@@ -2352,8 +2350,7 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 
 DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, DirectHandle<CppGCManagedBase> embedder_data,
-    DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-    const wasm::CanonicalSig* sig) {
+    DirectHandle<Map> rtt, const wasm::CanonicalSig* sig) {
   DirectHandle<WasmImportData> import_data =
       NewWasmImportData(undefined_value(), wasm::kNoSuspend,
                         DirectHandle<WasmTrustedInstanceData>(), sig);
@@ -2372,7 +2369,6 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
-  result->set_wrapper_code(*wrapper_code);
   result->set_embedder_data(*embedder_data);
   result->set_js_promise_flags(
       WasmFunctionData::SuspendField::encode(wasm::kNoSuspend) |
@@ -5441,7 +5437,10 @@ Factory::JSFunctionBuilder::JSFunctionBuilder(
     : isolate_(isolate), sfi_(sfi), context_(context) {}
 
 Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
-  DirectHandle<Code> code(sfi_->GetCode(isolate_), isolate_);
+  DirectHandle<Code> code;
+  if (!maybe_code_.ToHandle(&code)) {
+    code = direct_handle(sfi_->GetCode(isolate_), isolate_);
+  }
   // Retain the code across the call to BuildRaw, because it allocates and can
   // trigger code to be flushed. Otherwise the SFI's compiled state and the
   // function's compiled state can diverge, and the call to PostInstantiation

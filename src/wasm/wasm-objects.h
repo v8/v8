@@ -1290,7 +1290,6 @@ V8_OBJECT class WasmFunctionData : public ExposedTrustedObject {
   V8_IT_OWN_TYPE;
 
  public:
-  DECL_CODE_POINTER_ACCESSORS(wrapper_code)
   DECL_PROTECTED_POINTER_ACCESSORS(internal, WasmInternalFunction)
 
   inline Tagged<WasmFuncRef> func_ref() const;
@@ -1312,7 +1311,6 @@ V8_OBJECT class WasmFunctionData : public ExposedTrustedObject {
   static const int kSize;
 
  public:
-  CodePointerMember wrapper_code_;
   TaggedMember<WasmFuncRef> func_ref_;
   TaggedMember<Smi> js_promise_flags_;
   ProtectedTaggedMember<WasmInternalFunction> protected_internal_;

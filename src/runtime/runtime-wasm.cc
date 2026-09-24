@@ -480,10 +480,7 @@ void ReplaceJSToWasmWrapper(
   Tagged<JSFunction> external_function;
   CHECK(func_ref->internal(isolate)->try_get_external(&external_function));
   CHECK(external_function->shared()->HasWasmExportedFunctionData(isolate));
-  Tagged<WasmExportedFunctionData> function_data =
-      external_function->shared()->wasm_exported_function_data();
   external_function->UpdateCode(isolate, wrapper_code);
-  function_data->set_wrapper_code(wrapper_code);
 }
 }  // namespace
 

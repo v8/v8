@@ -817,14 +817,6 @@ bool WasmFuncRef::has_internal() const { return !trusted_internal_.is_empty(); }
 void WasmFuncRef::clear_internal() { trusted_internal_.clear(this); }
 
 // WasmFunctionData
-Tagged<Code> WasmFunctionData::wrapper_code(IsolateForSandbox isolate) const {
-  return wrapper_code_.load(isolate);
-}
-void WasmFunctionData::set_wrapper_code(Tagged<Code> value,
-                                        WriteBarrierMode mode) {
-  wrapper_code_.store(this, value, mode);
-}
-
 Tagged<WasmInternalFunction> WasmFunctionData::internal() const {
   DCHECK(has_internal());
   return protected_internal_.load();

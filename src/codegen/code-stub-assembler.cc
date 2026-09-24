@@ -20175,7 +20175,9 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   Label check_is_baseline_data(this);
   Label check_is_interpreter_data(this);
   Label check_is_uncompiled_data(this);
-  Label check_is_wasm_function_data(this);
+#if V8_ENABLE_WEBASSEMBLY
+  Label unexpected_wasm_data(this);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   LoadSharedFunctionInfoTrustedDataAndDispatch(
       shared_info, &sfi_data_out, data_type_out, &use_untrusted_data,
@@ -20192,8 +20194,11 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
           {UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE,
            &check_is_uncompiled_data},
 #if V8_ENABLE_WEBASSEMBLY
-          {WASM_CAPI_FUNCTION_DATA_TYPE, &check_is_wasm_function_data},
-          {WASM_EXPORTED_FUNCTION_DATA_TYPE, &check_is_wasm_function_data},
+          // GetSharedFunctionInfoCode is only called by CompileLazy, which Wasm
+          // functions never enter because their wrapper code is installed
+          // directly into the JSDispatchTable at creation time.
+          {WASM_EXPORTED_FUNCTION_DATA_TYPE, &unexpected_wasm_data},
+          {WASM_CAPI_FUNCTION_DATA_TYPE, &unexpected_wasm_data},
 #endif  // V8_ENABLE_WEBASSEMBLY
       });
 
@@ -20230,14 +20235,6 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   BIND(&check_is_uncompiled_data);
   sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
   Goto(if_compile_lazy ? if_compile_lazy : &done);
-
-#if V8_ENABLE_WEBASSEMBLY
-  // IsWasmFunctionData: Use the wrapper code
-  BIND(&check_is_wasm_function_data);
-  sfi_code = LoadTrustedPointerFromObject<kCodeIndirectPointerTag>(
-      CAST(sfi_data_out.value()), offsetof(WasmFunctionData, wrapper_code_));
-  Goto(&done);
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   BIND(&use_untrusted_data);
   {
@@ -20296,6 +20293,11 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     Goto(&done);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  BIND(&unexpected_wasm_data);
+  Unreachable();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   BIND(&unknown_data);
   Unreachable();

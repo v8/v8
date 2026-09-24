@@ -115,14 +115,10 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
       return isolate->builtins()->code(Builtin::kCompileLazy);
     }
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmExportedFunctionData(trusted_data)) {
-      // Having a WasmExportedFunctionData means the code is in there.
-      DCHECK(HasWasmExportedFunctionData(isolate));
-      return wasm_exported_function_data()->wrapper_code(isolate);
-    }
-    if (IsWasmCapiFunctionData(trusted_data)) {
-      return wasm_capi_function_data()->wrapper_code(isolate);
-    }
+    // Wasm functions (WasmExportedFunction and WasmCapiFunction) install their
+    // wrapper code directly into the JSDispatchTable at creation time (and on
+    // tier-up), rather than storing it on the SharedFunctionInfo.
+    CHECK(!IsWasmFunctionData(trusted_data));
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     DCHECK(HasUntrustedData());

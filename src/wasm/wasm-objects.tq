@@ -119,8 +119,6 @@ extern operator '.internal' macro LoadWasmInternalFunctionFromFuncRef(
 // Exposed via SharedFunctionInfo::trusted_function_data.
 @cppObjectLayoutDefinition
 extern class WasmFunctionData extends ExposedTrustedObject {
-  // Used for calling this function from JavaScript.
-  wrapper_code: TrustedPointer<Code>;
   // The function reference for this function object. This is used when
   // converting a JS function back to the wasm-side func ref.
   func_ref: WasmFuncRef;

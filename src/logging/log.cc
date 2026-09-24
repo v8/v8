@@ -2194,6 +2194,11 @@ EnumerateCompiledFunctions(Heap* heap) {
       // the entire heap here, we may still find them if no GC has cleaned them
       // up yet. See crbug.com/385341243 and the associated fix for context.
       if (sfi->HasUnpublishedTrustedData(isolate)) continue;
+#if V8_ENABLE_WEBASSEMBLY
+      // Wasm functions don't store wrapper code on the SFI; exported Wasm
+      // functions are recorded via their JSFunction below.
+      if (sfi->HasWasmFunctionData(isolate)) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
       if (sfi->is_compiled() && !sfi->HasBytecodeArray()) {
         record(sfi, Cast<AbstractCode>(sfi->abstract_code(isolate)));
@@ -2202,12 +2207,17 @@ EnumerateCompiledFunctions(Heap* heap) {
       // Given that we no longer iterate over all optimized JSFunctions, we need
       // to take care of this here.
       Tagged<JSFunction> function = Cast<JSFunction>(obj);
+      Tagged<SharedFunctionInfo> sfi = function->shared();
       // TODO(jarin) This leaves out deoptimized code that might still be on the
       // stack. Also note that we will not log optimized code objects that are
       // only on a type feedback vector. We should make this more precise.
-      if (function->HasAttachedOptimizedCode(isolate) &&
-          Cast<Script>(function->shared()->script())->HasValidSource()) {
-        record(function->shared(), Cast<AbstractCode>(function->code(isolate)));
+      if ((function->HasAttachedOptimizedCode(isolate) &&
+           Cast<Script>(sfi->script())->HasValidSource())
+#if V8_ENABLE_WEBASSEMBLY
+          || sfi->HasWasmExportedFunctionData(isolate)
+#endif  // V8_ENABLE_WEBASSEMBLY
+      ) {
+        record(sfi, Cast<AbstractCode>(function->code(isolate)));
       }
     }
   }

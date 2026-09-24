@@ -3431,17 +3431,22 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
   CHECK(IsCell(wrapper_budget_.load()));
   Object::VerifyPointer(isolate, packed_args_size_.load());
   CHECK(IsSmi(packed_args_size_.load()));
-  Tagged<Code> wrapper = wrapper_code(isolate);
-  CHECK(wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
-        wrapper->kind() == CodeKind::C_WASM_ENTRY ||
-        (wrapper->is_builtin() &&
-         (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+  // The external JSFunction is attached after NewWasmExportedFunctionData
+  // finishes, so verify its wrapper code once attached.
+  Tagged<JSFunction> external;
+  if (internal()->try_get_external(&external)) {
+    Object::VerifyPointer(isolate, external);
+    Tagged<Code> wrapper = external->code(isolate);
+    CHECK(wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+          (wrapper->is_builtin() &&
+           (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
 #if V8_ENABLE_DRUMBRAKE
-          wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
-          wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapperAsm ||
+            wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
+            wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapperAsm ||
 #endif  // V8_ENABLE_DRUMBRAKE
-          wrapper->builtin_id() == Builtin::kWasmPromising ||
-          wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
+            wrapper->builtin_id() == Builtin::kWasmPromising ||
+            wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
+  }
 }
 
 void WasmCapiFunctionData::WasmCapiFunctionDataVerify(Isolate* isolate) {

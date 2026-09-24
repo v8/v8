@@ -3518,10 +3518,8 @@ void WasmDispatchTableForImports::WasmDispatchTableForImportsPrint(
 
 // Never called directly, as WasmFunctionData is an "abstract" class.
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
-  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   os << "\n - func_ref: " << Brief(func_ref());
   os << "\n - internal: " << Brief(internal());
-  os << "\n - wrapper_code: " << Brief(wrapper_code(isolate));
   os << "\n - js_promise_flags: " << js_promise_flags();
   // No newline here; the caller prints it after printing additional fields.
 }

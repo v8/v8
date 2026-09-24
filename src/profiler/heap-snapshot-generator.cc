@@ -2133,6 +2133,12 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, Tagged<SharedFunctionInfo> shared) {
   TagObject(shared, "(shared function info)");
+#if V8_ENABLE_WEBASSEMBLY
+  // Wasm functions store their wrapper Code on the JSFunction's
+  // JSDispatchTable entry rather than on the SharedFunctionInfo, so
+  // SharedFunctionInfo::GetCode is not applicable to WasmFunctionData.
+  if (!shared->HasWasmFunctionData(isolate()))
+#endif  // V8_ENABLE_WEBASSEMBLY
   {
     std::unique_ptr<char[]> name = shared->DebugNameCStr();
     Tagged<Code> code = shared->GetCode(isolate());

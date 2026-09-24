@@ -869,10 +869,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Map> rtt);
   DirectHandle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, DirectHandle<CppGCManagedBase> embedder_data,
-      DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-      const wasm::CanonicalSig* sig);
+      DirectHandle<Map> rtt, const wasm::CanonicalSig* sig);
   DirectHandle<WasmExportedFunctionData> NewWasmExportedFunctionData(
-      DirectHandle<Code> export_wrapper,
       DirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int wrapper_budget,
@@ -1277,6 +1275,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       maybe_feedback_cell_ = v;
       return *this;
     }
+    // Explicitly sets the initial Code object installed into the
+    // JSDispatchTable instead of querying SharedFunctionInfo::GetCode.
+    JSFunctionBuilder& set_code(DirectHandle<Code> v) {
+      maybe_code_ = v;
+      return *this;
+    }
 
    private:
     V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(DirectHandle<Code> code);
@@ -1286,6 +1290,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     DirectHandle<Context> context_;
     MaybeDirectHandle<Map> maybe_map_;
     MaybeDirectHandle<FeedbackCell> maybe_feedback_cell_;
+    MaybeDirectHandle<Code> maybe_code_;
     AllocationType allocation_type_ = AllocationType::kOld;
 
     friend class Factory;
