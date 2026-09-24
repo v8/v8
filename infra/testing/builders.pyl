@@ -446,8 +446,9 @@
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
     },
-    # TODO(almuthanna): Add a new test config for the fuzzilli suite.
-    'tests': [],
+    'tests': [
+      {'name': 'mjsunit', 'variant': 'default'},
+    ],
   },
   'v8_linux64_fyi_rel': {
     'swarming_dimensions' : {
@@ -1407,6 +1408,14 @@
         'suffix': 'test multi host',
         'test_args': ['--test-run'],
       },
+    ],
+  },
+  'V8 Linux64 - Fuzzilli': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'mjsunit', 'variant': 'default'},
     ],
   },
   'V8 Linux64 - official': {
