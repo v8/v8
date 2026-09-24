@@ -2763,14 +2763,6 @@ DEFINE_BOOL(flush_baseline_code, false,
             "flush of baseline code when it has not been executed recently")
 DEFINE_BOOL(flush_bytecode, true,
             "flush of bytecode when it has not been executed recently")
-DEFINE_INT(bytecode_old_age, 6, "number of gcs before we flush code")
-DEFINE_REQUIREMENT(v8_flags.bytecode_old_age >= 0)
-DEFINE_BOOL(flush_code_based_on_time, true,
-            "Use time-base code flushing instead of age.")
-DEFINE_IMPLICATION(flush_code_based_on_time, late_heap_limit_check)
-DEFINE_BOOL(flush_code_based_on_tab_visibility, false,
-            "Flush code when tab goes into the background.")
-DEFINE_IMPLICATION(flush_code_based_on_tab_visibility, late_heap_limit_check)
 DEFINE_INT(bytecode_old_time, 180, "number of seconds before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
 DEFINE_WEAK_IMPLICATION(stress_flush_code, flush_baseline_code)

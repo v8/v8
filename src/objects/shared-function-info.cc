@@ -886,12 +886,7 @@ void SharedFunctionInfo::UninstallDebugBytecode(
 
 // static
 void SharedFunctionInfo::EnsureOldForTesting(Tagged<SharedFunctionInfo> sfi) {
-  if (v8_flags.flush_code_based_on_time ||
-      v8_flags.flush_code_based_on_tab_visibility) {
-    sfi->set_age(kMaxAge);
-  } else {
-    sfi->set_age(v8_flags.bytecode_old_age);
-  }
+  sfi->set_age(kMaxAge);
 }
 
 #ifdef DEBUG

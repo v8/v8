@@ -425,9 +425,7 @@ base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate) {
     code_flush_mode.Add(CodeFlushMode::kForceFlush);
   }
 
-  if (isolate->heap()->IsLastResortGC() &&
-      (v8_flags.flush_code_based_on_time ||
-       v8_flags.flush_code_based_on_tab_visibility)) {
+  if (isolate->heap()->IsLastResortGC()) {
     code_flush_mode.Add(CodeFlushMode::kForceFlush);
   }
 
