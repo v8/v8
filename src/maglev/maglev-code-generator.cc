@@ -1554,7 +1554,7 @@ class MaglevFrameTranslationBuilder {
     return kNotDuplicated;
   }
 
-  void BuildNestedValue(const ValueNode* value,
+  void BuildNestedValue(const VirtualObject* object, const ValueNode* value,
                         const InputLocation*& input_location,
                         const VirtualObjectList& virtual_objects) {
     const Opcode opcode = value->opcode();
@@ -1563,16 +1563,22 @@ class MaglevFrameTranslationBuilder {
     DCHECK_NE(opcode, Opcode::kIdentity);
     if (IsConstantNode(opcode)) {
       if (opcode == Opcode::kFloat64Constant) {
-        Float64 value_as_float = value->Cast<Float64Constant>()->value();
-        if (value_as_float.is_hole_nan()) {
-          translation_array_builder_->StoreLiteral(
-              GetDeoptLiteral(ReadOnlyRoots{local_isolate_}.the_hole_value()));
-          return;
-        }
+        DCHECK(object->has_static_map());
+        if (object->map()->IsFixedDoubleArrayMap()) {
+          Float64 value_as_float = value->Cast<Float64Constant>()->value();
+          if (value_as_float.is_hole_nan()) {
+            translation_array_builder_->StoreLiteral(GetDeoptLiteral(
+                ReadOnlyRoots{local_isolate_}.the_hole_value()));
+            return;
+          }
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-        // TODO(nicohartmann): Handle is_undefined_nan here.
-        DCHECK(!value_as_float.is_undefined_nan());
+          if (value_as_float.is_undefined_nan()) {
+            translation_array_builder_->StoreLiteral(GetDeoptLiteral(
+                ReadOnlyRoots{local_isolate_}.undefined_value()));
+            return;
+          }
 #endif  //  V8_ENABLE_UNDEFINED_DOUBLE
+        }
       }
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(*value->Reify(local_isolate_)));
@@ -1638,7 +1644,7 @@ class MaglevFrameTranslationBuilder {
       translation_array_builder_->BeginCapturedObject(fields);
     }
     auto callback = [&](ValueNode* node, const vobj::Field& desc) -> bool {
-      BuildNestedValue(node, input_location, virtual_objects);
+      BuildNestedValue(object, node, input_location, virtual_objects);
       return true;
     };
     object->ForEachSlot(callback,

@@ -6373,7 +6373,8 @@ class GraphBuildingNodeProcessor {
             case maglev::vobj::FieldType::kTrustedPointer:
             case maglev::vobj::FieldType::kFloat64:
             case maglev::vobj::FieldType::kInt32:
-              AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
+              AddVirtualObjectNestedValue(builder, virtual_objects, vobj,
+                                          value_node);
               break;
             case maglev::vobj::FieldType::kNone:
               UNREACHABLE();
@@ -6385,7 +6386,7 @@ class GraphBuildingNodeProcessor {
   void AddVirtualObjectNestedValue(
       FrameStateData::Builder& builder,
       const maglev::VirtualObjectList& virtual_objects,
-      const maglev::ValueNode* value) {
+      const maglev::VirtualObject* vobj, const maglev::ValueNode* value) {
     if (maglev::IsConstantNode(value->opcode())) {
       switch (value->opcode()) {
         case maglev::Opcode::kHeapConstant:
@@ -6401,12 +6402,16 @@ class GraphBuildingNodeProcessor {
               value->opcode() == maglev::Opcode::kFloat64Constant
                   ? value->Cast<maglev::Float64Constant>()->value()
                   : value->Cast<maglev::HoleyFloat64Constant>()->value();
-          if (value_as_float.is_hole_nan()) {
+          DCHECK(vobj->has_static_map());
+          const bool is_fixed_double_array =
+              vobj->map()->IsFixedDoubleArrayMap();
+          if (is_fixed_double_array && value_as_float.is_hole_nan()) {
             builder.AddInput(
                 MachineType::AnyTagged(),
                 __ HeapConstantHole(local_factory_->the_hole_value()));
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-          } else if (value_as_float.is_undefined_nan()) {
+          } else if (is_fixed_double_array &&
+                     value_as_float.is_undefined_nan()) {
             builder.AddInput(MachineType::AnyTagged(), undefined_value_);
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
           } else {
