@@ -514,6 +514,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
     wasm_custom_descriptors_enabled_callback, nullptr)                      \
   V(IsJSApiWrapperNativeErrorCallback,                                      \
     is_js_api_wrapper_native_error_callback, nullptr)                       \
+  V(ArrayBufferDetachCallback, array_buffer_detach_callback, nullptr)       \
   /* State for Relocatable. */                                              \
   V(Relocatable*, relocatable_top, nullptr)                                 \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)           \

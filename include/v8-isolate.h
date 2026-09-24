@@ -835,6 +835,12 @@ class V8_EXPORT Isolate {
       IsJSApiWrapperNativeErrorCallback callback);
 
   /**
+   * Set the callback invoked when an ArrayBuffer wrapping an embedder object
+   * is detached.
+   */
+  void SetArrayBufferDetachCallback(ArrayBufferDetachCallback callback);
+
+  /**
    * This specifies the callback called when the stack property of Error
    * is accessed.
    */
