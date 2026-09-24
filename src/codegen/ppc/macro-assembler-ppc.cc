@@ -5084,7 +5084,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Register return_value = r3;
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  Register scratch2 = r0;
 
   // Allocate HandleScope in callee-saved registers.
   // We will need to restore the HandleScope after the call to the API function,
@@ -5098,14 +5097,14 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   // kCArgRegs[0] but that's ok because we start using it only after the C
   // call).
   DCHECK(!AreAliased(kCArgRegs[0], kCArgRegs[1], kCArgRegs[2],  // C args
-                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
+                     scratch, prev_next_address_reg, prev_limit_reg));
   // function_address and thunk_arg might overlap but this function must not
   // corrupt them until the call is made (i.e. overlap with return_value is
   // fine).
   DCHECK(!AreAliased(function_address,  // incoming parameters
-                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
+                     scratch, prev_next_address_reg, prev_limit_reg));
   DCHECK(!AreAliased(thunk_arg,  // incoming parameters
-                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
+                     scratch, prev_next_address_reg, prev_limit_reg));
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Allocate HandleScope in callee-save registers.");
@@ -5145,7 +5144,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     static_assert(kInterceptedNo == 1 && kInterceptedSize == 4);
     static_assert(kInterceptedNo == kNotInterceptedSentinel);
     static_assert(kInterceptedYes == 0);
-    __ andi(r0, return_value, Operand(1));
+    __ andi(scratch, return_value, Operand(1));
     __ b(to_condition(kNotZero), &done_reading_result);
   }
 
@@ -5188,6 +5187,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Check if the function scheduled an exception.");
+    UseScratchRegisterScope temps2(masm);
+    Register scratch2 = temps2.Acquire();
     __ LoadRoot(scratch, RootIndex::kTheHoleValue);
     __ LoadU64(scratch2, __ ExternalReferenceAsOperand(
                              ER::exception_address(isolate), no_reg));
