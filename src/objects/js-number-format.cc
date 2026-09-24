@@ -425,13 +425,12 @@ const icu::UnicodeString CurrencyFromSkeleton(
 const icu::UnicodeString JSNumberFormat::NumberingSystemFromSkeleton(
     const icu::UnicodeString& skeleton) {
   const char numbering_system[] = "numbering-system/";
-  int32_t index = skeleton.indexOf(numbering_system);
-  if (index < 0) return "latn";
-  index += static_cast<int32_t>(std::strlen(numbering_system));
-  const icu::UnicodeString res = skeleton.tempSubString(index);
-  index = res.indexOf(" ");
-  if (index < 0) return res;
-  return res.tempSubString(0, index);
+  int32_t begin = skeleton.indexOf(numbering_system);
+  if (begin < 0) return "latn";
+  begin += static_cast<int32_t>(std::strlen(numbering_system));
+  int32_t end = skeleton.indexOf(" ", begin);
+  return end <= begin ? skeleton.tempSubString(begin)
+                      : skeleton.tempSubStringBetween(begin, end);
 }
 
 namespace {
