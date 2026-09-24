@@ -522,6 +522,14 @@ inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
     Register object, int offset, Handle<HeapObject> constant) {
   DCHECK(kSupportsStoreTaggedConstant);
+  RootIndex root_index;
+  if (isolate()->roots_table().IsRootHandle(constant, &root_index) &&
+      CanBeImmediate(root_index)) {
+    MacroAssembler::StoreTaggedField(
+        FieldOperand(object, offset),
+        Immediate(static_cast<int32_t>(ReadOnlyRootPtr(root_index))));
+    return;
+  }
   // Embed the compressed object as a relocatable immediate, like
   // {MacroAssembler::Move(Register, Handle<HeapObject>, RelocInfo::Mode)} does
   // for the register form. Maglev code is never isolate-independent, so no
