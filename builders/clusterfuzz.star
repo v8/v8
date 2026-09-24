@@ -208,7 +208,7 @@ in_category(
         properties = {"builder_group": "client.v8"},
         disable_resultdb_exports = True,
         use_siso = SISO.CHROMIUM_TRUSTED,
-        barrier = BARRIER.NONE,
+        barrier = BARRIER.TREE_CLOSER,
     ),
 )
 
