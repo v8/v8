@@ -27,6 +27,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1732,17 +1733,16 @@ TEST(Regress_1171759) {
 
   OptimizedCompilationInfo info(base::ArrayVector("testing"),
                                 handles.main_zone(), CodeKind::WASM_FUNCTION);
-  DirectHandle<Code> code =
-      Pipeline::GenerateCodeForTesting(
-          &info, handles.main_isolate(), desc, m.graph(),
-          AssemblerOptions::Default(handles.main_isolate()), m.ExportForTest())
-          .ToHandleChecked();
+  wasm::WasmCompilationResult result = Pipeline::GenerateWasmCodeForTesting(
+      &info, handles.main_isolate(), desc, m.graph(),
+      AssemblerOptions::Default(handles.main_isolate()), m.ExportForTest());
+  CHECK(result.succeeded());
 
   std::shared_ptr<wasm::NativeModule> module =
-      AllocateNativeModule(handles.main_isolate(), code->instruction_size());
+      AllocateNativeModule(handles.main_isolate(), result.code_desc.instr_size);
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   wasm::WasmCode* wasm_code =
-      module->AddCodeForTesting(code, desc->signature_hash());
+      module->AddCodeForTesting(result, desc->signature_hash());
   WasmCodePointer code_pointer =
       wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
           wasm_code->instruction_start(), wasm_code->signature_hash());
