@@ -4,8 +4,10 @@
 
 load("//lib/builders.star", "v8_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
-load("//lib/lib.star", "BARRIER", "greedy_batching_of_1", "in_console")
+load("//lib/lib.star", "BARRIER", "ci_pair_factory", "greedy_batching_of_1", "in_console")
 load("//lib/siso.star", "SISO")
+
+builder_pair = ci_pair_factory(v8_builder)
 
 def clusterfuzz_builder(properties = None, barrier = BARRIER.TREE_CLOSER, default_target = "v8_clusterfuzz", **kwargs):
     properties = dict(properties or {})
@@ -198,15 +200,15 @@ in_category(
 
 in_category(
     "Fuzzilli",
-    v8_builder(
-        name = "V8 Linux64 - Fuzzilli - builder",
+    builder_pair(
+        name = "V8 Linux64 - Fuzzilli",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         disable_resultdb_exports = True,
         use_siso = SISO.CHROMIUM_TRUSTED,
-        barrier = BARRIER.TREE_CLOSER,
+        barrier = BARRIER.NONE,
     ),
 )
 
