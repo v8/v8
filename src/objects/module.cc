@@ -128,6 +128,11 @@ void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
 void Module::ResetGraph(Isolate* isolate, DirectHandle<Module> module) {
   DCHECK_NE(module->status(), kEvaluating);
   if (module->status() != kPreLinking && module->status() != kLinking) {
+#ifdef DEBUG
+    if (IsSourceTextModule(*module)) {
+      Cast<SourceTextModule>(*module)->VerifyRequestedModules();
+    }
+#endif  // DEBUG
     return;
   }
 
@@ -202,8 +207,8 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
         loc, must_resolve, resolve_set);
   } else {
     return SyntheticModule::ResolveExport(
-        isolate, Cast<SyntheticModule>(module), module_specifier, export_name,
-        loc, must_resolve);
+        isolate, CheckedCast<SyntheticModule>(module), module_specifier,
+        export_name, loc, must_resolve);
   }
 }
 

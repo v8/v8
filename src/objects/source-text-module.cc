@@ -94,7 +94,9 @@ Tagged<SharedFunctionInfo> SourceTextModule::GetSharedFunctionInfo() const {
     case kPreLinking:
       return Cast<SharedFunctionInfo>(code());
     case kLinking:
-      return Cast<JSFunction>(code())->shared();
+      return IsJSGeneratorObject(code())
+                 ? Cast<JSGeneratorObject>(code())->function()->shared()
+                 : Cast<JSFunction>(code())->shared();
     case kLinked:
     case kEvaluating:
     case kEvaluatingAsync:
@@ -110,6 +112,26 @@ Tagged<Script> SourceTextModule::GetScript() const {
   DisallowGarbageCollection no_gc;
   return Cast<Script>(GetSharedFunctionInfo()->script());
 }
+
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+void SourceTextModule::VerifyRequestedModules() const {
+  DisallowGarbageCollection no_gc;
+  Tagged<FixedArray> requests = info()->module_requests();
+  Tagged<FixedArray> modules = requested_modules();
+  uint32_t len = modules->ulength().value();
+  CHECK_EQ(len, requests->ulength().value());
+  if (status() >= kLinked) {
+    for (uint32_t i = 0; i < len; ++i) {
+      Tagged<ModuleRequest> req = Cast<ModuleRequest>(requests->get(i));
+      if (req->phase() != ModuleImportPhase::kSource) {
+        Tagged<Object> m = modules->get(i);
+        CHECK(IsModule(m));
+        CHECK_GE(Cast<Module>(m)->status(), kLinked);
+      }
+    }
+  }
+}
+#endif  // defined(DEBUG) || defined(VERIFY_HEAP)
 
 int SourceTextModule::ExportIndex(int cell_index) {
   DCHECK_EQ(SourceTextModuleDescriptor::GetCellIndexKind(cell_index),
@@ -276,7 +298,8 @@ MaybeHandle<Cell> SourceTextModule::ResolveImport(
     case ModuleImportPhase::kDefer:
     case ModuleImportPhase::kEvaluation: {
       Handle<Module> requested_module(
-          Cast<Module>(module->requested_modules()->get(module_request_index)),
+          CheckedCast<Module>(
+              module->requested_modules()->get(module_request_index)),
           isolate);
       DirectHandle<String> module_specifier(
           Cast<String>(module_request->specifier()), isolate);
@@ -487,7 +510,8 @@ bool SourceTextModule::PrepareInstantiate(
 bool SourceTextModule::RunInitializationCode(
     Isolate* isolate, DirectHandle<SourceTextModule> module) {
   DCHECK_EQ(module->status(), kLinking);
-  DirectHandle<JSFunction> function(Cast<JSFunction>(module->code()), isolate);
+  DirectHandle<JSFunction> function(CheckedCast<JSFunction>(module->code()),
+                                    isolate);
   DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
   DirectHandle<Object> receiver = isolate->factory()->undefined_value();
 
@@ -562,6 +586,7 @@ bool SourceTextModule::MaybeTransitionComponent(
     //    ix. Set requiredModule.[[CycleRoot]] to module.
     //
     // InnerModuleLinking
+    // https://tc39.es/ecma262/#sec-InnerModuleLinking
     //
     // a. Let done be false.
     // b. Repeat, while done is false,
@@ -571,15 +596,43 @@ bool SourceTextModule::MaybeTransitionComponent(
     //    iv. Set requiredModule.[[Status]] to LINKED.
     //     v. If requiredModule and module are the same Module Record, set done
     //        to true.
+    if (new_status == kLinked) {
+      // In the spec, InnerModuleLinking step 10 performs
+      // ? module.InitializeEnvironment() for every module in the strongly
+      // connected component (SCC) before the SCC root reaches the infallible
+      // status-transition loop at step 13, ensuring that all modules in an SCC
+      // transition to ~linked~ atomically and that on abrupt completion every
+      // module on stack still has [[Status]] == ~linking~ (Link step 4.a.i,
+      // https://tc39.es/ecma262/#sec-moduledeclarationlinking).
+      //
+      // V8 splits InitializeEnvironment() into two parts: static import and
+      // indirect-export resolution runs at the step-10 position in
+      // FinishInstantiate, while environment and namespace instantiation
+      // (RunInitializationCode) is deferred until all imports and indirect
+      // exports across the SCC have been resolved. Because
+      // RunInitializationCode can fail (e.g. stack overflow or termination), it
+      // must complete for every module in the SCC before any module in the SCC
+      // transitions to kLinked below.
+      bool found = false;
+      for (DirectHandle<SourceTextModule> required_module : *stack) {
+        DCHECK_EQ(required_module->status(), kLinking);
+        if (!SourceTextModule::RunInitializationCode(isolate,
+                                                     required_module)) {
+          return false;
+        }
+        if (*required_module == *module) {
+          found = true;
+          break;
+        }
+      }
+      CHECK(found);
+    }
     do {
       ancestor = stack->front();
       stack->pop_front();
       DCHECK_EQ(ancestor->status(),
                 new_status == kLinked ? kLinking : kEvaluating);
       if (new_status == kLinked) {
-        if (!SourceTextModule::RunInitializationCode(isolate, ancestor)) {
-          return false;
-        }
         ancestor->SetStatus(kLinked);
       } else {
         DCHECK(ancestor->async_evaluation_ordinal() == kNotAsyncEvaluated ||
@@ -631,8 +684,8 @@ bool SourceTextModule::FinishInstantiate(
     if (module_request->phase() == ModuleImportPhase::kSource) {
       continue;
     }
-    Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
-                                    isolate);
+    Handle<Module> requested_module(
+        CheckedCast<Module>(requested_modules->get(i)), isolate);
     if (!Module::FinishInstantiate(isolate, requested_module, stack, dfs_index,
                                    zone, depth + 1, max_depth)) {
       return false;
@@ -659,7 +712,13 @@ bool SourceTextModule::FinishInstantiate(
   Handle<Script> script(module->GetScript(), isolate);
   DirectHandle<SourceTextModuleInfo> module_info(module->info(), isolate);
 
-  // Resolve imports.
+  // Resolve imports (InitializeEnvironment step 7) and indirect exports
+  // (InitializeEnvironment step 1).
+  //
+  // Note: Environment and namespace creation (InitializeEnvironment steps 5-6
+  // and 7.b-26) is performed by RunInitializationCode in
+  // MaybeTransitionComponent once all imports and indirect exports in the
+  // strongly connected component are resolved.
   DirectHandle<FixedArray> regular_imports(module_info->regular_imports(),
                                            isolate);
   const uint32_t regular_imports_len = regular_imports->ulength().value();
@@ -670,6 +729,7 @@ bool SourceTextModule::FinishInstantiate(
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
     DirectHandle<Cell> cell;
+    DCHECK_EQ(module->status(), Module::kLinking);
     if (!ResolveImport(isolate, module, name, entry->module_request(), loc,
                        true, &resolve_set)
              .ToHandle(&cell)) {
@@ -739,7 +799,8 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
                  ->phase(),
              ModuleImportPhase::kEvaluation);
     Handle<Module> requested_module(
-        Cast<Module>(module->requested_modules()->get(entry->module_request())),
+        CheckedCast<Module>(
+            module->requested_modules()->get(entry->module_request())),
         isolate);
 
     // Recurse.
@@ -849,7 +910,8 @@ DirectHandle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
   CHECK_NE(module_request->phase(), ModuleImportPhase::kSource);
 
   Handle<Module> requested_module(
-      Cast<Module>(module->requested_modules()->get(module_request_index)),
+      CheckedCast<Module>(
+          module->requested_modules()->get(module_request_index)),
       isolate);
   return Module::GetModuleNamespace(isolate, requested_module,
                                     module_request->phase());
@@ -1322,8 +1384,8 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
       continue;
     }
 
-    Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
-                                    isolate);
+    Handle<Module> requested_module(
+        CheckedCast<Module>(requested_modules->get(i)), isolate);
     if (module_request->phase() == ModuleImportPhase::kDefer) {
       ZoneVector<Handle<SourceTextModule>> async_evaluation_list(&zone);
       GatherAsynchronousTransitiveDependencies(
@@ -1520,8 +1582,8 @@ void SourceTextModule::GatherAsynchronousTransitiveDependencies(
       continue;
     }
 
-    Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
-                                    isolate);
+    Handle<Module> requested_module(
+        CheckedCast<Module>(requested_modules->get(i)), isolate);
 
     GatherAsynchronousTransitiveDependencies(
         isolate, requested_module, evaluation_set, evaluation_list, seen_set);
@@ -1590,7 +1652,12 @@ void SourceTextModule::Reset(Isolate* isolate,
   DisallowGarbageCollection no_gc;
   Tagged<SourceTextModule> raw_module = *module;
   if (raw_module->status() == kLinking) {
-    raw_module->set_code(Cast<JSFunction>(raw_module->code())->shared());
+    // A kLinking module on stack (Link step 4.a,
+    // https://tc39.es/ecma262/#sec-moduledeclarationlinking) holds either a
+    // JSFunction (before RunInitializationCode) or a JSGeneratorObject (if a
+    // later module in the same SCC failed RunInitializationCode). Restore the
+    // underlying SharedFunctionInfo for kUnlinked.
+    raw_module->set_code(raw_module->GetSharedFunctionInfo());
   }
   raw_module->set_regular_exports(*regular_exports);
   raw_module->set_regular_imports(*regular_imports);
