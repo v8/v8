@@ -94,20 +94,19 @@ size_t JSArrayBuffer::GetByteLength() const {
     if (ext == nullptr) {
       return 0;
     }
+    ext->InitializationBarrier();
     SBXCHECK(ext->is_shared() && ext->is_resizable_by_js());
     return ext->backing_store()->byte_length(std::memory_order_seq_cst);
   }
 
-  // We should not be reading the JS-visible byte length of a RAB from a
-  // background thread, unless the mutator is guaranteed to be paused. This
-  // happens during a GC pause, during teardown, or when the main thread is
-  // parked.
-  DCHECK_IMPLIES(
-      is_resizable && !is_shared_ && LocalHeap::Current() != nullptr &&
-          !LocalHeap::Current()->is_main_thread(),
-      LocalHeap::Current()->heap()->IsInGC() ||
-          LocalHeap::Current()->heap()->IsTearingDown() ||
-          LocalHeap::Current()->heap()->main_thread_local_heap()->IsParked());
+  // Non-shared ArrayBuffers must only have their byte length read from the main
+  // thread to avoid data races (as the main thread may update it when
+  // materializing an on-heap TypedArray's buffer, detaching, or resizing).
+  //
+  // For non-resizable SharedArrayBuffers, byte_length is immutable after
+  // construction, so it can safely be read from a background thread (e.g.
+  // during concurrent memory measurement).
+  DCHECK(is_shared_ || LocalHeap::Current()->is_main_thread());
 
   return byte_length();
 }
