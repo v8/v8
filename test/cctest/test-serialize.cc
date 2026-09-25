@@ -74,6 +74,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/setup-isolate-for-tests.h"
+#include "test/common/version-utils.h"
 namespace v8 {
 namespace internal {
 
@@ -3107,15 +3108,12 @@ static void SerializerLogEventListener(const v8::JitCodeEvent* event) {
 }
 
 v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
-    const char* js_source, CodeCacheType cacheType = CodeCacheType::kLazy) {
+    v8::Isolate* isolate, const char* js_source, CodeCacheType cacheType) {
   v8::ScriptCompiler::CachedData* cache;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   {
-    v8::Isolate::Scope iscope(isolate1);
-    v8::HandleScope scope(isolate1);
-    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Isolate::Scope iscope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::String> source_str = v8_str(js_source);
@@ -3134,7 +3132,7 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
         UNREACHABLE();
     }
     v8::Local<v8::UnboundScript> script =
-        v8::ScriptCompiler::CompileUnboundScript(isolate1, &source, options)
+        v8::ScriptCompiler::CompileUnboundScript(isolate, &source, options)
             .ToLocalChecked();
 
     if (cacheType != CodeCacheType::kAfterExecute) {
@@ -3142,11 +3140,11 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
     }
 
     v8::Local<v8::Value> result = script->BindToCurrentContext()
-                                      ->Run(isolate1->GetCurrentContext())
+                                      ->Run(isolate->GetCurrentContext())
                                       .ToLocalChecked();
     v8::Local<v8::String> result_string =
-        result->ToString(isolate1->GetCurrentContext()).ToLocalChecked();
-    CHECK(result_string->Equals(isolate1->GetCurrentContext(), v8_str("abcdef"))
+        result->ToString(isolate->GetCurrentContext()).ToLocalChecked();
+    CHECK(result_string->Equals(isolate->GetCurrentContext(), v8_str("abcdef"))
               .FromJust());
 
     if (cacheType == CodeCacheType::kAfterExecute) {
@@ -3154,6 +3152,16 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
     }
     CHECK(cache);
   }
+  return cache;
+}
+
+v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
+    const char* js_source, CodeCacheType cacheType = CodeCacheType::kLazy) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  v8::ScriptCompiler::CachedData* cache =
+      CompileRunAndProduceCache(isolate1, js_source, cacheType);
   isolate1->Dispose();
   return cache;
 }
@@ -3452,6 +3460,42 @@ TEST(CachedDataCompatibilityCheck) {
     }
     isolate->Dispose();
   }
+}
+
+TEST(CodeSerializerEmbedderString) {
+  const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
+  std::unique_ptr<v8::ScriptCompiler::CachedData> empty_embedder_cache;
+  std::unique_ptr<v8::ScriptCompiler::CachedData> custom_embedder_cache;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    ScopedVersionEmbedderString embedder("");
+    empty_embedder_cache.reset(
+        CompileRunAndProduceCache(isolate, js_source, CodeCacheType::kLazy));
+    CHECK_EQ(empty_embedder_cache->CompatibilityCheck(isolate),
+             v8::ScriptCompiler::CachedData::kSuccess);
+  }
+
+  {
+    ScopedVersionEmbedderString embedder("-test");
+    CHECK_EQ(empty_embedder_cache->CompatibilityCheck(isolate),
+             v8::ScriptCompiler::CachedData::kVersionMismatch);
+    custom_embedder_cache.reset(
+        CompileRunAndProduceCache(isolate, js_source, CodeCacheType::kLazy));
+    CHECK_EQ(custom_embedder_cache->CompatibilityCheck(isolate),
+             v8::ScriptCompiler::CachedData::kSuccess);
+  }
+
+  {
+    ScopedVersionEmbedderString embedder("-test.2");
+    CHECK_EQ(custom_embedder_cache->CompatibilityCheck(isolate),
+             v8::ScriptCompiler::CachedData::kVersionMismatch);
+  }
+
+  isolate->Dispose();
 }
 
 TEST(CodeSerializerBitFlip) {
