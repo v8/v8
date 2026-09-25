@@ -1013,6 +1013,8 @@ Handle<Map> Map::GetDerivedMap(Isolate* isolate, DirectHandle<Map> from,
     return map;
   }
 
+  if (from->prototype() == *prototype) return handle(*from, isolate);
+
   // The TransitionToPrototype map will not have new_target_is_base reset. But
   // we don't need it to for proxies.
   return Map::TransitionRootMapToPrototypeForNewObject(isolate, from,
@@ -2698,6 +2700,7 @@ Handle<Map> Map::TransitionRootMapToPrototypeForNewObject(
     Isolate* isolate, DirectHandle<Map> map,
     DirectHandle<JSPrototype> prototype) {
   DCHECK(IsUndefined(map->GetBackPointer()));
+  DCHECK_NE(map->prototype(), *prototype);
   Handle<Map> new_map = TransitionToUpdatePrototype(isolate, map, prototype);
   if (new_map->GetBackPointer() != *map &&
       map->IsInobjectSlackTrackingInProgress()) {
@@ -2713,6 +2716,7 @@ Handle<Map> Map::TransitionToUpdatePrototype(
     DirectHandle<JSPrototype> prototype) {
   Handle<Map> new_map;
   DCHECK(IsUndefined(map->GetBackPointer()));
+  DCHECK_NE(map->prototype(), *prototype);
   if (auto maybe_map = TransitionsAccessor::GetPrototypeTransition(
           isolate, *map, *prototype)) {
     new_map = handle(*maybe_map, isolate);
