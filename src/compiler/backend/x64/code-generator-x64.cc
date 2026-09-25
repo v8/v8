@@ -3569,10 +3569,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Movsh:
       if (instr->HasOutput()) {
         CpuFeatureScope f16c_scope(masm(), F16C);
-        CpuFeatureScope avx2_scope(masm(), AVX2);
-        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-        __ vpbroadcastw(i.OutputDoubleRegister(), i.MemoryOperand());
-        __ vcvtph2ps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
+        XMMRegister dst = i.OutputDoubleRegister();
+        if (CpuFeatures::IsSupported(AVX2)) {
+          CpuFeatureScope avx2_scope(masm(), AVX2);
+          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+          __ vpbroadcastw(dst, i.MemoryOperand());
+        } else {
+          CpuFeatureScope avx_scope(masm(), AVX);
+          __ vxorps(dst, dst, dst);
+          RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+          __ vpinsrw(dst, dst, i.MemoryOperand(), 0);
+        }
+        __ vcvtph2ps(dst, dst);
       } else {
         CpuFeatureScope f16c_scope(masm(), F16C);
         size_t index = 0;

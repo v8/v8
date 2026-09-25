@@ -653,8 +653,15 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kF32LoadF16: {
       CpuFeatureScope f16c_scope(this, F16C);
-      CpuFeatureScope avx2_scope(this, AVX2);
-      vpbroadcastw(dst.fp(), src_op);
+      if (CpuFeatures::IsSupported(AVX2)) {
+        CpuFeatureScope avx2_scope(this, AVX2);
+        vpbroadcastw(dst.fp(), src_op);
+      } else {
+        CpuFeatureScope avx_scope(this, AVX);
+        vxorps(dst.fp(), dst.fp(), dst.fp());
+        if (trapping_load_pc) *trapping_load_pc = pc_offset();
+        vpinsrw(dst.fp(), dst.fp(), src_op, 0);
+      }
       vcvtph2ps(dst.fp(), dst.fp());
       break;
     }
@@ -5094,7 +5101,7 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
 }
 
 bool LiftoffAssembler::supports_f16_mem_access() {
-  return CpuFeatures::IsSupported(F16C) && CpuFeatures::IsSupported(AVX2);
+  return CpuFeatures::IsSupported(F16C);
 }
 
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
