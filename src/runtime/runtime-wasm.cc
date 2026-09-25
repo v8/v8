@@ -191,11 +191,12 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
                  &wire_bytes.begin()[pos])
              .first;
     // shared-everything atomic instructions.
-    if (op >= 0xFE4F) {
+    if (op >= 0xFE4F || op == wasm::kExprArrayWait) {
       message = MessageTemplate::kWasmTrapNullDereference;
     }
 #define CASE(name, ...) || op == wasm::kExpr##name
-    DCHECK_EQ(op >= 0xFE4F, false FOREACH_ATOMIC_GC_OPCODE(CASE));
+    DCHECK_EQ(op >= 0xFE4F || op == wasm::kExprArrayWait,
+              false FOREACH_ATOMIC_GC_OPCODE(CASE));
 #undef CASE
   }
   return ThrowWasmError(isolate, message);
@@ -735,9 +736,10 @@ Tagged<Object> WasmManagedObjectWait(Isolate* isolate,
   }
 
   if (!HeapLayout::InAnySharedSpace(object) || !isolate->allow_atomics_wait()) {
+    const char* op_name = IsWasmStruct(object) ? "struct.wait" : "array.wait";
     return ThrowWasmError(
         isolate, MessageTemplate::kAtomicsOperationNotAllowed,
-        {isolate->factory()->NewStringFromAsciiChecked("struct.wait")});
+        {isolate->factory()->NewStringFromAsciiChecked(op_name)});
   }
 
   return FutexEmulation::WaitWasmManagedObject<T>(

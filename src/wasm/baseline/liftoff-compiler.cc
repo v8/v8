@@ -7208,6 +7208,73 @@ class LiftoffCompiler {
     MaybeOSR();
   }
 
+  void ArrayWait(FullDecoder* decoder, const Value& array_obj,
+                 const ArrayIndexImmediate& /* imm */,
+                 const Value& /* waitqueue */, const Value& /* index */,
+                 const Value& expected_value_arg, const Value& /* timeout_ns */,
+                 Value* /* result */) {
+    ValueKind kind = expected_value_arg.type.kind();
+    DCHECK(kind == kI32 || kind == kI64 || is_reference(kind));
+    VarState timeout_ns_i64 = __ PopVarState();
+
+    // Convert the timeout from I64 to a BigInt.
+    CallBuiltin(
+        kNeedI64RegPair ? Builtin::kI32PairToBigInt : Builtin::kI64ToBigInt,
+        MakeSig::Returns(kRef).Params(kI64), {timeout_ns_i64},
+        decoder->position());
+
+    VarState timeout{kRef, LiftoffRegister{kReturnRegister0}, 0};
+    VarState expected_value = __ cache_state() -> stack_state.back();
+    if (kind == kI64) {
+      // Put the timeout BigInt on the value stack so that it gets preserved
+      // across a potential GC triggered by the BigInt allocation below.
+      __ PushRegister(kRef, LiftoffRegister{kReturnRegister0});
+      CallBuiltin(
+          kNeedI64RegPair ? Builtin::kI32PairToBigInt : Builtin::kI64ToBigInt,
+          MakeSig::Returns(kRef).Params(kI64), {expected_value},
+          decoder->position());
+      timeout = __ PopVarState();
+      expected_value = VarState{kRef, LiftoffRegister{kReturnRegister0}, 0};
+    }
+    __ DropValues(1);
+
+    // We need to pop these values after the previous builtin call(s),
+    // because register VarStates will get spilled and registers will be
+    // overwritten by them.
+    LiftoffRegList pinned{kReturnRegister0};
+    LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
+    VarState waitqueue = __ PopVarState();
+    if (waitqueue.is_reg()) pinned.set(waitqueue.reg());
+    LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
+
+    if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
+      MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
+    }
+    bool implicit_null_check =
+        array_obj.type.is_nullable() &&
+        null_check_strategy_ == compiler::NullCheckStrategy::kTrapHandler;
+    BoundsCheckArray(decoder, implicit_null_check, array, index, pinned);
+
+    int elem_size_shift = value_kind_size_log2(kind);
+    DCHECK_NE(elem_size_shift, 0);
+    __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
+    __ emit_i32_addi(index.gp(), index.gp(), WasmArray::kHeaderSize);
+
+    Builtin target = kind == kI32   ? Builtin::kWasmManagedObjectWait32
+                     : kind == kI64 ? Builtin::kWasmManagedObjectWait64
+                                    : Builtin::kWasmManagedObjectWaitRef;
+    ValueKind expected_kind = kind == kI32 ? kI32 : kRef;
+    // Waitqueue null check happens within the builtin.
+    CallBuiltin(
+        target,
+        MakeSig::Params(kRef, kI32, expected_kind, kRef, kRef).Returns(kI32),
+        {VarState{kRef, array, 0}, VarState{kI32, index, 0}, expected_value,
+         waitqueue, timeout},
+        decoder->position());
+    __ PushRegister(kI32, LiftoffRegister{kReturnRegister0});
+    MaybeOSR();
+  }
+
   void WaitqueueNotify(FullDecoder* decoder, const Value& waitqueue,
                        const Value& /* max_waiters */, Value* /* result */) {
     LiftoffRegList pinned;
