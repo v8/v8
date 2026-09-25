@@ -202,7 +202,7 @@ declare_args() {
 
   # Enables a separate TdzHole root for Temporal Dead Zone initialization and
   # checks instead of aliasing TheHole.
-  v8_enable_tdz_hole = false
+  v8_enable_tdz_hole = true
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
