@@ -372,7 +372,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
         DCHECK_IMPLIES(NeedsAndHasContext(),
                        context_->IsFunctionContext() ||
                            context_->IsDebugEvaluateContext());
-        return ScopeTypeLocal;
+        return InInnerScope() ? ScopeTypeLocal : ScopeTypeClosure;
       case MODULE_SCOPE:
         DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsModuleContext());
         return ScopeTypeModule;
@@ -385,7 +385,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
         DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsWithContext());
         return ScopeTypeWith;
       case CATCH_SCOPE:
-        DCHECK(context_->IsCatchContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsCatchContext());
         return ScopeTypeCatch;
       case BLOCK_SCOPE:
       case CLASS_SCOPE:
@@ -393,7 +393,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
         return ScopeTypeBlock;
       case EVAL_SCOPE:
         DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsEvalContext());
-        return ScopeTypeEval;
+        return InInnerScope() ? ScopeTypeEval : ScopeTypeClosure;
       case SHADOW_REALM_SCOPE:
         DCHECK_IMPLIES(NeedsAndHasContext(), IsNativeContext(*context_));
         // TODO(v8:11989): New ScopeType for ShadowRealms?
@@ -524,11 +524,9 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
 
     case ScopeTypeLocal:
     case ScopeTypeClosure:
-      if (InInnerScope()) {
-        DCHECK_EQ(ScopeTypeLocal, Type());
+      if (HasScope()) {
         if (SetLocalVariableValue(name, value)) return true;
-        // There may not be an associated context since we're InInnerScope().
-        if (!NeedsContext()) return false;
+        if (!HasContext()) return false;
       } else {
         DCHECK_EQ(ScopeTypeClosure, Type());
         if (SetContextVariableValue(name, value)) return true;
@@ -582,17 +580,21 @@ void ScopeIterator::DebugPrint() {
 
     case ScopeIterator::ScopeTypeCatch:
       os << "Catch:\n";
-      Print(context_->extension(), os);
-      Print(context_->GetNoCell(Context::THROWN_OBJECT_INDEX), os);
+      if (HasContext()) {
+        Print(context_->extension(), os);
+        Print(context_->GetNoCell(Context::THROWN_OBJECT_INDEX), os);
+      }
       break;
 
     case ScopeIterator::ScopeTypeClosure:
       os << "Closure:\n";
-      Print(*context_, os);
-      if (context_->has_extension()) {
-        DirectHandle<HeapObject> extension(context_->extension(), isolate_);
-        DCHECK(IsJSContextExtensionObject(*extension));
-        Print(*extension, os);
+      if (HasContext()) {
+        Print(*context_, os);
+        if (context_->has_extension()) {
+          DirectHandle<HeapObject> extension(context_->extension(), isolate_);
+          DCHECK(IsJSContextExtensionObject(*extension));
+          Print(*extension, os);
+        }
       }
       break;
 
@@ -681,6 +683,7 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
 bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
                                 ScopeType scope_type) const {
   if (mode == Mode::STACK && current_scope().has_this_declaration()) {
+    DCHECK(InInnerScope());
     // TODO(bmeurer): We should refactor the general variable lookup
     // around "this", since the current way is rather hacky when the
     // receiver is context-allocated.
@@ -696,12 +699,23 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
   }
 
   if (current_scope().has_function_variable()) {
-    DirectHandle<JSFunction> function = frame_inspector_ == nullptr
-                                            ? function_
-                                            : frame_inspector_->GetFunction();
     DirectHandle<String> name(current_scope().function_variable_name(),
                               isolate_);
-    if (visitor(name, function, scope_type)) return true;
+    Handle<Object> function_value;
+    if (InInnerScope()) {
+      function_value = frame_inspector_ == nullptr
+                           ? function_
+                           : frame_inspector_->GetFunction();
+    } else {
+      auto [fn_alloc, fn_index] = current_scope().function_variable_info();
+      if (fn_alloc == VariableAllocationInfo::CONTEXT && HasContext()) {
+        function_value = indirect_handle(
+            Context::Get(context_, fn_index, isolate_), isolate_);
+      } else {
+        function_value = isolate_->factory()->the_hole_value();
+      }
+    }
+    if (visitor(name, function_value, scope_type)) return true;
   }
 
   DebugScriptScope scope = current_scope();
@@ -728,7 +742,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
         continue;
 
       case VariableLocation::PARAMETER: {
-        if (frame_inspector_ == nullptr) {
+        if (!InInnerScope()) {
+          value = isolate_->factory()->the_hole_value();
+        } else if (frame_inspector_ == nullptr) {
           // Get the variable from the suspended generator.
           DCHECK(!generator_.is_null());
           Tagged<FixedArray> parameters_and_registers =
@@ -753,7 +769,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
       }
 
       case VariableLocation::LOCAL:
-        if (frame_inspector_ == nullptr) {
+        if (!InInnerScope()) {
+          value = isolate_->factory()->the_hole_value();
+        } else if (frame_inspector_ == nullptr) {
           // Get the variable from the suspended generator.
           DCHECK(!generator_.is_null());
           Tagged<FixedArray> parameters_and_registers =
@@ -932,7 +950,7 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
           return false;
 
         case VariableLocation::PARAMETER: {
-          if (var.is_receiver) return false;
+          if (!InInnerScope() || var.is_receiver) return false;
           if (frame_inspector_ == nullptr) {
             // Set the variable in the suspended generator.
             DCHECK(!generator_.is_null());
@@ -952,6 +970,7 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
         }
 
         case VariableLocation::LOCAL:
+          if (!InInnerScope()) return false;
           if (frame_inspector_ == nullptr) {
             // Set the variable in the suspended generator.
             DCHECK(!generator_.is_null());
@@ -976,6 +995,7 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
           return true;
 
         case VariableLocation::CONTEXT:
+          if (!HasContext()) return false;
           // We know of at least one open bug where the context and scope chain
           // don't match (https://crbug.com/753338).
           // Skip the write if the context's ScopeInfo doesn't know anything
@@ -988,7 +1008,7 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
           return true;
 
         case VariableLocation::MODULE:
-          if (!var.is_export()) return false;
+          if (!HasContext() || !var.is_export()) return false;
           DirectHandle<SourceTextModule> module(context_->module(), isolate_);
           SourceTextModule::StoreVariable(module, var.index, new_value);
           return true;
