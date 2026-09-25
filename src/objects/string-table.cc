@@ -5,6 +5,7 @@
 #include "src/objects/string-table.h"
 
 #include <atomic>
+#include <span>
 
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
@@ -608,18 +609,12 @@ namespace {
 template <typename Char>
 class CharBuffer {
  public:
-  void Reset(size_t length) {
+  std::span<Char> Reset(size_t length) V8_LIFETIME_BOUND {
     if (length >= kInlinedBufferSize) {
       outofline_ = std::make_unique<Char[]>(length);
+      return {outofline_.get(), length};
     }
-  }
-
-  Char* Data() {
-    if (outofline_) {
-      return outofline_.get();
-    } else {
-      return inlined_;
-    }
+    return {inlined_, length};
   }
 
  private:
@@ -628,38 +623,31 @@ class CharBuffer {
   std::unique_ptr<Char[]> outofline_;
 };
 
-// Copies the `length` characters of the direct string `str`, whose shape is
-// `shape`, into `sink`, zero-extending them if `sink` is two-byte and `str` is
-// one-byte.
+// Copies `sink.size()` characters of the direct string `str`, whose shape is
+// `shape`, into `sink`.
 template <typename Char>
 V8_INLINE void CopyDirectStringChars(
-    Char* sink, Tagged<String> str, StringShape shape, uint32_t length,
+    std::span<Char> sink, Tagged<String> str, StringShape shape,
     const DisallowGarbageCollection& no_gc,
     const SharedStringAccessGuardIfNeeded& access_guard) {
-  if constexpr (sizeof(Char) == 1) {
-    // A cons string is one-byte only if both of its halves are, so a one-byte
-    // sink never needs a narrowing conversion here.
-    DCHECK(shape.IsOneByte());
-    CopyChars(sink,
+  // Even if `sizeof(Char) == 1`, we must check `shape.IsOneByte()` here
+  // because in-sandbox corruption can attach a two-byte child to a one-byte
+  // ConsString, and calling `GetDirectStringChars<uint8_t>` on a two-byte
+  // ExternalString would cause type confusion on the ExternalStringResource.
+  if (shape.IsOneByte()) {
+    CopyChars(sink.data(),
               str->GetDirectStringChars<uint8_t>(shape, no_gc, access_guard),
-              length);
-  } else if (shape.IsOneByte()) {
-    // A one-byte half of a two-byte cons string, which is the most common
-    // reason for a two-byte cons string to exist in the first place. CopyChars
-    // widens it into the two-byte sink.
-    CopyChars(sink,
-              str->GetDirectStringChars<uint8_t>(shape, no_gc, access_guard),
-              length);
+              sink.size());
   } else {
-    CopyChars(sink,
+    CopyChars(sink.data(),
               str->GetDirectStringChars<uint16_t>(shape, no_gc, access_guard),
-              length);
+              sink.size());
   }
 }
 
 template <typename Char>
 V8_INLINE bool TryCopyConsStringDirect(
-    Tagged<ConsString> cons, Char* sink, uint32_t length,
+    Tagged<ConsString> cons, std::span<Char> sink,
     const DisallowGarbageCollection& no_gc,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   Tagged<String> first = cons->first();
@@ -670,11 +658,11 @@ V8_INLINE bool TryCopyConsStringDirect(
     return false;
   }
   const uint32_t first_length = first->length();
-  DCHECK_EQ(length, first_length + second->length());
-  CopyDirectStringChars(sink, first, first_shape, first_length, no_gc,
+  DCHECK_EQ(sink.size(), first_length + second->length());
+  CopyDirectStringChars(sink.first(first_length), first, first_shape, no_gc,
                         access_guard);
-  CopyDirectStringChars(sink + first_length, second, second_shape,
-                        length - first_length, no_gc, access_guard);
+  CopyDirectStringChars(sink.subspan(first_length), second, second_shape, no_gc,
+                        access_guard);
   return true;
 }
 
@@ -717,12 +705,12 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
     DCHECK(!source->IsFlat());
     DCHECK_EQ(start, 0u);
     DCHECK_EQ(length, source->length());
-    buffer.Reset(length);
-    if (!TryCopyConsStringDirect<Char>(Cast<ConsString>(source), buffer.Data(),
-                                       length, no_gc, access_guard)) {
-      String::WriteToFlat(source, buffer.Data(), 0, length, access_guard);
+    std::span<Char> dest = buffer.Reset(length);
+    if (!TryCopyConsStringDirect<Char>(Cast<ConsString>(source), dest, no_gc,
+                                       access_guard)) {
+      String::WriteToFlat(source, dest.data(), 0, length, access_guard);
     }
-    chars = buffer.Data();
+    chars = dest.data();
   } else {
     chars = source->GetDirectStringChars<Char>(no_gc, access_guard) + start;
   }
