@@ -267,7 +267,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   // Whether tagged constants (Smis, read-only roots and compressed heap
   // objects) can be stored as immediates, i.e. whether the overloads below are
   // implemented.
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   static constexpr bool kSupportsStoreTaggedConstant = COMPRESS_POINTERS_BOOL;
 #else
   static constexpr bool kSupportsStoreTaggedConstant = false;

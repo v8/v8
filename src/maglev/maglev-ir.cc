@@ -1276,11 +1276,19 @@ void HoleyFloat64Constant::DoLoadToRegister(MaglevAssembler* masm,
 }
 
 void HeapConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
-  __ Move(reg, object_.object());
+  if (decompresses_tagged_result()) {
+    __ Move(reg, object_.object());
+  } else {
+    __ MoveTagged(reg, object_.object());
+  }
 }
 
 void RootConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
-  __ LoadRoot(reg, index());
+  if (decompresses_tagged_result()) {
+    __ LoadRoot(reg, index());
+  } else {
+    __ LoadTaggedRoot(reg, index());
+  }
 }
 
 void TrustedConstant::DoLoadToRegister(MaglevAssembler* masm,

@@ -320,16 +320,20 @@ inline bool MaglevAssembler::CanStoreTaggedConstant(ValueNode* value) {
   if (!kSupportsStoreTaggedConstant) return false;
   switch (value->opcode()) {
     case Opcode::kSmiConstant:
+#if V8_TARGET_ARCH_ARM64
+      return value->Cast<SmiConstant>()->value() == Smi::zero();
+#else
     case Opcode::kHeapConstant:
       return true;
     case Opcode::kRootConstant:
       return CanBeImmediate(value->Cast<RootConstant>()->index());
+#endif  // V8_TARGET_ARCH_ARM64
     default:
       return false;
   }
 }
 
-#if !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
     Register object, int offset, ValueNode* constant) {
   // See {kSupportsStoreTaggedConstant}.
@@ -339,7 +343,7 @@ inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(
     Register object, int offset, Handle<HeapObject> constant) {
   UNREACHABLE();
 }
-#endif  // !V8_TARGET_ARCH_X64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
 
 #if !defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_LOONG64)
 
