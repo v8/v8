@@ -5443,6 +5443,86 @@ TEST_F(TurboshaftInstructionSelectorTest, Shuffle8x4Test) {
   }
 }
 
+namespace {
+
+struct AddSubHighNarrowConvertConfig {
+  const char* name;
+  TSBinop operation;
+  int lane_size;
+  TSBinop binop;
+  TSBinop shift;
+  ArchOpcode hn_opcode;
+  ArchOpcode hn2_opcode;
+};
+
+std::ostream& operator<<(std::ostream& os,
+                         const AddSubHighNarrowConvertConfig& config) {
+  return os << config.name;
+}
+
+const AddSubHighNarrowConvertConfig kAddSubHighNarrowConvertConfigs[] = {
+    {"I16x8SConvertI32x4Add", TSBinop::kI16x8SConvertI32x4, 32,
+     TSBinop::kI32x4Add, TSBinop::kI32x4ShrS, kArm64Addhn, kArm64Addhn2},
+    {"I16x8SConvertI32x4Sub", TSBinop::kI16x8SConvertI32x4, 32,
+     TSBinop::kI32x4Sub, TSBinop::kI32x4ShrS, kArm64Subhn, kArm64Subhn2},
+    {"I16x8UConvertI32x4Add", TSBinop::kI16x8UConvertI32x4, 32,
+     TSBinop::kI32x4Add, TSBinop::kI32x4ShrU, kArm64Addhn, kArm64Addhn2},
+    {"I16x8UConvertI32x4Sub", TSBinop::kI16x8UConvertI32x4, 32,
+     TSBinop::kI32x4Sub, TSBinop::kI32x4ShrU, kArm64Subhn, kArm64Subhn2},
+    {"I8x16SConvertI16x8Add", TSBinop::kI8x16SConvertI16x8, 16,
+     TSBinop::kI16x8Add, TSBinop::kI16x8ShrS, kArm64Addhn, kArm64Addhn2},
+    {"I8x16SConvertI16x8Sub", TSBinop::kI8x16SConvertI16x8, 16,
+     TSBinop::kI16x8Sub, TSBinop::kI16x8ShrS, kArm64Subhn, kArm64Subhn2},
+    {"I8x16UConvertI16x8Add", TSBinop::kI8x16UConvertI16x8, 16,
+     TSBinop::kI16x8Add, TSBinop::kI16x8ShrU, kArm64Addhn, kArm64Addhn2},
+    {"I8x16UConvertI16x8Sub", TSBinop::kI8x16UConvertI16x8, 16,
+     TSBinop::kI16x8Sub, TSBinop::kI16x8ShrU, kArm64Subhn, kArm64Subhn2},
+};
+
+}  // namespace
+
+using TurboshaftInstructionSelectorAddSubHighNarrowConvertTest =
+    TurboshaftInstructionSelectorTestWithParam<AddSubHighNarrowConvertConfig>;
+
+TEST_P(TurboshaftInstructionSelectorAddSubHighNarrowConvertTest,
+       ShiftedAddSub) {
+  const auto& param = GetParam();
+  const MachineType type = MachineType::Simd128();
+  StreamBuilder m(this, type, type, type, type, type);
+  OpIndex amount = m.Int32Constant(param.lane_size / 2);
+  OpIndex low = m.Emit(param.binop, m.Parameter(0), m.Parameter(1));
+  OpIndex high = m.Emit(param.binop, m.Parameter(2), m.Parameter(3));
+  low = m.Emit(param.shift, low, amount);
+  high = m.Emit(param.shift, high, amount);
+  OpIndex result = m.Emit(param.operation, low, high);
+  m.Return(result);
+  Stream s = m.Build();
+
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(param.hn_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(param.hn2_opcode, s[1]->arch_opcode());
+  EXPECT_EQ(param.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(param.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[1]->opcode())));
+  ASSERT_EQ(1U, s[1]->OutputCount());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(3U, s[1]->InputCount());
+  EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(3)), s.ToVreg(s[1]->InputAt(2)));
+  EXPECT_TRUE(s.IsSameAsFirst(s[1]->Output()));
+  EXPECT_EQ(s.ToVreg(result), s.ToVreg(s[1]->Output()));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TurboshaftInstructionSelectorTest,
+    TurboshaftInstructionSelectorAddSubHighNarrowConvertTest,
+    ::testing::ValuesIn(kAddSubHighNarrowConvertConfigs));
+
 TEST_F(TurboshaftInstructionSelectorTest, Shuffle8x8Test) {
   const MachineType type = MachineType::Simd128();
   {

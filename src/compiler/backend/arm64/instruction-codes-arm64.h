@@ -106,6 +106,10 @@ namespace compiler {
   V(Arm64Sqxtn2)                        \
   V(Arm64Sqxtun)                        \
   V(Arm64Sqxtun2)                       \
+  V(Arm64Addhn)                         \
+  V(Arm64Addhn2)                        \
+  V(Arm64Subhn)                         \
+  V(Arm64Subhn2)                        \
   V(Arm64Sxtl)                          \
   V(Arm64Sxtl2)                         \
   V(Arm64Uxtl)                          \

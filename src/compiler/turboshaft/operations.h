@@ -9527,6 +9527,11 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
 
   static constexpr OpEffects effects = OpEffects();
 
+  static bool IsArithmeticShiftRight(Kind kind) {
+    return kind == any_of(Kind::kI8x16ShrS, Kind::kI16x8ShrS, Kind::kI32x4ShrS,
+                          Kind::kI64x2ShrS);
+  }
+
   static MachineRepresentation InputElementRep(Kind kind) {
     switch (kind) {
       default:
@@ -9586,6 +9591,8 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
 
   V<Simd128> input() const { return Base::input<Simd128>(0); }
   V<Word32> shift() const { return Base::input<Word32>(1); }
+
+  bool IsArithmeticShiftRight() const { return IsArithmeticShiftRight(kind); }
 
   MachineRepresentation input_element_rep() const {
     return InputElementRep(kind);

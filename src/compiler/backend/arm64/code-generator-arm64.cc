@@ -2986,6 +2986,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ Instr(dst, i.InputSimd128Register(1).Format(wide));              \
     break;                                                              \
   }
+#define SIMD_LOW_NARROWING_BINOP_CASE(Op, Instr)                        \
+  case Op: {                                                            \
+    const VectorFormat wide =                                           \
+        VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
+    const VectorFormat narrow = VectorFormatHalfWidth(wide);            \
+    __ Instr(i.OutputSimd128Register().Format(narrow),                  \
+             i.InputSimd128Register(0).Format(wide),                    \
+             i.InputSimd128Register(1).Format(wide));                   \
+    break;                                                              \
+  }
+#define SIMD_HIGH_NARROWING_BINOP_CASE(Op, Instr)                       \
+  case Op: {                                                            \
+    const VectorFormat wide =                                           \
+        VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode))); \
+    const VectorFormat narrow = VectorFormatHalfWidthDoubleLanes(wide); \
+    const VRegister dst = i.OutputSimd128Register().Format(narrow);     \
+    DCHECK_EQ(dst, i.InputSimd128Register(0).Format(narrow));           \
+    __ Instr(dst, i.InputSimd128Register(1).Format(wide),               \
+             i.InputSimd128Register(2).Format(wide));                   \
+    break;                                                              \
+  }
 #define SIMD_SHIFT_LEFT_LONG_CASE(Op, Instr, SrcFormat, Shift)          \
   case Op: {                                                            \
     const VectorFormat dst_f =                                          \
@@ -3109,6 +3130,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_HIGH_NARROWING_CASE(kArm64Sqxtn2, Sqxtn2);
       SIMD_LOW_NARROWING_CASE(kArm64Sqxtun, Sqxtun);
       SIMD_HIGH_NARROWING_CASE(kArm64Sqxtun2, Sqxtun2);
+      SIMD_LOW_NARROWING_BINOP_CASE(kArm64Addhn, Addhn);
+      SIMD_HIGH_NARROWING_BINOP_CASE(kArm64Addhn2, Addhn2);
+      SIMD_LOW_NARROWING_BINOP_CASE(kArm64Subhn, Subhn);
+      SIMD_HIGH_NARROWING_BINOP_CASE(kArm64Subhn2, Subhn2);
     case kArm64Sxtl: {
       VectorFormat wide =
           VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode)));
@@ -3836,6 +3861,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef SIMD_UNOP_LANE_SIZE_CASE
 #undef SIMD_LOW_NARROWING_CASE
 #undef SIMD_HIGH_NARROWING_CASE
+#undef SIMD_LOW_NARROWING_BINOP_CASE
+#undef SIMD_HIGH_NARROWING_BINOP_CASE
 #undef SIMD_SHIFT_LEFT_LONG_CASE
 #undef SIMD_BINOP_CASE
 #undef SIMD_BINOP_LANE_SIZE_CASE

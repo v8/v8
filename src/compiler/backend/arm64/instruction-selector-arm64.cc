@@ -5529,10 +5529,110 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
 
+namespace {
+
+struct AddSubHNMatch {
+  OpIndex left;
+  OpIndex right;
+  LaneSize lane_size;
+  InstructionCode low_opcode;
+  InstructionCode high_opcode;
+};
+
+std::optional<AddSubHNMatch> TryMatchAddSubHN(InstructionSelector* selector,
+                                              const Simd128ShiftOp& shift) {
+  using ShiftKind = Simd128ShiftOp::Kind;
+  using BinopKind = Simd128BinopOp::Kind;
+
+  if (shift.kind == any_of(ShiftKind::kI16x8ShrS, ShiftKind::kI16x8ShrU,
+                           ShiftKind::kI32x4ShrS, ShiftKind::kI32x4ShrU,
+                           ShiftKind::kI64x2ShrS, ShiftKind::kI64x2ShrU)) {
+    if (const auto* binop = selector->TryCast<Simd128BinopOp>(shift.input())) {
+      const bool is_add =
+          binop->kind == any_of(BinopKind::kI16x8Add, BinopKind::kI32x4Add,
+                                BinopKind::kI64x2Add);
+      const bool is_sub =
+          binop->kind == any_of(BinopKind::kI16x8Sub, BinopKind::kI32x4Sub,
+                                BinopKind::kI64x2Sub);
+
+      if ((is_add || is_sub) &&
+          binop->input_element_rep() == shift.input_element_rep()) {
+        const int lane_bits = ElementSizeInBits(shift.input_element_rep());
+        const int narrow_lane_bits = lane_bits / 2;
+
+        int32_t amount;
+        if (selector->MatchIntegralWord32Constant(shift.shift(), &amount) &&
+            (amount & (lane_bits - 1)) == narrow_lane_bits) {
+          const LaneSize lane_size = LaneSizeFromBits(lane_bits);
+          const InstructionCode lane_size_field =
+              LaneSizeField::encode(lane_size);
+
+          return AddSubHNMatch{
+              binop->left(), binop->right(), lane_size,
+              (is_add ? kArm64Addhn : kArm64Subhn) | lane_size_field,
+              (is_add ? kArm64Addhn2 : kArm64Subhn2) | lane_size_field};
+        }
+      }
+    }
+  }
+
+  return std::nullopt;
+}
+
+bool TryEmitAddSubHNFromNarrow(InstructionSelector* selector, OpIndex node,
+                               const Simd128BinopOp& op) {
+  DCHECK(op.kind == any_of(Simd128BinopOp::Kind::kI8x16SConvertI16x8,
+                           Simd128BinopOp::Kind::kI8x16UConvertI16x8,
+                           Simd128BinopOp::Kind::kI16x8SConvertI32x4,
+                           Simd128BinopOp::Kind::kI16x8UConvertI32x4));
+  if (!selector->CanCover(node, op.left()) ||
+      !selector->CanCover(node, op.right())) {
+    return false;
+  }
+  const auto* low_shift = selector->TryCast<Simd128ShiftOp>(op.left());
+  const auto* high_shift = selector->TryCast<Simd128ShiftOp>(op.right());
+  if (!low_shift || !high_shift || high_shift->kind != low_shift->kind) {
+    return false;
+  }
+  const bool is_signed =
+      op.kind == any_of(Simd128BinopOp::Kind::kI8x16SConvertI16x8,
+                        Simd128BinopOp::Kind::kI16x8SConvertI32x4);
+  if (low_shift->IsArithmeticShiftRight() != is_signed ||
+      low_shift->input_element_rep() != op.input_element_rep()) {
+    return false;
+  }
+  if (!selector->CanCover(op.left(), low_shift->input()) ||
+      !selector->CanCover(op.right(), high_shift->input())) {
+    return false;
+  }
+
+  std::optional<AddSubHNMatch> low = TryMatchAddSubHN(selector, *low_shift);
+  if (!low) {
+    return false;
+  }
+  std::optional<AddSubHNMatch> high = TryMatchAddSubHN(selector, *high_shift);
+  if (!high) {
+    return false;
+  }
+
+  Arm64OperandGenerator g(selector);
+  InstructionOperand temp = g.TempSimd128Register();
+  selector->Emit(low->low_opcode, temp, g.UseRegister(low->left),
+                 g.UseRegister(low->right));
+  selector->Emit(high->high_opcode, g.DefineSameAsFirst(node), temp,
+                 g.UseRegister(high->left), g.UseRegister(high->right));
+  return true;
+}
+
+}  // namespace
+
 #define SIMD_VISIT_INT_NARROWING(Name, Instr, LaneSize)                \
   void InstructionSelector::Visit##Name(OpIndex node) {                \
-    Arm64OperandGenerator g(this);                                     \
     const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);             \
+    if (TryEmitAddSubHNFromNarrow(this, node, op)) {                   \
+      return;                                                          \
+    }                                                                  \
+    Arm64OperandGenerator g(this);                                     \
     const InstructionCode lane_size = LaneSizeField::encode(LaneSize); \
     const InstructionOperand low = g.TempSimd128Register();            \
     Emit(kArm64##Instr | lane_size, low, g.UseRegister(op.left()));    \
