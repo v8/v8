@@ -616,7 +616,10 @@ Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info)
       total_preparse_skipped_(0),
       consumed_preparse_data_(info->consumed_preparse_data()),
       preparse_data_buffer_(),
-      parameters_end_pos_(info->parameters_end_pos()) {
+      parameters_end_pos_(info->parameters_end_pos()),
+      parsing_dynamic_function_declaration_(
+          info->parameters_end_pos() != kNoSourcePosition ||
+          info->flags().parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
   // ParseInfo during background parsing.
@@ -3204,9 +3207,10 @@ void Parser::ParseFunction(
   bool is_wrapped = function_syntax_kind == FunctionSyntaxKind::kWrapped;
 
   int expected_parameters_end_pos = parameters_end_pos_;
-  if (expected_parameters_end_pos != kNoSourcePosition) {
+  if (parsing_dynamic_function_declaration_) {
     // This is the first function encountered in a CreateDynamicFunction eval.
     parameters_end_pos_ = kNoSourcePosition;
+    parsing_dynamic_function_declaration_ = false;
     // The function name should have been ignored, giving us the empty string
     // here.
     DCHECK_EQ(function_name, ast_value_factory()->empty_string());
