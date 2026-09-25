@@ -1672,19 +1672,12 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       case Constant::kFloat64:
         DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
                type.representation() == MachineRepresentation::kTagged);
-        if (type == MachineType::HoleyFloat64() &&
-            constant.ToFloat64().AsUint64() == kHoleNanInt64) {
-          literal = DeoptimizationLiteral::HoleNaN();
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-        } else if (type == MachineType::HoleyFloat64() &&
-                   constant.ToFloat64().AsUint64() == kUndefinedNanInt64) {
-          literal =
-              DeoptimizationLiteral(isolate()->factory()->undefined_value());
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+        if (type == MachineType::HoleyFloat64()) {
+          translations_.StoreHoleyDoubleLiteral(Float64(constant.ToFloat64()));
         } else {
-          literal = DeoptimizationLiteral(constant.ToFloat64().value());
+          translations_.StoreDoubleLiteral(Float64(constant.ToFloat64()));
         }
-        break;
+        return;
       case Constant::kHeapObject:
         DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
         literal = DeoptimizationLiteral(constant.ToHeapObject());

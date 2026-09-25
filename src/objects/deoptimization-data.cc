@@ -28,9 +28,6 @@ DirectHandle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
       return BigInt::FromInt64(isolate, int64_);
     case DeoptimizationLiteralKind::kUnsignedBigInt64:
       return BigInt::FromUint64(isolate, uint64_);
-    case DeoptimizationLiteralKind::kHoleNaN:
-      // Hole NaNs that made it to here represent the undefined value.
-      return isolate->factory()->undefined_value();
     case DeoptimizationLiteralKind::kWasmI31Ref:
     case DeoptimizationLiteralKind::kWasmInt32:
     case DeoptimizationLiteralKind::kWasmFloat32:
@@ -47,7 +44,6 @@ size_t DeoptimizationLiteral::SerializationSize() const {
     case DeoptimizationLiteralKind::kInvalid:
     case DeoptimizationLiteralKind::kObject:
     case DeoptimizationLiteralKind::kNumber:
-    case DeoptimizationLiteralKind::kHoleNaN:
       break;
     case DeoptimizationLiteralKind::kSignedBigInt64:
       return kSizeOfKind + sizeof(int64_);
@@ -82,7 +78,6 @@ size_t DeoptimizationLiteral::Write(base::Vector<uint8_t> buffer) const {
     case DeoptimizationLiteralKind::kInvalid:
     case DeoptimizationLiteralKind::kObject:
     case DeoptimizationLiteralKind::kNumber:
-    case DeoptimizationLiteralKind::kHoleNaN:
       break;
     case DeoptimizationLiteralKind::kSignedBigInt64:
       return WriteValue(int64_);
@@ -131,7 +126,6 @@ size_t DeoptimizationLiteral::Read(base::Vector<const uint8_t> buffer,
     case DeoptimizationLiteralKind::kInvalid:
     case DeoptimizationLiteralKind::kObject:
     case DeoptimizationLiteralKind::kNumber:
-    case DeoptimizationLiteralKind::kHoleNaN:
       break;
     case DeoptimizationLiteralKind::kSignedBigInt64:
       return Read.operator()<int64_t>(buffer, out);

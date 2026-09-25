@@ -6374,8 +6374,7 @@ class GraphBuildingNodeProcessor {
             case maglev::vobj::FieldType::kTrustedPointer:
             case maglev::vobj::FieldType::kFloat64:
             case maglev::vobj::FieldType::kInt32:
-              AddVirtualObjectNestedValue(builder, virtual_objects, vobj,
-                                          value_node);
+              AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
               break;
             case maglev::vobj::FieldType::kNone:
               UNREACHABLE();
@@ -6387,7 +6386,7 @@ class GraphBuildingNodeProcessor {
   void AddVirtualObjectNestedValue(
       FrameStateData::Builder& builder,
       const maglev::VirtualObjectList& virtual_objects,
-      const maglev::VirtualObject* vobj, const maglev::ValueNode* value) {
+      const maglev::ValueNode* value) {
     if (maglev::IsConstantNode(value->opcode())) {
       switch (value->opcode()) {
         case maglev::Opcode::kHeapConstant:
@@ -6398,29 +6397,17 @@ class GraphBuildingNodeProcessor {
           break;
 
         case maglev::Opcode::kFloat64Constant:
-        case maglev::Opcode::kHoleyFloat64Constant: {
-          i::Float64 value_as_float =
-              value->opcode() == maglev::Opcode::kFloat64Constant
-                  ? value->Cast<maglev::Float64Constant>()->value()
-                  : value->Cast<maglev::HoleyFloat64Constant>()->value();
-          DCHECK(vobj->has_static_map());
-          const bool is_fixed_double_array =
-              vobj->map()->IsFixedDoubleArrayMap();
-          if (is_fixed_double_array && value_as_float.is_hole_nan()) {
-            builder.AddInput(
-                MachineType::AnyTagged(),
-                __ HeapConstantHole(local_factory_->the_hole_value()));
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-          } else if (is_fixed_double_array &&
-                     value_as_float.is_undefined_nan()) {
-            builder.AddInput(MachineType::AnyTagged(), undefined_value_);
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-          } else {
-            builder.AddInput(MachineType::AnyTagged(),
-                             __ NumberConstant(value_as_float));
-          }
+          builder.AddInput(
+              MachineType::Float64(),
+              __ Float64Constant(
+                  value->Cast<maglev::Float64Constant>()->value()));
           break;
-        }
+        case maglev::Opcode::kHoleyFloat64Constant:
+          builder.AddInput(
+              MachineType::HoleyFloat64(),
+              __ Float64Constant(
+                  value->Cast<maglev::HoleyFloat64Constant>()->value()));
+          break;
         case maglev::Opcode::kInt32Constant:
           builder.AddInput(
               MachineType::AnyTagged(),

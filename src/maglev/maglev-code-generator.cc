@@ -1564,7 +1564,7 @@ class MaglevFrameTranslationBuilder {
     return kNotDuplicated;
   }
 
-  void BuildNestedValue(const VirtualObject* object, const ValueNode* value,
+  void BuildNestedValue(const ValueNode* value,
                         const InputLocation*& input_location,
                         const VirtualObjectList& virtual_objects) {
     const Opcode opcode = value->opcode();
@@ -1573,22 +1573,14 @@ class MaglevFrameTranslationBuilder {
     DCHECK_NE(opcode, Opcode::kIdentity);
     if (IsConstantNode(opcode)) {
       if (opcode == Opcode::kFloat64Constant) {
-        DCHECK(object->has_static_map());
-        if (object->map()->IsFixedDoubleArrayMap()) {
-          Float64 value_as_float = value->Cast<Float64Constant>()->value();
-          if (value_as_float.is_hole_nan()) {
-            translation_array_builder_->StoreLiteral(GetDeoptLiteral(
-                ReadOnlyRoots{local_isolate_}.the_hole_value()));
-            return;
-          }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-          if (value_as_float.is_undefined_nan()) {
-            translation_array_builder_->StoreLiteral(GetDeoptLiteral(
-                ReadOnlyRoots{local_isolate_}.undefined_value()));
-            return;
-          }
-#endif  //  V8_ENABLE_UNDEFINED_DOUBLE
-        }
+        translation_array_builder_->StoreDoubleLiteral(
+            value->Cast<Float64Constant>()->value());
+        return;
+      }
+      if (opcode == Opcode::kHoleyFloat64Constant) {
+        translation_array_builder_->StoreHoleyDoubleLiteral(
+            value->Cast<HoleyFloat64Constant>()->value());
+        return;
       }
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(*value->Reify(local_isolate_)));
@@ -1654,7 +1646,7 @@ class MaglevFrameTranslationBuilder {
       translation_array_builder_->BeginCapturedObject(fields);
     }
     auto callback = [&](ValueNode* node, const vobj::Field& desc) -> bool {
-      BuildNestedValue(object, node, input_location, virtual_objects);
+      BuildNestedValue(node, input_location, virtual_objects);
       return true;
     };
     object->ForEachSlot(callback,
@@ -1675,8 +1667,16 @@ class MaglevFrameTranslationBuilder {
       }
     }
     if (input_location->operand().IsConstant()) {
-      translation_array_builder_->StoreLiteral(
-          GetDeoptLiteral(*value->Reify(local_isolate_)));
+      if (value->opcode() == Opcode::kFloat64Constant) {
+        translation_array_builder_->StoreDoubleLiteral(
+            value->Cast<Float64Constant>()->value());
+      } else if (value->opcode() == Opcode::kHoleyFloat64Constant) {
+        translation_array_builder_->StoreHoleyDoubleLiteral(
+            value->Cast<HoleyFloat64Constant>()->value());
+      } else {
+        translation_array_builder_->StoreLiteral(
+            GetDeoptLiteral(*value->Reify(local_isolate_)));
+      }
     } else {
       const compiler::AllocatedOperand& operand =
           compiler::AllocatedOperand::cast(input_location->operand());

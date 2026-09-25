@@ -67,6 +67,8 @@ class TranslatedValue {
   // possible.
   Handle<Object> GetValue();
 
+  Float64 GetDoubleValue();
+
   bool IsMaterializedObject() const;
   bool IsMaterializableByDebugger() const;
 

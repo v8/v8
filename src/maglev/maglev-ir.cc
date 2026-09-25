@@ -1171,17 +1171,12 @@ DirectHandle<Object> IntPtrConstant::DoReify(LocalIsolate* isolate) const {
 }
 
 DirectHandle<Object> Float64Constant::DoReify(LocalIsolate* isolate) const {
-  return isolate->factory()->NewNumber<AllocationType::kOld>(
-      value_.get_scalar());
+  UNREACHABLE();
 }
 
 DirectHandle<Object> HoleyFloat64Constant::DoReify(
     LocalIsolate* isolate) const {
-  if (value_.is_undefined_or_hole_nan()) {
-    return isolate->factory()->undefined_value();
-  }
-  return isolate->factory()->NewNumber<AllocationType::kOld>(
-      value_.get_scalar());
+  UNREACHABLE();
 }
 
 DirectHandle<Object> HeapConstant::DoReify(LocalIsolate* isolate) const {
