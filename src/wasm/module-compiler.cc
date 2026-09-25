@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 #include <queue>
+#include <string_view>
 
 #include "src/api/api-inl.h"
 #include "src/base/enum-set.h"
@@ -2465,6 +2466,10 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
  private:
   void CommitCompilationUnits();
+  // Sets a crash key ("v8-wasm-streaming-error") with the first encountered
+  // failure to help diagnose unexpected streaming compilation errors (see
+  // issue 455046584). Must be called on the main thread.
+  void SetCrashKey(std::string_view message);
 
   ModuleDecoder decoder_;
   AsyncCompileJob* job_;
@@ -2472,6 +2477,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   int num_functions_ = 0;
   bool prefix_cache_hit_ = false;
   bool before_code_section_ = true;
+  bool has_error_ = false;
   ValidateFunctionsStreamingJobData validate_functions_job_data_;
   std::unique_ptr<JobHandle> validate_functions_job_handle_;
 
@@ -3171,12 +3177,29 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
   if (compilation_unit_builder_) CommitCompilationUnits();
 }
 
+void AsyncStreamingProcessor::SetCrashKey(std::string_view message) {
+  if (has_error_) return;
+  has_error_ = true;
+  Isolate* isolate = job_->isolate_specific_info_.isolate_;
+  if (isolate && isolate->HasCrashKeyStringCallbacks()) {
+    isolate->AddCrashKeyString("v8-wasm-streaming-error",
+                               v8::CrashKeySize::Size1024, message);
+  }
+}
+
 // Finish the processing of the stream.
 void AsyncStreamingProcessor::OnFinishedStream(
     base::OwnedVector<const uint8_t> bytes, bool after_error) {
   TRACE_STREAMING("Finish stream...\n");
   ModuleResult module_result = decoder_.FinishDecoding();
-  if (module_result.failed()) after_error = true;
+  if (module_result.failed()) {
+    SetCrashKey("ModuleDecoder: " + module_result.error().message());
+    after_error = true;
+  } else if (after_error) {
+    // `after_error` was passed in as true from StreamingDecoder, but
+    // ModuleDecoder did not fail (e.g. unexpected EOF or varint error).
+    SetCrashKey("StreamingDecoder failed");
+  }
 
   if (validate_functions_job_handle_) {
     // Wait for background validation to finish, then check if a validation
@@ -3185,7 +3208,10 @@ void AsyncStreamingProcessor::OnFinishedStream(
     // instead.
     validate_functions_job_handle_->Join();
     validate_functions_job_handle_.reset();
-    if (validate_functions_job_data_.found_error) after_error = true;
+    if (validate_functions_job_data_.found_error) {
+      SetCrashKey("FunctionValidation failed");
+      after_error = true;
+    }
     job_->detected_features_ |=
         validate_functions_job_data_.detected_features.load(
             std::memory_order_relaxed);
@@ -3201,6 +3227,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
     if (WasmError error = ValidateAndSetBuiltinImports(
             module_result.value().get(), job_->wire_bytes_.module_bytes(),
             job_->compile_imports_, &detected_imports_features)) {
+      SetCrashKey("ValidateBuiltinImports: " + error.message());
       after_error = true;
     } else {
       job_->detected_features_ |= detected_imports_features;
@@ -3321,6 +3348,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
     // We finally call {Failed} or {FinishCompile}, which will invalidate the
     // {AsyncCompileJob} and delete {this}.
     if (failed) {
+      SetCrashKey("CompilationState failed");
       std::move(*job_).Failed();
       return;
     }
