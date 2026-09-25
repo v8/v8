@@ -1179,13 +1179,17 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
           intptr_t reg_value = kZapValue;
           switch (value.kind()) {
             case TranslatedValue::Kind::kInt32:
+              CHECK_EQ(liftoff_iter->kind(), wasm::ValueKind::kI32);
               // Ensure that the upper half is zeroed out.
               reg_value = static_cast<uint32_t>(value.int32_value());
               break;
             case TranslatedValue::Kind::kTagged:
+              CHECK(liftoff_iter->kind() == wasm::ValueKind::kRef ||
+                    liftoff_iter->kind() == wasm::ValueKind::kRefNull);
               reg_value = value.raw_literal().ptr();
               break;
             case TranslatedValue::Kind::kInt64:
+              CHECK_EQ(liftoff_iter->kind(), wasm::ValueKind::kI64);
               reg_value = value.int64_value();
               break;
             default:
@@ -1195,10 +1199,12 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
         } else if (liftoff_iter->is_fp_reg()) {
           switch (value.kind()) {
             case TranslatedValue::Kind::kDouble:
+              CHECK_EQ(liftoff_iter->kind(), wasm::ValueKind::kF64);
               output_frame->SetDoubleRegister(liftoff_iter->reg().fp().code(),
                                               value.double_value());
               break;
             case TranslatedValue::Kind::kFloat:
+              CHECK_EQ(liftoff_iter->kind(), wasm::ValueKind::kF32);
               // Liftoff doesn't have a concept of floating point registers.
               // This is an important distinction as e.g. on arm s1 and d1 are
               // two completely distinct registers.
@@ -1209,6 +1215,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
                   Float64::FromBits(value.float_value().get_bits()));
               break;
             case TranslatedValue::Kind::kSimd128:
+              CHECK_EQ(liftoff_iter->kind(), wasm::ValueKind::kS128);
               output_frame->SetSimd128Register(liftoff_iter->reg().fp().code(),
                                                value.simd_value());
               break;
@@ -1216,13 +1223,15 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
               UNIMPLEMENTED();
           }
         } else if (liftoff_iter->is_simd128_reg()) {
-          DCHECK_EQ(TranslatedValue::Kind::kSimd128, value.kind());
+          CHECK_EQ(liftoff_iter->kind(), wasm::ValueKind::kS128);
+          CHECK_EQ(TranslatedValue::Kind::kSimd128, value.kind());
           output_frame->SetSimd128Register(liftoff_iter->reg().simd128().code(),
                                            value.simd_value());
         } else if (!Is64() && liftoff_iter->is_gp_reg_pair()) {
           intptr_t reg_value = kZapValue;
           switch (value.kind()) {
             case TranslatedValue::Kind::kInt32:
+              CHECK_EQ(liftoff_iter->kind(), wasm::ValueKind::kI64);
               // Ensure that the upper half is zeroed out.
               reg_value = static_cast<uint32_t>(value.int32_value());
               break;
@@ -1239,6 +1248,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
           if (int64_lowering_is_low) skip_increase_liftoff_iter = true;
           int64_lowering_is_low = !int64_lowering_is_low;
         } else if (!Is64() && liftoff_iter->is_fp_reg_pair()) {
+          CHECK_EQ(liftoff_iter->kind(), wasm::ValueKind::kS128);
           CHECK_EQ(value.kind(), TranslatedValue::Kind::kSimd128);
           Simd128 simd_value = value.simd_value();
           Address val_ptr = reinterpret_cast<Address>(&simd_value);
@@ -1297,6 +1307,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
             }
             break;
           case wasm::ValueKind::kS128: {
+            CHECK_EQ(value.kind(), TranslatedValue::Kind::kSimd128);
             Simd128::int64x2 values = value.simd_value().to_i64x2();
             const int offset = base_offset - liftoff_iter->offset();
             output_frame->SetLiftoffFrameSlot64(offset, values[0]);
