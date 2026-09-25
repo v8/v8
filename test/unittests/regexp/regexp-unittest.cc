@@ -916,6 +916,95 @@ TEST_F(RegExpTest, MacroAssemblerNativeBacktrack) {
   CHECK_EQ(regexp::NativeRegExpMacroAssembler::FAILURE, result);
 }
 
+// A power-of-two mask compared against zero or against itself tests a single
+// bit of the loaded characters; arm64 folds each such check into tbz/tbnz.
+// Cover c == 0 and c == mask for both checks, with an explicit label and with
+// the implicit backtrack target, and bits above 7 through multi-character
+// loads. Every exit records itself in register 2 so the test can tell which
+// check fired.
+TEST_F(RegExpTest, MacroAssemblerNativeCheckCharacterAfterAndSingleBit) {
+  ContextInitializer initializer;
+  Factory* factory = i_isolate()->factory();
+  Zone zone(i_isolate()->allocator(), ZONE_NAME);
+
+  ArchRegExpMacroAssembler m(i_isolate(), &zone,
+                             regexp::NativeRegExpMacroAssembler::LATIN1, 4);
+
+  constexpr int kMatched = 1;
+  constexpr int kLabel = 2;
+  constexpr int kBacktrack = 3;
+
+  Label on_label, on_backtrack;
+  m.PushBacktrack(&on_backtrack);
+  // All four characters as one word: bit 31 is bit 7 of the last character.
+  m.LoadCurrentCharacter(0, nullptr, true, 4);
+  m.CheckCharacterAfterAnd(0x80000000u, 0x80000000u, &on_label);
+  // Two characters as a half-word: bit 15 is bit 7 of the second character.
+  m.LoadCurrentCharacter(0, nullptr, false, 2);
+  m.CheckNotCharacterAfterAnd(0, 0x8000, nullptr);
+  // Single characters.
+  m.LoadCurrentCharacter(0, nullptr, false);
+  m.CheckNotCharacterAfterAnd(0, 0x80, nullptr);
+  m.CheckNotCharacterAfterAnd(0x01, 0x01, &on_label);
+  m.LoadCurrentCharacter(1, nullptr, false);
+  m.CheckCharacterAfterAnd(0, 0x40, nullptr);
+  m.CheckCharacterAfterAnd(0x20, 0x20, &on_label);
+  m.WriteCurrentPositionToRegister(0, 0);
+  m.WriteCurrentPositionToRegister(1, 4);
+  m.WriteCurrentPositionToRegister(2, kMatched);
+  m.Succeed();
+  m.Bind(&on_label);
+  m.WriteCurrentPositionToRegister(2, kLabel);
+  m.Succeed();
+  m.BindJumpTarget(&on_backtrack);
+  m.WriteCurrentPositionToRegister(2, kBacktrack);
+  m.Succeed();
+
+  DirectHandle<String> source = factory->NewStringFromStaticChars("....");
+  DirectHandle<Object> code_object =
+      m.GetCode(CreateRegExpData(i_isolate(), source), {});
+  DirectHandle<Code> code = TrustedCast<Code>(code_object);
+  DirectHandle<JSRegExp> regexp = CreateJSRegExp(source, code);
+
+  struct {
+    const char* input;
+    int exit;
+  } cases[] = {
+      // 'a' (0x61) has bit 7 clear and bit 0 set, 'B' (0x42) has bit 6 set and
+      // bit 5 clear, and no character has bit 7 set.
+      {"aBcD", kMatched},
+      {"aBc\xC4", kLabel},  // Bit 31 of the word set.
+      {"a\xC2"
+       "cD",
+       kBacktrack},  // Bit 15 of the half-word set.
+      {"\xE1"
+       "BcD",
+       kBacktrack},      // Bit 7 of the first character set.
+      {"bBcD", kLabel},  // Bit 0 of the first character clear.
+      {"a\x02"
+       "cD",
+       kBacktrack},      // Bit 6 of the second character clear.
+      {"abcD", kLabel},  // Bit 5 of the second character set.
+  };
+  for (const auto& c : cases) {
+    DirectHandle<String> input =
+        factory->NewStringFromOneByte(base::OneByteVector(c.input))
+            .ToHandleChecked();
+    DirectHandle<SeqOneByteString> seq_input = Cast<SeqOneByteString>(input);
+    Address start_adr = seq_input->GetCharsAddress();
+
+    int captures[4] = {42, 37, 87, 117};
+    regexp::NativeRegExpMacroAssembler::Result result = Execute(
+        *regexp, *input, 0, start_adr, start_adr + input->length(), captures);
+
+    CHECK_EQ(regexp::NativeRegExpMacroAssembler::SUCCESS, result);
+    CHECK_EQ(c.exit, captures[2]);
+    CHECK_EQ(c.exit == kMatched ? 0 : -1, captures[0]);
+    CHECK_EQ(c.exit == kMatched ? 4 : -1, captures[1]);
+    CHECK_EQ(-1, captures[3]);
+  }
+}
+
 TEST_F(RegExpTest, MacroAssemblerNativeBackReferenceLATIN1) {
   ContextInitializer initializer;
   Factory* factory = i_isolate()->factory();
