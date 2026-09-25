@@ -7171,9 +7171,12 @@ class LiftoffCompiler {
           MakeSig::Returns(kRef).Params(kI64), {expected_value},
           decoder->position());
       timeout = __ PopVarState();
+      // Replace untagged expected_value with allocated BigInt:
+      __ DropValues(1);
       expected_value = VarState{kRef, LiftoffRegister{kReturnRegister0}, 0};
+    } else {
+      expected_value = __ PopVarState();
     }
-    __ DropValues(1);
 
     // We need to pop these values after the previous builtin call(s),
     // because register VarStates will get spilled and registers will be
@@ -7224,9 +7227,12 @@ class LiftoffCompiler {
           MakeSig::Returns(kRef).Params(kI64), {expected_value},
           decoder->position());
       timeout = __ PopVarState();
+      // Replace untagged expected_value with allocated BigInt:
+      __ DropValues(1);
       expected_value = VarState{kRef, LiftoffRegister{kReturnRegister0}, 0};
+    } else {
+      expected_value = __ PopVarState();
     }
-    __ DropValues(1);
 
     // We need to pop these values after the previous builtin call(s),
     // because register VarStates will get spilled and registers will be
