@@ -6668,47 +6668,14 @@ class LiftoffCompiler {
 
   void AtomicWait(FullDecoder* decoder, ValueKind kind,
                   const MemoryAccessImmediate& imm) {
-    ValueKind index_kind;
     {
       LiftoffRegList pinned;
       LiftoffRegister full_index = __ PeekToRegister(2, pinned);
 
-      Register index_reg =
-          BoundsCheckMem(decoder, imm.memory, value_kind_size(kind), imm.offset,
-                         full_index, pinned, kDoForceCheck, kCheckAlignment);
-      pinned.set(index_reg);
-
-      uintptr_t offset = imm.offset;
-      Register index_plus_offset = index_reg;
-
-      if (__ cache_state()->is_used(LiftoffRegister(index_reg))) {
-        index_plus_offset =
-            pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-        __ Move(index_plus_offset, index_reg, kIntPtrKind);
-      }
-      if (offset) {
-        __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, offset);
-      }
-
-      VarState& index = __ cache_state()->stack_state.end()[-3];
-
-      // We replace the index on the value stack with the `index_plus_offset`
-      // calculated above. Thereby the BigInt allocation below does not
-      // overwrite the calculated value by accident.
-      // The kind of `index_plus_offset has to be the same or smaller than the
-      // original kind of `index`. The kind of index is kI32 for memory32, and
-      // kI64 for memory64. On 64-bit platforms we can use in both cases the
-      // kind of `index` also for `index_plus_offset`. Note that
-      // `index_plus_offset` fits into a kI32 because we do a bounds check
-      // first.
-      // On 32-bit platforms, we have to use an kI32 also for memory64, because
-      // `index_plus_offset` does not exist in a register pair.
-      __ cache_state()->inc_used(LiftoffRegister(index_plus_offset));
-      if (index.is_reg()) __ cache_state()->dec_used(index.reg());
-      index_kind = index.kind() == kI32 ? kI32 : kIntPtrKind;
-
-      index = VarState{index_kind, LiftoffRegister{index_plus_offset},
-                       index.offset()};
+      // Execute bounds and alignment checks upfront to preserve Wasm traps
+      // without modifying the value stack before any BigInt conversion.
+      BoundsCheckMem(decoder, imm.memory, value_kind_size(kind), imm.offset,
+                     full_index, pinned, kDoForceCheck, kCheckAlignment);
     }
     {
       // Convert the top value of the stack (the timeout) from I64 to a BigInt,
@@ -6737,18 +6704,41 @@ class LiftoffCompiler {
     }
     ValueKind expected_kind = kind == kI32 ? kI32 : kRef;
 
+    // Compute index + offset into a fresh pointer-sized register after BigInt
+    // conversions. For memory32, zero-extend to uintptr to prevent 64-bit
+    // sign-extension of >=2GiB offsets.
+    LiftoffRegList pinned{expected};
+    LiftoffRegister index = pinned.set(__ PeekToRegister(2, pinned));
+
+    Register index_plus_offset = no_reg;
+    if (imm.memory->is_memory64()) {
+      DCHECK_IMPLIES(kNeedI64RegPair, index.is_gp_pair());
+      // On 32-bit platforms, BoundsCheckMem already trapped if the high word of
+      // the 64-bit index was non-zero. The index fits in pointer size.
+      Register index_ptrsize = kNeedI64RegPair ? index.low_gp() : index.gp();
+      if (imm.offset) {
+        index_plus_offset =
+            pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+        __ emit_ptrsize_addi(index_plus_offset, index_ptrsize, imm.offset);
+      } else {
+        index_plus_offset = index_ptrsize;
+      }
+    } else {
+      index_plus_offset = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      __ emit_u32_to_uintptr(index_plus_offset, index.gp());
+      if (imm.offset) {
+        __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, imm.offset);
+      }
+    }
+
     VarState timeout = __ cache_state()->stack_state.end()[-1];
-    VarState index = __ cache_state()->stack_state.end()[-3];
 
-    auto target = kind == kI32 ? Builtin::kWasmI32AtomicWait
-                               : Builtin::kWasmI64AtomicWait;
+    Builtin target = kind == kI32 ? Builtin::kWasmI32AtomicWait
+                                  : Builtin::kWasmI64AtomicWait;
 
-    // The type of {index} can either by i32 or intptr, depending on whether
-    // memory32 or memory64 is used. This is okay because both values get passed
-    // by register.
-    CallBuiltin(target, MakeSig::Params(kI32, index_kind, expected_kind, kRef),
+    CallBuiltin(target, MakeSig::Params(kI32, kIntPtrKind, expected_kind, kRef),
                 {{kI32, static_cast<int32_t>(imm.mem_index), 0},
-                 index,
+                 {kIntPtrKind, LiftoffRegister{index_plus_offset}, 0},
                  {expected_kind, LiftoffRegister{expected}, 0},
                  timeout},
                 decoder->position());
