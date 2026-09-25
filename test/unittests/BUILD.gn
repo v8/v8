@@ -707,6 +707,8 @@ v8_cluster_source_set("v8_unittests_sources") {
       "wasm/wasm-compile-module.h",
       "wasm/wasm-compiler-unittest.cc",
       "wasm/wasm-disassembler-unittest-bad-name-section.wasm.inc",
+      "wasm/wasm-disassembler-unittest-fp16.wasm.inc",
+      "wasm/wasm-disassembler-unittest-fp16.wat.inc",
       "wasm/wasm-disassembler-unittest-gc.wasm.inc",
       "wasm/wasm-disassembler-unittest-gc.wat.inc",
       "wasm/wasm-disassembler-unittest-mvp.wasm.inc",
