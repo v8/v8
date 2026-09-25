@@ -197,17 +197,17 @@ DirectHandle<JSObject> ScopeIterator::MaterializeScopeDetails() {
 }
 
 bool ScopeIterator::HasPositionInfo() {
-  return InInnerScope() || !IsNativeContext(*context_);
+  return HasScope() || !IsNativeContext(*context_);
 }
 
 int ScopeIterator::start_position() {
-  if (InInnerScope()) return current_scope().start_position();
+  if (HasScope()) return current_scope().start_position();
   if (IsNativeContext(*context_)) return 0;
   return context_->closure_context()->scope_info()->StartPosition();
 }
 
 int ScopeIterator::end_position() {
-  if (InInnerScope()) return current_scope().end_position();
+  if (HasScope()) return current_scope().end_position();
   if (IsNativeContext(*context_)) return 0;
   return context_->closure_context()->scope_info()->EndPosition();
 }
@@ -252,13 +252,13 @@ bool ScopeIterator::HasContext() const {
   //
   // We can detect this by comparing the scope ID of the parsed scope and the
   // runtime scope.
-  if (current_scope_index_ != -1 && NeedsContext() &&
+  if (HasScope() && NeedsContext() &&
       current_scope().unique_id_in_script() !=
           context_->scope_info()->UniqueIdInScript()) {
     return false;
   }
 
-  return !InInnerScope() || NeedsContext();
+  return !HasScope() || NeedsContext();
 }
 
 bool ScopeIterator::NeedsContext() const {
@@ -281,7 +281,7 @@ bool ScopeIterator::NeedsContext() const {
 }
 
 bool ScopeIterator::AdvanceOneScope() {
-  if (current_scope_index_ == -1) return false;
+  if (!HasScope()) return false;
   std::optional<DebugScriptScope> parent = current_scope().parent();
   if (!parent.has_value()) return false;
   current_scope_index_ = parent->scope_index();
@@ -295,7 +295,7 @@ void ScopeIterator::AdvanceOneContext() {
 }
 
 void ScopeIterator::AdvanceScope() {
-  DCHECK(InInnerScope());
+  DCHECK(HasScope());
 
   do {
     if (NeedsAndHasContext()) {
@@ -356,7 +356,7 @@ void ScopeIterator::Next() {
 
   UnwrapEvaluationContext();
 
-  DCHECK_IMPLIES(current_scope_index_ != -1 && NeedsAndHasContext(),
+  DCHECK_IMPLIES(HasScope() && NeedsAndHasContext(),
                  current_scope().unique_id_in_script() ==
                      context_->scope_info()->UniqueIdInScript());
 
@@ -366,7 +366,7 @@ void ScopeIterator::Next() {
 // Return the type of the current scope.
 ScopeIterator::ScopeType ScopeIterator::Type() const {
   DCHECK(!Done());
-  if (InInnerScope()) {
+  if (HasScope()) {
     switch (current_scope().scope_type()) {
       case FUNCTION_SCOPE:
         DCHECK_IMPLIES(NeedsAndHasContext(),
@@ -486,7 +486,7 @@ void ScopeIterator::VisitScope(const Visitor& visitor, Mode mode) const {
     case ScopeTypeEval:
       return VisitLocalScope(visitor, mode, Type());
     case ScopeTypeModule:
-      if (InInnerScope()) {
+      if (HasScope()) {
         return VisitLocalScope(visitor, mode, Type());
       }
       DCHECK_EQ(Mode::ALL, mode);
@@ -516,7 +516,7 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
     case ScopeTypeBlock:
     case ScopeTypeCatch:
     case ScopeTypeModule:
-      if (InInnerScope()) return SetLocalVariableValue(name, value);
+      if (HasScope()) return SetLocalVariableValue(name, value);
       if (Type() == ScopeTypeModule && SetModuleVariableValue(name, value)) {
         return true;
       }
@@ -835,7 +835,7 @@ Handle<JSObject> ScopeIterator::WithContextExtension() {
 // block context.
 void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
                                     ScopeType scope_type) const {
-  if (InInnerScope()) {
+  if (HasScope()) {
     if (VisitLocals(visitor, mode, scope_type)) return;
     if (mode == Mode::STACK && Type() == ScopeTypeLocal) {
       // Hide |this| in arrow functions that may be embedded in other functions

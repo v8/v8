@@ -98,8 +98,12 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   void DebugPrint();
 #endif
 
+  // Whether the current scope is backed by a scope in `debug_scope_info_`.
+  bool HasScope() const { return current_scope_index_ != -1; }
+  // Whether the current scope is backed by `debug_scope_info_` and belongs to
+  // the paused function (i.e. its stack-allocated variables are available).
   bool InInnerScope() const {
-    return !function_.is_null() && current_scope_index_ != -1;
+    return !function_.is_null() && HasScope();
   }
   bool HasContext() const;
   bool NeedsContext() const;
