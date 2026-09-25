@@ -44,6 +44,12 @@ When proposing a fix, ensure the code adheres to V8 standards:
 - **Cleanup Constraint**: Keep diffs small by changing only the code intended
   for the task. Propose cleanups to nearby code as a separate patch to keep the
   current change focused.
+- **Supported Architectures**: For most changes and bug fixes, it is fine to
+  omit not officially supported architectures and only implement or fix the main
+  four: `ia32`, `x64`, `arm`, and `arm64`. Architectures without official Google
+  support (e.g., `mips64`, `riscv32`, `riscv64`, `s390x`, `ppc64`, `loong64`)
+  are community-maintained and do not need to be updated unless specifically
+  requested or targeted.
 
 ## General Best Practices
 
