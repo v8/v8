@@ -1147,9 +1147,17 @@ Node* Disjunction::ToNodeImpl(Compiler* compiler, Node* on_success) {
   ZoneList<Tree*>* alternatives = this->alternatives();
 
   if (alternatives->length() > 2) {
-    bool found_consecutive_atoms = SortConsecutiveAtoms(compiler);
-    if (found_consecutive_atoms) RationalizeConsecutiveAtoms(compiler);
-    TRACE_WITH_NODE("* After rationalizing consecutive atoms: ", this);
+    if (!compiler->read_backward() && v8_flags.regexp_optimization) {
+      // We deliberately disable SortConsecutiveAtoms and
+      // RationalizeConsecutiveAtoms in lookbehinds rather than keep
+      // rationalizing already-adjacent runs. Lookbehind disjunctions must keep
+      // source order. The code generator already turns off quick checks,
+      // Boyer-Moore and first-char dispatch when reading backward, so the
+      // passes buy almost nothing there.
+      bool found_consecutive_atoms = SortConsecutiveAtoms(compiler);
+      if (found_consecutive_atoms) RationalizeConsecutiveAtoms(compiler);
+      TRACE_WITH_NODE("* After rationalizing consecutive atoms: ", this);
+    }
     FixSingleCharacterDisjunctions(compiler);
     TRACE_WITH_NODE("* After fixing single character disjunctions: ", this);
     if (alternatives->length() == 1) {
