@@ -371,6 +371,9 @@ Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
                                 .setColumnNumber(end.GetColumnNumber())
                                 .build());
     }
+    if (!iterator->DeclaresLocals()) {
+      scope->setEmpty(true);
+    }
     (*scopes)->emplace_back(std::move(scope));
   }
   return Response::Success();
