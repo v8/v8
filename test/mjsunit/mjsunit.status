@@ -1074,6 +1074,7 @@
   'regress/wasm/regress-521064735': [SKIP],
   'regress/wasm/regress-524830496': [SKIP],
   'regress/wasm/regress-536581698': [SKIP],
+  'regress/wasm/regress-565565747': [SKIP],
   'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 

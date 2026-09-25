@@ -2600,6 +2600,8 @@ MaybeDirectHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
   STACK_CHECK(isolate_, MaybeDirectHandle<HeapObject>());
   DCHECK_GE(version_, 15);
 
+  uint32_t id = next_id_++;
+
   uint32_t shared_object_id;
   if (!ReadVarint<uint32_t>().To(&shared_object_id)) {
     RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
@@ -2624,6 +2626,7 @@ MaybeDirectHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
   DirectHandle<HeapObject> shared_object(
       shared_object_conveyor_->GetPersisted(shared_object_id), isolate_);
   DCHECK(IsShared(*shared_object));
+  AddObjectWithID(id, Cast<JSReceiver>(shared_object));
   return shared_object;
 }
 
