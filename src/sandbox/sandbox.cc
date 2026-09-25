@@ -244,8 +244,6 @@ void DefaultInSandboxAllocator::Free(void* data) {
 
 }  // namespace
 
-bool Sandbox::smi_address_range_reserved_ = false;
-
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 thread_local Sandbox* Sandbox::current_ = nullptr;
 // static
@@ -508,33 +506,9 @@ bool Sandbox::Initialize(v8::Platform* platform, v8::VirtualAddressSpace* vas,
         back, kSandboxGuardRegionSize + kAdditionalTrailingGuardRegionSize));
   }
 
-  // Also try to reserve the first 4GB of the process' address space. This
-  // mitigates Smi<->HeapObject confusion bugs in which we end up treating a
-  // Smi value as a pointer.
-  if (!smi_address_range_reserved_) {
-    // Make the guard region extend a little past the first 4GB to also catch
-    // accesses to in-object properties which are bounded by the JSObject
-    // instance size.
-    static_assert(kSmiAddressRangePadding > JSObject::kMaxInstanceSize);
-    constexpr Address kRangeEnd = kSmiAddressRange + kSmiAddressRangePadding;
-    const size_t zero_segment_size = platform->GetZeroSegmentSize();
-    if (zero_segment_size >= kRangeEnd) {
-      smi_address_range_reserved_ = true;
-    } else {
-      const size_t step = address_space_->allocation_granularity();
-      const Address aligned_end = RoundUp(kRangeEnd, step);
-      for (Address start = 0; start <= 1 * MB; start += step) {
-        if (vas->AllocateGuardRegion(start, aligned_end - start)) {
-          smi_address_range_reserved_ = true;
-          break;
-        }
-      }
-    }
-  }
-
   initialized_ = true;
 
-  FinishInitialization();
+  FinishInitialization(platform);
 
   DCHECK(!is_partially_reserved());
   return true;
@@ -601,13 +575,22 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::Platform* platform,
           address_space_.get());
   in_sandbox_allocator_ = std::make_shared<DefaultInSandboxAllocator>(this);
 
-  FinishInitialization();
+  FinishInitialization(platform);
 
   DCHECK(is_partially_reserved());
   return true;
 }
 
-void Sandbox::FinishInitialization() {
+void Sandbox::FinishInitialization(v8::Platform* platform) {
+  // Check whether the first 4GB of the process' address space are reserved.
+  // This mitigates Smi<->HeapObject confusion bugs in which we end up treating
+  // a Smi value as a pointer.
+  // Make the guard region extend a little past the first 4GB to also catch
+  // accesses to in-object properties which are bounded by the JSObject
+  // instance size.
+  static_assert(kSmiAddressRangePadding > JSObject::kMaxInstanceSize);
+  constexpr Address kRangeEnd = kSmiAddressRange + kSmiAddressRangePadding;
+  smi_address_range_reserved_ = platform->GetZeroSegmentSize() >= kRangeEnd;
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
   // We do this even for the case of partially-reserved sandbox because, while
   // being an unsafe setup, tests and fuzzers shouldn't report crashes in this
@@ -666,6 +649,7 @@ void Sandbox::TearDown() {
     reservation_base_ = kNullAddress;
     reservation_size_ = 0;
     initialized_ = false;
+    smi_address_range_reserved_ = false;
     constants_.Reset();
   }
 }

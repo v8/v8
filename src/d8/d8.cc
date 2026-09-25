@@ -8028,9 +8028,11 @@ int Shell::Main(int argc, char* argv[]) {
   v8::base::EnsureConsoleOutput();
 
   // TODO(40925855): Enable this more broadly outside of d8.
-#if defined(PA_ENABLE_USER_SPACE_ZERO_SEGMENT)
+#if defined(V8_ENABLE_PARTITION_ALLOC)
+#if PA_BUILDFLAG(ENABLE_USER_SPACE_ZERO_SEGMENT)
   i::v8_flags.sandbox_prohibit_insecure_mode = true;
-#endif
+#endif  // PA_BUILDFLAG(ENABLE_USER_SPACE_ZERO_SEGMENT)
+#endif  // defined(V8_ENABLE_PARTITION_ALLOC)
 
   if (!v8::Shell::SetOptions(argc, argv)) return 1;
 
