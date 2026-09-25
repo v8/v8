@@ -443,11 +443,14 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
   Handle<JSObject> scope = isolate_->factory()->NewSlowJSObjectWithNullProto();
   auto visitor = [=, this](DirectHandle<String> name,
                            DirectHandle<Object> value, ScopeType scope_type) {
+#ifdef V8_ENABLE_TDZ_HOLE
+    DCHECK(!IsTheHole(*value));
+#endif
     if (IsOptimizedOut(*value)) {
       JSObject::SetAccessor(
           scope, name, isolate_->factory()->value_unavailable_accessor(), NONE)
           .Check();
-    } else if (IsTheHole(*value)) {
+    } else if (IsTdzHole(*value)) {
       const bool is_overriden_repl_let =
           scope_type == ScopeTypeScript &&
           JSReceiver::HasOwnProperty(isolate_, scope, name).FromMaybe(true);
@@ -782,7 +785,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
             // write. We explicitly check the static scope information if we
             // are currently stopped before the variable is actually initialized
             // which means we are in the middle of that var's TDZ.
-            value = isolate_->factory()->the_hole_value();
+            value = isolate_->factory()->tdz_hole_value();
           }
         }
         break;
@@ -792,7 +795,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
         if (!HasContext()) {
           // If the context was not yet pushed we report the variable as
           // unavailable.
-          value = isolate_->factory()->the_hole_value();
+          value = isolate_->factory()->tdz_hole_value();
           break;
         }
         DCHECK_EQ(context_->scope_info()->ContextSlotIndex(var.name), index);

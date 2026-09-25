@@ -136,6 +136,7 @@ class RootVisitor;
   V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue)         \
   V(StaleRegister, stale_register, StaleRegister)                              \
   V(TerminationException, termination_exception, TerminationException)         \
+  TDZ_HOLE_LIST(V)                                                             \
   V(UninitializedHole, uninitialized_value, UninitializedValue)                \
   /* Maps */                                                                   \
   V(Map, meta_map, MetaMap)                                                    \
@@ -552,6 +553,10 @@ enum class RootIndex : uint16_t {
 
   kRootListLength,
 
+#ifndef V8_ENABLE_TDZ_HOLE
+  kTdzHoleValue = kTheHoleValue,
+#endif
+
   // Helper aliases for inclusive regions of root indices.
   kFirstRoot = 0,
   kLastRoot = kRootListLength - 1,
@@ -675,6 +680,9 @@ class RootsTable {
 #define ROOT_ACCESSOR(Type, name, CamelName) \
   V8_INLINE IndirectHandle<Type> name();
   ROOT_LIST(ROOT_ACCESSOR)
+#ifndef V8_ENABLE_TDZ_HOLE
+  ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
 #undef ROOT_ACCESSOR
 
   V8_INLINE IndirectHandle<Object> handle_at(RootIndex root_index);
@@ -838,6 +846,9 @@ class ReadOnlyRoots {
   V8_RO_CONST V8_INLINE Tagged<Type> unchecked_##name() const;
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+#ifndef V8_ENABLE_TDZ_HOLE
+  ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
 #undef ROOT_ACCESSOR
 
   V8_INLINE bool IsNameForProtector(Tagged<HeapObject> object) const;

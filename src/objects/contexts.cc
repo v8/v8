@@ -160,7 +160,7 @@ void Context::Initialize(Isolate* isolate) {
   int header = scope_info->ContextHeaderLength();
   for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
     if (scope_info->ContextLocalInitFlag(var) == kNeedsInitialization) {
-      set(header + var, ReadOnlyRoots(isolate).the_hole_value());
+      set(header + var, ReadOnlyRoots(isolate).tdz_hole_value());
     }
   }
 }
@@ -403,7 +403,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         // context of the first script that declared a variable, all other
         // script contexts will contain 'the hole' for that particular name.
         if (scope_info->IsReplModeScope() &&
-            context->IsElementTheHole(slot_index)) {
+            context->IsElementTdzHole(slot_index)) {
           context = Handle<Context>(context->previous(), isolate);
           continue;
         }
@@ -566,7 +566,10 @@ DirectHandle<Object> Context::Get(DirectHandle<Context> context, int index,
                                   Isolate* isolate) {
   DirectHandle<Object> value =
       handle(context->get(index, kRelaxedLoad), isolate);
-  if (IsTheHole(*value) || !Is<ContextCell>(value)) {
+#ifdef V8_ENABLE_TDZ_HOLE
+  DCHECK(!IsTheHole(*value));
+#endif
+  if (IsTdzHole(*value) || !Is<ContextCell>(value)) {
     return value;
   }
   DCHECK(context->HasContextCells());
@@ -593,12 +596,16 @@ DirectHandle<Object> Context::Get(DirectHandle<Context> context, int index,
 void Context::Set(DirectHandle<Context> context, int index,
                   DirectHandle<Object> new_value, Isolate* isolate) {
   DirectHandle<Object> old_value(context->get(index, kRelaxedLoad), isolate);
+#ifdef V8_ENABLE_TDZ_HOLE
+  DCHECK(!IsTheHole(*old_value));
+  DCHECK(!IsTheHole(*new_value));
+#endif
   if (!context->HasContextCells()) {
     context->set(index, *new_value);
     return;
   }
 
-  if (IsTheHole(*old_value)) {
+  if (IsTdzHole(*old_value)) {
     // Setting the initial value.
     DirectHandle<ContextCell> cell =
         isolate->factory()->NewContextCell(Cast<JSAny>(new_value));
@@ -613,7 +620,7 @@ void Context::Set(DirectHandle<Context> context, int index,
 
   if (IsUndefinedContextCell(*old_value)) {
     if (IsUndefined(*new_value)) return;
-    if (IsTheHole(*new_value)) {
+    if (IsTdzHole(*new_value)) {
       // This can happened in let-variable in function contexts.
       context->set(index, *new_value);
       return;

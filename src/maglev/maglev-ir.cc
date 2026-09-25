@@ -836,10 +836,10 @@ Range ValueNode::GetStaticRange() const {
   }
 }
 
-Tribool ValueNode::IsTheHole() const {
-  if (!CanBeTheHoleValue(opcode())) return Tribool::kFalse;
+Tribool ValueNode::IsHole(RootIndex hole_index) const {
+  if (!CanBeHoleValue(hole_index, opcode())) return Tribool::kFalse;
   if (const RootConstant* cst = TryCast<RootConstant>()) {
-    return ToTribool(cst->index() == RootIndex::kTheHoleValue);
+    return ToTribool(cst->index() == hole_index);
   }
   if (const LoadTaggedField* load = TryCast<LoadTaggedField>()) {
     // There are a few ways that this can load a hole, for instance through a
@@ -854,19 +854,20 @@ Tribool ValueNode::IsTheHole() const {
     return Tribool::kMaybe;
   }
   if (const LoadFixedArrayElement* load = TryCast<LoadFixedArrayElement>()) {
+    DCHECK_EQ(hole_index, RootIndex::kTheHoleValue);
     if (load->load_type() != LoadType::kUnknown) {
       return Tribool::kFalse;
     }
     return Tribool::kMaybe;
   }
   if (Is<Identity>()) {
-    return UnwrapIdentities()->IsTheHole();
+    return UnwrapIdentities()->IsHole(hole_index);
   }
   if (const Phi* phi = TryCast<Phi>()) {
     if (!phi->is_loop_phi() && !phi->is_exception_phi()) {
       bool can_be_the_hole = false;
       for (ConstInput input : phi->inputs()) {
-        if (input.node()->IsTheHole() != Tribool::kFalse) {
+        if (input.node()->IsHole(hole_index) != Tribool::kFalse) {
           can_be_the_hole = true;
           break;
         }
@@ -6778,8 +6779,8 @@ void Float64ToString::GenerateCode(MaglevAssembler* masm,
   masm->DefineLazyDeoptPoint(this->lazy_deopt_info());
 }
 
-int ThrowReferenceErrorIfHole::MaxCallStackArgs() const { return 1; }
-void ThrowReferenceErrorIfHole::SetValueLocationConstraints() {
+int ThrowReferenceErrorIfTdzHole::MaxCallStackArgs() const { return 1; }
+void ThrowReferenceErrorIfTdzHole::SetValueLocationConstraints() {
   // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
   // support constant inputs (which UseAny allows). Constants should have been
   // optimized already by MaglevGraphBuilder or MaglevGraphOptimizer.
@@ -6787,11 +6788,18 @@ void ThrowReferenceErrorIfHole::SetValueLocationConstraints() {
 
   UseAny(ValueInput());
 }
-void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
-                                             const ProcessingState& state) {
+void ThrowReferenceErrorIfTdzHole::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+#ifdef V8_ENABLE_TDZ_HOLE
+  if (v8_flags.debug_code) {
+    __ Assert(NegateCondition(
+                  __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue)),
+              AbortReason::kUnexpectedValue);
+  }
+#endif
   __ JumpToDeferredIf(
-      __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue),
-      [](MaglevAssembler* masm, ThrowReferenceErrorIfHole* node) {
+      __ IsRootConstant(ValueInput(), RootIndex::kTdzHoleValue),
+      [](MaglevAssembler* masm, ThrowReferenceErrorIfTdzHole* node) {
         __ Push(node->name().object());
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowAccessedUninitializedVariable, 1);
@@ -6801,8 +6809,8 @@ void ThrowReferenceErrorIfHole::GenerateCode(MaglevAssembler* masm,
       this);
 }
 
-int ThrowSuperNotCalledIfHole::MaxCallStackArgs() const { return 0; }
-void ThrowSuperNotCalledIfHole::SetValueLocationConstraints() {
+int ThrowSuperNotCalledIfTdzHole::MaxCallStackArgs() const { return 0; }
+void ThrowSuperNotCalledIfTdzHole::SetValueLocationConstraints() {
   // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
   // support constant inputs (which UseAny allows). Constants should have been
   // optimized already by MaglevGraphBuilder or MaglevGraphOptimizer.
@@ -6810,11 +6818,18 @@ void ThrowSuperNotCalledIfHole::SetValueLocationConstraints() {
 
   UseAny(ValueInput());
 }
-void ThrowSuperNotCalledIfHole::GenerateCode(MaglevAssembler* masm,
-                                             const ProcessingState& state) {
+void ThrowSuperNotCalledIfTdzHole::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+#ifdef V8_ENABLE_TDZ_HOLE
+  if (v8_flags.debug_code) {
+    __ Assert(NegateCondition(
+                  __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue)),
+              AbortReason::kUnexpectedValue);
+  }
+#endif
   __ JumpToDeferredIf(
-      __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue),
-      [](MaglevAssembler* masm, ThrowSuperNotCalledIfHole* node) {
+      __ IsRootConstant(ValueInput(), RootIndex::kTdzHoleValue),
+      [](MaglevAssembler* masm, ThrowSuperNotCalledIfTdzHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowSuperNotCalled, 0);
         masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
@@ -6823,8 +6838,8 @@ void ThrowSuperNotCalledIfHole::GenerateCode(MaglevAssembler* masm,
       this);
 }
 
-int ThrowSuperAlreadyCalledIfNotHole::MaxCallStackArgs() const { return 0; }
-void ThrowSuperAlreadyCalledIfNotHole::SetValueLocationConstraints() {
+int ThrowSuperAlreadyCalledIfNotTdzHole::MaxCallStackArgs() const { return 0; }
+void ThrowSuperAlreadyCalledIfNotTdzHole::SetValueLocationConstraints() {
   // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
   // support constant inputs (which UseAny allows). Constants should have been
   // optimized already by MaglevGraphBuilder or MaglevGraphOptimizer.
@@ -6832,12 +6847,19 @@ void ThrowSuperAlreadyCalledIfNotHole::SetValueLocationConstraints() {
 
   UseAny(ValueInput());
 }
-void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
+void ThrowSuperAlreadyCalledIfNotTdzHole::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
+#ifdef V8_ENABLE_TDZ_HOLE
+  if (v8_flags.debug_code) {
+    __ Assert(NegateCondition(
+                  __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue)),
+              AbortReason::kUnexpectedValue);
+  }
+#endif
   __ JumpToDeferredIf(
       NegateCondition(
-          __ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue)),
-      [](MaglevAssembler* masm, ThrowSuperAlreadyCalledIfNotHole* node) {
+          __ IsRootConstant(ValueInput(), RootIndex::kTdzHoleValue)),
+      [](MaglevAssembler* masm, ThrowSuperAlreadyCalledIfNotTdzHole* node) {
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kThrowSuperAlreadyCalledError, 0);
         masm->DefineExceptionHandlerAndLazyDeoptPoint(node);

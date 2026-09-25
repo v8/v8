@@ -1007,7 +1007,7 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceAsyncFunctionResolve(
       ValueNode* async_function_object, ValueNode* value);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
-  bool IsTheHoleConstant(ValueNode* node);
+  bool IsTdzHoleConstant(ValueNode* node);
   ReduceResult BuildCallKnownJSFunction(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
       JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,

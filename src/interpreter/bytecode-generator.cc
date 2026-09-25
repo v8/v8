@@ -2148,13 +2148,13 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
     case VariableLocation::LOCAL:
       if (variable->binding_needs_init()) {
         Register destination(builder()->Local(variable->index()));
-        builder()->LoadTheHole().StoreAccumulatorInRegister(destination);
+        builder()->LoadTdzHole().StoreAccumulatorInRegister(destination);
       }
       break;
     case VariableLocation::PARAMETER:
       if (variable->binding_needs_init()) {
         Register destination(builder()->Parameter(variable->index()));
-        builder()->LoadTheHole().StoreAccumulatorInRegister(destination);
+        builder()->LoadTdzHole().StoreAccumulatorInRegister(destination);
       }
       break;
     case VariableLocation::REPL_GLOBAL:
@@ -2163,7 +2163,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
     case VariableLocation::CONTEXT:
       if (variable->binding_needs_init()) {
         DCHECK_EQ(0, execution_context()->ContextChainDepth(variable->scope()));
-        builder()->LoadTheHole().StoreContextSlot(execution_context()->reg(),
+        builder()->LoadTdzHole().StoreContextSlot(execution_context()->reg(),
                                                   variable, 0);
       }
       break;
@@ -4715,7 +4715,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       // subsequent expressions assign to the same variable.
       builder()->LoadAccumulatorWithRegister(source);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
-        BuildThrowIfHole(variable);
+        BuildThrowIfTdzHole(variable);
       }
       break;
     }
@@ -4731,7 +4731,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       // subsequent expressions assign to the same variable.
       builder()->LoadAccumulatorWithRegister(source);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
-        BuildThrowIfHole(variable);
+        BuildThrowIfTdzHole(variable);
       }
       break;
     }
@@ -4767,7 +4767,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
 
       builder()->LoadContextSlot(context_reg, variable, depth);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
-        BuildThrowIfHole(variable);
+        BuildThrowIfTdzHole(variable);
       }
       if (is_immutable) {
         SetVariableInRegister(variable, acc);
@@ -4789,7 +4789,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
                                            local_variable->index(), depth);
           if (VariableNeedsHoleCheckInCurrentBlock(local_variable,
                                                    hole_check_mode)) {
-            BuildThrowIfHole(local_variable);
+            BuildThrowIfTdzHole(local_variable);
           }
           break;
         }
@@ -4819,7 +4819,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       int depth = execution_context()->ContextChainDepth(variable->scope());
       builder()->LoadModuleVariable(variable->index(), depth);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
-        BuildThrowIfHole(variable);
+        BuildThrowIfTdzHole(variable);
       }
       break;
     }
@@ -4901,12 +4901,12 @@ void BytecodeGenerator::RememberHoleCheckInCurrentBlock(Variable* variable) {
                                       vars_in_hole_check_bitmap_);
 }
 
-void BytecodeGenerator::BuildThrowIfHole(Variable* variable) {
+void BytecodeGenerator::BuildThrowIfTdzHole(Variable* variable) {
   if (variable->is_this()) {
     DCHECK(variable->mode() == VariableMode::kConst);
-    builder()->ThrowSuperNotCalledIfHole();
+    builder()->ThrowSuperNotCalledIfTdzHole();
   } else {
-    builder()->ThrowReferenceErrorIfHole(variable->raw_name());
+    builder()->ThrowReferenceErrorIfTdzHole(variable->raw_name());
   }
   RememberHoleCheckInCurrentBlock(variable);
 }
@@ -4937,12 +4937,12 @@ void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
     //
     // Do not remember the hole check because this bytecode throws if 'this' is
     // *not* the hole, i.e. the opposite of the TDZ hole check.
-    builder()->ThrowSuperAlreadyCalledIfNotHole();
+    builder()->ThrowSuperAlreadyCalledIfNotTdzHole();
   } else {
     // Perform an initialization check for let/const declared variables.
     // E.g. let x = (x = 20); is not allowed.
     DCHECK(IsLexicalVariableMode(variable->mode()));
-    BuildThrowIfHole(variable);
+    BuildThrowIfTdzHole(variable);
   }
 }
 

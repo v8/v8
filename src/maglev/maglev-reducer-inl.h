@@ -4211,11 +4211,11 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestTypeOf(
 }
 
 template <typename BaseT>
-bool MaglevReducer<BaseT>::IsTheHoleConstant(ValueNode* node) {
+bool MaglevReducer<BaseT>::IsTdzHoleConstant(ValueNode* node) {
   if (node != nullptr) {
     if (compiler::OptionalHeapObjectRef maybe_constant =
             TryGetConstant<HeapObject>(node)) {
-      return maybe_constant->IsTheHole();
+      return maybe_constant->IsTdzHole();
     }
   }
   return false;
@@ -4225,7 +4225,7 @@ template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::GetConvertReceiver(
     compiler::SharedFunctionInfoRef shared, ValueNode* receiver,
     ConvertReceiverMode mode) {
-  DCHECK(!IsTheHoleConstant(receiver));
+  DCHECK(!IsTdzHoleConstant(receiver));
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
     if (mode == ConvertReceiverMode::kNullOrUndefined) {
       return GetRootConstant(RootIndex::kUndefinedValue);
@@ -6559,7 +6559,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceTypedArrayConstructor(
   LazyDeoptFrameScope continuation(
       this, context, Builtin::kGenericLazyDeoptContinuation, target,
       base::VectorOf<ValueNode* const>(
-          {GetRootConstant(RootIndex::kTheHoleValue)}));
+          {GetRootConstant(RootIndex::kTdzHoleValue)}));
   return BuildCallBuiltinWithTaggedInputs<Builtin::kCreateTypedArray>(
       GetConstant(broker()->target_native_context()),
       {target_node, new_target, arg0, arg1, arg2});

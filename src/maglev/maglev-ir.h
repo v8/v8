@@ -491,9 +491,9 @@ class ExceptionHandlerInfo;
   V(HandleNoHeapWritesInterrupt)              \
   V(ReduceInterruptBudgetForLoop)             \
   V(ReduceInterruptBudgetForReturn)           \
-  V(ThrowReferenceErrorIfHole)                \
-  V(ThrowSuperNotCalledIfHole)                \
-  V(ThrowSuperAlreadyCalledIfNotHole)         \
+  V(ThrowReferenceErrorIfTdzHole)             \
+  V(ThrowSuperNotCalledIfTdzHole)             \
+  V(ThrowSuperAlreadyCalledIfNotTdzHole)      \
   V(ThrowIfNotCallable)                       \
   V(ThrowIfNotSuperConstructor)               \
   V(TransitionElementsKindOrCheckMap)         \
@@ -787,22 +787,26 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
   }
 }
 
-constexpr bool CanBeTheHoleValue(Opcode opcode) {
+constexpr bool CanBeHoleValue(RootIndex hole_index, Opcode opcode) {
+  DCHECK(hole_index == RootIndex::kTheHoleValue ||
+         hole_index == RootIndex::kTdzHoleValue);
   switch (opcode) {
     // TODO(victorgomes): Should we have a list of builtins that could
     // return the hole?
     case Opcode::kCallBuiltin:
-    case Opcode::kCallRuntime:
-    case Opcode::kGeneratorRestoreRegister:
     case Opcode::kIdentity:
-    case Opcode::kInitialValue:
-    case Opcode::kLoadContextSlot:
-    case Opcode::kLoadContextSlotNoCells:
-    case Opcode::kLoadFixedArrayElement:
     case Opcode::kLoadTaggedField:
     case Opcode::kPhi:
     case Opcode::kRootConstant:
       return true;
+    case Opcode::kCallRuntime:
+    case Opcode::kLoadFixedArrayElement:
+      return hole_index == RootIndex::kTheHoleValue;
+    case Opcode::kGeneratorRestoreRegister:
+    case Opcode::kInitialValue:
+    case Opcode::kLoadContextSlot:
+    case Opcode::kLoadContextSlotNoCells:
+      return hole_index == RootIndex::kTdzHoleValue;
     default:
       return false;
   }
@@ -2790,7 +2794,9 @@ class ValueNode : public Node {
     return NodeTypeIs(GetStaticType(broker), type);
   }
 
-  Tribool IsTheHole() const;
+  Tribool IsHole(RootIndex hole_index) const;
+  Tribool IsTheHole() const { return IsHole(RootIndex::kTheHoleValue); }
+  Tribool IsTdzHole() const { return IsHole(RootIndex::kTdzHoleValue); }
 
   inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
   inline void MaybeRecordUseReprHint(UseRepresentation repr);
@@ -5295,7 +5301,9 @@ class HeapConstant : public FixedInputValueNodeT<0, HeapConstant> {
     return Object::BooleanValue(*object_.object(), local_isolate);
   }
 
+  bool IsAnyHole() const { return object_.IsAnyHole(); }
   bool IsTheHole() const { return object_.IsTheHole(); }
+  bool IsTdzHole() const { return object_.IsTdzHole(); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -11182,11 +11190,11 @@ class ReduceInterruptBudgetForReturn
   const int amount_;
 };
 
-class ThrowReferenceErrorIfHole
-    : public FixedInputNodeT<1, ThrowReferenceErrorIfHole> {
+class ThrowReferenceErrorIfTdzHole
+    : public FixedInputNodeT<1, ThrowReferenceErrorIfTdzHole> {
  public:
-  explicit ThrowReferenceErrorIfHole(uint64_t bitfield,
-                                     const compiler::NameRef name)
+  explicit ThrowReferenceErrorIfTdzHole(uint64_t bitfield,
+                                        const compiler::NameRef name)
       : Base(bitfield), name_(name) {}
 
   static constexpr OpProperties kProperties =
@@ -11205,10 +11213,10 @@ class ThrowReferenceErrorIfHole
   const compiler::NameRef name_;
 };
 
-class ThrowSuperNotCalledIfHole
-    : public FixedInputNodeT<1, ThrowSuperNotCalledIfHole> {
+class ThrowSuperNotCalledIfTdzHole
+    : public FixedInputNodeT<1, ThrowSuperNotCalledIfTdzHole> {
  public:
-  explicit ThrowSuperNotCalledIfHole(uint64_t bitfield) : Base(bitfield) {}
+  explicit ThrowSuperNotCalledIfTdzHole(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanThrow() | OpProperties::DeferredCall();
@@ -11219,10 +11227,10 @@ class ThrowSuperNotCalledIfHole
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
-class ThrowSuperAlreadyCalledIfNotHole
-    : public FixedInputNodeT<1, ThrowSuperAlreadyCalledIfNotHole> {
+class ThrowSuperAlreadyCalledIfNotTdzHole
+    : public FixedInputNodeT<1, ThrowSuperAlreadyCalledIfNotTdzHole> {
  public:
-  explicit ThrowSuperAlreadyCalledIfNotHole(uint64_t bitfield)
+  explicit ThrowSuperAlreadyCalledIfNotTdzHole(uint64_t bitfield)
       : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =

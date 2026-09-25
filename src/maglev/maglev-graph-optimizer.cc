@@ -1426,9 +1426,9 @@ ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForReturn(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
-    ThrowReferenceErrorIfHole* node, const ProcessingState& state) {
-  switch (node->ValueInput().node()->IsTheHole()) {
+ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfTdzHole(
+    ThrowReferenceErrorIfTdzHole* node, const ProcessingState& state) {
+  switch (node->ValueInput().node()->IsTdzHole()) {
     case Tribool::kTrue: {
       return ThrowAndTruncate(Throw::kThrowAccessedUninitializedVariable,
                               reducer_.GetConstant(node->name()));
@@ -1442,9 +1442,9 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
   UNREACHABLE();
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
-    ThrowSuperNotCalledIfHole* node, const ProcessingState& state) {
-  switch (node->ValueInput().node()->IsTheHole()) {
+ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfTdzHole(
+    ThrowSuperNotCalledIfTdzHole* node, const ProcessingState& state) {
+  switch (node->ValueInput().node()->IsTdzHole()) {
     case Tribool::kTrue: {
       return ThrowAndTruncate(Throw::kThrowSuperNotCalled);
     }
@@ -1457,9 +1457,9 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole(
-    ThrowSuperAlreadyCalledIfNotHole* node, const ProcessingState& state) {
-  switch (node->ValueInput().node()->IsTheHole()) {
+ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotTdzHole(
+    ThrowSuperAlreadyCalledIfNotTdzHole* node, const ProcessingState& state) {
+  switch (node->ValueInput().node()->IsTdzHole()) {
     case Tribool::kTrue:
       // It is the hole; removing.
       return RemoveCurrentNode();
@@ -3677,7 +3677,7 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
     // or a CheckNotHole before, which should have been constant-folded into
     // unconditional deopt/throw if their input is a hole.
     DCHECK_IMPLIES(node->input_node(0)->Is<HeapConstant>(),
-                   !node->input_node(0)->Cast<HeapConstant>()->IsTheHole());
+                   !node->input_node(0)->Cast<HeapConstant>()->IsAnyHole());
 
     bool condition =
         FromConstantToBool(reducer_.local_isolate(), node->input_node(0));

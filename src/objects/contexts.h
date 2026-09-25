@@ -502,7 +502,7 @@ V8_OBJECT class Context : public HeapObject {
   inline int length(RelaxedLoadTag) const;
   inline void set_length(int value, RelaxedStoreTag);
 
-  V8_INLINE bool IsElementTheHole(int index);
+  V8_INLINE bool IsElementTdzHole(int index);
 
   template <typename MemoryTag>
   V8_INLINE Tagged<Object> GetNoCell(int index, MemoryTag tag);

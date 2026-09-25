@@ -1853,11 +1853,11 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::ThrowReferenceErrorIfHole* node,
+  maglev::ProcessResult Process(maglev::ThrowReferenceErrorIfTdzHole* node,
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
 
-    IF (UNLIKELY(RootEqual(node->ValueInput(), RootIndex::kTheHoleValue))) {
+    IF (UNLIKELY(RootEqual(node->ValueInput(), RootIndex::kTdzHoleValue))) {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
       __ template CallRuntime<runtime::ThrowAccessedUninitializedVariable>(
           frame_state, native_context(),
@@ -1899,12 +1899,13 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::ThrowSuperAlreadyCalledIfNotHole* node,
-                                const maglev::ProcessingState& state) {
+  maglev::ProcessResult Process(
+      maglev::ThrowSuperAlreadyCalledIfNotTdzHole* node,
+      const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
 
     IF_NOT (LIKELY(__ RootEqual(Map(node->ValueInput()),
-                                RootIndex::kTheHoleValue, isolate_))) {
+                                RootIndex::kTdzHoleValue, isolate_))) {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
       __ template CallRuntime<runtime::ThrowSuperAlreadyCalledError>(
           frame_state, native_context(), {}, ShouldLazyDeoptOnThrow(node));
@@ -1918,11 +1919,11 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::ThrowSuperNotCalledIfHole* node,
+  maglev::ProcessResult Process(maglev::ThrowSuperNotCalledIfTdzHole* node,
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
 
-    IF (UNLIKELY(__ RootEqual(Map(node->ValueInput()), RootIndex::kTheHoleValue,
+    IF (UNLIKELY(__ RootEqual(Map(node->ValueInput()), RootIndex::kTdzHoleValue,
                               isolate_))) {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
       __ template CallRuntime<runtime::ThrowSuperNotCalled>(

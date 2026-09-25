@@ -2619,6 +2619,10 @@ ReduceResult MaglevGraphBuilder::VisitLdaTheHole() {
   SetAccumulator(GetRootConstant(RootIndex::kTheHoleValue));
   return ReduceResult::Done();
 }
+ReduceResult MaglevGraphBuilder::VisitLdaTdzHole() {
+  SetAccumulator(GetRootConstant(RootIndex::kTdzHoleValue));
+  return ReduceResult::Done();
+}
 ReduceResult MaglevGraphBuilder::VisitLdaTrue() {
   SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
   return ReduceResult::Done();
@@ -2653,7 +2657,7 @@ MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     // won't change anymore.
     //
     // See also: JSContextSpecialization::ReduceJSLoadContext.
-    if (slot_value.IsTheHole()) return {};
+    if (slot_value.IsTdzHole()) return {};
     if (mode == VariableMode::kVar && slot_value.IsUndefined()) return {};
     if (IsPrivateMethodOrAccessorVariableMode(mode) &&
         slot_value.IsUndefined()) {
@@ -2672,7 +2676,7 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextCell(
   compiler::ContextRef context =
       context_node->Cast<HeapConstant>()->ref().AsContext();
   auto maybe_value = context.get(broker(), index);
-  if (!maybe_value || maybe_value->IsTheHole() ||
+  if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
     return {};
   }
@@ -2783,7 +2787,7 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextCell(
   compiler::ContextRef context_ref =
       context->Cast<HeapConstant>()->ref().AsContext();
   auto maybe_value = context_ref.get(broker(), index);
-  if (!maybe_value || maybe_value->IsTheHole() ||
+  if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
     DCHECK_EQ(assigned, kMaybeAssigned);
     return AddNewNode<StoreContextSlotWithWriteBarrier>({context, value},
@@ -4732,7 +4736,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   bool has_deprecated_map_without_migration_target = false;
   if (compiler::OptionalHeapObjectRef c =
           TryGetConstant<HeapObject>(lookup_start_object)) {
-    if (c.value().IsTheHole()) return {};
+    if (c.value().IsAnyHole()) return {};
     if (c.value().IsJSFunctionWithPrototype() &&
         feedback.name().equals(broker()->prototype_string())) {
       compiler::JSFunctionRef function = c.value().AsJSFunction();
@@ -10823,7 +10827,7 @@ MaglevGraphBuilder::GetArgumentsAsArrayOfValueNodes(
   // TODO(victorgomes): Investigate if we can avoid this copy.
   int arg_count = static_cast<int>(args.count());
   auto arguments = zone()->AllocateVector<ValueNode*>(arg_count + 1);
-  if (IsTheHoleConstant(args.receiver())) {
+  if (IsTdzHoleConstant(args.receiver())) {
     arguments[0] = args.receiver();
   } else {
     ReduceResult result = GetConvertReceiver(shared, args);
@@ -10889,7 +10893,9 @@ ReduceResult MaglevGraphBuilder::BuildGenericCall(
 MaybeReduceResult MaglevGraphBuilder::BuildCallSelf(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
     compiler::SharedFunctionInfoRef shared, CallArguments& args) {
-  if (IsTheHoleConstant(args.receiver())) return {};
+  if (IsTdzHoleConstant(args.receiver())) {
+    return {};
+  }
   ValueNode* receiver;
   GET_VALUE_OR_ABORT(receiver, GetConvertReceiver(shared, args));
   size_t input_count = args.count() + CallSelf::kFixedInputCount;
@@ -10932,9 +10938,9 @@ bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
 MaybeReduceResult MaglevGraphBuilder::TryReduceCallForApiFunction(
     compiler::FunctionTemplateInfoRef api_callback,
     compiler::OptionalSharedFunctionInfoRef maybe_shared, CallArguments& args) {
-  if (IsTheHoleConstant(args.receiver())) {
-    // The receiver may be the_hole when inlining derived constructors and
-    // construct_as_builtin constructors.
+  if (IsTdzHoleConstant(args.receiver())) {
+    // The receiver may be tdz_hole when inlining construct_as_builtin or
+    // derived constructors.
     // TODO(jgruber): Support this case.
     return {};
   }
@@ -10994,7 +11000,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
     return {};
   }
 
-  if (IsTheHoleConstant(args.receiver())) {
+  if (IsTdzHoleConstant(args.receiver())) {
     // Not supported by CallFunctionTemplate.
     return {};
   }
@@ -11092,8 +11098,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
       builtin_name, tagged_context);
 }
 
-bool MaglevGraphBuilder::IsTheHoleConstant(ValueNode* node) {
-  return reducer().IsTheHoleConstant(node);
+bool MaglevGraphBuilder::IsTdzHoleConstant(ValueNode* node) {
+  return reducer().IsTdzHoleConstant(node);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
@@ -11126,8 +11132,8 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   ValueNode* receiver = args.receiver();
-  if (!IsTheHoleConstant(receiver)) {
-    // The receiver may be the_hole when inlining derived constructors and
+  if (!IsTdzHoleConstant(receiver)) {
+    // The receiver may be tdz_hole when inlining derived constructors and
     // construct_as_builtin constructors. Only insert conversions when that is
     // not the case.
     GET_VALUE_OR_ABORT(receiver, GetConvertReceiver(shared, args));
@@ -13141,7 +13147,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
             &reducer_, GetContext(),
             Builtin::kStringCreateLazyDeoptContinuation, target_function,
             base::VectorOf<ValueNode*>(
-                {GetRootConstant(RootIndex::kTheHoleValue)}));
+                {GetRootConstant(RootIndex::kTdzHoleValue)}));
         GET_VALUE_OR_ABORT(value,
                            BuildToString(args[0], ToString::kThrowOnSymbol));
       }
@@ -13153,7 +13159,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       break;
     case Builtin::kTypedArrayConstructor: {
       LazyDeoptFrameScope construct(
-          &reducer_, GetContext(), GetRootConstant(RootIndex::kTheHoleValue),
+          &reducer_, GetContext(), GetRootConstant(RootIndex::kTdzHoleValue),
           *compilation_unit(), GetCurrentSourcePosition());
       RETURN_IF_DONE(reducer_.TryReduceTypedArrayConstructor(
           GetContext(), target_function, new_target, args));
@@ -13180,7 +13186,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
   const bool construct_as_builtin = shared_function_info.construct_as_builtin();
 
   if (IsDerivedConstructor(shared_function_info.kind())) {
-    ValueNode* implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
+    ValueNode* implicit_receiver = GetRootConstant(RootIndex::kTdzHoleValue);
     args.set_receiver(implicit_receiver);
     ValueNode* call_result;
     {
@@ -13213,7 +13219,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
 
   ValueNode* implicit_receiver = nullptr;
   if (construct_as_builtin) {
-    implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
+    implicit_receiver = GetRootConstant(RootIndex::kTdzHoleValue);
   } else {
     // We do not create a construct stub lazy deopt frame, since
     // FastNewObject cannot fail if target is a JSFunction.
@@ -15620,11 +15626,11 @@ ReduceResult MaglevGraphBuilder::VisitReturn() {
              : ReduceResult::DoneWithAbort();
 }
 
-ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
-  // ThrowReferenceErrorIfHole <variable_name>
+ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfTdzHole() {
+  // ThrowReferenceErrorIfTdzHole <variable_name>
   compiler::NameRef name = GetRefOperand<Name>(0);
   ValueNode* value = GetAccumulator();
-  switch (value->IsTheHole()) {
+  switch (value->IsTdzHole()) {
     case Tribool::kTrue:
       return reducer_.EmitThrow(Throw::kThrowAccessedUninitializedVariable,
                                 GetConstant(name));
@@ -15633,12 +15639,12 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
     case Tribool::kMaybe: {
       DCHECK(value->is_tagged());
       // Temporarily clear the cached constant value before emitting
-      // ThrowReferenceErrorIfHole so that known_node_aspects() merged into the
-      // exception handler (the catch block) does not cache this load. On the
-      // exception path, the value is guaranteed to be the_hole, and the catch
-      // block may resume a generator that initializes the const variable.
+      // ThrowReferenceErrorIfTdzHole so that known_node_aspects() merged into
+      // the exception handler (the catch block) does not cache this load. On
+      // the exception path, the value is guaranteed to be tdz_hole, and the
+      // catch block may resume a generator that initializes the const variable.
       // Restore the cached value afterward for the non-throwing fallthrough
-      // path where the value is known not to be the_hole.
+      // path where the value is known not to be tdz_hole.
       // TODO(verwaest): Look into making loaded_context_constants_ monotonic,
       // e.g. by folding the hole check into the context load rather than
       // temporarily clearing the cached constant here.
@@ -15652,7 +15658,8 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
           *cached_slot = nullptr;
         }
       }
-      ReduceResult res = AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
+      ReduceResult res =
+          AddNewNode<ThrowReferenceErrorIfTdzHole>({value}, name);
       if (cached_slot) {
         *cached_slot = value;
       }
@@ -15661,32 +15668,32 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
   }
   UNREACHABLE();
 }
-ReduceResult MaglevGraphBuilder::VisitThrowSuperNotCalledIfHole() {
-  // ThrowSuperNotCalledIfHole
+ReduceResult MaglevGraphBuilder::VisitThrowSuperNotCalledIfTdzHole() {
+  // ThrowSuperNotCalledIfTdzHole
   ValueNode* value = GetAccumulator();
   if (CheckType(value, NodeType::kJSReceiver)) return ReduceResult::Done();
-  switch (value->IsTheHole()) {
+  switch (value->IsTdzHole()) {
     case Tribool::kTrue:
       return reducer_.EmitThrow(Throw::kThrowSuperNotCalled);
     case Tribool::kFalse:
       return ReduceResult::Done();
     case Tribool::kMaybe:
       DCHECK(value->is_tagged());
-      return AddNewNode<ThrowSuperNotCalledIfHole>({value});
+      return AddNewNode<ThrowSuperNotCalledIfTdzHole>({value});
   }
   UNREACHABLE();
 }
-ReduceResult MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
-  // ThrowSuperAlreadyCalledIfNotHole
+ReduceResult MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotTdzHole() {
+  // ThrowSuperAlreadyCalledIfNotTdzHole
   ValueNode* value = GetAccumulator();
-  switch (value->IsTheHole()) {
+  switch (value->IsTdzHole()) {
     case Tribool::kTrue:
       return ReduceResult::Done();
     case Tribool::kFalse:
       return reducer_.EmitThrow(Throw::kThrowSuperAlreadyCalledError);
     case Tribool::kMaybe:
       DCHECK(value->is_tagged());
-      return AddNewNode<ThrowSuperAlreadyCalledIfNotHole>({value});
+      return AddNewNode<ThrowSuperAlreadyCalledIfNotTdzHole>({value});
   }
   UNREACHABLE();
 }

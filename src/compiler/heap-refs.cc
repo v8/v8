@@ -2191,7 +2191,11 @@ bool ObjectRef::IsNull() const { return i::IsNull(*object()); }
 
 bool ObjectRef::IsUndefined() const { return i::IsUndefined(*object()); }
 
+bool ObjectRef::IsAnyHole() const { return i::IsAnyHole(*object()); }
+
 bool ObjectRef::IsTheHole() const { return i::IsTheHole(*object()); }
+
+bool ObjectRef::IsTdzHole() const { return i::IsTdzHole(*object()); }
 
 bool ObjectRef::IsPropertyCellHole() const {
   return i::IsPropertyCellHole(*object());

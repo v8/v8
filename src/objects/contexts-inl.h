@@ -67,14 +67,21 @@ void Context::set_length(int value, RelaxedStoreTag) {
   length_.Relaxed_Store_no_write_barrier(Smi::FromInt(value));
 }
 
-bool Context::IsElementTheHole(int index) {
-  return IsTheHole(get(index, kRelaxedLoad));
+bool Context::IsElementTdzHole(int index) {
+  Tagged<Object> value = get(index, kRelaxedLoad);
+#ifdef V8_ENABLE_TDZ_HOLE
+  DCHECK(!IsTheHole(value));
+#endif
+  return IsTdzHole(value);
 }
 
 template <typename MemoryTag>
 Tagged<Object> Context::GetNoCell(int index, MemoryTag tag) {
   Tagged<Object> value = get(index, tag);
   DCHECK(!Is<ContextCell>(value));
+#ifdef V8_ENABLE_TDZ_HOLE
+  DCHECK(!IsTheHole(value));
+#endif
   return value;
 }
 
@@ -86,6 +93,9 @@ template <typename MemoryTag>
 void Context::SetNoCell(int index, Tagged<Object> value, MemoryTag tag,
                         WriteBarrierMode mode) {
   DCHECK(!Is<ContextCell>(get(index, kRelaxedLoad)));
+#ifdef V8_ENABLE_TDZ_HOLE
+  DCHECK(!IsTheHole(value));
+#endif
   set(index, value, mode, tag);
 }
 

@@ -732,6 +732,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadTheHole() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadTdzHole() {
+  OutputLdaTdzHole();
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadTrue() {
   OutputLdaTrue();
   return *this;
@@ -1492,20 +1497,21 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowReferenceErrorIfHole(
+BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowReferenceErrorIfTdzHole(
     const AstRawString* name) {
   size_t entry = GetConstantPoolEntry(name);
-  OutputThrowReferenceErrorIfHole(entry);
+  OutputThrowReferenceErrorIfTdzHole(entry);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperNotCalledIfHole() {
-  OutputThrowSuperNotCalledIfHole();
+BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperNotCalledIfTdzHole() {
+  OutputThrowSuperNotCalledIfTdzHole();
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperAlreadyCalledIfNotHole() {
-  OutputThrowSuperAlreadyCalledIfNotHole();
+BytecodeArrayBuilder&
+BytecodeArrayBuilder::ThrowSuperAlreadyCalledIfNotTdzHole() {
+  OutputThrowSuperAlreadyCalledIfNotTdzHole();
   return *this;
 }
 

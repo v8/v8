@@ -183,7 +183,7 @@ class RecomputeKnownNodeAspectsProcessor {
       // temporarily clearing the cached constant here.
       ValueNode** cached_slot = nullptr;
       ValueNode* value = nullptr;
-      if (auto* throw_if_hole = node->TryCast<ThrowReferenceErrorIfHole>()) {
+      if (auto* throw_if_hole = node->TryCast<ThrowReferenceErrorIfTdzHole>()) {
         value = throw_if_hole->ValueInput().node();
         if (auto* load = value->TryCast<LoadContextSlotNoCells>();
             load && load->maybe_assigned() == kNotAssigned) {

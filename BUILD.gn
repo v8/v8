@@ -200,6 +200,10 @@ declare_args() {
   # to when v8_enable_static_roots is enabled.
   v8_enable_static_roots_generation = false
 
+  # Enables a separate TdzHole root for Temporal Dead Zone initialization and
+  # checks instead of aliasing TheHole.
+  v8_enable_tdz_hole = false
+
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
 
@@ -1622,6 +1626,9 @@ config("features") {
   }
   if (v8_enable_static_roots_generation) {
     defines += [ "V8_STATIC_ROOTS_GENERATION" ]
+  }
+  if (v8_enable_tdz_hole) {
+    defines += [ "V8_ENABLE_TDZ_HOLE" ]
   }
   if (v8_use_zlib) {
     defines += [ "V8_USE_ZLIB" ]

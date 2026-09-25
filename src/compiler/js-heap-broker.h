@@ -392,6 +392,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
 #define V(Type, name, Name) inline typename ref_traits<Type>::ref_type name();
   READ_ONLY_ROOT_LIST(V)
+#ifndef V8_ENABLE_TDZ_HOLE
+  V(TdzHole, tdz_hole_value, TdzHoleValue)
+#endif
 #undef V
 
  private:
@@ -682,6 +685,9 @@ typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
   }
 READ_ONLY_ROOT_LIST(V)
 #undef V
+#ifndef V8_ENABLE_TDZ_HOLE
+inline HeapObjectRef JSHeapBroker::tdz_hole_value() { return the_hole_value(); }
+#endif
 
 }  // namespace compiler
 }  // namespace internal

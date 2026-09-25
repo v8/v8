@@ -1565,7 +1565,7 @@ class MaglevReducer {
 
   ValueNode* GetNumberConstant(double constant);
 
-  bool IsTheHoleConstant(ValueNode* node);
+  bool IsTdzHoleConstant(ValueNode* node);
   ReduceResult GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
                                   ValueNode* receiver,
                                   ConvertReceiverMode mode);

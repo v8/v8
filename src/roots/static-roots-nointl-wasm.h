@@ -1069,33 +1069,40 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kHashTableHoleValue = 0x6fffd;
   // -- End of page 1 --
   static constexpr Tagged_t kPromiseHoleValue = 0x8fffd;
-  static constexpr Tagged_t kUninitializedValue = 0xafffd;
+  // TODO(leszeks): Remove DisabledTdzHole when v8_enable_tdz_hole is removed.
+#ifdef V8_ENABLE_TDZ_HOLE
+  static constexpr Tagged_t kTdzHoleValue = 0xafffd;
+#else
+  static constexpr Tagged_t kDisabledTdzHoleValue = 0xafffd;
+#endif
   // -- End of page 2 --
-  static constexpr Tagged_t kArgumentsMarker = 0xcfffd;
-  static constexpr Tagged_t kTerminationException = 0xefffd;
+  static constexpr Tagged_t kUninitializedValue = 0xcfffd;
+  static constexpr Tagged_t kArgumentsMarker = 0xefffd;
   // -- End of page 3 --
-  static constexpr Tagged_t kException = 0x10fffd;
-  static constexpr Tagged_t kOptimizedOut = 0x12fffd;
+  static constexpr Tagged_t kTerminationException = 0x10fffd;
+  static constexpr Tagged_t kException = 0x12fffd;
   // -- End of page 4 --
-  static constexpr Tagged_t kStaleRegister = 0x14fffd;
-  static constexpr Tagged_t kSelfReferenceMarker = 0x16fffd;
+  static constexpr Tagged_t kOptimizedOut = 0x14fffd;
+  static constexpr Tagged_t kStaleRegister = 0x16fffd;
   // -- End of page 5 --
-  static constexpr Tagged_t kBasicBlockCountersMarker = 0x18fffd;
-  static constexpr Tagged_t kJSMessageObjectMap = 0x1a0001;
-  static constexpr Tagged_t kExternalMap = 0x1a0029;
-  static constexpr Tagged_t kCppHeapExternalMap = 0x1a0051;
-  static constexpr Tagged_t kCppGCManagedBaseMap = 0x1a0079;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x1a00a1;
-  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1a00e5;
-  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1a010d;
-  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1a0135;
-  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1a0189;
+  static constexpr Tagged_t kSelfReferenceMarker = 0x18fffd;
+  static constexpr Tagged_t kBasicBlockCountersMarker = 0x1afffd;
+  // -- End of page 6 --
+  static constexpr Tagged_t kJSMessageObjectMap = 0x1c0011;
+  static constexpr Tagged_t kExternalMap = 0x1c0039;
+  static constexpr Tagged_t kCppHeapExternalMap = 0x1c0061;
+  static constexpr Tagged_t kCppGCManagedBaseMap = 0x1c0089;
+  static constexpr Tagged_t kJSSharedArrayMap = 0x1c00b1;
+  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1c00f5;
+  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1c011d;
+  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1c0145;
+  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1c0199;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x1a0189;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x1c0199;
 };
 
-static constexpr std::array<Tagged_t, 899> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 900> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1136,6 +1143,12 @@ static constexpr std::array<Tagged_t, 899> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kPropertyCellHoleValue,
     StaticReadOnlyRoot::kStaleRegister,
     StaticReadOnlyRoot::kTerminationException,
+// TODO(leszeks): Remove DisabledTdzHole when v8_enable_tdz_hole is removed.
+#ifdef V8_ENABLE_TDZ_HOLE
+    StaticReadOnlyRoot::kTdzHoleValue,
+#else
+    StaticReadOnlyRoot::kDisabledTdzHoleValue,
+#endif
     StaticReadOnlyRoot::kUninitializedValue,
     StaticReadOnlyRoot::kMetaMap,
     StaticReadOnlyRoot::kWeakHomomorphicFixedArrayMap,

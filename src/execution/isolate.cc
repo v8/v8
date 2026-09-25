@@ -1236,7 +1236,10 @@ class CallSiteBuilder {
                    DirectHandle<UnionOf<Smi, JSFunction>> function,
                    DirectHandle<Union<Code, BytecodeArray, Undefined>> code_obj,
                    int offset, int flags) {
-    if (IsTheHole(*receiver_or_instance)) {
+#ifdef V8_ENABLE_TDZ_HOLE
+    DCHECK(!IsTheHole(*receiver_or_instance));
+#endif
+    if (IsTdzHole(*receiver_or_instance)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
       receiver_or_instance = isolate_->factory()->undefined_value();

@@ -101,7 +101,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ Claim(slot_count);
 
     // Preserve the incoming parameters on the stack.
-    __ LoadRoot(x4, RootIndex::kTheHoleValue);
+    __ LoadRoot(x4, RootIndex::kTdzHoleValue);
 
     // Compute a pointer to the slot immediately above the location on the
     // stack to which arguments will be later copied.
@@ -234,9 +234,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   __ B(&post_instantiation_deopt_entry);
 
-  // Else: use TheHoleValue as receiver for constructor call
+  // Else: use TdzHoleValue as receiver for constructor call
   __ Bind(&not_create_implicit_receiver);
-  __ LoadRoot(x0, RootIndex::kTheHoleValue);
+  __ LoadRoot(x0, RootIndex::kTdzHoleValue);
 
   // ----------- S t a t e -------------
   //  --                                x0: receiver
@@ -334,7 +334,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on-stack receiver as the result.
   __ Bind(&use_receiver);
   __ Peek(x0, 0 * kSystemPointerSize);
-  __ CompareRoot(x0, RootIndex::kTheHoleValue);
+  __ CompareRoot(x0, RootIndex::kTdzHoleValue);
   __ B(eq, &do_throw);
 
   __ Bind(&leave_and_return);
@@ -1845,7 +1845,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   }
 
   // Implicit receiver stored in the construct frame.
-  __ LoadRoot(x2, RootIndex::kTheHoleValue);
+  __ LoadRoot(x2, RootIndex::kTdzHoleValue);
   __ Push(x2, padreg);
 
   // Push arguments + implicit receiver.
@@ -1903,7 +1903,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ Bind(&use_receiver);
   __ Ldr(x0,
          MemOperand(fp, FastConstructFrameConstants::kImplicitReceiverOffset));
-  __ CompareRoot(x0, RootIndex::kTheHoleValue);
+  __ CompareRoot(x0, RootIndex::kTdzHoleValue);
   __ B(eq, &do_throw);
 
   __ Bind(&leave_and_return);

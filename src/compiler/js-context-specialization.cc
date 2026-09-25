@@ -234,7 +234,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContextNoCell(Node* node) {
   // We must be conservative and check if the value in the slot is currently
   // the hole or undefined. Only if it is neither of these, can we be sure
   // that it won't change anymore.
-  if (maybe_value->IsUndefined() || maybe_value->IsTheHole()) {
+  if (maybe_value->IsUndefined() || maybe_value->IsTdzHole()) {
     return SimplifyJSLoadContextNoCell(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
   }
@@ -275,7 +275,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   }
 
   auto maybe_value = concrete.get(broker(), static_cast<int>(access.index()));
-  if (!maybe_value || maybe_value->IsTheHole() ||
+  if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
     return SimplifyJSLoadContext(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
@@ -408,7 +408,7 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
   }
 
   auto maybe_value = concrete.get(broker(), static_cast<int>(access.index()));
-  if (!maybe_value || maybe_value->IsTheHole() ||
+  if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
     return SimplifyJSStoreContext(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
