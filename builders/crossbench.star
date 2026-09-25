@@ -33,6 +33,7 @@ def crossbench_cbb_builder(builder_name, recipe_path, os, cpu, caches = None, pr
         service_account = V8_TRY_ACCOUNT,
         caches = caches or [],
         properties = properties,
+        resultdb_settings = resultdb.settings(enable = True),
     )
 
     # Add the builder to the "crossbench" list in milo
