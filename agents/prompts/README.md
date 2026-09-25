@@ -1,7 +1,7 @@
 # Prompts
 
-This directory contains the common prompt for V8 and template prompts to teach
-agents about specific tools. Everything is intended to work with `jetski-cli`.
+This directory contains the system instruction prompt template
+(`templates/modular.md`) for V8 coding agents (`jetski-cli`).
 
 ## Creating the System Instruction Prompt
 
@@ -11,5 +11,5 @@ rules and skills.
 
 ## Contributing
 
-Changes to `common.md` and `templates/modular.md` should be done *carefully* as
-they are meant to be used broadly across V8 workspaces.
+Changes to `templates/modular.md` should be done *carefully* as it is meant to
+be used broadly across V8 workspaces.
