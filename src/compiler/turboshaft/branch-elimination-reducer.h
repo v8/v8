@@ -376,6 +376,15 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
+    // Do not clone blocks containing deoptimization points. These may have a
+    // significant metadata overhead.
+    for (const Operation& op :
+         __ input_graph().operations(*destination_origin)) {
+      if (op.Is<DeoptimizeIfOp>()) {
+        goto no_change;
+      }
+    }
+
     if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
       V<Word32> condition =
           __ template MapToNewGraph<true>(branch->condition());

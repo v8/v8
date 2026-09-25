@@ -3106,6 +3106,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
                                         &pipeline, data.osr_helper_ptr()));
 
   CodeGenerator* code_generator = turboshaft_data.code_generator();
+  CHECK_EQ(code_generator->result(), CodeGenerator::kSuccess);
 
   wasm::WasmCompilationResult result;
   code_generator->masm()->GetCode(

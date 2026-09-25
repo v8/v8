@@ -159,6 +159,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   CodeKind code_kind() const { return info_->code_kind(); }
 
+  enum CodeGenResult { kSuccess, kTooManyDeoptimizationBailouts };
+  CodeGenResult result() const { return result_; }
+
  private:
   GapResolver* resolver() { return &resolver_; }
   SafepointTableBuilder* safepoints() { return &safepoints_; }
@@ -180,8 +183,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // object constant.
   bool IsMaterializableFromRoot(Handle<HeapObject> object,
                                 RootIndex* index_return);
-
-  enum CodeGenResult { kSuccess, kTooManyDeoptimizationBailouts };
 
   // Assemble instructions for the specified block.
   CodeGenResult AssembleBlock(const InstructionBlock* block);

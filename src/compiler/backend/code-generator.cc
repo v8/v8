@@ -1102,6 +1102,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
 
 #if V8_ENABLE_WEBASSEMBLY
 base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
+  CHECK_EQ(result_, kSuccess);
   int deopt_count = static_cast<int>(deoptimization_exits_.size());
   if (deopt_count == 0) {
     return {};
@@ -1117,7 +1118,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   for (int i = 0; i < deopt_count; i++) {
     const DeoptimizationExit* deoptimization_exit = deoptimization_exits_[i];
     CHECK_NOT_NULL(deoptimization_exit);
-    DCHECK_EQ(i, deoptimization_exit->deoptimization_id());
+    CHECK_EQ(i, deoptimization_exit->deoptimization_id());
     deopt_entries[i] = {deoptimization_exit->bailout_id(),
                         deoptimization_exit->translation_id()};
   }
