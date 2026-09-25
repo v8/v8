@@ -19,8 +19,7 @@
 namespace v8 {
 namespace internal {
 
-ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
-                             CalculateBlocklists calculate_blocklists)
+ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector)
     : isolate_(isolate),
       frame_inspector_(frame_inspector),
       function_(frame_inspector_->GetFunction()),
@@ -36,7 +35,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   DCHECK_NE(Script::Type::kWasm, frame_inspector->GetScript()->type());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  TryParseAndRetrieveScopes(calculate_blocklists);
+  TryParseAndRetrieveScopes();
 }
 
 ScopeIterator::~ScopeIterator() = default;
@@ -75,7 +74,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
       context_(generator->context(), isolate),
       script_(Cast<Script>(function_->shared()->script()), isolate) {
   CHECK(function_->shared()->IsSubjectToDebugging());
-  TryParseAndRetrieveScopes(CalculateBlocklists::kNo);
+  TryParseAndRetrieveScopes();
 }
 
 void ScopeIterator::Restart() {
@@ -86,11 +85,9 @@ void ScopeIterator::Restart() {
   DCHECK_NE(current_scope_index_, -1);
   UnwrapEvaluationContext();
   seen_script_scope_ = false;
-  calculate_blocklists_ = false;
 }
 
-void ScopeIterator::TryParseAndRetrieveScopes(
-    CalculateBlocklists calculate_blocklists) {
+void ScopeIterator::TryParseAndRetrieveScopes() {
   // Catch the case when the debugger stops in an internal function.
   DirectHandle<SharedFunctionInfo> shared_info(function_->shared(), isolate_);
   DirectHandle<ScopeInfo> scope_info(shared_info->scope_info(), isolate_);
@@ -115,12 +112,6 @@ void ScopeIterator::TryParseAndRetrieveScopes(
     BreakLocation location = BreakLocation::FromFrame(debug_info, GetFrame());
 
     ignore_nested_scopes = location.IsReturn();
-  }
-
-  if (calculate_blocklists == CalculateBlocklists::kIfNeeded) {
-    Tagged<UnionOf<TheHole, StringSet>> maybe_block_list =
-        isolate_->LocalsBlockListCacheGet(scope_info);
-    calculate_blocklists_ = IsTheHole(maybe_block_list);
   }
 
   DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate_);
@@ -164,7 +155,6 @@ void ScopeIterator::TryParseAndRetrieveScopes(
     }
   }
 
-  MaybeCollectAndStoreLocalBlocklists();
   UnwrapEvaluationContext();
 }
 
@@ -364,7 +354,6 @@ void ScopeIterator::Next() {
     }
   }
 
-  MaybeCollectAndStoreLocalBlocklists();
   UnwrapEvaluationContext();
 
   DCHECK_IMPLIES(current_scope_index_ != -1 && NeedsAndHasContext(),
@@ -1065,213 +1054,6 @@ bool ScopeIterator::SetScriptVariableValue(DirectHandle<String> variable_name,
   }
 
   return false;
-}
-
-namespace {
-
-// Given the scope and context of a paused function, this class calculates
-// all the necessary block lists on the scope chain and stores them in the
-// global LocalsBlockListCache ephemeron table.
-//
-// Doc: bit.ly/chrome-devtools-debug-evaluate-design.
-//
-// The algorithm works in a single walk of the scope chain from the
-// paused function scope outwards to the script scope.
-//
-// When we step from scope "a" to its outer scope "b", we do:
-//
-//   1. Add all stack-allocated variables from "b" to the blocklists.
-//   2. Does "b" need a context? If yes:
-//        - Store all current blocklists in the global table
-//        - Start a new blocklist for scope "b"
-//   3. Is "b" a function scope without a context? If yes:
-//        - Start a new blocklist for scope "b"
-//
-// The scope chain is read from the script's serialized scope tree. Scopes are
-// identified by their index in that tree, so that the collector doesn't have
-// to hold on to stack-allocated DebugScriptScope cursors.
-class LocalBlocklistsCollector {
- public:
-  LocalBlocklistsCollector(Isolate* isolate, Handle<Script> script,
-                           Handle<Context> context,
-                           Handle<DebugScriptScopeInfo> debug_scope_info,
-                           int closure_scope_index);
-  void CollectAndStore();
-
- private:
-  DebugScriptScope scope() const {
-    return DebugScriptScope::FromIndex(debug_scope_info_, scope_index_);
-  }
-
-  void InitializeWithClosureScope();
-  void AdvanceToNextNonHiddenScope();
-  void CollectCurrentLocalsIntoBlocklists();
-  DirectHandle<ScopeInfo> FindScopeInfoForScope(int scope_index) const;
-  void StoreFunctionBlocklists(DirectHandle<ScopeInfo> outer_scope_info);
-
-  Isolate* isolate_;
-  Handle<Script> script_;
-  Handle<Context> context_;
-  IndirectHandle<DebugScriptScopeInfo> debug_scope_info_;
-  int scope_index_;
-  const int closure_scope_index_;
-
-  Handle<StringSet> context_blocklist_;
-  std::map<int, IndirectHandle<StringSet>> function_blocklists_;
-  bool has_matched_first_context_ = false;
-};
-
-LocalBlocklistsCollector::LocalBlocklistsCollector(
-    Isolate* isolate, Handle<Script> script, Handle<Context> context,
-    Handle<DebugScriptScopeInfo> debug_scope_info, int closure_scope_index)
-    : isolate_(isolate),
-      script_(script),
-      context_(context),
-      debug_scope_info_(debug_scope_info),
-      scope_index_(closure_scope_index),
-      closure_scope_index_(closure_scope_index) {}
-
-void LocalBlocklistsCollector::InitializeWithClosureScope() {
-  CHECK(scope().is_declaration_scope());
-  function_blocklists_.emplace(scope_index_, StringSet::New(isolate_));
-  context_blocklist_ = StringSet::New(isolate_);
-  has_matched_first_context_ = scope().needs_context();
-}
-
-void LocalBlocklistsCollector::AdvanceToNextNonHiddenScope() {
-  std::optional<DebugScriptScope> outer_scope = scope().parent();
-  DCHECK(outer_scope.has_value());
-  while (outer_scope.has_value() && outer_scope->is_hidden()) {
-    outer_scope = outer_scope->parent();
-  }
-  CHECK(outer_scope.has_value());
-  scope_index_ = outer_scope->scope_index();
-}
-
-void LocalBlocklistsCollector::CollectCurrentLocalsIntoBlocklists() {
-  for (int i = 0; i < scope().variable_count(); ++i) {
-    DebugVariableInfo var = scope().variable(i);
-    if (var.location != VariableLocation::PARAMETER &&
-        var.location != VariableLocation::LOCAL) {
-      continue;
-    }
-    // StringSet::Add() can allocate, so the name has to be handlified before
-    // the first of those calls.
-    DirectHandle<String> name(var.name, isolate_);
-    if (!context_blocklist_.is_null()) {
-      context_blocklist_ = StringSet::Add(isolate_, context_blocklist_, name);
-    }
-    for (auto& pair : function_blocklists_) {
-      pair.second = StringSet::Add(isolate_, pair.second, name);
-    }
-  }
-}
-
-DirectHandle<ScopeInfo> LocalBlocklistsCollector::FindScopeInfoForScope(
-    int scope_index) const {
-  DisallowGarbageCollection no_gc;
-  DebugScriptScope scope =
-      DebugScriptScope::FromIndex(debug_scope_info_, scope_index);
-  const int start_position = scope.start_position();
-  const int end_position = scope.end_position();
-  const ScopeType scope_type = scope.scope_type();
-  SharedFunctionInfo::ScriptIterator iterator(isolate_, *script_);
-  for (Tagged<SharedFunctionInfo> info = iterator.Next(); !info.is_null();
-       info = iterator.Next()) {
-    Tagged<ScopeInfo> scope_info = info->scope_info();
-    if (info->is_compiled() && !scope_info.is_null() &&
-        start_position == info->StartPosition() &&
-        end_position == info->EndPosition() &&
-        scope_type == scope_info->scope_type()) {
-      return direct_handle(scope_info, isolate_);
-    }
-  }
-  return DirectHandle<ScopeInfo>();
-}
-
-void LocalBlocklistsCollector::StoreFunctionBlocklists(
-    DirectHandle<ScopeInfo> outer_scope_info) {
-  for (const auto& pair : function_blocklists_) {
-    DirectHandle<ScopeInfo> scope_info = FindScopeInfoForScope(pair.first);
-    // If we don't find a ScopeInfo it's not tragic. It means we'll do
-    // a full-reparse in case we pause in that function in the future.
-    // The only ScopeInfo that MUST be found is for the closure scope.
-    CHECK_IMPLIES(pair.first == closure_scope_index_, !scope_info.is_null());
-    if (scope_info.is_null()) continue;
-    isolate_->LocalsBlockListCacheSet(scope_info, outer_scope_info,
-                                      pair.second);
-  }
-}
-
-void LocalBlocklistsCollector::CollectAndStore() {
-  InitializeWithClosureScope();
-
-  while (scope().parent().has_value() && !IsNativeContext(*context_)) {
-    AdvanceToNextNonHiddenScope();
-
-    if (!has_matched_first_context_ && scope().needs_context()) {
-      context_blocklist_ = StringSet::New(isolate_);
-    }
-
-    // 1. Add all stack-allocated variables of the current scope to the various
-    //    lists.
-    CollectCurrentLocalsIntoBlocklists();
-
-    // 2. If the current scope requires a context then all the blocklists "stop"
-    //    here and we store them.  Next, advance the current context so
-    //    `context_` and the current scope match again.
-    if (scope().needs_context()) {
-      if (has_matched_first_context_) {
-        // Only store the block list and advance the context if we have already
-        // matched our first context. This handles the case when we start on
-        // a closure scope that doesn't require a context. In that case
-        // `context_` is already the right context for the current scope so we
-        // don't need to advance `context_`.
-        isolate_->LocalsBlockListCacheSet(
-            direct_handle(context_->scope_info(), isolate_),
-            direct_handle(context_->previous()->scope_info(), isolate_),
-            context_blocklist_);
-        context_ = handle(context_->previous(), isolate_);
-        context_blocklist_ = StringSet::New(isolate_);
-      }
-      has_matched_first_context_ = true;
-
-      StoreFunctionBlocklists(direct_handle(context_->scope_info(), isolate_));
-      function_blocklists_.clear();
-    } else if (scope().is_function_scope()) {
-      // 3. If `scope` is a function scope with an SFI, start recording
-      //    locals for its ScopeInfo.
-      CHECK(!scope().needs_context());
-      function_blocklists_.emplace(scope_index_, StringSet::New(isolate_));
-    }
-  }
-
-  if (has_matched_first_context_ && !IsNativeContext(*context_)) {
-    isolate_->LocalsBlockListCacheSet(
-        direct_handle(context_->scope_info(), isolate_),
-        direct_handle(context_->previous()->scope_info(), isolate_),
-        context_blocklist_);
-  }
-
-  // In case we don't have any outer scopes we still need to record the empty
-  // block list for the paused function to prevent future re-parses.
-  StoreFunctionBlocklists(direct_handle(context_->scope_info(), isolate_));
-}
-
-}  // namespace
-
-void ScopeIterator::MaybeCollectAndStoreLocalBlocklists() const {
-  if (!calculate_blocklists_ || current_scope_index_ != closure_scope_index_ ||
-      Type() == ScopeTypeScript) {
-    return;
-  }
-
-  DCHECK(IsTheHole(isolate_->LocalsBlockListCacheGet(
-      direct_handle(function_->shared()->scope_info(), isolate_))));
-
-  LocalBlocklistsCollector collector(isolate_, script_, context_,
-                                     debug_scope_info_, closure_scope_index_);
-  collector.CollectAndStore();
 }
 
 }  // namespace internal

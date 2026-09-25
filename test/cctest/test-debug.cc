@@ -6766,9 +6766,7 @@ class ScopeListener : public v8::debug::DebugDelegate {
 
     auto frame_inspector =
         std::make_unique<i::FrameInspector>(iterator_.frame(), 0, isolate);
-    i::ScopeIterator scope_iterator(
-        isolate, frame_inspector.get(),
-        i::ScopeIterator::CalculateBlocklists::kIfNeeded);
+    i::ScopeIterator scope_iterator(isolate, frame_inspector.get());
 
     // Iterate all scopes triggering block list creation along the way. This
     // should not run into any CHECKs.

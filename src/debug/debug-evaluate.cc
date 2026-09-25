@@ -206,8 +206,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
                                               int scope_index)
     : isolate_(isolate),
       frame_inspector_(frame, inlined_jsframe_index, isolate),
-      scope_iterator_(isolate, &frame_inspector_,
-                      ScopeIterator::CalculateBlocklists::kNo),
+      scope_iterator_(isolate, &frame_inspector_),
       scope_index_(scope_index) {
   Factory* factory = isolate->factory();
 
