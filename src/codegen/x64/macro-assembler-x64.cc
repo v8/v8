@@ -211,6 +211,16 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   movq(destination, RootAsOperand(index));
 }
 
+void MacroAssembler::StoreTaggedRoot(Operand destination, RootIndex index) {
+  if (CanBeImmediate(index)) {
+    StoreTaggedField(destination,
+                     Immediate(static_cast<uint32_t>(ReadOnlyRootPtr(index))));
+    return;
+  }
+  LoadTaggedRoot(kScratchRegister, index);
+  StoreTaggedField(destination, kScratchRegister);
+}
+
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   if (CanBeImmediate(index)) {
     DecompressTagged(destination,

@@ -213,6 +213,13 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   LoadWord(destination,
            MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
 }
+void MacroAssembler::StoreTaggedRoot(const MemOperand& destination,
+                                     RootIndex index) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadTaggedRoot(scratch, index);
+  StoreTaggedField(scratch, destination);
+}
 void MacroAssembler::LoadCompressedTaggedRoot(Register destination,
                                               RootIndex index) {
 #ifdef V8_TARGET_ARCH_RISCV64

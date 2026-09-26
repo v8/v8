@@ -81,6 +81,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Operations on roots in the root-array.
   Operand RootAsOperand(RootIndex index);
   void LoadTaggedRoot(Register destination, RootIndex index);
+  void StoreTaggedRoot(Operand destination, RootIndex index);
   void LoadRoot(Register destination, RootIndex index) final;
   void LoadRoot(Operand destination, RootIndex index) {
     LoadRoot(kScratchRegister, index);

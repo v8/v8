@@ -1907,6 +1907,15 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   LoadRoot(destination, index);
 }
 
+void MacroAssembler::StoreTaggedRoot(const MemOperand& destination,
+                                     RootIndex index) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  LoadTaggedRoot(scratch, index);
+  StoreTaggedField(scratch, destination);
+}
+
 void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
   ASM_CODE_COMMENT(this);
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
