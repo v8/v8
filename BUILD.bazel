@@ -19,9 +19,8 @@ load(
     "v8_library",
     "v8_mksnapshot",
     "v8_string",
-    "v8_torque_files",
 )
-load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression")
+load(":bazel/v8-generators.bzl", "v8_torque_files")
 
 # =================================================
 # Flags
@@ -5137,17 +5136,6 @@ v8_binary(
     copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8"],
     noicu_deps = [":noicu/v8"],
-)
-
-# This target forces torque to be compiled without pointer compression.
-v8_binary_non_pointer_compression(
-    name = "noicu/torque_non_pointer_compression",
-    binary = "noicu/torque",
-)
-
-v8_binary_non_pointer_compression(
-    name = "icu/torque_non_pointer_compression",
-    binary = "icu/torque",
 )
 
 alias(
