@@ -235,6 +235,52 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
 }
 
 // static
+MaybeHandle<Object> JSReceiver::TryGetDataProperty(LookupIterator* it) {
+  for (;; it->Next()) {
+    switch (it->state()) {
+      case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
+      case LookupIterator::ACCESS_CHECK:
+        if (it->HasAccess()) continue;
+        return {};
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::JSPROXY:
+        return {};
+      case LookupIterator::WASM_OBJECT:
+        continue;  // Continue to the prototype, if present.
+      case LookupIterator::MODULE_NAMESPACE:
+        if (JSDeferredModuleNamespace::TriggersEvaluation(it)) return {};
+        continue;
+      case LookupIterator::ACCESSOR: {
+        // Only AccessorInfos can behave like data properties. Getters of
+        // AccessorPairs are never called, not even API functions declared
+        // side-effect free, as script can install them on arbitrary objects.
+        DirectHandle<Object> accessors = it->GetAccessors();
+        if (!IsAccessorInfo(*accessors) ||
+            Cast<AccessorInfo>(*accessors)->getter_side_effect_type() !=
+                SideEffectType::kHasNoSideEffect) {
+          return {};
+        }
+        v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(it->isolate()));
+        try_catch.SetVerbose(false);
+        try_catch.SetCaptureMessage(false);
+        Handle<Object> result;
+        if (!Object::GetPropertyWithAccessor(it).ToHandle(&result)) return {};
+        return result;
+      }
+      case LookupIterator::DATA:
+        // Unlike GetDataValue(), this also instantiates lazy closures.
+        return Object::GetProperty(it);
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+      case LookupIterator::NOT_FOUND:
+        return {};
+    }
+    UNREACHABLE();
+  }
+}
+
+// static
 Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
                                             DirectHandle<JSReceiver> object,
                                             DirectHandle<Object> proto) {
