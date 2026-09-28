@@ -1028,6 +1028,7 @@ v8_executable("generate-bytecode-expectations") {
 
   deps = [
     "../..:v8",
+    "../..:v8_internal_headers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "//build/win:default_exe_manifest",
