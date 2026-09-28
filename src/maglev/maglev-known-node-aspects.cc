@@ -993,10 +993,14 @@ bool KnownNodeAspects::SetContextCachedValue(ValueNode* context, int offset,
                                              MaybeAssignedFlag assigned) {
   value = value->UnwrapIdentities();
   if (assigned == kNotAssigned) {
-    if (auto* root_const = value->TryCast<RootConstant>();
-        root_const && root_const->index() == RootIndex::kTheHoleValue) {
-      loaded_context_constants_.erase({context, offset});
-      return false;
+    if (auto* root_const = value->TryCast<RootConstant>()) {
+#ifdef V8_ENABLE_TDZ_HOLE
+      DCHECK_NE(root_const->index(), RootIndex::kTheHoleValue);
+#endif
+      if (root_const->index() == RootIndex::kTdzHoleValue) {
+        loaded_context_constants_.erase({context, offset});
+        return false;
+      }
     }
   }
   auto& target_map = (assigned == kMaybeAssigned) ? loaded_context_slots_
