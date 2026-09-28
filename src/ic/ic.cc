@@ -2319,6 +2319,11 @@ MaybeDirectHandle<Object> StoreIC::Store(Handle<JSAny> object,
       if (!can_store.FromJust()) {
         return isolate()->factory()->undefined_value();
       }
+      // Restart the lookup iterator updated by CheckPrivateNameStore() for
+      // UpdateCaches() to handle access checks.
+      if (use_ic && IsAccessCheckNeeded(*object)) {
+        it.Restart();
+      }
     }
 
     // IC handling of private fields/symbols stores on JSProxy is not
