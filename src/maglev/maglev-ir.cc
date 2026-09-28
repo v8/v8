@@ -26,6 +26,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/isolate-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
@@ -1115,6 +1116,22 @@ void AllocationBlock::TryPretenure(ValueNode* value) {
       }
     }
   }
+}
+
+StoreMap::StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind)
+    : Base(bitfield | KindField::encode(kind) |
+           MapInReadOnlySpaceField::encode(
+               HeapLayout::InReadOnlySpace(*map.object()))),
+      map_(map) {}
+
+bool StoreMap::NoWriteBarrier() const {
+  if (MapInReadOnlySpaceField::decode(bitfield())) return true;
+  return kind() == Kind::kInlinedAllocation &&
+         ValueInput()
+                 .node()
+                 ->Cast<InlinedAllocation>()
+                 ->allocation_block()
+                 ->allocation_type() == AllocationType::kYoung;
 }
 
 // ---
@@ -3747,50 +3764,45 @@ void StoreFixedDoubleArrayHole::GenerateCode(MaglevAssembler* masm,
 }
 
 int StoreMap::MaxCallStackArgs() const {
-  return WriteBarrierDescriptor::GetStackParameterCount();
+  return NoWriteBarrier() ? 0
+                          : WriteBarrierDescriptor::GetStackParameterCount();
 }
 void StoreMap::SetValueLocationConstraints() {
-  UseFixed(ValueInput(), WriteBarrierDescriptor::ObjectRegister());
-  set_temporaries_needed(1);
+  if (NoWriteBarrier()) {
+    UseRegister(ValueInput());
+    if (!MaglevAssembler::kSupportsStoreTaggedConstant) {
+      set_temporaries_needed(1);
+    }
+  } else {
+    UseFixed(ValueInput(), WriteBarrierDescriptor::ObjectRegister());
+    set_temporaries_needed(1);
+  }
 }
 void StoreMap::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  // TODO(leszeks): Consider making this an arbitrary register and push/popping
-  // in the deferred path.
-  Register object = WriteBarrierDescriptor::ObjectRegister();
-  DCHECK_EQ(object, ToRegister(ValueInput()));
-  Register value = temps.Acquire();
-
-  switch (kind()) {
-    case Kind::kInlinedAllocation: {
-      DCHECK(ValueInput().node()->Cast<InlinedAllocation>());
-      auto inlined = ValueInput().node()->Cast<InlinedAllocation>();
-      if (inlined->allocation_block()->allocation_type() ==
-          AllocationType::kYoung) {
-        if (MaglevAssembler::kSupportsStoreTaggedConstant) {
-          __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
-                                            map_.object());
-          __ AssertElidedWriteBarrier(object, map_, register_snapshot());
-        } else {
-          __ MoveTagged(value, map_.object());
-          __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
-                                            value);
-          __ AssertElidedWriteBarrier(object, value, register_snapshot());
-        }
-        break;
-      }
-      [[fallthrough]];
-    }
-    case Kind::kInitializing:
-    case Kind::kTransitioning:
+  Register object = ToRegister(ValueInput());
+  if (NoWriteBarrier()) {
+    if (MaglevAssembler::kSupportsStoreTaggedConstant) {
+      __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
+                                        map_.object());
+      __ AssertElidedWriteBarrier(object, map_, register_snapshot());
+    } else {
+      Register value = temps.Acquire();
       __ MoveTagged(value, map_.object());
-      __ StoreTaggedFieldWithWriteBarrier(object, offsetof(HeapObject, map_),
-                                          value, register_snapshot(),
-                                          MaglevAssembler::kValueIsCompressed,
-                                          MaglevAssembler::kValueCannotBeSmi);
-      break;
+      __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
+                                        value);
+      __ AssertElidedWriteBarrier(object, value, register_snapshot());
+    }
+    return;
   }
+
+  DCHECK_EQ(object, WriteBarrierDescriptor::ObjectRegister());
+  Register value = temps.Acquire();
+  __ MoveTagged(value, map_.object());
+  __ StoreTaggedFieldWithWriteBarrier(
+      object, offsetof(HeapObject, map_), value, register_snapshot(),
+      MaglevAssembler::kValueIsCompressed, MaglevAssembler::kValueCannotBeSmi);
 }
 
 int StoreTaggedFieldWithWriteBarrier::MaxCallStackArgs() const {

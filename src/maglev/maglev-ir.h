@@ -9359,8 +9359,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
     kInlinedAllocation,
     kTransitioning,
   };
-  explicit StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind)
-      : Base(bitfield | KindField::encode(kind)), map_(map) {}
+  explicit StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind);
 
   static constexpr OpProperties kProperties =
       OpProperties::CanWrite() | OpProperties::DeferredCall();
@@ -9368,6 +9367,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
 
   compiler::MapRef map() const { return map_; }
   Kind kind() const { return KindField::decode(bitfield()); }
+  bool NoWriteBarrier() const;
 
   bool is_transitioning() const {
     switch (kind()) {
@@ -9387,6 +9387,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
 
  private:
   using KindField = NextBitField<Kind, 3>;
+  using MapInReadOnlySpaceField = KindField::Next<bool, 1>;
   const compiler::MapRef map_;
 };
 std::ostream& operator<<(std::ostream& os, StoreMap::Kind);
