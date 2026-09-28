@@ -771,6 +771,9 @@ std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldInt32Operation(
         node->input_node(0), node->input_node(1));
   }
   if (!result.IsDone()) return {};
+  if (result.IsDoneWithAbort()) {
+    return ProcessResult::kTruncateBlock;
+  }
   DCHECK(result.IsDoneWithValue());
   if constexpr (kOperation == Operation::kShiftRightLogical) {
     // ShiftRightLogical returns an Uint32 instead of an Int32. We don't have
