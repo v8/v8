@@ -48,7 +48,7 @@ declare_args() {
   # Selects the object-layout source Torque compiles from.
   # Requires v8_use_metagen_instance_types.
   # Will be removed soon in favor of v8_use_metagen.
-  v8_use_metagen_layouts = false
+  v8_use_metagen_layouts = true
 
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
