@@ -337,6 +337,12 @@ V8_OBJECT class JSReceiver : public HeapObject {
       LookupIterator* it,
       AllowAllocation allow_allocation = AllowAllocation{true});
 
+  // Like GetDataProperty, but returns an empty handle (without throwing) if
+  // the lookup doesn't end at a data property, or if completing it would
+  // require calling an interceptor, a proxy trap or any getter other than a
+  // side-effect free AccessorInfo getter.
+  static MaybeHandle<Object> TryGetDataProperty(LookupIterator* it);
+
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
   V8_EXPORT_PRIVATE Tagged<Object> GetIdentityHash();
