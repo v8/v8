@@ -119,7 +119,7 @@ def GenerateCCFiles():
   targets = "v8_generated_cc_files"
   # The metagen action only exists when v8_use_metagen_instance_types is on.
   if _GetGnArg(build_dir, "v8_use_metagen_instance_types") == "true":
-    targets += " run_metagen"
+    targets += " metagen_instance_types_h"
   _Call(f"autoninja -C {build_dir} {targets}")
 
 

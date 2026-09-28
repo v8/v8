@@ -12,7 +12,6 @@
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
 #include "src/torque/implementation-visitor.h"
-#include "src/torque/layout-loader.h"
 #include "src/torque/torque-parser.h"
 #ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
 #include "src/torque/tsa-generator.h"
@@ -85,12 +84,6 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   // mutually refer to each others.
   TypeOracle::FinalizeAggregateTypes();
 
-  // With all class layouts finalized, cross-check them against the C++
-  // layouts in the metagen layout JSON.
-  if (!options.layout_json_path.empty()) {
-    VerifyCppLayouts(options.layout_json_path);
-  }
-
   if (options.output_tsa) {
 #ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
 #ifdef DEBUG
@@ -149,9 +142,6 @@ TorqueCompilerResult CompileTorque(const std::string& source,
   TorqueCompilerResult result;
   try {
     ParseTorque(source);
-    if (!options.layout_json_path.empty() && options.use_cpp_layouts) {
-      ImportCppLayouts(options.layout_json_path, options.layout_positions_path);
-    }
     CompileCurrentAst(options);
   } catch (TorqueAbortCompilation&) {
     // Do nothing. The relevant TorqueMessage is part of the
@@ -179,9 +169,6 @@ TorqueCompilerResult CompileTorque(const std::vector<std::string>& files,
   try {
     for (const auto& path : files) {
       ReadAndParseTorqueFile(path);
-    }
-    if (!options.layout_json_path.empty() && options.use_cpp_layouts) {
-      ImportCppLayouts(options.layout_json_path, options.layout_positions_path);
     }
     CompileCurrentAst(options);
   } catch (TorqueAbortCompilation&) {

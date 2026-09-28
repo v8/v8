@@ -123,8 +123,7 @@ V8_OBJECT class JSAsyncGeneratorObject final : public JSGeneratorObject {
   DECL_PRINTER(JSAsyncGeneratorObject)
 
  public:
-  TaggedMember<UnionOf<AsyncGeneratorRequest, Undefined>> queue_
-      V8_TQ_TYPE(HeapObject);
+  TaggedMember<UnionOf<AsyncGeneratorRequest, Undefined>> queue_;
   TaggedMember<Smi> is_awaiting_;
 } V8_OBJECT_END;
 

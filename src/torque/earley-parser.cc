@@ -20,7 +20,6 @@ namespace v8::internal::torque {
 namespace {
 
 struct LineAndColumnTracker {
-  SourceId source = CurrentSourceFile::Get();
   LineAndColumn previous{0, 0, 0};
   LineAndColumn current{0, 0, 0};
 
@@ -38,7 +37,9 @@ struct LineAndColumnTracker {
     }
   }
 
-  SourcePosition ToSourcePosition() { return {source, previous, current}; }
+  SourcePosition ToSourcePosition() {
+    return {CurrentSourceFile::Get(), previous, current};
+  }
 };
 
 }  // namespace
@@ -117,18 +118,12 @@ void Item::CheckAmbiguity(const Item& other, const LexerResult& tokens) const {
 }
 
 LexerResult Lexer::RunLexer(const std::string& input) {
-  LineAndColumn zero{0, 0, 0};
-  return RunLexer(input, {CurrentSourceFile::Get(), zero, zero});
-}
-
-LexerResult Lexer::RunLexer(const std::string& input, SourcePosition origin) {
   LexerResult result;
   InputPosition const begin = input.c_str();
   InputPosition const end = begin + input.size();
   InputPosition pos = begin;
   InputPosition token_start = pos;
-  LineAndColumnTracker line_column_tracker{origin.source, origin.start,
-                                           origin.start};
+  LineAndColumnTracker line_column_tracker;
 
   match_whitespace_(&pos);
   line_column_tracker.Advance(token_start, pos);

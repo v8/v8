@@ -70,9 +70,7 @@ V8_OBJECT class PromiseReactionJobTask : public Microtask {
 
   TaggedMember<Object> argument_;
   TaggedMember<Context> context_;
-  TaggedMember<PromiseReactionHandler> handler_ V8_TQ_TYPE(Callable |
-                                                           JSGeneratorObject |
-                                                           Undefined);
+  TaggedMember<PromiseReactionHandler> handler_;
   TaggedMember<UnionOf<JSPromise, PromiseCapability, Undefined>>
       promise_or_capability_;
 } V8_OBJECT_END;
@@ -135,11 +133,11 @@ V8_OBJECT class PromiseCapability : public Struct {
   inline Tagged<UnionOf<JSReceiver, Undefined>> promise() const;
   inline void set_promise(Tagged<UnionOf<JSReceiver, Undefined>> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline Tagged<JSAny> resolve() const;
-  inline void set_resolve(Tagged<JSAny> value,
+  inline Tagged<Object> resolve() const;
+  inline void set_resolve(Tagged<Object> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline Tagged<JSAny> reject() const;
-  inline void set_reject(Tagged<JSAny> value,
+  inline Tagged<Object> reject() const;
+  inline void set_reject(Tagged<Object> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   using BodyDescriptor = StructBodyDescriptor;
@@ -152,8 +150,8 @@ V8_OBJECT class PromiseCapability : public Struct {
   friend class MicrotaskQueueBuiltinsAssembler;
 
   TaggedMember<UnionOf<JSReceiver, Undefined>> promise_;
-  TaggedMember<JSAny> resolve_;
-  TaggedMember<JSAny> reject_;
+  TaggedMember<Object> resolve_;
+  TaggedMember<Object> reject_;
 } V8_OBJECT_END;
 
 // A representation of promise reaction. This differs from the specification
@@ -218,14 +216,13 @@ V8_OBJECT class PromiseReaction : public Struct {
   friend struct ObjectTraits<PromiseReaction>;
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  TaggedMember<Object> continuation_preserved_embedder_data_
-      V8_TQ_TYPE(Object | Undefined);
+  TaggedMember<Object> continuation_preserved_embedder_data_;
 #endif
-  TaggedMember<UnionOf<PromiseReaction, Zero>> next_;
+  TaggedMember<UnionOf<PromiseReaction, Smi>> next_;
   TaggedMember<UnionOf<JSCallable, JSGeneratorObject, Undefined>>
-      reject_handler_ V8_TQ_TYPE(Callable | JSGeneratorObject | Undefined);
+      reject_handler_;
   TaggedMember<UnionOf<JSCallable, JSGeneratorObject, Undefined>>
-      fulfill_handler_ V8_TQ_TYPE(Callable | JSGeneratorObject | Undefined);
+      fulfill_handler_;
   TaggedMember<UnionOf<JSPromise, PromiseCapability, Undefined>>
       promise_or_capability_;
 } V8_OBJECT_END;

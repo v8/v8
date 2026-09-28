@@ -115,12 +115,12 @@ V8_OBJECT class JSFinalizationRegistry : public JSObject {
 
  public:
   TaggedMember<NativeContext> native_context_;
-  TaggedMember<JSReceiver> cleanup_ V8_TQ_TYPE(Callable);
+  TaggedMember<JSReceiver> cleanup_;
   TaggedMember<UnionOf<WeakCell, Undefined>> active_cells_;
   TaggedMember<UnionOf<WeakCell, Undefined>> cleared_cells_;
   TaggedMember<Object> key_map_;
   TaggedMember<UnionOf<JSFinalizationRegistry, Undefined>> next_dirty_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<FinalizationRegistryFlags>);
+  TaggedMember<Smi> flags_;
 
   friend class Heap;
   friend class TorqueGeneratedJSFinalizationRegistryAsserts;

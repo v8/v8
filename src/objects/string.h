@@ -807,7 +807,7 @@ V8_OBJECT class String : public Name {
                        bool* out_one_byte_content = nullptr);
 
  public:
-  V8_TQ_CONST uint32_t length_ V8_TQ_TYPE(int32);
+  uint32_t length_;
 } V8_OBJECT_END;
 
 template <>
@@ -961,9 +961,7 @@ V8_OBJECT class SeqOneByteString : public SeqString {
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedSeqOneByteStringAsserts;
 
-  V8_TQ_TAIL_NAME(chars);
-  V8_TQ_TAIL_LENGTH(length);
-  FLEXIBLE_ARRAY_MEMBER(Char, chars, V8_TQ_CONST V8_TQ_TYPE(char8));
+  FLEXIBLE_ARRAY_MEMBER(Char, chars);
 } V8_OBJECT_END;
 
 template <>
@@ -1038,9 +1036,7 @@ V8_OBJECT class SeqTwoByteString : public SeqString {
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedSeqTwoByteStringAsserts;
 
-  V8_TQ_TAIL_NAME(chars);
-  V8_TQ_TAIL_LENGTH(length);
-  FLEXIBLE_ARRAY_MEMBER(Char, chars, V8_TQ_CONST V8_TQ_TYPE(char16));
+  FLEXIBLE_ARRAY_MEMBER(Char, chars);
 } V8_OBJECT_END;
 
 template <>
@@ -1168,7 +1164,7 @@ V8_OBJECT class ThinString : public String {
 
   friend Tagged<String> String::GetUnderlying() const;
 
-  TaggedMember<InternalizedString> actual_ V8_TQ_TYPE(String);
+  TaggedMember<InternalizedString> actual_;
 } V8_OBJECT_END;
 
 template <>

@@ -1342,9 +1342,6 @@ using MaybeWeak = Union<T, Weak<T>>;
 // TODO(leszeks): Add a proper Zero type.
 using Zero = Smi;
 
-// NaN is a special HeapNumber value.
-using NaN = HeapNumber;
-
 // Number is either a Smi or a HeapNumber.
 using Number = Union<Smi, HeapNumber>;
 // Numeric is either a Number or a BigInt.

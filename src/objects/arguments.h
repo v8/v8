@@ -185,10 +185,7 @@ V8_OBJECT class SloppyArgumentsElements
   // length_ / optional_padding_ live in FixedArrayBase.
   TaggedMember<Context> context_;
   TaggedMember<UnionOf<FixedArray, NumberDictionary>> arguments_;
-  V8_TQ_TAIL_NAME(mapped_entries);
-  V8_TQ_TAIL_LENGTH(length);
-  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects,
-                        V8_TQ_TYPE(Smi | TheHole));
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 }  // namespace internal

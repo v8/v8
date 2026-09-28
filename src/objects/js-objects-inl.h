@@ -748,21 +748,21 @@ void JSPrimitiveWrapper::set_value(Tagged<JSAny> value, WriteBarrierMode mode) {
 }
 
 Tagged<JSReceiver> JSValidIteratorWrapper::underlying_object() const {
-  return underlying_.object_.load();
+  return underlying_object_.load();
 }
 
 void JSValidIteratorWrapper::set_underlying_object(Tagged<JSReceiver> value,
                                                    WriteBarrierMode mode) {
-  underlying_.object_.store(this, value, mode);
+  underlying_object_.store(this, value, mode);
 }
 
 Tagged<JSAny> JSValidIteratorWrapper::underlying_next() const {
-  return underlying_.next_.load();
+  return underlying_next_.load();
 }
 
 void JSValidIteratorWrapper::set_underlying_next(Tagged<JSAny> value,
                                                  WriteBarrierMode mode) {
-  underlying_.next_.store(this, value, mode);
+  underlying_next_.store(this, value, mode);
 }
 
 double JSDate::value() const { return value_.value(); }
@@ -870,11 +870,11 @@ void JSMessageObject::set_script(Tagged<Script> value, WriteBarrierMode mode) {
   script_.store(this, value, mode);
 }
 
-Tagged<UnionOf<StackTraceInfo, TheHole>> JSMessageObject::stack_trace() const {
+Tagged<UnionOf<StackTraceInfo, Hole>> JSMessageObject::stack_trace() const {
   return stack_trace_.load();
 }
 void JSMessageObject::set_stack_trace(
-    Tagged<UnionOf<StackTraceInfo, TheHole>> value, WriteBarrierMode mode) {
+    Tagged<UnionOf<StackTraceInfo, Hole>> value, WriteBarrierMode mode) {
   stack_trace_.store(this, value, mode);
 }
 

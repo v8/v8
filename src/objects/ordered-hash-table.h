@@ -710,19 +710,12 @@ V8_OBJECT class SmallOrderedHashSet
  public:
   uint8_t number_of_elements_;
   uint8_t number_of_deleted_elements_;
-  V8_TQ_CONST uint8_t number_of_buckets_;
+  uint8_t number_of_buckets_;
 #if TAGGED_SIZE_8_BYTES
   uint8_t padding_[5];
 #else
   uint8_t padding_[1];
 #endif
-  // Torque splits the flexible tail into indexed sections.
-  V8_TQ_TAIL_SECTIONS(data_table[Convert<intptr>(number_of_buckets) *
-                                 kSmallOrderedHashTableLoadFactor] : JSAny |
-                          TheHole;
-                      hash_table[number_of_buckets] : uint8;
-                      chain_table[Convert<intptr>(number_of_buckets) *
-                                  kSmallOrderedHashTableLoadFactor] : uint8;);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
 } V8_OBJECT_END;
 
@@ -760,19 +753,12 @@ V8_OBJECT class SmallOrderedHashMap
  public:
   uint8_t number_of_elements_;
   uint8_t number_of_deleted_elements_;
-  V8_TQ_CONST uint8_t number_of_buckets_;
+  uint8_t number_of_buckets_;
 #if TAGGED_SIZE_8_BYTES
   uint8_t padding_[5];
 #else
   uint8_t padding_[1];
 #endif
-  // Torque splits the flexible tail into indexed sections.
-  V8_TQ_TAIL_SECTIONS(
-      data_table[Convert<intptr>(number_of_buckets) *
-                 kSmallOrderedHashTableLoadFactor] : HashMapEntry;
-      hash_table[number_of_buckets] : uint8;
-      chain_table[Convert<intptr>(number_of_buckets) *
-                  kSmallOrderedHashTableLoadFactor] : uint8;);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
 } V8_OBJECT_END;
 
@@ -1011,18 +997,12 @@ V8_OBJECT class SmallOrderedNameDictionary
 #endif
   uint8_t number_of_elements_;
   uint8_t number_of_deleted_elements_;
-  V8_TQ_CONST uint8_t number_of_buckets_;
+  uint8_t number_of_buckets_;
 #if TAGGED_SIZE_8_BYTES
   uint8_t padding_1_[5];
 #else
   uint8_t padding_1_[1];
 #endif
-  // Torque splits the flexible tail into indexed sections.
-  V8_TQ_TAIL_SECTIONS(
-      data_table[Convert<intptr>(number_of_buckets) *
-                 kSmallOrderedHashTableLoadFactor] : NameDictionaryEntry;
-      hash_table[number_of_buckets] : uint8;
-      chain_table[number_of_buckets] : uint8;);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
 } V8_OBJECT_END;
 

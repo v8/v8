@@ -158,10 +158,7 @@ V8_OBJECT class FixedDoubleArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
-  V8_TQ_TAIL_NAME(values);
-  V8_TQ_TAIL_LENGTH(length);
-  FLEXIBLE_ARRAY_MEMBER(ElementMemberT, values,
-                        V8_TQ_TYPE(float64_or_undefined_or_hole));
+  FLEXIBLE_ARRAY_MEMBER(ElementMemberT, values);
 } V8_OBJECT_END;
 
 // ByteArray represents fixed sized arrays containing raw bytes that will not
@@ -197,8 +194,6 @@ V8_OBJECT class ByteArray : public PrimitiveArrayBase<ByteArray, uint8_t> {
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
-  V8_TQ_TAIL_NAME(values);
-  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(uint8_t, values);
 } V8_OBJECT_END;
 
@@ -206,8 +201,6 @@ V8_OBJECT class ByteArray : public PrimitiveArrayBase<ByteArray, uint8_t> {
 V8_OBJECT
 class TrustedByteArray : public PrimitiveArrayBase<TrustedByteArray, uint8_t,
                                                    TrustedFixedArrayBase> {
-  V8_TQ_TAIL_NAME(values);
-  V8_TQ_TAIL_LENGTH(length);
   V8_IT_OWN_TYPE;
   using Super =
       PrimitiveArrayBase<TrustedByteArray, uint8_t, TrustedFixedArrayBase>;

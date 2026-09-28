@@ -9,7 +9,7 @@ load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@v8_python_deps//:requirements.bzl", "requirement")
 load(
     "@v8//:bazel/defs.bzl",
-    "run_metagen",
+    "metagen_instance_types",
     "v8_binary",
     "v8_build_config",
     "v8_config",
@@ -184,13 +184,6 @@ v8_flag(name = "v8_enable_experimental_tq_to_tsa")
 v8_flag(
     name = "v8_use_metagen_instance_types",
     default = True,
-)
-
-# Mirrors the GN arg of the same name: selects the object-layout source Torque
-# compiles from, either the metagen layout JSON or the .tq field blocks.
-v8_flag(
-    name = "v8_use_metagen_layouts",
-    default = False,
 )
 
 v8_flag(
@@ -1409,12 +1402,6 @@ filegroup(
         "src/torque/instructions.h",
         "src/torque/kythe-data.cc",
         "src/torque/kythe-data.h",
-        "src/torque/layout-loader.cc",
-        "src/torque/layout-loader.h",
-        "src/torque/ls/json.cc",
-        "src/torque/ls/json.h",
-        "src/torque/ls/json-parser.cc",
-        "src/torque/ls/json-parser.h",
         "src/torque/parameter-difference.h",
         "src/torque/server-data.cc",
         "src/torque/server-data.h",
@@ -4457,18 +4444,6 @@ filegroup(
     output_group = "initializers",
 )
 
-filegroup(
-    name = "icu/metagen_layouts_json",
-    srcs = [":icu/run_metagen"],
-    output_group = "layouts",
-)
-
-filegroup(
-    name = "noicu/metagen_layouts_json",
-    srcs = [":noicu/run_metagen"],
-    output_group = "layouts",
-)
-
 # TODO(victorgomes): Add support to tools/debug_helper,
 # which needs class-debug-readers and debug-macros.
 v8_torque_files(
@@ -4478,9 +4453,6 @@ v8_torque_files(
         "//conditions:default": [],
     }) + select({
         "@v8//bazel/config:v8_target_is_32_bits": ["-m32"],
-        "//conditions:default": [],
-    }) + select({
-        ":is_v8_use_metagen_layouts": ["-use-cpp-layouts"],
         "//conditions:default": [],
     }),
     initializer_extras = [
@@ -4503,20 +4475,13 @@ v8_torque_files(
         "interface-descriptors.inc",
     ],
     icu_srcs = [":icu/torque_files"],
-    icu_layout_json = select({
-        ":is_v8_use_metagen_instance_types": ":icu/metagen_layouts_json",
-        "//conditions:default": None,
-    }),
     noicu_srcs = [":noicu/torque_files"],
-    noicu_layout_json = select({
-        ":is_v8_use_metagen_instance_types": ":noicu/metagen_layouts_json",
-        "//conditions:default": None,
-    }),
 )
 
-# Metagen: libclang-driven metadata generator. Produces
-# gen/metagen/instance-types.h for src/objects/instance-types-gen.h and
-# gen/metagen/layouts.json for Torque.
+# Metagen: libclang-driven IT generator. Produces gen/metagen/instance-types.h
+# which `src/objects/instance-types-gen.h` includes when
+# V8_USE_METAGEN_INSTANCE_TYPES is on. :v8_libshared reaches the targets
+# below only under that flag.
 filegroup(
     name = "metagen_python_sources",
     srcs = [
@@ -4526,8 +4491,6 @@ filegroup(
         "tools/metagen/cpp_hier.py",
         "tools/metagen/extract.py",
         "tools/metagen/instance_types.py",
-        "tools/metagen/layout_extract.py",
-        "tools/metagen/layout_ir.py",
         "tools/metagen/metagen.py",
     ],
 )
@@ -4592,7 +4555,7 @@ filegroup(
     ]),
 )
 
-# Metagen's checked-in C++ driver, shared with GN and metagen.py. It
+# The harvest's checked-in C++ driver, shared with GN and metagen.py. It
 # includes src/objects/all-objects.h, whose feature-conditional groups
 # are selected by the normal V8 feature defines. Bazel always defines
 # V8_ENABLE_WEBASSEMBLY via :define_flags; V8_INTL_SUPPORT is added only by
@@ -4615,8 +4578,6 @@ py_binary(
         "tools/metagen/cpp_hier.py",
         "tools/metagen/extract.py",
         "tools/metagen/instance_types.py",
-        "tools/metagen/layout_extract.py",
-        "tools/metagen/layout_ir.py",
         "tools/metagen/metagen.py",
     ],
     # tools/metagen/ is a Python package, so the scripts import each
@@ -4628,8 +4589,8 @@ py_binary(
     main = "tools/metagen/metagen.py",
 )
 
-run_metagen(
-    name = "run_metagen",
+metagen_instance_types(
+    name = "metagen_instance_types_h",
     driver = ":metagen_driver",
     clang_builtin_headers = [":metagen_clang_builtin_headers"],
     libclang_files = [":metagen_libclang_files"],
@@ -4669,7 +4630,7 @@ run_metagen(
     # The icu variant of v8_library compiles with V8_INTL_SUPPORT (via
     # ENABLE_I18N_SUPPORT_DEFINES copts, invisible to CcInfo) and the
     # intl object sources, so its IT enum must include the intl types:
-    # the icu-prefixed run additionally parses the intl headers,
+    # the icu-prefixed harvest additionally parses the intl headers,
     # with the same defines and with ICU's headers + include paths.
     icu_cc_compilation_context_from = ["//external:icu"],
     icu_extra_defines = [
@@ -4683,15 +4644,15 @@ run_metagen(
 # rewrites the include path so `#include "metagen/instance-types.h"`
 # resolves against the gen dir.
 cc_library(
-    name = "icu/run_metagen_headers",
-    hdrs = [":icu/run_metagen"],
+    name = "icu/metagen_instance_types_headers",
+    hdrs = [":icu/metagen_instance_types_h"],
     copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "icu",
 )
 
 cc_library(
-    name = "noicu/run_metagen_headers",
-    hdrs = [":noicu/run_metagen"],
+    name = "noicu/metagen_instance_types_headers",
+    hdrs = [":noicu/metagen_instance_types_h"],
     copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "noicu",
 )
@@ -4934,7 +4895,7 @@ v8_library(
         "//external:icu",
     ] + select({
         ":is_v8_use_metagen_instance_types": [
-            ":icu/run_metagen_headers",
+            ":icu/metagen_instance_types_headers",
         ],
         "//conditions:default": [],
     }),
@@ -4943,21 +4904,21 @@ v8_library(
         ":icu/generated_torque_definitions",
         ":icu/v8_base_without_compiler_files",
     ] + select({
-        ":is_v8_use_metagen_instance_types": [":icu/run_metagen"],
+        ":is_v8_use_metagen_instance_types": [":icu/metagen_instance_types_h"],
         "//conditions:default": [],
     }),
     noicu_deps = [
         ":noicu/generated_torque_definitions_headers",
     ] + select({
         ":is_v8_use_metagen_instance_types": [
-            ":noicu/run_metagen_headers",
+            ":noicu/metagen_instance_types_headers",
         ],
         "//conditions:default": [],
     }),
     noicu_srcs = [
         ":noicu/generated_torque_definitions",
     ] + select({
-        ":is_v8_use_metagen_instance_types": [":noicu/run_metagen"],
+        ":is_v8_use_metagen_instance_types": [":noicu/metagen_instance_types_h"],
         "//conditions:default": [],
     }),
     deps = [

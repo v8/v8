@@ -80,10 +80,10 @@ V8_OBJECT class PropertyDescriptorObject : public Struct {
   friend class ObjectBuiltinsAssembler;
   friend class MacroAssembler;
 
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<PropertyDescriptorObjectFlags>);
-  TaggedMember<Object> value_ V8_TQ_TYPE(JSAny | TheHole);
-  TaggedMember<Object> get_ V8_TQ_TYPE(FunctionTemplateInfo | JSAny | TheHole);
-  TaggedMember<Object> set_ V8_TQ_TYPE(FunctionTemplateInfo | JSAny | TheHole);
+  TaggedMember<Smi> flags_;
+  TaggedMember<Object> value_;
+  TaggedMember<Object> get_;
+  TaggedMember<Object> set_;
 } V8_OBJECT_END;
 
 }  // namespace internal

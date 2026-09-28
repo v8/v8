@@ -92,14 +92,15 @@ void PromiseCapability::set_promise(
   promise_.store(this, value, mode);
 }
 
-Tagged<JSAny> PromiseCapability::resolve() const { return resolve_.load(); }
-void PromiseCapability::set_resolve(Tagged<JSAny> value,
+Tagged<Object> PromiseCapability::resolve() const { return resolve_.load(); }
+void PromiseCapability::set_resolve(Tagged<Object> value,
                                     WriteBarrierMode mode) {
   resolve_.store(this, value, mode);
 }
 
-Tagged<JSAny> PromiseCapability::reject() const { return reject_.load(); }
-void PromiseCapability::set_reject(Tagged<JSAny> value, WriteBarrierMode mode) {
+Tagged<Object> PromiseCapability::reject() const { return reject_.load(); }
+void PromiseCapability::set_reject(Tagged<Object> value,
+                                   WriteBarrierMode mode) {
   reject_.store(this, value, mode);
 }
 

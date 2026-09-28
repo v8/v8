@@ -194,8 +194,7 @@ V8_OBJECT class WasmModuleObject : public JSObject {
       Isolate*, base::Vector<const uint8_t> wire_bytes, wasm::WireBytesRef,
       InternalizeString, SharedFlag shared = SharedFlag{false});
 
-  TaggedMember<CppGCManaged<wasm::NativeModule>> managed_native_module_
-      V8_TQ_TYPE(ManagedWasmNativeModule);
+  TaggedMember<CppGCManaged<wasm::NativeModule>> managed_native_module_;
   TaggedMember<Script> script_;
 } V8_OBJECT_END;
 
@@ -344,7 +343,7 @@ V8_OBJECT class WasmTableObject : public JSObject {
   TrustedPointerMember<WasmTrustedInstanceData,
                        kWasmTrustedInstanceDataIndirectPointerTag>
       trusted_data_;
-  uint8_t address_type_ V8_TQ_TYPE(AddressType);
+  uint8_t address_type_;
   uint8_t padding_for_address_type_0_;
   uint16_t padding_for_address_type_1_;
 #if TAGGED_SIZE_8_BYTES
@@ -482,11 +481,10 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   static const int kHeaderSize;
 
   TaggedMember<UnionOf<JSArrayBuffer, Undefined>> array_buffer_;
-  TaggedMember<CppGCManaged<BackingStore>> managed_backing_store_
-      V8_TQ_TYPE(ManagedBackingStore);
+  TaggedMember<CppGCManaged<BackingStore>> managed_backing_store_;
   TaggedMember<Smi> maximum_pages_;
   TaggedMember<WeakArrayList> instances_;
-  uint8_t address_type_ V8_TQ_TYPE(AddressType);
+  uint8_t address_type_;
   uint8_t padding_for_flags_0_;
   uint16_t padding_for_flags_1_;
 #if TAGGED_SIZE_8_BYTES
@@ -1415,7 +1413,7 @@ V8_OBJECT class WasmImportData : public TrustedObject {
   TaggedMember<NativeContext> native_context_;
   TaggedMember<UnionOf<JSReceiver, Undefined>> callable_;
   TaggedMember<Cell> wrapper_budget_;
-  UnalignedValueMember<Address> sig_ V8_TQ_TYPE(RawFunctionSigPtr);
+  UnalignedValueMember<Address> sig_;
   uint32_t bit_field_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
@@ -1477,15 +1475,14 @@ V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
   static const int kSize;
 
  public:
-  ProtectedTaggedMember<TrustedObject> protected_implicit_arg_
-      V8_TQ_TYPE(ProtectedPointer<WasmImportData | WasmTrustedInstanceData>);
+  ProtectedTaggedMember<TrustedObject> protected_implicit_arg_;
   TaggedMember<UnionOf<JSFunction, Undefined>> external_;
   TaggedMember<Smi> function_index_;
-  uint32_t raw_call_target_ V8_TQ_TYPE(WasmCodePointer);
+  uint32_t raw_call_target_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif  // TAGGED_SIZE_8_BYTES
-  UnalignedValueMember<Address> sig_ V8_TQ_TYPE(RawFunctionSigPtr);
+  UnalignedValueMember<Address> sig_;
 } V8_OBJECT_END;
 
 inline constexpr int WasmInternalFunction::kHeaderSize =
@@ -1697,9 +1694,7 @@ V8_OBJECT class WasmTypeInfo : public HeapObject {
 
   uint32_t canonical_type_;
   uint32_t canonical_element_type_;
-  V8_TQ_CONST TaggedMember<Smi> supertypes_length_;
-  V8_TQ_TAIL_NAME(supertypes);
-  V8_TQ_TAIL_LENGTH(supertypes_length);
+  TaggedMember<Smi> supertypes_length_;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, supertypes);
 } V8_OBJECT_END;
 
@@ -2066,7 +2061,7 @@ V8_OBJECT class WasmFastApiCallData : public HeapObject {
 
   TaggedMember<HeapObject> signature_;
   TaggedMember<Object> callback_data_;
-  TaggedMember<MaybeObject> cached_map_ V8_TQ_TYPE(Null | Weak<Map>);
+  TaggedMember<MaybeObject> cached_map_;
 } V8_OBJECT_END;
 
 V8_OBJECT class WasmStringViewIter : public HeapObject {

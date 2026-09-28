@@ -164,15 +164,13 @@ static_assert(sizeof(JSDispatchHandleMember) == sizeof(uint32_t));
 // only used on classes with a FAM) on clang.
 // Return the zero length array by reference, to avoid array-to-pointer decay
 // which can lose aliasing information.
-// Place V8_TQ_* annotations before the member. After the [0] declarator, an
-// attribute would apply to the type instead.
-#define FLEXIBLE_ARRAY_MEMBER(Type, name, ...)                             \
+#define FLEXIBLE_ARRAY_MEMBER(Type, name)                                  \
   using FlexibleDataReturnType = Type[0];                                  \
   FlexibleDataReturnType& name() { return flexible_array_member_data_; }   \
   const FlexibleDataReturnType& name() const {                             \
     return flexible_array_member_data_;                                    \
   }                                                                        \
-  __VA_ARGS__ Type flexible_array_member_data_[0];                         \
+  Type flexible_array_member_data_[0];                                     \
                                                                            \
  public:                                                                   \
   template <typename Class>                                                \

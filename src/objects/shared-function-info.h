@@ -128,7 +128,6 @@ V8_OBJECT class PreparseData : public HeapObject {
 
   int32_t data_length_;
   int32_t children_length_;
-  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(char, data_and_children);
 } V8_OBJECT_END;
 
@@ -962,21 +961,19 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   inline Tagged<BytecodeArray> GetBytecodeArrayInternal(Isolate* isolate) const;
 
  public:
-  V8_TQ_CUSTOM_WEAK
   TrustedPointerMember<ExposedTrustedObject, kTrustedDataIndirectPointerRange>
       trusted_function_data_;
   TaggedMember<Object> untrusted_function_data_;
-  TaggedMember<NameOrScopeInfoT> name_or_scope_info_
-      V8_TQ_TYPE(NoSharedNameSentinel | ScopeInfo | String);
+  TaggedMember<NameOrScopeInfoT> name_or_scope_info_;
   TaggedMember<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
       outer_scope_info_or_feedback_metadata_;
-  TaggedMember<HeapObject> script_ V8_TQ_TYPE(Script | Undefined);
+  TaggedMember<HeapObject> script_;
   uint16_t length_;
   uint16_t formal_parameter_count_;
   uint16_t function_token_offset_;
   uint8_t expected_nof_properties_;
-  uint8_t flags2_ V8_TQ_TYPE(SharedFunctionInfoFlags2);
-  std::atomic<uint32_t> flags_ V8_TQ_TYPE(SharedFunctionInfoFlags);
+  uint8_t flags2_;
+  std::atomic<uint32_t> flags_;
   std::atomic<int32_t> function_literal_id_;
   int32_t unique_id_;
   std::atomic<uint16_t> age_;
@@ -1104,9 +1101,9 @@ V8_OBJECT class OnHeapBasicBlockProfilerData : public HeapObject {
     return sizeof(OnHeapBasicBlockProfilerData);
   }
 
-  TaggedMember<ByteArray> block_ids_ V8_TQ_TYPE(FixedInt32Array);
-  TaggedMember<ByteArray> counts_ V8_TQ_TYPE(FixedUInt32Array);
-  TaggedMember<ByteArray> branches_ V8_TQ_TYPE(PodArrayOfIntegerPairs);
+  TaggedMember<ByteArray> block_ids_;
+  TaggedMember<ByteArray> counts_;
+  TaggedMember<ByteArray> branches_;
   TaggedMember<String> name_;
   TaggedMember<String> schedule_;
   TaggedMember<String> code_;

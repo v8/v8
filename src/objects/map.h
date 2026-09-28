@@ -1185,14 +1185,14 @@ V8_OBJECT class Map : public HeapObject {
   std::atomic<uint8_t> inobject_properties_start_or_constructor_function_index_;
   std::atomic<uint8_t> used_or_unused_instance_size_in_words_;
   std::atomic<uint8_t> visitor_id_;
-  std::atomic<uint16_t> instance_type_ V8_TQ_TYPE(InstanceType);
-  std::atomic<uint8_t> bit_field_ V8_TQ_TYPE(MapBitFields1);
-  uint8_t bit_field2_ V8_TQ_TYPE(MapBitFields2);
-  std::atomic<uint32_t> bit_field3_ V8_TQ_TYPE(MapBitFields3);
+  std::atomic<uint16_t> instance_type_;
+  std::atomic<uint8_t> bit_field_;
+  uint8_t bit_field2_;
+  std::atomic<uint32_t> bit_field3_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
-  TaggedMember<JSPrototype> prototype_ V8_TQ_TYPE(JSReceiver | Null);
+  TaggedMember<JSPrototype> prototype_;
   TaggedMember<Object> constructor_or_back_pointer_or_native_context_;
 #if V8_ENABLE_WEBASSEMBLY
   TaggedMember<UnionOf<DescriptorArray, WasmStruct>> instance_descriptors_;
@@ -1201,8 +1201,8 @@ V8_OBJECT class Map : public HeapObject {
   TaggedMember<DescriptorArray> instance_descriptors_;
   TaggedMember<DependentCode> dependent_code_;
 #endif
-  TaggedMember<UnionOf<Zero, Cell>> prototype_validity_cell_;
-  TaggedMember<UnionOf<Zero, MaybeWeak<Map>, TransitionArray, PrototypeInfo,
+  TaggedMember<UnionOf<Smi, Cell>> prototype_validity_cell_;
+  TaggedMember<UnionOf<Smi, MaybeWeak<Map>, TransitionArray, PrototypeInfo,
                        PrototypeSharedClosureInfo>>
       transitions_or_prototype_info_;
 } V8_OBJECT_END;
@@ -1248,7 +1248,7 @@ V8_ABSTRACT_OBJECT class ExtendedMap : public Map {
   static const int kMinimumSize;
   static const int kStartOfStrongExtendedFieldsOffset;
 
-  std::atomic<uint8_t> bit_field_ex_ V8_TQ_TYPE(ExtendedMapBitFields);
+  std::atomic<uint8_t> bit_field_ex_;
   // Leaves kTaggedSize-1 unused bytes, they will be used by subclasses.
 } V8_OBJECT_END;
 

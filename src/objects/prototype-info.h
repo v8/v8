@@ -102,12 +102,11 @@ V8_OBJECT class PrototypeInfo : public Struct {
   TaggedMember<UnionOf<FixedArray, Zero, Undefined>>
       prototype_chain_enum_cache_;
   TaggedMember<Smi> registry_slot_;
-  TaggedMember<Smi> bit_field_ V8_TQ_TYPE(SmiTagged<PrototypeInfoFlags>);
+  TaggedMember<Smi> bit_field_;
   TaggedMember<UnionOf<WeakArrayList, Undefined>> derived_maps_;
   TaggedMember<UnionOf<PrototypeSharedClosureInfo, Undefined>>
       prototype_shared_closure_info_;
-  TaggedMember<UnionOf<LoadHandler, Zero>> cached_handler_
-      V8_TQ_EXTENT_NAME(kPrototypeInfoCachedHandlerCount)[kCachedHandlerCount];
+  TaggedMember<UnionOf<LoadHandler, Zero>> cached_handler_[kCachedHandlerCount];
 } V8_OBJECT_END;
 
 // A growing array with an additional API for marking slots "empty". When adding
