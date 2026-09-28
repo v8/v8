@@ -4974,6 +4974,18 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
       i::JSReceiver::GetElement(i_isolate, self, index));
 }
 
+MaybeLocal<Value> v8::Object::TryGetWithNoSideEffects(Local<Context> context,
+                                                      Local<Name> key) {
+  auto i_isolate = i::Isolate::Current();
+  EnterV8NoScriptScope<InternalEscapableScope> api_scope{
+      i_isolate, context, RCCId::kAPI_Object_TryGetWithNoSideEffects};
+  auto self = Utils::OpenDirectHandle(this);
+  auto key_obj = Utils::OpenDirectHandle(*key);
+  i::PropertyKey lookup_key(i_isolate, key_obj);
+  i::LookupIterator it(i_isolate, self, lookup_key, self);
+  return api_scope.EscapeMaybe(i::JSReceiver::TryGetDataProperty(&it));
+}
+
 MaybeLocal<Value> v8::Object::GetPrivate(Local<Context> context,
                                          Local<Private> key) {
   return Get(context, key.UnsafeAs<Value>());

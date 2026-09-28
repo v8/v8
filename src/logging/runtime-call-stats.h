@@ -143,6 +143,7 @@ namespace v8::internal {
   V(Object_ToPrimitive)                                    \
   V(Object_ToString)                                       \
   V(Object_ToUint32)                                       \
+  V(Object_TryGetWithNoSideEffects)                        \
   V(Persistent_New)                                        \
   V(Private_New)                                           \
   V(Promise_Catch)                                         \
