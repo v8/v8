@@ -294,6 +294,8 @@ V8_OBJECT class ClosureFeedbackCellArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
+  V8_TQ_TAIL_NAME(objects);
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -554,14 +556,14 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   friend NexusConfig;
 
  public:
-  int32_t length_;
+  V8_TQ_CONST int32_t length_;
   std::atomic<int32_t> invocation_count_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
   std::atomic<uint8_t> invocation_count_before_stable_;
-  uint8_t osr_state_;
-  uint16_t flags_;
+  uint8_t osr_state_ V8_TQ_TYPE(OsrState);
+  uint16_t flags_ V8_TQ_TYPE(FeedbackVectorFlags);
   TaggedMember<SharedFunctionInfo> shared_function_info_;
   TaggedMember<ClosureFeedbackCellArray> closure_feedback_cell_array_;
   TaggedMember<FeedbackCell> parent_feedback_cell_;
@@ -570,7 +572,10 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   // Variable-length tail: each slot is a maybe-weak feedback value. Access
   // goes through Get/SynchronizedGet/Set; callers should not reach the tail
   // directly.
-  FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, raw_feedback_slots);
+  V8_TQ_TAIL_NAME(raw_feedback_slots);
+  V8_TQ_TAIL_LENGTH(length);
+  FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, raw_feedback_slots,
+                        V8_TQ_RELAXED);
 } V8_OBJECT_END;
 
 inline constexpr int FeedbackVector::kHeaderSize =

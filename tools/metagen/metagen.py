@@ -5,12 +5,9 @@
 """Entry point for metagen instance-type generation.
 
 Drives a libclang harvest of V8_OBJECT / V8_IT_-annotated C++ class
-declarations and emits `instance-types.h`. One invocation per build
-dir; ninja calls us from `tools/metagen/BUILD.gn`.
-
-Layout-mode generation (`extern class Foo extends ...` Torque emission
-from the same C++ headers) is a follow-up; the prototype lives on the
-stacked `metagen-layout` branch and is not part of this CL.
+declarations and emits `instance-types.h` and, with --enable-layout,
+the object layouts (`layouts.json`) for Torque. One invocation per
+build dir; ninja calls us from `tools/metagen/BUILD.gn`.
 """
 
 from __future__ import annotations
@@ -28,11 +25,11 @@ if __name__ == "__main__":
   if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
 
-# Don't import cpp_hier yet -- it pulls in clang.cindex at module-load
-# time, which requires the bindings to be resolvable. We bootstrap that
-# in main() once the flags say where they come from.
+# cpp_hier and layout_extract import clang.cindex. Import them in main()
+# after configuring the bindings path from the command-line flags.
 from metagen import compile_flags  # noqa: E402
 from metagen import instance_types as it  # noqa: E402
+from metagen import layout_ir  # noqa: E402
 
 
 def _write_depfile(depfile: str, output: str, deps: list[str]) -> None:
@@ -127,8 +124,21 @@ def main() -> int:
   p.add_argument(
       "--out",
       required=True,
-      help="Directory to write instance-types.h into. The only "
-      "directory metagen writes to.")
+      help="Directory to write the outputs into: instance-types.h and, "
+      "with --enable-layout, layouts.json; --enable-layout-positions also "
+      "adds layout-positions.json. The only directory metagen writes to.")
+  p.add_argument(
+      "--enable-layout",
+      action="store_true",
+      help="Also extract the object layouts into layouts.json (schema in "
+      "tools/metagen/layout_ir.py; specific to the parsed build "
+      "configuration).")
+  p.add_argument(
+      "--enable-layout-positions",
+      action="store_true",
+      help="Also write per-member C++ source positions to "
+      "layout-positions.json. Requires --enable-layout and is separate so "
+      "position-only changes need not invalidate layout consumers.")
   p.add_argument(
       "--depfile",
       default=None,
@@ -195,6 +205,9 @@ def main() -> int:
       "as compile_commands.json. Mutually exclusive with --build-dir.")
   args = p.parse_args()
 
+  if args.enable_layout_positions and not args.enable_layout:
+    p.error("--enable-layout-positions requires --enable-layout")
+
   def verbose_print(msg: str) -> None:
     if args.verbose:
       print(msg, file=sys.stderr)
@@ -226,8 +239,7 @@ def main() -> int:
         file=sys.stderr)
     return 1
 
-  # Bootstrap libclang *before* importing cpp_hier -- it references
-  # clang.cindex at module-load time.
+  # Configure libclang before importing modules that use clang.cindex.
   from metagen import clang_bootstrap  # noqa: E402
   if args.libclang_from_python_env:
     clang_bootstrap.bootstrap_from_python_env()
@@ -243,6 +255,7 @@ def main() -> int:
     # `os.path.abspath` honors that.
     clang_bootstrap.bootstrap(libclang_dir=os.path.abspath(args.libclang_dir))
   from metagen import cpp_hier  # noqa: E402
+  from metagen import layout_extract  # noqa: E402
 
   if bool(args.build_dir) == bool(args.compile_commands):
     print(
@@ -268,8 +281,13 @@ def main() -> int:
     flags_target = args.flags_from_target
     if args.flags_toolchain:
       flags_target = f"{flags_target}({args.flags_toolchain})"
-    raw_flags, parse_cwd, cl_mode = compile_flags.get_compile_args_from_gn_desc(
-        build_dir, flags_target, os.path.abspath(args.source_root))
+    try:
+      raw_flags, parse_cwd, cl_mode = (
+          compile_flags.get_compile_args_from_gn_desc(
+              build_dir, flags_target, os.path.abspath(args.source_root)))
+    except RuntimeError as e:
+      print(e, file=sys.stderr)
+      return 1
     flags_source = f"build_dir={build_dir} (gn desc {flags_target})"
   else:
     cc_json = os.path.abspath(args.compile_commands)
@@ -396,25 +414,32 @@ def main() -> int:
   path = os.path.join(out_dir, "instance-types.h")
 
   cpp_res = cpp_hier.scan_cpp(v8_root, driver_path, flags, parse_cwd=parse_cwd)
+
+  # Layout extraction adds the declarations it reads to the visited set.
+  # The depfile includes their source files.
+  layout_json = None
+  layout_positions_json = None
+  if args.enable_layout:
+    try:
+      layout_config = layout_extract.extract_config(cpp_res.parsed)
+      layouts = layout_extract.extract_layouts(cpp_res.parsed, v8_root)
+      layout_json = layout_ir.serialize_document(layout_config, layouts)
+      if args.enable_layout_positions:
+        layout_positions_json = layout_ir.serialize_positions(layouts)
+    except layout_ir.LayoutError as e:
+      print(f"[metagen] layout extraction failed: {e}", file=sys.stderr)
+      return 1
+    verbose_print(f"  extracted {len(layouts)} layouts")
+
+  visited_files = cpp_hier.visited_files(cpp_res.parsed.visited, v8_root)
   verbose_print(f"  {len(cpp_res.classes)} classes, "
-                f"{len(cpp_res.provenance)} provenance files (from C++)")
+                f"{len(visited_files)} visited files (from C++)")
   classes = cpp_res.classes
 
-  # The files the harvest read a fact out of, not everything the parse
-  # opened. The closure is ~17x larger and mostly the inline layer and
-  # the sysroot, none of which can move a class head; depending on it
-  # would put the harvest on the critical path of edits that cannot
-  # change its output. Provenance is derived from the walk rather than
-  # filtered by hand, so it stays correct when a declaration moves --
-  # and once metagen emits object layout, field types become one more
-  # provenance source rather than a reason to widen the whole set.
-  #
-  # Written ahead of the write-if-changed check below: ninja requires
-  # the depfile to exist after the action runs, including on the run
-  # that leaves the output untouched. --check writes no output, so a
-  # depfile naming one would be meaningless.
+  # Write the depfile with the files containing visited declarations.
+  # --check writes no output, so no depfile needed there.
   if args.depfile and not args.check:
-    deps = cpp_res.provenance
+    deps = visited_files
     if flags_dependency:
       deps = deps + [flags_dependency]
     _write_depfile(args.depfile, path, deps)
@@ -491,19 +516,27 @@ def main() -> int:
       sys.stdout.write(line)
     return 1
 
-  # Write-if-changed: the GN action rule carries restat=1, so leaving
-  # the mtime alone when the content is identical prunes the (near-
-  # global, via instance-type.h) set of dependents whenever an edit
-  # to one of the input headers doesn't change the IT assignment.
+  # Preserve unchanged outputs so their dependents do not rebuild.
+  _write_if_changed(path, generated, verbose_print)
+  if layout_json is not None:
+    _write_if_changed(
+        os.path.join(out_dir, "layouts.json"), layout_json, verbose_print)
+  if layout_positions_json is not None:
+    _write_if_changed(
+        os.path.join(out_dir, "layout-positions.json"), layout_positions_json,
+        verbose_print)
+  return 0
+
+
+def _write_if_changed(path: str, content: str, verbose_print) -> None:
   if os.path.exists(path):
     with open(path) as f:
-      if f.read() == generated:
+      if f.read() == content:
         verbose_print(f"Unchanged {path}")
-        return 0
+        return
   with open(path, "w") as f:
-    f.write(generated)
+    f.write(content)
   verbose_print(f"Wrote {path}")
-  return 0
 
 
 if __name__ == "__main__":

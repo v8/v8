@@ -40,6 +40,12 @@ int WrappedMain(int argc, const char** argv) {
 #else
       options.force_32bit_output = true;
 #endif
+    } else if (argument == "-layout-json") {
+      options.layout_json_path = argv[++i];
+    } else if (argument == "-layout-positions") {
+      options.layout_positions_path = argv[++i];
+    } else if (argument == "-use-cpp-layouts") {
+      options.use_cpp_layouts = true;
     } else if (argument == "-annotate-ir") {
       options.annotate_ir = true;
     } else if (argument == "-torque-dwarf") {

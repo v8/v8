@@ -1125,8 +1125,8 @@ void ScopeInfo::ScopeInfoVerify(Isolate* isolate) {
   CHECK(Is<ScopeInfo>(this));
   CHECK(parameter_count_.load().IsSmi());
   CHECK(context_local_count_.load().IsSmi());
-  CHECK(position_info_start_.load().IsSmi());
-  CHECK(position_info_end_.load().IsSmi());
+  CHECK(position_info_.start_.load().IsSmi());
+  CHECK(position_info_.end_.load().IsSmi());
 
   const uint32_t flags = Flags();
   const bool is_module =

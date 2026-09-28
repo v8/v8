@@ -175,7 +175,7 @@ V8_OBJECT class JSRegExp : public JSObject {
 
  public:
   TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
-  TaggedMember<Object> flags_;
+  TaggedMember<Object> flags_ V8_TQ_TYPE(SmiTagged<JSRegExpFlags> | Undefined);
 } V8_OBJECT_END;
 
 inline constexpr int JSRegExp::kHeaderSize = sizeof(JSRegExp);
@@ -379,7 +379,7 @@ V8_OBJECT class IrRegExpData : public RegExpData {
   TaggedMember<Smi> capture_count_;
   TaggedMember<Smi> ticks_until_tier_up_;
   TaggedMember<Smi> backtrack_limit_;
-  TaggedMember<Smi> bit_field_;
+  TaggedMember<Smi> bit_field_ V8_TQ_TYPE(SmiTagged<IrRegExpDataBitField>);
 } V8_OBJECT_END;
 
 // JSRegExpResult is just a JSArray with a specific initial map.

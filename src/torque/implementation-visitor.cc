@@ -1827,6 +1827,12 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
       CHECK_NE(pos, std::string::npos);
       std::string includes;
       for (const SourceId& include : streams.required_builtin_includes) {
+        // A field built from the layout JSON is positioned at the C++
+        // header that declares it, which has no generated counterpart to
+        // include.
+        if (!StringEndsWith(SourceFileMap::PathFromV8Root(include), ".tq")) {
+          continue;
+        }
         std::string include_file =
             SourceFileMap::PathFromV8RootWithoutExtension(include);
         includes += "#include \"torque-generated/";

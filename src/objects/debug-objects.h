@@ -200,12 +200,14 @@ V8_OBJECT class DebugInfo : public ExposedTrustedObject {
 
  public:
   TaggedMember<SharedFunctionInfo> shared_;
-  TaggedMember<Smi> debugger_hints_;
+  TaggedMember<Smi> debugger_hints_ V8_TQ_TYPE(SmiTagged<DebuggerHints>);
   TaggedMember<FixedArray> break_points_;
-  TaggedMember<Smi> flags_;
+  V8_TQ_RELAXED TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<DebugInfoFlags>);
   TaggedMember<UnionOf<CoverageInfo, Undefined>> coverage_info_;
-  ProtectedTaggedMember<UnionOf<BytecodeArray, Zero>> original_bytecode_array_;
-  ProtectedTaggedMember<UnionOf<BytecodeArray, Zero>> debug_bytecode_array_;
+  ProtectedTaggedMember<UnionOf<BytecodeArray, Zero>> original_bytecode_array_
+      V8_TQ_TYPE(ProtectedPointer<BytecodeArray>);
+  ProtectedTaggedMember<UnionOf<BytecodeArray, Zero>> debug_bytecode_array_
+      V8_TQ_TYPE(ProtectedPointer<BytecodeArray>);
 } V8_OBJECT_END;
 
 // The BreakPointInfo class holds information for break points set in a
@@ -296,7 +298,9 @@ V8_OBJECT class CoverageInfo : public HeapObject {
   // Description of layout within each slot.
   using Slot = CoverageInfoSlot;
 
-  int32_t slot_count_;
+  V8_TQ_CONST int32_t slot_count_;
+  V8_TQ_TAIL_NAME(slots);
+  V8_TQ_TAIL_LENGTH(slot_count);
   FLEXIBLE_ARRAY_MEMBER(CoverageInfoSlot, slots);
 } V8_OBJECT_END;
 
@@ -363,7 +367,7 @@ V8_OBJECT class StackFrameInfo : public Struct {
 
   TaggedMember<UnionOf<SharedFunctionInfo, Script>> shared_or_script_;
   TaggedMember<String> function_name_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<StackFrameInfoFlags>);
   TaggedMember<Smi> bytecode_offset_or_source_position_;
 #if V8_ENABLE_WEBASSEMBLY
   // Wasm wire byte offsets are 0-indexed instruction positions within a module

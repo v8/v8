@@ -387,12 +387,13 @@ V8_OBJECT class Script : public Struct {
   TaggedMember<Smi> script_type_;
   TaggedMember<UnionOf<FixedArray, Smi>> line_ends_;
   TaggedMember<Smi> id_;
-  TaggedMember<Object> eval_from_shared_or_wrapped_arguments_;
+  TaggedMember<Object> eval_from_shared_or_wrapped_arguments_
+      V8_TQ_TYPE(FixedArray | SharedFunctionInfo | Undefined);
   TaggedMember<UnionOf<Smi, CppGCManagedBase>> eval_from_position_;
   TaggedMember<UnionOf<ScopeInfo, Undefined>> eval_from_scope_info_;
   TaggedMember<UnionOf<WeakFixedArray, WeakArrayList>> infos_;
   TaggedMember<UnionOf<ArrayList, Undefined>> compiled_lazy_function_positions_;
-  TaggedMember<Smi> flags_;
+  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<ScriptFlags>);
   TaggedMember<UnionOf<String, Undefined>> source_url_;
   TaggedMember<Object> source_mapping_url_;
   TaggedMember<UnionOf<String, Undefined>> debug_id_;
