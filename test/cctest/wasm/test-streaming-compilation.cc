@@ -1880,6 +1880,53 @@ STREAM_TEST(Regress1334651) {
   tester.RunCompilerTasks();
 }
 
+STREAM_TEST(StreamingErrorCrashKeyReused) {
+  static int alloc_count = 0;
+  static int dummy_key = 0;
+  int set_count = 0;
+  std::string last_value;
+
+  isolate->SetCrashKeyStringCallbacks(
+      [](const char key[], v8::CrashKeySize size) -> v8::CrashKey {
+        CHECK_EQ(0, strcmp(key, "v8-wasm-streaming-error"));
+        CHECK_EQ(v8::CrashKeySize::Size1024, size);
+        ++alloc_count;
+        return &dummy_key;
+      },
+      [&](v8::CrashKey key, const std::string_view value) {
+        CHECK_EQ(&dummy_key, key);
+        ++set_count;
+        last_value = std::string(value);
+      });
+
+  {
+    StreamTester tester(isolate);
+    const uint8_t truncated_header[] = {0x00, 0x01, 0x02, 0x03};
+    tester.OnBytesReceived(truncated_header, arraysize(truncated_header));
+    tester.FinishStream();
+    tester.RunCompilerTasks();
+    CHECK(tester.IsPromiseRejected());
+    CHECK_EQ(1, alloc_count);
+    CHECK_EQ(1, set_count);
+    CHECK_EQ("StreamingDecoder failed", last_value);
+  }
+
+  {
+    StreamTester tester(isolate);
+    const uint8_t invalid_header[] = {0x00, 0x01, 0x02, 0x03,
+                                      0x04, 0x05, 0x06, 0x07};
+    tester.OnBytesReceived(invalid_header, arraysize(invalid_header));
+    tester.FinishStream();
+    tester.RunCompilerTasks();
+    CHECK(tester.IsPromiseRejected());
+    CHECK_EQ(1, alloc_count);
+    CHECK_EQ(2, set_count);
+    CHECK(last_value.starts_with("ModuleDecoder: "));
+  }
+
+  isolate->SetCrashKeyStringCallbacks(nullptr, nullptr);
+}
+
 #undef STREAM_TEST
 
 }  // namespace v8::internal::wasm

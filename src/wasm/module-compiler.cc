@@ -3182,8 +3182,12 @@ void AsyncStreamingProcessor::SetCrashKey(std::string_view message) {
   has_error_ = true;
   Isolate* isolate = job_->isolate_specific_info_.isolate_;
   if (isolate && isolate->HasCrashKeyStringCallbacks()) {
-    isolate->AddCrashKeyString("v8-wasm-streaming-error",
-                               v8::CrashKeySize::Size1024, message);
+    // Crash keys allocated via the embedder callback are process-wide and never
+    // freed, and in Chromium the callbacks are only installed on the main
+    // thread's Isolate, so caching the key in a process-wide static is safe.
+    static v8::CrashKey crash_key = isolate->AllocateCrashKeyString(
+        "v8-wasm-streaming-error", v8::CrashKeySize::Size1024);
+    isolate->SetCrashKeyString(crash_key, message);
   }
 }
 
