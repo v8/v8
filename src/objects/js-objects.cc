@@ -1870,45 +1870,46 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
   DCHECK(it->GetName()->IsAnyPrivateName());
   DirectHandle<Symbol> symbol = Cast<Symbol>(it->GetName());
 
-  switch (it->state()) {
-    case LookupIterator::JSPROXY: {
-      PropertyDescriptor new_desc;
-      new_desc.set_value(Cast<JSAny>(value));
-      new_desc.set_writable(true);
-      new_desc.set_enumerable(true);
-      new_desc.set_configurable(true);
-      return JSProxy::SetPrivateSymbol(isolate, Cast<JSProxy>(receiver), symbol,
-                                       &new_desc, should_throw);
-    }
-    case LookupIterator::WASM_OBJECT:
-      RETURN_FAILURE(isolate, kThrowOnError,
-                     NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
-    case LookupIterator::MODULE_NAMESPACE:
-    case LookupIterator::DATA:
-    case LookupIterator::INTERCEPTOR:
-    case LookupIterator::ACCESSOR:
-    case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
-    case LookupIterator::STRING_LOOKUP_START_OBJECT:
-      UNREACHABLE();
-
-    case LookupIterator::ACCESS_CHECK: {
-      if (!it->HasAccess()) {
-        RETURN_ON_EXCEPTION_VALUE(
-            isolate,
-            it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>()),
-            Nothing<bool>());
-        UNREACHABLE();
+  for (;; it->Next()) {
+    switch (it->state()) {
+      case LookupIterator::JSPROXY: {
+        PropertyDescriptor new_desc;
+        new_desc.set_value(Cast<JSAny>(value));
+        new_desc.set_writable(true);
+        new_desc.set_enumerable(true);
+        new_desc.set_configurable(true);
+        return JSProxy::SetPrivateSymbol(isolate, Cast<JSProxy>(receiver),
+                                         symbol, &new_desc, should_throw);
       }
-      break;
+      case LookupIterator::WASM_OBJECT:
+        RETURN_FAILURE(isolate, kThrowOnError,
+                       NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+      case LookupIterator::MODULE_NAMESPACE:
+      case LookupIterator::DATA:
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::ACCESSOR:
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
+
+      case LookupIterator::ACCESS_CHECK: {
+        if (!it->HasAccess()) {
+          RETURN_ON_EXCEPTION_VALUE(
+              isolate,
+              it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>()),
+              Nothing<bool>());
+          UNREACHABLE();
+        }
+        continue;
+      }
+
+      case LookupIterator::TRANSITION:
+      case LookupIterator::NOT_FOUND:
+        return Object::TransitionAndWriteDataProperty(
+            it, value, NONE, should_throw, StoreOrigin::kMaybeKeyed);
     }
-
-    case LookupIterator::TRANSITION:
-    case LookupIterator::NOT_FOUND:
-      break;
+    UNREACHABLE();
   }
-
-  return Object::TransitionAndWriteDataProperty(it, value, NONE, should_throw,
-                                                StoreOrigin::kMaybeKeyed);
 }
 
 // static
