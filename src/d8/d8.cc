@@ -158,7 +158,14 @@ thread_local Worker* current_worker_ = nullptr;
 
 constexpr v8::EmbedderDataTypeTag kInspectorClientTag = 1;
 
+// Modules declared by all bundles executed in the current run. Worker threads
+// read this map when importing modules, so accesses need to hold
+// bundle_module_files_mutex.
+base::LazyMutex bundle_module_files_mutex = LAZY_MUTEX_INITIALIZER;
 std::unordered_map<std::string, std::string> bundle_module_files;
+// Used for naming anonymous bundle entrypoints. Only accessed on the main
+// thread.
+int bundle_anon_module_counter = 0;
 #ifdef V8_FUZZILLI
 bool fuzzilli_reprl = true;
 #else
@@ -1524,6 +1531,9 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
 
   bool found_in_bundle = false;
   if (options.bundle) {
+    i::ParkedMutexGuard lock_guard(
+        reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate(),
+        bundle_module_files_mutex.Pointer());
     auto it = bundle_module_files.find(module_specifier);
     if (it != bundle_module_files.end()) {
       source_text = String::NewFromUtf8(isolate, it->second.c_str());
@@ -6104,6 +6114,18 @@ bool ends_with(const char* input, const char* suffix) {
   return false;
 }
 
+bool AddBundleModule(Isolate* isolate, const std::string& name,
+                     const std::string& content) {
+  {
+    i::ParkedMutexGuard lock_guard(
+        reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate(),
+        bundle_module_files_mutex.Pointer());
+    if (bundle_module_files.emplace(name, content).second) return true;
+  }
+  std::cout << "Error: Duplicate bundle module: " << name << "\n";
+  return false;
+}
+
 bool TryExecuteBundle(Isolate* isolate, const std::string& content,
                       Local<String> file_name, bool* out_success) {
   // Find the first // JS_BUNDLE_ comment. It's either
@@ -6152,15 +6174,12 @@ bool TryExecuteBundle(Isolate* isolate, const std::string& content,
 
   if (pos >= content.length()) return false;
 
-  bundle_module_files.clear();
-
   struct ExecutionItem {
     enum Type { kScript, kModuleEntrypoint };
     Type type;
     std::string content_or_name;
   };
   std::vector<ExecutionItem> execution_order;
-  int anon_module_counter = 0;
 
   while (pos < content.length()) {
     // We expect a marker at pos.
@@ -6193,18 +6212,25 @@ bool TryExecuteBundle(Isolate* isolate, const std::string& content,
       std::string m_name = header.substr(module_marker_prefix.length());
       std::string normalized_name =
           NormalizeModuleSpecifier(m_name, GetWorkingDirectory());
-      bundle_module_files[normalized_name] = part_content;
+      if (!AddBundleModule(isolate, normalized_name, part_content)) {
+        *out_success = false;
+        return true;
+      }
     } else if (header.starts_with(entrypoint_marker_prefix)) {
       std::string m_name;
       if (header.length() > entrypoint_marker_prefix.length() &&
           header[entrypoint_marker_prefix.length()] == ':') {
         m_name = header.substr(entrypoint_marker_prefix.length() + 1);
       } else {
-        m_name = "entrypoint_" + std::to_string(anon_module_counter++) + ".mjs";
+        m_name = "entrypoint_" + std::to_string(bundle_anon_module_counter++) +
+                 ".mjs";
       }
       std::string normalized_name =
           NormalizeModuleSpecifier(m_name, GetWorkingDirectory());
-      bundle_module_files[normalized_name] = part_content;
+      if (!AddBundleModule(isolate, normalized_name, part_content)) {
+        *out_success = false;
+        return true;
+      }
       execution_order.push_back(
           {ExecutionItem::kModuleEntrypoint, normalized_name});
     } else {
@@ -6230,7 +6256,6 @@ bool TryExecuteBundle(Isolate* isolate, const std::string& content,
     }
   }
 
-  bundle_module_files.clear();
   return true;  // Bundle handled successfully (even if execution failed)
 }
 
@@ -7418,6 +7443,15 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
   } else {
     WaitForAllWorkerAndIsolateThreads(isolate);
   }
+
+  // Workers created by the bundles have terminated, so no more bundle modules
+  // are needed.
+  {
+    i::ParkedMutexGuard lock_guard(i_isolate->main_thread_local_isolate(),
+                                   bundle_module_files_mutex.Pointer());
+    bundle_module_files.clear();
+  }
+  bundle_anon_module_counter = 0;
 
   // Other threads have terminated, we can now run the artificial
   // serialize-deserialize pass (which destructively mutates heap state).
