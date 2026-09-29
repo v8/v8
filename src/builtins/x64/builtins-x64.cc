@@ -3667,6 +3667,13 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 
 void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   bool stack_switch = mode == wasm::kPromise || mode == wasm::kStressSwitch;
+  Label stack_overflow;
+
+  // The first GP parameter holds the trusted instance data or the import data.
+  // This is handled specially.
+  constexpr int stack_params_offset =
+      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
+      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
   __ EnterFrame(stack_switch ? StackFrame::WASM_JSPI : StackFrame::JS_TO_WASM);
 
   __ AllocateStackSpace(WasmJspiFrameConstants::kNumSpillSlots *
@@ -3697,8 +3704,10 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
                        JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
     __ movq(MemOperand(rbp, WasmJspiFrameConstants::kResultArrayOffset),
             result_array);
+    __ Move(MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset), 0);
   }
 
+  // Calculate the stack space required for return values.
   Register result_size = rax;
   __ movq(
       result_size,
@@ -3706,6 +3715,49 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
           wrapper_buffer,
           JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferSize));
   __ shlq(result_size, Immediate(kSystemPointerSizeLog2));
+
+  // params_start should not alias with any parameter registers.
+  Register params_start = r11;
+  __ movq(params_start,
+          MemOperand(wrapper_buffer,
+                     JSToWasmWrapperFrameConstants::kWrapperBufferParamStart));
+  Register params_end = rcx;
+  __ movq(params_end,
+          MemOperand(wrapper_buffer,
+                     JSToWasmWrapperFrameConstants::kWrapperBufferParamEnd));
+
+  // Preemptive Stack Overflow Check:
+  // Before allocating stack space for return values or pushing stack
+  // parameters (which could blindly overflow past the real stack limit,
+  // triggering DCHECK failures or crashes due to stack overflow), we calculate
+  // the total upcoming stack footprint and check if it fits.
+  {
+    // LocationAllocatorForParams reserves a fixed-size region of
+    // `stack_params_offset` bytes at `[params_start, params_start +
+    // stack_params_offset)` for all GP and FP register parameters (even if
+    // unused), and places stack parameters starting at `params_start +
+    // stack_params_offset`. Thus `params_end - params_start -
+    // stack_params_offset` is the exact stack parameter size (>= 0).
+    Register total_space = rdx;
+    __ movq(total_space, params_end);
+    __ subq(total_space, params_start);
+    __ subq(total_space, Immediate(stack_params_offset));
+    __ addq(total_space, result_size);
+
+    // Compare rsp - total_space with the real stack limit.
+    // Note: rsp - total_space will not underflow because rsp is a valid stack
+    // pointer (far above 0) and total_space is bounded by Wasm limits (~tens of
+    // KiB). Thus, the unsigned comparison (below) against the real stack limit
+    // is safe.
+    Register hypothetical_rsp = kScratchRegister;
+    __ movq(hypothetical_rsp, rsp);
+    __ subq(hypothetical_rsp, total_space);
+    __ cmpq(hypothetical_rsp,
+            __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
+    __ j(below, &stack_overflow);
+  }
+
+  // Allocate stack space for return values.
   __ subq(rsp, result_size);
   __ movq(
       MemOperand(
@@ -3713,28 +3765,13 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
           JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferStart),
       rsp);
   Register call_target = rdi;
-  // param_start should not alias with any parameter registers.
-  Register params_start = r11;
-  __ movq(params_start,
-          MemOperand(wrapper_buffer,
-                     JSToWasmWrapperFrameConstants::kWrapperBufferParamStart));
-  Register params_end = rbx;
-  __ movq(params_end,
-          MemOperand(wrapper_buffer,
-                     JSToWasmWrapperFrameConstants::kWrapperBufferParamEnd));
-
   __ LoadWasmCodePointer(
       call_target,
       MemOperand(wrapper_buffer,
                  JSToWasmWrapperFrameConstants::kWrapperBufferCallTarget));
 
-  Register last_stack_param = rcx;
-
-  // The first GP parameter is the data, which we handle specially.
-  int stack_params_offset =
-      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
-      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
-
+  // Push stack parameters on the stack.
+  Register last_stack_param = rbx;
   __ leaq(last_stack_param, MemOperand(params_start, stack_params_offset));
 
   Label loop_start;
@@ -3766,10 +3803,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     next_offset += kDoubleSize;
   }
   DCHECK_EQ(next_offset, stack_params_offset);
-
-  if (stack_switch) {
-    __ Move(MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset), 0);
-  }
 
   // We do the call without a signature check here, since the wrapper loaded the
   // signature from the same trusted object as the call target to set up the
@@ -3836,6 +3869,20 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   if (mode == wasm::kPromise) {
     GenerateExceptionHandlingLandingPad(masm, &return_promise);
   }
+
+  // OOL code for handling stack overflow.
+  __ bind(&stack_overflow);
+  if (stack_switch) {
+    __ movq(kContextRegister,
+            MemOperand(rbp, WasmJspiFrameConstants::kImplicitArgOffset));
+  } else {
+    __ movq(kContextRegister,
+            MemOperand(rbp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+  }
+  GetContextFromImplicitArg(masm, kContextRegister);
+  __ AlignStackPointer();
+  __ CallRuntime(Runtime::kThrowStackOverflow);
+  __ Trap();
 }
 }  // namespace
 

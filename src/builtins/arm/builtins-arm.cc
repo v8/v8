@@ -3794,6 +3794,7 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 
 void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   bool stack_switch = mode == wasm::kPromise || mode == wasm::kStressSwitch;
+  Label stack_overflow;
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
 
   __ EnterFrame(stack_switch ? StackFrame::WASM_JSPI : StackFrame::JS_TO_WASM);
@@ -3812,6 +3813,16 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   Label suspend;
   Register original_fp = no_reg;
   Register new_wrapper_buffer = no_reg;
+
+  // The first GP parameter holds the trusted instance data or the import data.
+  // This is handled specially.
+  constexpr int unpadded_stack_params_offset =
+      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
+      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
+  constexpr int param_padding =
+      unpadded_stack_params_offset & kSystemPointerSize;
+  constexpr int stack_params_offset =
+      unpadded_stack_params_offset + param_padding;
   if (stack_switch) {
     SwitchToAllocatedStack(masm, regs, implicit_arg, wrapper_buffer,
                            original_fp, new_wrapper_buffer, &suspend);
@@ -3836,14 +3847,59 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
                      JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
       __ str(scratch,
              MemOperand(fp, WasmJspiFrameConstants::kResultArrayOffset));
+      __ Zero(MemOperand(fp, WasmJspiFrameConstants::kGCScanSlotCountOffset));
     }
   }
+
   {
-    DEFINE_SCOPED(result_size);
-    __ ldr(result_size,
+    DEFINE_SCOPED(return_space);
+    // Calculate the stack space required for return values (in bytes).
+    __ ldr(return_space,
            MemOperand(wrapper_buffer, JSToWasmWrapperFrameConstants::
                                           kWrapperBufferStackReturnBufferSize));
-    __ sub(sp, sp, Operand(result_size, LSL, kSystemPointerSizeLog2));
+    __ mov(return_space, Operand(return_space, LSL, kSystemPointerSizeLog2));
+
+    // Preemptive Stack Overflow Check:
+    // Before allocating stack space for return values or pushing stack
+    // parameters (which could blindly overflow past the real stack limit,
+    // triggering DCHECK failures or crashes due to stack overflow), we
+    // calculate the total upcoming stack footprint and check if it fits.
+    {
+      // LocationAllocatorForParams reserves a fixed-size region of
+      // `stack_params_offset` bytes at `[params_start, params_start +
+      // stack_params_offset)` for all GP and FP register parameters (even if
+      // unused), and places stack parameters starting at `params_start +
+      // stack_params_offset`. Thus `params_end - params_start -
+      // stack_params_offset` is the exact stack parameter size (>= 0).
+      DEFINE_SCOPED(total_space);
+      __ ldr(total_space,
+             MemOperand(wrapper_buffer,
+                        JSToWasmWrapperFrameConstants::kWrapperBufferParamEnd));
+      DEFINE_SCOPED(params_start);
+      __ ldr(
+          params_start,
+          MemOperand(wrapper_buffer,
+                     JSToWasmWrapperFrameConstants::kWrapperBufferParamStart));
+      __ sub(total_space, total_space, params_start);
+      __ sub(total_space, total_space, Operand(stack_params_offset));
+      __ add(total_space, total_space, return_space);
+
+      // Compare sp - total_space with the real stack limit.
+      // Note: sp - total_space will not underflow because sp is a valid stack
+      // pointer (far above 0) and total_space is bounded by Wasm limits (~tens
+      // of KiB). Thus, the unsigned comparison (lo) against the real stack
+      // limit is safe.
+      Register hypothetical_sp = total_space;
+      __ sub(hypothetical_sp, sp, total_space);
+
+      DEFINE_SCOPED(stack_limit);
+      __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
+      __ cmp(hypothetical_sp, stack_limit);
+      __ b(lo, &stack_overflow);
+    }
+
+    // Allocate stack space for return values.
+    __ sub(sp, sp, return_space);
   }
 
   __ str(
@@ -3859,14 +3915,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   for (auto reg : wasm::kGpParamRegisters) {
     regs.Reserve(reg);
   }
-
-  // The first GP parameter holds the trusted instance data or the import data.
-  // This is handled specially.
-  int stack_params_offset =
-      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
-      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
-  int param_padding = stack_params_offset & kSystemPointerSize;
-  stack_params_offset += param_padding;
 
   {
     DEFINE_SCOPED(params_start);
@@ -3919,7 +3967,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     DCHECK_EQ(next_offset, stack_params_offset);
   }
 
-  __ Zero(MemOperand(fp, WasmJspiFrameConstants::kGCScanSlotCountOffset));
   {
     DEFINE_SCOPED(call_target);
     __ ldr(call_target,
@@ -3995,6 +4042,19 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   }
   // Emit constant pool now.
   __ CheckConstPool(true, false);
+
+  // OOL code for handling stack overflow.
+  __ bind(&stack_overflow);
+  if (stack_switch) {
+    __ ldr(kContextRegister,
+           MemOperand(fp, WasmJspiFrameConstants::kImplicitArgOffset));
+  } else {
+    __ ldr(kContextRegister,
+           MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+  }
+  GetContextFromImplicitArg(masm, kContextRegister, r1);
+  __ CallRuntime(Runtime::kThrowStackOverflow);
+  __ Trap();
 }
 }  // namespace
 
