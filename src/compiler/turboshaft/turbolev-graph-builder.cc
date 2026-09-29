@@ -6578,16 +6578,13 @@ class GraphBuildingNodeProcessor {
     FrameStateType type = maglev_frame.is_javascript()
                               ? FrameStateType::kJavaScriptBuiltinContinuation
                               : FrameStateType::kBuiltinContinuation;
+    DCHECK_IMPLIES(
+        maglev_frame.is_javascript(),
+        Builtins::CallInterfaceDescriptorFor(maglev_frame.builtin_id())
+                .GetRegisterParameterCount() ==
+            JSTrampolineDescriptor::GetRegisterParameterCount());
     uint16_t parameter_count =
-        static_cast<uint16_t>(maglev_frame.parameters().length());
-    if (maglev_frame.is_javascript()) {
-      constexpr int kExtraFixedJSFrameParameters =
-          V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 4 : 3;
-      DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(maglev_frame.builtin_id())
-                    .GetRegisterParameterCount(),
-                kExtraFixedJSFrameParameters);
-      parameter_count += kExtraFixedJSFrameParameters;
-    }
+        static_cast<uint16_t>(maglev_frame.translation_height());
     Handle<SharedFunctionInfo> shared_info =
         GetSharedFunctionInfo(maglev_frame).object();
     constexpr int kLocalCount = 0;

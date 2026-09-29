@@ -1426,16 +1426,13 @@ class MaglevFrameTranslationBuilder {
         Builtins::GetContinuationBytecodeOffset(frame.builtin_id());
     int literal_id = GetDeoptLiteral(frame.GetSharedFunctionInfo());
 
-    constexpr int kFixedJSFrameRegisterParameters =
-        JSTrampolineDescriptor::GetRegisterParameterCount();
 
     if (frame.is_javascript()) {
       translation_array_builder_->BeginJavaScriptBuiltinContinuationFrame(
-          bailout_id, literal_id,
-          frame.parameters().length() + kFixedJSFrameRegisterParameters);
+          bailout_id, literal_id, frame.translation_height());
     } else {
       translation_array_builder_->BeginBuiltinContinuationFrame(
-          bailout_id, literal_id, frame.parameters().length());
+          bailout_id, literal_id, frame.translation_height());
     }
 
     // Closure
@@ -1459,6 +1456,9 @@ class MaglevFrameTranslationBuilder {
     }
 
     if (frame.is_javascript()) {
+      constexpr int kFixedJSFrameRegisterParameters =
+          JSTrampolineDescriptor::GetRegisterParameterCount();
+
       // Fixed register parameters for JS frames.
       DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(frame.builtin_id())
                     .GetRegisterParameterCount(),

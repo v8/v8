@@ -557,6 +557,14 @@ bool LazyDeoptInfo::InReturnValues(interpreter::Register reg,
                          result_location.index() + result_size - 1);
 }
 
+int BuiltinContinuationDeoptFrame::translation_height() const {
+  // parameters() in JS Continuation only holds the stack params as the JS
+  // trampoline's register ones are appended during translation.
+  return parameters().length() +
+         (is_javascript() ? JSTrampolineDescriptor::GetRegisterParameterCount()
+                          : 0);
+}
+
 int InterpretedDeoptFrame::ComputeReturnOffset(
     interpreter::Register result_location, int result_size) const {
   // Return offsets are counted from the end of the translation frame,

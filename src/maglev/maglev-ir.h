@@ -1677,6 +1677,9 @@ class BuiltinContinuationDeoptFrame : public DeoptFrame {
     return data().maybe_js_target.value();
   }
 
+  // Number of parameters in the deopt translation.
+  int translation_height() const;
+
  private:
   BuiltinContinuationFrameData& data() {
     return data_.get<BuiltinContinuationFrameData>();
