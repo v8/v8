@@ -798,6 +798,8 @@ class DebugWasmInterpreterScopeIterator final : public debug::ScopeIterator {
 
   ScopeType GetType() override { return type_; }
 
+  bool DeclaresLocals() override { return true; }
+
   v8::Local<v8::Object> GetObject() override {
     Isolate* isolate = frame_->isolate();
     switch (type_) {
