@@ -1749,8 +1749,10 @@ class TSANLoadDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS_NO_CONTEXT(kAddress)
-  DEFINE_PARAMETER_TYPES(MachineType::Pointer())  // kAddress
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kSharedBase, kInvokeTsanAcquire)
+  DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kAddress
+                         MachineType::AnyTagged(),  // kBase
+                         MachineType::Int32())      // kInvokeTsanAcquire
 
   DECLARE_DESCRIPTOR(TSANLoadDescriptor)
 

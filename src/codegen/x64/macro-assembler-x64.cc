@@ -1157,9 +1157,9 @@ void MacroAssembler::CallTSANStoreStub(Register address, Register value,
   PopAll(registers);
 }
 
-void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
-                                             SaveFPRegsMode fp_mode, int size,
-                                             StubCallMode mode) {
+void MacroAssembler::CallTSANRelaxedLoadStub(
+    Register address, std::optional<SharedBaseTsanArgument> opt_shared_base,
+    SaveFPRegsMode fp_mode, int size, StubCallMode mode) {
   TSANLoadDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
 
@@ -1167,9 +1167,25 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
 
   Register address_parameter(
       descriptor.GetRegisterParameter(TSANLoadDescriptor::kAddress));
+  Register base_parameter(
+      descriptor.GetRegisterParameter(TSANLoadDescriptor::kSharedBase));
+  Register invoke_tsan_acquire_parameter(
+      descriptor.GetRegisterParameter(TSANLoadDescriptor::kInvokeTsanAcquire));
 
   // Prepare argument registers for calling TSANRelaxedLoad.
-  Move(address_parameter, address);
+  if (opt_shared_base.has_value()) {
+    SharedBaseTsanArgument shared_base = opt_shared_base.value();
+    DCHECK(!AreAliased(address, shared_base.reg));
+    MovePair(address_parameter, address, base_parameter, shared_base.reg);
+    if (shared_base.must_decompress_reg) {
+      addq(base_parameter, kPtrComprCageBaseRegister);
+    }
+  } else {
+    Move(address_parameter, address);
+    Move(base_parameter, Immediate(0));  // Pass Smi(0) when unused.
+  }
+  Move(invoke_tsan_acquire_parameter,
+       Immediate(opt_shared_base.has_value() ? 1 : 0));
 
 #if V8_ENABLE_WEBASSEMBLY
   if (mode != StubCallMode::kCallWasmRuntimeStub) {

@@ -57,6 +57,15 @@ class StackArgumentsAccessor {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };
 
+// When generating a TSAN-aware load, we sometimes pass the register of the base
+// object of the load, if the object is shared. If the register holds the
+// compressed object value, we must decompress it before passing it to the
+// runtime function.
+struct SharedBaseTsanArgument {
+  Register reg;
+  bool must_decompress_reg;
+};
+
 class V8_EXPORT_PRIVATE MacroAssembler
     : public SharedMacroAssembler<MacroAssembler> {
  public:
@@ -782,8 +791,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CallTSANStoreStub(Register address, Register value,
                          SaveFPRegsMode fp_mode, int size, StubCallMode mode,
                          std::memory_order order);
-  void CallTSANRelaxedLoadStub(Register address, SaveFPRegsMode fp_mode,
-                               int size, StubCallMode mode);
+  void CallTSANRelaxedLoadStub(
+      Register address, std::optional<SharedBaseTsanArgument> opt_shared_base,
+      SaveFPRegsMode fp_mode, int size, StubCallMode mode);
 #endif  // V8_IS_TSAN
 
   void MoveNumber(Register dst, double value);

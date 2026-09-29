@@ -34,11 +34,13 @@ FieldAccess AccessBuilder::ForExternalIntPtr() {
 }
 
 // static
-FieldAccess AccessBuilder::ForMap(WriteBarrierKind write_barrier) {
+FieldAccess AccessBuilder::ForMap(WriteBarrierKind write_barrier,
+                                  SharedFlag shared_base) {
   FieldAccess access = {kTaggedBase,           offsetof(HeapObject, map_),
                         MaybeHandle<Name>(),   OptionalMapRef(),
                         Type::OtherInternal(), MachineType::MapInHeader(),
                         write_barrier,         "Map"};
+  access.shared_base = shared_base;
   return access;
 }
 

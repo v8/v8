@@ -87,8 +87,9 @@ class WasmLoweringReducer : public Next {
                             module_) ||
           !type.use_wasm_null();
       if (!use_explicit_check) {
-        __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
-                MemoryRepresentation::TaggedPointer(),
+        LoadOp::Kind load_kind = LoadOp::Kind::TrapOnNull().Immutable();
+        if (type.is_shared()) load_kind = load_kind.SharedBase();
+        __ Load(object, load_kind, MemoryRepresentation::TaggedPointer(),
                 offsetof(HeapObject, map_));
         return object;
       }
@@ -136,7 +137,10 @@ class WasmLoweringReducer : public Next {
       GOTO_IF(__ IsNull(object, wasm::kWasmExternRef), null_label);
     }
     GOTO_IF(__ IsSmi(object), smi_label);
-    GOTO_IF(__ HasInstanceType(object, HEAP_NUMBER_TYPE), heap_number_label);
+    // Even non-shared externref may carry shared objects, hence the SharedFlag
+    // below.
+    GOTO_IF(__ HasInstanceType(object, HEAP_NUMBER_TYPE, SharedFlag{true}),
+            heap_number_label);
     // For anything else, just pass through the value.
     GOTO(end_label, object);
 
@@ -243,6 +247,8 @@ class WasmLoweringReducer : public Next {
 
     LoadOp::Kind load_kind = implicit_null_check ? LoadOp::Kind::TrapOnNull()
                                                  : LoadOp::Kind::TaggedBase();
+    if (type->is_shared()) load_kind = load_kind.SharedBase();
+
     if (field_index == StructGetOp::kDescFieldIndex) {
       // Can't use {LoadMapField} because that doesn't support specifying
       // {LoadOp::Kind::TrapOnNull}.
@@ -252,6 +258,7 @@ class WasmLoweringReducer : public Next {
 #if V8_MAP_PACKING
       UNIMPLEMENTED();
 #endif
+      if (type->is_shared()) UNIMPLEMENTED();
       return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
                      MemoryRepresentation::TaggedPointer(),
                      offsetof(Map, instance_descriptors_));
@@ -348,13 +355,13 @@ class WasmLoweringReducer : public Next {
 
   V<Any> REDUCE(ArrayGet)(V<WasmArrayNullable> array, V<Word32> index,
                           const wasm::ArrayType* array_type, bool is_signed,
-                          std::optional<AtomicMemoryOrder> memory_order) {
+                          std::optional<AtomicMemoryOrder> memory_order,
+                          SharedFlag shared_base) {
     bool is_mutable = array_type->mutability();
     LoadOp::Kind load_kind = LoadOp::Kind::TaggedBase();
     if (!is_mutable) load_kind = load_kind.Immutable();
-    if (memory_order.has_value()) {
-      load_kind = load_kind.Atomic();
-    }
+    if (memory_order.has_value()) load_kind = load_kind.Atomic();
+    if (shared_base) load_kind = load_kind.SharedBase();
     return __ Load(array, __ ChangeInt32ToIntPtr(index), load_kind,
                    RepresentationFor(array_type->element_type(), is_signed),
                    WasmArray::kHeaderSize,
@@ -407,7 +414,8 @@ class WasmLoweringReducer : public Next {
 
   V<Word32> REDUCE(ArrayLength)(V<WasmArrayNullable> array,
                                 OptionalV<EagerFrameState> frame_state,
-                                CheckForNull null_check) {
+                                CheckForNull null_check,
+                                SharedFlag shared_base) {
     bool explicit_null_check =
         null_check == kWithNullCheck &&
         null_check_strategy_ == NullCheckStrategy::kExplicit;
@@ -423,6 +431,7 @@ class WasmLoweringReducer : public Next {
     LoadOp::Kind load_kind = implicit_null_check
                                  ? LoadOp::Kind::TrapOnNull().Immutable()
                                  : LoadOp::Kind::TaggedBase().Immutable();
+    if (shared_base) load_kind = load_kind.SharedBase();
 
     return __ Load(array, load_kind, RepresentationFor(wasm::kWasmI32, true),
                    offsetof(WasmArray, length_));
@@ -453,8 +462,9 @@ class WasmLoweringReducer : public Next {
     // immutable store.
     __ InitializeField(
         a,
-        AccessBuilder::ForMap(is_shared ? compiler::kMapWriteBarrier
-                                        : compiler::kNoWriteBarrier),
+        AccessBuilder::ForMap(
+            is_shared ? compiler::kMapWriteBarrier : compiler::kNoWriteBarrier,
+            is_shared /* not used for stores */),
         rtt);
     __ InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        __ template LoadRoot<RootIndex::kEmptyFixedArray>());
@@ -477,9 +487,10 @@ class WasmLoweringReducer : public Next {
         struct_type->is_shared() ? kDoubleAligned : kTaggedAligned);
     // Objects allocated into old-space need a write barrier for initialization.
     __ InitializeField(s,
-                       AccessBuilder::ForMap(struct_type->is_shared()
-                                                 ? compiler::kMapWriteBarrier
-                                                 : compiler::kNoWriteBarrier),
+                       AccessBuilder::ForMap(
+                           struct_type->is_shared() ? compiler::kMapWriteBarrier
+                                                    : compiler::kNoWriteBarrier,
+                           struct_type->is_shared() /* not used for stores */),
                        rtt);
     __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        __ template LoadRoot<RootIndex::kEmptyFixedArray>());
@@ -702,6 +713,11 @@ class WasmLoweringReducer : public Next {
         wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(),
                           config.from.AsNonShared(), module_) ||
         config.from.is_reference_to(wasm::GenericKind::kExtern);
+    // anyref may contain shared objects. However, since we reject shared
+    // objects before accessing object fields in that case, we can just pass
+    // `config.from.is_shared()` as `shared_base`.
+    SharedFlag shared_base =
+        SharedFlag{v8_flags.wasm_shared && config.from.is_shared()};
 
     V<Word32> result;
     Label<Word32> end_label(&Asm());
@@ -734,7 +750,8 @@ class WasmLoweringReducer : public Next {
         }
         RejectSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
                                           end_label);
-        result = IsDataRefMap(__ LoadMapField(object));
+
+        result = IsDataRefMap(__ LoadMapField(object, shared_base));
         break;
       }
       // array, struct, string: i31 fails.
@@ -744,19 +761,22 @@ class WasmLoweringReducer : public Next {
       if (to_kind == wasm::GenericKind::kArray) {
         RejectSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
                                           end_label);
-        result = __ HasInstanceType(object, WASM_ARRAY_TYPE);
+        // Same as above.
+        result = __ HasInstanceType(object, WASM_ARRAY_TYPE, shared_base);
         break;
       }
       if (to_kind == wasm::GenericKind::kStruct) {
         RejectSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
                                           end_label);
-        result = __ HasInstanceType(object, WASM_STRUCT_TYPE);
+        // Same as above.
+        result = __ HasInstanceType(object, WASM_STRUCT_TYPE, shared_base);
         break;
       }
       if (to_kind == wasm::GenericKind::kString ||
           to_kind == wasm::GenericKind::kExternString) {
+        // TODO(manoskouk): Refine `shared_base` if needed.
         V<Word32> instance_type =
-            __ LoadInstanceTypeField(__ LoadMapField(object));
+            __ LoadInstanceTypeField(__ LoadMapField(object, shared_base));
         result = __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE);
         break;
       }
@@ -787,6 +807,11 @@ class WasmLoweringReducer : public Next {
         wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(),
                           config.from.AsNonShared(), module_) ||
         config.from.is_reference_to(wasm::GenericKind::kExtern);
+    // anyref may contain shared objects. However, since we reject shared
+    // objects before accessing object fields in that case, we can just pass
+    // `config.from.is_shared()` as `shared_base`.
+    SharedFlag shared_base =
+        SharedFlag{v8_flags.wasm_shared && config.from.is_shared()};
 
     Label<> end_label(&Asm());
 
@@ -827,8 +852,8 @@ class WasmLoweringReducer : public Next {
         }
         TrapOnSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
                                           frame_state);
-        __ TrapIfNot(IsDataRefMap(__ LoadMapField(object)), frame_state,
-                     TrapId::kTrapIllegalCast);
+        __ TrapIfNot(IsDataRefMap(__ LoadMapField(object, shared_base)),
+                     frame_state, TrapId::kTrapIllegalCast);
         break;
       }
       // array, struct, string: i31 fails.
@@ -838,21 +863,24 @@ class WasmLoweringReducer : public Next {
       if (to_kind == wasm::GenericKind::kArray) {
         TrapOnSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
                                           frame_state);
-        __ TrapIfNot(__ HasInstanceType(object, WASM_ARRAY_TYPE), frame_state,
-                     TrapId::kTrapIllegalCast);
+        // Same as above.
+        __ TrapIfNot(__ HasInstanceType(object, WASM_ARRAY_TYPE, shared_base),
+                     frame_state, TrapId::kTrapIllegalCast);
         break;
       }
       if (to_kind == wasm::GenericKind::kStruct) {
         TrapOnSharedWasmObjectsIfUnshared(V<HeapObject>::Cast(object), config,
                                           frame_state);
-        __ TrapIfNot(__ HasInstanceType(object, WASM_STRUCT_TYPE), frame_state,
-                     TrapId::kTrapIllegalCast);
+        // Same as above
+        __ TrapIfNot(__ HasInstanceType(object, WASM_STRUCT_TYPE, shared_base),
+                     frame_state, TrapId::kTrapIllegalCast);
         break;
       }
       if (to_kind == wasm::GenericKind::kString ||
           to_kind == wasm::GenericKind::kExternString) {
+        // TODO(manoskouk): Refine `shared_base` if needed.
         V<Word32> instance_type =
-            __ LoadInstanceTypeField(__ LoadMapField(object));
+            __ LoadInstanceTypeField(__ LoadMapField(object, shared_base));
         __ TrapIfNot(__ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE),
                      frame_state, TrapId::kTrapIllegalCast);
         break;
@@ -878,6 +906,11 @@ class WasmLoweringReducer : public Next {
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_i31 = wasm::IsSubtypeOf(
         wasm::kWasmI31Ref.AsNonNull(), config.from.AsNonShared(), module_);
+    // Non-shared anyref may contain shared objects.
+    SharedFlag shared_base =
+        SharedFlag{v8_flags.wasm_shared &&
+                   (config.from.is_shared() ||
+                    config.from.is_reference_to(wasm::GenericKind::kAny))};
 
     Label<> end_label(&Asm());
     bool is_cast_from_any =
@@ -898,7 +931,7 @@ class WasmLoweringReducer : public Next {
       __ TrapIf(__ IsSmi(object), frame_state, TrapId::kTrapIllegalCast);
     }
 
-    V<Map> map = __ LoadMapField(object);
+    V<Map> map = __ LoadMapField(object, shared_base);
 
     DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
                    config.exactness != kMayBeSubtype);
@@ -968,6 +1001,11 @@ class WasmLoweringReducer : public Next {
         wasm::kWasmI31Ref.AsNonNull(), config.from.AsNonShared(), module_);
     bool is_cast_from_any =
         config.from.is_reference_to(wasm::GenericKind::kAny);
+    // Non-shared anyref may contain shared objects.
+    SharedFlag shared_base =
+        SharedFlag{v8_flags.wasm_shared &&
+                   (config.from.is_shared() ||
+                    config.from.is_reference_to(wasm::GenericKind::kAny))};
 
     Label<Word32> end_label(&Asm());
 
@@ -981,7 +1019,7 @@ class WasmLoweringReducer : public Next {
       GOTO_IF(__ IsSmi(object), end_label, 0);
     }
 
-    V<Map> map = __ LoadMapField(object);
+    V<Map> map = __ LoadMapField(object, shared_base);
 
     DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
                    config.exactness != kMayBeSubtype);

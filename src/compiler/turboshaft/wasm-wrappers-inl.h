@@ -595,8 +595,11 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
       __ Load(stack_metadata, LoadOp::Kind::RawAligned(),
               MemoryRepresentation::UncompressedTaggedPointer(),
               wasm::StackMemory::func_ref_offset());
-  AbortIfNot(__ HasInstanceType(func_ref, WASM_FUNC_REF_TYPE),
-             AbortReason::kUnexpectedInstanceType);
+  // A a shared wasm object could flow here, but we don't need to mark it as
+  // shared for TSAN purposes, because we already did so when it flowed into JS.
+  AbortIfNot(
+      __ HasInstanceType(func_ref, WASM_FUNC_REF_TYPE, SharedFlag{false}),
+      AbortReason::kUnexpectedInstanceType);
   V<WasmInternalFunction> internal_function = V<WasmInternalFunction>::Cast(
       __ LoadTrustedPointer(func_ref, LoadOp::Kind::TaggedBase().Immutable(),
                             kWasmInternalFunctionIndirectPointerTag,

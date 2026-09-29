@@ -34,7 +34,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Access to heap object fields and elements (based on tagged pointer).
 
   // Provides access to HeapObject::map() field.
-  static FieldAccess ForMap(WriteBarrierKind write_barrier = kMapWriteBarrier);
+  static FieldAccess ForMap(WriteBarrierKind write_barrier = kMapWriteBarrier,
+                            SharedFlag shared_base = SharedFlag{false});
 
   // Provides access to HeapNumber::value() field.
   static FieldAccess ForHeapNumberValue();

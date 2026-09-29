@@ -1410,6 +1410,9 @@ void InstructionSelector::VisitLoad(OpIndex node, OpIndex value,
     if (load.is_trapping()) {
       code |= AccessModeField::encode(kMemoryAccessTrapping);
     }
+    if (load.has_shared_base()) {
+      code |= SharedBaseField::encode(SharedFlag{true});
+    }
   }
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
 }

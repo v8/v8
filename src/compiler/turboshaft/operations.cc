@@ -670,6 +670,7 @@ void LoadOp::PrintOptions(std::ostream& os) const {
     os << ", element size: 2^" << int{element_size_log2};
   }
   if (offset != 0) os << ", offset: " << offset;
+  if (kind.shared_base) os << ", shared_base";
   os << ']';
 }
 
@@ -2220,6 +2221,7 @@ void ArrayGetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
+  if (shared_base) os << ", shared-base";
   os << ']';
 }
 

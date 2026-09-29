@@ -2156,6 +2156,7 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
       WasmTypeInfo::SizeFor(actual_supertypes),
       shared ? AllocationType::kSharedOld : AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
+  SharedObjectConditionalSafePublishGuard publish_guard(result, shared);
   result->set_supertypes_length(actual_supertypes);
   int i = 0;
   if (!opt_parent.is_null()) {

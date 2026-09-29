@@ -907,10 +907,13 @@ void EmitTSANAwareStore(Zone* zone, CodeGenerator* codegen,
 class OutOfLineTSANRelaxedLoad final : public OutOfLineCode {
  public:
   OutOfLineTSANRelaxedLoad(CodeGenerator* gen, Operand operand,
-                           Register scratch0, StubCallMode stub_mode, int size)
+                           Register scratch0,
+                           std::optional<SharedBaseTsanArgument> shared_base,
+                           StubCallMode stub_mode, int size)
       : OutOfLineCode(gen),
         operand_(operand),
         scratch0_(scratch0),
+        shared_base_(shared_base),
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -929,19 +932,20 @@ class OutOfLineTSANRelaxedLoad final : public OutOfLineCode {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
-      __ CallTSANRelaxedLoadStub(scratch0_, save_fp_mode, size_,
+      __ CallTSANRelaxedLoadStub(scratch0_, shared_base_, save_fp_mode, size_,
                                  StubCallMode::kCallWasmRuntimeStub);
       return;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    __ CallTSANRelaxedLoadStub(scratch0_, save_fp_mode, size_,
+    __ CallTSANRelaxedLoadStub(scratch0_, shared_base_, save_fp_mode, size_,
                                StubCallMode::kCallBuiltinPointer);
   }
 
  private:
   Operand const operand_;
   Register const scratch0_;
+  std::optional<SharedBaseTsanArgument> const shared_base_;
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -949,10 +953,10 @@ class OutOfLineTSANRelaxedLoad final : public OutOfLineCode {
   Zone* zone_;
 };
 
-void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
-                                    MacroAssembler* masm, Operand operand,
-                                    X64OperandConverter& i, StubCallMode mode,
-                                    int size) {
+void EmitTSANRelaxedLoadOOLIfNeeded(
+    Zone* zone, CodeGenerator* codegen, MacroAssembler* masm, Operand operand,
+    std::optional<SharedBaseTsanArgument> shared_base, X64OperandConverter& i,
+    StubCallMode mode, int size) {
   // The FOR_TESTING code doesn't initialize the root register. We can't call
   // the TSAN builtin since we need to load the external reference through the
   // root register.
@@ -961,8 +965,8 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
   if (codegen->code_kind() == CodeKind::FOR_TESTING) return;
 
   Register scratch0 = i.TempRegister(0);
-  auto tsan_ool = zone->New<OutOfLineTSANRelaxedLoad>(codegen, operand,
-                                                      scratch0, mode, size);
+  auto tsan_ool = zone->New<OutOfLineTSANRelaxedLoad>(
+      codegen, operand, scratch0, shared_base, mode, size);
   masm->jmp(tsan_ool->entry());
   masm->bind(tsan_ool->exit());
 }
@@ -1008,10 +1012,10 @@ void EmitTSANAwareStore(Zone* zone, CodeGenerator* codegen,
   }
 }
 
-void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
-                                    MacroAssembler* masm, Operand operand,
-                                    X64OperandConverter& i, StubCallMode mode,
-                                    int size) {}
+void EmitTSANRelaxedLoadOOLIfNeeded(
+    Zone* zone, CodeGenerator* codegen, MacroAssembler* masm, Operand operand,
+    std::optional<SharedBaseTsanArgument> shared_base, X64OperandConverter& i,
+    StubCallMode mode, int size) {}
 #endif  // V8_IS_TSAN
 
 }  // namespace
@@ -1653,6 +1657,20 @@ void CodeGenerator::AssemblePlaceHolderForLazyDeopt(Instruction* instr) {
     __ Nop(MacroAssembler::kIntraSegmentJmpInstrSize);
   }
 }
+
+namespace {
+std::optional<SharedBaseTsanArgument> MakeSharedBaseTsanArgument(
+    Instruction* instr, X64OperandConverter& i) {
+  if (!instr->shared_base()) return {};
+  // For those two modes, the cage base is used as a base for the load, and the
+  // first register argument (the object) is used as the index. For that reason,
+  // the object is kept compressed, so we must uncompress it before passing it
+  // to the builtin.
+  bool must_decompress_pointer = instr->addressing_mode() == kMode_MCR ||
+                                 instr->addressing_mode() == kMode_MCRI;
+  return {{i.InputRegister(0), must_decompress_pointer}};
+}
+}  // namespace
 
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
@@ -3388,8 +3406,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (HasAddressingMode(instr)) {
           Operand address(i.MemoryOperand());
           __ movl(i.OutputRegister(), address);
-          EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
-                                         DetermineStubCallMode(), kInt32Size);
+          EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address,
+                                         MakeSharedBaseTsanArgument(instr, i),
+                                         i, DetermineStubCallMode(),
+                                         kInt32Size);
         } else {
           if (HasRegisterInput(instr, 0)) {
             __ movl(i.OutputRegister(), i.InputRegister(0));
@@ -3470,7 +3490,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       Operand address(i.MemoryOperand());
       __ DecompressTaggedSigned(i.OutputRegister(), address);
-      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address,
+                                     MakeSharedBaseTsanArgument(instr, i), i,
                                      DetermineStubCallMode(), kTaggedSize);
       break;
     }
@@ -3479,7 +3500,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       Operand address(i.MemoryOperand());
       __ DecompressTagged(i.OutputRegister(), address);
-      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address,
+                                     MakeSharedBaseTsanArgument(instr, i), i,
                                      DetermineStubCallMode(), kTaggedSize);
       break;
     }
@@ -3506,7 +3528,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CHECK(instr->HasOutput());
       Operand address(i.MemoryOperand());
       __ DecompressProtected(i.OutputRegister(), address);
-      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+      DCHECK(!instr->shared_base());
+      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, {}, i,
                                      DetermineStubCallMode(), kTaggedSize);
       break;
     }
@@ -3527,7 +3550,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register dst = i.OutputRegister();
       __ movq(dst, address);
       __ DecodeSandboxedPointer(dst);
-      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+      DCHECK(!instr->shared_base());
+      EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, {}, i,
                                      DetermineStubCallMode(),
                                      kSystemPointerSize);
       break;
@@ -3548,7 +3572,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         Operand address(i.MemoryOperand());
         __ movq(i.OutputRegister(), address);
-        EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address, i,
+        EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, masm(), address,
+                                       MakeSharedBaseTsanArgument(instr, i), i,
                                        DetermineStubCallMode(), kInt64Size);
       } else {
         size_t index = 0;

@@ -534,7 +534,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (array_length.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ ArrayLength(__ MapToNewGraph(array_length.array()),
                             __ MapToNewGraph(array_length.frame_state()),
-                            kWithoutNullCheck);
+                            kWithoutNullCheck, array_length.shared_base);
     }
     goto no_change;
   }

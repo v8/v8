@@ -410,7 +410,8 @@ class TurboshaftGraphBuildingInterface
 
     if (v8_flags.debug_code) {
       IF_NOT (LIKELY(__ HasInstanceType(trusted_instance_data,
-                                        WASM_TRUSTED_INSTANCE_DATA_TYPE))) {
+                                        WASM_TRUSTED_INSTANCE_DATA_TYPE,
+                                        SharedFlag{false}))) {
         OpIndex message_id = __ TaggedIndexConstant(
             static_cast<int32_t>(AbortReason::kUnexpectedInstanceType));
         __ WasmCallRuntime(decoder->zone(), Runtime::kAbort, {message_id},
@@ -1846,7 +1847,8 @@ class TurboshaftGraphBuildingInterface
     //  - non-resizable ArrayBuffers, length-tracking and non-length-tracking
     //  - non-growable SharedArrayBuffers, length-tracking and non-length-tr.
     //  - growable SharedArrayBuffers, non-length-tracking
-    IF (LIKELY(__ HasInstanceType(dataview, InstanceType::JS_DATA_VIEW_TYPE))) {
+    IF (LIKELY(__ HasInstanceType(dataview, InstanceType::JS_DATA_VIEW_TYPE,
+                                  SharedFlag{false}))) {
       if (op_type != DataViewOp::kByteLength) {
         DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type,
                            check_for_exception);
@@ -1862,7 +1864,8 @@ class TurboshaftGraphBuildingInterface
     // - resizable ArrayBuffers, length-tracking and non-length-tracking
     // - growable SharedArrayBuffers, length-tracking
     GOTO_IF_NOT(LIKELY(__ HasInstanceType(
-                    dataview, InstanceType::JS_RAB_GSAB_DATA_VIEW_TYPE)),
+                    dataview, InstanceType::JS_RAB_GSAB_DATA_VIEW_TYPE,
+                    SharedFlag{false})),
                 type_error_label);
     if (op_type != DataViewOp::kByteLength) {
       DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type,
@@ -5584,7 +5587,7 @@ class TurboshaftGraphBuildingInterface
     auto array_value = array_obj.get<WasmArrayNullable>();
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
     result->op = __ ArrayGet(array_value, index.get<Word32>(), imm.array_type,
-                             is_signed, {});
+                             is_signed, {}, array_obj.type.is_shared());
   }
 
   void ArrayAtomicGet(FullDecoder* decoder, const Value& array_obj,
@@ -5593,8 +5596,9 @@ class TurboshaftGraphBuildingInterface
                       Value* result) {
     auto array_value = array_obj.get<WasmArrayNullable>();
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
-    result->op = __ ArrayGet(array_value, index.get<Word32>(), imm.array_type,
-                             is_signed, memory_order);
+    result->op =
+        __ ArrayGet(array_value, index.get<Word32>(), imm.array_type, is_signed,
+                    memory_order, array_obj.type.is_shared());
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
@@ -5629,8 +5633,9 @@ class TurboshaftGraphBuildingInterface
       // unshared objects don't have the required alignment for 64 bit accesses.
       auto array_value = array_obj.get<WasmArrayNullable>();
       __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
-      V<Any> old_value = __ ArrayGet(array_value, index.get<Word32>(),
-                                     imm.array_type, true, {});
+      V<Any> old_value =
+          __ ArrayGet(array_value, index.get<Word32>(), imm.array_type, true,
+                      {}, array_obj.type.is_shared());
       result->op = old_value;
       V<Word64> new_value;
       V<Word64> old = V<Word64>::Cast(old_value);
@@ -5704,8 +5709,9 @@ class TurboshaftGraphBuildingInterface
         imm.array_type->element_type() == kWasmI64) {
       // On some architectures atomic operations require aligned accesses while
       // unshared objects don't have the required alignment for 64 bit accesses.
-      V<Word64> old_value = V<Word64>::Cast(__ ArrayGet(
-          array_value, index.get<Word32>(), imm.array_type, true, {}));
+      V<Word64> old_value = V<Word64>::Cast(
+          __ ArrayGet(array_value, index.get<Word32>(), imm.array_type, true,
+                      {}, SharedFlag{false}));
       result->op = old_value;
       IF (__ Word64Equal(old_value, expected_value.get<Word64>())) {
         __ ArraySet(array_value, index.get<Word32>(), new_value.get<Word64>(),
@@ -5726,7 +5732,8 @@ class TurboshaftGraphBuildingInterface
     result->op = __ ArrayLength(array_obj.get<WasmArrayNullable>(),
                                 array_obj.type.is_nullable()
                                     ? compiler::kWithNullCheck
-                                    : compiler::kWithoutNullCheck);
+                                    : compiler::kWithoutNullCheck,
+                                array_obj.type.is_shared());
   }
 
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
@@ -5737,11 +5744,13 @@ class TurboshaftGraphBuildingInterface
     BoundsCheckArrayWithLength(
         dst_array, dst_index.get<Word32>(), length.get<Word32>(),
         dst.type.is_nullable() ? compiler::kWithNullCheck
-                               : compiler::kWithoutNullCheck);
+                               : compiler::kWithoutNullCheck,
+        dst.type.is_shared());
     BoundsCheckArrayWithLength(
         src_array, src_index.get<Word32>(), length.get<Word32>(),
         src.type.is_nullable() ? compiler::kWithNullCheck
-                               : compiler::kWithoutNullCheck);
+                               : compiler::kWithoutNullCheck,
+        src.type.is_shared());
 
     ValueType element_type = src_imm.array_type->element_type();
 
@@ -5796,8 +5805,9 @@ class TurboshaftGraphBuildingInterface
           ScopedVar<Word32> dst_index_loop(this, dst_end_index);
 
           WHILE(__ Word32Constant(1)) {
-            V<Any> value = __ ArrayGet(src_array, src_index_loop,
-                                       src_imm.array_type, true, {});
+            V<Any> value =
+                __ ArrayGet(src_array, src_index_loop, src_imm.array_type, true,
+                            {}, src.type.is_shared());
             __ ArraySet(dst_array, dst_index_loop, value, element_type, {},
                         ArrayIndexImmediateToWriteBarrier(src_imm),
                         ArraySetOp::Kind::kAssign);
@@ -5813,8 +5823,9 @@ class TurboshaftGraphBuildingInterface
           ScopedVar<Word32> dst_index_loop(this, dst_index.get<Word32>());
 
           WHILE(__ Word32Constant(1)) {
-            V<Any> value = __ ArrayGet(src_array, src_index_loop,
-                                       src_imm.array_type, true, {});
+            V<Any> value =
+                __ ArrayGet(src_array, src_index_loop, src_imm.array_type, true,
+                            {}, src.type.is_shared());
             __ ArraySet(dst_array, dst_index_loop, value, element_type, {},
                         ArrayIndexImmediateToWriteBarrier(src_imm),
                         ArraySetOp::Kind::kAssign);
@@ -5836,7 +5847,8 @@ class TurboshaftGraphBuildingInterface
     V<WasmArray> array_not_null = BoundsCheckArrayWithLength(
         array_value, index.get<Word32>(), length.get<Word32>(),
         array.type.is_nullable() ? compiler::kWithNullCheck
-                                 : compiler::kWithoutNullCheck);
+                                 : compiler::kWithoutNullCheck,
+        array.type.is_shared());
     ArrayFillImpl(array_not_null, index.get<Word32>(), value.op,
                   length.get<Word32>(), imm.array_type,
                   ArrayIndexImmediateToWriteBarrier(imm),
@@ -9049,11 +9061,12 @@ class TurboshaftGraphBuildingInterface
 
   V<WasmArray> BoundsCheckArrayWithLength(V<WasmArrayNullable> array,
                                           V<Word32> index, V<Word32> length,
-                                          compiler::CheckForNull null_check) {
+                                          compiler::CheckForNull null_check,
+                                          SharedFlag shared_base) {
     if (V8_UNLIKELY(v8_flags.wasm_skip_bounds_checks)) {
       return V<WasmArray>::Cast(array);
     }
-    V<Word32> array_length = __ ArrayLength(array, null_check);
+    V<Word32> array_length = __ ArrayLength(array, null_check, shared_base);
     V<Word32> range_end = __ Word32Add(index, length);
     V<Word32> range_valid = __ Word32BitwiseAnd(
         // OOB if (index + length > array.len).

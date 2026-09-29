@@ -1002,6 +1002,7 @@ class V8_EXPORT_PRIVATE Instruction final {
   FlagsCondition flags_condition() const {
     return FlagsConditionField::decode(opcode());
   }
+  SharedFlag shared_base() const { return SharedBaseField::decode(opcode()); }
   bool branch_hinted() const { return BranchHintField::decode(opcode()); }
   int misc() const { return MiscField::decode(opcode()); }
   bool HasMemoryAccessMode() const {

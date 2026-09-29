@@ -3149,6 +3149,9 @@ struct LoadOp : OperationT<LoadOp> {
     bool is_immutable : 1;
     // The load should be atomic.
     bool is_atomic : 1;
+    // The `base` input *may* be a tagged pointer to a shared HeapObject.
+    // Currently used only for TSAN.
+    bool shared_base : 1;
 
     static constexpr Kind Aligned(BaseTaggedness base_is_tagged) {
       switch (base_is_tagged) {
@@ -3165,7 +3168,8 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false};
+              .is_atomic = false,
+              .shared_base = false};
     }
     static constexpr Kind RawAligned() {
       return {.tagged_base = false,
@@ -3173,7 +3177,8 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false};
+              .is_atomic = false,
+              .shared_base = false};
     }
     static constexpr Kind RawUnaligned() {
       return {.tagged_base = false,
@@ -3181,7 +3186,8 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false};
+              .is_atomic = false,
+              .shared_base = false};
     }
     static constexpr Kind Trapping() {
       return {.tagged_base = false,
@@ -3189,7 +3195,8 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = true,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false};
+              .is_atomic = false,
+              .shared_base = false};
     }
     static constexpr Kind TrapOnNull() {
       return {.tagged_base = true,
@@ -3197,7 +3204,8 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = true,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false};
+              .is_atomic = false,
+              .shared_base = false};
     }
     static constexpr Kind MaybeUnaligned(MemoryRepresentation rep) {
       return rep == MemoryRepresentation::Int8() ||
@@ -3225,12 +3233,19 @@ struct LoadOp : OperationT<LoadOp> {
       return new_kind;
     }
 
+    [[nodiscard]] constexpr Kind SharedBase() const {
+      Kind new_kind(*this);
+      new_kind.shared_base = true;
+      return new_kind;
+    }
+
     bool operator==(const Kind& other) const {
       return tagged_base == other.tagged_base &&
              maybe_unaligned == other.maybe_unaligned &&
              with_trap_handler == other.with_trap_handler &&
              load_eliminable == other.load_eliminable &&
-             is_immutable == other.is_immutable && is_atomic == other.is_atomic;
+             is_immutable == other.is_immutable &&
+             is_atomic == other.is_atomic && shared_base == other.shared_base;
     }
   };
   Kind kind;
@@ -8334,6 +8349,7 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
   bool is_signed;
   const wasm::ArrayType* array_type;
   std::optional<AtomicMemoryOrder> memory_order;
+  SharedFlag shared_base;  // Currently only used for TSAN.
 
   // ArrayGetOp may never trap as it is always protected by a length check.
   OpEffects Effects() const {
@@ -8351,11 +8367,13 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
 
   ArrayGetOp(V<WasmArrayNullable> array, V<Word32> index,
              const wasm::ArrayType* array_type, bool is_signed,
-             std::optional<AtomicMemoryOrder> memory_order)
+             std::optional<AtomicMemoryOrder> memory_order,
+             SharedFlag shared_base)
       : Base(array, index),
         is_signed(is_signed),
         array_type(array_type),
-        memory_order(memory_order) {}
+        memory_order(memory_order),
+        shared_base(shared_base) {}
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
@@ -8371,7 +8389,7 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
   }
 
   auto options() const {
-    return std::tuple{array_type, is_signed, memory_order};
+    return std::tuple{array_type, is_signed, memory_order, shared_base};
   }
   void PrintOptions(std::ostream& os) const;
 };
@@ -8508,6 +8526,7 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
 
 struct ArrayLengthOp : OperationT<ArrayLengthOp> {
   CheckForNull null_check;
+  SharedFlag shared_base;  // Currently only used for TSAN.
 
   OpEffects Effects() const {
     OpEffects result =
@@ -8524,8 +8543,10 @@ struct ArrayLengthOp : OperationT<ArrayLengthOp> {
 
   explicit ArrayLengthOp(V<WasmArrayNullable> array,
                          OptionalV<EagerFrameState> frame_state,
-                         CheckForNull null_check)
-      : Base(1 + frame_state.valid()), null_check(null_check) {
+                         CheckForNull null_check, SharedFlag shared_base)
+      : Base(1 + frame_state.valid()),
+        null_check(null_check),
+        shared_base(shared_base) {
     input(0) = array;
     if (frame_state.valid()) {
       input(1) = frame_state.value();
@@ -8549,17 +8570,18 @@ struct ArrayLengthOp : OperationT<ArrayLengthOp> {
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
-    return fn(mapper.Map(array()), mapper.Map(frame_state()), null_check);
+    return fn(mapper.Map(array()), mapper.Map(frame_state()), null_check,
+              shared_base);
   }
 
   static ArrayLengthOp& New(Graph* graph, V<WasmArrayNullable> array,
                             OptionalV<EagerFrameState> frame_state,
-                            CheckForNull null_check) {
+                            CheckForNull null_check, SharedFlag shared_base) {
     return Base::New(graph, 1 + frame_state.valid(), array, frame_state,
-                     null_check);
+                     null_check, shared_base);
   }
 
-  auto options() const { return std::tuple{null_check}; }
+  auto options() const { return std::tuple{null_check, shared_base}; }
 };
 
 struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {

@@ -3178,12 +3178,6 @@ class AssemblerOpInterface : public Next {
     return LoadFieldImpl<T>(object, field);
   }
 
-  template <typename Obj, typename Field>
-  V<typename Field::field_type> LoadField(V<Obj> object, const Field& field) {
-    LoadOp::Kind kind = LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase);
-    return Load(object, kind, field.rep, static_cast<int32_t>(field.offset));
-  }
-
   template <typename Rep>
   V<Rep> LoadFieldImpl(OpIndex object, const compiler::FieldAccess& access) {
     MachineType machine_type = access.machine_type;
@@ -3208,6 +3202,7 @@ class AssemblerOpInterface : public Next {
     if (access.is_immutable) {
       kind = kind.Immutable();
     }
+    if (access.shared_base) kind = kind.SharedBase();
     V<Rep> value = Load(object, kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
     if (is_sandboxed_external) {
@@ -3226,8 +3221,10 @@ class AssemblerOpInterface : public Next {
 
   // Helpers to read the most common fields.
   // TODO(nicohartmann@): Strengthen this to `V<HeapObject>`.
-  V<Map> LoadMapField(V<Object> object) {
-    return LoadField<Map>(object, AccessBuilder::ForMap());
+  V<Map> LoadMapField(V<Object> object,
+                      SharedFlag shared_base = SharedFlag{false}) {
+    return LoadField<Map>(object,
+                          AccessBuilder::ForMap(kMapWriteBarrier, shared_base));
   }
 
   V<Word32> LoadInstanceTypeField(V<Map> map) {
@@ -3240,8 +3237,9 @@ class AssemblerOpInterface : public Next {
     return DecodeWord32<Map::Bits2::ElementsKindBits>(bit_field2);
   }
 
-  V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type) {
-    return Word32Equal(LoadInstanceTypeField(LoadMapField(object)),
+  V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type,
+                            SharedFlag shared_base) {
+    return Word32Equal(LoadInstanceTypeField(LoadMapField(object, shared_base)),
                        instance_type);
   }
 
@@ -5315,9 +5313,10 @@ class AssemblerOpInterface : public Next {
 
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,
                   const wasm::ArrayType* array_type, bool is_signed,
-                  std::optional<AtomicMemoryOrder> memory_order) {
+                  std::optional<AtomicMemoryOrder> memory_order,
+                  SharedFlag shared_base) {
     return ReduceIfReachableArrayGet(array, index, array_type, is_signed,
-                                     memory_order);
+                                     memory_order, shared_base);
   }
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
@@ -5328,15 +5327,17 @@ class AssemblerOpInterface : public Next {
                               write_barrier, kind);
   }
 
-  V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {
+  V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check,
+                        SharedFlag shared_base) {
     return ReduceIfReachableArrayLength(array, OptionalV<EagerFrameState>{},
-                                        null_check);
+                                        null_check, shared_base);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array,
                         OptionalV<EagerFrameState> frame_state,
-                        CheckForNull null_check) {
-    return ReduceIfReachableArrayLength(array, frame_state, null_check);
+                        CheckForNull null_check, SharedFlag shared_base) {
+    return ReduceIfReachableArrayLength(array, frame_state, null_check,
+                                        shared_base);
   }
 
   // Shared between the Wasm pipeline and the Wasm-in-JS body inlining.
@@ -5349,10 +5350,11 @@ class AssemblerOpInterface : public Next {
                          TrapId::kTrapNullDereference);
       }
     } else {
-      V<Word32> length = __ ArrayLength(array, frame_state,
-                                        array_type.is_nullable()
-                                            ? compiler::kWithNullCheck
-                                            : compiler::kWithoutNullCheck);
+      V<Word32> length =
+          __ ArrayLength(array, frame_state,
+                         array_type.is_nullable() ? compiler::kWithNullCheck
+                                                  : compiler::kWithoutNullCheck,
+                         array_type.is_shared());
       __ TrapIfNot(__ Uint32LessThan(index, length), frame_state,
                    TrapId::kTrapArrayOutOfBounds);
     }

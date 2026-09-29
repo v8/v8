@@ -104,6 +104,10 @@ template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber(double value) {
   Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
+  std::optional<SharedObjectConditionalSafePublishGuard> publish_guard;
+  if constexpr (IsSharedAllocationType(allocation)) {
+    publish_guard.emplace(*heap_number, allocation);
+  }
   heap_number->set_value(value);
   return heap_number;
 }

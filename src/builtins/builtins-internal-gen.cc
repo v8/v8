@@ -865,9 +865,15 @@ class TSANRelaxedLoadCodeStubAssembler : public CodeStubAssembler {
   void GenerateTSANRelaxedLoad(SaveFPRegsMode fp_mode, int size) {
     TNode<ExternalReference> function = GetExternalReference(size);
     auto address = UncheckedParameter<IntPtrT>(TSANLoadDescriptor::kAddress);
+    auto shared_base =
+        UncheckedParameter<Object>(TSANLoadDescriptor::kSharedBase);
+    auto invoke_tsan_acquire =
+        UncheckedParameter<Int32T>(TSANLoadDescriptor::kInvokeTsanAcquire);
     CallCFunctionWithCallerSavedRegisters(
         function, MachineType::Int32(), fp_mode,
-        std::make_pair(MachineType::IntPtr(), address));
+        std::make_pair(MachineType::IntPtr(), address),
+        std::make_pair(MachineType::AnyTagged(), shared_base),
+        std::make_pair(MachineType::Int32(), invoke_tsan_acquire));
     Return(UndefinedConstant());
   }
 };
