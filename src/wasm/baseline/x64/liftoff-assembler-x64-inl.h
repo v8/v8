@@ -4842,6 +4842,11 @@ bool F16x8BinOpViaF32(LiftoffAssembler* assm, LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    vaddph(dst.fp(), lhs.fp(), rhs.fp());
+    return true;
+  }
   return F16x8BinOpViaF32<&Assembler::vaddps>(this, dst, lhs, rhs);
 }
 

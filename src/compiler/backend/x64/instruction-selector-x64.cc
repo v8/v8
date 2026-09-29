@@ -4786,7 +4786,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S256Xor, SXor, LaneSize::kL8, VectorLength::kV256)
 
 #define SIMD_F16x8_BINOP_LIST(V) \
-  V(F16x8Add, FAdd)              \
   V(F16x8Sub, FSub)              \
   V(F16x8Mul, FMul)              \
   V(F16x8Div, FDiv)              \
@@ -5265,6 +5264,22 @@ SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(
     VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH)
 #undef VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH
 #undef SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST
+
+void InstructionSelector::VisitF16x8Add(OpIndex node) {
+  X64OperandGenerator g(this);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  InstructionCode code = kX64FAdd | LaneSizeField::encode(LaneSize::kL16) |
+                         VectorLengthField::encode(VectorLength::kV128);
+  if (UseAvx10_1()) {
+    Emit(code, g.DefineAsRegister(node), g.UseRegister(op.left()),
+         g.UseRegister(op.right()));
+  } else {
+    InstructionOperand temps[] = {g.TempSimd256Register(),
+                                  g.TempSimd256Register()};
+    Emit(code, g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
+         g.UseUniqueRegister(op.right()), arraysize(temps), temps);
+  }
+}
 
 #define VISIT_SIMD_F16x8_BINOP(Name, Opcode)                         \
   void InstructionSelector::Visit##Name(OpIndex node) {              \
@@ -6459,7 +6474,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   if (CpuFeatures::IsSupported(F16C)) {
-    // TODO(wasm): Support vector f16 operations with AVX512 or AVX10.2.
+    // TODO(wasm): Use native AVX10.1 instructions for the remaining vector f16
+    // operations. F16C is still needed for their conversion-based lowering.
     flags |= MachineOperatorBuilder::kFloat16Arithmetic |
              MachineOperatorBuilder::kFloat16MemAccess;
     if (CpuFeatures::IsSupported(AVX)) {

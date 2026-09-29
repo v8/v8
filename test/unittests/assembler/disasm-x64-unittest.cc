@@ -1894,6 +1894,51 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAPX) {
 #endif  // V8_ENABLE_APX_F
 
 #ifdef V8_ENABLE_AVX10_1
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10FP16) {
+  DisassemblerTester t;
+  std::string actual;
+  CpuFeatureScope fscope(&t.assm_, AVX10_1,
+                         CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE_INSTR("vaddph xmm3,xmm2,xmm1", vaddph(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vaddph ymm3,ymm2,ymm1", vaddph(ymm3, ymm2, ymm1));
+  COMPARE_INSTR("vaddph xmm19,xmm18,xmm17", vaddph(xmm19, xmm18, xmm17));
+  COMPARE_INSTR("vaddph ymm31,ymm30,ymm29", vaddph(ymm31, ymm30, ymm29));
+  COMPARE_INSTR("vaddph xmm3,xmm3,xmm1", vaddph(xmm3, xmm3, xmm1));
+  COMPARE_INSTR("vaddph xmm3,xmm2,xmm3", vaddph(xmm3, xmm2, xmm3));
+  COMPARE_INSTR("vaddph xmm3,xmm3,xmm3", vaddph(xmm3, xmm3, xmm3));
+  COMPARE_INSTR("vaddph ymm3,ymm3,ymm1", vaddph(ymm3, ymm3, ymm1));
+  COMPARE_INSTR("vaddph ymm3,ymm2,ymm3", vaddph(ymm3, ymm2, ymm3));
+  COMPARE_INSTR("vaddph ymm3,ymm3,ymm3", vaddph(ymm3, ymm3, ymm3));
+  COMPARE_INSTR("vaddph xmm3,xmm2,[rbx+0x40]",
+                vaddph(xmm3, xmm2, Operand(rbx, 64)));
+  COMPARE_INSTR("vaddph ymm3,ymm2,[rbx+0x80]",
+                vaddph(ymm3, ymm2, Operand(rbx, 128)));
+  COMPARE_INSTR("vaddph xmm3,xmm2,[rbx-0x10]",
+                vaddph(xmm3, xmm2, Operand(rbx, -16)));
+  COMPARE_INSTR("vaddph ymm3,ymm2,[rbx-0x20]",
+                vaddph(ymm3, ymm2, Operand(rbx, -32)));
+  COMPARE_INSTR("vaddph xmm3,xmm2,[rbx+0x14]",
+                vaddph(xmm3, xmm2, Operand(rbx, 20)));
+  COMPARE_INSTR("vaddph ymm3,ymm2,[rbx+0x24]",
+                vaddph(ymm3, ymm2, Operand(rbx, 36)));
+  COMPARE_INSTR("vaddph xmm3,xmm2,[rbx+0x800]",
+                vaddph(xmm3, xmm2, Operand(rbx, 2048)));
+  COMPARE_INSTR("vaddph ymm3,ymm2,[rbx+0x1000]",
+                vaddph(ymm3, ymm2, Operand(rbx, 4096)));
+  COMPARE_INSTR("vaddph xmm19,xmm18,[r12+r13*2+0x40]",
+                vaddph(xmm19, xmm18, Operand(r12, r13, times_2, 64)));
+  COMPARE_INSTR("vaddph ymm19,ymm18,[r12+r13*2+0x80]",
+                vaddph(ymm19, ymm18, Operand(r12, r13, times_2, 128)));
+  Label xmm_label, ymm_label;
+  t.assm_.bind(&xmm_label);
+  COMPARE_INSTR("vaddph xmm3,xmm2,[rip+0xfffffff6]",
+                vaddph(xmm3, xmm2, Operand(&xmm_label)));
+  t.assm_.bind(&ymm_label);
+  COMPARE_INSTR("vaddph ymm3,ymm2,[rip+0xfffffff6]",
+                vaddph(ymm3, ymm2, Operand(&ymm_label)));
+}
+
 TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10) {
   DisassemblerTester t;
   std::string actual;

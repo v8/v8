@@ -431,6 +431,7 @@ class DisassemblerX64 {
   bool evex_map2() const { return (evex_byte1_ & 0x07) == 2; }
   bool evex_map3() const { return (evex_byte1_ & 0x07) == 3; }
   bool evex_map4() const { return (evex_byte1_ & 0x07) == 4; }
+  bool evex_map5() const { return (evex_byte1_ & 0x07) == 5; }
 
   bool evex_w() const { return (evex_byte2_ & 0x80) != 0; }
   int evex_pp() const { return evex_byte2_ & 0x3; }
@@ -1075,6 +1076,21 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
     if (!(evex_byte1_ & 0x20)) synth_rex |= 0x01;
     if (evex_w()) synth_rex |= 0x08;
     setRex(synth_rex);
+  }
+  if (is_evex() && evex_map5()) {
+    // Decode the unmasked, non-broadcast XMM/YMM forms emitted by vaddph.
+    // Require EVEX.z, L', b and aaa to be zero; L and V' may be set.
+    if (evex_pp_none() && !evex_w() && opcode == 0x58 &&
+        (evex_byte3_ & 0xd7) == 0) {
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("vaddph %s,%s,", NameOfAVXRegister(regop),
+                     NameOfAVXRegister(get_vreg()));
+      current += PrintRightEVEXOperand(current, TupleType::kFull);
+    } else {
+      UnimplementedInstruction();
+    }
+    return static_cast<int>(current - data);
   }
   if (simd_prefix_66() && leading_0f38()) {
     int mod, regop, rm, vvvv = get_vreg();
