@@ -4373,7 +4373,8 @@ void LiftoffAssembler::RecordSpillsInSafepoint(
     SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
     LiftoffRegList ref_spills, int spill_offset) {
   LiftoffRegList fp_spills = all_spills & kFpCacheRegList;
-  int spill_space_size = fp_spills.GetNumRegsSet() * kSimd128Size;
+  int spill_space_size = fp_spills.GetNumRegsSet() *
+                         (IsEnabled(LSX) ? kSimd128Size : kStackSlotSize);
   LiftoffRegList gp_spills = all_spills & kGpCacheRegList;
   while (!gp_spills.is_empty()) {
     LiftoffRegister reg = gp_spills.GetFirstRegSet();
