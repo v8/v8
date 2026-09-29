@@ -3574,8 +3574,25 @@ JSNativeContextSpecialization::BuildPropertyStore(
                                 jsgraph()->UndefinedConstant(), effect);
     } else {
       // Regular non-transitioning field store.
+      bool maybe_initializing_store =
+          access_mode == AccessMode::kStoreInLiteral ||
+          access_mode == AccessMode::kDefine;
+
       effect = graph()->NewNode(simplified()->StoreField(field_access), storage,
                                 value, effect, control);
+      if (maybe_initializing_store &&
+          access_info.field_representation().IsDouble()) {
+        // The map store must follow the value write and use release semantics
+        // so background threads (e.g. concurrent compiler) see a consistent
+        // initialized state upon observing the HeapNumber map.
+        effect = graph()->NewNode(
+            jsgraph()->machine()->MemoryBarrier(AtomicMemoryOrder::kAcqRel),
+            effect, control);
+        effect = graph()->NewNode(
+            simplified()->StoreField(AccessBuilder::ForMap()), storage,
+            jsgraph()->ConstantNoHole(broker()->heap_number_map(), broker()),
+            effect, control);
+      }
     }
   }
 

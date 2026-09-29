@@ -231,14 +231,18 @@ DirectHandle<FieldType> Object::OptimalType(Tagged<Object> obj,
   return FieldType::Any(isolate);
 }
 
-Handle<UnionOf<JSAny, Hole>> Object::NewStorageFor(
-    Isolate* isolate, Handle<UnionOf<JSAny, Hole>> object,
+Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> Object::NewStorageFor(
+    Isolate* isolate,
+    Handle<UnionOf<JSAny, Hole, UninitializedHeapNumber>> object,
     Representation representation) {
   if (!representation.IsDouble()) return object;
-  Handle<HeapNumber> result = isolate->factory()->NewHeapNumberWithHoleNaN();
+  DCHECK(!IsUninitializedHeapNumber(*object));
+  if (IsUninitializedHeapNumber(*object)) return object;
   if (IsUninitializedHole(*object)) {
-    result->set_value_as_bits(kHoleNanInt64);
-  } else if (IsHeapNumber(*object)) {
+    return isolate->factory()->NewUninitializedHeapNumber();
+  }
+  Handle<HeapNumber> result = isolate->factory()->NewHeapNumberFromBits(0);
+  if (IsHeapNumber(*object)) {
     // Ensure that all bits of the double value are preserved.
     result->set_value_as_bits(Cast<HeapNumber>(*object)->value_as_bits());
   } else {

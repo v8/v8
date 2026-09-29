@@ -2109,6 +2109,7 @@ void TranslatedState::InitializeCapturedObjectAt(
   // Handle the special cases.
   switch (map->instance_type()) {
     case HEAP_NUMBER_TYPE:
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:
       return;
 
@@ -2237,6 +2238,17 @@ void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
   slot->set_storage(box);
 }
 
+void TranslatedState::MaterializeUninitializedHeapNumber(
+    TranslatedFrame* frame, int* value_index, TranslatedValue* slot) {
+  CHECK_NE(TranslatedValue::kCapturedObject,
+           frame->values_[*value_index].kind());
+  DirectHandle<Object> value = frame->values_[*value_index].GetValue();
+  Handle<HeapObject> box = isolate()->factory()->NewUninitializedHeapNumber();
+  (*value_index)++;
+  slot->set_storage(box);
+  USE(value);
+}
+
 namespace {
 
 enum StorageKind : uint8_t { kStoreTagged, kStoreHeapObject };
@@ -2289,6 +2301,12 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       // Materialize (i.e. allocate&initialize) the heap number and return.
       // There is no need to process the children.
       return MaterializeHeapNumber(frame, &value_index, slot);
+
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      // Materialize (i.e. allocate&initialize) the uninitialized heap number
+      // and return.
+      // There is no need to process the children.
+      return MaterializeUninitializedHeapNumber(frame, &value_index, slot);
 
     case FIXED_ARRAY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:

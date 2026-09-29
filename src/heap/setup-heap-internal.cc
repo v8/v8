@@ -739,6 +739,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     }
 
     // The DescriptorArray map is pre-allocated and initialized above.
+    ALLOCATE_MAP(UNINITIALIZED_HEAP_NUMBER_TYPE, sizeof(HeapNumber),
+                 uninitialized_heap_number)
     ALLOCATE_VARSIZE_MAP(TURBOSHAFT_WORD32_SET_TYPE_TYPE,
                          turboshaft_word32set_type)
     ALLOCATE_VARSIZE_MAP(TURBOSHAFT_WORD64_SET_TYPE_TYPE,

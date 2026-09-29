@@ -628,7 +628,8 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
           continue;
         }
         Tagged<Object> value = RawFastPropertyAt(index);
-        CHECK_IMPLIES(r.IsDouble(), IsHeapNumber(value));
+        CHECK_IMPLIES(r.IsDouble(),
+                      IsHeapNumber(value) || IsUninitializedHeapNumber(value));
         if (IsUninitializedHole(value)) continue;
         CHECK_IMPLIES(r.IsSmi(), IsSmi(value));
         CHECK_IMPLIES(r.IsHeapObject(), IsHeapObject(value));
@@ -1869,6 +1870,10 @@ void HeapNumber::HeapNumberVerify(Isolate* isolate) {
 
 void HashSeedWrapper::HashSeedWrapperVerify(Isolate* isolate) {
   CHECK(Is<HashSeedWrapper>(this));
+}
+
+void UninitializedHeapNumber::UninitializedHeapNumberVerify(Isolate* isolate) {
+  CHECK(Is<UninitializedHeapNumber>(this));
 }
 
 void Oddball::OddballVerify(Isolate* isolate) {

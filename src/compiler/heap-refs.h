@@ -29,6 +29,7 @@ class BytecodeArray;
 class FixedDoubleArray;
 class FunctionTemplateInfo;
 class HeapNumber;
+class UninitializedHeapNumber;
 class InternalizedString;
 class JSBoundFunction;
 class JSDataView;
@@ -159,6 +160,7 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(FixedArrayBase)                                       \
   NEVER_SERIALIZED(FunctionTemplateInfo)                                      \
   NEVER_SERIALIZED(HeapNumber)                                                \
+  NEVER_SERIALIZED(UninitializedHeapNumber)                                   \
   NEVER_SERIALIZED(ContextCell)                                               \
   BACKGROUND_SERIALIZED(JSReceiver)                                           \
   BACKGROUND_SERIALIZED(Map)                                                  \
@@ -759,9 +761,10 @@ class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
   int flags() const;
 };
 
-// HeapNumberRef is only created for immutable HeapNumbers. Mutable
-// HeapNumbers (those owned by in-object or backing store fields with
-// representation type Double are not exposed to the compiler through
+// HeapNumberRef is only created for immutable HeapNumbers and for initialized
+// Double fields of boilerplate objects read via RawInobjectPropertyAt.
+// Mutable HeapNumbers (those owned by in-object or backing store fields with
+// representation type Double) are not exposed to the compiler through
 // HeapNumberRef. Instead, we read their value, and protect that read
 // with a field-constness Dependency.
 class HeapNumberRef : public HeapObjectRef {
@@ -772,6 +775,15 @@ class HeapNumberRef : public HeapObjectRef {
 
   double value() const;
   uint64_t value_as_bits() const;
+};
+
+// UninitializedHeapNumberRef is only created for uninitialized Double fields
+// of boilerplate objects read via RawInobjectPropertyAt.
+class UninitializedHeapNumberRef : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(UninitializedHeapNumber, HeapObjectRef)
+
+  IndirectHandle<UninitializedHeapNumber> object() const;
 };
 
 class DataHandlerRef : public HeapObjectRef {

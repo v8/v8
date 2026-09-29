@@ -1003,6 +1003,7 @@ class MaglevReducer {
   uint32_t NewObjectId() { return graph()->NewObjectId(); }
 
   VirtualObject* CreateHeapNumber(ValueNode* value);
+  VirtualObject* CreateUninitializedHeapNumber();
   VirtualObject* CreateJSObject(compiler::MapRef map);
   VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
                                   ValueNode* first, ValueNode* second);

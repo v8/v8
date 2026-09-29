@@ -429,6 +429,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case HASH_SEED_WRAPPER_TYPE:
       return kVisitHashSeedWrapper;
 
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      return kVisitUninitializedHeapNumber;
+
     case FOREIGN_TYPE:
       return kVisitForeign;
 

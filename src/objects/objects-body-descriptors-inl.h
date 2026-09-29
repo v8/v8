@@ -358,6 +358,14 @@ class HeapNumber::BodyDescriptor final : public DataOnlyBodyDescriptor {
   }
 };
 
+class UninitializedHeapNumber::BodyDescriptor final
+    : public DataOnlyBodyDescriptor {
+ public:
+  static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return sizeof(UninitializedHeapNumber);
+  }
+};
+
 class HashSeedWrapper::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
   static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

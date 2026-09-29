@@ -82,20 +82,30 @@ class FoldedMutableHeapNumberAllocator {
     raw_bytes_->set_length(0);
   }
 
-  Tagged<HeapNumber> AllocateNext(ReadOnlyRoots roots, Float64 value) {
+  Tagged<HeapNumber> Allocate(Float64 value) {
+    Tagged<HeapObject> hn = AllocateRaw(roots_.heap_number_map());
+    Cast<HeapNumber>(hn)->set_value_as_bits(value.get_bits());
+    return Cast<HeapNumber>(hn);
+  }
+
+  Tagged<UninitializedHeapNumber> AllocateUninitialized() {
+    Tagged<HeapObject> hn = AllocateRaw(roots_.uninitialized_heap_number_map());
+    Cast<UninitializedHeapNumber>(hn)->set_value_as_bits(0);
+    return Cast<UninitializedHeapNumber>(hn);
+  }
+
+ private:
+  Tagged<HeapObject> AllocateRaw(Tagged<Map> map) {
     DCHECK_GE(mutable_double_address_,
               reinterpret_cast<Address>(raw_bytes_->begin()));
     Tagged<HeapObject> hn = HeapObject::FromAddress(mutable_double_address_);
-    hn->set_map_after_allocation(isolate_, roots.heap_number_map());
-    Cast<HeapNumber>(hn)->set_value_as_bits(value.get_bits());
+    hn->set_map_after_allocation(isolate_, map);
     mutable_double_address_ +=
         ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(HeapNumber));
     DCHECK_LE(mutable_double_address_,
               reinterpret_cast<Address>(raw_bytes_->end()));
-    return Cast<HeapNumber>(hn);
+    return hn;
   }
-
- private:
   Isolate* isolate_;
   ReadOnlyRoots roots_;
   Handle<ByteArray> raw_bytes_ = {};
@@ -356,8 +366,6 @@ inline void JSDataObjectBuilder::CreateAndInitialiseObject(
     FoldedMutableHeapNumberAllocator hn_allocator(isolate_, &hn_allocation,
                                                   no_gc);
 
-    ReadOnlyRoots roots(isolate_);
-
     // Initialize the in-object properties up to the last added property.
     int current_property_offset = raw_object->GetInObjectPropertyOffset(0);
     for (int i = 0; i < current_property_index_; ++i) {
@@ -371,11 +379,13 @@ inline void JSDataObjectBuilder::CreateAndInitialiseObject(
           IsSmi(value)) {
         PropertyDetails details = descriptors->GetDetails(descriptor_index);
         if (details.representation().IsDouble()) {
-          Float64 d = Float64::hole_nan();
           if (IsNumber(value)) {
-            d = Float64::FromMaybeNaN(Object::NumberValue(value));
+            value = hn_allocator.Allocate(
+                Float64::FromMaybeNaN(Object::NumberValue(value)));
+          } else {
+            DCHECK(IsUninitializedHole(value));
+            value = hn_allocator.AllocateUninitialized();
           }
-          value = hn_allocator.AllocateNext(roots, d);
         }
       }
 

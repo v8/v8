@@ -37,6 +37,7 @@ enum InstanceType : uint16_t;
   V(Filler)                          \
   V(HeapNumber)                      \
   V(HashSeedWrapper)                 \
+  V(UninitializedHeapNumber)         \
   V(Hole)                            \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \

@@ -553,6 +553,9 @@ class TranslatedState {
                                    DirectHandle<Map> map);
   void MaterializeHeapNumber(TranslatedFrame* frame, int* value_index,
                              TranslatedValue* slot);
+  void MaterializeUninitializedHeapNumber(TranslatedFrame* frame,
+                                          int* value_index,
+                                          TranslatedValue* slot);
 
   void EnsureObjectAllocatedAt(TranslatedValue* slot);
 

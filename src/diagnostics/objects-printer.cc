@@ -3671,6 +3671,13 @@ void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoPrint(
   os << '\n';
 }
 
+void UninitializedHeapNumber::UninitializedHeapNumberPrint(std::ostream& os) {
+  PrintHeader(os, "UninitializedHeapNumber");
+  os << "\n - value: ";
+  PrintDouble(os, value());
+  os << '\n';
+}
+
 void Tuple2::Tuple2Print(std::ostream& os) {
   this->PrintHeader(os, "Tuple2");
   os << "\n - value1: " << Brief(this->value1());
@@ -4547,6 +4554,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
          << ") preparsed=" << Brief(data->preparse_data()) << ">";
       break;
     }
+
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      os << "<UninitializedHeapNumber>";
+      break;
 
     case SHARED_FUNCTION_INFO_TYPE: {
       Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(this);

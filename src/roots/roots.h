@@ -196,6 +196,7 @@ class RootVisitor;
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
   V(Map, embedder_data_array_map, EmbedderDataArrayMap)                        \
   V(Map, weak_cell_map, WeakCellMap)                                           \
+  V(Map, uninitialized_heap_number_map, UninitializedHeapNumberMap)            \
   TRUSTED_OBJECT_MAP_ROOT_LIST(V)                                              \
   /* String maps */                                                            \
   V(Map, seq_two_byte_string_map, SeqTwoByteStringMap)                         \

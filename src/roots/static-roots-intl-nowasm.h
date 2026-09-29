@@ -246,8 +246,10 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kStoreHandler1Map = kStoreHandler0Map + 40;
   static constexpr Tagged_t kStoreHandler2Map = kStoreHandler1Map + 40;
   static constexpr Tagged_t kStoreHandler3Map = kStoreHandler2Map + 40;
-  static constexpr Tagged_t kTurboshaftWord32SetTypeMap =
+  static constexpr Tagged_t kUninitializedHeapNumberMap =
       kStoreHandler3Map + 40;
+  static constexpr Tagged_t kTurboshaftWord32SetTypeMap =
+      kUninitializedHeapNumberMap + 40;
   static constexpr Tagged_t kTurboshaftWord64SetTypeMap =
       kTurboshaftWord32SetTypeMap + 40;
   static constexpr Tagged_t kTurboshaftFloat64SetTypeMap =
@@ -1231,7 +1233,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x1a0189;
 };
 
-static constexpr std::array<Tagged_t, 1024> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1025> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1330,6 +1332,7 @@ static constexpr std::array<Tagged_t, 1024> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kEphemeronHashTableMap,
     StaticReadOnlyRoot::kEmbedderDataArrayMap,
     StaticReadOnlyRoot::kWeakCellMap,
+    StaticReadOnlyRoot::kUninitializedHeapNumberMap,
     StaticReadOnlyRoot::kAtomRegExpDataMap,
     StaticReadOnlyRoot::kCodeMap,
     StaticReadOnlyRoot::kDebugInfoMap,

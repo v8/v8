@@ -5710,6 +5710,19 @@ VirtualObject* MaglevReducer<BaseT>::CreateHeapNumber(ValueNode* value) {
 }
 
 template <typename BaseT>
+VirtualObject* MaglevReducer<BaseT>::CreateUninitializedHeapNumber() {
+  using Shape = VirtualHeapNumberShape;
+  int slot_count = Shape::header_slot_count;
+  SBXCHECK_EQ(slot_count, 2);
+  compiler::MapRef map = broker()->uninitialized_heap_number_map();
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), zone(), &Shape::kObjectLayout, map, slot_count);
+  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
+  vobj->set(offsetof(HeapNumber, value_), GetFloat64Constant(Float64(0.0)));
+  return vobj;
+}
+
+template <typename BaseT>
 VirtualObject* MaglevReducer<BaseT>::CreateConsString(ValueNode* map,
                                                       ValueNode* length,
                                                       ValueNode* first,

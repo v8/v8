@@ -129,14 +129,15 @@ class FactoryBase {
   inline Handle<HeapNumber> NewHeapNumber(double value);
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<HeapNumber> NewHeapNumberFromBits(uint64_t bits);
-  template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<HeapNumber> NewHeapNumberWithHoleNaN();
 
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<HeapNumber> NewHeapInt32(int32_t value);
 
   template <AllocationType allocation>
   Handle<HeapNumber> NewHeapNumber();
+
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline Handle<UninitializedHeapNumber> NewUninitializedHeapNumber();
 
   Handle<Struct> NewStruct(InstanceType type,
                            AllocationType allocation = AllocationType::kYoung);

@@ -144,6 +144,7 @@ namespace internal {
   V(GlobalDictionary)                           \
   V(HashSeedWrapper)                            \
   V(HeapNumber)                                 \
+  V(UninitializedHeapNumber)                    \
   V(InterceptorInfo)                            \
   V(InternalizedString)                         \
   V(JSArgumentsObject)                          \

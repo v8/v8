@@ -1057,13 +1057,12 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
       FieldIndex::ForDetails(holder->map(), property_details_);
   if (property_details_.representation().IsDouble()) {
     if (!IsNumber(value)) return false;
-    // Attempt to store HeapNumber with the hole NaN pattern should have
-    // already generalized field constness to kMutable.
-    DCHECK_IMPLIES(!IsSmi(value), !Cast<HeapNumber>(value)->is_the_hole());
     Tagged<Object> current_value = holder->RawFastPropertyAt(field_index);
+    // Only allow initializing stores to uninitialized heap numbers
+    // to stay constant.
+    if (IsUninitializedHeapNumber(current_value)) return true;
     DCHECK(IsHeapNumber(current_value));
-    // Only allow initializing stores to double to stay constant.
-    return Cast<HeapNumber>(current_value)->is_the_hole();
+    return false;
   }
 
   Tagged<Object> current_value = holder->RawFastPropertyAt(field_index);
@@ -1206,8 +1205,8 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
       DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==
                                                  PropertyConstness::kConst,
                      CanStayConst(*value));
-      Cast<JSObject>(*holder)->WriteToField(descriptor_number(),
-                                            property_details_, *value);
+      Cast<JSObject>(*holder)->WriteToField(
+          descriptor_number(), property_details_, *value, initializing_store);
     } else {
       DCHECK_EQ(PropertyLocation::kDescriptor, property_details_.location());
       DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());

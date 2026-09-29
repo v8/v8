@@ -1642,7 +1642,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
       BIND(&data);
       // Handle non-transitioning field stores.
-      HandleStoreICSmiHandlerCase(handler_word, CAST(holder), p->value(), miss);
+      HandleStoreICSmiHandlerCase(handler_word, CAST(holder), p->value(),
+                                  p->mode(), miss);
     }
 
     BIND(&if_proxy);
@@ -2356,6 +2357,7 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
 void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
                                                     TNode<JSObject> holder,
                                                     TNode<Object> value,
+                                                    StoreICMode mode,
                                                     Label* miss) {
   Comment("field store");
 #ifdef DEBUG
@@ -2383,7 +2385,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
   {
     Comment("store tagged field");
     HandleStoreFieldAndReturn(handler_word, holder, value, std::nullopt,
-                              Representation::Tagged(), miss);
+                              Representation::Tagged(), mode, miss);
   }
 
   BIND(&if_heap_object_field);
@@ -2393,7 +2395,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
 
     Comment("store heap object field");
     HandleStoreFieldAndReturn(handler_word, holder, value, std::nullopt,
-                              Representation::HeapObject(), miss);
+                              Representation::HeapObject(), mode, miss);
   }
 
   BIND(&if_smi_field);
@@ -2403,7 +2405,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
 
     Comment("store smi field");
     HandleStoreFieldAndReturn(handler_word, holder, value, std::nullopt,
-                              Representation::Smi(), miss);
+                              Representation::Smi(), mode, miss);
   }
 
   BIND(&if_double_field);
@@ -2420,7 +2422,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
 
     Comment("store double field");
     HandleStoreFieldAndReturn(handler_word, holder, value, double_value,
-                              Representation::Double(), miss);
+                              Representation::Double(), mode, miss);
   }
 }
 
@@ -2512,8 +2514,18 @@ void AccessorAssembler::GotoIfNotSameNumberBitPattern(TNode<Float64T> left,
 void AccessorAssembler::HandleStoreFieldAndReturn(
     TNode<Word32T> handler_word, TNode<JSObject> holder, TNode<Object> value,
     std::optional<TNode<Float64T>> double_value, Representation representation,
-    Label* miss) {
+    StoreICMode mode, Label* miss) {
   bool store_value_as_double = representation.IsDouble();
+  bool maybe_initializing_store;
+  switch (mode) {
+    case StoreICMode::kDefineNamedOwn:
+    case StoreICMode::kDefineKeyedOwn:
+      maybe_initializing_store = true;
+      break;
+    case StoreICMode::kDefault:
+      maybe_initializing_store = false;
+      break;
+  }
 
   if (store_value_as_double) {
     double_value = Float64SilenceNaN(*double_value);
@@ -2540,7 +2552,12 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
 
     // Store the double value directly into the mutable HeapNumber.
     TNode<Object> field = LoadObjectField(property_storage, offset);
-    CSA_DCHECK(this, IsHeapNumber(CAST(field)));
+    if (maybe_initializing_store) {
+      CSA_DCHECK(this, Word32Any(IsHeapNumber(CAST(field)),
+                                 IsUninitializedHeapNumber(CAST(field))));
+    } else {
+      CSA_DCHECK(this, IsHeapNumber(CAST(field)));
+    }
     actual_property_storage = CAST(field);
     actual_offset = IntPtrConstant(offsetof(HeapNumber, value_));
     Goto(&property_and_offset_ready);
@@ -2572,6 +2589,13 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
   // Do the store.
   if (store_value_as_double) {
     StoreObjectFieldNoWriteBarrier(property_storage, offset, *double_value);
+    if (maybe_initializing_store) {
+      // The map store must follow the value write and use release semantics so
+      // background threads (e.g. concurrent compiler) see a consistent
+      // initialized state upon observing the HeapNumber map.
+      StoreMapReleaseNoWriteBarrier(property_storage,
+                                    RootIndex::kHeapNumberMap);
+    }
   } else if (representation.IsSmi()) {
     TNode<Smi> value_smi = CAST(value);
     StoreObjectFieldNoWriteBarrier(property_storage, offset, value_smi);

@@ -50,6 +50,21 @@ Handle<Boolean> FactoryBase<Impl>::ToBoolean(bool value) {
 
 template <typename Impl>
 template <AllocationType allocation>
+Handle<UninitializedHeapNumber>
+FactoryBase<Impl>::NewUninitializedHeapNumber() {
+  static_assert(sizeof(HeapNumber) == sizeof(UninitializedHeapNumber));
+  static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
+  Tagged<Map> map = read_only_roots().uninitialized_heap_number_map();
+  Tagged<HeapObject> result = AllocateRawWithImmortalMap(
+      sizeof(HeapNumber), allocation, map,
+      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                : kTaggedAligned);
+  Cast<UninitializedHeapNumber>(result)->set_value_as_bits(0);
+  return handle(Cast<UninitializedHeapNumber>(result), isolate());
+}
+
+template <typename Impl>
+template <AllocationType allocation>
 Handle<Number> FactoryBase<Impl>::NewNumber(double value) {
   // Materialize as a SMI if possible.
   int32_t int_value;
@@ -118,12 +133,6 @@ Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberFromBits(uint64_t bits) {
   Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
   heap_number->set_value_as_bits(bits);
   return heap_number;
-}
-
-template <typename Impl>
-template <AllocationType allocation>
-Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberWithHoleNaN() {
-  return NewHeapNumberFromBits<allocation>(kHoleNanInt64);
 }
 
 template <typename Impl>

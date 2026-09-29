@@ -348,6 +348,8 @@ V8_EXPORT_PRIVATE std::string ToString(InstanceType instance_type);
   V(_, GlobalDictionaryMap, global_dictionary_map, GlobalDictionary)           \
   V(_, GlobalPropertyCellMap, global_property_cell_map, PropertyCell)          \
   V(_, HeapNumberMap, heap_number_map, HeapNumber)                             \
+  V(_, UninitializedHeapNumberMap, uninitialized_heap_number_map,              \
+    UninitializedHeapNumber)                                                   \
   V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)                \
   V(_, WeakHomomorphicFixedArrayMap, weak_homomorphic_fixed_array_map,         \
     WeakHomomorphicFixedArray)                                                 \

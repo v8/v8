@@ -502,12 +502,14 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
 }
 
 void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
-                            Tagged<Object> value) {
+                            Tagged<Object> value, bool initializing_store) {
   DCHECK_EQ(PropertyLocation::kField, details.location());
   DCHECK_EQ(PropertyKind::kData, details.kind());
   DisallowGarbageCollection no_gc;
   FieldIndex index = FieldIndex::ForDetails(map(), details);
   if (details.representation().IsDouble()) {
+    auto box = Cast<UnionOf<HeapNumber, UninitializedHeapNumber>>(
+        RawFastPropertyAt(index));
     // Manipulating the signaling NaN used for the hole and uninitialized
     // double field sentinel in C++, e.g. with base::bit_cast or
     // value()/set_value(), will change its value on ia32 (the x87 stack is used
@@ -516,14 +518,21 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
     uint64_t bits;
     if (IsSmi(value)) {
       bits = base::bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
-    } else if (IsUninitializedHole(value)) {
-      bits = kHoleNanInt64;
     } else {
       DCHECK(IsHeapNumber(value));
       bits = Cast<HeapNumber>(value)->value_as_bits();
     }
-    auto box = Cast<HeapNumber>(RawFastPropertyAt(index));
-    box->set_value_as_bits(bits);
+    if (IsUninitializedHeapNumber(box)) {
+      Cast<UninitializedHeapNumber>(box)->set_value_as_bits(bits);
+      // The map store must follow the value write and use release semantics so
+      // background threads (e.g. concurrent compiler) see a consistent
+      // initialized state upon observing the HeapNumber map.
+      Isolate* isolate = Isolate::Current();
+      box->set_map_safe_transition_no_write_barrier(
+          isolate, ReadOnlyRoots(isolate).heap_number_map(), kReleaseStore);
+    } else {
+      Cast<HeapNumber>(box)->set_value_as_bits(bits);
+    }
   } else {
     FastPropertyAtPut(index, value);
   }

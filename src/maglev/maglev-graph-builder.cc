@@ -81,6 +81,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/object-list-macros.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/property-details.h"
@@ -4537,8 +4538,18 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
                              {store_target}, field_index.offset(),
                              NodeType::kHeapNumber, false, PropertyKey::None(),
                              IsArrayLength::kNo, compiler::OptionalMapRef{}));
-      return AddNewNode<StoreFloat64>(
-          {heap_number, value}, static_cast<int>(offsetof(HeapNumber, value_)));
+      RETURN_IF_ABORT(AddNewNode<StoreFloat64>(
+          {heap_number, value},
+          static_cast<int>(offsetof(HeapNumber, value_))));
+      if (IsDefiningStore(access_mode)) {
+        // The map store must follow the value write so background threads
+        // (e.g. concurrent compiler) see a consistent initialized state upon
+        // observing the HeapNumber map.
+        RETURN_IF_ABORT(reducer_.BuildStoreMap(heap_number,
+                                               broker()->heap_number_map(),
+                                               StoreMap::Kind::kTransitioning));
+      }
+      return ReduceResult::Done();
     }
   }
 
@@ -13973,10 +13984,15 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       if (!maybe_object_value.has_value()) return {};
       fast_literal->set(offset, maybe_object_value.value());
     } else if (property_details.representation().IsDouble()) {
-      fast_literal->set(
-          offset,
-          reducer_.CreateHeapNumber(GetFloat64Constant(Float64::FromBits(
-              boilerplate_value.AsHeapNumber().value_as_bits()))));
+      if (boilerplate_value.IsHeapNumber()) {
+        fast_literal->set(
+            offset,
+            reducer_.CreateHeapNumber(GetFloat64Constant(Float64::FromBits(
+                boilerplate_value.AsHeapNumber().value_as_bits()))));
+      } else {
+        DCHECK(boilerplate_value.IsUninitializedHeapNumber());
+        fast_literal->set(offset, reducer_.CreateUninitializedHeapNumber());
+      }
     } else {
       fast_literal->set(offset, GetConstant(boilerplate_value));
     }
