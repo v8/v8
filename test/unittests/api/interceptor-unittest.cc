@@ -431,6 +431,38 @@ TEST_F(InterceptorTest, IndexedInterceptorIterableToList_SetPrototypeBypass) {
   ASSERT_TRUE(is_error->IsTrue());
 }
 
+TEST_F(InterceptorTest,
+       IndexedInterceptorIterableToList_ArrayIteratorProtector) {
+  i::FlagScope<bool> enable_flag(&i::v8_flags.fast_api_iterable_to_list, true);
+  v8::HandleScope scope(isolate());
+  InterceptorData data;
+
+  Local<FunctionTemplate> tmpl =
+      CreateIterableToListInterceptorTemplate(isolate(), &data);
+  Local<Function> ctor = tmpl->GetFunction(context()).ToLocalChecked();
+  Local<Object> obj = ctor->NewInstance(context()).ToLocalChecked();
+  SetGlobalProperty("obj", obj);
+
+  // Invalidate the ArrayIterator protector.
+  RunJS(
+      "Object.getPrototypeOf([][Symbol.iterator]()).next = function(){return "
+      "{done:true}};");
+
+  int initial_count = data.call_count;
+
+  Local<Value> res_from = RunJS("Array.from(obj)");
+  ASSERT_TRUE(res_from->IsArray());
+  Local<Array> arr_from = res_from.As<Array>();
+  ASSERT_EQ(0u, arr_from->Length());
+
+  Local<Value> res_spread = RunJS("((...a)=>a)(...obj)");
+  ASSERT_TRUE(res_spread->IsArray());
+  Local<Array> arr_spread = res_spread.As<Array>();
+  ASSERT_EQ(0u, arr_spread->Length());
+
+  ASSERT_EQ(initial_count, data.call_count);
+}
+
 // namespace internal {
 namespace {
 

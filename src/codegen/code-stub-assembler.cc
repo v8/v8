@@ -1562,6 +1562,7 @@ void CodeStubAssembler::BranchIfFastIterableToListInterceptor(
     TNode<JSAnyNotSmi> iterable, Label* if_true, Label* if_false) {
   TNode<Map> map = LoadMap(iterable);
   GotoIfNot(HasIndexedInterceptor(map), if_false);
+  GotoIf(IsArrayIteratorProtectorCellInvalid(), if_false);
 
   CSA_DCHECK(this, IsJSInterceptorMap(map));
 

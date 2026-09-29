@@ -691,7 +691,18 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
       map->set_indexed_interceptor(info);
       if (v8_flags.fast_api_iterable_to_list &&
           info->has_indexed_iterable_to_list()) {
-        map->set_supports_fast_iterable_to_list(true);
+        bool is_valid =
+            !obj->needs_access_check() &&
+            IsObjectTemplateInfo(obj->GetPrototypeTemplate()) &&
+            IsArrayList(Cast<ObjectTemplateInfo>(obj->GetPrototypeTemplate())
+                            ->property_list());
+        DCHECK(!obj->needs_access_check());
+        DCHECK(IsObjectTemplateInfo(obj->GetPrototypeTemplate()));
+        DCHECK(IsArrayList(Cast<ObjectTemplateInfo>(obj->GetPrototypeTemplate())
+                               ->property_list()));
+        if (is_valid) {
+          map->set_supports_fast_iterable_to_list(true);
+        }
       }
     } else {
       map->set_indexed_interceptor(
