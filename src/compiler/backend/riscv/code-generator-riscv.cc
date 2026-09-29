@@ -2930,6 +2930,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvS128Load32Zero: {
       Simd128Register dst = i.OutputSimd128Register();
       __ VU.SetSimd128(E32, tu);
+      // vmv.s.x only writes element 0, so zero the register first to make sure
+      // the upper lanes are zero as required by the Wasm spec.
+      __ vxor_vv(dst, dst, dst);
       __ Load32U(kScratchReg, i.MemoryOperand(), trapper);
       __ vmv_sx(dst, kScratchReg);
       break;
@@ -2937,6 +2940,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvS128Load64Zero: {
       Simd128Register dst = i.OutputSimd128Register();
       __ VU.SetSimd128(E64, tu);
+      // vmv.s.x only writes element 0, so zero the register first to make sure
+      // the upper lanes are zero as required by the Wasm spec.
+      __ vxor_vv(dst, dst, dst);
 #if V8_TARGET_ARCH_RISCV64
       __ LoadWord(kScratchReg, i.MemoryOperand(), trapper);
       __ vmv_sx(dst, kScratchReg);
