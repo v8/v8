@@ -4196,6 +4196,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
+  DCHECK(frame_access_state()->has_frame());
   auto call_descriptor = linkage()->GetIncomingDescriptor();
   __ AssertSpAligned();
 
@@ -4214,164 +4215,160 @@ void CodeGenerator::AssembleConstructFrame() {
   const int returns = frame()->GetReturnSlotCount();
   DCHECK_EQ(returns % 2, 0);
 
-  if (frame_access_state()->has_frame()) {
-    // Link the frame
-    if (call_descriptor->IsJSFunctionCall()) {
-      static_assert(StandardFrameConstants::kFixedFrameSize % 16 == 8);
-      DCHECK_EQ(required_slots % 2, 1);
-      __ Prologue();
-      // Update required_slots count since we have just claimed one extra slot.
-      static_assert(MacroAssembler::kExtraSlotClaimedByPrologue == 1);
-      required_slots -= MacroAssembler::kExtraSlotClaimedByPrologue;
+  // Link the frame
+  if (call_descriptor->IsJSFunctionCall()) {
+    static_assert(StandardFrameConstants::kFixedFrameSize % 16 == 8);
+    DCHECK_EQ(required_slots % 2, 1);
+    __ Prologue();
+    // Update required_slots count since we have just claimed one extra slot.
+    static_assert(MacroAssembler::kExtraSlotClaimedByPrologue == 1);
+    required_slots -= MacroAssembler::kExtraSlotClaimedByPrologue;
 #if V8_ENABLE_WEBASSEMBLY
-    } else if (call_descriptor->IsAnyWasmFunctionCall() ||
-               call_descriptor->IsWasmCapiFunction() ||
-               call_descriptor->IsWasmImportWrapper() ||
-               call_descriptor->IsResumeWasmContinuation() ||
-               (call_descriptor->IsCFunctionCall() &&
-                info()->GetOutputStackFrameType() ==
-                    StackFrame::C_WASM_ENTRY)) {
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.AcquireX();
-      __ Mov(scratch,
-             StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-      __ Push<MacroAssembler::kSignLR>(lr, fp, scratch,
-                                       kWasmImplicitArgRegister);
-      static constexpr int kSPToFPDelta = 2 * kSystemPointerSize;
-      __ Add(fp, sp, kSPToFPDelta);
-      if (call_descriptor->IsWasmCapiFunction()) {
-        // The C-API function has one extra slot for the PC.
-        required_slots++;
-      }
-      if (call_descriptor->IsResumeWasmContinuation()) {
-        // The stack entry wrapper does not have an instance slot, but we
-        // still push it for stack alignment.
-        required_slots--;
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
-    } else if (call_descriptor->kind() == CallDescriptor::kCallCodeObject) {
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.AcquireX();
-      __ Mov(scratch,
-             StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-      __ Push<MacroAssembler::kSignLR>(lr, fp, scratch, padreg);
-      static constexpr int kSPToFPDelta = 2 * kSystemPointerSize;
-      __ Add(fp, sp, kSPToFPDelta);
-      // One of the extra slots has just been claimed when pushing the padreg.
-      // We also know that we have at least one slot to claim here, as the typed
-      // frame has an odd number of fixed slots, and all other parts of the
-      // total frame slots are even, leaving {required_slots} to be odd.
-      DCHECK_GE(required_slots, 1);
-      required_slots--;
-    } else {
-      __ Push<MacroAssembler::kSignLR>(lr, fp);
-      __ Mov(fp, sp);
+  } else if (call_descriptor->IsAnyWasmFunctionCall() ||
+             call_descriptor->IsWasmCapiFunction() ||
+             call_descriptor->IsWasmImportWrapper() ||
+             call_descriptor->IsResumeWasmContinuation() ||
+             (call_descriptor->IsCFunctionCall() &&
+              info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY)) {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch,
+           StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+    __ Push<MacroAssembler::kSignLR>(lr, fp, scratch, kWasmImplicitArgRegister);
+    static constexpr int kSPToFPDelta = 2 * kSystemPointerSize;
+    __ Add(fp, sp, kSPToFPDelta);
+    if (call_descriptor->IsWasmCapiFunction()) {
+      // The C-API function has one extra slot for the PC.
+      required_slots++;
     }
-    unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
+    if (call_descriptor->IsResumeWasmContinuation()) {
+      // The stack entry wrapper does not have an instance slot, but we
+      // still push it for stack alignment.
+      required_slots--;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  } else if (call_descriptor->kind() == CallDescriptor::kCallCodeObject) {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch,
+           StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+    __ Push<MacroAssembler::kSignLR>(lr, fp, scratch, padreg);
+    static constexpr int kSPToFPDelta = 2 * kSystemPointerSize;
+    __ Add(fp, sp, kSPToFPDelta);
+    // One of the extra slots has just been claimed when pushing the padreg.
+    // We also know that we have at least one slot to claim here, as the typed
+    // frame has an odd number of fixed slots, and all other parts of the
+    // total frame slots are even, leaving {required_slots} to be odd.
+    DCHECK_GE(required_slots, 1);
+    required_slots--;
+  } else {
+    __ Push<MacroAssembler::kSignLR>(lr, fp);
+    __ Mov(fp, sp);
+  }
+  unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
 
-    // Create OSR entry if applicable
-    if (info()->is_osr()) {
-      // TurboFan OSR-compiled functions cannot be entered directly.
-      __ Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
+  // Create OSR entry if applicable
+  if (info()->is_osr()) {
+    // TurboFan OSR-compiled functions cannot be entered directly.
+    __ Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
 
-      // Unoptimized code jumps directly to this entrypoint while the
-      // unoptimized frame is still on the stack. Optimized code uses OSR values
-      // directly from the unoptimized frame. Thus, all that needs to be done is
-      // to allocate the remaining stack slots.
-      __ RecordComment("-- OSR entrypoint --");
-      osr_pc_offset_ = __ pc_offset();
-      __ CodeEntry();
-      size_t unoptimized_frame_slots = osr_helper()->UnoptimizedFrameSlots();
+    // Unoptimized code jumps directly to this entrypoint while the
+    // unoptimized frame is still on the stack. Optimized code uses OSR values
+    // directly from the unoptimized frame. Thus, all that needs to be done is
+    // to allocate the remaining stack slots.
+    __ RecordComment("-- OSR entrypoint --");
+    osr_pc_offset_ = __ pc_offset();
+    __ CodeEntry();
+    size_t unoptimized_frame_slots = osr_helper()->UnoptimizedFrameSlots();
 
 #ifdef V8_ENABLE_SANDBOX_BOOL
-      UseScratchRegisterScope temps(masm());
-      uint32_t expected_frame_size =
-          static_cast<uint32_t>(osr_helper()->UnoptimizedFrameSlots()) *
-              kSystemPointerSize +
-          StandardFrameConstants::kFixedFrameSizeFromFp;
-      Register scratch = temps.AcquireX();
-      __ Add(scratch, sp, expected_frame_size);
-      __ Cmp(scratch, fp);
-      __ SbxCheck(eq, AbortReason::kOsrUnexpectedStackSize);
+    UseScratchRegisterScope temps(masm());
+    uint32_t expected_frame_size =
+        static_cast<uint32_t>(osr_helper()->UnoptimizedFrameSlots()) *
+            kSystemPointerSize +
+        StandardFrameConstants::kFixedFrameSizeFromFp;
+    Register scratch = temps.AcquireX();
+    __ Add(scratch, sp, expected_frame_size);
+    __ Cmp(scratch, fp);
+    __ SbxCheck(eq, AbortReason::kOsrUnexpectedStackSize);
 #endif  // V8_ENABLE_SANDBOX_BOOL
 
-      DCHECK(call_descriptor->IsJSFunctionCall());
-      DCHECK_EQ(unoptimized_frame_slots % 2, 1);
-      // One unoptimized frame slot has already been claimed when the actual
-      // arguments count was pushed.
-      required_slots -=
-          unoptimized_frame_slots - MacroAssembler::kExtraSlotClaimedByPrologue;
-    }
+    DCHECK(call_descriptor->IsJSFunctionCall());
+    DCHECK_EQ(unoptimized_frame_slots % 2, 1);
+    // One unoptimized frame slot has already been claimed when the actual
+    // arguments count was pushed.
+    required_slots -=
+        unoptimized_frame_slots - MacroAssembler::kExtraSlotClaimedByPrologue;
+  }
 
 #if V8_ENABLE_WEBASSEMBLY
-    int32_t stack_space =
-        required_slots * kSystemPointerSize + GetStackCheckOffset();
-    if (info()->IsWasm() && stack_space > 4 * KB) {
-      // For WebAssembly functions with big frames we have to do the stack
-      // overflow check before we construct the frame. Otherwise we may not
-      // have enough space on the stack to call the runtime for the stack
-      // overflow.
-      Label done;
-      // If the frame is bigger than the stack, we throw the stack overflow
-      // exception unconditionally. Thereby we can avoid the integer overflow
-      // check in the condition code.
-      if (stack_space < v8_flags.stack_size * KB) {
-        UseScratchRegisterScope temps(masm());
-        Register stack_limit = temps.AcquireX();
-        __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
-        __ Add(stack_limit, stack_limit, stack_space);
-        __ Cmp(sp, stack_limit);
-        __ B(hs, &done);
-      }
-
-      if (v8_flags.wasm_growable_stacks) {
-        CPURegList regs_to_save(kXRegSizeInBits, RegList{});
-        regs_to_save.Combine(WasmHandleStackOverflowDescriptor::GapRegister());
-        regs_to_save.Combine(
-            WasmHandleStackOverflowDescriptor::FrameBaseRegister());
-        for (auto reg : wasm::kGpParamRegisters) regs_to_save.Combine(reg);
-        __ PushCPURegList(regs_to_save);
-        CPURegList fp_regs_to_save(kQRegSizeInBits, DoubleRegList{});
-        for (auto reg : wasm::kFpParamRegisters) {
-          fp_regs_to_save.Combine(reg.Q());
-        }
-        __ PushCPURegList(fp_regs_to_save);
-        __ Mov(WasmHandleStackOverflowDescriptor::GapRegister(), stack_space);
-        __ Add(
-            WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-            Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
-                    CommonFrameConstants::kFixedFrameSizeAboveFp));
-        __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
-                RelocInfo::WASM_STUB_CALL);
-        // If the call successfully grew the stack, we don't expect it to have
-        // allocated any heap objects or otherwise triggered any GC.
-        // If it was not able to grow the stack, it may have triggered a GC when
-        // allocating the stack overflow exception object, but the call did not
-        // return in this case.
-        // So either way, we can just ignore any references and record an empty
-        // safepoint here.
-        RecordSafepointWithoutTaggedSlots();
-        __ PopCPURegList(fp_regs_to_save);
-        __ PopCPURegList(regs_to_save);
-      } else {
-        __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
-                RelocInfo::WASM_STUB_CALL);
-        // The call does not return, hence we can ignore any references and just
-        // define an empty safepoint.
-        RecordSafepointWithoutTaggedSlots();
-        if (v8_flags.debug_code) __ Brk(0);
-      }
-      __ Bind(&done);
+  int32_t stack_space =
+      required_slots * kSystemPointerSize + GetStackCheckOffset();
+  if (info()->IsWasm() && stack_space > 4 * KB) {
+    // For WebAssembly functions with big frames we have to do the stack
+    // overflow check before we construct the frame. Otherwise we may not
+    // have enough space on the stack to call the runtime for the stack
+    // overflow.
+    Label done;
+    // If the frame is bigger than the stack, we throw the stack overflow
+    // exception unconditionally. Thereby we can avoid the integer overflow
+    // check in the condition code.
+    if (stack_space < v8_flags.stack_size * KB) {
+      UseScratchRegisterScope temps(masm());
+      Register stack_limit = temps.AcquireX();
+      __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
+      __ Add(stack_limit, stack_limit, stack_space);
+      __ Cmp(sp, stack_limit);
+      __ B(hs, &done);
     }
+
+    if (v8_flags.wasm_growable_stacks) {
+      CPURegList regs_to_save(kXRegSizeInBits, RegList{});
+      regs_to_save.Combine(WasmHandleStackOverflowDescriptor::GapRegister());
+      regs_to_save.Combine(
+          WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+      for (auto reg : wasm::kGpParamRegisters) regs_to_save.Combine(reg);
+      __ PushCPURegList(regs_to_save);
+      CPURegList fp_regs_to_save(kQRegSizeInBits, DoubleRegList{});
+      for (auto reg : wasm::kFpParamRegisters) {
+        fp_regs_to_save.Combine(reg.Q());
+      }
+      __ PushCPURegList(fp_regs_to_save);
+      __ Mov(WasmHandleStackOverflowDescriptor::GapRegister(), stack_space);
+      __ Add(
+          WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+          Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
+                  CommonFrameConstants::kFixedFrameSizeAboveFp));
+      __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+              RelocInfo::WASM_STUB_CALL);
+      // If the call successfully grew the stack, we don't expect it to have
+      // allocated any heap objects or otherwise triggered any GC.
+      // If it was not able to grow the stack, it may have triggered a GC when
+      // allocating the stack overflow exception object, but the call did not
+      // return in this case.
+      // So either way, we can just ignore any references and record an empty
+      // safepoint here.
+      RecordSafepointWithoutTaggedSlots();
+      __ PopCPURegList(fp_regs_to_save);
+      __ PopCPURegList(regs_to_save);
+    } else {
+      __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+              RelocInfo::WASM_STUB_CALL);
+      // The call does not return, hence we can ignore any references and just
+      // define an empty safepoint.
+      RecordSafepointWithoutTaggedSlots();
+      if (v8_flags.debug_code) __ Brk(0);
+    }
+    __ Bind(&done);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    // Skip callee-saved slots, which are pushed below.
-    required_slots -= saves.Count();
-    required_slots -= saves_fp.Count();
-    required_slots -= returns;
+  // Skip callee-saved slots, which are pushed below.
+  required_slots -= saves.Count();
+  required_slots -= saves_fp.Count();
+  required_slots -= returns;
 
-    __ Claim(required_slots);
-  }
+  __ Claim(required_slots);
 
   // Save FP registers.
   DCHECK_IMPLIES(saves_fp.Count() != 0,

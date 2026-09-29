@@ -336,6 +336,7 @@ void CodeGenerator::AssembleCode() {
 #endif
 
     if (block->must_construct_frame()) {
+      DCHECK(frame_access_state()->has_frame());
       AssembleConstructFrame();
       // We need to setup the root register after we assemble the prologue, to
       // avoid clobbering callee saved registers in case of C linkage and
