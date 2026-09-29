@@ -10044,10 +10044,14 @@ class Phi : public ValueNodeT<Phi> {
   // TODO(jgruber): More intuitive constructors, if possible.
   Phi(uint64_t bitfield, MergePointInterpreterFrameState* merge_state,
       interpreter::Register owner)
+      : Phi(bitfield, merge_state, owner, NodeType::kUnknown) {}
+
+  Phi(uint64_t bitfield, MergePointInterpreterFrameState* merge_state,
+      interpreter::Register owner, NodeType type)
       : Base(bitfield),
         owner_(owner),
         merge_state_(merge_state),
-        type_(NodeType::kUnknown),
+        type_(type),
         post_loop_type_(NodeType::kUnknown) {
     DCHECK_NOT_NULL(merge_state);
   }

@@ -711,8 +711,8 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
       for (Phi* phi : *block->phis()) {
         DCHECK(!phi->is_exception_phi());
         int input_count = phi->input_count();
-        Phi* clone_phi = NodeBase::New<Phi>(zone(), input_count,
-                                            dst_block->state(), phi->owner());
+        Phi* clone_phi = NodeBase::New<Phi>(
+            zone(), input_count, dst_block->state(), phi->owner(), phi->type());
         for (int i = 0; i < input_count; ++i) {
           clone_phi->set_input(i, Remap(ctx.value_map, phi->input(i).node()));
         }
@@ -876,7 +876,7 @@ void MaglevLoopPeeler::BuildPeelExitMerge(PeelContext& ctx) {
       // what CloneBodySubgraph seeds into value_map for the header phis.
       DCHECK_EQ(Remap(ctx.value_map, phi), phi->forward_edge());
       Phi* pem_phi = NodeBase::New<Phi>(zone(), 2 * exit_edge_count, pem_state,
-                                        phi->owner());
+                                        phi->owner(), phi->type());
       for (int idx = 0; idx < exit_edge_count; ++idx) {
         pem_phi->set_input(2 * idx, phi->forward_edge());
         pem_phi->set_input(2 * idx + 1, phi);
@@ -1252,8 +1252,9 @@ void MaglevLoopPeeler::RewireDownstreamPhiRefs(PeelContext& ctx) {
 
   // Create a new loop phi for each header phi and collect the rewires.
   for (auto& [old_phi, pem_phi] : ctx.header_phi_to_pem_phi) {
-    Phi* loop_phi = NodeBase::New<Phi>(
-        zone(), kPhiInputCount, old_phi->merge_state(), old_phi->owner());
+    Phi* loop_phi =
+        NodeBase::New<Phi>(zone(), kPhiInputCount, old_phi->merge_state(),
+                           old_phi->owner(), old_phi->type());
     // Slot 0 takes the peeled clone of the back-edge value (via value_map);
     // slot 1 the original back-edge value. If the back-edge value is itself a
     // header phi (a recursive loop phi), slot 1 still points at the old phi
