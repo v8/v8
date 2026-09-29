@@ -619,7 +619,9 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   DECL_ACCESSORS(feedback_vectors, Tagged<FixedArray>)
   DECL_ACCESSORS(well_known_imports, Tagged<FixedArray>)
   DECL_PRIMITIVE_ACCESSORS(memory0_start, uint8_t*)
-  DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
+  // For unshared memory, stores the byte size directly. For shared memory,
+  // stores the address of the atomic byte length (std::atomic<size_t>*).
+  DECL_PRIMITIVE_ACCESSORS(memory0_size_or_address, Address)
   DECL_PROTECTED_POINTER_ACCESSORS(managed_native_module,
                                    TrustedManaged<wasm::NativeModule>)
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
@@ -661,7 +663,7 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   /* Optional padding to align system pointer size fields */              \
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kMemory0StartOffset, kSystemPointerSize)                              \
-  V(kMemory0SizeOffset, kSizetSize)                                       \
+  V(kMemory0SizeOrAddressOffset, kSystemPointerSize)                      \
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
   /* Continue with system pointer size fields to maintain alignment. */   \
@@ -767,8 +769,13 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   static_assert(kProtectedFieldOffsets.size() == kProtectedFieldNames.size(),
                 "every protected field offset needs a name");
 
-  void SetRawMemory(uint32_t memory_index, uint8_t* mem_start, size_t mem_size);
-
+  // Sets memory base and size/address for {memory_index}.
+  // For unshared memories, {size_or_address} is the byte length.
+  // For shared memories, it is the Address of the backing store's atomic
+  // byte_length_ (std::atomic<size_t>*). To read the actual byte length,
+  // callers must use memory_size(index).
+  void SetRawMemory(uint32_t memory_index, uint8_t* mem_start,
+                    Address size_or_address);
 
   static DirectHandle<WasmTrustedInstanceData> New(
       Isolate*, DirectHandle<WasmModuleObject>,

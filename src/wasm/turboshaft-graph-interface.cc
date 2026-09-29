@@ -1622,8 +1622,13 @@ class TurboshaftGraphBuildingInterface
 
   void CurrentMemoryPages(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                           Value* result) {
+    V<WordPtr> size_wordptr = imm.memory->is_shared
+                                  ? __ Load(MemSizeAddress(imm.index),
+                                            LoadOp::Kind::RawAligned().Atomic(),
+                                            MemoryRepresentation::UintPtr(), 0)
+                                  : MemSize(imm.index);
     V<WordPtr> result_wordptr =
-        __ WordPtrShiftRightArithmetic(MemSize(imm.index), kWasmPageSizeLog2);
+        __ WordPtrShiftRightArithmetic(size_wordptr, kWasmPageSizeLog2);
     // In the 32-bit case, truncation happens implicitly.
     if (imm.memory->is_memory64()) {
       result->op = __ ChangeIntPtrToInt64(result_wordptr);
@@ -6736,7 +6741,7 @@ class TurboshaftGraphBuildingInterface
         memory_can_grow_ = mem.can_grow();
         memory_can_move_ = mem.can_move();
         memory_is_shared_ = mem.is_shared.value();
-        memory_size_cached_ = !mem.is_shared && !memory_can_grow_;
+        memory_size_cached_ = !memory_can_grow_;
         if (memory_size_cached_) {
           mem_size_ = LoadMemSize();
         }
@@ -6785,15 +6790,23 @@ class TurboshaftGraphBuildingInterface
 
     V<WordPtr> LoadMemSize() {
       DCHECK(has_memory_);
-      LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
-      if (memory_is_shared_ && memory_can_grow_) {
-        // Memory size loads should not be load-eliminated as the memory size
-        // can be modified by another thread.
-        kind = kind.NotLoadEliminable();
+      if (memory_is_shared_) {
+        V<WordPtr> size_addr =
+            __ Load(trusted_data_, LoadOp::Kind::TaggedBase().Immutable(),
+                    MemoryRepresentation::UintPtr(),
+                    WasmTrustedInstanceData::kMemory0SizeOrAddressOffset);
+        // A relaxed (non-atomic) aligned word load is sufficient for bounds
+        // checks; `memory.size` uses an explicit atomic load.
+        LoadOp::Kind deref_kind =
+            memory_can_grow_ ? LoadOp::Kind::RawAligned().NotLoadEliminable()
+                             : LoadOp::Kind::RawAligned().Immutable();
+        return __ Load(size_addr, deref_kind, MemoryRepresentation::UintPtr(),
+                       0);
       }
+      LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
       if (!memory_can_grow_) kind = kind.Immutable();
       return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
-                     WasmTrustedInstanceData::kMemory0SizeOffset);
+                     WasmTrustedInstanceData::kMemory0SizeOrAddressOffset);
     }
 
     // For compatibility with `__` macro.
@@ -8310,20 +8323,52 @@ class TurboshaftGraphBuildingInterface
     return __ WordPtrAdd(mem_start, offset);
   }
 
+  // Returns the address holding the atomic byte length for the shared memory at
+  // {index} (i.e. BackingStore::byte_length_).
+  V<WordPtr> MemSizeAddress(uint32_t index) {
+    DCHECK(env_->module->memories[index].is_shared);
+    if (index == 0) {
+      return __ Load(instance_cache_.trusted_instance_data(),
+                     LoadOp::Kind::TaggedBase().Immutable(),
+                     MemoryRepresentation::UintPtr(),
+                     WasmTrustedInstanceData::kMemory0SizeOrAddressOffset);
+    }
+    V<TrustedFixedAddressArray> instance_memories =
+        LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+            instance_cache_.trusted_instance_data(), MemoryBasesAndSizes,
+            TrustedFixedAddressArray);
+    return __ Load(instance_memories, LoadOp::Kind::TaggedBase().Immutable(),
+                   MemoryRepresentation::UintPtr(),
+                   TrustedFixedAddressArray::OffsetOfElementAt(2 * index + 1));
+  }
+
   V<WordPtr> MemSize(uint32_t index) {
     if (index == 0) {
       // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
       return instance_cache_.memory0_size();
     } else {
-      // TODO(14616): Fix sharedness.
-      V<TrustedByteArray> instance_memories =
-          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
-              instance_cache_.trusted_instance_data(), MemoryBasesAndSizes,
-              TrustedByteArray);
-      return __ Load(
-          instance_memories, LoadOp::Kind::TaggedBase().NotLoadEliminable(),
-          MemoryRepresentation::UintPtr(),
-          TrustedFixedAddressArray::OffsetOfElementAt(2 * index + 1));
+      bool is_shared = env_->module->memories[index].is_shared.value();
+      bool can_grow = env_->module->memories[index].can_grow();
+      if (!is_shared) {
+        LoadOp::Kind kind = can_grow
+                                ? LoadOp::Kind::TaggedBase().NotLoadEliminable()
+                                : LoadOp::Kind::TaggedBase().Immutable();
+        V<TrustedFixedAddressArray> instance_memories =
+            LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+                instance_cache_.trusted_instance_data(), MemoryBasesAndSizes,
+                TrustedFixedAddressArray);
+        return __ Load(
+            instance_memories, kind, MemoryRepresentation::UintPtr(),
+            TrustedFixedAddressArray::OffsetOfElementAt(2 * index + 1));
+      }
+      V<WordPtr> size_address = MemSizeAddress(index);
+      // A relaxed (non-atomic) aligned word load is sufficient for bounds
+      // checks; `memory.size` uses an explicit atomic load.
+      LoadOp::Kind deref_kind =
+          can_grow ? LoadOp::Kind::RawAligned().NotLoadEliminable()
+                   : LoadOp::Kind::RawAligned().Immutable();
+      return __ Load(size_address, deref_kind, MemoryRepresentation::UintPtr(),
+                     0);
     }
   }
 

@@ -222,6 +222,10 @@ class TestingModuleBuilder {
   void SetMemoryShared() {
     CHECK_EQ(1, module_->memories.size());
     module_->memories[0].is_shared = SharedFlag{true};
+    Tagged<WasmMemoryObject> mem_obj = trusted_instance_data_->memory_object(0);
+    Address size_or_address = reinterpret_cast<Address>(
+        mem_obj->backing_store()->byte_length_address());
+    trusted_instance_data_->SetRawMemory(0, mem0_start_, size_or_address);
   }
 
   enum FunctionType { kImport, kWasm };

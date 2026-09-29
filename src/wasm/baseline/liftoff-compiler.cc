@@ -4262,14 +4262,18 @@ class LiftoffCompiler {
 
     // TODO(13957): Clamp the loaded memory size to a safe value.
     if (memory->index == 0) {
-      LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
-                          pinned);
+      LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0SizeOrAddress,
+                          kSystemPointerSize, pinned);
     } else {
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
                                         pinned);
       int buffer_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag +
                           kSystemPointerSize * (memory->index * 2 + 1);
       __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
+    }
+    if (memory->is_shared) {
+      // mem_size holds the address of the atomic byte_length_; dereference it.
+      __ LoadFullPointer(mem_size.gp(), mem_size.gp(), 0);
     }
 
     // {for_debugging_} needs spill slots in out of line code.
@@ -4798,14 +4802,22 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister mem_size = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     if (imm.index == 0) {
-      LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
-                          pinned);
+      LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0SizeOrAddress,
+                          kSystemPointerSize, pinned);
     } else {
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
                                         pinned);
       int buffer_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag +
                           kSystemPointerSize * (imm.index * 2 + 1);
       __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
+    }
+    if (imm.memory->is_shared) {
+      // The Wasm spec requires memory.size to be atomic seq_cst for shared
+      // memory. mem_size holds the address of BackingStore::byte_length_.
+      LoadType load_type =
+          kSystemPointerSize == 8 ? LoadType::kI64Load : LoadType::kI32Load;
+      __ AtomicLoad(mem_size, mem_size.gp(), no_reg, 0, load_type, nullptr,
+                    AtomicMemoryOrder::kSeqCst, pinned, false);
     }
     // Convert bytes to pages.
     __ emit_ptrsize_shri(mem_size.gp(), mem_size.gp(), kWasmPageSizeLog2);

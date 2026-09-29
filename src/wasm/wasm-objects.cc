@@ -764,8 +764,17 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
   // We checked this before, but a malicious worker thread with an in-sandbox
   // corruption primitive could have modified it since then.
   SBXCHECK_GE(byte_length, memory.min_memory_size);
+  SBXCHECK_EQ(memory.is_shared, backing_store->is_shared());
 
-  trusted_instance_data->SetRawMemory(memory_index, base_address, byte_length);
+  // For shared memories, store the address of the atomic byte_length_ so that
+  // JIT bounds checks and memory.size can observe dynamic growth atomically.
+  Address size_or_address =
+      memory.is_shared
+          ? reinterpret_cast<Address>(backing_store->byte_length_address())
+          : byte_length;
+
+  trusted_instance_data->SetRawMemory(memory_index, base_address,
+                                      size_or_address);
 
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless &&
@@ -1393,20 +1402,26 @@ constexpr decltype(WasmTrustedInstanceData::kProtectedFieldNames)
 
 void WasmTrustedInstanceData::SetRawMemory(uint32_t memory_index,
                                            uint8_t* mem_start,
-                                           size_t mem_size) {
+                                           Address size_or_address) {
   CHECK_LT(memory_index, module()->memories.size());
 
-  CHECK_LE(mem_size, module()->memories[memory_index].is_memory64()
-                         ? wasm::max_mem64_bytes()
-                         : wasm::max_mem32_bytes());
-  // All memory bases and sizes are stored in a TrustedFixedAddressArray.
+  if (!module()->memories[memory_index].is_shared) {
+    CHECK_LE(size_or_address, module()->memories[memory_index].is_memory64()
+                                  ? wasm::max_mem64_bytes()
+                                  : wasm::max_mem32_bytes());
+  } else {
+    CHECK_NE(size_or_address, kNullAddress);
+    CHECK(IsAligned(size_or_address, alignof(size_t)));
+  }
+  // All memory bases and sizes (or addresses of atomic sizes for shared
+  // memories) are stored in a TrustedFixedAddressArray.
   Tagged<TrustedFixedAddressArray> bases_and_sizes = memory_bases_and_sizes();
   bases_and_sizes->set(memory_index * 2, reinterpret_cast<Address>(mem_start));
-  bases_and_sizes->set(memory_index * 2 + 1, mem_size);
+  bases_and_sizes->set(memory_index * 2 + 1, size_or_address);
   // Memory 0 has fast-access fields.
   if (memory_index == 0) {
     set_memory0_start(mem_start);
-    set_memory0_size(mem_size);
+    set_memory0_size_or_address(size_or_address);
   }
 }
 
@@ -1524,7 +1539,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_break_on_entry(module_object->script()->break_on_entry());
     trusted_data->InitDataSegmentArrays(native_module.get());
     trusted_data->set_memory0_start(empty_backing_store_buffer);
-    trusted_data->set_memory0_size(0);
+    trusted_data->set_memory0_size_or_address(0);
     trusted_data->set_memory_objects(*memory_objects);
     trusted_data->set_memory_bases_and_sizes(*memory_bases_and_sizes);
 

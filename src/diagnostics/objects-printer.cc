@@ -3464,7 +3464,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(feedback_vectors, Brief);
   PRINT_WASM_INSTANCE_FIELD(well_known_imports, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory0_start, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(memory0_size, +);
+  PRINT_WASM_INSTANCE_FIELD(memory0_size_or_address, to_void_ptr);
 #if V8_ENABLE_DRUMBRAKE
   PRINT_WASM_INSTANCE_FIELD(imported_function_indices, Brief);
 #endif  // V8_ENABLE_DRUMBRAKE

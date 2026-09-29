@@ -729,8 +729,11 @@ void LateLoadEliminationAnalyzer::ProcessWasmStackCheck(
   if (op.kind == WasmStackCheckOp::Kind::kLoop &&
       op.trusted_instance_data().valid()) {
     OpIndex instance = op.trusted_instance_data().value();
-    memory_.InvalidateAtOffset(WasmTrustedInstanceData::kMemory0SizeOffset,
-                               instance);
+    // TODO(clemensb): InvalidateAtOffset is no longer needed here because
+    // kMemory0SizeOrAddressOffset stores an immutable address for shared
+    // memory, while unshared memory cannot grow asynchronously across threads.
+    memory_.InvalidateAtOffset(
+        WasmTrustedInstanceData::kMemory0SizeOrAddressOffset, instance);
   }
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

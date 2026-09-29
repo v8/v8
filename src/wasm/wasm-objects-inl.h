@@ -275,8 +275,8 @@ Address WasmGlobalObject::storage() const {
 
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_start, uint8_t*,
                     kMemory0StartOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size, size_t,
-                    kMemory0SizeOffset)
+PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size_or_address, Address,
+                    kMemory0SizeOrAddressOffset)
 // ACCESSORS/OPTIONAL_ACCESSORS/PROTECTED_POINTER_ACCESSORS all use
 // CONDITIONAL_*_WRITE_BARRIER(this, ...) which expands to (object)->... —
 // arrow access that fails for HeapObject value types.  Spell out the
@@ -424,8 +424,14 @@ size_t WasmTrustedInstanceData::memory_size(uint32_t memory_index) const {
       memory_bases_and_sizes()->length().value();
   SBXCHECK_EQ(bases_and_sizes_length % 2u, 0u);
   SBXCHECK_LT(memory_index, bases_and_sizes_length / 2u);
-  DCHECK_EQ(memory0_size(), memory_bases_and_sizes()->get(1));
-  return memory_bases_and_sizes()->get(2 * memory_index + 1);
+  DCHECK_EQ(memory0_size_or_address(), memory_bases_and_sizes()->get(1));
+  Address size_or_address = memory_bases_and_sizes()->get(2 * memory_index + 1);
+  if (module()->memories[memory_index].is_shared) {
+    if (size_or_address == kNullAddress) return 0;
+    return reinterpret_cast<const std::atomic<size_t>*>(size_or_address)
+        ->load(std::memory_order_seq_cst);
+  }
+  return static_cast<size_t>(size_or_address);
 }
 
 wasm::NativeModule* WasmTrustedInstanceData::native_module() const {

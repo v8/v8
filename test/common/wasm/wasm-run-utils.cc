@@ -188,6 +188,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   memory->initial_pages = initial_pages;
   memory->maximum_pages = maximum_pages;
   memory->address_type = address_type;
+  memory->is_shared = shared;
   UpdateComputedInformation(memory);
 
   // Create the WasmMemoryObject.
@@ -205,8 +206,13 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
       TrustedFixedAddressArray::New(isolate_, 2);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(
       memory_object->backing_store()->buffer_start());
+  Address size_or_address =
+      shared.value()
+          ? reinterpret_cast<Address>(
+                memory_object->backing_store()->byte_length_address())
+          : size;
   memory_bases_and_sizes->set(0, reinterpret_cast<Address>(mem_start));
-  memory_bases_and_sizes->set(1, size);
+  memory_bases_and_sizes->set(1, size_or_address);
   trusted_instance_data_->set_memory_bases_and_sizes(*memory_bases_and_sizes);
 
   mem0_start_ = mem_start;
@@ -218,7 +224,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   // TODO(wasm): Delete the following line when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
   // two lines is used to shrink the memory for testing purposes.
-  trusted_instance_data_->SetRawMemory(0, mem0_start_, mem0_size_);
+  trusted_instance_data_->SetRawMemory(0, mem0_start_, size_or_address);
   return mem0_start_;
 }
 
