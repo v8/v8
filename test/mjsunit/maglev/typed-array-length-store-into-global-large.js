@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --maglev
-// Flags: --typed-array-length-loading --mock-arraybuffer-allocator
+// Flags: --typed-array-length-loading
 
 var global = 0;
 

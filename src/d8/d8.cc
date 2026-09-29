@@ -459,6 +459,7 @@ class PAInSandboxAllocator final : public v8::Allocator {
     partition_alloc::PartitionOptions opts;
     opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
     opts.use_configurable_pool = partition_alloc::PartitionOptions::kAllowed;
+    opts.allow_giga_allocations = partition_alloc::PartitionOptions::kAllowed;
     partition_.init(std::move(opts));
 
     // Also adjust the limits for dirty bytes and slot span ring size in the
@@ -512,7 +513,8 @@ class PAInSandboxAllocator final : public v8::Allocator {
     // memory tool (e.g. ASan) overrides malloc, so disable both.
     constexpr auto new_flags =
         flags | partition_alloc::AllocFlags::kNoOverrideHooks |
-        partition_alloc::AllocFlags::kNoMemoryToolOverride;
+        partition_alloc::AllocFlags::kNoMemoryToolOverride |
+        partition_alloc::AllocFlags::kAllowGigaAllocations;
     return partition_.root()->Alloc<new_flags>(length, "PAInSandboxAllocator");
   }
 

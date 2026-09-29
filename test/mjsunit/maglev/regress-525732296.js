@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev --multi-mapped-mock-allocator
+// Flags: --allow-natives-syntax --maglev
 
 const byte_length = 0xFFFFFFFF;
 const buffer = new ArrayBuffer(byte_length);
