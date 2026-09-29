@@ -145,13 +145,9 @@ float Simulator::UFixedToFloat(uint64_t src, int fbits, FPRounding round) {
 }
 
 float16 Simulator::FixedToFloat16(int64_t src, int fbits, FPRounding round) {
-  if (src >= 0) {
-    return UFixedToFloat16(src, fbits, round);
-  } else if (src == INT64_MIN) {
-    return -UFixedToFloat16(src, fbits, round);
-  } else {
-    return -UFixedToFloat16(-src, fbits, round);
-  }
+  constexpr float16 kSignMask = 0x8000;
+  if (src >= 0) return UFixedToFloat16(src, fbits, round);
+  return UFixedToFloat16(-static_cast<uint64_t>(src), fbits, round) | kSignMask;
 }
 
 float16 Simulator::UFixedToFloat16(uint64_t src, int fbits, FPRounding round) {
