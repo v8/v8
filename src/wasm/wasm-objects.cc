@@ -2129,8 +2129,7 @@ DirectHandle<WasmCustomMapWrapper> WasmCustomMap::CreateJSWrapper(
 wasm::WasmValue WasmArray::GetElement(uint32_t index) {
   wasm::CanonicalValueType element_type =
       map()->wasm_type_info()->element_type();
-  int element_offset =
-      WasmArray::kHeaderSize + index * element_type.value_kind_size();
+  int element_offset = this->element_offset(index);
   Address element_address = this->field_address(element_offset);
   switch (element_type.kind()) {
 #define CASE_TYPE(value_type, ctype) \
@@ -3455,19 +3454,11 @@ DirectHandle<Object> WasmToJSObject(Isolate* isolate,
   return value;
 }
 
-// The WasmArray header is not a multiple of 8 bytes. For shared i64 arrays each
-// element needs to be 8 byte aligned for atomic accesses. Therefore shared
-// arrays use the kDoubleUnaligned alignment. If the header size changes to a
-// multiple of 8 bytes, shared arrays should be allocated using kDoubleAligned
-// instead.
-// Note that for 64 bit no-pointer-compression builds, kDoubleUnAligned performs
-// aligned(!) allocations instead, so we manually align the kHeaderSize there.
-// Needed changes in case the header size changes to a multiple of 8:
-// - objects-inl.h: HeapObject::RequiredAlignment
-// - wasm.tq: WasmAllocateSharedArray_Uninitialized
+// For shared i64 arrays each element needs to be 8-byte aligned for atomic
+// accesses, and shared arrays are allocated using kDoubleAligned. Therefore the
+// shared WasmArray header size must be a multiple of 8 bytes.
 // LINT.IfChange
-static_assert(WasmArray::kHeaderSize % kDoubleSize ==
-              (kTaggedSize != kDoubleSize ? 4 : 0));
+static_assert(WasmArray::HeaderSize(SharedFlag{true}) % kDoubleSize == 0);
 // LINT.ThenChange(/src/objects/objects-inl.h, /src/builtins/wasm.tq)
 
 }  // namespace wasm

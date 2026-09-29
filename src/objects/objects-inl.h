@@ -971,17 +971,13 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
     }
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (in_shared_space && v8_flags.wasm_shared) [[unlikely]] {
+  if (in_shared_space) [[unlikely]] {
     int instance_type = map->instance_type();
-    if (instance_type == WASM_STRUCT_TYPE ||
+    if (instance_type == WASM_STRUCT_TYPE || instance_type == WASM_ARRAY_TYPE ||
         instance_type == WASM_CUSTOM_MAP_TYPE) {
-      // The map of a shared wasm struct needs to be in the shared space.
+      // The map of a shared wasm object needs to be in the shared space.
       DCHECK(HeapLayout::InWritableSharedSpace(map));
       return kDoubleAligned;
-    } else if (instance_type == WASM_ARRAY_TYPE) {
-      // The map of a shared wasm array needs to be in the shared space.
-      DCHECK(HeapLayout::InWritableSharedSpace(map));
-      return kDoubleUnaligned;
     }
   }
 #endif

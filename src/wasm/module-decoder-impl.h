@@ -591,7 +591,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
-        const ArrayType* type = consume_array();
+        const ArrayType* type = consume_array(is_shared);
         if (V8_UNLIKELY(type == nullptr)) {
           CHECK(!ok());
           return {};
@@ -2880,12 +2880,13 @@ class ModuleDecoderImpl : public Decoder {
     return result;
   }
 
-  const ArrayType* consume_array() {
+  const ArrayType* consume_array(SharedFlag is_shared) {
     ValueType element_type = consume_storage_type();
     bool mutability = consume_mutability();
     if (tracer_) tracer_->NextLine();
     if (V8_UNLIKELY(failed())) return nullptr;
-    return module_->signature_storage.New<ArrayType>(element_type, mutability);
+    return module_->signature_storage.New<ArrayType>(element_type, mutability,
+                                                     is_shared);
   }
 
   // Consume the attribute field of an exception.

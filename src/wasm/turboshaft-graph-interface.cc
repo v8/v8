@@ -5536,7 +5536,7 @@ class TurboshaftGraphBuildingInterface
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
     ValueKind kind = expected_value.type.kind();
     V<Word32> offset = __ Word32Add(
-        __ Word32Constant(WasmArray::kHeaderSize),
+        __ Word32Constant(WasmArray::HeaderSize(array_obj.type.is_shared())),
         __ Word32ShiftLeft(index.get<Word32>(), value_kind_size_log2(kind)));
     ManagedObjectWait(decoder, array_obj, offset, waitqueue, expected_value,
                       timeout_ns, result);
@@ -5612,7 +5612,7 @@ class TurboshaftGraphBuildingInterface
     auto array_value = array_obj.get<WasmArrayNullable>();
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
-                imm.array_type->element_type(), {},
+                imm.array_type->element_type(), imm.array_type->is_shared(), {},
                 ArrayIndexImmediateToWriteBarrier(imm),
                 ArraySetOp::Kind::kAssign);
   }
@@ -5623,8 +5623,8 @@ class TurboshaftGraphBuildingInterface
     auto array_value = array_obj.get<WasmArrayNullable>();
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
-                imm.array_type->element_type(), memory_order,
-                ArrayIndexImmediateToWriteBarrier(imm),
+                imm.array_type->element_type(), imm.array_type->is_shared(),
+                memory_order, ArrayIndexImmediateToWriteBarrier(imm),
                 ArraySetOp::Kind::kAssign);
   }
 
@@ -5668,7 +5668,7 @@ class TurboshaftGraphBuildingInterface
       }
       DCHECK(new_value.valid() || __ generating_unreachable_operations());
       __ ArraySet(array_value, index.get<Word32>(), new_value,
-                  imm.array_type->element_type(), {},
+                  imm.array_type->element_type(), SharedFlag{false}, {},
                   ArrayIndexImmediateToWriteBarrier(imm),
                   ArraySetOp::Kind::kAssign);
       return;
@@ -5695,9 +5695,9 @@ class TurboshaftGraphBuildingInterface
     })(opcode);
     auto array_value = array_obj.get<WasmArrayNullable>();
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
-    result->op = __ ArrayAtomicRMW(array_value, index.get<Word32>(), value.op,
-                                   OpIndex::Invalid(), op,
-                                   imm.array_type->element_type(), order);
+    result->op = __ ArrayAtomicRMW(
+        array_value, index.get<Word32>(), value.op, OpIndex::Invalid(), op,
+        imm.array_type->element_type(), imm.array_type->is_shared(), order);
   }
 
   void ArrayAtomicCompareExchange(FullDecoder* decoder, WasmOpcode opcode,
@@ -5720,7 +5720,7 @@ class TurboshaftGraphBuildingInterface
       result->op = old_value;
       IF (__ Word64Equal(old_value, expected_value.get<Word64>())) {
         __ ArraySet(array_value, index.get<Word32>(), new_value.get<Word64>(),
-                    imm.array_type->element_type(), {},
+                    imm.array_type->element_type(), SharedFlag{false}, {},
                     ArrayIndexImmediateToWriteBarrier(imm),
                     ArraySetOp::Kind::kAssign);
       }
@@ -5730,7 +5730,7 @@ class TurboshaftGraphBuildingInterface
     result->op = __ ArrayAtomicRMW(
         array_value, index.get<Word32>(), new_value.op, expected_value.op,
         compiler::turboshaft::ArrayAtomicRMWOp::BinOp::kCompareExchange,
-        imm.array_type->element_type(), order);
+        imm.array_type->element_type(), imm.array_type->is_shared(), order);
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
@@ -5813,7 +5813,8 @@ class TurboshaftGraphBuildingInterface
             V<Any> value =
                 __ ArrayGet(src_array, src_index_loop, src_imm.array_type, true,
                             {}, src.type.is_shared());
-            __ ArraySet(dst_array, dst_index_loop, value, element_type, {},
+            __ ArraySet(dst_array, dst_index_loop, value, element_type,
+                        dst.type.is_shared(), {},
                         ArrayIndexImmediateToWriteBarrier(src_imm),
                         ArraySetOp::Kind::kAssign);
 
@@ -5831,7 +5832,8 @@ class TurboshaftGraphBuildingInterface
             V<Any> value =
                 __ ArrayGet(src_array, src_index_loop, src_imm.array_type, true,
                             {}, src.type.is_shared());
-            __ ArraySet(dst_array, dst_index_loop, value, element_type, {},
+            __ ArraySet(dst_array, dst_index_loop, value, element_type,
+                        dst.type.is_shared(), {},
                         ArrayIndexImmediateToWriteBarrier(src_imm),
                         ArraySetOp::Kind::kAssign);
 
@@ -5867,18 +5869,18 @@ class TurboshaftGraphBuildingInterface
     wasm::ValueType element_type = type->element_type();
     int element_count = length_imm.index;
     // Initialize the array header.
-    SharedFlag shared = decoder->module_->type(array_imm.index).is_shared;
+    SharedFlag shared = type->is_shared();
     V<Map> rtt =
         __ RttCanon(instance_cache_.managed_object_maps(), array_imm.index);
-    V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type, shared);
+    V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type);
     WriteBarrierKind write_barrier =
         (shared || v8_flags.single_generation) && element_type.is_ref()
             ? kFullWriteBarrier
             : kNoWriteBarrier;
     // Initialize all elements.
     for (int i = 0; i < element_count; i++) {
-      __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type, {},
-                  write_barrier, ArraySetOp::Kind::kInitialize);
+      __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type,
+                  shared, {}, write_barrier, ArraySetOp::Kind::kInitialize);
     }
     if (shared) __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
     result->op = array;
@@ -9162,9 +9164,9 @@ class TurboshaftGraphBuildingInterface
                              V<Any> initial_value,
                              WriteBarrierKind write_barrier) {
     // Initialize the array header.
-    SharedFlag shared = decoder->module_->type(index).is_shared;
+    SharedFlag shared = array_type->is_shared();
     V<Map> rtt = __ RttCanon(instance_cache_.managed_object_maps(), index);
-    V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type, shared);
+    V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type);
     // Initialize the elements.
     ArrayFillImpl(array, __ Word32Constant(0), initial_value, length,
                   array_type, write_barrier, ArraySetOp::Kind::kInitialize);
@@ -9288,8 +9290,8 @@ class TurboshaftGraphBuildingInterface
     ScopedVar<Word32> current_index(this, index);
 
     WHILE(__ Uint32LessThan(current_index, __ Word32Add(index, length))) {
-      __ ArraySet(array, current_index, value, type->element_type(), {},
-                  write_barrier, kind);
+      __ ArraySet(array, current_index, value, type->element_type(),
+                  type->is_shared(), {}, write_barrier, kind);
       current_index = __ Word32Add(current_index, 1);
     }
 

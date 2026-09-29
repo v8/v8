@@ -408,7 +408,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //  kExprEnd                            // 13
   //-------------------------------------------
   ModuleTypeIndex array_type_index = builder_.AddArrayType(
-      zone()->New<ArrayType>(kWasmI32, false /*mutability*/),
+      zone()->New<ArrayType>(kWasmI32, false /*mutability*/, SharedFlag{false}),
       false /*is_final*/, kNoSuperType);
 
   TestFunction(sigs.i_v(),

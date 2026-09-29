@@ -1646,7 +1646,7 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     if (!WasmArray::GcSafeElementType(map).is_ref()) return;
-    IteratePointers(obj, WasmArray::kHeaderSize, object_size, v);
+    IteratePointers(obj, WasmArray::HeaderSize(map), object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

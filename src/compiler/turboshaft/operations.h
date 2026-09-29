@@ -8397,8 +8397,9 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
 struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   // Initialization has stricter OpEffects limiting e.g. the rescheduling of the
   // operation.
-  enum class Kind { kInitialize, kAssign };
+  enum class Kind : bool { kInitialize, kAssign };
   wasm::ValueType element_type;
+  SharedFlag is_shared;
   std::optional<AtomicMemoryOrder> memory_order;
   WriteBarrierKind write_barrier;
   Kind kind;
@@ -8416,11 +8417,12 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   }
 
   ArraySetOp(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
-             wasm::ValueType element_type,
+             wasm::ValueType element_type, SharedFlag is_shared,
              std::optional<AtomicMemoryOrder> memory_order,
              WriteBarrierKind write_barrier, Kind kind)
       : Base(array, index, value),
         element_type(element_type),
+        is_shared(is_shared),
         memory_order(memory_order),
         write_barrier(write_barrier),
         kind(kind) {}
@@ -8439,7 +8441,8 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   }
 
   auto options() const {
-    return std::tuple{element_type, memory_order, write_barrier, kind};
+    return std::tuple{element_type, is_shared, memory_order, write_barrier,
+                      kind};
   }
   void PrintOptions(std::ostream& os) const;
 };
@@ -8447,8 +8450,9 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
 struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
   using BinOp = AtomicRMWOp::BinOp;
   BinOp bin_op;
-  wasm::ValueType element_type;
+  SharedFlag is_shared;
   AtomicMemoryOrder memory_order;
+  wasm::ValueType element_type;
 
   OpEffects Effects() const {
     return OpEffects()
@@ -8460,11 +8464,13 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
 
   ArrayAtomicRMWOp(V<WasmArrayNullable> array, V<Word32> index, OpIndex value,
                    OptionalV<Any> expected, BinOp bin_op,
-                   wasm::ValueType element_type, AtomicMemoryOrder memory_order)
+                   wasm::ValueType element_type, SharedFlag is_shared,
+                   AtomicMemoryOrder memory_order)
       : Base(3 + expected.valid()),
         bin_op(bin_op),
-        element_type(element_type),
-        memory_order(memory_order) {
+        is_shared(is_shared),
+        memory_order(memory_order),
+        element_type(element_type) {
     input(0) = array;
     input(1) = index;
     input(2) = value;
@@ -8476,16 +8482,18 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     return fn(mapper.Map(array()), mapper.Map(index()), mapper.Map(value()),
-              mapper.Map(expected()), bin_op, element_type, memory_order);
+              mapper.Map(expected()), bin_op, element_type, is_shared,
+              memory_order);
   }
 
   static ArrayAtomicRMWOp& New(Graph* graph, V<WasmArrayNullable> array,
                                V<Word32> index, OpIndex value,
                                OptionalV<Any> expected, BinOp bin_op,
                                wasm::ValueType element_type,
+                               SharedFlag is_shared,
                                AtomicMemoryOrder memory_order) {
     return Base::New(graph, 3 + expected.valid(), array, index, value, expected,
-                     bin_op, element_type, memory_order);
+                     bin_op, element_type, is_shared, memory_order);
   }
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
@@ -8520,7 +8528,7 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
   }
 
   auto options() const {
-    return std::tuple{bin_op, element_type, memory_order};
+    return std::tuple{bin_op, element_type, is_shared, memory_order};
   }
 };
 
@@ -8589,12 +8597,10 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
       OpEffects().CanAllocate().CanDoRawHeapAccess().CanLeaveCurrentFunction();
 
   const wasm::ArrayType* array_type;
-  SharedFlag is_shared;
 
   explicit WasmAllocateArrayOp(V<Map> rtt, V<Word32> length,
-                               const wasm::ArrayType* array_type,
-                               SharedFlag is_shared)
-      : Base(rtt, length), array_type(array_type), is_shared(is_shared) {}
+                               const wasm::ArrayType* array_type)
+      : Base(rtt, length), array_type(array_type) {}
 
   V<Map> rtt() const { return Base::input<Map>(0); }
   V<Word32> length() const { return Base::input<Word32>(1); }
@@ -8609,7 +8615,7 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  auto options() const { return std::tuple{array_type, is_shared}; }
+  auto options() const { return std::tuple{array_type}; }
   void PrintOptions(std::ostream& os) const;
 };
 

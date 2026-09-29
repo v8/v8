@@ -3502,7 +3502,7 @@ class LiftoffCompiler {
     } else if (!v8_flags.wasm_skip_null_checks) {
       // Otherwise, load the word after the map word.
       static_assert(WasmStruct::kHeaderSize > kTaggedSize);
-      static_assert(WasmArray::kHeaderSize > kTaggedSize);
+      static_assert(WasmArray::HeaderSize(SharedFlag{false}) > kTaggedSize);
       static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
       LiftoffRegister dst = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       uint32_t trapping_load_pc = 0;
@@ -7266,7 +7266,8 @@ class LiftoffCompiler {
     int elem_size_shift = value_kind_size_log2(kind);
     DCHECK_NE(elem_size_shift, 0);
     __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
-    __ emit_i32_addi(index.gp(), index.gp(), WasmArray::kHeaderSize);
+    __ emit_i32_addi(index.gp(), index.gp(),
+                     WasmArray::HeaderSize(array_obj.type.is_shared()));
 
     Builtin target = kind == kI32   ? Builtin::kWasmManagedObjectWait32
                      : kind == kI64 ? Builtin::kWasmManagedObjectWait64
@@ -7330,6 +7331,9 @@ class LiftoffCompiler {
       __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
     }
 
+    const int offset =
+        WasmArray::HeaderSize(imm.array_type->is_shared()) - kHeapObjectTag;
+
     // Skip the non-atomic implementation special case on ia32 as it is not
     // needed (ia32 doesn't require any alignment for these operation) and there
     // are only painfully few registers available on ia32.
@@ -7340,9 +7344,8 @@ class LiftoffCompiler {
       // operations.
       LiftoffRegister result_reg =
           pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
-      LoadObjectField(decoder, result_reg, array.gp(), index.gp(),
-                      WasmArray::kHeaderSize - kHeapObjectTag, elem_kind, true,
-                      false, pinned);
+      LoadObjectField(decoder, result_reg, array.gp(), index.gp(), offset,
+                      elem_kind, true, false, pinned);
       LiftoffRegister new_value = opcode == kExprArrayAtomicExchange
                                       ? value
                                       : pinned.set(__ GetUnusedRegister(
@@ -7369,8 +7372,7 @@ class LiftoffCompiler {
           UNREACHABLE();
       }
       __ PushRegister(elem_kind, result_reg);
-      StoreObjectField(decoder, array.gp(), index.gp(),
-                       WasmArray::kHeaderSize - kHeapObjectTag, new_value,
+      StoreObjectField(decoder, array.gp(), index.gp(), offset, new_value,
                        false, pinned, elem_kind);
       return;
     }
@@ -7389,7 +7391,6 @@ class LiftoffCompiler {
     LiftoffRegister result_reg =
         pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
 #endif
-    const int offset = WasmArray::kHeaderSize - kHeapObjectTag;
     switch (opcode) {
       case kExprArrayAtomicAdd:
         __ AtomicAdd(array.gp(), index.gp(), offset, value, result_reg,
@@ -7439,6 +7440,8 @@ class LiftoffCompiler {
                                   const Value& expected_val,
                                   const Value& new_val, AtomicMemoryOrder order,
                                   Value* result) {
+    const int offset =
+        WasmArray::HeaderSize(imm.array_type->is_shared()) - kHeapObjectTag;
 #if V8_TARGET_ARCH_IA32
     // This is an ia32-specific implementation that tries to use as few
     // registers as possible, so that it works with i64 values lowered to
@@ -7480,7 +7483,6 @@ class LiftoffCompiler {
     __ DropValues(2);  // index, array.
 
     LiftoffRegister result_reg = expected_value;
-    const int offset = WasmArray::kHeaderSize - kHeapObjectTag;
     if (is_reference(elem_kind)) {
       __ AtomicCompareExchangeTaggedPointer(mem_location.gp(), no_reg, offset,
                                             expected_value, new_value,
@@ -7517,9 +7519,8 @@ class LiftoffCompiler {
     if (!array_obj.type.is_shared() && elem_kind == ValueKind::kI64) {
       LiftoffRegister result_reg =
           pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
-      LoadObjectField(decoder, result_reg, array.gp(), index.gp(),
-                      WasmArray::kHeaderSize - kHeapObjectTag, elem_kind, true,
-                      false, pinned);
+      LoadObjectField(decoder, result_reg, array.gp(), index.gp(), offset,
+                      elem_kind, true, false, pinned);
       {
         Label end;
         FREEZE_STATE(frozen);
@@ -7534,8 +7535,7 @@ class LiftoffCompiler {
           __ emit_cond_jump(kNotEqual, &end, kI32, result_reg.low_gp(),
                             expected_value.low_gp(), frozen);
         }
-        StoreObjectField(decoder, array.gp(), index.gp(),
-                         WasmArray::kHeaderSize - kHeapObjectTag, new_value,
+        StoreObjectField(decoder, array.gp(), index.gp(), offset, new_value,
                          false, pinned, elem_kind);
         __ bind(&end);
       }
@@ -7545,7 +7545,6 @@ class LiftoffCompiler {
 
     LiftoffRegister result_reg =
         pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
-    const int offset = WasmArray::kHeaderSize - kHeapObjectTag;
     Register offset_reg = index.gp();
     if (is_reference(elem_kind)) {
       __ AtomicCompareExchangeTaggedPointer(array.gp(), offset_reg, offset,
@@ -8288,7 +8287,7 @@ class LiftoffCompiler {
     ValueType elem_type = imm.array_type->element_type();
     ValueKind elem_kind = elem_type.kind();
     int elem_size = value_kind_size(elem_kind);
-    const SharedFlag is_shared = decoder->module_->type(imm.index).is_shared;
+    const SharedFlag is_shared = imm.array_type->is_shared();
 
     // Allocate the array.
     {
@@ -8326,6 +8325,7 @@ class LiftoffCompiler {
     // {value} is read-only.
     bool in_old_space = is_shared || v8_flags.single_generation;
     ArrayFillImpl(decoder, pinned, obj, index, value, length, elem_kind,
+                  is_shared,
                   in_old_space && imm.array_type->element_type().is_ref() &&
                           initial_value_on_stack
                       ? compiler::kFullWriteBarrier
@@ -8390,11 +8390,11 @@ class LiftoffCompiler {
     LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
 
-    ArrayFillImpl(decoder, pinned, obj, index, value, length,
-                  imm.array_type->element_type().kind(),
-                  imm.array_type->element_type().is_ref()
-                      ? compiler::kFullWriteBarrier
-                      : compiler::kNoWriteBarrier);
+    ArrayFillImpl(
+        decoder, pinned, obj, index, value, length,
+        imm.array_type->element_type().kind(), imm.array_type->is_shared(),
+        imm.array_type->element_type().is_ref() ? compiler::kFullWriteBarrier
+                                                : compiler::kNoWriteBarrier);
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
@@ -8418,9 +8418,10 @@ class LiftoffCompiler {
     }
     LiftoffRegister value =
         __ GetUnusedRegister(reg_class_for(elem_kind), pinned);
-    LoadObjectField(decoder, value, array.gp(), index.gp(),
-                    WasmArray::kHeaderSize - kHeapObjectTag, elem_kind,
-                    is_signed, false, pinned);
+    LoadObjectField(
+        decoder, value, array.gp(), index.gp(),
+        WasmArray::HeaderSize(imm.array_type->is_shared()) - kHeapObjectTag,
+        elem_kind, is_signed, false, pinned);
     __ PushRegister(unpacked(elem_kind), value);
   }
 
@@ -8446,9 +8447,10 @@ class LiftoffCompiler {
     }
     LiftoffRegister value =
         __ GetUnusedRegister(reg_class_for(elem_kind), pinned);
-    LoadAtomicObjectField(decoder, value, array.gp(), index.gp(),
-                          WasmArray::kHeaderSize - kHeapObjectTag, elem_kind,
-                          is_signed, false, memory_order, pinned);
+    LoadAtomicObjectField(
+        decoder, value, array.gp(), index.gp(),
+        WasmArray::HeaderSize(imm.array_type->is_shared()) - kHeapObjectTag,
+        elem_kind, is_signed, false, memory_order, pinned);
     __ PushRegister(unpacked(elem_kind), value);
   }
 
@@ -8473,9 +8475,10 @@ class LiftoffCompiler {
     if (elem_size_shift != 0) {
       __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
     }
-    StoreObjectField(decoder, array.gp(), index.gp(),
-                     WasmArray::kHeaderSize - kHeapObjectTag, value, false,
-                     pinned, elem_kind);
+    StoreObjectField(
+        decoder, array.gp(), index.gp(),
+        WasmArray::HeaderSize(imm.array_type->is_shared()) - kHeapObjectTag,
+        value, false, pinned, elem_kind);
   }
 
   void ArrayAtomicSet(FullDecoder* decoder, const Value& array_obj,
@@ -8500,9 +8503,10 @@ class LiftoffCompiler {
     if (elem_size_shift != 0) {
       __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
     }
-    StoreAtomicObjectField(decoder, array.gp(), index.gp(),
-                           WasmArray::kHeaderSize - kHeapObjectTag, value,
-                           false, pinned, elem_kind, order);
+    StoreAtomicObjectField(
+        decoder, array.gp(), index.gp(),
+        WasmArray::HeaderSize(imm.array_type->is_shared()) - kHeapObjectTag,
+        value, false, pinned, elem_kind, order);
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
@@ -8548,8 +8552,7 @@ class LiftoffCompiler {
     ValueKind elem_kind = array_imm.array_type->element_type().kind();
     int32_t elem_count = length_imm.index;
     // Allocate the array.
-    const SharedFlag is_shared =
-        decoder->module_->type(array_imm.index).is_shared;
+    const SharedFlag is_shared = array_imm.array_type->is_shared();
     CallBuiltin(is_shared ? Builtin::kWasmAllocateSharedArray_Uninitialized
                           : Builtin::kWasmAllocateArray_Uninitialized,
                 MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
@@ -8569,8 +8572,8 @@ class LiftoffCompiler {
     for (int i = elem_count - 1; i >= 0; i--) {
       LiftoffRegList pinned{array};
       LiftoffRegister element = pinned.set(__ PopToRegister(pinned));
-      int offset =
-          WasmArray::kHeaderSize + (i << value_kind_size_log2(elem_kind));
+      int offset = WasmArray::HeaderSize(is_shared) +
+                   (i << value_kind_size_log2(elem_kind));
       // Skipping the write barrier is safe as long as:
       // (1) {array} is freshly allocated, and
       // (2) {array} is in new-space (not pretenured).
@@ -11275,16 +11278,16 @@ class LiftoffCompiler {
   void ArrayFillImpl(FullDecoder* decoder, LiftoffRegList pinned,
                      LiftoffRegister obj, LiftoffRegister index,
                      LiftoffRegister value, LiftoffRegister length,
-                     ValueKind elem_kind,
+                     ValueKind elem_kind, SharedFlag is_shared,
                      compiler::WriteBarrierKind write_barrier) {
-    // initial_offset = WasmArray::kHeaderSize + index * elem_size.
+    // initial_offset = WasmArray::HeaderSize(is_shared) + index * elem_size.
     LiftoffRegister offset = index;
     if (value_kind_size_log2(elem_kind) != 0) {
       __ emit_i32_shli(offset.gp(), index.gp(),
                        value_kind_size_log2(elem_kind));
     }
     __ emit_i32_addi(offset.gp(), offset.gp(),
-                     WasmArray::kHeaderSize - kHeapObjectTag);
+                     WasmArray::HeaderSize(is_shared) - kHeapObjectTag);
 
     // end_offset = initial_offset + length * elem_size.
     LiftoffRegister end_offset = length;

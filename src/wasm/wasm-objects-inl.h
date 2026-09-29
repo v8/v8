@@ -1398,27 +1398,49 @@ const wasm::CanonicalValueType WasmArray::GcSafeElementType(Tagged<Map> map) {
   return type_info->element_type();
 }
 
-int WasmArray::SizeFor(Tagged<Map> map, int length) {
-  int element_size = DecodeElementSizeFromMap(map);
-  return SizeFor(element_size, length);
+int WasmArray::HeaderSize(Tagged<Map> map) {
+  if constexpr (HeaderSize(SharedFlag{true}) == HeaderSize(SharedFlag{false})) {
+    return sizeof(WasmArray);
+  }
+  DCHECK(!HeapLayout::InReadOnlySpace(map));
+  return HeaderSize(SharedFlag{HeapLayout::InWritableSharedSpace(map)});
 }
 
-constexpr int WasmArray::SizeFor(int element_size, int length) {
-  return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
+int WasmArray::header_size() const {
+  if constexpr (HeaderSize(SharedFlag{true}) == HeaderSize(SharedFlag{false})) {
+    return sizeof(WasmArray);
+  }
+  DCHECK(!HeapLayout::InReadOnlySpace(this));
+  return HeaderSize(SharedFlag{HeapLayout::InWritableSharedSpace(this)});
+}
+
+int WasmArray::SizeFor(Tagged<Map> map, int length) {
+  int element_size = DecodeElementSizeFromMap(map);
+  return HeaderSize(map) + RoundUp(element_size * length, kTaggedSize);
+}
+
+constexpr int WasmArray::SizeFor(int element_size, int length,
+                                 SharedFlag is_shared) {
+  return HeaderSize(is_shared) + RoundUp(element_size * length, kTaggedSize);
 }
 
 // Allocating arrays currently requires passing the requested byte size to the
 // runtime function as a Smi.
-static_assert(Smi::IsValid(WasmArray::SizeFor(1, WasmArray::MaxLength(1))));
-static_assert(Smi::IsValid(WasmArray::SizeFor(2, WasmArray::MaxLength(2))));
-static_assert(Smi::IsValid(WasmArray::SizeFor(4, WasmArray::MaxLength(4))));
-static_assert(Smi::IsValid(WasmArray::SizeFor(8, WasmArray::MaxLength(8))));
-static_assert(Smi::IsValid(WasmArray::SizeFor(16, WasmArray::MaxLength(16))));
+static_assert(Smi::IsValid(WasmArray::SizeFor(1, WasmArray::MaxLength(1),
+                                              SharedFlag{true})));
+static_assert(Smi::IsValid(WasmArray::SizeFor(2, WasmArray::MaxLength(2),
+                                              SharedFlag{true})));
+static_assert(Smi::IsValid(WasmArray::SizeFor(4, WasmArray::MaxLength(4),
+                                              SharedFlag{true})));
+static_assert(Smi::IsValid(WasmArray::SizeFor(8, WasmArray::MaxLength(8),
+                                              SharedFlag{true})));
+static_assert(Smi::IsValid(WasmArray::SizeFor(16, WasmArray::MaxLength(16),
+                                              SharedFlag{true})));
 
 uint32_t WasmArray::element_offset(uint32_t index) {
   DCHECK_LE(index, length());
   int element_size = DecodeElementSizeFromMap(map());
-  return WasmArray::kHeaderSize + index * element_size;
+  return header_size() + index * element_size;
 }
 
 Address WasmArray::ElementAddress(uint32_t index) {
@@ -1428,7 +1450,7 @@ Address WasmArray::ElementAddress(uint32_t index) {
 ObjectSlot WasmArray::ElementSlot(uint32_t index) {
   DCHECK_LE(index, length());
   DCHECK(map()->wasm_type_info()->element_type().is_ref());
-  return RawField(kHeaderSize + kTaggedSize * index);
+  return RawField(header_size() + kTaggedSize * index);
 }
 
 // static

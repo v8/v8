@@ -750,7 +750,7 @@ class WasmInJsInliningInterface {
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
                             frame_state_);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
-                imm.array_type->element_type(), {},
+                imm.array_type->element_type(), imm.array_type->is_shared(), {},
                 wasm::ArrayIndexImmediateToWriteBarrier(imm),
                 ArraySetOp::Kind::kAssign);
   }

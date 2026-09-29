@@ -369,12 +369,13 @@ class WasmLoweringReducer : public Next {
     if (shared_base) load_kind = load_kind.SharedBase();
     return __ Load(array, __ ChangeInt32ToIntPtr(index), load_kind,
                    RepresentationFor(array_type->element_type(), is_signed),
-                   WasmArray::kHeaderSize,
+                   WasmArray::HeaderSize(array_type->is_shared()),
                    array_type->element_type().value_kind_size_log2());
   }
 
   V<None> REDUCE(ArraySet)(V<WasmArrayNullable> array, V<Word32> index,
                            V<Any> value, wasm::ValueType element_type,
+                           SharedFlag is_shared,
                            std::optional<AtomicMemoryOrder> memory_order,
                            WriteBarrierKind write_barrier,
                            ArraySetOp::Kind kind) {
@@ -390,7 +391,8 @@ class WasmLoweringReducer : public Next {
     DCHECK_IMPLIES(write_barrier == kFullWriteBarrier, element_type.is_ref());
     __ Store(array, __ ChangeInt32ToIntPtr(index), value, store_kind,
              RepresentationFor(element_type, true), write_barrier, memory_order,
-             WasmArray::kHeaderSize, element_type.value_kind_size_log2(),
+             WasmArray::HeaderSize(is_shared),
+             element_type.value_kind_size_log2(),
              kind == ArraySetOp::Kind::kInitialize);
     return {};
   }
@@ -399,12 +401,13 @@ class WasmLoweringReducer : public Next {
                                  OpIndex value, OptionalOpIndex expected,
                                  ArrayAtomicRMWOp::BinOp bin_op,
                                  wasm::ValueType element_type,
+                                 SharedFlag is_shared,
                                  AtomicMemoryOrder memory_order) {
     MemoryRepresentation repr = RepresentationFor(element_type, false);
     V<WordPtr> index_scaled = __ WordPtrShiftLeft(
         __ ChangeInt32ToIntPtr(index), element_type.value_kind_size_log2());
-    V<WordPtr> offset =
-        __ WordPtrAdd(index_scaled, WasmArray::kHeaderSize - kHeapObjectTag);
+    V<WordPtr> offset = __ WordPtrAdd(
+        index_scaled, WasmArray::HeaderSize(is_shared) - kHeapObjectTag);
     if (bin_op == StructAtomicRMWOp::BinOp::kCompareExchange) {
       return __ AtomicCompareExchange(array, offset, expected.value(), value,
                                       repr.ToRegisterRepresentation(), repr,
@@ -443,12 +446,12 @@ class WasmLoweringReducer : public Next {
   }
 
   V<WasmArray> REDUCE(WasmAllocateArray)(V<Map> rtt, V<Word32> length,
-                                         const wasm::ArrayType* array_type,
-                                         SharedFlag is_shared) {
+                                         const wasm::ArrayType* array_type) {
     __ TrapIfNot(
         __ Uint32LessThanOrEqual(length, WasmArray::MaxLength(array_type)),
         TrapId::kTrapArrayTooLarge);
     wasm::ValueType element_type = array_type->element_type();
+    SharedFlag is_shared = array_type->is_shared();
 
     // RoundUp(length * value_size, kObjectAlignment) =
     //   RoundDown(length * value_size + kObjectAlignment - 1,
@@ -459,9 +462,9 @@ class WasmLoweringReducer : public Next {
         int32_t{-kObjectAlignment});
     Uninitialized<WasmArray> a = __ template Allocate<WasmArray>(
         __ ChangeUint32ToUintPtr(
-            __ Word32Add(padded_length, WasmArray::kHeaderSize)),
+            __ Word32Add(padded_length, WasmArray::HeaderSize(is_shared))),
         is_shared ? AllocationType::kSharedOld : AllocationType::kYoung,
-        is_shared ? kDoubleUnaligned : kTaggedAligned);
+        is_shared ? kDoubleAligned : kTaggedAligned);
 
     // TODO(14108): The map and empty fixed array initialization should be an
     // immutable store.

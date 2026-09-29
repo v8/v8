@@ -3316,7 +3316,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
   uint32_t len = length();
   os << "\n - element type: " << element_type.name();
   os << "\n - length: " << len;
-  Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
+  Address data_ptr = ElementAddress(0);
   switch (element_type.kind()) {
     case wasm::kI32:
       PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,

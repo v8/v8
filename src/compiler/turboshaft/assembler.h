@@ -5305,10 +5305,11 @@ class AssemblerOpInterface : public Next {
   V<Any> ArrayAtomicRMW(V<WasmArrayNullable> array, V<Word32> index,
                         V<Any> value, OptionalV<Any> expected,
                         ArrayAtomicRMWOp::BinOp bin_op,
-                        wasm::ValueType element_type,
+                        wasm::ValueType element_type, SharedFlag is_shared,
                         AtomicMemoryOrder memory_order) {
     return ReduceIfReachableArrayAtomicRMW(array, index, value, expected,
-                                           bin_op, element_type, memory_order);
+                                           bin_op, element_type, is_shared,
+                                           memory_order);
   }
 
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,
@@ -5320,11 +5321,11 @@ class AssemblerOpInterface : public Next {
   }
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
-                wasm::ValueType element_type,
+                wasm::ValueType element_type, SharedFlag is_shared,
                 std::optional<AtomicMemoryOrder> memory_order,
                 WriteBarrierKind write_barrier, ArraySetOp::Kind kind) {
-    ReduceIfReachableArraySet(array, index, value, element_type, memory_order,
-                              write_barrier, kind);
+    ReduceIfReachableArraySet(array, index, value, element_type, is_shared,
+                              memory_order, write_barrier, kind);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check,
@@ -5390,10 +5391,8 @@ class AssemblerOpInterface : public Next {
   }
 
   V<WasmArray> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,
-                                 const wasm::ArrayType* array_type,
-                                 SharedFlag is_shared) {
-    return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type,
-                                              is_shared);
+                                 const wasm::ArrayType* array_type) {
+    return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type);
   }
 
   V<WasmStruct> WasmAllocateStruct(V<Map> rtt,
