@@ -731,14 +731,8 @@ void RegExpMacroAssemblerARM64::EmitSkipUntilBitInTableSimdHelper(
   __ Umov(x9, result.V1D(), 0);
   __ Cbz(x9, &advance_vector);
 
-  auto extract_lowest_set_bit_index = [this](Register dst, Register src) {
-    // .. by reversing the bit order and counting leading zeroes.
-    __ Rbit(dst, src);
-    __ Clz(dst, dst);
-  };
-
   __ Bind(&process_next_bit);
-  extract_lowest_set_bit_index(x8, x9);
+  CountTrailingZeros(x8, x9);
 
   // Calculate character index = bit index / 4.
   __ Lsr(x8, x8, 2);
@@ -755,7 +749,7 @@ void RegExpMacroAssemblerARM64::EmitSkipUntilBitInTableSimdHelper(
   on_match(w8, x9);
 
   // Clear the lowest set nibble.
-  extract_lowest_set_bit_index(x8, x9);
+  CountTrailingZeros(x8, x9);
   __ Mov(x10, 0xF);
   __ Lsl(x10, x10, x8);
   __ Bic(x9, x9, x10);
@@ -887,8 +881,7 @@ void RegExpMacroAssemblerARM64::SkipUntilCharAndSimd(
 
   // Match found. Calculate index and jump to on_match.
   __ Bind(&found);
-  __ Rbit(x8, x9);
-  __ Clz(x8, x8);
+  CountTrailingZeros(x8, x9);
   __ Lsr(x8, x8, 2);
   __ Add(current_input_offset(), current_input_offset(), w8);
   LoadCurrentCharacterUnchecked(cp_offset, 1);
@@ -948,8 +941,7 @@ void RegExpMacroAssemblerARM64::SkipUntilCharSimd(int cp_offset, int advance_by,
   __ B(&simd_loop);
 
   __ Bind(&found);
-  __ Rbit(x8, x9);
-  __ Clz(x8, x8);
+  CountTrailingZeros(x8, x9);
   __ Lsr(x8, x8, 2);
 
   __ Add(current_input_offset(), current_input_offset(), w8);
@@ -1017,8 +1009,7 @@ void RegExpMacroAssemblerARM64::SkipUntilCharOrCharSimd(
   __ B(&simd_loop);
 
   __ Bind(&found);
-  __ Rbit(x8, x9);
-  __ Clz(x8, x8);
+  CountTrailingZeros(x8, x9);
   __ Lsr(x8, x8, 2);
 
   __ Add(current_input_offset(), current_input_offset(), w8);
@@ -2285,6 +2276,17 @@ void RegExpMacroAssemblerARM64::TestBitAndBranchOrBacktrack(Register reg,
     __ Tbnz(reg, bit, to);
   } else {
     __ Tbz(reg, bit, to);
+  }
+}
+
+void RegExpMacroAssemblerARM64::CountTrailingZeros(Register dst, Register src) {
+  if (CpuFeatures::IsSupported(CSSC)) {
+    CpuFeatureScope scope(masm_.get(), CSSC);
+    __ Ctz(dst, src);
+  } else {
+    // Reverse the bit order and count leading zeroes.
+    __ Rbit(dst, src);
+    __ Clz(dst, dst);
   }
 }
 

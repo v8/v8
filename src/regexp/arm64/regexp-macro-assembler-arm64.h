@@ -283,6 +283,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   void TestBitAndBranchOrBacktrack(Register reg, int bit, bool jump_if_set,
                                    Label* to);
 
+  // Sets dst to the index of the lowest set bit in src (64 for zero).
+  void CountTrailingZeros(Register dst, Register src);
+
   inline void CallIf(Label* to, Condition condition);
 
   // Save and restore the link register on the stack in a way that
