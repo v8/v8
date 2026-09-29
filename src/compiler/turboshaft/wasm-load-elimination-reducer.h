@@ -13,6 +13,7 @@
 
 #include "src/base/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/snapshot-table-opindex.h"
@@ -590,10 +591,26 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
     VerifySingleReplacement(actual_idx, replacement);
   }
 
+  void VerifyStringAsWtf16(OpIndex actual_idx, OpIndex replacement) {
+    IF_NOT (__ Equal(actual_idx, replacement,
+                     RegisterRepresentation::Tagged())) {
+      V<Word32> is_equal = __ template WasmCallBuiltinThroughJumptable<
+          deprecated::BuiltinCallDescriptor::WasmStringEqual>(
+          {actual_idx, replacement});
+      IF_NOT (is_equal) {
+        EmitReportLoadEliminationError();
+      }
+    }
+  }
+
 #define VERIFY(Name, ig_index, op, replacement)                      \
   if (v8_flags.turboshaft_verify_load_elimination) {                 \
     OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op); \
-    VerifyReplacement(actual_idx, replacement);                      \
+    if constexpr (std::is_same_v<Name##Op, StringAsWtf16Op>) {       \
+      VerifyStringAsWtf16(actual_idx, replacement);                  \
+    } else {                                                         \
+      VerifyReplacement(actual_idx, replacement);                    \
+    }                                                                \
   }
 #else
 #define VERIFY(Name, ig_index, op, replacement)

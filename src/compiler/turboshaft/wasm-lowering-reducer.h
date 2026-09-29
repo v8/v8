@@ -87,8 +87,13 @@ class WasmLoweringReducer : public Next {
                             module_) ||
           !type.use_wasm_null();
       if (!use_explicit_check) {
-        LoadOp::Kind load_kind = LoadOp::Kind::TrapOnNull().Immutable();
+        LoadOp::Kind load_kind = LoadOp::Kind::TrapOnNull();
         if (type.is_shared()) load_kind = load_kind.SharedBase();
+        if (!v8_flags.wasm_stringref ||
+            !wasm::IsSubtypeOf(wasm::kWasmStringRef.AsNonNull(),
+                               type.AsNonShared(), module_)) {
+          load_kind = load_kind.Immutable();
+        }
         __ Load(object, load_kind, MemoryRepresentation::TaggedPointer(),
                 offsetof(HeapObject, map_));
         return object;
