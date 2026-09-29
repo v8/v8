@@ -492,6 +492,19 @@ class MergePointInterpreterFrameState {
     }
   }
 
+  // Adopts or merges `known_node_aspects`, and nulls it out to guarantee
+  // it is not reused by the caller.
+  void MergeNodeAspects(Zone* zone, KnownNodeAspects** known_node_aspects) {
+    DCHECK_NOT_NULL(known_node_aspects);
+    KnownNodeAspects* source = std::exchange(*known_node_aspects, nullptr);
+    DCHECK_NOT_NULL(source);
+    if (!known_node_aspects_) {
+      known_node_aspects_ = source;
+    } else {
+      known_node_aspects_->Merge(*source, zone);
+    }
+  }
+
   const CompactInterpreterFrameState& frame_state() const {
     return frame_state_;
   }

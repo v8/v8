@@ -79,6 +79,13 @@ class RecomputeKnownNodeAspectsProcessor {
     return &current_node()->eager_deopt_info()->top_frame();
   }
 
+  static BasicBlock* SkipEdgeSplits(BasicBlock* block) {
+    while (block->is_edge_split_block()) {
+      block = block->control_node()->Cast<Jump>()->target();
+    }
+    return block;
+  }
+
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     // TODO(victorgomes): Clean up set_current_block usage; now both
     // MaglevGraphOptimizer and RecomputeKnownNodeAspectsProcessor set it.
@@ -107,11 +114,8 @@ class RecomputeKnownNodeAspectsProcessor {
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
     } else if (block->is_edge_split_block()) {
       // Clone the next available KNA.
-      BasicBlock* next_block = block;
-      while (next_block->is_edge_split_block()) {
-        next_block = next_block->control_node()->Cast<Jump>()->target();
-      }
-      known_node_aspects_ = next_block->state()->CloneKnownNodeAspects(zone());
+      known_node_aspects_ =
+          SkipEdgeSplits(block)->state()->CloneKnownNodeAspects(zone());
     } else {
       is_fallthrough = true;
     }
@@ -229,12 +233,12 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   ProcessResult Process(Jump* node, const ProcessingState& state) {
-    Merge(node->target());
+    MergeFromDeadSource(node->target());
     return ProcessResult::kContinue;
   }
 
   ProcessResult Process(CheckpointedJump* node, const ProcessingState& state) {
-    Merge(node->target());
+    MergeFromDeadSource(node->target());
     return ProcessResult::kContinue;
   }
 
@@ -302,12 +306,18 @@ class RecomputeKnownNodeAspectsProcessor {
   V8_NODISCARD ProcessResult OnContradiction();
 
   void Merge(BasicBlock* block) {
-    while (block->is_edge_split_block()) {
-      block = block->control_node()->Cast<Jump>()->target();
-    }
+    block = SkipEdgeSplits(block);
     // If we don't have state, this must be a fallthrough basic block.
     if (!block->has_state()) return;
     block->state()->MergeNodeAspects(zone(), *known_node_aspects_);
+  }
+
+  // Like Merge, but consume known_node_aspects_ instead of copying it.
+  void MergeFromDeadSource(BasicBlock* block) {
+    block = SkipEdgeSplits(block);
+    // If we don't have state, this must be a fallthrough basic block.
+    if (!block->has_state()) return;
+    block->state()->MergeNodeAspects(zone(), &known_node_aspects_);
   }
 
   template <typename NodeT>
