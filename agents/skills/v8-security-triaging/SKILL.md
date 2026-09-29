@@ -120,7 +120,7 @@ Buganizer.
   the reporter's environment (commit hash/version), and the identified
   **introduction commit (regression range)**.
 - **Version and Commit Identification**: Always retrieve the current V8 version
-  number from `src/utils/version.h` and the specific git hash using
+  number from `include/v8-version.h` and the specific git hash using
   `git rev-parse HEAD`. Prioritize referencing specific git hashes over generic
   terms like "HEAD" in triage reports. For any commit referenced in the report,
   retrieve its Gerrit changelist link (from `Reviewed-on:` in
@@ -192,12 +192,19 @@ of impact.
 
 ### 5. Phase: Drafting Findings
 
-Draft a concise synthesis based on verified subagent findings.
+Draft a short, precise synthesis based on verified subagent findings.
 
+- **Strict Brevity Mandate**: Keep the entire report compact and to the point
+  (~20–30 lines total). Avoid filler prose, redundant explanations across
+  bullets, full `args.gn` dumps, or untrimmed stack traces. Never include local
+  workstation paths (e.g., `/usr/local/google/home/...` or `file:///`) in the
+  Buganizer comment text; use only the POC filename (e.g., `poc.js`) in the
+  `Reproduction` line and keep local paths strictly in the `(User Only)`
+  section.
 - **Mandatory First Sentence**: "This analysis is AI-generated using the
   `v8-security-triaging` skill (Conversation ID: `<id>`)." You **MUST** retrieve
-  the `<id>` from the `INVOKER_INFO_SESSION_ID` environment variable. The
-  variable must always be present.
+  the `<id>` from the Orchestrator's `INVOKER_INFO_SESSION_ID` environment
+  variable.
 - **Formatting Requirement**: Use a **bulleted list** format for the main points
   (Status, Classification, Rationale, etc.) and ensure there are **double line
   breaks** between each list item for optimal rendering in Buganizer. If a list
@@ -205,51 +212,57 @@ Draft a concise synthesis based on verified subagent findings.
   **MUST** be indented by **at least four spaces** and **MUST NOT** be separated
   by double line breaks within the same nested list.
 - **Content**:
-  - **Classification**: Vulnerability / Bug / Not a Bug (Intended Behavior) /
-    Failed to Reproduce. **MANDATORY**: Only classify as "Vulnerability" if
-    local reproduction was successful. If reproduction fails, classify as
-    "Failed to Reproduce".
+  - **Classification** (1 line): `Vulnerability` / `Bug` /
+    `Not a Bug (Intended Behavior)` / `Failed to Reproduce`. **MANDATORY**: Only
+    classify as "Vulnerability" if local reproduction was successful.
 
-  - **Security Impact**: Classify as "**None**" (experimental, disabled) or
-    "**Yes**" (shipping, web-exploitable) with a mandatory technical rationale;
-    omit specific channel labels (e.g., `Security_Impact-Stable`) as they are
-    auto-derived from `FoundIn`. Skip or simplify the CVSS vector unless
-    requested.
+  - **Security Impact** (1 line): Classify as "**None**" (experimental,
+    disabled, or V8 Sandbox bypass with `Security_Impact-None` and `v8-sandbox`
+    hotlist) or "**Yes**" (shipping, web-exploitable) with a brief parenthetical
+    rationale; omit specific channel labels (e.g., `Security_Impact-Stable`).
 
-  - **Proposed Severity**: Provide the proposed severity (e.g., `S1`) based on
-    [triaging.md](../../../docs/security/triaging.md) and Chromium guidelines.
+  - **Proposed Severity** (1 line): Provide only the severity (e.g., `S1` or
+    `S2`) based on [triaging.md](../../../docs/security/triaging.md).
 
-  - **Introduced In / Regression Range**: Provide the commit or version where
-    the vulnerability was introduced, if identifiable. Always include a
-    clickable markdown link to the commit's Gerrit changelist (e.g.
-    `[commit <hash>](https://chromium-review.googlesource.com/c/v8/v8/+/<cl>)`).
+  - **Introduced In** (1 line): Commit and version where the bug was introduced,
+    with a clickable Gerrit link (e.g.,
+    `[commit <hash>](https://chromium-review.googlesource.com/c/v8/v8/+/<cl>) (<title>, V8 <version>)`).
 
-  - **Rationale**: Explain the technical conclusion. For sandbox bypasses,
-    explicitly state if it violates the threat model.
+  - **Rationale** (2–4 concise sentences max): State the root cause and why it
+    violates (or does not violate) the security threat model. Do not repeat
+    reproduction outputs or register values covered in
+    `Local Reproduction Findings`.
 
-  - **Local Reproduction Findings**: Follow the structure and mandatory fields
-    defined in the **Classification Guidelines** of `v8-poc-classification`.
-    Ensure all technical data (Status, Reproduction command, Result, Build
-    (including version from `src/utils/version.h` and git hash with a Gerrit
-    link), Verified Impact, and optional GDB Backtrace) is included here.
+  - **Local Reproduction Findings** (1 concise line per sub-bullet, except
+    `GDB Backtrace` if multiple lines help): Follow the mandatory fields in
+    `v8-poc-classification`:
 
-  - **Proposed Owner**: Based on expert discovery. Include a very short (half
-    sentence) explanation for the choice (e.g., "author of affected code",
-    "primary maintainer of subsystem").
+    - `Status`: `Reproduced` / `Not Reproduced`.
+    - `Reproduction`: `d8 <flags> <poc_filename.js>` (filename only, no local
+      paths).
+    - `Result`: 1–2 short sentences summarizing the observed crash/output.
+    - `Build`: Build variant(s), V8 version (from `include/v8-version.h`), and
+      git commit hash (no Gerrit link needed for the build commit; omit
+      boilerplate GN args).
+    - `Verified Impact`: 1 sentence stating the verified primitive and attacker
+      control.
+    - `GDB Backtrace`: A concise snippet of the faulting instruction/registers
+      and relevant stack frames (can span multiple lines if helpful; trim
+      unrelated frames).
 
-  - **Proposed Component**: Propose the most specific Buganizer component
-    possible (e.g., `Parser`, `Maglev`, `Turbofan`) if the current component is
-    the top-level V8 engine component or is otherwise incorrect. Include the
-    component path and ID.
+  - **Proposed Owner** (1 line): `<email>` with a short phrase explaining why
+    (e.g., "author of introducing commit and JSPI maintainer").
 
-  - **Proposed Title**: If the current title is generic, propose a more
-    descriptive title.
+  - **Proposed Component** (1 line): Short component path and ID (e.g.,
+    `Blink > JavaScript > WebAssembly` (ID: `1456332`, already set)).
+
+  - **Proposed Title** (1 line): New descriptive title, or
+    `Keep current (<title>)` if already accurate.
 
   - **ClusterFuzz Upload Info (User Only)**: If a real crash or memory
-    corruption is confirmed and it has NOT yet been uploaded to ClusterFuzz,
-    provide all necessary details for a manual upload (repro file, job name,
-    issue ID, and flags) to the user. Explicitly advise the user to perform the
-    upload.
+    corruption is confirmed and not yet on ClusterFuzz, provide the local repro
+    file path, job name, issue ID, and flags for manual upload. Omit this
+    section when posting the comment to Buganizer.
 
 ### 6. Phase: Verification & Self-Correction (Audit)
 
@@ -258,9 +271,9 @@ the draft.
 
 - **Orchestrator Instruction**: "Audit the attached triage draft against
   `docs/security/triaging.md` and the Technical Quality Checklist. Ensure the
-  classification is technically sound and the formatting is correct. If errors
-  are found, distinguish between text-only corrections and missing technical
-  work."
+  classification is technically sound, the report is concise, and the formatting
+  is correct. If errors are found, distinguish between text-only corrections and
+  missing technical work."
 - **Loop-back Mandate**: If the Auditor identifies missing technical evidence
   (e.g., skipped boundary checks, missing GDB analysis, or unverified impact on
   Release builds), the Orchestrator **MUST** return to the relevant previous
@@ -271,15 +284,19 @@ the draft.
     reproduction results (e.g., if it needs experimental flags, it's a Bug).
   - The "Local Reproduction Findings" section contains the exact d8 command, V8
     version, git hash, and the observed result.
+  - **Brevity & Cleanliness**: The report follows the line/sentence budgets
+    (1-line metadata fields, 2–4 sentence Rationale, concise 1-line sub-bullets
+    in Local Reproduction Findings except GDB Backtrace when multi-line helps,
+    and no local `/usr/local/...` paths outside the `User Only` section).
   - The formatting (double line breaks between top-level list items AND
     four-space indented sub-bullets for findings without internal double line
     breaks) is strictly followed.
-  - The conversation ID is correct and matches the `INVOKER_INFO_SESSION_ID`
-    environment variable. The auditor MUST run
-    `env | grep INVOKER_INFO_SESSION_ID` to verify this independently.
+  - The conversation ID matches the Orchestrator's `INVOKER_INFO_SESSION_ID`
+    (passed by the Orchestrator to the Auditor, as subagents have their own
+    session IDs).
 - **Action**: Present the *audited and verified* analysis to the user for
-  approval ONLY after all technical gaps identified by the auditor have been
-  addressed.
+  approval ONLY after all technical or formatting gaps identified by the auditor
+  have been addressed.
 
 ### 7. Phase: Cleanup & Preservation
 
@@ -303,8 +320,13 @@ Finalize the session by securing artifacts and cleaning up the environment.
   flag (`--run-as-[sandbox]-security-poc`)?
 - [ ] **Mandatory Data**: Are the V8 version and git hash included in the Build
   description?
-- [ ] **Gerrit Links**: Are all referenced commits and CLs (introduction CL,
-  build commit, etc.) linked to their corresponding Gerrit changelists?
+- [ ] **Gerrit Links**: Are referenced commits/CLs (such as the introduction CL)
+  linked to their corresponding Gerrit changelists? (No Gerrit link is required
+  for the Build commit.)
+- [ ] **Brevity & No Local Paths**: Is the Rationale \<= 4 sentences, are all
+  other bullets/sub-bullets 1 line each (except `GDB Backtrace` if multiple
+  lines help), and are local `/usr/local/...` paths excluded from the Buganizer
+  comment text?
 - [ ] **Formatting**: Are there double line breaks between all top-level
   bulleted list items? Are sub-bullets indented by at least four spaces without
   internal double line breaks?
