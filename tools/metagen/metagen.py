@@ -108,14 +108,16 @@ def main() -> int:
       "Mutually exclusive with it.")
   p.add_argument(
       "--clang-builtin-headers-dir",
-      default=None,
+      action="append",
+      default=[],
       help="Directory holding the clang builtin headers, for build systems "
       "that stage them flat, with no lib/clang/<N> hierarchy for "
-      "-resource-dir= to point at (Bazel). Appended as a system-include dir "
-      "instead, which takes the path directly. Never probed for: the build "
-      "system knows where it staged them, and in a sandbox any path we "
-      "guessed would be an undeclared input. Mutually exclusive with "
-      "--clang-resource-dir.")
+      "-resource-dir= to point at (Bazel). Repeatable, for builds that "
+      "split checked-in and generated builtin headers across source and "
+      "bin trees. Appended as a system-include dir instead, which takes "
+      "the path directly. Never probed for: the build system knows where "
+      "it staged them, and in a sandbox any path we guessed would be an "
+      "undeclared input. Mutually exclusive with --clang-resource-dir.")
   p.add_argument(
       "--driver",
       required=True,
@@ -324,19 +326,21 @@ def main() -> int:
         file=sys.stderr)
     return 1
   resource_dir = None
-  builtin_headers_dir = None
+  builtin_headers_dirs: list[str] = []
   if args.clang_resource_dir:
     resource_dir = os.path.abspath(args.clang_resource_dir)
     flag = "--clang-resource-dir"
-    probe = os.path.join(resource_dir, "include", "stddef.h")
+    probes = [os.path.join(resource_dir, "include", "stddef.h")]
   else:
-    builtin_headers_dir = os.path.abspath(args.clang_builtin_headers_dir)
+    builtin_headers_dirs = [
+        os.path.abspath(d) for d in args.clang_builtin_headers_dir
+    ]
     flag = "--clang-builtin-headers-dir"
-    probe = os.path.join(builtin_headers_dir, "stddef.h")
-  if not os.path.isfile(probe):
+    probes = [os.path.join(d, "stddef.h") for d in builtin_headers_dirs]
+  if not any(os.path.isfile(p) for p in probes):
+    missing = "\n".join(f"  {p} not found" for p in probes)
     print(
-        f"[metagen] {flag} does not hold clang's builtin headers:\n"
-        f"  {probe} not found",
+        f"[metagen] {flag} does not hold clang's builtin headers:\n{missing}",
         file=sys.stderr)
     return 1
   # -fsyntax-only, -ferror-limit=, -resource-dir= and -D carry `CLOption`
@@ -405,7 +409,7 @@ def main() -> int:
   if resource_dir:
     flags.append(f"-resource-dir={resource_dir}")
   else:
-    flags.append(f"{sysinclude}{builtin_headers_dir}")
+    flags.extend(f"{sysinclude}{d}" for d in builtin_headers_dirs)
 
   verbose_print(f"Harvesting class hierarchy from "
                 f"{os.path.relpath(driver_path, v8_root)} ({flags_source})...")
