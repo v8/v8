@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --typed-array-length-loading --multi-mapped-mock-allocator
+// Flags: --typed-array-length-loading
 
 function foo(size) {
   let a = new Uint8Array(size);
@@ -16,7 +16,10 @@ function foo(size) {
 if (%Is64Bit()) {
   try {
     foo(100);
-    const largeLength = 8589934592;
+    // The test requires a length that exceeds Uint32/Int32/Smi; 4 GiB (2^32)
+    // satisfies that while allowing both buffers in `foo` to fit in PA's 16 GiB
+    // configurable pool.
+    const largeLength = 4294967296;
     foo(largeLength);
 
     %OptimizeFunctionOnNextCall(foo);

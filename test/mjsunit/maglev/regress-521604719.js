@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax --no-lazy-feedback-allocation
 // Flags: --no-concurrent-osr --no-maglev-optimistic-peeled-loops
-// Flags: --mock-arraybuffer-allocator
 
 function test() {
   %OptimizeOsr();

@@ -96,7 +96,7 @@ DefaultInSandboxAllocator::DefaultInSandboxAllocator(Sandbox* sandbox)
 
 void DefaultInSandboxAllocator::LazyInitialize() {
   CHECK(sandbox_->is_initialized());
-  constexpr size_t max_backing_memory_size = 8ULL * GB;
+  constexpr size_t max_backing_memory_size = 16ULL * GB;
   constexpr size_t min_backing_memory_size = 1ULL * GB;
   size_t backing_memory_size = max_backing_memory_size;
   Address backing_memory_base = 0;
