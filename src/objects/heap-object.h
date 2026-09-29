@@ -394,7 +394,7 @@ V8_OBJECT class HeapObject {
   HeapObject& operator=(const HeapObject&) V8_NOEXCEPT = delete;
 
  public:
-  TaggedMember<Map> map_;
+  V8_TQ_CONST TaggedMember<Map> map_;
 } V8_OBJECT_END;
 
 static_assert(offsetof(HeapObject, map_) == Internals::kHeapObjectMapOffset);

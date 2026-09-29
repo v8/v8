@@ -197,8 +197,12 @@ def get_compile_args_from_gn_desc(
   except FileNotFoundError:
     raise RuntimeError(f"[metagen] gn binary not found: {gn}")
   except subprocess.CalledProcessError as e:
+    # Most often the target is not in the graph for this toolchain, which gn
+    # reports by exiting non-zero -- or, for a toolchain-qualified label it
+    # cannot resolve, by crashing.
     raise RuntimeError(f"[metagen] `gn desc {out_rel} {target_label}` failed "
-                       f"(exit {e.returncode}). Has `gn gen` run there?\n"
+                       f"(exit {e.returncode}). Has `gn gen` run there, and "
+                       f"is the target part of that toolchain's build?\n"
                        f"{(e.stderr or '').strip()}")
   try:
     desc = json.loads(proc.stdout)

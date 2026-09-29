@@ -348,6 +348,11 @@ def _torque_files_impl(ctx):
     args.append("-strip-v8-root")
     args.append("-v8-root")
     args.append(v8root)
+    inputs = ctx.files.srcs
+    if ctx.file.layout_json:
+        args.append("-layout-json")
+        args.append(ctx.file.layout_json.path)
+        inputs = inputs + [ctx.file.layout_json]
 
     # Sources
     args += [f.path for f in ctx.files.srcs]
@@ -371,7 +376,7 @@ def _torque_files_impl(ctx):
     outs = defs + inits
     ctx.actions.run(
         outputs = outs,
-        inputs = ctx.files.srcs,
+        inputs = inputs,
         arguments = args,
         executable = ctx.executable.tool,
         mnemonic = "GenTorqueFiles",
@@ -399,10 +404,14 @@ _v8_torque_files = rule(
             cfg = "exec",
         ),
         "args": attr.string_list(),
+        "layout_json": attr.label(
+            allow_single_file = True,
+        ),
     },
 )
 
-def v8_torque_files(name, noicu_srcs, icu_srcs, args, definition_extras, initializer_extras):
+def v8_torque_files(name, noicu_srcs, icu_srcs, args, definition_extras,
+                    initializer_extras, noicu_layout_json, icu_layout_json):
     _v8_torque_files(
         name = "noicu/" + name,
         prefix = "noicu",
@@ -410,6 +419,7 @@ def v8_torque_files(name, noicu_srcs, icu_srcs, args, definition_extras, initial
         args = args,
         definition_extras = definition_extras,
         initializer_extras = initializer_extras,
+        layout_json = noicu_layout_json,
         tool = select({
             "@v8//bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
             "//conditions:default": ":noicu/torque",
@@ -422,6 +432,7 @@ def v8_torque_files(name, noicu_srcs, icu_srcs, args, definition_extras, initial
         args = args,
         definition_extras = definition_extras,
         initializer_extras = initializer_extras,
+        layout_json = icu_layout_json,
         tool = select({
             "@v8//bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
             "//conditions:default": ":icu/torque",
@@ -623,11 +634,11 @@ def build_config_content(cpu, icu):
     ])
 
 # =============================================================================
-# Metagen: libclang-driven instance-type generator.
+# Metagen: libclang-driven metadata generator.
 #
-# Produces gen/metagen/instance-types.h, the file `src/objects/instance-types-
-# gen.h` includes when V8_USE_METAGEN_INSTANCE_TYPES=1, i.e. under
-# --//:v8_use_metagen_instance_types.
+# Produces gen/metagen/instance-types.h -- the file `src/objects/instance-
+# types-gen.h` includes when V8_USE_METAGEN_INSTANCE_TYPES=1, i.e. under
+# --//:v8_use_metagen_instance_types -- along with layouts.json for Torque.
 #
 # The generator runs tools/metagen/metagen.py, which uses libclang to parse
 # V8_OBJECT-annotated C++ headers and emits the IT enum macros. We feed it
@@ -647,7 +658,7 @@ _METAGEN_USER_COPTS = [
     "-fno-exceptions",
 ]
 
-def _metagen_instance_types_impl(ctx):
+def _run_metagen_impl(ctx):
     v8root = ctx.label.workspace_root
     if v8root == "":
         v8root = "."
@@ -655,6 +666,11 @@ def _metagen_instance_types_impl(ctx):
     out_h = ctx.actions.declare_file(
         ctx.attr.prefix + "/metagen/instance-types.h",
     )
+    out_layouts = ctx.actions.declare_file(
+        ctx.attr.prefix + "/metagen/layouts.json",
+    )
+    # TODO(jgruber): Add a non-critical diagnostics target that requests
+    # --enable-layout-positions when C++ source positions are consumed.
     out_dir = out_h.dirname
 
     # Merge CcInfo from all cc_compilation_context_from targets -- this is
@@ -714,7 +730,7 @@ def _metagen_instance_types_impl(ctx):
     )
 
     # Synthesize a one-entry compile_commands.json for metagen. (The GN
-    # side instead harvests flags via `gn desc`; this is the Bazel path.)
+    # side instead reads flags via `gn desc`; this is the Bazel path.)
     # The `directory` is the action's cwd (execroot); the bogus
     # `probe.cc` file + `-c`/`-o` args are filtered out by metagen.
     compile_db = ctx.actions.declare_file(
@@ -734,9 +750,10 @@ def _metagen_instance_types_impl(ctx):
     args.add("--compile-commands", compile_db.path)
     args.add("--driver", ctx.file.driver.path)
     args.add("--out", out_dir)
+    args.add("--enable-layout")
 
     # Where libclang comes from. Both modes are explicit, so a mismatch
-    # is an analysis-time error rather than a harvest that quietly parses
+    # is an analysis-time error rather than a Metagen run that quietly parses
     # with the wrong library.
     if ctx.attr.libclang_from_python_env:
         if ctx.files.libclang_files:
@@ -786,17 +803,22 @@ def _metagen_instance_types_impl(ctx):
     )
 
     ctx.actions.run(
-        outputs = [out_h],
+        outputs = [out_h, out_layouts],
         inputs = all_inputs,
         executable = ctx.executable.tool,
         arguments = [args],
-        mnemonic = "MetagenInstanceTypes",
-        progress_message = "Generating metagen/instance-types.h",
+        mnemonic = "RunMetagen",
+        progress_message = "Generating metagen metadata",
     )
 
-    return [DefaultInfo(files = depset([out_h]))]
+    return [
+        DefaultInfo(files = depset([out_h])),
+        OutputGroupInfo(
+            layouts = depset([out_layouts]),
+        ),
+    ]
 
-# The harvest is a host tool that must reason about the target build, so
+# Metagen is a host tool that must reason about the target build, so
 # this rule's inputs fall into two groups -- the same split GN gets from
 # v8_generator_toolchain (see gni/snapshot_toolchain.gni), where the
 # generator is a host binary compiled with the target's V8 configuration:
@@ -811,11 +833,11 @@ def _metagen_instance_types_impl(ctx):
 #                     `cc_compilation_context_from`, `extra_defines`, and
 #                     `extra_sandbox_files` (V8's own source headers).
 #                     These must reflect the TARGET build -- exec-
-#                     configuring them would harvest the host's defines,
+#                     configuring them would use the host's defines,
 #                     which today changes nothing but would silently emit
 #                     host object layout once metagen generates layout.
-_metagen_instance_types = rule(
-    implementation = _metagen_instance_types_impl,
+_run_metagen = rule(
+    implementation = _run_metagen_impl,
     attrs = {
         "prefix": attr.string(mandatory = True),
         # The checked-in C++ driver, passed straight through as --driver. Its
@@ -854,7 +876,7 @@ _metagen_instance_types = rule(
             providers = [CcInfo],
             mandatory = True,
         ),
-        # Additional -D defines for the harvest that do not propagate
+        # Additional -D defines for Metagen that do not propagate
         # via CcInfo (v8_library applies them as per-variant copts,
         # e.g. V8_INTL_SUPPORT on the icu prefix).
         "extra_defines": attr.string_list(),
@@ -873,19 +895,19 @@ _metagen_instance_types = rule(
     toolchains = use_cc_toolchain(),
 )
 
-def metagen_instance_types(name, driver,
-                           python_srcs, tool,
-                           cc_compilation_context_from,
-                           clang_builtin_headers,
-                           libclang_files = [],
-                           libclang_from_python_env = False,
-                           extra_sandbox_files = [],
-                           icu_extra_defines = [],
-                           icu_cc_compilation_context_from = []):
-    """Emit gen/metagen/instance-types.h for both icu/ and noicu/ prefixes.
+def run_metagen(name, driver,
+                python_srcs, tool,
+                cc_compilation_context_from,
+                clang_builtin_headers,
+                libclang_files = [],
+                libclang_from_python_env = False,
+                extra_sandbox_files = [],
+                icu_extra_defines = [],
+                icu_cc_compilation_context_from = []):
+    """Emit metagen metadata for both icu/ and noicu/ prefixes.
 
     Mirrors the v8_torque_files double-emission pattern so each consumer
-    library can include the correctly-prefixed copy. The two harvests
+    library can include the correctly-prefixed copy. The two runs
     differ: v8_library compiles the icu variant with V8_INTL_SUPPORT
     (via copts, invisible to CcInfo) and the intl object sources, so
     the icu emission additionally enables the driver's i18n includes with the
@@ -897,7 +919,7 @@ def metagen_instance_types(name, driver,
     """
     for prefix in ("noicu", "icu"):
         is_icu = prefix == "icu"
-        _metagen_instance_types(
+        _run_metagen(
             name = prefix + "/" + name,
             prefix = prefix,
             driver = driver,

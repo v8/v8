@@ -238,12 +238,13 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
 #endif  // V8_COMPRESS_POINTERS
 
  public:
-  TaggedMember<MaybeObject> views_or_detach_key_;
+  TaggedMember<MaybeObject> views_or_detach_key_
+      V8_TQ_TYPE(Cell | Smi | Weak<JSArrayBufferView>);
   UnalignedValueMember<uintptr_t> raw_byte_length_;
   UnalignedValueMember<uintptr_t> raw_max_byte_length_;
   UnalignedValueMember<Address> backing_store_;
   ExternalPointerMember<kArrayBufferExtensionTag> extension_;
-  uint32_t bit_field_;
+  uint32_t bit_field_ V8_TQ_TYPE(JSArrayBufferFlags);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
@@ -465,7 +466,7 @@ V8_OBJECT class JSArrayBufferView : public JSAPIObjectWithEmbedderSlots {
 
  public:
   TaggedMember<JSArrayBuffer> buffer_;
-  uint32_t bit_field_;
+  uint32_t bit_field_ V8_TQ_TYPE(JSArrayBufferViewFlags);
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
@@ -597,7 +598,7 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
  public:
   UnalignedValueMember<uintptr_t> raw_length_;
   UnalignedValueMember<Address> external_pointer_;
-  TaggedMember<Object> base_pointer_;
+  TaggedMember<Object> base_pointer_ V8_TQ_TYPE(ByteArray | Smi);
 } V8_OBJECT_END;
 
 inline constexpr int JSTypedArray::kHeaderSize = sizeof(JSTypedArray);

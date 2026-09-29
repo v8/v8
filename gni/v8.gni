@@ -34,11 +34,21 @@ declare_args() {
   # Turns on compiler optimizations in V8 in Debug build.
   v8_optimized_debug = true
 
+  # Metagen reads the v8 object hierarchy from C++ headers via libclang. It
+  # produces instance-type definitions and object-layout files, used as inputs
+  # during the remaining build. During a transition period, it can be switched
+  # off using this flag (ie take the old torque paths).
+  v8_use_metagen = ""
+
   # Selects which instance-type generator's output V8 compiles in:
-  # metagen (tools/metagen/) or Torque's emission. When off, the metagen
-  # action is out of the build graph entirely, so nothing depends on the
-  # llvm-libclang package. Sets -DV8_USE_METAGEN_INSTANCE_TYPES=0 when off.
+  # metagen (tools/metagen/) or Torque's emission.
+  # Will be removed soon in favor of v8_use_metagen.
   v8_use_metagen_instance_types = true
+
+  # Selects the object-layout source Torque compiles from.
+  # Requires v8_use_metagen_instance_types.
+  # Will be removed soon in favor of v8_use_metagen.
+  v8_use_metagen_layouts = false
 
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
@@ -310,6 +320,11 @@ if (v8_use_external_startup_data == "") {
 
 if (v8_enable_backtrace == "") {
   v8_enable_backtrace = is_debug && !v8_optimized_debug
+}
+
+if (v8_use_metagen != "") {
+  v8_use_metagen_instance_types = v8_use_metagen
+  v8_use_metagen_layouts = v8_use_metagen
 }
 
 if (v8_use_perfetto_sdk) {

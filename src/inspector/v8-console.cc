@@ -563,9 +563,8 @@ v8::Local<v8::ObjectTemplate> V8Console::taskTemplate() {
   v8::Local<v8::ObjectTemplate> taskTemplate = consTemplate->InstanceTemplate();
   v8::Local<v8::Signature> signature =
       v8::Signature::New(isolate, consTemplate);
-  v8::Local<v8::FunctionTemplate> funcTemplate =
-      v8::FunctionTemplate::New(isolate, &TaskInfo::runTask,
-                                v8::Local<v8::Value>(), signature);
+  v8::Local<v8::FunctionTemplate> funcTemplate = v8::FunctionTemplate::New(
+      isolate, &TaskInfo::runTask, v8::Local<v8::Value>(), signature);
   taskTemplate->Set(isolate, "run", funcTemplate);
 
   m_taskTemplate.Reset(isolate, taskTemplate);
