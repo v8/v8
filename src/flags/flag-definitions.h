@@ -351,6 +351,7 @@ DEFINE_STRING(icu_datetime_compat_lang, "*",
 DEFINE_BOOL(
     intl_date_time_pattern_generator_cache_eviction, false,
     "enable 9-entry cache eviction in DateTimePatternGeneratorCache")
+DEFINE_BOOL(use_icu4x_normalizer, false, "use ICU4X normalizer")
 #endif
 
 #ifdef V8_ENABLE_DOUBLE_CONST_STORE_CHECK
