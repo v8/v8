@@ -3572,27 +3572,42 @@ void CodeGenerator::AssembleConstructFrame() {
   const RegList saves = call_descriptor->CalleeSavedRegisters();
 
 #if V8_ENABLE_WEBASSEMBLY
-  int32_t stack_space =
-      required_slots * kSystemPointerSize + GetStackCheckOffset();
-  if (info()->IsWasm() && stack_space > 4 * KB) {
+  const bool is_js_to_wasm = code_kind() == CodeKind::JS_TO_WASM_FUNCTION;
+  DCHECK_GE(required_slots, 0);
+  size_t stack_space =
+      static_cast<size_t>(required_slots) * kSystemPointerSize +
+      GetStackCheckOffset();
+  if (is_js_to_wasm || (info()->IsWasm() && stack_space > 4 * KB)) {
     // For WebAssembly functions with big frames we have to do the stack
-    // overflow check before we construct the frame. Otherwise we may not
+    // overflow check before we allocate the frame slots. Otherwise we may not
     // have enough space on the stack to call the runtime for the stack
     // overflow.
+    // For compiled JS-to-Wasm wrappers, we unconditionally emit a stack check
+    // here because they are entered directly from JavaScript without an
+    // Ignition bytecode stack check, and may be invoked near stack exhaustion.
     Label done;
 
     // If the frame is bigger than the stack, we throw the stack overflow
     // exception unconditionally. Thereby we can avoid the integer overflow
     // check in the condition code.
-    if (stack_space < v8_flags.stack_size * KB) {
+    if (stack_space < static_cast<size_t>(v8_flags.stack_size) * KB) {
       Register stack_limit = r1;
       __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
-      __ AddS64(stack_limit, stack_limit, Operand(stack_space));
+      if (stack_space > 0) {
+        __ AddS64(stack_limit, stack_limit,
+                  Operand(static_cast<int32_t>(stack_space)));
+      }
       __ CmpU64(sp, stack_limit);
       __ bge(&done);
     }
 
-    if (v8_flags.wasm_growable_stacks) {
+    if (is_js_to_wasm) {
+      __ CallRuntime(Runtime::kThrowStackOverflow);
+      // RecordSafepointWithoutTaggedSlots is safe here because no tagged spill
+      // slots or parameters have been allocated on the stack frame yet.
+      RecordSafepointWithoutTaggedSlots();
+      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromThrow);
+    } else if (v8_flags.wasm_growable_stacks) {
       RegList regs_to_save;
       regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
       regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
@@ -3602,7 +3617,7 @@ void CodeGenerator::AssembleConstructFrame() {
       for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
       __ MultiPushF64OrV128(fp_regs_to_save, r1);
       __ mov(WasmHandleStackOverflowDescriptor::GapRegister(),
-             Operand(stack_space));
+             Operand(static_cast<int32_t>(stack_space)));
       __ AddS64(
           WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
           Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
@@ -3627,7 +3642,6 @@ void CodeGenerator::AssembleConstructFrame() {
       RecordSafepointWithoutTaggedSlots();
       if (v8_flags.debug_code) __ stop();
     }
-
     __ bind(&done);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
