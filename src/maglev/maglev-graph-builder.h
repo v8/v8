@@ -1545,6 +1545,9 @@ class MaglevGraphBuilder {
 
   std::optional<VirtualObject*> TryGetNonEscapingArgumentsOrArray(
       ValueNode* value);
+  bool ArgumentsElementsMaybeMutated(InlinedAllocation* allocation,
+                                     ArgumentsElements* elements);
+  void MarkArgumentsElementsMaybeMutated(ValueNode* elements);
 
   MaybeReduceResult TryBuildFastCreateObjectOrArrayLiteral(
       const compiler::LiteralFeedback& feedback);

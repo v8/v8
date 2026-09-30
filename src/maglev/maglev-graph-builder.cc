@@ -4083,8 +4083,19 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
   return AddNewNode<LoadFixedArrayElement>({elements, index}, type);
 }
 
+// The argument forwarding fast paths in TryGetNonEscapingArgumentsOrArray copy
+// the caller's stack frame rather than the heap backing store, so they must be
+// disabled once we store into that backing store.
+void MaglevGraphBuilder::MarkArgumentsElementsMaybeMutated(
+    ValueNode* elements) {
+  if (auto* arguments_elements = elements->TryCast<ArgumentsElements>()) {
+    arguments_elements->set_maybe_mutated();
+  }
+}
+
 ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
     ValueNode* elements, ValueNode* index, ValueNode* value) {
+  MarkArgumentsElementsMaybeMutated(elements);
   // TODO(victorgomes): Support storing element to a virtual object. If we
   // modify the elements array, we need to modify the original object to point
   // to the new elements array.
@@ -4106,6 +4117,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
 ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
     ElementsKind elements_kind, ValueNode* elements, ValueNode* index,
     ValueNode* value) {
+  MarkArgumentsElementsMaybeMutated(elements);
   // TODO(victorgomes): Support storing double element to a virtual object.
   DCHECK(value->is_float64_or_holey_float64());
   if (value->is_holey_float64()) {
@@ -11940,29 +11952,53 @@ MaglevGraphBuilder::TryGetNonEscapingArgumentsOrArray(ValueNode* value) {
     return {};
   }
   compiler::MapRef map = *object->map();
-  if (map.IsJSArrayMap()) {
-    if (!map.supports_fast_array_iteration(broker())) {
+  // TODO(victorgomes): We can loosen the IsSloppyMappedArgumentsObject
+  // requirement if there are no stores to the mapped arguments.
+  const bool is_unmapped_arguments =
+      map.IsJSArgumentsObjectMap() &&
+      !IsSloppyMappedArgumentsObject(broker(), map);
+  if (!map.IsJSArrayMap() && !is_unmapped_arguments) {
+    return {};
+  }
+
+  ValueNode* elements = object->get(offsetof(JSObject, elements_));
+  if (auto* arguments_elements = elements->TryCast<ArgumentsElements>()) {
+    if (ArgumentsElementsMaybeMutated(alloc, arguments_elements)) {
       return {};
     }
-    ValueNode* elements = object->get(offsetof(JSObject, elements_));
-    // Object is the rest parameter.
-    if (elements->Is<ArgumentsElements>()) {
-      return object;
-    }
-    if (try_get_non_escaping_alloc(elements)) {
-      return object;
-    }
-    if (elements->Is<RootConstant>() || elements->Is<HeapConstant>()) {
-      return object;
-    }
   }
-  // TODO(victorgomes): We can loosen the IsSloppyMappedArgumentsObject
-  // requirement if there is no stores to  the mapped arguments.
-  if (map.IsJSArgumentsObjectMap() &&
-      !IsSloppyMappedArgumentsObject(broker(), map)) {
+
+  if (is_unmapped_arguments) {
+    return object;
+  }
+  if (!map.supports_fast_array_iteration(broker())) {
+    return {};
+  }
+  // Object is the rest parameter.
+  if (elements->Is<ArgumentsElements>()) {
+    return object;
+  }
+  if (try_get_non_escaping_alloc(elements)) {
+    return object;
+  }
+  if (elements->Is<RootConstant>() || elements->Is<HeapConstant>()) {
     return object;
   }
   return {};
+}
+
+bool MaglevGraphBuilder::ArgumentsElementsMaybeMutated(
+    InlinedAllocation* allocation, ArgumentsElements* elements) {
+  // Argument forwarding reads the caller's stack rather than this backing
+  // store. The mutation mark only covers stores emitted so far.
+  // A store later in bytecode order can only be observed here inside a loop.
+  // The allocation must then have been created since the loop header.
+  DCHECK(!IsInsideLoop() || (is_loop_effect_tracking() &&
+                             loop_effects_->allocations.contains(allocation)));
+  // A store in a callee inlined after graph building requires passing the
+  // allocation to the pending call, making it escape here.
+  DCHECK(!IsEscaping(allocation));
+  return elements->maybe_mutated();
 }
 
 ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLike(

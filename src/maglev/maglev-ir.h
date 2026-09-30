@@ -6739,8 +6739,14 @@ class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
   int formal_parameter_count() const { return formal_parameter_count_; }
 
  private:
+  friend class MaglevGraphBuilder;
+
+  bool maybe_mutated() const { return maybe_mutated_; }
+  void set_maybe_mutated() { maybe_mutated_ = true; }
+
   CreateArgumentsType type_;
   int formal_parameter_count_;
+  bool maybe_mutated_ = false;
 };
 
 // TODO(victorgomes): This node is currently not eliminated by the escape
