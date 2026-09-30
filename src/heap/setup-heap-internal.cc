@@ -402,24 +402,24 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       Tagged<Map> map = UncheckedCast<Map>(obj);
       roots_table()[entry.index] = map.ptr();
     }
-    ALLOCATE_AND_SET_ROOT(Map, symbol_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, symbol_map, Map::kSize);
 
-    ALLOCATE_AND_SET_ROOT(Map, meta_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, meta_map, Map::kSize);
     // Keep HeapNumber and Oddball maps together for cheap NumberOrOddball
     // checks.
-    ALLOCATE_AND_SET_ROOT(Map, undefined_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(Map, null_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, undefined_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, null_map, Map::kSize);
     // Keep HeapNumber and Boolean maps together for cheap NumberOrBoolean
     // checks.
-    ALLOCATE_AND_SET_ROOT(Map, boolean_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, boolean_map, Map::kSize);
     // Keep HeapNumber and BigInt maps together for cheaper numerics checks.
-    ALLOCATE_AND_SET_ROOT(Map, heap_number_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(Map, bigint_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, heap_number_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, bigint_map, Map::kSize);
     // Keep FreeSpace and filler maps together for cheap
     // `IsFreeSpaceOrFiller()`.
-    ALLOCATE_AND_SET_ROOT(Map, free_space_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(Map, one_pointer_filler_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(Map, two_pointer_filler_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, free_space_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, one_pointer_filler_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, two_pointer_filler_map, Map::kSize);
 
 #undef ALLOCATE_AND_SET_ROOT
 
@@ -460,21 +460,22 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     symbol_map->SetConstructorFunctionIndex(Context::SYMBOL_FUNCTION_INDEX);
 
     // Finally, initialise the non-map objects using those maps.
-    undefined_value->set_map_after_allocation(isolate(), undefined_map,
-                                              SKIP_WRITE_BARRIER);
-    undefined_value->set_kind(Oddball::kUndefined);
-
-    null_value->set_map_after_allocation(isolate(), null_map,
-                                         SKIP_WRITE_BARRIER);
-    null_value->set_kind(Oddball::kNull);
-
-    true_value->set_map_after_allocation(isolate(), boolean_map,
-                                         SKIP_WRITE_BARRIER);
-    true_value->set_kind(Oddball::kTrue);
-
-    false_value->set_map_after_allocation(isolate(), boolean_map,
-                                          SKIP_WRITE_BARRIER);
-    false_value->set_kind(Oddball::kFalse);
+    {
+      AllocationWitness witness(undefined_value, AllocationType::kReadOnly);
+      new (witness) Undefined(witness, roots);
+    }
+    {
+      AllocationWitness witness(null_value, AllocationType::kReadOnly);
+      new (witness) Null(witness, roots);
+    }
+    {
+      AllocationWitness witness(true_value, AllocationType::kReadOnly);
+      new (witness) True(witness, roots);
+    }
+    {
+      AllocationWitness witness(false_value, AllocationType::kReadOnly);
+      new (witness) False(witness, roots);
+    }
 
     // The empty string is initialised with an empty hash despite being
     // internalized -- this will be calculated once the hashseed is available.
@@ -493,7 +494,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
 #define ALLOCATE_PARTIAL_MAP(instance_type, size, field_name)                \
   {                                                                          \
-    Tagged<Map> map;                                                         \
+    Tagged<ReadOnlyMap> map;                                                 \
     if (!AllocatePartialMap((instance_type), (size)).To(&map)) return false; \
     set_##field_name##_map(map);                                             \
   }
@@ -628,7 +629,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
 #define ALLOCATE_MAP(instance_type, size, field_name)                  \
   {                                                                    \
-    Tagged<Map> map;                                                   \
+    Tagged<ReadOnlyMap> map;                                           \
     if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size) \
              .To(&map)) {                                              \
       return false;                                                    \
@@ -681,11 +682,9 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       AllocationResult alloc =
           AllocateRaw(sizeof(Cell), AllocationType::kReadOnly);
       if (!alloc.To(&obj)) return false;
-      obj->set_map_after_allocation(isolate(), roots.cell_map(),
-                                    SKIP_WRITE_BARRIER);
-      Cast<Cell>(obj)->set_maybe_value(Map::kPrototypeChainInvalid,
-                                       SKIP_WRITE_BARRIER);
-      set_invalid_prototype_validity_cell(Cast<Cell>(obj));
+      AllocationWitness witness(obj, AllocationType::kReadOnly);
+      set_invalid_prototype_validity_cell(
+          new (witness) Cell(witness, roots, Map::kPrototypeChainInvalid));
     }
 
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, sizeof(PropertyCell), global_property_cell)
@@ -878,7 +877,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 #define ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(instance_type, size, \
                                                   field_name)          \
   {                                                                    \
-    Tagged<Map> map;                                                   \
+    Tagged<ReadOnlyMap> map;                                           \
     if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size, \
                      DICTIONARY_ELEMENTS)                              \
              .To(&map)) {                                              \
@@ -914,7 +913,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 
   // Shared space object maps are immutable and can be in RO space.
   {
-    Tagged<Map> shared_array_map;
+    Tagged<ReadOnlyMap> shared_array_map;
     if (!AllocateMap(AllocationType::kReadOnly, JS_SHARED_ARRAY_TYPE,
                      JSSharedArray::kSize, SHARED_ARRAY_ELEMENTS,
                      JSSharedArray::kInObjectFieldCount)
@@ -1132,18 +1131,16 @@ bool Heap::CreateReadOnlyObjects() {
 
   {
     // Empty array boilerplate description
-    AllocationResult alloc =
-        Allocate(roots_table().array_boilerplate_description_map(),
-                 AllocationType::kReadOnly);
+    AllocationResult alloc = AllocateRaw(sizeof(ArrayBoilerplateDescription),
+                                         AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
 
-    Cast<ArrayBoilerplateDescription>(obj)->set_constant_elements(
-        roots.empty_fixed_array());
-    Cast<ArrayBoilerplateDescription>(obj)->set_elements_kind(
-        ElementsKind::PACKED_SMI_ELEMENTS);
+    AllocationWitness witness(obj, AllocationType::kReadOnly);
+    set_empty_array_boilerplate_description(
+        new (witness) ArrayBoilerplateDescription(
+            witness, roots, ElementsKind::PACKED_SMI_ELEMENTS,
+            roots.empty_fixed_array()));
   }
-  set_empty_array_boilerplate_description(
-      Cast<ArrayBoilerplateDescription>(obj));
 
   // Empty arrays.
   {
@@ -1183,24 +1180,15 @@ bool Heap::CreateReadOnlyObjects() {
 #undef ENSURE_SINGLE_CHAR_STRINGS_ARE_SINGLE_CHAR
 
   // Finish initializing oddballs after creating the string table.
-  Oddball::Initialize(isolate(), factory->undefined_value(), "undefined",
-                      factory->undefined_nan_value(), "undefined",
-                      Oddball::kUndefined);
-
-  // Initialize the null_value.
-  Oddball::Initialize(isolate(), factory->null_value(), "null",
-                      direct_handle(Smi::zero(), isolate()), "object",
-                      Oddball::kNull);
-
-  // Initialize the true_value.
-  Oddball::Initialize(isolate(), factory->true_value(), "true",
-                      direct_handle(Smi::FromInt(1), isolate()), "boolean",
-                      Oddball::kTrue);
-
-  // Initialize the false_value.
-  Oddball::Initialize(isolate(), factory->false_value(), "false",
-                      direct_handle(Smi::zero(), isolate()), "boolean",
-                      Oddball::kFalse);
+  roots.undefined_value()->FinishInitialization(roots.undefined_string(),
+                                                roots.undefined_nan_value(),
+                                                roots.undefined_string());
+  roots.null_value()->FinishInitialization(roots.null_string(), Smi::zero(),
+                                           roots.object_string());
+  roots.true_value()->FinishInitialization(roots.true_string(), Smi::FromInt(1),
+                                           roots.boolean_string());
+  roots.false_value()->FinishInitialization(roots.false_string(), Smi::zero(),
+                                            roots.boolean_string());
 
   {
     HandleScope handle_scope(isolate());

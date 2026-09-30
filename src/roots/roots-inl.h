@@ -12,6 +12,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
+#include "src/objects/map.h"
 #include "src/objects/oddball.h"
 #include "src/objects/slots.h"
 #include "src/objects/string.h"

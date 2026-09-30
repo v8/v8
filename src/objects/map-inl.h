@@ -241,6 +241,12 @@ inline bool IsMetaMap(const HeapObject* obj) {
   return IsMetaMap(Tagged<HeapObject>(obj));
 }
 
+bool IsReadOnlyMap(Tagged<Map> map) { return HeapLayout::InReadOnlySpace(map); }
+
+DEF_HEAP_OBJECT_PREDICATE(IsReadOnlyMap) {
+  return IsMap(obj) && IsReadOnlyMap(UncheckedCast<Map>(obj));
+}
+
 bool IsExtendedMap(Tagged<Map> map) {
   DCHECK_IMPLIES(map->is_extended_map(), !IsMetaMap(map));
   return map->is_extended_map();
@@ -264,6 +270,7 @@ DEF_HEAP_OBJECT_PREDICATE(IsJSInterceptorMap) {
 DEF_CAST_TRAITS(ExtendedMap)
 DEF_CAST_TRAITS(JSInterceptorMap)
 DEF_CAST_TRAITS(MetaMap)
+DEF_CAST_TRAITS(ReadOnlyMap)
 
 // static
 bool Map::IsMostGeneralFieldType(Representation representation,

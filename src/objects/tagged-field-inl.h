@@ -52,6 +52,23 @@ Tagged_t TaggedMember<T, CompressionScheme>::full_to_tagged(Address value) {
 }
 
 template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(Tagged<Smi> value) {
+  static_assert(is_subtype_v<Smi, T>);
+  store_no_write_barrier(value);
+}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    const AllocationWitness& witness, Tagged<T> value)
+    : TaggedMember(witness, value, witness.write_barrier_mode()) {}
+
+template <typename T, typename CompressionScheme>
+TaggedMember<T, CompressionScheme>::TaggedMember(
+    const AllocationWitness& witness, Tagged<T> value, WriteBarrierMode mode) {
+  store(witness.object(), value, mode);
+}
+
+template <typename T, typename CompressionScheme>
 Tagged<T> TaggedMember<T, CompressionScheme>::load() const {
   return Tagged<T>(tagged_to_full(ptr()));
 }

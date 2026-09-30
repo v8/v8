@@ -393,13 +393,13 @@ DirectHandle<PrototypeSharedClosureInfo> Factory::NewPrototypeSharedClosureInfo(
     DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description,
     DirectHandle<Context> context,
     DirectHandle<ClosureFeedbackCellArray> feedback_array) {
-  auto result = NewStructInternal<PrototypeSharedClosureInfo>(
-      PROTOTYPE_SHARED_CLOSURE_INFO_TYPE, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  result->set_boilerplate_description(*object_boilerplate_description);
-  result->set_context(*context);
-  result->set_closure_feedback_cell_array(*feedback_array);
-  return direct_handle(result, isolate());
+  AllocationWitness witness = AllocateWithWitness(
+      sizeof(PrototypeSharedClosureInfo), AllocationType::kOld);
+  return direct_handle(
+      new (witness) PrototypeSharedClosureInfo(witness, read_only_roots(),
+                                               *object_boilerplate_description,
+                                               *feedback_array, *context),
+      isolate());
 }
 
 DirectHandle<EnumCache> Factory::NewEnumCache(DirectHandle<FixedArray> keys,
@@ -491,22 +491,11 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   DCHECK_LE(0, length);
   int size = FeedbackVector::SizeFor(length);
 
-  Tagged<FeedbackVector> vector =
-      Cast<FeedbackVector>(AllocateRawWithImmortalMap(
-          size, AllocationType::kOld, *feedback_vector_map()));
-  DisallowGarbageCollection no_gc;
-  vector->set_shared_function_info(*shared);
-  vector->set_length(length);
-  vector->set_invocation_count(0);
-  vector->set_invocation_count_before_stable(0);
-  vector->reset_osr_state();
-  vector->reset_flags();
-  vector->set_closure_feedback_cell_array(*closure_feedback_cell_array);
-  vector->set_parent_feedback_cell(*parent_feedback_cell);
-
-  // TODO(leszeks): Initialize based on the feedback metadata.
-  MemsetTagged(ObjectSlot(vector->slots_start()), *undefined_value(), length);
-  return handle(vector, isolate());
+  AllocationWitness witness = AllocateWithWitness(size, AllocationType::kOld);
+  return handle(new (witness) FeedbackVector(
+                    witness, read_only_roots(), length, *shared,
+                    *closure_feedback_cell_array, *parent_feedback_cell),
+                isolate());
 }
 
 DirectHandle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
@@ -2605,55 +2594,46 @@ Factory::NewSharedFunctionInfoForWasmCapiFunction(
 
 Handle<Cell> Factory::NewCell(Tagged<Smi> value) {
   static_assert(sizeof(Cell) <= kMaxRegularHeapObjectSize);
-  Tagged<Cell> result = Cast<Cell>(AllocateRawWithImmortalMap(
-      sizeof(Cell), AllocationType::kOld, *cell_map()));
-  DisallowGarbageCollection no_gc;
-  result->set_value(value, WriteBarrierMode::SKIP_WRITE_BARRIER);
-  return handle(result, isolate());
+  AllocationWitness witness =
+      AllocateWithWitness(sizeof(Cell), AllocationType::kOld);
+  return handle(new (witness) Cell(witness, read_only_roots(), value),
+                isolate());
 }
 
 Handle<Cell> Factory::NewCell() {
   static_assert(sizeof(Cell) <= kMaxRegularHeapObjectSize);
-  Tagged<Cell> result = Cast<Cell>(AllocateRawWithImmortalMap(
-      sizeof(Cell), AllocationType::kOld, *cell_map()));
-  result->set_value(read_only_roots().undefined_value(),
-                    WriteBarrierMode::SKIP_WRITE_BARRIER);
-  return handle(result, isolate());
+  AllocationWitness witness =
+      AllocateWithWitness(sizeof(Cell), AllocationType::kOld);
+  return handle(new (witness) Cell(witness, read_only_roots()), isolate());
 }
 
 DirectHandle<FeedbackCell> Factory::NewNoClosuresCell() {
-  Tagged<FeedbackCell> result = Cast<FeedbackCell>(AllocateRawWithImmortalMap(
-      sizeof(FeedbackCell), AllocationType::kOld, *no_closures_cell_map()));
-  DisallowGarbageCollection no_gc;
-  result->set_value(read_only_roots().undefined_value());
-  result->clear_interrupt_budget();
-  result->clear_dispatch_handle();
-  result->clear_padding();
-  return direct_handle(result, isolate());
+  AllocationWitness witness =
+      AllocateWithWitness(sizeof(FeedbackCell), AllocationType::kOld);
+  return direct_handle(
+      new (witness) FeedbackCell(witness, read_only_roots(),
+                                 read_only_roots().no_closures_cell_map()),
+      isolate());
 }
 
 DirectHandle<FeedbackCell> Factory::NewOneClosureCell(
     DirectHandle<ClosureFeedbackCellArray> value) {
-  Tagged<FeedbackCell> result = Cast<FeedbackCell>(AllocateRawWithImmortalMap(
-      sizeof(FeedbackCell), AllocationType::kOld, *one_closure_cell_map()));
-  DisallowGarbageCollection no_gc;
-  result->set_value(*value);
-  result->clear_interrupt_budget();
-  result->clear_dispatch_handle();
-  result->clear_padding();
-  return direct_handle(result, isolate());
+  AllocationWitness witness =
+      AllocateWithWitness(sizeof(FeedbackCell), AllocationType::kOld);
+  return direct_handle(
+      new (witness) FeedbackCell(
+          witness, read_only_roots().one_closure_cell_map(), *value),
+      isolate());
 }
 
 DirectHandle<FeedbackCell> Factory::NewManyClosuresCell(
     AllocationType allocation) {
-  Tagged<FeedbackCell> result = Cast<FeedbackCell>(AllocateRawWithImmortalMap(
-      sizeof(FeedbackCell), allocation, *many_closures_cell_map()));
-  DisallowGarbageCollection no_gc;
-  result->set_value(read_only_roots().undefined_value());
-  result->clear_interrupt_budget();
-  result->clear_dispatch_handle();
-  result->clear_padding();
-  return direct_handle(result, isolate());
+  AllocationWitness witness =
+      AllocateWithWitness(sizeof(FeedbackCell), allocation);
+  return direct_handle(
+      new (witness) FeedbackCell(witness, read_only_roots(),
+                                 read_only_roots().many_closures_cell_map()),
+      isolate());
 }
 
 Handle<PropertyCell> Factory::NewPropertyCell(DirectHandle<Name> name,
@@ -4646,12 +4626,11 @@ Handle<StackTraceInfo> Factory::NewStackTraceInfo(
 Handle<DebugScriptScopeInfo> Factory::NewDebugScriptScopeInfo(
     DirectHandle<ByteArray> numeric_data,
     DirectHandle<FixedArray> string_table) {
-  Tagged<DebugScriptScopeInfo> info = NewStructInternal<DebugScriptScopeInfo>(
-      DEBUG_SCRIPT_SCOPE_INFO_TYPE, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  info->set_numeric_data(*numeric_data);
-  info->set_string_table(*string_table);
-  return handle(info, isolate());
+  AllocationWitness witness =
+      AllocateWithWitness(sizeof(DebugScriptScopeInfo), AllocationType::kOld);
+  return handle(new (witness) DebugScriptScopeInfo(
+                    witness, read_only_roots(), *numeric_data, *string_table),
+                isolate());
 }
 
 Handle<JSObject> Factory::NewArgumentsObject(DirectHandle<JSFunction> callee,

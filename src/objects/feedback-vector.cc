@@ -395,14 +395,6 @@ void FeedbackVector::set_tiering_in_progress(bool in_progress) {
   set_flags(TieringInProgressBit::update(flags(), in_progress));
 }
 
-void FeedbackVector::reset_flags() {
-  set_flags(
-      TieringInProgressBit::encode(false) |
-      OsrTieringInProgressBit::encode(false) |
-      MaybeHasMaglevOsrCodeBit::encode(false) |
-      MaybeHasTurbofanOsrCodeBit::encode(false));
-}
-
 void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                                          Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));

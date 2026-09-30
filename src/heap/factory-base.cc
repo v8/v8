@@ -39,30 +39,6 @@ namespace v8 {
 namespace internal {
 
 template <typename Impl>
-template <AllocationType allocation>
-Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber() {
-  static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
-  Tagged<Map> map = read_only_roots().heap_number_map();
-  Tagged<HeapObject> result = AllocateRawWithImmortalMap(
-      sizeof(HeapNumber), allocation, map,
-      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
-                                                : kTaggedAligned);
-  return handle(Cast<HeapNumber>(result), isolate());
-}
-
-template V8_EXPORT_PRIVATE Handle<HeapNumber>
-FactoryBase<Factory>::NewHeapNumber<AllocationType::kYoung>();
-template V8_EXPORT_PRIVATE Handle<HeapNumber>
-FactoryBase<Factory>::NewHeapNumber<AllocationType::kOld>();
-template V8_EXPORT_PRIVATE Handle<HeapNumber>
-FactoryBase<Factory>::NewHeapNumber<AllocationType::kReadOnly>();
-template V8_EXPORT_PRIVATE Handle<HeapNumber>
-FactoryBase<Factory>::NewHeapNumber<AllocationType::kSharedOld>();
-
-template V8_EXPORT_PRIVATE Handle<HeapNumber>
-FactoryBase<LocalFactory>::NewHeapNumber<AllocationType::kOld>();
-
-template <typename Impl>
 Handle<Struct> FactoryBase<Impl>::NewStruct(InstanceType type,
                                             AllocationType allocation) {
   ReadOnlyRoots roots = read_only_roots();
@@ -492,15 +468,11 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
     DirectHandle<SharedFunctionInfo> other) {
-  Tagged<Map> map = read_only_roots().shared_function_info_map();
-
-  Tagged<SharedFunctionInfo> shared =
-      Cast<SharedFunctionInfo>(NewWithImmortalMap(map, AllocationType::kOld));
-  DisallowGarbageCollection no_gc;
-
-  shared->CopyFrom(*other, isolate());
-
-  return handle(shared, isolate());
+  AllocationWitness witness =
+      AllocateWithWitness(sizeof(SharedFunctionInfo), AllocationType::kOld);
+  return handle(new (witness) SharedFunctionInfo(witness, read_only_roots(),
+                                                 *other, isolate()),
+                isolate());
 }
 
 template <typename Impl>
@@ -521,15 +493,10 @@ template <typename Impl>
 Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
                                                         int children_length) {
   int size = PreparseData::SizeFor(data_length, children_length);
-  Tagged<PreparseData> result = Cast<PreparseData>(AllocateRawWithImmortalMap(
-      size, AllocationType::kOld, read_only_roots().preparse_data_map()));
-  DisallowGarbageCollection no_gc;
-  result->set_data_length(data_length);
-  result->set_children_length(children_length);
-  MemsetTagged(ObjectSlot(result->children()), read_only_roots().null_value(),
-               children_length);
-  result->clear_padding();
-  return handle(result, isolate());
+  AllocationWitness witness = AllocateWithWitness(size, AllocationType::kOld);
+  return handle(new (witness) PreparseData(witness, read_only_roots(),
+                                           data_length, children_length),
+                isolate());
 }
 
 template <typename Impl>
@@ -682,12 +649,12 @@ template <typename Impl>
 Handle<ArrayBoilerplateDescription>
 FactoryBase<Impl>::NewArrayBoilerplateDescription(
     ElementsKind elements_kind, DirectHandle<FixedArrayBase> constant_values) {
-  auto result = NewStructInternal<ArrayBoilerplateDescription>(
-      ARRAY_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  result->set_elements_kind(elements_kind);
-  result->set_constant_elements(*constant_values);
-  return handle(result, isolate());
+  AllocationWitness witness = AllocateWithWitness(
+      sizeof(ArrayBoilerplateDescription), AllocationType::kOld);
+  return handle(
+      new (witness) ArrayBoilerplateDescription(
+          witness, read_only_roots(), elements_kind, *constant_values),
+      isolate());
 }
 
 template <typename Impl>
@@ -704,12 +671,11 @@ template <typename Impl>
 DirectHandle<RegExpBoilerplateDescription>
 FactoryBase<Impl>::NewRegExpBoilerplateDescription(
     DirectHandle<RegExpData> data, Tagged<Smi> flags) {
-  auto result = NewStructInternal<RegExpBoilerplateDescription>(
-      REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  result->set_data(*data);
-  result->set_flags(flags.value());
-  return direct_handle(result, isolate());
+  AllocationWitness witness = AllocateWithWitness(
+      sizeof(RegExpBoilerplateDescription), AllocationType::kOld);
+  return direct_handle(new (witness) RegExpBoilerplateDescription(
+                           witness, read_only_roots(), *data, flags),
+                       isolate());
 }
 
 template <typename Impl>
@@ -723,12 +689,11 @@ FactoryBase<Impl>::NewTemplateObjectDescription(
   DCHECK_EQ(raw_strings_len, cooked_strings_len);
   DCHECK_LT(0, raw_strings_len);
 #endif
-  auto result = NewStructInternal<TemplateObjectDescription>(
-      TEMPLATE_OBJECT_DESCRIPTION_TYPE, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  result->set_raw_strings(*raw_strings);
-  result->set_cooked_strings(*cooked_strings);
-  return handle(result, isolate());
+  AllocationWitness witness = AllocateWithWitness(
+      sizeof(TemplateObjectDescription), AllocationType::kOld);
+  return handle(new (witness) TemplateObjectDescription(
+                    witness, read_only_roots(), *raw_strings, *cooked_strings),
+                isolate());
 }
 
 template <typename Impl>
@@ -736,19 +701,13 @@ Handle<FeedbackMetadata> FactoryBase<Impl>::NewFeedbackMetadata(
     int slot_count, int create_closure_slot_count, AllocationType allocation) {
   DCHECK_LE(0, slot_count);
   int size = FeedbackMetadata::SizeFor(slot_count, create_closure_slot_count);
-  Tagged<FeedbackMetadata> result =
-      Cast<FeedbackMetadata>(AllocateRawWithImmortalMap(
-          size, allocation, read_only_roots().feedback_metadata_map()));
-  result->set_slot_count(slot_count);
-  result->set_create_closure_slot_count(create_closure_slot_count);
-
-  // Initialize the data section to 0.
-  int data_size = size - FeedbackMetadata::kHeaderSize;
-  Address data_start = result->address() + FeedbackMetadata::kHeaderSize;
-  memset(reinterpret_cast<uint8_t*>(data_start), 0, data_size);
+  AllocationWitness witness = AllocateWithWitness(size, allocation);
   // Fields have been zeroed out but not initialized, so this object will not
   // pass object verification at this point.
-  return handle(result, isolate());
+  return handle(new (witness)
+                    FeedbackMetadata(witness, read_only_roots(), slot_count,
+                                     create_closure_slot_count),
+                isolate());
 }
 
 template <typename Impl>
@@ -757,15 +716,9 @@ Handle<CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
   const int slot_count = static_cast<int>(slots.size());
 
   int size = CoverageInfo::SizeFor(slot_count);
-  Tagged<Map> map = read_only_roots().coverage_info_map();
-  Tagged<CoverageInfo> info = Cast<CoverageInfo>(
-      AllocateRawWithImmortalMap(size, AllocationType::kOld, map));
-  info->set_slot_count(slot_count);
-  for (int i = 0; i < slot_count; i++) {
-    SourceRange range = slots[i];
-    info->InitializeSlot(i, range.start, range.end);
-  }
-  return handle(info, isolate());
+  AllocationWitness witness = AllocateWithWitness(size, AllocationType::kOld);
+  return handle(new (witness) CoverageInfo(witness, read_only_roots(), slots),
+                isolate());
 }
 
 template <typename Impl>
@@ -1259,13 +1212,12 @@ FactoryBase<Impl>::NewSourceTextModuleInfo() {
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     AllocationType allocation) {
-  Tagged<Map> map = read_only_roots().shared_function_info_map();
-  Tagged<SharedFunctionInfo> shared =
-      Cast<SharedFunctionInfo>(NewWithImmortalMap(map, allocation));
-
-  DisallowGarbageCollection no_gc;
-  shared->Init(read_only_roots(), isolate()->GetAndIncNextUniqueSfiId());
-  return handle(shared, isolate());
+  AllocationWitness witness =
+      AllocateWithWitness(sizeof(SharedFunctionInfo), allocation);
+  return handle(new (witness)
+                    SharedFunctionInfo(witness, read_only_roots(),
+                                       isolate()->GetAndIncNextUniqueSfiId()),
+                isolate());
 }
 
 template <typename Impl>
@@ -1410,6 +1362,14 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWithImmortalMap(
   DisallowGarbageCollection no_gc;
   result->set_map_after_allocation(isolate(), map, SKIP_WRITE_BARRIER);
   return result;
+}
+
+template <typename Impl>
+AllocationWitness FactoryBase<Impl>::AllocateWithWitness(
+    int size, AllocationType allocation, AllocationAlignment alignment,
+    AllocationHint hint) {
+  return AllocationWitness(AllocateRaw(size, allocation, alignment, hint),
+                           allocation);
 }
 
 template <typename Impl>

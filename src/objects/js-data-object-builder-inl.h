@@ -83,28 +83,25 @@ class FoldedMutableHeapNumberAllocator {
   }
 
   Tagged<HeapNumber> Allocate(Float64 value) {
-    Tagged<HeapObject> hn = AllocateRaw(roots_.heap_number_map());
-    Cast<HeapNumber>(hn)->set_value_as_bits(value.get_bits());
-    return Cast<HeapNumber>(hn);
+    AllocationWitness witness = AllocateRaw();
+    return new (witness) HeapNumber(witness, roots_, value);
   }
 
   Tagged<UninitializedHeapNumber> AllocateUninitialized() {
-    Tagged<HeapObject> hn = AllocateRaw(roots_.uninitialized_heap_number_map());
-    Cast<UninitializedHeapNumber>(hn)->set_value_as_bits(0);
-    return Cast<UninitializedHeapNumber>(hn);
+    AllocationWitness witness = AllocateRaw();
+    return new (witness) UninitializedHeapNumber(witness, roots_);
   }
 
  private:
-  Tagged<HeapObject> AllocateRaw(Tagged<Map> map) {
+  AllocationWitness AllocateRaw() {
     DCHECK_GE(mutable_double_address_,
               reinterpret_cast<Address>(raw_bytes_->begin()));
-    Tagged<HeapObject> hn = HeapObject::FromAddress(mutable_double_address_);
-    hn->set_map_after_allocation(isolate_, map);
+    Tagged<HeapObject> obj = HeapObject::FromAddress(mutable_double_address_);
     mutable_double_address_ +=
         ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(HeapNumber));
     DCHECK_LE(mutable_double_address_,
               reinterpret_cast<Address>(raw_bytes_->end()));
-    return hn;
+    return AllocationWitness(obj, UPDATE_WRITE_BARRIER);
   }
   Isolate* isolate_;
   ReadOnlyRoots roots_;

@@ -12,8 +12,11 @@
 #include "src/common/globals.h"
 #include "src/common/ptr-compr.h"
 #include "src/objects/tagged-value.h"
+#include "src/utils/boxed-float.h"
 
 namespace v8::internal {
+
+class AllocationWitness;
 
 // TaggedMember<T> represents an potentially compressed V8 tagged pointer, which
 // is intended to be used as a member of a V8 object class.
@@ -38,6 +41,10 @@ template <typename T, typename CompressionScheme>
 class V8_GSL_POINTER TaggedMember : public TaggedMemberBase {
  public:
   constexpr TaggedMember() = default;
+  inline explicit TaggedMember(Tagged<Smi> value);
+  inline TaggedMember(const AllocationWitness& witness, Tagged<T> value);
+  inline TaggedMember(const AllocationWitness& witness, Tagged<T> value,
+                      WriteBarrierMode mode);
 
   inline Tagged<T> load() const;
   inline void store(HeapObject* host, Tagged<T> value,
@@ -79,6 +86,7 @@ template <typename T>
 class UnalignedValueMember {
  public:
   UnalignedValueMember() = default;
+  explicit UnalignedValueMember(T value) { set_value(value); }
 
   T value() const { return base::ReadUnalignedValue<T>(storage_); }
   void set_value(T value) { base::WriteUnalignedValue(storage_, value); }
@@ -100,15 +108,25 @@ class UnalignedValueMember {
   alignas(alignof(Tagged_t)) char storage_[sizeof(T)];
 };
 
-class UnalignedDoubleMember : public UnalignedValueMember<double> {
+class UnalignedDoubleMember : public UnalignedValueMember<Float64> {
  public:
   UnalignedDoubleMember() = default;
+  explicit UnalignedDoubleMember(Float64 value)
+      : UnalignedValueMember<Float64>(value) {}
+  explicit UnalignedDoubleMember(double value)
+      : UnalignedValueMember<Float64>(Float64::FromMaybeNaN(value)) {}
 
+  double value() const {
+    return UnalignedValueMember<Float64>::value().get_scalar();
+  }
+  void set_value(double value) {
+    UnalignedValueMember<Float64>::set_value(Float64::FromMaybeNaN(value));
+  }
   uint64_t value_as_bits() const {
-    return base::ReadUnalignedValue<uint64_t>(storage_);
+    return UnalignedValueMember<Float64>::value().get_bits();
   }
   void set_value_as_bits(uint64_t value) {
-    base::WriteUnalignedValue(storage_, value);
+    UnalignedValueMember<Float64>::set_value(Float64::FromBits(value));
   }
 };
 static_assert(alignof(UnalignedDoubleMember) == alignof(Tagged_t));

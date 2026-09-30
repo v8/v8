@@ -133,9 +133,6 @@ class FactoryBase {
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<HeapNumber> NewHeapInt32(int32_t value);
 
-  template <AllocationType allocation>
-  Handle<HeapNumber> NewHeapNumber();
-
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<UninitializedHeapNumber> NewUninitializedHeapNumber();
 
@@ -443,6 +440,11 @@ class FactoryBase {
   inline Tagged<Struct> NewStructInternal(ReadOnlyRoots roots, Tagged<Map> map,
                                           int size, AllocationType allocation,
                                           bool initialize_fields);
+
+  AllocationWitness AllocateWithWitness(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kTaggedAligned,
+      AllocationHint hint = AllocationHint());
 
   Tagged<HeapObject> AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Tagged<Map> map,

@@ -332,6 +332,7 @@ namespace internal {
   V(MapCache)                       \
   V(ExtendedMap)                    \
   V(MetaMap)                        \
+  V(ReadOnlyMap)                    \
   V(NumberWrapper)                  \
   V(OSROptimizedCodeCache)          \
   V(ScriptWrapper)                  \

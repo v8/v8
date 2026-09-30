@@ -113,7 +113,7 @@ READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 
 template <typename T>
 void CheckTrustedMapHelper(RootIndex index, Tagged<T> obj) {
-  if constexpr (std::is_same_v<T, Map>) {
+  if constexpr (std::is_base_of_v<Map, T>) {
     CHECK_EQ(RootsTable::IsInTrustedObjectMapList(index),
              InstanceTypeChecker::IsTrustedObject(obj->instance_type()));
   }

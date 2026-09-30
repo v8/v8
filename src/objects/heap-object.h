@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/strong-alias.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/objects/casting.h"
 #include "src/objects/instance-type.h"
@@ -57,6 +58,28 @@ struct ObjectTraits {
 };
 
 using InSharedSpace = base::StrongAlias<struct InSharedSpaceTag, bool>;
+
+class V8_NODISCARD AllocationWitness {
+ public:
+  inline AllocationWitness(Tagged<HeapObject> object,
+                           AllocationType allocation);
+  inline AllocationWitness(Tagged<HeapObject> object,
+                           WriteBarrierMode write_barrier_mode);
+
+  AllocationWitness(const AllocationWitness&) = delete;
+  AllocationWitness& operator=(const AllocationWitness&) = delete;
+
+  HeapObject* object() const { return &*object_; }
+  WriteBarrierMode write_barrier_mode() const { return write_barrier_mode_; }
+
+ private:
+  static inline WriteBarrierMode WriteBarrierModeForAllocation(
+      Tagged<HeapObject> object, AllocationType allocation);
+
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
+  const Tagged<HeapObject> object_;
+  const WriteBarrierMode write_barrier_mode_;
+};
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
@@ -385,6 +408,29 @@ V8_OBJECT class HeapObject {
   friend class Heap;
   friend class CodeStubAssembler;
 
+ public:
+  HeapObject() = default;
+  inline HeapObject(const AllocationWitness& witness, Tagged<ReadOnlyMap> map);
+  inline HeapObject(const AllocationWitness& witness, Tagged<Map> map);
+
+ private:
+  inline HeapObject(const AllocationWitness& witness, Tagged<Map> map,
+                    WriteBarrierMode write_barrier_mode);
+
+ public:
+  void* operator new(size_t) = delete;
+  void* operator new[](size_t) = delete;
+  void* operator new(size_t size, const AllocationWitness& witness) {
+    return witness.object();
+  }
+  void operator delete(void*) {
+    FATAL("Manually deleting a garbage collected object is not allowed");
+  }
+  void operator delete[](void*) = delete;
+  void operator delete(void*, const AllocationWitness&) {
+    FATAL("Manually deleting a garbage collected object is not allowed");
+  }
+
   // HeapObjects shouldn't be copied or moved by C++ code, only by the GC.
   // TODO(leszeks): Consider making these non-deleted if the GC starts using
   // HeapObject rather than manual per-byte access.
@@ -393,7 +439,6 @@ V8_OBJECT class HeapObject {
   HeapObject& operator=(HeapObject&&) V8_NOEXCEPT = delete;
   HeapObject& operator=(const HeapObject&) V8_NOEXCEPT = delete;
 
- public:
   V8_TQ_CONST TaggedMember<Map> map_;
 } V8_OBJECT_END;
 

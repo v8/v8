@@ -23,6 +23,8 @@ V8_OBJECT class Struct : public HeapObject {
   V8_IT_ABSTRACT;
 
  public:
+  using HeapObject::HeapObject;
+
   void BriefPrintDetails(std::ostream& os);
 
   using BodyDescriptor = StructBodyDescriptor;

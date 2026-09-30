@@ -8,8 +8,19 @@
 #include "src/objects/heap-number.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/objects/heap-object-set-map-inl.h"
+#include "src/roots/roots-inl.h"
+
 namespace v8 {
 namespace internal {
+
+HeapNumber::HeapNumber(const AllocationWitness& witness, ReadOnlyRoots roots,
+                       double value)
+    : PrimitiveHeapObject(witness, roots.heap_number_map()), value_(value) {}
+
+HeapNumber::HeapNumber(const AllocationWitness& witness, ReadOnlyRoots roots,
+                       Float64 value)
+    : PrimitiveHeapObject(witness, roots.heap_number_map()), value_(value) {}
 
 double HeapNumber::value() const { return value_.value(); }
 void HeapNumber::set_value(double value) {
@@ -25,6 +36,10 @@ void HeapNumber::set_value_as_bits(uint64_t bits) {
 bool HeapNumber::is_the_hole() const {
   return value_as_bits() == kHoleNanInt64;
 }
+
+UninitializedHeapNumber::UninitializedHeapNumber(
+    const AllocationWitness& witness, ReadOnlyRoots roots)
+    : HeapObject(witness, roots.uninitialized_heap_number_map()), value_(0.0) {}
 
 }  // namespace internal
 }  // namespace v8
