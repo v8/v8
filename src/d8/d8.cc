@@ -7329,13 +7329,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                                        HelpOptions(HelpOptions::kExit, usage));
   i::FlagList::ResolveContradictionsWhenFuzzing();
 
-  options.mock_arraybuffer_allocator = i::v8_flags.mock_arraybuffer_allocator;
-  options.mock_arraybuffer_allocator_limit =
-      i::v8_flags.mock_arraybuffer_allocator_limit;
-#ifdef V8_OS_LINUX
-  options.multi_mapped_mock_allocator = i::v8_flags.multi_mapped_mock_allocator;
-#endif  // V8_OS_LINUX
-
   if (i::v8_flags.stress_snapshot && options.expose_fast_api &&
       check_d8_flag_contradictions) {
     FATAL("Flag --expose-fast-api is incompatible with --stress-snapshot.");
@@ -8219,23 +8212,23 @@ int Shell::Main(int argc, char* argv[]) {
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
   MockArrayBufferAllocator mock_arraybuffer_allocator(default_allocator.get());
   const size_t memory_limit =
-      options.mock_arraybuffer_allocator_limit * options.num_isolates;
+      i::v8_flags.mock_arraybuffer_allocator_limit * options.num_isolates;
   MockArrayBufferAllocatorWithLimit mock_arraybuffer_allocator_with_limit(
       default_allocator.get(),
-      memory_limit >= options.mock_arraybuffer_allocator_limit
+      memory_limit >= i::v8_flags.mock_arraybuffer_allocator_limit
           ? memory_limit
           : std::numeric_limits<size_t>::max());
 #ifdef V8_OS_LINUX
   MultiMappedAllocator multi_mapped_mock_allocator(default_allocator.get());
 #endif  // V8_OS_LINUX
-  if (options.mock_arraybuffer_allocator) {
+  if (i::v8_flags.mock_arraybuffer_allocator) {
     if (memory_limit) {
       Shell::array_buffer_allocator = &mock_arraybuffer_allocator_with_limit;
     } else {
       Shell::array_buffer_allocator = &mock_arraybuffer_allocator;
     }
 #ifdef V8_OS_LINUX
-  } else if (options.multi_mapped_mock_allocator) {
+  } else if (i::v8_flags.multi_mapped_mock_allocator) {
     Shell::array_buffer_allocator = &multi_mapped_mock_allocator;
 #endif  // V8_OS_LINUX
   } else {

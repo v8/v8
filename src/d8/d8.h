@@ -572,12 +572,6 @@ class ShellOptions {
       "dump-system-memory-stats", false};
   DisallowReassignment<bool> ignore_unhandled_promises = {
       "ignore-unhandled-promises", false};
-  DisallowReassignment<bool> mock_arraybuffer_allocator = {
-      "mock-arraybuffer-allocator", false};
-  DisallowReassignment<size_t> mock_arraybuffer_allocator_limit = {
-      "mock-arraybuffer-allocator-limit", 0};
-  DisallowReassignment<bool> multi_mapped_mock_allocator = {
-      "multi-mapped-mock-allocator", false};
   // This flag enables a bare-bones InspectorClient implementation in the shell.
   // It is only a harness for basic tests in `test/debugger`, and not shipped
   // in production. `test/inspector` uses the `inspector-test` binary instead.
