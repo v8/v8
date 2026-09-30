@@ -236,6 +236,11 @@
                                                                                \
   INTERNAL_FEATURE(homomorphic_ic,                                             \
                    "Homomorphic IC state for same-handler highly polymorphic " \
-                   "ICs")
+                   "ICs")                                                      \
+                                                                               \
+  /* V8 side owner: leszeks */                                                 \
+  INTERNAL_FEATURE(                                                            \
+      code_cache_source_hash_sha256,                                           \
+      "hashing code cache source string with SHA256 instead of string length")
 
 #endif  // V8_FLAGS_FEATURE_FLAGS_H_
