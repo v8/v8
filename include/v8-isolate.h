@@ -267,6 +267,12 @@ class V8_EXPORT IsolateGroup {
    */
   bool SandboxContains(void* pointer) const;
   VirtualAddressSpace* GetSandboxAddressSpace();
+
+  /**
+   * Sets the allocator used for allocations inside this group's sandbox.
+   * This must be called before the first Isolate is created in the group.
+   */
+  void SetInSandboxAllocator(std::shared_ptr<Allocator> allocator);
 #else
   V8_INLINE bool SandboxContains(void* pointer) const { return true; }
 #endif

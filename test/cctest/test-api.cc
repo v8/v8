@@ -13626,6 +13626,59 @@ UNINITIALIZED_TEST(TwoIsolateGroups) {
 
 #ifdef V8_ENABLE_SANDBOX
 
+class CustomInSandboxAllocator : public v8::Allocator {
+ public:
+  explicit CustomInSandboxAllocator(v8::IsolateGroup& group)
+      : address_space_(group.GetSandboxAddressSpace()) {}
+
+  void* Allocate(size_t size) override { return AllocateUninitialized(size); }
+
+  void* AllocateUninitialized(size_t size) override {
+    uintptr_t result = address_space_->AllocatePages(
+        0, kSIZE, kALIGN, v8::PagePermissions::kReadWrite);
+    allocated_address_ = reinterpret_cast<void*>(result);
+    return allocated_address_;
+  }
+
+  void* AllocateUninitializedOrCrash(size_t size) override {
+    void* allocation = AllocateUninitialized(size);
+    CHECK_NOT_NULL(allocation);
+    return allocation;
+  }
+
+  void Free(void* allocation) override {
+    if (!allocation) return;
+    address_space_->FreePages(reinterpret_cast<uintptr_t>(allocation), kSIZE);
+  }
+
+  void* allocated_address() const { return allocated_address_; }
+
+ private:
+  static constexpr int kSIZE = 1 << 20;
+  static constexpr int kALIGN = 64 << 10;
+  v8::VirtualAddressSpace* address_space_;
+  void* allocated_address_ = nullptr;
+};
+
+UNINITIALIZED_TEST(SetInSandboxAllocator) {
+  v8::IsolateGroup group = v8::IsolateGroup::GetDefault();
+  auto allocator = std::make_shared<CustomInSandboxAllocator>(group);
+  group.SetInSandboxAllocator(allocator);
+
+  v8::Isolate::CreateParams create_params;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  create_params.array_buffer_allocator = array_buffer_allocator.get();
+
+  v8::Isolate* isolate = v8::Isolate::New(group, create_params);
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(isolate, 200);
+  CHECK_EQ(backing_store->Data(), allocator->allocated_address());
+
+  backing_store.reset();
+  isolate->Dispose();
+}
+
 class CustomArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   explicit CustomArrayBufferAllocator(v8::IsolateGroup& group)

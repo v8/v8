@@ -9376,6 +9376,14 @@ VirtualAddressSpace* v8::IsolateGroup::GetSandboxAddressSpace() {
                   "The sandbox must be initialized first");
   return sandbox->address_space();
 }
+
+void v8::IsolateGroup::SetInSandboxAllocator(
+    std::shared_ptr<Allocator> allocator) {
+  Utils::ApiCheck(isolate_group_->GetIsolateCount() == 0,
+                  "v8::IsolateGroup::SetInSandboxAllocator",
+                  "The allocator must be set before creating an Isolate");
+  isolate_group_->sandbox()->set_in_sandbox_allocator(std::move(allocator));
+}
 #endif
 
 std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
