@@ -421,7 +421,7 @@ class TurboshaftGraphBuildingInterface
     }
 
     if (mode_ == kRegular) {
-      StackCheck(WasmStackCheckOp::Kind::kFunctionEntry, decoder);
+      StackCheck(WasmStackCheckOp::Kind::kFunctionEntry);
       // The stack check could make memory growth visible, so only initialize
       // the InstanceCache after that.
       instance_cache_.Initialize(trusted_instance_data, decoder->module_);
@@ -545,7 +545,7 @@ class TurboshaftGraphBuildingInterface
       block->start_merge[i].op = phi;
     }
 
-    StackCheck(WasmStackCheckOp::Kind::kLoop, decoder);
+    StackCheck(WasmStackCheckOp::Kind::kLoop);
 
     TSBlock* loop_merge = NewBlockWithPhis(decoder, &block->start_merge);
     block->merge_block = loop_merge;
@@ -6770,11 +6770,6 @@ class TurboshaftGraphBuildingInterface
       if (!memory_size_cached_) return LoadMemSize();
       return mem_size_;
     }
-    void set_memory0_start(V<WordPtr> start) { mem_start_ = start; }
-    void set_memory0_size(V<WordPtr> size) { mem_size_ = size; }
-    bool memory_can_grow() const { return memory_can_grow_; }
-    bool memory_can_move() const { return memory_can_move_; }
-    bool memory_size_cached() const { return memory_size_cached_; }
 
    private:
     static constexpr uint8_t kUnused = ~uint8_t{0};
@@ -8447,24 +8442,9 @@ class TurboshaftGraphBuildingInterface
                        __ NoContextConstant());
   }
 
-  void StackCheck(WasmStackCheckOp::Kind kind, FullDecoder* decoder) {
+  void StackCheck(WasmStackCheckOp::Kind kind) {
     if (V8_UNLIKELY(!v8_flags.wasm_stack_checks)) return;
-    if (kind == WasmStackCheckOp::Kind::kLoop &&
-        !decoder->module_->memories.empty()) {
-      // Wasm memories cannot move at loop stack checks because we disallow
-      // their growth when `Isolate::is_executing_api_interrupt()`.
-      // Also, memory_size is never cached if the memory is growable, making
-      // `can_grow_and_cached` always false. Therefore, we don't need to pipe
-      // memory start/size through WasmStackCheck anymore.
-      bool can_grow_and_cached = instance_cache_.memory_can_grow() &&
-                                 instance_cache_.memory_size_cached();
-      CHECK(!can_grow_and_cached);
-      V<WasmTrustedInstanceData> instance =
-          instance_cache_.trusted_instance_data();
-      __ WasmStackCheck(kind, instance);
-    } else {
-      __ WasmStackCheck(kind);
-    }
+    __ WasmStackCheck(kind);
   }
 
  private:

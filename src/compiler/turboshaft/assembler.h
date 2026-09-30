@@ -3472,17 +3472,8 @@ class AssemblerOpInterface : public Next {
 #endif
 
 #if V8_ENABLE_WEBASSEMBLY
-  // {trusted_instance_data} must be provided when at least one of
-  // {memory_start} or {memory_size} are provided.
-  // Returns V<None> when no input values are provided.
-  // Returns a V<WordPtr> when *either* {memory_start} or {memory_size} is
-  // provided; the return value is the potentially-updated value.
-  // Returns a V<Tuple<WordPtr, WordPtr>> when *both* {memory_start} and
-  // {memory_size} are provided.
-  V<None> WasmStackCheck(
-      WasmStackCheckOp::Kind kind,
-      OptionalV<WasmTrustedInstanceData> trusted_instance_data = {}) {
-    return ReduceIfReachableWasmStackCheck(trusted_instance_data, kind);
+  void WasmStackCheck(WasmStackCheckOp::Kind kind) {
+    ReduceIfReachableWasmStackCheck(kind);
   }
 
   void MemoryCopy(V<WordPtr> dst_base, V<WordPtr> src_base,

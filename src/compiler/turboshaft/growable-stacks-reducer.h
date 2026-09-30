@@ -37,12 +37,10 @@ class GrowableStacksReducer : public Next {
 #endif
   }
 
-  V<None> REDUCE(WasmStackCheck)(
-      OptionalV<WasmTrustedInstanceData> trusted_instance_data,
-      WasmStackCheckOp::Kind kind) {
+  V<None> REDUCE(WasmStackCheck)(WasmStackCheckOp::Kind kind) {
     CHECK_EQ(kind, WasmStackCheckOp::Kind::kFunctionEntry);
     if (skip_reducer_) {
-      return Next::ReduceWasmStackCheck(trusted_instance_data, kind);
+      return Next::ReduceWasmStackCheck(kind);
     }
     // Loads of the stack limit should not be load-eliminated as it can be
     // modified by another thread.

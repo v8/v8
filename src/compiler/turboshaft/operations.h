@@ -4236,9 +4236,7 @@ struct PrepareForLoopOp : FixedArityOperationT<1, PrepareForLoopOp> {
 #if V8_ENABLE_WEBASSEMBLY
 
 // A WebAssembly stack check operation.
-// If input_count > 0:
-// - input(0) is trusted_instance_data
-struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
+struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
   using Kind = JSStackCheckOp::Kind;
   Kind kind;
 
@@ -4246,7 +4244,8 @@ struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
     switch (kind) {
       case Kind::kLoop:
         // A loop stack check can have arbitrary side effects via debugger
-        // interrupt requests; in particular it can trigger memory growth.
+        // interrupt requests; in particular it can trigger shared memory
+        // growth.
         return OpEffects()
             .RequiredWhenUnused()
             .CanReadMemory()
@@ -4262,55 +4261,17 @@ struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
     UNREACHABLE();
   }
 
-  OptionalV<WasmTrustedInstanceData> trusted_instance_data() const {
-    return input_count > 0 ? input<WasmTrustedInstanceData>(0)
-                           : V<WasmTrustedInstanceData>::Invalid();
-  }
-
-  WasmStackCheckOp(OptionalV<WasmTrustedInstanceData> trusted_instance_data,
-                   Kind kind)
-      : Base(trusted_instance_data.valid() ? 1 : 0), kind(kind) {
-    if (trusted_instance_data.valid()) {
-      input(0) = trusted_instance_data.value();
-    }
-  }
-
-  static WasmStackCheckOp& New(
-      Graph* graph, OptionalV<WasmTrustedInstanceData> trusted_instance_data,
-      Kind kind) {
-    size_t input_count = trusted_instance_data.valid() ? 1 : 0;
-    return Base::New(graph, input_count, trusted_instance_data, kind);
-  }
-
-  template <typename Fn, typename Mapper>
-  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
-    return fn(mapper.Map(trusted_instance_data()), kind);
-  }
+  explicit WasmStackCheckOp(Kind kind) : Base(), kind(kind) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    if (input_count == 0) {
-      return {};
-    }
-    storage.resize(input_count);
-    storage[0] = MaybeRegisterRepresentation::Tagged();
-    return base::VectorOf(storage);
+    return {};
   }
 
   void Validate(const Graph& graph) const {
-    if (kind == Kind::kFunctionEntry) {
-      DCHECK_EQ(input_count, 0);
-      DCHECK(!trusted_instance_data().valid());
-    } else if (kind == Kind::kLoop) {
-      DCHECK_LE(input_count, 1);
-      if (input_count > 0) {
-        DCHECK(trusted_instance_data().valid());
-      }
-    } else {
-      UNREACHABLE();
-    }
+    DCHECK(kind == Kind::kFunctionEntry || kind == Kind::kLoop);
   }
 
   auto options() const { return std::tuple{kind}; }
