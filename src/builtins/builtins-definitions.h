@@ -114,9 +114,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   GENERATE_MACRO(V, /*Location*/, Double, Field, /*Index*/)                    \
   GENERATE_MACRO(V, /*Location*/, /*Representation*/, ConstantFromPrototype,   \
                  /*Index*/)                                                    \
-  GENERATE_MACRO(                                                              \
-      V, /*Location*/, /*Representation*/, ConstantFromStringPrototype,        \
-      /*Index*/)                                                               \
   GENERATE_MACRO(V, /*Location*/, /*Representation*/, StringLength, /*Index*/) \
   GENERATE_MACRO(V, /*Location*/, /*Representation*/, Generic, /*Index*/)
 
