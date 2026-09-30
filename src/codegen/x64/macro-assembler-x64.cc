@@ -2701,31 +2701,20 @@ void MacroAssembler::F16x8UConvertI16x8(XMMRegister dst, XMMRegister src,
 void MacroAssembler::F16x8Qfma(YMMRegister dst, XMMRegister src1,
                                XMMRegister src2, XMMRegister src3,
                                YMMRegister tmp, YMMRegister tmp2) {
+  DCHECK(!AreAliased(tmp, tmp2, dst));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src1));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src2));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src3));
   CpuFeatureScope f16c_scope(this, F16C);
 
+  vcvtph2ps(tmp, src1);
+  vcvtph2ps(tmp2, src2);
+  vcvtph2ps(dst, src3);
   if (CpuFeatures::IsSupported(FMA3)) {
     CpuFeatureScope fma3_scope(this, FMA3);
-    if (dst.code() == src2.code()) {
-      vcvtph2ps(dst, dst);
-      vcvtph2ps(tmp, src1);
-      vcvtph2ps(tmp2, src3);
-      vfmadd213ps(dst, tmp, tmp2);
-    } else if (dst.code() == src3.code()) {
-      vcvtph2ps(dst, dst);
-      vcvtph2ps(tmp, src2);
-      vcvtph2ps(tmp2, src1);
-      vfmadd231ps(dst, tmp, tmp2);
-    } else {
-      vcvtph2ps(dst, src1);
-      vcvtph2ps(tmp, src2);
-      vcvtph2ps(tmp2, src3);
-      vfmadd213ps(dst, tmp, tmp2);
-    }
+    vfmadd231ps(dst, tmp, tmp2);
   } else {
     CpuFeatureScope avx_scope(this, AVX);
-    vcvtph2ps(tmp, src1);
-    vcvtph2ps(tmp2, src2);
-    vcvtph2ps(dst, src3);
     vmulps(tmp, tmp, tmp2);
     vaddps(dst, tmp, dst);
   }
@@ -2735,31 +2724,20 @@ void MacroAssembler::F16x8Qfma(YMMRegister dst, XMMRegister src1,
 void MacroAssembler::F16x8Qfms(YMMRegister dst, XMMRegister src1,
                                XMMRegister src2, XMMRegister src3,
                                YMMRegister tmp, YMMRegister tmp2) {
+  DCHECK(!AreAliased(tmp, tmp2, dst));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src1));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src2));
+  DCHECK(!AreAliased(XMMRegister{tmp}, XMMRegister{tmp2}, src3));
   CpuFeatureScope f16c_scope(this, F16C);
 
+  vcvtph2ps(tmp, src1);
+  vcvtph2ps(tmp2, src2);
+  vcvtph2ps(dst, src3);
   if (CpuFeatures::IsSupported(FMA3)) {
     CpuFeatureScope fma3_scope(this, FMA3);
-    if (dst.code() == src2.code()) {
-      vcvtph2ps(dst, dst);
-      vcvtph2ps(tmp, src1);
-      vcvtph2ps(tmp2, src3);
-      vfnmadd213ps(dst, tmp, tmp2);
-    } else if (dst.code() == src3.code()) {
-      vcvtph2ps(dst, dst);
-      vcvtph2ps(tmp, src2);
-      vcvtph2ps(tmp2, src1);
-      vfnmadd231ps(dst, tmp, tmp2);
-    } else {
-      vcvtph2ps(dst, src1);
-      vcvtph2ps(tmp, src2);
-      vcvtph2ps(tmp2, src3);
-      vfnmadd213ps(dst, tmp, tmp2);
-    }
+    vfnmadd231ps(dst, tmp, tmp2);
   } else {
     CpuFeatureScope avx_scope(this, AVX);
-    vcvtph2ps(tmp, src1);
-    vcvtph2ps(tmp2, src2);
-    vcvtph2ps(dst, src3);
     vmulps(tmp, tmp, tmp2);
     vsubps(dst, dst, tmp);
   }

@@ -4833,8 +4833,8 @@ bool F16x8CmpOpViaF32(LiftoffAssembler* assm, LiftoffRegister dst,
   CpuFeatureScope f16c_scope(assm, F16C);
   CpuFeatureScope avx_scope(assm, AVX);
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
-  assm->vcvtph2ps(ydst, lhs.fp());
   assm->vcvtph2ps(kScratchSimd256Reg, rhs.fp());
+  assm->vcvtph2ps(ydst, lhs.fp());
   (assm->*avx_op)(ydst, ydst, kScratchSimd256Reg);
   assm->vextractf128(kScratchDoubleReg, ydst, 1);
   assm->vpackssdw(dst.fp(), dst.fp(), kScratchDoubleReg);
@@ -4978,8 +4978,7 @@ bool LiftoffAssembler::emit_f16x8_demote_f32x4_zero(LiftoffRegister dst,
     return false;
   }
   CpuFeatureScope f16c_scope(this, F16C);
-  YMMRegister ysrc = YMMRegister::from_code(src.fp().code());
-  vcvtps2ph(dst.fp(), ysrc, 0);
+  vcvtps2ph(dst.fp(), src.fp(), 0);
   return true;
 }
 
@@ -5021,8 +5020,7 @@ bool LiftoffAssembler::emit_f32x4_promote_low_f16x8(LiftoffRegister dst,
     return false;
   }
   CpuFeatureScope f16c_scope(this, F16C);
-  YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
-  vcvtph2ps(ydst, src.fp());
+  vcvtph2ps(dst.fp(), src.fp());
   return true;
 }
 

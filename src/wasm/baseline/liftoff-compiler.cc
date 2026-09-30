@@ -6066,7 +6066,7 @@ class LiftoffCompiler {
       CASE_SIMD_REPLACE_LANE_OP(F64x2ReplaceLane, F64, f64x2_replace_lane)
 #undef CASE_SIMD_REPLACE_LANE_OP
       case wasm::kExprF16x8ReplaceLane: {
-        EmitSimdReplaceLaneOp<kI32>(
+        EmitSimdReplaceLaneOp<kF32>(
             [this](LiftoffRegister dst, LiftoffRegister src1,
                    LiftoffRegister src2, uint8_t imm_lane_idx) {
               if (asm_.emit_f16x8_replace_lane(dst, src1, src2, imm_lane_idx)) {
