@@ -3412,6 +3412,9 @@ DEFINE_BOOL(verify_snapshot_checksum, DEBUG_BOOL,
             "Verify snapshot checksums when deserializing snapshots. Enable "
             "checksum creation and verification for code caches. Enabled by "
             "default in debug builds and once per process for Android.")
+DEFINE_BOOL(
+    code_cache_source_hash_sha256, false,
+    "Hash code cache source string with SHA256 instead of string length")
 DEFINE_DEVELOPER_FLAG(profile_deserialization,
                       "Print the time it takes to deserialize the snapshot.")
 DEFINE_DEVELOPER_FLAG(trace_deserialization,
