@@ -1053,7 +1053,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // {BackingStore::CopyWasmMemory}, and is irrelevant for
   // {GrowWasmMemoryInPlace} because memory is never allocated with more
   // capacity than that limit.
-  size_t old_size = backing_store->byte_length();
+  size_t old_size = backing_store->byte_length(std::memory_order_seq_cst);
   DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
   size_t old_pages = old_size / wasm::kWasmPageSize;
   size_t max_pages = memory_object->is_memory64() ? wasm::max_mem64_pages()

@@ -2642,7 +2642,8 @@ void WebAssemblyMemoryGrowImpl(
   }
 #endif  // DEBUG
 
-  uint64_t old_pages = backing_store->byte_length() / i::wasm::kWasmPageSize;
+  uint64_t old_pages = backing_store->byte_length(std::memory_order_seq_cst) /
+                       i::wasm::kWasmPageSize;
   uint64_t max_pages = receiver->maximum_pages();
 
   if (delta_pages > max_pages - old_pages) {
