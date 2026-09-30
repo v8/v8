@@ -2511,161 +2511,143 @@ if (v8_use_metagen_instance_types) {
       get_label_info(_metagen_flags_target, "target_out_dir") +
       "/$_metagen_flags_target_name.ninja"
 
-  if (current_toolchain == default_toolchain) {
-    # Generate once, using the toolchain that builds V8 for the target.
-    # Heap representations, instance types, etc. must match between host and
-    # target in cross builds.
-    action("run_metagen") {
-      visibility = [
-        ":*",
-        "tools/debug_helper/:*",
-      ]
+  # Runs in every toolchain that builds V8. Each toolchain harvests with its
+  # own compile flags (see --flags-toolchain below): secondary toolchains may
+  # build a different V8 configuration than the default one, e.g. 32-bit
+  # x86/arm in v8_verify_builtins_compatibility and v8_multi_arch_build, or
+  # flipped pointer compression in clang_x64_fuzzer_experiments. Torque
+  # rejects a layouts.json whose pointer/tagged sizes do not match its target.
+  action("run_metagen") {
+    visibility = [
+      ":*",
+      "tools/debug_helper/:*",
+    ]
 
-      script = "tools/metagen/metagen.py"
+    script = "tools/metagen/metagen.py"
 
-      # The script obtains the parse flags through `gn desc`, so make the build
-      # configuration an explicit input. In particular, changing a feature
-      # define must re-run the driver even though the action command is
-      # unchanged.
-      deps = [ ":v8_dump_build_config" ]
+    # The script obtains the parse flags through `gn desc`, so make the build
+    # configuration an explicit input. In particular, changing a feature
+    # define must re-run the driver even though the action command is
+    # unchanged.
+    deps = [ ":v8_dump_build_config" ]
 
-      if (v8_generate_external_defines_header) {
-        # v8config.h includes the generated v8-gn.h in this configuration.
-        deps += [ ":gen_v8_gn" ]
-      }
-
-      # We don't depend on other generators (torque, bytecode-builtins-list,
-      # perfetto), since their outputs are explicitly excluded during the
-      # metagen parse. See V8_METAGEN_GENERATION_PASS and undefining
-      # V8_USE_PERFETTO.
-
-      inputs = [
-                 "tools/metagen/clang_bootstrap.py",
-                 "tools/metagen/compile_flags.py",
-                 "tools/metagen/cpp_hier.py",
-                 "tools/metagen/extract.py",
-                 "tools/metagen/instance_types.py",
-                 "tools/metagen/layout_extract.py",
-                 "tools/metagen/layout_ir.py",
-                 "tools/metagen/metagen.py",
-                 _metagen_driver_file,
-
-                 # The driver's aggregate header. It includes every header that
-                 # declares a class that's part of the v8 hierarchy. It's
-                 # included here to generate proper build deps when a new header
-                 # file is added (ie adding a new header must trigger a
-                 # rebuild). PRESUBMIT.py checks that the list is complete.
-                 "src/objects/all-objects.h",
-                 "$root_out_dir/v8_build_config.json",
-
-                 # Proxy for the whole builtin-header directory, which has no
-                 # GN glob: a toolchain roll rewrites stddef.h along with the
-                 # rest, and Metagen cannot parse without it.
-                 "$_metagen_clang_resource_dir/include/stddef.h",
-               ] + _metagen_libclang_files
-
-      # Write-if-changed on each output. Dependents only re-run if needed.
-      # TODO(jgruber): Add a non-critical diagnostics target that requests
-      # --enable-layout-positions when C++ source positions are consumed.
-      outputs = [
-        "$_metagen_out_dir/instance-types.h",
-        "$_metagen_out_dir/layouts.json",
-      ]
-
-      # Metagen generates its own depfile.
-      # TODO(jgruber): Could be renamed to run-metagen.d.
-      depfile = "$_metagen_out_dir/instance-types.h.d"
-
-      args = [
-        "--depfile",
-        rebase_path(depfile, root_build_dir),
-        "--driver",
-        rebase_path(_metagen_driver_file, root_build_dir),
-        "--v8-root",
-        rebase_path(".", root_build_dir),
-        "--build-dir",
-        ".",  # The action runs with cwd=root_build_dir.
-
-        # metagen cannot find this by walking up from the build dir. On
-        # ChromeOS the build dir is outside the checkout.
-        "--source-root",
-        rebase_path("//", root_build_dir),
-        "--out",
-        rebase_path(_metagen_out_dir, root_build_dir),
-        "--enable-layout",
-
-        # Metagen reads the compile flags from this target. Passed as a string,
-        # not a dep, to avoid a cycle.
-        "--flags-from-target",
-        get_label_info(_metagen_flags_target, "label_no_toolchain"),
-        "--flags-toolchain",
-        current_toolchain,
-
-        # GN does not allow its generated ninja files as explicit action inputs.
-        # Have metagen add the file containing the queried flags to its depfile.
-        "--flags-dependency",
-        rebase_path(_metagen_flags_target_ninja, root_build_dir),
-
-        # We pass a resource dir, not an include dir, so the driver decides
-        # where to put builtin headers: behind libc++, ahead of the Windows
-        # SDK's copies of stddef.h and the intrinsics. See
-        # tools/metagen/metagen.py.
-        "--clang-resource-dir",
-        rebase_path(_metagen_clang_resource_dir, root_build_dir),
-      ]
-
-      if (v8_metagen_libclang_so != "") {
-        # No prebuilt llvm-libclang for this platform: point metagen at the
-        # system libclang and the separately-staged cindex bindings. The two
-        # args are validated as a pair at the top of this file.
-        args += [
-          "--libclang-so",
-          v8_metagen_libclang_so,
-          "--libclang-bindings-dir",
-          v8_metagen_libclang_bindings_dir,
-
-          # The toolchain major, so metagen can warn if the loaded libclang is
-          # out of step with clang.
-          "--expect-libclang-major",
-          clang_version,
-        ]
-      } else {
-        args += [
-          "--libclang-dir",
-          rebase_path("//third_party/llvm-libclang", root_build_dir),
-        ]
-      }
-
-      if (is_win) {
-        # The SDK/UCRT include dirs never show up in `gn desc`: the toolchain
-        # interpolates them into its tool command template instead of into
-        # cflags. Pass the build's own resolved flags, the way
-        # build/modules/BUILD.gn does, so an SDK roll reruns Metagen.
-        # `--extra-flag=` attaches the value because the flags start with a
-        # dash (-imsvc<dir>) and argparse would take them for options.
-        foreach(flag, current_win_toolchain_data.include_flags_imsvc_list) {
-          args += [ "--extra-flag=$flag" ]
-        }
-      }
+    if (v8_generate_external_defines_header) {
+      # v8config.h includes the generated v8-gn.h in this configuration.
+      deps += [ ":gen_v8_gn" ]
     }
-  } else {
-    # Host-tool toolchains copy the target's results instead of regenerating
-    # them with host flags.
-    copy("run_metagen") {
-      visibility = [
-        ":*",
-        "tools/debug_helper/:*",
-      ]
 
-      deps = [ ":run_metagen($default_toolchain)" ]
+    # We don't depend on other generators (torque, bytecode-builtins-list,
+    # perfetto), since their outputs are explicitly excluded during the
+    # metagen parse. See V8_METAGEN_GENERATION_PASS and undefining
+    # V8_USE_PERFETTO.
 
-      _default_out_dir = get_label_info(":run_metagen($default_toolchain)",
-                                        "target_gen_dir") + "/metagen"
-      sources = [
-        "$_default_out_dir/instance-types.h",
-        "$_default_out_dir/layouts.json",
+    inputs = [
+               "tools/metagen/clang_bootstrap.py",
+               "tools/metagen/compile_flags.py",
+               "tools/metagen/cpp_hier.py",
+               "tools/metagen/extract.py",
+               "tools/metagen/instance_types.py",
+               "tools/metagen/layout_extract.py",
+               "tools/metagen/layout_ir.py",
+               "tools/metagen/metagen.py",
+               _metagen_driver_file,
+
+               # The driver's aggregate header. It includes every header that
+               # declares a class that's part of the v8 hierarchy. It's
+               # included here to generate proper build deps when a new header
+               # file is added (ie adding a new header must trigger a
+               # rebuild). PRESUBMIT.py checks that the list is complete.
+               "src/objects/all-objects.h",
+               "$root_out_dir/v8_build_config.json",
+
+               # Proxy for the whole builtin-header directory, which has no
+               # GN glob: a toolchain roll rewrites stddef.h along with the
+               # rest, and Metagen cannot parse without it.
+               "$_metagen_clang_resource_dir/include/stddef.h",
+             ] + _metagen_libclang_files
+
+    # Write-if-changed on each output. Dependents only re-run if needed.
+    # TODO(jgruber): Add a non-critical diagnostics target that requests
+    # --enable-layout-positions when C++ source positions are consumed.
+    outputs = [
+      "$_metagen_out_dir/instance-types.h",
+      "$_metagen_out_dir/layouts.json",
+    ]
+
+    # Metagen generates its own depfile.
+    # TODO(jgruber): Could be renamed to run-metagen.d.
+    depfile = "$_metagen_out_dir/instance-types.h.d"
+
+    args = [
+      "--depfile",
+      rebase_path(depfile, root_build_dir),
+      "--driver",
+      rebase_path(_metagen_driver_file, root_build_dir),
+      "--v8-root",
+      rebase_path(".", root_build_dir),
+      "--build-dir",
+      ".",  # The action runs with cwd=root_build_dir.
+
+      # metagen cannot find this by walking up from the build dir. On
+      # ChromeOS the build dir is outside the checkout.
+      "--source-root",
+      rebase_path("//", root_build_dir),
+      "--out",
+      rebase_path(_metagen_out_dir, root_build_dir),
+      "--enable-layout",
+
+      # Metagen reads the compile flags from this target. Passed as a string,
+      # not a dep, to avoid a cycle.
+      "--flags-from-target",
+      get_label_info(_metagen_flags_target, "label_no_toolchain"),
+      "--flags-toolchain",
+      current_toolchain,
+
+      # GN does not allow its generated ninja files as explicit action inputs.
+      # Have metagen add the file containing the queried flags to its depfile.
+      "--flags-dependency",
+      rebase_path(_metagen_flags_target_ninja, root_build_dir),
+
+      # We pass a resource dir, not an include dir, so the driver decides
+      # where to put builtin headers: behind libc++, ahead of the Windows
+      # SDK's copies of stddef.h and the intrinsics. See
+      # tools/metagen/metagen.py.
+      "--clang-resource-dir",
+      rebase_path(_metagen_clang_resource_dir, root_build_dir),
+    ]
+
+    if (v8_metagen_libclang_so != "") {
+      # No prebuilt llvm-libclang for this platform: point metagen at the
+      # system libclang and the separately-staged cindex bindings. The two
+      # args are validated as a pair at the top of this file.
+      args += [
+        "--libclang-so",
+        v8_metagen_libclang_so,
+        "--libclang-bindings-dir",
+        v8_metagen_libclang_bindings_dir,
+
+        # The toolchain major, so metagen can warn if the loaded libclang is
+        # out of step with clang.
+        "--expect-libclang-major",
+        clang_version,
       ]
-      outputs = [ "$_metagen_out_dir/{{source_file_part}}" ]
+    } else {
+      args += [
+        "--libclang-dir",
+        rebase_path("//third_party/llvm-libclang", root_build_dir),
+      ]
+    }
+
+    if (is_win) {
+      # The SDK/UCRT include dirs never show up in `gn desc`: the toolchain
+      # interpolates them into its tool command template instead of into
+      # cflags. Pass the build's own resolved flags, the way
+      # build/modules/BUILD.gn does, so an SDK roll reruns Metagen.
+      # `--extra-flag=` attaches the value because the flags start with a
+      # dash (-imsvc<dir>) and argparse would take them for options.
+      foreach(flag, current_win_toolchain_data.include_flags_imsvc_list) {
+        args += [ "--extra-flag=$flag" ]
+      }
     }
   }
 }
