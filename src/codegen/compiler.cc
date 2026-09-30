@@ -3474,6 +3474,14 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
       compilation_cache->PutEval(source, outer_info, result,
                                  eval_cache_position);
     }
+    if (isolate->dynamic_script_callback() &&
+        !script->eval_from_shared()->IsUserJavaScript()) {
+      VMState<EXTERNAL> state(isolate);
+      DirectHandle<NativeContext> native_context(context->native_context(),
+                                                 isolate);
+      isolate->dynamic_script_callback()(v8::Utils::ToLocal(native_context),
+                                         script->id());
+    }
   }
   CHECK(is_compiled_scope.is_compiled());
 

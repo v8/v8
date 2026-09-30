@@ -1733,6 +1733,14 @@ class V8_EXPORT Isolate {
       ModifyCodeGenerationFromStringsCallback2 callback);
 
   /**
+   * Set the callback to invoke when a dynamic script (e.g. eval or Function) is
+   * compiled from the embedder without a calling user JavaScript script on the
+   * stack.
+   */
+  void SetDynamicScriptCompiledFromEmbedderCallback(
+      DynamicScriptCompiledFromEmbedderCallback callback);
+
+  /**
    * Set the callback to invoke to check if wasm code generation should
    * be allowed.
    */

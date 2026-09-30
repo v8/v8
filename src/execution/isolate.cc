@@ -2078,7 +2078,9 @@ class CurrentScriptIdsAndContextsStackVisitor {
       Tagged<Object> maybe_script =
           Cast<SharedFunctionInfo>(maybe_sfi)->script();
       if (!IsScript(maybe_script)) break;
-      cur = Cast<Script>(maybe_script);
+      Tagged<Script> eval_from_script = Cast<Script>(maybe_script);
+      if (!eval_from_script->IsUserJavaScript()) break;
+      cur = eval_from_script;
     }
     return cur->id();
   }
@@ -2128,7 +2130,9 @@ class CurrentScriptDataStackVisitor {
       Tagged<Object> maybe_script =
           Cast<SharedFunctionInfo>(maybe_sfi)->script();
       if (!IsScript(maybe_script)) break;
-      cur = Cast<Script>(maybe_script);
+      Tagged<Script> eval_from_script = Cast<Script>(maybe_script);
+      if (!eval_from_script->IsUserJavaScript()) break;
+      cur = eval_from_script;
     }
     return cur->id();
   }
