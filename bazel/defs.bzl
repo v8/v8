@@ -652,11 +652,10 @@ def build_config_content(cpu, icu):
 # Metagen-specific cflags that don't propagate via CcInfo (they're copts on
 # v8_library, not on the `:define_flags` we depend on). Kept tiny on
 # purpose -- everything else comes from the toolchain or CcInfo.
-_METAGEN_USER_COPTS = [
-    "-std=c++20",
-    "-fno-rtti",
-    "-fno-exceptions",
-]
+_METAGEN_USER_COPTS = {
+    "gcc": ["-std=c++20", "-fno-rtti", "-fno-exceptions"],
+    "cl": ["/std:c++20", "/GR-", "/EHs-c-"],
+}
 
 def _run_metagen_impl(ctx):
     v8root = ctx.label.workspace_root
@@ -687,6 +686,18 @@ def _run_metagen_impl(ctx):
         requested_features = ctx.features,
         unsupported_features = ctx.disabled_features + ["module_maps"],
     )
+    driver_modes = [
+        mode
+        for mode in ("gcc", "cl")
+        if cc_common.is_enabled(
+            feature_configuration = feature_configuration,
+            feature_name = "metagen_driver_mode_" + mode,
+        )
+    ]
+    if len(driver_modes) != 1:
+        fail("The C++ toolchain must enable exactly one of " +
+             "metagen_driver_mode_gcc or metagen_driver_mode_cl.")
+    driver_mode = driver_modes[0]
 
     # -I dirs for the generated headers (torque, bytecode_builtins).
     # None of these live in a cc_library CcInfo so they're added directly.
@@ -702,7 +713,7 @@ def _run_metagen_impl(ctx):
         feature_configuration = feature_configuration,
         cc_toolchain = cc_toolchain,
         source_file = "tools/metagen/probe.cc",
-        user_compile_flags = _METAGEN_USER_COPTS,
+        user_compile_flags = _METAGEN_USER_COPTS[driver_mode],
         include_directories = cc_context.includes,
         quote_include_directories = depset(
             extra_quote_includes,
@@ -748,6 +759,7 @@ def _run_metagen_impl(ctx):
     args = ctx.actions.args()
     args.add("--v8-root", v8root)
     args.add("--compile-commands", compile_db.path)
+    args.add("--driver-mode", driver_mode)
     args.add("--driver", ctx.file.driver.path)
     args.add("--out", out_dir)
     args.add("--enable-layout")
@@ -928,6 +940,11 @@ def run_metagen(name, driver,
     Pass either `libclang_files` (the bundled llvm-libclang package) or
     `libclang_from_python_env = True` (bindings supplied through `tool`'s
     Python deps) -- exactly one, enforced by the rule.
+
+    The target C++ toolchain must enable exactly one feature:
+    `metagen_driver_mode_gcc` for GNU-style flags (including MinGW), or
+    `metagen_driver_mode_cl` for clang-cl/MSVC flags. Compiler wrappers do
+    not affect this choice.
     """
     for prefix in ("noicu", "icu"):
         is_icu = prefix == "icu"

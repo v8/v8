@@ -165,6 +165,11 @@ def main() -> int:
       "cflags clang uses for that target. Mutually exclusive with "
       "--compile-commands.")
   p.add_argument(
+      "--driver-mode",
+      choices=("gcc", "cl"),
+      required=True,
+      help="Libclang driver mode selected by the build's C++ toolchain.")
+  p.add_argument(
       "--source-root",
       default=None,
       help="GN source root (the directory containing the build's .gn file). "
@@ -284,18 +289,17 @@ def main() -> int:
     if args.flags_toolchain:
       flags_target = f"{flags_target}({args.flags_toolchain})"
     try:
-      raw_flags, parse_cwd, cl_mode = (
-          compile_flags.get_compile_args_from_gn_desc(
-              build_dir, flags_target, os.path.abspath(args.source_root)))
+      raw_flags, parse_cwd = compile_flags.get_compile_args_from_gn_desc(
+          build_dir, flags_target, os.path.abspath(args.source_root))
     except RuntimeError as e:
       print(e, file=sys.stderr)
       return 1
     flags_source = f"build_dir={build_dir} (gn desc {flags_target})"
   else:
     cc_json = os.path.abspath(args.compile_commands)
-    raw_flags, parse_cwd, cl_mode = compile_flags.get_compile_args_from_file(
-        cc_json)
+    raw_flags, parse_cwd = compile_flags.get_compile_args_from_file(cc_json)
     flags_source = f"compile_commands={cc_json}"
+  cl_mode = args.driver_mode == "cl"
 
   flags_dependency = None
   if args.flags_dependency:

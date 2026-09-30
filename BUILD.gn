@@ -2616,6 +2616,12 @@ if (v8_use_metagen_instance_types) {
       rebase_path(_metagen_clang_resource_dir, root_build_dir),
     ]
 
+    if (is_win) {
+      args += [ "--driver-mode=cl" ]
+    } else {
+      args += [ "--driver-mode=gcc" ]
+    }
+
     if (v8_metagen_libclang_so != "") {
       # No prebuilt llvm-libclang for this platform: point metagen at the
       # system libclang and the separately-staged cindex bindings. The two

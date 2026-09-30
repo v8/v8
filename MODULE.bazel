@@ -45,6 +45,7 @@ def _impl(ctx):
     ]
 
     features = [
+        feature(name = "metagen_driver_mode_gcc", enabled = True),
         feature(
             name = "default_compile_flags",
             enabled = True,

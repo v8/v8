@@ -118,14 +118,6 @@ def _find_gn(source_root: str) -> str | None:
   return shutil.which("gn")
 
 
-def _is_clang_cl(arg0: str) -> bool:
-  """Detect clang-cl driver by argv[0]'s basename."""
-  name = os.path.basename(arg0).lower()
-  if name.endswith(".exe"):
-    name = name[:-4]
-  return name == "clang-cl"
-
-
 def _filter(args: list[str], input_path: str) -> list[str]:
   out: list[str] = []
   norm_input = os.path.normpath(input_path) if input_path else ""
@@ -157,21 +149,18 @@ def _filter(args: list[str], input_path: str) -> list[str]:
   return out
 
 
-def get_compile_args_from_gn_desc(
-    build_dir: str, target_label: str,
-    source_root: str) -> tuple[list[str], str, bool]:
+def get_compile_args_from_gn_desc(build_dir: str, target_label: str,
+                                  source_root: str) -> tuple[list[str], str]:
   """GN path: reconstruct one target's compile flags via `gn desc`.
 
   `source_root` is the directory holding the build's `.gn` marker. The
   caller passes it in because the build dir need not sit under it.
 
-  Returns (flags, cwd, cl_mode):
+  Returns (flags, cwd):
     flags    libclang args. Path-bearing flags (-I, -isystem, ...) are
              left as-is; the caller must invoke libclang with cwd=`cwd`
              so build-dir-relative paths resolve.
     cwd      The build dir (cflags' paths are relative to it).
-    cl_mode  True iff the toolchain is clang-cl. The caller injects
-             `--driver-mode=cl` when this is set.
 
   cflags/cflags_cc are passed through verbatim; include_dirs are
   source-absolute `//...` and rebased against `source_root` here.
@@ -227,24 +216,19 @@ def get_compile_args_from_gn_desc(
   cflags = (fields.get("cflags") or []) + (fields.get("cflags_cc") or [])
   flags += cflags
 
-  # clang-cl spells its options with a leading slash; posix clang never
-  # does. The caller injects --driver-mode=cl when this is set.
-  cl_mode = any(f.startswith("/") for f in cflags)
-
   # Drop plugin chains (-Xclang -add-plugin ...), backend-only (-mllvm),
   # and sanitizer/coverage/crash-dir flags libclang can't honor under
   # -fsyntax-only. gn desc's cflags never carry -c/-o/@rsp/the input
   # path, so the input-path arg to _filter is unused.
   filtered = _filter(flags, "")
-  return filtered, os.path.abspath(build_dir), cl_mode
+  return filtered, os.path.abspath(build_dir)
 
 
-def get_compile_args_from_file(path: str) -> tuple[list[str], str, bool]:
+def get_compile_args_from_file(path: str) -> tuple[list[str], str]:
   """Bazel path: read the single-entry compile_commands.json the rule
   synthesizes (bazel/defs.bzl).
 
-  Returns (flags, cwd, cl_mode) with the same contract as
-  `get_compile_args_from_gn_desc`. The synthesized entry always carries
+  Returns (flags, cwd). The synthesized entry always carries
   an `arguments` array (never a `command` string), so the flags are read
   directly with no shell tokenization. argv[0] and the bogus source file
   are dropped; `-c`/`-o` and friends go through the shared _filter.
@@ -261,7 +245,5 @@ def get_compile_args_from_file(path: str) -> tuple[list[str], str, bool]:
     raise RuntimeError(
         f"[metagen] compile-commands entry has no `arguments` array: "
         f"{entry}. bazel/defs.bzl must emit `arguments`, not `command`.")
-  arg0, rest = args[0], args[1:]
-  cl_mode = _is_clang_cl(arg0)
   cwd = entry.get("directory") or "."
-  return _filter(rest, entry.get("file", "")), cwd, cl_mode
+  return _filter(args[1:], entry.get("file", "")), cwd

@@ -39,6 +39,7 @@ class GnCompileFlagsTest(unittest.TestCase):
               'defines': ['PROBE=1'],
               'include_dirs': ['//v8/include',
                                str(build_dir / 'gen')],
+              'cflags': ['-isysroot', '/SDK', '-isystem', '/system/include'],
               'cflags_cc': ['-std=c++20'],
           }
       }
@@ -49,7 +50,7 @@ class GnCompileFlagsTest(unittest.TestCase):
               'run',
               return_value=subprocess.CompletedProcess(
                   [], 0, json.dumps(desc))) as run:
-        flags, cwd, cl_mode = compile_flags.get_compile_args_from_gn_desc(
+        flags, cwd = compile_flags.get_compile_args_from_gn_desc(
             str(build_dir), target, str(source_root))
       find_gn.assert_called_once_with(str(source_root))
       # gn runs in the source root, and reaches the build dir through a
@@ -63,10 +64,10 @@ class GnCompileFlagsTest(unittest.TestCase):
       self.assertTrue(kwargs['check'])
       self.assertEqual(flags, [
           '-DPROBE=1', f'-I{source_root / "v8" / "include"}',
-          f'-I{build_dir / "gen"}', '-std=c++20'
+          f'-I{build_dir / "gen"}', '-isysroot', '/SDK', '-isystem',
+          '/system/include', '-std=c++20'
       ])
       self.assertEqual(cwd, str(build_dir))
-      self.assertFalse(cl_mode)
 
 
 class FilterTest(unittest.TestCase):
@@ -130,21 +131,19 @@ class BazelCompileFlagsTest(unittest.TestCase):
 
   def test_only_the_parseable_flags_survive(self):
     with tempfile.TemporaryDirectory() as tmp:
-      flags, cwd, cl_mode = compile_flags.get_compile_args_from_file(
+      flags, cwd = compile_flags.get_compile_args_from_file(
           self.write(tmp, [self.entry()]))
     # argv[0], the input file, the compile/dep/output flags, the plugin
     # and backend pairs and the instrumentation families all go.
     self.assertEqual(flags,
                      ['-DV8_ENABLE_SANDBOX', '-I../../include', '-std=c++20'])
     self.assertEqual(cwd, '/build')
-    self.assertFalse(cl_mode)
 
-  def test_clang_cl_is_detected_from_argv0(self):
+  def test_clang_cl_flags_survive(self):
     with tempfile.TemporaryDirectory() as tmp:
       entry = self.entry(arguments=['clang-cl.exe', '/std:c++20', '/WX'])
-      flags, _, cl_mode = compile_flags.get_compile_args_from_file(
+      flags, _ = compile_flags.get_compile_args_from_file(
           self.write(tmp, [entry]))
-    self.assertTrue(cl_mode)
     # /WX would escalate libclang's own warnings into errors.
     self.assertEqual(flags, ['/std:c++20'])
 
