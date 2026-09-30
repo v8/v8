@@ -479,7 +479,7 @@ void Debug::ThreadInit() {
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
   thread_local_.break_on_next_function_call_ = false;
-  thread_local_.scheduled_break_on_next_function_call_ = false;
+  thread_local_.scheduled_break_on_next_function_call_ = {};
   UpdateHookOnFunctionCall();
   thread_local_.muted_function_ = Smi::zero();
   thread_local_.muted_position_ = -1;
@@ -686,8 +686,9 @@ void Debug::Break(JavaScriptFrame* frame,
   if (!break_points_hit.is_null() || break_on_next_function_call() ||
       scheduled_break) {
     StepAction lastStepAction = last_step_action();
-    debug::BreakReasons break_reasons;
-    if (scheduled_break) {
+    debug::BreakReasons break_reasons =
+        thread_local_.scheduled_break_on_next_function_call_;
+    if (shouldPauseAfterInstrumentation) {
       break_reasons.Add(debug::BreakReason::kScheduled);
     }
     // If it's a debugger statement, add the reason and then mute the location
@@ -1674,7 +1675,7 @@ void Debug::ClearStepping() {
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
   thread_local_.break_on_next_function_call_ = false;
-  thread_local_.scheduled_break_on_next_function_call_ = false;
+  thread_local_.scheduled_break_on_next_function_call_ = {};
   clear_restart_frame();
   UpdateHookOnFunctionCall();
 }
@@ -2901,14 +2902,15 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
             *function, LazyDeoptimizeReason::kDebugger, frame->LookupCode());
       }
 
-      // kScheduled breaks are triggered by the stack check. While we could
-      // pause here, the JSFunction didn't have time yet to create and push
-      // it's context. Instead, we step into the function and pause at the
+      // kScheduled and kOOM breaks are triggered by the stack check. While we
+      // could pause here, the JSFunction didn't have time yet to create and
+      // push its context. Instead, we step into the function and pause at the
       // first official breakable position.
       // This behavior mirrors "BreakOnNextFunctionCall".
-      if (break_reasons.contains(v8::debug::BreakReason::kScheduled) &&
+      if ((break_reasons.contains(v8::debug::BreakReason::kScheduled) ||
+           break_reasons.contains(v8::debug::BreakReason::kOOM)) &&
           BreakLocation::IsPausedInJsFunctionEntry(frame)) {
-        thread_local_.scheduled_break_on_next_function_call_ = true;
+        thread_local_.scheduled_break_on_next_function_call_.Add(break_reasons);
         PrepareStepIn(function);
         return;
       }
