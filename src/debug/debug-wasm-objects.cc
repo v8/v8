@@ -860,8 +860,6 @@ class DebugWasmInterpreterScopeIterator final : public debug::ScopeIterator {
     return false;
   }
 
-  bool DeclaresLocals() override { return true; }
-
  private:
   WasmInterpreterEntryFrame* const frame_;
   ScopeType type_;
