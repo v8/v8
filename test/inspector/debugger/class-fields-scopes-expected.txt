@@ -92,27 +92,6 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
-                endLocation : {
-                    columnNumber : 13
-                    lineNumber : 14
-                    scriptId : <scriptId>
-                }
-                name : run
-                object : {
-                    className : Object
-                    description : Object
-                    objectId : <objectId>
-                    type : object
-                }
-                startLocation : {
-                    columnNumber : 4
-                    lineNumber : 12
-                    scriptId : <scriptId>
-                }
-                type : local
-            }
-            [1] : {
                 endLocation : {
                     columnNumber : 1
                     lineNumber : 19
@@ -132,7 +111,7 @@ Running test: testScopesPaused
                 }
                 type : local
             }
-            [2] : {
+            [1] : {
                 object : {
                     className : global
                     description : global

@@ -1838,10 +1838,9 @@ TEST_F(DebugScopeInfoTest, FindInnermostScopeStartsAtClosureScope) {
   ParsedScript parsed = ParseAndSerialize(source);
   DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
 
-  DebugScriptScope script_scope = DebugScriptScope::FromIndex(info, 0);
-  DebugScriptScope foo =
-      FindInnermostScope(script_scope, PositionOf(source, "let a") + 1);
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 3);
   ASSERT_TRUE(foo.is_function_scope());
+  ASSERT_EQ(foo.start_position(), PositionOf(source, "() {"));
 
   DebugScriptScope found =
       FindInnermostScope(foo, PositionOf(source, "let b") + 1);
@@ -1904,18 +1903,49 @@ TEST_F(DebugScopeInfoTest, FindInnermostScopeClassScope) {
   EXPECT_EQ(found.scope_index(), class_scope->scope_index());
 }
 
-TEST_F(DebugScopeInfoTest, FindInnermostScopeNestedArrowFunctions) {
+TEST_F(DebugScopeInfoTest, FindInnermostScopeSkipsFunctionScopes) {
   HandleScope scope(isolate());
-  // Both arrow functions end at the same position, so the tightest fit is
-  // decided by the start position.
-  const char* source = "const f = a => b => a + b;";
+  const char* source = "const f = a => b => { let c = a + b; return c; };";
   ParsedScript parsed = ParseAndSerialize(source);
   DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
 
   DebugScriptScope script_scope = DebugScriptScope::FromIndex(info, 0);
+  DebugScriptScope outer_arrow = DebugScriptScope::FromIndex(info, 1);
+  DebugScriptScope inner_arrow = DebugScriptScope::FromIndex(info, 2);
+  ASSERT_TRUE(outer_arrow.is_function_scope());
+  ASSERT_TRUE(inner_arrow.is_function_scope());
+
+  const int body_pos = PositionOf(source, "let c") + 1;
+  // Searching from `script_scope` or `outer_arrow` must not descend into child
+  // FUNCTION_SCOPEs.
+  EXPECT_EQ(FindInnermostScope(script_scope, body_pos).scope_index(),
+            script_scope.scope_index());
+  EXPECT_EQ(FindInnermostScope(outer_arrow, body_pos).scope_index(),
+            outer_arrow.scope_index());
+  EXPECT_EQ(FindInnermostScope(inner_arrow, body_pos).scope_index(),
+            inner_arrow.scope_index());
+}
+
+TEST_F(DebugScopeInfoTest, FindInnermostScopeClassComputedFieldKey) {
+  HandleScope scope(isolate());
+  // The synthetic instance_members_initializer_function FUNCTION_SCOPE spans
+  // from `a = 1` to `b = 3`, straddling `[computed()]`. Searching from `foo`
+  // for a position inside `computed()` must stop at `CLASS_SCOPE` and not
+  // descend into the synthetic initializer FUNCTION_SCOPE.
+  const char* source =
+      "function foo() { class C { a = 1; [computed()] = 2; b = 3; } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  ASSERT_TRUE(foo.is_function_scope());
+  std::optional<DebugScriptScope> class_scope =
+      FindFirstScopeOfType(info, ScopeType::CLASS_SCOPE);
+  ASSERT_TRUE(class_scope.has_value());
+
   DebugScriptScope found =
-      FindInnermostScope(script_scope, PositionOf(source, "a + b") + 1);
-  EXPECT_EQ(found.scope_index(), 2);
+      FindInnermostScope(foo, PositionOf(source, "computed()"));
+  EXPECT_EQ(found.scope_index(), class_scope->scope_index());
 }
 
 TEST_F(DebugScopeInfoTest, FindInnermostScopeOutsideOfClosureScope) {

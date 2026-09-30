@@ -753,6 +753,7 @@ void NarrowToInnermostScope(DebugScriptScope scope, int position,
                             DebugScriptScope* best) {
   for (std::optional<DebugScriptScope> child = scope.first_child();
        child.has_value(); child = child->next_sibling()) {
+    if (child->is_function_scope()) continue;
     // Update `*best` if `child` contains `position` and is a tighter fit than
     // the currently best scope. Generators have the same source position as
     // the scope they belong to, so we also check for equality.
