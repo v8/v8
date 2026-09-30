@@ -108,8 +108,10 @@ reproduction:
   - **Result**: 1–2 short sentences summarizing the output, crash, or sandbox
     violation.
   - **Build**: Build variant(s) (e.g., `x64.release`, `x64.asan`), V8 version
-    from `include/v8-version.h`, and specific git hash (`git rev-parse HEAD`;
-    omit boilerplate GN args).
+    (from `include/v8-version.h`), and revision number (from
+    `Cr-Commit-Position`), skipping the git hash and with no link to Gerrit
+    (only link to Gerrit and include the commit title when the specific *change*
+    in a commit is important; omit boilerplate GN args).
   - **Verified Impact**: 1 sentence stating the verified primitive and attacker
     control.
   - **GDB Backtrace**: A concise snippet of the faulting instruction/registers

@@ -120,11 +120,18 @@ Buganizer.
   the reporter's environment (commit hash/version), and the identified
   **introduction commit (regression range)**.
 - **Version and Commit Identification**: Always retrieve the current V8 version
-  number from `include/v8-version.h` and the specific git hash using
-  `git rev-parse HEAD`. Prioritize referencing specific git hashes over generic
-  terms like "HEAD" in triage reports. For any commit referenced in the report,
-  retrieve its Gerrit changelist link (from `Reviewed-on:` in
-  `git log -n 1 --format=%b <hash>`).
+  number from `include/v8-version.h` and the revision number from
+  `Cr-Commit-Position`
+  (`git log -n 1 --format="%(trailers:key=Cr-Commit-Position)" HEAD`).
+  Distinguish between commits referenced for their **change** vs. their
+  **version**:
+  - When the **change** is important (e.g., an introduction/regression commit or
+    a fixing commit), include the commit title and link to its Gerrit changelist
+    (from `Reviewed-on:` in `git log -n 1 --format=%b <hash>`).
+  - When only the **version** is important (e.g., the version used for a local
+    build or the reporter's tested version), include both the V8 version and the
+    `Cr-Commit-Position` revision number, skipping the git hash and with **no
+    link to Gerrit**.
 - **Attachment Check**: Ensure the subagent checks for mentioned files (e.g.,
   "poc.html", "crash.log") that are NOT in the attachments list. If retrieval of
   an attachment via MCP tools fails, the subagent **MUST** use the
@@ -224,9 +231,10 @@ Draft a short, precise synthesis based on verified subagent findings.
   - **Proposed Severity** (1 line): Provide only the severity (e.g., `S1` or
     `S2`) based on [triaging.md](../../../docs/security/triaging.md).
 
-  - **Introduced In** (1 line): Commit and version where the bug was introduced,
-    with a clickable Gerrit link (e.g.,
-    `[commit <hash>](https://chromium-review.googlesource.com/c/v8/v8/+/<cl>) (<title>, V8 <version>)`).
+  - **Introduced In** (1 line): Commit and version where the bug was introduced
+    (and fixed, if already fixed), including the commit title and a clickable
+    Gerrit link (e.g.,
+    `[commit <hash>](https://chromium-review.googlesource.com/c/v8/v8/+/<cl>) ("<title>", V8 <version>)`).
 
   - **Rationale** (2–4 concise sentences max): State the root cause and why it
     violates (or does not violate) the security threat model. Do not repeat
@@ -242,8 +250,8 @@ Draft a short, precise synthesis based on verified subagent findings.
       paths).
     - `Result`: 1–2 short sentences summarizing the observed crash/output.
     - `Build`: Build variant(s), V8 version (from `include/v8-version.h`), and
-      git commit hash (no Gerrit link needed for the build commit; omit
-      boilerplate GN args).
+      revision number (from `Cr-Commit-Position`), skipping the git hash and
+      Gerrit link (omit boilerplate GN args).
     - `Verified Impact`: 1 sentence stating the verified primitive and attacker
       control.
     - `GDB Backtrace`: A concise snippet of the faulting instruction/registers
@@ -283,7 +291,12 @@ the draft.
   - The classification (Vulnerability vs. Bug) is consistent with the
     reproduction results (e.g., if it needs experimental flags, it's a Bug).
   - The "Local Reproduction Findings" section contains the exact d8 command, V8
-    version, git hash, and the observed result.
+    version and revision number (skipping the git hash and Gerrit link), and the
+    observed result.
+  - Commits where the *change* is important include both the commit title and a
+    Gerrit link, whereas references where only the *version* is important
+    include both the V8 version and revision number, skipping the git hash and
+    Gerrit link.
   - **Brevity & Cleanliness**: The report follows the line/sentence budgets
     (1-line metadata fields, 2–4 sentence Rationale, concise 1-line sub-bullets
     in Local Reproduction Findings except GDB Backtrace when multi-line helps,
@@ -318,11 +331,12 @@ Finalize the session by securing artifacts and cleaning up the environment.
   Intended Behavior).
 - [ ] **Boundary Verification**: Was the POC tested with the security filter
   flag (`--run-as-[sandbox]-security-poc`)?
-- [ ] **Mandatory Data**: Are the V8 version and git hash included in the Build
-  description?
-- [ ] **Gerrit Links**: Are referenced commits/CLs (such as the introduction CL)
-  linked to their corresponding Gerrit changelists? (No Gerrit link is required
-  for the Build commit.)
+- [ ] **Mandatory Data**: Are both the V8 version and revision number (without
+  git hash or Gerrit link) included in the Build description?
+- [ ] **Commit vs. Version Linking**: Do commits where the *change* is important
+  (e.g., introduction or fix CLs) include their commit title and Gerrit link,
+  while references where only the *version* is important include both the V8
+  version and revision number, skipping the git hash and Gerrit link?
 - [ ] **Brevity & No Local Paths**: Is the Rationale \<= 4 sentences, are all
   other bullets/sub-bullets 1 line each (except `GDB Backtrace` if multiple
   lines help), and are local `/usr/local/...` paths excluded from the Buganizer
