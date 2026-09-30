@@ -8,7 +8,7 @@
 #include "src/base/functional/function-ref.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
-#include "src/zone/zone-chunk-list.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -340,7 +340,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // consistency, we also keep it uninitialized here.
   const NoRootArrayScope no_root_array_scope_;
 
-  ZoneChunkList<int> code_relative_fixup_positions_;
+  ZoneVector<int> code_relative_fixup_positions_;
 
   // One greater than maximal register index actually used.
   int num_registers_;

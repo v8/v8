@@ -2265,7 +2265,7 @@ void RegExpMacroAssemblerX64::FixupCodeRelativePositions() {
         patch_position,
         offset + position + InstructionStream::kHeaderSize - kHeapObjectTag);
   }
-  code_relative_fixup_positions_.Rewind(0);
+  code_relative_fixup_positions_.clear();
 }
 
 void RegExpMacroAssemblerX64::Push(Label* backtrack_target) {
