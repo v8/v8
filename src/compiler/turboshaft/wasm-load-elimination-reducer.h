@@ -603,14 +603,16 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
     }
   }
 
-#define VERIFY(Name, ig_index, op, replacement)                      \
-  if (v8_flags.turboshaft_verify_load_elimination) {                 \
-    OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op); \
-    if constexpr (std::is_same_v<Name##Op, StringAsWtf16Op>) {       \
-      VerifyStringAsWtf16(actual_idx, replacement);                  \
-    } else {                                                         \
-      VerifyReplacement(actual_idx, replacement);                    \
-    }                                                                \
+#define VERIFY(Name, ig_index, op, replacement)                       \
+  if (v8_flags.turboshaft_verify_load_elimination) {                  \
+    OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op);  \
+    if (!actual_idx.valid()) {                                        \
+      DCHECK(__ generating_unreachable_operations());                 \
+    } else if constexpr (std::is_same_v<Name##Op, StringAsWtf16Op>) { \
+      VerifyStringAsWtf16(actual_idx, replacement);                   \
+    } else {                                                          \
+      VerifyReplacement(actual_idx, replacement);                     \
+    }                                                                 \
   }
 #else
 #define VERIFY(Name, ig_index, op, replacement)
