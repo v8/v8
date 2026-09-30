@@ -1891,10 +1891,15 @@ void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
     return;
   }
   UseScratchRegisterScope temps(this);
-  temps.Include(t4, t6);
+  temps.Include(t6);
   Register tmp0 = temps.Acquire();
   Register tmp1 = temps.Acquire();
-  DCHECK(!AreAliased(rs, rd, tmp0, tmp1, scratch));
+  // {rs} and {rd} are allowed to alias: the implementation below reads {rs}
+  // before writing {rd} and is therefore safe when they are the same register.
+  // The checks below cover every pair except {rs}/{rd}.
+  DCHECK(!AreAliased(tmp0, tmp1, scratch));
+  DCHECK(!AreAliased(rs, tmp0, tmp1, scratch));
+  DCHECK(!AreAliased(rd, tmp0, tmp1, scratch));
   BlockPoolsScope block_pools(this);
   if (operand_size == 4) {
     DCHECK((rd != t6) && (rs != t6));
@@ -2082,7 +2087,7 @@ void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         NBYTES - 1);
   }
-  temps.Include(t4, t6);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
   Register scratch_other = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
@@ -2108,7 +2113,7 @@ void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         NBYTES - 1);
   }
-  temps.Include(t4, t6);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
   Register scratch_other = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
@@ -2129,7 +2134,7 @@ void MacroAssembler::UnalignedDoubleHelper(FPURegister frd,
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         8 - 1);
   }
-  temps.Include(t4, t6);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
   Register scratch_other = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
@@ -2178,13 +2183,15 @@ void MacroAssembler::UnalignedFStoreHelper(FPURegister frd,
                                            const MemOperand& rs) {
   DCHECK(NBYTES == 8 || NBYTES == 4);
   UseScratchRegisterScope temps(this);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
   if (NBYTES == 4) {
     fmv_x_w(scratch, frd);
   } else {
     fmv_x_d(scratch, frd);
   }
-  UnalignedStoreHelper<NBYTES>(scratch, rs, t4);
+  Register scratch_other = temps.Acquire();
+  UnalignedStoreHelper<NBYTES>(scratch, rs, scratch_other);
 }
 #elif V8_TARGET_ARCH_RISCV32
 template <int NBYTES>
@@ -2192,22 +2199,26 @@ void MacroAssembler::UnalignedFStoreHelper(FPURegister frd,
                                            const MemOperand& rs) {
   DCHECK_EQ(NBYTES, 4);
   UseScratchRegisterScope temps(this);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
   fmv_x_w(scratch, frd);
-  UnalignedStoreHelper<NBYTES>(scratch, rs, t4);
+  Register scratch_other = temps.Acquire();
+  UnalignedStoreHelper<NBYTES>(scratch, rs, scratch_other);
 }
 void MacroAssembler::UnalignedDStoreHelper(FPURegister frd,
                                            const MemOperand& rs) {
   UseScratchRegisterScope temps(this);
+  temps.Include(t6);
   Register scratch = temps.Acquire();
+  Register scratch_other = temps.Acquire();
   Sub32(sp, sp, 8);
   StoreDouble(frd, MemOperand(sp, 0));
   Lw(scratch, MemOperand(sp, 0));
-  UnalignedStoreHelper<4>(scratch, rs, t4);
+  UnalignedStoreHelper<4>(scratch, rs, scratch_other);
   Lw(scratch, MemOperand(sp, 4));
   MemOperand source = rs;
   source.set_offset(source.offset() + 4);
-  UnalignedStoreHelper<4>(scratch, source, t4);
+  UnalignedStoreHelper<4>(scratch, source, scratch_other);
   Add32(sp, sp, 8);
 }
 #endif
