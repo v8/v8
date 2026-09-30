@@ -2203,7 +2203,7 @@ Statement* Parser::RewriteSwitchStatement(SwitchStatement* switch_statement,
   // }
   DCHECK_NOT_NULL(scope);
   DCHECK(scope->is_block_scope());
-  DCHECK_GE(switch_statement->position(), scope->start_position());
+  DCHECK_LT(switch_statement->position(), scope->start_position());
   DCHECK_LT(switch_statement->position(), scope->end_position());
 
   Block* switch_block = factory()->NewBlock(2, false);

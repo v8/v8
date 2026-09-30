@@ -1962,5 +1962,27 @@ TEST_F(DebugScopeInfoTest, FindInnermostScopeOutsideOfClosureScope) {
   EXPECT_EQ(found.scope_index(), foo.scope_index());
 }
 
+TEST_F(DebugScopeInfoTest, FindInnermostScopeSwitchStatement) {
+  HandleScope scope(isolate());
+  // The switch discriminant `tag()` is evaluated outside the switch block
+  // scope, so positions inside `tag()` must resolve to `foo` rather than the
+  // switch's BLOCK_SCOPE.
+  const char* source =
+      "function foo() { switch (tag()) { case 0: let a = 1; break; } }";
+  ParsedScript parsed = ParseAndSerialize(source);
+  DirectHandle<DebugScriptScopeInfo> info = parsed.scope_info;
+
+  DebugScriptScope foo = DebugScriptScope::FromIndex(info, 1);
+  ASSERT_TRUE(foo.is_function_scope());
+  DebugScriptScope switch_scope = DebugScriptScope::FromIndex(info, 2);
+  ASSERT_TRUE(switch_scope.is_block_scope());
+  EXPECT_EQ(switch_scope.start_position(), PositionOf(source, "{ case"));
+
+  EXPECT_EQ(FindInnermostScope(foo, PositionOf(source, "tag()")).scope_index(),
+            foo.scope_index());
+  EXPECT_EQ(FindInnermostScope(foo, PositionOf(source, "let a")).scope_index(),
+            switch_scope.scope_index());
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -1367,6 +1367,29 @@ listener_delegate = function(exec_state) {
 eval(code8);
 EndTest();
 
+BeginTest("Switch discriminant is outside switch block scope");
+function switch_discriminant_test() {
+  function tag() {
+    debugger;
+    return 0;
+  }
+  switch (tag()) {
+    case 0:
+      let x = 1;
+      break;
+  }
+}
+
+listener_delegate = function(exec_state) {
+  var outer_frame = exec_state.frame(1);
+  assertEquals(3, outer_frame.scopeCount());
+  assertEquals(debug.ScopeType.Local, outer_frame.scope(0).scopeType());
+  assertEquals(debug.ScopeType.Script, outer_frame.scope(1).scopeType());
+  assertEquals(debug.ScopeType.Global, outer_frame.scope(2).scopeType());
+};
+switch_discriminant_test();
+EndTest();
+
 assertEquals(begin_test_count, break_count,
              'one or more tests did not enter the debugger');
 assertEquals(begin_test_count, end_test_count,
