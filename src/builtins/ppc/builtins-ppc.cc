@@ -868,28 +868,33 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // If the c_entry_fp is not already zero and we don't clear it, the
   // StackFrameIteratorForProfiler will assume we are executing C++ and miss the
   // JS frames on top.
-  __ li(r0, Operand(-1));  // Push a bad frame pointer to fail if it is used.
-  __ push(r0);
-  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
-    __ li(kConstantPoolRegister, Operand::Zero());
-    __ push(kConstantPoolRegister);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    // Push a bad frame pointer to fail if it is used.
+    __ li(scratch, Operand(-1));
+    __ push(scratch);
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
+      __ li(kConstantPoolRegister, Operand::Zero());
+      __ push(kConstantPoolRegister);
+    }
+    __ mov(scratch, Operand(StackFrame::TypeToMarker(type)));
+    __ push(scratch);
+    __ push(scratch);
+
+    __ mov(scratch, Operand::Zero());
+    __ LoadU64(r3, __ AsMemOperand(IsolateFieldId::kCEntryFP));
+    __ StoreU64(scratch, __ AsMemOperand(IsolateFieldId::kCEntryFP));
+    __ push(r3);
+
+    __ LoadU64(r3, __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
+    __ StoreU64(scratch, __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
+    __ push(r3);
+
+    __ LoadU64(r3, __ AsMemOperand(IsolateFieldId::kFastCCallCallerPC));
+    __ StoreU64(scratch, __ AsMemOperand(IsolateFieldId::kFastCCallCallerPC));
+    __ push(r3);
   }
-  __ mov(r0, Operand(StackFrame::TypeToMarker(type)));
-  __ push(r0);
-  __ push(r0);
-
-  __ mov(r0, Operand::Zero());
-  __ LoadU64(r3, __ AsMemOperand(IsolateFieldId::kCEntryFP));
-  __ StoreU64(r0, __ AsMemOperand(IsolateFieldId::kCEntryFP));
-  __ push(r3);
-
-  __ LoadU64(r3, __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
-  __ StoreU64(r0, __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
-  __ push(r3);
-
-  __ LoadU64(r3, __ AsMemOperand(IsolateFieldId::kFastCCallCallerPC));
-  __ StoreU64(r0, __ AsMemOperand(IsolateFieldId::kFastCCallCallerPC));
-  __ push(r3);
 
   Register scratch = r9;
   // Set up frame pointer for the frame to be pushed.
