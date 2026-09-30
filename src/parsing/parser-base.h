@@ -30,7 +30,6 @@
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
 #include "src/regexp/regexp.h"
-#include "src/zone/zone-chunk-list.h"
 
 namespace v8::internal {
 
