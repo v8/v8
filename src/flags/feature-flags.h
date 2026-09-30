@@ -119,12 +119,7 @@
   WASM_FEATURE(compilation_hints, "compilation hints")                         \
                                                                                \
   /* V8 side owner: thibaudm */                                                \
-  WASM_FEATURE(growable_stacks, "growable stacks for jspi")                    \
-                                                                               \
-  /* Compact Import Section proposal. */                                       \
-  /* https://github.com/WebAssembly/compact-import-section */                  \
-  /* V8 side owner: ryandiaz */                                                \
-  WASM_FEATURE(compact_imports, "compact import section")
+  WASM_FEATURE(growable_stacks, "growable stacks for jspi")
 
 // #############################################################################
 // Pre-staged features (disabled by default, but enabled via
@@ -149,7 +144,12 @@
   /* proposal. */                                                              \
   /* Part of https://github.com/WebAssembly/shared-everything-threads */       \
   /* V8 side owner: rezvan */                                                  \
-  WASM_FEATURE(acquire_release, "acquire_release memory ordering")
+  WASM_FEATURE(acquire_release, "acquire_release memory ordering")             \
+                                                                               \
+  /* Compact Import Section proposal. */                                       \
+  /* https://github.com/WebAssembly/compact-import-section */                  \
+  /* V8 side owner: ryandiaz */                                                \
+  WASM_FEATURE(compact_imports, "compact import section")
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --js-staging/--harmony,
