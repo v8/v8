@@ -274,7 +274,9 @@ bool ScopeIterator::NeedsContext() const {
   // context should the function need one. In that case the function has already
   // pushed the context and we are good.
   CHECK_IMPLIES(needs_context && current_scope_index_ == closure_scope_index_ &&
-                    current_scope().is_function_scope() && !function_.is_null(),
+                    (current_scope().is_function_scope() ||
+                     current_scope().is_eval_scope()) &&
+                    !function_.is_null(),
                 function_->context() != *context_);
 
   return needs_context;
