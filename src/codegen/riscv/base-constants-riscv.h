@@ -1008,6 +1008,11 @@ class InstructionGetters : public T {
     return Bits >> 12;
   }
 
+  inline uint32_t Imm20UValueUnsigned() const {
+    DCHECK(this->InstructionType() == InstructionBase::kUType);
+    return static_cast<uint32_t>(this->InstructionBits()) >> 12;
+  }
+
   inline int Imm20JValue() const {
     DCHECK(this->InstructionType() == InstructionBase::kJType);
     // | imm[20|10:1|11|19:12] | rd | opcode |

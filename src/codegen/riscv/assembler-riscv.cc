@@ -1656,7 +1656,9 @@ bool Assembler::IsConstantPoolAt(Instruction* instr) {
 
 int Assembler::ConstantPoolSizeAt(Instruction* instr) {
   if (IsConstantPoolAt(instr)) {
-    return instr->Imm20UValue();
+    // The AUIPC immediate is an unsigned metadata field here. The marker is
+    // followed by a guard and is not executed.
+    return static_cast<int>(instr->Imm20UValueUnsigned());
   } else {
     return -1;
   }
