@@ -87,8 +87,10 @@ class WasmGCTypeAnalyzer {
   void ProcessParameter(const ParameterOp& parameter);
   void ProcessStructGet(const StructGetOp& struct_get);
   void ProcessStructSet(const StructSetOp& struct_set);
+  void ProcessStructAtomicRMW(const StructAtomicRMWOp& struct_atomic_rmw);
   void ProcessArrayGet(const ArrayGetOp& array_get);
   void ProcessArrayLength(const ArrayLengthOp& array_length);
+  void ProcessArrayAtomicRMW(const ArrayAtomicRMWOp& array_atomic_rmw);
   void ProcessGlobalGet(const GlobalGetOp& global_get);
   void ProcessRefFunc(const WasmRefFuncOp& ref_func);
   void ProcessAllocateArray(const WasmAllocateArrayOp& allocate_array);
