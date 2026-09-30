@@ -921,7 +921,6 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
 
     Tagged<WasmMemoryObject> memory_object = Cast<WasmMemoryObject>(obj);
 
-    memory_object->UpdateInstances(isolate);
     if (Tagged<JSArrayBuffer> shared_ab;
         TryCast<JSArrayBuffer>(memory_object->array_buffer(), &shared_ab) &&
         !shared_ab->is_resizable_by_js()) {

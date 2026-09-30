@@ -402,10 +402,9 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   inline CppGCManaged<BackingStore>::Ptr backing_store() const;
 
   // Add a use of this memory object to the given instance. This updates the
-  // internal weak list of instances that use this memory and also updates the
-  // fields of the instance to reference this memory's buffer.
-  // Note that we update both the non-shared and shared (if any) parts of the
-  // instance for faster access to shared memory.
+  // internal weak list of instances that use this memory (for non-shared
+  // memories) and also updates the fields of the instance to reference this
+  // memory's buffer.
   V8_EXPORT_PRIVATE static void UseInInstance(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
@@ -429,8 +428,9 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
                            DirectHandle<WasmMemoryObject> memory,
                            DirectHandle<JSArrayBuffer> new_buffer);
 
-  // Updates all WebAssembly instances that use this Memory as a memory, after
-  // growing or refreshing the memory.
+  // Updates all WebAssembly instances that use this (non-shared) Memory, after
+  // growing the memory. Shared memories do not need to update instances because
+  // their buffer start and byte_length_ address never change.
   void UpdateInstances(Isolate* isolate);
 
   // Fix up a resizable ArrayBuffer that exposes Wasm memory.

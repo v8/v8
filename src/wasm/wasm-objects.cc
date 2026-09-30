@@ -901,11 +901,13 @@ void WasmMemoryObject::UseInInstance(
   SetInstanceMemory(*trusted_instance_data, memory->array_buffer(),
                     memory->backing_store().as_shared_ptr(),
                     memory_index_in_instance);
-  DirectHandle<WeakArrayList> instances{memory->instances(), isolate};
-  auto weak_instance_object = MaybeObjectDirectHandle::Weak(
-      trusted_instance_data->instance_object(), isolate);
-  instances = WeakArrayList::Append(isolate, instances, weak_instance_object);
-  memory->set_instances(*instances);
+  if (!memory->backing_store()->is_shared()) {
+    DirectHandle<WeakArrayList> instances{memory->instances(), isolate};
+    auto weak_instance_object = MaybeObjectDirectHandle::Weak(
+        trusted_instance_data->instance_object(), isolate);
+    instances = WeakArrayList::Append(isolate, instances, weak_instance_object);
+    memory->set_instances(*instances);
+  }
 }
 
 // static
@@ -943,6 +945,7 @@ void WasmMemoryObject::SetNewBuffer(Isolate* isolate,
 
 void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
+  DCHECK(!backing_store()->is_shared());
   Tagged<WeakArrayList> instances = this->instances();
   const uint32_t instances_len = instances->length().value();
   for (uint32_t i = 0; i < instances_len; ++i) {
