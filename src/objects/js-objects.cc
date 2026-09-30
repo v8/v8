@@ -50,6 +50,7 @@
 #include "src/objects/js-shadow-realm.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
+#include "src/objects/map-word.h"
 #include "src/objects/property-details.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
@@ -859,23 +860,31 @@ int GetIdentityHashHelper(Tagged<JSReceiver> object) {
     return Smi::ToInt(properties);
   }
 
-  if (IsPropertyArray(properties)) {
-    return Cast<PropertyArray>(properties)->Hash();
+  Tagged<HeapObject> properties_object = Cast<HeapObject>(properties);
+  if (MapWord properties_object_map = properties_object->map_word(kRelaxedLoad);
+      properties_object_map.IsForwardingAddress()) {
+    properties_object =
+        properties_object_map.ToForwardingAddress(properties_object);
+    DCHECK(!properties_object->map_word(kRelaxedLoad).IsForwardingAddress());
   }
 
-  if (IsPropertyDictionary(properties)) {
-    return Cast<PropertyDictionary>(properties)->Hash();
+  if (IsPropertyArray(properties_object)) {
+    return Cast<PropertyArray>(properties_object)->Hash();
   }
 
-  if (IsGlobalDictionary(properties)) {
-    return Cast<GlobalDictionary>(properties)->Hash();
+  if (IsPropertyDictionary(properties_object)) {
+    return Cast<PropertyDictionary>(properties_object)->Hash();
+  }
+
+  if (IsGlobalDictionary(properties_object)) {
+    return Cast<GlobalDictionary>(properties_object)->Hash();
   }
 
 #ifdef DEBUG
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  DCHECK(properties == roots.empty_fixed_array() ||
-         properties == roots.empty_property_dictionary() ||
-         properties == roots.empty_swiss_property_dictionary());
+  DCHECK(properties_object == roots.empty_fixed_array() ||
+         properties_object == roots.empty_property_dictionary() ||
+         properties_object == roots.empty_swiss_property_dictionary());
 #endif
 
   return PropertyArray::kNoHashSentinel;
