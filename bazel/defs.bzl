@@ -686,18 +686,10 @@ def _run_metagen_impl(ctx):
         requested_features = ctx.features,
         unsupported_features = ctx.disabled_features + ["module_maps"],
     )
-    driver_modes = [
-        mode
-        for mode in ("gcc", "cl")
-        if cc_common.is_enabled(
-            feature_configuration = feature_configuration,
-            feature_name = "metagen_driver_mode_" + mode,
-        )
-    ]
-    if len(driver_modes) != 1:
-        fail("The C++ toolchain must enable exactly one of " +
-             "metagen_driver_mode_gcc or metagen_driver_mode_cl.")
-    driver_mode = driver_modes[0]
+    driver_mode = (ctx.attr.driver_mode_flag[FlagInfo].value or
+                   ctx.attr.default_driver_mode)
+    if driver_mode not in _METAGEN_USER_COPTS:
+        fail("v8_metagen_driver_mode must be 'gcc' or 'cl', got %r" % driver_mode)
 
     # -I dirs for the generated headers (torque, bytecode_builtins).
     # None of these live in a cc_library CcInfo so they're added directly.
@@ -864,6 +856,8 @@ _run_metagen = rule(
     implementation = _run_metagen_impl,
     attrs = {
         "prefix": attr.string(mandatory = True),
+        "default_driver_mode": attr.string(mandatory = True),
+        "driver_mode_flag": attr.label(providers = [FlagInfo], mandatory = True),
         # The checked-in C++ driver, passed straight through as --driver. Its
         # direct includes are staged by extra_sandbox_files, not by this attr.
         "driver": attr.label(allow_single_file = True, mandatory = True),
@@ -919,7 +913,7 @@ _run_metagen = rule(
     toolchains = use_cc_toolchain(),
 )
 
-def run_metagen(name, driver,
+def run_metagen(name, driver, default_driver_mode, driver_mode_flag,
                 python_srcs, tool,
                 cc_compilation_context_from,
                 clang_builtin_headers,
@@ -941,10 +935,9 @@ def run_metagen(name, driver,
     `libclang_from_python_env = True` (bindings supplied through `tool`'s
     Python deps) -- exactly one, enforced by the rule.
 
-    The target C++ toolchain must enable exactly one feature:
-    `metagen_driver_mode_gcc` for GNU-style flags (including MinGW), or
-    `metagen_driver_mode_cl` for clang-cl/MSVC flags. Compiler wrappers do
-    not affect this choice.
+    `default_driver_mode` follows the target OS. The `driver_mode_flag`
+    overrides it for toolchains that use a different flag syntax, such as
+    MinGW or clang-cl cross builds.
     """
     for prefix in ("noicu", "icu"):
         is_icu = prefix == "icu"
@@ -952,6 +945,8 @@ def run_metagen(name, driver,
             name = prefix + "/" + name,
             prefix = prefix,
             driver = driver,
+            default_driver_mode = default_driver_mode,
+            driver_mode_flag = driver_mode_flag,
             libclang_files = libclang_files,
             libclang_from_python_env = libclang_from_python_env,
             clang_builtin_headers = clang_builtin_headers,

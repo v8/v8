@@ -186,6 +186,10 @@ v8_flag(
     default = True,
 )
 
+# Empty selects the default for the target OS. Set to "gcc" or "cl" when
+# the C++ toolchain uses a different driver mode.
+v8_string(name = "v8_metagen_driver_mode")
+
 # Mirrors the GN arg of the same name: selects the object-layout source Torque
 # compiles from, either the metagen layout JSON or the .tq field blocks.
 v8_flag(
@@ -4637,6 +4641,11 @@ py_binary(
 run_metagen(
     name = "run_metagen",
     driver = ":metagen_driver",
+    default_driver_mode = select({
+        "@v8//bazel/config:is_windows": "cl",
+        "//conditions:default": "gcc",
+    }),
+    driver_mode_flag = ":v8_metagen_driver_mode",
     clang_builtin_headers = [":metagen_clang_builtin_headers"],
     libclang_files = [":metagen_libclang_files"],
     python_srcs = [":metagen_python_sources"],
