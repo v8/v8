@@ -31,10 +31,9 @@ import unittest
 
 import correctness_fuzzer
 import grammar
+import harness
+import run
 from grammar import registry
-
-HARNESS_PATH = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), "harness.js")
 
 # Set from the command line; None means the d8-dependent tests are skipped.
 D8 = None
@@ -42,22 +41,14 @@ D8 = None
 
 def run_cases(cases):
   """Run |cases| through the harness, returning index -> result JSON string."""
-  fd, path = tempfile.mkstemp(prefix="grammar_test_", suffix=".json")
+  fd, path = tempfile.mkstemp(prefix="grammar_test_", suffix=".js")
   try:
-    with os.fdopen(fd, "w") as f:
-      json.dump(cases, f)
-    p = subprocess.run([D8, HARNESS_PATH, "--", path],
-                       capture_output=True,
-                       text=True,
-                       timeout=300)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+      f.write(harness.emit_js(cases))
+    p = subprocess.run([D8, path], capture_output=True, text=True, timeout=300)
   finally:
     os.unlink(path)
-  results = {}
-  for line in p.stdout.splitlines():
-    key, tab, value = line.partition("\t")
-    if tab and key.isdigit():
-      results[int(key)] = value
-  return results
+  return correctness_fuzzer.Runner._results(p.stdout)
 
 
 def generate(n, seed=1, **kwargs):
@@ -353,6 +344,95 @@ class MinimizerTest(unittest.TestCase):
     self.assertLess(runner.calls, 100)
 
 
+class TestcaseFormatTest(unittest.TestCase):
+  """Test emitted testcase files."""
+
+  CASES = [
+      ["a|b", "gi", "ab", 1],
+      ["[\\p{L}--[a]]", "v", "\u00e9\U0001f600", 0],
+      ["(?<n>x)\\k<n>", "d", "xx", 0],
+  ]
+
+  def test_emitted_script_is_standalone_ascii(self):
+    text = harness.emit_js(self.CASES, header=["seed=1"])
+    self.assertTrue(text.isascii())
+    self.assertNotIn("arguments[", text)
+    self.assertNotIn("read(", text)
+    self.assertTrue(text.startswith("// seed=1\nconst cases = [\n"))
+
+  def test_emitted_script_uses_regexp_foozzie_namespace(self):
+    text = harness.emit_js(self.CASES)
+    self.assertIn('v8-foozzie source: regexp-fuzzer:', text)
+    self.assertNotIn('V8 correctness self-check failure', text)
+
+  def test_one_case_per_line_with_trailing_commas(self):
+    lines = harness.emit_js(self.CASES).splitlines()
+    start = lines.index("const cases = [")
+    end = lines.index("];")
+    body = lines[start + 1:end]
+    self.assertEqual(len(self.CASES), len(body))
+    self.assertTrue(all(l.endswith(",") for l in body))
+
+  def test_cases_round_trip(self):
+    text = harness.emit_js(self.CASES)
+    self.assertEqual(self.CASES, harness.parse_testcase(text))
+
+  def test_parser_tolerates_a_minimized_file(self):
+    lines = harness.emit_js(self.CASES).splitlines()
+    del lines[2]
+    lines[2] = lines[2].rstrip(",")
+    lines[2] = '["ab", "y"]'
+    cases = harness.parse_testcase("\n".join(lines))
+    self.assertEqual([["a|b", "gi", "ab", 1], ["ab", "y", "", 0]], cases)
+
+  def test_parser_rejects_a_foreign_file(self):
+    with self.assertRaises(ValueError):
+      harness.parse_testcase("print('not a fuzzer testcase');\n")
+
+  def test_tag_keeps_shape_and_drops_literals(self):
+    self.assertEqual(
+        harness.source_tag("(ab|cd)+\\d", "gi"),
+        harness.source_tag("(xy|zw)+\\d", "ig"))
+    self.assertEqual(harness.source_tag("\\.", ""), "/")
+    self.assertEqual(harness.source_tag("\\w\\1", ""), "/\\w\\1")
+    self.assertLessEqual(len(harness.source_tag("(" * 500, "")), 41)
+
+
+class FlagsFileTest(unittest.TestCase):
+  """Test the foozzie flags emitted next to each testcase."""
+
+  EXPERIMENTS = [[30, "jitless", "slow_path", "d8"],
+                 [70, "jitless", "slow_path", "clang_x86/d8"]]
+  ADDITIONAL = [[0.5, "--foo"], [0.5, "--bar --baz"]]
+
+  def test_choose_flags_draws_from_the_tables(self):
+    rng = random.Random(7)
+    for _ in range(50):
+      flags = run.choose_foozzie_flags(rng, self.EXPERIMENTS, self.ADDITIONAL,
+                                       12345)
+      self.assertEqual("--random-seed=12345", flags[0])
+      self.assertEqual(["--first-config=jitless", "--second-config=slow_path"],
+                       flags[1:3])
+      self.assertIn(flags[3], ["--second-d8=d8", "--second-d8=clang_x86/d8"])
+      extra = [f.split("=", 1)[1] for f in flags[4:]]
+      self.assertIn(
+          extra,
+          [[], ["--foo"], ["--bar", "--baz"], ["--foo", "--bar", "--baz"]])
+
+  def test_every_testcase_gets_a_flags_file(self):
+    with tempfile.TemporaryDirectory() as out:
+      run.main(
+          ["--output_dir", out, "--no_of_files", "3", "--cases-per-file", "5"])
+      for i in range(3):
+        with open(os.path.join(out, "flags-%d.js" % i)) as f:
+          flags = f.read().split()
+        seeds = [flag for flag in flags if flag.startswith("--random-seed=")]
+        self.assertEqual(1, len(seeds))
+        self.assertIn(int(seeds[0].split("=", 1)[1]), range(1, 2**31))
+        self.assertTrue(any(f.startswith("--first-config=") for f in flags))
+        self.assertTrue(any(f.startswith("--second-d8=") for f in flags))
+
+
 class GeneratedPatternTest(unittest.TestCase):
   """Properties that only a real engine can judge."""
 
@@ -419,6 +499,41 @@ class GeneratedPatternTest(unittest.TestCase):
     self.assertEqual({"g": "a"}, warm["g"])
     # Absent without the flag or the construct, rather than reported as null.
     self.assertNotIn("di", json.loads(results[1])["warm"])
+
+  def test_generated_testcase_runs_standalone(self):
+    with tempfile.TemporaryDirectory() as out:
+      run.main(
+          ["--output_dir", out, "--no_of_files", "1", "--cases-per-file", "50"])
+      path = os.path.join(out, "fuzz-0.js")
+      p = subprocess.run([D8, path],
+                         capture_output=True,
+                         text=True,
+                         timeout=300)
+    self.assertEqual(0, p.returncode, p.stderr)
+    lines = p.stdout.splitlines()
+    self.assertEqual("DONE", lines[-1])
+    self.assertEqual(50, len(correctness_fuzzer.Runner._results(p.stdout)))
+    self.assertEqual(
+        50,
+        sum(1 for l in lines
+            if l.startswith("v8-foozzie source: regexp-fuzzer:")))
+
+  def test_testcase_replay_of_a_clean_file_finds_nothing(self):
+    with tempfile.TemporaryDirectory() as out:
+      run.main(
+          ["--output_dir", out, "--no_of_files", "1", "--cases-per-file", "20"])
+      p = subprocess.run([
+          sys.executable,
+          os.path.join(
+              os.path.dirname(os.path.realpath(__file__)),
+              "correctness_fuzzer.py"), "--ref", D8, "--test", D8, "--testcase",
+          os.path.join(out, "fuzz-0.js")
+      ],
+                         capture_output=True,
+                         text=True,
+                         timeout=600)
+    self.assertEqual(0, p.returncode, p.stdout + p.stderr)
+    self.assertIn("20 case(s)", p.stdout)
 
 
 def main():
