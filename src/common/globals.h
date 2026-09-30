@@ -378,6 +378,12 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_EXPERIMENTAL_TQ_TO_TSA_BOOL false
 #endif
 
+#ifdef V8_X64_16BYTE_STACK_ALIGNMENT
+#define V8_X64_16BYTE_STACK_ALIGNMENT_BOOL true
+#else
+#define V8_X64_16BYTE_STACK_ALIGNMENT_BOOL false
+#endif
+
 #ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
 #ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 #error "tq-to-tsa is not supported without tsa builtins"

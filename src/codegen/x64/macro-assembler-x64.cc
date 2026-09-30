@@ -4257,7 +4257,7 @@ Immediate MacroAssembler::ClearedValue() const {
 #ifdef V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::AssertSpAlignedForCall() {
-  if (v8_flags.enforce_x64_16byte_alignment && v8_flags.debug_code) {
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL && v8_flags.debug_code) {
     CheckStackAlignment();
   }
 }

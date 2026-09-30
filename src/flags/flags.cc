@@ -593,6 +593,9 @@ uint32_t ComputeFlagListHash() {
   std::ostringstream modified_args_as_string;
   if (COMPRESS_POINTERS_BOOL) modified_args_as_string << "ptr-compr";
   if (DEBUG_BOOL) modified_args_as_string << "debug";
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    modified_args_as_string << "x64-stack-16";
+  }
   if (base::FPU::GetFlushDenormals()) {
     modified_args_as_string << "flush-denormals";
   }

@@ -557,6 +557,9 @@ declare_args() {
   # 1: Message but no file or line.
   # 2: Everything (file, line, message).
   v8_logging_level = ""
+
+  # Use 16 byte stack alignment for x64.
+  v8_x64_16byte_stack_alignment = false
 }
 
 # The native-libclang args are a matched pair: a .so with no bindings (or
@@ -820,9 +823,12 @@ if (v8_builtins_profiling_log_file == "default") {
   # * `v8_enable_sandbox && v8_enable_external_code_space` because they affect
   #   the way how external pointer values are accessed,
   # * `v8_enable_webassembly` because it changes the set of opcodes which
-  #   affects graphs hashes.
+  #   affects graphs hashes,
+  # * `!v8_x64_16byte_stack_alignment` because frame layout changes graph
+  #   hashes.
   if (v8_enable_builtins_optimization && !v8_enable_builtins_profiling &&
-      !is_debug && !v8_dcheck_always_on && v8_enable_webassembly) {
+      !is_debug && !v8_dcheck_always_on && v8_enable_webassembly &&
+      !v8_x64_16byte_stack_alignment) {
     # This is about function arguments evaluation order on the machine building
     # mksnapshot, which makes node IDs not predictable for subgraphs like
     # Op1(Op2(), Op3()) and as a result different graph hashes.
@@ -876,6 +882,9 @@ assert(!v8_enable_map_packing || !v8_enable_pointer_compression,
 
 assert(!v8_enable_map_packing || v8_current_cpu == "x64",
        "Map packing is only supported on x64")
+
+assert(!v8_x64_16byte_stack_alignment || v8_current_cpu == "x64",
+       "v8_x64_16byte_stack_alignment is only supported on x64")
 
 assert(!v8_enable_external_code_space || v8_enable_pointer_compression,
        "External code space feature requires pointer compression")
@@ -1694,6 +1703,9 @@ config("features") {
   }
   if (v8_function_arguments_caller_are_own_props) {
     defines += [ "V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS" ]
+  }
+  if (v8_x64_16byte_stack_alignment) {
+    defines += [ "V8_X64_16BYTE_STACK_ALIGNMENT" ]
   }
 }
 

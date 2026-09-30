@@ -726,7 +726,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Wrapper around CheckStackAlignment. This is used at call sites
   // to enforce rsp is correctly aligned and thus rbp is aligned within
   // the callee. This function can be removed and usages replaced with
-  // CheckStackAlignment when --enforce-x64-16byte-alignment is enabled
+  // CheckStackAlignment when V8_X64_16BYTE_STACK_ALIGNMENT_BOOL is enabled
   // by default.
   void AssertSpAlignedForCall() NOOP_UNLESS_DEBUG_CODE;
 
