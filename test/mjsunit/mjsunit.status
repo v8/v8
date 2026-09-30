@@ -3067,6 +3067,7 @@
   'regress/regress-425583995': [SKIP],
   'regress/regress-490446682': [SKIP],
   'regress/regress-506499280-extended': [SKIP],
+  'huge-typedarrays-*': [SKIP],
 
   # Needs temporal:
   'regress/regress-463593768': [SKIP],
