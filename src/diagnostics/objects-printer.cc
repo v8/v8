@@ -2814,7 +2814,13 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - untrusted_function_data: " << Brief(GetUntrustedData());
   os << "\n - code (from function_data): ";
   Isolate* isolate;
-  if (GetIsolateFromHeapObject(Tagged<SharedFunctionInfo>(this), &isolate)) {
+  if (GetIsolateFromHeapObject(Tagged<SharedFunctionInfo>(this), &isolate)
+#if V8_ENABLE_WEBASSEMBLY
+      // WasmFunctionData does not store a Code object; see
+      // SharedFunctionInfo::GetCode().
+      && !HasWasmFunctionData(isolate)
+#endif  // V8_ENABLE_WEBASSEMBLY
+  ) {
     os << Brief(GetCode(isolate));
   } else {
     os << kUnavailableString;

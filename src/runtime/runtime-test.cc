@@ -878,6 +878,9 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
   auto function = Cast<JSFunction>(function_object);
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
+#if V8_ENABLE_WEBASSEMBLY
+  CHECK_UNLESS_FUZZING(!sfi->HasWasmFunctionData(isolate));
+#endif  // V8_ENABLE_WEBASSEMBLY
   CodeKind code_kind = sfi->abstract_code(isolate)->kind();
   switch (code_kind) {
     case CodeKind::INTERPRETED_FUNCTION:
