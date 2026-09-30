@@ -326,6 +326,7 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
       Handle<Name>(),        OptionalMapRef(),
       Type::OtherInternal(), MachineType::TaggedPointer(),
       kPointerWriteBarrier,  "JSFunctionSharedFunctionInfo"};
+  access.is_immutable = true;
   return access;
 }
 
