@@ -190,7 +190,7 @@ v8_flag(
 # compiles from, either the metagen layout JSON or the .tq field blocks.
 v8_flag(
     name = "v8_use_metagen_layouts",
-    default = True,
+    default = False,
 )
 
 v8_flag(
