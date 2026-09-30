@@ -464,7 +464,7 @@ class V8_EXPORT_PRIVATE Debug {
   }
 
   bool scheduled_break_on_function_call() const {
-    return thread_local_.scheduled_break_on_next_function_call_;
+    return !thread_local_.scheduled_break_on_next_function_call_.empty();
   }
 
   bool IsRestartFrameScheduled() const {
@@ -672,10 +672,10 @@ class V8_EXPORT_PRIVATE Debug {
     // debugger to break on next function call.
     bool break_on_next_function_call_;
 
-    // This flag is true when we break via stack check (BreakReason::kScheduled)
-    // We don't stay paused there but instead "step in" to the function similar
-    // to what "BreakOnNextFunctionCall" does.
-    bool scheduled_break_on_next_function_call_;
+    // Non-empty when we break via stack check (BreakReason::kScheduled or
+    // BreakReason::kOOM). We don't stay paused there but instead "step in" to
+    // the function similar to what "BreakOnNextFunctionCall" does.
+    v8::debug::BreakReasons scheduled_break_on_next_function_call_;
 
     // Frame ID for the frame that needs to be restarted. StackFrameId::NO_ID
     // otherwise. The unwinder uses the id to restart execution in this frame
