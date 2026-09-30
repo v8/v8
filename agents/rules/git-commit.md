@@ -12,9 +12,11 @@ commands in V8.
 
 - **Title**: Must follow the format `[component] Title`.
   - Use `[agents] title` ONLY for changes to the agent automation suite itself.
-- **Description**: Provide a clear explanation of "why" and "what". Wrap lines
-  at 72 characters. Focus on content and effects, not the process. Highlight the
-  rationale and key non-obvious design decisions.
+- **Description**: Keep the body concise (aim for at most 10 lines) and include
+  only essential information. Explain "why" and the high-level "what" without
+  restating details that are obvious from the diff. Focus on content, rationale,
+  and key non-obvious design decisions, not the process. Wrap lines at 72
+  characters.
   - Maintain a cohesive summary: Rewrite or integrate new descriptions into a
     cohesive summary instead of simply appending them.
 - **Tone**: Use concise, declarative, and natural engineering language.
