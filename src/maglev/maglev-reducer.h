@@ -1389,6 +1389,12 @@ class MaglevReducer {
     return maybe_value;
   }
 
+  // Optional integer positions treat an omitted or known undefined value as 0.
+  ValueNode* GetValueOrZeroIfUndefined(ValueNode* maybe_value) {
+    ValueNode* value = GetValueOrUndefined(maybe_value);
+    return value->IsUndefinedValue() ? GetInt32Constant(0) : value;
+  }
+
   ReduceResult BuildInt32Max(ValueNode* a, ValueNode* b);
   ReduceResult BuildInt32Min(ValueNode* a, ValueNode* b);
   ReduceResult BuildInt32Sign(ValueNode* value);

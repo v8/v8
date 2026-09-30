@@ -60,6 +60,18 @@ namespace compiler {
 // Shorter lambda declarations with less visual clutter.
 #define _ [&]()
 
+namespace {
+
+// Optional integer positions treat an omitted or known undefined value as 0.
+Node* GetArgumentOrZeroIfUndefined(const JSCallNode& call, int index,
+                                   JSGraph* jsgraph) {
+  Node* argument = call.ArgumentOr(index, jsgraph->ZeroConstant());
+  return argument == jsgraph->UndefinedConstant() ? jsgraph->ZeroConstant()
+                                                  : argument;
+}
+
+}  // namespace
+
 class JSCallReducerAssembler : public JSGraphAssembler {
   static constexpr bool kMarkLoopExits = true;
 
@@ -420,9 +432,9 @@ class JSCallReducerAssembler : public JSGraphAssembler {
         ArgumentCount() > index ? Argument(index) : UndefinedConstant());
   }
 
-  TNode<Number> ArgumentOrZero(int index) {
-    return TNode<Number>::UncheckedCast(
-        ArgumentCount() > index ? Argument(index) : ZeroConstant());
+  TNode<Object> ArgumentOrZeroIfUndefined(int index) {
+    return TNode<Object>::UncheckedCast(
+        GetArgumentOrZeroIfUndefined(JSCallNode{node_ptr()}, index, jsgraph()));
   }
 
   TNode<Context> ContextInput() const {
@@ -1014,7 +1026,7 @@ TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith(
     StringRef search_element_string) {
   DCHECK(search_element_string.IsContentAccessible());
   TNode<Object> receiver = ReceiverInput();
-  TNode<Object> start = ArgumentOrZero(1);
+  TNode<Object> start = ArgumentOrZeroIfUndefined(1);
 
   TNode<String> receiver_string = CheckString(receiver);
   TNode<Smi> start_smi = CheckSmi(start);
@@ -1058,7 +1070,7 @@ TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith(
 TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith() {
   TNode<Object> receiver = ReceiverInput();
   TNode<Object> search_element = ArgumentOrUndefined(0);
-  TNode<Object> start = ArgumentOrZero(1);
+  TNode<Object> start = ArgumentOrZeroIfUndefined(1);
 
   TNode<String> receiver_string = CheckString(receiver);
   TNode<String> search_string = CheckString(search_element);
@@ -1232,7 +1244,7 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
     SpeculationMode speculation_mode) {
   TNode<Object> receiver = ReceiverInput();
-  TNode<Object> index = ArgumentOrZero(0);
+  TNode<Object> index = ArgumentOrZeroIfUndefined(0);
 
   TNode<String> receiver_string = CheckString(receiver);
   TNode<Number> length = StringLength(receiver_string);
@@ -1266,7 +1278,7 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
 TNode<Number> JSCallReducerAssembler::ReduceStringPrototypeCharCodeAt(
     SpeculationMode speculation_mode) {
   TNode<Object> receiver = ReceiverInput();
-  TNode<Object> index = ArgumentOrZero(0);
+  TNode<Object> index = ArgumentOrZeroIfUndefined(0);
 
   TNode<String> receiver_string = CheckString(receiver);
   TNode<Number> length = StringLength(receiver_string);
@@ -1417,8 +1429,7 @@ TNode<Object> JSCallReducerAssembler::ReduceJSCallMathMinMaxWithArrayLike(
 TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
     ZoneVector<MapRef> maps, bool needs_fallback_builtin_call) {
   TNode<JSArray> receiver = ReceiverInputAs<JSArray>();
-  TNode<Object> index = ArgumentOrZero(0);
-
+  TNode<Object> index = ArgumentOrZeroIfUndefined(0);
   TNode<Number> index_num = CheckSmi(index);
   TNode<FixedArrayBase> elements = LoadElements(receiver);
 
@@ -2726,7 +2737,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeIndexOfIncludes(
   TNode<Context> context = ContextInput();
   TNode<JSArray> receiver = ReceiverInputAs<JSArray>();
   TNode<Object> search_element = ArgumentOrUndefined(0);
-  TNode<Object> from_index = ArgumentOrZero(1);
+  TNode<Object> from_index = ArgumentOrZeroIfUndefined(1);
 
   // TODO(jgruber): This currently only reduces to a stub call. Create a full
   // reduction (similar to other higher-order array builtins) instead of
@@ -6215,11 +6226,10 @@ Reduction JSCallReducer::ReduceStringPrototypeIndexOfIncludes(
         graph()->NewNode(simplified()->CheckString(p.feedback()), search_string,
                          effect, control);
 
-    Node* new_position = jsgraph()->ZeroConstant();
+    Node* new_position = GetArgumentOrZeroIfUndefined(n, 1, jsgraph());
     if (n.ArgumentCount() > 1) {
-      Node* position = n.Argument(1);
       new_position = effect = graph()->NewNode(
-          simplified()->CheckSmi(p.feedback()), position, effect, control);
+          simplified()->CheckSmi(p.feedback()), new_position, effect, control);
 
       Node* receiver_length =
           graph()->NewNode(simplified()->StringLength(), new_receiver);
@@ -7712,7 +7722,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStringCodePointAt(Node* node) {
   }
 
   Node* receiver = n.receiver();
-  Node* index = n.ArgumentOr(0, jsgraph()->ZeroConstant());
+  Node* index = GetArgumentOrZeroIfUndefined(n, 0, jsgraph());
   Effect effect = n.effect();
   Control control = n.control();
 

@@ -1098,9 +1098,10 @@ MaybeReduceResult MaglevReducer<BaseT>::TryWithArrayIterationArgs(
             args.count() > 0 ? args[0]
                              : GetRootConstant(RootIndex::kUndefinedValue);
 
-        ValueNode* from_index = GetInt32Constant(0);
-        if (args.count() > 1) {
-          GET_VALUE_OR_ABORT(from_index, GetInt32(args[1]));
+        ValueNode* from_index = GetValueOrZeroIfUndefined(args[1]);
+        if (!from_index->Is<Int32Constant>() ||
+            from_index->Cast<Int32Constant>()->value() != 0) {
+          GET_VALUE_OR_ABORT(from_index, GetInt32(from_index));
           GET_VALUE_OR_ABORT(
               from_index,
               Select(
@@ -1285,22 +1286,20 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeAt(
   return TryWithFastArrayElements(
       "Array.prototype.at", args,
       [&](ElementsKind elements_kind, ValueNode* elements, ValueNode* length) {
-        ValueNode* index = nullptr;
-        if (args.count() == 0) {
-          // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
-          index = GetInt32Constant(0);
-        } else {
-          GET_VALUE_OR_ABORT(
-              index, Select(
-                         [&](auto& branch) -> BranchResult {
-                           return BuildBranchIfInt32Compare(
-                               branch, Operation::kLessThan, args[0],
-                               GetInt32Constant(0));
-                         },
-                         [&]() -> ReduceResult {
-                           return AddNewNode<Int32Add>({args[0], length});
-                         },
-                         [&]() -> ReduceResult { return args[0]; }));
+        ValueNode* index = GetValueOrZeroIfUndefined(args[0]);
+        if (!index->Is<Int32Constant>() ||
+            index->Cast<Int32Constant>()->value() != 0) {
+          GET_VALUE_OR_ABORT(index,
+                             Select(
+                                 [&](auto& branch) -> BranchResult {
+                                   return BuildBranchIfInt32Compare(
+                                       branch, Operation::kLessThan, index,
+                                       GetInt32Constant(0));
+                                 },
+                                 [&]() -> ReduceResult {
+                                   return AddNewNode<Int32Add>({index, length});
+                                 },
+                                 [&]() -> ReduceResult { return index; }));
         }
 
         return Select(
@@ -5141,7 +5140,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeIndexOfIncludes(
                        : GetRootConstant(RootIndex::kundefined_string);
   RETURN_IF_ABORT(BuildCheckString(search_element));
 
-  ValueNode* start = args.count() > 1 ? args[1] : GetInt32Constant(0);
+  ValueNode* start = GetValueOrZeroIfUndefined(args[1]);
   ValueNode* receiver_length;
   GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
 
@@ -6656,13 +6655,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeCharAt(
   }
 
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  ValueNode* index;
-  if (args.count() == 0) {
-    // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
-    index = GetInt32Constant(0);
-  } else {
-    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(args[0]));
-  }
+  ValueNode* index = GetValueOrZeroIfUndefined(args[0]);
+  GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index));
   // Any other argument is ignored.
 
   RETURN_IF_DONE(
@@ -6712,13 +6706,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeCharCodeAt(
     return {};
   }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  ValueNode* index;
-  if (args.count() == 0) {
-    // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
-    index = GetInt32Constant(0);
-  } else {
-    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(args[0]));
-  }
+  ValueNode* index = GetValueOrZeroIfUndefined(args[0]);
+  GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index));
   // Any other argument is ignored.
 
   // Try to constant-fold if receiver and index are constant
@@ -6773,13 +6762,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeCodePointAt(
     return {};
   }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  ValueNode* index;
-  if (args.count() == 0) {
-    // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
-    index = GetInt32Constant(0);
-  } else {
-    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(args[0]));
-  }
+  ValueNode* index = GetValueOrZeroIfUndefined(args[0]);
+  GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index));
   // Any other argument is ignored.
   // Ensure that {receiver} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(receiver));
