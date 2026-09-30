@@ -95,7 +95,11 @@ void CollectScopeTree(Scope* scope, int depth, HeapEntry* script_entry,
 
   std::vector<Variable*> context_vars;
 
-  if (scope->is_class_scope()) {
+  if (scope->is_script_scope()) {
+    // Script scopes contain global lexical variables (let/const) that can be
+    // accessed across different scripts, for which uses are not tracked. Omit
+    // context variables to disable dead context analysis.
+  } else if (scope->is_class_scope()) {
     // Class scopes contain private fields and methods for which uses across
     // closures are currently not tracked. Omit context variables to disable
     // dead context analysis.
