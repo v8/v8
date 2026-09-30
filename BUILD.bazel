@@ -2799,7 +2799,6 @@ filegroup(
         "src/zone/zone.cc",
         "src/zone/zone.h",
         "src/zone/zone-allocator.h",
-        "src/zone/zone-chunk-list.h",
         "src/zone/zone-compact-set.h",
         "src/zone/zone-containers.h",
         "src/zone/zone-hashmap.h",
