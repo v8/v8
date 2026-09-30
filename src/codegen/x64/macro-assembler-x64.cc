@@ -2327,6 +2327,20 @@ void MacroAssembler::F32x8Splat(YMMRegister dst, XMMRegister src) {
   vbroadcastss(dst, src);
 }
 
+void MacroAssembler::F16x8Splat(XMMRegister dst, XMMRegister src) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  vcvtps2ph(dst, src, 0);
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpbroadcastw(dst, dst);
+  } else {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpshuflw(dst, dst, uint8_t{0});
+    vpunpcklqdq(dst, dst, dst);
+  }
+}
+
 void MacroAssembler::F64x4Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                               YMMRegister scratch) {
   ASM_CODE_COMMENT(this);
@@ -2394,7 +2408,6 @@ void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
   ASM_CODE_COMMENT(this);
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
   vcvtph2ps(scratch, lhs);
   vcvtph2ps(scratch2, rhs);
   // The minps instruction doesn't propagate NaNs and +0's in its first
@@ -2406,7 +2419,17 @@ void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
   // Canonicalize NaNs by quieting and clearing the payload.
   vcmpunordps(dst, dst, scratch);
   vorps(scratch, scratch, dst);
-  vpsrld(dst, dst, uint8_t{10});
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpsrld(dst, dst, uint8_t{10});
+  } else {
+    XMMRegister xdst = dst;
+    XMMRegister xscratch2 = scratch2;
+    vextractf128(xscratch2, dst, 1);
+    vpsrld(xdst, xdst, uint8_t{10});
+    vpsrld(xscratch2, xscratch2, uint8_t{10});
+    vperm2f128(dst, dst, scratch2, 0x20);
+  }
   vandnps(dst, dst, scratch);
   vcvtps2ph(dst, dst, 0);
 }
@@ -2416,7 +2439,6 @@ void MacroAssembler::F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
   ASM_CODE_COMMENT(this);
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
   vcvtph2ps(scratch, lhs);
   vcvtph2ps(scratch2, rhs);
   // The maxps instruction doesn't propagate NaNs and +0's in its first
@@ -2431,7 +2453,17 @@ void MacroAssembler::F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
   vsubps(scratch, scratch, dst);
   // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
   vcmpunordps(dst, dst, scratch);
-  vpsrld(dst, dst, uint8_t{10});
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpsrld(dst, dst, uint8_t{10});
+  } else {
+    XMMRegister xdst = dst;
+    XMMRegister xscratch2 = scratch2;
+    vextractf128(xscratch2, dst, 1);
+    vpsrld(xdst, xdst, uint8_t{10});
+    vpsrld(xscratch2, xscratch2, uint8_t{10});
+    vperm2f128(dst, dst, scratch2, 0x20);
+  }
   vandnps(dst, dst, scratch);
   vcvtps2ph(dst, dst, 0);
 }
@@ -2566,12 +2598,8 @@ void MacroAssembler::I32x8SConvertF32x8(YMMRegister dst, YMMRegister src,
 void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, XMMRegister src,
                                         YMMRegister tmp, Register scratch) {
   ASM_CODE_COMMENT(this);
-  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2) &&
-         CpuFeatures::IsSupported(F16C));
-
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
 
   Operand op = ExternalReferenceAsOperand(
       ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
@@ -2592,42 +2620,28 @@ void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, XMMRegister src,
   // Convert all infinities to MAX_INT32 and let vpackssdw
   // clamp it to MAX_INT16 later.
   // 0x8000'0000 xor 0xffff'ffff(from 2 steps before) = 0x7fff'ffff (MAX_INT32)
-  vpxor(dst, dst, tmp);
-  // We now have 8 i32 values. Using one character per 16 bits:
-  // dst: [AABBCCDDEEFFGGHH]
-  // Create a copy of the upper four values in the lower half of {tmp}
-  // (so the upper half of the immediate doesn't matter):
-  vpermq(tmp, dst, 0x4E);  // 0b01001110
-  // tmp: [EEFFGGHHAABBCCDD]
-  // Now pack them together as i16s. Note that {vpackssdw} interleaves
-  // 128-bit chunks from each input, and takes care of saturating each
-  // value to kMinInt16 and kMaxInt16. We will then ignore the upper half
-  // of {dst}.
-  vpackssdw(dst, dst, tmp);
-  // dst: [EFGHABCDABCDEFGH]
-  //       <--><--><--><-->
-  //         ↑   ↑   ↑   └── from lower half of {dst}
-  //         │   │   └────── from lower half of {tmp}
-  //         │   └────────── from upper half of {dst} (ignored)
-  //         └────────────── from upper half of {tmp} (ignored)
+  vxorps(dst, dst, tmp);
+  // We now have 8 i32 values in {dst}: 4 in the lower 128 bits and 4 in the
+  // upper 128 bits. Extract the upper 128 bits into {xtmp} and pack all 8
+  // values into {xdst} as saturated i16s.
+  XMMRegister xdst = dst;
+  XMMRegister xtmp = tmp;
+  vextractf128(xtmp, dst, 1);
+  vpackssdw(xdst, xdst, xtmp);
 }
 
 void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, XMMRegister src,
                                       YMMRegister tmp) {
   ASM_CODE_COMMENT(this);
-  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2) &&
-         CpuFeatures::IsSupported(F16C));
-
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
-  CpuFeatureScope avx2_scope(this, AVX2);
 
   Operand op = ExternalReferenceAsOperand(
       ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
       kScratchRegister);
   vcvtph2ps(dst, src);
   // NAN->0, negative->0.
-  vpxor(tmp, tmp, tmp);
+  vxorps(tmp, tmp, tmp);
   vmaxps(dst, dst, tmp);
   // Detect positive Infinity as an overflow above MAX_INT32.
   vcmpgeps(tmp, dst, op);
@@ -2639,34 +2653,81 @@ void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, XMMRegister src,
   // Convert all infinities to MAX_INT32 and let vpackusdw
   // clamp it to MAX_INT16 later.
   // 0x8000'0000 xor 0xffff'ffff(from 2 steps before) = 0x7fff'ffff (MAX_INT32)
-  vpxor(dst, dst, tmp);
-  // Move high part to a spare register.
-  // See detailed comment in {I16x8SConvertF16x8} for how this works.
-  vpermq(tmp, dst, 0x4E);  // 0b01001110
-  vpackusdw(dst, dst, tmp);
+  vxorps(dst, dst, tmp);
+  XMMRegister xdst = dst;
+  XMMRegister xtmp = tmp;
+  vextractf128(xtmp, dst, 1);
+  vpackusdw(xdst, xdst, xtmp);
+}
+
+void MacroAssembler::F16x8SConvertI16x8(XMMRegister dst, XMMRegister src,
+                                        YMMRegister tmp) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpmovsxwd(tmp, src);
+  } else {
+    XMMRegister xtmp = tmp;
+    vpshufd(xtmp, src, uint8_t{0x4E});
+    vpmovsxwd(dst, src);
+    vpmovsxwd(xtmp, xtmp);
+    vperm2f128(tmp, YMMRegister::from_code(dst.code()), tmp, 0x20);
+  }
+  vcvtdq2ps(tmp, tmp);
+  vcvtps2ph(dst, tmp, 0);
+}
+
+void MacroAssembler::F16x8UConvertI16x8(XMMRegister dst, XMMRegister src,
+                                        YMMRegister tmp) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpmovzxwd(tmp, src);
+  } else {
+    XMMRegister xtmp = tmp;
+    vpshufd(xtmp, src, uint8_t{0x4E});
+    vpmovzxwd(dst, src);
+    vpmovzxwd(xtmp, xtmp);
+    vperm2f128(tmp, YMMRegister::from_code(dst.code()), tmp, 0x20);
+  }
+  vcvtdq2ps(tmp, tmp);
+  vcvtps2ph(dst, tmp, 0);
 }
 
 void MacroAssembler::F16x8Qfma(YMMRegister dst, XMMRegister src1,
                                XMMRegister src2, XMMRegister src3,
                                YMMRegister tmp, YMMRegister tmp2) {
-  CpuFeatureScope fma3_scope(this, FMA3);
   CpuFeatureScope f16c_scope(this, F16C);
 
-  if (dst.code() == src2.code()) {
-    vcvtph2ps(dst, dst);
-    vcvtph2ps(tmp, src1);
-    vcvtph2ps(tmp2, src3);
-    vfmadd213ps(dst, tmp, tmp2);
-  } else if (dst.code() == src3.code()) {
-    vcvtph2ps(dst, dst);
-    vcvtph2ps(tmp, src2);
-    vcvtph2ps(tmp2, src1);
-    vfmadd231ps(dst, tmp, tmp2);
+  if (CpuFeatures::IsSupported(FMA3)) {
+    CpuFeatureScope fma3_scope(this, FMA3);
+    if (dst.code() == src2.code()) {
+      vcvtph2ps(dst, dst);
+      vcvtph2ps(tmp, src1);
+      vcvtph2ps(tmp2, src3);
+      vfmadd213ps(dst, tmp, tmp2);
+    } else if (dst.code() == src3.code()) {
+      vcvtph2ps(dst, dst);
+      vcvtph2ps(tmp, src2);
+      vcvtph2ps(tmp2, src1);
+      vfmadd231ps(dst, tmp, tmp2);
+    } else {
+      vcvtph2ps(dst, src1);
+      vcvtph2ps(tmp, src2);
+      vcvtph2ps(tmp2, src3);
+      vfmadd213ps(dst, tmp, tmp2);
+    }
   } else {
-    vcvtph2ps(dst, src1);
-    vcvtph2ps(tmp, src2);
-    vcvtph2ps(tmp2, src3);
-    vfmadd213ps(dst, tmp, tmp2);
+    CpuFeatureScope avx_scope(this, AVX);
+    vcvtph2ps(tmp, src1);
+    vcvtph2ps(tmp2, src2);
+    vcvtph2ps(dst, src3);
+    vmulps(tmp, tmp, tmp2);
+    vaddps(dst, tmp, dst);
   }
   vcvtps2ph(dst, dst, 0);
 }
@@ -2674,24 +2735,33 @@ void MacroAssembler::F16x8Qfma(YMMRegister dst, XMMRegister src1,
 void MacroAssembler::F16x8Qfms(YMMRegister dst, XMMRegister src1,
                                XMMRegister src2, XMMRegister src3,
                                YMMRegister tmp, YMMRegister tmp2) {
-  CpuFeatureScope fma3_scope(this, FMA3);
   CpuFeatureScope f16c_scope(this, F16C);
 
-  if (dst.code() == src2.code()) {
-    vcvtph2ps(dst, dst);
-    vcvtph2ps(tmp, src1);
-    vcvtph2ps(tmp2, src3);
-    vfnmadd213ps(dst, tmp, tmp2);
-  } else if (dst.code() == src3.code()) {
-    vcvtph2ps(dst, dst);
-    vcvtph2ps(tmp, src2);
-    vcvtph2ps(tmp2, src1);
-    vfnmadd231ps(dst, tmp, tmp2);
+  if (CpuFeatures::IsSupported(FMA3)) {
+    CpuFeatureScope fma3_scope(this, FMA3);
+    if (dst.code() == src2.code()) {
+      vcvtph2ps(dst, dst);
+      vcvtph2ps(tmp, src1);
+      vcvtph2ps(tmp2, src3);
+      vfnmadd213ps(dst, tmp, tmp2);
+    } else if (dst.code() == src3.code()) {
+      vcvtph2ps(dst, dst);
+      vcvtph2ps(tmp, src2);
+      vcvtph2ps(tmp2, src1);
+      vfnmadd231ps(dst, tmp, tmp2);
+    } else {
+      vcvtph2ps(dst, src1);
+      vcvtph2ps(tmp, src2);
+      vcvtph2ps(tmp2, src3);
+      vfnmadd213ps(dst, tmp, tmp2);
+    }
   } else {
-    vcvtph2ps(dst, src1);
-    vcvtph2ps(tmp, src2);
-    vcvtph2ps(tmp2, src3);
-    vfnmadd213ps(dst, tmp, tmp2);
+    CpuFeatureScope avx_scope(this, AVX);
+    vcvtph2ps(tmp, src1);
+    vcvtph2ps(tmp2, src2);
+    vcvtph2ps(dst, src3);
+    vmulps(tmp, tmp, tmp2);
+    vsubps(dst, dst, tmp);
   }
   vcvtps2ph(dst, dst, 0);
 }

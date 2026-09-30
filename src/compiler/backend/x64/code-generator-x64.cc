@@ -3847,12 +3847,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
-            CpuFeatureScope f16c_scope(masm(), F16C);
-            CpuFeatureScope avx2_scope(masm(), AVX2);
-            __ vcvtps2ph(i.OutputDoubleRegister(0), i.InputDoubleRegister(0),
-                         0);
-            __ vpbroadcastw(i.OutputSimd128Register(),
-                            i.OutputDoubleRegister(0));
+            __ F16x8Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0));
             break;
           }
           case LaneSize::kL32: {
@@ -4568,10 +4563,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8SConvertF16x8: {
-      CpuFeatureScope avx_scope(masm(), AVX);
-      CpuFeatureScope f16c_scope(masm(), F16C);
-      CpuFeatureScope avx2_scope(masm(), AVX2);
-
       YMMRegister ydst =
           YMMRegister::from_code(i.OutputSimd128Register().code());
       __ I16x8SConvertF16x8(ydst, i.InputSimd128Register(0), kScratchSimd256Reg,
@@ -4579,31 +4570,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8UConvertF16x8: {
-      CpuFeatureScope avx_scope(masm(), AVX);
-      CpuFeatureScope f16c_scope(masm(), F16C);
-      CpuFeatureScope avx2_scope(masm(), AVX2);
-
       YMMRegister ydst =
           YMMRegister::from_code(i.OutputSimd128Register().code());
       __ I16x8TruncF16x8U(ydst, i.InputSimd128Register(0), kScratchSimd256Reg);
       break;
     }
     case kX64F16x8SConvertI16x8: {
-      CpuFeatureScope f16c_scope(masm(), F16C);
-      CpuFeatureScope avx_scope(masm(), AVX);
-      CpuFeatureScope avx2_scope(masm(), AVX2);
-      __ vpmovsxwd(kScratchSimd256Reg, i.InputSimd128Register(0));
-      __ vcvtdq2ps(kScratchSimd256Reg, kScratchSimd256Reg);
-      __ vcvtps2ph(i.OutputSimd128Register(), kScratchSimd256Reg, 0);
+      __ F16x8SConvertI16x8(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0), kScratchSimd256Reg);
       break;
     }
     case kX64F16x8UConvertI16x8: {
-      CpuFeatureScope f16c_scope(masm(), F16C);
-      CpuFeatureScope avx_scope(masm(), AVX);
-      CpuFeatureScope avx2_scope(masm(), AVX2);
-      __ vpmovzxwd(kScratchSimd256Reg, i.InputSimd128Register(0));
-      __ vcvtdq2ps(kScratchSimd256Reg, kScratchSimd256Reg);
-      __ vcvtps2ph(i.OutputSimd128Register(), kScratchSimd256Reg, 0);
+      __ F16x8UConvertI16x8(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0), kScratchSimd256Reg);
       break;
     }
     case kX64F16x8DemoteF32x4Zero: {
