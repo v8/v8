@@ -513,7 +513,7 @@ class ShellOptions {
   class DisallowReassignment {
    public:
     DisallowReassignment(const char* name, T value)
-        : name_(name), value_(value) {}
+        : name_(name), value_(value), default_value_(value) {}
 
     operator T() const { return value_; }
     T get() const { return value_; }
@@ -534,6 +534,10 @@ class ShellOptions {
       return *this;
     }
     void Overwrite(T value) { value_ = value; }
+    void Reset() {
+      value_ = default_value_;
+      specified_ = false;
+    }
 
     bool WasSpecified() const { return specified_; }
 
@@ -542,6 +546,7 @@ class ShellOptions {
    private:
     const char* name_;
     T value_;
+    const T default_value_;
     bool specified_ = false;
   };
   DisallowReassignment<bool> can_block = {"can_block", true};
