@@ -2931,7 +2931,7 @@ MaybeLocal<Context> Shell::CreateRealm(
   TryCatch try_catch(isolate);
   PerIsolateData* data = PerIsolateData::Get(isolate);
 
-  Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
+  Local<ObjectTemplate> global_template = GetOrCreateGlobalTemplate(isolate);
 
   v8::MicrotaskQueue* microtask_queue = nullptr;
   if (create_own_microtask_queue) {
@@ -4773,6 +4773,8 @@ Local<FunctionTemplate> Shell::CreateNodeTemplates(
   return div_element;
 }
 
+// Note: the result is cached per isolate (see GetOrCreateGlobalTemplate), so
+// it must not depend on the context or on state that changes after startup.
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
   global_template->Set(Symbol::GetToStringTag(isolate),
@@ -4823,6 +4825,20 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   }
 
   return global_template;
+}
+
+Local<ObjectTemplate> Shell::GetOrCreateGlobalTemplate(Isolate* isolate) {
+  // Creating the global template is fairly expensive compared to the rest of
+  // the context setup, e.g. in REPRL mode, which creates a new context for
+  // every script. None of the templates depend on the context, so all contexts
+  // of an isolate (including realms) share one global template. In particular,
+  // all d8.dom objects of an isolate are instances of the same templates (see
+  // SetDomNodeCtor), no matter in which context they were created.
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  if (data->global_template_.IsEmpty()) {
+    data->global_template_.Reset(isolate, CreateGlobalTemplate(isolate));
+  }
+  return data->global_template_.Get(isolate);
 }
 
 void Shell::ChangeDirectoryCallback(
@@ -4961,6 +4977,48 @@ Local<ObjectTemplate> Shell::CreateRealmTemplate(Isolate* isolate) {
   return realm_template;
 }
 
+namespace {
+
+// Getter helper for lazily created function template properties: instantiates
+// `templ` in the creation context of the holder, i.e. in the same context in
+// which an eagerly instantiated template property would have been created.
+// This is not necessarily the current context, e.g. when another realm
+// accesses the property first.
+void ReturnLazyTemplateFunction(const PropertyCallbackInfo<Value>& info,
+                                Local<FunctionTemplate> templ) {
+  Isolate* isolate = info.GetIsolate();
+  // The holder is an instance of an ObjectTemplate, so it always has a
+  // creation context.
+  Local<Context> context = info.Holder()->GetCreationContextChecked(isolate);
+  Local<Function> function;
+  if (templ->GetFunction(context).ToLocal(&function)) {
+    info.GetReturnValue().Set(function);
+  }
+}
+
+}  // namespace
+
+Local<FunctionTemplate> Shell::GetOrCreateTestFastCApiTemplate(
+    Isolate* isolate) {
+  // CreateTestFastCApiTemplate registers the template as the test API object
+  // constructor, which is_fast_c_api_object() checks against. Creating it only
+  // once per isolate makes that check consistent for all contexts.
+  Local<FunctionTemplate> templ =
+      PerIsolateData::Get(isolate)->GetTestApiObjectCtor();
+  if (templ.IsEmpty()) templ = CreateTestFastCApiTemplate(isolate);
+  return templ;
+}
+
+Local<FunctionTemplate> Shell::GetOrCreateLeafInterfaceTypeTemplate(
+    Isolate* isolate) {
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  if (data->leaf_interface_type_template_.IsEmpty()) {
+    data->leaf_interface_type_template_.Reset(
+        isolate, CreateLeafInterfaceTypeTemplate(isolate));
+  }
+  return data->leaf_interface_type_template_.Get(isolate);
+}
+
 Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
   Local<ObjectTemplate> d8_template = ObjectTemplate::New(isolate);
   {
@@ -5010,10 +5068,21 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     // constructor when --correctness_fuzzer_suppressions is on.
     if (options.expose_fast_api && i::v8_flags.turbo_fast_api_calls &&
         !i::v8_flags.correctness_fuzzer_suppressions) {
-      test_template->Set(isolate, "FastCAPI",
-                         Shell::CreateTestFastCApiTemplate(isolate));
-      test_template->Set(isolate, "LeafInterfaceType",
-                         Shell::CreateLeafInterfaceTypeTemplate(isolate));
+      // Instantiating these templates is fairly expensive compared to the rest
+      // of the context setup, and most scripts do not use them, so they are
+      // only instantiated on first access.
+      test_template->SetLazyDataProperty(
+          String::NewFromUtf8Literal(isolate, "FastCAPI"),
+          [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+            ReturnLazyTemplateFunction(
+                info, GetOrCreateTestFastCApiTemplate(info.GetIsolate()));
+          });
+      test_template->SetLazyDataProperty(
+          String::NewFromUtf8Literal(isolate, "LeafInterfaceType"),
+          [](Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+            ReturnLazyTemplateFunction(
+                info, GetOrCreateLeafInterfaceTypeTemplate(info.GetIsolate()));
+          });
     }
     // Allows testing code paths that are triggered when Origin Trials are
     // added in the browser.
@@ -5258,7 +5327,7 @@ MaybeLocal<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
       reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate(),
       context_mutex_.Pointer());
   // Initialize the global objects
-  Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
+  Local<ObjectTemplate> global_template = GetOrCreateGlobalTemplate(isolate);
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, nullptr, global_template);
   if (context.IsEmpty()) {

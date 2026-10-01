@@ -459,6 +459,11 @@ class PerIsolateData {
   std::unordered_set<DynamicImportData*> import_data_;
   Global<FunctionTemplate> test_api_object_ctor_;
   Global<FunctionTemplate> dom_node_ctor_;
+  // See Shell::GetOrCreateLeafInterfaceTypeTemplate.
+  Global<FunctionTemplate> leaf_interface_type_template_;
+  // The template of the global object of all contexts that d8 creates in this
+  // isolate, see Shell::GetOrCreateGlobalTemplate.
+  Global<ObjectTemplate> global_template_;
   // Track workers and their callbacks separately, so that we know both which
   // workers are still registered, and which of them have callbacks. We can't
   // rely on Shell::running_workers_ or worker.IsTerminated(), because these are
@@ -998,6 +1003,7 @@ class Shell : public i::AllStatic {
   static Local<FunctionTemplate> CreateNodeTemplates(
       Isolate* isolate, Local<FunctionTemplate> event_target);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
+  static Local<ObjectTemplate> GetOrCreateGlobalTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateOSTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateWorkerTemplate(Isolate* isolate);
   static Local<ObjectTemplate> CreateAsyncHookTemplate(Isolate* isolate);
@@ -1006,6 +1012,10 @@ class Shell : public i::AllStatic {
   static Local<ObjectTemplate> CreateD8Template(Isolate* isolate);
   static Local<FunctionTemplate> CreateTestFastCApiTemplate(Isolate* isolate);
   static Local<FunctionTemplate> CreateLeafInterfaceTypeTemplate(
+      Isolate* isolate);
+  static Local<FunctionTemplate> GetOrCreateTestFastCApiTemplate(
+      Isolate* isolate);
+  static Local<FunctionTemplate> GetOrCreateLeafInterfaceTypeTemplate(
       Isolate* isolate);
   static void CreateInterceptorObject(
       const v8::FunctionCallbackInfo<v8::Value>& info);
