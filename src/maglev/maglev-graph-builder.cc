@@ -109,18 +109,21 @@ namespace {
 class FunctionContextSpecialization final : public AllStatic {
  public:
   static compiler::OptionalContextRef TryToRef(
-      const MaglevCompilationUnit* unit, ValueNode* context, size_t* depth) {
+      const MaglevCompilationUnit* unit, ValueNode* context,
+      const ContextScopeInfo& scope_info, size_t* depth) {
     if (HeapConstant* n = context->TryCast<HeapConstant>()) {
       return n->ref().AsContext().previous(unit->broker(), depth);
     }
     if (v8_flags.always_specialize_for_script_context) {
-      if (InitialValue* n = context->TryCast<InitialValue>()) {
-        if (!unit->info()->toplevel_is_osr() &&
-            n->source() == interpreter::Register::current_context()) {
-          if (compiler::OptionalContextRef outer =
-                  unit->info()->specialization_context()) {
-            if (*depth >= unit->info()->specialization_context_distance()) {
-              *depth -= unit->info()->specialization_context_distance();
+      if (compiler::OptionalContextRef outer = unit->specialization_context()) {
+        if (!unit->info()->toplevel_is_osr() && scope_info.has_value()) {
+#ifdef DEBUG
+          VerifySpecializationContextDistance(unit, *outer, scope_info, *depth);
+#endif
+          if (std::optional<size_t> distance =
+                  scope_info.specialization_context_distance()) {
+            if (*distance <= *depth) {
+              *depth -= *distance;
               return outer->previous(unit->broker(), depth);
             }
           }
@@ -129,6 +132,32 @@ class FunctionContextSpecialization final : public AllStatic {
     }
     return {};
   }
+
+ private:
+#ifdef DEBUG
+  static void VerifySpecializationContextDistance(
+      const MaglevCompilationUnit* unit, compiler::ContextRef outer,
+      const ContextScopeInfo& scope_info, size_t depth) {
+    std::optional<size_t> distance =
+        scope_info.specialization_context_distance();
+    std::optional<size_t> walked_distance;
+    compiler::ScopeInfoRef outer_scope = outer.scope_info(unit->broker());
+    compiler::ScopeInfoRef curr = scope_info.value();
+    for (size_t dist = 0; dist <= depth; ++dist) {
+      if (curr.equals(outer_scope)) {
+        walked_distance = dist;
+        break;
+      }
+      if (!curr.HasOuterScopeInfo()) break;
+      curr = curr.OuterScopeInfo(unit->broker());
+    }
+    if (distance.has_value() && *distance <= depth) {
+      DCHECK_EQ(distance, walked_distance);
+    } else {
+      DCHECK(!walked_distance.has_value());
+    }
+  }
+#endif
 };
 
 NodeType NodeTypeFromAccessInfo(compiler::JSHeapBroker* broker,
@@ -787,14 +816,6 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization(
                         compilation_unit_->info()->toplevel_function()));
       closure = GetConstant(function);
       context = GetConstant(function.context(broker()));
-    } else if (v8_flags.always_specialize_for_script_context &&
-               !compilation_unit_->info()->toplevel_is_osr() &&
-               compilation_unit_->info()->specialization_context_distance() ==
-                   0) {
-      if (compiler::OptionalContextRef outer =
-              compilation_unit_->info()->specialization_context()) {
-        context = GetConstant(*outer);
-      }
     }
   }
 
@@ -2972,9 +2993,9 @@ ReduceResult MaglevGraphBuilder::VisitLdaCurrentContextSlotNoCell() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetContextSlotOperand(0);
   ValueNode* value;
-  GET_VALUE(value, LoadAndCacheContextSlot(context, slot_index,
-                                           ContextMode::kNoContextCells,
-                                           GetCurrentScopeInfo()));
+  GET_VALUE(value, BuildLoadContextSlot(context, 0, slot_index,
+                                        ContextMode::kNoContextCells,
+                                        GetCurrentScopeInfo()));
 
   SetAccumulator(value);
   return ReduceResult::Done();
@@ -2983,9 +3004,9 @@ ReduceResult MaglevGraphBuilder::VisitLdaCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetContextSlotOperand(0);
   ValueNode* value;
-  GET_VALUE(value, LoadAndCacheContextSlot(context, slot_index,
-                                           ContextMode::kHasContextCells,
-                                           GetCurrentScopeInfo()));
+  GET_VALUE(value, BuildLoadContextSlot(context, 0, slot_index,
+                                        ContextMode::kHasContextCells,
+                                        GetCurrentScopeInfo()));
 
   SetAccumulator(value);
   return ReduceResult::Done();
@@ -2994,9 +3015,9 @@ ReduceResult MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetContextSlotOperand(0);
   ValueNode* value;
-  GET_VALUE(value, LoadAndCacheContextSlot(context, slot_index,
-                                           ContextMode::kNoContextCells,
-                                           GetCurrentScopeInfo()));
+  GET_VALUE(value, BuildLoadContextSlot(context, 0, slot_index,
+                                        ContextMode::kNoContextCells,
+                                        GetCurrentScopeInfo()));
 
   SetAccumulator(value);
   return ReduceResult::Done();
@@ -3014,9 +3035,9 @@ ReduceResult MaglevGraphBuilder::VisitStaContextSlotNoCell() {
 ReduceResult MaglevGraphBuilder::VisitStaCurrentContextSlotNoCell() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetContextSlotOperand(0);
-  return StoreAndCacheContextSlot(context, slot_index, GetAccumulator(),
-                                  ContextMode::kNoContextCells,
-                                  GetCurrentScopeInfo());
+  return BuildStoreContextSlot(context, 0, slot_index, GetAccumulator(),
+                               ContextMode::kNoContextCells,
+                               GetCurrentScopeInfo());
 }
 
 ReduceResult MaglevGraphBuilder::VisitStaContextSlot() {
@@ -3032,9 +3053,9 @@ ReduceResult MaglevGraphBuilder::VisitStaContextSlot() {
 ReduceResult MaglevGraphBuilder::VisitStaCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetContextSlotOperand(0);
-  return StoreAndCacheContextSlot(context, slot_index, GetAccumulator(),
-                                  ContextMode::kHasContextCells,
-                                  GetCurrentScopeInfo());
+  return BuildStoreContextSlot(context, 0, slot_index, GetAccumulator(),
+                               ContextMode::kHasContextCells,
+                               GetCurrentScopeInfo());
 }
 
 ReduceResult MaglevGraphBuilder::VisitStar() {
@@ -6761,9 +6782,13 @@ ValueNode* MaglevGraphBuilder::GetContextAtDepth(ValueNode* context,
 
   compiler::OptionalContextRef maybe_ref =
       FunctionContextSpecialization::TryToRef(compilation_unit_, context,
-                                              &depth);
+                                              *scope_info, &depth);
   if (maybe_ref.has_value()) {
     context = GetConstant(maybe_ref.value());
+    // `context` is now a `HeapConstant`, so any subsequent `GetContextAtDepth`
+    // call on `context` (e.g. in `CheckContextExtensions`) will resolve
+    // directly via the `HeapConstant` fast path in `TryToRef` without
+    // consulting `scope_info->specialization_context_distance()`.
     *scope_info = ContextScopeInfo(maybe_ref.value().scope_info(broker()));
   }
 
@@ -7810,7 +7835,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
 
   // Create a new compilation unit.
   MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
-      zone(), compilation_unit_, shared, feedback_cell);
+      zone(), compilation_unit_, shared, feedback_cell, context, function);
 
   DeoptFrame* deopt_frame =
       GetDeoptFrameForEagerCall(inner_unit, function, arguments_vector);
@@ -11633,11 +11658,6 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
         }
         ValueNode* context;
         GET_VALUE_OR_ABORT(context, BuildLoadJSFunctionContext(target_node));
-        compiler::ScopeInfoRef scope_info = shared->scope_info(broker());
-        if (scope_info.HasOuterScopeInfo()) {
-          scope_info = scope_info.OuterScopeInfo(broker());
-          CHECK(scope_info.HasContext());
-        }
         PROCESS_AND_RETURN_IF_DONE(
             TryBuildCallKnownJSFunction(
                 context, target_node,
@@ -16455,30 +16475,14 @@ DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 ReduceResult MaglevGraphBuilder::VisitIllegal() { UNREACHABLE(); }
 
 void MaglevGraphBuilder::InitializeScopeInfo() {
-  compiler::ScopeInfoRef scope_info =
-      compilation_unit_->shared_function_info().scope_info(broker());
-  bool has_incoming_context_scope = false;
-  if (scope_info.HasOuterScopeInfo()) {
-    scope_info = scope_info.OuterScopeInfo(broker());
-    CHECK(scope_info.HasContext());
-    has_incoming_context_scope = true;
-  } else if (compilation_unit_->shared_function_info().is_toplevel() &&
-             scope_info.HasContext()) {
-    has_incoming_context_scope = true;
-  }
-  std::optional<size_t> distance;
-  if (!is_inline() && has_incoming_context_scope &&
-      compilation_unit_->info()->specialization_context().has_value()) {
-    distance = compilation_unit_->info()->specialization_context_distance();
-  }
-  SetCurrentScopeInfo(ContextScopeInfo(scope_info, distance));
+  SetCurrentScopeInfo(compilation_unit_->incoming_context_scope_info());
 }
 
 bool MaglevGraphBuilder::Build() {
   DCHECK(!is_inline());
   if (should_abort_compilation_) return false;
 
-  compilation_unit_->info()->InitializeSpecializationContext();
+  compilation_unit_->InitializeSpecializationContextForTopLevel();
 
   DCHECK_EQ(inlining_id_, SourcePosition::kNotInlined);
   reducer_.SetBytecodeOffset(entrypoint_);
