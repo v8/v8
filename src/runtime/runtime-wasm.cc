@@ -1330,15 +1330,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   if (v8_flags.wasm_wasmfx) {
     // For now JSPI does not use the WasmStackObject, and it is only set here
     // because it is expected by WasmFX.
-    // TODO(thibaudm): We could consider using this object for JSPI too as an
-    // indirection between the WasmSuspenderObjects and the StackMemory. This
-    // would have roughly the same benefits as for WasmFX:
-    // - We would only need to allocate and manage a single EPT entry per
-    // StackMemory,
-    // - It would be easier to track ownership of the StackMemory and ensure
-    // that there is no UAF. In particular the StackMemory could track its
-    // (unique) EPT entry via {EPT::ManagedResource} and zap it when the
-    // resource is freed.
     target_stack->set_stack_obj(
         *isolate->factory()->NewWasmStackObject(target_stack.get()));
   }
@@ -1350,11 +1341,10 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
     // The active suspender is about to become inactive. Record the currently
     // active stack (which may have changed due to WasmFX) for when we
     // return to this suspender.
-    active_suspender->set_stack(isolate,
-                                isolate->isolate_data()->active_stack());
+    active_suspender->set_stack(isolate->isolate_data()->active_stack());
   }
   suspender->set_parent(active_suspender);
-  suspender->set_stack(isolate, target_stack.get());
+  suspender->set_stack(target_stack.get());
   // The active stack is updated in {Isolate::SwitchStacks}.
   isolate->isolate_data()->set_active_suspender(*suspender);
 

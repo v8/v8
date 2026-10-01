@@ -1515,9 +1515,6 @@ class WasmSuspenderObject::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kWasmSuspenderIndirectPointerTag, v);
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(offsetof(WasmSuspenderObject, stack_),
-                                          kWasmStackMemoryTag));
     IterateProtectedPointer(obj, offsetof(WasmSuspenderObject, parent_), v);
     IteratePointer(obj, offsetof(WasmSuspenderObject, promise_), v);
     IteratePointer(obj, offsetof(WasmSuspenderObject, resume_), v);

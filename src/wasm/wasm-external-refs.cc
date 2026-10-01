@@ -1119,7 +1119,7 @@ void suspend_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                    Address fp, Address pc) {
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   auto suspender = isolate->isolate_data()->active_suspender();
-  suspender->set_stack(isolate, from);
+  suspender->set_stack(from);
   suspender->clear_parent();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
@@ -1336,8 +1336,8 @@ void return_stack(Isolate* isolate, wasm::StackMemory* to) {
 void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to) {
   Tagged<WasmSuspenderObject> suspender =
       isolate->isolate_data()->active_suspender();
-  // Clear the external stack pointer to avoid a UAF.
-  suspender->set_stack(isolate, nullptr);
+  // Clear the stack pointer to avoid a UAF.
+  suspender->set_stack(nullptr);
   return_stack(isolate, to);
 }
 

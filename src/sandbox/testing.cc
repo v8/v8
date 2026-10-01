@@ -40,6 +40,8 @@
 #ifdef V8_OS_LINUX
 #include <signal.h>
 #include <sys/mman.h>
+// sys/mman.h defines MAP_TYPE, which conflicts with V8's MAP_TYPE InstanceType.
+#undef MAP_TYPE
 #include <sys/ucontext.h>
 #include <unistd.h>
 
@@ -1579,6 +1581,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE"] =
         WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE;
     types["NATIVE_CONTEXT_TYPE"] = NATIVE_CONTEXT_TYPE;
+    types["MAP_TYPE"] = MAP_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
     types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
     types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
@@ -1587,6 +1590,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
     types["WASM_TAG_OBJECT_TYPE"] = WASM_TAG_OBJECT_TYPE;
     types["WASM_GLOBAL_OBJECT_TYPE"] = WASM_GLOBAL_OBJECT_TYPE;
+    types["WASM_STACK_OBJECT_TYPE"] = WASM_STACK_OBJECT_TYPE;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return types;
@@ -1601,6 +1605,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
   auto& fields = *g_known_fields.get();
   bool is_initialized = fields.size() != 0;
   if (!is_initialized) {
+    fields[MAP_TYPE]["instance_type"] = offsetof(Map, instance_type_);
     fields[FIXED_DOUBLE_ARRAY_TYPE]["length"] =
         offsetof(FixedDoubleArray, length_);
     fields[FIXED_DOUBLE_ARRAY_TYPE]["data"] =
@@ -1708,6 +1713,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(WasmGlobalObject, raw_type_);
     fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
         offsetof(WasmResumeData, trusted_suspender_);
+    fields[WASM_STACK_OBJECT_TYPE]["stack"] = offsetof(WasmStackObject, stack_);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;

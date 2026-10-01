@@ -3976,10 +3976,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       parent,
       FieldMemOperand(suspender, offsetof(WasmSuspenderObject, parent_)));
   DEFINE_REG(target_stack);
-  __ LoadExternalPointerField(
-      target_stack,
-      FieldMemOperand(parent, offsetof(WasmSuspenderObject, stack_)),
-      kWasmStackMemoryTag);
+  __ LoadWord(target_stack,
+              FieldMemOperand(parent, offsetof(WasmSuspenderObject, stack_)));
 
   SwitchStacks(masm, ExternalReference::wasm_suspend_stack(), target_stack,
                &resume, no_reg, scratch, {target_stack, suspender, parent});
@@ -4053,10 +4051,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Call the C function.
   // -------------------------------------------
   DEFINE_REG(target_stack);
-  __ LoadExternalPointerField(
+  __ LoadWord(
       target_stack,
-      FieldMemOperand(suspender, offsetof(WasmSuspenderObject, stack_)),
-      kWasmStackMemoryTag);
+      FieldMemOperand(suspender, offsetof(WasmSuspenderObject, stack_)));
 
   SwitchStacks(masm, ExternalReference::wasm_resume_jspi_stack(), target_stack,
                &suspend, suspender, scratch, {target_stack});
@@ -4361,9 +4358,8 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
   DEFINE_SCOPED(scratch)
   DEFINE_REG(stack)
   __ LoadRootRelative(stack, IsolateData::active_suspender_offset());
-  __ LoadExternalPointerField(
-      stack, FieldMemOperand(stack, offsetof(WasmSuspenderObject, stack_)),
-      kWasmStackMemoryTag);
+  __ LoadWord(stack,
+              FieldMemOperand(stack, offsetof(WasmSuspenderObject, stack_)));
   SwitchStacks(masm, ExternalReference::wasm_start_stack(), stack, suspend,
                no_reg, scratch, {wasm_instance, wrapper_buffer});
   FREE_REG(stack);

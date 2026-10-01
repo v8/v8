@@ -1476,21 +1476,11 @@ int WasmArray::DecodeElementSizeFromMap(Tagged<Map> map) {
   return map->WasmByte1();
 }
 
-wasm::StackMemory* WasmSuspenderObject::stack(IsolateForSandbox isolate) const {
-  Address result = stack_.load<kWasmStackMemoryTag>(isolate);
-  return reinterpret_cast<wasm::StackMemory*>(result);
-}
 wasm::StackMemory* WasmSuspenderObject::stack() const {
-  return stack(GetCurrentIsolateForSandbox());
+  return reinterpret_cast<wasm::StackMemory*>(stack_.value());
 }
-void WasmSuspenderObject::init_stack(IsolateForSandbox isolate,
-                                     const wasm::StackMemory* initial_value) {
-  stack_.Init<kWasmStackMemoryTag>(address(), isolate,
-                                   reinterpret_cast<Address>(initial_value));
-}
-void WasmSuspenderObject::set_stack(IsolateForSandbox isolate,
-                                    const wasm::StackMemory* value) {
-  stack_.store<kWasmStackMemoryTag>(isolate, reinterpret_cast<Address>(value));
+void WasmSuspenderObject::set_stack(wasm::StackMemory* value) {
+  stack_.set_value(reinterpret_cast<Address>(value));
 }
 
 EXTERNAL_POINTER_ACCESSORS(WasmStackObject, stack, wasm::StackMemory*,

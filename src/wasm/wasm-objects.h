@@ -1972,7 +1972,8 @@ constexpr int WasmArray::MaxLength(uint32_t element_size_bytes) {
 V8_OBJECT class WasmSuspenderObject : public ExposedTrustedObject {
  public:
   enum State : int { kInactive = 0, kActive, kSuspended };
-  DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
+  inline wasm::StackMemory* stack() const;
+  inline void set_stack(wasm::StackMemory* value);
   DECL_PROTECTED_POINTER_ACCESSORS(parent, WasmSuspenderObject)
 
   inline Tagged<UnionOf<JSPromise, Undefined>> promise() const;
@@ -1996,7 +1997,7 @@ V8_OBJECT class WasmSuspenderObject : public ExposedTrustedObject {
   static const int kSize;
 
  public:
-  ExternalPointerMember<kWasmStackMemoryTag> stack_;
+  UnalignedValueMember<Address> stack_;
   ProtectedTaggedMember<WasmSuspenderObject> parent_;
   TaggedMember<UnionOf<JSPromise, Undefined>> promise_;
   TaggedMember<UnionOf<JSObject, Undefined>> resume_;
