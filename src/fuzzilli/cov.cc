@@ -15,6 +15,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <iterator>
 
 #include "src/base/platform/memory.h"
@@ -99,10 +100,19 @@ __attribute__((visibility("default"))) void fuzzilli_cov_enable() {
   // file.
 }
 
-__attribute__((visibility("default"))) void sanitizer_cov_reset_edgeguards() {
-  uint32_t N = 0;
-  for (uint32_t* x = edges_start; x < edges_stop && N < MAX_EDGES; x++)
-    *x = ++N;
+// This runs after every REPRL execution and touches every guard, so it must
+// not be instrumented itself: otherwise every loop iteration would invoke the
+// coverage callback (~1.9M calls per execution). The loop bounds are copied to
+// locals so that the compiler can vectorize the loop.
+__attribute__((visibility("default"), no_sanitize("coverage"))) void
+sanitizer_cov_reset_edgeguards() {
+  uint32_t* const start = edges_start;
+  uint32_t* const stop = edges_stop;
+  if (start == nullptr || stop == nullptr || stop < start) return;
+  const size_t count = std::min<size_t>(stop - start, MAX_EDGES);
+  for (size_t i = 0; i < count; i++) {
+    start[i] = static_cast<uint32_t>(i + 1);
+  }
 }
 
 __attribute__((visibility("default"))) extern "C" void
