@@ -136,7 +136,7 @@ AllocationWitness::AllocationWitness(Tagged<HeapObject> object,
     : object_(object), write_barrier_mode_(write_barrier_mode) {}
 
 HeapObject::HeapObject(const AllocationWitness& witness,
-                       Tagged<ReadOnlyMap> map)
+                       Tagged<ReadOnly<Map>> map)
     : HeapObject(witness, map, SKIP_WRITE_BARRIER) {}
 
 HeapObject::HeapObject(const AllocationWitness& witness, Tagged<Map> map)

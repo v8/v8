@@ -410,7 +410,8 @@ V8_OBJECT class HeapObject {
 
  public:
   HeapObject() = default;
-  inline HeapObject(const AllocationWitness& witness, Tagged<ReadOnlyMap> map);
+  inline HeapObject(const AllocationWitness& witness,
+                    Tagged<ReadOnly<Map>> map);
   inline HeapObject(const AllocationWitness& witness, Tagged<Map> map);
 
  private:

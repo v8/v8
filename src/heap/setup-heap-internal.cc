@@ -402,24 +402,24 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       Tagged<Map> map = UncheckedCast<Map>(obj);
       roots_table()[entry.index] = map.ptr();
     }
-    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, symbol_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, symbol_map, Map::kSize);
 
-    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, meta_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, meta_map, Map::kSize);
     // Keep HeapNumber and Oddball maps together for cheap NumberOrOddball
     // checks.
-    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, undefined_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, null_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, undefined_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, null_map, Map::kSize);
     // Keep HeapNumber and Boolean maps together for cheap NumberOrBoolean
     // checks.
-    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, boolean_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, boolean_map, Map::kSize);
     // Keep HeapNumber and BigInt maps together for cheaper numerics checks.
-    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, heap_number_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, bigint_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, heap_number_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, bigint_map, Map::kSize);
     // Keep FreeSpace and filler maps together for cheap
     // `IsFreeSpaceOrFiller()`.
-    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, free_space_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, one_pointer_filler_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(ReadOnlyMap, two_pointer_filler_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, free_space_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, one_pointer_filler_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, two_pointer_filler_map, Map::kSize);
 
 #undef ALLOCATE_AND_SET_ROOT
 
@@ -494,7 +494,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
 #define ALLOCATE_PARTIAL_MAP(instance_type, size, field_name)                \
   {                                                                          \
-    Tagged<ReadOnlyMap> map;                                                 \
+    Tagged<ReadOnly<Map>> map;                                               \
     if (!AllocatePartialMap((instance_type), (size)).To(&map)) return false; \
     set_##field_name##_map(map);                                             \
   }
@@ -629,7 +629,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
 #define ALLOCATE_MAP(instance_type, size, field_name)                  \
   {                                                                    \
-    Tagged<ReadOnlyMap> map;                                           \
+    Tagged<ReadOnly<Map>> map;                                         \
     if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size) \
              .To(&map)) {                                              \
       return false;                                                    \
@@ -877,7 +877,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 #define ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(instance_type, size, \
                                                   field_name)          \
   {                                                                    \
-    Tagged<ReadOnlyMap> map;                                           \
+    Tagged<ReadOnly<Map>> map;                                         \
     if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size, \
                      DICTIONARY_ELEMENTS)                              \
              .To(&map)) {                                              \
@@ -913,7 +913,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 
   // Shared space object maps are immutable and can be in RO space.
   {
-    Tagged<ReadOnlyMap> shared_array_map;
+    Tagged<ReadOnly<Map>> shared_array_map;
     if (!AllocateMap(AllocationType::kReadOnly, JS_SHARED_ARRAY_TYPE,
                      JSSharedArray::kSize, SHARED_ARRAY_ELEMENTS,
                      JSSharedArray::kInObjectFieldCount)

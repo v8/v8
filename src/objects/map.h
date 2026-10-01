@@ -1221,12 +1221,6 @@ inline constexpr int Map::kSize = sizeof(Map);
 static_assert(offsetof(Map, instance_type_) ==
               Internals::kMapInstanceTypeOffset);
 
-// A Map guaranteed to live in ReadOnlySpace.
-V8_OBJECT class ReadOnlyMap : public Map {
-  V8_IT_REUSE_PARENT;
-  V8_IT_NO_AUTO_CHECKER;
-} V8_OBJECT_END;
-
 // Base class for Maps with extra fields. Subclasses must be defined with
 // @hasSameInstanceTypeAsParent and define padding fields up to kTaggedSize.
 V8_ABSTRACT_OBJECT class ExtendedMap : public Map {
@@ -1306,7 +1300,6 @@ class NormalizedMapCache : public WeakFixedArray {
 INSTANCE_TYPE_CHECKERS(DECL_TESTER)
 #undef DECL_TESTER
 inline bool IsMetaMap(Tagged<Map> map);
-inline bool IsReadOnlyMap(Tagged<Map> map);
 inline bool IsExtendedMap(Tagged<Map> map);
 inline bool IsJSInterceptorMap(Tagged<Map> map);
 inline bool IsNullMap(Tagged<Map> map);

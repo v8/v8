@@ -308,8 +308,8 @@ template <>
 struct ref_traits<Boolean> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<JSWrappedFunction> : public ref_traits<JSFunction> {};
-template <>
-struct ref_traits<ReadOnlyMap> : public ref_traits<Map> {};
+template <typename T>
+struct ref_traits<ReadOnly<T>> : public ref_traits<T> {};
 
 template <class... T>
 struct ref_traits<Union<T...>> {

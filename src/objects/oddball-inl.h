@@ -27,7 +27,7 @@ namespace internal {
 DEF_CAST_TRAITS(Oddball)
 ODDBALL_LIST(DEF_CAST_TRAITS)
 
-Oddball::Oddball(const AllocationWitness& witness, Tagged<ReadOnlyMap> map,
+Oddball::Oddball(const AllocationWitness& witness, Tagged<ReadOnly<Map>> map,
                  uint8_t kind)
     : PrimitiveHeapObject(witness, map), kind_(Smi::FromInt(kind)) {}
 

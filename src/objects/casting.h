@@ -544,6 +544,14 @@ struct CastTraits<Weak<T>> {
   }
 };
 
+template <typename T>
+struct CastTraits<ReadOnly<T>> {
+  static inline bool AllowFrom(Tagged<Object> value) {
+    return value.IsHeapObject() && AllowFrom(UncheckedCast<HeapObject>(value));
+  }
+  static inline bool AllowFrom(Tagged<HeapObject> value);
+};
+
 template <typename... T>
 struct CastTraits<Union<T...>> {
   static inline bool AllowFrom(Tagged<Object> value) {

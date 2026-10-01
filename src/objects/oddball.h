@@ -47,7 +47,7 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
   // Dispatched behavior.
   DECL_VERIFIER(Oddball)
 
-  inline Oddball(const AllocationWitness& witness, Tagged<ReadOnlyMap> map,
+  inline Oddball(const AllocationWitness& witness, Tagged<ReadOnly<Map>> map,
                  uint8_t kind);
 
   // Finish initializing the oddball's string and number fields once the read-

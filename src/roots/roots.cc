@@ -104,7 +104,7 @@ namespace {
       /* Skip verification of individual holes, just check for holeness */    \
       return IsAnyHole(value);                                                \
     } else {                                                                  \
-      return Is##Type(value);                                                 \
+      return Is<Type>(value);                                                 \
     }                                                                         \
   }
 
@@ -113,7 +113,7 @@ READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 
 template <typename T>
 void CheckTrustedMapHelper(RootIndex index, Tagged<T> obj) {
-  if constexpr (std::is_base_of_v<Map, T>) {
+  if constexpr (is_subtype_v<T, Map>) {
     CHECK_EQ(RootsTable::IsInTrustedObjectMapList(index),
              InstanceTypeChecker::IsTrustedObject(obj->instance_type()));
   }
