@@ -507,10 +507,11 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   DCHECK_EQ(PropertyKind::kData, details.kind());
   DisallowGarbageCollection no_gc;
   FieldIndex index = FieldIndex::ForDetails(map(), details);
-  DCHECK(!IsUninitializedHole(value));
   if (details.representation().IsDouble()) {
+    DCHECK(!IsUninitializedHole(value));
     auto box = Cast<UnionOf<HeapNumber, UninitializedHeapNumber>>(
         RawFastPropertyAt(index));
+    DCHECK_NE(box, value);
     // Manipulating the signaling NaN used for the hole and uninitialized
     // double field sentinel in C++, e.g. with base::bit_cast or
     // value()/set_value(), will change its value on ia32 (the x87 stack is used
