@@ -5004,7 +5004,8 @@ TEST(HeapSnapshotWithWasmInstance) {
       isolate, trusted_instance_data_node,
       {"data_segments", "dispatch_table0", "dispatch_table_for_imports",
        "dispatch_tables", "instance_object", "managed_native_module", "map",
-       "memory_bases_and_sizes", "native_context"});
+       "memory_bases_and_sizes", "native_context",
+       "shared_memory_backing_stores"});
 
   // "module_object" should be the same as the global "module".
   const v8::HeapGraphNode* module_node =

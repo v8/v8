@@ -1583,14 +1583,15 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["NATIVE_CONTEXT_TYPE"] = NATIVE_CONTEXT_TYPE;
     types["MAP_TYPE"] = MAP_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
-    types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
-    types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
     types["WASM_FUNC_REF_TYPE"] = WASM_FUNC_REF_TYPE;
-    types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
-    types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
-    types["WASM_TAG_OBJECT_TYPE"] = WASM_TAG_OBJECT_TYPE;
     types["WASM_GLOBAL_OBJECT_TYPE"] = WASM_GLOBAL_OBJECT_TYPE;
+    types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
+    types["WASM_MEMORY_OBJECT_TYPE"] = WASM_MEMORY_OBJECT_TYPE;
+    types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
+    types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
     types["WASM_STACK_OBJECT_TYPE"] = WASM_STACK_OBJECT_TYPE;
+    types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
+    types["WASM_TAG_OBJECT_TYPE"] = WASM_TAG_OBJECT_TYPE;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return types;
@@ -1684,36 +1685,42 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(JSSegments, icu_iterator_with_text_);
 #endif  // V8_INTL_SUPPORT
 #ifdef V8_ENABLE_WEBASSEMBLY
-    fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
-        offsetof(WasmModuleObject, managed_native_module_);
-    fields[WASM_MODULE_OBJECT_TYPE]["script"] =
-        offsetof(WasmModuleObject, script_);
-    fields[WASM_INSTANCE_OBJECT_TYPE]["module_object"] =
-        offsetof(WasmInstanceObject, module_object_);
-    fields[WASM_INSTANCE_OBJECT_TYPE]["trusted_data"] =
-        offsetof(WasmInstanceObject, trusted_data_);
     fields[WASM_FUNC_REF_TYPE]["trusted_internal"] =
         offsetof(WasmFuncRef, trusted_internal_);
-    fields[WASM_TABLE_OBJECT_TYPE]["entries"] =
-        offsetof(WasmTableObject, entries_);
-    fields[WASM_TABLE_OBJECT_TYPE]["current_length"] =
-        offsetof(WasmTableObject, current_length_);
-    fields[WASM_TABLE_OBJECT_TYPE]["maximum_length"] =
-        offsetof(WasmTableObject, maximum_length_);
-    fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
-        offsetof(WasmTableObject, raw_type_);
-    fields[WASM_TABLE_OBJECT_TYPE]["trusted_dispatch_table"] =
-        offsetof(WasmTableObject, trusted_dispatch_table_);
-    fields[WASM_TABLE_OBJECT_TYPE]["trusted_data"] =
-        offsetof(WasmTableObject, trusted_data_);
-    fields[WASM_TAG_OBJECT_TYPE]["tag"] = offsetof(WasmTagObject, tag_);
     fields[WASM_GLOBAL_OBJECT_TYPE]["buffer"] =
         offsetof(WasmGlobalObject, buffer_);
     fields[WASM_GLOBAL_OBJECT_TYPE]["raw_type"] =
         offsetof(WasmGlobalObject, raw_type_);
+    fields[WASM_INSTANCE_OBJECT_TYPE]["module_object"] =
+        offsetof(WasmInstanceObject, module_object_);
+    fields[WASM_INSTANCE_OBJECT_TYPE]["trusted_data"] =
+        offsetof(WasmInstanceObject, trusted_data_);
+    fields[WASM_MEMORY_OBJECT_TYPE]["array_buffer"] =
+        offsetof(WasmMemoryObject, array_buffer_);
+    fields[WASM_MEMORY_OBJECT_TYPE]["instances"] =
+        offsetof(WasmMemoryObject, instances_);
+    fields[WASM_MEMORY_OBJECT_TYPE]["managed_backing_store"] =
+        offsetof(WasmMemoryObject, managed_backing_store_);
+    fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
+        offsetof(WasmModuleObject, managed_native_module_);
+    fields[WASM_MODULE_OBJECT_TYPE]["script"] =
+        offsetof(WasmModuleObject, script_);
     fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
         offsetof(WasmResumeData, trusted_suspender_);
     fields[WASM_STACK_OBJECT_TYPE]["stack"] = offsetof(WasmStackObject, stack_);
+    fields[WASM_TABLE_OBJECT_TYPE]["current_length"] =
+        offsetof(WasmTableObject, current_length_);
+    fields[WASM_TABLE_OBJECT_TYPE]["entries"] =
+        offsetof(WasmTableObject, entries_);
+    fields[WASM_TABLE_OBJECT_TYPE]["maximum_length"] =
+        offsetof(WasmTableObject, maximum_length_);
+    fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
+        offsetof(WasmTableObject, raw_type_);
+    fields[WASM_TABLE_OBJECT_TYPE]["trusted_data"] =
+        offsetof(WasmTableObject, trusted_data_);
+    fields[WASM_TABLE_OBJECT_TYPE]["trusted_dispatch_table"] =
+        offsetof(WasmTableObject, trusted_dispatch_table_);
+    fields[WASM_TAG_OBJECT_TYPE]["tag"] = offsetof(WasmTagObject, tag_);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;
