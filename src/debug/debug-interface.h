@@ -483,6 +483,15 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     ScopeTypeWasmExpressionStack
   };
 
+  enum class VariableInfo {
+    // The scope does not declare any variables.
+    kEmpty,
+    // The scope declares variables, but none of their values are available.
+    kAllUnavailable,
+    // The scope declares at least one variable with an available value.
+    kAvailable,
+  };
+
   virtual bool Done() = 0;
   virtual void Advance() = 0;
   virtual ScopeType GetType() = 0;
@@ -492,9 +501,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   virtual bool HasLocationInfo() = 0;
   virtual debug::Location GetStartLocation() = 0;
   virtual debug::Location GetEndLocation() = 0;
-  // Whether the scope declares any variables (even if their values are not
-  // available). Scopes that don't are reported as empty.
-  virtual bool DeclaresLocals() = 0;
+  // Whether the scope declares any variables and whether their values are
+  // available.
+  virtual VariableInfo GetVariableInfo() = 0;
 
   virtual bool SetVariableValue(v8::Local<v8::String> name,
                                 v8::Local<v8::Value> value) = 0;

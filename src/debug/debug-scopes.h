@@ -69,6 +69,19 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   // Returns whether the current scope declares any variables.
   bool DeclaresLocals(Mode mode) const;
 
+  enum class VariableInfo {
+    // The scope does not declare any variables.
+    kEmpty,
+    // The scope declares variables, but none of their values are available
+    // (i.e. all of them are optimized out or in their TDZ).
+    kAllUnavailable,
+    // The scope declares at least one variable with an available value.
+    kAvailable,
+  };
+
+  // Classifies the variables declared by the current scope.
+  VariableInfo GetVariableInfo(Mode mode) const;
+
   // Returns whether the current scope should be ignored by debugger scope
   // numbers.
   bool ShouldIgnore() const;

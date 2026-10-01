@@ -697,7 +697,7 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
 
   ScopeType GetType() override { return type_; }
 
-  bool DeclaresLocals() override { return true; }
+  VariableInfo GetVariableInfo() override { return VariableInfo::kAvailable; }
 
   v8::Local<v8::Object> GetObject() override {
     Isolate* isolate = frame_->isolate();
@@ -798,7 +798,7 @@ class DebugWasmInterpreterScopeIterator final : public debug::ScopeIterator {
 
   ScopeType GetType() override { return type_; }
 
-  bool DeclaresLocals() override { return true; }
+  VariableInfo GetVariableInfo() override { return VariableInfo::kAvailable; }
 
   v8::Local<v8::Object> GetObject() override {
     Isolate* isolate = frame_->isolate();

@@ -371,8 +371,15 @@ Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
                                 .setColumnNumber(end.GetColumnNumber())
                                 .build());
     }
-    if (!iterator->DeclaresLocals()) {
-      scope->setEmpty(true);
+    switch (iterator->GetVariableInfo()) {
+      case v8::debug::ScopeIterator::VariableInfo::kEmpty:
+        scope->setEmptyReason(Scope::EmptyReasonEnum::NoVariables);
+        break;
+      case v8::debug::ScopeIterator::VariableInfo::kAllUnavailable:
+        scope->setEmptyReason(Scope::EmptyReasonEnum::AllUnavailable);
+        break;
+      case v8::debug::ScopeIterator::VariableInfo::kAvailable:
+        break;
     }
     (*scopes)->emplace_back(std::move(scope));
   }

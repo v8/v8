@@ -850,7 +850,8 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
   };
   for (; iterator && !iterator->Done(); advance()) {
     if (iterator->GetType() != v8::debug::ScopeIterator::ScopeTypeLocal &&
-        !iterator->DeclaresLocals()) {
+        iterator->GetVariableInfo() ==
+            v8::debug::ScopeIterator::VariableInfo::kEmpty) {
       continue;
     }
     v8::Local<v8::Object> scope = v8::Object::New(m_isolate);

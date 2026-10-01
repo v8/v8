@@ -18,7 +18,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 3
                     lineNumber : 5
@@ -180,7 +180,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 13
                     lineNumber : 14
@@ -254,7 +254,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 2
                     lineNumber : 11
@@ -416,7 +416,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 13
                     lineNumber : 14
@@ -490,7 +490,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 2
                     lineNumber : 11
@@ -652,7 +652,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 13
                     lineNumber : 14
@@ -726,7 +726,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 2
                     lineNumber : 11
@@ -888,7 +888,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 3
                     lineNumber : 9
@@ -962,7 +962,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 13
                     lineNumber : 14
@@ -1036,7 +1036,7 @@ Running test: testScopesPaused
         }
         scopeChain : [
             [0] : {
-                empty : true
+                emptyReason : no-variables
                 endLocation : {
                     columnNumber : 2
                     lineNumber : 11

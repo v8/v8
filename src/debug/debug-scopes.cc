@@ -228,6 +228,31 @@ bool ScopeIterator::DeclaresLocals(Mode mode) const {
   return declares_local;
 }
 
+ScopeIterator::VariableInfo ScopeIterator::GetVariableInfo(Mode mode) const {
+  ScopeType type = Type();
+
+  // `with` and global scopes are backed by arbitrary objects. Consistent with
+  // DeclaresLocals(), we treat them as having available variables.
+  if (type == ScopeTypeWith || type == ScopeTypeGlobal) {
+    return mode == Mode::ALL ? VariableInfo::kAvailable : VariableInfo::kEmpty;
+  }
+
+  VariableInfo result = VariableInfo::kEmpty;
+  auto visitor = [&](DirectHandle<String> name, DirectHandle<Object> value,
+                     ScopeType scope_type) {
+    // Keep in sync with ScopeObject(), which installs the "value unavailable"
+    // accessor for these values.
+    if (IsOptimizedOut(*value) || IsTdzHole(*value)) {
+      result = VariableInfo::kAllUnavailable;
+      return false;
+    }
+    result = VariableInfo::kAvailable;
+    return true;
+  };
+  VisitScope(visitor, mode);
+  return result;
+}
+
 bool ScopeIterator::ShouldIgnore() const {
   if (Type() == ScopeTypeLocal ||
       (Type() == ScopeTypeModule && InInnerScope())) {
