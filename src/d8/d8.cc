@@ -8320,6 +8320,16 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
 
+#ifdef V8_FUZZILLI
+  // IMPORTANT: order-sensitive, see cov.cc. With inline-bool-flag coverage,
+  // the coverage of crashing executions has to be flushed from signal handlers.
+  // They must be installed after the in-process stack dumping handlers
+  // (installed when creating the platform above), which do not forward signals
+  // to previous handlers, and before the Wasm trap handler, which forwards
+  // non-Wasm faults to the previous handler.
+  sanitizer_cov_install_crash_flush_handlers();
+#endif  // V8_FUZZILLI
+
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(429173713): currently we need to disable the trap handler if hardware
   // sandboxing is active and the kernel version is too old.
@@ -8409,6 +8419,12 @@ int Shell::Main(int argc, char* argv[]) {
         if (nread != 4 || action != 'cexe') {
           FATAL("REPRL: Unknown action: %u", action);
         }
+        // With inline-bool-flag coverage, drop the edges hit since the last
+        // execution (e.g. during startup) so that they are not attributed to
+        // this one. (With trace-pc-guard, such edges are not reported either:
+        // their guards are disabled and the parent clears the bitmap before
+        // every execution.)
+        sanitizer_cov_discard_bool_flags();
       }
 #endif  // V8_FUZZILLI
 #ifdef V8_DUMPLING
@@ -8558,6 +8574,11 @@ int Shell::Main(int argc, char* argv[]) {
       // Send result to parent (fuzzilli) and reset edge guards.
       if (fuzzilli_reprl) {
         int status = result << 8;
+        // With inline-bool-flag coverage, the edges are only written to the
+        // shared memory bitmap here (or when crashing), so this must happen
+        // before the bitmap is read, i.e. before the coverage statistics are
+        // computed and before the parent is notified.
+        sanitizer_cov_flush_bool_flags();
         if (options.fuzzilli_coverage_statistics) {
           std::vector<bool> bitmap =
               i::BasicBlockProfiler::Get()->GetCoverageBitmap(

@@ -9370,6 +9370,15 @@ if (!build_with_chromium && v8_use_perfetto) {
 }  # if (!build_with_chromium && v8_use_perfetto)
 
 if (v8_fuzzilli) {
+  # The inline flag stores of -fsanitize-coverage=inline-bool-flag cannot
+  # temporarily grant access to the default pkey like the trace-pc-guard
+  # callback does (see src/fuzzilli/cov.cc).
+  assert(!v8_enable_sandbox_hardware_support ||
+             string_replace(sanitizer_coverage_flags, "inline-bool-flag", "") ==
+                 sanitizer_coverage_flags,
+         "inline-bool-flag coverage is not supported with sandbox hardware " +
+             "support, use trace-pc-guard instead")
+
   v8_source_set("fuzzilli_cov") {
     visibility = [ "*" ]
     sources = [
