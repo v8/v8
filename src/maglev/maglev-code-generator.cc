@@ -1203,29 +1203,6 @@ class MaglevCodeGeneratingNodeProcessor {
   bool collect_source_positions_;
 };
 
-class SafepointingNodeProcessor {
- public:
-  explicit SafepointingNodeProcessor(LocalIsolate* local_isolate)
-      : local_isolate_(local_isolate) {}
-
-  void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) {}
-  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
-    return BlockProcessResult::kContinue;
-  }
-  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    return BlockProcessResult::kContinue;
-  }
-  void PostPhiProcessing() {}
-  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
-    local_isolate_->heap()->Safepoint();
-    return ProcessResult::kContinue;
-  }
-
- private:
-  LocalIsolate* local_isolate_;
-};
-
 namespace {
 DeoptimizationFrameTranslation::FrameCount GetFrameCount(
     const DeoptFrame* deopt_frame) {
@@ -1875,10 +1852,7 @@ MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
 }
 
 bool MaglevCodeGenerator::EmitCode() {
-  GraphProcessor<NodeMultiProcessor<SafepointingNodeProcessor,
-                                    MaglevCodeGeneratingNodeProcessor>>
-      processor(SafepointingNodeProcessor{local_isolate_},
-                MaglevCodeGeneratingNodeProcessor{masm(), zone_});
+  GraphProcessor<MaglevCodeGeneratingNodeProcessor> processor(masm(), zone_);
   RecordInlinedFunctions();
 
   if (graph_->is_osr()) {
