@@ -593,7 +593,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // validate the parameter count at runtime. Instead, we should replace them
   // with CallJSDispatchEntry that generates a call to a given (compile-time
   // constant) JSDispatchHandle.
-  void CallJSFunction(Register function_object, uint16_t argument_count);
+  void CallJSFunction(Register function_object,
+                      uint16_t expected_parameter_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,

@@ -829,8 +829,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      uint32_t num_arguments =
-          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      uint32_t expected_parameter_count =
+          i.InputUint32(instr->JSCallExpectedParameterCountInputIndex());
       if (HasImmediateInput(instr, 0)) {
         Handle<HeapObject> constant =
             i.ToConstant(instr->InputAt(0)).ToHeapObject();
@@ -839,7 +839,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           if (function->shared()->HasBuiltinId()) {
             Builtin builtin = function->shared()->builtin_id();
             size_t expected = Builtins::GetFormalParameterCount(builtin);
-            if (num_arguments == expected) {
+            if (expected_parameter_count == expected) {
               __ CallBuiltin(builtin);
             } else {
               __ AssertUnreachable(AbortReason::kJSSignatureMismatch);
@@ -848,7 +848,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             JSDispatchHandle dispatch_handle = function->dispatch_handle();
             size_t expected = isolate()->js_dispatch_table().GetParameterCount(
                 dispatch_handle);
-            if (num_arguments >= expected) {
+            if (expected_parameter_count == expected) {
               __ RecordJSDispatchHandle(dispatch_handle, expected);
               __ CallJSDispatchEntry(dispatch_handle, expected);
             } else {
@@ -856,7 +856,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             }
           }
         } else {
-          __ CallJSFunction(kJavaScriptCallTargetRegister, num_arguments);
+          __ CallJSFunction(kJavaScriptCallTargetRegister,
+                            expected_parameter_count);
         }
       } else {
         Register func = i.InputRegister(0);
@@ -869,7 +870,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ cmp(cp, scratch);
           __ Assert(eq, AbortReason::kWrongFunctionContext);
         }
-        __ CallJSFunction(func, num_arguments);
+        __ CallJSFunction(func, expected_parameter_count);
       }
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());

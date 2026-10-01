@@ -1012,8 +1012,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      uint32_t num_arguments =
-          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      uint32_t expected_parameter_count =
+          i.InputUint32(instr->JSCallExpectedParameterCountInputIndex());
       if (HasImmediateInput(instr, 0)) {
         Handle<HeapObject> constant =
             i.ToConstant(instr->InputAt(0)).ToHeapObject();
@@ -1023,7 +1023,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             Builtin builtin = function->shared()->builtin_id();
             // Defer signature mismatch abort to run-time as optimized
             // unreachable calls can have mismatched signatures.
-            if (Builtins::IsCompatibleJSBuiltin(builtin, num_arguments)) {
+            if (Builtins::IsCompatibleJSBuiltin(builtin,
+                                                expected_parameter_count)) {
               __ CallBuiltin(builtin);
             } else {
               __ Abort(AbortReason::kJSSignatureMismatch);
@@ -1034,7 +1035,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 dispatch_handle);
             // Defer signature mismatch abort to run-time as optimized
             // unreachable calls can have mismatched signatures.
-            if (num_arguments >= expected) {
+            if (expected_parameter_count == expected) {
               __ RecordJSDispatchHandle(dispatch_handle, expected);
               __ CallJSDispatchEntry(dispatch_handle, expected);
             } else {
@@ -1042,7 +1043,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             }
           }
         } else {
-          __ CallJSFunction(kJavaScriptCallTargetRegister, num_arguments);
+          __ CallJSFunction(kJavaScriptCallTargetRegister,
+                            expected_parameter_count);
         }
       } else {
         Register func = i.InputRegister(0);
@@ -1055,7 +1057,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ cmp(cp, temp);
           __ Assert(eq, AbortReason::kWrongFunctionContext);
         }
-        __ CallJSFunction(func, num_arguments);
+        __ CallJSFunction(func, expected_parameter_count);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();

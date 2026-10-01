@@ -1135,8 +1135,9 @@ class V8_EXPORT_PRIVATE Instruction final {
     }
   }
 
-  // For JS call instructions, computes the index of the argument count input.
-  size_t JSCallArgumentCountInputIndex() const {
+  // For JS call instructions, computes the index of the expected parameter
+  // count input.
+  size_t JSCallExpectedParameterCountInputIndex() const {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.
     return InputCount() - 1 -
            HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -

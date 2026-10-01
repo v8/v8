@@ -2293,11 +2293,12 @@ void InstructionSelector::VisitCall(
     buffer.instruction_args.push_back(
         g.TempImmediate(call_descriptor->shifted_tag()));
   } else if (call_descriptor->IsJSFunctionCall()) {
-    // For JSFunctions we need to know the number of pushed parameters during
-    // code generation.
-    uint32_t parameter_count =
-        static_cast<uint32_t>(buffer.pushed_nodes.size());
-    buffer.instruction_args.push_back(g.TempImmediate(parameter_count));
+    // For JSFunctions we need to know the function's formal parameter count
+    // used during code generation.
+    uint32_t expected_parameter_count =
+        call_descriptor->expected_parameter_count();
+    buffer.instruction_args.push_back(
+        g.TempImmediate(expected_parameter_count));
   }
 
   // Pass label of exception handler block.

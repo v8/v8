@@ -1609,6 +1609,7 @@ class GraphBuildingNodeProcessor {
           graph_zone(), false,
           std::max<int>(actual_parameter_count,
                         node->expected_parameter_count()),
+          node->expected_parameter_count(),
           CallDescriptor::kNeedsFrameState | CallDescriptor::kCanUseRoots);
 
       LazyDeoptOnThrow lazy_deopt_on_throw = ShouldLazyDeoptOnThrow(node);

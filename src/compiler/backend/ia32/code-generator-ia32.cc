@@ -820,9 +820,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(esi, FieldOperand(func, offsetof(JSFunction, context_)));
         __ Assert(equal, AbortReason::kWrongFunctionContext);
       }
-      uint32_t num_arguments =
-          i.InputUint32(instr->JSCallArgumentCountInputIndex());
-      __ CallJSFunction(func, num_arguments);
+      uint32_t expected_parameter_count =
+          i.InputUint32(instr->JSCallExpectedParameterCountInputIndex());
+      __ CallJSFunction(func, expected_parameter_count);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;

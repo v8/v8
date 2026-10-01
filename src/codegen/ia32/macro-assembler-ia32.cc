@@ -2087,7 +2087,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t expected_parameter_count) {
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   mov(ecx,
       FieldOperand(function_object, offsetof(JSFunction, dispatch_handle_)));

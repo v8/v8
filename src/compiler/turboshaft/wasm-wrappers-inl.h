@@ -489,7 +489,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
     // =======================================================================
     case wasm::ImportCallKind::kJSFunction: {
       auto call_descriptor = compiler::Linkage::GetJSCallDescriptor(
-          __ graph_zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
+          __ graph_zone(), false, pushed_count + 1,
+          JSParameterCount(expected_arity), CallDescriptor::kNoFlags);
       const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
           call_descriptor, compiler::CanThrow{true},
           compiler::LazyDeoptOnThrow{false}, __ graph_zone());

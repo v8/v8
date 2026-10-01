@@ -2143,9 +2143,14 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     Node* new_target = jsgraph()->UndefinedConstant();
 
     // TODO(412398354): use the dispatch handle here to avoid a runtime check.
-    int formal_count =
-        shared->internal_formal_parameter_count_without_receiver_deprecated();
-    if (formal_count > arity) {
+    int expected_formal_parameter_count =
+        shared->internal_formal_parameter_count_with_receiver_deprecated();
+
+    if (expected_formal_parameter_count > JSParameterCount(arity)) {
+      DCHECK_NE(expected_formal_parameter_count, kDontAdaptArgumentsSentinel);
+      // Formal parameter count without receiver.
+      int formal_count = expected_formal_parameter_count - kJSArgcReceiverSlots;
+
       node->RemoveInput(n.FeedbackVectorIndex());
       // Underapplication. Massage the arguments to match the expected number of
       // arguments.
@@ -2163,10 +2168,11 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
           graph()->zone(), formal_count + 4,
           jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle.value()));
 #endif
-      NodeProperties::ChangeOp(node,
-                               common()->Call(Linkage::GetJSCallDescriptor(
-                                   graph()->zone(), false, 1 + formal_count,
-                                   flags | CallDescriptor::kCanUseRoots)));
+      NodeProperties::ChangeOp(
+          node, common()->Call(Linkage::GetJSCallDescriptor(
+                    graph()->zone(), false, JSParameterCount(formal_count),
+                    expected_formal_parameter_count,
+                    flags | CallDescriptor::kCanUseRoots)));
     } else if (shared->HasBuiltinId() &&
                Builtins::IsCpp(shared->builtin_id())) {
       // Patch {node} to a direct CEntry call.
@@ -2177,7 +2183,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
       // This SBXCHECK is a defense-in-depth measure to ensure that we always
       // generate valid calls here (with matching signatures).
-      SBXCHECK_GE(arity + kJSArgcReceiverSlots,
+      SBXCHECK_GE(JSParameterCount(arity),
                   Builtins::GetFormalParameterCount(builtin));
 
       // Patch {node} to a direct code object call.
@@ -2209,10 +2215,11 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
           graph()->zone(), arity + 4,
           jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle.value()));
 #endif
-      NodeProperties::ChangeOp(node,
-                               common()->Call(Linkage::GetJSCallDescriptor(
-                                   graph()->zone(), false, 1 + arity,
-                                   flags | CallDescriptor::kCanUseRoots)));
+      NodeProperties::ChangeOp(
+          node, common()->Call(Linkage::GetJSCallDescriptor(
+                    graph()->zone(), false, JSParameterCount(arity),
+                    expected_formal_parameter_count,
+                    flags | CallDescriptor::kCanUseRoots)));
     }
     return Changed(node);
   }
