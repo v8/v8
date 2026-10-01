@@ -4021,9 +4021,8 @@ MaglevGraphBuilder::TryBuildLoadTaggedFieldFromAllocation(ValueNode* object,
 MaybeReduceResult
 MaglevGraphBuilder::TryBuildLoadFixedDoubleArrayElementFromAllocation(
     ValueNode* elements, int index) {
-  if (index < 0 || static_cast<uint32_t>(index) >= FixedArray::kMaxLength) {
-    return reducer_.BuildAbort(AbortReason::kUnreachable);
-  }
+  RETURN_IF_ABORT(
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(index));
   if (!CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
     return {};
   }
@@ -4126,6 +4125,8 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
   // test/mjsunit/maglev/regress-538884561-2.js.
   ABORT_IF_EMPTY_TYPE(value);
 
+  RETURN_IF_ABORT(reducer_.AbortIfInvalidFixedArrayIndex<FixedArray>(index));
+
   if (CanElideWriteBarrier(elements, value)) {
     return AddNewNode<StoreFixedArrayElementNoWriteBarrier>(
         {elements, index, value});
@@ -4141,6 +4142,8 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
   MarkArgumentsElementsMaybeMutated(elements);
   // TODO(victorgomes): Support storing double element to a virtual object.
   DCHECK(value->is_float64_or_holey_float64());
+  RETURN_IF_ABORT(
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(index));
   if (value->is_holey_float64()) {
     if (value->MayBeHoleOrUndefinedNan()) {
       // The value can be undefined. Both NaN patterns mean undefined here, but
@@ -4161,6 +4164,8 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
 
 ReduceResult MaglevGraphBuilder::BuildLoadHoleyFixedDoubleArrayElement(
     ValueNode* elements, ValueNode* index, bool convert_hole) {
+  RETURN_IF_ABORT(
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(index));
   ValueNode* load;
   GET_VALUE_OR_ABORT(
       load, AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements, index}));

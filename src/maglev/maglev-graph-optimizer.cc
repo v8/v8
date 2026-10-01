@@ -1306,45 +1306,34 @@ ProcessResult MaglevGraphOptimizer::VisitStoreMap(
   return ProcessResult::kContinue;
 }
 
-template <typename FixedArrayT, typename NodeT>
-MaybeReduceResult MaglevGraphOptimizer::AbortIfInvalidFixedArrayIndex(
-    NodeT* node) {
-  if (std::optional<int32_t> index =
-          reducer_.TryGetInt32Constant(node->IndexInput().node())) {
-    if (*index < 0 ||
-        static_cast<uint32_t>(*index) >= FixedArrayT::kMaxLength) {
-      // This is an out-of-bound store, which means that we have to be in
-      // unreachable code.
-      return reducer_.BuildAbort(AbortReason::kUnreachable);
-    }
-  }
-  return {};
-}
-
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedArrayElementWithWriteBarrier(
     StoreFixedArrayElementWithWriteBarrier* node,
     const ProcessingState& state) {
-  REMOVE_AND_RETURN_IF_DONE(AbortIfInvalidFixedArrayIndex<FixedArray>(node));
+  REMOVE_AND_RETURN_IF_DONE(reducer_.AbortIfInvalidFixedArrayIndex<FixedArray>(
+      node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedArrayElementNoWriteBarrier(
     StoreFixedArrayElementNoWriteBarrier* node, const ProcessingState& state) {
-  REMOVE_AND_RETURN_IF_DONE(AbortIfInvalidFixedArrayIndex<FixedArray>(node));
+  REMOVE_AND_RETURN_IF_DONE(reducer_.AbortIfInvalidFixedArrayIndex<FixedArray>(
+      node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedHoleyDoubleArrayElement(
     StoreFixedHoleyDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(
+          node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayElement(
     StoreFixedDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(
+          node->IndexInput().node()));
   // A reduction can have replaced the value with one that carries the hole or
   // undefined NaN since the store chose not to canonicalize.
   ValueNode* value = node->ValueInput().node();
@@ -1360,7 +1349,8 @@ ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayElement(
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayHole(
     StoreFixedDoubleArrayHole* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(
+          node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
@@ -2128,14 +2118,16 @@ ProcessResult MaglevGraphOptimizer::VisitLoadFixedArrayElement(
 ProcessResult MaglevGraphOptimizer::VisitLoadFixedDoubleArrayElement(
     LoadFixedDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(
+          node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitLoadHoleyFixedDoubleArrayElement(
     LoadHoleyFixedDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
-      AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(node));
+      reducer_.AbortIfInvalidFixedArrayIndex<FixedDoubleArray>(
+          node->IndexInput().node()));
   return ProcessResult::kContinue;
 }
 
