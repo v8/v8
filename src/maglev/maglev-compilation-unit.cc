@@ -111,7 +111,7 @@ void MaglevCompilationUnit::InitializeSpecializationContextForTopLevel() {
 #endif
   auto [scope_info, has_incoming_context_scope] =
       GetIncomingContextScopeInfo(broker(), *shared_function_info_);
-  if (v8_flags.always_specialize_for_script_context && !is_osr()) {
+  if (v8_flags.always_specialize_for_script_context) {
     compiler::JSFunctionRef func_ref = compiler::MakeRefAssumeMemoryFence(
         broker(),
         broker()->CanonicalPersistentHandle(info_->toplevel_function()));
@@ -135,7 +135,7 @@ void MaglevCompilationUnit::InitializeSpecializationContextForInlined(
   auto [scope_info, has_incoming_context_scope] =
       GetIncomingContextScopeInfo(broker(), *shared_function_info_);
   if (!v8_flags.always_specialize_for_script_context ||
-      info_->toplevel_is_osr() || !has_incoming_context_scope) {
+      !has_incoming_context_scope) {
     incoming_context_scope_info_ = ContextScopeInfo(scope_info);
     return;
   }

@@ -116,7 +116,7 @@ class FunctionContextSpecialization final : public AllStatic {
     }
     if (v8_flags.always_specialize_for_script_context) {
       if (compiler::OptionalContextRef outer = unit->specialization_context()) {
-        if (!unit->info()->toplevel_is_osr() && scope_info.has_value()) {
+        if (scope_info.has_value()) {
 #ifdef DEBUG
           VerifySpecializationContextDistance(unit, *outer, scope_info, *depth);
 #endif
@@ -16597,6 +16597,7 @@ void MaglevGraphBuilder::PrewalkBytecode() {
 }
 
 void MaglevGraphBuilder::OsrPrewalk() {
+  if (!compilation_unit_->is_osr()) return;
   // Single forward pass reconstructing the context scope at each
   // reachable offset before the entrypoint.
   const int bytecode_length = bytecode().length();
