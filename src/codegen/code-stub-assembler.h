@@ -2077,6 +2077,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreCellValue(TNode<Cell> cell, TNode<Object> value,
                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  TNode<UninitializedHeapNumber> AllocateUninitializedHeapNumber();
+
   // Allocate a HeapNumber without initializing its value.
   TNode<HeapNumber> AllocateHeapNumber();
   // Allocate a HeapNumber with a specific value.

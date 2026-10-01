@@ -507,6 +507,7 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   DCHECK_EQ(PropertyKind::kData, details.kind());
   DisallowGarbageCollection no_gc;
   FieldIndex index = FieldIndex::ForDetails(map(), details);
+  DCHECK(!IsUninitializedHole(value));
   if (details.representation().IsDouble()) {
     auto box = Cast<UnionOf<HeapNumber, UninitializedHeapNumber>>(
         RawFastPropertyAt(index));

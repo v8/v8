@@ -4660,6 +4660,20 @@ TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumber() {
   return UncheckedCast<HeapNumber>(result);
 }
 
+TNode<UninitializedHeapNumber>
+CodeStubAssembler::AllocateUninitializedHeapNumber() {
+  // TODO(ishell, v8:8875): This requires double unaligned allocation when
+  // enabling USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL.
+  static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL);
+  static_assert(sizeof(HeapNumber) == sizeof(UninitializedHeapNumber));
+  TNode<HeapObject> result =
+      Allocate(sizeof(UninitializedHeapNumber), AllocationFlag::kNone);
+  StoreMapNoWriteBarrier(result, RootIndex::kUninitializedHeapNumberMap);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(UninitializedHeapNumber, value_), Float64Constant(0.0));
+  return UncheckedCast<UninitializedHeapNumber>(result);
+}
+
 TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
     TNode<Float64T> value) {
   TNode<HeapNumber> result = AllocateHeapNumber();
@@ -4705,6 +4719,8 @@ TNode<Object> CodeStubAssembler::CloneIfMutablePrimitive(TNode<Object> object) {
   Label done(this);
 
   GotoIf(TaggedIsSmi(object), &done);
+  CSA_DCHECK(this, Word32BinaryNot(IsUninitializedHeapNumber(
+                       UncheckedCast<HeapObject>(object))));
   // TODO(leszeks): Read the field descriptor to decide if this heap number is
   // mutable or not.
   GotoIfNot(IsHeapNumber(UncheckedCast<HeapObject>(object)), &done);

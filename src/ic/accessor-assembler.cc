@@ -464,6 +464,8 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
 
       TNode<HeapObject> double_field = CAST(field.value());
       TNode<Map> field_map = LoadMap(double_field);
+      CSA_DCHECK(this,
+                 Word32BinaryNot(IsUninitializedHeapNumberMap(field_map)));
       GotoIfNot(TaggedEqual(field_map, HeapNumberMapConstant()),
                 &if_not_double);
 
