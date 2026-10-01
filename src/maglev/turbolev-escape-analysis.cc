@@ -834,9 +834,6 @@ class CandidateAnalyzer {
 
   ProcessResult Process(LoadFixedArrayElement* node,
                         const ProcessingState& state) {
-    // LoadFixedArrayElement should never be used for Int32Constant index, and
-    // thus should never be elided (for now).
-    DCHECK(!node->IndexInput().node()->Is<Int32Constant>());
     // TODO(dmercadier): handle non-constant indices. This will require
     // stack-allocating the array. For now, we just go to the generic Process
     // overload.
