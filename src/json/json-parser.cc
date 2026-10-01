@@ -2076,21 +2076,44 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
   bool has_escape = false;
   base::uc32 bits = 0;
 
-  // SIMD constants for one-byte string scanning, hoisted out of the loop.
-  // Only used in the sizeof(Char)==1 path; dead-store-eliminated for two-byte.
-  [[maybe_unused]] hw::FixedTag<uint8_t, 16> tag;
-  [[maybe_unused]] const size_t stride = hw::Lanes(tag);
-  [[maybe_unused]] const auto mask_0x20 = hw::Set(tag, 0x20);
-  [[maybe_unused]] const auto mask_quote = hw::Set(tag, '"');
-  [[maybe_unused]] const auto mask_backslash = hw::Set(tag, '\\');
+  // SIMD constants for string scanning, hoisted out of the loop.
+  hw::FixedTag<Char, 16 / sizeof(Char)> tag;
+  const size_t stride = hw::Lanes(tag);
+  const auto mask_0x20 = hw::Set(tag, 0x20);
+  const auto mask_quote = hw::Set(tag, '"');
+  const auto mask_backslash = hw::Set(tag, '\\');
+  [[maybe_unused]] const auto mask_0xff =
+      hw::Set(tag, unibrow::Latin1::kMaxChar);
 
   while (true) {
-    if constexpr (sizeof(Char) == 1) {
-      // SIMD fast path: scan 16 bytes at a time looking for characters that
-      // may terminate a JSON string: '"', '\', or control characters (< 0x20).
+    if constexpr (sizeof(Char) == 2) {
+      // While all characters seen so far are Latin1 (<= 0xff), also check for
+      // characters > 0xff so `bits` tracks whether the string can be one-byte
+      // converted.
+      if (V8_LIKELY(bits <= unibrow::Latin1::kMaxChar)) {
+        for (; cursor_ + (stride - 1) < end_; cursor_ += stride) {
+          const auto input = hw::LoadU(tag, cursor_);
+          // TODO(floitsch): use operators for the comparisons when they are
+          // available on RISC-V.
+          const auto result = hw::Or(
+              hw::Or(hw::Lt(input, mask_0x20), hw::Eq(input, mask_quote)),
+              hw::Or(hw::Eq(input, mask_backslash), hw::Gt(input, mask_0xff)));
+          if (V8_LIKELY(hw::AllFalse(tag, result))) continue;
+          cursor_ += hw::FindKnownFirstTrue(tag, result);
+          break;
+        }
+        if (cursor_ < end_ &&
+            V8_UNLIKELY(*cursor_ > unibrow::Latin1::kMaxChar)) {
+          bits |= *cursor_;
+          ++cursor_;
+        }
+      }
+    }
+    // For one-byte strings, or two-byte strings already known to contain a
+    // non-Latin1 character (bits > 0xff), scan for '"', '\', or control chars.
+    if (sizeof(Char) == 1 || V8_UNLIKELY(bits > unibrow::Latin1::kMaxChar)) {
       for (; cursor_ + (stride - 1) < end_; cursor_ += stride) {
-        const auto input =
-            hw::LoadU(tag, reinterpret_cast<const uint8_t*>(cursor_));
+        const auto input = hw::LoadU(tag, cursor_);
         // TODO(floitsch): use operators for the comparisons when they are
         // available on RISC-V.
         const auto result =
@@ -2100,20 +2123,19 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
         cursor_ += hw::FindKnownFirstTrue(tag, result);
         break;
       }
-      // Scalar fallback for remaining tail bytes after the last full SIMD
-      // block. When the SIMD loop found a match, *cursor_ is already a
-      // special character and this immediately breaks.
-      for (; cursor_ < end_; ++cursor_) {
-        if (MayTerminateJsonString(character_json_scan_flags[*cursor_])) break;
-      }
-    } else {
-      cursor_ = std::find_if(cursor_, end_, [&bits](Char c) {
+    }
+    // Scalar fallback for remaining tail characters after the last full SIMD
+    // block. When the SIMD loop found a match, *cursor_ is already a special
+    // character and this immediately breaks.
+    for (; cursor_ < end_; ++cursor_) {
+      Char c = *cursor_;
+      if constexpr (sizeof(Char) == 2) {
         if (V8_UNLIKELY(c > unibrow::Latin1::kMaxChar)) {
           bits |= c;
-          return false;
+          continue;
         }
-        return MayTerminateJsonString(character_json_scan_flags[c]);
-      });
+      }
+      if (MayTerminateJsonString(character_json_scan_flags[c])) break;
     }
 
     if (V8_UNLIKELY(is_at_end())) {
