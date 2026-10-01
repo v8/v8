@@ -113,6 +113,7 @@ v8_cluster_source_set("cctest_sources") {
     "heap/test-concurrent-allocation.cc",
     "heap/test-concurrent-marking.cc",
     "heap/test-external-string-tracker.cc",
+    "heap/test-heap.cc",
     "heap/test-incremental-marking.cc",
     "heap/test-mark-compact.cc",
     "heap/test-memory-measurement.cc",

@@ -13,6 +13,10 @@
 namespace v8 {
 namespace internal {
 
+namespace heap {
+class HeapTester;
+}  // namespace heap
+
 class Heap;
 
 
@@ -201,8 +205,8 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   double js_calls_sample_time_ms_;
   int start_delay_ms_ = false;
 
-  // Used in tests.
-  friend class HeapInternalsBase;
+  // Used in cctest.
+  friend class heap::HeapTester;
 };
 
 }  // namespace internal

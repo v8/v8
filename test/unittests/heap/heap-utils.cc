@@ -14,28 +14,15 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/main-allocator-inl.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/marking-barrier.h"
-#include "src/heap/memory-reducer.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/normal-page-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/objects/free-space-inl.h"
 
 namespace v8 {
 namespace internal {
-
-void HeapInternalsBase::SetForceOOM(Heap* heap, bool value) {
-  heap->set_force_oom(value);
-}
-
-void HeapInternalsBase::SetDelaySweeperTasksForTesting(Heap* heap, bool value) {
-  heap->delay_sweeper_tasks_for_testing_ = value;
-}
-
-int HeapInternalsBase::MemoryReducerStateId(Heap* heap) {
-  return heap->memory_reducer()->state_.id();
-}
 
 size_t HeapInternalsBase::OldGenerationSpaceAvailable(Heap* heap) {
   return heap->OldGenerationSpaceAvailable();
@@ -45,7 +32,7 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
                                                    bool force_completion) {
   static constexpr auto kStepSize = v8::base::TimeDelta::FromMilliseconds(100);
   CHECK(v8_flags.incremental_marking);
-  IncrementalMarking* marking = heap->incremental_marking();
+  i::IncrementalMarking* marking = heap->incremental_marking();
 
   if (heap->sweeping_in_progress()) {
     SafepointScope scope(heap->isolate(),
@@ -54,24 +41,12 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
                                   CompleteSweepingReason::kTesting);
   }
 
-  if (marking->IsMinorMarking()) {
-    // If minor incremental marking is running, we need to finalize it first
-    // because of the AdvanceForTesting call in this function which is currently
-    // only possible for MajorMC.
-    heap->CollectGarbage(NEW_SPACE,
-                         GarbageCollectionReason::kFinalizeMinorMSForMajorGC);
-  }
-
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(GCFlag::kNoFlags,
-                                  GarbageCollectionReason::kTesting);
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMajorMarking());
   if (!force_completion) return;
-
-  SafepointScope scope(heap->isolate(), kGlobalSafepointForSharedSpaceIsolate);
-  MarkingBarrier::PublishAll(heap);
-  marking->MarkRootsForTesting();
 
   while (!marking->IsMajorMarkingComplete()) {
     marking->AdvanceForTesting(kStepSize);
@@ -179,7 +154,8 @@ void FillPageInPagedSpace(NormalPage* page,
 }  // namespace
 
 void HeapInternalsBase::SimulateFullSpace(
-    NewSpace* new_space, std::vector<Handle<FixedArray>>* out_handles) {
+    v8::internal::NewSpace* new_space,
+    std::vector<Handle<FixedArray>>* out_handles) {
   Heap* heap = new_space->heap();
   SafepointScope safepoint_scope(heap->isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
@@ -206,7 +182,7 @@ void HeapInternalsBase::SimulateFullSpace(
   }
 }
 
-void HeapInternalsBase::SimulateFullSpace(PagedSpace* space) {
+void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
   Heap* heap = space->heap();
   SafepointScope safepoint_scope(heap->isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
@@ -222,7 +198,6 @@ void HeapInternalsBase::SimulateFullSpace(PagedSpace* space) {
 }
 
 namespace {
-
 std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
                                               AllocationType allocation) {
   std::vector<Handle<FixedArray>> handles;
@@ -231,7 +206,7 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
   int length;
   int free_memory = padding_size;
   heap->FreeMainThreadLinearAllocationAreas();
-  if (allocation == AllocationType::kOld) {
+  if (allocation == i::AllocationType::kOld) {
     int overall_free_memory = static_cast<int>(heap->old_space()->Available());
     CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
   } else {
@@ -247,7 +222,7 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
       length = FixedArrayLenFromSize(allocate_memory);
       if (length <= 0) {
         // Not enough room to create another FixedArray, so create a filler.
-        if (allocation == AllocationType::kOld) {
+        if (allocation == i::AllocationType::kOld) {
           LinearAllocationArea* old_space =
               &heap->isolate()->isolate_data()->old_allocation_info();
           heap->CreateFillerObjectAt(old_space->top(), free_memory);
@@ -271,7 +246,7 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
 }
 
 void FillCurrentSemiSpacePageButNBytes(
-    SemiSpaceNewSpace* space, int extra_bytes,
+    v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
     std::vector<Handle<FixedArray>>* out_handles = nullptr) {
   // We cannot rely on `space->limit()` to point to the end of the current page
   // in the case where inline allocations are disabled, it actually points to
@@ -285,18 +260,18 @@ void FillCurrentSemiSpacePageButNBytes(
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return;
   std::vector<Handle<FixedArray>> handles =
-      CreatePadding(space->heap(), new_linear_size, AllocationType::kYoung);
+      CreatePadding(space->heap(), new_linear_size, i::AllocationType::kYoung);
   if (out_handles != nullptr) {
     out_handles->insert(out_handles->end(), handles.begin(), handles.end());
   }
 }
 
-void FillCurrentSemiSpacePage(SemiSpaceNewSpace* space,
+void FillCurrentSemiSpacePage(v8::internal::SemiSpaceNewSpace* space,
                               std::vector<Handle<FixedArray>>* out_handles) {
   FillCurrentSemiSpacePageButNBytes(space, 0, out_handles);
 }
 
-void FillCurrentPagedSpacePage(NewSpace* space,
+void FillCurrentPagedSpacePage(v8::internal::NewSpace* space,
                                std::vector<Handle<FixedArray>>* out_handles) {
   const Address top = space->heap()->NewSpaceTop();
   if (top == kNullAddress) return;
@@ -309,13 +284,9 @@ void FillCurrentPagedSpacePage(NewSpace* space,
 
 }  // namespace
 
-std::vector<Handle<FixedArray>> HeapInternalsBase::CreatePadding(
-    Heap* heap, int padding_size, AllocationType allocation) {
-  return internal::CreatePadding(heap, padding_size, allocation);
-}
-
 void HeapInternalsBase::FillCurrentPage(
-    NewSpace* space, std::vector<Handle<FixedArray>>* out_handles) {
+    v8::internal::NewSpace* space,
+    std::vector<Handle<FixedArray>>* out_handles) {
   space->heap()->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(space->heap());
   if (v8_flags.minor_ms) {
@@ -327,7 +298,7 @@ void HeapInternalsBase::FillCurrentPage(
 }
 
 void HeapInternalsBase::FillCurrentPageButNBytes(
-    SemiSpaceNewSpace* space, int extra_bytes,
+    v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
     std::vector<Handle<FixedArray>>* out_handles) {
   space->heap()->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(space->heap());
@@ -336,8 +307,8 @@ void HeapInternalsBase::FillCurrentPageButNBytes(
 }
 
 bool IsNewObjectInCorrectGeneration(Tagged<HeapObject> object) {
-  return v8_flags.single_generation ? !HeapLayout::InYoungGeneration(object)
-                                    : HeapLayout::InYoungGeneration(object);
+  return v8_flags.single_generation ? !i::HeapLayout::InYoungGeneration(object)
+                                    : i::HeapLayout::InYoungGeneration(object);
 }
 
 ManualGCScope::ManualGCScope(Isolate* isolate)
@@ -439,8 +410,6 @@ void ForceEvacuationCandidate(NormalPage* page) {
   page->owner()->heap()->FreeLinearAllocationAreas();
 }
 
-// This is the same as Factory::NewByteArray, except it doesn't retry on
-// allocation failure.
 AllocationResult HeapInternalsBase::AllocateByteArrayForTest(
     Heap* heap, uint32_t length, AllocationType allocation_type) {
   DCHECK_LE(length, ByteArray::kMaxLength);
@@ -475,6 +444,10 @@ AllocationResult HeapInternalsBase::AllocateFixedArrayForTest(
   MemsetTagged(array->RawFieldOfFirstElement(),
                ReadOnlyRoots(heap).undefined_value(), length);
   return AllocationResult::FromObject(array);
+}
+
+void HeapInternalsBase::SetForceOOM(Heap* heap, bool value) {
+  heap->set_force_oom(value);
 }
 
 }  // namespace internal
