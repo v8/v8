@@ -39,6 +39,7 @@
 #include "src/heap/gc-callbacks.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/marking-state.h"
+#include "src/heap/memory-reducer.h"
 #include "src/heap/minor-gc-job.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/sweeper.h"
@@ -1114,7 +1115,8 @@ class Heap final {
 
   V8_EXPORT_PRIVATE void StartIncrementalMarkingIfAllocationLimitIsReached(
       LocalHeap* local_heap, GCFlags gc_flags,
-      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
+      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags,
+      std::optional<GarbageCollectionReason> gc_reason = std::nullopt);
 
   // Synchronously finalizes incremental marking.
   V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomically(
@@ -1129,6 +1131,10 @@ class Heap final {
 
   // Ensures that sweeping is finished for that object's page.
   void EnsureSweepingCompletedForObject(Tagged<HeapObject> object);
+
+  HeapGrowingMode CurrentHeapGrowingMode();
+
+  MemoryReducerBase* memory_reducer() const { return memory_reducer_.get(); }
 
   HeapLimits* limits() const { return limits_.get(); }
 
@@ -1931,6 +1937,7 @@ class Heap final {
 
   // Performs a major collection in the whole heap.
   void MarkCompact();
+
   // Performs a minor collection of just the young generation.
   void MinorMarkSweep();
 
@@ -1966,8 +1973,6 @@ class Heap final {
   // Growing strategy. =========================================================
   // ===========================================================================
 
-  MemoryReducer* memory_reducer() { return memory_reducer_.get(); }
-
   // For some webpages NotifyLoadingEnded() is never called.
   // This constant limits the effect of load time on GC.
   // The value is arbitrary and chosen as the largest load time observed in
@@ -2001,8 +2006,6 @@ class Heap final {
   bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                  AllocationOrigin origin);
   bool ShouldExpandYoungGenerationOnSlowAllocation(size_t allocation_size);
-
-  HeapGrowingMode CurrentHeapGrowingMode();
 
   double PercentToOldGenerationLimit() const;
   double PercentToGlobalMemoryLimit() const;
@@ -2286,7 +2289,7 @@ class Heap final {
   std::unique_ptr<IncrementalMarking> incremental_marking_;
   std::unique_ptr<ConcurrentMarking> concurrent_marking_;
   std::unique_ptr<MemoryMeasurement> memory_measurement_;
-  std::unique_ptr<MemoryReducer> memory_reducer_;
+  std::unique_ptr<MemoryReducerBase> memory_reducer_;
   std::unique_ptr<ObjectStats> live_object_stats_;
   std::unique_ptr<ObjectStats> dead_object_stats_;
   std::unique_ptr<MinorGCJob> minor_gc_job_;

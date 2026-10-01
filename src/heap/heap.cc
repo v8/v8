@@ -1937,19 +1937,22 @@ void Heap::StartIncrementalMarkingOnInterrupt() {
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     LocalHeap* local_heap, GCFlags gc_flags,
-    const GCCallbackFlags gc_callback_flags) {
+    const GCCallbackFlags gc_callback_flags,
+    std::optional<GarbageCollectionReason> gc_reason) {
   if (incremental_marking()->IsStopped() &&
       incremental_marking()->CanAndShouldBeStarted()) {
     auto [limit, reason] = IncrementalMarkingLimitReached();
     switch (limit) {
       case IncrementalMarkingLimit::kHardLimit:
         if (local_heap->is_main_thread_for(this)) {
-          StartIncrementalMarking(
-              gc_flags,
-              OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
-                  ? GarbageCollectionReason::kAllocationLimit
-                  : GarbageCollectionReason::kGlobalAllocationLimit,
-              gc_callback_flags, GarbageCollector::MARK_COMPACTOR, reason);
+          if (!gc_reason) {
+            gc_reason =
+                OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
+                    ? GarbageCollectionReason::kAllocationLimit
+                    : GarbageCollectionReason::kGlobalAllocationLimit;
+          }
+          StartIncrementalMarking(gc_flags, *gc_reason, gc_callback_flags,
+                                  GarbageCollector::MARK_COMPACTOR, reason);
         } else {
           ExecutionAccess access(isolate());
           isolate()->stack_guard()->RequestStartIncrementalMarking();
@@ -3659,13 +3662,15 @@ void Heap::ActivateMemoryReducerIfNeeded() {
 }
 
 void Heap::ActivateMemoryReducerIfNeededOnMainThread() {
+  // Only trigger this if we are still backgrounded.
+  if (!isolate()->is_backgrounded()) return;
   // Activate memory reducer when switching to background if
   // - there was no mark compact since the start.
   // - the committed memory can be potentially reduced.
   // 2 pages for the old, code, and map space + 1 page for new space.
   const int kMinCommittedMemory = 7 * NormalPage::kPageSize;
-  if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory &&
-      isolate()->is_backgrounded()) {
+  if ((v8_flags.memory_reducer_limit_based) ||
+      (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory)) {
     memory_reducer_->NotifyPossibleGarbage();
   }
 }
@@ -5694,7 +5699,8 @@ Heap::IncrementalMarkingLimitReached() {
 
   if (old_generation_space_available > new_space_target_capacity &&
       (global_memory_available > new_space_target_capacity)) {
-    if (gc_count_ == kInitialGCEpoch && limits()->using_initial_limit()) {
+    if (gc_count_ == kInitialGCEpoch && limits()->using_initial_limit() &&
+        !v8_flags.memory_reducer_limit_based) {
       // At this point the embedder memory is above the activation
       // threshold. No GC happened so far and it's thus unlikely to get a
       // configured heap any time soon. Start a memory reducer in this case
@@ -6064,7 +6070,7 @@ void Heap::SetUpSpaces() {
   tracer_.reset(new GCTracer(this, startup_time));
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
-  if (v8_flags.memory_reducer) memory_reducer_.reset(new MemoryReducer(this));
+  if (v8_flags.memory_reducer) memory_reducer_ = MemoryReducer::Create(this);
   if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
     live_object_stats_.reset(new ObjectStats(this));
     dead_object_stats_.reset(new ObjectStats(this));
@@ -6363,7 +6369,6 @@ void Heap::TearDown() {
   ephemeron_remembered_set_.reset();
 
   if (memory_reducer_ != nullptr) {
-    memory_reducer_->TearDown();
     memory_reducer_.reset();
   }
 

@@ -2693,6 +2693,9 @@ DEFINE_REQUIREMENT(v8_flags.memory_reducer_delay_ms > 0)
 DEFINE_INT(gc_memory_reducer_start_delay_ms, 30'000,
            "Delay before memory reducer start")
 DEFINE_REQUIREMENT(v8_flags.gc_memory_reducer_start_delay_ms > 0)
+DEFINE_BOOL(memory_reducer_limit_based, false,
+            "Use the limit-based memory reducer that updates allocation limits "
+            "after a delay to trigger GC")
 DEFINE_FLOAT(
     external_memory_max_growing_factor, 1.1,
     "This is the upper bound for growing factor imposed on external memory.")

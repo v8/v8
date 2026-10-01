@@ -2344,10 +2344,14 @@ TEST(Regress8617) {
 
 HEAP_TEST(MemoryReducerActivationForSmallHeaps) {
   if (v8_flags.single_generation || !v8_flags.memory_reducer) return;
+  if (v8_flags.memory_reducer_limit_based) return;
+
   ManualGCScope manual_gc_scope;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  CHECK_EQ(heap->memory_reducer()->state_.id(), MemoryReducer::kUninit);
+  MemoryReducer* memory_reducer =
+      reinterpret_cast<MemoryReducer*>(heap->memory_reducer());
+  CHECK_EQ(memory_reducer->state_.id(), MemoryReducer::kUninit);
   LocalContext env;
   HandleScope scope(isolate);
   const size_t kActivationThreshold = 1 * MB;
@@ -2356,7 +2360,7 @@ HEAP_TEST(MemoryReducerActivationForSmallHeaps) {
          initial_capacity + kActivationThreshold) {
     isolate->factory()->NewFixedArray(1 * KB, AllocationType::kOld);
   }
-  CHECK_EQ(heap->memory_reducer()->state_.id(), MemoryReducer::kWait);
+  CHECK_EQ(memory_reducer->state_.id(), MemoryReducer::kWait);
 }
 
 TEST(AllocateExternalBackingStore) {
