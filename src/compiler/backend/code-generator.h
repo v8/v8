@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "src/base/small-vector.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/safepoint-table.h"
@@ -92,6 +93,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // produce the actual code object. If an error occurs during either phase,
   // FinalizeCode returns an empty MaybeHandle.
   void AssembleCode();  // Does not need to run on main thread.
+  void PrepareCodeOnBackground(LocalIsolate* local_isolate);
+  bool has_background_code() const { return !code_.is_null(); }
+  base::Vector<const IndirectHandle<Map>> retained_maps() const {
+    return base::VectorOf(retained_maps_);
+  }
   MaybeHandle<Code> FinalizeCode();
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -371,7 +377,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   void RecordCallPosition(Instruction* instr);
   void RecordDeoptInfo(Instruction* instr, int pc_offset);
-  Handle<DeoptimizationData> GenerateDeoptimizationData();
+  Handle<DeoptimizationData> GenerateDeoptimizationData(
+      LocalIsolate* local_isolate);
+  MaybeHandle<Code> BuildCodeObject(LocalIsolate* local_isolate);
   int DefineProtectedDeoptimizationLiteral(
       IndirectHandle<TrustedObject> object);
   int DefineDeoptimizationLiteral(DeoptimizationLiteral literal);
@@ -496,6 +504,8 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   TurbolizerCodeOffsetsInfo offsets_info_;
   ZoneVector<TurbolizerInstructionStartInfo> instr_starts_;
   MoveCycleState move_cycle_;
+  MaybeIndirectHandle<Code> code_;
+  base::SmallVector<IndirectHandle<Map>, 8> retained_maps_;
 
   const char* debug_name_ = nullptr;
 };

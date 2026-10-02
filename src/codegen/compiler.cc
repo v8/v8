@@ -469,29 +469,43 @@ CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
   return UpdateState(FinalizeJobImpl(isolate), State::kSucceeded);
 }
 
-GlobalHandleVector<Map> OptimizedCompilationJob::CollectRetainedMaps(
-    Isolate* isolate, DirectHandle<Code> code) {
+// static
+OptimizedCompilationJob::RetainedMaps
+OptimizedCompilationJob::CollectRetainedMaps(
+    DirectHandle<Code> code,
+    std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
   DCHECK(code->is_optimized_code());
+  DCHECK_NOT_NULL(canonical_handles);
 
   DisallowGarbageCollection no_gc;
-  GlobalHandleVector<Map> maps(isolate->heap());
+  RetainedMaps maps;
   int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
     Tagged<HeapObject> target_object = it.rinfo()->target_object();
     if (code->IsWeakObjectInOptimizedCode(target_object)) {
-      if (IsMap(target_object)) {
-        maps.Push(Cast<Map>(target_object));
+      if (Tagged<Map> map; TryCast<Map>(target_object, &map)) {
+        // Every weak map embedded in optimized code was canonicalized into
+        // `canonical_handles` during compilation. Reuse its existing canonical
+        // PersistentHandle location and clear the map entry (`*entry =
+        // nullptr`) to deduplicate subsequent RelocInfo occurrences;
+        // `canonical_handles` is consumed and cleared at the end of this pass.
+        Address** entry = canonical_handles->Find(map);
+        DCHECK_NOT_NULL(entry);
+        if (Address* location = std::exchange(*entry, nullptr)) {
+          maps.push_back(IndirectHandle<Map>(location));
+        }
       }
     }
   }
+  canonical_handles->Clear();
   return maps;
 }
 
 void OptimizedCompilationJob::RegisterWeakObjectsInOptimizedCode(
     Isolate* isolate, DirectHandle<NativeContext> context,
-    DirectHandle<Code> code, GlobalHandleVector<Map> maps) {
-  isolate->heap()->AddRetainedMaps(context, std::move(maps));
+    DirectHandle<Code> code, base::Vector<const IndirectHandle<Map>> maps) {
+  isolate->heap()->AddRetainedMaps(context, maps);
   code->set_can_have_weak_objects(true);
 }
 

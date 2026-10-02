@@ -1822,7 +1822,6 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       deopt_literals_(isolate->heap()->heap()),
       protected_deopt_literals_vector_(compilation_info->zone()),
       deopt_literals_vector_(compilation_info->zone()),
-      retained_maps_(isolate->heap()),
       is_context_specialized_(
           compilation_info->specialize_to_function_context()),
       zone_(compilation_info->zone()) {
@@ -1844,7 +1843,8 @@ bool MaglevCodeGenerator::Assemble() {
         BuildCodeObject(local_isolate_));
     Handle<Code> code;
     if (code_.ToHandle(&code)) {
-      retained_maps_ = CollectRetainedMaps(code);
+      retained_maps_ = OptimizedCompilationJob::CollectRetainedMaps(
+          code, code_gen_state_.compilation_info()->DetachCanonicalHandles());
     }
   } else if (v8_flags.maglev_deopt_data_on_background) {
     // Only do this if not --maglev-build-code-on-background, since that will do
@@ -1867,14 +1867,6 @@ MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
   return BuildCodeObject(isolate->main_thread_local_isolate());
 }
 
-GlobalHandleVector<Map> MaglevCodeGenerator::RetainedMaps(Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  GlobalHandleVector<Map> maps(isolate->heap());
-  maps.Reserve(retained_maps_.size());
-  for (DirectHandle<Map> map : retained_maps_) maps.Push(*map);
-  return maps;
-}
-
 bool MaglevCodeGenerator::EmitCode() {
   GraphProcessor<NodeMultiProcessor<SafepointingNodeProcessor,
                                     MaglevCodeGeneratingNodeProcessor>>
@@ -1890,7 +1882,10 @@ bool MaglevCodeGenerator::EmitCode() {
 
   processor.ProcessGraph(graph_);
   EmitDeferredCode();
-  if (!EmitDeopts()) return false;
+  bool deopts_emitted = EmitDeopts();
+  protected_deopt_literals_.Clear();
+  deopt_literals_.Clear();
+  if (!deopts_emitted) return false;
   EmitExceptionHandlerTrampolines();
   EmitRetainedObjects();
   __ FinishCode();
@@ -2124,25 +2119,6 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
                                 JitCodeEvent::JIT_CODE));
   }
   return maybe_code;
-}
-
-GlobalHandleVector<Map> MaglevCodeGenerator::CollectRetainedMaps(
-    DirectHandle<Code> code) {
-  DCHECK(code->is_optimized_code());
-
-  DisallowGarbageCollection no_gc;
-  GlobalHandleVector<Map> maps(local_isolate_->heap());
-  int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
-  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-    Tagged<HeapObject> target_object = it.rinfo()->target_object();
-    if (code->IsWeakObjectInOptimizedCode(target_object)) {
-      if (IsMap(target_object)) {
-        maps.Push(Cast<Map>(target_object));
-      }
-    }
-  }
-  return maps;
 }
 
 Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(

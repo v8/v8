@@ -17,17 +17,19 @@
 namespace v8 {
 namespace internal {
 
-DirectHandle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
+template <typename IsolateT>
+DirectHandle<Object> DeoptimizationLiteral::Reify(IsolateT* isolate) const {
   Validate();
   switch (kind_) {
     case DeoptimizationLiteralKind::kObject:
       return object_;
     case DeoptimizationLiteralKind::kNumber:
-      return isolate->factory()->NewNumber(number_);
+      return isolate->factory()->template NewNumber<AllocationType::kOld>(
+          number_);
     case DeoptimizationLiteralKind::kSignedBigInt64:
-      return BigInt::FromInt64(isolate, int64_);
+      return BigInt::FromInt64(isolate, int64_, AllocationType::kOld);
     case DeoptimizationLiteralKind::kUnsignedBigInt64:
-      return BigInt::FromUint64(isolate, uint64_);
+      return BigInt::FromUint64(isolate, uint64_, AllocationType::kOld);
     case DeoptimizationLiteralKind::kWasmI31Ref:
     case DeoptimizationLiteralKind::kWasmInt32:
     case DeoptimizationLiteralKind::kWasmFloat32:
@@ -37,6 +39,10 @@ DirectHandle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
   }
   UNREACHABLE();
 }
+template DirectHandle<Object> DeoptimizationLiteral::Reify(
+    Isolate* isolate) const;
+template DirectHandle<Object> DeoptimizationLiteral::Reify(
+    LocalIsolate* isolate) const;
 
 size_t DeoptimizationLiteral::SerializationSize() const {
   static constexpr size_t kSizeOfKind = 1;

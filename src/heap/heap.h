@@ -682,8 +682,9 @@ class Heap final {
 
   void CompactWeakArrayLists();
 
-  V8_EXPORT_PRIVATE void AddRetainedMaps(DirectHandle<NativeContext> context,
-                                         GlobalHandleVector<Map> maps);
+  V8_EXPORT_PRIVATE void AddRetainedMaps(
+      DirectHandle<NativeContext> context,
+      base::Vector<const IndirectHandle<Map>> maps);
 
   // This event is triggered after object is moved to a new place.
   void OnMoveEvent(Tagged<HeapObject> source, Tagged<HeapObject> target,

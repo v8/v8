@@ -1328,15 +1328,13 @@ TEST(Regress3877) {
 Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
                                       DirectHandle<NativeContext> context) {
   HandleScope inner_scope(isolate);
-  DirectHandle<Map> map = Map::Create(isolate, 1);
+  IndirectHandle<Map> map = Map::Create(isolate, 1);
   v8::Local<v8::Value> result =
       CompileRun("(function () { return {x : 10}; })();");
   DirectHandle<JSReceiver> proto =
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(result));
   Map::SetPrototype(isolate, map, proto);
-  GlobalHandleVector<Map> maps(isolate->heap());
-  maps.Push(*map);
-  isolate->heap()->AddRetainedMaps(context, std::move(maps));
+  isolate->heap()->AddRetainedMaps(context, base::VectorOf(&map, 1));
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(1);
   array->set(0, MakeWeak(*map));
   return inner_scope.CloseAndEscape(array);

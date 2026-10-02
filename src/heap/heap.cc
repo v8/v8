@@ -6520,13 +6520,21 @@ void Heap::CompactWeakArrayLists() {
 }
 
 void Heap::AddRetainedMaps(DirectHandle<NativeContext> context,
-                           GlobalHandleVector<Map> maps) {
+                           base::Vector<const IndirectHandle<Map>> maps) {
+  uint32_t number_of_new_maps = 0;
+  for (DirectHandle<Map> map : maps) {
+    DCHECK(!HeapLayout::InAnySharedSpace(*map));
+    if (!map->is_in_retained_map_list()) {
+      number_of_new_maps++;
+    }
+  }
+  if (number_of_new_maps == 0) return;
+
   Handle<WeakArrayList> array(Cast<WeakArrayList>(context->retained_maps()),
                               isolate());
   const uint32_t array_len = array->length().value();
   const uint32_t array_cap = array->capacity().value();
-  uint32_t new_maps_size =
-      static_cast<uint32_t>(maps.size()) * kRetainMapEntrySize;
+  uint32_t new_maps_size = number_of_new_maps * kRetainMapEntrySize;
   if (array_len + new_maps_size > array_cap) {
     CompactRetainedMaps(*array);
   }
@@ -6541,8 +6549,6 @@ void Heap::AddRetainedMaps(DirectHandle<NativeContext> context,
     DisallowGarbageCollection no_gc;
     Tagged<WeakArrayList> raw_array = *array;
     for (DirectHandle<Map> map : maps) {
-      DCHECK(!HeapLayout::InAnySharedSpace(*map));
-
       if (map->is_in_retained_map_list()) {
         continue;
       }

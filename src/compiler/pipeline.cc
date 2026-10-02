@@ -649,14 +649,9 @@ void PrintCode(Isolate* isolate, DirectHandle<Code> code,
 // part of a CheckMaps, this check will always fail afterwards and deoptimize.
 // This in turn relies on a runtime invariant that map migrations always target
 // newly allocated maps.
-bool CheckNoDeprecatedMaps(DirectHandle<Code> code, Isolate* isolate) {
-  int mode_mask = RelocInfo::EmbeddedObjectModeMask();
-  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-    Tagged<HeapObject> obj = it.rinfo()->target_object();
-    if (Tagged<Map> map; TryCast<Map>(obj, &map) && map->is_deprecated()) {
-      return false;
-    }
+bool CheckNoDeprecatedMaps(base::Vector<const IndirectHandle<Map>> maps) {
+  for (DirectHandle<Map> map : maps) {
+    if (map->is_deprecated()) return false;
   }
   return true;
 }
@@ -827,15 +822,19 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   if (context->IsDetached()) {
     return AbortOptimization(BailoutReason::kDetachedNativeContext);
   }
-  if (!CheckNoDeprecatedMaps(code, isolate)) {
+  CodeGenerator* code_generator = turboshaft_data_.code_generator();
+  DCHECK_NOT_NULL(code_generator);
+  DCHECK(code_generator->has_background_code());
+  base::Vector<const IndirectHandle<Map>> maps =
+      code_generator->retained_maps();
+  if (!CheckNoDeprecatedMaps(maps)) {
     return RetryOptimization(BailoutReason::kConcurrentMapDeprecation);
   }
   if (!turboshaft_pipeline.CommitDependencies(code)) {
     return RetryOptimization(BailoutReason::kBailedOutDueToDependencyChange);
   }
   compilation_info()->SetCode(code);
-  GlobalHandleVector<Map> maps = CollectRetainedMaps(isolate, code);
-  RegisterWeakObjectsInOptimizedCode(isolate, context, code, std::move(maps));
+  RegisterWeakObjectsInOptimizedCode(isolate, context, code, maps);
   return SUCCEEDED;
 }
 
