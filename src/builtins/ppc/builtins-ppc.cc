@@ -1162,7 +1162,11 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
                 static_cast<int>(interpreter::Bytecode::kDebugBreakExtraWide));
   __ cmpi(bytecode, Operand(0x3));
   __ bgt(&process_bytecode);
-  __ andi(r0, bytecode, Operand(0x1));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ andi(scratch, bytecode, Operand(0x1));
+  }
   __ bne(&extra_wide, cr0);
 
   // Load the next bytecode and update table to the wide scaled table.
