@@ -16,8 +16,6 @@
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/backend/register-allocation.h"
 #include "src/compiler/backend/spill-placer.h"
-#include "src/compiler/linkage.h"
-#include "src/strings/string-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -685,7 +683,6 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep,
       spill_operand_(nullptr),
       spill_move_insertion_locations_(nullptr),
       children_({this}, zone),
-      spilled_in_deferred_blocks_(false),
       has_preassigned_slot_(false),
       spill_start_index_(kMaxInt) {
   bits_ |= SpillTypeField::encode(SpillType::kNoSpillType);
@@ -700,8 +697,7 @@ void TopLevelLiveRange::RecordSpillLocation(Zone* zone, int gap_index,
 
 void TopLevelLiveRange::CommitSpillMoves(RegisterAllocationData* data,
                                          const InstructionOperand& op) {
-  DCHECK_IMPLIES(op.IsConstant(),
-                 GetSpillMoveInsertionLocations(data) == nullptr);
+  DCHECK_IMPLIES(op.IsConstant(), GetSpillMoveInsertionLocations() == nullptr);
 
   if (HasGeneralSpillRange()) {
     SetLateSpillingSelected(false);
@@ -710,7 +706,7 @@ void TopLevelLiveRange::CommitSpillMoves(RegisterAllocationData* data,
   InstructionSequence* sequence = data->code();
   Zone* zone = sequence->zone();
 
-  for (SpillMoveInsertionList* to_spill = GetSpillMoveInsertionLocations(data);
+  for (SpillMoveInsertionList* to_spill = GetSpillMoveInsertionLocations();
        to_spill != nullptr; to_spill = to_spill->next) {
     Instruction* instr = sequence->InstructionAt(to_spill->gap_index);
     ParallelMove* move =
@@ -722,13 +718,12 @@ void TopLevelLiveRange::CommitSpillMoves(RegisterAllocationData* data,
 
 void TopLevelLiveRange::FilterSpillMoves(RegisterAllocationData* data,
                                          const InstructionOperand& op) {
-  DCHECK_IMPLIES(op.IsConstant(),
-                 GetSpillMoveInsertionLocations(data) == nullptr);
+  DCHECK_IMPLIES(op.IsConstant(), GetSpillMoveInsertionLocations() == nullptr);
   bool might_be_duplicated = has_slot_use() || spilled();
   InstructionSequence* sequence = data->code();
 
   SpillMoveInsertionList* previous = nullptr;
-  for (SpillMoveInsertionList* to_spill = GetSpillMoveInsertionLocations(data);
+  for (SpillMoveInsertionList* to_spill = GetSpillMoveInsertionLocations();
        to_spill != nullptr; previous = to_spill, to_spill = to_spill->next) {
     Instruction* instr = sequence->InstructionAt(to_spill->gap_index);
     ParallelMove* move = instr->GetParallelMove(Instruction::START);
@@ -1186,7 +1181,6 @@ RegisterAllocationData::RegisterAllocationData(
       delayed_references_(allocation_zone()),
       assigned_registers_(nullptr),
       assigned_double_registers_(nullptr),
-      virtual_register_count_(code->VirtualRegisterCount()),
       preassigned_slot_ranges_(zone),
       spill_state_(code->InstructionBlockCount(), ZoneVector<LiveRange*>(zone),
                    zone),
@@ -1222,8 +1216,6 @@ RegisterAllocationData::RegisterAllocationData(
   fixed_fp_register_use_ = code_zone()->New<BitVector>(
       this->config()->num_double_registers(), code_zone());
   if (kFPAliasing == AliasingKind::kIndependent) {
-    assigned_simd128_registers_ = code_zone()->New<BitVector>(
-        this->config()->num_simd128_registers(), code_zone());
     fixed_simd128_register_use_ = code_zone()->New<BitVector>(
         this->config()->num_simd128_registers(), code_zone());
   }
@@ -1440,8 +1432,6 @@ void RegisterAllocationData::MarkAllocated(MachineRepresentation rep,
         if (rep == MachineRepresentation::kFloat16 ||
             rep == MachineRepresentation::kFloat32) {
           assigned_double_registers_->Add(index);
-        } else {
-          assigned_simd128_registers_->Add(index);
         }
       } else {
         int alias_base_index = -1;
@@ -1475,9 +1465,9 @@ bool RegisterAllocationData::IsBlockBoundary(LifetimePosition pos) const {
 ConstraintBuilder::ConstraintBuilder(RegisterAllocationData* data)
     : data_(data) {}
 
-InstructionOperand* ConstraintBuilder::AllocateFixed(
-    UnallocatedOperand* operand, int pos, bool is_tagged, bool is_input,
-    bool is_output) {
+void ConstraintBuilder::AllocateFixed(UnallocatedOperand* operand, int pos,
+                                      bool is_tagged, bool is_input,
+                                      bool is_output) {
   TRACE("Allocating fixed reg for op %d\n", operand->virtual_register());
   DCHECK(operand->HasFixedPolicy());
   InstructionOperand allocated;
@@ -1539,7 +1529,6 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
       instr->reference_map()->RecordReference(*AllocatedOperand::cast(operand));
     }
   }
-  return operand;
 }
 
 void ConstraintBuilder::MeetRegisterConstraints() {
@@ -3555,20 +3544,6 @@ void LinearScanAllocator::UpdateDeferredFixedRanges(SpillMode spill_mode,
   }
 }
 
-bool LinearScanAllocator::BlockIsDeferredOrImmediatePredecessorIsNotDeferred(
-    const InstructionBlock* block) {
-  if (block->IsDeferred()) return true;
-  if (block->PredecessorCount() == 0) return true;
-  bool pred_is_deferred = false;
-  for (auto pred : block->predecessors()) {
-    if (pred.IsNext(block->rpo_number())) {
-      pred_is_deferred = code()->InstructionBlockAt(pred)->IsDeferred();
-      break;
-    }
-  }
-  return !pred_is_deferred;
-}
-
 bool LinearScanAllocator::HasNonDeferredPredecessor(InstructionBlock* block) {
   for (auto pred : block->predecessors()) {
     InstructionBlock* pred_block = code()->InstructionBlockAt(pred);
@@ -4640,7 +4615,7 @@ void OperandAssigner::DecideSpillingMode() {
   for (auto range : data()->live_ranges()) {
     data()->tick_counter()->TickAndMaybeEnterSafepoint();
     DCHECK_NOT_NULL(range);
-    if (range->IsSpilledOnlyInDeferredBlocks(data())) {
+    if (range->IsSpilledOnlyInDeferredBlocks()) {
       // If the range is spilled only in deferred blocks and starts in
       // a non-deferred block, we transition its representation here so
       // that the LiveRangeConnector processes them correctly. If,
@@ -4775,7 +4750,7 @@ void OperandAssigner::CommitAssignment() {
       // blocks, we let ConnectLiveRanges and ResolveControlFlow find the blocks
       // where a spill operand is expected, and then finalize by inserting the
       // spills in the deferred blocks dominators.
-      if (!top_range->IsSpilledOnlyInDeferredBlocks(data()) &&
+      if (!top_range->IsSpilledOnlyInDeferredBlocks() &&
           !top_range->HasGeneralSpillRange()) {
         // Spill at definition if the range isn't spilled in a way that will be
         // handled later.
@@ -4905,7 +4880,7 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
 
       // Check if the live range is spilled and the safe point is after
       // the spill position.
-      int spill_index = range->IsSpilledOnlyInDeferredBlocks(data()) ||
+      int spill_index = range->IsSpilledOnlyInDeferredBlocks() ||
                                 range->LateSpillingSelected()
                             ? cur->Start().ToInstructionIndex()
                             : range->spill_start_index();
@@ -5007,22 +4982,21 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
             }
             if (!uses_reg) continue;
           }
-          if (cur_range->TopLevel()->IsSpilledOnlyInDeferredBlocks(data()) &&
+          if (cur_range->TopLevel()->IsSpilledOnlyInDeferredBlocks() &&
               pred_block->IsDeferred()) {
             // The spill location should be defined in pred_block, so add
             // pred_block to the list of blocks requiring a spill operand.
             TRACE("Adding B%d to list of spill blocks for %d\n",
                   pred_block->rpo_number().ToInt(),
                   cur_range->TopLevel()->vreg());
-            cur_range->TopLevel()
-                ->GetListOfBlocksRequiringSpillOperands(data())
-                ->Add(pred_block->rpo_number().ToInt());
+            cur_range->TopLevel()->GetListOfBlocksRequiringSpillOperands()->Add(
+                pred_block->rpo_number().ToInt());
           }
         }
         int move_loc = ResolveControlFlow(block, cur_op, pred_block, pred_op);
         USE(move_loc);
         DCHECK_IMPLIES(
-            cur_range->TopLevel()->IsSpilledOnlyInDeferredBlocks(data()) &&
+            cur_range->TopLevel()->IsSpilledOnlyInDeferredBlocks() &&
                 !(pred_op.IsAnyRegister() && cur_op.IsAnyRegister()) &&
                 move_loc != -1,
             code()->GetInstructionBlock(move_loc)->IsDeferred());
@@ -5033,7 +5007,7 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
   // At this stage, we collected blocks needing a spill operand due to reloads
   // from ConnectRanges and from ResolveControlFlow. Time to commit the spills
   // for deferred blocks. This is a convenient time to commit spills for general
-  // spill ranges also, because they need to use the LiveRangeFinder.
+  // spill ranges also.
   const size_t live_ranges_size = data()->live_ranges().size();
   SpillPlacer spill_placer(data(), local_zone);
   for (TopLevelLiveRange* top : data()->live_ranges()) {
@@ -5041,7 +5015,7 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
              data()->live_ranges().size());  // TODO(neis): crbug.com/831822
     DCHECK_NOT_NULL(top);
     if (top->IsEmpty()) continue;
-    if (top->IsSpilledOnlyInDeferredBlocks(data())) {
+    if (top->IsSpilledOnlyInDeferredBlocks()) {
       CommitSpillsInDeferredBlocks(top, local_zone);
     } else if (top->HasGeneralSpillRange()) {
       spill_placer.Add(top);
@@ -5090,7 +5064,7 @@ void LiveRangeConnector::ConnectRanges(Zone* local_zone) {
     CHECK_EQ(live_ranges_size,
              data()->live_ranges().size());  // TODO(neis): crbug.com/831822
     DCHECK_NOT_NULL(top_range);
-    bool connect_spilled = top_range->IsSpilledOnlyInDeferredBlocks(data());
+    bool connect_spilled = top_range->IsSpilledOnlyInDeferredBlocks();
     LiveRange* first_range = top_range;
     for (LiveRange *second_range = first_range->next(); second_range != nullptr;
          first_range = second_range, second_range = second_range->next()) {
@@ -5115,7 +5089,7 @@ void LiveRangeConnector::ConnectRanges(Zone* local_zone) {
         DCHECK(block->IsDeferred());
         // Performing a reload in this block, meaning the spill operand must
         // be defined here.
-        top_range->GetListOfBlocksRequiringSpillOperands(data())->Add(
+        top_range->GetListOfBlocksRequiringSpillOperands()->Add(
             block->rpo_number().ToInt());
       }
 
@@ -5179,7 +5153,7 @@ void LiveRangeConnector::ConnectRanges(Zone* local_zone) {
 
 void LiveRangeConnector::CommitSpillsInDeferredBlocks(TopLevelLiveRange* range,
                                                       Zone* temp_zone) {
-  DCHECK(range->IsSpilledOnlyInDeferredBlocks(data()));
+  DCHECK(range->IsSpilledOnlyInDeferredBlocks());
   DCHECK(!range->spilled());
 
   InstructionSequence* code = data()->code();
@@ -5197,14 +5171,13 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(TopLevelLiveRange* range,
       }
       range->AddBlockRequiringSpillOperand(
           code->GetInstructionBlock(pos->pos().ToInstructionIndex())
-              ->rpo_number(),
-          data());
+              ->rpo_number());
     }
   }
 
   ZoneQueue<int> worklist(temp_zone);
 
-  for (int block_id : *range->GetListOfBlocksRequiringSpillOperands(data())) {
+  for (int block_id : *range->GetListOfBlocksRequiringSpillOperands()) {
     worklist.push(block_id);
   }
 

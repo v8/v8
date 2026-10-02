@@ -294,7 +294,6 @@ class RegisterAllocationData final : public ZoneObject {
 
   SpillRange* AssignSpillRangeToLiveRange(TopLevelLiveRange* range,
                                           SpillMode spill_mode);
-  SpillRange* CreateSpillRangeForLiveRange(TopLevelLiveRange* range);
 
   MoveOperands* AddGapMove(int index, Instruction::GapPosition position,
                            const InstructionOperand& from,
@@ -357,11 +356,9 @@ class RegisterAllocationData final : public ZoneObject {
   DelayedReferences delayed_references_;
   BitVector* assigned_registers_;
   BitVector* assigned_double_registers_;
-  BitVector* assigned_simd128_registers_;
   BitVector* fixed_register_use_;
   BitVector* fixed_fp_register_use_;
   BitVector* fixed_simd128_register_use_;
-  int virtual_register_count_;
   RangesWithPreassignedSlots preassigned_slot_ranges_;
   ZoneVector<ZoneVector<LiveRange*>> spill_state_;
   TickCounter* const tick_counter_;
@@ -523,8 +520,6 @@ class V8_EXPORT_PRIVATE UsePosition final
   uint32_t flags_;
 };
 
-class SpillRange;
-class TopLevelLiveRange;
 class LiveRangeBundle;
 
 enum GrowthDirection { kFront, kFrontOrBack };
@@ -553,9 +548,8 @@ class DoubleEndedSplitVector {
   bool empty() const { return size() == 0; }
   size_t capacity() const { return storage_end_ - storage_begin_; }
 
-  T* data() const { return data_begin_; }
-
-  void clear() { data_begin_ = data_end_; }
+  T* data() { return data_begin_; }
+  const T* data() const { return data_begin_; }
 
   T& operator[](size_t position) {
     DCHECK_LT(position, size());
@@ -1068,9 +1062,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     return slot_use_kind() == SlotUseKind::kGeneralSlotUse;
   }
 
-  void reset_slot_use() {
-    bits_ = HasSlotUseField::update(bits_, SlotUseKind::kNoSlotUse);
-  }
   void register_slot_use(SlotUseKind value) {
     bits_ = HasSlotUseField::update(bits_, std::max(slot_use_kind(), value));
   }
@@ -1151,20 +1142,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   void CommitSpillMoves(RegisterAllocationData* data,
                         const InstructionOperand& operand);
 
-  // If all the children of this range are spilled in deferred blocks, and if
-  // for any non-spilled child with a use position requiring a slot, that range
-  // is contained in a deferred block, mark the range as
-  // IsSpilledOnlyInDeferredBlocks, so that we avoid spilling at definition,
-  // and instead let the LiveRangeConnector perform the spills within the
-  // deferred blocks. If so, we insert here spills for non-spilled ranges
-  // with slot use positions.
-  void TreatAsSpilledInDeferredBlock(Zone* zone) {
-    spill_start_index_ = -1;
-    spilled_in_deferred_blocks_ = true;
-    spill_move_insertion_locations_ = nullptr;
-    list_of_blocks_requiring_spill_operands_ = zone->New<SparseBitVector>(zone);
-  }
-
   // Updates internal data structures to reflect that this range is not
   // spilled at definition but instead spilled in some blocks only.
   void TransitionRangeToDeferredSpill(Zone* zone) {
@@ -1182,10 +1159,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     }
   }
 
-  bool MayRequireSpillRange() const {
-    return !HasSpillOperand() && spill_range_ == nullptr;
-  }
-  void UpdateSpillRangePostMerge(TopLevelLiveRange* merged);
   int vreg() const { return vreg_; }
 
 #ifdef DEBUG
@@ -1201,15 +1174,14 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   int GetNextChildId() { return ++last_child_id_; }
 
-  bool IsSpilledOnlyInDeferredBlocks(const RegisterAllocationData* data) const {
+  bool IsSpilledOnlyInDeferredBlocks() const {
     return spill_type() == SpillType::kDeferredSpillRange;
   }
 
   struct SpillMoveInsertionList;
 
-  SpillMoveInsertionList* GetSpillMoveInsertionLocations(
-      const RegisterAllocationData* data) const {
-    DCHECK(!IsSpilledOnlyInDeferredBlocks(data));
+  SpillMoveInsertionList* GetSpillMoveInsertionLocations() const {
+    DCHECK(!IsSpilledOnlyInDeferredBlocks());
     return spill_move_insertion_locations_;
   }
 
@@ -1236,15 +1208,13 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     return SpillRangeModeField::decode(bits_) == SpillRangeMode::kSpillLater;
   }
 
-  void AddBlockRequiringSpillOperand(RpoNumber block_id,
-                                     const RegisterAllocationData* data) {
-    DCHECK(IsSpilledOnlyInDeferredBlocks(data));
-    GetListOfBlocksRequiringSpillOperands(data)->Add(block_id.ToInt());
+  void AddBlockRequiringSpillOperand(RpoNumber block_id) {
+    DCHECK(IsSpilledOnlyInDeferredBlocks());
+    GetListOfBlocksRequiringSpillOperands()->Add(block_id.ToInt());
   }
 
-  SparseBitVector* GetListOfBlocksRequiringSpillOperands(
-      const RegisterAllocationData* data) const {
-    DCHECK(IsSpilledOnlyInDeferredBlocks(data));
+  SparseBitVector* GetListOfBlocksRequiringSpillOperands() const {
+    DCHECK(IsSpilledOnlyInDeferredBlocks());
     return list_of_blocks_requiring_spill_operands_;
   }
 
@@ -1292,9 +1262,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   // The `LiveRange`s are sorted by their `Start()` position.
   ZoneVector<LiveRange*> children_;
 
-  // TODO(mtrofin): generalize spilling after definition, currently specialized
-  // just for spill in a single deferred block.
-  bool spilled_in_deferred_blocks_;
   bool has_preassigned_slot_;
 
   int spill_start_index_;
@@ -1369,9 +1336,8 @@ class ConstraintBuilder final : public ZoneObject {
   InstructionSequence* code() const { return data()->code(); }
   Zone* allocation_zone() const { return data()->allocation_zone(); }
 
-  InstructionOperand* AllocateFixed(UnallocatedOperand* operand, int pos,
-                                    bool is_tagged, bool is_input,
-                                    bool is_output);
+  void AllocateFixed(UnallocatedOperand* operand, int pos, bool is_tagged,
+                     bool is_input, bool is_output);
   void MeetRegisterConstraints(const InstructionBlock* block);
   void MeetConstraintsBefore(int index);
   void MeetConstraintsAfter(int index);
@@ -1539,7 +1505,6 @@ class RegisterAllocator : public ZoneObject {
                                           SpillMode spill_mode,
                                           LiveRange** begin_spill_out);
 
-  const ZoneVector<TopLevelLiveRange*>& GetFixedRegisters() const;
   const char* RegisterName(int allocation_index, RegisterKind kind) const;
   const char* RegisterName(int allocation_index,
                            MachineRepresentation rep) const;
@@ -1551,9 +1516,6 @@ class RegisterAllocator : public ZoneObject {
   int num_allocatable_registers_;
   const int* allocatable_register_codes_;
   bool check_fp_aliasing_;
-
- private:
-  bool no_combining_;
 };
 
 // A map from `TopLevelLiveRange`s to their expected physical register.
@@ -1585,8 +1547,6 @@ class LinearScanAllocator final : public RegisterAllocator {
                         LifetimePosition position);
 
   void UpdateDeferredFixedRanges(SpillMode spill_mode, InstructionBlock* block);
-  bool BlockIsDeferredOrImmediatePredecessorIsNotDeferred(
-      const InstructionBlock* block);
   bool HasNonDeferredPredecessor(InstructionBlock* block);
 
   struct UnhandledLiveRangeOrdering {
@@ -1755,7 +1715,6 @@ class ReferenceMapPopulator final : public ZoneObject {
   RegisterAllocationData* const data_;
 };
 
-class LiveRangeBoundArray;
 // Insert moves of the form
 //
 //          Operand(child_(k+1)) = Operand(child_k)
