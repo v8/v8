@@ -4174,8 +4174,11 @@ void CodeStubAssembler::StoreObjectByteNoWriteBarrier(TNode<HeapObject> object,
                       IntPtrConstant(offset - kHeapObjectTag), value);
 }
 
-void CodeStubAssembler::StoreHeapNumberValue(TNode<HeapNumber> object,
-                                             TNode<Float64T> value) {
+void CodeStubAssembler::StoreHeapNumberValue(
+    TNode<UnionOf<HeapNumber, UninitializedHeapNumber>> object,
+    TNode<Float64T> value) {
+  static_assert(offsetof(HeapNumber, value_) ==
+                offsetof(UninitializedHeapNumber, value_));
   StoreObjectFieldNoWriteBarrier(object, offsetof(HeapNumber, value_), value);
 }
 

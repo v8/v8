@@ -1965,9 +1965,13 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           StoreObjectField(object, field_offset, heap_number);
         } else {
           GotoIf(IsPropertyDetailsConst(details), slow);
-          TNode<HeapNumber> heap_number =
+          TNode<UnionOf<HeapNumber, UninitializedHeapNumber>> heap_number =
               CAST(LoadObjectField(object, field_offset));
           StoreHeapNumberValue(heap_number, double_value);
+          // The map store must follow the value write and use release semantics
+          // so background threads (e.g. concurrent compiler) see a consistent
+          // initialized state upon observing the HeapNumber map.
+          StoreMapReleaseNoWriteBarrier(heap_number, RootIndex::kHeapNumberMap);
         }
         Goto(&done);
       }
@@ -2029,10 +2033,14 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
         BIND(&double_rep);
         {
           GotoIf(IsPropertyDetailsConst(details), slow);
-          TNode<HeapNumber> heap_number =
+          TNode<UnionOf<HeapNumber, UninitializedHeapNumber>> heap_number =
               CAST(LoadPropertyArrayElement(properties, backing_store_index));
           TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
           StoreHeapNumberValue(heap_number, double_value);
+          // The map store must follow the value write and use release semantics
+          // so background threads (e.g. concurrent compiler) see a consistent
+          // initialized state upon observing the HeapNumber map.
+          StoreMapReleaseNoWriteBarrier(heap_number, RootIndex::kHeapNumberMap);
           Goto(&done);
         }
         BIND(&tagged_rep);
