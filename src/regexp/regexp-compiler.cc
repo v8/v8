@@ -3953,9 +3953,9 @@ bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   for (int i = min_lookahead; i <= max_lookahead; i++) {
     BoyerMoorePositionInfo* map = bitmaps_->at(i);
     if (map->map_count() == 0) {
-      // If we have a position where no characters can match then we just can't
-      // match.
-      masm->Fail();
+      // No character can match at this position, but another alternative or
+      // search position may still match.
+      masm->Backtrack();
       return true;
     }
 
