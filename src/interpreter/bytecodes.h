@@ -194,6 +194,9 @@ namespace interpreter {
   V(DefineNamedOwnProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
     OperandType::kReg, OperandType::kConstantPoolIndex,                        \
     OperandType::kFeedbackSlot)                                                \
+  V(DefineNamedOwnPropertyInLiteral,                                           \
+    ImplicitRegisterUse::kReadAndClobberAccumulator, OperandType::kReg,        \
+    OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot)               \
   V(SetKeyedProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,         \
     OperandType::kReg, OperandType::kReg, OperandType::kFeedbackSlot)          \
   V(DefineKeyedOwnProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,   \

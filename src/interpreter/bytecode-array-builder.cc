@@ -1055,6 +1055,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::DefineNamedOwnProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::DefineNamedOwnPropertyInLiteral(
+    Register object, const AstRawString* name, int feedback_slot) {
+  size_t name_index = GetConstantPoolEntry(name);
+  // Ensure that the store operation is in sync with the IC slot kind.
+  DCHECK_EQ(
+      FeedbackSlotKind::kDefineNamedOwn,
+      feedback_vector_spec()->GetKind(FeedbackVector::ToSlot(feedback_slot)));
+  OutputDefineNamedOwnPropertyInLiteral(object, name_index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::SetKeyedProperty(
     Register object, Register key, int feedback_slot,
     LanguageMode language_mode) {

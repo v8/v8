@@ -1363,6 +1363,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildGetKeyedProperty(
       ValueNode* object, const compiler::FeedbackSource& feedback_source,
       const compiler::ProcessedFeedback& processed_feedback);
+  ReduceResult VisitDefineNamedOwnPropertyHelper(bool in_literal);
   ReduceResult BuildSetKeyedProperty(
       ValueNode* object, ValueNode* index, compiler::AccessMode access_mode,
       const compiler::FeedbackSource& feedback_source,
