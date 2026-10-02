@@ -2,6 +2,18 @@
 # Copyright 2026 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+"""Sets up shared gclient dependencies for V8 git worktrees.
+
+When a worktree's DEPS matches the main repository, shared dependency
+directories are symlinked directly to the main repository. When DEPS diverges,
+a hermetic gclient sync is cached under <main_repo>/worktrees/.deps_cache/<hash>
+and symlinked into the worktree.
+
+Unreferenced cache entries are automatically pruned during sync while keeping
+all actively referenced entries and at least MIN_CACHED_DEPS most recently used
+entries. Cache management can also be triggered manually via the `prune-cache`
+and `clear-cache` subcommands.
+"""
 
 from contextlib import contextmanager
 import filecmp
@@ -19,6 +31,9 @@ except ImportError:
   HAS_FCNTL = False
 
 
+MIN_CACHED_DEPS = 3
+
+
 @contextmanager
 def file_lock(lock_path: Path):
   if not HAS_FCNTL:
@@ -26,7 +41,7 @@ def file_lock(lock_path: Path):
     return
 
   lock_path.parent.mkdir(parents=True, exist_ok=True)
-  with open(lock_path, "w") as f:
+  with open(lock_path, "a") as f:
     try:
       fcntl.flock(f, fcntl.LOCK_EX)
       yield
@@ -35,6 +50,30 @@ def file_lock(lock_path: Path):
         fcntl.flock(f, fcntl.LOCK_UN)
       except OSError:
         pass
+
+
+@contextmanager
+def try_file_lock(lock_path: Path):
+  if not HAS_FCNTL:
+    yield True
+    return
+
+  lock_path.parent.mkdir(parents=True, exist_ok=True)
+  with open(lock_path, "a") as f:
+    locked = False
+    try:
+      fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+      locked = True
+    except (BlockingIOError, OSError):
+      pass
+    try:
+      yield locked
+    finally:
+      if locked:
+        try:
+          fcntl.flock(f, fcntl.LOCK_UN)
+        except OSError:
+          pass
 
 
 def create_relative_symlinks(source_root: Path, target_dir: Path,
@@ -234,6 +273,147 @@ def sync_dependencies(main_repo: Path, worktree_dir: Path):
 
         cached_shared_dirs = get_shared_dirs(cache_root / ".gclient_entries")
         create_relative_symlinks(cache_v8, worktree_dir, cached_shared_dirs)
+        record_worktree_usage(cache_root, lock_path, worktree_dir)
+
+  prune_cache(main_repo)
+
+
+def record_worktree_usage(cache_root: Path, lock_path: Path,
+                          worktree_dir: Path):
+  try:
+    wt_file = cache_root / ".worktrees"
+    wt_resolved = str(worktree_dir.resolve())
+    existing = set()
+    if wt_file.is_file():
+      existing = {
+          line.strip()
+          for line in wt_file.read_text().splitlines()
+          if line.strip()
+      }
+    if wt_resolved not in existing:
+      existing.add(wt_resolved)
+      wt_file.write_text("\n".join(sorted(existing)) + "\n")
+    os.utime(cache_root, None)
+    if lock_path.exists():
+      os.utime(lock_path, None)
+  except OSError:
+    pass
+
+
+def get_referenced_cache_hashes(main_repo: Path, cache_dir: Path) -> set[str]:
+  worktrees: set[Path] = set()
+  try:
+    out = subprocess.check_output(["git", "worktree", "list", "--porcelain"],
+                                  cwd=main_repo,
+                                  stderr=subprocess.DEVNULL,
+                                  text=True)
+    for line in out.splitlines():
+      if line.startswith("worktree "):
+        worktrees.add(Path(line[len("worktree "):].strip()))
+  except Exception:
+    pass
+
+  worktrees_dir = main_repo / "worktrees"
+  if worktrees_dir.is_dir():
+    for d in worktrees_dir.iterdir():
+      if d.name != ".deps_cache" and d.is_dir() and not d.is_symlink():
+        worktrees.add(d)
+
+  for item in cache_dir.iterdir():
+    wt_file = item / ".worktrees"
+    if item.is_dir() and wt_file.is_file():
+      try:
+        for line in wt_file.read_text().splitlines():
+          if line.strip():
+            worktrees.add(Path(line.strip()))
+      except OSError:
+        pass
+
+  referenced: set[str] = set()
+  main_resolved = main_repo.resolve()
+  cache_resolved = cache_dir.resolve()
+  deps_main = main_repo / "DEPS"
+
+  for wt in worktrees:
+    try:
+      if not wt.is_dir() or not (wt / ".git").exists():
+        continue
+      if wt.resolve() == main_resolved:
+        continue
+    except OSError:
+      continue
+
+    build_link = wt / "build"
+    if build_link.is_symlink():
+      try:
+        link_target = Path(
+            os.path.normpath(build_link.parent.resolve() /
+                             os.readlink(build_link)))
+        rel = link_target.relative_to(cache_resolved)
+        if rel.parts:
+          referenced.add(rel.parts[0])
+      except (OSError, ValueError):
+        pass
+
+    deps_wt = wt / "DEPS"
+    if deps_wt.is_file():
+      try:
+        if not deps_main.is_file() or not filecmp.cmp(
+            deps_main, deps_wt, shallow=False):
+          h = hashlib.sha256(deps_wt.read_bytes()).hexdigest()[:12]
+          referenced.add(h)
+      except OSError:
+        pass
+
+  return referenced
+
+
+def prune_cache(main_repo: Path, min_keep: int = MIN_CACHED_DEPS):
+  cache_dir = main_repo / "worktrees" / ".deps_cache"
+  if not cache_dir.is_dir():
+    return
+
+  entries = []
+  tmp_dirs = []
+  for item in cache_dir.iterdir():
+    if not item.is_dir():
+      continue
+    if item.name.endswith(".tmp"):
+      tmp_dirs.append(item)
+    else:
+      try:
+        mtime = item.stat().st_mtime
+        lock_file = cache_dir / f"{item.name}.lock"
+        if lock_file.exists():
+          mtime = max(mtime, lock_file.stat().st_mtime)
+        entries.append((mtime, item))
+      except OSError:
+        pass
+
+  for tmp_item in tmp_dirs:
+    hash_name = tmp_item.name[:-4]
+    lock_path = cache_dir / f"{hash_name}.lock"
+    with try_file_lock(lock_path) as locked:
+      if locked and tmp_item.exists():
+        shutil.rmtree(tmp_item, ignore_errors=True)
+
+  if len(entries) <= min_keep:
+    return
+
+  referenced = get_referenced_cache_hashes(main_repo, cache_dir)
+  entries.sort(key=lambda x: x[0], reverse=True)
+
+  keep = set(referenced)
+  for _, item in entries[:min_keep]:
+    keep.add(item.name)
+
+  for _, item in entries:
+    if item.name in keep:
+      continue
+    lock_path = cache_dir / f"{item.name}.lock"
+    with try_file_lock(lock_path) as locked:
+      if locked and item.exists():
+        shutil.rmtree(item, ignore_errors=True)
 
 
 def clear_cache(main_repo: Path):
@@ -257,9 +437,19 @@ if __name__ == "__main__":
   if len(sys.argv) == 3 and sys.argv[1] == "clear-cache":
     clear_cache(Path(sys.argv[2]))
     sys.exit(0)
-  if len(sys.argv) != 3:
+  if len(sys.argv) == 3 and sys.argv[1] == "prune-cache":
+    prune_cache(Path(sys.argv[2]))
+    sys.exit(0)
+  if len(sys.argv) != 3 or sys.argv[1] in ("-h", "--help"):
     print("usage:\n"
           "  ./setup_worktree_build.py main_repo worktree_dir\n"
-          "  ./setup_worktree_build.py clear-cache main_repo")
-    sys.exit(1)
+          "      Set up shared dependency symlinks for worktree_dir and prune\n"
+          "      unreferenced .deps_cache entries.\n"
+          "  ./setup_worktree_build.py prune-cache main_repo\n"
+          "      Remove unreferenced .deps_cache entries, keeping all entries\n"
+          f"      referenced by active worktrees and the {MIN_CACHED_DEPS} most"
+          " recent entries.\n"
+          "  ./setup_worktree_build.py clear-cache main_repo\n"
+          "      Remove all entries in <main_repo>/worktrees/.deps_cache.")
+    sys.exit(0 if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help") else 1)
   sync_dependencies(Path(sys.argv[1]), Path(sys.argv[2]))
