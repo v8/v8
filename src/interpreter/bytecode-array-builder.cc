@@ -185,8 +185,7 @@ void BytecodeArrayBuilder::Write(BytecodeNode* node) {
 
 void BytecodeArrayBuilder::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   AttachOrEmitDeferredSourceInfo(node);
-  DCHECK(Bytecodes::IsWithoutExternalSideEffects(node->bytecode()) ||
-         Bytecodes::IsJumpIfToBoolean(node->bytecode()));
+  DCHECK(Bytecodes::IsWithoutExternalSideEffects(node->bytecode()));
   bytecode_array_writer_.WriteJump(node, label);
 }
 
