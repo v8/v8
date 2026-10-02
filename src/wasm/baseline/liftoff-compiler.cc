@@ -1835,8 +1835,12 @@ class LiftoffCompiler {
     // Before entering a loop, spill all locals to the stack, in order to free
     // the cache registers, and to avoid unnecessarily reloading stack values
     // into registers at branches.
-    // TODO(clemensb): Come up with a better strategy here, involving
-    // pre-analysis of the function.
+    //
+    // Note: We experimented with implementing better strategies here, involving
+    // pre-analysis of the function, to eliminate redundant per-iteration
+    // reloads of loop-invariant locals. But the added complexity did not
+    // significantly improve performance; the current strategy works well enough
+    // and a pre-pass is not worth it.
     __ SpillLocals();
 
     __ SpillLoopArgs(loop->start_merge.arity);
