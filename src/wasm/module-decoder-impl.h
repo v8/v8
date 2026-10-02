@@ -409,13 +409,6 @@ class ModuleDecoderImpl : public Decoder {
         // TODO(12868): If there's a tag section, assert that we're after the
         // tag section.
         return check_order(kMemorySectionCode, kGlobalSectionCode);
-      case kInstTraceSectionCode:
-        // Custom section following code.metadata tool convention containing
-        // offsets specifying where trace marks should be emitted.
-        // Be lenient with placement of instruction trace section. All except
-        // first occurrence after function section and before code section are
-        // ignored.
-        return true;
       default:
         return true;
     }
