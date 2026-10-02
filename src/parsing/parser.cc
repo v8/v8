@@ -860,6 +860,11 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
         info->ast_value_factory()->Internalize(isolate);
       }
       CheckConflictingVarDeclarations(scope);
+      if (flags().is_eval() && !has_error() &&
+          scope->HasConflictingArgumentsVarDeclaration(ast_value_factory())) {
+        ReportVarRedeclarationIn(ast_value_factory()->arguments_string(),
+                                 scope);
+      }
     }
 
     // For sloppy eval though, we clear dynamic variables created for toplevel

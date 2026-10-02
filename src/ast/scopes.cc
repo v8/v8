@@ -1408,6 +1408,25 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
   return nullptr;
 }
 
+bool DeclarationScope::HasConflictingArgumentsVarDeclaration(
+    AstValueFactory* ast_value_factory) {
+  DCHECK(is_eval_scope());
+  if (!is_sloppy(language_mode())) return false;
+
+  Variable* var = LookupLocal(ast_value_factory->arguments_string());
+  if (var == nullptr || IsLexicalVariableMode(var->mode())) return false;
+
+  // During parameter initialization, the parameter environment of a
+  // non-arrow function with non-simple parameters contains an implicit
+  // `arguments` binding between the eval's lexical and variable environments.
+  DeclarationScope* var_scope = outer_scope()->GetNonEvalDeclarationScope();
+  if (!var_scope->is_function_scope() || var_scope->is_arrow_scope()) {
+    return false;
+  }
+  DCHECK(var_scope->from_scope_info());
+  return !var_scope->scope_info()->HasSimpleParameters();
+}
+
 const AstRawString* Scope::FindVariableDeclaredIn(Scope* scope,
                                                   VariableMode mode_limit) {
   const VariableMap& variables = scope->variables_;
