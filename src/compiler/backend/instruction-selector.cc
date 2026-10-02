@@ -341,14 +341,6 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
     }
     return false;
   }
-  if (value_op.Is<ProjectionOp>()) {
-    // Projections always have a Tuple use, but it shouldn't count as a use as
-    // far as is_exclusive_user_of is concerned, since no instructions are
-    // emitted for the MakeTupleOp, which is just a Turboshaft "meta operation".
-    // We thus increase the use_count by 1, to attribute the MakeTupleOp use to
-    // the current operation.
-    use_count++;
-  }
   DCHECK_LE(use_count,
             graph->Get(value).saturated_use_count.GetMaybeSaturated());
   return value_op.saturated_use_count.Is(static_cast<int>(use_count));
@@ -419,12 +411,8 @@ OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
        next = graph->NextIndex(next)) {
     const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
     if (projection == nullptr) break;
-    DCHECK(!projection->saturated_use_count.Is(0));
-    if (projection->saturated_use_count.Is(1)) {
-      // If the projection has a single use, it is the following tuple, so we
-      // don't return it, since there is no point in emitting it.
-      DCHECK(turboshaft_uses(next).size() == 1 &&
-             graph->Get(turboshaft_uses(next)[0]).Is<MakeTupleOp>());
+    if (projection->saturated_use_count.Is(0)) {
+      DCHECK(turboshaft_uses(next).empty());
       continue;
     }
     if (projection->index == projection_index) return next;
@@ -439,11 +427,7 @@ OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
             this->Get(use).TryCast<ProjectionOp>()) {
       DCHECK_EQ(projection->input(), node);
       if (projection->index == projection_index) {
-        // If we found the projection, it should have a single use: a Tuple
-        // (which doesn't count as a regular use since it is just an artifact of
-        // the Turboshaft graph).
-        DCHECK(turboshaft_uses(use).size() == 1 &&
-               graph->Get(turboshaft_uses(use)[0]).Is<MakeTupleOp>());
+        DCHECK(turboshaft_uses(use).empty());
       }
     }
   }
@@ -2158,11 +2142,8 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     return true;
   }
 
-  if (projection0.saturated_use_count.Is(1)) {
-    // If the projection has a single use, it is the following tuple, so we
-    // don't care about the value, and can do branch-if-overflow fusion.
-    DCHECK(turboshaft_uses(projection0_index).size() == 1 &&
-           graph->Get(turboshaft_uses(projection0_index)[0]).Is<MakeTupleOp>());
+  if (projection0.saturated_use_count.Is(0)) {
+    DCHECK(turboshaft_uses(projection0_index).empty());
     return true;
   }
 
@@ -2177,14 +2158,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
   // defined, which will imply that it's fine to define {projection0} and
   // {binop} now.
   for (OpIndex use : turboshaft_uses(projection0_index)) {
-    if (this->Get(use).template Is<MakeTupleOp>()) {
-      // The Tuple won't have any uses since it would have to be accessed
-      // through Projections, and Projections on Tuples return the original
-      // Projection instead (see Assembler::ReduceProjection in
-      // turboshaft/assembler.h).
-      DCHECK(this->Get(use).saturated_use_count.Is(0));
-      continue;
-    }
+    DCHECK(!Is<MakeTupleOp>(use));
     if (IsDefined(use)) continue;
     if (!InCurrentBlock(use)) {
       // {use} is in a later block, so it should already have been visited. Note
@@ -2615,10 +2589,8 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
   // {result} back into it through the back edge. In this case, it's
   // normal to schedule {result} before the Phi that uses it.
   for (OpIndex use : turboshaft_uses(result.value())) {
-    // We ignore MakeTupleOp uses, since MakeTupleOp don't lead to emitted
-    // machine instructions and are just Turboshaft "meta operations".
-    if (!Is<MakeTupleOp>(use) && !IsDefined(use) && InCurrentBlock(use) &&
-        !Is<PhiOp>(use)) {
+    DCHECK(!Is<MakeTupleOp>(use));
+    if (!IsDefined(use) && InCurrentBlock(use) && !Is<PhiOp>(use)) {
       return;
     }
   }

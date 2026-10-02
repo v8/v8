@@ -1044,7 +1044,8 @@ struct alignas(OpIndex) Operation {
   void PrintOptions(std::ostream& os) const;
 
   // Returns true if {this} is the only operation using {value}.
-  bool IsOnlyUserOf(const Operation& value, const Graph& graph) const;
+  V8_EXPORT_PRIVATE bool IsOnlyUserOf(const Operation& value,
+                                      const Graph& graph) const;
 
   void Print() const;
 
