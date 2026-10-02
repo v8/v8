@@ -241,6 +241,8 @@ class BytecodeGraphBuilder {
     kSet,
     // Define value to the receiver without checking the prototype chain.
     kDefineOwn,
+    // Like kDefineOwn, but inside an object literal
+    kDefineOwnInLiteral
   };
   void BuildNamedStore(NamedStoreMode store_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
@@ -2194,7 +2196,12 @@ void BytecodeGraphBuilder::BuildNamedStore(NamedStoreMode store_mode) {
     DCHECK_EQ(FeedbackSlotKind::kDefineNamedOwn,
               broker()->GetFeedbackSlotKind(feedback));
 
-    op = javascript()->DefineNamedOwnProperty(name, feedback);
+    op = javascript()->DefineNamedOwnProperty(false, name, feedback);
+  } else if (store_mode == NamedStoreMode::kDefineOwnInLiteral) {
+    DCHECK_EQ(FeedbackSlotKind::kDefineNamedOwn,
+              broker()->GetFeedbackSlotKind(feedback));
+
+    op = javascript()->DefineNamedOwnProperty(true, name, feedback);
   } else {
     DCHECK_EQ(NamedStoreMode::kSet, store_mode);
     LanguageMode language_mode =
@@ -2314,6 +2321,10 @@ void BytecodeGraphBuilder::VisitSetNamedProperty() {
 
 void BytecodeGraphBuilder::VisitDefineNamedOwnProperty() {
   BuildNamedStore(NamedStoreMode::kDefineOwn);
+}
+
+void BytecodeGraphBuilder::VisitDefineNamedOwnPropertyInLiteral() {
+  BuildNamedStore(NamedStoreMode::kDefineOwnInLiteral);
 }
 
 void BytecodeGraphBuilder::VisitSetKeyedProperty() {

@@ -748,6 +748,17 @@ IGNITION_HANDLER(DefineNamedOwnProperty, InterpreterSetNamedPropertyAssembler) {
   SetNamedProperty(Builtin::kDefineNamedOwnIC, NamedPropertyType::kOwn);
 }
 
+// DefineNamedOwnPropertyInLiteral <object> <name_index> <slot>
+//
+// Same as DefineNamedOwnProperty, but only used for the initializing store of
+// a property of an object literal created from a boilerplate, where the
+// property still holds the uninitialized value. Optimizing compilers rely on
+// this.
+IGNITION_HANDLER(DefineNamedOwnPropertyInLiteral,
+                 InterpreterSetNamedPropertyAssembler) {
+  SetNamedProperty(Builtin::kDefineNamedOwnIC, NamedPropertyType::kOwn);
+}
+
 // SetKeyedProperty <object> <key> <slot>
 //
 // Calls the KeyedStoreIC at FeedbackVector slot <slot> for <object> and

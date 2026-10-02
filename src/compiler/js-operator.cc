@@ -222,7 +222,8 @@ CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
 
 bool operator==(DefineNamedOwnPropertyParameters const& lhs,
                 DefineNamedOwnPropertyParameters const& rhs) {
-  return lhs.name_.object().location() == rhs.name_.object().location() &&
+  return lhs.in_literal() == rhs.in_literal() &&
+         lhs.name_.object().location() == rhs.name_.object().location() &&
          lhs.feedback() == rhs.feedback();
 }
 
@@ -232,7 +233,7 @@ bool operator!=(DefineNamedOwnPropertyParameters const& lhs,
 }
 
 size_t hash_value(DefineNamedOwnPropertyParameters const& p) {
-  return base::hash_combine(p.name_.object().location(),
+  return base::hash_combine(p.in_literal(), p.name_.object().location(),
                             FeedbackSource::Hash()(p.feedback()));
 }
 
@@ -1339,12 +1340,12 @@ const Operator* JSOperatorBuilder::DefineKeyedOwnProperty(
 }
 
 const Operator* JSOperatorBuilder::DefineNamedOwnProperty(
-    NameRef name, FeedbackSource const& feedback) {
+    bool in_literal, NameRef name, FeedbackSource const& feedback) {
   static constexpr int kObject = 1;
   static constexpr int kValue = 1;
   static constexpr int kFeedbackVector = 1;
   static constexpr int kArity = kObject + kValue + kFeedbackVector;
-  DefineNamedOwnPropertyParameters parameters(name, feedback);
+  DefineNamedOwnPropertyParameters parameters(in_literal, name, feedback);
   return zone()->New<Operator1<DefineNamedOwnPropertyParameters>>(   // --
       IrOpcode::kJSDefineNamedOwnProperty, Operator::kNoProperties,  // opcode
       "JSDefineNamedOwnProperty",                                    // name
