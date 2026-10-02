@@ -1041,6 +1041,15 @@ class FieldValuesTracker : public CandidateAnalyzer {
       bool all_predecessors_equal = true;
       for (ValueNode* pred : predecessors) {
         if (pred == nullptr) {
+          if (block->is_loop() && predecessors[0] != nullptr) {
+            // The allocation had a value for this field when entering the loop,
+            // but doesn't have one on the backedge (which can happen when a
+            // generator resume jumps into the middle of the loop, bypassing
+            // the allocation).
+            DCHECK(block->state()->is_resumable_loop());
+            data_.MarkAsEscaped(key.data().base);
+            need_revisit = true;
+          }
           // This means that the allocation is not available on all predecessor
           // paths. This is not an issue: either it will flow into a phi, in
           // which case it will be invalidated, or it doesn't, in which case
