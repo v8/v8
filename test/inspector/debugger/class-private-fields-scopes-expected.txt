@@ -39,6 +39,26 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : no-variables
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 7
+                    scriptId : <scriptId>
+                }
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                }
+                type : block
+            }
+            [2] : {
                 emptyReason : all-unavailable
                 endLocation : {
                     columnNumber : 1
@@ -58,7 +78,7 @@ Running test: testScopesPaused
                 }
                 type : closure
             }
-            [2] : {
+            [3] : {
                 object : {
                     className : global
                     description : global

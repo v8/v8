@@ -266,11 +266,12 @@ ScopeIterator::VariableInfo ScopeIterator::GetVariableInfo(Mode mode) const {
 }
 
 bool ScopeIterator::ShouldIgnore() const {
-  if (Type() == ScopeTypeLocal ||
-      (Type() == ScopeTypeModule && InInnerScope())) {
-    return false;
-  }
-  return !DeclaresLocals(Mode::ALL);
+  // Empty scopes are reported (e.g. so that they can be matched against
+  // source maps), except for an empty script scope or eval scope. The latter
+  // is also the root scope of wrapped functions and Function() functions.
+  return (Type() == ScopeTypeScript ||
+          (HasScope() && current_scope().scope_type() == EVAL_SCOPE)) &&
+         !DeclaresLocals(Mode::ALL);
 }
 
 bool ScopeIterator::AdvanceToScopeNumber(int scope_number) {

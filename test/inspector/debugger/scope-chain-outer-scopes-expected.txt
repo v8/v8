@@ -44,9 +44,11 @@ Paused in inner:
 Running test: testEmptyOuterFunction
 Paused in inner:
 [0] local name=inner emptyReason=no-variables 19:23-19:39
-[1] global
+[1] closure emptyReason=no-variables 18:19-20:1
+[2] global
   scopeNumber 0: shadowed = "global"
   scopeNumber 1: shadowed = "global"
+  scopeNumber 2: shadowed = "global"
 
 Running test: testFunctionConstructor
 Paused in innerCtor:
