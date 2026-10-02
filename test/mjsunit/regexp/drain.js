@@ -329,6 +329,9 @@ assertEquals((1 << 20) + 1,
 // A sibling alternative must match at the original position, not at a
 // leaked extent: the grant is revoked on any backtrack retarget.
 check(/[ab]*c|/, "abx", [""], 0);
+// Unrolling %{1} enables masked dispatch; the parked loop must not skip B.
+check(/%{1}~|9()|B|%*^>/, "a%B9", ["B", undefined], 2);
+check(/%{1}~|9()|B|%*^>/, "a%B", ["B", undefined], 2);
 check(/\w*\b=|/, "ab!", [""], 0);
 check(/[ab]+c|/, "abx", [""], 0);
 

@@ -4499,6 +4499,29 @@ bool AlternativeMatchesOnlyAtStart(Node* node) {
   return false;
 }
 
+// A parked loop can skip positions when it fails. If another alternative
+// could match there, clear the grant: /:|\w*\s/ on "c:" must still match
+// ":" at index 1. Alternatives requiring input start cannot match at skipped
+// positions, so exclude them.
+struct FloatingAlternatives {
+  FloatingAlternatives(ZoneList<GuardedAlternative>* alternatives,
+                       bool has_parked_grant) {
+    if (!has_parked_grant) return;
+    for (int i = 0; i < alternatives->length(); i++) {
+      if (AlternativeMatchesOnlyAtStart(alternatives->at(i).node())) continue;
+      count++;
+      last = i;
+    }
+  }
+
+  bool HasSibling(int i) const {
+    return count > 1 || (count == 1 && last != i);
+  }
+
+  int count = 0;
+  int last = -1;
+};
+
 }  // namespace
 
 // The grant the search-loop body carries (kNone off the search loop).  The
@@ -5429,6 +5452,9 @@ std::optional<EmitResult> ChoiceNode::TryEmitMaskedValueDispatch(
 
   TRACE("* Emit masked-value dispatch");
 
+  FloatingAlternatives floating(alternatives_,
+                                trace->parked_grant() != ParkedGrant::kNone);
+
   // Preload the word if the trace has not already; the bounds check covers
   // the minimum any alternative eats (mirrors Node::EmitQuickCheck).
   if (trace->characters_preloaded() != preload_characters) {
@@ -5587,6 +5613,7 @@ std::optional<EmitResult> ChoiceNode::TryEmitMaskedValueDispatch(
     for (int i = 0; i < choice_count; i++) {
       if (group_of_alt[i] != g) continue;
       Trace new_trace(*trace);
+      if (floating.HasSibling(i)) new_trace.reset_parked_grant();
       new_trace.set_characters_preloaded(preload_characters);
       new_trace.set_bound_checked_up_to(preload_characters);
       // The dispatch compare already established this alternative's
@@ -5655,21 +5682,8 @@ EmitResult ChoiceNode::EmitChoices(Compiler* compiler,
   // emission; see its use below and the binding after the loop.
   NonAssertingLabel parked_reentry(compiler);
 
-  // An inherited parked-position grant may flow into an alternative only if no
-  // sibling can match at a position the park skips (/:|\w*\s/ on "c:" must
-  // still match ":" at index 1).  "Floating" = an alternative that can match
-  // away from the input start; a start-anchored sibling matches only at
-  // position 0, which a park never skips (see AlternativeMatchesOnlyAtStart),
-  // so the grant is safe exactly when at most the current alternative floats.
-  int floating_alternatives = 0;
-  int last_floating = -1;
-  if (trace->parked_grant() != ParkedGrant::kNone) {
-    for (int i = 0; i < choice_count; i++) {
-      if (AlternativeMatchesOnlyAtStart(alternatives_->at(i).node())) continue;
-      floating_alternatives++;
-      last_floating = i;
-    }
-  }
+  FloatingAlternatives floating(alternatives_,
+                                trace->parked_grant() != ParkedGrant::kNone);
 
   for (int i = first_choice; i < choice_count; i++) {
     bool is_last = i == choice_count - 1;
@@ -5680,10 +5694,7 @@ EmitResult ChoiceNode::EmitChoices(Compiler* compiler,
     const ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == nullptr) ? 0 : guards->length();
     Trace new_trace(*trace);
-    const bool siblings_all_anchored =
-        floating_alternatives == 0 ||
-        (floating_alternatives == 1 && last_floating == i);
-    if (!siblings_all_anchored) new_trace.reset_parked_grant();
+    if (floating.HasSibling(i)) new_trace.reset_parked_grant();
     new_trace.set_characters_preloaded(
         preload->preload_is_current_ ? preload->preload_characters_ : 0);
     if (preload->preload_has_checked_bounds_) {
