@@ -89,6 +89,7 @@ class DriverModeTest(unittest.TestCase):
             argv.append(f'--clang-builtin-headers-dir={include}')
             header_flag = f'{include_option}{include}'
           if source == 'gn':
+            (root / 'args.gn').touch()
             argv += [
                 f'--build-dir={root}',
                 f'--source-root={root}',

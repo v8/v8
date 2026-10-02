@@ -37,6 +37,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 
 # Single-token drops: compile-only and dep-info flags (these only occur
 # in the Bazel-synthesized command line; gn desc cflags never carry
@@ -166,43 +167,74 @@ def get_compile_args_from_gn_desc(build_dir: str, target_label: str,
   source-absolute `//...` and rebased against `source_root` here.
   """
   source_root = os.path.abspath(source_root)
+  build_dir = os.path.abspath(build_dir)
   gn = _find_gn(source_root)
   if not gn:
     raise RuntimeError(
         "[metagen] gn not found under <source-root>/buildtools or on PATH.")
-  out_rel = os.path.relpath(os.path.abspath(build_dir), source_root)
-  try:
-    # -q ("don't print output on success") keeps stdout to the JSON alone.
-    # Without it gn prepends any build-file warning to the document -- an
-    # arm_float_abi that no declare_args() claims on the arm64 bots, say --
-    # and the parse below fails. A gn that actually fails still reports.
-    proc = subprocess.run(
-        [gn, "desc", "-q", out_rel, target_label, "--format=json"],
-        cwd=source_root,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-  except FileNotFoundError:
-    raise RuntimeError(f"[metagen] gn binary not found: {gn}")
-  except subprocess.CalledProcessError as e:
-    # Most often the target is not in the graph for this toolchain, which gn
-    # reports by exiting non-zero -- or, for a toolchain-qualified label it
-    # cannot resolve, by crashing.
-    raise RuntimeError(f"[metagen] `gn desc {out_rel} {target_label}` failed "
-                       f"(exit {e.returncode}). Has `gn gen` run there, and "
-                       f"is the target part of that toolchain's build?\n"
-                       f"{(e.stderr or '').strip()}")
-  try:
-    desc = json.loads(proc.stdout)
-  except json.JSONDecodeError as e:
-    raise RuntimeError(f"[metagen] `gn desc` output was not valid JSON: {e}")
-  if not isinstance(desc, dict) or not desc:
-    raise RuntimeError(
-        f"[metagen] `gn desc` returned no target for {target_label}.")
-  # Single-target query: the sole value maps the (toolchain-qualified)
-  # label to its resolved fields.
-  fields = next(iter(desc.values()))
+  # GN evaluates build files during `desc`. Some Chromium build scripts write
+  # into the output directory, so querying the active directory during a build
+  # can race with other actions reading those files.
+  # See https://chromium.googlesource.com/chromium/src/+/refs/heads/main/tools/licenses/licenses.py#1005
+  # TODO(jgruber): Pass the resolved flags through GN substitutions instead.
+  with tempfile.TemporaryDirectory(dir=os.path.dirname(build_dir)) as tmp_dir:
+    shutil.copyfile(
+        os.path.join(build_dir, "args.gn"), os.path.join(tmp_dir, "args.gn"))
+    open(os.path.join(tmp_dir, "build.ninja"), "w").close()
+    try:
+      # -q ("don't print output on success") keeps stdout to the JSON alone.
+      # Without it gn prepends any build-file warning to the document -- an
+      # arm_float_abi that no declare_args() claims on the arm64 bots, say --
+      # and the parse below fails. A gn that actually fails still reports.
+      proc = subprocess.run(
+          [
+              gn, "desc", "-q", "--root=" + source_root, tmp_dir, target_label,
+              "--format=json"
+          ],
+          cwd=source_root,
+          capture_output=True,
+          text=True,
+          check=True,
+      )
+    except FileNotFoundError:
+      raise RuntimeError(f"[metagen] gn binary not found: {gn}")
+    except subprocess.CalledProcessError as e:
+      raise RuntimeError(f"[metagen] `gn desc {tmp_dir} {target_label}` failed "
+                         f"(exit {e.returncode}). Is the target part of that "
+                         f"toolchain's build?\n{(e.stderr or '').strip()}")
+    try:
+      desc = json.loads(proc.stdout)
+    except json.JSONDecodeError as e:
+      raise RuntimeError(f"[metagen] `gn desc` output was not valid JSON: {e}")
+    if not isinstance(desc, dict) or not desc:
+      raise RuntimeError(
+          f"[metagen] `gn desc` returned no target for {target_label}.")
+    fields = next(iter(desc.values()))
+
+    # GN reports paths derived from root_build_dir under the temporary output
+    # directory. Point them back to the generated files in the active build.
+    replacements = [(tmp_dir, build_dir),
+                    (tmp_dir.replace(os.sep,
+                                     "/"), build_dir.replace(os.sep, "/"))]
+    try:
+      tmp_rel = os.path.relpath(tmp_dir, source_root).replace(os.sep, "/")
+      build_rel = os.path.relpath(build_dir, source_root).replace(os.sep, "/")
+    except ValueError:
+      # On Windows, the output directory may be on a different drive.
+      pass
+    else:
+      replacements.extend(
+          (("//" + tmp_rel, "//" + build_rel), (tmp_rel, build_rel)))
+
+    def restore_build_path(value):
+      for old, new in replacements:
+        value = value.replace(old, new)
+      return value
+
+    fields = {
+        key: [restore_build_path(value) for value in fields.get(key) or []]
+        for key in ("defines", "include_dirs", "cflags", "cflags_cc")
+    }
 
   flags: list[str] = [f"-D{d}" for d in fields.get("defines") or []]
   for inc in fields.get("include_dirs") or []:

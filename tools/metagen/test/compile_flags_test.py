@@ -33,40 +33,79 @@ class GnCompileFlagsTest(unittest.TestCase):
       source_root.mkdir()
       build_dir.mkdir(parents=True)
       (source_root / '.gn').touch()
+      (build_dir / 'args.gn').write_text('target_cpu = "x64"\n')
       target = '//v8:probe(//build/toolchain:target)'
-      desc = {
-          target: {
-              'defines': ['PROBE=1'],
-              'include_dirs': ['//v8/include',
-                               str(build_dir / 'gen')],
-              'cflags': ['-isysroot', '/SDK', '-isystem', '/system/include'],
-              'cflags_cc': ['-std=c++20'],
-          }
-      }
+      queried_dir = None
+
+      def run_desc(argv, **kwargs):
+        nonlocal queried_dir
+        queried_dir = Path(argv[4])
+        self.assertNotEqual(queried_dir, build_dir)
+        self.assertEqual(queried_dir.parent, build_dir.parent)
+        self.assertEqual((queried_dir / 'args.gn').read_text(),
+                         'target_cpu = "x64"\n')
+        self.assertTrue((queried_dir / 'build.ninja').is_file())
+        desc = {
+            target: {
+                'defines': ['PROBE=1'],
+                'include_dirs': [
+                    '//v8/include', '//' +
+                    os.path.relpath(queried_dir, source_root) + '/gen/include',
+                    str(queried_dir / 'gen')
+                ],
+                'cflags': [
+                    '-isysroot', '/SDK', '-isystem',
+                    str(queried_dir / 'system/include')
+                ],
+                'cflags_cc': ['-std=c++20'],
+            }
+        }
+        return subprocess.CompletedProcess(argv, 0, json.dumps(desc))
+
       with mock.patch.object(
           compile_flags, '_find_gn',
           return_value='gn') as find_gn, mock.patch.object(
-              compile_flags.subprocess,
-              'run',
-              return_value=subprocess.CompletedProcess(
-                  [], 0, json.dumps(desc))) as run:
+              compile_flags.subprocess, 'run', side_effect=run_desc) as run:
         flags, cwd = compile_flags.get_compile_args_from_gn_desc(
             str(build_dir), target, str(source_root))
       find_gn.assert_called_once_with(str(source_root))
-      # gn runs in the source root, and reaches the build dir through a
-      # relative path that leaves the checkout.
+      self.assertFalse(queried_dir.exists())
       argv, kwargs = run.call_args
       self.assertEqual(argv[0], [
-          'gn', 'desc', '-q',
-          os.path.relpath(build_dir, source_root), target, '--format=json'
+          'gn', 'desc', '-q', '--root=' + str(source_root),
+          str(queried_dir), target, '--format=json'
       ])
       self.assertEqual(kwargs['cwd'], str(source_root))
       self.assertTrue(kwargs['check'])
       self.assertEqual(flags, [
           '-DPROBE=1', f'-I{source_root / "v8" / "include"}',
-          f'-I{build_dir / "gen"}', '-isysroot', '/SDK', '-isystem',
-          '/system/include', '-std=c++20'
+          f'-I{build_dir / "gen" / "include"}', f'-I{build_dir / "gen"}',
+          '-isysroot', '/SDK', '-isystem',
+          str(build_dir / 'system/include'), '-std=c++20'
       ])
+      self.assertEqual(cwd, str(build_dir))
+
+  def test_build_directory_on_another_drive(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      source_root = Path(tmp) / 'src'
+      build_dir = Path(tmp) / 'build'
+      source_root.mkdir()
+      build_dir.mkdir()
+      (build_dir / 'args.gn').touch()
+
+      def run_desc(argv, **kwargs):
+        temp_dir = Path(argv[4])
+        desc = {'//:probe': {'include_dirs': [str(temp_dir / 'gen')],}}
+        return subprocess.CompletedProcess(argv, 0, json.dumps(desc))
+
+      with mock.patch.object(compile_flags, '_find_gn', return_value='gn'), \
+           mock.patch.object(compile_flags.os.path, 'relpath',
+                             side_effect=ValueError('different drive')), \
+           mock.patch.object(compile_flags.subprocess, 'run',
+                             side_effect=run_desc):
+        flags, cwd = compile_flags.get_compile_args_from_gn_desc(
+            str(build_dir), '//:probe', str(source_root))
+      self.assertEqual(flags, [f'-I{build_dir / "gen"}'])
       self.assertEqual(cwd, str(build_dir))
 
 
