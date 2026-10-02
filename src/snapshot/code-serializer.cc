@@ -731,6 +731,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
 
   // Calculate sizes.
   uint32_t size = base::checked_cast<uint32_t>(payload->size() + kHeaderSize);
+  CHECK_LE(size, kMaxInt);
   DCHECK(IsAligned(size, kPointerAlignment));
 
   // Allocate backing store and create result data.
