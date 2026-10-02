@@ -478,7 +478,12 @@ class V8_EXPORT_PRIVATE UsePosition final
   }
 
   UsePositionType type() const { return TypeField::decode(flags_); }
-  void set_type(UsePositionType type, bool register_beneficial);
+  void set_register_beneficial(UsePositionType type) {
+    DCHECK_NE(type, UsePositionType::kRequiresSlot);
+    DCHECK_EQ(kUnassignedRegister, AssignedRegisterField::decode(flags_));
+    flags_ =
+        TypeField::update(RegisterBeneficialField::update(flags_, true), type);
+  }
 
   LifetimePosition pos() const { return pos_; }
 
@@ -512,7 +517,7 @@ class V8_EXPORT_PRIVATE UsePosition final
   using HintTypeField = base::BitField<UsePositionHintType, 2, 3>;
   using RegisterBeneficialField = base::BitField<bool, 5, 1>;
   using AssignedRegisterField = base::BitField<int32_t, 6, 6>;
-  using SpillDetrimentalField = base::BitField<int32_t, 12, 1>;
+  using SpillDetrimentalField = base::BitField<bool, 12, 1>;
 
   InstructionOperand* const operand_;
   void* hint_;
@@ -1185,8 +1190,12 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     return spill_move_insertion_locations_;
   }
 
-  void MarkHasPreassignedSlot() { has_preassigned_slot_ = true; }
-  bool has_preassigned_slot() const { return has_preassigned_slot_; }
+  void MarkHasPreassignedSlot() {
+    bits_ = HasPreassignedSlotField::update(bits_, true);
+  }
+  bool has_preassigned_slot() const {
+    return HasPreassignedSlotField::decode(bits_);
+  }
 
   // Late spilling refers to spilling at places after the definition. These
   // spills are guaranteed to cover at least all of the sub-ranges where the
@@ -1240,9 +1249,11 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   using SpillAtLoopHeaderNotBeneficialField = DeferredFixedField::Next<bool, 1>;
   using SpillRangeModeField =
       SpillAtLoopHeaderNotBeneficialField::Next<SpillRangeMode, 2>;
+  using HasPreassignedSlotField = SpillRangeModeField::Next<bool, 1>;
 
   int vreg_;
   int last_child_id_;
+  int spill_start_index_;
   union {
     // Correct value determined by spill_type()
     InstructionOperand* spill_operand_;
@@ -1261,10 +1272,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   // This is a cache for the binary search in `GetChildCovers`.
   // The `LiveRange`s are sorted by their `Start()` position.
   ZoneVector<LiveRange*> children_;
-
-  bool has_preassigned_slot_;
-
-  int spill_start_index_;
 };
 
 struct PrintableLiveRange {
@@ -1539,7 +1546,7 @@ class LinearScanAllocator final : public RegisterAllocator {
   void MaybeSpillPreviousRanges(LiveRange* begin_range,
                                 LifetimePosition begin_pos,
                                 LiveRange* end_range);
-  void MaybeUndoPreviousSplit(LiveRange* range, Zone* zone);
+  void MaybeUndoPreviousSplit(LiveRange* range);
   void SpillNotLiveRanges(RangeRegisterSmallMap& to_be_live,
                           LifetimePosition position, SpillMode spill_mode);
   LiveRange* AssignRegisterOnReload(LiveRange* range, int reg);
