@@ -33,6 +33,7 @@
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string.h"
+#include "src/sandbox/check.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -2287,8 +2288,10 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
                                                   int* value_index,
                                                   TranslatedValue* slot,
                                                   DirectHandle<Map> map) {
+  CHECK_GE(slot->GetChildrenCount(), 2);
   uint32_t length =
       base::checked_cast<uint32_t>(frame->values_[*value_index].GetSmiValue());
+  SBXCHECK_EQ(length, slot->GetChildrenCount() - 2);
   (*value_index)++;
   Handle<FixedDoubleArray> array =
       Cast<FixedDoubleArray>(isolate()->factory()->NewFixedDoubleArray(length));
