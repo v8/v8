@@ -998,7 +998,7 @@ V8_OBJECT class ContextCell : public HeapObject {
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
 
-  TaggedMember<JSAny> tagged_value_ V8_TQ_TYPE(Object);
+  TaggedMember<JSAny> tagged_value_;
   TaggedMember<DependentCode> dependent_code_;
   std::atomic<State> state_ V8_TQ_TYPE(int32);
 #if TAGGED_SIZE_8_BYTES

@@ -110,6 +110,33 @@ constexpr PrimitiveTypeName kClassTemplateNames[] = {
     {"CppGCManaged", "CppGCManagedBase"},
 };
 
+// Instantiations Torque refines past that base class, keyed by the
+// fully-qualified payload. An instantiation with no entry here falls back to
+// kClassTemplateNames.
+constexpr PrimitiveTypeName kClassTemplateInstantiations[] = {
+    {"CppGCManaged<v8::internal::wasm::NativeModule>",
+     "ManagedWasmNativeModule"},
+    {"CppGCManaged<v8::internal::BackingStore>", "ManagedBackingStore"},
+};
+
+// Tagged types the two languages agree on but spell differently. The Torque
+// spelling may be namespace-qualified.
+//
+// JSCallable is the widest C++ approximation of Torque's Callable: C++ cannot
+// say "a JSProxy or JSObject with the callable bit set", so it names JSProxy
+// and JSObject outright. A slot typed JSCallable holds a Callable.
+// TODO(jgruber): Give C++ a precise Callable type (with the appropriate
+// subtyping and cast helpers) so this entry can go away.
+//
+// IteratorRecord is nested in its owning class because the CSA struct already
+// claims v8::internal::IteratorRecord.
+// TODO(jgruber): Resolve the name clash with the CSA struct so the C++ and
+// Torque IteratorRecord can share a name and this entry can go away.
+constexpr PrimitiveTypeName kTaggedTypeNames[] = {
+    {"JSCallable", "Callable"},
+    {"IteratorRecord", "iterator::IteratorRecord"},
+};
+
 std::string TorqueTypeName(const std::string& cpp_name) {
   for (const PrimitiveTypeName& entry : kPrimitiveTypeNames) {
     if (cpp_name == entry.cpp) return entry.torque;
@@ -117,7 +144,24 @@ std::string TorqueTypeName(const std::string& cpp_name) {
   for (const PrimitiveTypeName& entry : kClassTemplateNames) {
     if (cpp_name == entry.cpp) return entry.torque;
   }
+  for (const PrimitiveTypeName& entry : kTaggedTypeNames) {
+    if (cpp_name == entry.cpp) return entry.torque;
+  }
   return cpp_name;
+}
+
+// Split a possibly namespace-qualified Torque type name into its qualification
+// and its identifier.
+std::vector<std::string> SplitQualification(std::string* name) {
+  std::vector<std::string> namespaces;
+  size_t start = 0;
+  for (size_t sep = name->find("::"); sep != std::string::npos;
+       sep = name->find("::", start)) {
+    namespaces.push_back(name->substr(start, sep - start));
+    start = sep + 2;
+  }
+  if (!namespaces.empty()) *name = name->substr(start);
+  return namespaces;
 }
 
 // Metagen preserves V8_TQ_* annotations without interpreting them. Define their
@@ -1314,8 +1358,10 @@ class LayoutImporter {
                             TypeExpression* argument = nullptr) {
     std::vector<TypeExpression*> arguments;
     if (argument != nullptr) arguments.push_back(argument);
-    return MakeNode<BasicTypeExpression>(std::vector<std::string>{},
-                                         MakeNode<Identifier>(name),
+    std::string identifier = name;
+    std::vector<std::string> namespaces = SplitQualification(&identifier);
+    return MakeNode<BasicTypeExpression>(std::move(namespaces),
+                                         MakeNode<Identifier>(identifier),
                                          std::move(arguments));
   }
 
@@ -1342,7 +1388,7 @@ class LayoutImporter {
     if (kind == "js_dispatch_handle") return NamedType("int32");
     if (kind == "bool") return NamedType("bool");
     if (kind == "enum" || kind == "struct") {
-      return NamedType(RequireString(storage, "name", context));
+      return NamedType(TorqueTypeName(RequireString(storage, "name", context)));
     }
     if (kind == "int") {
       if (const JsonValue* alias = Lookup(storage, "pointer_width_alias")) {
@@ -1375,10 +1421,53 @@ class LayoutImporter {
     return DeriveType(context, storage.ToObject());
   }
 
+  // Map a supported C++ class template to a Torque type. Torque has no generic
+  // class types, so known instantiations get specific names. For example,
+  // CppGCManaged<BackingStore> becomes ManagedBackingStore. Other
+  // instantiations use the template's Torque base type. Return nullptr if the
+  // template is not supported.
+  const char* ClassTemplateTorqueName(const std::string& name,
+                                      const JsonObject& type) {
+    const char* base_name = nullptr;
+    for (const PrimitiveTypeName& entry : kClassTemplateNames) {
+      if (name == entry.cpp) base_name = entry.torque;
+    }
+    if (base_name == nullptr) return nullptr;
+
+    const JsonValue* args = Lookup(type, "args");
+    if (args == nullptr || !args->IsArray() || args->ToArray().size() != 1 ||
+        !args->ToArray()[0].IsObject()) {
+      return base_name;
+    }
+    const JsonObject& payload = args->ToArray()[0].ToObject();
+    const JsonValue* payload_name = Lookup(payload, "name");
+    if (payload_name == nullptr || !payload_name->IsString()) return base_name;
+
+    std::string key = name + "<";
+    if (const JsonValue* namespaces = Lookup(payload, "namespaces")) {
+      if (namespaces->IsArray()) {
+        for (const JsonValue& part : namespaces->ToArray()) {
+          if (part.IsString()) key += part.ToString() + "::";
+        }
+      }
+    }
+    key += payload_name->ToString() + ">";
+    for (const PrimitiveTypeName& entry : kClassTemplateInstantiations) {
+      if (key == entry.cpp) return entry.torque;
+    }
+    return base_name;
+  }
+
   TypeExpression* BuildTypeExpression(const std::string& context,
                                       const JsonObject& type) {
     const std::string& kind = RequireString(type, "kind", context);
     if (kind == "name") {
+      if (const char* torque = ClassTemplateTorqueName(
+              RequireString(type, "name", context), type)) {
+        return MakeNode<BasicTypeExpression>(std::vector<std::string>{},
+                                             MakeNode<Identifier>(torque),
+                                             std::vector<TypeExpression*>{});
+      }
       std::vector<TypeExpression*> args;
       if (const JsonValue* args_value = Lookup(type, "args")) {
         if (!args_value->IsArray()) {
@@ -1407,11 +1496,14 @@ class LayoutImporter {
           namespaces.push_back(part.ToString());
         }
       }
-      return MakeNode<BasicTypeExpression>(
-          std::move(namespaces),
-          MakeNode<Identifier>(
-              TorqueTypeName(RequireString(type, "name", context))),
-          std::move(args));
+      std::string identifier =
+          TorqueTypeName(RequireString(type, "name", context));
+      for (std::string& part : SplitQualification(&identifier)) {
+        namespaces.push_back(std::move(part));
+      }
+      return MakeNode<BasicTypeExpression>(std::move(namespaces),
+                                           MakeNode<Identifier>(identifier),
+                                           std::move(args));
     }
     if (kind == "union") {
       const JsonValue& members = Require(type, "members", context);

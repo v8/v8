@@ -319,8 +319,8 @@ V8_OBJECT class Symbol : public Name {
   using IsInPublicSymbolTableBit = IsWellKnownSymbolBit::Next<bool, 1>;
   using IsInterestingSymbolBit = IsInPublicSymbolTableBit::Next<bool, 1>;
 
-  inline Tagged<PrimitiveHeapObject> description() const;
-  inline void set_description(Tagged<PrimitiveHeapObject> value,
+  inline Tagged<UnionOf<String, Undefined>> description() const;
+  inline void set_description(Tagged<UnionOf<String, Undefined>> value,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set_private_symbol_kind(PrivateSymbolKind kind);
 
@@ -383,9 +383,7 @@ V8_OBJECT class Symbol : public Name {
   const char* PrivateSymbolToName() const;
 
   uint32_t flags_ V8_TQ_TYPE(SymbolFlags);
-  // String|Undefined
-  // TODO(leszeks): Introduce a union type for this.
-  TaggedMember<PrimitiveHeapObject> description_ V8_TQ_TYPE(String | Undefined);
+  TaggedMember<UnionOf<String, Undefined>> description_;
 } V8_OBJECT_END;
 
 template <>

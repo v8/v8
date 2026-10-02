@@ -44,11 +44,11 @@ void JSIteratorHelperSimple::set_underlying_iterator_next(
   underlying_iterator_.next_.store(this, value, mode);
 }
 
-Tagged<JSReceiver> JSIteratorMapHelper::mapper() const {
+Tagged<JSCallable> JSIteratorMapHelper::mapper() const {
   return mapper_.load();
 }
 
-void JSIteratorMapHelper::set_mapper(Tagged<JSReceiver> value,
+void JSIteratorMapHelper::set_mapper(Tagged<JSCallable> value,
                                      WriteBarrierMode mode) {
   mapper_.store(this, value, mode);
 }
@@ -60,11 +60,11 @@ void JSIteratorMapHelper::set_counter(Tagged<Number> value,
   counter_.store(this, value, mode);
 }
 
-Tagged<JSReceiver> JSIteratorFilterHelper::predicate() const {
+Tagged<JSCallable> JSIteratorFilterHelper::predicate() const {
   return predicate_.load();
 }
 
-void JSIteratorFilterHelper::set_predicate(Tagged<JSReceiver> value,
+void JSIteratorFilterHelper::set_predicate(Tagged<JSCallable> value,
                                            WriteBarrierMode mode) {
   predicate_.store(this, value, mode);
 }
@@ -96,11 +96,11 @@ void JSIteratorDropHelper::set_remaining(Tagged<Number> value,
   remaining_.store(this, value, mode);
 }
 
-Tagged<JSReceiver> JSIteratorFlatMapHelper::mapper() const {
+Tagged<JSCallable> JSIteratorFlatMapHelper::mapper() const {
   return mapper_.load();
 }
 
-void JSIteratorFlatMapHelper::set_mapper(Tagged<JSReceiver> value,
+void JSIteratorFlatMapHelper::set_mapper(Tagged<JSCallable> value,
                                          WriteBarrierMode mode) {
   mapper_.store(this, value, mode);
 }

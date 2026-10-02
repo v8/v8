@@ -1193,7 +1193,7 @@ V8_OBJECT class Map : public HeapObject {
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
-  TaggedMember<JSPrototype> prototype_ V8_TQ_TYPE(JSReceiver | Null);
+  TaggedMember<JSPrototype> prototype_;
   TaggedMember<Object> constructor_or_back_pointer_or_native_context_;
 #if V8_ENABLE_WEBASSEMBLY
   TaggedMember<UnionOf<DescriptorArray, WasmStruct>> instance_descriptors_;

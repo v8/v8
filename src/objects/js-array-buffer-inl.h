@@ -397,21 +397,22 @@ void JSTypedArray::set_length(size_t value) {
   WriteBoundedSizeField(offsetof(JSTypedArray, raw_length_), value);
 }
 
-Tagged<Object> JSTypedArray::base_pointer() const {
+Tagged<UnionOf<ByteArray, Smi>> JSTypedArray::base_pointer() const {
   return base_pointer_.load();
 }
 
-Tagged<Object> JSTypedArray::base_pointer(AcquireLoadTag) const {
+Tagged<UnionOf<ByteArray, Smi>> JSTypedArray::base_pointer(
+    AcquireLoadTag) const {
   return base_pointer_.Acquire_Load();
 }
 
-void JSTypedArray::set_base_pointer(Tagged<Object> value,
+void JSTypedArray::set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
                                     WriteBarrierMode mode) {
   base_pointer_.store(this, value, mode);
 }
 
-void JSTypedArray::set_base_pointer(Tagged<Object> value, ReleaseStoreTag,
-                                    WriteBarrierMode mode) {
+void JSTypedArray::set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
+                                    ReleaseStoreTag, WriteBarrierMode mode) {
   base_pointer_.Release_Store(this, value, mode);
 }
 

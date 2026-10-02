@@ -2209,9 +2209,7 @@ DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
 
   DisallowGarbageCollection no_gc;
   internal->set_call_target(call_target);
-  DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
-         IsWasmImportData(*implicit_arg));
-  internal->set_implicit_arg(*implicit_arg);
+  internal->set_implicit_arg(TrustedCast<WasmImplicitArg>(*implicit_arg));
   internal->set_function_index(function_index);
   internal->set_external(*undefined_value());
   internal->set_sig(sig);

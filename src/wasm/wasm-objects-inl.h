@@ -749,7 +749,7 @@ void WasmImportData::clear_padding() {
 // WasmInternalFunction
 
 // {implicit_arg} will be a WasmTrustedInstanceData or a WasmImportData.
-Tagged<TrustedObject> WasmInternalFunction::implicit_arg() const {
+Tagged<WasmImplicitArg> WasmInternalFunction::implicit_arg() const {
   DCHECK(has_implicit_arg());
   return protected_implicit_arg_.load();
 }
@@ -762,7 +762,7 @@ Tagged<WasmTrustedInstanceData> WasmInternalFunction::instance_data() const {
   return TrustedCast<WasmImportData>(arg)->importing_instance_data();
 }
 
-void WasmInternalFunction::set_implicit_arg(Tagged<TrustedObject> value,
+void WasmInternalFunction::set_implicit_arg(Tagged<WasmImplicitArg> value,
                                             WriteBarrierMode mode) {
   protected_implicit_arg_.store(this, value, mode);
 }
@@ -789,10 +789,10 @@ void WasmInternalFunction::set_function_index(int value) {
 }
 
 uint32_t WasmInternalFunction::raw_call_target() const {
-  return raw_call_target_;
+  return raw_call_target_.value();
 }
 void WasmInternalFunction::set_raw_call_target(uint32_t value) {
-  raw_call_target_ = value;
+  raw_call_target_ = WasmCodePointer{value};
 }
 
 const wasm::CanonicalSig* WasmInternalFunction::sig() const {
@@ -906,11 +906,9 @@ bool WasmExportedFunctionData::is_promising() const {
          wasm::kPromise;
 }
 
-WasmCodePointer WasmInternalFunction::call_target() {
-  return WasmCodePointer{raw_call_target()};
-}
+WasmCodePointer WasmInternalFunction::call_target() { return raw_call_target_; }
 void WasmInternalFunction::set_call_target(WasmCodePointer code_pointer) {
-  set_raw_call_target(code_pointer.value());
+  raw_call_target_ = code_pointer;
 }
 
 // WasmCapiFunctionData

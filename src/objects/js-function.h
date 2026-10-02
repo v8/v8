@@ -56,8 +56,8 @@ V8_OBJECT class JSBoundFunction
   inline void set_bound_target_function(
       Tagged<JSCallable> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Object> bound_this() const;
-  inline void set_bound_this(Tagged<Object> value,
+  inline Tagged<UnionOf<JSAny, SourceTextModule>> bound_this() const;
+  inline void set_bound_this(Tagged<UnionOf<JSAny, SourceTextModule>> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<FixedArray> bound_arguments() const;
@@ -76,8 +76,8 @@ V8_OBJECT class JSBoundFunction
   static const int kHeaderSize;
 
  public:
-  TaggedMember<JSCallable> bound_target_function_ V8_TQ_TYPE(Callable);
-  TaggedMember<Object> bound_this_ V8_TQ_TYPE(JSAny | SourceTextModule);
+  TaggedMember<JSCallable> bound_target_function_;
+  TaggedMember<UnionOf<JSAny, SourceTextModule>> bound_this_;
   TaggedMember<FixedArray> bound_arguments_;
 } V8_OBJECT_END;
 
@@ -116,7 +116,7 @@ V8_OBJECT class JSWrappedFunction
   static const int kHeaderSize;
 
  public:
-  TaggedMember<JSCallable> wrapped_target_function_ V8_TQ_TYPE(Callable);
+  TaggedMember<JSCallable> wrapped_target_function_;
   TaggedMember<NativeContext> context_;
 } V8_OBJECT_END;
 
@@ -591,8 +591,8 @@ V8_OBJECT class JSFunctionWithPrototype : public JSFunction {
   DECL_VERIFIER(JSFunctionWithPrototype)
 
  public:
-  TaggedMember<Object> prototype_or_initial_map_ V8_TQ_TYPE(JSReceiver | Map |
-                                                            TheHole | Tuple2);
+  TaggedMember<UnionOf<JSReceiver, Map, Tuple2, TheHole>>
+      prototype_or_initial_map_;
 } V8_OBJECT_END;
 
 inline constexpr int JSFunctionWithPrototype::kHeaderSize =

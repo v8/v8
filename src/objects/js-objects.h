@@ -48,8 +48,8 @@ V8_OBJECT class JSReceiver : public HeapObject {
  public:
   using Properties =
       UnionOf<SwissNameDictionary, FixedArrayBase, PropertyArray>;
-  using PropertiesOrHash = UnionOf<SwissNameDictionary, FixedArrayBase,
-                                   PropertyArray, Smi, GlobalDictionary>;
+  using PropertiesOrHash =
+      UnionOf<SwissNameDictionary, FixedArrayBase, PropertyArray, Smi>;
 
   // Returns true if there is no slow (ie, dictionary) backing store.
   DECL_GETTER(HasFastProperties, bool)
@@ -373,8 +373,7 @@ V8_OBJECT class JSReceiver : public HeapObject {
   DECL_VERIFIER(JSReceiver)
 
  public:
-  TaggedMember<PropertiesOrHash> properties_or_hash_
-      V8_TQ_TYPE(FixedArrayBase | PropertyArray | Smi | SwissNameDictionary);
+  TaggedMember<PropertiesOrHash> properties_or_hash_;
 } V8_OBJECT_END;
 
 // The JSObject describes real heap allocated JavaScript objects with
@@ -1621,7 +1620,7 @@ V8_OBJECT class JSValidIteratorWrapper : public JSObject {
   DECL_VERIFIER(JSValidIteratorWrapper)
 
  public:
-  IteratorRecord underlying_ V8_TQ_TYPE(iterator::IteratorRecord);
+  IteratorRecord underlying_;
 } V8_OBJECT_END;
 
 // JSPromiseWithResolversResult is just a JSObject with a specific initial map.

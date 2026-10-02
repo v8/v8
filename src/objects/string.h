@@ -1168,7 +1168,7 @@ V8_OBJECT class ThinString : public String {
 
   friend Tagged<String> String::GetUnderlying() const;
 
-  TaggedMember<InternalizedString> actual_ V8_TQ_TYPE(String);
+  TaggedMember<InternalizedString> actual_;
 } V8_OBJECT_END;
 
 template <>

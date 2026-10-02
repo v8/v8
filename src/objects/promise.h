@@ -70,9 +70,7 @@ V8_OBJECT class PromiseReactionJobTask : public Microtask {
 
   TaggedMember<Object> argument_;
   TaggedMember<Context> context_;
-  TaggedMember<PromiseReactionHandler> handler_ V8_TQ_TYPE(Callable |
-                                                           JSGeneratorObject |
-                                                           Undefined);
+  TaggedMember<UnionOf<Undefined, JSGeneratorObject, JSCallable>> handler_;
   TaggedMember<UnionOf<JSPromise, PromiseCapability, Undefined>>
       promise_or_capability_;
 } V8_OBJECT_END;
@@ -218,14 +216,13 @@ V8_OBJECT class PromiseReaction : public Struct {
   friend struct ObjectTraits<PromiseReaction>;
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  TaggedMember<Object> continuation_preserved_embedder_data_
-      V8_TQ_TYPE(Object | Undefined);
+  TaggedMember<Object> continuation_preserved_embedder_data_;
 #endif
   TaggedMember<UnionOf<PromiseReaction, Zero>> next_;
-  TaggedMember<UnionOf<JSCallable, JSGeneratorObject, Undefined>>
-      reject_handler_ V8_TQ_TYPE(Callable | JSGeneratorObject | Undefined);
-  TaggedMember<UnionOf<JSCallable, JSGeneratorObject, Undefined>>
-      fulfill_handler_ V8_TQ_TYPE(Callable | JSGeneratorObject | Undefined);
+  TaggedMember<UnionOf<Undefined, JSGeneratorObject, JSCallable>>
+      reject_handler_;
+  TaggedMember<UnionOf<Undefined, JSGeneratorObject, JSCallable>>
+      fulfill_handler_;
   TaggedMember<UnionOf<JSPromise, PromiseCapability, Undefined>>
       promise_or_capability_;
 } V8_OBJECT_END;

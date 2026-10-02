@@ -194,8 +194,7 @@ V8_OBJECT class WasmModuleObject : public JSObject {
       Isolate*, base::Vector<const uint8_t> wire_bytes, wasm::WireBytesRef,
       InternalizeString, SharedFlag shared = SharedFlag{false});
 
-  TaggedMember<CppGCManaged<wasm::NativeModule>> managed_native_module_
-      V8_TQ_TYPE(ManagedWasmNativeModule);
+  TaggedMember<CppGCManaged<wasm::NativeModule>> managed_native_module_;
   TaggedMember<Script> script_;
 } V8_OBJECT_END;
 
@@ -482,8 +481,7 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   static const int kHeaderSize;
 
   TaggedMember<UnionOf<JSArrayBuffer, Undefined>> array_buffer_;
-  TaggedMember<CppGCManaged<BackingStore>> managed_backing_store_
-      V8_TQ_TYPE(ManagedBackingStore);
+  TaggedMember<CppGCManaged<BackingStore>> managed_backing_store_;
   TaggedMember<Smi> maximum_pages_;
   TaggedMember<WeakArrayList> instances_;
   uint8_t address_type_ V8_TQ_TYPE(AddressType);
@@ -1432,6 +1430,8 @@ V8_OBJECT class WasmImportData : public TrustedObject {
 inline constexpr int WasmImportData::kHeaderSize = sizeof(WasmImportData);
 inline constexpr int WasmImportData::kSize = sizeof(WasmImportData);
 
+using WasmImplicitArg = UnionOf<WasmTrustedInstanceData, WasmImportData>;
+
 V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
  public:
   // Get the external function if it exists. Returns true and writes to the
@@ -1446,7 +1446,7 @@ V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
   // target instance data (for wasm functions), or a WasmImportData object (for
   // non-wasm imports). For imported functions, this value equals the respective
   // entry in the module's dispatch_table_for_imports.
-  DECL_PROTECTED_POINTER_ACCESSORS(implicit_arg, TrustedObject)
+  DECL_PROTECTED_POINTER_ACCESSORS(implicit_arg, WasmImplicitArg)
 
   // Returns the instance data associated with the implicit_arg.
   // If the implicit_arg is a WasmTrustedInstanceData, it is returned directly.
@@ -1484,11 +1484,11 @@ V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
   static const int kSize;
 
  public:
-  ProtectedTaggedMember<TrustedObject> protected_implicit_arg_
-      V8_TQ_TYPE(ProtectedPointer<WasmImportData | WasmTrustedInstanceData>);
+  ProtectedTaggedMember<UnionOf<WasmTrustedInstanceData, WasmImportData>>
+      protected_implicit_arg_;
   TaggedMember<UnionOf<JSFunction, Undefined>> external_;
   TaggedMember<Smi> function_index_;
-  uint32_t raw_call_target_ V8_TQ_TYPE(WasmCodePointer);
+  WasmCodePointer raw_call_target_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif  // TAGGED_SIZE_8_BYTES

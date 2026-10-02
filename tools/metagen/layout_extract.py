@@ -31,12 +31,10 @@ from metagen.layout_ir import (ANNOTATION_PREFIX, Annotation, ClassLayout,
                                Config, Field, LayoutError, CppType, StorageType,
                                Tail, named_type, union_type)
 
-# A member wrapper is a C++ field type that specifies how its value is stored,
-# such as TaggedMember<T> or TrustedPointerMember<T, tag>. This set lists the
-# class templates allowed for T. For example, TaggedMember<CppGCManaged<Map>>
-# produces the type name CppGCManaged, which Torque maps to CppGCManagedBase in
-# kClassTemplateNames. Keep this set in sync with that list in
-# src/torque/layout-loader.cc.
+# Class templates allowed as wrapper arguments. The record names the
+# template and its payload, so a consumer can map an instantiation to a
+# type of its own (for Torque, kClassTemplateNames in
+# src/torque/layout-loader.cc). Must be kept in sync with that list.
 _CLASS_TEMPLATE_ARGUMENTS = frozenset({"CppGCManaged"})
 
 # Annotation arguments are not parsed here; Torque parses them.
@@ -72,6 +70,7 @@ _STRUCT_TYPES = frozenset({
     "v8::internal::JSIteratorHelperSimple::IteratorRecord",
     "v8::internal::JSValidIteratorWrapper::IteratorRecord",
     "v8::internal::ScopeInfo::PositionInfo",
+    "v8::internal::WasmCodePointer",
 })
 
 _POINTER_TAG_TYPES = frozenset({
@@ -282,17 +281,28 @@ class _Extractor:
     if decl.kind in (cindex.CursorKind.CLASS_DECL,
                      cindex.CursorKind.STRUCT_DECL,
                      cindex.CursorKind.CLASS_TEMPLATE):
-      if (t.get_canonical().get_num_template_arguments() > 0 and
-          name not in _CLASS_TEMPLATE_ARGUMENTS):
-        raise LayoutError(f"unsupported class template argument "
-                          f"{t.spelling!r}; add {name} to "
-                          f"_CLASS_TEMPLATE_ARGUMENTS and to each consumer")
+      if t.get_canonical().get_num_template_arguments() > 0:
+        if name not in _CLASS_TEMPLATE_ARGUMENTS:
+          raise LayoutError(f"unsupported class template argument "
+                            f"{t.spelling!r}; add {name} to "
+                            f"_CLASS_TEMPLATE_ARGUMENTS and to each consumer")
+        return named_type(name, self._payload_type(t))
       return named_type(name)
 
     if decl.kind == cindex.CursorKind.ENUM_DECL:
       return named_type(name)
 
     raise LayoutError(f"unsupported type argument {t.spelling!r} ({decl.kind})")
+
+  def _payload_type(self, t: cindex.Type) -> CppType:
+    """The sole argument of an allowed class template, named but not
+    visited: a payload is a plain C++ type, not a heap object, so it has
+    no layout of its own to harvest."""
+    args = _template_args(t.get_canonical())
+    if len(args) != 1:
+      raise LayoutError(f"class template {t.spelling!r} without one argument")
+    parts = args[0].get_canonical().spelling.split("::")
+    return named_type(parts[-1], namespaces=tuple(parts[:-1]))
 
   def _is_trusted_space_scheme(self, field: cindex.Cursor,
                                scheme: cindex.Type) -> bool:

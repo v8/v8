@@ -399,7 +399,7 @@ class SimpleClassTest(unittest.TestCase):
                      (named_type("String"), named_type("Map"),
                       named_type("Weak", named_type("Map"))))
 
-  def test_known_class_template_argument_names_the_template(self):
+  def test_known_class_template_argument_preserves_payload(self):
     layouts = extract_layouts("""
       template <typename T>
       class CppGCManaged : public HeapObject {};
@@ -409,10 +409,27 @@ class SimpleClassTest(unittest.TestCase):
       };
     """)
     wrapped, = layouts["Holder"].fields
-    # CppType names the template; consumers map it to a type of their
-    # own (kClassTemplateNames in layout-loader.cc).
-    self.assertEqual(wrapped.storage.arg, named_type("CppGCManaged"))
+    # Consumers map the template and payload to their own types.
+    self.assertEqual(
+        wrapped.storage.arg,
+        named_type("CppGCManaged",
+                   named_type("Map", namespaces=("v8", "internal"))))
     self.assertEqual(wrapped.cpp_type, "TaggedMember<CppGCManaged<Map>>")
+
+  def test_wasm_code_pointer_member(self):
+    layouts = extract_layouts("""
+      class WasmCodePointer {
+        uint32_t value_;
+      };
+      class Holder : public HeapObject {
+       public:
+        WasmCodePointer call_target_;
+      };
+    """)
+    target, = layouts["Holder"].fields
+    self.assertEqual(target.storage.kind, "struct")
+    self.assertEqual(target.storage.name, "WasmCodePointer")
+    self.assertEqual(target.storage.width, 4)
 
   def test_sandbox_pointer_members(self):
     layouts = extract_layouts("""

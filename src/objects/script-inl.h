@@ -70,11 +70,13 @@ void Script::set_line_ends(Tagged<UnionOf<FixedArray, Smi>> value,
 int Script::id() const { return id_.load().value(); }
 void Script::set_id(int value) { id_.store(this, Smi::FromInt(value)); }
 
-Tagged<Object> Script::eval_from_shared_or_wrapped_arguments() const {
+Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>>
+Script::eval_from_shared_or_wrapped_arguments() const {
   return eval_from_shared_or_wrapped_arguments_.load();
 }
-void Script::set_eval_from_shared_or_wrapped_arguments(Tagged<Object> value,
-                                                       WriteBarrierMode mode) {
+void Script::set_eval_from_shared_or_wrapped_arguments(
+    Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>> value,
+    WriteBarrierMode mode) {
   eval_from_shared_or_wrapped_arguments_.store(this, value, mode);
 }
 

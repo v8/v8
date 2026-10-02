@@ -157,7 +157,7 @@ extern class SlicedString extends String {
 @doNotGenerateCast
 @cppObjectLayoutDefinition
 extern class ThinString extends String {
-  actual: String;
+  actual: InternalizedString;
 }
 
 // A direct string can be accessed directly through CSA without going into the

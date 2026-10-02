@@ -496,8 +496,8 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
 
   // [base_pointer]: the ByteArray containing the backing store, if it is
   // on-heap, or Smi::zero() if it is off-heap.
-  inline Tagged<Object> base_pointer() const;
-  inline Tagged<Object> base_pointer(AcquireLoadTag) const;
+  inline Tagged<UnionOf<ByteArray, Smi>> base_pointer() const;
+  inline Tagged<UnionOf<ByteArray, Smi>> base_pointer(AcquireLoadTag) const;
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
@@ -588,9 +588,10 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
   inline Address external_pointer() const;
   inline Address external_pointer(PtrComprCageBase cage_base) const;
 
-  inline void set_base_pointer(Tagged<Object> value,
+  inline void set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set_base_pointer(Tagged<Object> value, ReleaseStoreTag,
+  inline void set_base_pointer(Tagged<UnionOf<ByteArray, Smi>> value,
+                               ReleaseStoreTag,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline void set_external_pointer(Isolate* isolate, Address value);
@@ -598,7 +599,7 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
  public:
   UnalignedValueMember<uintptr_t> raw_length_;
   UnalignedValueMember<Address> external_pointer_;
-  TaggedMember<Object> base_pointer_ V8_TQ_TYPE(ByteArray | Smi);
+  TaggedMember<UnionOf<ByteArray, Smi>> base_pointer_;
 } V8_OBJECT_END;
 
 inline constexpr int JSTypedArray::kHeaderSize = sizeof(JSTypedArray);

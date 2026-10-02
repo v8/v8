@@ -100,9 +100,11 @@ V8_OBJECT class Script : public Struct {
   inline int id() const;
   inline void set_id(int value);
 
-  inline Tagged<Object> eval_from_shared_or_wrapped_arguments() const;
+  inline Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>>
+  eval_from_shared_or_wrapped_arguments() const;
   inline void set_eval_from_shared_or_wrapped_arguments(
-      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Tagged<UnionOf<FixedArray, SharedFunctionInfo, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
@@ -387,8 +389,8 @@ V8_OBJECT class Script : public Struct {
   TaggedMember<Smi> script_type_;
   TaggedMember<UnionOf<FixedArray, Smi>> line_ends_;
   TaggedMember<Smi> id_;
-  TaggedMember<Object> eval_from_shared_or_wrapped_arguments_
-      V8_TQ_TYPE(FixedArray | SharedFunctionInfo | Undefined);
+  TaggedMember<UnionOf<FixedArray, SharedFunctionInfo, Undefined>>
+      eval_from_shared_or_wrapped_arguments_;
   TaggedMember<UnionOf<Smi, CppGCManagedBase>> eval_from_position_;
   TaggedMember<UnionOf<ScopeInfo, Undefined>> eval_from_scope_info_;
   TaggedMember<UnionOf<WeakFixedArray, WeakArrayList>> infos_;

@@ -42,8 +42,7 @@ V8_OBJECT class Microtask : public Struct {
   friend struct ObjectTraits<Microtask>;
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  TaggedMember<Object> continuation_preserved_embedder_data_
-      V8_TQ_TYPE(Object | Undefined);
+  TaggedMember<Object> continuation_preserved_embedder_data_;
 #endif
 } V8_OBJECT_END;
 
