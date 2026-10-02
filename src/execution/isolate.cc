@@ -1409,7 +1409,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
     } else if (DirectHandle<WasmSuspenderObject> suspender;
                TryGetWasmSuspender(isolate, reaction->fulfill_handler())
                    .ToHandle(&suspender)) {
-      DCHECK_NOT_NULL(suspender->stack());
+      SBXCHECK_NE(suspender->stack(), nullptr);
+      SBXCHECK_EQ(suspender->stack()->jmpbuf()->state,
+                  wasm::JumpBuffer::Suspended);
       for (StackFrameIterator it(isolate, suspender->stack()); !it.done();
            it.Advance()) {
         StackFrame* frame = it.frame();
