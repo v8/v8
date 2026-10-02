@@ -83,7 +83,7 @@
 // Enforce that a flag was not explicitly set via command line. Setting a value
 // via implications is still allowed.
 #define DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(cond, thenflag) \
-  TriggerNotExplicitlySetImplication(cond, #cond, #thenflag);
+  changed |= TriggerNotExplicitlySetImplication(cond, #cond, #thenflag);
 
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
   changed |= TriggerImplication(!(whenflag), "!" #whenflag,     \
@@ -3297,7 +3297,6 @@ DEFINE_BOOL(allow_natives_for_differential_fuzzing, false,
             "allow only natives explicitly allowlisted for differential "
             "fuzzers")
 DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, allow_natives_syntax)
-DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, fuzzing)
 DEFINE_BOOL(parse_only, false, "only parse the sources")
 
 // simulator-arm.cc and simulator-arm64.cc.
@@ -3683,9 +3682,6 @@ DEFINE_BOOL_READONLY(sandbox_fuzzing, false,
 
 DEFINE_BOOL(sandbox_trap_fuzzing, false,
             "Enable the trap-based sandbox fuzzing mode.")
-DEFINE_IMPLICATION(sandbox_trap_fuzzing, sandbox_fuzzing)
-
-DEFINE_IMPLICATION(sandbox_fuzzing, fuzzing)
 
 // Only one of these can be enabled.
 DEFINE_NEG_IMPLICATION(sandbox_fuzzing, sandbox_testing)
@@ -4318,8 +4314,13 @@ DEFINE_BOOL(disallow_unsafe_flags, false,
             "this flag will make V8 treat the unsafe flags below as flag "
             "contradiction and either crash or exit gracefully with a message "
             "(depending on the curreny AbortMode)")
-// --disallow-unsafe-flags is intended to only be used with --fuzzing.
-DEFINE_IMPLICATION(disallow_unsafe_flags, fuzzing)
+// LINT.IfChange(FuzzingImplications)
+DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, fuzzing)
+DEFINE_IMPLICATION(sandbox_trap_fuzzing, sandbox_fuzzing)
+DEFINE_IMPLICATION(sandbox_fuzzing, fuzzing)
+// Automatically disallow unsafe flags when fuzzing.
+DEFINE_IMPLICATION(fuzzing, disallow_unsafe_flags)
+// LINT.ThenChange(/src/d8/d8.cc:FuzzingImplications)
 // Profiling flags.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling_verbose)

@@ -158,12 +158,6 @@ struct FlagError : public std::ostringstream {
   }
 };
 
-bool ShouldCheckDisallowUnsafeFlagContradictions(const char* implied_by) {
-  static constexpr char kDisallowUnsafeFlagsStr[] = "disallow_unsafe_flags";
-  return implied_by && v8_flags.disallow_unsafe_flags &&
-         !std::strcmp(implied_by, kDisallowUnsafeFlagsStr);
-}
-
 }  // namespace
 
 bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
@@ -172,8 +166,7 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
       (set_by_ == SetBy::kImplication || set_by_ == SetBy::kCommandLine)) {
     return false;
   }
-  if (ShouldCheckFlagContradictions() ||
-      ShouldCheckDisallowUnsafeFlagContradictions(implied_by)) {
+  if (ShouldCheckFlagContradictions()) {
     // Readonly flags cannot change value.
     if (change_flag && IsReadOnly()) {
       if (implied_by == nullptr) {
@@ -1290,15 +1283,30 @@ class ImplicationProcessor {
   }
 
   // Called from DEFINE_NOT_EXPLICITLY_SET_IMPLICATION in flag-definitions.h.
-  void TriggerNotExplicitlySetImplication(bool premise,
+  // Returns {true} if the implication triggered and reset the conclusion flag.
+  bool TriggerNotExplicitlySetImplication(bool premise,
                                           const char* premise_name,
                                           const char* conclusion_name) {
     if (!premise) {
-      return;
+      return false;
     }
     Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
     if (conclusion_flag->set_by_ != Flag::SetBy::kCommandLine) {
-      return;
+      return false;
+    }
+    // When contradictions are ignored (e.g. under --fuzzing, which implies
+    // --disallow-unsafe-flags), reset the prohibited flag to its default value
+    // instead of aborting.
+    // TODO(clemensb): Remove TriggerNotExplicitlySetImplication and use regular
+    // value implications via DISALLOW_UNSAFE_FLAG instead.
+    if (!conclusion_flag->ShouldCheckFlagContradictions()) {
+      std::cerr << "The flag " << FlagName{conclusion_name}
+                << " was reset to its default value due to a "
+                   "contradiction with "
+                << FlagName{premise_name} << "\n";
+      conclusion_flag->Reset();
+      ResetFlagsImpliedBy(conclusion_flag);
+      return true;
     }
     FlagError{} << "Command-line provided flag " << FlagName{conclusion_name}
                 << " is prohibited by " << FlagName{premise_name};

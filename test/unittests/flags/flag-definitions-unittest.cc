@@ -437,4 +437,30 @@ TEST(FlagInternalsTest, ImplicationOrderShouldNotMatter) {
   CHECK(!v8_flags.testing_bool_flag_A);
 }
 
+TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
+  {
+    // Setting --disallow-unsafe-flags alone should not imply --fuzzing.
+    SaveFlags save_flags;
+    const char* str = "--disallow-unsafe-flags";
+    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.disallow_unsafe_flags);
+    CHECK(!v8_flags.fuzzing);
+  }
+  {
+    // Setting --fuzzing should imply --disallow-unsafe-flags and reset unsafe
+    // flags to their defaults without aborting.
+    SaveFlags save_flags;
+    const char* str =
+        "--fuzzing --mock-arraybuffer-allocator --gc-fake-mmap=/tmp/x";
+    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.fuzzing);
+    CHECK(v8_flags.disallow_unsafe_flags);
+    CHECK(!v8_flags.mock_arraybuffer_allocator);
+    CHECK_EQ(0, strcmp("/tmp/__v8_gc__", v8_flags.gc_fake_mmap));
+  }
+}
+
 }  // namespace v8::internal

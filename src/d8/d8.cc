@@ -7075,15 +7075,23 @@ bool Shell::SetOptions(int argc, char* argv[]) {
           exit_on_flag_contradictions = false;
         }
       }
+      // LINT.IfChange(FuzzingImplications)
     } else if (FlagMatches("--fuzzing", &argv[i], KeepFlag{true}) ||
-               FlagMatches("--sandbox-fuzzing", &argv[i], KeepFlag{true})) {
-      // Set v8_flags.fuzzing early because this is tested in some locations to
-      // decide how to handle conflicting flags (it would later be set by
-      // implications but we need it being set earlier).
+               FlagMatches("--sandbox-fuzzing", &argv[i], KeepFlag{true}) ||
+               FlagMatches("--sandbox-trap-fuzzing", &argv[i],
+                           KeepFlag{true}) ||
+               FlagMatches("--allow-natives-for-differential-fuzzing", &argv[i],
+                           KeepFlag{true})) {
+      // Match --fuzzing and all V8 flags that imply --fuzzing. V8 flag
+      // implications are only processed later in V8::Initialize(), so we need
+      // to manually mirror those implications (including --fuzzing implying
+      // --disallow-unsafe-flags) here for d8 option processing.
       i::v8_flags.fuzzing = true;
+      disallow_unsafe_flags = true;
       if (!flag_processing_mode_explicitly_set) {
         check_d8_flag_contradictions = false;
       }
+      // LINT.ThenChange(/src/flags/flag-definitions.h:FuzzingImplications)
     } else if (FlagMatches("--run-as-security-poc", &argv[i], KeepFlag{true}) ||
                FlagMatches("--run-as-sandbox-security-poc", &argv[i],
                            KeepFlag{true})) {
