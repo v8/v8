@@ -17,6 +17,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -168,6 +169,9 @@ TestingModuleBuilder::TestingModuleBuilder(
 }
 
 TestingModuleBuilder::~TestingModuleBuilder() {
+  if (native_module_->HasDebugInfo()) {
+    native_module_->GetDebugInfo()->RemoveIsolate(isolate_);
+  }
   // When the native module dies and is erased from the cache, it is expected to
   // have either valid bytes or no bytes at all.
   native_module_->SetWireBytes({});

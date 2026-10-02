@@ -309,6 +309,9 @@ class V8_EXPORT_PRIVATE Debug {
   void RemoveBreakpointForWasmScript(DirectHandle<Script> script, int id);
 
   void RecordWasmScriptWithBreakpoints(DirectHandle<Script> script);
+  DirectHandle<WeakArrayList> wasm_scripts_with_break_points() const {
+    return wasm_scripts_with_break_points_;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Find breakpoints from the debug info and the break location and check

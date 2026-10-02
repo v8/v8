@@ -1044,7 +1044,6 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
       isolate_->factory()->NewBreakPoint(*id, condition);
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == Script::Type::kWasm) {
-    RecordWasmScriptWithBreakpoints(script);
     return WasmScript::SetBreakPoint(script, source_position, break_point);
   }
 #endif  //  V8_ENABLE_WEBASSEMBLY
@@ -1207,7 +1206,6 @@ void Debug::SetInstrumentationBreakpointForWasmScript(
 
   DirectHandle<BreakPoint> break_point = isolate_->factory()->NewBreakPoint(
       *id, isolate_->factory()->empty_string());
-  RecordWasmScriptWithBreakpoints(script);
   WasmScript::SetInstrumentationBreakpoint(script, break_point);
 }
 
