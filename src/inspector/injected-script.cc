@@ -977,33 +977,42 @@ Response InjectedScript::wrapEvaluateResult(
       }
       return Response::InternalError();
     }
-    Response response =
-        wrapObject(resultValue, objectGroup, wrapOptions, result);
-    if (!response.IsSuccess()) return response;
-    if (objectGroup == "console") {
-      m_lastEvaluationResult.Reset(m_context->isolate(), resultValue);
-      m_lastEvaluationResult.AnnotateStrongRetainer(kGlobalHandleLabel);
+    Response response = Response::Success();
+    {
+      std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
+      if (throwOnSideEffect && (wrapOptions.mode == WrapMode::kJson ||
+                                wrapOptions.mode == WrapMode::kDeep)) {
+        sideEffectCheckScope.emplace(m_context->isolate());
+      }
+      response = wrapObject(resultValue, objectGroup, wrapOptions, result);
     }
-  } else {
-    if (tryCatch.HasTerminated() || !tryCatch.CanContinue()) {
-      return Response::ServerError("Execution was terminated");
+    if (response.IsSuccess()) {
+      if (objectGroup == "console") {
+        m_lastEvaluationResult.Reset(m_context->isolate(), resultValue);
+        m_lastEvaluationResult.AnnotateStrongRetainer(kGlobalHandleLabel);
+      }
+      return Response::Success();
     }
-    v8::Local<v8::Value> exception = tryCatch.Exception();
-    if (!throwOnSideEffect) {
-      m_context->inspector()->client()->dispatchError(
-          m_context->context(), tryCatch.Message(), exception);
-    }
-    Response response = wrapObject(exception, objectGroup,
-                                   exception->IsNativeError()
-                                       ? WrapOptions({WrapMode::kIdOnly})
-                                       : WrapOptions({WrapMode::kPreview}),
-                                   result);
-    if (!response.IsSuccess()) return response;
-    // We send exception in result for compatibility reasons, even though it's
-    // accessible through exceptionDetails.exception.
-    response = createExceptionDetails(tryCatch, objectGroup, exceptionDetails);
-    if (!response.IsSuccess()) return response;
+    if (!throwOnSideEffect || !tryCatch.HasCaught()) return response;
   }
+  if (tryCatch.HasTerminated() || !tryCatch.CanContinue()) {
+    return Response::ServerError("Execution was terminated");
+  }
+  v8::Local<v8::Value> exception = tryCatch.Exception();
+  if (!throwOnSideEffect) {
+    m_context->inspector()->client()->dispatchError(
+        m_context->context(), tryCatch.Message(), exception);
+  }
+  Response response =
+      wrapObject(exception, objectGroup,
+                 exception->IsNativeError() ? WrapOptions({WrapMode::kIdOnly})
+                                            : WrapOptions({WrapMode::kPreview}),
+                 result);
+  if (!response.IsSuccess()) return response;
+  // We send exception in result for compatibility reasons, even though it's
+  // accessible through exceptionDetails.exception.
+  response = createExceptionDetails(tryCatch, objectGroup, exceptionDetails);
+  if (!response.IsSuccess()) return response;
   return Response::Success();
 }
 

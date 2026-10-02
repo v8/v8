@@ -1372,6 +1372,17 @@ DisableBreakScope::DisableBreakScope(v8::Isolate* isolate)
 
 DisableBreakScope::~DisableBreakScope() = default;
 
+SideEffectCheckScope::SideEffectCheckScope(v8::Isolate* isolate)
+    : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
+      disable_break_scope_(
+          std::make_unique<i::DisableBreak>(isolate_->debug())) {
+  isolate_->debug()->StartSideEffectCheckMode();
+}
+
+SideEffectCheckScope::~SideEffectCheckScope() {
+  isolate_->debug()->StopSideEffectCheckMode();
+}
+
 int Coverage::BlockData::StartOffset() const { return block_->start; }
 
 int Coverage::BlockData::EndOffset() const { return block_->end; }

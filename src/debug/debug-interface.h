@@ -607,6 +607,16 @@ class V8_NODISCARD DisableBreakScope {
   std::unique_ptr<i::DisableBreak> scope_;
 };
 
+class V8_NODISCARD SideEffectCheckScope {
+ public:
+  explicit SideEffectCheckScope(v8::Isolate* isolate);
+  ~SideEffectCheckScope();
+
+ private:
+  i::Isolate* isolate_;
+  std::unique_ptr<i::DisableBreak> disable_break_scope_;
+};
+
 class EphemeronTable : public v8::Object {
  public:
   EphemeronTable() = delete;
