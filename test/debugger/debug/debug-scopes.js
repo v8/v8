@@ -1175,10 +1175,11 @@ BeginTest("Classes and methods 1");
 listener_delegate = function(exec_state) {
   "use strict"
   CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Closure,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({}, 1, exec_state);
-  CheckScopeChainNames(["m", undefined, undefined], exec_state);
+  CheckScopeContent({}, 2, exec_state);
+  CheckScopeChainNames(["m", undefined, undefined, undefined], exec_state);
 };
 
 (function() {

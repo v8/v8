@@ -3225,6 +3225,66 @@ static void EmptyHandler(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
 }
 
+namespace {
+
+class ScopeTypesListener : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(
+      v8::Local<v8::Context> paused_context,
+      const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
+      v8::base::EnumSet<v8::debug::BreakReason> break_reasons) override {
+    auto stack_traces =
+        v8::debug::StackTraceIterator::Create(CcTest::isolate());
+    for (auto scopes = stack_traces->GetScopeIterator(); !scopes->Done();
+         scopes->Advance()) {
+      scope_types_.push_back(scopes->GetType());
+    }
+  }
+
+  const std::vector<v8::debug::ScopeIterator::ScopeType>& scope_types() const {
+    return scope_types_;
+  }
+
+ private:
+  std::vector<v8::debug::ScopeIterator::ScopeType> scope_types_;
+};
+
+}  // namespace
+
+TEST(DebugScopeIteratorWrappedFunctionWithContextExtension) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  ScopeTypesListener delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+
+  static const char* source =
+      "let outer = 1;\n"
+      "{\n"
+      "  let block = 2;\n"
+      "  (function inner() { debugger; })();\n"
+      "}\n";
+  v8::ScriptCompiler::Source script_source(v8_str(source));
+  v8::Local<v8::Object> extension = v8::Object::New(isolate);
+  CHECK(extension->Set(env.local(), v8_str("ext"), v8_num(3)).FromJust());
+  v8::Local<v8::Function> fun =
+      v8::ScriptCompiler::CompileFunction(env.local(), &script_source, 0,
+                                          nullptr, 1, &extension)
+          .ToLocalChecked();
+  fun->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
+
+  using ScopeType = v8::debug::ScopeIterator::ScopeType;
+  const std::vector<ScopeType> expected = {
+      ScopeType::ScopeTypeLocal, ScopeType::ScopeTypeBlock,
+      ScopeType::ScopeTypeClosure, ScopeType::ScopeTypeWith,
+      ScopeType::ScopeTypeGlobal};
+  CHECK(delegate.scope_types() == expected);
+
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+  CheckDebuggerUnloaded();
+}
+
 TEST(DebugScopeIteratorWithFunctionTemplate) {
   LocalContext env;
   v8::HandleScope handle_scope(env.isolate());

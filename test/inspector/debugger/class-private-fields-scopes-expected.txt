@@ -39,6 +39,26 @@ Running test: testScopesPaused
                 type : local
             }
             [1] : {
+                emptyReason : all-unavailable
+                endLocation : {
+                    columnNumber : 1
+                    lineNumber : 9
+                    scriptId : <scriptId>
+                }
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 12
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                }
+                type : closure
+            }
+            [2] : {
                 object : {
                     className : global
                     description : global

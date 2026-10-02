@@ -129,6 +129,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     if (current_scope_index_ == -1) return std::nullopt;
     return current_scope();
   }
+  // Returns the innermost runtime context at the current position. Unlike
+  // CurrentContext(), this is also valid for scopes without their own context.
+  Handle<Context> EvaluationContext() const { return context_; }
 
  private:
   Isolate* isolate_;
@@ -142,8 +145,8 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   Handle<Context> context_;
   Handle<Script> script_;
   // Serialized scope tree of the paused script and indices into it.
-  // `current_scope_index_` is set to -1 once iteration leaves
-  // `closure_scope_index_` (matching `function_` becoming null).
+  // `current_scope_index_` is set to -1 once iteration leaves the root of
+  // `debug_scope_info_`.
   Handle<DebugScriptScopeInfo> debug_scope_info_;
   int start_scope_index_ = -1;
   int closure_scope_index_ = -1;

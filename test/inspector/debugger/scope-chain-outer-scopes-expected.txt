@@ -1,0 +1,71 @@
+Tests that the scope chain includes outer scopes without a context.
+
+Running test: setUp
+
+Running test: testContextlessOuterScopes
+Paused in inner:
+[0] local name=inner emptyReason=no-variables 6:19-6:35
+[1] block emptyReason=all-unavailable 4:2-7:3
+    blockVar : <value_unavailable>
+[2] closure emptyReason=all-unavailable 2:20-8:1
+    param : <value_unavailable>
+    shadowed : <value_unavailable>
+[3] global
+  scopeNumber 0: shadowed = ReferenceError: shadowed is not defined
+  scopeNumber 0: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 0: param = ReferenceError: param is not defined
+  scopeNumber 1: shadowed = ReferenceError: shadowed is not defined
+  scopeNumber 1: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 1: param = ReferenceError: param is not defined
+  scopeNumber 2: shadowed = ReferenceError: shadowed is not defined
+  scopeNumber 2: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 2: param = ReferenceError: param is not defined
+  scopeNumber 3: shadowed = "global"
+  scopeNumber 3: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 3: param = ReferenceError: param is not defined
+
+Running test: testContextfulOuterScopes
+Paused in inner:
+[0] local name=inner emptyReason=no-variables 14:19-14:45
+[1] block name=withContext emptyReason=all-unavailable 12:2-15:3
+    blockVar : <value_unavailable>
+[2] closure name=withContext 10:20-16:1
+    captured : "captured"
+[3] global
+  scopeNumber 0: captured = "captured"
+  scopeNumber 0: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 1: captured = "captured"
+  scopeNumber 1: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 2: captured = "captured"
+  scopeNumber 2: blockVar = ReferenceError: blockVar is not defined
+  scopeNumber 3: captured = ReferenceError: captured is not defined
+  scopeNumber 3: blockVar = ReferenceError: blockVar is not defined
+
+Running test: testEmptyOuterFunction
+Paused in inner:
+[0] local name=inner emptyReason=no-variables 19:23-19:39
+[1] global
+  scopeNumber 0: shadowed = "global"
+  scopeNumber 1: shadowed = "global"
+
+Running test: testFunctionConstructor
+Paused in innerCtor:
+[0] local name=innerCtor emptyReason=no-variables 2:25-2:41
+[1] closure emptyReason=all-unavailable 0:19-3:1
+    a : <value_unavailable>
+[2] global
+  scopeNumber 0: a = ReferenceError: a is not defined
+  scopeNumber 1: a = ReferenceError: a is not defined
+  scopeNumber 2: a = ReferenceError: a is not defined
+
+Running test: testWrappedFunction
+[0] local name=inner emptyReason=no-variables 0:55-0:71
+[1] block emptyReason=all-unavailable 0:20-0:77
+    blockVar : <value_unavailable>
+[2] closure emptyReason=all-unavailable 0:0-0:77
+    wrappedVar : <value_unavailable>
+[3] global
+
+Running test: testGeneratorScopesKeepEmptyLocalScope
+0: Local (emptyGenerator)
+1: Global
