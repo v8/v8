@@ -153,12 +153,6 @@ UsePositionHintType UsePosition::HintTypeForOperand(
   UNREACHABLE();
 }
 
-void UsePosition::SetHint(UsePosition* use_pos) {
-  DCHECK_NOT_NULL(use_pos);
-  hint_ = use_pos;
-  flags_ = HintTypeField::update(flags_, UsePositionHintType::kUsePos);
-}
-
 void UsePosition::ResolveHint(UsePosition* use_pos) {
   DCHECK_NOT_NULL(use_pos);
   if (HintTypeField::decode(flags_) != UsePositionHintType::kUnresolved) return;
@@ -230,11 +224,6 @@ void LiveRange::VerifyIntervals() const {
 void LiveRange::set_assigned_register(int reg) {
   DCHECK(!HasRegisterAssigned() && !spilled());
   bits_ = AssignedRegisterField::update(bits_, reg);
-}
-
-void LiveRange::UnsetAssignedRegister() {
-  DCHECK(HasRegisterAssigned() && !spilled());
-  bits_ = AssignedRegisterField::update(bits_, kUnassignedRegister);
 }
 
 void LiveRange::AttachToNext(Zone* zone) {
@@ -2209,9 +2198,8 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
           if (to_range->is_phi()) {
             phi_vreg = to_vreg;
             if (to_range->is_non_loop_phi()) {
-              hint = to_range->current_hint_position();
-              hint_type = hint == nullptr ? UsePositionHintType::kNone
-                                          : UsePositionHintType::kUsePos;
+              hint = nullptr;
+              hint_type = UsePositionHintType::kNone;
             } else {
               hint_type = UsePositionHintType::kPhi;
               hint = data()->GetPhiMapValueFor(to_vreg);
@@ -2457,7 +2445,6 @@ void LiveRangeBuilder::BuildLiveRanges() {
         pos->set_type(new_type, true);
       }
     }
-    range->ResetCurrentHintPosition();
   }
   for (auto preassigned : data()->preassigned_slot_ranges()) {
     TopLevelLiveRange* range = preassigned.first;

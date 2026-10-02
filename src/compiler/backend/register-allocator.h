@@ -219,7 +219,6 @@ class RegisterAllocationData final : public ZoneObject {
       DCHECK_EQ(assigned_register_, kUnassignedRegister);
       assigned_register_ = register_code;
     }
-    void UnsetAssignedRegister() { assigned_register_ = kUnassignedRegister; }
 
     void AddOperand(InstructionOperand* operand);
     void CommitAssignment(const InstructionOperand& operand);
@@ -499,7 +498,6 @@ class V8_EXPORT_PRIVATE UsePosition final
   }
   bool HasHint() const;
   bool HintRegister(int* register_code) const;
-  void SetHint(UsePosition* use_pos);
   void ResolveHint(UsePosition* use_pos);
   bool IsResolved() const {
     return hint_type() != UsePositionHintType::kUnresolved;
@@ -820,7 +818,6 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
     return assigned_register() != kUnassignedRegister;
   }
   void set_assigned_register(int reg);
-  void UnsetAssignedRegister();
 
   bool ShouldRecombine() const { return RecombineField::decode(bits_); }
 
@@ -880,12 +877,8 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   LiveRange* SplitAt(LifetimePosition position, Zone* zone);
 
   // Returns false when no register is hinted, otherwise sets register_index.
-  // Uses {current_hint_position_} as a cache, and tries to update it.
+  // Uses {current_hint_position_index_} as a cache, and tries to update it.
   bool RegisterFromFirstHint(int* register_index);
-
-  UsePosition* current_hint_position() const {
-    return positions_span_[current_hint_position_index_];
-  }
 
   LifetimePosition Start() const {
     DCHECK(!IsEmpty());
@@ -917,8 +910,6 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   void ConvertUsesToOperand(const InstructionOperand& op,
                             const InstructionOperand& spill_op);
   void SetUseHints(int register_index);
-  void UnsetUseHints() { SetUseHints(kUnassignedRegister); }
-  void ResetCurrentHintPosition() { current_hint_position_index_ = 0; }
 
   void Print(const RegisterConfiguration* config, bool with_children) const;
   void Print(bool with_children) const;
@@ -984,7 +975,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   // This is used as a cache in `FirstSearchIntervalForPosition`.
   UseIntervalVector::iterator current_interval_;
-  // This is used as a cache in `BuildLiveRanges` and during register
+  // This is used as a cache in `RegisterFromFirstHint` during register
   // allocation.
   size_t current_hint_position_index_ = 0;
 
