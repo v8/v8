@@ -2020,6 +2020,7 @@ DEFINE_INT(wasm_tiering_budget, 13'000'000,
            "budget for dynamic tiering (rough approximation of bytes executed")
 DEFINE_SMI(wasm_wrapper_tiering_budget, wasm::kGenericWrapperBudget,
            "budget for wrapper tierup (number of calls until tier-up)")
+DEFINE_MIN_VALUE_IMPLICATION(wasm_wrapper_tiering_budget, 1)
 DEFINE_INT(max_wasm_functions, wasm::kV8MaxWasmDefinedFunctions,
            "maximum number of wasm functions defined in a module")
 DEFINE_INT(
@@ -2059,7 +2060,7 @@ DEFINE_VALUE_IMPLICATION(wasm_growable_stacks,
   wasm_stack_switching_stack_size, 1)
 DEFINE_BOOL(liftoff, true,
             "enable Liftoff, the baseline compiler for WebAssembly")
-DEFINE_BOOL(liftoff_only, false,
+DEFINE_BOOL(liftoff_only, !V8_ENABLE_TURBOFAN_BOOL,
             "disallow TurboFan compilation for WebAssembly (for testing)")
 DEFINE_IMPLICATION(liftoff_only, liftoff)
 DEFINE_NEG_IMPLICATION(liftoff_only, wasm_tier_up)
@@ -4324,8 +4325,6 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling_verbose)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_annotate_wasm)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_delete_file)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_unwinding_info)
 // Experimental PGO/compilation-hints-generation flags.
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_pgo_to_file)
@@ -4336,14 +4335,11 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
 #endif  // V8_ENABLE_WEBASSEMBLY
 // Known-broken features/configuration.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, feedback_normalization)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, harmony_struct)
-DEFINE_IMPLICATION(disallow_unsafe_flags, script_context_cells)
 // Disabled-by-default misc. "unsafe" flags that should not be enabled.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, mock_arraybuffer_allocator)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_bad_builtin_profile_data)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_uncaught_exception)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_far_code_range)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, correctness_fuzzer_suppressions)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, force_memory_protection_keys)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, expose_trigger_failure)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_code_traces)
@@ -4361,21 +4357,7 @@ DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
 // Flags that are unsafe if given unexpected invalid values.
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, max_wasm_functions)
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
-                                      wasm_max_initial_code_space_reservation)
-// Disable wasm_max_initial_code_space_reservation in fuzzing, as a wrong value
-// can lead to crashes.
-DEFINE_VALUE_IMPLICATION(fuzzing, wasm_max_initial_code_space_reservation, 0)
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
-                                      wasm_wrapper_tiering_budget)
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
-                                      wasm_eager_tier_up_function)
 #endif  // V8_ENABLE_WEBASSEMBLY
-// Disabling CPU features can lead to DCHECK failures.
-DEFINE_IMPLICATION(disallow_unsafe_flags, enable_avx)
-DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse3)
-DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_1)
-DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_2)
 // Features we don't currently want to fuzz.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, cppgc_young_generation)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
@@ -4393,7 +4375,10 @@ DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, gc_fake_mmap)
 // Non-standard stack sizes can lead to stack overflows (signaled as segfaults)
 // and produce spurious bug reports. V8 should handle stack overflows gracefully
 // in default configurations.
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, stack_size)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(
+    disallow_unsafe_flags &&
+        (stack_size < 54 || stack_size > V8_DEFAULT_STACK_SIZE_KB),
+    stack_size)
 
 // Runs a program as security POC. This mode is used to determine whether a bug
 // in a program is a security problem. V8 supports many different configurations
@@ -4418,6 +4403,9 @@ DEFINE_IMPLICATION(run_as_security_poc, fuzzing)
 // Experimental features are not ready for broad usage yet. Bugs in these areas
 // are not considered security issues.
 DEFINE_NEG_IMPLICATION(run_as_security_poc, experimental)
+// Correctness fuzzer suppressions turn harmless exceptions (e.g. stack
+// overflows) into crashes.
+DEFINE_NEG_IMPLICATION(run_as_security_poc, correctness_fuzzer_suppressions)
 
 // Runs a program as sandbox security POC. This mode is used to determine
 // whether a bug in a program can lead to a sandbox violation. The mode enables

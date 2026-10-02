@@ -3472,7 +3472,8 @@ void CompilationStateImpl::ApplyEagerTierUpToInitialProgress(size_t hint_idx) {
   ExecutionTier old_baseline_tier = RequiredBaselineTierField::decode(progress);
 
   // Compute new information.
-  ExecutionTier new_baseline_tier = ExecutionTier::kTurbofan;
+  ExecutionTier new_baseline_tier =
+      v8_flags.liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
   ExecutionTier new_top_tier = ExecutionTier::kTurbofan;
 
   progress = RequiredBaselineTierField::update(progress, new_baseline_tier);
@@ -3655,6 +3656,7 @@ void CompilationStateImpl::InitializeCompilationProgress(
     // Apply --wasm-eager-tier-up-function, if given.
     if (V8_UNLIKELY(
             v8_flags.wasm_eager_tier_up_function >= 0 &&
+            !v8_flags.liftoff_only && !native_module_->IsInDebugState() &&
             static_cast<uint32_t>(v8_flags.wasm_eager_tier_up_function) >=
                 module->num_imported_functions &&
             static_cast<uint32_t>(v8_flags.wasm_eager_tier_up_function) <

@@ -2596,11 +2596,14 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 
   // The '--wasm-max-initial-code-space-reservation' testing flag can be used to
   // reduce the maximum size of the initial code space reservation (in MB).
-  if (v8_flags.wasm_max_initial_code_space_reservation > 0) {
+  if (v8_flags.wasm_max_initial_code_space_reservation > 0 &&
+      static_cast<size_t>(v8_flags.wasm_max_initial_code_space_reservation) <=
+          code_vmem_size / MB) {
     size_t flag_max_bytes =
         static_cast<size_t>(v8_flags.wasm_max_initial_code_space_reservation) *
         MB;
-    if (flag_max_bytes < code_vmem_size) code_vmem_size = flag_max_bytes;
+    size_t min_bytes = 2 * OverheadPerCodeSpace(module->num_declared_functions);
+    code_vmem_size = std::max(flag_max_bytes, min_bytes);
   }
 
   VirtualMemory code_space;
