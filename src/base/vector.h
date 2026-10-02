@@ -11,6 +11,7 @@
 #include <limits>
 #include <memory>
 #include <ranges>
+#include <span>
 #include <type_traits>
 
 #include "include/v8config.h"
@@ -44,12 +45,16 @@ class Vector final {
   using iterator = T*;
   using const_iterator = const T*;
 
-  constexpr Vector() : start_(nullptr), length_(0) {}
+  constexpr Vector() = default;
 
   constexpr Vector(T* data V8_LIFETIME_BOUND, size_t length)
-      : start_(data), length_(length) {
+      : span_(data, length) {
     DCHECK(length == 0 || data != nullptr);
   }
+
+  template <typename U, size_t n>
+    requires std::is_convertible_v<std::span<U, n>, std::span<T>>
+  constexpr Vector(std::span<U, n> span) : span_(span) {}
 
   static Vector<T> New(size_t length) {
     return Vector<T>(new T[length], length);
@@ -57,13 +62,14 @@ class Vector final {
 
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
-  Vector<T> SubVector(size_t from, size_t to) const {
+  constexpr Vector<T> SubVector(size_t from, size_t to) const {
     DCHECK_LE(from, to);
-    DCHECK_LE(to, length_);
-    return Vector<T>(begin() + from, to - from);
+    DCHECK_LE(to, size());
+    return Vector<T>(span_.subspan(from, to - from));
   }
-  Vector<T> SubVectorFrom(size_t from) const {
-    return SubVector(from, length_);
+  constexpr Vector<T> SubVectorFrom(size_t from) const {
+    DCHECK_LE(from, size());
+    return Vector<T>(span_.subspan(from));
   }
 
   template <class U>
@@ -81,46 +87,46 @@ class Vector final {
   // Returns the length of the vector. Only use this if you really need an
   // integer return value. Use {size()} otherwise.
   int length() const {
-    CHECK_GE(std::numeric_limits<int>::max(), length_);
-    return static_cast<int>(length_);
+    CHECK_GE(std::numeric_limits<int>::max(), size());
+    return static_cast<int>(size());
   }
 
   // Returns the length of the vector as a size_t.
-  constexpr size_t size() const { return length_; }
+  constexpr size_t size() const { return span_.size(); }
 
   // Returns whether or not the vector is empty.
-  constexpr bool empty() const { return length_ == 0; }
+  constexpr bool empty() const { return span_.empty(); }
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
-    DCHECK_LT(index, length_);
-    return start_[index];
+    DCHECK_LT(index, size());
+    return span_[index];
   }
 
   const T& at(size_t index) const { return operator[](index); }
 
-  T& first() { return start_[0]; }
-  const T& first() const { return start_[0]; }
+  T& first() { return span_.front(); }
+  const T& first() const { return span_.front(); }
 
   T& last() {
-    DCHECK_LT(0, length_);
-    return start_[length_ - 1];
+    DCHECK_LT(0, size());
+    return span_.back();
   }
   const T& last() const {
-    DCHECK_LT(0, length_);
-    return start_[length_ - 1];
+    DCHECK_LT(0, size());
+    return span_.back();
   }
 
   // Returns a pointer to the start of the data in the vector.
-  constexpr T* begin() const { return start_; }
-  constexpr const T* cbegin() const { return start_; }
+  constexpr T* begin() const { return span_.data(); }
+  constexpr const T* cbegin() const { return span_.data(); }
 
   // For consistency with other containers, do also provide a {data} accessor.
-  constexpr T* data() const { return start_; }
+  constexpr T* data() const { return span_.data(); }
 
   // Returns a pointer past the end of the data in the vector.
-  constexpr T* end() const { return start_ + length_; }
-  constexpr const T* cend() const { return start_ + length_; }
+  constexpr T* end() const { return span_.data() + span_.size(); }
+  constexpr const T* cend() const { return span_.data() + span_.size(); }
 
   constexpr std::reverse_iterator<T*> rbegin() const {
     return std::make_reverse_iterator(end());
@@ -130,16 +136,15 @@ class Vector final {
   }
 
   void Truncate(size_t length) {
-    DCHECK_LE(length, length_);
-    length_ = length;
+    DCHECK_LE(length, size());
+    span_ = span_.first(length);
   }
 
   // Releases the array underlying this vector. Once disposed the
   // vector is empty.
   void Dispose() {
-    delete[] start_;
-    start_ = nullptr;
-    length_ = 0;
+    delete[] span_.data();
+    span_ = {};
   }
 
   const Vector<T> operator+(size_t offset) const {
@@ -147,9 +152,8 @@ class Vector final {
   }
 
   Vector<T> operator+=(size_t offset) {
-    DCHECK_LE(offset, length_);
-    start_ += offset;
-    length_ -= offset;
+    DCHECK_LE(offset, size());
+    span_ = span_.subspan(offset);
     return *this;
   }
 
@@ -160,8 +164,8 @@ class Vector final {
   // violate covariance.
   template <typename U>
     requires std::is_convertible_v<T*, const U*> && (sizeof(U) == sizeof(T))
-  operator Vector<const U>() const {
-    return {start_, length_};
+  constexpr operator Vector<const U>() const {
+    return {span_.data(), span_.size()};
   }
 
   template <typename S>
@@ -187,8 +191,7 @@ class Vector final {
   }
 
  private:
-  T* start_;
-  size_t length_;
+  std::span<T> span_;
 };
 
 template <typename T>

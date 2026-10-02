@@ -118,5 +118,24 @@ TEST(VectorTest, ConstexprFactories) {
   EXPECT_THAT(kVec3, testing::ElementsAreArray(kInit3, kInit3 + 6));
 }
 
+TEST(VectorTest, SpanConversion) {
+  int arr[] = {1, 2, 3};
+  std::span<int, 3> static_span(arr);
+  std::span<int> dynamic_span(arr);
+
+  base::Vector<int> vec_from_static = static_span;
+  base::Vector<int> vec_from_dynamic = dynamic_span;
+  base::Vector<const int> const_vec_from_mutable_span = dynamic_span;
+  EXPECT_EQ(vec_from_static, vec_from_dynamic);
+  EXPECT_EQ(vec_from_dynamic, const_vec_from_mutable_span);
+
+  std::span<int> span_from_vec = vec_from_dynamic;
+  std::span<const int> const_span_from_vec = vec_from_dynamic;
+  EXPECT_EQ(span_from_vec.data(), arr);
+  EXPECT_EQ(span_from_vec.size(), 3u);
+  EXPECT_EQ(const_span_from_vec.data(), arr);
+  EXPECT_EQ(const_span_from_vec.size(), 3u);
+}
+
 }  // namespace base
 }  // namespace v8

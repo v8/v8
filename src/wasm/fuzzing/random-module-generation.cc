@@ -443,8 +443,7 @@ class GeneratorAlternativesPerOption {
         wasmgc_(ConcatArrays(mvp, wasmgc)),
         all_(ConcatArrays(mvp, ConcatArrays(simd, wasmgc))) {}
 
-  constexpr base::Vector<const GenerateFn> GetAlternatives(
-      WasmModuleGenerationOptions options) const {
+  constexpr auto GetAlternatives(WasmModuleGenerationOptions options) const {
     switch (options.ToIntegral()) {
       case 0:  // 0
         return base::VectorOf(mvp_);
