@@ -6642,29 +6642,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     }
   }
 
-#ifdef V8_ENABLE_WEBASSEMBLY
-#if V8_STATIC_ROOTS_BOOL
-  // Protect the payload of wasm null.
-  if (!page_allocator()->DecommitPages(
-          reinterpret_cast<void*>(factory()->wasm_null()->address()),
-          WasmNull::kSize)) {
-    V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
-  }
-#endif  // V8_STATIC_ROOTS_BOOL
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  if (v8_flags.unmap_holes) {
-// Protect the payload of each hole.
-#define UNMAP_HOLE(CamelName, snake_name, _)                                  \
-  if (!page_allocator()->DecommitPages(                                       \
-          reinterpret_cast<void*>(&factory()->snake_name()->payload_),        \
-          Hole::kPayloadSize)) {                                              \
-    V8::FatalProcessOutOfMemory(this, "decommitting " #CamelName " payload"); \
-  }
-
-    HOLE_LIST(UNMAP_HOLE)
-#undef UNMAP_HOLE
-  }
+  // A read-only heap deserialized from a snapshot was already protected when
+  // it was set up. One created from scratch only has its holes now.
+  if (create_heap_objects) read_only_heap()->DecommitGuardRegions(this);
 
   // Isolate initialization allocates long living objects that should be
   // pretenured to old space.
