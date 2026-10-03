@@ -1922,7 +1922,7 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   node->InsertInput(zone, 2, target);
   node->InsertInput(zone, 3, argc_node);
 
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
   // Make sure we insert required stack-alignment padding between extra
   // arguments and JS arguments.
   static_assert(BuiltinArguments::kOptionalPaddingIndex == 3);
@@ -1933,7 +1933,7 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
 #else
   // No padding required.
   static_assert(BuiltinArguments::kNumExtraArgs == 3);
-#endif  // V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
 
   int cursor = arity + kStub + BuiltinArguments::kNumExtraArgsWithReceiver;
 

@@ -2506,14 +2506,19 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   // Rewrite the stack frame to capture target, arguments list and length
   // Pop return address
   __ Pop(kScratchRegister);
+  constexpr int kPadding = V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? 1 : 0;
   // - receiver already on the stack.
-  static_assert(SuperSpreadArgs::kReceiverOffsetFromEnd == 4);
+  static_assert(SuperSpreadArgs::kReceiverOffsetFromEnd == 4 + kPadding);
   // - target
-  static_assert(SuperSpreadArgs::kTargetOffsetFromEnd == 3);
+  static_assert(SuperSpreadArgs::kTargetOffsetFromEnd == 3 + kPadding);
   __ Push(rdi);
   // - arguments list
-  static_assert(SuperSpreadArgs::kArglistOffsetFromEnd == 2);
+  static_assert(SuperSpreadArgs::kArglistOffsetFromEnd == 2 + kPadding);
   __ Push(rbx);
+  if constexpr (kPadding > 0) {
+    // - padding
+    __ Push(Immediate(0));
+  }
   // - len of arguments list
   static_assert(SuperSpreadArgs::kArglistLengthOffsetFromEnd == 1);
   __ SmiTag(rcx);

@@ -2109,7 +2109,7 @@ class GraphBuildingNodeProcessor {
     arguments.push_back(Map(node->NewTargetInput()));
     arguments.push_back(__ Word32Constant(node->num_args()));
 
-#ifndef V8_TARGET_ARCH_ARM64
+#if !defined(V8_TARGET_ARCH_ARM64) && !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
     arguments.push_back(__ WordPtrConstant(node->feedback().index()));
     arguments.push_back(__ HeapConstant(node->feedback().vector));
 #endif
@@ -2120,16 +2120,17 @@ class GraphBuildingNodeProcessor {
 
     arguments.push_back(Map(node->ContextInput()));
 
-#ifndef V8_TARGET_ARCH_ARM64
-    // Construct_WithFeedback can't be called from Turbofan on Arm64, because of
-    // the stack alignment requirements: the feedback vector is dropped by
-    // Construct_WithFeedback while the other arguments are passed through to
-    // Construct. As a result, when the feedback vector is pushed on the stack,
-    // it should be padded to 16-bytes, but there is no way to express this in
-    // Turbofan.
+#if !defined(V8_TARGET_ARCH_ARM64) && !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
+    // Construct_WithFeedback can't be called from Turboshaft when stack
+    // alignment is enforced, because of the stack alignment requirements:
+    // the feedback vector is dropped by Construct_WithFeedback while the other
+    // arguments are passed through to Construct. As a result, when the feedback
+    // vector is pushed on the stack, it should be padded to 16-bytes, but there
+    // is no way to express this in Turboshaft.
     // Anyways, long-term we'll want to feedback-specialize Construct in the
     // frontend (ie, probably in Maglev), so we don't really need to adapt
-    // Turbofan to be able to call Construct_WithFeedback on Arm64.
+    // Turboshaft to be able to call Construct_WithFeedback when stack alignment
+    // is enforced.
     static constexpr int kFeedbackVector = 1;
     int stack_arg_count = node->num_args() + kFeedbackVector;
     Builtin builtin = Builtin::kConstruct_WithFeedback;

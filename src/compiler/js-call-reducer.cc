@@ -6956,7 +6956,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
         static_assert(BuiltinArguments::kNewTargetIndex == 0);
         static_assert(BuiltinArguments::kTargetIndex == 1);
         static_assert(BuiltinArguments::kArgcIndex == 2);
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
         // Make sure we insert required stack-alignment padding between extra
         // arguments and JS arguments.
         static_assert(BuiltinArguments::kNumExtraArgs == 4);
@@ -6967,7 +6967,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 #else
         // No padding required.
         static_assert(BuiltinArguments::kNumExtraArgs == 3);
-#endif  // V8_TARGET_ARCH_ARM64
+#endif
 
         if_false1 = efalse1 = vfalse1 = graph()->NewNode(
             common()->Call(call_descriptor), stub_code,
@@ -6975,7 +6975,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
             jsgraph()->UndefinedConstant(),  // new.target
             target,                          // target
             argc,                            // argc
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
             padding_value,
 #endif
             // JS arguments.
