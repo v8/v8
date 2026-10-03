@@ -1045,10 +1045,10 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   bool is_phi() const { return IsPhiField::decode(bits_); }
   void set_is_phi(bool value) { bits_ = IsPhiField::update(bits_, value); }
 
-  bool is_non_loop_phi() const { return IsNonLoopPhiField::decode(bits_); }
-  bool is_loop_phi() const { return is_phi() && !is_non_loop_phi(); }
-  void set_is_non_loop_phi(bool value) {
-    bits_ = IsNonLoopPhiField::update(bits_, value);
+  bool is_loop_phi() const { return IsLoopPhiField::decode(bits_); }
+  void set_is_loop_phi(bool value) {
+    DCHECK_IMPLIES(value, is_phi());
+    bits_ = IsLoopPhiField::update(bits_, value);
   }
   bool SpillAtLoopHeaderNotBeneficial() const {
     return SpillAtLoopHeaderNotBeneficialField::decode(bits_);
@@ -1243,8 +1243,8 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   using HasSlotUseField = NextBitField<SlotUseKind, 2>;
   using IsPhiField = HasSlotUseField::Next<bool, 1>;
-  using IsNonLoopPhiField = IsPhiField::Next<bool, 1>;
-  using SpillTypeField = IsNonLoopPhiField::Next<SpillType, 2>;
+  using IsLoopPhiField = IsPhiField::Next<bool, 1>;
+  using SpillTypeField = IsLoopPhiField::Next<SpillType, 2>;
   using DeferredFixedField = SpillTypeField::Next<bool, 1>;
   using SpillAtLoopHeaderNotBeneficialField = DeferredFixedField::Next<bool, 1>;
   using SpillRangeModeField =

@@ -898,7 +898,7 @@ std::ostream& operator<<(std::ostream& os,
   os << "Range: " << range->TopLevel()->vreg() << ":" << range->relative_id()
      << " ";
   if (range->TopLevel()->is_phi()) os << "phi ";
-  if (range->TopLevel()->is_non_loop_phi()) os << "nlphi ";
+  if (range->TopLevel()->is_loop_phi()) os << "lphi ";
 
   os << "{" << std::endl;
   for (UsePosition* use_pos : range->positions()) {
@@ -1774,7 +1774,7 @@ void ConstraintBuilder::ResolvePhis(const InstructionBlock* block) {
     live_range->SetSpillStartIndex(gap_index);
     // We use the phi-ness of some nodes in some later heuristics.
     live_range->set_is_phi(true);
-    live_range->set_is_non_loop_phi(!block->IsLoopHeader());
+    live_range->set_is_loop_phi(block->IsLoopHeader());
   }
 }
 
@@ -2194,12 +2194,12 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
           TopLevelLiveRange* to_range = data()->GetLiveRangeFor(to_vreg);
           if (to_range->is_phi()) {
             phi_vreg = to_vreg;
-            if (to_range->is_non_loop_phi()) {
-              hint = nullptr;
-              hint_type = UsePositionHintType::kNone;
-            } else {
+            if (to_range->is_loop_phi()) {
               hint_type = UsePositionHintType::kPhi;
               hint = data()->GetPhiMapValueFor(to_vreg);
+            } else {
+              hint_type = UsePositionHintType::kNone;
+              hint = nullptr;
             }
           } else {
             if (live->Contains(to_vreg)) {
@@ -3838,7 +3838,7 @@ void LinearScanAllocator::SetLiveRangeAssignedRegister(LiveRange* range,
   range->set_assigned_register(reg);
   range->SetUseHints(reg);
   range->UpdateBundleRegister(reg);
-  if (range->IsTopLevel() && range->TopLevel()->is_phi()) {
+  if (range->IsTopLevel() && range->TopLevel()->is_loop_phi()) {
     data()->GetPhiMapValueFor(range->TopLevel())->set_assigned_register(reg);
   }
 }
