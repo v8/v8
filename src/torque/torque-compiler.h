@@ -63,6 +63,10 @@ struct TorqueCompilerOptions {
   // no positions so it only changes when a layout changes; this file
   // changes when declaration positions change.
   std::string layout_positions_path = "";
+
+  // Emits #pragma kythe_inline_metadata annotations in generated C++ files.
+  bool kythe_inline_metadata = false;
+  std::string kythe_default_corpus = "";
 };
 
 DECLARE_CONTEXTUAL_VARIABLE(CurrentCompilerOptions, TorqueCompilerOptions);

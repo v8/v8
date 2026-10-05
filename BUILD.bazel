@@ -4913,6 +4913,7 @@ cc_library(
     }),
     features = ["-use_header_modules"],
     deps = [
+        ":simdutf",
         ":torque_base_headers",
         ":v8_libbase",
         "@abseil-cpp//absl/container:node_hash_map",
@@ -5106,6 +5107,7 @@ v8_binary(
         "//conditions:default": [],
     }),
     deps = [
+        ":simdutf",
         "v8_libbase",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/container:node_hash_set",

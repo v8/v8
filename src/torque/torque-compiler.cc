@@ -70,6 +70,12 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   if (options.torque_dwarf) {
     GlobalContext::SetTorqueDwarf();
   }
+  if (options.kythe_inline_metadata) {
+    GlobalContext::SetKytheInlineMetadata();
+  }
+  if (!options.kythe_default_corpus.empty()) {
+    GlobalContext::SetKytheDefaultCorpus(options.kythe_default_corpus);
+  }
   TypeOracle::Scope type_oracle;
   CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
 

@@ -14,6 +14,7 @@ import("//build/config/host_byteorder.gni")
 import("//build/config/mips.gni")
 import("//build/config/riscv.gni")
 import("//build/config/sanitizers/sanitizers.gni")
+import("//build/toolchain/kythe.gni")
 import("//build_overrides/build.gni")
 import("//third_party/icu/config.gni")
 
@@ -2829,6 +2830,13 @@ template("run_torque") {
     }
     if (v8_enable_torque_dwarf) {
       args += [ "-torque-dwarf" ]
+    }
+    if (enable_kythe_annotations) {
+      args += [
+        "-kythe-inline-metadata",
+        "-kythe-default-corpus",
+        kythe_corpus,
+      ]
     }
     if (defined(invoker.args)) {
       args += invoker.args
@@ -7438,7 +7446,10 @@ v8_source_set("torque_base") {
     ]
   }
 
-  deps = [ ":v8_shared_internal_headers" ]
+  deps = [
+    ":v8_shared_internal_headers",
+    ":v8_simdutf",
+  ]
 
   public_deps = [
     ":v8_config_headers",

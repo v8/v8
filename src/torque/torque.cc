@@ -52,6 +52,10 @@ int WrappedMain(int argc, const char** argv) {
       options.torque_dwarf = true;
     } else if (argument == "-strip-v8-root") {
       options.strip_v8_root = true;
+    } else if (argument == "-kythe-inline-metadata") {
+      options.kythe_inline_metadata = true;
+    } else if (argument == "-kythe-default-corpus" && i + 1 < argc) {
+      options.kythe_default_corpus = std::string(argv[++i]);
 #ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
     } else if (argument == "-output-tsa") {
       options.output_tsa = true;
