@@ -35,25 +35,7 @@ MIN_CACHED_DEPS = 3
 
 
 @contextmanager
-def file_lock(lock_path: Path):
-  if not HAS_FCNTL:
-    yield
-    return
-
-  lock_path.parent.mkdir(parents=True, exist_ok=True)
-  with open(lock_path, "a") as f:
-    try:
-      fcntl.flock(f, fcntl.LOCK_EX)
-      yield
-    finally:
-      try:
-        fcntl.flock(f, fcntl.LOCK_UN)
-      except OSError:
-        pass
-
-
-@contextmanager
-def try_file_lock(lock_path: Path):
+def file_lock(lock_path: Path, blocking: bool = True):
   if not HAS_FCNTL:
     yield True
     return
@@ -62,10 +44,12 @@ def try_file_lock(lock_path: Path):
   with open(lock_path, "a") as f:
     locked = False
     try:
-      fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+      flags = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
+      fcntl.flock(f, flags)
       locked = True
     except (BlockingIOError, OSError):
-      pass
+      if blocking:
+        raise
     try:
       yield locked
     finally:
@@ -262,24 +246,23 @@ def sync_dependencies(main_repo: Path, worktree_dir: Path):
       create_relative_symlinks(main_repo, worktree_dir, shared_dirs)
     elif deps_worktree.is_file():
       content_hash = hashlib.sha256(deps_worktree.read_bytes()).hexdigest()[:12]
-      cache_root = main_repo / "worktrees" / ".deps_cache" / content_hash
+      cache_dir = main_repo / "worktrees" / ".deps_cache"
+      cache_root = cache_dir / content_hash
       cache_v8 = cache_root / "v8"
 
-      lock_path = cache_root.parent / f"{content_hash}.lock"
-      with file_lock(lock_path):
+      with file_lock(cache_dir / ".lock"):
         if not cache_root.exists():
           init_deps_cache(main_repo, deps_worktree, shared_dirs, cache_root,
                           content_hash)
 
         cached_shared_dirs = get_shared_dirs(cache_root / ".gclient_entries")
         create_relative_symlinks(cache_v8, worktree_dir, cached_shared_dirs)
-        record_worktree_usage(cache_root, lock_path, worktree_dir)
+        record_worktree_usage(cache_root, worktree_dir)
 
-  prune_cache(main_repo)
+  prune_cache(main_repo, blocking=False)
 
 
-def record_worktree_usage(cache_root: Path, lock_path: Path,
-                          worktree_dir: Path):
+def record_worktree_usage(cache_root: Path, worktree_dir: Path):
   try:
     wt_file = cache_root / ".worktrees"
     wt_resolved = str(worktree_dir.resolve())
@@ -294,8 +277,6 @@ def record_worktree_usage(cache_root: Path, lock_path: Path,
       existing.add(wt_resolved)
       wt_file.write_text("\n".join(sorted(existing)) + "\n")
     os.utime(cache_root, None)
-    if lock_path.exists():
-      os.utime(lock_path, None)
   except OSError:
     pass
 
@@ -368,51 +349,41 @@ def get_referenced_cache_hashes(main_repo: Path, cache_dir: Path) -> set[str]:
   return referenced
 
 
-def prune_cache(main_repo: Path, min_keep: int = MIN_CACHED_DEPS):
+def prune_cache(main_repo: Path,
+                min_keep: int = MIN_CACHED_DEPS,
+                blocking: bool = True):
   cache_dir = main_repo / "worktrees" / ".deps_cache"
   if not cache_dir.is_dir():
     return
 
-  entries = []
-  tmp_dirs = []
-  for item in cache_dir.iterdir():
-    if not item.is_dir():
-      continue
-    if item.name.endswith(".tmp"):
-      tmp_dirs.append(item)
-    else:
-      try:
-        mtime = item.stat().st_mtime
-        lock_file = cache_dir / f"{item.name}.lock"
-        if lock_file.exists():
-          mtime = max(mtime, lock_file.stat().st_mtime)
-        entries.append((mtime, item))
-      except OSError:
-        pass
+  with file_lock(cache_dir / ".lock", blocking=blocking) as locked:
+    if not locked:
+      return
 
-  for tmp_item in tmp_dirs:
-    hash_name = tmp_item.name[:-4]
-    lock_path = cache_dir / f"{hash_name}.lock"
-    with try_file_lock(lock_path) as locked:
-      if locked and tmp_item.exists():
-        shutil.rmtree(tmp_item, ignore_errors=True)
+    entries = []
+    for item in cache_dir.iterdir():
+      if not item.is_dir():
+        continue
+      if item.name.endswith(".tmp"):
+        shutil.rmtree(item, ignore_errors=True)
+      else:
+        try:
+          entries.append((item.stat().st_mtime, item))
+        except OSError:
+          pass
 
-  if len(entries) <= min_keep:
-    return
+    if len(entries) <= min_keep:
+      return
 
-  referenced = get_referenced_cache_hashes(main_repo, cache_dir)
-  entries.sort(key=lambda x: x[0], reverse=True)
+    referenced = get_referenced_cache_hashes(main_repo, cache_dir)
+    entries.sort(key=lambda x: x[0], reverse=True)
 
-  keep = set(referenced)
-  for _, item in entries[:min_keep]:
-    keep.add(item.name)
+    keep = set(referenced)
+    for _, item in entries[:min_keep]:
+      keep.add(item.name)
 
-  for _, item in entries:
-    if item.name in keep:
-      continue
-    lock_path = cache_dir / f"{item.name}.lock"
-    with try_file_lock(lock_path) as locked:
-      if locked and item.exists():
+    for _, item in entries:
+      if item.name not in keep:
         shutil.rmtree(item, ignore_errors=True)
 
 
@@ -420,15 +391,12 @@ def clear_cache(main_repo: Path):
   cache_dir = main_repo / "worktrees" / ".deps_cache"
   if cache_dir.exists():
     print(f"Clearing worktree dependencies cache at {cache_dir}...")
-    for item in cache_dir.iterdir():
-      if item.is_dir():
-        # Strip .tmp suffix to acquire the correct lock during init_deps_cache.
-        hash_name = item.name[:-4] if item.name.endswith(".tmp") else item.name
-        lock_path = cache_dir / f"{hash_name}.lock"
-        with file_lock(lock_path):
+    with file_lock(cache_dir / ".lock"):
+      for item in cache_dir.iterdir():
+        if item.is_dir():
           shutil.rmtree(item, ignore_errors=True)
-    # We deliberately do not delete .lock files because unlinking them
-    # while another process might be waiting on them breaks mutual exclusion.
+    # We deliberately do not delete .lock because unlinking it while another
+    # process might be waiting on it breaks mutual exclusion.
   else:
     print(f"No cache found at {cache_dir}.")
 
