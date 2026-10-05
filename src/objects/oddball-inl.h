@@ -27,9 +27,8 @@ namespace internal {
 DEF_CAST_TRAITS(Oddball)
 ODDBALL_LIST(DEF_CAST_TRAITS)
 
-Oddball::Oddball(const AllocationWitness& witness, Tagged<ReadOnly<Map>> map,
-                 uint8_t kind)
-    : PrimitiveHeapObject(witness, map), kind_(Smi::FromInt(kind)) {}
+Oddball::Oddball(Tagged<ReadOnly<Map>> map, uint8_t kind)
+    : PrimitiveHeapObject(map), kind_(Smi::FromInt(kind)) {}
 
 void Oddball::FinishInitialization(Tagged<String> to_string,
                                    Tagged<Number> to_number,
@@ -44,21 +43,17 @@ void Oddball::FinishInitialization(Tagged<String> to_string,
   set_type_of(type_of, SKIP_WRITE_BARRIER);
 }
 
-Null::Null(const AllocationWitness& witness, ReadOnlyRoots roots)
-    : Oddball(witness, roots.null_map(), Oddball::kNull) {}
+Null::Null(ReadOnlyRoots roots) : Oddball(roots.null_map(), Oddball::kNull) {}
 
-Undefined::Undefined(const AllocationWitness& witness, ReadOnlyRoots roots)
-    : Oddball(witness, roots.undefined_map(), Oddball::kUndefined) {}
+Undefined::Undefined(ReadOnlyRoots roots)
+    : Oddball(roots.undefined_map(), Oddball::kUndefined) {}
 
-Boolean::Boolean(const AllocationWitness& witness, ReadOnlyRoots roots,
-                 uint8_t kind)
-    : Oddball(witness, roots.boolean_map(), kind) {}
+Boolean::Boolean(ReadOnlyRoots roots, uint8_t kind)
+    : Oddball(roots.boolean_map(), kind) {}
 
-True::True(const AllocationWitness& witness, ReadOnlyRoots roots)
-    : Boolean(witness, roots, Oddball::kTrue) {}
+True::True(ReadOnlyRoots roots) : Boolean(roots, Oddball::kTrue) {}
 
-False::False(const AllocationWitness& witness, ReadOnlyRoots roots)
-    : Boolean(witness, roots, Oddball::kFalse) {}
+False::False(ReadOnlyRoots roots) : Boolean(roots, Oddball::kFalse) {}
 
 double Oddball::to_number_raw() const { return to_number_raw_.value(); }
 void Oddball::set_to_number_raw(double value) {

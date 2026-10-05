@@ -42,9 +42,17 @@ class V8_GSL_POINTER TaggedMember : public TaggedMemberBase {
  public:
   constexpr TaggedMember() = default;
   inline explicit TaggedMember(Tagged<Smi> value);
+  inline TaggedMember(Tagged<Smi> value, RelaxedStoreTag);
+  inline explicit TaggedMember(Tagged<ClearedWeakValue> value);
+  template <typename U>
+  inline explicit TaggedMember(Tagged<ReadOnly<U>> value)
+    requires(is_subtype_v<ReadOnly<U>, T>);
+  template <typename U>
+  inline TaggedMember(Tagged<ReadOnly<U>> value, RelaxedStoreTag)
+    requires(is_subtype_v<ReadOnly<U>, T>);
   inline TaggedMember(const AllocationWitness& witness, Tagged<T> value);
   inline TaggedMember(const AllocationWitness& witness, Tagged<T> value,
-                      WriteBarrierMode mode);
+                      RelaxedStoreTag);
 
   inline Tagged<T> load() const;
   inline void store(HeapObject* host, Tagged<T> value,

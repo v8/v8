@@ -761,8 +761,7 @@ class SharedFeedbackSlot {
 // after the int32s of the slots.
 V8_OBJECT class FeedbackMetadata : public HeapObject {
  public:
-  inline FeedbackMetadata(const AllocationWitness& witness, ReadOnlyRoots roots,
-                          int32_t slot_count,
+  inline FeedbackMetadata(ReadOnlyRoots roots, int32_t slot_count,
                           int32_t create_closure_slot_count);
 
   // The number of slots that this metadata contains. Stored as an int32.

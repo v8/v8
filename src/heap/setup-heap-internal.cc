@@ -402,24 +402,24 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       Tagged<Map> map = UncheckedCast<Map>(obj);
       roots_table()[entry.index] = map.ptr();
     }
-    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, symbol_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, symbol_map, Map::kSize);
 
-    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, meta_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, meta_map, Map::kSize);
     // Keep HeapNumber and Oddball maps together for cheap NumberOrOddball
     // checks.
-    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, undefined_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, null_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, undefined_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, null_map, Map::kSize);
     // Keep HeapNumber and Boolean maps together for cheap NumberOrBoolean
     // checks.
-    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, boolean_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, boolean_map, Map::kSize);
     // Keep HeapNumber and BigInt maps together for cheaper numerics checks.
-    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, heap_number_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, bigint_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, heap_number_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, bigint_map, Map::kSize);
     // Keep FreeSpace and filler maps together for cheap
     // `IsFreeSpaceOrFiller()`.
-    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, free_space_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, one_pointer_filler_map, Map::kSize);
-    ALLOCATE_AND_SET_ROOT(ReadOnly<Map>, two_pointer_filler_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, free_space_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, one_pointer_filler_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, two_pointer_filler_map, Map::kSize);
 
 #undef ALLOCATE_AND_SET_ROOT
 
@@ -462,19 +462,19 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     // Finally, initialise the non-map objects using those maps.
     {
       AllocationWitness witness(undefined_value, AllocationType::kReadOnly);
-      new (witness) Undefined(witness, roots);
+      new (witness) Undefined(roots);
     }
     {
       AllocationWitness witness(null_value, AllocationType::kReadOnly);
-      new (witness) Null(witness, roots);
+      new (witness) Null(roots);
     }
     {
       AllocationWitness witness(true_value, AllocationType::kReadOnly);
-      new (witness) True(witness, roots);
+      new (witness) True(roots);
     }
     {
       AllocationWitness witness(false_value, AllocationType::kReadOnly);
-      new (witness) False(witness, roots);
+      new (witness) False(roots);
     }
 
     // The empty string is initialised with an empty hash despite being
@@ -494,7 +494,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
 #define ALLOCATE_PARTIAL_MAP(instance_type, size, field_name)                \
   {                                                                          \
-    Tagged<ReadOnly<Map>> map;                                               \
+    Tagged<Map> map;                                                         \
     if (!AllocatePartialMap((instance_type), (size)).To(&map)) return false; \
     set_##field_name##_map(map);                                             \
   }
@@ -629,7 +629,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
 #define ALLOCATE_MAP(instance_type, size, field_name)                  \
   {                                                                    \
-    Tagged<ReadOnly<Map>> map;                                         \
+    Tagged<Map> map;                                                   \
     if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size) \
              .To(&map)) {                                              \
       return false;                                                    \
@@ -684,7 +684,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       if (!alloc.To(&obj)) return false;
       AllocationWitness witness(obj, AllocationType::kReadOnly);
       set_invalid_prototype_validity_cell(
-          new (witness) Cell(witness, roots, Map::kPrototypeChainInvalid));
+          new (witness) Cell(roots, Map::kPrototypeChainInvalid));
     }
 
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, sizeof(PropertyCell), global_property_cell)
@@ -877,7 +877,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 #define ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(instance_type, size, \
                                                   field_name)          \
   {                                                                    \
-    Tagged<ReadOnly<Map>> map;                                         \
+    Tagged<Map> map;                                                   \
     if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size, \
                      DICTIONARY_ELEMENTS)                              \
              .To(&map)) {                                              \
@@ -913,7 +913,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 
   // Shared space object maps are immutable and can be in RO space.
   {
-    Tagged<ReadOnly<Map>> shared_array_map;
+    Tagged<Map> shared_array_map;
     if (!AllocateMap(AllocationType::kReadOnly, JS_SHARED_ARRAY_TYPE,
                      JSSharedArray::kSize, SHARED_ARRAY_ELEMENTS,
                      JSSharedArray::kInObjectFieldCount)

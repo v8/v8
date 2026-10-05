@@ -16,6 +16,7 @@
 #include "src/heap/read-only-heap-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-word-inl.h"
+#include "src/objects/primitive-heap-object.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/tagged-field-inl.h"
 
@@ -135,20 +136,21 @@ AllocationWitness::AllocationWitness(Tagged<HeapObject> object,
                                      WriteBarrierMode write_barrier_mode)
     : object_(object), write_barrier_mode_(write_barrier_mode) {}
 
-HeapObject::HeapObject(const AllocationWitness& witness,
-                       Tagged<ReadOnly<Map>> map)
-    : HeapObject(witness, map, SKIP_WRITE_BARRIER) {}
+HeapObject::HeapObject(Tagged<ReadOnly<Map>> map) {
+  DCHECK(!map.is_null());
+  set_map_after_allocation(static_cast<Isolate*>(nullptr), map,
+                           SKIP_WRITE_BARRIER);
+}
 
-HeapObject::HeapObject(const AllocationWitness& witness, Tagged<Map> map)
-    : HeapObject(witness, map, witness.write_barrier_mode()) {}
-
-HeapObject::HeapObject(const AllocationWitness& witness, Tagged<Map> map,
-                       WriteBarrierMode write_barrier_mode) {
+HeapObject::HeapObject(const AllocationWitness& witness, Tagged<Map> map) {
   DCHECK_EQ(witness.object(), this);
   DCHECK(!map.is_null());
   set_map_after_allocation(static_cast<Isolate*>(nullptr), map,
-                           write_barrier_mode);
+                           witness.write_barrier_mode());
 }
+
+PrimitiveHeapObject::PrimitiveHeapObject(Tagged<ReadOnly<Map>> map)
+    : HeapObject(map) {}
 
 template <typename IsolateT>
 void HeapObject::set_map_after_allocation(IsolateT* isolate, Tagged<Map> value,

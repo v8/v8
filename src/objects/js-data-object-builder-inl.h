@@ -84,12 +84,12 @@ class FoldedMutableHeapNumberAllocator {
 
   Tagged<HeapNumber> Allocate(Float64 value) {
     AllocationWitness witness = AllocateRaw();
-    return new (witness) HeapNumber(witness, roots_, value);
+    return new (witness) HeapNumber(roots_, value);
   }
 
   Tagged<UninitializedHeapNumber> AllocateUninitialized() {
     AllocationWitness witness = AllocateRaw();
-    return new (witness) UninitializedHeapNumber(witness, roots_);
+    return new (witness) UninitializedHeapNumber(roots_);
   }
 
  private:

@@ -271,8 +271,7 @@ inline constexpr int CoverageInfoSlot::kSize = sizeof(CoverageInfoSlot);
 // Holds information related to block code coverage.
 V8_OBJECT class CoverageInfo : public HeapObject {
  public:
-  CoverageInfo(const AllocationWitness& witness, ReadOnlyRoots roots,
-               const ZoneVector<SourceRange>& slots);
+  CoverageInfo(ReadOnlyRoots roots, const ZoneVector<SourceRange>& slots);
 
   inline int32_t slot_count() const;
 

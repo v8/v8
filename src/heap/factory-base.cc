@@ -470,8 +470,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
     DirectHandle<SharedFunctionInfo> other) {
   AllocationWitness witness =
       AllocateWithWitness(sizeof(SharedFunctionInfo), AllocationType::kOld);
-  return handle(new (witness) SharedFunctionInfo(witness, read_only_roots(),
-                                                 *other, isolate()),
+  return handle(new (witness)
+                    SharedFunctionInfo(read_only_roots(), *other, isolate()),
                 isolate());
 }
 
@@ -494,8 +494,8 @@ Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
                                                         int children_length) {
   int size = PreparseData::SizeFor(data_length, children_length);
   AllocationWitness witness = AllocateWithWitness(size, AllocationType::kOld);
-  return handle(new (witness) PreparseData(witness, read_only_roots(),
-                                           data_length, children_length),
+  return handle(new (witness) PreparseData(read_only_roots(), data_length,
+                                           children_length),
                 isolate());
 }
 
@@ -704,9 +704,8 @@ Handle<FeedbackMetadata> FactoryBase<Impl>::NewFeedbackMetadata(
   AllocationWitness witness = AllocateWithWitness(size, allocation);
   // Fields have been zeroed out but not initialized, so this object will not
   // pass object verification at this point.
-  return handle(new (witness)
-                    FeedbackMetadata(witness, read_only_roots(), slot_count,
-                                     create_closure_slot_count),
+  return handle(new (witness) FeedbackMetadata(read_only_roots(), slot_count,
+                                               create_closure_slot_count),
                 isolate());
 }
 
@@ -717,7 +716,7 @@ Handle<CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
 
   int size = CoverageInfo::SizeFor(slot_count);
   AllocationWitness witness = AllocateWithWitness(size, AllocationType::kOld);
-  return handle(new (witness) CoverageInfo(witness, read_only_roots(), slots),
+  return handle(new (witness) CoverageInfo(read_only_roots(), slots),
                 isolate());
 }
 
@@ -1214,9 +1213,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     AllocationType allocation) {
   AllocationWitness witness =
       AllocateWithWitness(sizeof(SharedFunctionInfo), allocation);
-  return handle(new (witness)
-                    SharedFunctionInfo(witness, read_only_roots(),
-                                       isolate()->GetAndIncNextUniqueSfiId()),
+  return handle(new (witness) SharedFunctionInfo(
+                    read_only_roots(), isolate()->GetAndIncNextUniqueSfiId()),
                 isolate());
 }
 

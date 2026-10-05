@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/roots/roots-inl.h"
@@ -18,6 +19,8 @@
 
 namespace v8 {
 namespace internal {
+
+Struct::Struct(Tagged<ReadOnly<Map>> map) : HeapObject(map) {}
 
 Tagged<Object> Tuple2::value1() const { return value1_.load(); }
 void Tuple2::set_value1(Tagged<Object> value, WriteBarrierMode mode) {

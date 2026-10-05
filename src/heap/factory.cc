@@ -2594,22 +2594,21 @@ Handle<Cell> Factory::NewCell(Tagged<Smi> value) {
   static_assert(sizeof(Cell) <= kMaxRegularHeapObjectSize);
   AllocationWitness witness =
       AllocateWithWitness(sizeof(Cell), AllocationType::kOld);
-  return handle(new (witness) Cell(witness, read_only_roots(), value),
-                isolate());
+  return handle(new (witness) Cell(read_only_roots(), value), isolate());
 }
 
 Handle<Cell> Factory::NewCell() {
   static_assert(sizeof(Cell) <= kMaxRegularHeapObjectSize);
   AllocationWitness witness =
       AllocateWithWitness(sizeof(Cell), AllocationType::kOld);
-  return handle(new (witness) Cell(witness, read_only_roots()), isolate());
+  return handle(new (witness) Cell(read_only_roots()), isolate());
 }
 
 DirectHandle<FeedbackCell> Factory::NewNoClosuresCell() {
   AllocationWitness witness =
       AllocateWithWitness(sizeof(FeedbackCell), AllocationType::kOld);
   return direct_handle(
-      new (witness) FeedbackCell(witness, read_only_roots(),
+      new (witness) FeedbackCell(read_only_roots(),
                                  read_only_roots().no_closures_cell_map()),
       isolate());
 }
@@ -2629,7 +2628,7 @@ DirectHandle<FeedbackCell> Factory::NewManyClosuresCell(
   AllocationWitness witness =
       AllocateWithWitness(sizeof(FeedbackCell), allocation);
   return direct_handle(
-      new (witness) FeedbackCell(witness, read_only_roots(),
+      new (witness) FeedbackCell(read_only_roots(),
                                  read_only_roots().many_closures_cell_map()),
       isolate());
 }

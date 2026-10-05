@@ -25,8 +25,7 @@ V8_OBJECT class FeedbackCell : public Struct {
  public:
   using Value = UnionOf<Undefined, FeedbackVector, ClosureFeedbackCellArray>;
 
-  inline FeedbackCell(const AllocationWitness& witness, ReadOnlyRoots roots,
-                      Tagged<ReadOnly<Map>> map);
+  inline FeedbackCell(ReadOnlyRoots roots, Tagged<ReadOnly<Map>> map);
   inline FeedbackCell(const AllocationWitness& witness,
                       Tagged<ReadOnly<Map>> map,
                       Tagged<ClosureFeedbackCellArray> value);

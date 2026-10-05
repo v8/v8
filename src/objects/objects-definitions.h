@@ -197,9 +197,9 @@ namespace internal {
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_MAPS_LIST entry
 #define STRUCT_MAPS_LIST_ADAPTER(V, NAME, Name, name) \
-  V(ReadOnly<Map>, name##_map, Name##Map)
+  V(Map, name##_map, Name##Map)
 
-// Produces (ReadOnly<Map>, struct_name_map, StructNameMap) entries
+// Produces (Map, struct_name_map, StructNameMap) entries
 #define STRUCT_MAPS_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
 
 //
@@ -213,9 +213,9 @@ namespace internal {
 
 // Adapts one ALLOCATION_SITE_LIST entry to the ALLOCATION_SITE_MAPS_LIST entry
 #define ALLOCATION_SITE_MAPS_LIST_ADAPTER(V, TYPE, Name, Size, name_size) \
-  V(ReadOnly<Map>, name_size##_map, Name##Size##Map)
+  V(Map, name_size##_map, Name##Size##Map)
 
-// Produces (ReadOnly<Map>, allocation_site_name_map, AllocationSiteNameMap)
+// Produces (Map, allocation_site_name_map, AllocationSiteNameMap)
 // entries
 #define ALLOCATION_SITE_MAPS_LIST(V) \
   ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAPS_LIST_ADAPTER, V)
@@ -237,9 +237,9 @@ namespace internal {
 
 // Adapts one DATA_HANDLER_LIST entry to the DATA_HANDLER_MAPS_LIST entry.
 #define DATA_HANDLER_MAPS_LIST_ADAPTER(V, TYPE, Name, Size, name_size) \
-  V(ReadOnly<Map>, name_size##_map, Name##Size##Map)
+  V(Map, name_size##_map, Name##Size##Map)
 
-// Produces (ReadOnly<Map>, handler_name_map, HandlerNameMap) entries
+// Produces (Map, handler_name_map, HandlerNameMap) entries
 #define DATA_HANDLER_MAPS_LIST(V) \
   DATA_HANDLER_LIST(DATA_HANDLER_MAPS_LIST_ADAPTER, V)
 

@@ -58,8 +58,7 @@ FactoryBase<Impl>::NewUninitializedHeapNumber() {
       sizeof(UninitializedHeapNumber), allocation,
       USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
                                                 : kTaggedAligned);
-  return handle(new (witness)
-                    UninitializedHeapNumber(witness, read_only_roots()),
+  return handle(new (witness) UninitializedHeapNumber(read_only_roots()),
                 isolate());
 }
 
@@ -127,8 +126,7 @@ Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber(double value) {
   if constexpr (IsSharedAllocationType(allocation)) {
     publish_guard.emplace(witness.object(), allocation);
   }
-  return handle(new (witness) HeapNumber(witness, read_only_roots(), value),
-                isolate());
+  return handle(new (witness) HeapNumber(read_only_roots(), value), isolate());
 }
 
 template <typename Impl>
@@ -139,8 +137,8 @@ Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberFromBits(uint64_t bits) {
       sizeof(HeapNumber), allocation,
       USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
                                                 : kTaggedAligned);
-  return handle(new (witness) HeapNumber(witness, read_only_roots(),
-                                         Float64::FromBits(bits)),
+  return handle(new (witness)
+                    HeapNumber(read_only_roots(), Float64::FromBits(bits)),
                 isolate());
 }
 

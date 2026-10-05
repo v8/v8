@@ -409,14 +409,8 @@ V8_OBJECT class HeapObject {
   friend class CodeStubAssembler;
 
  public:
-  HeapObject() = default;
-  inline HeapObject(const AllocationWitness& witness,
-                    Tagged<ReadOnly<Map>> map);
+  inline explicit HeapObject(Tagged<ReadOnly<Map>> map);
   inline HeapObject(const AllocationWitness& witness, Tagged<Map> map);
-
- private:
-  inline HeapObject(const AllocationWitness& witness, Tagged<Map> map,
-                    WriteBarrierMode write_barrier_mode);
 
  public:
   void* operator new(size_t) = delete;

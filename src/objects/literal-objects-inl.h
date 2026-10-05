@@ -153,7 +153,7 @@ void ClassBoilerplate::set_instance_computed_properties(
 ArrayBoilerplateDescription::ArrayBoilerplateDescription(
     const AllocationWitness& witness, ReadOnlyRoots roots,
     ElementsKind elements_kind, Tagged<FixedArrayBase> constant_values)
-    : Struct(witness, roots.array_boilerplate_description_map()),
+    : Struct(roots.array_boilerplate_description_map()),
       flags_(Smi::FromInt(elements_kind)),
       constant_elements_(witness, constant_values) {}
 
@@ -178,7 +178,7 @@ bool ArrayBoilerplateDescription::is_empty() const {
 RegExpBoilerplateDescription::RegExpBoilerplateDescription(
     const AllocationWitness& witness, ReadOnlyRoots roots,
     Tagged<RegExpData> data, Tagged<Smi> flags)
-    : Struct(witness, roots.regexp_boilerplate_description_map()),
+    : Struct(roots.regexp_boilerplate_description_map()),
       data_(witness, data),
       flags_(flags) {}
 
@@ -196,7 +196,7 @@ PrototypeSharedClosureInfo::PrototypeSharedClosureInfo(
     Tagged<ObjectBoilerplateDescription> boilerplate_description,
     Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
     Tagged<Context> context)
-    : Struct(witness, roots.prototype_shared_closure_info_map()),
+    : Struct(roots.prototype_shared_closure_info_map()),
       boilerplate_description_(witness, boilerplate_description),
       closure_feedback_cell_array_(witness, closure_feedback_cell_array),
       context_(witness, context) {}

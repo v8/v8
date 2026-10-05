@@ -22,15 +22,13 @@
 
 namespace v8::internal {
 
-FeedbackCell::FeedbackCell(const AllocationWitness& witness,
-                           ReadOnlyRoots roots, Tagged<ReadOnly<Map>> map)
-    : Struct(witness, map),
-      value_(witness, roots.undefined_value(), SKIP_WRITE_BARRIER) {}
+FeedbackCell::FeedbackCell(ReadOnlyRoots roots, Tagged<ReadOnly<Map>> map)
+    : Struct(map), value_(roots.undefined_value()) {}
 
 FeedbackCell::FeedbackCell(const AllocationWitness& witness,
                            Tagged<ReadOnly<Map>> map,
                            Tagged<ClosureFeedbackCellArray> value)
-    : Struct(witness, map), value_(witness, value) {}
+    : Struct(map), value_(witness, value) {}
 
 Tagged<FeedbackCell::Value> FeedbackCell::value() const {
   return value_.load();

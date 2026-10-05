@@ -20,7 +20,7 @@ V8_OBJECT class PrimitiveHeapObject : public HeapObject {
   V8_IT_ABSTRACT;
 
  public:
-  using HeapObject::HeapObject;
+  inline explicit PrimitiveHeapObject(Tagged<ReadOnly<Map>> map);
 
   DECL_VERIFIER(PrimitiveHeapObject)
 } V8_OBJECT_END;

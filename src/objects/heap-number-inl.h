@@ -14,13 +14,11 @@
 namespace v8 {
 namespace internal {
 
-HeapNumber::HeapNumber(const AllocationWitness& witness, ReadOnlyRoots roots,
-                       double value)
-    : PrimitiveHeapObject(witness, roots.heap_number_map()), value_(value) {}
+HeapNumber::HeapNumber(ReadOnlyRoots roots, double value)
+    : PrimitiveHeapObject(roots.heap_number_map()), value_(value) {}
 
-HeapNumber::HeapNumber(const AllocationWitness& witness, ReadOnlyRoots roots,
-                       Float64 value)
-    : PrimitiveHeapObject(witness, roots.heap_number_map()), value_(value) {}
+HeapNumber::HeapNumber(ReadOnlyRoots roots, Float64 value)
+    : PrimitiveHeapObject(roots.heap_number_map()), value_(value) {}
 
 double HeapNumber::value() const { return value_.value(); }
 void HeapNumber::set_value(double value) {
@@ -37,9 +35,8 @@ bool HeapNumber::is_the_hole() const {
   return value_as_bits() == kHoleNanInt64;
 }
 
-UninitializedHeapNumber::UninitializedHeapNumber(
-    const AllocationWitness& witness, ReadOnlyRoots roots)
-    : HeapObject(witness, roots.uninitialized_heap_number_map()), value_(0.0) {}
+UninitializedHeapNumber::UninitializedHeapNumber(ReadOnlyRoots roots)
+    : HeapObject(roots.uninitialized_heap_number_map()), value_(0.0) {}
 
 }  // namespace internal
 }  // namespace v8

@@ -39,10 +39,9 @@ namespace v8::internal {
       static_cast<intptr_t>(                                             \
           Builtin::kLoadIC##Location##Representation##Kind##Index##Baseline));
 
-FeedbackMetadata::FeedbackMetadata(const AllocationWitness& witness,
-                                   ReadOnlyRoots roots, int32_t slot_count,
+FeedbackMetadata::FeedbackMetadata(ReadOnlyRoots roots, int32_t slot_count,
                                    int32_t create_closure_slot_count)
-    : HeapObject(witness, roots.feedback_metadata_map()),
+    : HeapObject(roots.feedback_metadata_map()),
       slot_count_(slot_count),
       create_closure_slot_count_(create_closure_slot_count) {
   DCHECK_LE(0, slot_count);
@@ -132,7 +131,7 @@ FeedbackVector::FeedbackVector(
     Tagged<SharedFunctionInfo> shared_function_info,
     Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
     Tagged<FeedbackCell> parent_feedback_cell)
-    : HeapObject(witness, roots.feedback_vector_map()),
+    : HeapObject(roots.feedback_vector_map()),
       length_(length),
       shared_function_info_(witness, shared_function_info),
       closure_feedback_cell_array_(witness, closure_feedback_cell_array),

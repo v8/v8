@@ -266,7 +266,7 @@ DebugScriptScopeInfo::DebugScriptScopeInfo(const AllocationWitness& witness,
                                            ReadOnlyRoots roots,
                                            Tagged<ByteArray> numeric_data,
                                            Tagged<FixedArray> string_table)
-    : Struct(witness, roots.debug_script_scope_info_map()),
+    : Struct(roots.debug_script_scope_info_map()),
       numeric_data_(witness, numeric_data),
       string_table_(witness, string_table) {}
 

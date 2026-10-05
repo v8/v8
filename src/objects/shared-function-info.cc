@@ -47,24 +47,21 @@ uint32_t SharedFunctionInfo::Hash() {
   return static_cast<uint32_t>(base::hash_combine(start_pos, script_id));
 }
 
-SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
-                                       ReadOnlyRoots ro_roots, int unique_id)
-    : HeapObject(witness, ro_roots.shared_function_info_map()),
+SharedFunctionInfo::SharedFunctionInfo(ReadOnlyRoots ro_roots, int unique_id)
+    : HeapObject(ro_roots.shared_function_info_map()),
       // Generally functions won't have feedback, unless they have been created
       // from a FunctionLiteral. Those can just reset this field to keep the
       // SharedFunctionInfo in a consistent state.
-      outer_scope_info_or_feedback_metadata_(witness, ro_roots.the_hole_value(),
-                                             SKIP_WRITE_BARRIER),
-      script_(witness, ro_roots.undefined_value(), SKIP_WRITE_BARRIER),
+      outer_scope_info_or_feedback_metadata_(ro_roots.the_hole_value()),
+      script_(ro_roots.undefined_value()),
       unique_id_(unique_id) {
   UpdateFunctionMapIndex();
 }
 
-SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
-                                       ReadOnlyRoots ro_roots,
+SharedFunctionInfo::SharedFunctionInfo(ReadOnlyRoots ro_roots,
                                        Tagged<SharedFunctionInfo> other,
                                        IsolateForSandbox isolate)
-    : HeapObject(witness, ro_roots.shared_function_info_map()) {
+    : HeapObject(ro_roots.shared_function_info_map()) {
   CopyFrom(other, isolate);
 }
 

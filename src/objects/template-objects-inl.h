@@ -20,7 +20,7 @@ namespace internal {
 TemplateObjectDescription::TemplateObjectDescription(
     const AllocationWitness& witness, ReadOnlyRoots roots,
     Tagged<FixedArray> raw_strings, Tagged<FixedArray> cooked_strings)
-    : Struct(witness, roots.template_object_description_map()),
+    : Struct(roots.template_object_description_map()),
       raw_strings_(witness, raw_strings),
       cooked_strings_(witness, cooked_strings) {}
 

@@ -385,10 +385,9 @@ uint32_t BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   return Cast<FixedArray>(break_points())->ulength().value();
 }
 
-CoverageInfo::CoverageInfo(const AllocationWitness& witness,
-                           ReadOnlyRoots roots,
+CoverageInfo::CoverageInfo(ReadOnlyRoots roots,
                            const ZoneVector<SourceRange>& slots)
-    : HeapObject(witness, roots.coverage_info_map()),
+    : HeapObject(roots.coverage_info_map()),
       slot_count_(static_cast<int32_t>(slots.size())) {
   for (int32_t i = 0; i < slot_count_; i++) {
     SourceRange range = slots[i];

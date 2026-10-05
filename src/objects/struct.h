@@ -23,7 +23,7 @@ V8_OBJECT class Struct : public HeapObject {
   V8_IT_ABSTRACT;
 
  public:
-  using HeapObject::HeapObject;
+  inline explicit Struct(Tagged<ReadOnly<Map>> map);
 
   void BriefPrintDetails(std::ostream& os);
 

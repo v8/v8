@@ -47,8 +47,7 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
   // Dispatched behavior.
   DECL_VERIFIER(Oddball)
 
-  inline Oddball(const AllocationWitness& witness, Tagged<ReadOnly<Map>> map,
-                 uint8_t kind);
+  inline Oddball(Tagged<ReadOnly<Map>> map, uint8_t kind);
 
   // Finish initializing the oddball's string and number fields once the read-
   // only string table and HeapNumbers have been created.
@@ -98,14 +97,14 @@ V8_OBJECT class Null : public Oddball {
   V8_IT_REUSE_PARENT;
 
  public:
-  inline Null(const AllocationWitness& witness, ReadOnlyRoots roots);
+  inline explicit Null(ReadOnlyRoots roots);
 } V8_OBJECT_END;
 
 V8_OBJECT class Undefined : public Oddball {
   V8_IT_REUSE_PARENT;
 
  public:
-  inline Undefined(const AllocationWitness& witness, ReadOnlyRoots roots);
+  inline explicit Undefined(ReadOnlyRoots roots);
 } V8_OBJECT_END;
 
 V8_OBJECT class Boolean : public Oddball {
@@ -113,8 +112,7 @@ V8_OBJECT class Boolean : public Oddball {
   V8_IT_NO_AUTO_CHECKER;
 
  public:
-  inline Boolean(const AllocationWitness& witness, ReadOnlyRoots roots,
-                 uint8_t kind);
+  inline Boolean(ReadOnlyRoots roots, uint8_t kind);
 
   V8_INLINE bool ToBool(Isolate* isolate) const;
 } V8_OBJECT_END;
@@ -123,14 +121,14 @@ V8_OBJECT class True : public Boolean {
   V8_IT_REUSE_PARENT;
 
  public:
-  inline True(const AllocationWitness& witness, ReadOnlyRoots roots);
+  inline explicit True(ReadOnlyRoots roots);
 } V8_OBJECT_END;
 
 V8_OBJECT class False : public Boolean {
   V8_IT_REUSE_PARENT;
 
  public:
-  inline False(const AllocationWitness& witness, ReadOnlyRoots roots);
+  inline explicit False(ReadOnlyRoots roots);
 } V8_OBJECT_END;
 
 }  // namespace internal

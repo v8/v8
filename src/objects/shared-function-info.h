@@ -78,8 +78,8 @@ using CreateSourcePositions =
 // +-------------------------------+
 V8_OBJECT class PreparseData : public HeapObject {
  public:
-  inline PreparseData(const AllocationWitness& witness, ReadOnlyRoots roots,
-                      int data_length, int children_length);
+  inline PreparseData(ReadOnlyRoots roots, int data_length,
+                      int children_length);
 
   int32_t data_length() const { return data_length_; }
 
@@ -339,10 +339,8 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   // SharedFunctionInfo in a state where it is safe for the GC to visit it.
   //
   // Important: These constructors MUST not allocate.
-  SharedFunctionInfo(const AllocationWitness& witness, ReadOnlyRoots roots,
-                     int unique_id);
-  SharedFunctionInfo(const AllocationWitness& witness, ReadOnlyRoots roots,
-                     Tagged<SharedFunctionInfo> other,
+  SharedFunctionInfo(ReadOnlyRoots roots, int unique_id);
+  SharedFunctionInfo(ReadOnlyRoots roots, Tagged<SharedFunctionInfo> other,
                      IsolateForSandbox isolate);
 
   V8_EXPORT_PRIVATE static constexpr Tagged<Smi> const kNoSharedNameSentinel =

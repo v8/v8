@@ -44,10 +44,9 @@
 
 namespace v8::internal {
 
-PreparseData::PreparseData(const AllocationWitness& witness,
-                           ReadOnlyRoots roots, int data_length,
+PreparseData::PreparseData(ReadOnlyRoots roots, int data_length,
                            int children_length)
-    : HeapObject(witness, roots.preparse_data_map()),
+    : HeapObject(roots.preparse_data_map()),
       data_length_(data_length),
       children_length_(children_length) {
   DCHECK_LE(0, data_length);
