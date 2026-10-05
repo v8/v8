@@ -264,6 +264,14 @@ void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
   if (handle == kNullExternalPointerHandle) return;
 
   uint32_t index = HandleToIndex(handle);
+
+  // In legitimate execution, host objects only reference handles allocated in
+  // their own EPT space (e.g. young host -> young space, old host -> old
+  // space).
+  //
+  // Space membership is not security-critical for the sandbox as it merely
+  // creates corruptions that can already appear by swapping around untrusted
+  // handles.
   DCHECK(space->Contains(index));
 
   // Bail out in case the entry was already marked.
