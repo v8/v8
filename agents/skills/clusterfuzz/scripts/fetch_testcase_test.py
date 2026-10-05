@@ -4,12 +4,17 @@
 # found in the LICENSE file.
 
 from pathlib import Path
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
-from agents.skills.clusterfuzz.scripts.fetch_testcase import (
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from fetch_testcase import (
     find_cookies_file,
     is_html_login_response,
+    main,
     map_job_to_local_out,
     parse_metadata_response,
     parse_target,
@@ -36,6 +41,39 @@ class FetchTestcaseTest(unittest.TestCase):
     tc_id, url = parse_target(url_in)
     self.assertEqual(tc_id, "12345")
     self.assertEqual(url, url_in)
+
+  def test_parse_target_rejects_path_traversal(self):
+    for bad_target in (
+        "https://clusterfuzz.com/download?testcase_id=../../../etc/passwd",
+        "https://clusterfuzz.com/download?testcase_id=%2e%2e%2f%2e%2e%2fpwned",
+        "https://clusterfuzz.com/testcase?key=../pwned",
+        "../../../etc/passwd",
+        "https://clusterfuzz.com/testcase-detail/not_numeric",
+    ):
+      with self.subTest(target=bad_target):
+        with self.assertRaises(ValueError):
+          parse_target(bad_target)
+
+  def test_parse_target_rejects_untrusted_host(self):
+    for bad_url in (
+        "https://attacker.example/download?testcase_id=12345",
+        "http://127.0.0.1:8080/download?testcase_id=../../../tmp/pwned",
+        "file:///etc/passwd?testcase_id=12345",
+    ):
+      with self.subTest(url=bad_url):
+        with self.assertRaises(ValueError):
+          parse_target(bad_url)
+
+  def test_main_rejects_path_traversal_url(self):
+    with tempfile.TemporaryDirectory() as d:
+      target_file = Path(d) / "pwned.js"
+      target_file_no_ext = str(target_file)[:-3]
+      traversal = "../" * 10 + target_file_no_ext.lstrip("/")
+      url = f"https://clusterfuzz.com/download?testcase_id={traversal}"
+      with mock.patch.object(sys, "argv", ["fetch_testcase.py", url]):
+        rc = main()
+      self.assertEqual(rc, 1)
+      self.assertFalse(target_file.exists())
 
   def test_map_job_to_local_out(self):
     self.assertEqual(map_job_to_local_out("linux_asan_d8"), "out/x64.asan/d8")
@@ -76,6 +114,16 @@ class FetchTestcaseTest(unittest.TestCase):
 
     with self.assertRaises(FileNotFoundError):
       find_cookies_file("/non/existent/path/cookies.txt")
+
+  def test_find_cookies_file_default_only_uses_config_dir(self):
+    with tempfile.TemporaryDirectory() as fake_home:
+      with mock.patch.object(Path, "home", return_value=Path(fake_home)):
+        self.assertIsNone(find_cookies_file())
+        config_cookies = Path(
+            fake_home) / ".config" / "clusterfuzz" / "cookies.txt"
+        config_cookies.parent.mkdir(parents=True)
+        config_cookies.write_text("# Netscape HTTP Cookie File\n")
+        self.assertEqual(find_cookies_file(), config_cookies)
 
   def test_regression_html_stripping(self):
     import re

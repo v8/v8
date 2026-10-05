@@ -7,7 +7,7 @@
 Supports:
 - Downloading reproducer scripts (.js or .wasm)
 - Fetching issue metadata (minimized d8 flags, job type, regression range, crash stack)
-- Automatic cookie jar detection (cookies.txt) across main checkout and worktrees
+- Automatic cookie jar detection (~/.config/clusterfuzz/cookies.txt)
 """
 
 from __future__ import annotations
@@ -45,84 +45,59 @@ To authenticate command-line downloads:
 2. Export your cookies for clusterfuzz.com in Netscape format.
    Recommended extension: 'Get cookies.txt LOCALLY'
    URL: {COOKIE_EXTENSION_URL}
-3. Save the exported cookies file as 'cookies.txt' in your V8 repository root:
-   {Path.cwd() / 'cookies.txt'}
-   or ~/.config/clusterfuzz/cookies.txt (or provide --cookies-file <path>).
+3. Save the exported cookies file to:
+   ~/.config/clusterfuzz/cookies.txt
+   (or provide --cookies-file <path>).
 ================================================================================
 """
   print(msg.strip(), file=sys.stderr)
 
 
 def find_cookies_file(specified: str | None = None) -> Path | None:
-  """Finds cookies.txt from CLI arguments, worktrees, or standard locations."""
+  """Finds cookies.txt from CLI arguments or the default config location."""
   if specified:
     p = Path(specified).expanduser().resolve()
     if p.exists():
       return p
     raise FileNotFoundError(f"Specified cookies file not found: {specified}")
 
-  # Search standard paths
-  repo_root = Path(__file__).resolve().parents[
-      4]  # v8 root from agents/skills/clusterfuzz/scripts
-  candidates = [
-      Path.cwd() / "cookies.txt",
-      Path.cwd() / ".cookies.txt",
-      repo_root / "cookies.txt",
-      repo_root / ".cookies.txt",
-  ]
-
-  # If repo_root is a git worktree, also check the main repository root
-  main_repo_root = None
-  git_file_or_dir = repo_root / ".git"
-  if git_file_or_dir.is_file():
-    try:
-      content = git_file_or_dir.read_text().strip()
-      if content.startswith("gitdir:"):
-        gitdir = Path(content.split(":", 1)[1].strip()).resolve()
-        # gitdir is /path/to/main/.git/worktrees/<name>
-        if len(gitdir.parents) >= 3:
-          main_repo_root = gitdir.parents[2]
-    except Exception:
-      pass
-  if not main_repo_root and repo_root.parent.name == "worktrees":
-    main_repo_root = repo_root.parents[1]
-
-  if main_repo_root and main_repo_root != repo_root:
-    candidates.append(main_repo_root / "cookies.txt")
-    candidates.append(main_repo_root / ".cookies.txt")
-
-  candidates.extend([
-      Path.home() / ".config" / "clusterfuzz" / "cookies.txt",
-      Path.home() / ".clusterfuzz" / "cookies.txt",
-      Path.home() / "cookies.txt",
-  ])
-
-  for c in candidates:
-    if c.exists():
-      return c
+  default_path = Path.home() / ".config" / "clusterfuzz" / "cookies.txt"
+  if default_path.exists():
+    return default_path
   return None
 
 
-def parse_target(target: str) -> tuple[str | None, str]:
+def parse_target(target: str) -> tuple[str, str]:
   """Parses a target string (ID or URL) into (testcase_id, download_url)."""
   target = target.strip()
 
   # Check if target is a pure numeric ID
   if re.fullmatch(r"\d+", target):
-    testcase_id = target
-    return testcase_id, DOWNLOAD_URL_FMT.format(id=testcase_id)
+    return target, DOWNLOAD_URL_FMT.format(id=target)
 
   parsed = urllib.parse.urlparse(target)
+  if parsed.scheme not in ("http", "https") or parsed.hostname not in (
+      CLUSTERFUZZ_DOMAIN,
+      f"www.{CLUSTERFUZZ_DOMAIN}",
+  ):
+    raise ValueError(
+        f"Invalid ClusterFuzz URL (expected {CLUSTERFUZZ_DOMAIN}): {target}")
+
   query_params = urllib.parse.parse_qs(parsed.query)
 
   testcase_id = None
   for param in ("testcase_id", "id", "key"):
     if param in query_params:
-      testcase_id = query_params[param][0]
+      candidate = query_params[param][0]
+      if not re.fullmatch(r"\d+", candidate):
+        raise ValueError(
+            f"Invalid non-numeric testcase ID in URL query: {candidate!r}")
+      testcase_id = candidate
       break
 
   if not testcase_id:
-    m = re.search(r"/(?:testcase-detail|testcase|download)/(\d+)", parsed.path)
+    m = re.search(r"/(?:testcase-detail|testcase|download)/(\d+)(?:/|$)",
+                  parsed.path)
     if m:
       testcase_id = m.group(1)
     else:
@@ -130,12 +105,11 @@ def parse_target(target: str) -> tuple[str | None, str]:
       if m2:
         testcase_id = m2.group(1)
 
-  if "download" not in parsed.path and testcase_id:
-    download_url = DOWNLOAD_URL_FMT.format(id=testcase_id)
-  else:
-    download_url = target
+  if not testcase_id or not re.fullmatch(r"\d+", testcase_id):
+    raise ValueError(
+        f"Could not extract a valid numeric testcase ID from target: {target}")
 
-  return testcase_id, download_url
+  return testcase_id, DOWNLOAD_URL_FMT.format(id=testcase_id)
 
 
 def is_html_login_response(content: bytes) -> bool:
@@ -339,22 +313,15 @@ def main() -> int:
 
   args = parser.parse_args()
 
-  testcase_id, url = parse_target(args.target)
-
   try:
+    testcase_id, url = parse_target(args.target)
     cookies_file = find_cookies_file(args.cookies_file)
-  except FileNotFoundError as e:
+  except (ValueError, FileNotFoundError) as e:
     print(f"Error: {e}", file=sys.stderr)
     return 1
 
   # Handle --info / --metadata mode
   if args.show_info or args.save_metadata:
-    if not testcase_id:
-      print(
-          "Error: Could not determine testcase ID from target.",
-          file=sys.stderr)
-      return 1
-
     try:
       metadata = fetch_testcase_metadata(testcase_id, cookies_file)
       if args.show_info:
@@ -394,10 +361,14 @@ def main() -> int:
 
     is_wasm = content.startswith(b"\x00asm")
     if not output_path:
-      temp_dir = Path(tempfile.gettempdir())
+      if not re.fullmatch(r"\d+", testcase_id):
+        raise ValueError(f"Invalid non-numeric testcase ID: {testcase_id!r}")
+      temp_dir = Path(tempfile.gettempdir()).resolve()
       ext = ".wasm" if is_wasm else ".js"
-      suffix = f"_{testcase_id}{ext}" if testcase_id else ext
-      out_file = (temp_dir / f"testcase{suffix}").resolve()
+      out_file = (temp_dir / f"testcase_{testcase_id}{ext}").resolve()
+      if out_file.parent != temp_dir:
+        raise ValueError(
+            f"Refusing to write outside temp directory: {out_file}")
     else:
       out_file = Path(output_path).resolve()
       if is_wasm and out_file.suffix.lower() == ".js":

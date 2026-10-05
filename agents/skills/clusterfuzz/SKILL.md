@@ -20,9 +20,7 @@ ______________________________________________________________________
 ## 1. Authentication (Setting Up `cookies.txt`)
 
 To authenticate with `clusterfuzz.com`, the tooling in this skill uses a
-Netscape-formatted browser cookies file (`cookies.txt`) in the main V8
-repository root (`v8/cookies.txt`) or `~/.config/clusterfuzz/cookies.txt`
-(auto-detected when working in `v8/worktrees/<task>`).
+Netscape-formatted browser cookies file at `~/.config/clusterfuzz/cookies.txt`.
 
 **Manual User Prerequisite**: The agent CANNOT generate or export `cookies.txt`
 itself. If `cookies.txt` is missing or expired, ask the user to perform these
@@ -32,8 +30,7 @@ manual steps:
 2. Export cookies for `clusterfuzz.com` in Netscape format (e.g., using the
    Chrome extension
    [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc)).
-3. Save the file as `cookies.txt` in the main V8 repository root
-   (`v8/cookies.txt`) or `~/.config/clusterfuzz/cookies.txt`.
+3. Save the file as `~/.config/clusterfuzz/cookies.txt`.
 
 ______________________________________________________________________
 
@@ -54,8 +51,8 @@ python3 agents/skills/clusterfuzz/scripts/fetch_testcase.py <target> [options]
   python3 agents/skills/clusterfuzz/scripts/fetch_testcase.py <TESTCASE_ID_OR_URL> [-o <output_path>]
   ```
 
-  Auto-detects `cookies.txt`. If `-o` is omitted, downloads to a temporary file
-  (`testcase_<id>.js` or `.wasm`).
+  Auto-detects `~/.config/clusterfuzz/cookies.txt`. If `-o` is omitted,
+  downloads to a temporary file (`testcase_<id>.js` or `.wasm`).
 
 - **Fetch Metadata & Minimized Flags (`--info`)**:
 
@@ -76,7 +73,7 @@ python3 agents/skills/clusterfuzz/scripts/fetch_testcase.py <target> [options]
 ### Manual Fallback
 
 ```bash
-curl -b cookies.txt -s -L "https://clusterfuzz.com/download?testcase_id=<ID>" -o <output_file>
+curl -b ~/.config/clusterfuzz/cookies.txt -s -L "https://clusterfuzz.com/download?testcase_id=<ID>" -o <output_file>
 ```
 
 ______________________________________________________________________
