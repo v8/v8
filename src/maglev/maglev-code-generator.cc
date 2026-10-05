@@ -148,6 +148,13 @@ class ParallelMoveResolver {
       StartEmitMoveChain(moves_from_stack_slot_.begin()->first);
     }
     for (auto [stack_slot, node] : materializing_stack_slot_moves_) {
+      if constexpr (std::is_same_v<RegisterT, Register> &&
+                    MaglevAssembler::HasZeroRegister()) {
+        if (node->MaterializesToZero()) {
+          __ Move(StackSlot{stack_slot}, MaglevAssembler::ZeroRegister());
+          continue;
+        }
+      }
       node->LoadToRegister(masm_, scratch_);
       __ Move(StackSlot{stack_slot}, scratch_);
     }

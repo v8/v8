@@ -1262,6 +1262,21 @@ void ValueNode::LoadToRegister(MaglevAssembler* masm,
   }
 }
 
+bool ValueNode::MaterializesToZero() const {
+  switch (opcode()) {
+    case Opcode::kSmiConstant:
+      return Cast<SmiConstant>()->value() == Smi::zero();
+    case Opcode::kInt32Constant:
+      return Cast<Int32Constant>()->value() == 0;
+    case Opcode::kUint32Constant:
+      return Cast<Uint32Constant>()->value() == 0;
+    case Opcode::kIntPtrConstant:
+      return Cast<IntPtrConstant>()->value() == 0;
+    default:
+      return false;
+  }
+}
+
 void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
   __ Move(reg, value());
 }

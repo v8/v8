@@ -2685,6 +2685,10 @@ class ValueNode : public Node {
   // For constants only.
   void LoadToRegister(MaglevAssembler*, Register) const;
   void LoadToRegister(MaglevAssembler*, DoubleRegister) const;
+  // Whether loading this constant produces an all-zero bit pattern, so that
+  // an architecture with a zero register (MaglevAssembler::HasZeroRegister())
+  // can store that register instead.
+  bool MaterializesToZero() const;
   DirectHandle<Object> Reify(LocalIsolate* isolate) const;
 
   bool has_valid_live_range() const {
