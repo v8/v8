@@ -839,6 +839,13 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     // baseline code. For optimized code this will use the deoptimization
     // information to get canonical location information.
     FrameSummaries summaries = it.frame()->Summarize();
+#if V8_ENABLE_WEBASSEMBLY
+    if (summaries.size() == 0) {
+      DCHECK_EQ(it.frame()->function()->shared()->builtin_id(),
+                Builtin::kWasmMethodWrapper);
+      return false;
+    }
+#endif
     auto& summary = summaries.frames.back().AsJavaScript();
     Handle<SharedFunctionInfo> shared(summary.function()->shared(), isolate);
     Handle<Object> script(shared->script(), isolate);
