@@ -463,6 +463,19 @@ class DynamicBitSet : public ZoneObject {
   ZoneList<unsigned>* remaining_ = nullptr;
 };
 
+void Trace::add_action(ActionNode* new_action) {
+  DCHECK(action_ == nullptr);  // Otherwise we lose an action.
+  action_ = new_action;
+  flags_ = HasAnyActionsField::update(flags_, true);
+  // A later search start can change this capture and let a backreference
+  // succeed even when the loop reaches the same greedy extent.
+  // For /(A+)9\1/ on "AA9A", start 0 captures "AA" and fails; start 1
+  // captures "A" and matches. Both loops stop at the same '9'.
+  if (new_action->stores_backreferenced_capture()) {
+    reset_parked_grant();
+  }
+}
+
 int Trace::FindAffectedRegisters(DynamicBitSet* affected_registers,
                                  Zone* zone) {
   int max_register = Compiler::kNoRegister;
@@ -929,9 +942,17 @@ ActionNode* ActionNode::IncrementRegister(int reg, Node* on_success,
                                              flags, reg);
 }
 
-ActionNode* ActionNode::StorePosition(int reg, Node* on_success, Flags flags) {
-  return on_success->zone()->New<ActionNode>(STORE_POSITION, on_success, flags,
-                                             reg);
+ActionNode* ActionNode::StorePosition(int reg, Node* on_success, Flags flags,
+                                      const Capture* capture) {
+  ActionNode* node = on_success->zone()->New<ActionNode>(
+      STORE_POSITION, on_success, flags, reg);
+  node->data_.u_simple.capture = capture;
+  return node;
+}
+
+bool ActionNode::stores_backreferenced_capture() const {
+  return action_type() == STORE_POSITION && data_.u_simple.capture != nullptr &&
+         data_.u_simple.capture->is_backreferenced();
 }
 
 ActionNode* ActionNode::RestorePosition(int reg, Node* on_success,
@@ -3541,6 +3562,7 @@ AtomicLoopKind ClassifyAtomicLoop(LoopChoiceNode* loop) {
 }
 
 AtomicLoopKind LoopChoiceNode::atomic_loop_kind() {
+  if (!v8_flags.regexp_atomic_loop) return AtomicLoopKind::kNone;
   if (!atomic_loop_kind_valid_) {
     atomic_loop_kind_ = ClassifyAtomicLoop(this);
     atomic_loop_kind_valid_ = true;
@@ -3602,8 +3624,8 @@ DrainMode ChooseFixedLengthLoopDrainMode(ChoiceNode* choice, Trace* trace) {
       // enclosing quantifier would wrongly match at a park), so parking needs a
       // grant.  With a grant and a single-unit body every skipped restart
       // re-consumes the run and stops at the old extent, where the continuation
-      // re-fails (its outcome depends only on input position; the failed
-      // attempt's register writes are undone by the flush undo frames).
+      // re-fails. Stores to backreferenced captures revoke the grant in
+      // Trace::add_action.
       return (parkable && trace->backtrack() != nullptr &&
               trace->parked_grant() != ParkedGrant::kNone)
                  ? DrainMode::kOmit
@@ -6459,7 +6481,7 @@ Node* Compiler::PreprocessRegExp(CompileData* data, bool is_one_byte) {
   TRACE_GRAPH_WITH_NODE("* Preprocess RegExp ", data->tree);
   REGISTER_NODE(accept());
   // Wrap the body of the regexp in capture #0.
-  Node* captured_body = Capture::ToNode(data->tree, 0, this, accept());
+  Node* captured_body = Capture::ToNode(data->tree, this, accept(), nullptr);
   Node* node = captured_body;
   if (!data->tree->IsCertainlyAnchoredAtStart(Node::kRecursionBudget) &&
       !IsSticky(flags())) {

@@ -3424,6 +3424,7 @@ DEFINE_DEVELOPER_FLAG(serialization_statistics,
                       "Collect statistics on serialized objects.")
 // Regexp
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
+DEFINE_BOOL(regexp_atomic_loop, true, "optimize atomic regexp loops")
 DEFINE_BOOL(regexp_unroll, true, "unroll small {} repeats when optimizing")
 DEFINE_BOOL(regexp_masked_dispatch, true,
             "dispatch disjoint regexp alternations on the masked quick-check "
