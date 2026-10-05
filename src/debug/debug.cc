@@ -2695,7 +2695,15 @@ void Debug::OnDebugBreak(DirectHandle<FixedArray> break_points_hit,
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
 
-  if ((lastStepAction == StepAction::StepOver ||
+  // The skip list only applies to stepping. Breakpoints, debugger statements
+  // and scheduled pauses must never be skipped. Note that kStep is only added
+  // to {break_reasons} below, so we can't check for it here.
+  const bool is_pure_step_break =
+      break_points_hit->ulength().value() == 0 &&
+      !break_reasons.contains(debug::BreakReason::kDebuggerStatement) &&
+      !break_reasons.contains(debug::BreakReason::kScheduled);
+  if (is_pure_step_break &&
+      (lastStepAction == StepAction::StepOver ||
        lastStepAction == StepAction::StepInto) &&
       ShouldBeSkipped()) {
     PrepareStep(lastStepAction);
