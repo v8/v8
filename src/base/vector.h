@@ -56,10 +56,6 @@ class Vector final {
     requires std::is_convertible_v<std::span<U, n>, std::span<T>>
   constexpr Vector(std::span<U, n> span) : span_(span) {}
 
-  static Vector<T> New(size_t length) {
-    return Vector<T>(new T[length], length);
-  }
-
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
   constexpr Vector<T> SubVector(size_t from, size_t to) const {
@@ -138,13 +134,6 @@ class Vector final {
   void Truncate(size_t length) {
     DCHECK_LE(length, size());
     span_ = span_.first(length);
-  }
-
-  // Releases the array underlying this vector. Once disposed the
-  // vector is empty.
-  void Dispose() {
-    delete[] span_.data();
-    span_ = {};
   }
 
   const Vector<T> operator+(size_t offset) const {

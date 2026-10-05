@@ -287,7 +287,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     if (int pool_size = code->constant_pool_size()) {
       DCHECK_EQ(pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << pool_size << ")\n";
-      base::Vector<char> buf = base::Vector<char>::New(50);
+      base::EmbeddedVector<char, 50> buf;
       intptr_t* ptr = reinterpret_cast<intptr_t*>(code->constant_pool());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);

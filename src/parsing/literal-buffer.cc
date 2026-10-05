@@ -36,13 +36,12 @@ size_t LiteralBuffer::NewCapacity(size_t min_capacity) {
 
 void LiteralBuffer::ExpandBuffer() {
   size_t min_capacity = std::max(kInitialCapacity, backing_store_.size());
-  base::Vector<uint8_t> new_store =
-      base::Vector<uint8_t>::New(NewCapacity(min_capacity));
+  base::OwnedVector<uint8_t> new_store =
+      base::OwnedVector<uint8_t>::NewForOverwrite(NewCapacity(min_capacity));
   if (position_ > 0) {
     MemCopy(new_store.begin(), backing_store_.begin(), position_);
   }
-  backing_store_.Dispose();
-  backing_store_ = new_store;
+  backing_store_ = std::move(new_store);
 }
 
 void LiteralBuffer::ExpandBufferAndAddOneByteChar(uint8_t one_byte_char) {
@@ -58,35 +57,33 @@ void LiteralBuffer::ExpandBufferTo(size_t min_size) {
   size_t min_capacity = RoundUp<2>(min_size);
   min_capacity =
       std::max({kInitialCapacity, backing_store_.size(), min_capacity});
-  base::Vector<uint8_t> new_store =
-      base::Vector<uint8_t>::New(NewCapacity(min_capacity));
+  base::OwnedVector<uint8_t> new_store =
+      base::OwnedVector<uint8_t>::NewForOverwrite(NewCapacity(min_capacity));
   if (position_ > 0) {
     MemCopy(new_store.begin(), backing_store_.begin(), position_);
   }
-  backing_store_.Dispose();
-  backing_store_ = new_store;
+  backing_store_ = std::move(new_store);
 }
 
 void LiteralBuffer::ConvertToTwoByte() {
   DCHECK(is_one_byte());
-  base::Vector<uint8_t> new_store;
+  base::OwnedVector<uint8_t> new_store;
+  uint8_t* dst_bytes = backing_store_.begin();
   size_t new_content_size = position_ * base::kUC16Size;
   if (new_content_size >= backing_store_.size()) {
     // Ensure room for all currently read code units as UC16 as well
     // as the code unit about to be stored.
-    new_store = base::Vector<uint8_t>::New(NewCapacity(new_content_size));
-  } else {
-    new_store = backing_store_;
+    new_store = base::OwnedVector<uint8_t>::NewForOverwrite(
+        NewCapacity(new_content_size));
+    dst_bytes = new_store.begin();
   }
-  CHECK_LE(position_, new_store.size());
   uint8_t* src = backing_store_.begin();
-  uint16_t* dst = reinterpret_cast<uint16_t*>(new_store.begin());
+  uint16_t* dst = reinterpret_cast<uint16_t*>(dst_bytes);
   for (size_t i = position_; i > 0; i--) {
     dst[i - 1] = src[i - 1];
   }
-  if (new_store.begin() != backing_store_.begin()) {
-    backing_store_.Dispose();
-    backing_store_ = new_store;
+  if (!new_store.empty()) {
+    backing_store_ = std::move(new_store);
   }
   position_ = new_content_size;
   is_one_byte_ = false;

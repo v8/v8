@@ -1289,8 +1289,8 @@ class Simulator : public SimulatorBase {
   // Floating-point control and status register.
   uint32_t FCSR_;
 
-  base::Vector<uintptr_t> shadow_stack_ =
-      base::Vector<uintptr_t>::New(kInitialShadowStackSize);
+  base::OwnedVector<uintptr_t> shadow_stack_ =
+      base::OwnedVector<uintptr_t>::New(kInitialShadowStackSize);
   size_t csr_ssp_ = shadow_stack_.size();  // Shadow stack pointer
   int64_t ss_mismatch_count_ = 0;
 

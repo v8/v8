@@ -87,15 +87,9 @@ constexpr EmbedderDataTypeTag kRawDataTag = 2;
 // A convenience struct to simplify management of the blobs required to
 // deserialize an isolate.
 struct StartupBlobs {
-  base::Vector<const uint8_t> startup;
-  base::Vector<const uint8_t> read_only;
-  base::Vector<const uint8_t> shared_space;
-
-  void Dispose() {
-    startup.Dispose();
-    read_only.Dispose();
-    shared_space.Dispose();
-  }
+  base::OwnedVector<const uint8_t> startup;
+  base::OwnedVector<const uint8_t> read_only;
+  base::OwnedVector<const uint8_t> shared_space;
 };
 
 }  // namespace
@@ -124,9 +118,9 @@ class TestSerializer {
   }
 
   static v8::Isolate* NewIsolateFromBlob(const StartupBlobs& blobs) {
-    SnapshotData startup_snapshot(blobs.startup);
-    SnapshotData read_only_snapshot(blobs.read_only);
-    SnapshotData shared_space_snapshot(blobs.shared_space);
+    SnapshotData startup_snapshot(blobs.startup.as_vector());
+    SnapshotData read_only_snapshot(blobs.read_only.as_vector());
+    SnapshotData shared_space_snapshot(blobs.shared_space.as_vector());
     const bool kEnableSerializer = false;
     v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer);
     v8::Isolate::Scope isolate_scope(v8_isolate);
@@ -154,12 +148,9 @@ namespace {
 
 enum CodeCacheType { kLazy, kEager, kAfterExecute };
 
-base::Vector<const uint8_t> WritePayload(
+base::OwnedVector<const uint8_t> WritePayload(
     const base::Vector<const uint8_t>& payload) {
-  int length = payload.length();
-  uint8_t* blob = NewArray<uint8_t>(length);
-  memcpy(blob, payload.begin(), length);
-  return base::VectorOf(blob, length);
+  return base::OwnedCopyOf(payload);
 }
 
 // Convenience wrapper around the convenience wrapper.
@@ -231,20 +222,20 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
           WritePayload(shared_space_snapshot.RawData())};
 }
 
-base::Vector<const char> ConstructSource(base::Vector<const char> head,
-                                         base::Vector<const char> body,
-                                         base::Vector<const char> tail,
-                                         int repeats) {
+base::OwnedVector<const char> ConstructSource(base::Vector<const char> head,
+                                              base::Vector<const char> body,
+                                              base::Vector<const char> tail,
+                                              int repeats) {
   size_t source_length = head.size() + body.size() * repeats + tail.size();
-  char* source = NewArray<char>(source_length);
-  CopyChars(source, head.begin(), head.length());
+  auto source = base::OwnedVector<char>::NewForOverwrite(source_length);
+  CopyChars(source.begin(), head.begin(), head.length());
   for (int i = 0; i < repeats; i++) {
-    CopyChars(source + head.length() + i * body.length(), body.begin(),
+    CopyChars(source.begin() + head.length() + i * body.length(), body.begin(),
               body.length());
   }
-  CopyChars(source + head.length() + repeats * body.length(), tail.begin(),
-            tail.length());
-  return base::VectorOf(source, source_length);
+  CopyChars(source.begin() + head.length() + repeats * body.length(),
+            tail.begin(), tail.length());
+  return source;
 }
 
 v8::Isolate* Deserialize(const StartupBlobs& blobs) {
@@ -279,7 +270,6 @@ void TestStartupSerializerOnceImpl() {
     SanityCheck(isolate);
   }
   isolate->Dispose();
-  blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
@@ -297,7 +287,6 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
   isolate = Deserialize(blobs1);
   StartupBlobs blobs2 = Serialize(isolate);
   isolate->Dispose();
-  blobs1.Dispose();
 
   isolate = Deserialize(blobs2);
   {
@@ -310,7 +299,6 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
     SanityCheck(isolate);
   }
   isolate->Dispose();
-  blobs2.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
@@ -334,7 +322,6 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
     CHECK_EQ(4, result.FromJust());
   }
   isolate->Dispose();
-  blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
@@ -346,7 +333,6 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   isolate = Deserialize(blobs1);
   StartupBlobs blobs2 = Serialize(isolate);
   isolate->Dispose();
-  blobs1.Dispose();
 
   isolate = Deserialize(blobs2);
   {
@@ -364,14 +350,14 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
     CHECK_EQ(4, result.FromJust());
   }
   isolate->Dispose();
-  blobs2.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
-static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
-                             base::Vector<const uint8_t>* read_only_blob_out,
-                             base::Vector<const uint8_t>* shared_space_blob_out,
-                             base::Vector<const uint8_t>* context_blob_out) {
+static void SerializeContext(
+    base::OwnedVector<const uint8_t>* startup_blob_out,
+    base::OwnedVector<const uint8_t>* read_only_blob_out,
+    base::OwnedVector<const uint8_t>* shared_space_blob_out,
+    base::OwnedVector<const uint8_t>* context_blob_out) {
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   Heap* heap = isolate->heap();
@@ -466,35 +452,31 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
 #ifdef SNAPSHOT_COMPRESSION
 UNINITIALIZED_TEST(SnapshotCompression) {
-  base::Vector<const uint8_t> startup_blob;
-  base::Vector<const uint8_t> read_only_blob;
-  base::Vector<const uint8_t> shared_space_blob;
-  base::Vector<const uint8_t> context_blob;
+  base::OwnedVector<const uint8_t> startup_blob;
+  base::OwnedVector<const uint8_t> read_only_blob;
+  base::OwnedVector<const uint8_t> shared_space_blob;
+  base::OwnedVector<const uint8_t> context_blob;
   SerializeContext(&startup_blob, &read_only_blob, &shared_space_blob,
                    &context_blob);
-  SnapshotData original_snapshot_data(context_blob);
+  SnapshotData original_snapshot_data(context_blob.as_vector());
   SnapshotData compressed =
       i::SnapshotCompression::Compress(&original_snapshot_data);
   SnapshotData decompressed =
       i::SnapshotCompression::Decompress(compressed.RawData());
-  CHECK_EQ(context_blob, decompressed.RawData());
-
-  startup_blob.Dispose();
-  read_only_blob.Dispose();
-  shared_space_blob.Dispose();
-  context_blob.Dispose();
+  CHECK_EQ(context_blob.as_vector(), decompressed.RawData());
 }
 #endif  // SNAPSHOT_COMPRESSION
 
 UNINITIALIZED_TEST(ContextSerializerContext) {
-  base::Vector<const uint8_t> startup_blob;
-  base::Vector<const uint8_t> read_only_blob;
-  base::Vector<const uint8_t> shared_space_blob;
-  base::Vector<const uint8_t> context_blob;
+  base::OwnedVector<const uint8_t> startup_blob;
+  base::OwnedVector<const uint8_t> read_only_blob;
+  base::OwnedVector<const uint8_t> shared_space_blob;
+  base::OwnedVector<const uint8_t> context_blob;
   SerializeContext(&startup_blob, &read_only_blob, &shared_space_blob,
                    &context_blob);
 
-  StartupBlobs blobs = {startup_blob, read_only_blob, shared_space_blob};
+  StartupBlobs blobs = {std::move(startup_blob), std::move(read_only_blob),
+                        std::move(shared_space_blob)};
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateFromBlob(blobs);
   CHECK(v8_isolate);
   {
@@ -507,7 +489,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
         isolate->factory()->NewUninitializedJSGlobalProxy(
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
-      SnapshotData snapshot_data(context_blob);
+      SnapshotData snapshot_data(context_blob.as_vector());
       root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, 0, false, global_proxy,
                  DeserializeEmbedderFieldsCallback(
@@ -519,7 +501,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
 
     DirectHandle<Object> root2;
     {
-      SnapshotData snapshot_data(context_blob);
+      SnapshotData snapshot_data(context_blob.as_vector());
       root2 = ContextDeserializer::DeserializeContext(
                   isolate, &snapshot_data, 0, false, global_proxy,
                   DeserializeEmbedderFieldsCallback(
@@ -528,18 +510,16 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
       CHECK(IsContext(*root2));
       CHECK(!root.is_identical_to(root2));
     }
-    context_blob.Dispose();
   }
   v8_isolate->Dispose();
-  blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
 static void SerializeCustomContext(
-    base::Vector<const uint8_t>* startup_blob_out,
-    base::Vector<const uint8_t>* read_only_blob_out,
-    base::Vector<const uint8_t>* shared_space_blob_out,
-    base::Vector<const uint8_t>* context_blob_out) {
+    base::OwnedVector<const uint8_t>* startup_blob_out,
+    base::OwnedVector<const uint8_t>* read_only_blob_out,
+    base::OwnedVector<const uint8_t>* shared_space_blob_out,
+    base::OwnedVector<const uint8_t>* context_blob_out) {
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
@@ -569,14 +549,14 @@ static void SerializeCustomContext(
           "var p = 0;"
           "(async ()=>{ p = await 42; })();");
 
-      base::Vector<const char> source = ConstructSource(
+      base::OwnedVector<const char> source = ConstructSource(
           base::StaticCharVector("function g() { return [,"),
           base::StaticCharVector("1,"),
           base::StaticCharVector("];} a = g(); b = g(); b.push(1);"), 100000);
       v8::MaybeLocal<v8::String> source_str = v8::String::NewFromUtf8(
-          isolate, source.begin(), v8::NewStringType::kNormal, source.length());
+          isolate, source.begin(), v8::NewStringType::kNormal,
+          static_cast<int>(source.size()));
       CompileRun(source_str.ToLocalChecked());
-      source.Dispose();
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
@@ -667,14 +647,15 @@ static void SerializeCustomContext(
 }
 
 UNINITIALIZED_TEST(ContextSerializerCustomContext) {
-  base::Vector<const uint8_t> startup_blob;
-  base::Vector<const uint8_t> read_only_blob;
-  base::Vector<const uint8_t> shared_space_blob;
-  base::Vector<const uint8_t> context_blob;
+  base::OwnedVector<const uint8_t> startup_blob;
+  base::OwnedVector<const uint8_t> read_only_blob;
+  base::OwnedVector<const uint8_t> shared_space_blob;
+  base::OwnedVector<const uint8_t> context_blob;
   SerializeCustomContext(&startup_blob, &read_only_blob, &shared_space_blob,
                          &context_blob);
 
-  StartupBlobs blobs = {startup_blob, read_only_blob, shared_space_blob};
+  StartupBlobs blobs = {std::move(startup_blob), std::move(read_only_blob),
+                        std::move(shared_space_blob)};
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateFromBlob(blobs);
   CHECK(v8_isolate);
   {
@@ -687,7 +668,7 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
         isolate->factory()->NewUninitializedJSGlobalProxy(
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
-      SnapshotData snapshot_data(context_blob);
+      SnapshotData snapshot_data(context_blob.as_vector());
       root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, 0, false, global_proxy,
                  DeserializeEmbedderFieldsCallback(
@@ -756,10 +737,8 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
                   .FromJust();
       CHECK_EQ(100002, b);
     }
-    context_blob.Dispose();
   }
   v8_isolate->Dispose();
-  blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
@@ -1810,7 +1789,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   // Flood the startup snapshot with shared function infos. If they are
   // serialized before the immortal immovable root, the root will no longer end
   // up on the first page.
-  base::Vector<const char> source =
+  base::OwnedVector<const char> source =
       ConstructSource(base::StaticCharVector("var a = [];"),
                       base::StaticCharVector("a.push(function() {return 7});"),
                       base::StaticCharVector("\0"), 10000);
@@ -1832,7 +1811,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
     CHECK_EQ(7, CompileRun("a[0]()")->Int32Value(context).FromJust());
   }
   isolate->Dispose();
-  source.Dispose();
   delete[] data.data;  // We can dispose of the snapshot blob now.
   FreeCurrentEmbeddedBlob();
 }
@@ -2515,13 +2493,14 @@ TEST(CodeSerializerLargeCodeObject) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::Vector<const char> source = ConstructSource(
+  base::OwnedVector<const char> source = ConstructSource(
       base::StaticCharVector("var j=1; if (j == 0) {"),
       base::StaticCharVector(
           "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);"),
       base::StaticCharVector("} j=7; j"), 2000);
-  Handle<String> source_str =
-      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
+  Handle<String> source_str = isolate->factory()
+                                  ->NewStringFromUtf8(source.as_vector())
+                                  .ToHandleChecked();
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
@@ -2558,7 +2537,6 @@ TEST(CodeSerializerLargeCodeObject) {
   CHECK_EQ(7, result_int);
 
   delete cache;
-  source.Dispose();
 }
 
 TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
@@ -2578,12 +2556,13 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::Vector<const char> source = ConstructSource(
+  base::OwnedVector<const char> source = ConstructSource(
       base::StaticCharVector("var j=1; if (j == 0) {"),
       base::StaticCharVector("for (var i = 0; i < Object.prototype; i++);"),
       base::StaticCharVector("} j=7; var s = 'happy_hippo'; j"), 20000);
-  Handle<String> source_str =
-      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
+  Handle<String> source_str = isolate->factory()
+                                  ->NewStringFromUtf8(source.as_vector())
+                                  .ToHandleChecked();
 
   // Create a string on an evacuation candidate in old space.
   DirectHandle<String> moving_object;
@@ -2643,7 +2622,6 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   CHECK_EQ(7, result_int);
 
   delete cache;
-  source.Dispose();
 }
 
 TEST(CodeSerializerLargeStrings) {
@@ -2655,15 +2633,16 @@ TEST(CodeSerializerLargeStrings) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::Vector<const char> source_s = ConstructSource(
+  base::OwnedVector<const char> source_s = ConstructSource(
       base::StaticCharVector("var s = \""), base::StaticCharVector("abcdef"),
       base::StaticCharVector("\";"), 1000000);
-  base::Vector<const char> source_t = ConstructSource(
+  base::OwnedVector<const char> source_t = ConstructSource(
       base::StaticCharVector("var t = \""), base::StaticCharVector("uvwxyz"),
       base::StaticCharVector("\"; s + t"), 999999);
   Handle<String> source_str =
-      f->NewConsString(f->NewStringFromUtf8(source_s).ToHandleChecked(),
-                       f->NewStringFromUtf8(source_t).ToHandleChecked())
+      f->NewConsString(
+           f->NewStringFromUtf8(source_s.as_vector()).ToHandleChecked(),
+           f->NewStringFromUtf8(source_t.as_vector()).ToHandleChecked())
           .ToHandleChecked();
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -2706,8 +2685,6 @@ TEST(CodeSerializerLargeStrings) {
 #endif
 
   delete cache;
-  source_s.Dispose();
-  source_t.Dispose();
 }
 
 TEST(CodeSerializerThreeBigStrings) {
@@ -2723,23 +2700,23 @@ TEST(CodeSerializerThreeBigStrings) {
   const int32_t length_of_b = kMaxRegularHeapObjectSize / 2;
   const int32_t length_of_c = kMaxRegularHeapObjectSize / 2;
 
-  base::Vector<const char> source_a = ConstructSource(
+  base::OwnedVector<const char> source_a = ConstructSource(
       base::StaticCharVector("var a = \""), base::StaticCharVector("a"),
       base::StaticCharVector("\";"), length_of_a);
   Handle<String> source_a_str =
-      f->NewStringFromUtf8(source_a).ToHandleChecked();
+      f->NewStringFromUtf8(source_a.as_vector()).ToHandleChecked();
 
-  base::Vector<const char> source_b = ConstructSource(
+  base::OwnedVector<const char> source_b = ConstructSource(
       base::StaticCharVector("var b = \""), base::StaticCharVector("b"),
       base::StaticCharVector("\";"), length_of_b);
   Handle<String> source_b_str =
-      f->NewStringFromUtf8(source_b).ToHandleChecked();
+      f->NewStringFromUtf8(source_b.as_vector()).ToHandleChecked();
 
-  base::Vector<const char> source_c = ConstructSource(
+  base::OwnedVector<const char> source_c = ConstructSource(
       base::StaticCharVector("var c = \""), base::StaticCharVector("c"),
       base::StaticCharVector("\";"), length_of_c);
   Handle<String> source_c_str =
-      f->NewStringFromUtf8(source_c).ToHandleChecked();
+      f->NewStringFromUtf8(source_c.as_vector()).ToHandleChecked();
 
   Handle<String> source_str =
       f->NewConsString(
@@ -2793,9 +2770,6 @@ TEST(CodeSerializerThreeBigStrings) {
   CHECK(heap->InSpace(*v8::Utils::OpenDirectHandle(*result_str), OLD_SPACE));
 
   delete cache;
-  source_a.Dispose();
-  source_b.Dispose();
-  source_c.Dispose();
 }
 
 class SerializerOneByteResource
@@ -2991,12 +2965,13 @@ TEST(CodeSerializerLargeExternalString) {
   v8::HandleScope scope(CcTest::isolate());
 
   // Create a huge external internalized string to use as variable name.
-  base::Vector<const char> string = ConstructSource(
+  base::OwnedVector<const char> string = ConstructSource(
       base::StaticCharVector(""), base::StaticCharVector("abcdef"),
       base::StaticCharVector(""), 999999);
-  Handle<String> name = f->NewStringFromUtf8(string).ToHandleChecked();
+  Handle<String> name =
+      f->NewStringFromUtf8(string.as_vector()).ToHandleChecked();
   SerializerOneByteResource one_byte_resource(
-      reinterpret_cast<const char*>(string.begin()), string.length());
+      reinterpret_cast<const char*>(string.begin()), string.size());
   name = f->InternalizeString(name);
   name->MakeExternal(isolate, &one_byte_resource);
   CHECK(IsExternalOneByteString(*name));
@@ -3041,7 +3016,6 @@ TEST(CodeSerializerLargeExternalString) {
   // This avoids the GC from trying to free stack allocated resources.
   i::Cast<i::ExternalOneByteString>(name)->SetResource(isolate, nullptr);
   delete cache;
-  string.Dispose();
 }
 
 TEST(CodeSerializerExternalScriptName) {
@@ -7153,7 +7127,6 @@ UNINITIALIZED_TEST(SharedStrings) {
       [isolate2]() { isolate2->Dispose(); });
   isolate1->Dispose();
 
-  blobs.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 
@@ -7304,10 +7277,8 @@ UNINITIALIZED_TEST(StaticRootsPredictableSnapshot) {
   // relative to the cage base are identical. However, we can't test this, since
   // when we create two isolates in the same process, the offsets will actually
   // be different.
-  CHECK_EQ(blobs1.read_only, blobs2.read_only);
+  CHECK_EQ(blobs1.read_only.as_vector(), blobs2.read_only.as_vector());
 
-  blobs1.Dispose();
-  blobs2.Dispose();
   FreeCurrentEmbeddedBlob();
 }
 #endif  // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) &&

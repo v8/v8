@@ -224,14 +224,6 @@ uint8_t SignificandToChars(uint64_t n, char* buffer) {
 // This simple base class does not allow formatted output.
 class SimpleStringBuilder final {
  public:
-  // Create a string builder with a buffer of the given size. The
-  // buffer is allocated through NewArray<char> and must be
-  // deallocated by the caller of Finalize().
-  explicit SimpleStringBuilder(size_t size) {
-    buffer_ = base::Vector<char>::New(size);
-    cursor_ = buffer_.begin();
-  }
-
   SimpleStringBuilder(char* buffer, size_t size)
       : buffer_(buffer, size), cursor_(buffer) {}
 
@@ -1283,7 +1275,8 @@ std::string_view DoubleToFixedStringView(double value, int f,
   unsigned rep_length =
       zero_prefix_length + decimal_rep_length + zero_postfix_length;
   // TODO(pthier): Get rid of this intermediate string builder.
-  base::Vector<char> rep_buffer = base::Vector<char>::New(rep_length + 1);
+  base::OwnedVector<char> rep_buffer =
+      base::OwnedVector<char>::NewForOverwrite(rep_length + 1);
   SimpleStringBuilder rep_builder(rep_buffer.begin(), rep_buffer.size());
   rep_builder.AddPadding('0', zero_prefix_length);
   rep_builder.AddString(decimal_rep, decimal_rep_length);
@@ -1301,7 +1294,6 @@ std::string_view DoubleToFixedStringView(double value, int f,
     builder.AddCharacter('.');
     builder.AddSubstring(rep_buffer.begin() + decimal_point, f);
   }
-  DeleteArray(rep_buffer.begin());
   return {buffer.begin(), builder.Finalize()};
 }
 

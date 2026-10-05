@@ -9581,10 +9581,10 @@ void Simulator::PushShadowStack(uintptr_t value) {
     size_t old_size = shadow_stack_.size();
     size_t new_size = old_size * 2;
     size_t new_ssp = new_size - old_size;
-    auto new_stack = base::Vector<uintptr_t>::New(new_size);
-    new_stack.SubVectorFrom(new_ssp).OverwriteWith(shadow_stack_);
-    shadow_stack_.Dispose();
-    shadow_stack_ = new_stack;
+    auto new_stack = base::OwnedVector<uintptr_t>::New(new_size);
+    new_stack.as_vector().SubVectorFrom(new_ssp).OverwriteWith(
+        shadow_stack_.as_vector());
+    shadow_stack_ = std::move(new_stack);
     csr_ssp_ = new_ssp;
   }
   csr_ssp_ = csr_ssp_ - 1;

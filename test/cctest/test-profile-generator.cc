@@ -801,20 +801,19 @@ TEST(Issue51919) {
   CpuProfilesCollection collection(CcTest::i_isolate());
   CpuProfiler profiler(CcTest::i_isolate());
   collection.set_cpu_profiler(&profiler);
-  base::EmbeddedVector<char*, CpuProfilesCollection::kMaxSimultaneousProfiles>
+  base::EmbeddedVector<base::OwnedVector<char>,
+                       CpuProfilesCollection::kMaxSimultaneousProfiles>
       titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
-    base::Vector<char> title = v8::base::Vector<char>::New(16);
-    base::SNPrintF(title, "%d", i);
+    base::OwnedVector<char> title =
+        v8::base::OwnedVector<char>::NewForOverwrite(16);
+    base::SNPrintF(title.as_vector(), "%d", i);
     CHECK_EQ(CpuProfilingStatus::kStarted,
              collection.StartProfiling(title.begin()).status);
-    titles[i] = title.begin();
+    titles[i] = std::move(title);
   }
   CHECK_EQ(CpuProfilingStatus::kErrorTooManyProfilers,
            collection.StartProfiling("maximum").status);
-  for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
-    i::DeleteArray(titles[i]);
-  }
 }
 
 static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
