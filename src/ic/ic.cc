@@ -42,6 +42,7 @@
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
 #include "src/runtime/runtime.h"
+#include "src/sandbox/check.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/ostreams.h"
@@ -850,10 +851,10 @@ Builtin CalculatePatchingTarget(Builtin current_builtin, Builtin handler) {
   static_assert(Builtin::kLastLoadICHandler == Builtin::kLoadICGenericBaseline);
   // Currently we only have LoadIC handlers. {current_builtin} should not be the
   // generic handler because we should be able to return early in that case.
-  DCHECK(current_builtin >= Builtin::kFirstLoadICHandler &&
-         current_builtin < Builtin::kLastLoadICHandler);
-  DCHECK(handler > Builtin::kFirstLoadICHandler &&
-         handler <= Builtin::kLastLoadICHandler);
+  SBXCHECK(current_builtin >= Builtin::kFirstLoadICHandler &&
+           current_builtin < Builtin::kLastLoadICHandler);
+  SBXCHECK(handler > Builtin::kFirstLoadICHandler &&
+           handler <= Builtin::kLastLoadICHandler);
   // No need to patch when the current and target handlers are the same.
   if (current_builtin == handler) return Builtin::kNoBuiltinId;
   // Uninitialized handler can be patch to any other handlers.
@@ -3306,8 +3307,8 @@ RUNTIME_FUNCTION(Runtime_PatchLoadICUninitializedBaseline) {
   // Get target builtin's address.
   FeedbackNexus nexus(isolate, vector, vector_slot);
   Builtin target_builtin = nexus.ic_handler();
-  DCHECK(target_builtin > Builtin::kFirstLoadICHandler &&
-         target_builtin <= Builtin::kLastLoadICHandler);
+  SBXCHECK(target_builtin > Builtin::kFirstLoadICHandler &&
+           target_builtin <= Builtin::kLastLoadICHandler);
   Address target = Builtins::EntryOf(target_builtin, isolate);
 
   {

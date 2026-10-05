@@ -661,11 +661,11 @@ Builtin FeedbackNexus::GetLoadICHandlerForStorageOffset(int storage_offset,
   if (is_double) return Builtin::kLoadICDoubleFieldBaseline;
 
   if (is_inobject) {
-    int in_object_index = storage_offset - JSObject::kHeaderSize / kTaggedSize;
-    DCHECK_GE(in_object_index, 0);
+    uint32_t in_object_index =
+        storage_offset - JSObject::kHeaderSize / kTaggedSize;
     // Currently we have eight handlers that support loading in-object field
     // with fixed index 0~7.
-    int kMaxIndex = 7;
+    uint32_t kMaxIndex = 7;
     if (in_object_index > kMaxIndex) {
       return Builtin::kLoadICInObjectNonDoubleFieldBaseline;
     }
@@ -677,12 +677,11 @@ Builtin FeedbackNexus::GetLoadICHandlerForStorageOffset(int storage_offset,
         in_object_index + 1;
     return static_cast<Builtin>(builtin_id);
   } else {
-    int out_of_object_index =
+    uint32_t out_of_object_index =
         storage_offset - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
-    DCHECK_GE(out_of_object_index, 0);
     // Currently we have four handlers that support loading out-of-object
     // field with fixed index 0~3.
-    int kMaxIndex = 3;
+    uint32_t kMaxIndex = 3;
     if (out_of_object_index > kMaxIndex) {
       return Builtin::kLoadICOutOfObjectNonDoubleFieldBaseline;
     }
