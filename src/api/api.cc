@@ -1397,7 +1397,7 @@ template <typename Getter, typename Setter>
 i::DirectHandle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
                                                   v8::Local<Name> name,
                                                   Getter getter, Setter setter,
-                                                  v8::Local<Value> data,
+                                                  v8::Local<Data> data,
                                                   bool replace_on_access) {
   i::DirectHandle<i::AccessorInfo> obj =
       i_isolate->factory()->NewAccessorInfo();
@@ -1590,7 +1590,7 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
 
 void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    AccessorNameGetterCallback getter,
-                                   v8::Local<Value> data,
+                                   v8::Local<Data> data,
                                    PropertyAttribute attribute,
                                    SideEffectType getter_side_effect_type,
                                    SideEffectType setter_side_effect_type) {
