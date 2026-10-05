@@ -7360,7 +7360,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     check_flag_is_not_specified(options.trace_config);
     check_flag_is_not_specified(options.trace_path);
     check_flag_is_not_specified(options.lcov_file);
-    check_flag_is_not_specified(options.simulate_errors);
     check_flag_is_not_specified(options.enable_os_system);
     check_flag_is_not_specified(options.snapshot_blob);
 #ifdef V8_OS_LINUX
@@ -7393,6 +7392,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     check_developer_only_flag(options.dump_counters);
     check_developer_only_flag(options.dump_counters_nvp);
     check_developer_only_flag(options.dump_system_memory_stats);
+    check_developer_only_flag(options.simulate_errors);
   }
 
 #ifdef V8_OS_LINUX
