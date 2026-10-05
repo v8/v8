@@ -117,8 +117,10 @@ Buganizer.
   `INVOKER_INFO_SESSION_ID` in its current context immediately to ensure the
   mandatory first sentence in Phase 5 uses the correct, verified ID.
 - **Extraction**: The summary must include the POC script, required `d8` flags,
-  the reporter's environment (commit hash/version), and the identified
-  **introduction commit (regression range)**.
+  the reporter's environment (commit hash/version), the issue's current
+  `Priority`, `Severity`, `ReleaseBlock` custom field (`1223086`), and attached
+  hotlists (specifically any `Security_Impact-*` hotlists), as well as the
+  identified **introduction commit (regression range)**.
 - **Version and Commit Identification**: Always retrieve the current V8 version
   number from `include/v8-version.h` and the revision number from
   `Cr-Commit-Position`
@@ -229,8 +231,12 @@ Draft a short, precise synthesis based on verified subagent findings.
     hotlist) or "**Yes**" (shipping, web-exploitable) with a brief parenthetical
     rationale; omit specific channel labels (e.g., `Security_Impact-Stable`).
 
-  - **Proposed Severity** (1 line): Provide only the severity (e.g., `S1` or
-    `S2`) based on [triaging.md](../../../docs/security/triaging.md).
+  - **Proposed Severity** (1 line): Provide the severity (e.g., `S1` or `S2`)
+    and proposed priority (if it needs adjustment) based on
+    [triaging.md](../../../docs/security/triaging.md), where priority is at
+    least the severity for active vulnerabilities, can be lower than severity
+    for `Security_Impact-None` (e.g., `S1` -> `P2`), and should be lowered
+    (e.g., `P2` or `P3`) when downgrading to a non-security `Bug`.
 
   - **Introduced In** (1 line): Commit and version where the bug was introduced
     (and fixed, if already fixed), including the commit title and a clickable
@@ -312,6 +318,23 @@ the draft.
 - **Action**: Present the *audited and verified* analysis to the user for
   approval ONLY after all technical or formatting gaps identified by the auditor
   have been addressed.
+- **Applying Approved Buganizer Updates**: Once the user approves updating
+  Buganizer metadata:
+  - **Hotlist Cleanup**: When adding `Security_Impact-None` (`5433277`) via
+    `add_issue_to_hotlist`, you **MUST** also remove any existing
+    release-channel `Security_Impact-*` hotlists from the issue via
+    `remove_issue_from_hotlist`: `Security_Impact-Head` (`5432216`),
+    `Security_Impact-Beta` (`5433097`), `Security_Impact-Stable` (`5432902`),
+    and `Security_Impact-Extended` (`5432548`). When applicable, also add
+    `v8-sandbox` (`4802478`) or `v8-unsupported-chrome` (`8384111`).
+  - **Priority & ReleaseBlock Adjustment**: When lowering `Severity` or
+    downgrading an issue (e.g., to `Type=Bug` or `Security_Impact-None`), you
+    **MUST** check that `Priority` still makes sense and lower it accordingly
+    via `update_issue_priority` (e.g., `P2` or `P3` for downgraded bugs or
+    `Security_Impact-None` issues), and clear any `ReleaseBlock` values on
+    custom field `1223086` (`set_issue_custom_field` with
+    `customFieldId: "1223086"` and `customFieldValue: ""`) so release automation
+    does not re-promote the issue.
 
 ### 7. Phase: Cleanup & Preservation
 
