@@ -5,10 +5,10 @@
 #include "src/baseline/baseline-compiler.h"
 
 #include <algorithm>
+#include <bit>
 #include <optional>
 #include <type_traits>
 
-#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/numerics/clamped_math.h"
 #include "src/base/strong-alias.h"
@@ -317,7 +317,7 @@ BaselineCompiler::BaselineCompiler(
   //
   //   16 + (bytecode size) / 4
   bytecode_offset_table_builder_.Reserve(
-      base::bits::RoundUpToPowerOfTwo(16 + bytecode_->Size() / 4));
+      std::bit_ceil<size_t>(16 + bytecode_->Size() / 4));
 }
 
 void BaselineCompiler::GenerateCode() {

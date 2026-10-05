@@ -5,13 +5,13 @@
 #include "src/heap/factory.h"
 
 #include <algorithm>  // For copy
+#include <bit>
 #include <memory>     // For shared_ptr<>
 #include <optional>
 #include <string>
 #include <utility>  // For move
 
 #include "src/ast/ast-source-ranges.h"
-#include "src/base/bits.h"
 #include "src/base/strong-alias.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins-promise.h"
@@ -693,8 +693,7 @@ Handle<T> Factory::AllocateSmallOrderedHashTable(DirectHandle<Map> map,
   // to something other than 2, capacity should be stored as another
   // field of this object.
   DCHECK_EQ(T::kLoadFactor, 2);
-  capacity =
-      base::bits::RoundUpToPowerOfTwo32(std::max({T::kMinCapacity, capacity}));
+  capacity = std::bit_ceil<uint32_t>(std::max({T::kMinCapacity, capacity}));
   capacity = std::min({capacity, T::kMaxCapacity});
 
   DCHECK_LT(0, capacity);

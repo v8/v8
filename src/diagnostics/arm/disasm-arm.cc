@@ -22,6 +22,7 @@
 // of code into a FILE*, meaning that the above functionality could also be
 // achieved by just calling Disassembler::Disassemble(stdout, begin, end);
 
+#include <bit>
 #include <cassert>
 #include <cinttypes>
 #include <cstdarg>
@@ -2154,7 +2155,7 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
       if (imm3H_L != 0 && opc == 0) {
         // vshr.s<size> Qd, Qm, shift
         int imm7 = (l << 6) | instr->Bits(21, 16);
-        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int size = std::bit_floor<uint32_t>(imm7);
         int shift = 2 * size - imm7;
         if (q) {
           int Vd = instr->VFPDRegValue(kSimd128Precision);
@@ -2173,7 +2174,7 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
         // vsra.<type><size> Qd, Qm, shift
         // vsra.<type><size> Dd, Dm, shift
         int imm7 = (l << 6) | instr->Bits(21, 16);
-        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int size = std::bit_floor<uint32_t>(imm7);
         int shift = 2 * size - imm7;
         if (q) {
           int Vd = instr->VFPDRegValue(kSimd128Precision);
@@ -2200,7 +2201,7 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
       } else if (!u && imm3H_L != 0 && opc == 0b0101) {
         // vshl.i<size> Qd, Qm, shift
         int imm7 = (l << 6) | instr->Bits(21, 16);
-        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int size = std::bit_floor<uint32_t>(imm7);
         int shift = imm7 - size;
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
@@ -2211,7 +2212,7 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
         // vsli.<size> Dd, Dm, shift
         // vsri.<size> Dd, Dm, shift
         int imm7 = (l << 6) | instr->Bits(21, 16);
-        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int size = std::bit_floor<uint32_t>(imm7);
         int shift;
         char direction;
         if (instr->Bit(8) == 1) {

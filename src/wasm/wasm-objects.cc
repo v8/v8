@@ -13,6 +13,7 @@
 #undef MAP_TYPE
 #endif  // V8_TARGET_OS_LINUX
 
+#include <bit>
 #include <optional>
 
 #include "src/base/iterator.h"
@@ -1109,8 +1110,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       // Report the grown memory size rounded up to the next power of two to
       // avoid triggering too many GCs when growing memory in a loop.
       memory_object->managed_backing_store()->UpdateEstimatedSize(
-          base::bits::RoundUpToPowerOfTwo(backing_store->byte_length()),
-          isolate);
+          std::bit_ceil(backing_store->byte_length()), isolate);
     }
     // As {old_pages} was read racefully, we return here the synchronized
     // value provided by {GrowWasmMemoryInPlace}, to provide the atomic
@@ -1136,8 +1136,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       // Report the grown memory size rounded up to the next power of two to
       // avoid triggering too many GCs when growing memory in a loop.
       memory_object->managed_backing_store()->UpdateEstimatedSize(
-          base::bits::RoundUpToPowerOfTwo(backing_store->byte_length()),
-          isolate);
+          std::bit_ceil(backing_store->byte_length()), isolate);
     }
     return static_cast<int32_t>(result_inplace.value());  // success
   }
@@ -1177,8 +1176,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // Report the grown memory size rounded up to the next power of two to avoid
   // triggering too many GCs when growing memory in a loop.
   memory_object->managed_backing_store()->SetManagedObject(
-      std::move(new_backing_store), isolate,
-      base::bits::RoundUpToPowerOfTwo(new_byte_length));
+      std::move(new_backing_store), isolate, std::bit_ceil(new_byte_length));
 
   if (has_old_buffer) {
     JSArrayBuffer::Detach(maybe_old_buffer, true).Check();

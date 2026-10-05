@@ -8,6 +8,7 @@
 #include "src/objects/swiss-name-dictionary.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <bit>
 #include <optional>
 
 #include "src/base/logging.h"
@@ -121,7 +122,7 @@ int SwissNameDictionary::CapacityFor(int at_least_space_for) {
   }
 
   int non_normalized = at_least_space_for + at_least_space_for / 7;
-  return base::bits::RoundUpToPowerOfTwo32(non_normalized);
+  return std::bit_ceil<uint32_t>(non_normalized);
 }
 
 int SwissNameDictionary::EntryForEnumerationIndex(int enumeration_index) {

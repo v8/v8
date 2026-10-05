@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_IR_H_
 #define V8_MAGLEV_MAGLEV_IR_H_
 
+#include <bit>
 #include <optional>
 #include <type_traits>
 
@@ -2029,16 +2030,16 @@ constexpr const T* ObjectPtrBeforeAddress(const void* address) {
 
 }  // namespace detail
 
-#define DEOPTIMIZE_REASON_FIELD                                             \
- private:                                                                   \
-  using ReasonField =                                                       \
-      NextBitField<DeoptimizeReason, base::bits::WhichPowerOfTwo<size_t>(   \
-                                         base::bits::RoundUpToPowerOfTwo32( \
-                                             kDeoptimizeReasonCount))>;     \
-                                                                            \
- public:                                                                    \
-  DeoptimizeReason deoptimize_reason() const {                              \
-    return ReasonField::decode(bitfield());                                 \
+#define DEOPTIMIZE_REASON_FIELD                                           \
+ private:                                                                 \
+  using ReasonField =                                                     \
+      NextBitField<DeoptimizeReason,                                      \
+                   base::bits::WhichPowerOfTwo<size_t>(                   \
+                       std::bit_ceil<uint32_t>(kDeoptimizeReasonCount))>; \
+                                                                          \
+ public:                                                                  \
+  DeoptimizeReason deoptimize_reason() const {                            \
+    return ReasonField::decode(bitfield());                               \
   }
 
 class KnownNodeAspects;
@@ -7674,9 +7675,9 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
 
  private:
   using ConditionField =
-      ReasonField::Next<AssertCondition, base::bits::WhichPowerOfTwo<size_t>(
-                                             base::bits::RoundUpToPowerOfTwo32(
-                                                 kNumAssertConditions))>;
+      ReasonField::Next<AssertCondition,
+                        base::bits::WhichPowerOfTwo<size_t>(
+                            std::bit_ceil<uint32_t>(kNumAssertConditions))>;
 };
 
 // AssumeMap is a hint for Turboshaft's LateLoadElimination: it tells it that

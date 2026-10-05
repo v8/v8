@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cinttypes>
 #include <iomanip>
 #include <memory>
@@ -18,7 +19,6 @@
 #include "include/v8-cppgc.h"
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
-#include "src/base/bits.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -4908,9 +4908,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     if (!v8_flags.minor_ms) {
       // TODO(dinfuehr): Rounding to a power of 2 is technically no longer
       // needed but yields best performance on Pixel2.
-      max_semi_space_size_ =
-          static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
-              static_cast<uint64_t>(max_semi_space_size_)));
+      max_semi_space_size_ = std::bit_ceil(max_semi_space_size_);
     }
     max_semi_space_size_ =
         std::max(max_semi_space_size_, DefaultMinSemiSpaceSize());

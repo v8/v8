@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <bit>
 #include <limits>
 #include <ostream>
 
@@ -2551,7 +2552,7 @@ class BinaryOperationFeedback : public AllStatic {
       static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1;
   // round up to 2^x for better memory access
   static constexpr uint32_t kTransitionMapStride =
-      base::bits::RoundUpToPowerOfTwo32(kNumTypeIndices);
+      std::bit_ceil(kNumTypeIndices);
 
   static constexpr Type DecodeTypeIndex(TypeIndex index) {
     switch (index) {
@@ -2730,7 +2731,7 @@ class CompareOperationFeedback : public AllStatic {
       static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1;
   // round up to 2^x for better memory access
   static constexpr uint32_t kTransitionMapStride =
-      base::bits::RoundUpToPowerOfTwo32(kNumTypeIndices);
+      std::bit_ceil(kNumTypeIndices);
 
  private:
   static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {

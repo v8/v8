@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include <bit>
 #include <cmath>
 
 #include "src/base/bits.h"
@@ -5673,7 +5674,7 @@ void Simulator::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
       int imm3H_L = imm3H << 1 | l;
       int imm7 = instr->Bits(21, 16);
       imm7 += (l << 6);
-      int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+      int size = std::bit_floor<uint32_t>(imm7);
       NeonSize ns =
           static_cast<NeonSize>(base::bits::WhichPowerOfTwo(size >> 3));
 
