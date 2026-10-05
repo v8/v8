@@ -84,8 +84,8 @@ Technical proof of the vulnerability's severity.
   - If it stops crashing or is caught by a hardened check (`SBXCHECK`, `FATAL`),
     classify it as **Intended Behavior** or a **Bug**.
 - **Crashing POC for ClusterFuzz**: A crashing POC (segfault) is highly
-  preferred for ClusterFuzz upload. Always try to provide a standalone `.js`
-  file that crashes on a Release build.
+  preferred for ClusterFuzz upload (see the `clusterfuzz` skill). Always try to
+  provide a standalone `.js` file that crashes on a Release build.
 - **Deep Dive (GDB)**:
   - Verify **Attacker Control**: Do registers or memory at the crash site
     reflect values set in the POC (e.g., `0x41414141`)?

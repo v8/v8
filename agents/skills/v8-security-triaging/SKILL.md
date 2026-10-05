@@ -60,7 +60,7 @@ security vulnerability report.
   restricted attachments.
 - **ClusterFuzz Check**: Check the issue's comments for indications that the
   crash has already been uploaded to ClusterFuzz. If not uploaded, provide the
-  user with manual upload instructions in Step 5.
+  user with manual upload instructions in Step 5 using the `clusterfuzz` skill.
 - **Exhaustive Verification**: Never classify a bug based solely on the report.
   Exhaustive technical verification via `v8-poc-classification` is mandatory.
 - **Artifact Preservation**: Before removing a worktree or cleaning up a
@@ -138,9 +138,10 @@ Buganizer.
   `buganizer-cli` (`issues download-attachment`) as a fallback.
 - **Stop Condition**: If both MCP and CLI retrieval attempts for critical
   attachments (POC, flags, etc.) fail or if they are redacted/inaccessible, the
-  Orchestrator **MUST** stop immediately and ask the user to provide them
-  manually before proceeding to Phase 2. This includes asking for the **exact
-  command line** if a ClusterFuzz report link is inaccessible.
+  Orchestrator **MUST** attempt retrieval via the `clusterfuzz` skill (using
+  `fetch_testcase.py`) for ClusterFuzz links before stopping and asking the user
+  to provide them manually. This includes asking for the **exact command line**
+  if a ClusterFuzz report link remains inaccessible.
 - **Mapping**: Include identified experts and the specific Buganizer component
   (e.g., `Blink > JavaScript > Maglev`).
 
@@ -182,11 +183,11 @@ of impact.
 - **ClusterFuzz Compatibility (Crash Escalation)**: Because ClusterFuzz requires
   a detectable crash (DCHECK, segfault, SIGILL, or int3), you **MUST**
   exhaustively pursue a crashing reproducer if the initial POC only proves
-  silent memory corruption. Task **Builder** and **Tester** to run the POC
-  against **Debug**, **ASan**, and **UBSan** builds. If no crash occurs
-  naturally, task **Generalist** to modify the POC to force a crash (e.g., by
-  overwriting a Map with a garbage pointer) while maintaining the original bug
-  trigger.
+  silent memory corruption, following the guidelines in the `clusterfuzz` skill.
+  Task **Builder** and **Tester** to run the POC against **Debug**, **ASan**,
+  and **UBSan** builds. If no crash occurs naturally, task **Generalist** to
+  modify the POC to force a crash (e.g., by overwriting a Map with a garbage
+  pointer) while maintaining the original bug trigger.
 - **Verification**: Task **Tester** to verify on Standard Release and ASan
   builds.
 - **Minimization**: Task **Generalist** to reduce the POC and flags to the
@@ -268,9 +269,10 @@ Draft a short, precise synthesis based on verified subagent findings.
     `Keep current (<title>)` if already accurate.
 
   - **ClusterFuzz Upload Info (User Only)**: If a real crash or memory
-    corruption is confirmed and not yet on ClusterFuzz, provide the local repro
-    file path, job name, issue ID, and flags for manual upload. Omit this
-    section when posting the comment to Buganizer.
+    corruption is confirmed and not yet on ClusterFuzz, assemble the upload
+    package (local repro file path, job name, issue ID, target revision, and
+    flags) using the `clusterfuzz` skill for manual upload. Omit this section
+    when posting the comment to Buganizer.
 
 ### 6. Phase: Verification & Self-Correction (Audit)
 
