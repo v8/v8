@@ -2074,16 +2074,18 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
 
   {
     AllowSandboxAccess sandbox_access(
-        "Fetching DebugBytecodeArray via SFI. This is probably unsafe but we "
-        "only do it when debugging is enabled. Just in case the defence in "
-        "depth checks below should protect against swaps.");
+        "Fetching DebugBytecodeArray via SFI. This is safe because we verify "
+        "below that the DebugInfo's OriginalBytecodeArray matches the frame's "
+        "trusted BytecodeArray.");
     std::optional<Tagged<DebugInfo>> debug_info =
         translated_frame->raw_shared_info()->TryGetDebugInfo(isolate());
     if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
+      // Ensure the DebugInfo belongs to this frame's trusted BytecodeArray in
+      // case the untrusted SFI reference in the DeoptimizationLiteralArray was
+      // swapped.
+      SBXCHECK_EQ(debug_info.value()->OriginalBytecodeArray(isolate()),
+                  bytecode_array);
       bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
-      // Defence-in-depth in case bytecode is swapped.
-      SBXCHECK_EQ(bytecode_array->parameter_count(), parameters_count);
-      SBXCHECK_EQ(bytecode_array->register_count(), locals_count);
     }
   }
 
