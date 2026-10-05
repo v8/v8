@@ -146,16 +146,15 @@ void WasmGCTypeAnalyzer::StartNewSnapshotFor(const Block& block) {
     const Block& predecessor = *block.LastPredecessor();
     types_table_.StartNewSnapshot(
         block_to_snapshot_[predecessor.index()].value());
-    if (IsReachable(predecessor)) {
-      const BranchOp* branch =
-          block.Predecessors()[0]->LastOperation(graph_).TryCast<BranchOp>();
-      if (branch != nullptr) {
-        ProcessBranchOnTarget(*branch, block);
-      }
-    } else {
+    if (!IsReachable(predecessor)) {
       TRACE("[b%uu] Block unreachable as sole predecessor b%u is unreachable\n",
             block.index().id(), predecessor.index().id());
       block_is_unreachable_.Add(block.index().id());
+    }
+    const BranchOp* branch =
+        block.Predecessors()[0]->LastOperation(graph_).TryCast<BranchOp>();
+    if (branch != nullptr) {
+      ProcessBranchOnTarget(*branch, block);
     }
   } else {
     DCHECK_EQ(block.kind(), Block::Kind::kMerge);
