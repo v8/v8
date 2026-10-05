@@ -31,6 +31,11 @@ contextGroup.addScript(`
   var globalProxyEvalJson = makeProxyWithSideEffectTrap('proxy-ownKeys');
   var globalObjCallJson = makeObjectWithSideEffectGetter('callFunctionOn-json');
   var globalObjCallDeep = makeObjectWithSideEffectGetter('callFunctionOn-deep');
+  var resolvedPromiseJson = Promise.resolve(makeObjectWithSideEffectGetter('promise-json'));
+  var resolvedPromiseDeep = Promise.resolve(makeObjectWithSideEffectGetter('promise-deep'));
+  var resolvedPromisePure = Promise.resolve(makePureObject());
+  var rejectedPromiseJson = Promise.reject(makeObjectWithSideEffectGetter('reject-json'));
+  rejectedPromiseJson.catch(function() {});
   function pauseWithLocal() {
     const localObj = makeObjectWithSideEffectGetter('evaluateOnCallFrame-json');
     debugger;
@@ -120,6 +125,73 @@ InspectorTest.runAsyncTestSuite([
         }));
     await Protocol.Debugger.resume();
     await Protocol.Debugger.disable();
+  },
+
+  async function testRuntimeEvaluateAwaitPromise() {
+    await logResult(
+        'awaitPromise returnByValue with non-promise side-effect getter',
+        await Protocol.Runtime.evaluate({
+          expression: 'globalObjEvalJson',
+          throwOnSideEffect: true,
+          returnByValue: true,
+          awaitPromise: true,
+        }));
+    await logResult(
+        'awaitPromise returnByValue with resolved promise side-effect getter',
+        await Protocol.Runtime.evaluate({
+          expression: 'resolvedPromiseJson',
+          throwOnSideEffect: true,
+          returnByValue: true,
+          awaitPromise: true,
+        }));
+    await logResult(
+        'awaitPromise returnByValue with resolved promise pure object',
+        await Protocol.Runtime.evaluate({
+          expression: 'resolvedPromisePure',
+          throwOnSideEffect: true,
+          returnByValue: true,
+          awaitPromise: true,
+        }));
+    await logResult(
+        'awaitPromise deep serialization with resolved promise side-effect getter',
+        await Protocol.Runtime.evaluate({
+          expression: 'resolvedPromiseDeep',
+          throwOnSideEffect: true,
+          serializationOptions: {serialization: 'deep'},
+          awaitPromise: true,
+        }));
+    await logResult(
+        'awaitPromise returnByValue with rejected promise side-effect getter',
+        await Protocol.Runtime.evaluate({
+          expression: 'rejectedPromiseJson',
+          throwOnSideEffect: true,
+          returnByValue: true,
+          awaitPromise: true,
+        }));
+  },
+
+  async function testRuntimeCallFunctionOnAwaitPromise() {
+    const {result: {result: {objectId}}} = await Protocol.Runtime.evaluate({
+      expression: '({})',
+    });
+    await logResult(
+        'callFunctionOn awaitPromise returnByValue with side-effect getter',
+        await Protocol.Runtime.callFunctionOn({
+          objectId,
+          functionDeclaration: 'function() { return globalObjCallJson; }',
+          throwOnSideEffect: true,
+          returnByValue: true,
+          awaitPromise: true,
+        }));
+    await logResult(
+        'callFunctionOn awaitPromise deep serialization with side-effect getter',
+        await Protocol.Runtime.callFunctionOn({
+          objectId,
+          functionDeclaration: 'function() { return globalObjCallDeep; }',
+          throwOnSideEffect: true,
+          serializationOptions: {serialization: 'deep'},
+          awaitPromise: true,
+        }));
   },
 
   async function testVerifyNoSideEffectsOccurred() {

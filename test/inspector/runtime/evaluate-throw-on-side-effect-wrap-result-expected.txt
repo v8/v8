@@ -17,5 +17,16 @@ callFunctionOn deep serialization with side-effect getter: exception (EvalError:
 Running test: testDebuggerEvaluateOnCallFrame
 evaluateOnCallFrame returnByValue with side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
 
+Running test: testRuntimeEvaluateAwaitPromise
+awaitPromise returnByValue with non-promise side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+awaitPromise returnByValue with resolved promise side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+awaitPromise returnByValue with resolved promise pure object: ok ({"a":42,"nested":[1,2]})
+awaitPromise deep serialization with resolved promise side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+awaitPromise returnByValue with rejected promise side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+
+Running test: testRuntimeCallFunctionOnAwaitPromise
+callFunctionOn awaitPromise returnByValue with side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+callFunctionOn awaitPromise deep serialization with side-effect getter: exception (EvalError: Possible side-effect in debug-evaluate)
+
 Running test: testVerifyNoSideEffectsOccurred
 sideEffects length: 0

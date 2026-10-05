@@ -275,20 +275,19 @@ class InjectedScript::ProtocolPromiseHandler {
       }
     }
 
-    if (m_objectGroup == "console") {
-      scope.injectedScript()->setLastEvaluationResult(result);
-    }
-
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
-    response = scope.injectedScript()->wrapObject(
-        result, m_objectGroup, *m_wrapOptions, &wrappedValue);
+    std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
+    response = scope.injectedScript()->wrapEvaluateResult(
+        result, scope.tryCatch(), m_objectGroup, *m_wrapOptions,
+        m_throwOnSideEffect, &wrappedValue, &exceptionDetails);
     if (!response.IsSuccess()) {
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
       return;
     }
     EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
-                                  std::move(wrappedValue), nullptr);
+                                  std::move(wrappedValue),
+                                  std::move(exceptionDetails));
   }
 
   void catchCallback(v8::Local<v8::Value> result) {
@@ -304,9 +303,29 @@ class InjectedScript::ProtocolPromiseHandler {
     Response response = scope.initialize();
     if (!response.IsSuccess()) return;
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
-    response = scope.injectedScript()->wrapObject(
-        result, m_objectGroup, *m_wrapOptions, &wrappedValue);
+    {
+      std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
+      if (m_throwOnSideEffect && (m_wrapOptions->mode == WrapMode::kJson ||
+                                  m_wrapOptions->mode == WrapMode::kDeep)) {
+        sideEffectCheckScope.emplace(m_inspector->isolate());
+      }
+      response = scope.injectedScript()->wrapObject(
+          result, m_objectGroup, *m_wrapOptions, &wrappedValue);
+    }
     if (!response.IsSuccess()) {
+      if (m_throwOnSideEffect && scope.tryCatch().HasCaught()) {
+        std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
+        response = scope.injectedScript()->wrapEvaluateResult(
+            v8::MaybeLocal<v8::Value>(), scope.tryCatch(), m_objectGroup,
+            *m_wrapOptions, m_throwOnSideEffect, &wrappedValue,
+            &exceptionDetails);
+        if (response.IsSuccess()) {
+          EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
+                                        std::move(wrappedValue),
+                                        std::move(exceptionDetails));
+          return;
+        }
+      }
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
       return;
@@ -840,11 +859,6 @@ v8::Local<v8::Value> InjectedScript::lastEvaluationResult() const {
     return v8::Undefined(m_context->isolate());
   }
   return m_lastEvaluationResult.Get(m_context->isolate());
-}
-
-void InjectedScript::setLastEvaluationResult(v8::Local<v8::Value> result) {
-  m_lastEvaluationResult.Reset(m_context->isolate(), result);
-  m_lastEvaluationResult.AnnotateStrongRetainer(kGlobalHandleLabel);
 }
 
 Response InjectedScript::resolveCallArgument(
