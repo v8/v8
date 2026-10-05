@@ -438,3 +438,85 @@ const evalResultWithoutContext = eval(`
   evalNoCtxSum;
 `);
 assertEquals(420, evalResultWithoutContext);
+
+// Regression test (crbug.com/569212097): inlining a closure created inside an
+// inlined factory call whose FunctionContext has the same ScopeInfo as the
+// outer caller's specialization_context.
+function outerFactoryWithOuterAccess(createTop, val) {
+  let captured = val;
+  function inner() {
+    return captured + scriptConst;
+  }
+  if (createTop) {
+    return function top() {
+      const freshInner = outerFactoryWithOuterAccess(false, 100);
+      return freshInner() + captured;
+    };
+  }
+  return inner;
+}
+
+const topWithOuterAccess = outerFactoryWithOuterAccess(true, 1);
+%PrepareFunctionForOptimization(outerFactoryWithOuterAccess);
+%PrepareFunctionForOptimization(topWithOuterAccess);
+assertEquals(143, topWithOuterAccess());
+assertEquals(143, topWithOuterAccess());
+%OptimizeMaglevOnNextCall(topWithOuterAccess);
+assertEquals(143, topWithOuterAccess());
+assertMaglevved(topWithOuterAccess);
+
+// Same scenario at depth 0 only (immutable const slot in FunctionContext),
+// ensuring the fresh closure's FunctionContext is not confused with the
+// caller's specialization_context.
+function outerFactoryDepthZeroOnly(createTop, val) {
+  const immutableCaptured = val;
+  function inner() {
+    return immutableCaptured;
+  }
+  if (createTop) {
+    return function top() {
+      const freshInner = outerFactoryDepthZeroOnly(false, 100);
+      return freshInner() + immutableCaptured;
+    };
+  }
+  return inner;
+}
+
+const topDepthZeroOnly = outerFactoryDepthZeroOnly(true, 1);
+%PrepareFunctionForOptimization(outerFactoryDepthZeroOnly);
+%PrepareFunctionForOptimization(topDepthZeroOnly);
+assertEquals(101, topDepthZeroOnly());
+assertEquals(101, topDepthZeroOnly());
+%OptimizeMaglevOnNextCall(topDepthZeroOnly);
+assertEquals(101, topDepthZeroOnly());
+assertMaglevved(topDepthZeroOnly);
+
+// Three-level nesting: grandOuter -> outerFactory -> inner, where top is
+// specialized to the first outerFactory context (C_1) while freshInner is
+// created in a second outerFactory context (C_2) that still shares grandOuter's
+// context (C_0) and the script context.
+function makeGrandOuter(grandVal) {
+  const grandCaptured = grandVal;
+  function outerFactory(createTop, val) {
+    const outerCaptured = val;
+    function inner() {
+      return outerCaptured + grandCaptured + scriptConst;
+    }
+    if (createTop) {
+      return function top() {
+        const freshInner = outerFactory(false, 200);
+        return freshInner() + outerCaptured;
+      };
+    }
+    return inner;
+  }
+  return outerFactory(true, 1);
+}
+
+const topThreeLevel = makeGrandOuter(1000);
+%PrepareFunctionForOptimization(topThreeLevel);
+assertEquals(1243, topThreeLevel());
+assertEquals(1243, topThreeLevel());
+%OptimizeMaglevOnNextCall(topThreeLevel);
+assertEquals(1243, topThreeLevel());
+assertMaglevved(topThreeLevel);

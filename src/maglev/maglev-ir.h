@@ -6823,15 +6823,23 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
  public:
   explicit FastCreateClosure(
       uint64_t bitfield, compiler::SharedFunctionInfoRef shared_function_info,
-      compiler::FeedbackCellRef feedback_cell)
+      compiler::FeedbackCellRef feedback_cell,
+      compiler::OptionalContextRef specialization_context,
+      ContextScopeInfo context_scope_info)
       : Base(bitfield),
         shared_function_info_(shared_function_info),
-        feedback_cell_(feedback_cell) {}
+        feedback_cell_(feedback_cell),
+        specialization_context_(specialization_context),
+        context_scope_info_(context_scope_info) {}
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
   }
   compiler::FeedbackCellRef feedback_cell() const { return feedback_cell_; }
+  compiler::OptionalContextRef specialization_context() const {
+    return specialization_context_;
+  }
+  ContextScopeInfo context_scope_info() const { return context_scope_info_; }
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties =
@@ -6850,6 +6858,8 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
  private:
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackCellRef feedback_cell_;
+  const compiler::OptionalContextRef specialization_context_;
+  const ContextScopeInfo context_scope_info_;
 };
 
 class CreateRegExpLiteral
@@ -6884,17 +6894,25 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   explicit CreateClosure(uint64_t bitfield,
                          compiler::SharedFunctionInfoRef shared_function_info,
                          compiler::FeedbackCellRef feedback_cell,
-                         bool pretenured)
+                         bool pretenured,
+                         compiler::OptionalContextRef specialization_context,
+                         ContextScopeInfo context_scope_info)
       : Base(bitfield),
         shared_function_info_(shared_function_info),
         feedback_cell_(feedback_cell),
-        pretenured_(pretenured) {}
+        pretenured_(pretenured),
+        specialization_context_(specialization_context),
+        context_scope_info_(context_scope_info) {}
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
   }
   compiler::FeedbackCellRef feedback_cell() const { return feedback_cell_; }
   bool pretenured() const { return pretenured_; }
+  compiler::OptionalContextRef specialization_context() const {
+    return specialization_context_;
+  }
+  ContextScopeInfo context_scope_info() const { return context_scope_info_; }
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::Call() |
@@ -6914,6 +6932,8 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackCellRef feedback_cell_;
   const bool pretenured_;
+  const compiler::OptionalContextRef specialization_context_;
+  const ContextScopeInfo context_scope_info_;
 };
 
 #define ASSERT_CONDITION(V) \

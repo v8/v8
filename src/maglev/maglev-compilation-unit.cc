@@ -150,35 +150,47 @@ void MaglevCompilationUnit::InitializeSpecializationContextForInlined(
     return;
   }
 
-  // Case 2: Closure created by us (`FastCreateClosure` / `CreateClosure`) can
-  // specialize to `caller_->specialization_context()`.
+  // Case 2: Closure created by us (`FastCreateClosure` / `CreateClosure`)
+  // inherits the specialization context and current scope info from its
+  // creation site. Note that `caller_` is the compilation unit where the
+  // closure is called, which may differ from the compilation unit where the
+  // closure was created (e.g. when a factory function is inlined into `caller_`
+  // and returns a fresh closure allocated in a new FunctionContext with the
+  // same ScopeInfo as `caller_->specialization_context()`).
+  if (FastCreateClosure* fast_closure =
+          function->TryCast<FastCreateClosure>()) {
+    DCHECK_EQ(fast_closure->context_scope_info().value(), scope_info);
+    specialization_context_ = fast_closure->specialization_context();
+    incoming_context_scope_info_ = fast_closure->context_scope_info();
+    return;
+  }
+  if (CreateClosure* slow_closure = function->TryCast<CreateClosure>()) {
+    DCHECK_EQ(slow_closure->context_scope_info().value(), scope_info);
+    specialization_context_ = slow_closure->specialization_context();
+    incoming_context_scope_info_ = slow_closure->context_scope_info();
+    return;
+  }
+
   // Case 3: Dynamic closure via `FeedbackCell` cannot specialize to a
   // `FunctionContext`, so walk `caller_->specialization_context()` outward to
   // find an enclosing `SCRIPT_CONTEXT_TYPE` or `MODULE_CONTEXT_TYPE`.
-  compiler::OptionalContextRef candidate;
-  if (function->Is<FastCreateClosure>() || function->Is<CreateClosure>()) {
-    candidate = caller_->specialization_context();
-  } else if (caller_->specialization_context().has_value()) {
+  std::optional<size_t> distance;
+  if (caller_->specialization_context().has_value()) {
     if (auto found = FindModuleOrScriptContext(
             broker(), *caller_->specialization_context())) {
-      candidate = found->first;
-    }
-  }
-
-  std::optional<size_t> distance;
-  if (candidate.has_value()) {
-    compiler::ScopeInfoRef outer_scope = candidate->scope_info(broker());
-    compiler::ScopeInfoRef curr = scope_info;
-    size_t dist = 0;
-    while (true) {
-      if (curr.equals(outer_scope)) {
-        specialization_context_ = candidate;
-        distance = dist;
-        break;
+      compiler::ScopeInfoRef outer_scope = found->first.scope_info(broker());
+      compiler::ScopeInfoRef curr = scope_info;
+      size_t dist = 0;
+      while (true) {
+        if (curr.equals(outer_scope)) {
+          specialization_context_ = found->first;
+          distance = dist;
+          break;
+        }
+        if (!curr.HasOuterScopeInfo()) break;
+        curr = curr.OuterScopeInfo(broker());
+        dist++;
       }
-      if (!curr.HasOuterScopeInfo()) break;
-      curr = curr.OuterScopeInfo(broker());
-      dist++;
     }
   }
   incoming_context_scope_info_ = ContextScopeInfo(scope_info, distance);
