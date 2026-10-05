@@ -2426,8 +2426,8 @@ using RepresentationBits =
     base::BitField<StringRepresentationTag, 0, 3, uint16_t>;
 using IsOneByteBit = base::BitField<bool, 3, 1, uint16_t>;
 using IsUncachedBit = base::BitField<bool, 4, 1, uint16_t>;
-using IsNotInternalizedBit = base::BitField<bool, 5, 1, uint16_t>;
-using IsSharedBit = base::BitField<bool, 6, 1, uint16_t>;
+using IsSharedBit = base::BitField<bool, 5, 1, uint16_t>;
+using IsNotInternalizedBit = base::BitField<bool, 6, 1, uint16_t>;
 
 static_assert(kStringRepresentationMask == RepresentationBits::kMask);
 
@@ -2441,6 +2441,9 @@ static_assert(kUncachedExternalStringTag == IsUncachedBit::encode(true));
 static_assert(kIsNotInternalizedMask == IsNotInternalizedBit::kMask);
 static_assert(kNotInternalizedTag == IsNotInternalizedBit::encode(true));
 static_assert(kInternalizedTag == IsNotInternalizedBit::encode(false));
+
+static_assert(kSharedStringMask == IsSharedBit::kMask);
+static_assert(kSharedStringTag == IsSharedBit::encode(true));
 }  // namespace
 
 }  // namespace internal
