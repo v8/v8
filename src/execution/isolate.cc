@@ -2933,9 +2933,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
             active_stack, parent, kNullAddress, kNullAddress, kNullAddress);
         if (suspender->has_parent() && parent == suspender->parent()->stack()) {
           // Exception escapes the current suspender, unwind to the parent.
-          // Clear the stack pointer to avoid a UAF.
-          suspender->set_stack(nullptr);
+          DCHECK_NULL(suspender->stack());
           suspender = suspender->parent();
+          suspender->set_stack(nullptr);
         }
         RetireWasmStack(active_stack);
         active_stack = parent;
@@ -7272,7 +7272,6 @@ void Isolate::WasmInitJSPIFeature() {
     HandleScope scope(this);
     DirectHandle<WasmSuspenderObject> suspender =
         factory()->NewWasmSuspenderObject();
-    suspender->set_stack(wasm_stacks()[0].get());
     isolate_data_.set_active_suspender(*suspender);
   }
 }
