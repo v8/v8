@@ -255,6 +255,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // Register holding pointer to the current code object.
   static constexpr Register code_pointer() { return x20; }
 
+  // Register holding the address of the regexp stack's thread-local block,
+  // from which the stack limit, memory top and saved stack pointer are
+  // loaded at Stack::k*Offset.
+  static constexpr Register regexp_stack() { return x19; }
+
   // Register holding the value used for clearing capture registers.
   static constexpr Register string_start_minus_one() { return w24; }
   // The top 32 bit of this register is used to store this value
@@ -340,7 +345,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   inline Register GetCachedRegister(int register_index);
 
   void LoadRegExpStackPointerFromMemory(Register dst);
-  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void StoreRegExpStackPointerToMemory(Register src);
   void PushRegExpBasePointer(Register stack_pointer, Register scratch);
   void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
 

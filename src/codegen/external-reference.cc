@@ -1153,20 +1153,9 @@ ExternalReference::address_of_regexp_static_result_offsets_vector(
       isolate->address_of_regexp_static_result_offsets_vector());
 }
 
-ExternalReference ExternalReference::address_of_regexp_stack_limit_address(
+ExternalReference ExternalReference::address_of_regexp_stack_thread_local(
     Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->limit_address_address());
-}
-
-ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->regexp_stack()->memory_top_address_address());
-}
-
-ExternalReference ExternalReference::address_of_regexp_stack_stack_pointer(
-    Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->stack_pointer_address());
+  return ExternalReference(isolate->regexp_stack()->thread_local_address());
 }
 
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,

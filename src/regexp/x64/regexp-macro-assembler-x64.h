@@ -259,6 +259,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // object.
   static constexpr Register code_object_pointer() { return r8; }
 
+  // Register holding the address of the regexp stack's thread-local block,
+  // from which the stack limit, memory top and saved stack pointer are
+  // loaded at Stack::k*Offset.
+  static constexpr Register regexp_stack() { return r12; }
+
   inline ScaleFactor CharSizeScaleFactor() {
     switch (mode()) {
       case LATIN1:
@@ -314,7 +319,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   inline void Drop();
 
   void LoadRegExpStackPointerFromMemory(Register dst);
-  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void StoreRegExpStackPointerToMemory(Register src);
   void PushRegExpBasePointer(Register scratch_pointer, Register scratch);
   void PopRegExpBasePointer(Register scratch_pointer_out, Register scratch);
 
