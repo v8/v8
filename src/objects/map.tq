@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// The compilers test is_callable | is_undetectable (typeof checks) and
+// has_named_interceptor | is_access_check_needed (special receiver checks)
+// as one mask each. Keeping the bits of each pair adjacent makes those masks
+// contiguous, so they encode as arm64 logical immediates.
 @cppScope('Map::Bits1')
 bitfield struct MapBitFields1 extends uint8 {
   is_callable: bool: 1 bit;
-  has_named_interceptor: bool: 1 bit;
-  has_indexed_interceptor: bool: 1 bit;
   is_undetectable: bool: 1 bit;
+  has_named_interceptor: bool: 1 bit;
   is_access_check_needed: bool: 1 bit;
+  has_indexed_interceptor: bool: 1 bit;
   is_constructor: bool: 1 bit;
   is_extended_map: bool: 1 bit;
 }

@@ -203,10 +203,10 @@ using MapHandlesSpan = std::span<DirectHandle<Map>>;
 //      +----------+-------------------------------------------------+
 //      | Byte     | [bit_field]                                     |
 //      |          |   - is_callable (bit 0)                         |
-//      |          |   - has_named_interceptor (bit 1)               |
-//      |          |   - has_indexed_interceptor (bit 2)             |
-//      |          |   - is_undetectable (bit 3)                     |
-//      |          |   - is_access_check_needed (bit 4)              |
+//      |          |   - is_undetectable (bit 1)                     |
+//      |          |   - has_named_interceptor (bit 2)               |
+//      |          |   - is_access_check_needed (bit 3)              |
+//      |          |   - has_indexed_interceptor (bit 4)             |
 //      |          |   - is_constructor (bit 5)                      |
 //      |          |   - is_extended_map (bit 6)                     |
 //      +----------+-------------------------------------------------+
@@ -338,14 +338,15 @@ V8_OBJECT class Map : public HeapObject {
   // Atomic accessors, used for allowlisting legitimate concurrent accesses.
   DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, uint8_t)
 
-  // Bit positions for |bit_field|.
+  // Bit positions for |bit_field|. The order must match MapBitFields1 in
+  // map.tq, which explains why the bits tested together are adjacent.
   struct Bits1 {
     using IsCallableBit = base::BitField<bool, 0, 1, uint8_t>;
-    using HasNamedInterceptorBit = IsCallableBit::Next<bool, 1>;
-    using HasIndexedInterceptorBit = HasNamedInterceptorBit::Next<bool, 1>;
-    using IsUndetectableBit = HasIndexedInterceptorBit::Next<bool, 1>;
-    using IsAccessCheckNeededBit = IsUndetectableBit::Next<bool, 1>;
-    using IsConstructorBit = IsAccessCheckNeededBit::Next<bool, 1>;
+    using IsUndetectableBit = IsCallableBit::Next<bool, 1>;
+    using HasNamedInterceptorBit = IsUndetectableBit::Next<bool, 1>;
+    using IsAccessCheckNeededBit = HasNamedInterceptorBit::Next<bool, 1>;
+    using HasIndexedInterceptorBit = IsAccessCheckNeededBit::Next<bool, 1>;
+    using IsConstructorBit = HasIndexedInterceptorBit::Next<bool, 1>;
     using IsExtendedMapBit = IsConstructorBit::Next<bool, 1>;
   };
 
