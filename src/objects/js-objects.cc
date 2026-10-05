@@ -2524,8 +2524,6 @@ MaybeDirectHandle<JSObject> JSObject::ObjectCreate(
     Isolate* isolate, DirectHandle<JSPrototype> prototype) {
   // Generate the map with the specified {prototype} based on the Object
   // function's initial map from the current native context.
-  // TODO(bmeurer): Use a dedicated cache for Object.create; think about
-  // slack tracking for Object.create.
   DirectHandle<Map> map = Map::GetObjectCreateMap(isolate, prototype);
 
   // Actually allocate the object.

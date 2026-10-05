@@ -766,15 +766,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // runtime.
   Handle<JSObject> NewJSObjectFromMap(
       DirectHandle<Map> map, AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   // Like NewJSObjectFromMap, but includes allocating a properties dictionary.);
   Handle<JSObject> NewSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   Handle<JSObject> NewSlowJSObjectFromMap(DirectHandle<Map> map);
   // Calls NewJSObjectFromMap or NewSlowJSObjectFromMap depending on whether the
@@ -782,8 +780,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(
       DirectHandle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
-      DirectHandle<AllocationSite> allocation_site =
-          DirectHandle<AllocationSite>::null(),
+      MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map);
   // Allocates and initializes a new JavaScript object with the given
@@ -1470,7 +1467,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Tagged<HeapObject> AllocateRawWithAllocationSite(
       DirectHandle<Map> map, AllocationType allocation,
-      DirectHandle<AllocationSite> allocation_site);
+      MaybeDirectHandle<AllocationSite> allocation_site);
 
   Handle<JSArrayBufferView> NewJSArrayBufferView(
       DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements,

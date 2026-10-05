@@ -308,7 +308,7 @@ Tagged<HeapObject> Factory::AllocateRaw(int size, AllocationType allocation,
 
 Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(
     DirectHandle<Map> map, AllocationType allocation,
-    DirectHandle<AllocationSite> allocation_site) {
+    MaybeDirectHandle<AllocationSite> allocation_site) {
   DCHECK(!InstanceTypeChecker::IsMap(map->instance_type()));
   const auto [write_barrier_mode, should_allocate_memento] =
       allocation == AllocationType::kYoung
@@ -329,7 +329,8 @@ Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(
     const int aligned_size = ALIGN_TO_ALLOCATION_ALIGNMENT(instance_size);
     Tagged<AllocationMemento> alloc_memento = UncheckedCast<AllocationMemento>(
         Tagged<Object>(result.ptr() + aligned_size));
-    InitializeAllocationMemento(alloc_memento, *allocation_site);
+    InitializeAllocationMemento(alloc_memento,
+                                *allocation_site.ToHandleChecked());
   }
   return result;
 }
@@ -3679,7 +3680,7 @@ void Factory::InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
 
 Handle<JSObject> Factory::NewJSObjectFromMap(
     DirectHandle<Map> map, AllocationType allocation,
-    DirectHandle<AllocationSite> allocation_site,
+    MaybeDirectHandle<AllocationSite> allocation_site,
     NewJSObjectType new_js_object_type) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
@@ -3708,7 +3709,7 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 
 Handle<JSObject> Factory::NewSlowJSObjectFromMap(
     DirectHandle<Map> map, int capacity, AllocationType allocation,
-    DirectHandle<AllocationSite> allocation_site,
+    MaybeDirectHandle<AllocationSite> allocation_site,
     NewJSObjectType new_js_object_type) {
   DCHECK(map->is_dictionary_map());
   DirectHandle<HeapObject> object_properties;

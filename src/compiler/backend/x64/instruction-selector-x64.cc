@@ -1872,7 +1872,6 @@ void InstructionSelector::VisitStackPointerGreaterThan(
 namespace {
 
 // Shared routine for multiple 32-bit shift operations.
-// TODO(bmeurer): Merge this with VisitWord64Shift using template magic?
 void VisitWord32Shift(InstructionSelector* selector, OpIndex node,
                       ArchOpcode opcode) {
   X64OperandGenerator g(selector);
@@ -1895,7 +1894,6 @@ void VisitWord32Shift(InstructionSelector* selector, OpIndex node,
 }
 
 // Shared routine for multiple 64-bit shift operations.
-// TODO(bmeurer): Merge this with VisitWord32Shift using template magic?
 void VisitWord64Shift(InstructionSelector* selector, OpIndex node,
                       ArchOpcode opcode) {
   X64OperandGenerator g(selector);

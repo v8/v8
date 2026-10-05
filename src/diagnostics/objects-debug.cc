@@ -508,9 +508,7 @@ void VerifyJSObjectElements(Isolate* isolate, const JSObject* object) {
 void VerifyJSObjectElements(Isolate* isolate, Tagged<JSObject> object) {
   // Only TypedArrays can have these specialized elements.
   if (IsJSTypedArray(object)) {
-    // TODO(bmeurer,v8:4153): Fix CreateTypedArray to either not instantiate
-    // the object or properly initialize it on errors during construction.
-    /* CHECK(object->HasTypedArrayOrRabGsabTypedArrayElements()); */
+    CHECK(object->HasTypedArrayOrRabGsabTypedArrayElements());
     return;
   }
   CHECK(!IsByteArray(object->elements()));
