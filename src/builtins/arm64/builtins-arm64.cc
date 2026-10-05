@@ -4913,12 +4913,9 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   using ER = ExternalReference;
   Register frame_base = WasmHandleStackOverflowDescriptor::FrameBaseRegister();
   Register gap = WasmHandleStackOverflowDescriptor::GapRegister();
-  Register parameter_slots_size =
-      WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister();
   {
     DCHECK_NE(kCArgRegs[1], frame_base);
     DCHECK_NE(kCArgRegs[3], frame_base);
-    __ Mov(kCArgRegs[5], parameter_slots_size);
     __ Mov(kCArgRegs[3], gap);
     __ Mov(kCArgRegs[1], sp);
     __ Sub(kCArgRegs[2], frame_base, kCArgRegs[1]);
@@ -4926,7 +4923,7 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(kCArgRegs[3], padreg);
     __ Mov(kCArgRegs[0], ER::isolate_address());
-    __ CallCFunction(ER::wasm_grow_stack(), 6);
+    __ CallCFunction(ER::wasm_grow_stack(), 5);
     __ Pop(padreg, gap);
     DCHECK_NE(kReturnRegister0, gap);
   }
@@ -4944,6 +4941,12 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   }
   SwitchSimulatorStackLimit(masm);
   __ Mov(sp, kReturnRegister0);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch, StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START));
+    __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+  }
   __ Ret();
 
   __ bind(&call_runtime);
@@ -4963,34 +4966,6 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ LeaveFrame(StackFrame::INTERNAL);
     __ Ret();
   }
-}
-
-void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
-  RegList gp_saves;
-  for (Register r : wasm::kGpReturnRegisters) gp_saves.set(r);
-  DoubleRegList fp_saves;
-  for (DoubleRegister r : wasm::kFpReturnRegisters) fp_saves.set(r);
-
-  __ PushAll(gp_saves);
-  __ PushAll(fp_saves, kSimd128Size);
-
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    int saved_size =
-        gp_saves.Count() * kSystemPointerSize + fp_saves.Count() * kSimd128Size;
-    __ Mov(kCArgRegs[0], ExternalReference::isolate_address());
-    __ Add(kCArgRegs[1], sp, saved_size);
-    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 2);
-  }
-  __ Mov(fp, kReturnRegister0);
-
-  __ PopAll(fp_saves, kSimd128Size);
-  __ PopAll(gp_saves);
-
-  __ Mov(sp, fp);
-  __ Pop<MacroAssembler::kAuthLR>(fp, lr);
-  SwitchSimulatorStackLimit(masm);
-  __ Ret();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

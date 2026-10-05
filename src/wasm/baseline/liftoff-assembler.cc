@@ -985,6 +985,10 @@ void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
   DCHECK_LE(sig->return_count(), cache_state_.stack_height());
   VarState* slots = cache_state_.stack_state.end() - sig->return_count();
   LiftoffRegList pinned;
+  Register old_fp = LoadOldFramePointer();
+  if (v8_flags.wasm_growable_stacks) {
+    pinned.set(LiftoffRegister(old_fp));
+  }
   // Fill return frame slots first to ensure that all potential spills happen
   // before we prepare the stack transfers.
   for (size_t i = 0; i < sig->return_count(); ++i) {
@@ -1001,7 +1005,8 @@ void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
                                   ? LoadI64HalfIntoRegister(slot, half, pinned)
                                   : LoadToRegister(slot, pinned);
         ValueKind lowered_kind = needs_gp_pair ? kI32 : return_kind;
-        StoreCallerFrameSlot(reg, -loc.AsCallerFrameSlot(), lowered_kind);
+        StoreCallerFrameSlot(reg, -loc.AsCallerFrameSlot(), lowered_kind,
+                             old_fp);
       }
     }
   }

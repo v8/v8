@@ -1156,10 +1156,6 @@ void InstructionSelector::InitializeCallBuffer(
                             i < outputs_needed_by_framestate;
       if (output_is_live) {
         LinkageLocation location = buffer->output_nodes[i].location;
-        if (location.IsCallerFrameSlot()) {
-          // Caller frame slots are defined later via Peek in VisitCall.
-          continue;
-        }
         MachineRepresentation rep = location.GetType().representation();
 
         OpIndex output = buffer->output_nodes[i].node;
@@ -1168,9 +1164,10 @@ void InstructionSelector::InitializeCallBuffer(
                                     : g.DefineAsLocation(output, location);
         MarkAsRepresentation(rep, op);
 
-        DCHECK(!UnallocatedOperand::cast(op).HasFixedSlotPolicy());
-        buffer->outputs.push_back(op);
-        buffer->output_nodes[i].node = {};
+        if (!UnallocatedOperand::cast(op).HasFixedSlotPolicy()) {
+          buffer->outputs.push_back(op);
+          buffer->output_nodes[i].node = {};
+        }
       }
     }
   }
@@ -2490,9 +2487,16 @@ void InstructionSelector::VisitReturn(OpIndex node) {
   } else {
     value_locations[0] = g.UseRegister(ret.pop_count());
   }
-  for (size_t i = 0; i < return_count; ++i) {
+  for (size_t i = 0, return_value_idx = 0; i < return_count; ++i) {
     LinkageLocation loc = linkage()->GetReturnLocation(i);
-    value_locations[i + 1] = g.UseLocation(ret.return_values()[i], loc);
+    // Return values passed via frame slots have already been stored
+    // on the stack by the GrowableStacksReducer.
+    if (loc.IsCallerFrameSlot() && ret.spill_caller_frame_slots) {
+      continue;
+    }
+    value_locations[return_value_idx + 1] =
+        g.UseLocation(ret.return_values()[return_value_idx], loc);
+    return_value_idx++;
   }
   Emit(kArchRet, 0, nullptr, input_count, value_locations);
 }

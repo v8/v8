@@ -885,17 +885,14 @@ class WasmHandleStackOverflowDescriptor
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS_NO_CONTEXT(kFrameBase, kGap, kParameterSlotsSize)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(
-      MachineType::AnyTagged(),  // result
-      MachineType::Pointer(),    // kFrameBase
-      MachineType::Uint32(),     // kGap
-      MachineType::IntPtr())     // kParameterSlotsSize
+  DEFINE_PARAMETERS_NO_CONTEXT(kFrameBase, kGap)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::Pointer(),    // kFrameBase
+                                    MachineType::Uint32())     // kGap
   DECLARE_DESCRIPTOR(WasmHandleStackOverflowDescriptor)
 
   static constexpr inline Register FrameBaseRegister();
   static constexpr inline Register GapRegister();
-  static constexpr inline Register ParameterSlotsSizeRegister();
 };
 
 class AllocateDescriptor

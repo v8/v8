@@ -4027,25 +4027,17 @@ void CodeGenerator::AssembleConstructFrame() {
       RegList regs_to_save;
       regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
       regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
-      regs_to_save.set(
-          WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
       for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
       __ stm(db_w, sp, regs_to_save);
       DoubleRegList fp_regs_to_save;
       for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
-      if (!fp_regs_to_save.is_empty()) {
-        __ vstm(db_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
-      }
+      __ vstm(db_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
       __ mov(WasmHandleStackOverflowDescriptor::GapRegister(),
              Operand(static_cast<int32_t>(stack_space)));
-      __ add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-             Operand((call_descriptor->ParameterSlotCount() +
-                      call_descriptor->ReturnSlotCount()) *
-                         kSystemPointerSize +
-                     CommonFrameConstants::kFixedFrameSizeAboveFp));
-      __ mov(
-          WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
-          Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize));
+      __ add(
+          WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+          Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
+                  CommonFrameConstants::kFixedFrameSizeAboveFp));
       __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
               RelocInfo::WASM_STUB_CALL);
       // If the call successfully grew the stack, we don't expect it to have
@@ -4056,9 +4048,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // So either way, we can just ignore any references and record an empty
       // safepoint here.
       RecordSafepointWithoutTaggedSlots();
-      if (!fp_regs_to_save.is_empty()) {
-        __ vldm(ia_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
-      }
+      __ vldm(ia_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
       __ ldm(ia_w, sp, regs_to_save);
     } else {
       __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
@@ -4146,6 +4136,35 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (call_descriptor->IsAnyWasmFunctionCall() &&
+      v8_flags.wasm_growable_stacks) {
+    {
+      UseScratchRegisterScope temps{masm()};
+      Register scratch = temps.Acquire();
+      __ ldr(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+      __ cmp(scratch,
+             Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+    }
+    Label done;
+    __ b(&done, ne);
+    RegList regs_to_save;
+    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
+    __ stm(db_w, sp, regs_to_save);
+    DoubleRegList fp_regs_to_save;
+    for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
+    __ vstm(db_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+    __ PrepareCallCFunction(1);
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
+    // Restore old FP. We don't need to restore old SP explicitly, because
+    // it will be restored from FP in LeaveFrame before return.
+    __ mov(fp, kReturnRegister0);
+    __ vldm(ia_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
+    __ ldm(ia_w, sp, regs_to_save);
+    __ bind(&done);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Register argc_reg = r3;
   // Functions with JS linkage have at least one parameter (the receiver).

@@ -912,7 +912,8 @@ class TurboshaftGraphBuildingInterface
                          __ NoContextConstant());
     }
     if (mode_ == kRegular || mode_ == kInlinedTailCall) {
-      __ Return(__ Word32Constant(0), base::VectorOf(return_values));
+      __ Return(__ Word32Constant(0), base::VectorOf(return_values),
+                v8_flags.wasm_growable_stacks);
     } else {
       // Do not add return values if we are in unreachable code.
       if (__ generating_unreachable_operations()) return;
@@ -2767,7 +2768,8 @@ class TurboshaftGraphBuildingInterface
         if (HandleWellKnownImport(decoder, imm, args, &wki_return,
                                   check_for_exception)) {
           if (mode_ == kRegular || mode_ == kInlinedTailCall) {
-            __ Return(__ Word32Constant(0), base::VectorOf({wki_return.op}));
+            __ Return(__ Word32Constant(0), base::VectorOf({wki_return.op}),
+                      v8_flags.wasm_growable_stacks);
           } else if (!__ generating_unreachable_operations()) {
             return_phis_->AddInputForPhi(0, wki_return.op);
             __ Goto(return_block_);

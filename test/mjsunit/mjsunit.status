@@ -228,7 +228,6 @@
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/code-space-overflow': [PASS, SLOW, NO_VARIANTS, ['gc_stress == True or (simulator_run and mode == debug)', SKIP]],
   'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on or simulator_run or verify_predictable', SKIP], ['tsan', SKIP]],
-  'wasm/test-growable-tail-call-matrix': [PASS, SLOW],
   'wasm/wasm-interpreter': [PASS, SLOW],
 
   # Very slow on ARM, MIPS, RISCV and LOONG, contains no architecture dependent code.
@@ -951,8 +950,6 @@
   'regress/wasm/regress-v8-14471': [SKIP],
   'wasm/jspi*': [SKIP],
   'wasm/growable-stacks': [SKIP],
-  'wasm/growable-stacks-simd': [SKIP],
-  'wasm/test-growable-tail-call-*': [SKIP],
 
   # --wasm-growable-stacks
   'regress/wasm/regress-421055121': [SKIP],
@@ -2805,7 +2802,6 @@
   'wasm/deopt/deopt-value-types': [SKIP],
   'wasm/exceptions-simd': [SKIP],
   'wasm/growable-stacks': [SKIP],
-  'wasm/growable-stacks-simd': [SKIP],
   'wasm/interleaved-loads': [SKIP],
   'wasm/js-to-js': [SKIP],
   'wasm/large-struct': [SKIP],
@@ -3021,15 +3017,10 @@
 }],  # (arch == mips64el)
 
 ##############################################################################
-['arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != riscv64', {
+['arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != loong64 and arch != riscv64 and arch != ppc64 and arch != s390x', {
   # Growable stacks are not supported on all platforms..
-  'wasm/growable-stacks': [SKIP],
-  'wasm/growable-stacks-simd': [SKIP],
-  'wasm/test-growable-tail-call-*': [SKIP],
-  'regress/wasm/regress-421055121': [SKIP],
-  'regress/wasm/regress-513250424': [SKIP],
-  'regress/wasm/regress-520777574': [SKIP],
-}],  # (arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != riscv64)
+  'wasm/growable-stacks': [SKIP]
+}],  # (arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != loong64 and arch != riscv64 and arch != ppc64 and arch != s390x)
 
 ##############################################################################
 ['arch != x64 and arch != arm64 and arch != loong64 and arch != mips64 and arch != riscv64', {
@@ -3218,8 +3209,6 @@
   # It does not support multiple stacks yet.
   'wasm/jspi*': [SKIP],
   'wasm/growable-stacks': [SKIP],
-  'wasm/growable-stacks-simd': [SKIP],
-  'wasm/test-growable-tail-call-*': [SKIP],
   'regress/wasm/regress-v8-14471': [SKIP],
   'regress/wasm/regress-336852356': [SKIP],
   'regress/wasm/regress-336358915': [SKIP],
@@ -3298,6 +3287,12 @@
   # Sets a flag which is read-only if the disassembler is disabled.
   'regress/regress-392928803': [FAIL],
 }],  # not disassembler
+
+##############################################################################
+# https://issues.chromium.org/issues/404881599
+['(arch == arm64) and simulator_run', {
+'wasm/growable-stacks': [SKIP],
+}], # (arch == arm64) and simulator_run
 
 ##############################################################################
 ['sandbox_hardware_support', {

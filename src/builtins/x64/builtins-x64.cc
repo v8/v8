@@ -4638,39 +4638,31 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   using ER = ExternalReference;
   Register frame_base = WasmHandleStackOverflowDescriptor::FrameBaseRegister();
   Register gap = WasmHandleStackOverflowDescriptor::GapRegister();
-  Register parameter_slots_size =
-      WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister();
   {
     DCHECK_NE(kCArgRegs[1], frame_base);
     DCHECK_NE(kCArgRegs[3], frame_base);
+    __ movq(kCArgRegs[3], gap);
+    __ movq(kCArgRegs[1], rsp);
+    __ movq(kCArgRegs[2], frame_base);
+    __ subq(kCArgRegs[2], kCArgRegs[1]);
 #ifdef V8_TARGET_OS_WIN
-    Register old_fp = rdi;
-    Register params_size = rsi;
+    Register old_fp = rcx;
+    // On windows we need preserve rbp value somewhere before entering
+    // INTERNAL frame later. It will be placed on the stack as an argument.
     __ movq(old_fp, rbp);
-    __ movq(params_size, parameter_slots_size);
-    __ movq(kCArgRegs[3], gap);
-    __ movq(kCArgRegs[1], rsp);
-    __ movq(kCArgRegs[2], frame_base);
-    __ subq(kCArgRegs[2], kCArgRegs[1]);
 #else
-    __ movq(kCArgRegs[5], parameter_slots_size);
-    __ movq(kCArgRegs[3], gap);
-    __ movq(kCArgRegs[1], rsp);
-    __ movq(kCArgRegs[2], frame_base);
-    __ subq(kCArgRegs[2], kCArgRegs[1]);
     __ movq(kCArgRegs[4], rbp);
 #endif
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ pushq(kCArgRegs[3]);
-    __ PrepareCallCFunction(6);
+    __ PrepareCallCFunction(5);
     // On windows put the arguments on the stack (PrepareCallCFunction
     // has created space for this).
 #ifdef V8_TARGET_OS_WIN
     __ movq(Operand(rsp, 4 * kSystemPointerSize), old_fp);
-    __ movq(Operand(rsp, 5 * kSystemPointerSize), params_size);
 #endif
     __ Move(kCArgRegs[0], ER::isolate_address());
-    __ CallCFunction(ER::wasm_grow_stack(), 6);
+    __ CallCFunction(ER::wasm_grow_stack(), 5);
     __ popq(gap);
     DCHECK_NE(kReturnRegister0, gap);
   }
@@ -4682,6 +4674,10 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   __ subq(rbp, rsp);
   __ addq(rbp, kReturnRegister0);
   __ movq(rsp, kReturnRegister0);
+  __ movq(kScratchRegister,
+          Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+  __ movq(MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),
+          kScratchRegister);
   __ ret(0);
 
   // If wasm_grow_stack returns zero, interruption or stack overflow
@@ -4702,34 +4698,6 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ LeaveFrame(StackFrame::INTERNAL);
     __ ret(0);
   }
-}
-
-void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
-  RegList gp_saves;
-  for (Register r : wasm::kGpReturnRegisters) gp_saves.set(r);
-  DoubleRegList fp_saves;
-  for (XMMRegister r : wasm::kFpReturnRegisters) fp_saves.set(r);
-
-  __ PushAll(gp_saves);
-  __ PushAll(fp_saves, kSimd128Size);
-
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    int saved_size =
-        gp_saves.Count() * kSystemPointerSize + fp_saves.Count() * kSimd128Size;
-    __ leaq(kCArgRegs[1], Operand(rsp, saved_size));
-    __ PrepareCallCFunction(2);
-    __ LoadAddress(kCArgRegs[0], ExternalReference::isolate_address());
-    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 2);
-  }
-  __ movq(rbp, kReturnRegister0);
-
-  __ PopAll(fp_saves, kSimd128Size);
-  __ PopAll(gp_saves);
-
-  __ movq(rsp, rbp);
-  __ popq(rbp);
-  __ ret(0);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

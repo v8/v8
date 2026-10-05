@@ -1993,29 +1993,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   inline void PushAll(DoubleRegList registers,
                       int stack_slot_size = kDoubleSize) {
-    if (stack_slot_size == kSimd128Size) {
-      PushQRegList(registers);
-    } else {
-      DCHECK_EQ(stack_slot_size, kDoubleSize);
-      if (registers.Count() % 2 != 0) {
-        DCHECK(!registers.has(fp_zero));
-        registers.set(fp_zero);
-      }
-      PushDRegList(registers);
+    if (registers.Count() % 2 != 0) {
+      DCHECK(!registers.has(fp_zero));
+      registers.set(fp_zero);
     }
+    PushDRegList(registers);
   }
   inline void PopAll(DoubleRegList registers,
                      int stack_slot_size = kDoubleSize) {
-    if (stack_slot_size == kSimd128Size) {
-      PopQRegList(registers);
-    } else {
-      DCHECK_EQ(stack_slot_size, kDoubleSize);
-      if (registers.Count() % 2 != 0) {
-        DCHECK(!registers.has(fp_zero));
-        registers.set(fp_zero);
-      }
-      PopDRegList(registers);
+    if (registers.Count() % 2 != 0) {
+      DCHECK(!registers.has(fp_zero));
+      registers.set(fp_zero);
     }
+    PopDRegList(registers);
   }
 
   // Push the specified register 'count' times.

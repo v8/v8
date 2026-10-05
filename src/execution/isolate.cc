@@ -1591,6 +1591,7 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
 #if V8_ENABLE_WEBASSEMBLY
       case StackFrame::STUB:
       case StackFrame::WASM:
+      case StackFrame::WASM_SEGMENT_START:
 #if V8_ENABLE_DRUMBRAKE
       case StackFrame::WASM_INTERPRETER_ENTRY:
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1650,6 +1651,7 @@ void VisitStack_ForCallSiteBuilder(Isolate* isolate, CallSiteBuilder* visitor) {
 #if V8_ENABLE_WEBASSEMBLY
       case StackFrame::STUB:
       case StackFrame::WASM:
+      case StackFrame::WASM_SEGMENT_START:
 #if V8_ENABLE_DRUMBRAKE
       case StackFrame::WASM_INTERPRETER_ENTRY:
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -3128,7 +3130,8 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       } break;
 #endif  // V8_ENABLE_DRUMBRAKE
 
-      case StackFrame::WASM: {
+      case StackFrame::WASM:
+      case StackFrame::WASM_SEGMENT_START: {
         if (!is_catchable_by_wasm(exception)) break;
 
         WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
@@ -5669,6 +5672,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
       return;
 #if V8_ENABLE_WEBASSEMBLY
     case StackFrame::WASM:
+    case StackFrame::WASM_SEGMENT_START:
       // No more info.
       return;
 #endif  // V8_ENABLE_WEBASSEMBLY

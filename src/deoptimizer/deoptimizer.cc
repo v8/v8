@@ -9,7 +9,6 @@
 #include "src/base/logging.h"
 #include "src/base/memory.h"
 #include "src/base/numerics/safe_conversions.h"
-#include "src/builtins/builtins-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/reloc-info.h"
@@ -594,10 +593,6 @@ Address Deoptimizer::EnsureValidReturnAddress(Isolate* isolate,
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (v8_flags.wasm_growable_stacks &&
-      Builtins::EntryOf(Builtin::kWasmReturnFromSegment, isolate) == address) {
-    return address;
-  }
   if (v8_flags.wasm_deopt &&
       wasm::GetWasmCodeManager()->LookupCode(isolate, address) != nullptr) {
     // TODO(42204618): This does not check for the PC being a valid "deopt
@@ -1345,10 +1340,25 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   }
 
   // Store frame kind.
+  // For growable stacks, the frame at the entry point of a new stack segment
+  // is marked as WASM_SEGMENT_START. Preserving this marker on the bottommost
+  // frame during deoptimization ensures that the return sequence will shrink
+  // the stack segment when returning to the caller.
   uint32_t frame_type_offset =
       base_offset + WasmLiftoffFrameConstants::kFrameTypeOffset;
+  StackFrame::Type frame_type = StackFrame::WASM;
+  if (is_bottommost) {
+    intptr_t input_frame_marker =
+        base::Memory<intptr_t>(input_->GetFramePointerAddress() +
+                               TypedFrameConstants::kFrameTypeOffset);
+    if (StackFrame::MarkerToType(input_frame_marker) ==
+        StackFrame::WASM_SEGMENT_START) {
+      DCHECK(v8_flags.wasm_growable_stacks);
+      frame_type = StackFrame::WASM_SEGMENT_START;
+    }
+  }
   output_frame->SetFrameSlot(frame_type_offset,
-                             StackFrame::TypeToMarker(StackFrame::WASM));
+                             StackFrame::TypeToMarker(frame_type));
   // Fill feedback vector stack slot.
   // Instead of storing the actual feedback vector, we simply store the declared
   // function index of the wasm function. This is done because the feedback

@@ -4455,12 +4455,9 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   using ER = ExternalReference;
   Register frame_base = WasmHandleStackOverflowDescriptor::FrameBaseRegister();
   Register gap = WasmHandleStackOverflowDescriptor::GapRegister();
-  Register parameter_slots_size =
-      WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister();
   {
     DCHECK_NE(kCArgRegs[1], frame_base);
     DCHECK_NE(kCArgRegs[3], frame_base);
-    __ mov(kCArgRegs[5], parameter_slots_size);
     __ mov(kCArgRegs[3], gap);
     __ mov(kCArgRegs[1], sp);
     __ sub_d(kCArgRegs[2], frame_base, kCArgRegs[1]);
@@ -4468,8 +4465,8 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(kCArgRegs[3]);
     __ li(kCArgRegs[0], ER::isolate_address());
-    __ PrepareCallCFunction(6, kScratchReg);
-    __ CallCFunction(ER::wasm_grow_stack(), 6);
+    __ PrepareCallCFunction(5, kScratchReg);
+    __ CallCFunction(ER::wasm_grow_stack(), 5);
     __ Pop(gap);
     DCHECK_NE(kReturnRegister0, gap);
   }
@@ -4485,6 +4482,12 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ mov(fp, new_fp);
   }
   __ mov(sp, kReturnRegister0);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ li(scratch, StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START));
+    __ St_d(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+  }
   __ Ret();
 
   __ bind(&call_runtime);
@@ -4504,10 +4507,6 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ LeaveFrame(StackFrame::INTERNAL);
     __ Ret();
   }
-}
-
-void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
-  __ Trap();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

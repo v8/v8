@@ -4244,8 +4244,6 @@ void CodeGenerator::AssembleConstructFrame() {
       RegList regs_to_save;
       regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
       regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
-      regs_to_save.set(
-          WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
       for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
       for (Register reg : base::Reversed(regs_to_save)) {
         __ push(reg);
@@ -4259,13 +4257,8 @@ void CodeGenerator::AssembleConstructFrame() {
       __ mov(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), ebp);
       __ add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
              Immediate(static_cast<int32_t>(
-                 (call_descriptor->ParameterSlotCount() +
-                  call_descriptor->ReturnSlotCount()) *
-                     kSystemPointerSize +
+                 call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                  CommonFrameConstants::kFixedFrameSizeAboveFp)));
-      __ mov(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
-             Immediate(static_cast<int32_t>(
-                 call_descriptor->ParameterSlotCount() * kSystemPointerSize)));
       __ wasm_call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
                    RelocInfo::WASM_STUB_CALL);
       // If the call successfully grew the stack, we don't expect it to have
@@ -4350,6 +4343,37 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (call_descriptor->IsAnyWasmFunctionCall() &&
+      v8_flags.wasm_growable_stacks) {
+    __ cmp(MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset),
+           Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+    Label done;
+    __ j(not_equal, &done);
+    for (Register reg : base::Reversed(wasm::kGpReturnRegisters)) {
+      __ push(reg);
+    }
+    __ sub(esp, Immediate(arraysize(wasm::kFpReturnRegisters) * kSimd128Size));
+    for (size_t i = 0; i < arraysize(wasm::kFpReturnRegisters); i++) {
+      __ Movdqu(Operand(esp, kSimd128Size * i), wasm::kFpReturnRegisters[i]);
+    }
+    __ PrepareCallCFunction(1, kReturnRegister0);
+    __ Move(Operand(esp, 0 * kSystemPointerSize),
+            Immediate(ExternalReference::isolate_address()));
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
+    // Restore old ebp. We don't need to restore old esp explicitly, because
+    // it will be restored from ebp in LeaveFrame before return.
+    __ mov(ebp, kReturnRegister0);
+    for (size_t i = 0; i < arraysize(wasm::kFpReturnRegisters); i++) {
+      __ Movdqu(wasm::kFpReturnRegisters[i], Operand(esp, kSimd128Size * i));
+    }
+    __ add(esp, Immediate(arraysize(wasm::kFpReturnRegisters) * kSimd128Size));
+    for (Register reg : wasm::kGpReturnRegisters) {
+      __ pop(reg);
+    }
+    __ bind(&done);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Register argc_reg = ecx;
   // Functions with JS linkage have at least one parameter (the receiver).

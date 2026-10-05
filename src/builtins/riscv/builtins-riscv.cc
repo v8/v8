@@ -3598,12 +3598,9 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   using ER = ExternalReference;
   Register frame_base = WasmHandleStackOverflowDescriptor::FrameBaseRegister();
   Register gap = WasmHandleStackOverflowDescriptor::GapRegister();
-  Register parameter_slots_size =
-      WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister();
   {
     DCHECK_NE(kCArgRegs[1], frame_base);
     DCHECK_NE(kCArgRegs[3], frame_base);
-    __ mv(kCArgRegs[5], parameter_slots_size);
     __ mv(kCArgRegs[3], gap);
     __ mv(kCArgRegs[1], sp);
     __ SubWord(kCArgRegs[2], frame_base, kCArgRegs[1]);
@@ -3611,8 +3608,8 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(kCArgRegs[3]);
     __ li(kCArgRegs[0], ER::isolate_address());
-    __ PrepareCallCFunction(6, kScratchReg);
-    __ CallCFunction(ER::wasm_grow_stack(), 6);
+    __ PrepareCallCFunction(5, kScratchReg);
+    __ CallCFunction(ER::wasm_grow_stack(), 5);
     __ Pop(gap);
     DCHECK_NE(kReturnRegister0, gap);
   }
@@ -3629,6 +3626,13 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   }
   SwitchSimulatorStackLimit(masm);
   __ mv(sp, kReturnRegister0);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ li(scratch, StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START));
+    __ StoreWord(scratch,
+                 MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+  }
   __ Ret();
 
   __ bind(&call_runtime);
@@ -3648,43 +3652,6 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ LeaveFrame(StackFrame::INTERNAL);
     __ Ret();
   }
-}
-
-void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
-  RegList gp_saves;
-  for (Register r : wasm::kGpReturnRegisters) gp_saves.set(r);
-  DoubleRegList fp_saves;
-  for (DoubleRegister r : wasm::kFpReturnRegisters) fp_saves.set(r);
-  Simd128RegList simd_saves;
-  for (Simd128Register r : wasm::kSimd128ReturnRegisters) {
-    simd_saves.set(VRegister::from_code(r.code()));
-  }
-
-  __ PushAll(gp_saves);
-  __ SaveVectorRegisters(simd_saves);
-  __ PushAll(fp_saves);
-
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    int saved_size = gp_saves.Count() * kSystemPointerSize +
-                     simd_saves.Count() * kSimd128Size +
-                     fp_saves.Count() * kDoubleSize;
-    __ li(kCArgRegs[0], ExternalReference::isolate_address());
-    __ AddWord(kCArgRegs[1], sp, Operand(saved_size));
-    __ PrepareCallCFunction(2, kScratchReg);
-    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 2);
-  }
-  __ mv(fp, kReturnRegister0);
-
-  __ PopAll(fp_saves);
-  __ RestoreVectorRegisters(simd_saves);
-  __ PopAll(gp_saves);
-
-  __ LoadWord(ra, MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
-  __ AddWord(sp, fp, Operand(CommonFrameConstants::kFixedFrameSizeAboveFp));
-  __ LoadWord(fp, MemOperand(fp, CommonFrameConstants::kCallerFPOffset));
-  SwitchSimulatorStackLimit(masm);
-  __ Ret();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
