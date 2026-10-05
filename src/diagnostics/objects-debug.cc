@@ -3307,35 +3307,6 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataVerify(Isolate* isolate) {
     if (i == 0) CHECK_EQ(table, dispatch_table0());
   }
   if (num_dispatch_tables == 0) CHECK_EQ(0, dispatch_table0()->length());
-
-  // Verify that shared memory atomic byte length addresses point into a
-  // BackingStore kept alive in shared_memory_backing_stores.
-  const wasm::WasmModule* mod = module();
-  uint32_t num_memories = static_cast<uint32_t>(mod->memories.size());
-  CHECK_EQ(num_memories, memory_objects()->ulength().value());
-  CHECK_EQ(2 * num_memories, memory_bases_and_sizes()->length().value());
-  bool has_shared_memory = std::any_of(
-      mod->memories.begin(), mod->memories.end(),
-      [](const wasm::WasmMemory& mem) { return mem.is_shared.value(); });
-  CHECK_EQ(has_shared_memory ? num_memories : 0,
-           shared_memory_backing_stores()->ulength().value());
-  for (uint32_t i = 0; i < num_memories; ++i) {
-    Address size_or_address = memory_bases_and_sizes()->get(2 * i + 1);
-    // For non-shared memories, or shared memories that have not been attached
-    // via `WasmMemoryObject::UseInInstance` yet, the backing store slot is 0.
-    if (!mod->memories[i].is_shared || size_or_address == 0) {
-      if (has_shared_memory) {
-        CHECK_EQ(Smi::zero(), shared_memory_backing_stores()->get(i));
-      }
-      continue;
-    }
-    Tagged<Object> backing_store_obj = shared_memory_backing_stores()->get(i);
-    CHECK_EQ(size_or_address,
-             reinterpret_cast<Address>(
-                 TrustedCast<TrustedManaged<BackingStore>>(backing_store_obj)
-                     ->raw()
-                     ->byte_length_address()));
-  }
 }
 
 void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {

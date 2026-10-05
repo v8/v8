@@ -352,9 +352,6 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, tiering_budget_array,
 WTI_PROTECTED_POINTER_ACCESSORS(memory_bases_and_sizes,
                                 TrustedFixedAddressArray,
                                 kProtectedMemoryBasesAndSizesOffset)
-WTI_PROTECTED_POINTER_ACCESSORS(shared_memory_backing_stores,
-                                ProtectedFixedArray,
-                                kProtectedSharedMemoryBackingStoresOffset)
 WTI_PROTECTED_POINTER_ACCESSORS(data_segments,
                                 TrustedPodArray<wasm::WireBytesRef>,
                                 kProtectedDataSegmentsOffset)

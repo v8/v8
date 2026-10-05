@@ -402,10 +402,9 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   inline CppGCManaged<BackingStore>::Ptr backing_store() const;
 
   // Add a use of this memory object to the given instance. This updates the
-  // fields of the instance to reference this memory's buffer, and either
-  // keeps the BackingStore alive in trusted space (for shared memories) or
-  // records the instance in the weak `instances` list (for non-shared
-  // memories).
+  // internal weak list of instances that use this memory (for non-shared
+  // memories) and also updates the fields of the instance to reference this
+  // memory's buffer.
   V8_EXPORT_PRIVATE static void UseInInstance(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
@@ -486,8 +485,6 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   TaggedMember<CppGCManaged<BackingStore>> managed_backing_store_
       V8_TQ_TYPE(ManagedBackingStore);
   TaggedMember<Smi> maximum_pages_;
-  // Weak list of instances using this memory (populated only for non-shared
-  // memories, since shared memories always grow in place).
   TaggedMember<WeakArrayList> instances_;
   uint8_t address_type_ V8_TQ_TYPE(AddressType);
   uint8_t padding_for_flags_0_;
@@ -632,13 +629,6 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, std::atomic<uint32_t>*)
   DECL_PROTECTED_POINTER_ACCESSORS(memory_bases_and_sizes,
                                    TrustedFixedAddressArray)
-  // Indexed by memory index: holds a TrustedManaged<BackingStore> for each
-  // shared memory (and Smi::zero() for non-shared memories) to keep the
-  // BackingStore and its atomic byte_length_ (referenced by
-  // memory0_size_or_address and memory_bases_and_sizes) alive from trusted
-  // space. Empty if the module has no shared memories.
-  DECL_PROTECTED_POINTER_ACCESSORS(shared_memory_backing_stores,
-                                   ProtectedFixedArray)
   DECL_PROTECTED_POINTER_ACCESSORS(data_segments,
                                    TrustedPodArray<wasm::WireBytesRef>)
   DECL_ACCESSORS(element_segments, Tagged<FixedArray>)
@@ -681,7 +671,6 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   V(kTieringBudgetArrayOffset, kSystemPointerSize)                        \
   /* Less than system pointer size aligned fields are below. */           \
   V(kProtectedMemoryBasesAndSizesOffset, kTaggedSize)                     \
-  V(kProtectedSharedMemoryBackingStoresOffset, kTaggedSize)               \
   V(kProtectedDataSegmentsOffset, kTaggedSize)                            \
   V(kElementSegmentsOffset, kTaggedSize)                                  \
   V(kInstanceObjectOffset, kTaggedSize)                                   \
@@ -736,16 +725,15 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   IF_WASM_DRUMBRAKE(V, kImportedFunctionIndicesOffset,                        \
                     "imported_function_indices")                              \
   V(kElementSegmentsOffset, "element_segments")
-#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)                                 \
-  V(kProtectedMemoryBasesAndSizesOffset, "memory_bases_and_sizes")             \
-  V(kProtectedSharedMemoryBackingStoresOffset, "shared_memory_backing_stores") \
-  V(kProtectedDataSegmentsOffset, "data_segments")                             \
-  V(kProtectedDispatchTable0Offset, "dispatch_table0")                         \
-  V(kProtectedDispatchTablesOffset, "dispatch_tables")                         \
-  V(kProtectedDispatchTableForImportsOffset, "dispatch_table_for_imports")     \
-  V(kProtectedTagsTableOffset, "tags_table")                                   \
-  IF_WASM_DRUMBRAKE(V, kProtectedInterpreterHandleOffset,                      \
-                    "interpreter_handle")                                      \
+#define WASM_PROTECTED_INSTANCE_DATA_FIELDS(V)                             \
+  V(kProtectedMemoryBasesAndSizesOffset, "memory_bases_and_sizes")         \
+  V(kProtectedDataSegmentsOffset, "data_segments")                         \
+  V(kProtectedDispatchTable0Offset, "dispatch_table0")                     \
+  V(kProtectedDispatchTablesOffset, "dispatch_tables")                     \
+  V(kProtectedDispatchTableForImportsOffset, "dispatch_table_for_imports") \
+  V(kProtectedTagsTableOffset, "tags_table")                               \
+  IF_WASM_DRUMBRAKE(V, kProtectedInterpreterHandleOffset,                  \
+                    "interpreter_handle")                                  \
   V(kProtectedManagedNativeModuleOffset, "managed_native_module")
 
 #define WASM_INSTANCE_FIELD_OFFSET(offset, _) offset,
@@ -784,10 +772,8 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   // Sets memory base and size/address for {memory_index}.
   // For unshared memories, {size_or_address} is the byte length.
   // For shared memories, it is the Address of the backing store's atomic
-  // byte_length_ (std::atomic<size_t>*), and shared_memory_backing_stores()
-  // must already hold the corresponding TrustedManaged<BackingStore> at
-  // {memory_index}. To read the actual byte length, callers must use
-  // memory_size(index).
+  // byte_length_ (std::atomic<size_t>*). To read the actual byte length,
+  // callers must use memory_size(index).
   void SetRawMemory(uint32_t memory_index, uint8_t* mem_start,
                     Address size_or_address);
 
