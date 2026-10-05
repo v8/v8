@@ -993,9 +993,8 @@ bool CodeGenerator::GetSlotAboveSPBeforeTailCall(Instruction* instr,
     InstructionOperandConverter g(this, instr);
     *slot = g.InputInt32(instr->InputCount() - 1);
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
 
 StubCallMode CodeGenerator::DetermineStubCallMode() const {

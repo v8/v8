@@ -4908,11 +4908,6 @@ struct UnreachableOp : FixedArityOperationT<0, UnreachableOp> {
 };
 
 struct ReturnOp : OperationT<ReturnOp> {
-  // spill_caller_frame_slots signals that all caller stack located return
-  // values should be spilled before reaching the InstructionSelector.
-  // The growable stacks implementation does extra work to spill these values
-  // and it cannot be performed during InstructionSelector lowering efficiently.
-  bool spill_caller_frame_slots;
   static constexpr OpEffects effects = OpEffects().CanLeaveCurrentFunction();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -4930,10 +4925,8 @@ struct ReturnOp : OperationT<ReturnOp> {
     return inputs().SubVector(1, input_count);
   }
 
-  ReturnOp(V<Word32> pop_count, base::Vector<const OpIndex> return_values,
-           bool spill_caller_frame_slots)
-      : Base(1 + return_values.size()),
-        spill_caller_frame_slots(spill_caller_frame_slots) {
+  ReturnOp(V<Word32> pop_count, base::Vector<const OpIndex> return_values)
+      : Base(1 + return_values.size()) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = pop_count;
     inputs.SubVector(1, inputs.size()).OverwriteWith(return_values);
@@ -4943,17 +4936,14 @@ struct ReturnOp : OperationT<ReturnOp> {
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     OpIndex mapped_pop_count = mapper.Map(pop_count());
     auto mapped_return_values = mapper.template Map<4>(return_values());
-    return fn(mapped_pop_count, base::VectorOf(mapped_return_values),
-              spill_caller_frame_slots);
+    return fn(mapped_pop_count, base::VectorOf(mapped_return_values));
   }
 
   static ReturnOp& New(Graph* graph, V<Word32> pop_count,
-                       base::Vector<const OpIndex> return_values,
-                       bool spill_caller_frame_slots) {
-    return Base::New(graph, 1 + return_values.size(), pop_count, return_values,
-                     spill_caller_frame_slots);
+                       base::Vector<const OpIndex> return_values) {
+    return Base::New(graph, 1 + return_values.size(), pop_count, return_values);
   }
-  auto options() const { return std::tuple{spill_caller_frame_slots}; }
+  auto options() const { return std::tuple{}; }
 };
 
 struct GotoOp : FixedArityOperationT<0, GotoOp> {

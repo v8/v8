@@ -4503,25 +4503,28 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   Register frame_base =
       WasmHandleStackOverflowDescriptor::FrameBaseRegister();       // eax
   Register gap = WasmHandleStackOverflowDescriptor::GapRegister();  // ecx
-  Register original_fp = edx;
+  Register parameter_slots_size =
+      WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister();  // edx
   Register original_sp = esi;
-  __ mov(original_fp, ebp);
   __ mov(original_sp, esp);
   // Calculate frame size before SP is updated.
   __ sub(frame_base, esp);
   {
     Register scratch = edi;
-    DCHECK(!AreAliased(original_fp, original_sp, frame_base, gap, scratch));
+    DCHECK(!AreAliased(original_sp, frame_base, gap, parameter_slots_size,
+                       scratch));
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ push(gap);
-    __ PrepareCallCFunction(5, scratch);
-    __ mov(Operand(esp, 4 * kSystemPointerSize), original_fp);
+    __ PrepareCallCFunction(6, scratch);
+    __ mov(Operand(esp, 5 * kSystemPointerSize), parameter_slots_size);
+    __ mov(scratch, Operand(ebp, CommonFrameConstants::kCallerFPOffset));
+    __ mov(Operand(esp, 4 * kSystemPointerSize), scratch);
     __ mov(Operand(esp, 3 * kSystemPointerSize), gap);
     __ mov(Operand(esp, 2 * kSystemPointerSize), frame_base);
     __ mov(Operand(esp, 1 * kSystemPointerSize), original_sp);
     __ Move(Operand(esp, 0 * kSystemPointerSize),
             Immediate(ExternalReference::isolate_address()));
-    __ CallCFunction(ER::wasm_grow_stack(), 5);
+    __ CallCFunction(ER::wasm_grow_stack(), 6);
     __ pop(gap);
     DCHECK_NE(kReturnRegister0, gap);
   }
@@ -4529,15 +4532,10 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
   // wasm_grow_stack returns zero if it cannot grow a stack.
   __ test(kReturnRegister0, kReturnRegister0);
   __ j(zero, &call_runtime, Label::kNear);
-  Register new_fp = edx;
   // Calculate old FP - SP offset to adjust FP accordingly to new SP.
   __ sub(ebp, esp);
   __ add(ebp, kReturnRegister0);
   __ mov(esp, kReturnRegister0);
-  Register tmp = new_fp;
-  __ mov(tmp,
-         Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-  __ mov(MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset), tmp);
   __ ret(0);
 
   // If wasm_grow_stack returns zero interruption or stack overflow
@@ -4557,6 +4555,43 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ LeaveFrame(StackFrame::INTERNAL);
     __ ret(0);
   }
+}
+
+void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
+  for (Register reg : base::Reversed(wasm::kGpReturnRegisters)) {
+    __ push(reg);
+  }
+  __ sub(esp, Immediate(arraysize(wasm::kFpReturnRegisters) * kSimd128Size));
+  for (size_t i = 0; i < arraysize(wasm::kFpReturnRegisters); i++) {
+    __ Movdqu(Operand(esp, kSimd128Size * i), wasm::kFpReturnRegisters[i]);
+  }
+
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    int saved_size = arraysize(wasm::kGpReturnRegisters) * kSystemPointerSize +
+                     arraysize(wasm::kFpReturnRegisters) * kSimd128Size;
+    __ mov(ecx, esp);
+    Register scratch = edx;
+    __ PrepareCallCFunction(2, scratch);
+    __ Move(Operand(esp, 0 * kSystemPointerSize),
+            Immediate(ExternalReference::isolate_address()));
+    __ lea(scratch, Operand(ecx, saved_size));
+    __ mov(Operand(esp, 1 * kSystemPointerSize), scratch);
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 2);
+  }
+  __ mov(ebp, kReturnRegister0);
+
+  for (size_t i = 0; i < arraysize(wasm::kFpReturnRegisters); i++) {
+    __ Movdqu(wasm::kFpReturnRegisters[i], Operand(esp, kSimd128Size * i));
+  }
+  __ add(esp, Immediate(arraysize(wasm::kFpReturnRegisters) * kSimd128Size));
+  for (Register reg : wasm::kGpReturnRegisters) {
+    __ pop(reg);
+  }
+
+  __ mov(esp, ebp);
+  __ pop(ebp);
+  __ ret(0);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

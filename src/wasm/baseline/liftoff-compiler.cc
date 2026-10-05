@@ -1444,13 +1444,18 @@ class LiftoffCompiler {
     if (ool->builtin == Builtin::kWasmGrowableStackGuard) {
       WasmGrowableStackGuardDescriptor descriptor;
       DCHECK_EQ(0, descriptor.GetStackParameterCount());
-      DCHECK_EQ(2, descriptor.GetRegisterParameterCount());
+      DCHECK_EQ(3, descriptor.GetRegisterParameterCount());
       Register param_reg0 = descriptor.GetRegisterParameter(0);
       Register param_reg1 = descriptor.GetRegisterParameter(1);
+      Register param_reg2 = descriptor.GetRegisterParameter(2);
       __ LoadConstant(LiftoffRegister(param_reg0),
-                      WasmValue::ForUintPtr(descriptor_->ParameterSlotCount() *
+                      WasmValue::ForUintPtr((descriptor_->ParameterSlotCount() +
+                                             descriptor_->ReturnSlotCount()) *
                                             kSystemPointerSize));
       __ LoadConstant(LiftoffRegister(param_reg1), WasmValue::ForUintPtr(0));
+      __ LoadConstant(LiftoffRegister(param_reg2),
+                      WasmValue::ForUintPtr(descriptor_->ParameterSlotCount() *
+                                            kSystemPointerSize));
     } else if (ool->builtin == Builtin::kWasmStackGuard) {
       WasmStackGuardDescriptor descriptor;
       DCHECK_EQ(0, descriptor.GetStackParameterCount());
@@ -1576,7 +1581,8 @@ class LiftoffCompiler {
     DCHECK_EQ(frame_size, __ GetTotalFrameSize());
     __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
                               &safepoint_table_builder_, v8_flags.wasm_inlining,
-                              descriptor_->ParameterSlotCount());
+                              descriptor_->ParameterSlotCount(),
+                              descriptor_->ReturnSlotCount());
     __ FinishCode();
     safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCountForGC());
     // Emit the handler table.
@@ -3605,9 +3611,6 @@ class LiftoffCompiler {
     }
     size_t num_returns = decoder->sig_->return_count();
     if (num_returns > 0) __ MoveToReturnLocations(decoder->sig_, descriptor_);
-    if (v8_flags.wasm_growable_stacks) {
-      __ CheckStackShrink();
-    }
     __ LeaveFrame(StackFrame::WASM);
     __ DropStackSlotsAndRet(
         static_cast<uint32_t>(descriptor_->ParameterSlotCount()));

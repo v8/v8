@@ -974,6 +974,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->SetFrameAccessToDefault();
       break;
     }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArchTailCallCodeObject: {
       CodeEntrypointTag tag =
@@ -4360,6 +4361,8 @@ void CodeGenerator::AssembleConstructFrame() {
       regs_to_save.Combine(WasmHandleStackOverflowDescriptor::GapRegister());
       regs_to_save.Combine(
           WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+      regs_to_save.Combine(
+          WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
       for (auto reg : wasm::kGpParamRegisters) regs_to_save.Combine(reg);
       __ PushCPURegList(regs_to_save);
       CPURegList fp_regs_to_save(kQRegSizeInBits, DoubleRegList{});
@@ -4368,10 +4371,13 @@ void CodeGenerator::AssembleConstructFrame() {
       }
       __ PushCPURegList(fp_regs_to_save);
       __ Mov(WasmHandleStackOverflowDescriptor::GapRegister(), stack_space);
-      __ Add(
-          WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-          Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
-                  CommonFrameConstants::kFixedFrameSizeAboveFp));
+      __ Add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+             Operand((call_descriptor->ParameterSlotCount() +
+                      call_descriptor->ReturnSlotCount()) *
+                         kSystemPointerSize +
+                     CommonFrameConstants::kFixedFrameSizeAboveFp));
+      __ Mov(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
+             call_descriptor->ParameterSlotCount() * kSystemPointerSize);
       __ Call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
               RelocInfo::WASM_STUB_CALL);
       // If the call successfully grew the stack, we don't expect it to have
@@ -4459,42 +4465,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (call_descriptor->IsAnyWasmFunctionCall() &&
-      v8_flags.wasm_growable_stacks) {
-    {
-      UseScratchRegisterScope temps{masm()};
-      Register scratch = temps.AcquireX();
-      __ Ldr(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
-      __ Cmp(scratch,
-             Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-    }
-    Label done;
-    __ B(ne, &done);
-    CPURegList regs_to_save(kXRegSizeInBits, RegList{});
-    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.Combine(reg);
-    __ PushCPURegList(regs_to_save);
-    CPURegList fp_regs_to_save(kQRegSizeInBits, DoubleRegList{});
-    for (auto reg : wasm::kFpReturnRegisters) {
-      fp_regs_to_save.Combine(reg.Q());
-    }
-    __ PushCPURegList(fp_regs_to_save);
-    __ Mov(kCArgRegs[0], ExternalReference::isolate_address());
-    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
-    __ Mov(fp, kReturnRegister0);
-    __ PopCPURegList(fp_regs_to_save);
-    __ PopCPURegList(regs_to_save);
-    if (masm()->options().enable_simulator_code) {
-      // The next instruction after shrinking stack is leaving the frame.
-      // So SP will be set to old FP there. Switch simulator stack limit here.
-      UseScratchRegisterScope temps{masm()};
-      temps.Exclude(x16);
-      __ LoadStackLimit(x16, StackLimitKind::kRealStackLimit);
-      __ hlt(kImmExceptionIsSwitchStackLimit);
-    }
-    __ bind(&done);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   Register argc_reg = x3;
   // Functions with JS linkage have at least one parameter (the receiver).

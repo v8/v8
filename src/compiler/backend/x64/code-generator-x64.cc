@@ -8495,6 +8495,8 @@ void CodeGenerator::AssembleConstructFrame() {
       RegList regs_to_save;
       regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
       regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+      regs_to_save.set(
+          WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister());
       for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
       __ PushAll(regs_to_save);
       DoubleRegList fp_regs_to_save;
@@ -8505,8 +8507,13 @@ void CodeGenerator::AssembleConstructFrame() {
       __ movq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), rbp);
       __ addq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
               Immediate(static_cast<int32_t>(
-                  call_descriptor->ParameterSlotCount() * kSystemPointerSize +
+                  (call_descriptor->ParameterSlotCount() +
+                   call_descriptor->ReturnSlotCount()) *
+                      kSystemPointerSize +
                   CommonFrameConstants::kFixedFrameSizeAboveFp)));
+      __ movq(WasmHandleStackOverflowDescriptor::ParameterSlotsSizeRegister(),
+              Immediate(static_cast<int32_t>(
+                  call_descriptor->ParameterSlotCount() * kSystemPointerSize)));
       __ near_call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
                    RelocInfo::WASM_STUB_CALL);
       // If the call successfully grew the stack, we don't expect it to have
@@ -8613,31 +8620,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (call_descriptor->IsAnyWasmFunctionCall() &&
-      v8_flags.wasm_growable_stacks) {
-    __ cmpq(
-        MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),
-        Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
-    Label done;
-    __ j(not_equal, &done);
-    RegList regs_to_save;
-    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
-    __ PushAll(regs_to_save);
-    DoubleRegList fp_regs_to_save;
-    for (auto reg : wasm::kFpReturnRegisters) fp_regs_to_save.set(reg);
-    __ PushAll(fp_regs_to_save);
-    __ PrepareCallCFunction(1);
-    __ LoadAddress(kCArgRegs[0], ExternalReference::isolate_address());
-    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
-    // Restore old FP. We don't need to restore old SP explicitly, because
-    // it will be restored from FP inside of AssembleDeconstructFrame.
-    __ movq(rbp, kReturnRegister0);
-    __ PopAll(fp_regs_to_save);
-    __ PopAll(regs_to_save);
-    __ bind(&done);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   Register argc_reg = rcx;
   // Functions with JS linkage have at least one parameter (the receiver).
