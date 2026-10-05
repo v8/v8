@@ -738,7 +738,6 @@ DirectHandle<WasmSuspendingObject> WasmSuspendingObject::New(
 namespace {
 
 void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
-                       Tagged<HeapObject> maybe_buffer,
                        std::shared_ptr<BackingStore> backing_store,
                        uint32_t memory_index) {
   DisallowHeapAllocation no_gc;
@@ -899,16 +898,32 @@ void WasmMemoryObject::UseInInstance(
     Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     uint32_t memory_index_in_instance) {
-  SetInstanceMemory(*trusted_instance_data, memory->array_buffer(),
-                    memory->backing_store().as_shared_ptr(),
-                    memory_index_in_instance);
-  if (!memory->backing_store()->is_shared()) {
+  std::shared_ptr<BackingStore> backing_store =
+      memory->backing_store().as_shared_ptr();
+  if (trusted_instance_data->module()
+          ->memories[memory_index_in_instance]
+          .is_shared) {
+    // Keep the shared BackingStore alive in trusted space so that
+    // WasmTrustedInstanceData's raw pointer to BackingStore::byte_length_
+    // cannot dangle if in-sandbox references are overwritten.
+    // Pass 0 as estimated_size because the WasmMemoryObject's
+    // CppGCManaged<BackingStore> already accounts for external memory.
+    DirectHandle<TrustedManaged<BackingStore>> managed_backing_store =
+        TrustedManaged<BackingStore>::From(isolate, 0, backing_store);
+    trusted_instance_data->shared_memory_backing_stores()->set(
+        memory_index_in_instance, *managed_backing_store);
+  } else {
+    // Shared memories always grow in place, so only non-shared memories need to
+    // track their using instances for updating on grow.
     DirectHandle<WeakArrayList> instances{memory->instances(), isolate};
-    auto weak_instance_object = MaybeObjectDirectHandle::Weak(
-        trusted_instance_data->instance_object(), isolate);
+    MaybeObjectDirectHandle weak_instance_object =
+        MaybeObjectDirectHandle::Weak(trusted_instance_data->instance_object(),
+                                      isolate);
     instances = WeakArrayList::Append(isolate, instances, weak_instance_object);
     memory->set_instances(*instances);
   }
+  SetInstanceMemory(*trusted_instance_data, std::move(backing_store),
+                    memory_index_in_instance);
 }
 
 // static
@@ -946,6 +961,7 @@ void WasmMemoryObject::SetNewBuffer(Isolate* isolate,
 
 void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
+  // SetInstanceMemory has an SBXCHECK for this later.
   DCHECK(!backing_store()->is_shared());
   Tagged<WeakArrayList> instances = this->instances();
   const uint32_t instances_len = instances->length().value();
@@ -962,8 +978,8 @@ void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
     uint32_t num_memories = memory_objects->ulength().value();
     for (uint32_t mem_idx = 0; mem_idx < num_memories; ++mem_idx) {
       if (memory_objects->get(mem_idx) == Tagged<WasmMemoryObject>(this)) {
-        SetInstanceMemory(trusted_data, array_buffer(),
-                          backing_store().as_shared_ptr(), mem_idx);
+        SetInstanceMemory(trusted_data, backing_store().as_shared_ptr(),
+                          mem_idx);
       }
     }
   }
@@ -1426,6 +1442,15 @@ void WasmTrustedInstanceData::SetRawMemory(uint32_t memory_index,
   } else {
     CHECK_NE(size_or_address, kNullAddress);
     CHECK(IsAligned(size_or_address, alignof(size_t)));
+    // Verify that the shared BackingStore is kept alive in trusted space.
+    CHECK_LT(memory_index, shared_memory_backing_stores()->ulength().value());
+    Tagged<Object> backing_store_obj =
+        shared_memory_backing_stores()->get(memory_index);
+    CHECK_EQ(size_or_address,
+             reinterpret_cast<Address>(
+                 TrustedCast<TrustedManaged<BackingStore>>(backing_store_obj)
+                     ->raw()
+                     ->byte_length_address()));
   }
   // All memory bases and sizes (or addresses of atomic sizes for shared
   // memories) are stored in a TrustedFixedAddressArray.
@@ -1496,6 +1521,13 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
       isolate->factory()->NewWasmDispatchTable(0, wasm::kWasmFuncRef);
   DirectHandle<ProtectedFixedArray> empty_protected_fixed_array =
       isolate->factory()->empty_protected_fixed_array();
+  bool has_shared_memory = std::any_of(
+      module->memories.begin(), module->memories.end(),
+      [](const wasm::WasmMemory& mem) { return mem.is_shared.value(); });
+  DirectHandle<ProtectedFixedArray> shared_memory_backing_stores =
+      has_shared_memory
+          ? isolate->factory()->NewProtectedFixedArray(num_memories)
+          : empty_protected_fixed_array;
 
   // Use the same memory estimate as the (untrusted) Managed in
   // WasmModuleObject. This is not security critical, and we at least always
@@ -1556,6 +1588,8 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_memory0_size_or_address(0);
     trusted_data->set_memory_objects(*memory_objects);
     trusted_data->set_memory_bases_and_sizes(*memory_bases_and_sizes);
+    trusted_data->set_shared_memory_backing_stores(
+        *shared_memory_backing_stores);
 
     for (uint32_t i = 0; i < num_memories; ++i) {
       memory_bases_and_sizes->set(
