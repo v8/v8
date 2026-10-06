@@ -446,6 +446,7 @@ void MergePointInterpreterFrameState::InitializeLoop(
   DCHECK_EQ(predecessors_so_far_, 0);
   known_node_aspects_ = unmerged.known_node_aspects()->CloneForLoopHeader(
       optimistic_initial_state, loop_effects, graph->zone());
+  AsLoopHeader()->InitializeLoopEffectEpoch(*known_node_aspects_);
   unmerged.virtual_objects().Snapshot();
   const MaglevCompilationInfo* info = compilation_unit.info();
   TRACE(TraceColor::kInfo << "Initializing "

@@ -109,7 +109,8 @@ class RecomputeKnownNodeAspectsProcessor {
       backedge_known_node_aspects->UnwrapIdentitiesAndPhisInKeys(zone());
       known_node_aspects_->MergeForLoop(
           *backedge_known_node_aspects, zone(),
-          block->state()->AsLoopHeader()->loop_effects());
+          block->state()->AsLoopHeader()->loop_effects(),
+          block->state()->AsLoopHeader()->loop_has_effects());
     } else if (block->has_state()) {
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
     } else if (block->is_edge_split_block()) {

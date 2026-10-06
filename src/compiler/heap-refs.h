@@ -770,7 +770,7 @@ class HeapNumberRef : public HeapObjectRef {
 
   IndirectHandle<HeapNumber> object() const;
 
-  double value() const;
+  V8_EXPORT_PRIVATE double value() const;
   uint64_t value_as_bits() const;
 };
 
