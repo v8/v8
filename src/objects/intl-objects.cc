@@ -23,6 +23,7 @@
 #include "src/execution/local-isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
+#include "src/init/v8.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-locale-inl.h"
@@ -261,7 +262,9 @@ void IcuBreakIteratorWithText::SetText(Isolate* isolate,
                                        DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   text_.reset(Intl::ToICUUnicodeString(isolate, string).clone());
-  DCHECK_NOT_NULL(text_);
+  if (V8_UNLIKELY(text_ == nullptr)) {
+    V8::FatalProcessOutOfMemory(isolate, "IcuBreakIteratorWithText::SetText");
+  }
   iterator_->setText(*text_);
 }
 
