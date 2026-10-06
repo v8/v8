@@ -907,6 +907,7 @@ DEFINE_NEG_IMPLICATION(jitless, always_sparkplug)
 #endif  // V8_ENABLE_SPARKPLUG
 #ifdef V8_ENABLE_MAGLEV
 DEFINE_NEG_IMPLICATION(jitless, maglev)
+DEFINE_NEG_IMPLICATION(jitless, maglev_as_top_tier)
 #endif  // V8_ENABLE_MAGLEV
 DEFINE_NEG_IMPLICATION(jitless, turbolev)
 DEFINE_NEG_IMPLICATION(jitless, turbolev_future)
@@ -923,6 +924,7 @@ DEFINE_BOOL(
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbofan)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turboshaft)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev_as_top_tier)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbolev)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbolev_future)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, wasm_in_js_inlining_body)
