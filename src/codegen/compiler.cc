@@ -737,6 +737,8 @@ void EnsureInfosArrayOnScript(DirectHandle<Script> script,
 void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal) {
   Tagged<SharedFunctionInfo> shared_info = *literal->shared_function_info();
   DCHECK_EQ(shared_info->language_mode(), literal->language_mode());
+  DCHECK_EQ(shared_info->syntax_kind(), literal->syntax_kind());
+  DCHECK_EQ(shared_info->kind(), literal->kind());
 
   // These fields are all initialised in ParseInfo from the SharedFunctionInfo,
   // and then set back on the literal after parse. Hence, they should already

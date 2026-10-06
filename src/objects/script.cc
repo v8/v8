@@ -140,6 +140,8 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   CHECK_EQ(result->EndPosition(), function_literal->end_position());
   CHECK_EQ(result->function_literal_id(kRelaxedLoad),
            function_literal->function_literal_id());
+  CHECK_EQ(result->syntax_kind(), function_literal->syntax_kind());
+  CHECK_EQ(result->kind(), function_literal->kind());
   function_literal->set_shared_function_info(result);
   return result;
 }

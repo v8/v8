@@ -74,10 +74,6 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForScriptCompile(
                                           : ScriptType::kClassic,
       v8_flags.lazy);
   flags.set_outer_language_mode(script->outer_language_mode());
-  if (script->compilation_kind() ==
-      Script::CompilationKind::kFunctionConstructor) {
-    flags.set_parse_restriction(ONLY_SINGLE_FUNCTION_LITERAL);
-  }
   flags.SetFlagsForFunctionFromScript(script);
   if (script->is_wrapped()) {
     flags.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
@@ -158,6 +154,10 @@ void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(
 
   set_block_coverage_enabled(block_coverage_enabled() &&
                              script->IsUserJavaScript());
+  if (is_toplevel() && script->compilation_kind() ==
+                           Script::CompilationKind::kFunctionConstructor) {
+    set_parse_restriction(ONLY_SINGLE_FUNCTION_LITERAL);
+  }
 }
 
 ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
