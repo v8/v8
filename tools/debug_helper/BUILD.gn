@@ -98,7 +98,7 @@ _debug_helper_deps = [
   "../..:v8_shared_internal_headers",
   "../..:v8_tracing",
 ]
-if (v8_use_metagen_instance_types) {
+if (v8_use_metagen) {
   _debug_helper_sources += [ "$target_gen_dir/../../metagen/instance-types.h" ]
   _debug_helper_deps += [ "../..:run_metagen" ]
 }

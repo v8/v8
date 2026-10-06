@@ -350,6 +350,7 @@ def _torque_files_impl(ctx):
     args.append(v8root)
     inputs = ctx.files.srcs
     if ctx.file.layout_json:
+        args.append("-use-cpp-layouts")
         args.append("-layout-json")
         args.append(ctx.file.layout_json.path)
         inputs = inputs + [ctx.file.layout_json]
@@ -637,8 +638,8 @@ def build_config_content(cpu, icu):
 # Metagen: libclang-driven metadata generator.
 #
 # Produces gen/metagen/instance-types.h -- the file `src/objects/instance-
-# types-gen.h` includes when V8_USE_METAGEN_INSTANCE_TYPES=1, i.e. under
-# --//:v8_use_metagen_instance_types -- along with layouts.json for Torque.
+# types-gen.h` includes when V8_USE_METAGEN=1, i.e. under
+# --//:v8_use_metagen -- along with layouts.json for Torque.
 #
 # The generator runs tools/metagen/metagen.py, which uses libclang to parse
 # V8_OBJECT-annotated C++ headers and emits the IT enum macros. We feed it
@@ -754,7 +755,6 @@ def _run_metagen_impl(ctx):
     args.add("--driver-mode", driver_mode)
     args.add("--driver", ctx.file.driver.path)
     args.add("--out", out_dir)
-    args.add("--enable-layout")
 
     # Where libclang comes from. Both modes are explicit, so a mismatch
     # is an analysis-time error rather than a Metagen run that quietly parses

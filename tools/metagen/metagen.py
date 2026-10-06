@@ -2,12 +2,11 @@
 # Copyright 2026 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-"""Entry point for metagen instance-type generation.
+"""Entry point for metagen metadata generation.
 
 Drives a libclang harvest of V8_OBJECT / V8_IT_-annotated C++ class
-declarations and emits `instance-types.h` and, with --enable-layout,
-the object layouts (`layouts.json`) for Torque. One invocation per
-build dir; ninja calls us from `tools/metagen/BUILD.gn`.
+declarations and emits `instance-types.h` and `layouts.json` for Torque.
+One invocation per build dir; ninja calls us from `BUILD.gn`.
 """
 
 from __future__ import annotations
@@ -126,20 +125,13 @@ def main() -> int:
   p.add_argument(
       "--out",
       required=True,
-      help="Directory to write the outputs into: instance-types.h and, "
-      "with --enable-layout, layouts.json; --enable-layout-positions also "
-      "adds layout-positions.json. The only directory metagen writes to.")
-  p.add_argument(
-      "--enable-layout",
-      action="store_true",
-      help="Also extract the object layouts into layouts.json (schema in "
-      "tools/metagen/layout_ir.py; specific to the parsed build "
-      "configuration).")
+      help="Directory to write instance-types.h and layouts.json into; "
+      "--enable-layout-positions also adds layout-positions.json.")
   p.add_argument(
       "--enable-layout-positions",
       action="store_true",
       help="Also write per-member C++ source positions to "
-      "layout-positions.json. Requires --enable-layout and is separate so "
+      "layout-positions.json. This is separate so "
       "position-only changes need not invalidate layout consumers.")
   p.add_argument(
       "--depfile",
@@ -149,7 +141,7 @@ def main() -> int:
       "of. Only the driver is a declared build input, so without this "
       "an edit to one of them leaves the output stale.")
   # TODO(jgruber): Remove --check once metagen is the sole IT source and the
-  # Torque reference path (v8_use_metagen_instance_types=false) is gone.
+  # Torque reference path (v8_use_metagen=false) is gone.
   p.add_argument(
       "--check",
       action="store_true",
@@ -211,9 +203,6 @@ def main() -> int:
       "wrote (Bazel emits one synthesized via cc_common). Same shape "
       "as compile_commands.json. Mutually exclusive with --build-dir.")
   args = p.parse_args()
-
-  if args.enable_layout_positions and not args.enable_layout:
-    p.error("--enable-layout-positions requires --enable-layout")
 
   def verbose_print(msg: str) -> None:
     if args.verbose:
@@ -425,19 +414,16 @@ def main() -> int:
 
   # Layout extraction adds the declarations it reads to the visited set.
   # The depfile includes their source files.
-  layout_json = None
-  layout_positions_json = None
-  if args.enable_layout:
-    try:
-      layout_config = layout_extract.extract_config(cpp_res.parsed)
-      layouts = layout_extract.extract_layouts(cpp_res.parsed, v8_root)
-      layout_json = layout_ir.serialize_document(layout_config, layouts)
-      if args.enable_layout_positions:
-        layout_positions_json = layout_ir.serialize_positions(layouts)
-    except layout_ir.LayoutError as e:
-      print(f"[metagen] layout extraction failed: {e}", file=sys.stderr)
-      return 1
-    verbose_print(f"  extracted {len(layouts)} layouts")
+  try:
+    layout_config = layout_extract.extract_config(cpp_res.parsed)
+    layouts = layout_extract.extract_layouts(cpp_res.parsed, v8_root)
+    layout_json = layout_ir.serialize_document(layout_config, layouts)
+    if args.enable_layout_positions:
+      layout_positions_json = layout_ir.serialize_positions(layouts)
+  except layout_ir.LayoutError as e:
+    print(f"[metagen] layout extraction failed: {e}", file=sys.stderr)
+    return 1
+  verbose_print(f"  extracted {len(layouts)} layouts")
 
   visited_files = cpp_hier.visited_files(cpp_res.parsed.visited, v8_root)
   verbose_print(f"  {len(cpp_res.classes)} classes, "
@@ -471,7 +457,7 @@ def main() -> int:
       # Comment-insensitive comparison: /* ... */ position comments
       # legitimately differ (C++ header links here, .tq links in
       # Torque's emission), as do // prose comments and the include
-      # guard / V8_USE_METAGEN_INSTANCE_TYPES scaffolding around the macro
+      # guard / V8_USE_METAGEN scaffolding around the macro
       # blocks. The diagnostic-dispatch list is also skipped: it has no
       # literal counterpart in Torque's emission (the torque path
       # aliases it to the debug-reader lists, see
@@ -479,7 +465,7 @@ def main() -> int:
       # definitions must match.
       scaffold = re.compile(r"^#(ifndef V8_GEN_TORQUE_GENERATED_"
                             r"|define V8_GEN_TORQUE_GENERATED_"
-                            r"|endif|if !V8_USE_METAGEN_INSTANCE_TYPES)")
+                            r"|endif|if !V8_USE_METAGEN)")
       out: list[str] = []
       in_dispatch = False
       for ln in text.splitlines():
@@ -526,10 +512,9 @@ def main() -> int:
 
   # Preserve unchanged outputs so their dependents do not rebuild.
   _write_if_changed(path, generated, verbose_print)
-  if layout_json is not None:
-    _write_if_changed(
-        os.path.join(out_dir, "layouts.json"), layout_json, verbose_print)
-  if layout_positions_json is not None:
+  _write_if_changed(
+      os.path.join(out_dir, "layouts.json"), layout_json, verbose_print)
+  if args.enable_layout_positions:
     _write_if_changed(
         os.path.join(out_dir, "layout-positions.json"), layout_positions_json,
         verbose_print)

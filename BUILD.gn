@@ -26,7 +26,7 @@ if (is_clang) {
   import("//build/config/clang/clang.gni")
 }
 
-if (is_win && v8_use_metagen_instance_types) {
+if (is_win && v8_use_metagen) {
   # For the SDK include flags, see `run_metagen`.
   import("//build/toolchain/win/win_toolchain_data.gni")
 }
@@ -570,16 +570,12 @@ assert(v8_metagen_libclang_so == "" == (v8_metagen_libclang_bindings_dir == ""),
        "v8_metagen_libclang_so and v8_metagen_libclang_bindings_dir must be " +
            "set together or left empty together.")
 
-# TODO(jgruber): Drop the two sub-flags and keep only v8_use_metagen.
-assert(!v8_use_metagen_layouts || v8_use_metagen_instance_types,
-       "v8_use_metagen_layouts requires v8_use_metagen_instance_types.")
-
 # The generation-invariance comparison runs torque twice for a 32-bit target,
 # from a 32-bit and a 64-bit host, and diffs the output: it tests the Torque
 # generator, so it belongs on the path where Torque owns the layouts.
-assert(!v8_verify_torque_generation_invariance || !v8_use_metagen_layouts,
+assert(!v8_verify_torque_generation_invariance || !v8_use_metagen,
        "v8_verify_torque_generation_invariance requires " +
-           "v8_use_metagen_layouts=false.")
+           "v8_use_metagen=false.")
 
 # Derived defaults.
 if (v8_logging_level == "") {
@@ -1343,8 +1339,8 @@ config("features") {
   # Selects metagen vs Torque instance-type output (see
   # src/objects/instance-types-gen.h). The header defaults to metagen
   # when this is undefined, so only the off case needs a define.
-  if (!v8_use_metagen_instance_types) {
-    defines += [ "V8_USE_METAGEN_INSTANCE_TYPES=0" ]
+  if (!v8_use_metagen) {
+    defines += [ "V8_USE_METAGEN=0" ]
   }
 
   configs = [
@@ -2086,7 +2082,7 @@ if (v8_postmortem_support) {
 
     script = "tools/gen-postmortem-metadata.py"
 
-    if (v8_use_metagen_instance_types) {
+    if (v8_use_metagen) {
       _instance_types_header = "$target_gen_dir/metagen/instance-types.h"
     } else {
       _instance_types_header =
@@ -2202,7 +2198,7 @@ if (v8_postmortem_support) {
            rebase_path(inputs, root_build_dir)
 
     deps = [ ":run_torque" ]
-    if (v8_use_metagen_instance_types) {
+    if (v8_use_metagen) {
       deps += [ ":run_metagen" ]
     }
   }
@@ -2477,7 +2473,7 @@ if (v8_enable_webassembly) {
   }
 }
 
-if (v8_use_metagen_instance_types) {
+if (v8_use_metagen) {
   # The checked-in translation unit metagen parses. It includes
   # src/objects/all-objects.h, whose feature-specific groups use the same
   # defines as their V8 sources.
@@ -2607,7 +2603,6 @@ if (v8_use_metagen_instance_types) {
       rebase_path("//", root_build_dir),
       "--out",
       rebase_path(_metagen_out_dir, root_build_dir),
-      "--enable-layout",
 
       # Metagen reads the compile flags from this target. Passed as a string,
       # not a dep, to avoid a cycle.
@@ -2812,18 +2807,16 @@ template("run_torque") {
       rebase_path(".", root_build_dir),
     ]
 
-    if (v8_use_metagen_instance_types) {
+    if (v8_use_metagen) {
       deps += [ ":run_metagen" ]
-      if (v8_use_metagen_layouts) {
-        layout_json = get_label_info(":run_metagen", "target_gen_dir") +
-                      "/metagen/layouts.json"
-        inputs = [ layout_json ]
-        args += [
-          "-layout-json",
-          rebase_path(layout_json, root_build_dir),
-          "-use-cpp-layouts",
-        ]
-      }
+      layout_json = get_label_info(":run_metagen", "target_gen_dir") +
+                    "/metagen/layouts.json"
+      inputs = [ layout_json ]
+      args += [
+        "-layout-json",
+        rebase_path(layout_json, root_build_dir),
+        "-use-cpp-layouts",
+      ]
     }
     if (v8_annotate_torque_ir) {
       args += [ "-annotate-ir" ]
@@ -5825,7 +5818,7 @@ v8_header_set("v8_internal_headers") {
   if (v8_enable_experimental_tq_to_tsa) {
     deps += [ ":run_torque_to_tsa" ]
   }
-  if (v8_use_metagen_instance_types) {
+  if (v8_use_metagen) {
     deps += [ ":run_metagen" ]
   }
 }

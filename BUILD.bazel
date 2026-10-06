@@ -178,24 +178,16 @@ v8_flag(
 
 v8_flag(name = "v8_enable_experimental_tq_to_tsa")
 
-# Mirrors the GN arg of the same name: selects which instance-type
-# generator's output V8 compiles in, metagen or Torque's emission. When
-# off, the metagen action is not part of the build graph.
+# Mirrors the GN arg of the same name: selects metagen's instance types and
+# object layouts. When off, the metagen action is not part of the build graph.
 v8_flag(
-    name = "v8_use_metagen_instance_types",
+    name = "v8_use_metagen",
     default = True,
 )
 
 # Empty selects the default for the target OS. Set to "gcc" or "cl" when
 # the C++ toolchain uses a different driver mode.
 v8_string(name = "v8_metagen_driver_mode")
-
-# Mirrors the GN arg of the same name: selects the object-layout source Torque
-# compiles from, either the metagen layout JSON or the .tq field blocks.
-v8_flag(
-    name = "v8_use_metagen_layouts",
-    default = True,
-)
 
 v8_flag(
     name = "v8_use_host_cpu_arm_features",
@@ -572,8 +564,8 @@ v8_config(
         "V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
         "V8_TLS_USED_IN_LIBRARY",
     ] + select({
-        ":is_not_v8_use_metagen_instance_types": [
-            "V8_USE_METAGEN_INSTANCE_TYPES=0",
+        ":is_not_v8_use_metagen": [
+            "V8_USE_METAGEN=0",
         ],
         "//conditions:default": [],
     }) + select({
@@ -4490,9 +4482,6 @@ v8_torque_files(
     }) + select({
         "@v8//bazel/config:v8_target_is_32_bits": ["-m32"],
         "//conditions:default": [],
-    }) + select({
-        ":is_v8_use_metagen_layouts": ["-use-cpp-layouts"],
-        "//conditions:default": [],
     }),
     initializer_extras = [
         "csa-types.h",
@@ -4515,12 +4504,12 @@ v8_torque_files(
     ],
     icu_srcs = [":icu/torque_files"],
     icu_layout_json = select({
-        ":is_v8_use_metagen_instance_types": ":icu/metagen_layouts_json",
+        ":is_v8_use_metagen": ":icu/metagen_layouts_json",
         "//conditions:default": None,
     }),
     noicu_srcs = [":noicu/torque_files"],
     noicu_layout_json = select({
-        ":is_v8_use_metagen_instance_types": ":noicu/metagen_layouts_json",
+        ":is_v8_use_metagen": ":noicu/metagen_layouts_json",
         "//conditions:default": None,
     }),
 )
@@ -4950,7 +4939,7 @@ v8_library(
         ":icu/generated_torque_definitions_headers",
         "//external:icu",
     ] + select({
-        ":is_v8_use_metagen_instance_types": [
+        ":is_v8_use_metagen": [
             ":icu/run_metagen_headers",
         ],
         "//conditions:default": [],
@@ -4960,13 +4949,13 @@ v8_library(
         ":icu/generated_torque_definitions",
         ":icu/v8_base_without_compiler_files",
     ] + select({
-        ":is_v8_use_metagen_instance_types": [":icu/run_metagen"],
+        ":is_v8_use_metagen": [":icu/run_metagen"],
         "//conditions:default": [],
     }),
     noicu_deps = [
         ":noicu/generated_torque_definitions_headers",
     ] + select({
-        ":is_v8_use_metagen_instance_types": [
+        ":is_v8_use_metagen": [
             ":noicu/run_metagen_headers",
         ],
         "//conditions:default": [],
@@ -4974,7 +4963,7 @@ v8_library(
     noicu_srcs = [
         ":noicu/generated_torque_definitions",
     ] + select({
-        ":is_v8_use_metagen_instance_types": [":noicu/run_metagen"],
+        ":is_v8_use_metagen": [":noicu/run_metagen"],
         "//conditions:default": [],
     }),
     deps = [
