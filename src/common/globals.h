@@ -2576,6 +2576,14 @@ class BinaryOperationFeedback : public AllStatic {
     return "Unknown";
   }
 
+  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
+    Type type_a = DecodeTypeIndex(a);
+    Type type_b = DecodeTypeIndex(b);
+    uint32_t combined_feedback_value =
+        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
+    return CalculateTypeIndex(combined_feedback_value);
+  }
+
  private:
   static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {
 #define CALCULATE_TYPE_INDEX(name)                               \
@@ -2586,14 +2594,6 @@ class BinaryOperationFeedback : public AllStatic {
     BINARY_OPERATION_FEEDBACK_TYPES(CALCULATE_TYPE_INDEX)
 #undef CALCULATE_TYPE_INDEX
     return TypeIndex::kAny;
-  }
-
-  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
-    Type type_a = DecodeTypeIndex(a);
-    Type type_b = DecodeTypeIndex(b);
-    uint32_t combined_feedback_value =
-        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
-    return CalculateTypeIndex(combined_feedback_value);
   }
 
   struct TransitionMap {
@@ -2733,6 +2733,14 @@ class CompareOperationFeedback : public AllStatic {
   static constexpr uint32_t kTransitionMapStride =
       std::bit_ceil(kNumTypeIndices);
 
+  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
+    Type type_a = DecodeTypeIndex(a);
+    Type type_b = DecodeTypeIndex(b);
+    uint32_t combined_feedback_value =
+        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
+    return CalculateTypeIndex(combined_feedback_value);
+  }
+
  private:
   static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {
 #define CALCULATE_TYPE_INDEX(name)                               \
@@ -2743,14 +2751,6 @@ class CompareOperationFeedback : public AllStatic {
     COMPARE_OPERATION_FEEDBACK_TYPES(CALCULATE_TYPE_INDEX)
 #undef CALCULATE_TYPE_INDEX
     return TypeIndex::kAny;
-  }
-
-  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
-    Type type_a = DecodeTypeIndex(a);
-    Type type_b = DecodeTypeIndex(b);
-    uint32_t combined_feedback_value =
-        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
-    return CalculateTypeIndex(combined_feedback_value);
   }
 
   struct TransitionMap {

@@ -322,6 +322,7 @@
 
   'regress/regress-509622555*': [['not sparkplug_plus', SKIP]],
   'sandbox/regress-567222739*': [['not sparkplug_plus', SKIP]],
+  'baseline/embedded-feedback-monotonic': [['not sparkplug_plus', SKIP]],
 
   # Because of frontend lowerings being different in Maglev and Turbofan, some
   # unit tests don't pass when using Maglev as a frontend for Turboshaft.
