@@ -1653,6 +1653,9 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectWrapper() {
   if (result.is_null() && version_ == 13 && !isolate_->has_exception()) {
     version_13_broken_data_mode_ = true;
     position_ = original_position;
+    // Reset the ID map to avoid referencing incomplete or stale objects from
+    // the failed first pass.
+    ResetIdMap();
     result = ReadObject();
   }
 
@@ -2872,6 +2875,13 @@ void ValueDeserializer::AddObjectWithID(uint32_t id,
     GlobalHandles::Destroy(id_map_.location());
     id_map_ = isolate_->global_handles()->Create(*new_array);
   }
+}
+
+void ValueDeserializer::ResetIdMap() {
+  GlobalHandles::Destroy(id_map_.location());
+  id_map_ = isolate_->global_handles()->Create(
+      ReadOnlyRoots(isolate_).empty_fixed_array());
+  next_id_ = 0;
 }
 
 static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,

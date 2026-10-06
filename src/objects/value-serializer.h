@@ -358,6 +358,7 @@ class ValueDeserializer {
   bool HasObjectWithID(uint32_t id);
   MaybeDirectHandle<JSReceiver> GetObjectWithID(uint32_t id);
   void AddObjectWithID(uint32_t id, DirectHandle<JSReceiver> object);
+  void ResetIdMap();
 
   Isolate* const isolate_;
   v8::ValueDeserializer::Delegate* const delegate_;
