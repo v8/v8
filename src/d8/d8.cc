@@ -8304,6 +8304,18 @@ int Shell::Main(int argc, char* argv[]) {
     i::v8_flags.freeze_flags_after_init = false;
   }
 
+#ifdef V8_FUZZILLI
+  // IMPORTANT: order-sensitive, see cov.cc. With inline-bool-flag coverage,
+  // the coverage of crashing executions has to be flushed from signal handlers.
+  // They must be installed after the in-process stack dumping handlers
+  // (installed when creating the platform above), which do not forward signals
+  // to previous handlers, before V8::Initialize(), which installs the sandbox
+  // crash filter in sandbox testing/fuzzing mode, and before the Wasm trap
+  // handler (installed below), which forwards non-Wasm faults to the previous
+  // handler.
+  sanitizer_cov_install_crash_flush_handlers();
+#endif  // V8_FUZZILLI
+
   v8::V8::Initialize();
   if (options.snapshot_blob) {
     v8::V8::InitializeExternalStartupDataFromFile(options.snapshot_blob);
@@ -8361,16 +8373,6 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
-
-#ifdef V8_FUZZILLI
-  // IMPORTANT: order-sensitive, see cov.cc. With inline-bool-flag coverage,
-  // the coverage of crashing executions has to be flushed from signal handlers.
-  // They must be installed after the in-process stack dumping handlers
-  // (installed when creating the platform above), which do not forward signals
-  // to previous handlers, and before the Wasm trap handler, which forwards
-  // non-Wasm faults to the previous handler.
-  sanitizer_cov_install_crash_flush_handlers();
-#endif  // V8_FUZZILLI
 
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(429173713): currently we need to disable the trap handler if hardware
