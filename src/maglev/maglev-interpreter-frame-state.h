@@ -387,7 +387,7 @@ class MergePointInterpreterFrameState {
     clear_is_loop();
   }
 
-  void RemovePredecessorAt(int predecessor_id);
+  V8_EXPORT_PRIVATE void RemovePredecessorAt(int predecessor_id);
 
   // Returns and clears the known node aspects on this state. Expects to only
   // ever be called once, when starting a basic block with this state.
@@ -580,7 +580,7 @@ class MergePointInterpreterFrameState {
                         Alternatives::List* per_predecessor_alternatives,
                         bool optimistic_loop_phis = false);
 
-  void ReducePhiPredecessorCount(unsigned num);
+  V8_EXPORT_PRIVATE void ReducePhiPredecessorCount(unsigned num);
 
   void MergeVirtualObjects(Graph* graph, bool is_tracing,
                            const MaglevCompilationUnit& compilation_unit,
@@ -662,6 +662,16 @@ class LoopMergePointInterpreterFrameState final
   }
   const LoopEffects* loop_effects() const { return loop_effects_; }
 
+  void InitializeLoopEffectEpoch(const KnownNodeAspects& aspects) {
+    loop_header_effect_epoch_ = aspects.effect_epoch_;
+  }
+  bool loop_has_effects() const {
+    return loop_header_effect_epoch_ ==
+               KnownNodeAspects::kEffectEpochOverflow ||
+           loop_header_effect_epoch_ !=
+               backedge_known_node_aspects()->effect_epoch_;
+  }
+
   DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
 
   KnownNodeAspects* backedge_known_node_aspects() const {
@@ -685,6 +695,7 @@ class LoopMergePointInterpreterFrameState final
   const LoopEffects* loop_effects_ = nullptr;
   // The KNA from the backedge (end of the loop).
   KnownNodeAspects* backedge_known_node_aspects_ = nullptr;
+  uint32_t loop_header_effect_epoch_ = KnownNodeAspects::kEffectEpochOverflow;
   // The deopt frame for the backedge, in case we want to insert a deopting
   // conversion during phi untagging. It is set when visiting the JumpLoop.
   DeoptFrame* backedge_deopt_frame_ = nullptr;
@@ -706,7 +717,7 @@ MergePointInterpreterFrameState::AsLoopHeader() const {
 // These asserts only exist to avoid accidentally bloating the merge states;
 // the sizes can be increased if more fields are actually needed.
 static_assert(sizeof(MergePointInterpreterFrameState) == 104);
-static_assert(sizeof(LoopMergePointInterpreterFrameState) == 128);
+static_assert(sizeof(LoopMergePointInterpreterFrameState) == 136);
 #endif
 
 struct LoopEffects {

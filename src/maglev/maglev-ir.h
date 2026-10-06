@@ -1775,8 +1775,8 @@ inline compiler::BytecodeArrayRef DeoptFrame::GetBytecodeArray() const {
 
 class DeoptInfo {
  protected:
-  DeoptInfo(Zone* zone, DeoptFrame* top_frame,
-            compiler::FeedbackSource feedback_to_update);
+  V8_EXPORT_PRIVATE DeoptInfo(Zone* zone, DeoptFrame* top_frame,
+                              compiler::FeedbackSource feedback_to_update);
 
  public:
   DeoptFrame& top_frame() { return *top_frame_; }
@@ -2732,7 +2732,7 @@ class ValueNode : public Node {
   // HoleyFloat64 gives a meaning to. Only false if that is provably not the
   // case, so that whoever writes those bits somewhere they would regain that
   // meaning (a double array, mainly) can skip canonicalizing them.
-  bool MayBeHoleOrUndefinedNan() const;
+  V8_EXPORT_PRIVATE bool MayBeHoleOrUndefinedNan() const;
 
 #ifdef V8_COMPRESS_POINTERS
   constexpr bool decompresses_tagged_result() const {
@@ -2795,8 +2795,8 @@ class ValueNode : public Node {
   compiler::OptionalHeapObjectRef TryGetConstant(
       compiler::JSHeapBroker* broker);
 
-  NodeType GetStaticType(compiler::JSHeapBroker* broker);
-  Range GetStaticRange() const;
+  V8_EXPORT_PRIVATE NodeType GetStaticType(compiler::JSHeapBroker* broker);
+  V8_EXPORT_PRIVATE Range GetStaticRange() const;
 
   bool StaticTypeIs(compiler::JSHeapBroker* broker, NodeType type) {
     return NodeTypeIs(GetStaticType(broker), type);
@@ -10205,8 +10205,8 @@ class Phi : public ValueNodeT<Phi> {
   // Records a use hint for this Phi. If {force_same_loop} is true, the hint
   // is recorded as a same-loop use, which is important for loop-related
   // optimizations like Phi untagging.
-  void RecordUseReprHint(UseRepresentationSet repr_mask,
-                         bool force_same_loop = false);
+  V8_EXPORT_PRIVATE void RecordUseReprHint(UseRepresentationSet repr_mask,
+                                           bool force_same_loop = false);
 
   UseRepresentationSet use_repr_hints() { return use_repr_hints_; }
   UseRepresentationSet same_loop_use_repr_hints() {
