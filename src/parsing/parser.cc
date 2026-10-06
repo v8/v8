@@ -520,6 +520,7 @@ Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
       return factory()->NewNumberLiteral(value, pos);
     }
     case Token::kBigInt:
+      CountUsage(v8::Isolate::kBigInt);
       return factory()->NewBigIntLiteral(
           AstBigInt(scanner()->CurrentLiteralAsCString(zone())), pos);
     case Token::kString: {
