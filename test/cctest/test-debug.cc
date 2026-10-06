@@ -7426,4 +7426,80 @@ TEST(PerformPromiseAllCaughtDebug) {
   v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
+// Steps over through F (see below) and records every pause as
+// "function:line:column". Only functions starting on line {kEnterLine} are
+// entered.
+class StepOverEnterFunctionsDelegate : public v8::debug::DebugDelegate {
+ public:
+  StepOverEnterFunctionsDelegate(v8::Isolate* isolate, bool enter_functions)
+      : isolate_(isolate), enter_functions_(enter_functions) {}
+
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons) override {
+    auto it = v8::debug::StackTraceIterator::Create(isolate_);
+    v8::String::Utf8Value name(isolate_, it->GetFunctionDebugName());
+    v8::debug::Location location = it->GetSourceLocation();
+    pauses_ += std::string(*name) + ":" +
+               std::to_string(location.GetLineNumber()) + ":" +
+               std::to_string(location.GetColumnNumber()) + " ";
+    v8::debug::PrepareStep(isolate_, v8::debug::StepOver, enter_functions_);
+  }
+
+  bool ShouldEnterFunction(v8::Local<v8::debug::Script> script,
+                           const v8::debug::Location& start,
+                           const v8::debug::Location& end) override {
+    // Must only be called for steps with {enter_functions}.
+    CHECK(enter_functions_);
+    return start.GetLineNumber() == kEnterLine;
+  }
+
+  static constexpr int kEnterLine = 0;
+  const std::string& pauses() const { return pauses_; }
+
+ private:
+  v8::Isolate* isolate_;
+  bool enter_functions_;
+  std::string pauses_;
+};
+
+std::string RunStepOverEnterFunctions(bool enter_functions) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  StepOverEnterFunctionsDelegate delegate(isolate, enter_functions);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  CompileRun(
+      "function T() {\n"        // 0: Entered.
+      "  return G();\n"         // 1
+      "}\n"                     // 2
+      "function G() {\n"        // 3: Not entered.
+      "  return 2;\n"           // 4
+      "}\n"                     // 5
+      "function F() {\n"        // 6
+      "  debugger;\n"           // 7
+      "  T();\n"                // 8
+      "  G();\n"                // 9
+      "  [1, 2].forEach(T);\n"  // 10
+      "  return 0;\n"           // 11
+      "}\n");                   // 12
+  CompileRun("F()");
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+  CheckDebuggerUnloaded();
+  return delegate.pauses();
+}
+
+TEST(StepOverWithoutEnterFunctions) {
+  CHECK_EQ("F:7:2 F:8:2 F:9:2 F:10:2 F:11:2 F:11:11 :0:3 ",
+           RunStepOverEnterFunctions(false));
+}
+
+TEST(StepOverEnterFunctions) {
+  // T is entered from F and from the forEach builtin, G is never entered.
+  CHECK_EQ(
+      "F:7:2 F:8:2 T:1:2 T:1:13 F:9:2 F:10:2 T:1:2 T:1:13 T:1:2 T:1:13 "
+      "F:11:2 F:11:11 :0:3 ",
+      RunStepOverEnterFunctions(true));
+}
+
 }  // namespace

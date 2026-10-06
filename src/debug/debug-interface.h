@@ -145,7 +145,10 @@ enum class BreakReason : uint8_t {
 };
 typedef base::EnumSet<BreakReason> BreakReasons;
 
-void PrepareStep(Isolate* isolate, StepAction action);
+// If {enter_functions} is set, a StepOver also enters every function for
+// which DebugDelegate::ShouldEnterFunction returns true.
+V8_EXPORT_PRIVATE void PrepareStep(Isolate* isolate, StepAction action,
+                                   bool enter_functions = false);
 bool PrepareRestartFrame(Isolate* isolate, int callFrameOrdinal);
 void ClearStepping(Isolate* isolate);
 V8_EXPORT_PRIVATE void BreakRightNow(
@@ -312,6 +315,13 @@ class DebugDelegate {
   }
   virtual bool ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
                                int column) {
+    return false;
+  }
+  // Only called during a StepOver prepared with {enter_functions}. Returns
+  // whether the step should enter the function spanning [start, end).
+  virtual bool ShouldEnterFunction(v8::Local<debug::Script> script,
+                                   const debug::Location& start,
+                                   const debug::Location& end) {
     return false;
   }
 

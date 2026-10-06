@@ -505,6 +505,7 @@ void Debug::ThreadInit() {
   thread_local_.last_bytecode_offset_ = kFunctionEntryBytecodeOffset;
   thread_local_.last_frame_count_ = -1;
   thread_local_.fast_forward_to_return_ = false;
+  thread_local_.step_over_enters_functions_ = false;
   thread_local_.ignore_step_into_function_ = Smi::zero();
   thread_local_.target_frame_count_ = -1;
   thread_local_.return_value_ = Smi::zero();
@@ -792,8 +793,12 @@ void Debug::Break(JavaScriptFrame* frame,
       step_break = true;
       break;
     case StepOver:
-      // StepOver should not break in a deeper frame than target frame.
-      if (current_frame_count > target_frame_count) return;
+      // StepOver should not break in a deeper frame than target frame, unless
+      // the function was entered (see PrepareStepIn).
+      if (current_frame_count > target_frame_count &&
+          !(step_over_enters_functions() && ShouldEnterFunction(shared))) {
+        return;
+      }
       [[fallthrough]];
     case StepInto: {
       // StepInto and StepOver should enter "generator stepping" mode, except
@@ -1370,13 +1375,16 @@ void Debug::ClearBreakOnNextFunctionCall() {
 
 void Debug::PrepareStepIn(DirectHandle<JSFunction> function) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  CHECK(last_step_action() >= StepInto || break_on_next_function_call() ||
-        scheduled_break_on_function_call());
+  const bool step_in = last_step_action() >= StepInto ||
+                       break_on_next_function_call() ||
+                       scheduled_break_on_function_call();
+  CHECK(step_in || step_over_enters_functions());
   if (ignore_events()) return;
   if (in_debug_scope()) return;
   if (break_disabled()) return;
   Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
   if (IsBlackboxed(shared)) return;
+  if (!step_in && !ShouldEnterFunction(shared)) return;
   if (*function == thread_local_.ignore_step_into_function_) return;
   thread_local_.ignore_step_into_function_ = Smi::zero();
   FloodWithOneShot(shared);
@@ -2754,6 +2762,24 @@ bool Debug::IsFunctionBlackboxed(DirectHandle<Script> script, const int start,
       ToApiHandle<debug::Script>(script), start_location, end_location);
 }
 
+bool Debug::ShouldEnterFunction(DirectHandle<SharedFunctionInfo> shared) {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  if (!debug_delegate_ || !shared->IsSubjectToDebugging() ||
+      !IsScript(shared->script())) {
+    return false;
+  }
+  SuppressDebug while_processing(this);
+  HandleScope handle_scope(isolate_);
+  PostponeInterruptsScope no_interrupts(isolate_);
+  DisableBreak no_recursive_break(this);
+  DirectHandle<Script> script(Cast<Script>(shared->script()), isolate_);
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
+  return debug_delegate_->ShouldEnterFunction(
+      ToApiHandle<debug::Script>(script),
+      GetDebugLocation(script, shared->StartPosition()),
+      GetDebugLocation(script, shared->EndPosition()));
+}
+
 bool Debug::IsBlackboxed(DirectHandle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (!debug_delegate_) return !shared->IsSubjectToDebugging();
@@ -2902,6 +2928,7 @@ void Debug::UpdateHookOnFunctionCall() {
   static_assert(LastStepAction == StepInto);
   hook_on_function_call_ =
       thread_local_.last_step_action_ == StepInto ||
+      step_over_enters_functions() ||
       isolate_->debug_execution_mode() == DebugInfo::kSideEffects ||
       thread_local_.break_on_next_function_call_;
 }
