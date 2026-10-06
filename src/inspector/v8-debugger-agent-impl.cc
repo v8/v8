@@ -1038,6 +1038,7 @@ Response V8DebuggerAgentImpl::continueToLocation(
   if (!inspected) {
     return Response::ServerError("Cannot continue to specified location");
   }
+  m_skipList.clear();
   v8::HandleScope handleScope(m_isolate);
   v8::Context::Scope contextScope(inspected->context());
   return m_debugger->continueToLocation(
@@ -1278,6 +1279,7 @@ Response V8DebuggerAgentImpl::restartFrame(
                                 callFrameOrdinal)) {
     return Response::ServerError("Restarting frame failed");
   }
+  m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   *newCallFrames = std::make_unique<Array<CallFrame>>();
   return Response::Success();
@@ -1561,6 +1563,7 @@ Response V8DebuggerAgentImpl::pause() {
 
 Response V8DebuggerAgentImpl::resume(std::optional<bool> terminateOnResume) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+  m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
 
   m_instrumentationFinished = true;
@@ -1607,6 +1610,7 @@ Response V8DebuggerAgentImpl::stepInto(
 
 Response V8DebuggerAgentImpl::stepOut() {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+  m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   m_debugger->stepOutOfFunction(m_session->contextGroupId());
   return Response::Success();
@@ -2257,6 +2261,9 @@ void V8DebuggerAgentImpl::didPause(
     v8::debug::ExceptionType exceptionType, bool isUncaught,
     v8::debug::BreakReasons breakReasons) {
   v8::HandleScope handles(m_isolate);
+  // The step that owned the skip list is over. Every new step command supplies
+  // its own skip list.
+  m_skipList.clear();
 
   std::vector<BreakReason> hitReasons;
 
