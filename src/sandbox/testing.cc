@@ -1098,6 +1098,12 @@ struct sigaction g_old_handlers[NSIG];
 constexpr int kSignalsToHandle[] = {SIGABRT, SIGTRAP, SIGBUS, SIGILL, SIGSEGV};
 
 std::atomic<bool> g_is_sandbox_violation{false};
+
+void ReportSandboxViolation() {
+  if (g_is_sandbox_violation.exchange(true)) return;
+  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
+}
+
 #ifdef V8_USE_ADDRESS_SANITIZER
 bool g_is_asan_fault_harmless = false;
 #endif
@@ -1330,9 +1336,7 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
   }
 
   // If we get here, we've detected a sandbox violation.
-  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
-
-  g_is_sandbox_violation = true;
+  ReportSandboxViolation();
 
   if (access_type == MemoryAccessType::kRead) {
     PrintToStderr(
@@ -1430,7 +1434,7 @@ extern "C" V8_EXPORT_PRIVATE void __asan_on_error() {
   if (!__asan_report_present()) {
     // Should not occur normally, but falling back to treating this as an error
     // as defense-in-depth.
-    g_is_sandbox_violation = true;
+    ReportSandboxViolation();
     return;
   }
 
@@ -1447,7 +1451,7 @@ extern "C" V8_EXPORT_PRIVATE void __asan_on_error() {
   if (IsHarmlessASanFault(description, faultaddr, access_type)) {
     g_is_asan_fault_harmless = true;
   } else {
-    g_is_sandbox_violation = true;
+    ReportSandboxViolation();
   }
 }
 #endif  // V8_USE_ADDRESS_SANITIZER
@@ -1475,7 +1479,7 @@ void SanitizerFaultHandler() {
 
   // In case of a sanitizer issue we opt for conservatively reporting a sandbox
   // violation that needs to be investigated.
-  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
+  ReportSandboxViolation();
 }
 #endif  // V8_USE_ANY_SANITIZER
 
