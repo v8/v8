@@ -67,9 +67,6 @@ class Arm64OperandGenerator final : public OperandGenerator {
             selector()->Get(node).TryCast<ConstantOp>()) {
       if (constant->IsRelocatable()) return false;
       if (constant->IsIntegral() && constant->integral() == 0) return true;
-      if (constant->kind == ConstantOp::Kind::kSmi) {
-        return constant->smi().value() == 0;
-      }
       if (constant->kind == ConstantOp::Kind::kFloat32) {
         return constant->float32().get_bits() == 0;
       }
@@ -3262,16 +3259,6 @@ void InstructionSelector::EmitPrepareArguments(
     }
   }
 
-  // Zero-valued constants (e.g. Smi zero) can be stored through the zero
-  // register, but only for non-FP parameters: the code generator dispatches
-  // FP pokes on the operand being an FP register.
-  auto poke_value = [&](const PushParameter& input) {
-    if (IsFloatingPoint(input.location.GetType().representation())) {
-      return g.UseRegister(input.node);
-    }
-    return g.UseRegisterOrImmediateZero(input.node);
-  };
-
   // Poke the arguments into the stack.
   while (slot >= 0) {
     PushParameter input0 = (*arguments)[slot];
@@ -3286,11 +3273,12 @@ void InstructionSelector::EmitPrepareArguments(
     // TODO(arm): Support consecutive Simd128 parameters.
     if (input1.node.valid() &&
         input0.location.GetType() == input1.location.GetType()) {
-      Emit(kArm64PokePair, g.NoOutput(), poke_value(input0), poke_value(input1),
-           g.TempImmediate(slot));
+      Emit(kArm64PokePair, g.NoOutput(), g.UseRegister(input0.node),
+           g.UseRegister(input1.node), g.TempImmediate(slot));
       slot -= 2;
     } else {
-      Emit(kArm64Poke, g.NoOutput(), poke_value(input0), g.TempImmediate(slot));
+      Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input0.node),
+           g.TempImmediate(slot));
       slot--;
     }
   }
