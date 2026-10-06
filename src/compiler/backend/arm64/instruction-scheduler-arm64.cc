@@ -137,6 +137,8 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kArm64S128LowUnzipRight:
     case kArm64Ssra:
     case kArm64Usra:
+    case kArm64Shadd:
+    case kArm64Uhadd:
     case kArm64S128Tbl1:
     case kArm64I8x16Shuffle:
     case kArm64S128Extract:
@@ -717,6 +719,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S128LowUnzipRight:
     case kArm64Ssra:
     case kArm64Usra:
+    case kArm64Shadd:
+    case kArm64Uhadd:
     case kArm64S128MoveLane:
     case kArm64S128MoveReg:
     case kArm64S128Tbl1:
@@ -1011,6 +1015,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArm64S128LowUnzipRight:
     case kArm64Ssra:
     case kArm64Usra:
+    case kArm64Shadd:
+    case kArm64Uhadd:
     case kArm64S128ExtractNarrow:
     case kArm64S128MoveLane:
     case kArm64S128MoveReg:

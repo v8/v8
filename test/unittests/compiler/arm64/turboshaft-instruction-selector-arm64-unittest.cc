@@ -3645,6 +3645,125 @@ TEST_F(TurboshaftInstructionSelectorTest, I32x4AddPairwise) {
 
 namespace {
 
+struct HalvingAddTestCase {
+  const char* halving_add_name;
+  Simd128BinopOp::Kind add_kind;
+  Simd128ShiftOp::Kind shift_kind;
+  LaneSize lane_size;
+  int lane_bits;
+  ArchOpcode expected_opcode;
+};
+
+constexpr HalvingAddTestCase kHalvingAddCases[] = {
+    {"i8x16_signed", Simd128BinopOp::Kind::kI8x16Add,
+     Simd128ShiftOp::Kind::kI8x16ShrS, LaneSize::kL8, 8, kArm64Shadd},
+    {"i8x16_unsigned", Simd128BinopOp::Kind::kI8x16Add,
+     Simd128ShiftOp::Kind::kI8x16ShrU, LaneSize::kL8, 8, kArm64Uhadd},
+    {"i16x8_signed", Simd128BinopOp::Kind::kI16x8Add,
+     Simd128ShiftOp::Kind::kI16x8ShrS, LaneSize::kL16, 16, kArm64Shadd},
+    {"i16x8_unsigned", Simd128BinopOp::Kind::kI16x8Add,
+     Simd128ShiftOp::Kind::kI16x8ShrU, LaneSize::kL16, 16, kArm64Uhadd},
+    {"i32x4_signed", Simd128BinopOp::Kind::kI32x4Add,
+     Simd128ShiftOp::Kind::kI32x4ShrS, LaneSize::kL32, 32, kArm64Shadd},
+    {"i32x4_unsigned", Simd128BinopOp::Kind::kI32x4Add,
+     Simd128ShiftOp::Kind::kI32x4ShrU, LaneSize::kL32, 32, kArm64Uhadd},
+};
+
+}  // namespace
+
+TEST_F(TurboshaftInstructionSelectorTest, Simd128HalvingAddWithXor) {
+  // Test signed and unsigned-shift half-add for 16x8, 8x16 and 4x32-bit lanes
+  for (const HalvingAddTestCase& c : kHalvingAddCases) {
+    SCOPED_TRACE(c.halving_add_name);
+    // Use ADD|XOR|AND bits to show which order the operands are in
+    // (a & b) + ((a ^ b) >> 1) has 8 possible commutations for the 3 operations
+    for (int comms = 0; comms < 8; ++comms) {
+      SCOPED_TRACE(comms);
+      // Test for the 3 shifts that are 1 when modulo the lane width
+      for (int shift : {1, c.lane_bits + 1, 1 - c.lane_bits}) {
+        SCOPED_TRACE(shift);
+        StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                        MachineType::Simd128());
+
+        OpIndex lhs = m.Parameter(0);
+        OpIndex rhs = m.Parameter(1);
+
+        OpIndex and_lhs = (comms & 1) ? rhs : lhs;
+        OpIndex and_rhs = (comms & 1) ? lhs : rhs;
+        OpIndex xor_lhs = (comms & 2) ? rhs : lhs;
+        OpIndex xor_rhs = (comms & 2) ? lhs : rhs;
+
+        // Check the AND, XOR and ADD operand orderings
+        V<Simd128> and_node =
+            m.Simd128Binop(and_lhs, and_rhs, Simd128BinopOp::Kind::kS128And);
+        V<Simd128> xor_node =
+            m.Simd128Binop(xor_lhs, xor_rhs, Simd128BinopOp::Kind::kS128Xor);
+        V<Simd128> shift_node = m.Simd128Shift(
+            xor_node, m.Word32Constant(static_cast<uint32_t>(shift)),
+            c.shift_kind);
+        V<Simd128> result =
+            (comms & 4) ? m.Simd128Binop(shift_node, and_node, c.add_kind)
+                        : m.Simd128Binop(and_node, shift_node, c.add_kind);
+        m.Return(result);
+
+        Stream s = m.Build();
+
+        ASSERT_EQ(1U, s.size());
+        EXPECT_EQ(c.expected_opcode, s[0]->arch_opcode());
+        EXPECT_EQ(c.lane_size, LaneSizeField::decode(s[0]->opcode()));
+        ASSERT_EQ(2U, s[0]->InputCount());
+        ASSERT_EQ(1U, s[0]->OutputCount());
+
+        EXPECT_EQ(s.ToVreg(and_lhs), s.ToVreg(s[0]->InputAt(0)));
+        EXPECT_EQ(s.ToVreg(and_rhs), s.ToVreg(s[0]->InputAt(1)));
+        EXPECT_EQ(s.ToVreg(result), s.ToVreg(s[0]->OutputAt(0)));
+      }
+    }
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       Simd128HalvingAddWithMismatchedOperands) {
+  // Test that sharing even one operand should avoid a half-add optimization.
+  for (const HalvingAddTestCase& c : kHalvingAddCases) {
+    SCOPED_TRACE(c.halving_add_name);
+    // Make the shared input either lhs (0) or rhs (1).
+    for (int shared_input : {0, 1}) {
+      SCOPED_TRACE(shared_input);
+      for (int comms = 0; comms < 8; ++comms) {
+        SCOPED_TRACE(comms);
+        StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                        MachineType::Simd128(), MachineType::Simd128());
+        OpIndex lhs = m.Parameter(0);
+        OpIndex rhs = m.Parameter(1);
+        OpIndex other = m.Parameter(2);
+        OpIndex shared = m.Parameter(shared_input);
+
+        V<Simd128> and_node =
+            m.Simd128Binop((comms & 1) ? rhs : lhs, (comms & 1) ? lhs : rhs,
+                           Simd128BinopOp::Kind::kS128And);
+        V<Simd128> xor_node = m.Simd128Binop((comms & 2) ? other : shared,
+                                             (comms & 2) ? shared : other,
+                                             Simd128BinopOp::Kind::kS128Xor);
+        V<Simd128> shift_node =
+            m.Simd128Shift(xor_node, m.Word32Constant(1), c.shift_kind);
+        m.Return((comms & 4)
+                     ? m.Simd128Binop(shift_node, and_node, c.add_kind)
+                     : m.Simd128Binop(and_node, shift_node, c.add_kind));
+
+        Stream s = m.Build();
+        ASSERT_GT(s.size(), 0U);
+        for (size_t i = 0; i < s.size(); ++i) {
+          EXPECT_NE(kArm64Shadd, s[i]->arch_opcode());
+          EXPECT_NE(kArm64Uhadd, s[i]->arch_opcode());
+        }
+      }
+    }
+  }
+}
+
+namespace {
+
 struct SIMDMulDPInst {
   const char* mul_constructor_name;
   TSBinop mul_operator;

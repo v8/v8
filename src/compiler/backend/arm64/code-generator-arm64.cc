@@ -3648,6 +3648,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputSimd128Register(1).Format(tb));
       break;
     }
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64Shadd, Shadd);
+      SIMD_BINOP_LANE_SIZE_CASE(kArm64Uhadd, Uhadd);
     case kArm64Ssra: {
       int8_t laneSize = LaneSizeBits(LaneSizeField::decode(opcode));
       VectorFormat f = VectorFormatFillQ(laneSize);

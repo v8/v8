@@ -5769,6 +5769,29 @@ bool ShraHelper(InstructionSelector* selector, OpIndex node, LaneSize lane_size,
     return false;
   }
 
+  // Matches (a & b) + ((a ^ b) >> 1) or (a & b) + ((b ^ a) >> 1)
+  // Since a + b = 2 x (a & b) + (a ^ b), right shift for a half-add
+  // floor((a + b) / 2) = (a & b) + ((a ^ b) >> 1)
+  if (lane_size != LaneSize::kL64 &&
+      (constant & (LaneSizeBits(lane_size) - 1)) == 1 &&
+      selector->Get(m.other_input()).Is<turboshaft::Opmask::kSimd128And>() &&
+      selector->Get(shiftop.input()).Is<turboshaft::Opmask::kSimd128Xor>() &&
+      selector->CanCover(node, m.other_input()) &&
+      selector->CanCover(m.matched_input(), shiftop.input())) {
+    const auto& and_op = selector->Get(m.other_input()).Cast<Simd128BinopOp>();
+    const auto& xor_op = selector->Get(shiftop.input()).Cast<Simd128BinopOp>();
+
+    if ((and_op.left() == xor_op.left() && and_op.right() == xor_op.right()) ||
+        (and_op.left() == xor_op.right() && and_op.right() == xor_op.left())) {
+      const InstructionCode half_add_code =
+          shra_code == kArm64Ssra ? kArm64Shadd : kArm64Uhadd;
+      selector->Emit(half_add_code | LaneSizeField::encode(lane_size),
+                     g.DefineAsRegister(node), g.UseRegister(and_op.left()),
+                     g.UseRegister(and_op.right()));
+      return true;
+    }
+  }
+
   // If shifting by zero, just do the addition
   if (constant % LaneSizeBits(lane_size) == 0) {
     selector->Emit(add_code | LaneSizeField::encode(lane_size),
