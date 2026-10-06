@@ -590,12 +590,7 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
   if (may_have_aliasing_contexts_ == ContextSlotLoadsAlias::kAlways) return;
 
   switch (context->opcode()) {
-    case Opcode::kInitialValue:
-      may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
-          may_have_aliasing_contexts_,
-          ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
-      break;
-    case Opcode::kLoadContextSlotNoCells: {
+    case Opcode::kLoadContextSlotNoCells:
       do {
         LoadContextSlotNoCells* load_prev_ctxt =
             context->Cast<LoadContextSlotNoCells>();
@@ -607,7 +602,17 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       // incoming context InitialValue, since any other root (such as an
       // allocated context or a HeapConstant) can have its parent context
       // represented directly by a distinct ValueNode in the graph.
-      if (context->Is<InitialValue>()) {
+      if (!context->Is<InitialValue>()) {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
+        break;
+      }
+      [[fallthrough]];
+    case Opcode::kInitialValue:
+      // In OSR, local registers also start as InitialValues and may hold outer
+      // contexts saved by PushContext, which can alias PREVIOUS_INDEX loads
+      // from the incoming context.
+      if (context->Cast<InitialValue>()->source() ==
+          interpreter::Register::current_context()) {
         may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
             may_have_aliasing_contexts_,
             ContextSlotLoadsAlias::kOnlyLoadsRelativeToCurrentContext);
@@ -615,7 +620,6 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
         may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kAlways;
       }
       break;
-    }
     case Opcode::kHeapConstant:
       may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
           may_have_aliasing_contexts_,
