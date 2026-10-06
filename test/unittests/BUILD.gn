@@ -464,6 +464,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "numbers/diy-fp-unittest.cc",
     "numbers/strtod-unittest.cc",
     "objects/array-list-unittest.cc",
+    "objects/casting-unittest.cc",
     "objects/concurrent-descriptor-array-unittest.cc",
     "objects/concurrent-feedback-vector-unittest.cc",
     "objects/concurrent-js-array-unittest.cc",

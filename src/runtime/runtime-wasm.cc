@@ -2126,6 +2126,14 @@ MaybeDirectHandle<FixedArray> GetElementSegment(
           isolate};
 }
 
+// Returns the canonical rtt map at `index`, or an arbitrary non-map value if
+// the weak slot is cleared or was never set.
+Tagged<Object> CanonicalRttMap(Isolate* isolate, uint32_t index) {
+  // Slots hold a weak Map, undefined, or a cleared reference; never a Smi.
+  return MakeStrong(Cast<MaybeWeak<HeapObject>>(
+      isolate->heap()->wasm_canonical_rtts()->get(index)));
+}
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
@@ -2141,15 +2149,12 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   DirectHandle<WasmArray> data(Cast<WasmArray>(args[2]), isolate);
   DirectHandle<Object> constructors(args[3], isolate);
   {
-    Tagged<Object> expected_prototypes_map =
-        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
-            wasm::TypeCanonicalizer::kPredefinedArrayExternRefIndex.index));
-    Tagged<Object> expected_functions_map =
-        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
-            wasm::TypeCanonicalizer::kPredefinedArrayFuncRefIndex.index));
-    Tagged<Object> expected_data_map =
-        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
-            wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index));
+    Tagged<Object> expected_prototypes_map = CanonicalRttMap(
+        isolate, wasm::TypeCanonicalizer::kPredefinedArrayExternRefIndex.index);
+    Tagged<Object> expected_functions_map = CanonicalRttMap(
+        isolate, wasm::TypeCanonicalizer::kPredefinedArrayFuncRefIndex.index);
+    Tagged<Object> expected_data_map = CanonicalRttMap(
+        isolate, wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index);
     if (prototypes->map() != expected_prototypes_map ||
         functions->map() != expected_functions_map ||
         data->map() != expected_data_map) {
@@ -2277,8 +2282,7 @@ RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
                     : wasm::TypeCanonicalizer::kPredefinedArrayI8Index)
           : (shared ? wasm::TypeCanonicalizer::kPredefinedArrayI16SharedIndex
                     : wasm::TypeCanonicalizer::kPredefinedArrayI16Index);
-  Tagged<Object> expected_map =
-      MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(expected.index));
+  Tagged<Object> expected_map = CanonicalRttMap(isolate, expected.index);
   // If the expected_map has been cleared or never even created, then there's
   // no chance of a match anyway.
   if (obj->map() != expected_map) {

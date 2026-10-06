@@ -924,7 +924,9 @@ inline Tagged<WeakOf<T>> MakeWeakOrSmi(Tagged<T> value) {
 
 template <typename T>
 inline Tagged<StrongOf<T>> MakeStrong(Tagged<T> value) {
-  // This works with Smis.
+  // Clearing the weak tag bit would clobber Smi payload bit 1 under 31-bit Smi
+  // tagging.
+  static_assert(!is_subtype_v<Smi, T>, "Not allowed to make Smis strong.");
   return Tagged<StrongOf<T>>(value.ptr() &
                              (~kWeakHeapObjectTag | kHeapObjectTag));
 }

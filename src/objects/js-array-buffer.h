@@ -126,9 +126,11 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   // An ArrayBuffer with a size greater than zero is never empty.
   inline bool IsEmpty() const;
 
-  inline Tagged<MaybeObject> views_or_detach_key() const;
+  inline Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>
+  views_or_detach_key() const;
   inline void set_views_or_detach_key(
-      Tagged<MaybeObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Tagged<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<MaybeObject> views() const;
   inline void set_views(Tagged<MaybeObject> value,
@@ -238,8 +240,8 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
 #endif  // V8_COMPRESS_POINTERS
 
  public:
-  TaggedMember<MaybeObject> views_or_detach_key_
-      V8_TQ_TYPE(Cell | Smi | Weak<JSArrayBufferView>);
+  TaggedMember<UnionOf<Cell, Smi, Weak<JSArrayBufferView>>>
+      views_or_detach_key_;
   UnalignedValueMember<uintptr_t> raw_byte_length_;
   UnalignedValueMember<uintptr_t> raw_max_byte_length_;
   UnalignedValueMember<Address> backing_store_;

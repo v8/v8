@@ -2095,8 +2095,8 @@ V8_OBJECT class WasmFastApiCallData : public HeapObject {
   inline void set_callback_data(Tagged<Object> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<MaybeObject> cached_map() const;
-  inline void set_cached_map(Tagged<MaybeObject> value,
+  inline Tagged<UnionOf<Null, Weak<Map>>> cached_map() const;
+  inline void set_cached_map(Tagged<UnionOf<Null, Weak<Map>>> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(WasmFastApiCallData)
@@ -2108,7 +2108,7 @@ V8_OBJECT class WasmFastApiCallData : public HeapObject {
 
   TaggedMember<HeapObject> signature_;
   TaggedMember<Object> callback_data_;
-  TaggedMember<MaybeObject> cached_map_ V8_TQ_TYPE(Null | Weak<Map>);
+  TaggedMember<UnionOf<Null, Weak<Map>>> cached_map_;
 } V8_OBJECT_END;
 
 V8_OBJECT class WasmStringViewIter : public HeapObject {

@@ -1554,10 +1554,10 @@ void WasmFastApiCallData::set_callback_data(Tagged<Object> value,
                                             WriteBarrierMode mode) {
   callback_data_.store(this, value, mode);
 }
-Tagged<MaybeObject> WasmFastApiCallData::cached_map() const {
+Tagged<UnionOf<Null, Weak<Map>>> WasmFastApiCallData::cached_map() const {
   return cached_map_.load();
 }
-void WasmFastApiCallData::set_cached_map(Tagged<MaybeObject> value,
+void WasmFastApiCallData::set_cached_map(Tagged<UnionOf<Null, Weak<Map>>> value,
                                          WriteBarrierMode mode) {
   cached_map_.store(this, value, mode);
 }
