@@ -245,8 +245,11 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   void setScriptInstrumentationBreakpointIfNeeded(V8DebuggerScript* script);
 
-  Response processSkipList(
-      protocol::Array<protocol::Debugger::LocationRange>& skipList);
+  // Validates {ranges} and converts them into a map from script id to sorted
+  // range boundaries (see isWithinOneRange) in {result}.
+  Response processLocationRanges(
+      protocol::Array<protocol::Debugger::LocationRange>& ranges,
+      std::unordered_map<String16, std::vector<std::pair<int, int>>>* result);
 
   V8DebuggerScript* getScriptById(
       const String16& scriptId,

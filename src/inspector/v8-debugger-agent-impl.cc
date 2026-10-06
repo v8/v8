@@ -178,6 +178,22 @@ bool positionComparator(const std::pair<int, int>& a,
   return a.second < b.second;
 }
 
+// Returns true, iff [start, end] lies within a single range of {ranges}.
+bool isWithinOneRange(const std::vector<std::pair<int, int>>& ranges,
+                      const v8::debug::Location& start,
+                      const v8::debug::Location& end) {
+  auto itStartRange = std::lower_bound(
+      ranges.begin(), ranges.end(),
+      std::make_pair(start.GetLineNumber(), start.GetColumnNumber()),
+      positionComparator);
+  auto itEndRange = std::lower_bound(
+      itStartRange, ranges.end(),
+      std::make_pair(end.GetLineNumber(), end.GetColumnNumber()),
+      positionComparator);
+  return itStartRange == itEndRange &&
+         std::distance(ranges.begin(), itStartRange) % 2;
+}
+
 std::unique_ptr<protocol::DictionaryValue> breakpointHint(
     const V8DebuggerScript& script, int breakpointLineNumber,
     int breakpointColumnNumber, int actualLineNumber, int actualColumnNumber) {
@@ -1113,21 +1129,7 @@ bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
   auto itBlackboxedPositions = m_blackboxedPositions.find(scriptId);
   if (itBlackboxedPositions == m_blackboxedPositions.end()) return false;
 
-  const std::vector<std::pair<int, int>>& ranges =
-      itBlackboxedPositions->second;
-  auto itStartRange = std::lower_bound(
-      ranges.begin(), ranges.end(),
-      std::make_pair(start.GetLineNumber(), start.GetColumnNumber()),
-      positionComparator);
-  auto itEndRange = std::lower_bound(
-      itStartRange, ranges.end(),
-      std::make_pair(end.GetLineNumber(), end.GetColumnNumber()),
-      positionComparator);
-  // Ranges array contains positions in script where blackbox state is changed.
-  // [(0,0) ... ranges[0]) isn't blackboxed, [ranges[0] ... ranges[1]) is
-  // blackboxed...
-  return itStartRange == itEndRange &&
-         std::distance(ranges.begin(), itStartRange) % 2;
+  return isWithinOneRange(itBlackboxedPositions->second, start, end);
 }
 
 bool V8DebuggerAgentImpl::shouldBeSkipped(const String16& scriptId, int line,
@@ -1578,7 +1580,7 @@ Response V8DebuggerAgentImpl::stepOver(
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
 
   if (inSkipList) {
-    const Response res = processSkipList(*inSkipList);
+    const Response res = processLocationRanges(*inSkipList, &m_skipList);
     if (res.IsError()) return res;
   } else {
     m_skipList.clear();
@@ -1596,7 +1598,7 @@ Response V8DebuggerAgentImpl::stepInto(
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
 
   if (inSkipList) {
-    const Response res = processSkipList(*inSkipList);
+    const Response res = processLocationRanges(*inSkipList, &m_skipList);
     if (res.IsError()) return res;
   } else {
     m_skipList.clear();
@@ -2478,10 +2480,11 @@ V8DebuggerScript* V8DebuggerAgentImpl::getScriptById(
   return it->second.get();
 }
 
-Response V8DebuggerAgentImpl::processSkipList(
-    protocol::Array<protocol::Debugger::LocationRange>& skipList) {
+Response V8DebuggerAgentImpl::processLocationRanges(
+    protocol::Array<protocol::Debugger::LocationRange>& ranges,
+    std::unordered_map<String16, std::vector<std::pair<int, int>>>* result) {
   std::unordered_map<String16, std::vector<std::pair<int, int>>> skipListInit;
-  for (std::unique_ptr<protocol::Debugger::LocationRange>& range : skipList) {
+  for (std::unique_ptr<protocol::Debugger::LocationRange>& range : ranges) {
     protocol::Debugger::ScriptPosition* start = range->getStart();
     protocol::Debugger::ScriptPosition* end = range->getEnd();
     String16 scriptId = range->getScriptId();
@@ -2510,7 +2513,7 @@ Response V8DebuggerAgentImpl::processSkipList(
     if (res.IsError()) return res;
   }
 
-  m_skipList = std::move(skipListInit);
+  *result = std::move(skipListInit);
   return Response::Success();
 }
 
