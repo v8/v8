@@ -429,7 +429,8 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
             HeapType::from_code(code, SharedFlag{false}).name().c_str());
         return {kWasmBottom, 0};
       }
-      return {ValueType::Ref(HeapType::from_code(code, SharedFlag{false})), 1};
+      return {ValueType::RefNull(HeapType::from_code(code, SharedFlag{false})),
+              1};
     }
     case kContRefCode:
     case kNoContCode:
