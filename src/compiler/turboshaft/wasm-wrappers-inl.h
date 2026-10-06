@@ -412,31 +412,6 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
     return;
   }
 
-  V<Undefined> undefined_node =
-      __ template LoadRoot<RootIndex::kUndefinedValue>();
-  int pushed_count = std::max(expected_arity, wasm_count);
-  // 5 extra arguments: receiver, new target, arg count, dispatch handle and
-  // context.
-  bool has_dispatch_handle = kind == wasm::ImportCallKind::kUseCallBuiltin
-                                 ? false
-                                 : V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL;
-  base::SmallVector<OpIndex, 16> args(pushed_count + 4 +
-                                      (has_dispatch_handle ? 1 : 0));
-  SBXCHECK_LT(
-      args.size(),
-      std::numeric_limits<
-          decltype(compiler::turboshaft::Operation::input_count)>::max());
-  // Position of the first wasm argument in the JS arguments.
-  int pos = kind == wasm::ImportCallKind::kUseCallBuiltin ? 3 : 1;
-  pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_params, sig_,
-                         native_context);
-  for (int i = wasm_count; i < expected_arity; ++i) {
-    args[pos++] = undefined_node;
-  }
-
-  V<JSFunction> callable_node = __ Load(ref, LoadOp::Kind::TaggedBase(),
-                                        MemoryRepresentation::TaggedPointer(),
-                                        offsetof(WasmImportData, callable_));
   auto [old_sp, old_limit] = this->BuildSwitchToTheCentralStackIfNeeded();
   OpIndex suspender = OpIndex::Invalid();
   if (suspend == wasm::kSuspend) {
@@ -482,6 +457,42 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
     }
   }
 
+  // Check that the central stack has enough space for the outgoing parameters.
+  V<WordPtr> stack_limit = __ Load(
+      __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
+      MemoryRepresentation::UintPtr(), IsolateData::real_jslimit_offset());
+  IF_NOT (LIKELY(
+              __ StackPointerGreaterThan(stack_limit, StackCheckKind::kWasm))) {
+    __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowStackOverflow, {},
+                       native_context);
+    __ Unreachable();
+  }
+
+  V<Undefined> undefined_node =
+      __ template LoadRoot<RootIndex::kUndefinedValue>();
+  int pushed_count = std::max(expected_arity, wasm_count);
+  // 5 extra arguments: receiver, new target, arg count, dispatch handle and
+  // context.
+  bool has_dispatch_handle = kind == wasm::ImportCallKind::kUseCallBuiltin
+                                 ? false
+                                 : V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL;
+  base::SmallVector<OpIndex, 16> args(pushed_count + 4 +
+                                      (has_dispatch_handle ? 1 : 0));
+  SBXCHECK_LT(
+      args.size(),
+      std::numeric_limits<
+          decltype(compiler::turboshaft::Operation::input_count)>::max());
+  // Position of the first wasm argument in the JS arguments.
+  int pos = kind == wasm::ImportCallKind::kUseCallBuiltin ? 3 : 1;
+  pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_params, sig_,
+                         native_context);
+  for (int i = wasm_count; i < expected_arity; ++i) {
+    args[pos++] = undefined_node;
+  }
+
+  V<JSFunction> callable_node = __ Load(ref, LoadOp::Kind::TaggedBase(),
+                                        MemoryRepresentation::TaggedPointer(),
+                                        offsetof(WasmImportData, callable_));
   OpIndex call = OpIndex::Invalid();
   switch (kind) {
     // =======================================================================
