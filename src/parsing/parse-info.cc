@@ -158,6 +158,10 @@ void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(
 
   set_block_coverage_enabled(block_coverage_enabled() &&
                              script->IsUserJavaScript());
+  if (is_toplevel() && script->compilation_kind() ==
+                           Script::CompilationKind::kFunctionConstructor) {
+    set_parse_restriction(ONLY_SINGLE_FUNCTION_LITERAL);
+  }
 }
 
 ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
