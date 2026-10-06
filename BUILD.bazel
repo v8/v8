@@ -417,12 +417,12 @@ v8_flag(
     default = True,
 )
 
-# Enable support for external code range if enable_pointer_compression_shared_cage and
+# Enable support for external code range if v8_enable_pointer_compression and
 # v8_enable_external_code_space.
 selects.config_setting_group(
     name = "enable_external_code_space",
     match_all = [
-        ":enable_pointer_compression_shared_cage",
+        ":is_v8_enable_pointer_compression",
         ":is_v8_enable_external_code_space",
     ],
 )
