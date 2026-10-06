@@ -734,7 +734,8 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
     ValueNode* node, UseRepresentation use_repr,
     std::optional<NodeType> assumed_input_type) {
   DCHECK_NE(use_repr, UseRepresentation::kTagged);
-  if (node->value_representation() == ValueRepresentationFromUse(use_repr)) {
+  if (node->value_representation() == ValueRepresentationFromUse(use_repr) &&
+      CanReuseAlternative(node, node, use_repr, assumed_input_type)) {
     return node;
   }
   if (node->Is<ReturnedValue>()) {
@@ -770,6 +771,15 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   // current_node_ does not have a deopt info.
   if (!CanEagerDeopt()) {
     return {};
+  }
+  if (node->is_holey_float64() && assumed_input_type.has_value() &&
+      NodeTypeIs(*assumed_input_type, NodeType::kNumberOrBoolean)) {
+    // HoleyFloat64 can hold the hole or undefined, whereas the replaced node
+    // checked that the input is a number (or boolean, which cannot occur in
+    // HoleyFloat64). Convert to Float64 first so CheckedHoleyFloat64ToFloat64
+    // preserves the check that subsequent operations may rely on.
+    GET_VALUE_OR_ABORT(
+        node, reducer_.GetFloat64ForToNumber(node, *assumed_input_type));
   }
   switch (use_repr) {
     case UseRepresentation::kInt32:
