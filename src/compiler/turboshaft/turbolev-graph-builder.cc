@@ -1217,9 +1217,8 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::TaggedIndexConstant* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(dmercadier): should this really be a SmiConstant, or rather a
-    // Word32Constant?
-    SetMap(node, __ SmiConstant(i::Tagged<Smi>(node->value().ptr())));
+    SetMap(node,
+           __ TaggedIndexConstant(static_cast<int32_t>(node->value().value())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::TrustedConstant* node,
