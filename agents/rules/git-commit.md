@@ -11,6 +11,9 @@ commands in V8.
 ## Commit Message Format
 
 - **Title**: Must follow the format `[component] Title`.
+  - Keep the title short, concise, and punchy: aim for ~50 characters, and
+    strictly under 65 characters (including the `[component]` prefix). Prefer
+    high-level intent over verbose implementation details.
   - Use `[agents] title` ONLY for changes to the agent automation suite itself.
 - **Description**: Keep the body concise (aim for at most 10 lines) and include
   only essential information. Explain "why" and the high-level "what" without
