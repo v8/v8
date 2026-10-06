@@ -452,7 +452,12 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
     // flags to their defaults without aborting.
     SaveFlags save_flags;
     const char* str =
-        "--fuzzing --mock-arraybuffer-allocator --gc-fake-mmap=/tmp/x";
+        "--fuzzing --mock-arraybuffer-allocator --gc-fake-mmap=/tmp/x "
+        "--csa-trap-on-node=stub,1"
+#ifdef DEBUG
+        " --turboshaft-opt-bisect-break=50 --turboshaft-opt-bisect-limit=100"
+#endif
+        ;
     CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
     FlagList::ResolveContradictionsWhenFuzzing();
     FlagList::EnforceFlagImplications();
@@ -460,6 +465,13 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
     CHECK(v8_flags.disallow_unsafe_flags);
     CHECK(!v8_flags.mock_arraybuffer_allocator);
     CHECK_EQ(0, strcmp("/tmp/__v8_gc__", v8_flags.gc_fake_mmap));
+    CHECK_EQ(nullptr, v8_flags.csa_trap_on_node);
+#ifdef DEBUG
+    CHECK_EQ(std::numeric_limits<uint64_t>::max(),
+             v8_flags.turboshaft_opt_bisect_break);
+    CHECK_EQ(std::numeric_limits<uint64_t>::max(),
+             v8_flags.turboshaft_opt_bisect_limit);
+#endif
   }
 }
 

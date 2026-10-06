@@ -4364,6 +4364,14 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, maglev_break_on_entry)
 DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags,
   stop_sim_at, FLAGDEFAULT_stop_sim_at)
 #endif
+DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags, csa_trap_on_node,
+                         FLAGDEFAULT_csa_trap_on_node)
+#ifdef DEBUG
+DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags,
+  turboshaft_opt_bisect_break, FLAGDEFAULT_turboshaft_opt_bisect_break)
+DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags,
+  turboshaft_opt_bisect_limit, FLAGDEFAULT_turboshaft_opt_bisect_limit)
+#endif  // DEBUG
 DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags, gc_fake_mmap,
                          FLAGDEFAULT_gc_fake_mmap)
 // Non-standard stack sizes can lead to stack overflows (signaled as segfaults)
