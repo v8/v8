@@ -80,11 +80,6 @@
     }                                 \
   } while (false);
 
-// Enforce that a flag was not explicitly set via command line. Setting a value
-// via implications is still allowed.
-#define DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(cond, thenflag) \
-  changed |= TriggerNotExplicitlySetImplication(cond, #cond, #thenflag);
-
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
   changed |= TriggerImplication(!(whenflag), "!" #whenflag,     \
                                 &v8_flags.thenflag, #thenflag, value, false);
@@ -180,10 +175,6 @@
 
 #ifndef DEFINE_REQUIREMENT
 #define DEFINE_REQUIREMENT(statement)
-#endif
-
-#ifndef DEFINE_NOT_EXPLICITLY_SET_IMPLICATION
-#define DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(whenflag, thenflag)
 #endif
 
 #ifndef DEBUG_BOOL
@@ -2424,10 +2415,10 @@ DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, liftoff)
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_tier_up)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_tier_up)
 // Compilation hints generation is incompatible with eager tier-up.
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(wasm_generate_compilation_hints,
-                                      wasm_eager_tier_up_function)
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(trace_wasm_generate_compilation_hints,
-                                      wasm_eager_tier_up_function)
+DEFINE_VALUE_IMPLICATION(wasm_generate_compilation_hints,
+  wasm_eager_tier_up_function, FLAGDEFAULT_wasm_eager_tier_up_function)
+DEFINE_VALUE_IMPLICATION(trace_wasm_generate_compilation_hints,
+  wasm_eager_tier_up_function , FLAGDEFAULT_wasm_eager_tier_up_function )
 // Compilation hints generation is not compatible with
 // --no-wasm-dynamic-tiering or --no-wasm-lazy-compilation.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_dynamic_tiering)
@@ -2435,10 +2426,8 @@ DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_dynamic_tiering)
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_lazy_compilation)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_lazy_compilation)
 // --single-threaded implies --no-wasm-tier-up.
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(wasm_generate_compilation_hints,
-                                      single_threaded)
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(trace_wasm_generate_compilation_hints,
-                                      single_threaded)
+DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints, single_threaded)
+DEFINE_NEG_IMPLICATION(trace_wasm_generate_compilation_hints, single_threaded)
 // Wasm compilation hints generation is incompatible with features that are not
 // implemented in liftoff yet.
 DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints, wasm_wasmfx)
@@ -4358,29 +4347,32 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_unsafe_fast_api_wrapper)
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
 // Flags that are unsafe if given unexpected invalid values.
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, max_wasm_functions)
+DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags,
+  max_wasm_functions , FLAGDEFAULT_max_wasm_functions )
 #endif  // V8_ENABLE_WEBASSEMBLY
 // Features we don't currently want to fuzz.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, cppgc_young_generation)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
 // The memory corruption API is only allowed in sandbox testing/fuzzing mode.
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags &&
-                                          !sandbox_testing && !sandbox_fuzzing,
-                                      expose_memory_corruption_api)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags && !sandbox_testing &&
+                           !sandbox_fuzzing,
+                       expose_memory_corruption_api)
 
 // Flags which trigger a breakpoint on purpose.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, maglev_break_on_entry)
 #ifdef USE_SIMULATOR
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, stop_sim_at)
+DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags,
+  stop_sim_at, FLAGDEFAULT_stop_sim_at)
 #endif
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, gc_fake_mmap)
+DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags, gc_fake_mmap,
+                         FLAGDEFAULT_gc_fake_mmap)
 // Non-standard stack sizes can lead to stack overflows (signaled as segfaults)
 // and produce spurious bug reports. V8 should handle stack overflows gracefully
 // in default configurations.
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(
+DEFINE_VALUE_IMPLICATION(
     disallow_unsafe_flags &&
         (stack_size < 54 || stack_size > V8_DEFAULT_STACK_SIZE_KB),
-    stack_size)
+    stack_size, FLAGDEFAULT_stack_size)
 
 // Runs a program as security POC. This mode is used to determine whether a bug
 // in a program is a security problem. V8 supports many different configurations
@@ -4502,7 +4494,6 @@ DEFINE_IMPLICATION(gdbjit, log)
 #undef DEFINE_WEAK_VALUE_IMPLICATION
 #undef DEFINE_GENERIC_IMPLICATION
 #undef DEFINE_REQUIREMENT
-#undef DEFINE_NOT_EXPLICITLY_SET_IMPLICATION
 #undef DEFINE_ALIAS_BOOL
 #undef DEFINE_ALIAS_BOOL_WITH_COMMENT
 #undef DEFINE_ALIAS_INT

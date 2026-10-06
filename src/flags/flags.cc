@@ -1182,6 +1182,16 @@ void FlagList::PrintFeatureFlagsJSON() {
 
 namespace {
 
+template <typename T>
+bool FlagValueEquals(T a, T b) {
+  return a == b;
+}
+bool FlagValueEquals(const char* a, const char* b) {
+  if (a == b) return true;
+  if (a == nullptr || b == nullptr) return false;
+  return std::strcmp(a, b) == 0;
+}
+
 class ImplicationProcessor {
  public:
   // Returns {true} if any flag value was changed.
@@ -1225,7 +1235,8 @@ class ImplicationProcessor {
                           bool weak_implication) {
     if (!premise) return false;
     Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
-    const bool is_conclusion_value_change = conclusion_value->value() != value;
+    const bool is_conclusion_value_change =
+        !FlagValueEquals(conclusion_value->value(), value);
     if (!conclusion_flag->CheckFlagChange(
             weak_implication ? Flag::SetBy::kWeakImplication
                              : Flag::SetBy::kImplication,
@@ -1273,43 +1284,13 @@ class ImplicationProcessor {
     if (!conclusion_flag->CheckFlagChange(
             weak_implication ? Flag::SetBy::kWeakImplication
                              : Flag::SetBy::kImplication,
-            conclusion_value->value() != value, premise_name)) {
+            !FlagValueEquals(conclusion_value->value(), value), premise_name)) {
       return false;
     }
     // Must equal the default value, otherwise CheckFlagChange should've
     // returned false.
-    DCHECK_EQ(value, conclusion_flag->GetDefaultValue<T>());
+    DCHECK(FlagValueEquals(value, conclusion_flag->GetDefaultValue<T>()));
     return true;
-  }
-
-  // Called from DEFINE_NOT_EXPLICITLY_SET_IMPLICATION in flag-definitions.h.
-  // Returns {true} if the implication triggered and reset the conclusion flag.
-  bool TriggerNotExplicitlySetImplication(bool premise,
-                                          const char* premise_name,
-                                          const char* conclusion_name) {
-    if (!premise) {
-      return false;
-    }
-    Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
-    if (conclusion_flag->set_by_ != Flag::SetBy::kCommandLine) {
-      return false;
-    }
-    // When contradictions are ignored (e.g. under --fuzzing, which implies
-    // --disallow-unsafe-flags), reset the prohibited flag to its default value
-    // instead of aborting.
-    // TODO(clemensb): Remove TriggerNotExplicitlySetImplication and use regular
-    // value implications via DISALLOW_UNSAFE_FLAG instead.
-    if (!conclusion_flag->ShouldCheckFlagContradictions()) {
-      std::cerr << "The flag " << FlagName{conclusion_name}
-                << " was reset to its default value due to a "
-                   "contradiction with "
-                << FlagName{premise_name} << "\n";
-      conclusion_flag->Reset();
-      ResetFlagsImpliedBy(conclusion_flag);
-      return true;
-    }
-    FlagError{} << "Command-line provided flag " << FlagName{conclusion_name}
-                << " is prohibited by " << FlagName{premise_name};
   }
 
   void CheckForCycle() {
