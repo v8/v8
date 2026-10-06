@@ -3536,9 +3536,9 @@ MaybeDirectHandle<Object> FastJsonStringify(Isolate* isolate,
         if (length > String::kMaxLength) {
           THROW_NEW_ERROR(isolate, NewInvalidStringLengthError());
         }
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, ret,
-            isolate->factory()->NewRawOneByteString(static_cast<int>(length)));
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, ret,
+                                   isolate->factory()->NewRawOneByteString(
+                                       static_cast<uint32_t>(length)));
       }
       one_byte_stringifier.CopyResultTo(ret->GetChars(no_gc));
       return ret;
@@ -3555,7 +3555,7 @@ MaybeDirectHandle<Object> FastJsonStringify(Isolate* isolate,
         }
         ASSIGN_RETURN_ON_EXCEPTION(isolate, ret,
                                    isolate->factory()->NewRawTwoByteString(
-                                       static_cast<int>(total_length)));
+                                       static_cast<uint32_t>(total_length)));
       }
       base::uc16* chars = ret->GetChars(no_gc);
       if (one_byte_length > 0) {

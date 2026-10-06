@@ -1875,7 +1875,7 @@ MaybeDirectHandle<String> ValueDeserializer::ReadTwoByteString(
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
   DisallowGarbageCollection no_gc;
-  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
+  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.size());
   return string;
 }
 

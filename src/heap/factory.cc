@@ -1062,14 +1062,16 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
 
 namespace {
 struct Wtf16Decoder {
-  int length_;
+  uint32_t length_;
   bool is_one_byte_;
   explicit Wtf16Decoder(base::Vector<const uint16_t> data)
-      : length_(data.length()),
-        is_one_byte_(String::IsOneByte(data.begin(), length_)) {}
+      : length_(static_cast<uint32_t>(data.size())),
+        is_one_byte_(String::IsOneByte(data.begin(), length_)) {
+    DCHECK_LE(data.size(), String::kMaxLength);
+  }
   bool is_invalid() const { return false; }
   bool is_one_byte() const { return is_one_byte_; }
-  int utf16_length() const { return length_; }
+  uint32_t utf16_length() const { return length_; }
   template <typename Char>
   void Decode(Char* out, base::Vector<const uint16_t> data) {
     CopyChars(out, data.begin(), length_);
@@ -1164,7 +1166,7 @@ MaybeDirectHandle<String> Factory::WasmStringAddShared(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 MaybeHandle<String> Factory::NewStringFromTwoByte(const base::uc16* string,
-                                                  int length,
+                                                  uint32_t length,
                                                   AllocationType allocation) {
   DCHECK_NE(allocation, AllocationType::kReadOnly);
   if (length == 0) return empty_string();
@@ -1188,24 +1190,33 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(const base::uc16* string,
 
 MaybeHandle<String> Factory::NewStringFromTwoByte(
     base::Vector<const base::uc16> string, AllocationType allocation) {
-  return NewStringFromTwoByte(string.begin(), string.length(), allocation);
+  if (string.size() > String::kMaxLength) {
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
+  }
+  return NewStringFromTwoByte(string.begin(),
+                              static_cast<uint32_t>(string.size()), allocation);
 }
 
 MaybeDirectHandle<String> Factory::NewStringFromTwoByte(
     const ZoneVector<base::uc16>* string, AllocationType allocation) {
-  return NewStringFromTwoByte(string->data(), static_cast<int>(string->size()),
-                              allocation);
+  if (string->size() > String::kMaxLength) {
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
+  }
+  return NewStringFromTwoByte(
+      string->data(), static_cast<uint32_t>(string->size()), allocation);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
 MaybeDirectHandle<String> Factory::NewStringFromTwoByteLittleEndian(
     base::Vector<const base::uc16> str, UnicodeConfig config) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  uint32_t length = static_cast<uint32_t>(str.length());
+  if (str.size() > String::kMaxLength) {
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
+  }
   base::OwnedVector<uint16_t> private_copy;
   if (config.source_shared()) {
     private_copy = CopyCodeUnits(
-        reinterpret_cast<const base::Atomic16*>(str.data()), length);
+        reinterpret_cast<const base::Atomic16*>(str.data()), str.size());
   }
   auto peek_bytes = [&]() -> base::Vector<const uint16_t> {
     return config.source_shared() ? private_copy.as_vector() : str;

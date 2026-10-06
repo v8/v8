@@ -1498,7 +1498,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<T> CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
                              AllocationType allocation);
 
-  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
+  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string,
+                                           uint32_t length,
                                            AllocationType allocation);
 
   // Creates a new JSArray with the given backing storage. Performs no

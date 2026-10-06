@@ -379,9 +379,9 @@ class FactoryBase {
       Tagged<Smi> number, NumberCacheMode mode = NumberCacheMode::kBoth);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawSharedOneByteString(
-      int length);
+      uint32_t length);
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawSharedTwoByteString(
-      int length);
+      uint32_t length);
 
   // Allocates a new BigInt with {length} digits. Only to be used by
   // MutableBigInt::New*.
@@ -469,7 +469,7 @@ class FactoryBase {
 
   template <typename SeqStringT>
   MaybeHandle<SeqStringT> NewRawStringWithMap(
-      int length, Tagged<Map> map, AllocationType allocation,
+      uint32_t length, Tagged<Map> map, AllocationType allocation,
       AllocationHint hint = AllocationHint());
 
  private:
