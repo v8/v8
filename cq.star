@@ -87,6 +87,8 @@ luci.cq_group(
         luci.cq_tryjob_verifier(
             "node-ci:try/node_ci_linux64_rel",
             cancel_stale = False,
+            # TODO(b/570484160): Re-enable once broken branch ref in perfetto is fixed.
+            includable_only = True,
         ),
         luci.cq_tryjob_verifier(
             "v8:try/v8_mega_cq_launcher",
