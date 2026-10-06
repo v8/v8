@@ -84,10 +84,6 @@
                             "inline the Smi fast path of embedded feedback "   \
                             "operations into JS baseline code")                \
                                                                                \
-  /* V8 side owner: leszeks */                                                 \
-  INTERNAL_FEATURE(always_specialize_for_script_context,                       \
-                   "always specialize for script contexts in optimized code")  \
-                                                                               \
   /* Instruction Tracing tool convention (early prototype, might change) */    \
   /* Tool convention: https://github.com/WebAssembly/tool-conventions */       \
   /* V8 side owner: jabraham */                                                \
@@ -129,6 +125,10 @@
 // being moved to the staging phase.
 #define FOREACH_PRE_STAGED_FEATURE_FLAG(JS_FEATURE, WASM_FEATURE,              \
                                         INTERNAL_FEATURE) /*   (80 columns) */ \
+                                                                               \
+  /* V8 side owner: leszeks */                                                 \
+  INTERNAL_FEATURE(always_specialize_for_script_context,                       \
+                   "always specialize for script contexts in optimized code")  \
                                                                                \
   /* Reference-Typed Strings Proposal. */                                      \
   /* https://github.com/WebAssembly/stringref */                               \
