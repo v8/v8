@@ -13,8 +13,8 @@ sys.path.insert(
     os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from metagen.layout_ir import (Annotation, ClassLayout, Config, Field,
-                               LayoutError, CppType, StorageType, Tail,
+from metagen.layout_ir import (Annotation, BitFieldEntry, ClassLayout, Config,
+                               Field, LayoutError, CppType, StorageType, Tail,
                                named_type, parse_document, serialize_document,
                                serialize_positions, union_type)
 
@@ -38,6 +38,10 @@ def tagged(name, *args):
 
 def int_storage(width, signed=True):
   return StorageType(kind="int", width=width, is_signed=signed)
+
+
+def bitfield(*bits, width=1):
+  return StorageType(kind="bitfield", name="Foo::Bits", width=width, bits=bits)
 
 
 def field(cpp_name, offset, size, storage=None, cpp_type=None, **kwargs):
@@ -120,6 +124,61 @@ class StorageTypeTest(unittest.TestCase):
   def test_enum_roundtrip(self):
     s = StorageType(kind="enum", name="InstanceType", width=2, is_signed=False)
     self.assertEqual(StorageType.from_json(s.to_json()), s)
+
+  def test_bitfield_roundtrip(self):
+    s = bitfield(
+        BitFieldEntry("IsFooBit", "bool", 0, 1),
+        BitFieldEntry("KindBits", "Kind", 1, 3))
+    self.assertEqual(StorageType.from_json(s.to_json()), s)
+    self.assertEqual(s.to_json()["bits"][1], {
+        "cpp_name": "KindBits",
+        "type": "Kind",
+        "offset": 1,
+        "num_bits": 3
+    })
+
+  def test_bitfield_rejects_invalid_qualified_names(self):
+    for name in (None, 42, "::Bits", "Foo::", "Foo::::Bits", "Foo:Bits"):
+      with self.subTest(name=name), self.assertRaises(LayoutError):
+        StorageType(
+            kind="bitfield",
+            name=name,
+            width=1,
+            bits=(BitFieldEntry("IsFooBit", "bool", 0, 1),))
+
+  def test_bitfield_needs_fields(self):
+    with self.assertRaisesRegex(LayoutError, "without fields"):
+      bitfield()
+
+  def test_bitfield_chain_must_be_gapless(self):
+    with self.assertRaisesRegex(LayoutError, "starts at 2, expected 1"):
+      bitfield(
+          BitFieldEntry("IsFooBit", "bool", 0, 1),
+          BitFieldEntry("KindBits", "Kind", 2, 3))
+
+  def test_bitfield_chain_must_fit_the_storage(self):
+    with self.assertRaisesRegex(LayoutError, "exceed the storage"):
+      bitfield(
+          BitFieldEntry("LowBits", "uint8_t", 0, 5),
+          BitFieldEntry("HighBits", "uint8_t", 5, 4))
+
+  def test_bits_only_on_bitfield_storage(self):
+    with self.assertRaisesRegex(LayoutError, "int storage with bit fields"):
+      StorageType(
+          kind="int",
+          width=1,
+          is_signed=False,
+          bits=(BitFieldEntry("IsFooBit", "bool", 0, 1),))
+
+  def test_bit_field_entry_rejects_unknown_key(self):
+    with self.assertRaises(LayoutError):
+      BitFieldEntry.from_json({
+          "cpp_name": "IsFooBit",
+          "type": "bool",
+          "offset": 0,
+          "num_bits": 1,
+          "extra": 1
+      })
 
 
 class FieldTest(unittest.TestCase):

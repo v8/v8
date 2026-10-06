@@ -871,6 +871,10 @@
     return ClearProtectedPointerField(offset, tag);                         \
   }
 
+// Defines a getter for one bit field of a BitFieldGroup.
+#define BIT_FIELD_GETTER(name, Bit) \
+  constexpr typename Bit::FieldType name() const { return get<Bit>(); }
+
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \
     return BitField::decode(get_field());                                  \

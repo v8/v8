@@ -27,9 +27,9 @@ import re
 import clang.cindex as cindex
 
 from metagen import extract
-from metagen.layout_ir import (ANNOTATION_PREFIX, Annotation, ClassLayout,
-                               Config, Field, LayoutError, CppType, StorageType,
-                               Tail, named_type, union_type)
+from metagen.layout_ir import (ANNOTATION_PREFIX, Annotation, BitFieldEntry,
+                               ClassLayout, Config, Field, LayoutError, CppType,
+                               StorageType, Tail, named_type, union_type)
 
 # Class templates allowed as wrapper arguments. The record names the
 # template and its payload, so a consumer can map an instantiation to a
@@ -134,6 +134,29 @@ def mark_visited(parsed, cursor: cindex.Cursor | None) -> None:
 def _decl_of(t: cindex.Type):
   decl = t.get_declaration()
   return decl if decl.spelling else None
+
+
+def _bit_field_group_base(decl: cindex.Cursor) -> cindex.Type | None:
+  """The BitFieldGroup specialization `decl` derives from, if any."""
+  for child in decl.get_children():
+    if child.kind != cindex.CursorKind.CXX_BASE_SPECIFIER:
+      continue
+    base = child.type.get_canonical()
+    base_decl = _decl_of(base)
+    if base_decl is not None and base_decl.spelling == "BitFieldGroup":
+      return base
+  return None
+
+
+def _cpp_bit_field_struct_name(decl: cindex.Cursor) -> str:
+  """The C++ name of a BitFieldGroup, including enclosing classes."""
+  parts = []
+  while decl is not None and decl.kind in (cindex.CursorKind.CLASS_DECL,
+                                           cindex.CursorKind.STRUCT_DECL,
+                                           cindex.CursorKind.CLASS_TEMPLATE):
+    parts.append(decl.spelling)
+    decl = decl.semantic_parent
+  return "::".join(reversed(parts))
 
 
 def _template_args(t: cindex.Type) -> list[cindex.Type]:
@@ -304,6 +327,48 @@ class _Extractor:
     parts = args[0].get_canonical().spelling.split("::")
     return named_type(parts[-1], namespaces=tuple(parts[:-1]))
 
+  def _bitfield_storage(self, field: cindex.Cursor, name: str,
+                        group: cindex.Cursor, base: cindex.Type) -> StorageType:
+    """The bit layout of a BitFieldGroup member: every type alias of
+    the group is a base::BitField, read in declaration order (which is
+    bit order) for its name, field type, shift and width."""
+    bits = []
+    for alias in group.get_children():
+      if alias.kind != cindex.CursorKind.TYPE_ALIAS_DECL:
+        continue
+      bit = alias.underlying_typedef_type.get_canonical()
+      decl = _decl_of(bit)
+      if decl is None or decl.spelling != "BitField":
+        raise LayoutError(f"{_where(field)}: {group.spelling}::"
+                          f"{alias.spelling} is not a base::BitField "
+                          f"({bit.spelling}); a BitFieldGroup may only "
+                          f"contain base::BitField aliases")
+      bits.append(
+          BitFieldEntry(
+              cpp_name=alias.spelling,
+              type=self._bit_field_type(decl.get_template_argument_type(0)),
+              offset=decl.get_template_argument_value(1),
+              num_bits=decl.get_template_argument_value(2)))
+    if not bits:
+      raise LayoutError(f"{_where(field)}: bit field group "
+                        f"{group.spelling!r} declares no bit fields")
+    return StorageType(
+        kind="bitfield",
+        name=name,
+        width=base.get_template_argument_type(1).get_size(),
+        bits=tuple(bits))
+
+  def _bit_field_type(self, t: cindex.Type) -> str:
+    """The C++ name of one bit field's value type."""
+    canonical = t.get_canonical()
+    if canonical.kind == cindex.TypeKind.BOOL:
+      return "bool"
+    if canonical.kind == cindex.TypeKind.ENUM:
+      decl = canonical.get_declaration()
+      mark_visited(self.parsed, decl)
+      return decl.spelling
+    return self._cpp_int_type_of(t).name
+
   def _is_trusted_space_scheme(self, field: cindex.Cursor,
                                scheme: cindex.Type) -> bool:
     """Whether a TaggedMember's compression scheme is the trusted-space
@@ -392,6 +457,13 @@ class _Extractor:
     if written == handle_alias:
       mark_visited(self.parsed, written)
       return StorageType(kind="trusted_pointer")
+
+    if decl is not None:
+      base = _bit_field_group_base(decl)
+      if base is not None:
+        mark_visited(self.parsed, decl)
+        return self._bitfield_storage(field, _cpp_bit_field_struct_name(decl),
+                                      decl, base)
 
     if decl is not None and decl.kind in (cindex.CursorKind.CLASS_DECL,
                                           cindex.CursorKind.STRUCT_DECL):

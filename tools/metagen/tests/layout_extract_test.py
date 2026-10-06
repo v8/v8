@@ -686,6 +686,111 @@ class TailTest(unittest.TestCase):
     self.assertEqual(blob.tail.element_size, 1)
 
 
+class BitFieldGroupTest(unittest.TestCase):
+  # Test templates with the names and arguments recognized by the extractor:
+  # "BitField" with (type, shift, size) arguments, and a base
+  # "BitFieldGroup" whose second argument is the storage type.
+  _PRELUDE = """
+    namespace base {
+    template <typename T, int shift, int size, typename U = uint32_t>
+    class BitField {
+     public:
+      template <typename T2, int size2>
+      using Next = BitField<T2, shift + size, size2, U>;
+    };
+    }  // namespace base
+    template <typename Derived, typename U>
+    class BitFieldGroup {
+      U value_;
+    };
+    enum class Kind : uint8_t { kA, kB, kC };
+  """
+
+  def _layouts(self, body):
+    return extract_layouts(self._PRELUDE + body)
+
+  def test_bit_fields_are_extracted_in_declaration_order(self):
+    (field,) = self._layouts("""
+      class Foo : public HeapObject {
+       public:
+        struct Bits : BitFieldGroup<Bits, uint32_t> {
+          using IsFooBit = base::BitField<bool, 0, 1, uint32_t>;
+          using KindBits = IsFooBit::Next<Kind, 2>;
+          using CountBits = KindBits::Next<int32_t, 5>;
+        };
+        Bits bits_;
+      };
+    """)["Foo"].fields
+    self.assertEqual(field.storage.kind, "bitfield")
+    self.assertEqual(field.storage.name, "Foo::Bits")
+    self.assertEqual(field.storage.width, 4)
+    self.assertEqual([
+        (b.cpp_name, b.type, b.offset, b.num_bits) for b in field.storage.bits
+    ], [
+        ("IsFooBit", "bool", 0, 1),
+        ("KindBits", "Kind", 1, 2),
+        ("CountBits", "int32_t", 3, 5),
+    ])
+
+  def test_enclosing_classes_name_the_group(self):
+    # Aliases and std::atomic do not affect the declaring C++ type name.
+    aliased, direct, _ = self._layouts("""
+      class Foo : public HeapObject {
+       public:
+        struct Bits : BitFieldGroup<Bits, uint8_t> {
+          using IsFooBit = base::BitField<bool, 0, 1, uint8_t>;
+        };
+        using FooBitFields = Bits;
+        std::atomic<FooBitFields> aliased_;
+        Bits direct_;
+        uint16_t padding_;
+      };
+    """)["Foo"].fields
+    self.assertEqual(aliased.storage.name, "Foo::Bits")
+    self.assertEqual(aliased.storage.width, 1)
+    self.assertEqual(direct.storage.name, "Foo::Bits")
+
+  def test_nested_classes_are_preserved_without_namespaces(self):
+    field, _ = self._layouts("""
+      namespace v8::internal {
+      class Foo : public HeapObject {
+       public:
+        struct Holder {
+          struct Bits : BitFieldGroup<Bits, uint8_t> {
+            using IsFooBit = base::BitField<bool, 0, 1, uint8_t>;
+          };
+        };
+        Holder::Bits bits_;
+        uint8_t padding_[3];
+      };
+      }
+    """)["Foo"].fields
+    self.assertEqual(field.storage.name, "Foo::Holder::Bits")
+
+  def test_non_bit_field_alias_is_fatal(self):
+    with self.assertRaisesRegex(LayoutError, "is not a base::BitField"):
+      self._layouts("""
+        class Foo : public HeapObject {
+         public:
+          struct Bits : BitFieldGroup<Bits, uint8_t> {
+            using IsFooBit = base::BitField<bool, 0, 1, uint8_t>;
+            using Underlying = uint8_t;
+          };
+          Bits bits_;
+        };
+      """)
+
+  def test_empty_group_is_fatal(self):
+    with self.assertRaisesRegex(LayoutError, "declares no bit fields"):
+      self._layouts("""
+        class Foo : public HeapObject {
+         public:
+          struct Bits : BitFieldGroup<Bits, uint8_t> {};
+          Bits bits_;
+        };
+      """)
+
+
 class FailureModeTest(unittest.TestCase):
 
   def test_missing_indirect_pointer_handle_alias_is_fatal(self):

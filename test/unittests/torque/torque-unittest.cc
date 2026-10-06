@@ -1407,6 +1407,18 @@ std::string TestScalarJson(const std::string& storage, size_t size,
   return s.str();
 }
 
+// A "bitfield" storage named Test::BitFields; by default one bit followed by a
+// three-bit field.
+std::string TestBitFieldStorage(
+    const std::string& bits = R"({"cpp_name": "IsFooBit", "type": "bool", )"
+                              R"("offset": 0, "num_bits": 1}, )"
+                              R"({"cpp_name": "BarBits", "type": "uint8_t", )"
+                              R"("offset": 1, "num_bits": 3})") {
+  return R"({"kind": "bitfield", "name": "Test::BitFields", "width": 1, )"
+         R"("bits": [)" +
+         bits + R"(]})";
+}
+
 // The positions JSON for kTestLayoutClass and its variants.
 constexpr const char* kTestLayoutPositions = R"({"schema_version": 1,
   "classes": [{"cpp_name": "v8::internal::TestLayout",
@@ -1651,6 +1663,157 @@ TEST(TorqueLayoutLoader, DerivesNamedTypeForEnumStorage) {
           R"({"kind": "enum", "name": "uint8", "width": 1, "signed": false})",
           1),
       /*use_cpp_layouts=*/true);
+}
+
+// A .tq declaration matching TestBitFieldStorage(), with a configurable
+// second field.
+std::string TestBitFieldStruct(const std::string& bar = "bar: uint8: 3 bit;") {
+  return R"(
+  @cppScope('TestScalar::Bits')
+  bitfield struct TestBitFields extends uint8 {
+    is_foo: bool: 1 bit;
+    )" + bar +
+         R"(
+  }
+)";
+}
+
+TEST(TorqueLayoutLoader, ImporterDeclaresBitFieldStructFromRecord) {
+  ExpectSuccessfulLayoutCompilation(TestScalarClass("TestBitFields"),
+                                    TestScalarJson(TestBitFieldStorage(), 1),
+                                    /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterReplacesMatchingBitFieldStruct) {
+  ExpectSuccessfulLayoutCompilation(
+      TestBitFieldStruct() + TestScalarClass("TestBitFields"),
+      TestScalarJson(TestBitFieldStorage(), 1),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterRejectsMismatchedBitFieldStruct) {
+  ExpectFailingLayoutCompilation(
+      TestBitFieldStruct("bar: uint8: 2 bit;") +
+          TestScalarClass("TestBitFields"),
+      TestScalarJson(TestBitFieldStorage(), 1),
+      /*use_cpp_layouts=*/true,
+      ".tq field \"bar: uint8: 2 bit\" differs from C++ field "
+      "\"bar: uint8: 3 bit\"");
+}
+
+TEST(TorqueLayoutLoader, VerifierAcceptsMatchingBitFieldStruct) {
+  ExpectSuccessfulLayoutCompilation(
+      TestBitFieldStruct() + TestScalarClass("TestBitFields"),
+      TestScalarJson(TestBitFieldStorage(), 1),
+      /*use_cpp_layouts=*/false);
+}
+
+TEST(TorqueLayoutLoader, VerifierRejectsBitFieldCountMismatch) {
+  ExpectFailingLayoutCompilation(
+      TestBitFieldStruct("") + TestScalarClass("TestBitFields"),
+      TestScalarJson(TestBitFieldStorage(), 1),
+      /*use_cpp_layouts=*/false, "C++ declares 2 bit field(s), Torque has 1");
+}
+
+TEST(TorqueLayoutLoader, VerifierRejectsBitFieldNameMismatch) {
+  ExpectFailingLayoutCompilation(TestBitFieldStruct("baz: uint8: 3 bit;") +
+                                     TestScalarClass("TestBitFields"),
+                                 TestScalarJson(TestBitFieldStorage(), 1),
+                                 /*use_cpp_layouts=*/false,
+                                 "C++ bit field 1 is bar, Torque declares baz");
+}
+
+TEST(TorqueLayoutLoader, VerifierRejectsBitFieldWidthMismatch) {
+  ExpectFailingLayoutCompilation(TestBitFieldStruct("bar: uint8: 2 bit;") +
+                                     TestScalarClass("TestBitFields"),
+                                 TestScalarJson(TestBitFieldStorage(), 1),
+                                 /*use_cpp_layouts=*/false,
+                                 "3 bit(s) at 1 in C++, 2 at 1 in Torque");
+}
+
+TEST(TorqueLayoutLoader, VerifierRejectsNonBitFieldTorqueType) {
+  // Same size and category, but the Torque field is a plain integer.
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("uint8"), TestScalarJson(TestBitFieldStorage(), 1),
+      /*use_cpp_layouts=*/false, "a bit field group in C++, uint8 in Torque");
+}
+
+TEST(TorqueLayoutLoader, VerifierRejectsBitFieldStructNameMismatch) {
+  // The Torque struct is not named after the C++ group (MapBits1 for
+  // Map::Bits1).
+  std::string source = TestBitFieldStruct() + TestScalarClass("TestBitFields");
+  size_t pos;
+  while ((pos = source.find("TestBitFields")) != std::string::npos) {
+    source.replace(pos, std::string("TestBitFields").size(), "OtherBits");
+  }
+  ExpectFailingLayoutCompilation(
+      source, TestScalarJson(TestBitFieldStorage(), 1),
+      /*use_cpp_layouts=*/false,
+      "the C++ bit field group is Test::BitFields, Torque uses OtherBits");
+}
+
+TEST(TorqueLayoutLoader, ImporterDeclaresBitFieldStructFromCppOnlyBase) {
+  // TestBase has no Torque declaration. Import its fields into TestScalar,
+  // including the bitfield struct used by value_.
+  size_t t = kTaggedSize;
+  std::stringstream json;
+  json << R"({"schema_version": 1, )" << TestConfig() << R"("classes": [)"
+       << R"({"cpp_name": "v8::internal::TestBase", )"
+       << R"("base": "v8::internal::HeapObject", "base_size": )" << t
+       << R"(, "size": )" << t + 1 << R"(, "alignment": )" << t
+       << R"(, "fields": [{"cpp_name": "value_", "offset": )" << t
+       << R"(, "size": 1, "storage": )" << TestBitFieldStorage() << R"(}]}, )"
+       << R"({"cpp_name": "v8::internal::TestScalar", )"
+       << R"("base": "v8::internal::TestBase", "base_size": )" << t + 1
+       << R"(, "size": )" << t + 2 << R"(, "alignment": )" << t
+       << R"(, "fields": [{"cpp_name": "other_", "offset": )" << t + 1
+       << R"(, "size": 1, "storage": {"kind": "int", "width": 1, )"
+       << R"("signed": false}}]}]})";
+  ExpectSuccessfulLayoutCompilation(
+      R"(
+  @cppObjectLayoutDefinition
+  extern class TestScalar extends HeapObject {
+    value: TestBitFields;
+    other: uint8;
+  }
+)",
+      json.str(), /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, RejectsBitFieldGap) {
+  // Torque derives offsets from declaration order, so a hole in the record
+  // would shift every following field instead of being preserved.
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("TestBitFields"),
+      TestScalarJson(
+          TestBitFieldStorage(R"({"cpp_name": "IsFooBit", "type": "bool", )"
+                              R"("offset": 0, "num_bits": 1}, )"
+                              R"({"cpp_name": "BarBits", "type": "uint8_t", )"
+                              R"("offset": 2, "num_bits": 3})"),
+          1),
+      /*use_cpp_layouts=*/true, "starts at bit 2, expected 1");
+}
+
+TEST(TorqueLayoutLoader, RejectsBitFieldNameThatDoesNotRoundTrip) {
+  // The C++ alias name must be one Torque's naming rule can produce.
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("TestBitFields"),
+      TestScalarJson(
+          TestBitFieldStorage(R"({"cpp_name": "isFooBit", "type": "bool", )"
+                              R"("offset": 0, "num_bits": 1})"),
+          1),
+      /*use_cpp_layouts=*/true, "cannot be derived from a Torque field name");
+}
+
+TEST(TorqueLayoutLoader, RejectsBitFieldNameWithoutTheExpectedSuffix) {
+  // "Bits" suffix on a single bit.
+  ExpectFailingLayoutCompilation(
+      TestScalarClass("TestBitFields"),
+      TestScalarJson(
+          TestBitFieldStorage(R"({"cpp_name": "IsFooBits", "type": "bool", )"
+                              R"("offset": 0, "num_bits": 1})"),
+          1),
+      /*use_cpp_layouts=*/true, "does not end in \"Bit\"");
 }
 
 TEST(TorqueLayoutLoader, DerivesWrappedPointerTypes) {

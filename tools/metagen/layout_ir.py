@@ -34,6 +34,9 @@ STORAGE_KINDS = frozenset({
     "trusted_pointer",
     "external_pointer",
     "cpp_heap_pointer",
+    # A BitFieldGroup member: `name` is the C++ struct name and `bits`
+    # contains the fields in bit order.
+    "bitfield",
     # Integral storage: `width` bytes, `signed` flag, and
     # `pointer_width_alias` when the member was written through one
     # (uintptr_t, size_t, ...), which its width alone does not say.
@@ -250,6 +253,44 @@ def union_type(*members: CppType) -> CppType:
 
 
 @dataclasses.dataclass(frozen=True)
+class BitFieldEntry:
+  """One field of a "bitfield" storage: a base::BitField alias.
+
+  `cpp_name` is the alias name; the consumer derives its own field name
+  from it (Torque: IsCallableBit -> is_callable)."""
+
+  cpp_name: str
+  type: str
+  offset: int
+  num_bits: int
+
+  def __post_init__(self) -> None:
+    _check_identifier(self.cpp_name, "bit field name")
+    _check_identifier(self.type, "bit field type")
+    _check(self.num_bits > 0, f"bit field {self.cpp_name}: no bits")
+    _check(self.offset >= 0, f"bit field {self.cpp_name}: negative offset")
+
+  def to_json(self):
+    return {
+        "cpp_name": self.cpp_name,
+        "type": self.type,
+        "offset": self.offset,
+        "num_bits": self.num_bits,
+    }
+
+  @staticmethod
+  def from_json(d) -> "BitFieldEntry":
+    _check(isinstance(d, dict), f"bit field: expected object, got {d!r}")
+    _check_keys(d, {"cpp_name", "type", "offset", "num_bits"}, set(),
+                "bit field")
+    return BitFieldEntry(
+        cpp_name=d["cpp_name"],
+        type=d["type"],
+        offset=d["offset"],
+        num_bits=d["num_bits"])
+
+
+@dataclasses.dataclass(frozen=True)
 class StorageType:
   """A field's storage, one of STORAGE_KINDS."""
 
@@ -264,8 +305,11 @@ class StorageType:
   is_signed: bool | None = None
   # Preserve pointer-width aliases; their canonical width is ABI-specific.
   pointer_width_alias: str | None = None
-  # "enum": unqualified C++ enum name.
+  # C++ type name without namespaces; includes enclosing classes for bitfields.
   name: str | None = None
+  # "bitfield": the group's fields, in declaration order, which is bit
+  # order.
+  bits: tuple[BitFieldEntry, ...] = ()
 
   def __post_init__(self) -> None:
     _check(self.kind in STORAGE_KINDS, f"unknown storage kind: {self.kind!r}")
@@ -286,6 +330,26 @@ class StorageType:
     if self.kind == "struct":
       _check(self.width is not None and self.width > 0,
              "struct storage needs a size")
+    if self.kind == "bitfield":
+      _check(
+          isinstance(self.name, str), "bitfield storage name must be a string")
+      for part in (self.name or "").split("::"):
+        _check_identifier(part, "bitfield storage name")
+      _check(self.width in (1, 2, 4, 8), "bitfield storage width invalid")
+      _check(bool(self.bits), "bitfield storage without fields")
+      # A base::BitField chain starts at bit 0 and has no holes; a gap
+      # means an alias is missing from the group.
+      next_bit = 0
+      for bit in self.bits:
+        _check(
+            bit.offset == next_bit,
+            f"bitfield {self.name}: {bit.cpp_name} starts at {bit.offset}, "
+            f"expected {next_bit}")
+        next_bit += bit.num_bits
+      _check(next_bit <= self.width * 8,
+             f"bitfield {self.name}: {next_bit} bits exceed the storage")
+    else:
+      _check(not self.bits, f"{self.kind} storage with bit fields")
     if self.pointer_width_alias is not None:
       _check(self.kind == "int", "pointer_width_alias on non-int storage")
       _check_identifier(self.pointer_width_alias, "pointer_width_alias")
@@ -304,15 +368,16 @@ class StorageType:
       d["signed"] = self.is_signed
     if self.pointer_width_alias is not None:
       d["pointer_width_alias"] = self.pointer_width_alias
+    if self.bits:
+      d["bits"] = [b.to_json() for b in self.bits]
     return d
 
   @staticmethod
   def from_json(d) -> "StorageType":
     _check(isinstance(d, dict), f"storage type: expected object, got {d!r}")
-    _check_keys(
-        d, {"kind"},
-        {"name", "arg", "tag", "width", "signed", "pointer_width_alias"},
-        "storage type")
+    _check_keys(d, {"kind"}, {
+        "name", "arg", "tag", "width", "signed", "pointer_width_alias", "bits"
+    }, "storage type")
     arg = d.get("arg")
     return StorageType(
         kind=d.get("kind", ""),
@@ -321,7 +386,8 @@ class StorageType:
         width=d.get("width"),
         is_signed=d.get("signed"),
         pointer_width_alias=d.get("pointer_width_alias"),
-        name=d.get("name"))
+        name=d.get("name"),
+        bits=tuple(BitFieldEntry.from_json(b) for b in d.get("bits", ())))
 
 
 @dataclasses.dataclass(frozen=True)

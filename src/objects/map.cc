@@ -1326,20 +1326,17 @@ Handle<Map> Map::RawCopy(Isolate* isolate, DirectHandle<Map> src_handle,
     raw->set_constructor_or_back_pointer(src->GetConstructorRaw());
     raw->set_bit_field(src->bit_field());
     raw->set_bit_field2(src->bit_field2());
-    int new_bit_field3 = src->bit_field3();
-    new_bit_field3 = Bits3::OwnsDescriptorsBit::update(new_bit_field3, true);
-    new_bit_field3 =
-        Bits3::NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
-    new_bit_field3 = Bits3::EnumLengthBits::update(new_bit_field3,
-                                                   kInvalidEnumCacheSentinel);
-    new_bit_field3 = Bits3::IsDeprecatedBit::update(new_bit_field3, false);
-    new_bit_field3 =
-        Bits3::IsInRetainedMapListBit::update(new_bit_field3, false);
-    if (!src->is_dictionary_map()) {
-      new_bit_field3 = Bits3::IsUnstableBit::update(new_bit_field3, false);
+    Bits3 bits3 = src->bit_field3()
+                      .with<Bits3::OwnsDescriptorsBit>(true)
+                      .with<Bits3::NumberOfOwnDescriptorsBits>(0)
+                      .with<Bits3::EnumLengthBits>(kInvalidEnumCacheSentinel)
+                      .with<Bits3::IsDeprecatedBit>(false)
+                      .with<Bits3::IsInRetainedMapListBit>(false);
+    if (!bits3.is_dictionary_map()) {
+      bits3 = bits3.with<Bits3::IsUnstableBit>(false);
     }
     // Same as bit_field comment above.
-    raw->set_bit_field3(new_bit_field3);
+    raw->set_bit_field3(bits3);
     if (v8_flags.proto_assign_seq_lazy_func_opt) {
       if (Tagged<PrototypeSharedClosureInfo> infos;
           src_handle->TryGetPrototypeSharedClosureInfo(&infos)) {

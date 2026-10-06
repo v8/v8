@@ -85,6 +85,16 @@ std::string TorqueClassNameFromCppName(const std::string& cpp_name,
   return cpp_name.substr(separator + 2);
 }
 
+std::string TorqueBitFieldStructName(const JsonObject& storage,
+                                     const std::string& context) {
+  std::string name = RequireString(storage, "name", context);
+  size_t pos;
+  while ((pos = name.find("::")) != std::string::npos) {
+    name.erase(pos, 2);
+  }
+  return name;
+}
+
 // Map primitive C++ types to their Torque representation. Torque already knows
 // all other class, struct, and namespace-scope alias names.
 struct PrimitiveTypeName {
@@ -136,6 +146,32 @@ constexpr PrimitiveTypeName kTaggedTypeNames[] = {
     {"JSCallable", "Callable"},
     {"IteratorRecord", "iterator::IteratorRecord"},
 };
+
+// Convert a base::BitField alias name to a Torque field name.
+//
+// Torque derives the C++ alias name from the Torque field name: CamelifyString
+// plus "Bit" for a single bit and "Bits" for more (see
+// ImplementationVisitor::GenerateBitFields). The layout JSON records the C++
+// name, so reverse that conversion and check that converting back produces
+// the original C++ name (e.g. "IsJSObjectBit" fails this check).
+std::string TorqueBitFieldName(const std::string& cpp_name, size_t num_bits,
+                               const std::string& context) {
+  const std::string suffix = num_bits == 1 ? "Bit" : "Bits";
+  if (cpp_name.size() <= suffix.size() ||
+      cpp_name.compare(cpp_name.size() - suffix.size(), suffix.size(),
+                       suffix) != 0) {
+    ReportError("layout JSON: ", context, ": bit field \"", cpp_name, "\" of ",
+                num_bits, " bit(s) does not end in \"", suffix, "\"");
+  }
+  std::string name =
+      SnakeifyString(cpp_name.substr(0, cpp_name.size() - suffix.size()));
+  if (CamelifyString(name) + suffix != cpp_name) {
+    ReportError("layout JSON: ", context, ": bit field \"", cpp_name,
+                "\" cannot be derived from a Torque field name; \"", name,
+                "\" would be written \"", CamelifyString(name), suffix, "\"");
+  }
+  return name;
+}
 
 std::string TorqueTypeName(const std::string& cpp_name) {
   for (const PrimitiveTypeName& entry : kPrimitiveTypeNames) {
@@ -325,7 +361,8 @@ std::optional<StorageCategory> CategoryOfStorageKind(const std::string& kind) {
   if (kind == "external_pointer") return StorageCategory::kExternalPointer;
   if (kind == "cpp_heap_pointer") return StorageCategory::kCppHeapPointer;
   if (kind == "int" || kind == "enum" || kind == "bool" ||
-      kind == "unaligned" || kind == "struct" || kind == "js_dispatch_handle") {
+      kind == "unaligned" || kind == "struct" || kind == "bitfield" ||
+      kind == "js_dispatch_handle") {
     return StorageCategory::kScalar;
   }
   return std::nullopt;
@@ -976,7 +1013,75 @@ class LayoutVerifier {
     }
 
     VerifyCategory(context, field, record, "storage");
+    VerifyBitFields(context, field, record);
     VerifyFlags(context, field, record);
+  }
+
+  // Check the individual bit fields, not just the member holding them. The
+  // @cppScope asserts already compare the .tq declaration against the
+  // C++ BitField aliases, but nothing else checks that the layout JSON agrees
+  // with both.
+  void VerifyBitFields(const std::string& context, const Field& field,
+                       const JsonObject& record) {
+    const JsonValue* storage = Lookup(record, "storage");
+    if (storage == nullptr || !storage->IsObject()) return;
+    const JsonObject& s = storage->ToObject();
+    const JsonValue* kind = Lookup(s, "kind");
+    if (kind == nullptr || !kind->IsString() ||
+        kind->ToString() != "bitfield") {
+      return;
+    }
+    const auto* type =
+        BitFieldStructType::DynamicCast(field.name_and_type.type);
+    if (type == nullptr) {
+      Error("field ", context, ": a bit field group in C++, ",
+            field.name_and_type.type->ToString(), " in Torque")
+          .Position(field.pos);
+      return;
+    }
+    const std::string struct_name = TorqueBitFieldStructName(s, context);
+    if (type->name() != struct_name) {
+      Error("field ", context, ": the C++ bit field group is ",
+            RequireString(s, "name", context), ", Torque uses ", type->name())
+          .Position(field.pos);
+      return;
+    }
+    const JsonValue& bits = Require(s, "bits", context);
+    if (!bits.IsArray()) {
+      ReportError("layout JSON: ", context, ": \"bits\" is not an array");
+    }
+    const std::vector<BitField>& torque_bits = type->fields();
+    if (bits.ToArray().size() != torque_bits.size()) {
+      Error("field ", context, ": C++ declares ", bits.ToArray().size(),
+            " bit field(s), Torque has ", torque_bits.size())
+          .Position(type->GetPosition());
+      return;
+    }
+    for (size_t i = 0; i < torque_bits.size(); ++i) {
+      const JsonValue& bit = bits.ToArray()[i];
+      if (!bit.IsObject()) {
+        ReportError("layout JSON: ", context, ": bit field is not an object");
+      }
+      const JsonObject& b = bit.ToObject();
+      size_t num_bits = RequireSize(b, "num_bits", context);
+      std::string name = TorqueBitFieldName(
+          RequireString(b, "cpp_name", context), num_bits, context);
+      const BitField& torque_bit = torque_bits[i];
+      if (torque_bit.name_and_type.name != name) {
+        Error("field ", context, ": C++ bit field ", i, " is ", name,
+              ", Torque declares ", torque_bit.name_and_type.name)
+            .Position(torque_bit.pos);
+        continue;
+      }
+      size_t offset = RequireSize(b, "offset", context);
+      if (static_cast<size_t>(torque_bit.offset) != offset ||
+          static_cast<size_t>(torque_bit.num_bits) != num_bits) {
+        Error("bit field ", context, ".", name, ": ", num_bits, " bit(s) at ",
+              offset, " in C++, ", torque_bit.num_bits, " at ",
+              torque_bit.offset, " in Torque")
+            .Position(torque_bit.pos);
+      }
+    }
   }
 
   void VerifyTail(const std::string& class_name, const Field& field,
@@ -1087,7 +1192,162 @@ class LayoutImporter {
     records_by_cpp_name_ = std::move(records.by_cpp_name);
     records_by_torque_name_ = std::move(records.by_torque_name);
     if (!positions_path.empty()) LoadPositions(positions_path);
+    CollectBitFieldStructs(CurrentAst::Get().declarations());
     Import(CurrentAst::Get().declarations());
+    // Appended after the walk: Import() iterates the same declaration vector.
+    std::vector<Declaration*>& declarations = CurrentAst::Get().declarations();
+    declarations.insert(declarations.end(), new_bit_field_structs_.begin(),
+                        new_bit_field_structs_.end());
+    new_bit_field_structs_.clear();
+  }
+
+  // Collect existing bitfield structs before importing the JSON declarations.
+  // Keep the .tq declarations for builds with v8_use_metagen_layouts=false;
+  // when importing, check that they match the JSON before replacing them.
+  void CollectBitFieldStructs(const std::vector<Declaration*>& declarations) {
+    for (Declaration* declaration : declarations) {
+      if (auto* ns = NamespaceDeclaration::DynamicCast(declaration)) {
+        CollectBitFieldStructs(ns->declarations);
+        continue;
+      }
+      if (auto* decl = BitFieldStructDeclaration::DynamicCast(declaration)) {
+        bit_field_structs_.emplace(decl->name->value, decl);
+      }
+    }
+  }
+
+  void ImportBitFieldStructs(const JsonObject& record,
+                             const std::string& cpp_name,
+                             SourcePosition fallback) {
+    const JsonValue* fields = Lookup(record, "fields");
+    if (fields == nullptr || !fields->IsArray()) return;
+    for (const JsonValue& field : fields->ToArray()) {
+      if (!field.IsObject()) continue;
+      const JsonValue* storage = Lookup(field.ToObject(), "storage");
+      if (storage == nullptr || !storage->IsObject()) continue;
+      const JsonObject& s = storage->ToObject();
+      const JsonValue* kind = Lookup(s, "kind");
+      if (kind == nullptr || !kind->IsString() ||
+          kind->ToString() != "bitfield") {
+        continue;
+      }
+      const std::string name = TorqueBitFieldStructName(s, cpp_name);
+      SourcePosition position = MemberPosition(
+          cpp_name, RequireString(field.ToObject(), "cpp_name", cpp_name),
+          fallback);
+      auto it = bit_field_structs_.find(name);
+      if (it == bit_field_structs_.end()) {
+        CurrentSourcePosition::Scope position_scope(position);
+        auto* decl = MakeNode<BitFieldStructDeclaration>(
+            MakeNode<Identifier>(name), BitFieldParent(cpp_name, s),
+            BitFieldEntries(cpp_name, s), std::optional<std::string>{});
+        bit_field_structs_.emplace(name, decl);
+        new_bit_field_structs_.push_back(decl);
+        continue;
+      }
+      // Declared in .tq, or already imported for another member: build at
+      // the C++ position for diagnostics and compare, then rebuild at the
+      // Torque position and replace the declaration.
+      BitFieldStructDeclaration* decl = it->second;
+      TypeExpression* parent;
+      std::vector<BitFieldDeclaration> entries;
+      {
+        CurrentSourcePosition::Scope position_scope(position);
+        parent = BitFieldParent(cpp_name, s);
+        entries = BitFieldEntries(cpp_name, s);
+      }
+      if (!BitFieldStructsEquivalent(*decl, parent, entries)) continue;
+      std::vector<SourcePosition> torque_positions;
+      for (const BitFieldDeclaration& f : decl->fields) {
+        torque_positions.push_back(f.name_and_type.name->pos);
+      }
+      CurrentSourcePosition::Scope position_scope(decl->pos);
+      decl->parent = BitFieldParent(cpp_name, s);
+      decl->fields = BitFieldEntries(cpp_name, s, &torque_positions);
+    }
+  }
+
+  bool BitFieldStructsEquivalent(
+      const BitFieldStructDeclaration& decl, TypeExpression* parent,
+      const std::vector<BitFieldDeclaration>& built) {
+    CurrentSourcePosition::Scope position_scope(decl.pos);
+    const std::string& name = decl.name->value;
+    if (TypeExpressionKey(decl.parent) != TypeExpressionKey(parent)) {
+      Error("bitfield struct ", name, ": .tq extends ",
+            TypeExpressionKey(decl.parent), ", C++ ", TypeExpressionKey(parent))
+          .Position(decl.pos);
+      return false;
+    }
+    if (decl.fields.size() != built.size()) {
+      Error("bitfield struct ", name, ": .tq declares ", decl.fields.size(),
+            " field(s), C++ ", built.size())
+          .Position(decl.pos);
+      return false;
+    }
+    bool equivalent = true;
+    for (size_t i = 0; i < built.size(); ++i) {
+      std::string a = BitFieldKey(decl.fields[i]);
+      std::string b = BitFieldKey(built[i]);
+      if (a != b) {
+        Error("bitfield struct ", name, ": .tq field \"", a,
+              "\" differs from C++ field \"", b, "\"")
+            .Position(decl.fields[i].name_and_type.name->pos);
+        equivalent = false;
+      }
+    }
+    return equivalent;
+  }
+
+  static std::string BitFieldKey(const BitFieldDeclaration& field) {
+    return field.name_and_type.name->value + ": " +
+           TypeExpressionKey(field.name_and_type.type) + ": " +
+           std::to_string(field.num_bits) + " bit";
+  }
+
+  // Convert the storage width in bytes to a Torque unsigned integer type.
+  TypeExpression* BitFieldParent(const std::string& context,
+                                 const JsonObject& storage) {
+    return NamedType(
+        "uint" + std::to_string(RequireSize(storage, "width", context) * 8));
+  }
+
+  // Build the fields at the current position, or at `positions` (one per
+  // field) when replacing a .tq declaration.
+  std::vector<BitFieldDeclaration> BitFieldEntries(
+      const std::string& context, const JsonObject& storage,
+      const std::vector<SourcePosition>* positions = nullptr) {
+    const JsonValue& bits = Require(storage, "bits", context);
+    if (!bits.IsArray() || bits.ToArray().empty()) {
+      ReportError("layout JSON: ", context, ": bitfield without fields");
+    }
+    std::vector<BitFieldDeclaration> fields;
+    size_t next_bit = 0;
+    for (const JsonValue& bit : bits.ToArray()) {
+      if (!bit.IsObject()) {
+        ReportError("layout JSON: ", context, ": bit field is not an object");
+      }
+      const JsonObject& b = bit.ToObject();
+      const std::string& cpp_name = RequireString(b, "cpp_name", context);
+      size_t num_bits = RequireSize(b, "num_bits", context);
+      // Torque derives each offset from declaration order; a gap there would
+      // silently shift every field after it.
+      size_t offset = RequireSize(b, "offset", context);
+      if (offset != next_bit) {
+        ReportError("layout JSON: ", context, ": bit field \"", cpp_name,
+                    "\" starts at bit ", offset, ", expected ", next_bit);
+      }
+      next_bit = offset + num_bits;
+      CurrentSourcePosition::Scope position_scope(
+          positions != nullptr ? positions->at(fields.size())
+                               : CurrentSourcePosition::Get());
+      fields.push_back(BitFieldDeclaration{
+          NameAndTypeExpression{
+              MakeNode<Identifier>(
+                  TorqueBitFieldName(cpp_name, num_bits, context)),
+              NamedType(TorqueTypeName(RequireString(b, "type", context)))},
+          static_cast<int>(num_bits)});
+    }
+    return fields;
   }
 
  private:
@@ -1166,6 +1426,13 @@ class LayoutImporter {
     std::vector<const JsonObject*> groups = CollapseCppOnlyBases(
         record, name, records_by_cpp_name_,
         [&](const std::string& base) { return base == torque_base; });
+
+    // Members of C++-only bases belong to this class, including any bit field
+    // groups among them.
+    for (const JsonObject* group : groups) {
+      ImportBitFieldStructs(*group, RequireString(*group, "cpp_name", name),
+                            decl->pos);
+    }
 
     const JsonObject* tail_record = LookupTail(record, name);
     // Keep the .tq fields when the tail has no annotation. An omitted tail
@@ -1387,6 +1654,9 @@ class LayoutImporter {
     // Dispatch handles are typed int32 (see js-function.tq).
     if (kind == "js_dispatch_handle") return NamedType("int32");
     if (kind == "bool") return NamedType("bool");
+    if (kind == "bitfield") {
+      return NamedType(TorqueBitFieldStructName(storage, context));
+    }
     if (kind == "enum" || kind == "struct") {
       return NamedType(TorqueTypeName(RequireString(storage, "name", context)));
     }
@@ -1554,6 +1824,9 @@ class LayoutImporter {
   std::map<std::string, const JsonObject*> records_by_cpp_name_;
   std::map<std::string, const JsonObject*> records_by_torque_name_;
   std::map<std::string, std::map<std::string, SourcePosition>> positions_;
+  // Bitfield structs declared in .tq or imported from JSON, indexed by name.
+  std::map<std::string, BitFieldStructDeclaration*> bit_field_structs_;
+  std::vector<Declaration*> new_bit_field_structs_;
   std::map<std::string, SourceId> source_ids_;
 };
 
