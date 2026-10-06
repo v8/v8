@@ -161,7 +161,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd1976a9e130521af70d0344b68149d133c2064c0',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '22711c1cb2ea5fc0f80f709aa2ee9d8ce80b5703',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '59a37766f17bdd79f4cf9154498cbb823b681531',
   'buildtools/linux64': {
@@ -262,7 +262,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '938c524d05870f2469f167c3cf39b62496315969',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b73cee3883e7282583f9ce2ebab22a5d7b5e542e',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -280,7 +280,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '98a5cdac264b21868edbecd05dc6fbdb8845b8f4',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ccecefb58648ac0a416756b0a4591ec8905a7f55',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -533,9 +533,9 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '9c3d4a4c8898e0fb503834682d2117077655cca1',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '314e6ee50176aacc158e94b894ad3babb19ca829',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '99658a517cb427da051375e81ecaf9010a79cc31',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '6a20938687d0e91a282612684ef4c99ca3355f9a',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '2da0056814cf180480a19f5cf811e7e1c054bf6d',
   'third_party/requests': {
@@ -547,7 +547,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'ae34cdd9867c5d2b185fadc9d4a9cc82bb741760',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '3396bd3791edcc33f7cb91234d0e6f346ffc26d9',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '2d4e1c677fc9dcd96be7b27278d0191c287e1b43',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
