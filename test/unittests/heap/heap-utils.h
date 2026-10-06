@@ -34,6 +34,7 @@ class HeapInternalsBase {
                                             AllocationType allocation_type);
   AllocationResult AllocateFixedArrayForTest(Heap* heap, uint32_t length,
                                              AllocationType allocation);
+  AllocationResult AllocateMapForTest(Isolate* isolate);
   void SetForceOOM(Heap* heap, bool value);
   void SetDelaySweeperTasksForTesting(Heap* heap, bool value);
   int MemoryReducerStateId(Heap* heap);
@@ -153,6 +154,9 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
                                              AllocationType allocation) {
     return HeapInternalsBase::AllocateFixedArrayForTest(heap, length,
                                                         allocation);
+  }
+  AllocationResult AllocateMapForTest(Isolate* isolate) {
+    return HeapInternalsBase::AllocateMapForTest(isolate);
   }
   void SetForceOOM(bool value) {
     HeapInternalsBase::SetForceOOM(heap(), value);
@@ -304,6 +308,8 @@ class V8_NODISCARD DisableHandleChecksForMockingScope final {
   DisableHandleChecksForMockingScope() {}
 };
 #endif
+
+int FixedArrayLenFromSize(int size);
 
 void AbandonCurrentlyFreeMemory(PagedSpace* space);
 

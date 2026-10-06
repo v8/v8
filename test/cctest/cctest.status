@@ -55,9 +55,6 @@
   # works as intended.
   'test-api/DisallowJavascriptExecutionScope': [FAIL],
 
-  # Boot up memory use is bloated in debug mode.
-  'test-mark-compact/BootUpMemoryUse': [PASS, ['mode == debug', FAIL]],
-
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
 
@@ -133,9 +130,6 @@
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-select-combine/*': [SKIP],
-
-  # TODO(https://crbug.com/467830526): Currently too flaky:
-  'test-mark-compact/RegressJoinThreadsOnIsolateDeinit': [SKIP],
 
   ##############################################################################
   # Behavioural differences between Maglev and Turbofan when the former is used
@@ -237,12 +231,6 @@
 
   # BUG(v8:3155).
   'test-strings/OneByteArrayJoin': [PASS, ['mode == debug', FAIL]],
-
-  # BUG(v8:3247).
-  'test-mark-compact/NoPromotion': [SKIP],
-
-  # BUG(v8:3446).
-  'test-mark-compact/Promotion': [PASS, FAIL],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run', {
@@ -290,12 +278,6 @@
   # Field representation tracking is disabled in nooptimization mode.
   'test-field-type-tracking/*': [SKIP],
 }],  # variant == nooptimization
-
-##############################################################################
-['variant == stress_concurrent_allocation', {
-  # https://crbug.com/42204548
-  'test-mark-compact/MarkCompactCollector': [PASS, SKIP],
-}],  # variant == stress_concurrent_allocation
 
 ##############################################################################
 ['asan == True', {

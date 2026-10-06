@@ -9,6 +9,7 @@
 #include "src/base/iterator.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/heap/factory.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -78,12 +79,12 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
   }
 }
 
-namespace {
-
 int FixedArrayLenFromSize(int size) {
   return std::min({(size - OFFSET_OF_DATA_START(FixedArray)) / kTaggedSize,
                    FixedArray::kMaxRegularLength});
 }
+
+namespace {
 
 void FillPageInPagedSpace(NormalPage* page,
                           std::vector<Handle<FixedArray>>* out_handles) {
@@ -267,6 +268,7 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
           v8_flags.single_generation);
     free_memory -= handles.back()->Size();
   }
+  heap->FreeMainThreadLinearAllocationAreas();
   return handles;
 }
 
@@ -475,6 +477,20 @@ AllocationResult HeapInternalsBase::AllocateFixedArrayForTest(
   MemsetTagged(array->RawFieldOfFirstElement(),
                ReadOnlyRoots(heap).undefined_value(), length);
   return AllocationResult::FromObject(array);
+}
+
+// This is the same as Factory::NewContextfulMapForCurrentContext, except it
+// doesn't retry on allocation failure.
+AllocationResult HeapInternalsBase::AllocateMapForTest(Isolate* isolate) {
+  Heap* heap = isolate->heap();
+  Tagged<HeapObject> obj;
+  AllocationResult alloc = heap->AllocateRaw(Map::kSize, AllocationType::kMap);
+  if (!alloc.To(&obj)) return alloc;
+  ReadOnlyRoots roots(isolate);
+  obj->set_map_after_allocation(isolate, *isolate->meta_map());
+  return AllocationResult::FromObject(isolate->factory()->InitializeMap(
+      Cast<Map>(obj), JS_OBJECT_TYPE, JSObject::kHeaderSize,
+      TERMINAL_FAST_ELEMENTS_KIND, 0, roots));
 }
 
 }  // namespace internal

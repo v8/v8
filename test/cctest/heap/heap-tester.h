@@ -15,13 +15,11 @@
   V(CompactionPartiallyAbortedPage)                         \
   V(CompactionPartiallyAbortedPageIntraAbortedPointers)     \
   V(CompactionPartiallyAbortedPageWithRememberedSetEntries) \
-  V(MarkCompactCollector)                                   \
   V(StressHandles)                                          \
   V(Regress777177)                                          \
   V(Regress791582)                                          \
   V(WriteBarrier_Marking)                                   \
-  V(WriteBarrier_MarkingExtension)                          \
-  V(DoNotEvacuatePinnedPages)
+  V(WriteBarrier_MarkingExtension)
 
 #define HEAP_TEST(Name)                                                   \
   CcTest register_test_##Name(v8::internal::heap::HeapTester::Test##Name, \
@@ -44,11 +42,6 @@ class HeapTester {
 
   // test-api.cc
   static void ResetWeakHandle(bool global_gc);
-
-  // test-mark-compact.cc
-  static AllocationResult AllocateMapForTest(v8::internal::Isolate* isolate);
-  static AllocationResult AllocateFixedArrayForTest(Heap* heap, uint32_t length,
-                                                    AllocationType allocation);
 
   static void UncommitUnusedMemory(Heap* heap);
 };
