@@ -2724,6 +2724,8 @@ DEFINE_BOOL_READONLY(verify_write_barriers, V8_VERIFY_WRITE_BARRIERS_BOOL,
 #undef V8_VERIFY_WRITE_BARRIERS_BOOL
 DEFINE_BOOL(safepoint_bump_qos_class, true,
             "Bump priority for running threads to reach safepoint")
+DEFINE_BOOL(freeze_forces_marking_finalization, false,
+            "Forces finalizing marking when frozen state is notified")
 DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")
 DEFINE_BOOL(memory_reducer_for_small_heaps, true,

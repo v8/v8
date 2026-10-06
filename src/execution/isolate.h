@@ -2542,6 +2542,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void Freeze(bool is_frozen) {
     is_frozen_ = is_frozen;
+    if (v8_flags.freeze_forces_marking_finalization && IsFrozen()) {
+      // We will either finalize an ongoing GC, or simply do a GC to reclaim
+      // any unreachable memory.
+      heap()->FinalizeIncrementalMarkingAtomically(
+          i::GarbageCollectionReason::kFrozen);
+    }
   }
 
   static void IterateRegistersAndStackOfSimulator(

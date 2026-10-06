@@ -315,9 +315,13 @@ void LimitBasedMemoryReducer::TimerTask::RunInternal() {
     memory_reducer_->NotifyPossibleGarbage();
     return;
   }
+  if (heap->incremental_marking()->IsMarking()) {
+    // The task will be rescheduled when the GC is finalized through
+    // NotifyMarkCompact().
+    return;
+  }
   if (heap->limits()->using_initial_limit()) {
-    if (heap->incremental_marking()->IsStopped() &&
-        !heap->incremental_marking()->IsBelowActivationThresholds()) {
+    if (!heap->incremental_marking()->IsBelowActivationThresholds()) {
       heap->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
                                     GarbageCollectionReason::kMemoryReducer,
                                     kGCCallbackFlagCollectAllExternalMemory);

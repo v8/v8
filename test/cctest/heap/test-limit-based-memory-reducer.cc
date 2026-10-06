@@ -152,6 +152,58 @@ TEST_WITH_PLATFORM(LimitBasedMemoryReducerBackgrounded,
   CHECK(!platform.PendingTask());
 }
 
+TEST_WITH_PLATFORM(LimitBasedMemoryReducerOvershoot,
+                   MemoryReducerMockPlatform) {
+  if (v8_flags.single_generation || !v8_flags.memory_reducer) return;
+  v8_flags.memory_reducer_delay_ms = 0;
+
+  ManualGCScope manual_gc_scope;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  auto* memory_reducer =
+      static_cast<LimitBasedMemoryReducer*>(heap->memory_reducer());
+
+  LocalContext env;
+  HandleScope scope(isolate);
+  heap->limits()->UpdateConsumedAfterGC();
+
+  // Allocate 20MB in old space after the simulated GC and start major
+  // incremental marking.
+  v8_flags.memory_reducer_for_small_heaps = false;
+  for (int i = 0; i < 20; i++) {
+    isolate->factory()->NewFixedArray(1024 * 1024 / i::kTaggedSize,
+                                      AllocationType::kOld);
+  }
+  heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                i::GarbageCollectionReason::kTesting);
+  CHECK(marking->IsMajorMarking());
+
+  size_t limit_before = heap->limits()->old_generation_allocation_limit();
+  size_t consumed = heap->OldGenerationConsumedBytes();
+  CHECK_GE(limit_before, consumed);
+
+  // Send to background while major marking is running, which schedules
+  // MemoryReducer.
+  isolate->SetPriority(v8::Isolate::Priority::kBestEffort);
+  CHECK(!memory_reducer->is_scheduled());
+  CHECK(platform.PendingTask());
+
+  // Run ActivateMemoryReducerTask to schedule LimitBasedMemoryReducer.
+  platform.PerformTask();
+  CHECK(memory_reducer->is_scheduled());
+  CHECK(platform.PendingTask());
+
+  // Run LimitBasedMemoryReducer::TimerTask while major marking is running.
+  platform.PerformTask();
+  CHECK(!memory_reducer->is_scheduled());
+
+  // Limits must not be shrunk while major incremental marking is running.
+  CHECK_EQ(limit_before, heap->limits()->old_generation_allocation_limit());
+  CHECK_GE(heap->limits()->old_generation_allocation_limit(), consumed);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
