@@ -4357,6 +4357,7 @@ LogicVRegister Simulator::frecpx(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::scvtf(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src, int fbits,
                                 FPRounding round) {
+  dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
     if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
       float16 result = FixedToFloat16(src.Int(kFormatH, i), fbits, round);
@@ -4376,6 +4377,7 @@ LogicVRegister Simulator::scvtf(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::ucvtf(VectorFormat vform, LogicVRegister dst,
                                 const LogicVRegister& src, int fbits,
                                 FPRounding round) {
+  dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
     if (LaneSizeInBytesFromFormat(vform) == kHRegSize) {
       float16 result = UFixedToFloat16(src.Uint(kFormatH, i), fbits, round);
