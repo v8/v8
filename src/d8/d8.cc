@@ -489,7 +489,12 @@ class PAInSandboxAllocator final : public v8::Allocator {
   }
 
   void* AllocateUninitializedOrCrash(size_t size) override {
-    return AllocateInternal<partition_alloc::AllocFlags::kNone>(size);
+    void* result = AllocateUninitialized(size);
+    if (!result) {
+      internal::V8::FatalProcessOutOfMemory(
+          nullptr, "PAInSandboxAllocator::AllocateUninitializedOrCrash()");
+    }
+    return result;
   }
 
   void Free(void* ptr) override {
