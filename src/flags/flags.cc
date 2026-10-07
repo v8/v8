@@ -339,11 +339,6 @@ struct FlagMetadata {
   int canonical_index;
 };
 
-constexpr bool IsTestOnlyComment(const char* comment) {
-  return comment &&
-         std::string_view{comment}.ends_with(" (test-only / unsafe)");
-}
-
 constexpr auto kFlagsMetadata = []() {
   struct RawMetadata {
     const char* name;
@@ -395,34 +390,6 @@ constexpr auto kFlagsMetadata = []() {
 
   return metadata;
 }();
-
-// Number of primary test-only flags.
-constexpr size_t kNumTestOnlyFlags = []() {
-  size_t count = 0;
-  for (size_t i = 0; i < kFlagsMetadata.size(); ++i) {
-    if (static_cast<int>(i) == kFlagsMetadata[i].canonical_index &&
-        IsTestOnlyComment(kFlagsMetadata[i].comment)) {
-      count++;
-    }
-  }
-  return count;
-}();
-
-// Indices of all test-only flags (primary flags only, no aliases).
-constexpr std::array<int, kNumTestOnlyFlags> kTestOnlyFlagIndices = []() {
-  std::array<int, kNumTestOnlyFlags> indices{};
-  size_t count = 0;
-  for (size_t i = 0; i < kFlagsMetadata.size(); ++i) {
-    if (static_cast<int>(i) == kFlagsMetadata[i].canonical_index &&
-        IsTestOnlyComment(kFlagsMetadata[i].comment)) {
-      indices[count++] = kFlagsMetadata[i].flag_index;
-    }
-  }
-  DCHECK_EQ(count, kNumTestOnlyFlags);
-  return indices;
-}();
-
-static_assert(kNumTestOnlyFlags > 0, "Must have test-only flags");
 
 // Number of flags plus aliases.
 constexpr size_t kNumAllFlags = kFlagsMetadata.size();
@@ -1192,6 +1159,16 @@ bool FlagValueEquals(const char* a, const char* b) {
   return std::strcmp(a, b) == 0;
 }
 
+template <typename T>
+constexpr const char* NegValuePremiseName(T when_val, const char* name,
+                                          const char* neg_name) {
+  if constexpr (std::is_same_v<T, bool>) {
+    return when_val ? neg_name : name;
+  } else {
+    return name;
+  }
+}
+
 class ImplicationProcessor {
  public:
   // Returns {true} if any flag value was changed.
@@ -1350,12 +1327,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
 
   std::vector<std::tuple<Flag*, Flag*>> contradictions;
 
-  // Automatically reset all test-only flags.
-  static constexpr int fuzzing_flag_index = FindFlagIndexByName("fuzzing");
-  for (int index : kTestOnlyFlagIndices) {
-    contradictions.emplace_back(&flags[index], &flags[fuzzing_flag_index]);
-  }
-
   // List of flags that lead to known contradictory cycles when both
   // deviate from their defaults. One of them will be reset with precedence
   // left to right.
@@ -1419,9 +1390,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(single_threaded, stress_concurrent_inlining_attach_code);
 #if V8_ENABLE_WEBASSEMBLY
   CONTRADICTION(wasm_test_streaming, predictable);
-  CONTRADICTION(single_threaded, wasm_pgo_to_file);
-  CONTRADICTION(single_threaded, wasm_generate_compilation_hints);
-  CONTRADICTION(single_threaded, trace_wasm_generate_compilation_hints);
 #endif  // V8_ENABLE_WEBASSEMBLY
   CONTRADICTION(stress_concurrent_inlining, turboshaft_assert_types);
   CONTRADICTION(stress_concurrent_inlining_attach_code,
@@ -1469,11 +1437,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
 
   // Not useful for differential fuzzing: https://crbug.com/496356383
   RESET_WHEN_CORRECTNESS_FUZZING(heap_snapshot_on_gc);
-
-  // https://crbug.com/550629905
-#if V8_ENABLE_WEBASSEMBLY
-  RESET_WHEN_CORRECTNESS_FUZZING(wasm_pgo_to_file);
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // https://crbug.com/369974230
   RESET_WHEN_FUZZING(expose_async_hooks);

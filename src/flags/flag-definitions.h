@@ -29,6 +29,8 @@
 #define DEFINE_NEG_NEG_IMPLICATION(whenflag, thenflag) \
   DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, false)
 
+#define DISALLOW_UNSAFE_FLAG(flag) DISALLOW_UNSAFE_FLAG_IF(true, flag)
+
 // With FLAG_MODE_DECLARE we declare the fields in the {FlagValues} struct.
 // Read-only flags are static constants instead of fields.
 #if defined(FLAG_MODE_DECLARE)
@@ -86,9 +88,10 @@
 
 #define DEFINE_NEG_VALUE_VALUE_IMPLICATION(whenflag, whenvalue, thenflag, \
                                            thenvalue)                     \
-  changed |=                                                              \
-      TriggerImplication(v8_flags.whenflag != whenvalue, #whenflag,       \
-                         &v8_flags.thenflag, #thenflag, thenvalue, false);
+  changed |= TriggerImplication(                                          \
+      !FlagValueEquals(v8_flags.whenflag.value(), whenvalue),             \
+      NegValuePremiseName(whenvalue, #whenflag, "!" #whenflag),           \
+      &v8_flags.thenflag, #thenflag, thenvalue, false);
 
 #define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)                     \
   changed |=                                                              \
@@ -106,6 +109,17 @@
                    " due to conflicting flags\n");          \
   }                                                         \
   DEFINE_VALUE_IMPLICATION(whenflag, thenflag, false)
+
+// If `disallow_unsafe_flags` is enabled and `cond` holds, reset `flag` to its
+// default value (or report a contradiction if contradictions are checked).
+// Otherwise, if `flag` still has a non-default value while `cond` holds, imply
+// `test_only_unsafe = true`.
+#define DISALLOW_UNSAFE_FLAG_IF(cond, flag)                                   \
+  if (cond) {                                                                 \
+    DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags, flag, FLAGDEFAULT_##flag) \
+    DEFINE_NEG_VALUE_VALUE_IMPLICATION(flag, FLAGDEFAULT_##flag,              \
+                                       test_only_unsafe, true)                \
+  }
 
 // We apply a generic macro to the flags.
 #elif defined(FLAG_MODE_APPLY)
@@ -175,6 +189,10 @@
 
 #ifndef DEFINE_REQUIREMENT
 #define DEFINE_REQUIREMENT(statement)
+#endif
+
+#ifndef DISALLOW_UNSAFE_FLAG_IF
+#define DISALLOW_UNSAFE_FLAG_IF(cond, flag)
 #endif
 
 #ifndef DEBUG_BOOL
@@ -272,15 +290,39 @@ DEFINE_BOOL(experimental, false,
 DEFINE_EXPERIMENTAL_FEATURE(array_destructure_bytecode,
                             "enable experimental ArrayDestructure bytecode")
 
-// Test-only flags that expose unsafe and/or unsupported configurations.
+// Test-only and unsafe flags: Flags that expose unsafe and/or unsupported
+// configurations. Defining a flag with DEFINE_UNSAFE_FLAG or marking an
+// existing flag with DISALLOW_UNSAFE_FLAG / DISALLOW_UNSAFE_FLAG_IF will:
+// 1. Imply --test-only-unsafe when the flag is set to an unsafe value (which
+//    causes d8 to print a warning).
+// 2. Prohibit/reset the flag when --disallow-unsafe-flags is set.
 DEFINE_BOOL(test_only_unsafe, false,
             "Indicates that V8 is running in an unsupported and unsafe "
             "configuration, e.g. used for internal testing. This flag is "
             "typically not set explicitly but instead enabled as an "
-            "implication of other flags")
-#define DEFINE_TEST_ONLY_FLAG(nam, cmt)                     \
+            "implication of other flags.")
+DEFINE_BOOL(disallow_unsafe_flags, false,
+            "Prevents the use of flags that are considered unsafe. Setting "
+            "this flag will make V8 treat unsafe flags as flag contradictions "
+            "and either crash, exit gracefully with a message, or reset them "
+            "(depending on the current FlagProcessingMode).")
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
+// Enable sandbox test mode which allows for using memory corruption APIs and
+// also installs the crash filter that determines whether issues are crashing
+// inside or outside of the sandbox.
+DEFINE_IMPLICATION(run_as_sandbox_security_poc, sandbox_testing)
+DEFINE_IMPLICATION(run_as_sandbox_security_poc, run_as_security_poc)
+DEFINE_IMPLICATION(run_as_security_poc, disallow_unsafe_flags)
+// LINT.IfChange(FuzzingImplications)
+DEFINE_IMPLICATION(sandbox_trap_fuzzing, sandbox_fuzzing)
+DEFINE_IMPLICATION(sandbox_fuzzing, fuzzing)
+DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, fuzzing)
+DEFINE_IMPLICATION(fuzzing, disallow_unsafe_flags)
+// LINT.ThenChange(/src/d8/d8.cc:FuzzingImplications)
+
+#define DEFINE_UNSAFE_FLAG(nam, cmt)                        \
   FLAG(BOOL, bool, nam, false, cmt " (test-only / unsafe)") \
-  DEFINE_IMPLICATION(nam, test_only_unsafe)
+  DISALLOW_UNSAFE_FLAG(nam)
 
 // Developer features: These flags expose features that are only meant to be
 // used by developers for diagnosing purposes. These features should be robust
@@ -1976,8 +2018,8 @@ DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, js_shipping)
 DEFINE_BOOL(wasm_generic_wrapper, true,
             "allow use of the generic js-to-wasm wrapper instead of "
             "per-signature wrappers")
-DEFINE_BOOL(wasm_unsafe_fast_api_wrapper, false, "allow use of the unsafe fast "
-            "API wrapper")
+DEFINE_UNSAFE_FLAG(wasm_unsafe_fast_api_wrapper,
+                   "allow use of the unsafe fast API wrapper")
 DEFINE_INT(wasm_num_compilation_tasks, 128,
            "maximum number of parallel compilation tasks for wasm")
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
@@ -2084,13 +2126,11 @@ DEFINE_INT(wasm_tier_mask_for_testing, 0,
 DEFINE_INT(wasm_debug_mask_for_testing, 0,
            "bitmask of declared(!) function indices to compile for debugging, "
            "only applies if the tier is Liftoff")
-DEFINE_DEVELOPER_FLAG(
-    wasm_pgo_to_file,
-    "experimental: dump Wasm PGO information to a local file (for testing)")
+DEFINE_UNSAFE_FLAG(wasm_pgo_to_file,
+                   "experimental: dump Wasm PGO information to a local file")
 DEFINE_NEG_IMPLICATION(wasm_pgo_to_file, single_threaded)
-DEFINE_DEVELOPER_FLAG(
-    wasm_pgo_from_file,
-    "experimental: read and use Wasm PGO data from a local file (for testing)")
+DEFINE_UNSAFE_FLAG(wasm_pgo_from_file,
+                   "experimental: read and use Wasm PGO data from a local file")
 
 #if V8_ENABLE_DRUMBRAKE
 // Wasm is put into interpreter-only mode. We repeat flag implications down
@@ -2128,15 +2168,14 @@ DEFINE_SIZE_T(wasm_deopts_per_function_limit, 10,
               "further deopt points are emitted in Turbofan")
 
 // Unsafe additions to the GC proposal for performance experiments.
-DEFINE_TEST_ONLY_FLAG(
+DEFINE_UNSAFE_FLAG(
     wasm_assume_ref_cast_succeeds,
     "assume ref.cast always succeeds and skip the related type check")
-DEFINE_TEST_ONLY_FLAG(wasm_ref_cast_nop,
-                      "enable unsafe ref.cast_nop instruction")
-DEFINE_TEST_ONLY_FLAG(
+DEFINE_UNSAFE_FLAG(wasm_ref_cast_nop, "enable unsafe ref.cast_nop instruction")
+DEFINE_UNSAFE_FLAG(
     wasm_skip_null_checks,
     "skip null checks for call.ref and array and struct operations")
-DEFINE_TEST_ONLY_FLAG(wasm_skip_bounds_checks, "skip array bounds checks")
+DEFINE_UNSAFE_FLAG(wasm_skip_bounds_checks, "skip array bounds checks")
 
 // Experimental variants of the Custom Descriptors prototype implementation.
 DEFINE_EXPERIMENTAL_FEATURE(
@@ -2153,10 +2192,10 @@ DEFINE_DEBUG_BOOL(
     "enable optimization when compiling Wasm functions with Turbofan")
 DEFINE_BOOL(wasm_bounds_checks, true,
             "enable bounds checks (disable for performance testing only)")
-DEFINE_NEG_VALUE_IMPLICATION(wasm_bounds_checks, test_only_unsafe, true)
+DISALLOW_UNSAFE_FLAG(wasm_bounds_checks)
 DEFINE_BOOL(wasm_stack_checks, true,
             "enable stack checks (disable for performance testing only)")
-DEFINE_NEG_VALUE_IMPLICATION(wasm_stack_checks, test_only_unsafe, true)
+DISALLOW_UNSAFE_FLAG(wasm_stack_checks)
 DEFINE_BOOL(
     wasm_enforce_bounds_checks, false,
     "enforce explicit bounds check even if the trap handler is available")
@@ -2398,11 +2437,11 @@ DEFINE_IMPLICATION(wasm_code_coverage, wasm_opt)
 
 DEFINE_DEVELOPER_FLAG(trace_wasm_compilation_hints,
                       "trace compilation hints parsing and usage")
-DEFINE_TEST_ONLY_FLAG(
+DEFINE_UNSAFE_FLAG(
     wasm_generate_compilation_hints,
     "enable emitting compilation-hints sections for Wasm to a file")
-DEFINE_TEST_ONLY_FLAG(trace_wasm_generate_compilation_hints,
-                      "enable tracing wasm compilation hints generation")
+DEFINE_UNSAFE_FLAG(trace_wasm_generate_compilation_hints,
+                   "enable tracing wasm compilation hints generation")
 // Feedback collection is guarded by the --wasm-inlining flag.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_inlining)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_inlining)
@@ -3847,14 +3886,14 @@ DEFINE_BOOL(slow_histograms, false,
 
 DEFINE_BOOL(use_external_strings, false, "Use external strings for source code")
 DEFINE_STRING(map_counters, "", "Map counters to a file")
-DEFINE_TEST_ONLY_FLAG(mock_arraybuffer_allocator,
-                      "Use a mock ArrayBuffer allocator for testing.")
+DEFINE_UNSAFE_FLAG(mock_arraybuffer_allocator,
+                   "Use a mock ArrayBuffer allocator for testing.")
 DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
               "Memory limit for mock ArrayBuffer allocator used to simulate "
               "OOM for testing.")
 #ifdef V8_OS_LINUX
-DEFINE_BOOL(multi_mapped_mock_allocator, false,
-            "Use a multi-mapped mock ArrayBuffer allocator for testing.")
+DEFINE_UNSAFE_FLAG(multi_mapped_mock_allocator,
+                   "Use a multi-mapped mock ArrayBuffer allocator for testing.")
 #endif
 
 //
@@ -4296,97 +4335,53 @@ DEFINE_WEAK_VALUE_IMPLICATION(is_standalone_d8_shell, trace_turbo_cfg_file,
 DEFINE_WEAK_VALUE_IMPLICATION(is_standalone_d8_shell, redirect_code_traces_to,
                               "code.asm")
 
-// The --disallow-unsafe-flags is meant to block known unsafe configurations and
-// mitigate spurious reports due invalid flag combinations/values. To prevent AI
-// agents and/or fuzzers from using a new unsafe flag, add an implication from
-// --disallow-unsafe-flags below.
-// TODO(crbug.com/452607988): Enable on fuzzers and merge the
-// --disallow-unsafe-flags with
-// --test-only-unsafe once the list of flags below is stable.
-DEFINE_BOOL(disallow_unsafe_flags, false,
-            "Prevents the use of flags that are considered unsafe. Setting "
-            "this flag will make V8 treat the unsafe flags below as flag "
-            "contradiction and either crash or exit gracefully with a message "
-            "(depending on the curreny AbortMode)")
-// LINT.IfChange(FuzzingImplications)
-DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, fuzzing)
-DEFINE_IMPLICATION(sandbox_trap_fuzzing, sandbox_fuzzing)
-DEFINE_IMPLICATION(sandbox_fuzzing, fuzzing)
-// Automatically disallow unsafe flags when fuzzing.
-DEFINE_IMPLICATION(fuzzing, disallow_unsafe_flags)
-// LINT.ThenChange(/src/d8/d8.cc:FuzzingImplications)
+// Flags that are disallowed when --disallow-unsafe-flags is set (in addition to
+// flags defined via DEFINE_UNSAFE_FLAG). Each entry below also implies
+// --test-only-unsafe when set to an unsafe value.
 // Profiling flags.
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling_verbose)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_annotate_wasm)
-// Experimental PGO/compilation-hints-generation flags.
-#if V8_ENABLE_WEBASSEMBLY
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_pgo_to_file)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_pgo_from_file)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_generate_compilation_hints)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
-                       trace_wasm_generate_compilation_hints)
-#endif  // V8_ENABLE_WEBASSEMBLY
+DISALLOW_UNSAFE_FLAG(turbo_profiling)
+DISALLOW_UNSAFE_FLAG(turbo_profiling_verbose)
+DISALLOW_UNSAFE_FLAG(perf_prof)
+DISALLOW_UNSAFE_FLAG(perf_prof_annotate_wasm)
 // Known-broken features/configuration.
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, feedback_normalization)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags && turbofan && !turbolev,
-                       array_destructure_bytecode)
+DISALLOW_UNSAFE_FLAG(feedback_normalization)
+DISALLOW_UNSAFE_FLAG_IF(turbofan && !turbolev, array_destructure_bytecode)
 // Disabled-by-default misc. "unsafe" flags that should not be enabled.
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, mock_arraybuffer_allocator)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_bad_builtin_profile_data)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_uncaught_exception)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_far_code_range)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, force_memory_protection_keys)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, expose_trigger_failure)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_code_traces)
+DISALLOW_UNSAFE_FLAG(abort_on_bad_builtin_profile_data)
+DISALLOW_UNSAFE_FLAG(abort_on_uncaught_exception)
+DISALLOW_UNSAFE_FLAG(abort_on_far_code_range)
+DISALLOW_UNSAFE_FLAG(force_memory_protection_keys)
+DISALLOW_UNSAFE_FLAG(expose_trigger_failure)
+DISALLOW_UNSAFE_FLAG(redirect_code_traces)
 #if V8_ENABLE_WEBASSEMBLY
 #if V8_ENABLE_DRUMBRAKE_TRACING
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_drumbrake_traces)
+DISALLOW_UNSAFE_FLAG(redirect_drumbrake_traces)
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_assume_ref_cast_succeeds)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_skip_null_checks)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_ref_cast_nop)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_skip_bounds_checks)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_unsafe_fast_api_wrapper)
-// Enabled-by-default flags that should not be disabled.
-DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
-DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
 // Flags that are unsafe if given unexpected invalid values.
-DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags,
-  max_wasm_functions , FLAGDEFAULT_max_wasm_functions )
+DISALLOW_UNSAFE_FLAG(max_wasm_functions)
 #endif  // V8_ENABLE_WEBASSEMBLY
 // Features we don't currently want to fuzz.
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, cppgc_young_generation)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
+DISALLOW_UNSAFE_FLAG(cppgc_young_generation)
 // The memory corruption API is only allowed in sandbox testing/fuzzing mode.
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags && !sandbox_testing &&
-                           !sandbox_fuzzing,
-                       expose_memory_corruption_api)
+DISALLOW_UNSAFE_FLAG_IF(!sandbox_testing && !sandbox_fuzzing,
+                        expose_memory_corruption_api)
 
 // Flags which trigger a breakpoint on purpose.
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, maglev_break_on_entry)
+DISALLOW_UNSAFE_FLAG(maglev_break_on_entry)
 #ifdef USE_SIMULATOR
-DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags,
-  stop_sim_at, FLAGDEFAULT_stop_sim_at)
+DISALLOW_UNSAFE_FLAG(stop_sim_at)
 #endif
-DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags, csa_trap_on_node,
-                         FLAGDEFAULT_csa_trap_on_node)
+DISALLOW_UNSAFE_FLAG(csa_trap_on_node)
 #ifdef DEBUG
-DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags,
-  turboshaft_opt_bisect_break, FLAGDEFAULT_turboshaft_opt_bisect_break)
-DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags,
-  turboshaft_opt_bisect_limit, FLAGDEFAULT_turboshaft_opt_bisect_limit)
+DISALLOW_UNSAFE_FLAG(turboshaft_opt_bisect_break)
+DISALLOW_UNSAFE_FLAG(turboshaft_opt_bisect_limit)
 #endif  // DEBUG
-DEFINE_VALUE_IMPLICATION(disallow_unsafe_flags, gc_fake_mmap,
-                         FLAGDEFAULT_gc_fake_mmap)
+DISALLOW_UNSAFE_FLAG(gc_fake_mmap)
 // Non-standard stack sizes can lead to stack overflows (signaled as segfaults)
 // and produce spurious bug reports. V8 should handle stack overflows gracefully
 // in default configurations.
-DEFINE_VALUE_IMPLICATION(
-    disallow_unsafe_flags &&
-        (stack_size < 54 || stack_size > V8_DEFAULT_STACK_SIZE_KB),
-    stack_size, FLAGDEFAULT_stack_size)
+DISALLOW_UNSAFE_FLAG_IF(stack_size<54 || stack_size> V8_DEFAULT_STACK_SIZE_KB,
+                        stack_size)
 
 // Runs a program as security POC. This mode is used to determine whether a bug
 // in a program is a security problem. V8 supports many different configurations
@@ -4398,10 +4393,11 @@ DEFINE_VALUE_IMPLICATION(
 // not guarantee a bug will be classified as a valid vulnerability. The V8 team
 // reserves the right to make the final determination on security impact during
 // triage. See docs/security/triaging.md.
+// Note: Unsafe-flag implications for `run_as_security_poc` and
+// `run_as_sandbox_security_poc` are defined near `disallow_unsafe_flags` above
+// so they take effect before `DISALLOW_UNSAFE_FLAG` implications.
 DEFINE_BOOL(run_as_security_poc, false,
             "Run programs as security proof of concept (POC).")
-// Unsafe flags generally lead to unsupported configurations.
-DEFINE_IMPLICATION(run_as_security_poc, disallow_unsafe_flags)
 // Developer-only flags are not used in production. These flags should be robust
 // but breakage is not generally a security issue.
 DEFINE_IMPLICATION(run_as_security_poc, disallow_developer_only_features)
@@ -4430,12 +4426,6 @@ DEFINE_NEG_IMPLICATION(run_as_security_poc, correctness_fuzzer_suppressions)
 DEFINE_BOOL(
     run_as_sandbox_security_poc, false,
     "Run programs as security proof of concept (POC) for the V8 sandbox")
-// Use the same configuration as `--run-as-security-poc`.
-DEFINE_IMPLICATION(run_as_sandbox_security_poc, run_as_security_poc)
-// Enable sandbox test mode which allows for using memory corruption APIs and
-// also installs the crash filter that determines whether issues are crashing
-// inside or outside of the sandbox.
-DEFINE_IMPLICATION(run_as_sandbox_security_poc, sandbox_testing)
 
 #undef FLAG
 
@@ -4508,6 +4498,8 @@ DEFINE_IMPLICATION(gdbjit, log)
 #undef DEFINE_WEAK_VALUE_IMPLICATION
 #undef DEFINE_GENERIC_IMPLICATION
 #undef DEFINE_REQUIREMENT
+#undef DISALLOW_UNSAFE_FLAG
+#undef DISALLOW_UNSAFE_FLAG_IF
 #undef DEFINE_ALIAS_BOOL
 #undef DEFINE_ALIAS_BOOL_WITH_COMMENT
 #undef DEFINE_ALIAS_INT
