@@ -2805,7 +2805,7 @@ bool DataHandlerRef::IsFastProxyHandler() const {
       LoadHandler::Kind::kProxy) {
     return false;
   }
-  return data_field_count() >= LoadHandler::kProxyTrapMethodDataIndex;
+  return data_field_count() == LoadHandler::kProxyDataFieldCount;
 }
 
 #undef BIMODAL_ACCESSOR
