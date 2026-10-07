@@ -3205,6 +3205,8 @@ void ParserBase<Impl>::ParseArguments(
               scanner()->peek_location(), MessageTemplate::kParamAfterRest);
         }
       }
+    } else {
+      accumulation_scope.ValidateExpression();
     }
     if (is_spread) {
       *has_spread = true;
