@@ -569,6 +569,10 @@ domain Debugger
     parameters
       # The skipList specifies location ranges that should be skipped on step over.
       experimental optional array of LocationRange skipList
+      # Functions whose source range lies within one of the enterRanges are
+      # entered as if by stepInto, even when they are called (directly or
+      # indirectly) from a call that is stepped over.
+      experimental optional array of LocationRange enterRanges
 
   # Fired when breakpoint is resolved to an actual script and location.
   # Deprecated in favor of `resolvedBreakpoints` in the `scriptParsed` event.
