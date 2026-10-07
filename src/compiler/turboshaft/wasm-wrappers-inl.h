@@ -131,6 +131,17 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
     }
   }
 
+#ifdef V8_IS_TSAN
+  if (v8_flags.wasm_shared &&
+      (type.is_shared() || type.is_reference_to(GenericKind::kAny))) {
+    IF_NOT (__ IsSmi(ret)) {
+      __ WasmCallRuntime(__ phase_zone(),
+                         Runtime::kTsanAcquireForInitializationFence, {ret},
+                         __ NoContextConstant(), CanThrow{false});
+    }
+  }
+#endif
+
   if (type.ref_type_kind() == wasm::RefTypeKind::kFunction) {
     // Function reference. Extract the external function.
     if (type.is_nullable()) {

@@ -3478,6 +3478,12 @@ DirectHandle<Object> WasmToJSObject(Isolate* isolate,
   if (IsWasmNull(*value)) {
     return direct_handle(ReadOnlyRoots(isolate).null_value(), isolate);
   }
+#ifdef V8_IS_TSAN
+  if (IsHeapObject(*value) &&
+      HeapLayout::InWritableSharedSpace(Cast<HeapObject>(*value))) {
+    TSAN_ACQUIRE(Cast<HeapObject>(*value).address());
+  }
+#endif
   if (IsWasmFuncRef(*value)) {
     DirectHandle<WasmInternalFunction> internal(
         Cast<WasmFuncRef>(value)->internal(isolate), isolate);

@@ -3024,12 +3024,18 @@ RUNTIME_FUNCTION(Runtime_WasmTypeAssertionFailed) {
 // Since TSAN does not know about release fences, we must manually define the
 // synchronization between object initialization and reads from that object. We
 // add a TSAN_RELEASE after the object-initialization release fence, and a
-// TSAN_ACQUIRE at the beginning of each read-only builtin (future work: also,
-// before every read of a shared object in generated code). Explainer:
+// TSAN_ACQUIRE
+// - at the beginning of each read-only builtin,
+// - before every read of a shared object in generated code, and
+// - whenever an object crosses the Wasm->JS boundary.
+// Explainer:
 // https://docs.google.com/document/d/17RLOdAFJ2HFA4hE83wSsTYdRwHV4ZBiX_jtOUp0qatw/edit?usp=sharing
 RUNTIME_FUNCTION(Runtime_TsanAcquireForInitializationFence) {
   DCHECK_EQ(1, args.length());
-  TSAN_ACQUIRE(Cast<HeapObject>(args[0]).address());
+  SealHandleScope shs(isolate);
+  DisallowGarbageCollection no_gc;
+  Tagged<HeapObject> arg = Cast<HeapObject>(args[0]);
+  if (HeapLayout::InWritableSharedSpace(arg)) TSAN_ACQUIRE(arg.address());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 #endif  // V8_IS_TSAN

@@ -4150,7 +4150,8 @@ class AssemblerOpInterface : public Next {
   // where appropriate.
   OpIndex WasmCallRuntime(Zone* zone, Runtime::FunctionId f,
                           std::initializer_list<const OpIndex> args,
-                          V<Context> context) {
+                          V<Context> context,
+                          CanThrow can_throw = CanThrow{true}) {
     const Runtime::Function* fun = Runtime::FunctionForId(f);
     OpIndex isolate_root = __ LoadRootRegister();
     DCHECK_EQ(1, fun->result_size);
@@ -4171,8 +4172,8 @@ class AssemblerOpInterface : public Next {
             __ graph_zone(), f, fun->nargs, Operator::kNoProperties,
             CallDescriptor::kNoFlags);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow{true},
-        compiler::LazyDeoptOnThrow{false}, __ graph_zone());
+        call_descriptor, can_throw, compiler::LazyDeoptOnThrow{false},
+        __ graph_zone());
     return __ Call(centry_stub, OpIndex::Invalid(), base::VectorOf(centry_args),
                    ts_call_descriptor);
   }

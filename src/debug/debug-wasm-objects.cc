@@ -1052,6 +1052,12 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
     case wasm::kRefNull:
     case wasm::kRef: {
       DirectHandle<Object> ref = value.to_ref();
+#ifdef V8_IS_TSAN
+      if (IsHeapObject(*ref) &&
+          HeapLayout::InWritableSharedSpace(Cast<HeapObject>(*ref))) {
+        TSAN_ACQUIRE(Cast<HeapObject>(*ref).address());
+      }
+#endif
       if (value.type().is_reference_to(wasm::GenericKind::kExn)) {
         t = isolate->factory()->InternalizeString(
             base::StaticCharVector("exnref"));
