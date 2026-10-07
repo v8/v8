@@ -1204,19 +1204,21 @@ class ImplicationProcessor {
     implied_by_map_.erase(implier_flag_name);
   }
 
+  enum ImplicationStrength { kStrongImplication, kWeakImplication };
+
   // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h.
   template <class T>
   bool TriggerImplication(bool premise, const char* premise_name,
                           FlagValue<T>* conclusion_value,
                           const char* conclusion_name, T value,
-                          bool weak_implication) {
+                          ImplicationStrength strength) {
     if (!premise) return false;
     Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
     const bool is_conclusion_value_change =
         !FlagValueEquals(conclusion_value->value(), value);
     if (!conclusion_flag->CheckFlagChange(
-            weak_implication ? Flag::SetBy::kWeakImplication
-                             : Flag::SetBy::kImplication,
+            strength == kWeakImplication ? Flag::SetBy::kWeakImplication
+                                         : Flag::SetBy::kImplication,
             is_conclusion_value_change, premise_name)) {
       return false;
     }
@@ -1253,14 +1255,14 @@ class ImplicationProcessor {
   bool TriggerImplication(bool premise, const char* premise_name,
                           const FlagValue<T>* conclusion_value,
                           const char* conclusion_name, T value,
-                          bool weak_implication) {
+                          ImplicationStrength strength) {
     if (!premise) return false;
     Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
     // Because this is the `const FlagValue*` overload:
     DCHECK(conclusion_flag->IsReadOnly());
     if (!conclusion_flag->CheckFlagChange(
-            weak_implication ? Flag::SetBy::kWeakImplication
-                             : Flag::SetBy::kImplication,
+            strength == kWeakImplication ? Flag::SetBy::kWeakImplication
+                                         : Flag::SetBy::kImplication,
             !FlagValueEquals(conclusion_value->value(), value), premise_name)) {
       return false;
     }

@@ -63,13 +63,13 @@
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
 #define DEFINE_VALUE_IMPLICATION(cond, thenflag, value)                     \
   changed |= TriggerImplication(cond, #cond, &v8_flags.thenflag, #thenflag, \
-                                value, false);
+                                value, kStrongImplication);
 
 // A weak implication will be overwritten by a normal implication or by an
 // explicit flag.
 #define DEFINE_WEAK_VALUE_IMPLICATION(cond, thenflag, value)                \
   changed |= TriggerImplication(cond, #cond, &v8_flags.thenflag, #thenflag, \
-                                value, true);
+                                value, kWeakImplication);
 
 #define DEFINE_GENERIC_IMPLICATION(cond, statement) \
   if (cond) statement;
@@ -82,26 +82,27 @@
     }                                 \
   } while (false);
 
-#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
-  changed |= TriggerImplication(!(whenflag), "!" #whenflag,     \
-                                &v8_flags.thenflag, #thenflag, value, false);
+#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)          \
+  changed |=                                                             \
+      TriggerImplication(!(whenflag), "!" #whenflag, &v8_flags.thenflag, \
+                         #thenflag, value, kStrongImplication);
 
 #define DEFINE_NEG_VALUE_VALUE_IMPLICATION(whenflag, whenvalue, thenflag, \
                                            thenvalue)                     \
   changed |= TriggerImplication(                                          \
       !FlagValueEquals(v8_flags.whenflag.value(), whenvalue),             \
       NegValuePremiseName(whenvalue, #whenflag, "!" #whenflag),           \
-      &v8_flags.thenflag, #thenflag, thenvalue, false);
+      &v8_flags.thenflag, #thenflag, thenvalue, kStrongImplication);
 
-#define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)                     \
-  changed |=                                                              \
-      TriggerImplication(v8_flags.flag < min_value, #flag "<" #min_value, \
-                         &v8_flags.flag, #flag, min_value, false);
+#define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)                        \
+  changed |= TriggerImplication(v8_flags.flag < min_value,                   \
+                                #flag "<" #min_value, &v8_flags.flag, #flag, \
+                                min_value, kStrongImplication);
 
-#define DEFINE_MAX_VALUE_IMPLICATION(flag, max_value)                     \
-  changed |=                                                              \
-      TriggerImplication(v8_flags.flag > max_value, #max_value "<" #flag, \
-                         &v8_flags.flag, #flag, max_value, false);
+#define DEFINE_MAX_VALUE_IMPLICATION(flag, max_value)                        \
+  changed |= TriggerImplication(v8_flags.flag > max_value,                   \
+                                #max_value "<" #flag, &v8_flags.flag, #flag, \
+                                max_value, kStrongImplication);
 
 #define DEFINE_DISABLE_FLAG_IMPLICATION(whenflag, thenflag) \
   if (whenflag && thenflag) {                               \
