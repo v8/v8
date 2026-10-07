@@ -3151,7 +3151,6 @@ struct LoadOp : OperationT<LoadOp> {
     // The load should be atomic.
     bool is_atomic : 1;
     // The `base` input *may* be a tagged pointer to a shared HeapObject.
-    // Currently used only for TSAN.
     bool shared_base : 1;
 
     static constexpr Kind Aligned(BaseTaggedness base_is_tagged) {

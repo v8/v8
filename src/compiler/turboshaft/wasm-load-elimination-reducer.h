@@ -603,8 +603,8 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
     }
   }
 
-#define VERIFY(Name, ig_index, op, replacement)                       \
-  if (v8_flags.turboshaft_verify_load_elimination) {                  \
+#define VERIFY(Name, ig_index, op, replacement, condition)            \
+  if (v8_flags.turboshaft_verify_load_elimination && condition) {     \
     OpIndex actual_idx = Next::ReduceInputGraph##Name(ig_index, op);  \
     if (!actual_idx.valid()) {                                        \
       DCHECK(__ generating_unreachable_operations());                 \
@@ -615,7 +615,7 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
     }                                                                 \
   }
 #else
-#define VERIFY(Name, ig_index, op, replacement)
+#define VERIFY(Name, ig_index, op, replacement, condition)
 #endif  // DEBUG
 
 #define EMIT_OP(Name) /*                                       force 80 cols*/ \
@@ -624,7 +624,7 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);          \
       if (ig_replacement_index.valid()) {                                      \
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);       \
-        VERIFY(Name, ig_index, op, replacement)                                \
+        VERIFY(Name, ig_index, op, replacement, true)                          \
         return replacement;                                                    \
       }                                                                        \
     }                                                                          \
@@ -643,7 +643,9 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationReducer : public Next {
       OpIndex ig_replacement_index = analyzer_.Replacement(ig_index);
       if (ig_replacement_index.valid()) {
         OpIndex replacement = Asm().MapToNewGraph(ig_replacement_index);
-        VERIFY(StructGet, ig_index, op, replacement)
+        // We do not verify an eliminated struct.get on a shared base as another
+        // thread might have modified the struct field in the meantime.
+        VERIFY(StructGet, ig_index, op, replacement, !op.type->is_shared());
         return replacement;
       }
     }

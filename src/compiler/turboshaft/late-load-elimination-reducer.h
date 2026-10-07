@@ -959,7 +959,11 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                          Asm().output_graph().IsTurbolev()));
         }
 #if DEBUG
-        if (v8_flags.turboshaft_verify_load_elimination) {
+        // We cannot verify loads with a shared base: Although it is valid to
+        // eliminate them if there is no intervening atomic operation, another
+        // thread could still modify the loaded value between two loads.
+        if (v8_flags.turboshaft_verify_load_elimination &&
+            !load.kind.shared_base) {
           // When the debug flag {turboshaft_verify_load_elimination} is used,
           // we perform the original load and assert that it's indeed equal to
           // the replacement that we are using.
