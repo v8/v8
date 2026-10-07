@@ -3008,9 +3008,8 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
 
   DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), raw_clone);
 
-  Heap::CopyBlock(
-      raw_clone.address(), source->address(),
-      SafeHeapObjectSize(static_cast<uint32_t>(object_size)).value());
+  Heap::CopyBlock(raw_clone.address(), source->address(),
+                  SafeHeapObjectSize(static_cast<uint32_t>(object_size)));
   Handle<JSObject> clone(Cast<JSObject>(raw_clone), isolate());
 
   if constexpr (v8_flags.enable_unconditional_write_barriers.value()) {
@@ -3270,8 +3269,9 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
       Cast<FixedDoubleArray>(NewFixedDoubleArray(len));
   Heap::CopyBlock(result->address() + offsetof(FixedDoubleArray, length_),
                   array->address() + offsetof(FixedDoubleArray, length_),
-                  static_cast<uint32_t>(FixedDoubleArray::SizeFor(len) -
-                                        offsetof(FixedDoubleArray, length_)));
+                  SafeHeapObjectSize(static_cast<uint32_t>(
+                      FixedDoubleArray::SizeFor(len) -
+                      offsetof(FixedDoubleArray, length_))));
   return result;
 }
 

@@ -387,8 +387,9 @@ class Heap final {
   }
 
   // Copy block of memory from src to dst. Size of block should be aligned
-  // by pointer size.
-  static inline void CopyBlock(Address dst, Address src, size_t byte_size);
+  // by tagged size.
+  static inline void CopyBlock(Address dst, Address src,
+                               SafeHeapObjectSize byte_size);
 
   perfetto::NamedTrack tracing_track() const { return tracing_track_; }
 
