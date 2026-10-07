@@ -306,8 +306,9 @@ declare_args() {
   # feature will add a dependency on the icu_capi Rust library.
   # Functionality is still controlled by runtime flags (e.g.
   # --ecma402-icu4x-plural-rules).
-  v8_enable_ecma402_icu4x =
-      v8_enable_i18n_support && !(defined(build_with_node) && build_with_node)
+  # Currently disabled by default during experimentation to limit binary size
+  # impact (see b/571708639), and enabled on the icu4x CI builder.
+  v8_enable_ecma402_icu4x = false
 }
 
 assert(!v8_enable_debugging_features || v8_enable_verification_features,
