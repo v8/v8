@@ -1859,13 +1859,15 @@ class OutBuffer {
     CopyChars(cur_, chars, length);
     cur_ += length;
   }
-  void EnsureCapacity(size_t size) {
+  V8_WARN_UNUSED_RESULT bool EnsureCapacity(size_t size) {
 #ifdef DEBUG
     current_requested_capacity_ = size;
 #endif
-    if (V8_LIKELY(size <= SegmentFreeChars())) return;
+    if (V8_LIKELY(size <= SegmentFreeChars())) return true;
+    if (V8_UNLIKELY(size > String::kMaxLength)) return false;
     Extend(size);
     DCHECK_GE(CurSegmentCapacity(), size);
+    return true;
   }
   size_t length() const {
     if (ZoneUsed()) {
@@ -1982,7 +1984,8 @@ enum FastJsonStringifierResult {
 enum class FastJsonStringifierObjectKeyResult : uint8_t {
   kSuccess,
   kChangeEncoding,  // Two-byte key in one-byte stringifier.
-  kSlow  // Two-byte key (in two-byte stringifier) or requires escaping.
+  kSlowKey,  // Two-byte key (in two-byte stringifier) or requires escaping.
+  kSlowPath  // Extending the buffer failed.
 };
 
 class ContinuationRecord {
@@ -2259,14 +2262,18 @@ class FastJsonStringifier {
   V8_NOINLINE FastJsonStringifierResult HandleInterruptAndCheckCycle();
   V8_NOINLINE bool CheckCycle();
 
-  V8_INLINE void EnsureCapacity(size_t size) { buffer_.EnsureCapacity(size); }
+  V8_INLINE V8_PRESERVE_MOST bool EnsureCapacity(size_t size) {
+    return buffer_.EnsureCapacity(size);
+  }
   template <typename SrcChar>
   V8_INLINE void AppendCharacterUnchecked(SrcChar c) {
     buffer_.AppendCharacter(c);
   }
   template <typename SrcChar>
   V8_INLINE void AppendCharacter(SrcChar c) {
-    EnsureCapacity(1);
+    bool ok = EnsureCapacity(1);
+    DCHECK(ok);  // Extending by 1 character will never fail.
+    USE(ok);
     AppendCharacterUnchecked(c);
   }
   template <size_t N>
@@ -2283,7 +2290,10 @@ class FastJsonStringifier {
     // Note that the literal contains the zero char.
     constexpr size_t length = N - 1;
     static_assert(length > 0);
-    EnsureCapacity(length);
+    static_assert(length <= String::kMaxLength);
+    bool ok = EnsureCapacity(length);
+    DCHECK(ok);  // Will never fail (static_asserted above).
+    USE(ok);
     AppendCStringLiteralUnchecked(literal);
   }
 
@@ -2296,15 +2306,19 @@ class FastJsonStringifier {
   V8_INLINE void AppendStringUnchecked(std::string_view str) {
     AppendCStringUnchecked(str.data(), str.length());
   }
-  V8_INLINE void AppendCString(const char* chars, size_t len) {
-    EnsureCapacity(len);
+  V8_INLINE V8_WARN_UNUSED_RESULT FastJsonStringifierResult
+  AppendCString(const char* chars, size_t len) {
+    if (V8_UNLIKELY(!EnsureCapacity(len))) return SLOW_PATH;
     AppendCStringUnchecked(chars, len);
+    return SUCCESS;
   }
-  V8_INLINE void AppendCString(const char* chars) {
-    AppendCString(chars, strlen(chars));
+  V8_INLINE V8_WARN_UNUSED_RESULT FastJsonStringifierResult
+  AppendCString(const char* chars) {
+    return AppendCString(chars, strlen(chars));
   }
-  V8_INLINE void AppendString(std::string_view str) {
-    AppendCString(str.data(), str.length());
+  V8_INLINE V8_WARN_UNUSED_RESULT FastJsonStringifierResult
+  AppendString(std::string_view str) {
+    return AppendCString(str.data(), str.length());
   }
 
   template <typename SrcChar>
@@ -2395,7 +2409,9 @@ void FastJsonStringifier<Char>::SerializeSmi(Tagged<Smi> object) {
   char chars[kBufferSize];
   base::Vector<char> buffer(chars, kBufferSize);
   std::string_view str = IntToStringView(object.value(), buffer);
-  AppendString(str);
+  FastJsonStringifierResult result = AppendString(str);
+  DCHECK_EQ(result, SUCCESS);  // Extending for a Smi value will never fail.
+  USE(result);
 }
 
 template <typename Char>
@@ -2408,7 +2424,9 @@ void FastJsonStringifier<Char>::SerializeDouble(double number) {
   char chars[kBufferSize];
   base::Vector<char> buffer(chars, kBufferSize);
   std::string_view str = DoubleToStringView(number, buffer);
-  AppendString(str);
+  FastJsonStringifierResult result = AppendString(str);
+  DCHECK_EQ(result, SUCCESS);  // Will never fail (max 100 byte extend).
+  USE(result);
 }
 
 template <typename Char>
@@ -2516,7 +2534,9 @@ FastJsonStringifier<Char>::SerializeObjectKey(
       max_length = MaxEscapedStringLength(length);
     }
     max_length += 4 /* optional comma + 2x double quote + colon */;
-    EnsureCapacity(max_length);
+    if (V8_UNLIKELY(!EnsureCapacity(max_length))) {
+      return FastJsonStringifierObjectKeyResult::kSlowPath;
+    }
     SeparatorUnchecked(comma);
     AppendCharacterUnchecked('"');
     FastJsonStringifierObjectKeyResult result;
@@ -2532,7 +2552,7 @@ FastJsonStringifier<Char>::SerializeObjectKey(
                   String::DoesNotContainEscapeCharacters(obj));
       result = sizeof(StringChar) == 1 && !needs_escaping
                    ? FastJsonStringifierObjectKeyResult::kSuccess
-                   : FastJsonStringifierObjectKeyResult::kSlow;
+                   : FastJsonStringifierObjectKeyResult::kSlowKey;
     }
     AppendCharacterUnchecked('"');
     AppendCharacterUnchecked(':');
@@ -2556,7 +2576,9 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeString(
       chars = string->GetChars();
     }
     const uint32_t length = string->length();
-    EnsureCapacity(MaxEscapedStringLength(length) + 2 /* 2x double quote */);
+    size_t max_length =
+        MaxEscapedStringLength(length) + 2 /* 2x double quote */;
+    if (V8_UNLIKELY(!EnsureCapacity(max_length))) return SLOW_PATH;
     AppendCharacterUnchecked('"');
     AppendString(chars, length, no_gc);
     AppendCharacterUnchecked('"');
@@ -2890,6 +2912,10 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
       if (V8_UNLIKELY(key_result !=
                       FastJsonStringifierObjectKeyResult::kSuccess)) {
         descriptors->set_fast_iterable(FastIterableState::kJsonSlow);
+        if (V8_UNLIKELY(key_result ==
+                        FastJsonStringifierObjectKeyResult::kSlowPath)) {
+          return SLOW_PATH;
+        }
         if constexpr (is_one_byte) {
           if (key_result ==
               FastJsonStringifierObjectKeyResult::kChangeEncoding) {
@@ -3069,7 +3095,9 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
     Tagged<T> elements, uint32_t i, uint32_t length) {
   if constexpr (IsHoleyElementsKind(kind)) {
     if (elements->is_the_hole(isolate_, i)) {
-      EnsureCapacity(5 /* "null" + optional comma */);
+      if (V8_UNLIKELY(!EnsureCapacity(5 /* "null" + optional comma */))) {
+        return SLOW_PATH;
+      }
       SeparatorUnchecked(i > 0);
       AppendCStringLiteralUnchecked("null");
       return SUCCESS;
@@ -3141,6 +3169,10 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
         cont.object_key(), cont.object_key_comma(), no_gc);
     USE(key_result);
     DCHECK_NE(key_result, FastJsonStringifierObjectKeyResult::kChangeEncoding);
+    if (V8_UNLIKELY(key_result ==
+                    FastJsonStringifierObjectKeyResult::kSlowPath)) {
+      return SLOW_PATH;
+    }
     // Resuming due to encoding change of an object key guarantees that there
     // are at least two other objects on the stack (the value for that key, and
     // the continuation record for the object the key is a member of).
