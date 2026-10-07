@@ -246,8 +246,15 @@ class DelayedTasksPlatform final : public Platform {
       TaskRunner* original_runner = task_runner_.get();
       base::MutexGuard lock_guard(&platform_->mutex_);
       auto& delayed_task_runners = platform_->delayed_task_runners_;
-      DCHECK_EQ(1, delayed_task_runners.count(original_runner));
-      delayed_task_runners.erase(original_runner);
+      // The strong reference count drops to zero before this destructor
+      // acquires {platform_->mutex_}. In that window, a concurrent call to
+      // {GetForegroundTaskRunner} for the same {original_runner} may have
+      // already created a new {DelayedTaskRunner} (and possibly also destroyed
+      // it). Only erase the map entry if it still exists and is expired.
+      auto it = delayed_task_runners.find(original_runner);
+      if (it != delayed_task_runners.end() && it->second.expired()) {
+        delayed_task_runners.erase(it);
+      }
     }
 
     bool IdleTasksEnabled() final { return task_runner_->IdleTasksEnabled(); }
