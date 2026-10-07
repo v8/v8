@@ -5174,11 +5174,16 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           if (has_error()) return impl()->FailureExpression();
 
           DeclarationScope* function_scope = next_arrow_function_info_.scope;
+          function_scope->set_start_position(
+              formal_parameters.scope->start_position());
           FunctionState inner_function_state(&function_state_, &scope_,
                                              function_scope);
           Scanner::Location loc(function_scope->start_position(),
                                 end_position());
           FormalParametersT parameters(function_scope);
+          parameters.set_strict_parameter_error(
+              next_arrow_function_info_.strict_parameter_error_location,
+              next_arrow_function_info_.strict_parameter_error_message);
           parameters.is_simple = function_scope->has_simple_parameters();
           impl()->DeclareArrowFunctionFormalParameters(&parameters, expression,
                                                        loc);
