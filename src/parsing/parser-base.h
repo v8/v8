@@ -3463,7 +3463,7 @@ ParserBase<Impl>::ParseYieldExpression() {
         // Delegating yields require an RHS; fall through.
         [[fallthrough]];
       default:
-        expression = ParseAssignmentExpressionCoverGrammar();
+        expression = ParseAssignmentExpression();
         break;
     }
   }
