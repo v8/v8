@@ -100,20 +100,21 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
   __ Ret();
 }
 
-void ResetSharedFunctionInfoAge(MacroAssembler* masm, Register sfi,
-                                Register scratch) {
-  DCHECK(!AreAliased(sfi, scratch));
+void ResetSharedFunctionInfoAge(MacroAssembler* masm, Register sfi) {
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   __ mov(scratch, Operand(0));
   __ StoreU16(scratch,
               FieldMemOperand(sfi, offsetof(SharedFunctionInfo, age_)));
 }
 
-void ResetJSFunctionAge(MacroAssembler* masm, Register js_function,
-                        Register scratch1, Register scratch2) {
+void ResetJSFunctionAge(MacroAssembler* masm, Register js_function) {
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   __ LoadTaggedField(
-      scratch1, FieldMemOperand(js_function,
-                                offsetof(JSFunction, shared_function_info_)));
-  ResetSharedFunctionInfoAge(masm, scratch1, scratch2);
+      scratch, FieldMemOperand(js_function,
+                               offsetof(JSFunction, shared_function_info_)));
+  ResetSharedFunctionInfoAge(masm, scratch);
 }
 
 void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
@@ -193,7 +194,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
       code_obj,
       FieldMemOperand(closure, offsetof(JSFunction, shared_function_info_)));
 
-  ResetSharedFunctionInfoAge(masm, code_obj, r6);
+  ResetSharedFunctionInfoAge(masm, code_obj);
 
   __ LoadTaggedField(
       code_obj, FieldMemOperand(code_obj, offsetof(SharedFunctionInfo,
@@ -1261,11 +1262,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
         BaselineOutOfLinePrologueDescriptor::kCalleeContext);
     Register callee_js_function = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kClosure);
-    {
-      UseScratchRegisterScope inner_temps(masm);
-      Register scratch = inner_temps.Acquire();
-      ResetJSFunctionAge(masm, callee_js_function, scratch, r0);
-    }
+    ResetJSFunctionAge(masm, callee_js_function);
     __ Push(callee_context, callee_js_function);
     DCHECK_EQ(callee_js_function, kJavaScriptCallTargetRegister);
     DCHECK_EQ(callee_js_function, kJSFunctionRegister);
@@ -1302,7 +1299,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // building the frame we can quickly precheck both at once.
     UseScratchRegisterScope inner_temps(masm);
     Register sp_minus_frame_size = inner_temps.Acquire();
-    Register interrupt_limit = r0;
+    Register interrupt_limit = inner_temps.Acquire();
     __ SubS64(sp_minus_frame_size, sp, frame_size);
     __ LoadStackLimit(interrupt_limit, StackLimitKind::kInterruptStackLimit);
     __ CmpU64(sp_minus_frame_size, interrupt_limit);
@@ -1377,7 +1374,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ LoadTaggedField(
       r7,
       FieldMemOperand(closure, offsetof(JSFunction, shared_function_info_)));
-  ResetSharedFunctionInfoAge(masm, r7, scratch);
+  ResetSharedFunctionInfoAge(masm, r7);
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
   Label is_baseline, compile_lazy;
