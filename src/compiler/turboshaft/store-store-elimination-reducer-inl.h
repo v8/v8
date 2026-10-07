@@ -230,6 +230,15 @@ class MaybeRedundantStoresTable
     }
   }
 
+  void InvalidateBasesInRange(BlockIndex start, BlockIndex end) {
+    for (Key key : active_keys_) {
+      BlockIndex base_block = graph_.BlockOf(key.data().base);
+      if (base_block >= start && base_block <= end) {
+        Set(key, StoreObservability::kObservable);
+      }
+    }
+  }
+
   void MarkAllStoresAsGCObservable() {
     TRACE("> MarkAllStoresAsGCObservable");
     for (Key key : active_keys_) {
@@ -330,14 +339,26 @@ class RedundantStoreAnalysis {
       // If this block is a loop header, check if this loop needs to be
       // revisited.
       if (block.IsLoop()) {
+        Block* back_edge = block.LastPredecessor();
+        DCHECK_GE(back_edge->index(), block_index);
+        // Objects allocated inside the loop body belong to a specific loop
+        // iteration and are distinct across iterations. We must invalidate
+        // their store observability across the backedge so that stores to a
+        // fresh object in one iteration are not incorrectly eliminated by
+        // stores to an object from the next iteration.
+        // Note that checking the BlockIndex range [block_index,
+        // back_edge->index()] is a slight overapproximation since some blocks
+        // in this range might not belong to the loop. However, this is
+        // conservative and safe, and using LoopFinder here would be both more
+        // complicated and significantly more expensive.
+        table_.InvalidateBasesInRange(block_index, back_edge->index());
+
         TRACE("Considering Loop revisit for " << block.index());
         DCHECK(!table_.IsSealed());
         bool needs_revisit = false;
         table_.Seal(&needs_revisit);
         TRACE("> needs_revisit=" << needs_revisit);
         if (needs_revisit) {
-          Block* back_edge = block.LastPredecessor();
-          DCHECK_GE(back_edge->index(), block_index);
           // We need a +2 to process the backedge at the next iteration:
           //   - the `--processed` at the end of the loop will undo a +1.
           //   - `block_index` is computed with `processed - 1`, which will undo
@@ -374,6 +395,14 @@ class RedundantStoreAnalysis {
           // For now we consider only stores of fixed offsets of objects on the
           // heap.
           if (is_on_heap_store && is_fixed_offset_store) {
+            // If we're revisiting a loop, then {eliminable_stores_} and
+            // {mergeable_store_pairs_} might contain {index} because a previous
+            // visit of the loop decided that it could be eliminated/merged; we
+            // remove it now and might add it back below if it can still be
+            // eliminated.
+            eliminable_stores_->erase(index);
+            mergeable_store_pairs_->erase(index);
+
             bool is_eliminable_store = false;
             switch (table_.GetObservability(store.base(), store.offset, size)) {
               case StoreObservability::kUnobservable:
