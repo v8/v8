@@ -2330,6 +2330,12 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
   if (cache_scope != nullptr) cache_scope->variables_.Remove(invalidated);
 
   Scope* target = cache_scope == nullptr ? scope : cache_scope;
+  if (invalidated->IsReplGlobal()) {
+    // Top-level lexical variables in REPL mode can be redeclared across
+    // scripts and are looked up globally via the ScriptContextTable rather
+    // than at a fixed context slot index, so treat them as kDynamicGlobal.
+    return target->NonLocal(proxy->raw_name(), VariableMode::kDynamicGlobal);
+  }
   var = target->NonLocal(proxy->raw_name(), VariableMode::kDynamicLocal);
   var->set_local_if_not_shadowed(invalidated);
 
