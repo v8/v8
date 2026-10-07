@@ -416,6 +416,19 @@ class WasmLoweringReducer : public Next {
     }
   }
 
+  // Converts the index of an array access for the address computation.
+  // The index is less than the array length, which is less than 2^30 (see
+  // {WasmArray::MaxLength}): the access passed its bounds check, or the
+  // check was removed because it was shown to succeed. So the zero and
+  // sign extensions of the index are equal (except with the test-only
+  // --wasm-skip-bounds-checks). We use the zero extension, as for memory32
+  // accesses: on x64 and arm64, 32-bit operations clear the upper half of
+  // registers, so it is usually free. On riscv64, loong64 and mips64, which
+  // keep 32-bit values sign-extended, it can cost an instruction.
+  V<WordPtr> ArrayIndexToIntPtr(V<Word32> index) {
+    return __ ChangeUint32ToUintPtr(index);
+  }
+
   V<Any> REDUCE(ArrayGet)(V<WasmArrayNullable> array, V<Word32> index,
                           const wasm::ArrayType* array_type, bool is_signed,
                           std::optional<AtomicMemoryOrder> memory_order,
@@ -425,7 +438,7 @@ class WasmLoweringReducer : public Next {
     if (!is_mutable) load_kind = load_kind.Immutable();
     if (memory_order.has_value()) load_kind = load_kind.Atomic();
     if (shared_base) load_kind = load_kind.SharedBase();
-    return __ Load(array, __ ChangeInt32ToIntPtr(index), load_kind,
+    return __ Load(array, ArrayIndexToIntPtr(index), load_kind,
                    RepresentationFor(array_type->element_type(), is_signed),
                    WasmArray::HeaderSize(array_type->is_shared()),
                    array_type->element_type().value_kind_size_log2());
@@ -447,7 +460,7 @@ class WasmLoweringReducer : public Next {
       store_kind = store_kind.Atomic();
     }
     DCHECK_IMPLIES(write_barrier == kFullWriteBarrier, element_type.is_ref());
-    __ Store(array, __ ChangeInt32ToIntPtr(index), value, store_kind,
+    __ Store(array, ArrayIndexToIntPtr(index), value, store_kind,
              RepresentationFor(element_type, true), write_barrier, memory_order,
              WasmArray::HeaderSize(is_shared),
              element_type.value_kind_size_log2(),
@@ -463,7 +476,7 @@ class WasmLoweringReducer : public Next {
                                  AtomicMemoryOrder memory_order) {
     MemoryRepresentation repr = RepresentationFor(element_type, false);
     V<WordPtr> index_scaled = __ WordPtrShiftLeft(
-        __ ChangeInt32ToIntPtr(index), element_type.value_kind_size_log2());
+        ArrayIndexToIntPtr(index), element_type.value_kind_size_log2());
     V<WordPtr> offset = __ WordPtrAdd(
         index_scaled, WasmArray::HeaderSize(is_shared) - kHeapObjectTag);
     if (bin_op == StructAtomicRMWOp::BinOp::kCompareExchange) {
