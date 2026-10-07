@@ -12,6 +12,7 @@
 #include "src/ast/modules.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
+#include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/cell-inl.h"
@@ -544,6 +545,12 @@ void JSDeferredModuleNamespace::EvaluateModuleSync(
   if (!SourceTextModule::ReadyForSyncExecution(isolate, module, &seenModules)) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kNotReadyForSyncExec));
+    return;
+  }
+
+  // A side-effect-free debug-evaluate must not start the evaluation.
+  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+    isolate->debug()->FailSideEffectCheckForDeferredModuleEvaluation();
     return;
   }
 

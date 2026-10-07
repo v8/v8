@@ -3417,6 +3417,25 @@ bool Debug::PerformSideEffectCheckForInterceptor(
   return false;
 }
 
+void Debug::FailSideEffectCheckForDeferredModuleEvaluation() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
+
+  // Evaluating a deferred module mutates the module graph (status, top-level
+  // capability) before any of its code runs, so it has to be rejected before
+  // Module::Evaluate is called. Terminating later, from inside the module
+  // body, would be recorded as the module's evaluation error.
+  if (v8_flags.trace_side_effect_free_debug_evaluate) {
+    PrintF(
+        "[debug-evaluate] Deferred module evaluation may cause side "
+        "effect.\n");
+  }
+
+  side_effect_check_failed_ = true;
+  // Throw an uncatchable termination exception.
+  isolate_->TerminateExecution();
+}
+
 bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   using interpreter::Bytecode;
