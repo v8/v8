@@ -751,10 +751,14 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
   auto [args_alloc, args_index] = scope.arguments_info();
   for (int i = 0; i < scope.variable_count(); ++i) {
     DebugVariableInfo var = scope.variable(i);
+    // Create a handle for the name right away: computing the value below can
+    // allocate (e.g. Context::Get boxing a double ContextCell), and the GC may
+    // move the string.
+    DirectHandle<InternalizedString> name(var.name, isolate_);
     if (var.is_synthetic) {
       // We want to materialize "new.target" for debug-evaluate.
       if (mode != Mode::STACK ||
-          !var.name->Equals(*isolate_->factory()->dot_new_target_string())) {
+          !name->Equals(*isolate_->factory()->dot_new_target_string())) {
         continue;
       }
     }
@@ -845,7 +849,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           value = isolate_->factory()->tdz_hole_value();
           break;
         }
-        DCHECK_EQ(context_->scope_info()->ContextSlotIndex(var.name), index);
+        DCHECK_EQ(context_->scope_info()->ContextSlotIndex(*name), index);
         value =
             indirect_handle(Context::Get(context_, index, isolate_), isolate_);
         break;
@@ -859,7 +863,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
       }
     }
 
-    if (visitor(direct_handle(var.name, isolate_), value, scope_type)) {
+    if (visitor(name, value, scope_type)) {
       return true;
     }
   }
