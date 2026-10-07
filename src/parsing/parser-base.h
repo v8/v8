@@ -4260,7 +4260,7 @@ ParserBase<Impl>::ParseImportExpressions() {
   }
 
   AcceptINScope scope(this, true);
-  ExpressionT specifier = ParseAssignmentExpressionCoverGrammar();
+  ExpressionT specifier = ParseAssignmentExpression();
 
   DCHECK_IMPLIES(phase == ModuleImportPhase::kSource,
                  v8_flags.js_source_phase_imports);
@@ -4272,7 +4272,7 @@ ParserBase<Impl>::ParseImportExpressions() {
       // A trailing comma allowed after the specifier.
       return factory()->NewImportCallExpression(specifier, phase, pos);
     } else {
-      ExpressionT import_options = ParseAssignmentExpressionCoverGrammar();
+      ExpressionT import_options = ParseAssignmentExpression();
       Check(Token::kComma);  // A trailing comma is allowed after the import
                              // attributes.
       Expect(Token::kRightParen);
