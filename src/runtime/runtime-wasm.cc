@@ -169,10 +169,13 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   return Smi::FromInt(ret);
 }
 
-RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
-  CHECK(isolate->IsOnCentralStack());
-  HandleScope scope(isolate);
-  FrameFinder<WasmFrame> frame_finder(isolate, {StackFrame::EXIT});
+namespace {
+// Determines the trap message for trap handler traps by decoding the
+// instruction at the faulting bytecode position when MessageTemplate::kNone is
+// passed.
+MessageTemplate DetermineTrapHandlerMessage(Isolate* isolate) {
+  FrameFinder<WasmFrame> frame_finder(
+      isolate, {StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK});
   WasmFrame* frame = frame_finder.frame();
   int pos = frame->position();
 
@@ -199,15 +202,19 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
               false FOREACH_ATOMIC_GC_OPCODE(CASE));
 #undef CASE
   }
-  return ThrowWasmError(isolate, message);
+  return message;
 }
+}  // namespace
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
-  DCHECK(isolate->IsOnCentralStack());
+  CHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  int message_id = args.smi_value_at(0);
-  return ThrowWasmError(isolate, MessageTemplateFromInt(message_id));
+  MessageTemplate message = MessageTemplateFromInt(args.smi_value_at(0));
+  if (message == MessageTemplate::kNone) {
+    message = DetermineTrapHandlerMessage(isolate);
+  }
+  return ThrowWasmError(isolate, message);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {

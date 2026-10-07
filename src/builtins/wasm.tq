@@ -25,7 +25,6 @@ extern runtime WasmFunctionTableSet(
 extern runtime ThrowRangeError(Context, Smi): never;
 extern runtime ThrowWasmError(Context, Smi): never;
 extern runtime WasmThrowRangeError(Context, Smi): never;
-extern runtime TrapHandlerThrowWasmError(Context): never;
 extern runtime WasmThrowTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrowDataViewTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrowDataViewDetachedError(Context, Smi): never;
@@ -874,10 +873,6 @@ builtin WasmTrap(error: Smi): JSAny {
 
 builtin ThrowWasmTrapUnreachable(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapUnreachable));
-}
-
-builtin WasmTrapHandlerThrowTrap(): JSAny {
-  tail runtime::TrapHandlerThrowWasmError(LoadContextFromWasmOrJsFrame());
 }
 
 builtin WasmPropagateException(): JSAny {

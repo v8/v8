@@ -1466,13 +1466,14 @@ class LiftoffCompiler {
 
     Builtin builtin = ool->builtin;
     if (V8_UNLIKELY(for_debugging_)) {
-      // In debug mode, we handle traps by calling the kWasmDebugTrap builtin
-      // instead of the specific trap-throwing builtin. This allows the debugger
-      // to inspect all registers at the trap site.
+      // In debug mode, we handle traps by calling the
+      // kWasmTrapHandlerThrowTrap builtin instead of the specific
+      // trap-throwing builtin. This allows the debugger to inspect all
+      // registers at the trap site.
       std::optional<MessageTemplate> message =
           GetMessageTemplateForBuiltin(builtin);
       if (message) {
-        builtin = Builtin::kWasmDebugTrap;
+        builtin = Builtin::kWasmTrapHandlerThrowTrap;
         __ PrepareDebugTrap(*message);
       }
     }
@@ -1481,8 +1482,6 @@ class LiftoffCompiler {
         __ pc_offset(), SourcePosition(ool->position), true);
     __ CallBuiltin(builtin);
     auto pc_offset_after_call = __ pc_offset_for_safepoint();
-    // It is safe to not check for existing safepoint at this address since we
-    // just emitted a call.
     auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
     if (ool->safepoint_info) {
       for (auto index : ool->safepoint_info->slots) {
@@ -1494,7 +1493,7 @@ class LiftoffCompiler {
       // so that the GC can scan them (similar to
       // `DefineSafepointWithCalleeSavedRegisters` in `EmitBreakpoint`, used for
       // the WasmDebugBreak builtin).
-      if (builtin == Builtin::kWasmDebugTrap) {
+      if (builtin == Builtin::kWasmTrapHandlerThrowTrap) {
         for (auto reg : ool->safepoint_info->spills.GetGpList()) {
           safepoint.DefineTaggedRegister(reg.code());
         }
@@ -4612,13 +4611,7 @@ class LiftoffCompiler {
                      &trapping_load_pc, i64_offset);
 
     if (imm.memory->bounds_checks == kTrapHandler) {
-      trapping_instructions_.emplace_back(
-          trap_handler::TrappingInstructionData{trapping_load_pc});
-      source_position_table_builder_.AddPosition(
-          trapping_load_pc, SourcePosition(decoder->position()), true);
-      if (for_debugging_) {
-        DefineSafepoint(trapping_load_pc);
-      }
+      RegisterTrappingInstruction(decoder, trapping_load_pc);
     }
     __ PushRegister(kS128, value);
 
@@ -4659,13 +4652,7 @@ class LiftoffCompiler {
     __ LoadLane(result, value, addr, index, offset, type, laneidx,
                 &trapping_load_pc, i64_offset);
     if (imm.memory->bounds_checks == kTrapHandler) {
-      trapping_instructions_.emplace_back(
-          trap_handler::TrappingInstructionData{trapping_load_pc});
-      source_position_table_builder_.AddPosition(
-          trapping_load_pc, SourcePosition(decoder->position()), true);
-      if (for_debugging_) {
-        DefineSafepoint(trapping_load_pc);
-      }
+      RegisterTrappingInstruction(decoder, trapping_load_pc);
     }
 
     __ PushRegister(kS128, result);
@@ -4789,13 +4776,7 @@ class LiftoffCompiler {
     __ StoreLane(addr, index, offset, value, type, lane, &trapping_store_pc,
                  i64_offset);
     if (imm.memory->bounds_checks == kTrapHandler) {
-      trapping_instructions_.emplace_back(
-          trap_handler::TrappingInstructionData{trapping_store_pc});
-      source_position_table_builder_.AddPosition(
-          trapping_store_pc, SourcePosition(decoder->position()), true);
-      if (for_debugging_) {
-        DefineSafepoint(trapping_store_pc);
-      }
+      RegisterTrappingInstruction(decoder, trapping_store_pc);
     }
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(true, imm.mem_index, type.mem_rep(), index, offset,
@@ -11323,14 +11304,18 @@ class LiftoffCompiler {
         trap_handler::TrappingInstructionData{trapping_instruction_pc});
     source_position_table_builder_.AddPosition(
         trapping_instruction_pc, SourcePosition(decoder->position()), true);
+    // The trap handler fakes a call from fault_address + 1, so the GC and
+    // debugger will look up the safepoint, stack frame, and scope at
+    // trapping_instruction_pc + 1.
     if (for_debugging_) {
-      DefineSafepoint(trapping_instruction_pc);
+      DefineSafepointWithCalleeSavedRegisters(
+          trapping_instruction_pc +
+          WasmFrameConstants::kTrappingInstructionReturnAddressOffset);
     }
     if (V8_UNLIKELY(debug_sidetable_builder_)) {
-      // The trap handler fakes a call from fault_address + 1, so the debugger
-      // will look up the stack frame and scope at trapping_instruction_pc + 1.
       debug_sidetable_builder_->NewEntry(
-          trapping_instruction_pc + 1,
+          trapping_instruction_pc +
+              WasmFrameConstants::kTrappingInstructionReturnAddressOffset,
           GetCurrentDebugSideTableEntries(
               decoder, DebugSideTableBuilder::kAllowRegisters)
               .as_vector());
@@ -11385,17 +11370,11 @@ class LiftoffCompiler {
   }
 
   void DefineSafepoint(int pc_offset = 0) {
-    if (pc_offset == 0) pc_offset = __ pc_offset_for_safepoint();
-    if (pc_offset == last_safepoint_offset_) return;
-    last_safepoint_offset_ = pc_offset;
     auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_, pc_offset);
     __ cache_state()->DefineSafepoint(safepoint);
   }
 
-  void DefineSafepointWithCalleeSavedRegisters() {
-    int pc_offset = __ pc_offset_for_safepoint();
-    if (pc_offset == last_safepoint_offset_) return;
-    last_safepoint_offset_ = pc_offset;
+  void DefineSafepointWithCalleeSavedRegisters(int pc_offset = 0) {
     auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_, pc_offset);
     __ cache_state()->DefineSafepointWithCalleeSavedRegisters(safepoint);
   }
@@ -11502,10 +11481,6 @@ class LiftoffCompiler {
 
   // Current number of exception refs on the stack.
   int num_exceptions_ = 0;
-
-  // The pc_offset of the last defined safepoint. -1 if no safepoint has been
-  // defined yet.
-  int last_safepoint_offset_ = -1;
 
   // Updated during compilation on every "call", "call_indirect", and "call_ref"
   // instruction.

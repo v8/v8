@@ -3770,9 +3770,18 @@ int WasmFrame::LookupExceptionHandlerInTable() {
 
 void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   DCHECK(caller_pc());
-  auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(),
-                                                                 caller_pc());
-  SafepointEntry& safepoint_entry = pair.second;
+  auto [code, safepoint_entry] =
+      wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(),
+                                                         caller_pc());
+  if (!safepoint_entry.is_initialized()) {
+    // Trap handler traps from non-debugging code also enter a WASM_DEBUG_BREAK
+    // frame via kWasmTrapHandlerThrowTrap, but do not emit safepoints with
+    // callee-saved registers. In that case, there are no tagged registers to
+    // iterate. Debugging code, however, must always have an initialized
+    // safepoint.
+    DCHECK(!code || !code->for_debugging());
+    return;
+  }
   uint32_t tagged_register_indexes = safepoint_entry.tagged_register_indexes();
 
   while (tagged_register_indexes != 0) {

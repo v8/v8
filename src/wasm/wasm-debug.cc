@@ -442,7 +442,7 @@ class DebugInfoImpl {
     if (!code->is_liftoff()) return false;  // Cannot step in TurboFan code.
     if (IsAtReturn(frame)) return false;    // Will return after this step.
     ReturnLocation return_location = kAfterBreakpoint;
-    // Check if the frame above is a WasmDebugTrap builtin call.
+    // Check if the frame above is a WasmTrapHandlerThrowTrap builtin call.
     StackFrameIterator it(frame->isolate());
     Builtin last_builtin = Builtin::kNoBuiltinId;
     while (!it.done()) {
@@ -452,7 +452,7 @@ class DebugInfoImpl {
                          : Builtin::kNoBuiltinId;
       it.Advance();
     }
-    if (last_builtin == Builtin::kWasmDebugTrap) {
+    if (last_builtin == Builtin::kWasmTrapHandlerThrowTrap) {
       return_location = kAfterWasmCall;
     }
     FloodWithBreakpoints(frame, return_location);
@@ -677,7 +677,7 @@ class DebugInfoImpl {
     }
 
     if (value->is_register()) {
-      if (debug_break_fp == kNullAddress) return {};
+      DCHECK_NE(kNullAddress, debug_break_fp);
       auto reg = LiftoffRegister::from_liftoff_code(value->reg_code);
       auto gp_addr = [debug_break_fp](Register reg) {
         return debug_break_fp +
@@ -772,8 +772,8 @@ class DebugInfoImpl {
       bool at_debug_break = it.frame()->is_wasm_debug_break();
       bool at_trap = false;
       if (at_debug_break) {
-        at_trap =
-            it.frame()->LookupCode()->builtin_id() == Builtin::kWasmDebugTrap;
+        at_trap = it.frame()->LookupCode()->builtin_id() ==
+                  Builtin::kWasmTrapHandlerThrowTrap;
         it.Advance();
         CHECK(!it.done());
       }
