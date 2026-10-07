@@ -612,6 +612,7 @@ enum class ManagedTypeId : uint32_t {
   kTemporalPlainMonthDay,
   kTemporalZonedDateTime,
   kDisplayNamesInternal,
+  kPluralRulesInternal,
   kD8Worker,
   kD8ModuleEmbedderData,
   kD8AsyncHooksWrap,
@@ -628,7 +629,6 @@ enum class ManagedTypeId : uint32_t {
   V(IcuDateIntervalFormatTag)        \
   V(IcuRelativeDateTimeFormatterTag) \
   V(IcuLocalizedNumberFormatterTag)  \
-  V(IcuPluralRulesTag)               \
   V(IcuCollatorTag)
 
 #define FOREIGN_TAG_LIST(V)                               \

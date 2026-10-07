@@ -2244,8 +2244,7 @@ void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
   CHECK(IsSmi(flags_.load()));
-  CHECK(IsForeign(icu_plural_rules_.load()));
-  CHECK(IsForeign(icu_number_formatter_.load()));
+  CHECK(IsCppGCManagedBase(internal_.load()));
 }
 
 void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {

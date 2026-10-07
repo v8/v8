@@ -34,7 +34,6 @@ class ListFormatter;
 class RelativeDateTimeFormatter;
 class SimpleDateFormat;
 class DateIntervalFormat;
-class PluralRules;
 class Collator;
 class FormattedValue;
 class StringEnumeration;
@@ -56,7 +55,6 @@ namespace v8::internal {
   V(icu::RelativeDateTimeFormatter, kIcuRelativeDateTimeFormatterTag) \
   V(icu::ListFormatter, kIcuListFormatterTag)                         \
   V(icu::Collator, kIcuCollatorTag)                                   \
-  V(icu::PluralRules, kIcuPluralRulesTag)                             \
   V(icu::number::LocalizedNumberFormatter, kIcuLocalizedNumberFormatterTag)
 ICU_EXTERNAL_POINTER_TAG_LIST(ASSIGN_EXTERNAL_POINTER_TAG_FOR_MANAGED)
 #undef ICU_EXTERNAL_POINTER_TAG_LIST

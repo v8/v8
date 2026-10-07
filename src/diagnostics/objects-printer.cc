@@ -4105,8 +4105,7 @@ void JSPluralRules::JSPluralRulesPrint(std::ostream& os) {
   JSObjectPrintHeader(os, this, "JSPluralRules");
   os << "\n - locale: " << Brief(locale());
   os << "\n - type: " << TypeAsString(Isolate::Current());
-  os << "\n - icu plural rules: " << Brief(icu_plural_rules());
-  os << "\n - icu_number_formatter: " << Brief(icu_number_formatter());
+  os << "\n - internal: " << Brief(internal());
   JSObjectPrintBody(os, this);
 }
 
