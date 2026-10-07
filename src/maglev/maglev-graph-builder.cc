@@ -202,36 +202,12 @@ NodeType NodeTypeFromAccessInfo(compiler::JSHeapBroker* broker,
 
 }  // namespace
 
-ValueNode* MaglevGraphBuilder::TryGetParentContext(ValueNode* node) {
-  if (CreateFunctionContext* n = node->TryCast<CreateFunctionContext>()) {
-    return n->ContextInput().node();
-  }
-
-  if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
-    return alloc->object()->get(
-        Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-  }
-
-  if (CallRuntime* n = node->TryCast<CallRuntime>()) {
-    switch (n->function_id()) {
-      case Runtime::kPushBlockContext:
-      case Runtime::kPushCatchContext:
-      case Runtime::kNewFunctionContext:
-        return n->ContextInput().node();
-      default:
-        break;
-    }
-  }
-
-  return nullptr;
-}
-
 // Attempts to walk up the context chain through the graph in order to reduce
 // depth and thus the number of runtime loads.
 void MaglevGraphBuilder::MinimizeContextChainDepth(
     ValueNode** context, size_t* depth, ContextScopeInfo* scope_info) {
   while (*depth > 0) {
-    ValueNode* parent_context = TryGetParentContext(*context);
+    ValueNode* parent_context = reducer_.TryGetParentContext(*context);
     if (parent_context == nullptr) return;
     *context = parent_context;
     (*depth)--;
@@ -2657,48 +2633,12 @@ ReduceResult MaglevGraphBuilder::VisitLdaConstant() {
   SetAccumulator(GetConstant(GetRefOperand<HeapObject>(0)));
   return ReduceResult::Done();
 }
-MaybeReduceResult
-MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
-    ValueNode* context, int slot_index, VariableMode mode,
-    MaybeAssignedFlag assigned) {
-  if (assigned == kMaybeAssigned) return {};
-
-  auto context_ref = TryGetConstant<Context>(context);
-  if (!context_ref) return {};
-
-  compiler::OptionalObjectRef maybe_slot_value =
-      context_ref->get(broker(), slot_index);
-  if (!maybe_slot_value.has_value()) return {};
-
-  compiler::ObjectRef slot_value = maybe_slot_value.value();
-  if (slot_value.IsHeapObject()) {
-    // Even though the context slot is immutable, the context might have escaped
-    // before the function to which it belongs has initialized the slot.  We
-    // must be conservative and check if the value in the slot is currently the
-    // hole or undefined. Only if it is neither of these, can we be sure that it
-    // won't change anymore.
-    //
-    // See also: JSContextSpecialization::ReduceJSLoadContext.
-    if (slot_value.IsTdzHole()) return {};
-    if (mode == VariableMode::kVar && slot_value.IsUndefined()) return {};
-    if (IsPrivateMethodOrAccessorVariableMode(mode) &&
-        slot_value.IsUndefined()) {
-      return {};
-    }
-  }
-
-  // Fold the load of the immutable slot.
-
-  return GetConstant(slot_value);
-}
-
 ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextCell(
     ValueNode* context_node, int index, MaybeAssignedFlag assigned) {
   DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
-  if (!context_node->Is<HeapConstant>()) return {};
-  compiler::ContextRef context =
-      context_node->Cast<HeapConstant>()->ref().AsContext();
-  auto maybe_value = context.get(broker(), index);
+  auto context = TryGetConstant<Context>(context_node);
+  if (!context) return {};
+  auto maybe_value = context->get(broker(), index);
   if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
     return {};
@@ -2712,12 +2652,9 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextCell(
   compiler::ContextCellRef slot_ref = maybe_value->AsContextCell();
   ContextCell::State state = slot_ref.state();
   switch (state) {
-    case ContextCell::kConst: {
-      auto constant = slot_ref.tagged_value(broker());
-      if (!constant.has_value()) return {};
-      broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return GetConstant(*constant);
-    }
+    case ContextCell::kConst:
+      // Handled by TryGetConstantContextValue.
+      return {};
     case ContextCell::kSmi: {
       DCHECK_EQ(assigned, kMaybeAssigned);
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
@@ -2758,10 +2695,10 @@ ReduceResult MaglevGraphBuilder::LoadAndCacheContextSlot(
   VariableMode mode;
   MaybeAssignedFlag assigned =
       reducer_.GetContextMaybeAssigned(scope_info, index, &mode);
-  RETURN_IF_DONE(TrySpecializeLoadContextSlotToFunctionContext(context, index,
-                                                               mode, assigned));
-  if (mode == VariableMode::kVar) assigned = kMaybeAssigned;
   int offset = Context::OffsetOfElementAt(index);
+  RETURN_IF_DONE(
+      reducer_.TryGetConstantContextValue(context, offset, assigned, mode));
+  if (mode == VariableMode::kVar) assigned = kMaybeAssigned;
 
   ValueNode*& cached_value =
       known_node_aspects().GetContextCachedValue(context, offset, assigned);
@@ -6945,19 +6882,11 @@ ReduceResult MaglevGraphBuilder::VisitGetPrivateField() {
   ValueNode* current_context = LoadRegister(0);
   int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
-
-  ContextScopeInfo scope_info =
-      register_scope_infos_[iterator_.GetRegisterOperand(0)];
-  ValueNode* context = GetContextAtDepth(current_context, depth, &scope_info);
-  VariableMode mode;
-  MaybeAssignedFlag assigned =
-      reducer_.GetContextMaybeAssigned(scope_info, slot_index, &mode);
-  MaybeReduceResult name = TrySpecializeLoadContextSlotToFunctionContext(
-      context, slot_index, mode, assigned);
-  if (!name.HasValue()) {
-    name = LoadAndCacheContextSlot(context, slot_index,
-                                   ContextMode::kNoContextCells, scope_info);
-  }
+  ValueNode* name;
+  GET_VALUE(name, BuildLoadContextSlot(
+                      current_context, depth, slot_index,
+                      ContextMode::kNoContextCells,
+                      register_scope_infos_[iterator_.GetRegisterOperand(0)]));
 
   ValueNode* object = LoadRegister(3);
   FeedbackSlot slot = GetSlotOperand(4);
@@ -6969,7 +6898,7 @@ ReduceResult MaglevGraphBuilder::VisitGetPrivateField() {
 
   auto build_generic_access = [this, object, name, &feedback_source]() {
     ValueNode* current_context = GetContext();
-    return AddNewNode<GetKeyedGeneric>({current_context, object, name.value()},
+    return AddNewNode<GetKeyedGeneric>({current_context, object, name},
                                        feedback_source);
   };
 
@@ -6980,8 +6909,7 @@ ReduceResult MaglevGraphBuilder::VisitGetPrivateField() {
 
     case compiler::ProcessedFeedback::kNamedAccess: {
       RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
-          name.value(),
-          processed_feedback.AsNamedAccess().name(),
+          name, processed_feedback.AsNamedAccess().name(),
           DeoptimizeReason::kKeyedAccessChanged));
 
       compiler::NameRef name_ref = processed_feedback.AsNamedAccess().name();
@@ -7005,19 +6933,11 @@ ReduceResult MaglevGraphBuilder::VisitSetPrivateField() {
   ValueNode* current_context = LoadRegister(0);
   int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
-
-  ContextScopeInfo scope_info =
-      register_scope_infos_[iterator_.GetRegisterOperand(0)];
-  ValueNode* context = GetContextAtDepth(current_context, depth, &scope_info);
-  VariableMode mode;
-  MaybeAssignedFlag assigned =
-      reducer_.GetContextMaybeAssigned(scope_info, slot_index, &mode);
-  MaybeReduceResult name = TrySpecializeLoadContextSlotToFunctionContext(
-      context, slot_index, mode, assigned);
-  if (!name.HasValue()) {
-    name = LoadAndCacheContextSlot(context, slot_index,
-                                   ContextMode::kNoContextCells, scope_info);
-  }
+  ValueNode* name;
+  GET_VALUE(name, BuildLoadContextSlot(
+                      current_context, depth, slot_index,
+                      ContextMode::kNoContextCells,
+                      register_scope_infos_[iterator_.GetRegisterOperand(0)]));
 
   ValueNode* object = LoadRegister(3);
   FeedbackSlot slot = GetSlotOperand(4);
@@ -7030,13 +6950,13 @@ ReduceResult MaglevGraphBuilder::VisitSetPrivateField() {
   auto build_generic_access = [this, object, name, &feedback_source]() {
     ValueNode* context = GetContext();
     ValueNode* value = GetAccumulator();
-    return AddNewNode<SetKeyedGeneric>({context, object, name.value(), value},
+    return AddNewNode<SetKeyedGeneric>({context, object, name, value},
                                        feedback_source);
   };
 
-  return BuildSetKeyedProperty(object, name.value(),
-                               compiler::AccessMode::kStore, feedback_source,
-                               processed_feedback, build_generic_access);
+  return BuildSetKeyedProperty(object, name, compiler::AccessMode::kStore,
+                               feedback_source, processed_feedback,
+                               build_generic_access);
 }
 
 ReduceResult MaglevGraphBuilder::VisitSetPrototypeProperties() {

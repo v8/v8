@@ -1096,6 +1096,10 @@ class MaglevReducer {
 
   MaybeAssignedFlag GetContextMaybeAssigned(compiler::ScopeInfoRef scope_info,
                                             int index, VariableMode* mode);
+  ValueNode* TryGetParentContext(ValueNode* node);
+  MaybeReduceResult TryGetConstantContextValue(
+      ValueNode* context, int offset, MaybeAssignedFlag assigned,
+      VariableMode mode = VariableMode::kVar);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 

@@ -921,6 +921,8 @@ void MaglevGraphOptimizer::AttachExceptionHandlerInfo(NodeBase* node) {
 
 template <typename NodeT>
 ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
+  REPLACE_AND_RETURN_IF_DONE(reducer_.TryGetConstantContextValue(
+      node->input_node(0), node->offset(), node->maybe_assigned()));
   REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryGetContextCachedValue(
       node->input_node(0), node->offset(), node->maybe_assigned()));
   return ProcessResult::kContinue;
