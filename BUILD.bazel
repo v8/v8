@@ -3379,6 +3379,8 @@ filegroup(
         "src/objects/js-plural-rules.cc",
         "src/objects/js-plural-rules.h",
         "src/objects/js-plural-rules-inl.h",
+        "src/objects/js-plural-rules-internal.cc",
+        "src/objects/js-plural-rules-internal.h",
         "src/objects/js-relative-time-format.cc",
         "src/objects/js-relative-time-format.h",
         "src/objects/js-relative-time-format-inl.h",
