@@ -37,10 +37,14 @@ T* SandboxAllocArray(size_t num_elements) {
 
 #ifdef V8_ENABLE_SANDBOX
   auto* allocator = IsolateGroup::current()->GetInSandboxAllocator();
-  void* raw_memory = allocator->AllocateUninitializedOrCrash(size);
+  void* raw_memory = allocator->AllocateUninitialized(size);
 #else
   void* raw_memory = base::Malloc(size);
 #endif  // V8_ENABLE_SANDBOX
+
+  if (!raw_memory) {
+    internal::V8::FatalProcessOutOfMemory(nullptr, "SandboxAllocArray");
+  }
 
   memset(raw_memory, 0, size);
   return static_cast<T*>(raw_memory);
