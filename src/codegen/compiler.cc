@@ -1387,7 +1387,8 @@ MaybeHandle<Code> GetOrCompileOptimized(
 void SpawnDuplicateConcurrentJobForStressTesting(
     Isolate* isolate, DirectHandle<JSFunction> function, ConcurrencyMode mode,
     CodeKind code_kind) {
-  // TODO(v8:7700): Support Maglev.
+  // TODO(v8:7700): Support Maglev (--maglev-as-top-tier currently explicitly
+  // disables --stress-concurrent-inlining).
   if (code_kind == CodeKind::MAGLEV) return;
 
   if (function->ActiveTierIsTurbofan(isolate)) return;

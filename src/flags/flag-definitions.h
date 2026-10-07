@@ -590,6 +590,8 @@ DEFINE_BOOL(maglev_as_top_tier, false,
 DEFINE_IMPLICATION(maglev_as_top_tier, maglev)
 DEFINE_NEG_IMPLICATION(maglev_as_top_tier, turbofan)
 DEFINE_NEG_IMPLICATION(maglev_as_top_tier, turbolev)
+DEFINE_NEG_IMPLICATION(maglev_as_top_tier, turbolev_future)
+DEFINE_NEG_IMPLICATION(maglev_as_top_tier, stress_concurrent_inlining)
 
 DEFINE_BOOL(maglev_inlining, true,
             "enable inlining in the maglev optimizing compiler")
@@ -951,6 +953,8 @@ DEFINE_NEG_IMPLICATION(jitless, always_sparkplug)
 #ifdef V8_ENABLE_MAGLEV
 DEFINE_NEG_IMPLICATION(jitless, maglev)
 DEFINE_NEG_IMPLICATION(jitless, maglev_as_top_tier)
+DEFINE_NEG_IMPLICATION(jitless, maglev_future)
+DEFINE_NEG_IMPLICATION(jitless, stress_maglev)
 #endif  // V8_ENABLE_MAGLEV
 DEFINE_NEG_IMPLICATION(jitless, turbolev)
 DEFINE_NEG_IMPLICATION(jitless, turbolev_future)
@@ -968,6 +972,8 @@ DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbofan)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turboshaft)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev_as_top_tier)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev_future)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, stress_maglev)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbolev)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbolev_future)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, wasm_in_js_inlining_body)
