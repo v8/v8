@@ -3374,11 +3374,12 @@ DEFINE_BOOL(stack_trace_on_illegal, false,
             "print stack trace when an illegal exception is thrown")
 DEFINE_BOOL(abort_on_uncaught_exception, false,
             "abort program (dump core) when an uncaught exception is thrown")
-DEFINE_BOOL(correctness_fuzzer_suppressions, false,
-            "Suppress certain unspecified behaviors to ease correctness "
-            "fuzzing: Abort program when the stack overflows or a string "
-            "exceeds maximum length (as opposed to throwing RangeError). "
-            "Use a fixed suppression string for error messages.")
+DEFINE_DEVELOPER_FLAG(
+    correctness_fuzzer_suppressions,
+    "Suppress certain unspecified behaviors to ease correctness "
+    "fuzzing: Abort program when the stack overflows or a string "
+    "exceeds maximum length (as opposed to throwing RangeError). "
+    "Use a fixed suppression string for error messages.")
 DEFINE_BOOL(rehash_snapshot, false,
             "rehash strings from the snapshot to override the baked-in seed")
 DEFINE_UINT64(hash_seed, 0,
@@ -4407,9 +4408,6 @@ DEFINE_IMPLICATION(run_as_security_poc, fuzzing)
 // Experimental features are not ready for broad usage yet. Bugs in these areas
 // are not considered security issues.
 DEFINE_NEG_IMPLICATION(run_as_security_poc, experimental)
-// Correctness fuzzer suppressions turn harmless exceptions (e.g. stack
-// overflows) into crashes.
-DEFINE_NEG_IMPLICATION(run_as_security_poc, correctness_fuzzer_suppressions)
 
 // Runs a program as sandbox security POC. This mode is used to determine
 // whether a bug in a program can lead to a sandbox violation. The mode enables

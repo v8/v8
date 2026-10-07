@@ -604,4 +604,13 @@ TEST_F(FlagDefinitionsTest, ArrayDestructureBytecodeImplications) {
 #endif  // V8_ENABLE_TURBOFAN
 }
 
+TEST_F(FlagDefinitionsTest, CorrectnessFuzzerSuppressionsIsDeveloperOnly) {
+  SaveFlags save_flags;
+  const char* str = "--correctness-fuzzer-suppressions";
+  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+  FlagList::EnforceFlagImplications();
+  CHECK(v8_flags.correctness_fuzzer_suppressions);
+  CHECK(v8_flags.developer_only_features);
+}
+
 }  // namespace v8::internal
