@@ -2009,6 +2009,11 @@ TEST_F(DebugScopeInfoTest, FindEvalOuterScopeNestedBlocks) {
   ASSERT_EQ(block_c->variable_count(), 1);
   EXPECT_TRUE(block_c->variable(0).name->IsEqualTo(base::CStrVector("c")));
 
+  DirectHandle<Script> outer_script(
+      Cast<Script>(eval_script->eval_from_shared()->script()), isolate());
+  EXPECT_EQ(*block_c->info(),
+            *EnsureDebugScriptScopeInfo(isolate(), outer_script));
+
   std::optional<DebugScriptScope> block_b = block_c->parent();
   ASSERT_TRUE(block_b.has_value());
   EXPECT_TRUE(block_b->is_block_scope());

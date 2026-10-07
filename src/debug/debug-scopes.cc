@@ -93,6 +93,9 @@ void ScopeIterator::Restart() {
   DCHECK_NOT_NULL(frame_inspector_);
   function_ = frame_inspector_->GetFunction();
   context_ = Cast<Context>(frame_inspector_->GetContext());
+  // Iteration may have moved on to the caller's script of a direct eval.
+  script_ = frame_inspector_->GetScript();
+  debug_scope_info_ = EnsureDebugScriptScopeInfo(isolate_, script_);
   current_scope_index_ = start_scope_index_;
   DCHECK_NE(current_scope_index_, -1);
   UnwrapEvaluationContext();
@@ -314,10 +317,19 @@ bool ScopeIterator::NeedsContext() const {
 
 bool ScopeIterator::AdvanceOneScope() {
   if (!HasScope()) return false;
-  std::optional<DebugScriptScope> parent = current_scope().parent();
-  if (!parent.has_value()) return false;
-  current_scope_index_ = parent->scope_index();
-  return true;
+  if (std::optional<DebugScriptScope> parent = current_scope().parent()) {
+    current_scope_index_ = parent->scope_index();
+    return true;
+  }
+  if (std::optional<DebugScriptScope> outer =
+          FindEvalOuterScope(isolate_, script_)) {
+    script_ =
+        handle(Cast<Script>(script_->eval_from_shared()->script()), isolate_);
+    debug_scope_info_ = handle(*outer->info(), isolate_);
+    current_scope_index_ = outer->scope_index();
+    return true;
+  }
+  return false;
 }
 
 void ScopeIterator::AdvanceOneContext() {
@@ -337,8 +349,9 @@ void ScopeIterator::AdvanceScope() {
     }
 
     if (!AdvanceOneScope()) {
-      // We left the root of the scope tree (e.g. an eval scope). Continue
-      // with the runtime context chain.
+      // We left the root of the outermost scope tree we can reach (e.g. the
+      // root of an indirect eval, a `new Function` or a wrapped function).
+      // Continue with the runtime context chain.
       current_scope_index_ = -1;
       break;
     }

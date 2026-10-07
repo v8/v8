@@ -55,6 +55,7 @@ class V8_EXPORT_PRIVATE DebugScriptScope {
   std::optional<DebugScriptScope> next_sibling() const;
 
   // Position & Type Accessors
+  DirectHandle<DebugScriptScopeInfo> info() const { return info_; }
   int start_position() const;
   int end_position() const;
   int scope_index() const { return scope_index_; }

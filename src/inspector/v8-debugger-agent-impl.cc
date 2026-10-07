@@ -354,8 +354,6 @@ Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
   if (!injectedScript) return Response::Success();
   if (iterator->Done()) return Response::Success();
 
-  String16 scriptId = String16::fromInteger(iterator->GetScriptId());
-
   for (; !iterator->Done(); iterator->Advance()) {
     std::unique_ptr<RemoteObject> object;
     Response result =
@@ -373,6 +371,7 @@ Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
     if (!name.isEmpty()) scope->setName(name);
 
     if (iterator->HasLocationInfo()) {
+      String16 scriptId = String16::fromInteger(iterator->GetScriptId());
       v8::debug::Location start = iterator->GetStartLocation();
       scope->setStartLocation(protocol::Debugger::Location::create()
                                   .setScriptId(scriptId)

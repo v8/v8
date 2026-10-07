@@ -143,10 +143,14 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   Handle<JSFunction> function_;
 
   Handle<Context> context_;
+  // The script and serialized scope tree containing the current scope. These
+  // start out as the paused script and move on to the caller's script when
+  // iteration leaves the root scope of a direct eval script.
+  // `current_scope_index_` indexes into `debug_scope_info_` and is set to -1
+  // once iteration leaves the outermost scope tree.
+  // `start_scope_index_` and `closure_scope_index_` always index into the
+  // paused script's scope tree.
   Handle<Script> script_;
-  // Serialized scope tree of the paused script and indices into it.
-  // `current_scope_index_` is set to -1 once iteration leaves the root of
-  // `debug_scope_info_`.
   Handle<DebugScriptScopeInfo> debug_scope_info_;
   int start_scope_index_ = -1;
   int closure_scope_index_ = -1;
