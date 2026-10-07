@@ -1006,6 +1006,13 @@ bool Debug::CheckBreakPoint(DirectHandle<BreakPoint> break_point,
   }
 
   CHECK(in_debug_scope());
+
+  // Evaluating the condition might have disabled the debugger (e.g. an
+  // embedder that dispatches `Debugger.disable` synchronously from within the
+  // condition), in which case there is no delegate anymore and the break point
+  // has been cleared.
+  if (!debug_delegate_) return false;
+
   DisableBreak no_recursive_break(this);
 
   {
