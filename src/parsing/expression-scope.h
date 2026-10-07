@@ -128,10 +128,22 @@ class ExpressionScope {
     AsExpressionParsingScope()->MarkIdentifierAsAssigned();
   }
 
-  void ValidateAsPattern(ExpressionT expression, int begin, int end) {
+  void ValidateAsPattern(ExpressionT expression, int begin, int end,
+                         int variable_index) {
     if (!CanBeExpression()) return;
-    AsExpressionParsingScope()->ValidatePattern(expression, begin, end);
+    AsExpressionParsingScope()->ValidatePattern(expression, begin, end,
+                                                variable_index);
     AsExpressionParsingScope()->ClearExpressionError();
+  }
+
+  int variable_list_length() {
+    if (!CanBeExpression()) return 0;
+    return AsExpressionParsingScope()->variable_list()->length();
+  }
+
+  void DiscardVariablesSince(int variable_index) {
+    if (!CanBeExpression()) return;
+    AsExpressionParsingScope()->DiscardVariablesSince(variable_index);
   }
 
   void ValidateAsExpression() {
@@ -545,15 +557,25 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
 
   void ValidateExpression() { Validate(kExpressionIndex); }
 
-  void ValidatePattern(ExpressionT expression, int begin, int end) {
+  void ValidatePattern(ExpressionT expression, int begin, int end,
+                       int variable_index = 0) {
     Validate(kPatternIndex);
     if (expression->is_parenthesized()) {
       ExpressionScopeT::Report(Scanner::Location(begin, end),
                                MessageTemplate::kInvalidDestructuringTarget);
     }
-    for (auto& variable_initializer_pair : variable_list_) {
-      variable_initializer_pair.first->set_is_assigned();
+    for (int i = variable_index; i < variable_list_.length(); ++i) {
+      variable_list_.at(i).first->set_is_assigned();
     }
+  }
+
+  void DiscardVariablesSince(int variable_index) {
+    if (this->CanBeDeclaration()) {
+      for (int i = variable_index; i < variable_list_.length(); ++i) {
+        this->parser()->scope()->AddUnresolved(variable_list_.at(i).first);
+      }
+    }
+    variable_list_.Rewind(variable_index);
   }
 
   void ClearExpressionError() {

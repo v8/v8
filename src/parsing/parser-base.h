@@ -1365,7 +1365,7 @@ class ParserBase {
   ExpressionT ParseExpressionCoverGrammar();
   ExpressionT ParseAssignmentExpressionCoverGrammar();
   ExpressionT ParseAssignmentExpressionCoverGrammarContinuation(
-      int lhs_beg_pos, ExpressionT expression);
+      int lhs_beg_pos, int lhs_variable_index, ExpressionT expression);
   ExpressionT ParseConditionalChainAssignmentExpressionCoverGrammar(
       bool* else_found);
 
@@ -3268,6 +3268,7 @@ ParserBase<Impl>::ParseConditionalChainAssignmentExpressionCoverGrammar(
 
   DCHECK_IMPLIES(!has_error(), next_arrow_function_info_.HasInitialState());
 
+  int lhs_variable_index = expression_scope()->variable_list_length();
   ExpressionT expression = ParseLogicalExpression();
 
   Token::Value op = peek();
@@ -3278,8 +3279,8 @@ ParserBase<Impl>::ParseConditionalChainAssignmentExpressionCoverGrammar(
   }
 
   *else_found = true;
-  return ParseAssignmentExpressionCoverGrammarContinuation(lhs_beg_pos,
-                                                           expression);
+  return ParseAssignmentExpressionCoverGrammarContinuation(
+      lhs_beg_pos, lhs_variable_index, expression);
 }
 
 // Precedence = 2
@@ -3301,21 +3302,22 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
 
   DCHECK_IMPLIES(!has_error(), next_arrow_function_info_.HasInitialState());
 
+  int lhs_variable_index = expression_scope()->variable_list_length();
   ExpressionT expression = ParseConditionalExpression();
 
   Token::Value op = peek();
 
   if (!Token::IsArrowOrAssignmentOp(op)) return expression;
 
-  return ParseAssignmentExpressionCoverGrammarContinuation(lhs_beg_pos,
-                                                           expression);
+  return ParseAssignmentExpressionCoverGrammarContinuation(
+      lhs_beg_pos, lhs_variable_index, expression);
 }
 
 // Precedence = 2
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
-    int lhs_beg_pos, ExpressionT expression) {
+    int lhs_beg_pos, int lhs_variable_index, ExpressionT expression) {
   // AssignmentExpression ::
   //   ConditionalExpression
   //   ArrowFunction
@@ -3379,6 +3381,7 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
         Scanner::Location(lhs_beg_pos, end_position()),
         MessageTemplate::kInvalidPropertyBindingPattern);
     expression_scope()->ValidateAsExpression();
+    expression_scope()->DiscardVariablesSince(lhs_variable_index);
   } else if (expression->IsPattern() && op == Token::kAssign) {
     // Destructuring assignmment.
     if (expression->is_parenthesized()) {
@@ -3395,7 +3398,7 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
       }
     }
     expression_scope()->ValidateAsPattern(expression, lhs_beg_pos,
-                                          end_position());
+                                          end_position(), lhs_variable_index);
   } else {
     DCHECK(!IsValidReferenceExpression(expression));
     expression_scope()->ValidateAsExpression();
@@ -5690,6 +5693,7 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
   if (scope) scope->Accumulate();
   int begin = peek_position();
   AcceptINScope accept_in_scope(this, true);
+  int variable_index = expression_scope()->variable_list_length();
   ExpressionT result = ParseAssignmentExpressionCoverGrammar();
 
   // Parenthesized identifiers and property references are allowed as part of
@@ -5707,11 +5711,14 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
           Scanner::Location(begin, end_position()),
           MessageTemplate::kStrictEvalArguments);
     }
+    IdentifierT identifier = impl()->AsIdentifier(result);
+    ClassifyParameter(identifier, begin, end_position());
   } else if (result->IsProperty()) {
     expression_scope()->RecordDeclarationError(
         Scanner::Location(begin, end_position()),
         MessageTemplate::kInvalidPropertyBindingPattern);
     if (scope != nullptr) scope->ValidateExpression();
+    expression_scope()->DiscardVariablesSince(variable_index);
   } else if (result->is_parenthesized() ||
              (!result->IsPattern() && !result->IsAssignment())) {
     if (scope != nullptr) scope->ValidateExpression();
