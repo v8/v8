@@ -2063,7 +2063,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ PokePair(i.InputFloat64Register(1), i.InputFloat64Register(0),
                     slot * kSystemPointerSize);
       } else {
-        __ PokePair(i.InputRegister(1), i.InputRegister(0),
+        __ PokePair(i.InputOrZeroRegister64(1), i.InputOrZeroRegister64(0),
                     slot * kSystemPointerSize);
       }
       break;
@@ -4873,10 +4873,19 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Constant src = g.ToConstant(source);
       MemOperand dst = g.ToMemOperand(destination, masm());
       if (destination->IsStackSlot()) {
-        UseScratchRegisterScope scope(masm());
-        Register temp = scope.AcquireX();
-        MoveConstantToRegister(temp, src);
-        __ Str(temp, dst);
+        // A relocatable constant (e.g. a Wasm canonical signature id) is a
+        // placeholder that is patched later, so it must be materialized
+        // through the literal pool even when its value is zero.
+        if (RelocInfo::IsNoInfo(src.rmode()) &&
+            ((src.type() == Constant::kInt32 && src.ToInt32() == 0) ||
+             (src.type() == Constant::kInt64 && src.ToInt64() == 0))) {
+          __ Str(xzr, dst);
+        } else {
+          UseScratchRegisterScope scope(masm());
+          Register temp = scope.AcquireX();
+          MoveConstantToRegister(temp, src);
+          __ Str(temp, dst);
+        }
       } else if (destination->IsFloatStackSlot()) {
         if (base::bit_cast<int32_t>(src.ToFloat32()) == 0) {
           __ Str(wzr, dst);
