@@ -5,7 +5,9 @@
 // Flags: --enable-inspector
 
 // d8's `send` dispatches protocol messages synchronously, so a breakpoint
-// condition can disable the debugger while it is being evaluated.
+// condition can disable the debugger while it is being evaluated. Set two
+// break points at the same location, to check that the second condition is
+// not evaluated anymore once the debugger was disabled by the first one.
 
 let scriptId;
 globalThis.receive = function(m) {
@@ -27,16 +29,31 @@ send(JSON.stringify({
   method: 'Debugger.setBreakpoint',
   params: {
     location: {scriptId: scriptId, lineNumber: 2, columnNumber: 22},
-    condition: 'globalThis.onCond()'
+    condition: 'globalThis.cond1()'
+  }
+}));
+send(JSON.stringify({
+  id: 3,
+  method: 'Debugger.setBreakpointByUrl',
+  params: {
+    urlRegex: 'test\\.js',
+    lineNumber: 2,
+    columnNumber: 22,
+    condition: 'globalThis.cond2()'
   }
 }));
 
-let conditionEvaluated = false;
-globalThis.onCond = function() {
-  conditionEvaluated = true;
-  send(JSON.stringify({id: 3, method: 'Debugger.disable'}));
+let cond1Evaluated = false;
+let cond2Evaluated = false;
+globalThis.cond1 = function() {
+  cond1Evaluated = true;
+  send(JSON.stringify({id: 4, method: 'Debugger.disable'}));
+  return false;
+};
+globalThis.cond2 = function() {
+  cond2Evaluated = true;
   return false;
 };
 
 assertEquals(3, outer());
-assertTrue(conditionEvaluated);
+assertTrue(cond1Evaluated !== cond2Evaluated);

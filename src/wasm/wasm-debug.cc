@@ -1423,6 +1423,12 @@ namespace {
 
 bool CheckBreakPoint(Isolate* isolate, DirectHandle<BreakPoint> break_point,
                      StackFrameId frame_id) {
+  // The condition of another break point at the same position might have
+  // disabled the debugger (e.g. an embedder that dispatches `Debugger.disable`
+  // synchronously from within the condition). Don't evaluate any further
+  // conditions in that case, debug-evaluate requires an active debugger.
+  if (!isolate->debug()->is_active()) return false;
+
   if (break_point->condition()->length() == 0) return true;
 
   HandleScope scope(isolate);

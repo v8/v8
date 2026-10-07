@@ -979,6 +979,11 @@ bool Debug::CheckBreakPoint(DirectHandle<BreakPoint> break_point,
     return false;
   }
 
+  // The condition of another break point at the same location might have
+  // disabled the debugger (see below). Don't evaluate any further conditions
+  // in that case, debug-evaluate requires an active debugger.
+  if (!debug_delegate_) return false;
+
   if (!break_point->condition()->length()) return true;
   DirectHandle<String> condition(break_point->condition(), isolate_);
   MaybeDirectHandle<Object> maybe_result;
