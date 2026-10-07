@@ -1541,10 +1541,6 @@ void ExternalOneByteString::update_data_cache(
 void ExternalOneByteString::SetResource(
     Isolate* isolate, const ExternalOneByteString::Resource* resource) {
   set_resource(isolate, resource);
-  size_t new_payload = resource == nullptr ? 0 : resource->length();
-  if (new_payload > 0) {
-    isolate->heap()->UpdateExternalString(this, 0, new_payload);
-  }
 }
 
 void ExternalOneByteString::set_resource(
@@ -1609,10 +1605,6 @@ void ExternalTwoByteString::update_data_cache(
 void ExternalTwoByteString::SetResource(
     Isolate* isolate, const ExternalTwoByteString::Resource* resource) {
   set_resource(isolate, resource);
-  size_t new_payload = resource == nullptr ? 0 : resource->length() * 2;
-  if (new_payload > 0) {
-    isolate->heap()->UpdateExternalString(this, 0, new_payload);
-  }
 }
 
 void ExternalTwoByteString::set_resource(

@@ -2634,11 +2634,6 @@ bool Heap::ExternalStringTable::Contains(Tagged<String> string) {
   return false;
 }
 
-void Heap::UpdateExternalString(Tagged<String> string, size_t old_payload,
-                                size_t new_payload) {
-  DCHECK(IsExternalString(string));
-}
-
 void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
   std::set<Tagged<String>> visited_map;

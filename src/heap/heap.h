@@ -1217,12 +1217,6 @@ class Heap final {
   // Registers an external string.
   inline void RegisterExternalString(Tagged<String> string);
 
-  // Called when a string's resource is changed. The size of the payload is sent
-  // as argument of the method.
-  V8_EXPORT_PRIVATE void UpdateExternalString(Tagged<String> string,
-                                              size_t old_payload,
-                                              size_t new_payload);
-
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.
   inline void FinalizeExternalString(Tagged<String> string);

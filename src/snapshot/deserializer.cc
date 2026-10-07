@@ -513,8 +513,6 @@ void PostProcessExternalString(Tagged<ExternalString> string,
                                Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   string->InitResourceDataAfterDeserialization(isolate);
-  isolate->heap()->UpdateExternalString(string, 0,
-                                        string->ExternalPayloadSize());
   isolate->heap()->RegisterExternalString(string);
 }
 
