@@ -256,10 +256,10 @@
 
 #define DEFINE_SMI(nam, def, cmt) \
   DEFINE_INT(nam, def, cmt)       \
-  DEFINE_REQUIREMENT(Internals::IsValidSmi(v8_flags.nam.value()))
+  DEFINE_REQUIREMENT(Internals::IsValidSmi(nam.value()))
 #define DEFINE_POSITIVE_SMI(nam, def, cmt) \
   DEFINE_UINT(nam, def, cmt)               \
-  DEFINE_REQUIREMENT(Internals::IsValidSmi(v8_flags.nam.value()))
+  DEFINE_REQUIREMENT(Internals::IsValidSmi(nam.value()))
 
 #ifdef DEBUG
 #define DEFINE_DEBUG_BOOL DEFINE_BOOL
@@ -536,7 +536,7 @@ DEFINE_UINT(
     scavenger_chaos_mode_threshold, 50,
     "Percentage of non-large young objects that will be promoted during "
     "Scavenger in chaos mode")
-DEFINE_REQUIREMENT(v8_flags.scavenger_chaos_mode_threshold <= 100)
+DEFINE_MAX_VALUE_IMPLICATION(scavenger_chaos_mode_threshold, 100u)
 
 #ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
 #define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true
@@ -2728,14 +2728,15 @@ DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")
 DEFINE_BOOL(memory_reducer_for_small_heaps, true,
             "use memory reducer for small heaps")
-DEFINE_INT(memory_reducer_gc_count, 2,
-           "Maximum number of memory reducer GCs scheduled")
-DEFINE_REQUIREMENT(v8_flags.memory_reducer_gc_count > 0)
-DEFINE_INT(memory_reducer_delay_ms, 8'000, "Delay before memory reducer start")
-DEFINE_REQUIREMENT(v8_flags.memory_reducer_delay_ms > 0)
-DEFINE_INT(gc_memory_reducer_start_delay_ms, 30'000,
-           "Delay before memory reducer start")
-DEFINE_REQUIREMENT(v8_flags.gc_memory_reducer_start_delay_ms > 0)
+DEFINE_UINT(memory_reducer_gc_count, 2u,
+            "Maximum number of memory reducer GCs scheduled")
+DEFINE_MIN_VALUE_IMPLICATION(memory_reducer_gc_count, 1u)
+DEFINE_UINT(memory_reducer_delay_ms, 8'000u,
+            "Delay before memory reducer start")
+DEFINE_MIN_VALUE_IMPLICATION(memory_reducer_delay_ms, 1u)
+DEFINE_UINT(gc_memory_reducer_start_delay_ms, 30'000u,
+            "Delay before memory reducer start")
+DEFINE_MIN_VALUE_IMPLICATION(gc_memory_reducer_start_delay_ms, 1u)
 DEFINE_BOOL(memory_reducer_limit_based, false,
             "Use the limit-based memory reducer that updates allocation limits "
             "after a delay to trigger GC")
@@ -2850,18 +2851,17 @@ DEFINE_NEG_NEG_IMPLICATION(memory_pool, managed_zone_memory)
 DEFINE_BOOL(fuzzer_gc_analysis, false,
             "prints number of allocations and enables analysis mode for gc "
             "fuzz testing, e.g. --stress-marking, --stress-scavenge")
-DEFINE_INT(stress_marking, 0,
-           "force marking at random points between 0 and X (inclusive) percent "
-           "of the regular marking start limit")
-DEFINE_REQUIREMENT(v8_flags.stress_marking >= 0)
-DEFINE_REQUIREMENT(v8_flags.stress_marking <= 100)
-DEFINE_INT(stress_scavenge, 0,
-           "force scavenge at random points between 0 and X (inclusive) "
-           "percent of the new space capacity")
-DEFINE_REQUIREMENT(v8_flags.stress_scavenge >= 0)
-DEFINE_REQUIREMENT(v8_flags.stress_scavenge <= 100)
-DEFINE_VALUE_IMPLICATION(fuzzer_gc_analysis, stress_marking, 99)
-DEFINE_VALUE_IMPLICATION(fuzzer_gc_analysis, stress_scavenge, 99)
+DEFINE_UINT(
+    stress_marking, 0u,
+    "force marking at random points between 0 and X (inclusive) percent "
+    "of the regular marking start limit")
+DEFINE_MAX_VALUE_IMPLICATION(stress_marking, 100u)
+DEFINE_UINT(stress_scavenge, 0u,
+            "force scavenge at random points between 0 and X (inclusive) "
+            "percent of the new space capacity")
+DEFINE_MAX_VALUE_IMPLICATION(stress_scavenge, 100u)
+DEFINE_VALUE_IMPLICATION(fuzzer_gc_analysis, stress_marking, 99u)
+DEFINE_VALUE_IMPLICATION(fuzzer_gc_analysis, stress_scavenge, 99u)
 DEFINE_BOOL(
     reclaim_unmodified_wrappers, true,
     "reclaim otherwise unreachable unmodified wrapper objects when possible")
@@ -3101,10 +3101,10 @@ DEFINE_INT(switch_table_spread_threshold, 3,
            "allow the jump table used for switch statements to span a range "
            "of integers roughly equal to this number times the number of "
            "clauses in the switch")
-DEFINE_INT(switch_table_min_cases, 6,
-           "the number of Smi integer cases present in the switch statement "
-           "before using the jump table optimization")
-DEFINE_REQUIREMENT(v8_flags.switch_table_min_cases > 0)
+DEFINE_UINT(switch_table_min_cases, 6u,
+            "the number of Smi integer cases present in the switch statement "
+            "before using the jump table optimization")
+DEFINE_MIN_VALUE_IMPLICATION(switch_table_min_cases, 1u)
 // Note that enabling this stress mode might result in a failure to compile
 // even a top-level code.
 DEFINE_UINT(stress_lazy_compilation, 0,
@@ -3321,8 +3321,7 @@ DEFINE_BOOL(super_ic, true, "use an IC for super property loads")
 DEFINE_EXPERIMENTAL_FEATURE(mega_dom_ic, "use MegaDOM IC state for API objects")
 
 DEFINE_UINT(homomorphic_ic_count, 8, "local cache size in homomorphic ICs")
-DEFINE_REQUIREMENT(
-    base::bits::IsPowerOfTwo(v8_flags.homomorphic_ic_count.value()))
+DEFINE_REQUIREMENT(base::bits::IsPowerOfTwo(homomorphic_ic_count.value()))
 
 // objects.cc
 DEFINE_DEVELOPER_FLAG(trace_prototype_users,
@@ -3351,17 +3350,17 @@ DEFINE_INT(stop_sim_at, 0, "Simulator stop after x number of instructions")
 #if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_MIPS64) ||  \
     defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_RISCV64) || \
     defined(V8_TARGET_ARCH_LOONG64)
-DEFINE_INT(sim_stack_alignment, 16,
-           "Stack alignment in bytes in simulator. This must be a power of two "
-           "and it must be at least 16. 16 is default.")
-DEFINE_REQUIREMENT(
-    v8_flags.sim_stack_alignment >= 16 &&
-    base::bits::IsPowerOfTwo(v8_flags.sim_stack_alignment.value()))
+DEFINE_UINT(
+    sim_stack_alignment, 16u,
+    "Stack alignment in bytes in simulator. This must be a power of two "
+    "and it must be at least 16. 16 is default.")
+DEFINE_MIN_VALUE_IMPLICATION(sim_stack_alignment, 16u)
+DEFINE_REQUIREMENT(base::bits::IsPowerOfTwo(sim_stack_alignment.value()))
 #else
-DEFINE_INT(sim_stack_alignment, 8,
+DEFINE_UINT(sim_stack_alignment, 8u,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
-DEFINE_REQUIREMENT(v8_flags.sim_stack_alignment == 4 ||
-                   v8_flags.sim_stack_alignment == 8)
+DEFINE_REQUIREMENT(sim_stack_alignment == 4u ||
+                   sim_stack_alignment == 8u)
 #endif
 DEFINE_INT(sim_stack_size, 2 * MB / KB,
            "Stack size of the ARM64, MIPS64 and PPC64 simulator "
@@ -3501,7 +3500,7 @@ DEFINE_NEG_IMPLICATION(regexp_interpret_all, regexp_tier_up)
 DEFINE_SMI(regexp_tier_up_ticks, 0,
            "set the number of executions for the regexp interpreter before "
            "tiering-up to the compiler")
-DEFINE_REQUIREMENT(v8_flags.regexp_tier_up_ticks >= 0)
+DEFINE_MIN_VALUE_IMPLICATION(regexp_tier_up_ticks, 0)
 DEFINE_BOOL(
     regexp_jit_all, false,
     "compile all regexp patterns directly to native code, skipping the "

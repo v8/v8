@@ -252,7 +252,7 @@ void MemoryReducer::ScheduleTimer(double delay_ms) {
 
 // static
 int MemoryReducer::MaxNumberOfGCs() {
-  DCHECK_GT(v8_flags.memory_reducer_gc_count, 0);
+  DCHECK_GT(v8_flags.memory_reducer_gc_count, 0u);
   return v8_flags.memory_reducer_gc_count;
 }
 

@@ -2667,11 +2667,10 @@ bool IsSwitchOptimizable(SwitchStatement* stmt, SwitchInfo* info) {
   }
 
   // This flag is not allowed to be <= 0.
-  DCHECK_GT(v8_flags.switch_table_min_cases, 0);
+  DCHECK_GT(v8_flags.switch_table_min_cases, 0u);
 
   // GCC also jump-table optimizes switch statements with 6 cases or more.
-  if (static_cast<int>(info->covered_cases.size()) >=
-      v8_flags.switch_table_min_cases) {
+  if (info->covered_cases.size() >= v8_flags.switch_table_min_cases) {
     // Due to case spread will be used as the size of jump-table,
     // we need to check if it doesn't overflow by casting its
     // min and max bounds to int64_t, and calculate if the difference is less
