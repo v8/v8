@@ -5093,6 +5093,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(F32x4RelaxedMax, kArm64FMax, LaneSize::kL32)                   \
   V(F16x8Add, kArm64FAdd, LaneSize::kL16)                          \
   V(F16x8Sub, kArm64FSub, LaneSize::kL16)                          \
+  V(F16x8Mul, kArm64FMul, LaneSize::kL16)                          \
   V(F16x8Div, kArm64FDiv, LaneSize::kL16)                          \
   V(F16x8Min, kArm64FMin, LaneSize::kL16)                          \
   V(F16x8Max, kArm64FMax, LaneSize::kL16)                          \
@@ -5679,6 +5680,7 @@ struct MulWithDup {
 
 template <int LANES>
 MulWithDup TryMatchMulWithDup(InstructionSelector* selector, OpIndex node) {
+  static_assert(LANES == 4 || LANES == 2);
   // Pattern match:
   //   f32x4.mul(x, shuffle(x, y, indices)) => f32x4.mul(x, y, laneidx)
   //   f64x2.mul(x, shuffle(x, y, indices)) => f64x2.mul(x, y, laneidx)
@@ -5718,18 +5720,6 @@ MulWithDup TryMatchMulWithDup(InstructionSelector* selector, OpIndex node) {
   return {input, dup_node, index};
 }
 }  // namespace
-
-void InstructionSelector::VisitF16x8Mul(OpIndex node) {
-  if (MulWithDup result = TryMatchMulWithDup<8>(this, node)) {
-    Arm64OperandGenerator g(this);
-    Emit(kArm64FMulElement | LaneSizeField::encode(LaneSize::kL16),
-         g.DefineAsRegister(node), g.UseRegister(result.input),
-         g.UseRegister(result.dup_node), g.UseImmediate(result.index));
-  } else {
-    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(LaneSize::kL16),
-                    node);
-  }
-}
 
 void InstructionSelector::VisitF32x4Mul(OpIndex node) {
   if (MulWithDup result = TryMatchMulWithDup<4>(this, node)) {

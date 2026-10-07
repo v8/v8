@@ -3338,6 +3338,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorFormat s_f =
           ScalarFormatFromLaneSize(LaneSizeBits(LaneSizeField::decode(opcode)));
       VectorFormat v_f = VectorFormatFillQ(s_f);
+      DCHECK(v_f == kFormat4S || v_f == kFormat2D);
       __ Fmul(i.OutputSimd128Register().Format(v_f),
               i.InputSimd128Register(0).Format(v_f),
               i.InputSimd128Register(1).Format(s_f), i.InputInt8(2));
