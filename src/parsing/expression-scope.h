@@ -527,7 +527,7 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
       ValidateExpression();
       return expression;
     }
-    this->mark_verified();
+    ValidateExpression();
     const bool early_error = false;
     return this->parser()->RewriteInvalidReferenceExpression(
         expression, beg_pos, end_pos, MessageTemplate::kInvalidLhsInFor,
