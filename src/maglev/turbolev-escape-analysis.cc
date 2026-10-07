@@ -1551,6 +1551,7 @@ class DeoptFrameUpdater {
           case Builtin::kGenericLazyDeoptContinuation:
           case Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation:
           case Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation:
+          case Builtin::kProxyGetPropertyTrapResultLazyDeoptContinuation:
             result_location = node->lazy_deopt_info()->result_location();
             result_size = node->lazy_deopt_info()->result_size();
             break;

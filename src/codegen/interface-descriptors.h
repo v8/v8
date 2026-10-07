@@ -135,6 +135,7 @@ namespace internal {
   V(NewHeapNumber)                                              \
   V(NoContext)                                                  \
   V(OnStackReplacement)                                         \
+  V(ProxyGetPropertyTrapResultLazyDeoptContinuation)            \
   V(RegExpTrampoline)                                           \
   V(RestartFrameTrampoline)                                     \
   V(ResumeGenerator)                                            \
@@ -1836,6 +1837,23 @@ class GetIteratorStackParameterDescriptor final
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::AnyTagged(),
                          MachineType::AnyTagged(), MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(GetIteratorStackParameterDescriptor)
+
+  static constexpr auto registers();
+};
+
+class ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kTarget, kProxy, kName, kTrapResult)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
+                                    MachineType::AnyTagged(),  // kTarget
+                                    MachineType::AnyTagged(),  // kProxy
+                                    MachineType::AnyTagged(),  // kName
+                                    MachineType::AnyTagged())  // kTrapResult
+  DECLARE_DESCRIPTOR(ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor)
 
   static constexpr auto registers();
 };

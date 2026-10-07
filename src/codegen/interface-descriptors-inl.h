@@ -630,6 +630,12 @@ constexpr auto GetIteratorStackParameterDescriptor::registers() {
 }
 
 // static
+constexpr auto
+ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
 constexpr auto ForOfNextResultDeoptContinuationDescriptor::registers() {
   return RegisterArray();
 }

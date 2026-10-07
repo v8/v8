@@ -1918,6 +1918,7 @@ class LazyDeoptInfo : public DeoptInfo {
           case Builtin::kForOfNextLoadValueLazyDeoptContinuation:
           case Builtin::kArrayDestructureLazyDeoptContinuation:
           case Builtin::kGeneratorPrototypeNextLazyDeoptContinuation:
+          case Builtin::kProxyGetPropertyTrapResultLazyDeoptContinuation:
             return true;
           default:
             return false;

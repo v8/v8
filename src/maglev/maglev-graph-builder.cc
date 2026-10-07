@@ -6495,11 +6495,46 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildProxyPropertyAccess(
   CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
                      {proxy_handler, proxy_target, argument_name, receiver});
 
-  RETURN_IF_DONE(
-      TryReduceCallForConstant(trap_js_function_ref, args, feedback_source));
+  ValueNode* result;
+  {
+    LazyDeoptFrameScope deopt_continuation(
+        &reducer_, GetContext(),
+        Builtin::kProxyGetPropertyTrapResultLazyDeoptContinuation, {},
+        base::VectorOf<ValueNode*>(
+            {proxy_target, lookup_start_object, argument_name}));
+    MaybeReduceResult call_result =
+        TryReduceCallForConstant(trap_js_function_ref, args, feedback_source);
+    if (!call_result.IsDone()) {
+      call_result = BuildGenericCall(actual_trap, Call::TargetType::kJSFunction,
+                                     args, feedback_source);
+    }
+    GET_VALUE_OR_ABORT(result, call_result);
+  }
 
-  return BuildGenericCall(actual_trap, Call::TargetType::kJSFunction, args,
-                          feedback_source);
+  // 4. Verify that the proxy target map didn't change during the trap call.
+  const NodeInfo* target_info =
+      known_node_aspects().TryGetInfoWithFreshMaps(proxy_target);
+  if (target_info == nullptr || target_info->possible_maps().size() != 1 ||
+      target_info->possible_maps().at(0) != expected_target_map) {
+    ValueNode* target_map;
+    GET_VALUE_OR_ABORT(
+        target_map,
+        BuildLoadTaggedField(proxy_target, offsetof(HeapObject, map_)));
+    return Select(
+        [&](BranchBuilder& builder) {
+          return BuildBranchIfReferenceEqual(builder, target_map,
+                                             GetConstant(expected_target_map));
+        },
+        [&]() -> ReduceResult { return result; },
+        [&]() -> ReduceResult {
+          RETURN_IF_ABORT(BuildCallRuntime(Runtime::kCheckProxyGetSetTrapResult,
+                                           {argument_name, proxy_target, result,
+                                            GetSmiConstant(JSProxy::kGet)}));
+          return result;
+        });
+  }
+
+  return result;
 }
 
 template <typename GenericAccessFunc>

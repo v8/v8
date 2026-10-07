@@ -534,6 +534,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFS(SetDataProperties, NeedsContext{true}, kTarget, kSource)                 \
   TFS(ProxyGetPropertyFastPath, NeedsContext{true}, kProxy, kName, kReceiver,  \
       kHandler)                                                                \
+  TFC(ProxyGetPropertyTrapResultLazyDeoptContinuation,                         \
+      ProxyGetPropertyTrapResultLazyDeoptContinuation)                         \
   TFC(CopyDataPropertiesWithExcludedPropertiesOnStack,                         \
       CopyDataPropertiesWithExcludedPropertiesOnStack)                         \
   TFC(CopyDataPropertiesWithExcludedProperties,                                \

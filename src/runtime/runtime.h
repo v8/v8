@@ -453,7 +453,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ConstructInternalAggregateErrorHelper, -1 /* <= 5*/, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F, I) \
-  F(CheckProxyGetSetTrapResult, 2, 1)  \
+  F(CheckProxyGetSetTrapResult, 4, 1)  \
   F(CheckProxyHasTrapResult, 2, 1)     \
   F(CheckProxyDeleteTrapResult, 2, 1)  \
   F(GetPropertyWithReceiver, 3, 1)     \
