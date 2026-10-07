@@ -475,4 +475,39 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
   }
 }
 
+TEST_F(FlagDefinitionsTest, ArrayDestructureBytecodeImplications) {
+  {
+    SaveFlags save_flags;
+    const char* str = "--array-destructure-bytecode";
+    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.array_destructure_bytecode);
+    CHECK(v8_flags.turbolev);
+  }
+#ifdef V8_ENABLE_TURBOFAN
+  {
+    SaveFlags save_flags;
+    const char* str = "--fuzzing --array-destructure-bytecode --no-turbolev";
+    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.turbofan);
+    CHECK(!v8_flags.turbolev);
+    CHECK(!v8_flags.array_destructure_bytecode);
+  }
+  {
+    SaveFlags save_flags;
+    const char* str =
+        "--fuzzing --array-destructure-bytecode --no-turbofan "
+        "--stress-concurrent-inlining --no-turbolev";
+    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.turbofan);
+    CHECK(!v8_flags.turbolev);
+    CHECK(!v8_flags.array_destructure_bytecode);
+  }
+#endif  // V8_ENABLE_TURBOFAN
+}
+
 }  // namespace v8::internal

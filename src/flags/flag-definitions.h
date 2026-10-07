@@ -1726,6 +1726,8 @@ DEFINE_BOOL_READONLY(wasm_deinterleave_loads, false,
 DEFINE_BOOL(turbolev, false,
             "use Turbolev (≈ Maglev + Turboshaft combined) as the 4th tier "
             "compiler instead of Turbofan")
+// ArrayDestructure bytecode is only supported in Turbolev, not Turbofan.
+DEFINE_WEAK_IMPLICATION(array_destructure_bytecode, turbolev)
 
 DEFINE_DEVELOPER_FLAG(print_turbolev_frontend,
                       "print Turbolev frontend (Maglev graphs)")
@@ -4328,6 +4330,8 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
 #endif  // V8_ENABLE_WEBASSEMBLY
 // Known-broken features/configuration.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, feedback_normalization)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags && turbofan && !turbolev,
+                       array_destructure_bytecode)
 // Disabled-by-default misc. "unsafe" flags that should not be enabled.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, mock_arraybuffer_allocator)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_bad_builtin_profile_data)

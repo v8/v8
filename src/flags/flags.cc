@@ -1487,10 +1487,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   // https://crbug.com/393401455
   RESET_WHEN_FUZZING(turboshaft);
 
-  if (v8_flags.turbofan && !v8_flags.turbolev) {
-    RESET_WHEN_FUZZING(array_destructure_bytecode);
-  }
-
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_max_code_space_size_mb > kDefaultMaxWasmCodeSpaceSizeMb) {
     // Skip the warning on correctness (differential) fuzzing to prevent false
