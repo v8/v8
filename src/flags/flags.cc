@@ -1474,6 +1474,8 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
     // Ensure we never reset the fuzzing or POC verification flags.
     CHECK(!flag1->PointsTo(&v8_flags.fuzzing));
     CHECK(!flag1->PointsTo(&v8_flags.correctness_fuzzer_suppressions));
+    CHECK(
+        !flag1->PointsTo(&v8_flags.correctness_fuzzer_cross_arch_suppressions));
     CHECK(!flag1->PointsTo(&v8_flags.sandbox_fuzzing));
     CHECK(!flag1->PointsTo(&v8_flags.sandbox_testing));
     CHECK(!flag1->PointsTo(&v8_flags.run_as_security_poc));

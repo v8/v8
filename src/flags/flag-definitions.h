@@ -3381,6 +3381,9 @@ DEFINE_DEVELOPER_FLAG(
     "fuzzing: Abort program when the stack overflows or a string "
     "exceeds maximum length (as opposed to throwing RangeError). "
     "Use a fixed suppression string for error messages.")
+DEFINE_DEVELOPER_FLAG(
+    correctness_fuzzer_cross_arch_suppressions,
+    "Minimize cross-architecture differences for correctness fuzzing.")
 DEFINE_BOOL(rehash_snapshot, false,
             "rehash strings from the snapshot to override the baked-in seed")
 DEFINE_UINT64(hash_seed, 0,
