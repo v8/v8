@@ -89,6 +89,11 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
      registers (`TemporaryRegisterScope`, Liftoff cache spills) across
      helper/barrier calls, stack frame alignment and slot accounting,
      condition/branch inversions.
+   - **Fail-fast assertions vs. defensive masking**: Prefer failing fast via
+     `DCHECK`/`CHECK` on unexpected compiler states or invariant violations. Do
+     NOT recommend adding defensive workarounds (e.g., silent early returns,
+     fallback dummy values, defensive clamping, or non-exhaustive switch
+     `default: break;`) that paper over upstream invariant violations.
 
 4. `concurrency`:
 
@@ -118,12 +123,13 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
      than disabling fast paths wholesale; reuse existing helpers/passes; avoid
      `#if V8_TARGET_ARCH_...` in shared code; flag edits to generated files
      (`out/`) or unrelated drive-by refactors.
-   - **API surface, flags & presubmit**: Swallowed errors instead of
-     `CHECK`/`DCHECK`/`UNREACHABLE()`, error fallbacks bypassing subsequent
-     checks, unused parameters/fields, dead code, missing flag implications
-     (`DEFINE_IMPLICATION`) under `--fuzzing`, production `.cc` code calling
-     `*ForTest*` helpers, new `V8_OBJECT`/`V8_IT_` headers missing from
-     `src/objects/all-objects.h`.
+   - **API surface, flags & presubmit**: Swallowed errors or defensive
+     workarounds instead of `CHECK`/`DCHECK`/`UNREACHABLE()` (never suggest
+     defensive fallbacks that mask unexpected states or invariant violations),
+     error fallbacks bypassing subsequent checks, unused parameters/fields, dead
+     code, missing flag implications (`DEFINE_IMPLICATION`) under `--fuzzing`,
+     production `.cc` code calling `*ForTest*` helpers, new `V8_OBJECT`/`V8_IT_`
+     headers missing from `src/objects/all-objects.h`.
 
 6. `performance-containers`:
 
