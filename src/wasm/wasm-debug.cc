@@ -693,7 +693,11 @@ class DebugInfoImpl {
       }
       if (reg.is_gp()) {
         if (value->type == kWasmI32) {
-          return WasmValue(ReadUnalignedValue<uint32_t>(gp_addr(reg.gp())));
+          Address addr = gp_addr(reg.gp());
+#if V8_TARGET_BIG_ENDIAN && V8_HOST_ARCH_64_BIT
+          addr += kInt32Size;
+#endif
+          return WasmValue(ReadUnalignedValue<uint32_t>(addr));
         } else if (value->type == kWasmI64) {
           return WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
         } else if (value->type.is_ref()) {
@@ -732,6 +736,11 @@ class DebugInfoImpl {
 
     // Otherwise load the value from the stack.
     Address stack_address = stack_frame_base - value->stack_offset;
+#if V8_TARGET_BIG_ENDIAN && V8_HOST_ARCH_64_BIT
+    if (value->type.kind() == kI32 || value->type.kind() == kF32) {
+      stack_address += kInt32Size;
+    }
+#endif
     switch (value->type.kind()) {
       case kI32:
         return WasmValue(ReadUnalignedValue<int32_t>(stack_address));
