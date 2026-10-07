@@ -1222,6 +1222,7 @@ class ScopeInfoRef : public HeapObjectRef {
   MaybeAssignedFlag ContextLocalMaybeAssignedFlag(int var) const;
   VariableMode ContextLocalMode(int var) const;
   bool HasContext() const;
+  bool HasContextCells() const;
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
   bool SomeContextHasExtension() const;

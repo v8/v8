@@ -496,6 +496,9 @@ Scope* Scope::DeserializeScopeChain(
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
+      script_scope->set_has_context_cells(scope_info->HasContextCells());
+      script_scope->set_is_hoisted_in_context(
+          scope_info->is_hoisted_in_context());
       script_scope->num_heap_slots_ = scope_info->ContextLength();
       script_scope->set_start_position(scope_info->StartPosition());
       script_scope->set_end_position(scope_info->EndPosition());

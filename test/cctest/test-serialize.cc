@@ -7309,5 +7309,75 @@ UNINITIALIZED_TEST(StaticRootsPredictableSnapshot) {
 #endif  // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) &&
         // defined(V8_SHARED_RO_HEAP)
 
+UNINITIALIZED_TEST(SnapshotCreatorScriptContextCellsMismatch) {
+  v8::StartupData blob;
+  {
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      CompileRun(
+          "let x = 1; x = 2;\n"
+          "function lazy() { x = 3; return x; }\n");
+
+      creator.SetDefaultContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8_flags.script_context_cells = false;
+  v8_flags.function_context_cells = false;
+  v8_flags.allow_natives_syntax = true;
+
+  {
+    SnapshotCreatorParams testing_params(nullptr, &blob);
+    v8::Isolate* isolate = v8::Isolate::New(testing_params.create_params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      ExpectInt32(
+          "%PrepareFunctionForOptimization(lazy);\n"
+          "lazy();\n"
+          "%OptimizeFunctionOnNextCall(lazy);\n"
+          "lazy();\n",
+          3);
+
+      ExpectInt32(
+          "function f() { x = 4; return x; }\n"
+          "%PrepareFunctionForOptimization(f);\n"
+          "f(); f();\n"
+          "%OptimizeMaglevOnNextCall(f);\n"
+          "f();\n",
+          4);
+
+      ExpectInt32(
+          "function get_x() { return x; }\n"
+          "%PrepareFunctionForOptimization(get_x);\n"
+          "get_x(); get_x();\n"
+          "%OptimizeMaglevOnNextCall(get_x);\n"
+          "get_x();\n",
+          4);
+
+      ExpectInt32(
+          "function g() { x = 5; return x; }\n"
+          "%PrepareFunctionForOptimization(g);\n"
+          "g(); g();\n"
+          "%OptimizeFunctionOnNextCall(g);\n"
+          "g();\n",
+          5);
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
+
 }  // namespace internal
 }  // namespace v8

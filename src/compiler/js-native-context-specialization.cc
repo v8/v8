@@ -1233,10 +1233,12 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   if (feedback.IsScriptContextSlot()) {
     Effect effect = n.effect();
     Control control = n.control();
+    ContextRef script_context_ref = feedback.script_context();
     Node* script_context =
-        jsgraph()->ConstantNoHole(feedback.script_context(), broker());
+        jsgraph()->ConstantNoHole(script_context_ref, broker());
     Node* value;
-    if (v8_flags.script_context_cells && !feedback.immutable()) {
+    if (script_context_ref.scope_info(broker()).HasContextCells() &&
+        !feedback.immutable()) {
       // We collect feedback only for mutable context slots.
       value = effect = control =
           graph()->NewNode(javascript()->LoadContext(0, feedback.slot_index()),
@@ -1275,9 +1277,10 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     Node* effect = n.effect();
     Node* control = n.control();
     Node* frame_state = n.frame_state();
+    ContextRef script_context_ref = feedback.script_context();
     Node* script_context =
-        jsgraph()->ConstantNoHole(feedback.script_context(), broker());
-    if (v8_flags.script_context_cells) {
+        jsgraph()->ConstantNoHole(script_context_ref, broker());
+    if (script_context_ref.scope_info(broker()).HasContextCells()) {
       effect = control =
           graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
                            value, script_context, frame_state, effect, control);

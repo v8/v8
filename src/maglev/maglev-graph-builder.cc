@@ -2641,9 +2641,9 @@ ReduceResult MaglevGraphBuilder::VisitLdaConstant() {
 }
 ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextCell(
     ValueNode* context_node, int index, MaybeAssignedFlag assigned) {
-  DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   auto context = TryGetConstant<Context>(context_node);
   if (!context) return {};
+  DCHECK(context->scope_info(broker()).HasContextCells());
   auto maybe_value = context->get(broker(), index);
   if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
@@ -2698,6 +2698,8 @@ bool HasContextCell(ContextMode context_mode, MaybeAssignedFlag assigned) {
 ReduceResult MaglevGraphBuilder::LoadAndCacheContextSlot(
     ValueNode* context, int index, ContextMode context_mode,
     compiler::ScopeInfoRef scope_info) {
+  DCHECK_IMPLIES(context_mode == ContextMode::kHasContextCells,
+                 scope_info.HasContextCells());
   VariableMode mode;
   MaybeAssignedFlag assigned =
       reducer_.GetContextMaybeAssigned(scope_info, index, &mode);
@@ -2739,7 +2741,6 @@ bool MaglevGraphBuilder::ContextMayAlias(
 MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextCell(
     ValueNode* context, int index, ValueNode* value,
     MaybeAssignedFlag assigned) {
-  DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   if (!context->Is<HeapConstant>()) {
     DCHECK_EQ(assigned, kMaybeAssigned);
     return AddNewNode<StoreContextSlotWithWriteBarrier>({context, value},
@@ -2752,6 +2753,7 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextCell(
 
   compiler::ContextRef context_ref =
       context->Cast<HeapConstant>()->ref().AsContext();
+  DCHECK(context_ref.scope_info(broker()).HasContextCells());
   auto maybe_value = context_ref.get(broker(), index);
   if (!maybe_value || maybe_value->IsTdzHole() ||
       maybe_value->IsUndefinedContextCell()) {
@@ -2816,6 +2818,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextCell(
 ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
     ValueNode* context, int index, ValueNode* value, ContextMode context_mode,
     compiler::ScopeInfoRef scope_info) {
+  DCHECK_IMPLIES(context_mode == ContextMode::kHasContextCells,
+                 scope_info.HasContextCells());
   VariableMode mode;
   MaybeAssignedFlag maybe_assigned =
       reducer_.GetContextMaybeAssigned(scope_info, index, &mode);
@@ -3179,12 +3183,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildScriptContextStore(
     const compiler::GlobalAccessFeedback& global_access_feedback) {
   DCHECK(global_access_feedback.IsScriptContextSlot());
   if (global_access_feedback.immutable()) return {};
-  auto script_context = GetConstant(global_access_feedback.script_context());
+  auto script_context_ref = global_access_feedback.script_context();
+  auto script_context = GetConstant(script_context_ref);
+  compiler::ScopeInfoRef scope_info = script_context_ref.scope_info(broker());
   return StoreAndCacheContextSlot(
       script_context, global_access_feedback.slot_index(), GetAccumulator(),
-      v8_flags.script_context_cells ? ContextMode::kHasContextCells
-                                    : ContextMode::kNoContextCells,
-      global_access_feedback.script_context().scope_info(broker()));
+      scope_info.HasContextCells() ? ContextMode::kHasContextCells
+                                   : ContextMode::kNoContextCells,
+      scope_info);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
@@ -3269,11 +3275,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildScriptContextLoad(
   DCHECK(global_access_feedback.IsScriptContextSlot());
   auto script_context_ref = global_access_feedback.script_context();
   auto script_context = GetConstant(script_context_ref);
+  compiler::ScopeInfoRef scope_info = script_context_ref.scope_info(broker());
   return LoadAndCacheContextSlot(
       script_context, global_access_feedback.slot_index(),
-      v8_flags.script_context_cells ? ContextMode::kHasContextCells
-                                    : ContextMode::kNoContextCells,
-      script_context_ref.scope_info(broker()));
+      scope_info.HasContextCells() ? ContextMode::kHasContextCells
+                                   : ContextMode::kNoContextCells,
+      scope_info);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellLoad(
