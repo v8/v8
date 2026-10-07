@@ -8,6 +8,7 @@
 
 #include "absl/functional/overload.h"
 #include "hwy/highway.h"
+#include "src/base/memory.h"
 #include "src/base/strings.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -561,7 +562,8 @@ bool DoNotEscape(const SrcChar* chars, size_t length,
   static constexpr size_t stride = sizeof(PackedT);
   size_t i = 0;
   for (; i + (stride - 1) < length; i += stride) {
-    PackedT packed = *reinterpret_cast<const PackedT*>(chars + i);
+    PackedT packed =
+        base::ReadUnalignedValue<PackedT>(reinterpret_cast<Address>(chars + i));
     if (V8_UNLIKELY(NeedsEscape<SrcChar>(packed))) break;
   }
   for (; i < length; i++) {
@@ -3427,7 +3429,6 @@ bool FastJsonStringifier<Char>::AppendStringScalar(
 
 template <typename Char>
 template <typename SrcChar>
-V8_CLANG_NO_SANITIZE("alignment")
 bool FastJsonStringifier<Char>::AppendStringSWAR(
     const SrcChar* chars, size_t length, size_t start,
     size_t uncopied_src_index, const DisallowGarbageCollection& no_gc) {
@@ -3436,7 +3437,8 @@ bool FastJsonStringifier<Char>::AppendStringSWAR(
   static constexpr size_t stride = sizeof(PackedT) / sizeof(SrcChar);
   size_t i = start;
   for (; i + (stride - 1) < length; i += stride) {
-    PackedT packed = *reinterpret_cast<const PackedT*>(chars + i);
+    PackedT packed =
+        base::ReadUnalignedValue<PackedT>(reinterpret_cast<Address>(chars + i));
     if (V8_UNLIKELY(NeedsEscape<SrcChar>(packed))) break;
   }
   return AppendStringScalar(chars, length, i, uncopied_src_index, no_gc);
