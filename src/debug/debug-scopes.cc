@@ -102,7 +102,6 @@ void ScopeIterator::Restart() {
 void ScopeIterator::TryParseAndRetrieveScopes() {
   // Catch the case when the debugger stops in an internal function.
   DirectHandle<SharedFunctionInfo> shared_info(function_->shared(), isolate_);
-  DirectHandle<ScopeInfo> scope_info(shared_info->scope_info(), isolate_);
   if (IsUndefined(shared_info->script())) {
     current_scope_index_ = closure_scope_index_ = start_scope_index_ = -1;
     context_ = handle(function_->context(), isolate_);
@@ -137,15 +136,8 @@ void ScopeIterator::TryParseAndRetrieveScopes() {
     return;
   }
 
-  // For a FUNCTION_SCOPE we locate the paused function's scope in the
-  // serialized tree. For top-level scopes (EVAL_SCOPE, SCRIPT_SCOPE,
-  // MODULE_SCOPE) the closure scope is the root scope (index 0).
   std::optional<DebugScriptScope> debug_closure_scope =
-      scope_info->scope_type() == FUNCTION_SCOPE
-          ? FindClosureScope(debug_scope_info_, shared_info->StartPosition(),
-                             shared_info->EndPosition(),
-                             scope_info->scope_type())
-          : DebugScriptScope::FromIndex(debug_scope_info_, 0);
+      FindClosureScope(debug_scope_info_, *shared_info);
   if (!debug_closure_scope.has_value()) {
     context_ = Handle<Context>();
     return;

@@ -108,7 +108,7 @@ V8_OBJECT class Script : public Struct {
 
   // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
-  Tagged<SharedFunctionInfo> eval_from_shared() const;
+  V8_EXPORT_PRIVATE Tagged<SharedFunctionInfo> eval_from_shared() const;
   void set_eval_from_shared(Tagged<SharedFunctionInfo> shared,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 

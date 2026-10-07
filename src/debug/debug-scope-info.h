@@ -164,6 +164,11 @@ V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindClosureScope(
     DirectHandle<DebugScriptScopeInfo> info, int start_position,
     int end_position, ScopeType scope_type);
 
+// Returns the closure scope of `shared` in `info`: the matching function scope
+// for functions, and the root scope for top-level code (script, eval, module).
+V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindClosureScope(
+    DirectHandle<DebugScriptScopeInfo> info, Tagged<SharedFunctionInfo> shared);
+
 // Returns the innermost scope around `position` at or below `closure_scope`,
 // i.e. the scope a debugger paused at `position` starts iterating from.
 //
@@ -173,6 +178,14 @@ V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindClosureScope(
 // descendant is a better fit.
 V8_EXPORT_PRIVATE DebugScriptScope
 FindInnermostScope(DebugScriptScope closure_scope, int position);
+
+// If `script` is a direct eval script, returns the innermost scope in the
+// caller script's DebugScriptScopeInfo at the eval call site, i.e. the lexical
+// parent of `script`'s root scope. Returns nullopt for all other scripts
+// (including indirect eval, `new Function` and debug-evaluate code) or if the
+// caller script can't be reparsed.
+V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindEvalOuterScope(
+    Isolate* isolate, DirectHandle<Script> script);
 
 }  // namespace internal
 }  // namespace v8

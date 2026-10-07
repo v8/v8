@@ -1984,5 +1984,136 @@ TEST_F(DebugScopeInfoTest, FindInnermostScopeSwitchStatement) {
             switch_scope.scope_index());
 }
 
+TEST_F(DebugScopeInfoTest, FindEvalOuterScopeNestedBlocks) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "function outer(param) {\n"
+      "  let a = 1;\n"
+      "  {\n"
+      "    let b = 2;\n"
+      "    {\n"
+      "      let c = 3;\n"
+      "      return eval('() => param');\n"
+      "    }\n"
+      "  }\n"
+      "}\n"
+      "outer(10);");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  isolate()->debug()->ClearScriptScopeInfos();
+
+  std::optional<DebugScriptScope> block_c =
+      FindEvalOuterScope(isolate(), eval_script);
+  ASSERT_TRUE(block_c.has_value());
+  EXPECT_TRUE(block_c->is_block_scope());
+  ASSERT_EQ(block_c->variable_count(), 1);
+  EXPECT_TRUE(block_c->variable(0).name->IsEqualTo(base::CStrVector("c")));
+
+  std::optional<DebugScriptScope> block_b = block_c->parent();
+  ASSERT_TRUE(block_b.has_value());
+  EXPECT_TRUE(block_b->is_block_scope());
+  ASSERT_EQ(block_b->variable_count(), 1);
+  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo(base::CStrVector("b")));
+
+  std::optional<DebugScriptScope> fn_outer = block_b->parent();
+  ASSERT_TRUE(fn_outer.has_value());
+  EXPECT_TRUE(fn_outer->is_function_scope());
+  EXPECT_EQ(fn_outer->start_position(), 14);
+
+  std::optional<DebugScriptScope> script_scope = fn_outer->parent();
+  ASSERT_TRUE(script_scope.has_value());
+  EXPECT_TRUE(script_scope->is_script_scope());
+  EXPECT_FALSE(script_scope->parent().has_value());
+}
+
+TEST_F(DebugScopeInfoTest, FindEvalOuterScopeChainedDirectEval) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "function outer() {\n"
+      "  let a = 1;\n"
+      "  {\n"
+      "    let b = 2;\n"
+      "    return eval(\"let c = 3; { let d = 4; eval('() => a'); }\");\n"
+      "  }\n"
+      "}\n"
+      "outer();");
+  DirectHandle<Script> inner_eval_script(
+      Cast<Script>(inner->shared()->script()), isolate());
+  isolate()->debug()->ClearScriptScopeInfos();
+
+  std::optional<DebugScriptScope> block_d =
+      FindEvalOuterScope(isolate(), inner_eval_script);
+  ASSERT_TRUE(block_d.has_value());
+  EXPECT_TRUE(block_d->is_block_scope());
+  ASSERT_EQ(block_d->variable_count(), 1);
+  EXPECT_TRUE(block_d->variable(0).name->IsEqualTo(base::CStrVector("d")));
+
+  std::optional<DebugScriptScope> mid_eval_scope = block_d->parent();
+  ASSERT_TRUE(mid_eval_scope.has_value());
+  EXPECT_TRUE(mid_eval_scope->is_eval_scope());
+  EXPECT_FALSE(mid_eval_scope->parent().has_value());
+
+  DirectHandle<Script> mid_eval_script(
+      Cast<Script>(inner_eval_script->eval_from_shared()->script()), isolate());
+  std::optional<DebugScriptScope> block_b =
+      FindEvalOuterScope(isolate(), mid_eval_script);
+  ASSERT_TRUE(block_b.has_value());
+  EXPECT_TRUE(block_b->is_block_scope());
+  ASSERT_EQ(block_b->variable_count(), 1);
+  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo(base::CStrVector("b")));
+
+  std::optional<DebugScriptScope> fn_outer = block_b->parent();
+  ASSERT_TRUE(fn_outer.has_value());
+  EXPECT_TRUE(fn_outer->is_function_scope());
+  EXPECT_EQ(fn_outer->start_position(), 14);
+}
+
+TEST_F(DebugScopeInfoTest, FindEvalOuterScopeTopLevelScript) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> inner = RunJS<JSFunction>(
+      "let top_a = 1;\n"
+      "let result;\n"
+      "{\n"
+      "  let top_b = 2;\n"
+      "  result = eval('() => top_a');\n"
+      "}\n"
+      "result;");
+  DirectHandle<Script> eval_script(Cast<Script>(inner->shared()->script()),
+                                   isolate());
+  isolate()->debug()->ClearScriptScopeInfos();
+
+  std::optional<DebugScriptScope> block_b =
+      FindEvalOuterScope(isolate(), eval_script);
+  ASSERT_TRUE(block_b.has_value());
+  EXPECT_TRUE(block_b->is_block_scope());
+  ASSERT_EQ(block_b->variable_count(), 1);
+  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo(base::CStrVector("top_b")));
+
+  std::optional<DebugScriptScope> script_scope = block_b->parent();
+  ASSERT_TRUE(script_scope.has_value());
+  EXPECT_TRUE(script_scope->is_script_scope());
+  EXPECT_FALSE(script_scope->parent().has_value());
+}
+
+TEST_F(DebugScopeInfoTest, FindEvalOuterScopeNonDirectEval) {
+  HandleScope scope(isolate());
+  Handle<JSFunction> regular = RunJS<JSFunction>("(() => 1);");
+  DirectHandle<Script> regular_script(Cast<Script>(regular->shared()->script()),
+                                      isolate());
+  EXPECT_FALSE(FindEvalOuterScope(isolate(), regular_script).has_value());
+
+  Handle<JSFunction> indirect_eval =
+      RunJS<JSFunction>("(0, eval)('(() => 1)');");
+  DirectHandle<Script> indirect_eval_script(
+      Cast<Script>(indirect_eval->shared()->script()), isolate());
+  EXPECT_FALSE(FindEvalOuterScope(isolate(), indirect_eval_script).has_value());
+
+  Handle<JSFunction> fn_ctor =
+      RunJS<JSFunction>("new Function('return () => 1;')();");
+  DirectHandle<Script> fn_ctor_script(Cast<Script>(fn_ctor->shared()->script()),
+                                      isolate());
+  EXPECT_FALSE(FindEvalOuterScope(isolate(), fn_ctor_script).has_value());
+}
+
 }  // namespace internal
 }  // namespace v8
