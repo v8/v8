@@ -408,6 +408,9 @@ DEFINE_BOOL(
     intl_date_time_pattern_generator_cache_eviction, false,
     "enable 9-entry cache eviction in DateTimePatternGeneratorCache")
 DEFINE_BOOL(use_icu4x_normalizer, false, "use ICU4X normalizer")
+#ifdef V8_ENABLE_ECMA402_ICU4X
+DEFINE_BOOL(ecma402_icu4x_plural_rules, false, "use ICU4X for Intl.PluralRules")
+#endif  // V8_ENABLE_ECMA402_ICU4X
 #endif
 
 #ifdef V8_ENABLE_DOUBLE_CONST_STORE_CHECK

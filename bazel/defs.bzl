@@ -510,6 +510,7 @@ def build_config_content(cpu, icu):
         ("slow_dchecks", "false"),
         ("target_cpu", cpu),
         ("temporal", "false"),
+        ("ecma402_icu4x", "false"),
         ("tsan", "false"),
         ("ubsan", "false"),
         ("use_sanitizer", "false"),

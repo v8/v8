@@ -296,6 +296,13 @@ declare_args() {
 declare_args() {
   # Enable more (costly) verification features that help to detect bugs.
   v8_enable_verification_features = v8_enable_debugging_features
+
+  # Enable ICU4X implementations for ECMA-402 (Intl) features. Enabling this
+  # feature will add a dependency on the icu_capi Rust library.
+  # Functionality is still controlled by runtime flags (e.g.
+  # --ecma402-icu4x-plural-rules).
+  v8_enable_ecma402_icu4x =
+      v8_enable_i18n_support && !(defined(build_with_node) && build_with_node)
 }
 
 assert(!v8_enable_debugging_features || v8_enable_verification_features,
