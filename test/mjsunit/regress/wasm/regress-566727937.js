@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Verify that retrying deserialization of invalid version 13 data resets the
-// object ID map so incomplete objects from the first pass cannot be referenced.
+// Verify that Wasm memory deserialization fails before adding an incomplete
+// WasmMemoryObject to the ID map when no delegate is present.
 const stream = [
   0xFF, 13,
   0x41, 0x02,

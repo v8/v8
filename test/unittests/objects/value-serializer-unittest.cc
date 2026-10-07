@@ -2624,6 +2624,39 @@ TEST_F(ValueSerializerTest, DecodeTypedArrayBrokenData) {
   ExpectScriptTrue("result.b === 13");
 }
 
+TEST_F(ValueSerializerTest, DecodeTypedArrayBrokenDataMultiValue) {
+  // Multi-value stream: Value 1 is a JSObject (assigned ID 0), Value 2 has a
+  // TypedArray with broken v13 flags (triggering the ReadObjectWrapper retry)
+  // and an ObjectReference back to Value 1 (ID 0).
+  const uint8_t data[] = {
+      0xFF, 0x0D,                          // Version 13 header
+      0x6F, 0x7B, 0x00,                    // Value 1: {} (ID 0)
+      0x6F,                                // Value 2: BeginJSObject (ID 1)
+      0x22, 0x01, 'a',                     // key "a"
+      0x42, 0x00,                          // ArrayBuffer(0) (ID 2)
+      0x56, 0x42, 0x00, 0x00, 0xE8, 0x47,  // Uint8Array with v13 flags (ID 3)
+      0x22, 0x03, 'r',  'e',  'f',         // key "ref"
+      0x5E, 0x00,                          // ObjectReference(0) -> Value 1
+      0x7B, 0x02,                          // EndJSObject(2 properties)
+  };
+  Local<Context> context = deserialization_context();
+  Context::Scope scope(context);
+  ValueDeserializer deserializer(isolate(), data, sizeof(data), nullptr);
+  ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
+
+  Local<Value> first;
+  ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&first));
+  ASSERT_TRUE(first->IsObject());
+
+  Local<Value> second;
+  ASSERT_TRUE(deserializer.ReadValue(context).ToLocal(&second));
+  ASSERT_TRUE(second->IsObject());
+
+  Local<Value> ref =
+      second.As<Object>()->Get(context, StringFromUtf8("ref")).ToLocalChecked();
+  EXPECT_TRUE(ref->StrictEquals(first));
+}
+
 TEST_F(ValueSerializerTest, DecodeInvalidTypedArray) {
   // Byte offset out of range.
   InvalidDecodeTest(
