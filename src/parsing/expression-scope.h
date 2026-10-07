@@ -197,6 +197,8 @@ class ExpressionScope {
       } else {
         parser_->parameters_->set_strict_parameter_error(loc, message);
       }
+    } else if (is_strict(parser_->language_mode())) {
+      AsArrowHeadParsingScope()->RecordDeclarationError(loc, message);
     } else {
       parser_->next_arrow_function_info_.strict_parameter_error_location = loc;
       parser_->next_arrow_function_info_.strict_parameter_error_message =
