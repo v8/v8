@@ -3959,8 +3959,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
       case Token::kLeftBracket: {
         Consume(Token::kLeftBracket);
         int pos = position();
-        AcceptINScope scope(this, true);
-        ExpressionT index = ParseExpressionCoverGrammar();
+        ExpressionT index = ParseExpression();
         result = factory()->NewProperty(result, index, pos, is_optional);
         Expect(Token::kRightBracket);
         break;
@@ -4337,8 +4336,7 @@ ParserBase<Impl>::DoParseMemberExpressionContinuation(ExpressionT expression) {
       case Token::kLeftBracket: {
         Consume(Token::kLeftBracket);
         int pos = position();
-        AcceptINScope scope(this, true);
-        ExpressionT index = ParseExpressionCoverGrammar();
+        ExpressionT index = ParseExpression();
         expression = factory()->NewProperty(expression, index, pos);
         impl()->PushPropertyName(index);
         Expect(Token::kRightBracket);
@@ -5545,8 +5543,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
     next = peek();
 
     int expr_pos = peek_position();
-    AcceptINScope scope(this, true);
-    ExpressionT expression = ParseExpressionCoverGrammar();
+    ExpressionT expression = ParseExpression();
 
     arguments_count++;
     if (tagged && arguments_count + 1 /* receiver */ > Code::kMaxArguments) {
