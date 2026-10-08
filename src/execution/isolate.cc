@@ -8169,8 +8169,16 @@ const std::string& Isolate::DefaultLocale() {
   return default_locale_;
 }
 
+void Isolate::set_default_locale(const std::string& locale) {
+  DCHECK_EQ(default_locale_.length(), 0);
+  default_locale_ = locale;
+  isolate_data_.default_locale_may_require_special_case_mapping_ =
+      Intl::LocaleRequiresSpecialCaseMapping(default_locale_);
+}
+
 void Isolate::ResetDefaultLocale() {
   default_locale_.clear();
+  isolate_data_.default_locale_may_require_special_case_mapping_ = true;
   clear_cached_icu_objects();
   // We inline fast paths assuming certain locales. Since this path is rarely
   // taken, we deoptimize everything to keep things simple.

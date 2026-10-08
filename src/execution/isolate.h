@@ -1702,12 +1702,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   const std::string& DefaultLocale();
 
+  bool DefaultLocaleMayRequireSpecialCaseMapping() const {
+    return isolate_data_.default_locale_may_require_special_case_mapping_;
+  }
+
   void ResetDefaultLocale();
 
-  void set_default_locale(const std::string& locale) {
-    DCHECK_EQ(default_locale_.length(), 0);
-    default_locale_ = locale;
-  }
+  void set_default_locale(const std::string& locale);
 
   enum class ICUObjectCacheType{
       kDefaultCollator, kDefaultNumberFormat, kDefaultSimpleDateFormat,
