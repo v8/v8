@@ -328,6 +328,7 @@
   'RunJSObjectsTest.*': [SKIP],
   'RunJSOpsTest.*': [SKIP],
   'RunTailCallsTest.*': [SKIP],
+  'WeakReferencesTest.WeakReferencesBasic': [SKIP],
 
   # Tests generated irregexp code.
   'RegExpTestWithContext.RegExpInterruptReentrantExecution': [SKIP],

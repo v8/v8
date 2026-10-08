@@ -411,11 +411,6 @@ void MockPlatform::PerformTask() { taskrunner_->PerformTask(); }
 
 double MockPlatform::Delay() { return taskrunner_->Delay(); }
 
-void HeapTester::UncommitUnusedMemory(Heap* heap) {
-  if (!v8_flags.minor_ms) heap->ReduceNewSpaceSizeForTesting();
-  heap->memory_allocator()->ReleasePooledChunksImmediately();
-}
-
 }  // namespace heap
 
 ManualGCScope::ManualGCScope(Isolate* isolate)

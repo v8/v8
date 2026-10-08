@@ -42,8 +42,6 @@ class HeapTester {
 
   // test-api.cc
   static void ResetWeakHandle(bool global_gc);
-
-  static void UncommitUnusedMemory(Heap* heap);
 };
 
 }  // namespace heap

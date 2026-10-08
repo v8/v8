@@ -695,7 +695,6 @@
   'test-heap-profiler/WeakReference': [SKIP],
   'test-alloc/StressJS': [SKIP],
   'test-alloc/StressHandles': [SKIP],
-  'test-weak-references/WeakReferencesBasic': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
   'test-field-type-tracking/*': [SKIP],
