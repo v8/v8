@@ -5618,14 +5618,17 @@ template <typename Impl>
 void ParserBase<Impl>::ClassifyArrowParameter(
     AccumulationScope* accumulation_scope, int position,
     ExpressionT parameter) {
-  accumulation_scope->Accumulate();
   if (parameter->is_parenthesized() ||
       !(impl()->IsIdentifier(parameter) || parameter->IsPattern() ||
         parameter->IsAssignment())) {
+    accumulation_scope->ValidateExpression();
     expression_scope()->RecordDeclarationError(
         Scanner::Location(position, end_position()),
         MessageTemplate::kInvalidDestructuringTarget);
-  } else if (impl()->IsIdentifier(parameter)) {
+    return;
+  }
+  accumulation_scope->Accumulate();
+  if (impl()->IsIdentifier(parameter)) {
     ClassifyParameter(impl()->AsIdentifier(parameter), position,
                       end_position());
   } else {
@@ -5669,6 +5672,7 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
     }
   } else if (result->is_parenthesized() ||
              (!result->IsPattern() && !result->IsAssignment())) {
+    if (scope != nullptr) scope->ValidateExpression();
     expression_scope()->RecordPatternError(
         Scanner::Location(begin, end_position()),
         MessageTemplate::kInvalidDestructuringTarget);
