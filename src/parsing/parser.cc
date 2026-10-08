@@ -1815,7 +1815,6 @@ Statement* Parser::ParseExportDefault() {
 
     default: {
       int pos = position();
-      AcceptINScope scope(this, true);
       Expression* value = ParseAssignmentExpression();
       SetFunctionName(value, ast_value_factory()->default_string());
 
@@ -3264,7 +3263,6 @@ void Parser::ParseFunction(
   *num_parameters = formals.num_parameters();
   *function_length = formals.function_length;
 
-  AcceptINScope scope(this, true);
   ParseFunctionBody(body, function_name, pos, formals, kind,
                     function_syntax_kind, FunctionBodyType::kBlock);
 

@@ -1397,7 +1397,6 @@ class ParserBase {
   V8_INLINE ExpressionT ParseConditionalExpression();
   ExpressionT ParseConditionalChainExpression(ExpressionT condition,
                                               int condition_pos);
-  ExpressionT ParseConditionalContinuation(ExpressionT expression, int pos);
   ExpressionT ParseLogicalExpression();
   ExpressionT ParseCoalesceExpression(ExpressionT expression);
   ExpressionT ParseBinaryContinuation(ExpressionT x, int prec, int prec1);
@@ -2439,7 +2438,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
     } else if (Check(Token::kEllipsis)) {
       int start_pos = position();
       int expr_pos = peek_position();
-      AcceptINScope scope(this, true);
       ExpressionT argument =
           ParsePossibleDestructuringSubPattern(&accumulation_scope);
       elem = factory()->NewSpread(argument, start_pos, expr_pos);
@@ -2460,7 +2458,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
             MessageTemplate::kElementAfterRest);
       }
     } else {
-      AcceptINScope scope(this, true);
       elem = ParsePossibleDestructuringSubPattern(&accumulation_scope);
     }
     values.Add(elem);
@@ -2594,7 +2591,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
       if (prop_info->kind == ParsePropertyKind::kNotSet) {
         prop_info->name = impl()->NullIdentifier();
         Consume(Token::kEllipsis);
-        AcceptINScope scope(this, true);
         int start_pos = peek_position();
         ExpressionT expression =
             ParsePossibleDestructuringSubPattern(prop_info->accumulation_scope);
@@ -2959,7 +2955,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
         *has_seen_proto = true;
       }
       Consume(Token::kColon);
-      AcceptINScope scope(this, true);
       ExpressionT value =
           ParsePossibleDestructuringSubPattern(prop_info->accumulation_scope);
 
@@ -3641,33 +3636,6 @@ ParserBase<Impl>::ParseConditionalChainExpression(ExpressionT condition,
         &expr, SourceRange(else_range_beg_pos, end_pos));
   }
 
-  return expr;
-}
-
-template <typename Impl>
-typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
-                                               int pos) {
-  SourceRange then_range, else_range;
-
-  ExpressionT left;
-  {
-    SourceRangeScope range_scope(scanner(), &then_range);
-    Consume(Token::kConditional);
-    // In parsing the first assignment expression in conditional
-    // expressions we always accept the 'in' keyword; see ECMA-262,
-    // section 11.12, page 58.
-    AcceptINScope scope(this, true);
-    left = ParseAssignmentExpression();
-  }
-  ExpressionT right;
-  {
-    SourceRangeScope range_scope(scanner(), &else_range);
-    Expect(Token::kColon);
-    right = ParseAssignmentExpression();
-  }
-  ExpressionT expr = factory()->NewConditional(expression, left, right, pos);
-  impl()->RecordConditionalSourceRange(expr, then_range, else_range);
   return expr;
 }
 
@@ -4917,7 +4885,7 @@ void ParserBase<Impl>::ParseFunctionBody(
       ExpressionT expression = ParseAssignmentExpression();
       inner_body.Add(BuildReturnStatement(expression, expression->position()));
     } else {
-      DCHECK(accept_IN_);
+      AcceptINScope scope(this, true);
       DCHECK_EQ(FunctionBodyType::kBlock, body_type);
       // If we are parsing the source as if it is wrapped in a function, the
       // source ends without a closing brace.
@@ -5192,7 +5160,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           Consume(Token::kArrow);
           Consume(Token::kLeftBrace);
 
-          AcceptINScope scope(this, true);
           FunctionParsingScope body_parsing_scope(impl());
           ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                             parameters, kind,
@@ -5203,7 +5170,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         }
       } else {
         Consume(Token::kLeftBrace);
-        AcceptINScope scope(this, true);
         FunctionParsingScope body_parsing_scope(impl());
         ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                           formal_parameters, kind,
@@ -5678,6 +5644,7 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
     AccumulationScope* scope) {
   if (scope) scope->Accumulate();
   int begin = peek_position();
+  AcceptINScope accept_in_scope(this, true);
   ExpressionT result = ParseAssignmentExpressionCoverGrammar();
 
   if (IsValidReferenceExpression(result)) {
@@ -6819,7 +6786,6 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     BlockState block_state(&scope_, enumerable_block_scope);
 
     if (for_info->mode == ForEachStatement::ITERATE) {
-      AcceptINScope scope(this, true);
       enumerable = ParseAssignmentExpression();
     } else {
       enumerable = ParseExpression();
@@ -6881,7 +6847,6 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
 
   ExpressionT enumerable = impl()->NullExpression();
   if (for_info->mode == ForEachStatement::ITERATE) {
-    AcceptINScope scope(this, true);
     enumerable = ParseAssignmentExpression();
   } else {
     enumerable = ParseExpression();
@@ -7082,7 +7047,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
 
   ExpectContextualKeyword(Token::kOf);
 
-  const bool kAllowIn = true;
   ExpressionT iterable = impl()->NullExpression();
   Scope* iterable_block_scope = NewScope(BLOCK_SCOPE);
   iterable_block_scope->set_start_position(position());
@@ -7090,7 +7054,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
 
   {
     BlockState block_state(&scope_, iterable_block_scope);
-    AcceptINScope scope(this, kAllowIn);
     iterable = ParseAssignmentExpression();
   }
   iterable_block_scope->set_end_position(end_position());

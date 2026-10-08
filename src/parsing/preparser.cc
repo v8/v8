@@ -312,7 +312,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     PreParserScopedStatementList body(pointer_buffer());
     int pos = function_token_pos == kNoSourcePosition ? peek_position()
                                                       : function_token_pos;
-    AcceptINScope scope(this, true);
     ParseFunctionBody(&body, function_name, pos, formals, kind,
                       function_syntax_kind, FunctionBodyType::kBlock);
 
