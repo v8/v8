@@ -257,6 +257,12 @@ class V8_EXPORT_PRIVATE Debug {
   void OnDebugBreak(DirectHandle<FixedArray> break_points_hit,
                     StepAction stepAction,
                     debug::BreakReasons break_reasons = {});
+  // Must only be called for breaks that are caused purely by stepping (i.e.
+  // not by breakpoints, debugger statements, scheduled pauses, asserts, ...)
+  // after stepping was cleared. If the current location is covered by the skip
+  // list of the last StepInto/StepOver, stepping is re-armed and true is
+  // returned. In that case the caller must not pause.
+  bool ContinueSteppingIfSkipped(StepAction last_step_action);
   debug::DebugDelegate::ActionAfterInstrumentation OnInstrumentationBreak();
 
   std::optional<Tagged<Object>> OnThrow(DirectHandle<Object> exception,
@@ -560,9 +566,12 @@ class V8_EXPORT_PRIVATE Debug {
   void ClearBreakPoints(Handle<DebugInfo> debug_info);
   // Clear all code from instrumentation.
   void ClearAllBreakPoints();
-  // Instrument a function with one-shots.
+  // Instrument a function with one-shots. Blackboxed functions are ignored.
   void FloodWithOneShot(Handle<SharedFunctionInfo> function,
                         bool returns_only = false);
+  // Same as {FloodWithOneShot}, but also instruments blackboxed functions.
+  void FloodWithOneShotIncludingBlackboxed(Handle<SharedFunctionInfo> function,
+                                           bool returns_only = false);
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
 

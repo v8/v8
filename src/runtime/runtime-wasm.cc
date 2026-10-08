@@ -1034,6 +1034,7 @@ bool ExecuteWasmDebugBreaks(
     debug_info->ClearStepping(isolate);
     StepAction step_action = isolate->debug()->last_step_action();
     isolate->debug()->ClearStepping();
+    if (isolate->debug()->ContinueSteppingIfSkipped(step_action)) return true;
     isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array(),
                                    step_action);
     return true;

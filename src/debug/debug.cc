@@ -845,6 +845,8 @@ void Debug::Break(JavaScriptFrame* frame,
     bool is_debugger_statement = IsBreakOnDebuggerStatement(shared, location);
     if (is_debugger_statement) {
       break_reasons.Add(debug::BreakReason::kDebuggerStatement);
+    } else if (ContinueSteppingIfSkipped(lastStepAction)) {
+      return;
     }
     // Notify the debug event listeners.
     OnDebugBreak(isolate_->factory()->empty_fixed_array(), lastStepAction,
@@ -1303,6 +1305,12 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
                              bool returns_only) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (IsBlackboxed(shared)) return;
+  FloodWithOneShotIncludingBlackboxed(shared, returns_only);
+}
+
+void Debug::FloodWithOneShotIncludingBlackboxed(
+    Handle<SharedFunctionInfo> shared, bool returns_only) {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Make sure the function is compiled and has set up the debug info.
   if (!EnsureBreakInfo(shared)) return;
   PrepareFunctionForDebugExecution(shared);
@@ -2726,21 +2734,6 @@ void Debug::OnDebugBreak(DirectHandle<FixedArray> break_points_hit,
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
 
-  // The skip list only applies to stepping. Breakpoints, debugger statements
-  // and scheduled pauses must never be skipped. Note that kStep is only added
-  // to {break_reasons} below, so we can't check for it here.
-  const bool is_pure_step_break =
-      break_points_hit->ulength().value() == 0 &&
-      !break_reasons.contains(debug::BreakReason::kDebuggerStatement) &&
-      !break_reasons.contains(debug::BreakReason::kScheduled);
-  if (is_pure_step_break &&
-      (lastStepAction == StepAction::StepOver ||
-       lastStepAction == StepAction::StepInto) &&
-      ShouldBeSkipped()) {
-    PrepareStep(lastStepAction);
-    return;
-  }
-
   std::vector<int> inspector_break_points_hit;
   // This array contains breakpoints installed using JS debug API.
   uint32_t break_points_hit_count = break_points_hit->ulength().value();
@@ -2757,6 +2750,21 @@ void Debug::OnDebugBreak(DirectHandle<FixedArray> break_points_hit,
         v8::Utils::ToLocal(isolate_->native_context()),
         inspector_break_points_hit, break_reasons);
   }
+}
+
+bool Debug::ContinueSteppingIfSkipped(StepAction last_step_action) {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  DCHECK(in_debug_scope());
+  // The skip list only applies to StepInto and StepOver.
+  if (last_step_action != StepAction::StepOver &&
+      last_step_action != StepAction::StepInto) {
+    return false;
+  }
+  if (ignore_events() || !debug_delegate_) return false;
+  HandleScope scope(isolate_);
+  if (!ShouldBeSkipped()) return false;
+  PrepareStep(last_step_action);
+  return true;
 }
 
 namespace {
@@ -2993,24 +3001,35 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
             *function, LazyDeoptimizeReason::kDebugger, frame->LookupCode());
       }
 
+      // Don't stop in builtin and blackboxed functions. The exception are OOM
+      // breaks: They are a last resort before the process dies and the
+      // inspector relies on them to happen (see
+      // V8Debugger::nearHeapLimitCallback). This mirrors the inspector, where
+      // OOM breaks also override "skip all pauses".
+      const bool ignore_break =
+          !break_reasons.contains(v8::debug::BreakReason::kOOM) &&
+          (ignore_break_mode == kIgnoreIfTopFrameBlackboxed
+               ? IsBlackboxed(shared)
+               : AllFramesOnStackAreBlackboxed());
+      if (ignore_break) return;
+
       // kScheduled and kOOM breaks are triggered by the stack check. While we
       // could pause here, the JSFunction didn't have time yet to create and
       // push its context. Instead, we step into the function and pause at the
       // first official breakable position.
-      // This behavior mirrors "BreakOnNextFunctionCall".
+      // This behavior mirrors "BreakOnNextFunctionCall". Note that we flood
+      // the function directly instead of using PrepareStepIn: The step-in
+      // filters (e.g. blackboxing) must not drop an explicitly requested
+      // pause. Blackboxing was already taken into account above.
       if ((break_reasons.contains(v8::debug::BreakReason::kScheduled) ||
            break_reasons.contains(v8::debug::BreakReason::kOOM)) &&
           BreakLocation::IsPausedInJsFunctionEntry(frame)) {
+        if (ignore_events()) return;
         thread_local_.scheduled_break_on_next_function_call_.Add(break_reasons);
-        PrepareStepIn(function);
+        FloodWithOneShotIncludingBlackboxed(handle(*shared, isolate_));
         return;
       }
 
-      // Don't stop in builtin and blackboxed functions.
-      bool ignore_break = ignore_break_mode == kIgnoreIfTopFrameBlackboxed
-                              ? IsBlackboxed(shared)
-                              : AllFramesOnStackAreBlackboxed();
-      if (ignore_break) return;
       Handle<DebugInfo> debug_info;
       if (ToHandle(isolate_, TryGetDebugInfo(*shared), &debug_info) &&
           debug_info->HasBreakInfo()) {
