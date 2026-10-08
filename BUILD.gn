@@ -561,10 +561,6 @@ declare_args() {
 
   # Use 16 byte stack alignment for x64.
   v8_x64_16byte_stack_alignment = false
-
-  # Support 57-bit virtual addresses (LA57) on x64.
-  # Sets -DV8_SUPPORT_LA57.
-  v8_support_la57 = true
 }
 
 # The native-libclang args are a matched pair: a .so with no bindings (or
@@ -1129,7 +1125,6 @@ external_v8_defines = [
   "V8_IS_TSAN",
   "V8_ENABLE_DIRECT_HANDLE",
   "V8_MINORMS_STRING_SHORTCUTTING",
-  "V8_SUPPORT_LA57",
   "V8_HAVE_TARGET_OS",
   "V8_TARGET_OS_ANDROID",
   "V8_TARGET_OS_FUCHSIA",
@@ -1200,9 +1195,6 @@ if (v8_enable_direct_handle) {
 }
 if (v8_shortcut_strings_in_minor_ms) {
   enabled_external_v8_defines += [ "V8_MINORMS_STRING_SHORTCUTTING" ]
-}
-if (v8_support_la57) {
-  enabled_external_v8_defines += [ "V8_SUPPORT_LA57" ]
 }
 
 # V8_TARGET_OS_ defines. The target OS may differ from host OS e.g. in
@@ -3558,7 +3550,6 @@ generated_file("v8_generate_features_json") {
     v8_imminent_deprecation_warnings = v8_imminent_deprecation_warnings
     v8_optimized_debug = v8_optimized_debug
     v8_random_seed = v8_random_seed
-    v8_support_la57 = v8_support_la57
     v8_use_perfetto = v8_use_perfetto
     v8_use_siphash = v8_use_siphash
     v8_use_default_hasher_secret = v8_use_default_hasher_secret

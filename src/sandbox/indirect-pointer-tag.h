@@ -23,37 +23,20 @@ namespace internal {
 //
 // A trusted pointer table entry has the following layout:
 //
-// On x64, the payload must be able to hold 57-bit addresses (LA57):
-//
-// +-----------+----------+----------------+
-// | 7-bit tag | mark bit | 56-bit payload |
-// +-----------+----------+----------------+
-//
-// On the other 64-bit architectures (e.g. Arm64), addresses are at most 48
-// bits wide. The tag field is 15 bits wide there, but as tags are limited to
-// 7 bits, its top 8 bits are currently unused and left for TBI/MTE:
-//
-// +---------------+-----------+----------+----------------+
-// | 8 unused bits | 7-bit tag | mark bit | 48-bit payload |
-// +---------------+-----------+----------+----------------+
+// +------------+----------+-----------------+
+// | 15-bit tag | mark bit | 48-bit payload  |
+// +------------+----------+-----------------+
 //
 // This format ensures that both the tag and the payload can be extracted
 // efficiently, and thereby helps keep the performance overhead low.
-#if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
-constexpr uint64_t kTrustedPointerTableTagMask = 0xfe00'0000'0000'0000;
-constexpr uint64_t kTrustedPointerTableMarkBit = 0x0100'0000'0000'0000;
-constexpr uint64_t kTrustedPointerTablePayloadMask = 0x00ff'ffff'ffff'ffff;
-constexpr uint64_t kTrustedPointerTableTagShift = 57;
-#else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 constexpr uint64_t kTrustedPointerTableTagMask = 0xfffe'0000'0000'0000;
 constexpr uint64_t kTrustedPointerTableMarkBit = 0x0001'0000'0000'0000;
 constexpr uint64_t kTrustedPointerTablePayloadMask = 0x0000'ffff'ffff'ffff;
 constexpr uint64_t kTrustedPointerTableTagShift = 49;
-#endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 constexpr uint64_t kTrustedPointerTablePayloadShift = 0;
 
-// The tag is limited to 7 bits since it needs to fit together with a marking
-// bit into the unused parts of a pointer on x64 (see the layout above).
+// The tag is currently in practice limited to maximum 15 bits since it needs
+// to fit together with a marking bit into the unused parts of a pointer.
 enum IndirectPointerTag : uint16_t {
   kIndirectPointerNullTag = 0,
 
@@ -96,9 +79,9 @@ enum IndirectPointerTag : uint16_t {
 
   // Special tags.
   //
-  // Currently we only use 7 bits (plus one marking bit), which is all that is
-  // available on x64. On the other architectures we have spare bits in the
-  // pointers if we ever need them (e.g. for something like MTE).
+  // Currently we only use 8 bits (plus one marking bit) so we have spare bits
+  // in the pointers if we ever need them (e.g. for something like MTE).
+  // If we ever need more tags, we could go up to 15 bits though.
   //
 
   // A special tag for objects that should not (yet) be exposed to the sandbox.
@@ -113,18 +96,15 @@ enum IndirectPointerTag : uint16_t {
   //    accessible from within the sandbox (for example, bytecode arrays), then
   //    these objects can first be created in an unpublished state and then
   //    only be published after successful validation.
-  kUnpublishedIndirectPointerTag = 0x7c,
+  kUnpublishedIndirectPointerTag = 0xfc,
   // Tag for zapped entries in the trusted pointer table.
-  kIndirectPointerZappedEntryTag = 0x7d,
+  kIndirectPointerZappedEntryTag = 0xfd,
   // Not currently used for the trusted pointer table.
-  kIndirectPointerEvacuationEntryTag = 0x7e,
+  kIndirectPointerEvacuationEntryTag = 0xfe,
   // Tag for free entries in the trusted pointer table.
-  kIndirectPointerFreeEntryTag = 0x7f,
-  kLastIndirectPointerTag = 0x7f,
+  kIndirectPointerFreeEntryTag = 0xff,
+  kLastIndirectPointerTag = 0xff,
 };
-
-// All tags must fit into the 7 tag bits of an x64 trusted pointer table entry.
-static_assert(kLastIndirectPointerTag <= 0x7f);
 
 using IndirectPointerTagRange = TagRange<IndirectPointerTag>;
 

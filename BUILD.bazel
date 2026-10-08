@@ -273,11 +273,6 @@ v8_flag(
     default = False,
 )
 
-v8_flag(
-    name = "v8_support_la57",
-    default = True,
-)
-
 selects.config_setting_group(
     name = "enable_drumbrake_x64",
     match_all = [
@@ -558,7 +553,6 @@ v8_config(
         "v8_enable_undefined_double": "V8_ENABLE_UNDEFINED_DOUBLE",
         "v8_use_host_cpu_arm_features": "V8_USE_HOST_CPU_ARM_FEATURES",
         "v8_x64_16byte_stack_alignment": "V8_X64_16BYTE_STACK_ALIGNMENT",
-        "v8_support_la57": "V8_SUPPORT_LA57",
     },
     defines = [
         "GOOGLE3",

@@ -905,10 +905,8 @@ void MacroAssembler::ResolveIndirectPointerHandle(
     xorq(destination, destination);
     bind(&done);
 
-    constexpr int kUntagShift =
-        kBitsPerSystemPointer - (kTrustedPointerTableTagShift - 1);
-    shlq(destination, Immediate(kUntagShift));
-    shrq(destination, Immediate(kUntagShift));
+    shlq(destination, Immediate(16));
+    shrq(destination, Immediate(16));
   }
 }
 
