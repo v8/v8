@@ -4535,17 +4535,21 @@ void Isolate::IterateRegistersAndStackOfSimulator(
 #if V8_ENABLE_WEBASSEMBLY
 bool Isolate::IsOnCentralStack(Address addr) {
   auto stack = SimulatorStack::GetCentralStackView(this);
+  Address stack_base = reinterpret_cast<Address>(stack.end());
+  if (addr > stack_base) return false;
   Address stack_top = reinterpret_cast<Address>(stack.begin());
+  if (stack_top < addr) return true;
 #if !USE_SIMULATOR
-  // Try to use the stack limit reported by the system instead of V8's own
-  // conservative limit to avoid false positives.
+  // V8's stack limit is a conservative estimate.
+  // Try to use the real stack limit now to avoid false negatives.
+  // This is a slow operation on some configurations, so only use this as a
+  // fallback.
   Address real_stack_top = base::Stack::GetReservedStackLimit();
-  if (real_stack_top) {
-    stack_top = real_stack_top;
+  if (real_stack_top != kNullAddress && real_stack_top < addr) {
+    return true;
   }
 #endif
-  Address stack_base = reinterpret_cast<Address>(stack.end());
-  return stack_top < addr && addr <= stack_base;
+  return false;
 }
 
 bool Isolate::IsOnCentralStack() {
