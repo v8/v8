@@ -2603,7 +2603,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
             ParsePossibleDestructuringSubPattern(prop_info->accumulation_scope);
         prop_info->kind = ParsePropertyKind::kSpread;
 
-        if (!IsValidReferenceExpression(expression)) {
+        if (!impl()->IsIdentifier(expression) && !expression->IsProperty()) {
           if (prop_info->accumulation_scope != nullptr) {
             prop_info->accumulation_scope->ValidateExpression();
           }
@@ -5660,26 +5660,26 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
   AcceptINScope accept_in_scope(this, true);
   ExpressionT result = ParseAssignmentExpressionCoverGrammar();
 
-  if (IsValidReferenceExpression(result)) {
-    // Parenthesized identifiers and property references are allowed as part of
-    // a larger assignment pattern, even though parenthesized patterns
-    // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
-    // assignment pattern errors if the parsed expression is more complex.
-    if (impl()->IsIdentifier(result)) {
-      if (result->is_parenthesized()) {
-        expression_scope()->RecordDeclarationError(
-            Scanner::Location(begin, end_position()),
-            MessageTemplate::kInvalidDestructuringTarget);
-      }
-      IdentifierT identifier = impl()->AsIdentifier(result);
-      ClassifyParameter(identifier, begin, end_position());
-    } else {
-      DCHECK(result->IsProperty());
+  // Parenthesized identifiers and property references are allowed as part of
+  // a larger assignment pattern, even though parenthesized patterns
+  // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
+  // assignment pattern errors if the parsed expression is more complex.
+  if (impl()->IsIdentifier(result)) {
+    if (result->is_parenthesized()) {
       expression_scope()->RecordDeclarationError(
           Scanner::Location(begin, end_position()),
-          MessageTemplate::kInvalidPropertyBindingPattern);
-      if (scope != nullptr) scope->ValidateExpression();
+          MessageTemplate::kInvalidDestructuringTarget);
     }
+    if (!IsAssignableIdentifier(result)) {
+      expression_scope()->RecordPatternError(
+          Scanner::Location(begin, end_position()),
+          MessageTemplate::kStrictEvalArguments);
+    }
+  } else if (result->IsProperty()) {
+    expression_scope()->RecordDeclarationError(
+        Scanner::Location(begin, end_position()),
+        MessageTemplate::kInvalidPropertyBindingPattern);
+    if (scope != nullptr) scope->ValidateExpression();
   } else if (result->is_parenthesized() ||
              (!result->IsPattern() && !result->IsAssignment())) {
     if (scope != nullptr) scope->ValidateExpression();
