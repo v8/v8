@@ -1605,7 +1605,9 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
   __ ShiftLeftU64(scratch, scratch, Operand(kSystemPointerSizeLog2));
   __ sub(start_address, start_address, scratch);
   // Push the arguments.
-  __ PushArray(start_address, num_args, scratch, r0,
+  UseScratchRegisterScope temps(masm);
+  Register scratch2 = temps.Acquire();
+  __ PushArray(start_address, num_args, scratch, scratch2,
                MacroAssembler::PushArrayOrder::kReverse);
 }
 
