@@ -4260,43 +4260,42 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
+  DCHECK(frame_access_state()->has_frame());
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
-  if (frame_access_state()->has_frame()) {
-    if (call_descriptor->IsCFunctionCall()) {
+  if (call_descriptor->IsCFunctionCall()) {
 #if V8_ENABLE_WEBASSEMBLY
-      if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
-        __ StubPrologue(StackFrame::C_WASM_ENTRY);
-        // Reserve stack space for saving the c_entry_fp later.
-        __ Dsubu(sp, sp, Operand(kSystemPointerSize));
+    if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
+      __ StubPrologue(StackFrame::C_WASM_ENTRY);
+      // Reserve stack space for saving the c_entry_fp later.
+      __ Dsubu(sp, sp, Operand(kSystemPointerSize));
 #else
-      // For balance.
-      if (false) {
+    // For balance.
+    if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
-      } else {
-        __ Push(ra, fp);
-        __ mov(fp, sp);
-      }
-    } else if (call_descriptor->IsJSFunctionCall()) {
-      __ Prologue();
     } else {
-      __ StubPrologue(info()->GetOutputStackFrameType());
-#if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsAnyWasmFunctionCall() ||
-          call_descriptor->IsWasmImportWrapper() ||
-          call_descriptor->IsWasmCapiFunction()) {
-        // For import wrappers and C-API functions, this stack slot is only used
-        // for printing stack traces in V8. Also, it holds a WasmImportData
-        // instead of the trusted instance data, which is taken care of in the
-        // frames accessors.
-        __ Push(kWasmImplicitArgRegister);
-      }
-      if (call_descriptor->IsWasmCapiFunction()) {
-        // Reserve space for saving the PC later.
-        __ Dsubu(sp, sp, Operand(kSystemPointerSize));
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
+      __ Push(ra, fp);
+      __ mov(fp, sp);
     }
+  } else if (call_descriptor->IsJSFunctionCall()) {
+    __ Prologue();
+  } else {
+    __ StubPrologue(info()->GetOutputStackFrameType());
+#if V8_ENABLE_WEBASSEMBLY
+    if (call_descriptor->IsAnyWasmFunctionCall() ||
+        call_descriptor->IsWasmImportWrapper() ||
+        call_descriptor->IsWasmCapiFunction()) {
+      // For import wrappers and C-API functions, this stack slot is only used
+      // for printing stack traces in V8. Also, it holds a WasmImportData
+      // instead of the trusted instance data, which is taken care of in the
+      // frames accessors.
+      __ Push(kWasmImplicitArgRegister);
+    }
+    if (call_descriptor->IsWasmCapiFunction()) {
+      // Reserve space for saving the PC later.
+      __ Dsubu(sp, sp, Operand(kSystemPointerSize));
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   int required_slots =
@@ -4328,39 +4327,36 @@ void CodeGenerator::AssembleConstructFrame() {
   const RegList saves = call_descriptor->CalleeSavedRegisters();
   const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
 
-  if (required_slots > 0) {
-    DCHECK(frame_access_state()->has_frame());
 #if V8_ENABLE_WEBASSEMBLY
-    int32_t stack_space =
-        required_slots * kSystemPointerSize + GetStackCheckOffset();
-    if (info()->IsWasm() && stack_space > 4 * KB) {
-      // For WebAssembly functions with big frames we have to do the stack
-      // overflow check before we construct the frame. Otherwise we may not
-      // have enough space on the stack to call the runtime for the stack
-      // overflow.
-      Label done;
+  int32_t stack_space =
+      required_slots * kSystemPointerSize + GetStackCheckOffset();
+  if (info()->IsWasm() && stack_space > 4 * KB) {
+    // For WebAssembly functions with big frames we have to do the stack
+    // overflow check before we construct the frame. Otherwise we may not
+    // have enough space on the stack to call the runtime for the stack
+    // overflow.
+    Label done;
 
-      // If the frame is bigger than the stack, we throw the stack overflow
-      // exception unconditionally. Thereby we can avoid the integer overflow
-      // check in the condition code.
-      if (stack_space < v8_flags.stack_size * KB) {
-        __ LoadStackLimit(kScratchReg,
-                          MacroAssembler::StackLimitKind::kRealStackLimit);
-        __ Daddu(kScratchReg, kScratchReg, Operand(stack_space));
-        __ Branch(&done, uge, sp, Operand(kScratchReg));
-      }
-
-      __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
-              RelocInfo::WASM_STUB_CALL);
-      // The call does not return, hence we can ignore any references and just
-      // define an empty safepoint.
-      RecordSafepointWithoutTaggedSlots();
-      if (v8_flags.debug_code) __ stop();
-
-      __ bind(&done);
+    // If the frame is bigger than the stack, we throw the stack overflow
+    // exception unconditionally. Thereby we can avoid the integer overflow
+    // check in the condition code.
+    if (stack_space < v8_flags.stack_size * KB) {
+      __ LoadStackLimit(kScratchReg,
+                        MacroAssembler::StackLimitKind::kRealStackLimit);
+      __ Daddu(kScratchReg, kScratchReg, Operand(stack_space));
+      __ Branch(&done, uge, sp, Operand(kScratchReg));
     }
-#endif  // V8_ENABLE_WEBASSEMBLY
+
+    __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+            RelocInfo::WASM_STUB_CALL);
+    // The call does not return, hence we can ignore any references and just
+    // define an empty safepoint.
+    RecordSafepointWithoutTaggedSlots();
+    if (v8_flags.debug_code) __ stop();
+
+    __ bind(&done);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   const int returns = frame()->GetReturnSlotCount();
 
