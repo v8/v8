@@ -322,14 +322,13 @@ int GetNumApiReferences(LocalIsolate* isolate) { return 0; }
 }  // namespace
 
 template <typename IsolateT>
-Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
-                                     base::Vector<const uint8_t> payload,
-                                     uint32_t magic_number,
-                                     bool deserializing_user_code,
-                                     bool can_rehash)
+Deserializer<IsolateT>::Deserializer(
+    IsolateT* isolate, base::Vector<const uint8_t> untrusted_payload,
+    base::Vector<const uint8_t> trusted_payload, uint32_t magic_number,
+    bool deserializing_user_code, bool can_rehash)
     : isolate_(isolate),
       attached_objects_(isolate),
-      source_(payload),
+      source_(untrusted_payload),
       magic_number_(magic_number),
       new_maps_(isolate),
       new_allocation_sites_(isolate),
@@ -339,6 +338,7 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
       function_template_infos_(isolate),
       new_scripts_(isolate),
       new_exposed_trusted_objects_(isolate),
+      trusted_payload_(trusted_payload),
       deserializing_user_code_(deserializing_user_code),
       should_rehash_((v8_flags.rehash_snapshot && can_rehash) ||
                      deserializing_user_code),
@@ -424,6 +424,35 @@ void Deserializer<IsolateT>::DeserializeDeferredObjects() {
     SnapshotSpace space = NewObject::Decode(code);
     ReadObject(space);
   }
+}
+
+template <typename IsolateT>
+DirectHandle<HeapObject> Deserializer<IsolateT>::DeserializeUntrustedSection() {
+  DirectHandle<HeapObject> result = ReadObject();
+  DeserializeDeferredObjects();
+  while (source_.Peek() != kSynchronize) {
+    ReadObject();
+    DeserializeDeferredObjects();
+  }
+#ifdef DEBUG
+  DCHECK_EQ(kSynchronize, source_.Get());
+  while (source_.HasMore()) DCHECK_EQ(kNop, source_.Get());
+  DCHECK_EQ(num_unresolved_forward_refs_, 0);
+  DCHECK(unresolved_forward_refs_.empty());
+#endif
+  return result;
+}
+
+template <typename IsolateT>
+void Deserializer<IsolateT>::DeserializeTrustedSection() {
+  if (v8_flags.trace_deserialization) {
+    PrintF("-- Trusted section\n");
+  }
+  source_.Reset(trusted_payload_);
+  untrusted_back_refs_ = std::exchange(back_refs_, {});
+  hot_objects_.Reset();
+  while (source_.Peek() != kSynchronize) ReadObject();
+  DCHECK_EQ(kSynchronize, source_.Get());
 }
 
 template <typename IsolateT>

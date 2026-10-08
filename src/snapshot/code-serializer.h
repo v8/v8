@@ -118,8 +118,10 @@ class SerializedCodeData : public SerializedData {
       kFlagHashOffset + kUInt32Size;
   static constexpr uint32_t kPayloadLengthOffset =
       kReadOnlySnapshotChecksumOffset + kUInt32Size;
-  static constexpr uint32_t kChecksumOffset =
+  static constexpr uint32_t kTrustedPayloadLengthOffset =
       kPayloadLengthOffset + kUInt32Size;
+  static constexpr uint32_t kChecksumOffset =
+      kTrustedPayloadLengthOffset + kUInt32Size;
   static constexpr uint32_t kUnalignedHeaderSize =
       kChecksumOffset + kUInt32Size;
   static constexpr uint32_t kHeaderSize =
@@ -145,13 +147,15 @@ class SerializedCodeData : public SerializedData {
       SerializedCodeSanityCheckResult* rejection_result);
 
   // Used when producing.
-  SerializedCodeData(const std::vector<uint8_t>* payload,
+  SerializedCodeData(const std::vector<uint8_t>* untrusted_payload,
+                     const std::vector<uint8_t>* trusted_payload,
                      const CodeSerializer* cs);
 
   // Return ScriptData object and relinquish ownership over it to the caller.
   AlignedCachedData* GetScriptData();
 
-  base::Vector<const uint8_t> Payload() const;
+  base::Vector<const uint8_t> UntrustedPayload() const;
+  base::Vector<const uint8_t> TrustedPayload() const;
 
  private:
   friend class CodeSerializer;
@@ -221,10 +225,35 @@ class CodeSerializer : public Serializer {
   void SerializeGeneric(Handle<HeapObject> heap_object, SlotType slot_type);
 
  private:
+  class TrustedSectionSerializer final : public Serializer {
+   public:
+    explicit TrustedSectionSerializer(Isolate* isolate)
+        : Serializer(isolate, Snapshot::kDefaultSerializerFlags) {}
+    ~TrustedSectionSerializer() override {
+      OutputStatistics("TrustedSectionSerializer");
+    }
+
+    void FinishSection() {
+      sink_.Put(kSynchronize, "EndOfTrustedSection");
+      Pad();
+    }
+
+   private:
+    void SerializeObjectImpl(Handle<HeapObject> o,
+                             SlotType slot_type) override {
+      UNREACHABLE();
+    }
+  };
+
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
+  void FinishSection() {
+    sink_.Put(kSynchronize, "EndOfUntrustedSection");
+    Pad();
+  }
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
   SourceHash source_hash_;
+  TrustedSectionSerializer trusted_serializer_;
 };
 
 }  // namespace internal

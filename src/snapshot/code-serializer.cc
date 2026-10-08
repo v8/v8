@@ -9,6 +9,7 @@
 
 #include "src/base/fpu.h"
 #include "src/base/logging.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "src/baseline/baseline-batch-compiler.h"
@@ -48,7 +49,8 @@ AlignedCachedData::AlignedCachedData(const uint8_t* data, int length)
 
 CodeSerializer::CodeSerializer(Isolate* isolate, SourceHash source_hash)
     : Serializer(isolate, Snapshot::kDefaultSerializerFlags),
-      source_hash_(source_hash) {}
+      source_hash_(source_hash),
+      trusted_serializer_(isolate) {}
 
 // static
 ScriptCompiler::CachedData* CodeSerializer::Serialize(
@@ -109,9 +111,10 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
   VisitRootPointer(Root::kHandleScope, nullptr,
                    FullObjectSlot(info.location()));
   SerializeDeferredObjects();
-  Pad();
+  trusted_serializer_.FinishSection();
+  FinishSection();
 
-  SerializedCodeData data(sink_.data(), this);
+  SerializedCodeData data(Payload(), trusted_serializer_.Payload(), this);
 
   return data.GetScriptData();
 }
@@ -732,14 +735,19 @@ CodeSerializer::FinishOffThreadDeserialize(
   return scope.CloseAndEscape(result);
 }
 
-SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
-                                       const CodeSerializer* cs) {
+SerializedCodeData::SerializedCodeData(
+    const std::vector<uint8_t>* untrusted_payload,
+    const std::vector<uint8_t>* trusted_payload, const CodeSerializer* cs) {
   DisallowGarbageCollection no_gc;
 
+  size_t trusted_length = trusted_payload->size();
+  size_t payload_length = trusted_length + untrusted_payload->size();
+
   // Calculate sizes.
-  uint32_t size = base::checked_cast<uint32_t>(payload->size() + kHeaderSize);
+  uint32_t size = base::checked_cast<uint32_t>(kHeaderSize + payload_length);
   CHECK_LE(size, kMaxInt);
   DCHECK(IsAligned(size, kPointerAlignment));
+  DCHECK(IsAligned(trusted_length, kPointerAlignment));
 
   // Allocate backing store and create result data.
   AllocateData(size);
@@ -755,7 +763,10 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
   SetHeaderValue(kReadOnlySnapshotChecksumOffset,
                  Snapshot::ExtractReadOnlySnapshotChecksum(
                      cs->isolate()->snapshot_blob()));
-  SetHeaderValue(kPayloadLengthOffset, static_cast<uint32_t>(payload->size()));
+  SetHeaderValue(kPayloadLengthOffset,
+                 base::checked_cast<uint32_t>(payload_length));
+  SetHeaderValue(kTrustedPayloadLengthOffset,
+                 base::checked_cast<uint32_t>(trusted_length));
 
   // Zero out any padding in the header.
   static_assert(kUnalignedHeaderSize <= kHeaderSize);
@@ -763,8 +774,9 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
               0);
 
   // Copy serialized data.
-  CopyBytes(data_ + kHeaderSize, payload->data(),
-            static_cast<size_t>(payload->size()));
+  CopyBytes(data_ + kHeaderSize, trusted_payload->data(), trusted_length);
+  CopyBytes(data_ + kHeaderSize + trusted_length, untrusted_payload->data(),
+            untrusted_payload->size());
   uint32_t checksum =
       v8_flags.verify_snapshot_checksum ? Checksum(ChecksummedContent()) : 0;
   SetHeaderValue(kChecksumOffset, checksum);
@@ -827,6 +839,9 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource(
   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
   uint32_t max_payload_length = size_ - kHeaderSize;
   if (payload_length > max_payload_length) {
+    return SerializedCodeSanityCheckResult::kLengthMismatch;
+  }
+  if (GetHeaderValue(kTrustedPayloadLengthOffset) > payload_length) {
     return SerializedCodeSanityCheckResult::kLengthMismatch;
   }
   if (v8_flags.verify_snapshot_checksum) {
@@ -928,11 +943,19 @@ AlignedCachedData* SerializedCodeData::GetScriptData() {
   return result;
 }
 
-base::Vector<const uint8_t> SerializedCodeData::Payload() const {
+base::Vector<const uint8_t> SerializedCodeData::UntrustedPayload() const {
+  uint32_t trusted_length = GetHeaderValue(kTrustedPayloadLengthOffset);
+  const uint8_t* payload = data_ + kHeaderSize + trusted_length;
+  DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
+  uint32_t length = GetHeaderValue(kPayloadLengthOffset) - trusted_length;
+  DCHECK_EQ(data_ + size_, payload + length);
+  return base::Vector<const uint8_t>(payload, length);
+}
+
+base::Vector<const uint8_t> SerializedCodeData::TrustedPayload() const {
   const uint8_t* payload = data_ + kHeaderSize;
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
-  int length = GetHeaderValue(kPayloadLengthOffset);
-  DCHECK_EQ(data_ + size_, payload + length);
+  uint32_t length = GetHeaderValue(kTrustedPayloadLengthOffset);
   return base::Vector<const uint8_t>(payload, length);
 }
 

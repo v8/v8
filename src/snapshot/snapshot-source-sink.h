@@ -36,6 +36,12 @@ class SnapshotByteSource final {
   SnapshotByteSource(const SnapshotByteSource&) = delete;
   SnapshotByteSource& operator=(const SnapshotByteSource&) = delete;
 
+  void Reset(base::Vector<const uint8_t> payload) {
+    data_ = payload.begin();
+    length_ = payload.length();
+    position_ = 0;
+  }
+
   bool HasMore() { return position_ < length_; }
 
   uint8_t Get() {

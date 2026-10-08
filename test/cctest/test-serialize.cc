@@ -3473,6 +3473,30 @@ TEST(CodeSerializerEmbedderString) {
   isolate->Dispose();
 }
 
+// The trusted section must be part of the payload.
+TEST(CodeSerializerTrustedSectionLengthMismatch) {
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cache(
+      CompileRunAndProduceCache("'abcdef'"));
+  Address header = reinterpret_cast<Address>(cache->data);
+  base::WriteLittleEndianValue<uint32_t>(
+      header + SerializedCodeData::kTrustedPayloadLengthOffset,
+      base::ReadLittleEndianValue<uint32_t>(
+          header + SerializedCodeData::kPayloadLengthOffset) +
+          1);
+  CHECK_EQ(cache->CompatibilityCheck(CcTest::isolate()),
+           v8::ScriptCompiler::CachedData::kLengthMismatch);
+}
+
+// The checksum covers the trusted section.
+TEST(CodeSerializerTrustedSectionBitFlip) {
+  i::v8_flags.verify_snapshot_checksum = true;
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cache(
+      CompileRunAndProduceCache("'abcdef'"));
+  const_cast<uint8_t*>(cache->data)[SerializedCodeData::kHeaderSize] ^= 0x40;
+  CHECK_EQ(cache->CompatibilityCheck(CcTest::isolate()),
+           v8::ScriptCompiler::CachedData::kChecksumMismatch);
+}
+
 TEST(CodeSerializerBitFlip) {
   i::v8_flags.verify_snapshot_checksum = true;
   const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
