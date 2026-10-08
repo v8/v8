@@ -46,6 +46,8 @@ double pow(double x, double y) {
 
   if (v8_flags.use_std_math_pow) {
     if (v8_flags.correctness_fuzzer_cross_arch_suppressions) {
+      if (y == 0) return 1;
+      if (std::isnan(x)) return x;
       // Return a dummy value to avoid architecture-specific precision
       // differences in std::pow during differential correctness fuzzing.
       return 42;
