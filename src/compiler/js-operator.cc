@@ -1363,11 +1363,11 @@ const Operator* JSOperatorBuilder::DeleteProperty() {
 const Operator* JSOperatorBuilder::CreateGeneratorObject(
     IndirectHandle<BytecodeArray> bytecode_array) {
   CreateGeneratorObjectParameters parameters(bytecode_array);
-  return zone()->New<Operator1<CreateGeneratorObjectParameters>>(   // --
-      IrOpcode::kJSCreateGeneratorObject, Operator::kEliminatable,  // opcode
-      "JSCreateGeneratorObject",                                    // name
-      2, 1, 1, 1, 1, 0,                                             // counts
-      parameters);  // parameters
+  return zone()->New<Operator1<CreateGeneratorObjectParameters>>(  // --
+      IrOpcode::kJSCreateGeneratorObject, Operator::kNoThrow,      // opcode
+      "JSCreateGeneratorObject",                                   // name
+      2, 1, 1, 1, 1, 0,                                            // counts
+      parameters);                                                 // parameters
 }
 
 const Operator* JSOperatorBuilder::LoadGlobal(NameRef name,
