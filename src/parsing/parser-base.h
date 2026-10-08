@@ -2597,6 +2597,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
         prop_info->kind = ParsePropertyKind::kSpread;
 
         if (!IsValidReferenceExpression(expression)) {
+          if (prop_info->accumulation_scope != nullptr) {
+            prop_info->accumulation_scope->ValidateExpression();
+          }
           expression_scope()->RecordDeclarationError(
               Scanner::Location(start_pos, end_position()),
               MessageTemplate::kInvalidRestBindingPattern);
@@ -2605,7 +2608,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
               MessageTemplate::kInvalidRestAssignmentPattern);
         }
 
-        if (peek() != Token::kRightBrace) {
+        if (peek() == Token::kComma) {
           expression_scope()->RecordPatternError(
               scanner()->location(), MessageTemplate::kElementAfterRest);
         }
