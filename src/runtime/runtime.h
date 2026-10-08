@@ -686,6 +686,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ShareObject, 1, 1)                                                   \
   F(SimulateNewspaceFull, 0, 1)                                          \
   F(StringIsFlat, 1, 1)                                                  \
+  F(StringIsOneByteRepresentation, 1, 1)                                 \
   F(StringIteratorProtector, 0, 1)                                       \
   F(StringWrapperToPrimitiveProtector, 0, 1)                             \
   F(SystemBreak, 0, 1)                                                   \

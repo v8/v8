@@ -1185,7 +1185,7 @@ bool Uint8ArrayFromHexWithSSE(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_low_nibbles.has_value()) {
-      return false;
+      break;
     }
     __m128i uint8_low_nibbles = maybe_uint8_low_nibbles.value();
 
@@ -1197,7 +1197,7 @@ bool Uint8ArrayFromHexWithSSE(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_high_nibbles.has_value()) {
-      return false;
+      break;
     }
     __m128i uint8_high_nibbles = maybe_uint8_high_nibbles.value();
 
@@ -1361,7 +1361,7 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_low_nibbles.has_value()) {
-      return false;
+      break;
     }
     uint8x16_t uint8_low_nibbles = maybe_uint8_low_nibbles.value();
 
@@ -1373,7 +1373,7 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
 
     // Check if it is {} (includes invalid hex values)
     if (!maybe_uint8_high_nibbles.has_value()) {
-      return false;
+      break;
     }
     uint8x16_t uint8_high_nibbles = maybe_uint8_high_nibbles.value();
 

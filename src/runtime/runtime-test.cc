@@ -157,6 +157,14 @@ RUNTIME_FUNCTION(Runtime_StringIsFlat) {
   return isolate->heap()->ToBoolean(s->IsFlat());
 }
 
+RUNTIME_FUNCTION(Runtime_StringIsOneByteRepresentation) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  DirectHandle<String> s = args.at<String>(0);
+  return isolate->heap()->ToBoolean(s->IsOneByteRepresentation());
+}
+
 RUNTIME_FUNCTION(Runtime_ConstructConsString) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 2);
