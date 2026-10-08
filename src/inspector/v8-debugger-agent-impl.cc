@@ -178,11 +178,16 @@ bool positionComparator(const std::pair<int, int>& a,
   return a.second < b.second;
 }
 
-// Returns true, iff [start, end] lies within a single range of {ranges}.
+// {ranges} is a sorted list of [start, end) pairs, flattened into a single
+// vector: [ranges[0], ranges[1]), [ranges[2], ranges[3]), ... A trailing
+// start without an end extends to the end of the script.
+// Returns true, iff [start, end) lies within a single range of {ranges}.
 bool isWithinOneRange(const std::vector<std::pair<int, int>>& ranges,
                       const v8::debug::Location& start,
                       const v8::debug::Location& end) {
-  auto itStartRange = std::lower_bound(
+  // The first boundary strictly after {start}. Its index is odd iff {start}
+  // lies within [ranges[2k], ranges[2k+1]).
+  auto itStartRange = std::upper_bound(
       ranges.begin(), ranges.end(),
       std::make_pair(start.GetLineNumber(), start.GetColumnNumber()),
       positionComparator);
