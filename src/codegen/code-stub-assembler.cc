@@ -2200,7 +2200,7 @@ TNode<UintPtrT> CodeStubAssembler::ComputeJSDispatchTableEntryOffset(
   // to be sure that the offset will always fit into a 32-bit integer.
   static_assert(kJSDispatchTableReservationSize <= 4ULL * GB);
   TNode<UintPtrT> offset = ChangeUint32ToWord(
-      Word32Shl(index, Uint32Constant(kJSDispatchTableEntrySizeLog2)));
+      Word32Shl(index, UniqueUint32Constant(kJSDispatchTableEntrySizeLog2)));
   return offset;
 }
 
@@ -2217,12 +2217,13 @@ TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
 
   TNode<UintPtrT> shifted_value;
   if (JSDispatchEntry::kObjectPointerOffset == 0) {
-    shifted_value =
-        WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift));
+    shifted_value = WordShr(
+        value, UniqueUintPtrConstant(JSDispatchEntry::kObjectPointerShift));
   } else {
     shifted_value = UintPtrAdd(
-        WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
-        UintPtrConstant(JSDispatchEntry::kObjectPointerOffset));
+        WordShr(value,
+                UniqueUintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
+        UniqueUintPtrConstant(JSDispatchEntry::kObjectPointerOffset));
   }
 
   value = UncheckedCast<UintPtrT>(
@@ -2235,8 +2236,8 @@ TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::js_dispatch_table_address(isolate()));
   TNode<UintPtrT> offset = ComputeJSDispatchTableEntryOffset(handle);
-  offset = UintPtrAdd(offset,
-                      UintPtrConstant(JSDispatchEntry::kParameterCountOffset));
+  offset = UintPtrAdd(
+      offset, UniqueUintPtrConstant(JSDispatchEntry::kParameterCountOffset));
   static_assert(JSDispatchEntry::kParameterCountSize == 2);
   return Load<Uint16T>(table, offset);
 }
