@@ -7146,6 +7146,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
     }
 
     i::DisallowGarbageCollection no_gc;
+    if (i::IsInaccessible(obj)) return true;
     i::InstanceType obj_type = obj->map()->instance_type();
 
     // Skip common types that can't contain items to freeze.

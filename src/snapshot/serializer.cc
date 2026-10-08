@@ -159,6 +159,13 @@ void Serializer::SerializeDeferredObjects() {
 }
 
 void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
+  if (IsInaccessible(*obj)) {
+    // Only some roots are inaccessible.
+    bool result = SerializeRoot(*obj);
+    DCHECK(result);
+    USE(result);
+    return;
+  }
   if (IsThinString(*obj)) {
     // ThinStrings are just an indirection to an internalized string, so elide
     // the indirection and serialize the actual string directly.

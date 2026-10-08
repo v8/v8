@@ -6831,6 +6831,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     }
 
     V8_INLINE void MarkHeapObject(Tagged<HeapObject> heap_object) {
+      if (IsInaccessible(heap_object)) return;
       if (filter_->MarkAsReachable(heap_object)) {
         marking_stack_.push_back(heap_object);
       }
