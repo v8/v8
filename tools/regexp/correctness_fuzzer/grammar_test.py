@@ -19,7 +19,9 @@ The rest run without a build.
 
 import argparse
 import collections
+import contextlib
 import inspect
+import io
 import json
 import os
 import random
@@ -251,6 +253,54 @@ class GrammarStructureTest(unittest.TestCase):
         grammar.parse_weights("default", ["Assertion.caret=20"]))
     self.assertGreater(boosted, base)
 
+  def test_class_string_disjunction_surrogates(self):
+    # Inside `\q{...}`, lone surrogates only combine into a supplementary code
+    # point when both halves are literals or `\uXXXX` escapes; any `\u{...}`
+    # escape keeps them separate.  Verify that mixed escape forms and
+    # literal/escaped combinations are reachable, and that every
+    # ClassSetCharacter expansion records a single decoded character in
+    # ctx.literals rather than escape sequences.
+    weights = grammar.parse_weights("default", [
+        "CharacterClass.negated_class=0",
+        "ClassContents.empty_class=0",
+        "ClassSetOperandOrRange.set_range=0",
+        "ClassSetOperand.set_character=0",
+        "ClassSetOperand.set_class_escape=0",
+        "CharacterEscape.unicode_escape=10",
+        "CharacterEscape.unicode_escape_braced=20",
+        "ClassSetCharacter.literal=1",
+        "ClassSetCharacter.escape=2",
+    ])
+    targets = {
+        r"\ud83c\u{dca1}",
+        r"\u{d83c}\udca1",
+        r"\u{d83c}\u{dca1}",
+        "\\ud83c\udca1",
+        "\\u{d83c}\udca1",
+        "\ud83c\\udca1",
+        "\ud83c\\u{dca1}",
+    }
+    seen = set()
+    rng = random.Random(13)
+    for _ in range(8000):
+      cov = collections.Counter()
+      ctx = grammar.Context(rng, True, True, 1, weights=weights, coverage=cov)
+      pat = grammar.expand(ctx, "CharacterClass")
+      self.assertTrue(pat.startswith(r"[\q{") and pat.endswith("}]"), pat)
+      n_chars = (
+          cov[("ClassSetCharacter", "literal")] +
+          cov[("ClassSetCharacter", "escape")])
+      self.assertEqual(n_chars, len(ctx.literals))
+      self.assertTrue(all(len(lit) == 1 for lit in ctx.literals), ctx.literals)
+      for t in targets:
+        if t in pat:
+          seen.add(t)
+          self.assertIn("\ud83c", ctx.literals)
+          self.assertIn("\udca1", ctx.literals)
+      if seen == targets:
+        break
+    self.assertEqual(targets, seen)
+
 
 class ClassificationTest(unittest.TestCase):
   """How a pair of harness results is turned into a finding.
@@ -300,6 +350,22 @@ class ClassificationTest(unittest.TestCase):
     # One side crashed or timed out partway and never emitted this case.
     self.assertEqual("DIVERGENCE",
                      correctness_fuzzer.classify(0, self.OK, 0, None))
+
+  def test_print_case_escapes_lone_surrogates(self):
+
+    class StubRunner:
+      ref = test = None
+
+      def run_one(self, config, pattern, flags, subject, last_index=0):
+        return 0, ClassificationTest.OK
+
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="utf-8")
+    with contextlib.redirect_stdout(stream):
+      correctness_fuzzer._print_case(StubRunner(), "\ud83c", "v", "\ud83c", 0,
+                                     "DIVERGENCE")
+    out = raw.getvalue().decode("utf-8")
+    self.assertIn(r"  pattern: /\ud83c/v", out)
 
 
 class MinimizerTest(unittest.TestCase):

@@ -316,7 +316,7 @@ def _print_case(runner, pattern, flags, subject, last_index, header):
   rc_r, res_r = runner.run_one(runner.ref, pattern, flags, subject, last_index)
   rc_t, res_t = runner.run_one(runner.test, pattern, flags, subject, last_index)
   print(header)
-  print("  pattern: /%s/%s" % (pattern, flags))
+  print("  pattern: /%s/%s" % (json.dumps(pattern)[1:-1], flags))
   print("  subject: %r" % subject)
   if last_index:
     print("  lastIndex: %d" % last_index)
