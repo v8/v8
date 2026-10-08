@@ -2457,6 +2457,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral() {
             Scanner::Location(start_pos, end_position()),
             MessageTemplate::kElementAfterRest);
       }
+    } else if (Token::IsLiteral(peek()) &&
+               scanner()->HasImmediateCommaOrRightBracket()) {
+      int begin = peek_position();
+      elem = impl()->ExpressionFromLiteral(Next(), begin);
+      expression_scope()->RecordPatternError(
+          Scanner::Location(begin, end_position()),
+          MessageTemplate::kInvalidDestructuringTarget);
     } else {
       elem = ParsePossibleDestructuringSubPattern(&accumulation_scope);
     }
