@@ -2363,13 +2363,14 @@ bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
   TryCatch try_catch(isolate);
 
   std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
-  base::UniqueArray<char> data = ReadChars(absolute_path.c_str());
-  if (data.data() == nullptr) {
+  std::optional<base::UniqueArray<char>> data =
+      ReadChars(absolute_path.c_str());
+  if (!data) {
     printf("Error reading '%s'\n", file_name);
     base::OS::ExitProcess(1);
   }
   // TODO(C++23): Replace with std::ispanstream once Clang supports it.
-  std::stringstream stream(std::string(data.data(), data.size()));
+  std::stringstream stream(std::string(data->data(), data->size()));
   std::string line;
   while (std::getline(stream, line, '\n')) {
     for (int r = 0; r < DeserializationRunCount(); ++r) {
@@ -5806,13 +5807,13 @@ V8_NOINLINE void FuzzerMonitor::UseOfUninitializedValue() {
 #endif
 }
 
-base::UniqueArray<char> Shell::ReadChars(const char* name) {
+std::optional<base::UniqueArray<char>> Shell::ReadChars(const char* name) {
   if (options.read_from_tcp_port >= 0) {
     return ReadCharsFromTcpPort(name);
   }
 
   FILE* file = base::OS::FOpen(name, "rb");
-  if (file == nullptr) return {};
+  if (file == nullptr) return std::nullopt;
 
   fseek(file, 0, SEEK_END);
   size_t size = ftell(file);
@@ -5823,7 +5824,7 @@ base::UniqueArray<char> Shell::ReadChars(const char* name) {
     i += fread(&chars[i], 1, size - i, file);
     if (ferror(file)) {
       base::Fclose(file);
-      return {};
+      return std::nullopt;
     }
   }
   base::Fclose(file);
@@ -5832,13 +5833,13 @@ base::UniqueArray<char> Shell::ReadChars(const char* name) {
 
 MaybeLocal<PrimitiveArray> Shell::ReadLines(Isolate* isolate,
                                             const char* name) {
-  base::UniqueArray<char> data = ReadChars(name);
+  std::optional<base::UniqueArray<char>> data = ReadChars(name);
 
-  if (data.data() == nullptr) {
+  if (!data) {
     return MaybeLocal<PrimitiveArray>();
   }
   // TODO(C++23): Replace with std::ispanstream once Clang supports it.
-  std::stringstream stream(std::string(data.data(), data.size()));
+  std::stringstream stream(std::string(data->data(), data->size()));
   std::string line;
   std::vector<std::string> lines;
   while (std::getline(stream, line, '\n')) {
@@ -5868,8 +5869,8 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
   SafeUtf8Value filename(isolate, info[0]);
   if (!filename) return;
 
-  base::UniqueArray<char> data = ReadChars(*filename);
-  if (data.data() == nullptr) {
+  std::optional<base::UniqueArray<char>> data = ReadChars(*filename);
+  if (!data) {
     std::ostringstream error_msg;
     error_msg << "Error reading file \""
               << std::string_view{*filename,
@@ -5878,8 +5879,8 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ThrowError(isolate, error_msg.str());
     return;
   }
-  Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data.size());
-  memcpy(buffer->GetBackingStore()->Data(), data.data(), data.size());
+  Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data->size());
+  base::MemCopy(buffer->GetBackingStore()->Data(), data->data(), data->size());
 
   info.GetReturnValue().Set(buffer);
 }
@@ -8514,15 +8515,15 @@ int Shell::Main(int argc, char* argv[]) {
       if (options.trace_enabled) {
         platform::tracing::TraceConfig* trace_config;
         if (options.trace_config) {
-          base::UniqueArray<char> trace_config_json_str =
+          std::optional<base::UniqueArray<char>> trace_config_json_str =
               ReadChars(options.trace_config);
-          if (trace_config_json_str.data() == nullptr) {
+          if (!trace_config_json_str) {
             printf("Failed to read trace config from '%s'\n",
                    options.trace_config.get());
             base::OS::ExitProcess(1);
           }
           trace_config = tracing::CreateTraceConfigFromJSON(
-              isolate, trace_config_json_str.as_vector());
+              isolate, trace_config_json_str->as_vector());
         } else {
           trace_config =
               platform::tracing::TraceConfig::CreateDefaultTraceConfig();

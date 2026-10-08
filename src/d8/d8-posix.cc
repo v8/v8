@@ -609,13 +609,14 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
   unsetenv(*var);
 }
 
-base::UniqueArray<char> Shell::ReadCharsFromTcpPort(const char* name) {
+std::optional<base::UniqueArray<char>> Shell::ReadCharsFromTcpPort(
+    const char* name) {
   DCHECK_GE(Shell::options.read_from_tcp_port, 0);
 
   int sockfd = socket(PF_INET, SOCK_STREAM, 0);
   if (sockfd < 0) {
     fprintf(stderr, "Failed to create IPv4 socket\n");
-    return {};
+    return std::nullopt;
   }
 
   // Create an address for localhost:PORT where PORT is specified by the shell
@@ -631,7 +632,7 @@ base::UniqueArray<char> Shell::ReadCharsFromTcpPort(const char* name) {
     fprintf(stderr, "Failed to connect to localhost:%d\n",
             Shell::options.read_from_tcp_port.get());
     close(sockfd);
-    return {};
+    return std::nullopt;
   }
 
   // The file server follows the simple protocol for requesting and receiving
@@ -659,7 +660,7 @@ base::UniqueArray<char> Shell::ReadCharsFromTcpPort(const char* name) {
       fprintf(stderr, "Failed to send %s to localhost:%d\n", name,
               Shell::options.read_from_tcp_port.get());
       close(sockfd);
-      return {};
+      return std::nullopt;
     }
     sent_len += sent_now;
   }
@@ -676,7 +677,7 @@ base::UniqueArray<char> Shell::ReadCharsFromTcpPort(const char* name) {
     fprintf(stderr, "Failed to receive %s's length from localhost:%d\n", name,
             Shell::options.read_from_tcp_port.get());
     close(sockfd);
-    return {};
+    return std::nullopt;
   }
   // Reinterpretet the received file length as a signed big-endian integer.
   int32_t file_length = base::bit_cast<int32_t>(htonl(big_endian_file_length));
@@ -685,7 +686,7 @@ base::UniqueArray<char> Shell::ReadCharsFromTcpPort(const char* name) {
     fprintf(stderr, "Received length %d for %s from localhost:%d\n",
             file_length, name, Shell::options.read_from_tcp_port.get());
     close(sockfd);
-    return {};
+    return std::nullopt;
   }
 
   // Allocate the output array.
@@ -700,7 +701,7 @@ base::UniqueArray<char> Shell::ReadCharsFromTcpPort(const char* name) {
       fprintf(stderr, "Failed to receive %s from localhost:%d\n", name,
               Shell::options.read_from_tcp_port.get());
       close(sockfd);
-      return {};
+      return std::nullopt;
     }
     total_received += received;
   }

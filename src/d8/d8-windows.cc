@@ -44,9 +44,10 @@ void Shell::PreProcessUnicodeFilenameArg(char* argv[], int i) {
 
 void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {}
 
-base::UniqueArray<char> Shell::ReadCharsFromTcpPort(const char* name) {
+std::optional<base::UniqueArray<char>> Shell::ReadCharsFromTcpPort(
+    const char* name) {
   // TODO(leszeks): No reason this shouldn't exist on windows.
-  return {};
+  return std::nullopt;
 }
 
 void Shell::FileExists(const v8::FunctionCallbackInfo<v8::Value>& info) {

@@ -819,7 +819,7 @@ class Shell : public i::AllStatic {
   static void ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void CreateWasmMemoryMapDescriptor(
       const v8::FunctionCallbackInfo<v8::Value>& info);
-  static base::UniqueArray<char> ReadChars(const char* name);
+  static std::optional<base::UniqueArray<char>> ReadChars(const char* name);
   static MaybeLocal<PrimitiveArray> ReadLines(Isolate* isolate,
                                               const char* name);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -933,7 +933,8 @@ class Shell : public i::AllStatic {
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
 
-  static base::UniqueArray<char> ReadCharsFromTcpPort(const char* name);
+  static std::optional<base::UniqueArray<char>> ReadCharsFromTcpPort(
+      const char* name);
 
   static void set_script_executed() { script_executed_.store(true); }
   static bool ChangeWorkingDirectory(const std::string& path,
