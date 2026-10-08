@@ -2645,7 +2645,15 @@ void Debug::OnException(DirectHandle<Object> exception,
     for (; !it.done(); it.Advance()) {
       if (it.frame()->is_javascript()) {
         JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
-        FrameSummary summary = FrameSummary::GetInnermost(frame);
+        FrameSummaries summaries = frame->Summarize();
+#if V8_ENABLE_WEBASSEMBLY
+        if (summaries.size() == 0) {
+          DCHECK_EQ(frame->function()->shared()->builtin_id(),
+                    Builtin::kWasmMethodWrapper);
+          continue;
+        }
+#endif  // V8_ENABLE_WEBASSEMBLY
+        FrameSummary& summary = summaries.frames.back();
         DirectHandle<SharedFunctionInfo> shared{
             summary.AsJavaScript().function()->shared(), isolate_};
         if (shared->IsSubjectToDebugging()) {
