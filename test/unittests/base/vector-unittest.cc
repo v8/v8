@@ -165,5 +165,23 @@ TEST(VectorTest, SpanCompatibleMethods) {
   EXPECT_THAT(mutable_vec, testing::ElementsAre(10, 2, 30));
 }
 
+TEST(VectorTest, ArrayConversion) {
+  std::array<int, 3> arr = {1, 2, 3};
+  const std::array<int, 3> const_arr = {1, 2, 3};
+
+  base::Vector<int> vec_from_arr = arr;
+  base::Vector<const int> const_vec_from_arr = arr;
+  base::Vector<const int> const_vec_from_const_arr = const_arr;
+
+  EXPECT_EQ(vec_from_arr.data(), arr.data());
+  EXPECT_EQ(vec_from_arr.size(), 3u);
+  EXPECT_EQ(const_vec_from_arr.data(), arr.data());
+  EXPECT_EQ(const_vec_from_arr.size(), 3u);
+  EXPECT_EQ(const_vec_from_const_arr.data(), const_arr.data());
+  EXPECT_EQ(const_vec_from_const_arr.size(), 3u);
+  EXPECT_EQ(vec_from_arr, const_vec_from_arr);
+  EXPECT_EQ(const_vec_from_arr, const_vec_from_const_arr);
+}
+
 }  // namespace base
 }  // namespace v8

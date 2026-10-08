@@ -6,6 +6,7 @@
 #define V8_BASE_VECTOR_H_
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <iterator>
 #include <limits>
@@ -54,7 +55,19 @@ class Vector final {
 
   template <typename U, size_t n>
     requires std::is_convertible_v<std::span<U, n>, std::span<T>>
+  // NOLINTNEXTLINE(runtime/explicit)
   constexpr Vector(std::span<U, n> span) : span_(span) {}
+
+  template <typename U, size_t n>
+    requires std::is_convertible_v<std::span<U, n>, std::span<T>>
+  // NOLINTNEXTLINE(runtime/explicit)
+  constexpr Vector(std::array<U, n>& arr V8_LIFETIME_BOUND) : span_(arr) {}
+
+  template <typename U, size_t n>
+    requires std::is_convertible_v<std::span<const U, n>, std::span<T>>
+  // NOLINTNEXTLINE(runtime/explicit)
+  constexpr Vector(const std::array<U, n>& arr V8_LIFETIME_BOUND)
+      : span_(arr) {}
 
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
@@ -270,71 +283,6 @@ inline constexpr Vector<const T> VectorOf(
     std::initializer_list<T> list V8_LIFETIME_BOUND) {
   return VectorOf(list.begin(), list.size());
 }
-
-// Container with a fixed storage for `kSize` elements.
-template <typename T, size_t kSize>
-class EmbeddedVector final {
- public:
-  constexpr EmbeddedVector() = default;
-  constexpr explicit EmbeddedVector(const T& initial_value) {
-    std::fill_n(buffer_, kSize, initial_value);
-  }
-  EmbeddedVector(const EmbeddedVector&) = delete;
-  EmbeddedVector& operator=(const EmbeddedVector&) = delete;
-
-  constexpr Vector<T> SubVector(size_t from, size_t to) V8_LIFETIME_BOUND {
-    DCHECK_LE(from, to);
-    DCHECK_LE(to, length_);
-    return Vector<T>(buffer_ + from, to - from);
-  }
-
-  constexpr Vector<T> SubVectorFrom(size_t from) V8_LIFETIME_BOUND {
-    return SubVector(from, length_);
-  }
-
-  constexpr size_t size() const { return length_; }
-
-  constexpr T& operator[](size_t index) V8_LIFETIME_BOUND {
-    DCHECK_LT(index, length_);
-    return buffer_[index];
-  }
-
-  constexpr const T& operator[](size_t index) const V8_LIFETIME_BOUND {
-    DCHECK_LT(index, length_);
-    return buffer_[index];
-  }
-
-  constexpr T* begin() V8_LIFETIME_BOUND { return buffer_; }
-  constexpr const T* begin() const V8_LIFETIME_BOUND { return buffer_; }
-
-  constexpr T* data() V8_LIFETIME_BOUND { return buffer_; }
-
-  constexpr T* end() V8_LIFETIME_BOUND { return buffer_ + length_; }
-  constexpr const T* end() const V8_LIFETIME_BOUND { return buffer_ + length_; }
-
-  constexpr void Truncate(size_t length) {
-    DCHECK_LE(length, length_);
-    length_ = length;
-  }
-
-  constexpr const Vector<T> operator+(size_t offset) V8_LIFETIME_BOUND {
-    return SubVectorFrom(offset);
-  }
-
-  constexpr operator Vector<T>() V8_LIFETIME_BOUND {
-    return Vector<T>(buffer_, length_);
-  }
-
-  template <typename U>
-    requires std::is_convertible_v<T*, const U*> && (sizeof(U) == sizeof(T))
-  constexpr operator Vector<const U>() const V8_LIFETIME_BOUND {
-    return Vector<const U>(buffer_, length_);
-  }
-
- private:
-  T buffer_[kSize];
-  size_t length_ = kSize;
-};
 
 }  // namespace v8::base
 

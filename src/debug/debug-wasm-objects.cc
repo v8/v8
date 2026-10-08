@@ -4,6 +4,7 @@
 
 #include "src/debug/debug-wasm-objects.h"
 
+#include <array>
 #include <optional>
 
 #include "src/api/api-inl.h"
@@ -870,10 +871,10 @@ class DebugWasmInterpreterScopeIterator final : public debug::ScopeIterator {
 DirectHandle<String> WasmSimd128ToString(Isolate* isolate, Simd128 s128) {
   // We use the canonical format as described in:
   // https://github.com/WebAssembly/simd/blob/master/proposals/simd/TextSIMD.md
-  base::EmbeddedVector<char, 50> buffer;
+  std::array<char, 50> buffer;
   auto i32x4 = s128.to_i32x4();
-  SNPrintF(buffer, "i32x4 0x%08X 0x%08X 0x%08X 0x%08X", i32x4[0], i32x4[1],
-           i32x4[2], i32x4[3]);
+  base::SNPrintF(buffer, "i32x4 0x%08X 0x%08X 0x%08X 0x%08X", i32x4[0],
+                 i32x4[1], i32x4[2], i32x4[3]);
   return isolate->factory()->NewStringFromAsciiChecked(buffer.data());
 }
 
@@ -1097,11 +1098,13 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
         v = ref;
       } else {
         // Fail gracefully.
-        base::EmbeddedVector<char, 64> error;
-        int len = SNPrintF(error, "unimplemented object type: %d",
+        std::array<char, 64> error;
+        int len =
+            base::SNPrintF(error, "unimplemented object type: %d",
                            Cast<HeapObject>(*ref)->map()->instance_type());
         t = GetRefTypeName(isolate, value.type());
-        v = isolate->factory()->InternalizeString(error.SubVector(0, len));
+        v = isolate->factory()->InternalizeString(
+            base::VectorOf(error).SubVector(0, len));
       }
       break;
     }

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <cassert>
 #include <cinttypes>
 #include <cstdarg>
@@ -322,7 +323,7 @@ class DisassemblerX64 {
   };
 
   const NameConverter& converter_;
-  v8::base::EmbeddedVector<char, 128> tmp_buffer_;
+  std::array<char, 128> tmp_buffer_;
   unsigned int tmp_buffer_pos_ = 0;
   bool abort_on_unimplemented_;
   // Prefixes parsed.
@@ -657,7 +658,8 @@ class DisassemblerX64 {
 };
 
 void DisassemblerX64::AppendToBuffer(const char* format, ...) {
-  v8::base::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
+  v8::base::Vector<char> buf =
+      v8::base::VectorOf(tmp_buffer_) + tmp_buffer_pos_;
   va_list args;
   va_start(args, format);
   int result = v8::base::VSNPrintF(buf, format, args);
@@ -3581,7 +3583,7 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
     outp += v8::base::SNPrintF(out_buffer + outp, "  ");
   }
 
-  outp += v8::base::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.begin());
+  outp += v8::base::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.data());
   return instr_len;
 }
 
@@ -3617,7 +3619,7 @@ static_assert(arraysize(zmm_regs) == 32);
 
 const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
-  return tmp_buffer_.begin();
+  return tmp_buffer_.data();
 }
 
 const char* NameConverter::NameOfConstant(uint8_t* addr) const {
@@ -3672,7 +3674,7 @@ void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
   for (uint8_t* pc = begin; pc < end;) {
-    v8::base::EmbeddedVector<char, 128> buffer;
+    std::array<char, 128> buffer;
     buffer[0] = '\0';
     uint8_t* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
@@ -3685,7 +3687,7 @@ void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
     for (int i = 6 - static_cast<int>(pc - prev_pc); i >= 0; i--) {
       fprintf(f, "  ");
     }
-    fprintf(f, "  %s\n", buffer.begin());
+    fprintf(f, "  %s\n", buffer.data());
   }
 }
 

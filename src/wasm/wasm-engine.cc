@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-engine.h"
 
+#include <array>
 #include <optional>
 
 #include "src/base/hashing.h"
@@ -941,18 +942,19 @@ DirectHandle<Script> CreateWasmScript(
   } else {
     // Limit the printed hash to 8 characters.
     uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(wire_bytes));
-    base::EmbeddedVector<char, 32> buffer;
+    std::array<char, 32> buffer;
     if (module->name.is_empty()) {
       // Build the URL in the form "wasm://wasm/<hash>".
-      int url_len = SNPrintF(buffer, "wasm://wasm/%08x", hash);
+      int url_len = base::SNPrintF(buffer, "wasm://wasm/%08x", hash);
       DCHECK(url_len >= 0 && static_cast<size_t>(url_len) < buffer.size());
-      url_str = isolate->factory()
-                    ->NewStringFromUtf8(buffer.SubVector(0, url_len),
-                                        AllocationType::kOld)
-                    .ToHandleChecked();
+      url_str =
+          isolate->factory()
+              ->NewStringFromUtf8(base::VectorOf(buffer).SubVector(0, url_len),
+                                  AllocationType::kOld)
+              .ToHandleChecked();
     } else {
       // Build the URL in the form "wasm://wasm/<module name>-<hash>".
-      int hash_len = SNPrintF(buffer, "-%08x", hash);
+      int hash_len = base::SNPrintF(buffer, "-%08x", hash);
       DCHECK(hash_len >= 0 && static_cast<size_t>(hash_len) < buffer.size());
       DirectHandle<String> prefix =
           isolate->factory()->NewStringFromStaticChars("wasm://wasm/");
@@ -961,7 +963,7 @@ DirectHandle<Script> CreateWasmScript(
               isolate, wire_bytes, module->name, kNoInternalize);
       DirectHandle<String> hash_str =
           isolate->factory()
-              ->NewStringFromUtf8(buffer.SubVector(0, hash_len))
+              ->NewStringFromUtf8(base::VectorOf(buffer).SubVector(0, hash_len))
               .ToHandleChecked();
       // Concatenate the three parts.
       url_str = isolate->factory()

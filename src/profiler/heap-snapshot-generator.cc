@@ -4,6 +4,7 @@
 
 #include "src/profiler/heap-snapshot-generator.h"
 
+#include <array>
 #include <optional>
 #include <utility>
 
@@ -525,15 +526,15 @@ void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
   for (auto i = children_begin(); i != children_end(); ++i) {
     HeapGraphEdge& edge = **i;
     const char* edge_prefix = "";
-    base::EmbeddedVector<char, 64> index;
-    edge_name = index.begin();
+    std::array<char, 64> index;
+    edge_name = index.data();
     switch (edge.type()) {
       case HeapGraphEdge::kContextVariable:
         edge_prefix = "#";
         edge_name = edge.name();
         break;
       case HeapGraphEdge::kElement:
-        SNPrintF(index, "%d", edge.index());
+        base::SNPrintF(index, "%d", edge.index());
         break;
       case HeapGraphEdge::kInternal:
         edge_prefix = "$";
@@ -544,7 +545,7 @@ void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
         break;
       case HeapGraphEdge::kHidden:
         edge_prefix = "$";
-        SNPrintF(index, "%d", edge.index());
+        base::SNPrintF(index, "%d", edge.index());
         break;
       case HeapGraphEdge::kShortcut:
         edge_prefix = "^";
@@ -555,7 +556,7 @@ void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
         edge_name = edge.name();
         break;
       default:
-        SNPrintF(index, "!!! unknown edge type: %d ", edge.type());
+        base::SNPrintF(index, "!!! unknown edge type: %d ", edge.type());
     }
     edge.to()->Print(edge_prefix, edge_name, max_depth, indent + 2);
   }

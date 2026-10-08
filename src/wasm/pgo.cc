@@ -4,6 +4,8 @@
 
 #include "src/wasm/pgo.h"
 
+#include <array>
+
 #include "src/base/unique-array.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-module-builder.h"  // For {ZoneBuffer}.
@@ -202,8 +204,8 @@ void DumpProfileToFile(const WasmModule* module,
   // We use the same hash as for reported scripts, to make it easier to
   // correlate files to wasm modules (see {CreateWasmScript}).
   uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(wire_bytes));
-  base::EmbeddedVector<char, 32> filename;
-  SNPrintF(filename, "profile-wasm-%08x", hash);
+  std::array<char, 32> filename;
+  base::SNPrintF(filename, "profile-wasm-%08x", hash);
 
   ProfileGenerator profile_generator{module, tiering_budget_array};
   base::UniqueArray<uint8_t> profile_data = profile_generator.GetProfileData();
@@ -211,9 +213,9 @@ void DumpProfileToFile(const WasmModule* module,
   PrintF(
       "Dumping Wasm PGO data to file '%s' (module size %zu, %u declared "
       "functions, %zu bytes PGO data)\n",
-      filename.begin(), wire_bytes.size(), module->num_declared_functions,
+      filename.data(), wire_bytes.size(), module->num_declared_functions,
       profile_data.size());
-  if (FILE* file = base::OS::FOpen(filename.begin(), "wb")) {
+  if (FILE* file = base::OS::FOpen(filename.data(), "wb")) {
     size_t written = fwrite(profile_data.begin(), 1, profile_data.size(), file);
     CHECK_EQ(profile_data.size(), written);
     base::Fclose(file);
@@ -227,12 +229,12 @@ std::unique_ptr<ProfileInformation> LoadProfileFromFile(
   // We use the same hash as for reported scripts, to make it easier to
   // correlate files to wasm modules (see {CreateWasmScript}).
   uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(wire_bytes));
-  base::EmbeddedVector<char, 32> filename;
-  SNPrintF(filename, "profile-wasm-%08x", hash);
+  std::array<char, 32> filename;
+  base::SNPrintF(filename, "profile-wasm-%08x", hash);
 
-  FILE* file = base::OS::FOpen(filename.begin(), "rb");
+  FILE* file = base::OS::FOpen(filename.data(), "rb");
   if (!file) {
-    PrintF("No Wasm PGO data found: Cannot open file '%s'\n", filename.begin());
+    PrintF("No Wasm PGO data found: Cannot open file '%s'\n", filename.data());
     return {};
   }
 
@@ -240,7 +242,7 @@ std::unique_ptr<ProfileInformation> LoadProfileFromFile(
   size_t size = ftell(file);
   rewind(file);
 
-  PrintF("Loading Wasm PGO data from file '%s' (%zu bytes)\n", filename.begin(),
+  PrintF("Loading Wasm PGO data from file '%s' (%zu bytes)\n", filename.data(),
          size);
   base::UniqueArray<uint8_t> profile_data =
       base::UniqueArray<uint8_t>::NewForOverwrite(size);

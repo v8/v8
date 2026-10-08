@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_REGEXP_H_
 #define V8_OBJECTS_JS_REGEXP_H_
 
+#include <array>
 #include <optional>
 #include <utility>
 
@@ -162,7 +163,7 @@ V8_OBJECT class JSRegExp : public JSObject {
   // Maximum number of captures allowed.
   static constexpr int kMaxCaptures = 1 << 16;
 
-  using FlagsBuffer = base::EmbeddedVector<char, kFlagCount + 1>;
+  using FlagsBuffer = std::array<char, kFlagCount + 1>;
   inline static const char* FlagsToString(Flags flags, FlagsBuffer* out_buffer);
 
   class BodyDescriptor;

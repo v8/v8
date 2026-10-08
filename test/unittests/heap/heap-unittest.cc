@@ -4,6 +4,7 @@
 
 #include "src/heap/heap.h"
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -3512,9 +3513,9 @@ TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToZero) {
   {
     AlwaysAllocateScopeForTesting always_allocate(heap());
     for (int i = 0; i < transitions_count; i++) {
-      base::EmbeddedVector<char, 64> buffer;
+      std::array<char, 64> buffer;
       base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
-      RunJS(buffer.begin());
+      RunJS(buffer.data());
     }
   }
   RunJS("var root = new F;");
@@ -3563,9 +3564,9 @@ TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToOne) {
   {
     AlwaysAllocateScopeForTesting always_allocate(heap());
     for (int i = 0; i < transitions_count; i++) {
-      base::EmbeddedVector<char, 64> buffer;
+      std::array<char, 64> buffer;
       base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
-      RunJS(buffer.begin());
+      RunJS(buffer.data());
     }
   }
   RunJS("var root = new F;");
@@ -3609,9 +3610,9 @@ TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToOnePropertyFound) {
   {
     AlwaysAllocateScopeForTesting always_allocate(heap());
     for (int i = 0; i < transitions_count; i++) {
-      base::EmbeddedVector<char, 64> buffer;
+      std::array<char, 64> buffer;
       base::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
-      RunJS(buffer.begin());
+      RunJS(buffer.data());
     }
   }
   RunJS("var root = new F;");
@@ -4461,7 +4462,7 @@ TEST_F(HeapTest, EnsureAllocationSiteDependentCodesProcessed) {
 namespace {
 void OptimizeEmptyFunction(TestWithHeapInternals* test, const char* name) {
   HandleScope inner_scope(test->i_isolate());
-  base::EmbeddedVector<char, 256> source;
+  std::array<char, 256> source;
   base::SNPrintF(source,
                  "function %s() { return 0; }"
                  "%%PrepareFunctionForOptimization(%s);"
@@ -4469,7 +4470,7 @@ void OptimizeEmptyFunction(TestWithHeapInternals* test, const char* name) {
                  "%%OptimizeFunctionOnNextCall(%s);"
                  "%s();",
                  name, name, name, name, name, name);
-  test->RunJS(source.begin());
+  test->RunJS(source.data());
 }
 
 // Count the number of native contexts in the weak list of native contexts.

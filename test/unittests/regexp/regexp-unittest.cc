@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "src/regexp/regexp.h"
 
+#include <array>
 #include <cstdlib>
 #include <memory>
 #include <sstream>
@@ -1651,7 +1652,7 @@ static void TestRangeCaseIndependence(
 static void TestSimpleRangeCaseIndependence(Isolate* isolate,
                                             regexp::CharacterRange input,
                                             regexp::CharacterRange expected) {
-  base::EmbeddedVector<regexp::CharacterRange, 1> vector;
+  std::array<regexp::CharacterRange, 1> vector;
   vector[0] = expected;
   TestRangeCaseIndependence(isolate, input, vector);
 }

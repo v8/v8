@@ -4,6 +4,7 @@
 
 #include "src/compiler/pipeline.h"
 
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -2096,8 +2097,8 @@ const ProfileDataFromFile* ValidateProfileData(
     }
     if (v8_flags.abort_on_bad_builtin_profile_data ||
         v8_flags.warn_about_builtin_profile_data) {
-      base::EmbeddedVector<char, 256> msg;
-      SNPrintF(
+      std::array<char, 256> msg;
+      base::SNPrintF(
           msg,
           "Rejected profile data for %s due to function change. "
           "Please use tools/builtins-pgo/generate.py to refresh it, you can "
@@ -2115,9 +2116,9 @@ const ProfileDataFromFile* ValidateProfileData(
         // setting gn argument v8_builtins_profiling_log_file="".
         // One might also need to update the tools/builtins-pgo/generate.py if
         // the set of default release arguments has changed.
-        FATAL("%s", msg.begin());
+        FATAL("%s", msg.data());
       } else {
-        PrintF("%s\n", msg.begin());
+        PrintF("%s\n", msg.data());
       }
     }
 #ifdef LOG_BUILTIN_BLOCK_COUNT

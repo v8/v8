@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 
+#include <array>
 #include <functional>
 #include <optional>
 
@@ -222,7 +223,7 @@ void CodeStubAssembler::FailAssert(
     const char* message, const std::vector<FileAndLine>& files_and_lines,
     std::initializer_list<ExtraNode> extra_nodes) {
   DCHECK_NOT_NULL(message);
-  base::EmbeddedVector<char, 1024> chars;
+  std::array<char, 1024> chars;
   std::stringstream stream;
   for (const auto& [file, line] : base::Reversed(files_and_lines)) {
     if (file != nullptr) {
@@ -236,8 +237,8 @@ void CodeStubAssembler::FailAssert(
   }
   std::string files_and_lines_text = stream.str();
   if (!files_and_lines_text.empty()) {
-    SNPrintF(chars, "%s%s", message, files_and_lines_text.c_str());
-    message = chars.begin();
+    base::SNPrintF(chars, "%s%s", message, files_and_lines_text.c_str());
+    message = chars.data();
   }
   TNode<String> message_node = StringConstant(message);
 

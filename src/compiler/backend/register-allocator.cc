@@ -4,6 +4,7 @@
 
 #include "src/compiler/backend/register-allocator.h"
 
+#include <array>
 #include <iomanip>
 #include <optional>
 
@@ -4121,7 +4122,7 @@ void LinearScanAllocator::FindFreeRegistersForRange(
 // which are expensive.
 void LinearScanAllocator::ProcessCurrentRange(LiveRange* current,
                                               SpillMode spill_mode) {
-  base::EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
+  std::array<LifetimePosition, RegisterConfiguration::kMaxRegisters>
       free_until_pos;
   FindFreeRegistersForRange(current, free_until_pos);
   if (!TryAllocatePreferredReg(current, free_until_pos)) {
@@ -4270,10 +4271,10 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current,
   // use_pos keeps track of positions a register/alias is used at.
   // block_pos keeps track of positions where a register/alias is blocked
   // from.
-  base::EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
-      use_pos(LifetimePosition::MaxPosition());
-  base::EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
-      block_pos(LifetimePosition::MaxPosition());
+  std::array<LifetimePosition, RegisterConfiguration::kMaxRegisters> use_pos;
+  use_pos.fill(LifetimePosition::MaxPosition());
+  std::array<LifetimePosition, RegisterConfiguration::kMaxRegisters> block_pos;
+  block_pos.fill(LifetimePosition::MaxPosition());
 
   for (LiveRange* range : active_live_ranges()) {
     int cur_reg = range->assigned_register();

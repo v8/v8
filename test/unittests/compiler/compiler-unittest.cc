@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <wchar.h>
 
+#include <array>
 #include <memory>
 
 #include "include/v8-extension.h"
@@ -68,10 +69,10 @@ static DirectHandle<JSFunction> Compile(const char* source) {
 
 static double Inc(Isolate* isolate, int x) {
   const char* source = "result = %d + 1;";
-  base::EmbeddedVector<char, 512> buffer;
-  SNPrintF(buffer, source, x);
+  std::array<char, 512> buffer;
+  base::SNPrintF(buffer, source, x);
 
-  DirectHandle<JSFunction> fun = Compile(buffer.begin());
+  DirectHandle<JSFunction> fun = Compile(buffer.data());
   if (fun.is_null()) return -1;
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);

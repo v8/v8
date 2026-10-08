@@ -50,6 +50,7 @@
 #define V8_EXECUTION_RISCV_SIMULATOR_RISCV_H_
 
 // globals.h defines USE_SIMULATOR.
+#include <array>
 #include <functional>
 
 #include "src/base/float16.h"
@@ -950,8 +951,9 @@ class Simulator : public SimulatorBase {
     for (int i = VRegisterValue::kChunks - 1; i >= 0; i--) {
       const char* format =
           i != VRegisterValue::kChunks - 1 ? "_%016" PRIx64 : "%016" PRIx64;
-      int written = SNPrintF(trace_buf_.SubVector(offset, trace_buf_.size()),
-                             format, value.chunks[i]);
+      int written = SNPrintF(
+          base::VectorOf(trace_buf_).SubVector(offset, trace_buf_.size()),
+          format, value.chunks[i]);
       offset += written;
     }
     return offset;
@@ -960,7 +962,7 @@ class Simulator : public SimulatorBase {
   inline void rvv_trace_vd() {
     if (v8_flags.trace_sim) {
       int offset = snprintf_vreg(rvv_vd_reg());
-      SNPrintF(trace_buf_.SubVector(offset, trace_buf_.size()),
+      SNPrintF(base::VectorOf(trace_buf_).SubVector(offset, trace_buf_.size()),
                " (%" PRId64 ")", icount_);
     }
   }
@@ -996,7 +998,7 @@ class Simulator : public SimulatorBase {
       for (; i < trace_buf_.size(); i++) {
         if (trace_buf_[i] == '\0') break;
       }
-      SNPrintF(trace_buf_.SubVector(i, trace_buf_.size()),
+      SNPrintF(base::VectorOf(trace_buf_).SubVector(i, trace_buf_.size()),
                "  sew:%s lmul:%s vstart:%" PRId64 " vl:%" PRId64, rvv_sew_s(),
                rvv_lmul_s(), rvv_vstart(), rvv_vl());
     }
@@ -1334,7 +1336,7 @@ class Simulator : public SimulatorBase {
   sreg_t* watch_address_ = nullptr;
   sreg_t watch_value_ = 0;
   int break_count_;
-  base::EmbeddedVector<char, 256> trace_buf_;
+  std::array<char, 256> trace_buf_;
 
   // Debugger input.
   char* last_debugger_input_;

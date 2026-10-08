@@ -27,6 +27,7 @@
 //
 // Tests of the CPU profiler and utilities.
 
+#include <array>
 #include <limits>
 #include <memory>
 
@@ -167,11 +168,11 @@ class TestSetup {
 
 i::Tagged<i::AbstractCode> CreateCode(i::Isolate* isolate, LocalContext* env) {
   static int counter = 0;
-  base::EmbeddedVector<char, 256> script;
-  base::EmbeddedVector<char, 32> name;
+  std::array<char, 256> script;
+  std::array<char, 32> name;
 
   base::SNPrintF(name, "function_%d", ++counter);
-  const char* name_start = name.begin();
+  const char* name_start = name.data();
   base::SNPrintF(script,
                  "function %s() {\n"
                  "var counter = 0;\n"
@@ -180,7 +181,7 @@ i::Tagged<i::AbstractCode> CreateCode(i::Isolate* isolate, LocalContext* env) {
                  "}\n"
                  "%s();\n",
                  name_start, counter, name_start, name_start);
-  CompileRun(script.begin());
+  CompileRun(script.data());
 
   i::DirectHandle<i::JSFunction> fun = i::Cast<i::JSFunction>(
       v8::Utils::OpenDirectHandle(*GetFunction(env->local(), name_start)));
@@ -1295,9 +1296,9 @@ static void TickLines(bool optimize) {
   // Ensure that source positions are collected everywhere.
   isolate->SetIsProfiling(true);
 
-  base::EmbeddedVector<char, 512> script;
-  base::EmbeddedVector<char, 64> prepare_opt;
-  base::EmbeddedVector<char, 64> optimize_call;
+  std::array<char, 512> script;
+  std::array<char, 64> prepare_opt;
+  std::array<char, 64> optimize_call;
 
   const char* func_name = "func";
   if (optimize) {
@@ -1325,10 +1326,10 @@ static void TickLines(bool optimize) {
                  "%s();\n"
                  "%s"
                  "%s();\n",
-                 func_name, prepare_opt.begin(), func_name,
-                 optimize_call.begin(), func_name);
+                 func_name, prepare_opt.data(), func_name, optimize_call.data(),
+                 func_name);
 
-  CompileRun(script.begin());
+  CompileRun(script.data());
 
   i::DirectHandle<i::JSFunction> func = i::Cast<i::JSFunction>(
       v8::Utils::OpenDirectHandle(*GetFunction(env.local(), func_name)));
@@ -2627,9 +2628,9 @@ TEST(CollectDeoptEvents) {
       "\n";
 
   for (int i = 0; i < 3; ++i) {
-    base::EmbeddedVector<char, sizeof(opt_source) + 100> buffer;
+    std::array<char, sizeof(opt_source) + 100> buffer;
     base::SNPrintF(buffer, opt_source, i, i);
-    v8::Script::Compile(env, v8_str(buffer.begin()))
+    v8::Script::Compile(env, v8_str(buffer.data()))
         .ToLocalChecked()
         ->Run(env)
         .ToLocalChecked();

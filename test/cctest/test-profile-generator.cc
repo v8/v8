@@ -27,6 +27,8 @@
 //
 // Tests of profiles generator and utilities.
 
+#include <array>
+
 #include "include/v8-function.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
@@ -802,8 +804,8 @@ TEST(Issue51919) {
   CpuProfilesCollection collection(CcTest::i_isolate());
   CpuProfiler profiler(CcTest::i_isolate());
   collection.set_cpu_profiler(&profiler);
-  base::EmbeddedVector<base::UniqueArray<char>,
-                       CpuProfilesCollection::kMaxSimultaneousProfiles>
+  std::array<base::UniqueArray<char>,
+             CpuProfilesCollection::kMaxSimultaneousProfiles>
       titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     base::UniqueArray<char> title =

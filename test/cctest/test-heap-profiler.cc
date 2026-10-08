@@ -29,6 +29,7 @@
 
 #include <ctype.h>
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
@@ -3091,11 +3092,11 @@ TEST(ManyLocalsInSharedContext) {
   // Check all the objects have got their names.
   // ... well check just every 15th because otherwise it's too slow in debug.
   for (int i = 0; i < num_objects - 1; i += 15) {
-    v8::base::EmbeddedVector<char, 100> var_name;
+    std::array<char, 100> var_name;
     v8::base::SNPrintF(var_name, "f_%d", i);
     const v8::HeapGraphNode* f_object =
         GetProperty(env.isolate(), context_object,
-                    v8::HeapGraphEdge::kContextVariable, var_name.begin());
+                    v8::HeapGraphEdge::kContextVariable, var_name.data());
     CHECK(f_object);
   }
 }
@@ -3194,9 +3195,9 @@ static const v8::HeapGraphNode* GetNodeByPath(v8::Isolate* isolate,
       const v8::HeapGraphNode* to_node = edge->GetToNode();
       v8::String::Utf8Value edge_name(isolate, edge->GetName());
       v8::String::Utf8Value node_name(isolate, to_node->GetName());
-      v8::base::EmbeddedVector<char, 100> name;
+      std::array<char, 100> name;
       v8::base::SNPrintF(name, "%s::%s", *edge_name, *node_name);
-      if (strstr(name.begin(), path[current_depth])) {
+      if (strstr(name.data(), path[current_depth])) {
         node = to_node;
         break;
       }

@@ -4,6 +4,7 @@
 
 #include "src/wasm/baseline/liftoff-compiler.h"
 
+#include <array>
 #include <optional>
 
 #include "src/base/enum-set.h"
@@ -999,9 +1000,9 @@ class LiftoffCompiler {
       default:
         UNREACHABLE();
     }
-    base::EmbeddedVector<char, 128> buffer;
-    SNPrintF(buffer, "%s %s", name(kind), context);
-    unsupported(decoder, bailout_reason, buffer.begin());
+    std::array<char, 128> buffer;
+    base::SNPrintF(buffer, "%s %s", name(kind), context);
+    unsupported(decoder, bailout_reason, buffer.data());
     return false;
   }
 

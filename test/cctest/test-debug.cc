@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#include <array>
+
 #include "include/v8-extension.h"
 #include "include/v8-function.h"
 #include "include/v8-json.h"
@@ -3485,10 +3487,10 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
   EmptyExternalStringResource() { empty_[0] = 0; }
   ~EmptyExternalStringResource() override = default;
   size_t length() const override { return empty_.size(); }
-  const uint16_t* data() const override { return empty_.begin(); }
+  const uint16_t* data() const override { return empty_.data(); }
 
  private:
-  ::v8::base::EmbeddedVector<uint16_t, 1> empty_;
+  std::array<uint16_t, 1> empty_;
 };
 
 TEST(DebugScriptLineEndsAreAscending) {
@@ -4010,11 +4012,11 @@ static void TestDebugBreakInLoop(const char* loop_head,
     // Perform a lazy deoptimization after various numbers of breaks
     // have been hit.
 
-    v8::base::EmbeddedVector<char, 1024> buffer;
+    std::array<char, 1024> buffer;
     v8::base::SNPrintF(buffer, "function f() {%s%s%s}", loop_head,
                        loop_bodies[i], loop_tail);
 
-    i::PrintF("%s\n", buffer.begin());
+    i::PrintF("%s\n", buffer.data());
 
     for (int j = 0; j < 3; j++) {
       break_point_hit_count_deoptimize = j;
@@ -4027,7 +4029,7 @@ static void TestDebugBreakInLoop(const char* loop_head,
       terminate_after_max_break_point_hit = true;
 
       // Function with infinite loop.
-      CompileRun(buffer.begin());
+      CompileRun(buffer.data());
 
       // Set the debug break to enter the debugger as soon as possible.
       v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());

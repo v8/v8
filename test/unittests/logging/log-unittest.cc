@@ -29,6 +29,7 @@
 
 #include "src/logging/log.h"
 
+#include <array>
 #include <unordered_set>
 #include <vector>
 
@@ -48,7 +49,6 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using v8::base::EmbeddedVector;
 using v8::internal::Address;
 using v8::internal::V8FileLogger;
 
@@ -371,11 +371,11 @@ TEST_F(LogTest, LogCallbacks) {
 #if USES_FUNCTION_DESCRIPTORS
     ObjMethod1_entry = *FUNCTION_ENTRYPOINT_ADDRESS(ObjMethod1_entry);
 #endif
-    v8::base::EmbeddedVector<char, 100> suffix_buffer;
+    std::array<char, 100> suffix_buffer;
     v8::base::SNPrintF(suffix_buffer, ",0x%" V8PRIxPTR ",1,method1",
                        ObjMethod1_entry);
     CHECK(logger.ContainsLine(
-        {"code-creation,Callback,-2,", std::string(suffix_buffer.begin())}));
+        {"code-creation,Callback,-2,", std::string(suffix_buffer.data())}));
   }
 }
 
@@ -408,31 +408,31 @@ TEST_F(LogTest, LogAccessorCallbacks) {
 #if USES_FUNCTION_DESCRIPTORS
     Prop1Getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop1Getter_entry);
 #endif
-    v8::base::EmbeddedVector<char, 100> prop1_getter_record;
+    std::array<char, 100> prop1_getter_record;
     v8::base::SNPrintF(prop1_getter_record, ",0x%" V8PRIxPTR ",1,get prop1",
                        Prop1Getter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
-                               std::string(prop1_getter_record.begin())}));
+                               std::string(prop1_getter_record.data())}));
 
     Address Prop1Setter_entry = reinterpret_cast<Address>(Prop1Setter);
 #if USES_FUNCTION_DESCRIPTORS
     Prop1Setter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop1Setter_entry);
 #endif
-    v8::base::EmbeddedVector<char, 100> prop1_setter_record;
+    std::array<char, 100> prop1_setter_record;
     v8::base::SNPrintF(prop1_setter_record, ",0x%" V8PRIxPTR ",1,set prop1",
                        Prop1Setter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
-                               std::string(prop1_setter_record.begin())}));
+                               std::string(prop1_setter_record.data())}));
 
     Address Prop2Getter_entry = reinterpret_cast<Address>(Prop2Getter);
 #if USES_FUNCTION_DESCRIPTORS
     Prop2Getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop2Getter_entry);
 #endif
-    v8::base::EmbeddedVector<char, 100> prop2_getter_record;
+    std::array<char, 100> prop2_getter_record;
     v8::base::SNPrintF(prop2_getter_record, ",0x%" V8PRIxPTR ",1,get prop2",
                        Prop2Getter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
-                               std::string(prop2_getter_record.begin())}));
+                               std::string(prop2_getter_record.data())}));
   }
 }
 
@@ -441,12 +441,12 @@ TEST_F(LogTest, LogVersion) {
     ScopedLoggerInitializer logger(isolate());
     logger.StopLogging();
 
-    v8::base::EmbeddedVector<char, 100> line_buffer;
+    std::array<char, 100> line_buffer;
     v8::base::SNPrintF(line_buffer, "%d,%d,%d,%d,%d", i::Version::GetMajor(),
                        i::Version::GetMinor(), i::Version::GetBuild(),
                        i::Version::GetPatch(), i::Version::IsCandidate());
     CHECK(
-        logger.ContainsLine({"v8-version,", std::string(line_buffer.begin())}));
+        logger.ContainsLine({"v8-version,", std::string(line_buffer.data())}));
   }
 }
 
@@ -1215,7 +1215,7 @@ TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
     i::Isolate* i_isolate = logger.i_isolate();
     i::DirectHandle<i::Code> builtin =
         BUILTIN_CODE(i_isolate, BooleanConstructor);
-    v8::base::EmbeddedVector<char, 100> buffer;
+    std::array<char, 100> buffer;
 
     // Should only be logged as "Builtin" with a name, never as "Function".
     v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
@@ -1224,13 +1224,13 @@ TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
     static_assert(static_cast<int>(i::CodeKind::BUILTIN) == 3,
                   "Update ',3,' below to proper value");
     CHECK(logger.ContainsLine(
-        {"code-creation,Builtin,3,", std::string(buffer.begin())}));
+        {"code-creation,Builtin,3,", std::string(buffer.data())}));
 
     v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,",
                        builtin->instruction_start(),
                        builtin->instruction_size());
     CHECK(!logger.ContainsLine(
-        {"code-creation,JS,3,", std::string(buffer.begin())}));
+        {"code-creation,JS,3,", std::string(buffer.data())}));
   }
 }
 }  // namespace v8

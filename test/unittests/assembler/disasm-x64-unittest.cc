@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#include <array>
+
 #include "src/base/vector.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/macro-assembler.h"
@@ -79,31 +81,31 @@ TEST_F(DisasmX64Test, AVX512) {
 
   disasm::NameConverter converter;
   disasm::Disassembler d(converter);
-  v8::base::EmbeddedVector<char, 128> out_buffer;
+  std::array<char, 128> out_buffer;
 
   uint8_t* pc = buffer;
   int len = d.InstructionDecode(out_buffer, pc);
   EXPECT_EQ(len, 7);
-  EXPECT_STREQ(out_buffer.begin(),
+  EXPECT_STREQ(out_buffer.data(),
                "62f37d203f0700       vpcmpb k0,ymm16,[rdi],0x0");
 
   pc += len;
   len = d.InstructionDecode(out_buffer, pc);
   EXPECT_EQ(len, 4);
-  EXPECT_STREQ(out_buffer.begin(), "c5fb93c0             kmovd rax,k0");
+  EXPECT_STREQ(out_buffer.data(), "c5fb93c0             kmovd rax,k0");
 
   // Verify resilient decoding of malformed vex prefix (prevent out of bounds
   // read).
   pc += len;
   len = d.InstructionDecode(out_buffer, pc);
   EXPECT_EQ(len, 4);
-  EXPECT_STREQ(out_buffer.begin(), "c57b93c0             kmovd rax,k0");
+  EXPECT_STREQ(out_buffer.data(), "c57b93c0             kmovd rax,k0");
 
   // Verify decoding of upper EVEX AVX-512 register (ymm17) and vector width.
   pc += len;
   len = d.InstructionDecode(out_buffer, pc);
   EXPECT_EQ(len, 7);
-  EXPECT_STREQ(out_buffer.begin(),
+  EXPECT_STREQ(out_buffer.data(),
                "62b37d203fc100       vpcmpb k0,ymm16,ymm17,0x0");
 }
 
@@ -115,18 +117,18 @@ TEST_F(DisasmX64Test, EVEXVectorW) {
 
   disasm::NameConverter converter;
   disasm::Disassembler disassembler(converter);
-  v8::base::EmbeddedVector<char, 128> out_buffer;
+  std::array<char, 128> out_buffer;
 
   uint8_t* pc = buffer;
   int len = disassembler.InstructionDecode(out_buffer, pc);
   EXPECT_EQ(len, 6);
-  EXPECT_STREQ(out_buffer.begin(),
+  EXPECT_STREQ(out_buffer.data(),
                "62f17e082ac0         vcvtlsi2ss xmm0,xmm0,rax");
 
   pc += len;
   len = disassembler.InstructionDecode(out_buffer, pc);
   EXPECT_EQ(len, 6);
-  EXPECT_STREQ(out_buffer.begin(),
+  EXPECT_STREQ(out_buffer.data(),
                "62f1fe082ac0         vcvtqsi2ss xmm0,xmm0,rax");
 }
 
@@ -400,7 +402,7 @@ struct DisassemblerTester {
 
   std::string InstructionDecode() {
     disasm.InstructionDecode(disasm_buffer, buffer_ + prev_offset);
-    return std::string{disasm_buffer.begin()};
+    return std::string{disasm_buffer.data()};
   }
 
   int pc_offset() { return assm_.pc_offset(); }
@@ -411,7 +413,7 @@ struct DisassemblerTester {
   Assembler assm_;
   disasm::NameConverter converter_;
   disasm::Disassembler disasm;
-  base::EmbeddedVector<char, 128> disasm_buffer;
+  std::array<char, 128> disasm_buffer;
   int prev_offset = 0;
 };
 
