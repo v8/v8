@@ -2221,7 +2221,7 @@ class LiftoffCompiler {
     // There is an extra copy of the exception at this point, below the unpacked
     // values (if any). It will be dropped in the branch below.
     BrOrRet(decoder, catch_case.br_imm.depth);
-    bool is_last = &catch_case == &block->catch_cases.last();
+    bool is_last = &catch_case == &block->catch_cases.back();
     if (is_last && !decoder->HasCatchAll(block)) {
       __ bind(&block->try_info->catch_label);
       __ cache_state()->Steal(block->try_info->catch_state);

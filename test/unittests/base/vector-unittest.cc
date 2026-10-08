@@ -131,10 +131,79 @@ TEST(VectorTest, SpanConversion) {
 
   std::span<int> span_from_vec = vec_from_dynamic;
   std::span<const int> const_span_from_vec = vec_from_dynamic;
+  std::span<int> explicit_span_from_vec =
+      static_cast<std::span<int>>(vec_from_dynamic);
+  std::span<const int> explicit_const_span_from_vec =
+      static_cast<std::span<const int>>(vec_from_dynamic);
+  std::span s(vec_from_dynamic);
+  static_assert(std::is_same_v<decltype(s), std::span<int>>);
+  const base::Vector<int> const_vec_of_mutable = dynamic_span;
+  std::span<int> span_from_const_vec = const_vec_of_mutable;
   EXPECT_EQ(span_from_vec.data(), arr);
   EXPECT_EQ(span_from_vec.size(), 3u);
   EXPECT_EQ(const_span_from_vec.data(), arr);
   EXPECT_EQ(const_span_from_vec.size(), 3u);
+  EXPECT_EQ(explicit_span_from_vec.data(), arr);
+  EXPECT_EQ(explicit_span_from_vec.size(), 3u);
+  EXPECT_EQ(explicit_const_span_from_vec.data(), arr);
+  EXPECT_EQ(explicit_const_span_from_vec.size(), 3u);
+  EXPECT_EQ(s.data(), arr);
+  EXPECT_EQ(s.size(), 3u);
+  EXPECT_EQ(span_from_const_vec.data(), arr);
+  EXPECT_EQ(span_from_const_vec.size(), 3u);
+}
+
+TEST(VectorTest, SpanCompatibleMethods) {
+  static constexpr int kArr[] = {10, 20, 30, 40, 50};
+  static constexpr auto kVec = base::ArrayVector(kArr);
+
+  static_assert(kVec.front() == 10);
+  static_assert(kVec.back() == 50);
+
+  static constexpr auto kFirst2 = kVec.first(2);
+  static_assert(kFirst2.size() == 2);
+  static_assert(kFirst2.front() == 10);
+  static_assert(kFirst2.back() == 20);
+  EXPECT_THAT(kFirst2, testing::ElementsAre(10, 20));
+  EXPECT_EQ(kVec.first(5), kVec);
+  EXPECT_TRUE(kVec.first(0).empty());
+
+  static constexpr auto kLast2 = kVec.last(2);
+  static_assert(kLast2.size() == 2);
+  static_assert(kLast2.front() == 40);
+  static_assert(kLast2.back() == 50);
+  EXPECT_THAT(kLast2, testing::ElementsAre(40, 50));
+  EXPECT_EQ(kVec.last(5), kVec);
+  EXPECT_TRUE(kVec.last(0).empty());
+
+  static constexpr auto kSubFrom2 = kVec.subspan(2);
+  static_assert(kSubFrom2.size() == 3);
+  static_assert(kSubFrom2.front() == 30);
+  static_assert(kSubFrom2.back() == 50);
+  EXPECT_THAT(kSubFrom2, testing::ElementsAre(30, 40, 50));
+  EXPECT_EQ(kVec.subspan(0), kVec);
+  EXPECT_TRUE(kVec.subspan(5).empty());
+
+  static constexpr auto kSubMiddle = kVec.subspan(1, 3);
+  static_assert(kSubMiddle.size() == 3);
+  static_assert(kSubMiddle.front() == 20);
+  static_assert(kSubMiddle.back() == 40);
+  EXPECT_THAT(kSubMiddle, testing::ElementsAre(20, 30, 40));
+  EXPECT_EQ(kVec.subspan(0, 5), kVec);
+  EXPECT_TRUE(kVec.subspan(2, 0).empty());
+  EXPECT_TRUE(kVec.subspan(5, 0).empty());
+  EXPECT_TRUE(base::Vector<int>{}.subspan(0, 0).empty());
+
+  int mutable_arr[] = {1, 2, 3};
+  base::Vector<int> mutable_vec = base::ArrayVector(mutable_arr);
+  mutable_vec.front() = 100;
+  mutable_vec.back() = 300;
+  EXPECT_THAT(mutable_vec, testing::ElementsAre(100, 2, 300));
+
+  const base::Vector<int> const_mutable_vec = mutable_vec;
+  const_mutable_vec.front() = 10;
+  const_mutable_vec.back() = 30;
+  EXPECT_THAT(mutable_vec, testing::ElementsAre(10, 2, 30));
 }
 
 }  // namespace base

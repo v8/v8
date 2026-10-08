@@ -273,7 +273,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // optimizing an inner wasm function, there can be a large amount of
   // parameters and returns with all kinds of types.
   const bool optimize_main_function =
-      inlinees.empty() || data.empty() || !(data.last() & 1);
+      inlinees.empty() || data.empty() || !(data.back() & 1);
 #if defined(DEBUG) && defined(V8_USE_ADDRESS_SANITIZER)
   // Disable register allocator verification on slow builds (Debug + ASan) to
   // avoid timeouts in TurboFan/Turboshaft compilation on pathological inputs
@@ -283,7 +283,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // TurboFan compilation (see crbug.com/520317061).
   const bool assert_types = false;
 #else
-  const bool assert_types = !data.empty() && (data.last() & 2);
+  const bool assert_types = !data.empty() && (data.back() & 2);
 #endif
   FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
 

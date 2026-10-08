@@ -939,7 +939,7 @@ class CandidateAnalyzer {
             frame.as_builtin_continuation();
         if (!continuation_frame.parameters().empty()) {
           data_.MarkAsEscapedIfCandidate(
-              continuation_frame.parameters().first());
+              continuation_frame.parameters().front());
         }
         break;
       }

@@ -60,12 +60,10 @@ class Vector final {
   // spanning from and including 'from', to but not including 'to'.
   constexpr Vector<T> SubVector(size_t from, size_t to) const {
     DCHECK_LE(from, to);
-    DCHECK_LE(to, size());
-    return Vector<T>(span_.subspan(from, to - from));
+    return subspan(from, to - from);
   }
   constexpr Vector<T> SubVectorFrom(size_t from) const {
-    DCHECK_LE(from, size());
-    return Vector<T>(span_.subspan(from));
+    return subspan(from);
   }
 
   template <class U>
@@ -101,16 +99,31 @@ class Vector final {
 
   const T& at(size_t index) const { return operator[](index); }
 
-  T& first() { return span_.front(); }
-  const T& first() const { return span_.front(); }
+  constexpr T& front() const {
+    DCHECK_LT(0, size());
+    return span_.front();
+  }
 
-  T& last() {
+  constexpr T& back() const {
     DCHECK_LT(0, size());
     return span_.back();
   }
-  const T& last() const {
-    DCHECK_LT(0, size());
-    return span_.back();
+
+  constexpr Vector<T> first(size_t count) const {
+    DCHECK_LE(count, size());
+    return Vector<T>(span_.first(count));
+  }
+
+  constexpr Vector<T> last(size_t count) const {
+    DCHECK_LE(count, size());
+    return Vector<T>(span_.last(count));
+  }
+
+  constexpr Vector<T> subspan(size_t offset,
+                              size_t count = std::dynamic_extent) const {
+    DCHECK_LE(offset, size());
+    DCHECK(count == std::dynamic_extent || count <= size() - offset);
+    return Vector<T>(span_.subspan(offset, count));
   }
 
   // Returns a pointer to the start of the data in the vector.
@@ -156,6 +169,8 @@ class Vector final {
   constexpr operator Vector<const U>() const {
     return {span_.data(), span_.size()};
   }
+
+  explicit constexpr operator std::span<T>() const noexcept { return span_; }
 
   template <typename S>
   static Vector<T> cast(Vector<S> input) {

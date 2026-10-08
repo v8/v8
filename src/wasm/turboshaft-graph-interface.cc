@@ -3990,8 +3990,8 @@ class TurboshaftGraphBuildingInterface
     if (catch_case.kind == kCatchAll || catch_case.kind == kCatchAllRef) {
       if (catch_case.kind == kCatchAllRef) {
         DCHECK_EQ(values.size(), 1);
-        values.last().op =
-            __ AnnotateWasmType(block->exception, values.last().type);
+        values.back().op =
+            __ AnnotateWasmType(block->exception, values.back().type);
       }
       BrOrRet(decoder, catch_case.br_imm.depth);
       return;
@@ -4061,8 +4061,8 @@ class TurboshaftGraphBuildingInterface
       // exception.
       values[0].op = __ AnnotateWasmType(caught_exception, values[0].type);
       if (catch_case.kind == kCatchRef) {
-        values.last().op =
-            __ AnnotateWasmType(block->exception, values.last().type);
+        values.back().op =
+            __ AnnotateWasmType(block->exception, values.back().type);
       }
     } else {
       TSBlock* if_catch = __ NewBlock();
@@ -4072,8 +4072,8 @@ class TurboshaftGraphBuildingInterface
       if (catch_case.kind == kCatchRef) {
         UnpackWasmException(decoder, block->exception,
                             values.SubVector(0, values.size() - 1));
-        values.last().op =
-            __ AnnotateWasmType(block->exception, values.last().type);
+        values.back().op =
+            __ AnnotateWasmType(block->exception, values.back().type);
       } else {
         UnpackWasmException(decoder, block->exception, values);
       }
@@ -4081,7 +4081,7 @@ class TurboshaftGraphBuildingInterface
 
     BrOrRet(decoder, catch_case.br_imm.depth);
 
-    bool is_last = &catch_case == &block->catch_cases.last();
+    bool is_last = &catch_case == &block->catch_cases.back();
     if (is_last && !decoder->HasCatchAll(block)) {
       BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                                nullptr, &block->exception);
@@ -4428,7 +4428,7 @@ class TurboshaftGraphBuildingInterface
         __ LoadTrustedFixedArrayElement(instance_tags, tag_imm.index));
 
     const ContType* return_cont_type =
-        decoder->module_->cont_type(sig->parameters().last().ref_index());
+        decoder->module_->cont_type(sig->parameters().back().ref_index());
     const FunctionSig* return_sig =
         decoder->module_->signature(return_cont_type->contfun_typeindex());
 

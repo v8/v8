@@ -278,7 +278,7 @@ bool LiveRange::RegisterFromFirstHint(int* register_index) {
     return false;
   }
   DCHECK_GE(positions_span_[current_hint_position_index_]->pos(),
-            positions_span_.first()->pos());
+            positions_span_.front()->pos());
   DCHECK_LE(positions_span_[current_hint_position_index_]->pos(), End());
 
   bool needs_revisit = false;
@@ -531,8 +531,8 @@ bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
     }
     if (positions_span_.empty()) return false;
     if (other->positions_span_.empty()) return true;
-    UsePosition* pos = positions_span_.first();
-    UsePosition* other_pos = other->positions_span_.first();
+    UsePosition* pos = positions_span_.front();
+    UsePosition* other_pos = other->positions_span_.front();
     // To make the order total, handle the case where both positions are equal.
     if (pos->pos() == other_pos->pos()) {
       return TopLevel()->vreg() < other->TopLevel()->vreg();
@@ -1053,8 +1053,8 @@ AreUseIntervalsIntersectingVector(base::Vector<const UseInterval> a,
                                   base::Vector<const UseInterval> b) {
   SLOW_DCHECK(std::is_sorted(a.begin(), a.end()) &&
               std::is_sorted(b.begin(), b.end()));
-  if (a.empty() || b.empty() || a.last().end() <= b.first().start() ||
-      b.last().end() <= a.first().start()) {
+  if (a.empty() || b.empty() || a.back().end() <= b.front().start() ||
+      b.back().end() <= a.front().start()) {
     return {};
   }
 
@@ -1065,7 +1065,7 @@ AreUseIntervalsIntersectingVector(base::Vector<const UseInterval> a,
 
   auto a_it = a.begin();
   // Advance `b` already to the interval that ends at or after `a_start`.
-  LifetimePosition a_start = a.first().start();
+  LifetimePosition a_start = a.front().start();
   auto b_it = std::lower_bound(
       b.begin(), b.end(), a_start,
       [](const UseInterval& interval, LifetimePosition position) {
@@ -1283,8 +1283,8 @@ bool RegisterAllocationData::ExistsUseWithoutDefinition() {
            operand_index);
     LiveRange* range = GetLiveRangeFor(operand_index);
     PrintF("  (first use is at position %d in instruction %d)\n",
-           range->positions().first()->pos().value(),
-           range->positions().first()->pos().ToInstructionIndex());
+           range->positions().front()->pos().value(),
+           range->positions().front()->pos().ToInstructionIndex());
     if (debug_name() == nullptr) {
       PrintF("\n");
     } else {

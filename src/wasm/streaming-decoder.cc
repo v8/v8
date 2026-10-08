@@ -39,7 +39,7 @@ class StreamingDecoder::SectionBuffer : public WireBytesStorage {
             1 + length_bytes.size() + payload_length)),
         payload_offset_(1 + length_bytes.size()) {
     bytes_.begin()[0] = id;
-    memcpy(bytes_.begin() + 1, &length_bytes.first(), length_bytes.size());
+    memcpy(bytes_.begin() + 1, &length_bytes.front(), length_bytes.size());
   }
 
   SectionCode section_code() const {
@@ -345,7 +345,7 @@ size_t StreamingDecoder::DecodingState::ReadBytes(
   base::Vector<uint8_t> remaining_buf = buffer() + offset();
   size_t num_bytes = std::min(bytes.size(), remaining_buf.size());
   TRACE_STREAMING("ReadBytes(%zu bytes)\n", num_bytes);
-  memcpy(remaining_buf.begin(), &bytes.first(), num_bytes);
+  memcpy(remaining_buf.begin(), &bytes.front(), num_bytes);
   set_offset(offset() + num_bytes);
   return num_bytes;
 }
@@ -540,7 +540,7 @@ size_t StreamingDecoder::DecodeVarInt32::ReadBytes(
   base::Vector<uint8_t> remaining_buf = buf + offset();
   size_t new_bytes = std::min(bytes.size(), remaining_buf.size());
   TRACE_STREAMING("ReadBytes of a VarInt\n");
-  memcpy(remaining_buf.begin(), &bytes.first(), new_bytes);
+  memcpy(remaining_buf.begin(), &bytes.front(), new_bytes);
   buf.Truncate(offset() + new_bytes);
   Decoder decoder(buf,
                   streaming->module_offset() - static_cast<uint32_t>(offset()));

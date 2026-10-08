@@ -1229,9 +1229,9 @@ std::ostream& operator<<(std::ostream& os, base::Vector<EffectHandler> hs) {
   os << "effect handlers: ";
   for (auto& h : hs) {
     if (h.is_switch()) {
-      os << h.tag_index() << "[switch]" << (&h == &hs.last() ? "" : " ");
+      os << h.tag_index() << "[switch]" << (&h == &hs.back() ? "" : " ");
     } else {
-      os << h.tag_index() << ":" << h.block << (&h == &hs.last() ? "" : " ");
+      os << h.tag_index() << ":" << h.block << (&h == &hs.back() ? "" : " ");
     }
   }
   return os;

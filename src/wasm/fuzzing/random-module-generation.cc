@@ -737,7 +737,7 @@ class BodyGen {
       std::copy_n(type->parameters().begin(), type->parameter_count(),
                   block_returns.begin());
     }
-    if (has_ref) block_returns.last() = kWasmExnRef;
+    if (has_ref) block_returns.back() = kWasmExnRef;
     {
       BlockScope block(this, kExprBlock, param_types, block_returns,
                        block_returns);
@@ -2534,7 +2534,7 @@ class BodyGen {
     if (break_types.empty()) {
       return false;
     }
-    ValueType break_type = break_types.last();
+    ValueType break_type = break_types.back();
     if (!break_type.is_ref()) {
       return false;
     }

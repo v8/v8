@@ -5013,14 +5013,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     const base::Vector<const ValueType> cont_args = cont_sig->parameters();
 
     if (!VALIDATE(cont_args.size() >= 1 &&
-                  IsSubtypeOf(cont_args.last(), kWasmContRef, this->module_))) {
+                  IsSubtypeOf(cont_args.back(), kWasmContRef, this->module_))) {
       this->DecodeError(
           "expecting a (ref null? cont) as last parameter of type %d",
           contimm.index.index);
       return 0;
     }
 
-    const ValueType return_type = cont_args.last();
+    const ValueType return_type = cont_args.back();
 
     if (!VALIDATE(return_type.has_index() &&
                   this->module_->has_cont_type(return_type.ref_index()))) {
@@ -5038,7 +5038,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       this->DecodeError(
           "tag %d's return types should be a subtype of return continuation "
           "%d's return types",
-          tagimm.index, cont_args.last().ref_index().index);
+          tagimm.index, return_type.ref_index().index);
       return 0;
     }
 
