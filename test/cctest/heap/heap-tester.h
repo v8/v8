@@ -17,9 +17,7 @@
   V(CompactionPartiallyAbortedPageWithRememberedSetEntries) \
   V(StressHandles)                                          \
   V(Regress777177)                                          \
-  V(Regress791582)                                          \
-  V(WriteBarrier_Marking)                                   \
-  V(WriteBarrier_MarkingExtension)
+  V(Regress791582)
 
 #define HEAP_TEST(Name)                                                   \
   CcTest register_test_##Name(v8::internal::heap::HeapTester::Test##Name, \

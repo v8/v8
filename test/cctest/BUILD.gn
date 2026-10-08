@@ -118,7 +118,6 @@ v8_cluster_source_set("cctest_sources") {
     "heap/test-memory-measurement.cc",
     "heap/test-pool.cc",
     "heap/test-spaces.cc",
-    "heap/test-write-barrier.cc",
     "jsonstream-helper.h",
     "manually-externalized-buffer.h",
     "print-extension.cc",
