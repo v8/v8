@@ -4723,6 +4723,11 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_TYPE:
+      os << "<WasmCustomMap [canonical type "
+         << Cast<WasmCustomMap>(this)->wasm_type_info()->type_index().index
+         << "]>";
+      break;
     case WASM_DISPATCH_TABLE_TYPE:
       os << "<WasmDispatchTable["
          << TrustedCast<WasmDispatchTable>(this)->length() << "]>";
@@ -4795,7 +4800,7 @@ void Map::MapPrint(std::ostream& os) {
   bool is_meta_map = IsMetaMap(this);
   bool is_extended_map = Is<ExtendedMap>(this);
 #if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_map = IsWasmObjectMap(this);
+  bool is_wasm_map = IsAnyWasmObjectMap(this);
 #else
   constexpr bool is_wasm_map = false;
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -136,8 +136,11 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
     return true;
   };
 
-  auto CheckStruct = [&cmp, &lhs_map](Tagged<WasmStruct> lhs,
-                                      Tagged<WasmStruct> rhs) -> bool {
+  auto CheckStruct = [&cmp, &lhs_map]<typename Struct>(
+                         Tagged<Struct> lhs, Tagged<Struct> rhs) -> bool
+    requires(std::is_same_v<Struct, WasmStruct> ||
+             std::is_same_v<Struct, WasmCustomMap>)
+  {
     auto [iter, inserted] = lhs_map.insert({lhs.ptr(), rhs.ptr()});
     if (!inserted) {
       return iter->second == rhs.ptr();
@@ -183,6 +186,12 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
     } else if (IsWasmStruct(lhs_ref)) {
       if (!IsWasmStruct(rhs_ref)) return false;
       if (!CheckStruct(Cast<WasmStruct>(lhs_ref), Cast<WasmStruct>(rhs_ref))) {
+        return false;
+      }
+    } else if (IsWasmCustomMap(lhs_ref)) {
+      if (!IsWasmCustomMap(rhs_ref)) return false;
+      if (!CheckStruct(Cast<WasmCustomMap>(lhs_ref),
+                       Cast<WasmCustomMap>(rhs_ref))) {
         return false;
       }
     } else if (IsWasmArray(lhs_ref)) {
@@ -257,20 +266,25 @@ void PrintValue(std::ostream& os, const WasmValue& value) {
         }
         seen_objects.insert(ref.ptr());
 
-        if (IsWasmStruct(ref)) {
-          Tagged<WasmStruct> struct_ref = Cast<WasmStruct>(ref);
+        auto PrintStruct = [&]<typename Struct>(Tagged<Struct> ref) -> void {
           const auto* type = GetTypeCanonicalizer()->LookupStruct(
-              struct_ref->map()->wasm_type_info()->type_index());
+              ref->map()->wasm_type_info()->type_index());
           uint32_t count = type->field_count();
 
           print_stack.push_back(PrintSymbol::kStructClose);
           for (uint32_t i = count; i-- > 0;) {
-            print_stack.push_back(struct_ref->GetFieldValue(i));
+            print_stack.push_back(ref->GetFieldValue(i));
             if (i > 0) {
               print_stack.push_back(PrintSymbol::kComma);
             }
           }
           os << '{';
+        };
+
+        if (IsWasmStruct(ref)) {
+          PrintStruct(Cast<WasmStruct>(ref));
+        } else if (IsWasmCustomMap(ref)) {
+          PrintStruct(Cast<WasmCustomMap>(ref));
         } else if (IsWasmArray(ref)) {
           Tagged<WasmArray> array_ref = Cast<WasmArray>(ref);
           uint32_t len = array_ref->length();

@@ -529,6 +529,15 @@ Maybe<bool> ValueSerializer::WriteObject(DirectHandle<Object> object) {
       }
       return WriteJSReceiver(view);
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_CUSTOM_MAP_TYPE:
+      // Like WASM_STRUCT_TYPE in WriteJSReceiver: possibly shared, otherwise
+      // not serializable.
+      if (HeapLayout::InAnySharedSpace(Cast<HeapObject>(*object))) {
+        return WriteSharedObject(Cast<HeapObject>(object));
+      }
+      return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
         WriteString(Cast<String>(object));

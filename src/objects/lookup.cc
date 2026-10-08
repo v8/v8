@@ -1382,7 +1382,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         if (is_element || !name_->IsAnyPrivate()) return MODULE_NAMESPACE;
       }
 #if V8_ENABLE_WEBASSEMBLY
-      if (IsWasmObjectMap(map)) return WASM_OBJECT;
+      if (IsAnyWasmObjectMap(map)) return WASM_OBJECT;
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (map->is_access_check_needed()) {
         if (is_element || !name_->IsPrivateInternal()) return ACCESS_CHECK;

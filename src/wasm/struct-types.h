@@ -63,6 +63,7 @@ class StructTypeBase : public ZoneObject {
   uint32_t field_offset(uint32_t index) const {
     DCHECK_LT(index, field_count());
     if (index == 0) {
+      if (v8_flags.wasm_merged_descriptors) return 0;
       return is_descriptor() ? kTaggedSize : 0;
     }
     DCHECK(offsets_initialized_);
@@ -70,6 +71,7 @@ class StructTypeBase : public ZoneObject {
   }
   uint32_t total_fields_size() const {
     if (field_count() == 0) {
+      if (v8_flags.wasm_merged_descriptors) return 0;
       return is_descriptor() ? kTaggedSize : 0;
     }
     return field_offsets_[field_count() - 1];
@@ -90,7 +92,11 @@ class StructTypeBase : public ZoneObject {
       // update the offset calculation for the first field.
       UNIMPLEMENTED();
     }
-    uint32_t offset = is_descriptor() ? kTaggedSize : 0;
+    uint32_t offset = 0;
+    if (!v8_flags.wasm_merged_descriptors && is_descriptor()) {
+      // Non-merged descriptors reserve a slot.
+      offset = kTaggedSize;
+    }
     offset += field(0).value_kind_size();
     // Optimization: we track the last gap that was introduced by alignment,
     // and place any sufficiently-small fields in it.
@@ -175,7 +181,8 @@ class StructTypeBase : public ZoneObject {
         // offset == 0 could mean that we'll compute the offsets later,
         // or that this is the first field's offset being copied over from
         // another struct type.
-        DCHECK(offset == 0 || (is_descriptor_ && offset == kTaggedSize));
+        DCHECK(offset == 0 || (!v8_flags.wasm_merged_descriptors &&
+                               is_descriptor_ && offset == kTaggedSize));
       }
       mutabilities_[cursor_] = mutability;
       buffer_[cursor_++] = type;
@@ -183,7 +190,10 @@ class StructTypeBase : public ZoneObject {
 
     void set_total_fields_size(uint32_t size) {
       if (field_count_ == 0) {
-        DCHECK_EQ(is_descriptor_ ? kTaggedSize : 0, size);
+        DCHECK_EQ(!v8_flags.wasm_merged_descriptors && is_descriptor_
+                      ? kTaggedSize
+                      : 0,
+                  size);
         return;
       }
       field_offsets_[field_count_ - 1] = size;
@@ -221,9 +231,6 @@ class StructTypeBase : public ZoneObject {
     ValueTypeSubclass* const buffer_;
     bool* const mutabilities_;
   };
-
-  static const size_t kMaxFieldOffset =
-      (kV8MaxWasmStructFields - 1) * kMaxValueTypeSize;
 
  private:
   friend class StructType;

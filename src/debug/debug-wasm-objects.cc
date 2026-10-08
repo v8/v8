@@ -57,6 +57,7 @@ enum DebugProxyId {
   kLocalsProxy,
   kStackProxy,
   kStructProxy,
+  kCustomMapProxy,
   kArrayProxy,
   kLastProxyId = kArrayProxy,
 
@@ -926,15 +927,16 @@ DirectHandle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
 }
 
 // This class implements a proxy for a single inspectable Wasm struct.
-struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, WasmStruct> {
+template <typename Subclass, DebugProxyId id, typename Struct>
+struct StructProxyImpl : NamedDebugProxy<Subclass, id, Struct> {
   static constexpr char const* kClassName = "Struct";
 
   static DirectHandle<JSObject> Create(Isolate* isolate,
-                                       DirectHandle<WasmStruct> value) {
-    return NamedDebugProxy::Create(isolate, value);
+                                       DirectHandle<Struct> value) {
+    return NamedDebugProxy<Subclass, id, Struct>::Create(isolate, value);
   }
 
-  static uint32_t Count(Isolate* isolate, DirectHandle<WasmStruct> obj) {
+  static uint32_t Count(Isolate* isolate, DirectHandle<Struct> obj) {
     wasm::CanonicalTypeIndex type_index =
         obj->map()->wasm_type_info()->type().ref_index();
     return wasm::GetTypeCanonicalizer()
@@ -942,14 +944,13 @@ struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, WasmStruct> {
         ->field_count();
   }
 
-  static DirectHandle<Object> Get(Isolate* isolate,
-                                  DirectHandle<WasmStruct> obj,
+  static DirectHandle<Object> Get(Isolate* isolate, DirectHandle<Struct> obj,
                                   uint32_t index) {
     return WasmValueObject::New(isolate, obj->GetFieldValue(index));
   }
 
   static DirectHandle<String> GetName(Isolate* isolate,
-                                      DirectHandle<WasmStruct> obj,
+                                      DirectHandle<Struct> obj,
                                       uint32_t index) {
     wasm::CanonicalTypeIndex struct_index =
         obj->map()->wasm_type_info()->type().ref_index();
@@ -959,6 +960,9 @@ struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, WasmStruct> {
     return ToInternalString(sb, isolate);
   }
 };
+struct StructProxy : StructProxyImpl<StructProxy, kStructProxy, WasmStruct> {};
+struct CustomMapProxy
+    : StructProxyImpl<CustomMapProxy, kCustomMapProxy, WasmCustomMap> {};
 
 // This class implements a proxy for a single inspectable Wasm array.
 struct ArrayProxy : IndexedDebugProxy<ArrayProxy, kArrayProxy, WasmArray> {
@@ -1070,6 +1074,11 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
         t = GetRefTypeName(isolate, type_info->type());
         v = StructProxy::Create(isolate, Cast<WasmStruct>(ref));
+      } else if (IsWasmCustomMap(*ref)) {
+        Tagged<WasmTypeInfo> type_info =
+            Cast<HeapObject>(*ref)->map()->wasm_type_info();
+        t = GetRefTypeName(isolate, type_info->type());
+        v = CustomMapProxy::Create(isolate, Cast<WasmCustomMap>(ref));
       } else if (IsWasmArray(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             Cast<HeapObject>(*ref)->map()->wasm_type_info();

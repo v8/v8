@@ -796,7 +796,8 @@ void Map::MapVerify(Isolate* isolate) {
 
 #if V8_ENABLE_WEBASSEMBLY
   if (instance_type() == WASM_STRUCT_TYPE ||
-      instance_type() == WASM_ARRAY_TYPE) {
+      instance_type() == WASM_ARRAY_TYPE ||
+      instance_type() == WASM_CUSTOM_MAP_TYPE) {
     // Wasm structs are sometimes shared. In this case, the meta map of this map
     // has to be the context-free RO meta map.
     if (HeapLayout::InAnySharedSpace(this)) {
@@ -814,7 +815,8 @@ void Map::MapVerify(Isolate* isolate) {
     // Note: for each static type that has a descriptor, there is also a
     // canonical RTT that does not have one (and is not used by any actual
     // objects).
-    if (types->has_descriptor(index) && IsWasmStruct(custom_descriptor())) {
+    if (types->has_descriptor(index) && (IsWasmStruct(custom_descriptor()) ||
+                                         v8_flags.wasm_merged_descriptors)) {
       CHECK_GT(wasm_type_info()->supertypes_length(), subtyping_depth);
       CHECK_EQ(immediate_supertype_map(),
                wasm_type_info()->supertypes(subtyping_depth));

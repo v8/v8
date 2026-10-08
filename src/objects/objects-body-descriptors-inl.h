@@ -1800,8 +1800,10 @@ class WasmCustomMap::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    Map::BodyDescriptor::IterateBody(map, obj, object_size, v);
-    IteratePointer(obj, offsetof(WasmCustomMap, js_wrapper_), v);
+    static_assert(Map::kSize == offsetof(WasmCustomMap, js_wrapper_));
+    Map::BodyDescriptor::IterateBody(map, obj, Map::kSize, v);
+    IteratePointers(obj, offsetof(WasmCustomMap, js_wrapper_),
+                    WasmCustomMap::kHeaderSize, v);
 
     Tagged<WasmCustomMap> wasm_struct = UncheckedCast<WasmCustomMap>(obj);
     // Not a typo: WasmCustomMap reuses some WasmStruct infrastructure.

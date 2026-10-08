@@ -622,6 +622,9 @@ SharedFlag TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {
 bool TypeCanonicalizer::has_descriptor(CanonicalTypeIndex index) const {
   return canonical_types_[index]->descriptor.valid();
 }
+bool TypeCanonicalizer::is_descriptor(CanonicalTypeIndex index) const {
+  return canonical_types_[index]->describes.valid();
+}
 
 #ifdef DEBUG
 bool TypeCanonicalizer::Contains(const CanonicalSig* sig) const {

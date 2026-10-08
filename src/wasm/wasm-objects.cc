@@ -2059,8 +2059,7 @@ DirectHandle<WasmCustomMap> WasmCustomMap::AllocateUninitialized(
   DirectHandle<Map> rtt_parent{
       Cast<Map>(trusted_data->managed_object_maps()->get(type.describes.index)),
       isolate};
-  DirectHandle<NativeContext> context(
-      Cast<NativeContext>(trusted_data->native_context()), isolate);
+  DCHECK_EQ(trusted_data->native_context(), isolate->raw_native_context());
   // There's always at least one supertype for {rtt_parent}.
   const wasm::TypeDefinition& described_type = module->type(type.describes);
   int num_supertypes = described_type.subtyping_depth + 1;

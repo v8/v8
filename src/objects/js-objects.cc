@@ -5215,7 +5215,7 @@ void JSObject::LazyRegisterPrototypeUser(DirectHandle<Map> user,
   // Contract: In line with InvalidatePrototypeChains()'s requirements,
   // leaf maps don't need to register as users, only prototypes do.
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(user->is_prototype_map() || IsWasmObjectMap(*user));
+  DCHECK(user->is_prototype_map() || IsAnyWasmObjectMap(*user));
 #else
   DCHECK(user->is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5291,7 +5291,7 @@ bool JSObject::UnregisterPrototypeUser(DirectHandle<Map> user,
   if (slot == PrototypeInfo::UNREGISTERED) return false;
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK(prototype->map()->is_prototype_map() ||
-         IsWasmObjectMap(prototype->map()));
+         IsAnyWasmObjectMap(prototype->map()));
 #else
   DCHECK(prototype->map()->is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5320,7 +5320,7 @@ namespace {
 // before jumping here.
 void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK(map->is_prototype_map() || IsWasmObjectMap(map));
+  DCHECK(map->is_prototype_map() || IsAnyWasmObjectMap(map));
 #else
   DCHECK(map->is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -1150,6 +1150,10 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateDescriptorStruct) {
   DirectHandle<Map> map{Cast<Map>(args[1]), isolate};
   wasm::ModuleTypeIndex type_index{args.positive_smi_value_at(2)};
   DirectHandle<Object> first_field{args[3], isolate};
+  if (v8_flags.wasm_merged_descriptors) {
+    return *WasmCustomMap::AllocateUninitialized(isolate, trusted_data,
+                                                 type_index, map, first_field);
+  }
   return *WasmStruct::AllocateDescriptorUninitialized(
       isolate, trusted_data, type_index, map, first_field);
 }

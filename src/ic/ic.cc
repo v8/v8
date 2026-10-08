@@ -713,7 +713,7 @@ bool IC::UpdateOneMapManyNamesIC(DirectHandle<Name> new_name) {
   // For JS objects, using the generic stub is faster. Wasm objects benefit
   // from collecting a map that the optimizing compiler can use.
   Tagged<Map> old_map = nexus()->GetFirstMap();
-  if (old_map.is_null() || !IsWasmObjectMap(old_map)) return false;
+  if (old_map.is_null() || !IsAnyWasmObjectMap(old_map)) return false;
   if (old_map != *lookup_start_object_map()) return false;
   Tagged<Name> old_name = nexus()->GetName();
   if (old_name.is_null()) return false;     // Saw indexed access before.
@@ -2879,7 +2879,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     }
 
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmObjectMap(*receiver_map)) {
+    if (IsAnyWasmObjectMap(*receiver_map)) {
       set_slow_stub_reason("wasm object");
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3143,7 +3143,7 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
 #if V8_ENABLE_WEBASSEMBLY
-        } else if (IsWasmObjectMap(*old_receiver_map)) {
+        } else if (IsAnyWasmObjectMap(*old_receiver_map)) {
           // Handle object types for which we don't need to check for
           // read-only prototype elements because we'll use the slow handler
           // anyway.
