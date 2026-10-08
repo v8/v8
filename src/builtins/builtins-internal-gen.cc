@@ -1267,13 +1267,13 @@ TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ForInPrepare, CodeStubAssembler) {
-  // The {enumerator} is either a Map or a FixedArray.
+  // The {enumerator} is either a Map, a FixedArray, or a ForInEnumeratorHolder.
   auto enumerator = Parameter<HeapObject>(Descriptor::kEnumerator);
   auto index = Parameter<TaggedIndex>(Descriptor::kVectorIndex);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
   TNode<UintPtrT> vector_index = Unsigned(TaggedIndexToIntPtr(index));
 
-  TNode<FixedArray> cache_array;
+  TNode<Union<FixedArray, ForInEnumeratorHolder>> cache_array;
   TNode<Smi> cache_length;
   ForInPrepare(enumerator, vector_index, feedback_vector, &cache_array,
                &cache_length, UpdateFeedbackMode::kGuaranteedFeedback);

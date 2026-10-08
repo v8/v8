@@ -251,6 +251,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                  RelaxedStoreTag tag,
                                  AllocationType allocation);
 
+  DirectHandle<ForInEnumeratorHolder> NewForInEnumeratorHolder(
+      DirectHandle<Map> enum_cache_map, DirectHandle<FixedArray> named_keys,
+      Tagged<Smi> elements_length, Tagged<Smi> cache_length,
+      AllocationType allocation = AllocationType::kYoung);
+
   // Create a new PropertyDescriptorObject struct.
   DirectHandle<PropertyDescriptorObject> NewPropertyDescriptorObject();
 

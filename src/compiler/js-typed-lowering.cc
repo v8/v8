@@ -2255,6 +2255,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
+  CHECK(!v8_flags.forin_enumerator_holder);
   JSForInNextNode n(node);
   Node* receiver = n.receiver();
   Node* cache_array = n.cache_array();
@@ -2368,6 +2369,7 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
+  CHECK(!v8_flags.forin_enumerator_holder);
   JSForInPrepareNode n(node);
   Node* enumerator = n.enumerator();
   Effect effect = n.effect();

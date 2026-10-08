@@ -3719,6 +3719,23 @@ void Tuple2::Tuple2Verify(Isolate* isolate) {
   Object::VerifyPointer(isolate, value2_.load());
 }
 
+void ForInEnumeratorHolder::ForInEnumeratorHolderVerify(Isolate* isolate) {
+  CHECK(Is<Struct>(this));
+  CHECK(Is<ForInEnumeratorHolder>(this));
+  Object::VerifyPointer(isolate, enum_cache_map_.load());
+  CHECK(IsMap(enum_cache_map_.load()));
+  Object::VerifyPointer(isolate, named_keys_.load());
+  CHECK(IsFixedArray(named_keys_.load()));
+  Object::VerifyPointer(isolate, elements_length_.load());
+  CHECK(IsSmi(elements_length_.load()));
+  Object::VerifyPointer(isolate, cache_length_.load());
+  CHECK(IsSmi(cache_length_.load()));
+  CHECK_GE(Smi::ToInt(elements_length()), 0);
+  CHECK_GE(Smi::ToInt(cache_length()), Smi::ToInt(elements_length()));
+  CHECK_LE(Smi::ToInt(cache_length()) - Smi::ToInt(elements_length()),
+           static_cast<int>(named_keys()->ulength().value()));
+}
+
 void AliasedArgumentsEntry::AliasedArgumentsEntryVerify(Isolate* isolate) {
   CHECK(Is<Struct>(this));
   CHECK(Is<AliasedArgumentsEntry>(this));

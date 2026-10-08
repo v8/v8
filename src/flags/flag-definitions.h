@@ -1511,6 +1511,8 @@ DEFINE_BOOL(turbo_stats_wasm, false,
 DEFINE_BOOL_READONLY(turbo_splitting, true,
                      "split nodes during scheduling in TurboFan")
 DEFINE_BOOL(turbo_inlining, true, "enable inlining in TurboFan")
+DEFINE_BOOL(forin_enumerator_holder, true,
+            "optimize for-in over packed elements using ForInEnumeratorHolder")
 DEFINE_BOOL(turbo_elide_frames, true, "enable frame elision in TurboFan")
 DEFINE_INT(max_inlined_bytecode_size, 460,
            "maximum size of bytecode for a single inlining")
@@ -1784,6 +1786,7 @@ DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_future,
     "enable Turbolev features that we want to ship in the not-too-far future")
 DEFINE_IMPLICATION(turbolev_future, turbolev)
+DEFINE_NEG_IMPLICATION(turbofan && !turbolev, forin_enumerator_holder)
 
 #if TAGGED_SIZE_8_BYTES
 // The FixedArray length padding is not aligned with the other fields, which is

@@ -507,7 +507,8 @@ ForInHint ForInHintFromFeedback(ForInFeedback type_feedback) {
       return ForInHint::kEnumCacheKeys;
     case ForInFeedback::kEnumCacheKeysAndIndices:
       return ForInHint::kEnumCacheKeysAndIndices;
-    default:
+    case ForInFeedback::kEnumeratorHolder:
+    case ForInFeedback::kAny:
       return ForInHint::kAny;
   }
   UNREACHABLE();

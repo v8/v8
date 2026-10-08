@@ -4389,11 +4389,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        HasPropertyLookupMode::kHasProperty);
   }
 
-  void ForInPrepare(TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
-                    TNode<HeapObject> maybe_feedback_vector,
-                    TNode<FixedArray>* cache_array_out,
-                    TNode<Smi>* cache_length_out,
-                    UpdateFeedbackMode update_feedback_mode);
+  void ForInPrepare(
+      TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
+      TNode<HeapObject> maybe_feedback_vector,
+      TNode<Union<FixedArray, ForInEnumeratorHolder>>* cache_array_out,
+      TNode<Smi>* cache_length_out, UpdateFeedbackMode update_feedback_mode);
+
+  TNode<BoolT> CheckHolderValidity(TNode<HeapObject> receiver,
+                                   TNode<ForInEnumeratorHolder> holder);
 
   TNode<String> Typeof(
       TNode<Object> value, std::optional<TNode<UintPtrT>> slot_id = {},

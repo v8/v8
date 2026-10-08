@@ -18479,17 +18479,23 @@ TNode<Boolean> CodeStubAssembler::HasProperty(TNode<Context> context,
   return result.value();
 }
 
-void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
-                                     TNode<UintPtrT> slot,
-                                     TNode<HeapObject> maybe_feedback_vector,
-                                     TNode<FixedArray>* cache_array_out,
-                                     TNode<Smi>* cache_length_out,
-                                     UpdateFeedbackMode update_feedback_mode) {
+void CodeStubAssembler::ForInPrepare(
+    TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
+    TNode<HeapObject> maybe_feedback_vector,
+    TNode<Union<FixedArray, ForInEnumeratorHolder>>* cache_array_out,
+    TNode<Smi>* cache_length_out, UpdateFeedbackMode update_feedback_mode) {
   // Check if we're using an enum cache.
-  TVARIABLE(FixedArray, cache_array);
+  TVARIABLE((Union<FixedArray, ForInEnumeratorHolder>), cache_array);
   TVARIABLE(Smi, cache_length);
-  Label if_fast(this), if_slow(this, Label::kDeferred), out(this);
-  Branch(IsMap(enumerator), &if_fast, &if_slow);
+
+  TNode<Uint16T> instance_type = LoadInstanceType(enumerator);
+  Label if_fast(this), if_holder(this), if_slow(this, Label::kDeferred),
+      out(this);
+
+  GotoIf(InstanceTypeEqual(instance_type, MAP_TYPE), &if_fast);
+  GotoIf(InstanceTypeEqual(instance_type, FOR_IN_ENUMERATOR_HOLDER_TYPE),
+         &if_holder);
+  Goto(&if_slow);
 
   BIND(&if_fast);
   {
@@ -18520,6 +18526,20 @@ void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
     Goto(&out);
   }
 
+  BIND(&if_holder);
+  {
+    TNode<ForInEnumeratorHolder> holder = CAST(enumerator);
+
+    // Record the fact that we are using a ForInEnumeratorHolder.
+    UpdateFeedback(SmiConstant(ForInFeedback::kEnumeratorHolder),
+                   maybe_feedback_vector, slot, update_feedback_mode);
+
+    cache_array = holder;
+    cache_length = LoadObjectField<Smi>(
+        holder, ObjectTraits<ForInEnumeratorHolder>::kCacheLengthOffset);
+    Goto(&out);
+  }
+
   BIND(&if_slow);
   {
     // The {enumerator} is a FixedArray with all the keys to iterate.
@@ -18538,6 +18558,46 @@ void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
   BIND(&out);
   *cache_array_out = cache_array.value();
   *cache_length_out = cache_length.value();
+}
+
+// Checks that the receiver's map and elements length (either JSArray::length or
+// elements->length() for non-JSArrays) haven't changed compared to what was
+// recorded in the ForInEnumeratorHolder when enumeration started.
+TNode<BoolT> CodeStubAssembler::CheckHolderValidity(
+    TNode<HeapObject> receiver, TNode<ForInEnumeratorHolder> holder) {
+  TVARIABLE(BoolT, result, BoolConstant(false));
+  Label out(this);
+
+  TNode<Map> receiver_map = LoadMap(receiver);
+  TNode<Map> holder_map = LoadObjectField<Map>(
+      holder, ObjectTraits<ForInEnumeratorHolder>::kEnumCacheMapOffset);
+  GotoIfNot(TaggedEqual(receiver_map, holder_map), &out);
+
+  CSA_DCHECK(this, IsFastPackedElementsKind(LoadMapElementsKind(receiver_map)));
+
+  TNode<Smi> elements_length = LoadObjectField<Smi>(
+      holder, ObjectTraits<ForInEnumeratorHolder>::kElementsLengthOffset);
+
+  Label if_array(this), if_not_array(this);
+  Branch(IsJSArrayMap(receiver_map), &if_array, &if_not_array);
+
+  BIND(&if_array);
+  {
+    TNode<JSArray> array = CAST(receiver);
+    result = TaggedEqual(LoadFastJSArrayLength(array), elements_length);
+    Goto(&out);
+  }
+
+  BIND(&if_not_array);
+  {
+    TNode<FixedArrayBase> elements = LoadElements(CAST(receiver));
+    result = WordEqual(LoadFixedArrayBaseLength(elements),
+                       SmiUntag(elements_length));
+    Goto(&out);
+  }
+
+  BIND(&out);
+  return result.value();
 }
 
 TNode<String> CodeStubAssembler::Typeof(

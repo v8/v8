@@ -2803,10 +2803,12 @@ class TypeOfFeedback {
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
 // kNone -> kEnumCacheKeysAndIndices -> kEnumCacheKeys -> kAny
+// kNone -> kEnumeratorHolder -> kAny
 enum class ForInFeedback : uint8_t {
   kNone = 0x0,
   kEnumCacheKeysAndIndices = 0x1,
   kEnumCacheKeys = 0x3,
+  kEnumeratorHolder = 0x6,
   kAny = 0x7
 };
 static_assert((static_cast<int>(ForInFeedback::kNone) |
@@ -2816,6 +2818,18 @@ static_assert((static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices) |
                static_cast<int>(ForInFeedback::kEnumCacheKeys)) ==
               static_cast<int>(ForInFeedback::kEnumCacheKeys));
 static_assert((static_cast<int>(ForInFeedback::kEnumCacheKeys) |
+               static_cast<int>(ForInFeedback::kAny)) ==
+              static_cast<int>(ForInFeedback::kAny));
+static_assert((static_cast<int>(ForInFeedback::kNone) |
+               static_cast<int>(ForInFeedback::kEnumeratorHolder)) ==
+              static_cast<int>(ForInFeedback::kEnumeratorHolder));
+static_assert((static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices) |
+               static_cast<int>(ForInFeedback::kEnumeratorHolder)) ==
+              static_cast<int>(ForInFeedback::kAny));
+static_assert((static_cast<int>(ForInFeedback::kEnumCacheKeys) |
+               static_cast<int>(ForInFeedback::kEnumeratorHolder)) ==
+              static_cast<int>(ForInFeedback::kAny));
+static_assert((static_cast<int>(ForInFeedback::kEnumeratorHolder) |
                static_cast<int>(ForInFeedback::kAny)) ==
               static_cast<int>(ForInFeedback::kAny));
 

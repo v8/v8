@@ -3692,6 +3692,15 @@ void Tuple2::Tuple2Print(std::ostream& os) {
   os << '\n';
 }
 
+void ForInEnumeratorHolder::ForInEnumeratorHolderPrint(std::ostream& os) {
+  this->PrintHeader(os, "ForInEnumeratorHolder");
+  os << "\n - enum_cache_map: " << Brief(this->enum_cache_map());
+  os << "\n - named_keys: " << Brief(this->named_keys());
+  os << "\n - elements_length: " << this->elements_length();
+  os << "\n - cache_length: " << this->cache_length();
+  os << '\n';
+}
+
 void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(std::ostream& os) {
   PrintHeader(os, "AliasedArgumentsEntry");
   os << "\n - aliased_context_slot: " << aliased_context_slot();

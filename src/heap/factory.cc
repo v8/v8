@@ -438,6 +438,20 @@ DirectHandle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
   return direct_handle(result, isolate());
 }
 
+DirectHandle<ForInEnumeratorHolder> Factory::NewForInEnumeratorHolder(
+    DirectHandle<Map> enum_cache_map, DirectHandle<FixedArray> named_keys,
+    Tagged<Smi> elements_length, Tagged<Smi> cache_length,
+    AllocationType allocation) {
+  auto result = NewStructInternal<ForInEnumeratorHolder>(
+      FOR_IN_ENUMERATOR_HOLDER_TYPE, allocation, false);
+  DisallowGarbageCollection no_gc;
+  result->set_enum_cache_map(*enum_cache_map);
+  result->set_named_keys(*named_keys);
+  result->set_elements_length(elements_length);
+  result->set_cache_length(cache_length);
+  return direct_handle(result, isolate());
+}
+
 DirectHandle<Hole> Factory::NewHole() {
   UNREACHABLE();
 }
