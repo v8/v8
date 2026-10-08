@@ -62,7 +62,8 @@ class GnCompileFlagsTest(unittest.TestCase):
         }
         return subprocess.CompletedProcess(argv, 0, json.dumps(desc))
 
-      with mock.patch.object(
+      with mock.patch.object(compile_flags.sys, 'platform', 'linux'), \
+           mock.patch.object(
           compile_flags, '_find_gn',
           return_value='gn') as find_gn, mock.patch.object(
               compile_flags.subprocess, 'run', side_effect=run_desc) as run:
@@ -85,6 +86,75 @@ class GnCompileFlagsTest(unittest.TestCase):
       ])
       self.assertEqual(cwd, str(build_dir))
 
+  def test_macos_sdk_links_and_override_are_isolated(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      source_root = Path(tmp) / 'src'
+      build_dir = source_root / 'out' / 'Release'
+      sdk = Path(tmp) / 'MacOSX.sdk'
+      sdk.mkdir()
+      sdk_links = build_dir / 'xcode_links' / 'embedder'
+      sdk_links.mkdir(parents=True)
+      try:
+        (sdk_links / sdk.name).symlink_to(sdk, target_is_directory=True)
+      except OSError as e:
+        if getattr(e, 'winerror', None) != 1314:
+          raise
+        self.skipTest('Symlink creation requires Windows privileges')
+      args = ('mac_sdk_path = '
+              '"//out/Release/xcode_links/embedder/MacOSX.sdk"\n')
+      (build_dir / 'args.gn').write_text(args)
+      queried_dir = None
+
+      def run_desc(argv, **kwargs):
+        nonlocal queried_dir
+        queried_dir = Path(argv[4])
+        query_args = (queried_dir / 'args.gn').read_text()
+        self.assertTrue(query_args.startswith(args))
+        self.assertIn('if (defined(mac_sdk_path))', query_args)
+        query_rel = os.path.relpath(queried_dir, source_root)
+        self.assertIn(
+            'string_replace(mac_sdk_path, "//out/Release/", '
+            f'{json.dumps("//" + query_rel + "/")})', query_args)
+        query_sdk = queried_dir / 'xcode_links' / 'embedder' / sdk.name
+        self.assertTrue(query_sdk.is_symlink())
+        self.assertEqual(query_sdk.resolve(), sdk.resolve())
+        # Mutating the query's links must not affect the running build.
+        query_sdk.unlink()
+        self.assertTrue((sdk_links / sdk.name).is_symlink())
+        desc = {'//:probe': {'cflags': ['-isysroot', str(query_sdk)],}}
+        return subprocess.CompletedProcess(argv, 0, json.dumps(desc))
+
+      with mock.patch.object(compile_flags.sys, 'platform', 'darwin'), \
+           mock.patch.object(compile_flags, '_find_gn', return_value='gn'), \
+           mock.patch.object(compile_flags.subprocess, 'run',
+                             side_effect=run_desc):
+        flags, cwd = compile_flags.get_compile_args_from_gn_desc(
+            str(build_dir), '//:probe', str(source_root))
+      self.assertEqual(flags, ['-isysroot', str(sdk_links / sdk.name)])
+      self.assertEqual(cwd, str(build_dir))
+      self.assertEqual((build_dir / 'args.gn').read_text(), args)
+      self.assertFalse(queried_dir.exists())
+
+  def test_gn_failure_includes_stdout_and_stderr(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      build_dir = Path(tmp) / 'build'
+      build_dir.mkdir()
+      (build_dir / 'args.gn').touch()
+      error = subprocess.CalledProcessError(
+          1,
+          'gn',
+          output='File is not inside output directory.',
+          stderr='SDK diagnostic')
+      with mock.patch.object(compile_flags.sys, 'platform', 'linux'), \
+           mock.patch.object(compile_flags, '_find_gn', return_value='gn'), \
+           mock.patch.object(compile_flags.subprocess, 'run',
+                             side_effect=error):
+        with self.assertRaises(RuntimeError) as raised:
+          compile_flags.get_compile_args_from_gn_desc(
+              str(build_dir), '//:probe', tmp)
+      self.assertIn(error.stdout, str(raised.exception))
+      self.assertIn(error.stderr, str(raised.exception))
+
   def test_build_directory_on_another_drive(self):
     with tempfile.TemporaryDirectory() as tmp:
       source_root = Path(tmp) / 'src'
@@ -98,7 +168,8 @@ class GnCompileFlagsTest(unittest.TestCase):
         desc = {'//:probe': {'include_dirs': [str(temp_dir / 'gen')],}}
         return subprocess.CompletedProcess(argv, 0, json.dumps(desc))
 
-      with mock.patch.object(compile_flags, '_find_gn', return_value='gn'), \
+      with mock.patch.object(compile_flags.sys, 'platform', 'win32'), \
+           mock.patch.object(compile_flags, '_find_gn', return_value='gn'), \
            mock.patch.object(compile_flags.os.path, 'relpath',
                              side_effect=ValueError('different drive')), \
            mock.patch.object(compile_flags.subprocess, 'run',

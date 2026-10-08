@@ -179,6 +179,20 @@ def get_compile_args_from_gn_desc(build_dir: str, target_label: str,
   with tempfile.TemporaryDirectory(dir=os.path.dirname(build_dir)) as tmp_dir:
     shutil.copyfile(
         os.path.join(build_dir, "args.gn"), os.path.join(tmp_dir, "args.gn"))
+    if sys.platform == "darwin":
+      sdk_links = os.path.join(build_dir, "xcode_links")
+      if os.path.isdir(sdk_links):
+        shutil.copytree(
+            sdk_links, os.path.join(tmp_dir, "xcode_links"), symlinks=True)
+      # Explicit SDK paths supplied by embedder build tools must stay below
+      # the query's output directory for Chromium's sdk_inputs action.
+      old_sdk_root = "//" + os.path.relpath(build_dir, source_root) + "/"
+      new_sdk_root = "//" + os.path.relpath(tmp_dir, source_root) + "/"
+      with open(os.path.join(tmp_dir, "args.gn"), "a") as f:
+        f.write("\nif (defined(mac_sdk_path)) {\n")
+        f.write("  mac_sdk_path = string_replace(mac_sdk_path, "
+                f"{json.dumps(old_sdk_root)}, {json.dumps(new_sdk_root)})\n")
+        f.write("}\n")
     open(os.path.join(tmp_dir, "build.ninja"), "w").close()
     try:
       # -q ("don't print output on success") keeps stdout to the JSON alone.
@@ -200,7 +214,9 @@ def get_compile_args_from_gn_desc(build_dir: str, target_label: str,
     except subprocess.CalledProcessError as e:
       raise RuntimeError(f"[metagen] `gn desc {tmp_dir} {target_label}` failed "
                          f"(exit {e.returncode}). Is the target part of that "
-                         f"toolchain's build?\n{(e.stderr or '').strip()}")
+                         f"toolchain's build?\n"
+                         f"{(e.stdout or '').strip()}\n"
+                         f"{(e.stderr or '').strip()}")
     try:
       desc = json.loads(proc.stdout)
     except json.JSONDecodeError as e:
