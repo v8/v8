@@ -4579,11 +4579,10 @@ filegroup(
 
 # Clang's builtin headers (stddef.h, stdarg.h, the arch intrinsics).
 # Kept separate from the libclang files above because they are a
-# different input to the rule: metagen takes their directory explicitly
-# and passes it as -isystem. The llvm-libclang package ships the library
-# and the C API headers but no builtin headers, so these come from the
-# clang toolchain, which rolls from the same LLVM revision and therefore
-# matches the parsing library.
+# different input to the rule: metagen passes their directory as
+# -resource-dir=. The llvm-libclang package ships the library and C API
+# headers but no builtin headers, so these come from the matching clang
+# toolchain.
 filegroup(
     name = "metagen_clang_builtin_headers",
     srcs = glob([

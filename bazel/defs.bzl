@@ -668,33 +668,21 @@ def _run_metagen_impl(ctx):
         # what the GN action passes for //third_party/llvm-libclang.
         args.add("--libclang-dir", v8root + "/third_party/llvm-libclang")
 
-    # Clang's builtin headers. Find the directory via stddef.h rather
-    # than files[0].dirname: the staged set contains subdirectories
-    # (sanitizer/, cuda_wrappers/, ...), so element 0 sits at the include
-    # root only by luck of ordering, and a dir one level too deep fails
-    # as a wall of parse errors rather than a build error.
+    # Find the include root via stddef.h; other headers may be in
+    # subdirectories.
     builtin_headers_dir = None
-    # Tablegen-generated builtin headers (arm_neon.h, arm_bf16.h,
-    # arm_vector_types.h, ...) are emitted into the output (bin) tree
-    # rather than living alongside the checked-in headers in the source
-    # tree. Locate that second directory via arm_neon.h when present.
-    gen_builtin_headers_dir = None
     for f in ctx.files.clang_builtin_headers:
         if f.basename == "stddef.h":
             builtin_headers_dir = f.dirname
-        elif f.basename == "arm_neon.h":
-            gen_builtin_headers_dir = f.dirname
-
-        if builtin_headers_dir and gen_builtin_headers_dir:
             break
-    if builtin_headers_dir == None:
-        fail("clang_builtin_headers contains no stddef.h, so the clang " +
-             "builtin-header directory cannot be located. Pass the target " +
-             "that stages clang's builtin headers (lib/Headers).")
-    args.add("--clang-builtin-headers-dir", builtin_headers_dir)
-
-    if gen_builtin_headers_dir and gen_builtin_headers_dir != builtin_headers_dir:
-        args.add("--clang-builtin-headers-dir", gen_builtin_headers_dir)
+    if builtin_headers_dir == None or not builtin_headers_dir.endswith("/include"):
+        fail("clang_builtin_headers must contain stddef.h under " +
+             "<resource-dir>/include")
+    for f in ctx.files.clang_builtin_headers:
+        if not f.path.startswith(builtin_headers_dir + "/"):
+            fail("clang_builtin_headers must all be under " +
+                 builtin_headers_dir + ": " + f.path)
+    args.add("--clang-resource-dir", builtin_headers_dir[:-len("/include")])
 
     all_inputs = depset(
         direct = [compile_db, ctx.file.driver],
@@ -753,7 +741,7 @@ _run_metagen = rule(
         "driver": attr.label(allow_single_file = True, mandatory = True),
         "libclang_files": attr.label_list(allow_files = True, cfg = "exec"),
         # Clang's builtin headers (stddef.h etc.), staged into the action
-        # sandbox and passed to metagen as -isystem. Separate from
+        # sandbox and passed to metagen as -resource-dir=. Separate from
         # extra_sandbox_files because this is host toolchain material:
         # it needs cfg = "exec", whereas V8's own headers must not have it.
         "clang_builtin_headers": attr.label_list(

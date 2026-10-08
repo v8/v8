@@ -24,10 +24,9 @@ instrumentation, warnings-as-errors) or that libclang rejects (input
 file, response files).
 
 The clang builtin headers (stddef.h etc.) are not handled here: the
-build system points metagen.py at the toolchain that holds them, via
---clang-resource-dir or --clang-builtin-headers-dir. Probing for them
-would read paths the build never declared, which a sandboxed action
-cannot do.
+build system passes their toolchain's resource directory to metagen.py
+via --clang-resource-dir. Probing for headers would read paths the build
+never declared, which a sandboxed action cannot do.
 """
 
 from __future__ import annotations

@@ -98,25 +98,11 @@ def main() -> int:
       "toolchain whose builtin headers metagen parses against.")
   p.add_argument(
       "--clang-resource-dir",
-      default=None,
+      required=True,
       help="Path to the clang toolchain's resource dir (lib/clang/<N>, "
       "the directory whose include/ holds stddef.h, stdarg.h and the arch "
       "intrinsics). Passed to the parse as -resource-dir=, which lets the "
-      "driver order the builtin headers itself. Preferred over "
-      "--clang-builtin-headers-dir wherever the canonical layout exists. "
-      "Mutually exclusive with it.")
-  p.add_argument(
-      "--clang-builtin-headers-dir",
-      action="append",
-      default=[],
-      help="Directory holding the clang builtin headers, for build systems "
-      "that stage them flat, with no lib/clang/<N> hierarchy for "
-      "-resource-dir= to point at (Bazel). Repeatable, for builds that "
-      "split checked-in and generated builtin headers across source and "
-      "bin trees. Appended as a system-include dir instead, which takes "
-      "the path directly. Never probed for: the build system knows where "
-      "it staged them, and in a sandbox any path we guessed would be an "
-      "undeclared input. Mutually exclusive with --clang-resource-dir.")
+      "driver order the builtin headers itself.")
   p.add_argument(
       "--driver",
       required=True,
@@ -312,36 +298,14 @@ def main() -> int:
   # bindings, so its own resource dir has no headers in it. We take them
   # from the clang toolchain package instead, which rolls from the same
   # LLVM revision and so always matches the parsing library.
-  if bool(args.clang_resource_dir) == bool(args.clang_builtin_headers_dir):
+  resource_dir = os.path.abspath(args.clang_resource_dir)
+  stddef = os.path.join(resource_dir, "include", "stddef.h")
+  if not os.path.isfile(stddef):
     print(
-        "error: exactly one of --clang-resource-dir or "
-        "--clang-builtin-headers-dir is required.",
+        f"[metagen] --clang-resource-dir does not hold clang's builtin "
+        f"headers:\n  {stddef} not found",
         file=sys.stderr)
     return 1
-  resource_dir = None
-  builtin_headers_dirs: list[str] = []
-  if args.clang_resource_dir:
-    resource_dir = os.path.abspath(args.clang_resource_dir)
-    flag = "--clang-resource-dir"
-    probes = [os.path.join(resource_dir, "include", "stddef.h")]
-  else:
-    builtin_headers_dirs = [
-        os.path.abspath(d) for d in args.clang_builtin_headers_dir
-    ]
-    flag = "--clang-builtin-headers-dir"
-    probes = [os.path.join(d, "stddef.h") for d in builtin_headers_dirs]
-  if not any(os.path.isfile(p) for p in probes):
-    missing = "\n".join(f"  {p} not found" for p in probes)
-    print(
-        f"[metagen] {flag} does not hold clang's builtin headers:\n{missing}",
-        file=sys.stderr)
-    return 1
-  # -fsyntax-only, -ferror-limit=, -resource-dir= and -D carry `CLOption`
-  # visibility in clang's Options.td, so one spelling works under both
-  # drivers. -isystem does NOT: the clang-cl driver drops it with an
-  # ignorable -Wunknown-argument warning, and the parse then fails on the
-  # first intrinsics header. Its cl-mode equivalent is -imsvc.
-  sysinclude = "-imsvc" if cl_mode else "-isystem"
 
   prefix = [
       "-fsyntax-only",
@@ -390,19 +354,9 @@ def main() -> int:
   # toolchain's command template puts them.
   flags = prefix + args.extra_flag + raw_flags + no_perfetto
 
-  # The builtin headers have to sit after libc++'s include dir and before
-  # the platform SDK's.
-  #
-  # -resource-dir= lets the driver place them, and it gets that right in
-  # both modes, so prefer it. That relies on libc++ arriving as -I, since
-  # the driver sorts -imsvc dirs after the resource dir. Only a flat
-  # staging dir needs the include-dir spelling, which we append: right for
-  # libc++, and right on Windows only while the SDK dirs arrive as
-  # /winsysroot.
-  if resource_dir:
-    flags.append(f"-resource-dir={resource_dir}")
-  else:
-    flags.extend(f"{sysinclude}{d}" for d in builtin_headers_dirs)
+  # The driver places builtin headers after libc++ and before the SDK.
+  # In cl-mode, libc++ must arrive as -I to precede the resource dir.
+  flags.append(f"-resource-dir={resource_dir}")
 
   verbose_print(f"Harvesting class hierarchy from "
                 f"{os.path.relpath(driver_path, v8_root)} ({flags_source})...")

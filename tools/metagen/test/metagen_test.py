@@ -41,7 +41,8 @@ class DriverModeTest(unittest.TestCase):
       with self.subTest(options=options):
         stderr = io.StringIO()
         with mock.patch.object(sys, 'argv',
-                               ['metagen', '--driver=driver.cc', '--out=gen'] +
+                               ['metagen', '--driver=driver.cc', '--out=gen',
+                                '--clang-resource-dir=/unused'] +
                                options), contextlib.redirect_stderr(stderr), \
              mock.patch.object(compile_flags,
                                'get_compile_args_from_gn_desc') as gn, \
@@ -55,82 +56,74 @@ class DriverModeTest(unittest.TestCase):
         database.assert_not_called()
 
   def test_harvest_driver_flags(self):
-    for source, mode, raw_flags, include_option in (
-        ('gn', 'gcc', ['-isysroot', '/SDK', '-iframework',
-                       '/Frameworks'], '-isystem'),
-        ('gn', 'gcc', ['/absolute/path'], '-isystem'),
-        ('gn', 'cl', [], '-imsvc'),
-        ('gn', 'cl', ['/std:c++20', '/winsysroot', '/SDK'], '-imsvc'),
-        ('clang++', 'gcc', ['-std=c++20'], '-isystem'),
-        ('clang-cl.exe', 'cl', ['/std:c++20'], '-imsvc'),
-        ('compiler-wrapper', 'gcc', ['-isysroot', '/SDK'], '-isystem'),
-        ('compiler-wrapper', 'cl', ['/std:c++20'], '-imsvc'),
-        ('x86_64-w64-mingw32-g++', 'gcc', ['-std=c++20'], '-isystem'),
+    for source, mode, raw_flags in (
+        ('gn', 'gcc', ['-isysroot', '/SDK', '-iframework', '/Frameworks']),
+        ('gn', 'gcc', ['/absolute/path']),
+        ('gn', 'cl', []),
+        ('gn', 'cl', ['/std:c++20', '/winsysroot', '/SDK']),
+        ('clang++', 'gcc', ['-std=c++20']),
+        ('clang-cl.exe', 'cl', ['/std:c++20']),
+        ('compiler-wrapper', 'gcc', ['-isysroot', '/SDK']),
+        ('compiler-wrapper', 'cl', ['/std:c++20']),
+        ('x86_64-w64-mingw32-g++', 'gcc', ['-std=c++20']),
     ):
-      for headers in ('resource-dir', 'builtin-headers-dir'):
-        with self.subTest(
-            source=source, mode=mode, raw_flags=raw_flags,
-            headers=headers), tempfile.TemporaryDirectory() as tmp:
-          root = Path(tmp)
-          include = root / 'include'
-          include.mkdir()
-          (include / 'stddef.h').touch()
-          argv = [
-              'metagen',
-              '--driver=driver.cc',
-              f'--out={root / "gen"}',
-              '--libclang-from-python-env',
-              f'--driver-mode={mode}',
+      with self.subTest(source=source, mode=mode, raw_flags=raw_flags), \
+           tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        include = root / 'include'
+        include.mkdir()
+        (include / 'stddef.h').touch()
+        argv = [
+            'metagen',
+            '--driver=driver.cc',
+            f'--out={root / "gen"}',
+            '--libclang-from-python-env',
+            f'--driver-mode={mode}',
+            f'--clang-resource-dir={root}',
+        ]
+        if source == 'gn':
+          (root / 'args.gn').touch()
+          argv += [
+              f'--build-dir={root}',
+              f'--source-root={root}',
+              '--flags-from-target=//:probe',
+              '--flags-toolchain=//:target',
           ]
-          if headers == 'resource-dir':
-            argv.append(f'--clang-resource-dir={root}')
-            header_flag = f'-resource-dir={root}'
-          else:
-            argv.append(f'--clang-builtin-headers-dir={include}')
-            header_flag = f'{include_option}{include}'
-          if source == 'gn':
-            (root / 'args.gn').touch()
-            argv += [
-                f'--build-dir={root}',
-                f'--source-root={root}',
-                '--flags-from-target=//:probe',
-                '--flags-toolchain=//:target',
-            ]
-          else:
-            database = root / 'compile_commands.json'
-            database.write_text(
-                json.dumps([{
-                    'directory': str(root),
-                    'file': 'probe.cc',
-                    'arguments': [source, '-c', 'probe.cc'] + raw_flags,
-                }]))
-            argv.append(f'--compile-commands={database}')
-          desc = {'//:probe(//:target)': {'cflags': raw_flags}}
-          scan = mock.Mock(side_effect=HarvestReached)
-          cpp_hier = types.ModuleType('metagen.cpp_hier')
-          cpp_hier.scan_cpp = scan
-          layout_extract = types.ModuleType('metagen.layout_extract')
-          with mock.patch.object(sys, 'argv', argv), \
-               mock.patch.object(clang_bootstrap, 'bootstrap_from_python_env'), \
-               mock.patch.object(sys.modules['metagen'], 'cpp_hier', cpp_hier,
-                                 create=True), \
-               mock.patch.object(sys.modules['metagen'], 'layout_extract',
-                                 layout_extract, create=True), \
-               mock.patch.object(compile_flags, '_find_gn', return_value='gn'), \
-               mock.patch.object(compile_flags.subprocess, 'run', return_value=
-                                 subprocess.CompletedProcess(
-                                     [], 0, json.dumps(desc))):
-            with self.assertRaises(HarvestReached):
-              metagen.main()
-          scan.assert_called_once()
-          flags = scan.call_args.args[2]
-          self.assertEqual(scan.call_args.kwargs['parse_cwd'], str(root))
-          self.assertEqual('--driver-mode=cl' in flags, mode == 'cl')
-          if mode == 'cl':
-            self.assertEqual(flags[0], '--driver-mode=cl')
-          self.assertEqual(flags[-1], header_flag)
-          for flag in raw_flags:
-            self.assertIn(flag, flags)
+        else:
+          database = root / 'compile_commands.json'
+          database.write_text(
+              json.dumps([{
+                  'directory': str(root),
+                  'file': 'probe.cc',
+                  'arguments': [source, '-c', 'probe.cc'] + raw_flags,
+              }]))
+          argv.append(f'--compile-commands={database}')
+        desc = {'//:probe(//:target)': {'cflags': raw_flags}}
+        scan = mock.Mock(side_effect=HarvestReached)
+        cpp_hier = types.ModuleType('metagen.cpp_hier')
+        cpp_hier.scan_cpp = scan
+        layout_extract = types.ModuleType('metagen.layout_extract')
+        with mock.patch.object(sys, 'argv', argv), \
+             mock.patch.object(clang_bootstrap, 'bootstrap_from_python_env'), \
+             mock.patch.object(sys.modules['metagen'], 'cpp_hier', cpp_hier,
+                               create=True), \
+             mock.patch.object(sys.modules['metagen'], 'layout_extract',
+                               layout_extract, create=True), \
+             mock.patch.object(compile_flags, '_find_gn', return_value='gn'), \
+             mock.patch.object(compile_flags.subprocess, 'run', return_value=
+                               subprocess.CompletedProcess(
+                                   [], 0, json.dumps(desc))):
+          with self.assertRaises(HarvestReached):
+            metagen.main()
+        scan.assert_called_once()
+        flags = scan.call_args.args[2]
+        self.assertEqual(scan.call_args.kwargs['parse_cwd'], str(root))
+        self.assertEqual('--driver-mode=cl' in flags, mode == 'cl')
+        if mode == 'cl':
+          self.assertEqual(flags[0], '--driver-mode=cl')
+        self.assertEqual(flags[-1], f'-resource-dir={root}')
+        for flag in raw_flags:
+          self.assertIn(flag, flags)
 
 
 if __name__ == '__main__':
