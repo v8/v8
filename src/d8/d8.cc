@@ -1058,6 +1058,10 @@ class ModuleEmbedderData {
   // List of compiled JavaScript modules awaiting code cache production.
   std::vector<std::pair<Global<String>, Global<Module>>>
       modules_pending_code_cache;
+
+  // Modules inserted during the current FetchModuleTree call, for rollback on
+  // failure.
+  std::vector<decltype(module_map)::iterator> inserted_modules;
 };
 
 enum { kModuleEmbedderDataIndex, kInspectorClientIndex };
@@ -1532,6 +1536,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   Isolate* isolate = Isolate::GetCurrent();
   i::CppGCManaged<ModuleEmbedderData>::Ptr module_data =
       GetModuleDataFromContext(context);
+  DCHECK_IMPLIES(referrer.IsEmpty(), module_data->inserted_modules.empty());
   MaybeLocal<String> source_text;
   std::unique_ptr<base::OS::MemoryMappedFile> raw_file;
 
@@ -1672,6 +1677,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
       std::make_pair(std::make_pair(module_specifier, module_type),
                      Global<Module>(isolate, module)));
   CHECK(module_map_inserted.second);
+  module_data->inserted_modules.push_back(module_map_inserted.first);
 
   auto module_to_specifier_map_inserted =
       module_data->module_to_specifier_map.insert(
@@ -1728,10 +1734,14 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     }
   }
 
-  if (result.IsEmpty()) {
-    module_data->module_map.erase(module_map_inserted.first);
-    module_data->module_to_specifier_map.erase(
-        module_to_specifier_map_inserted.first);
+  if (referrer.IsEmpty()) {
+    if (result.IsEmpty()) {
+      for (auto it : module_data->inserted_modules) {
+        module_data->module_to_specifier_map.erase(it->second);
+        module_data->module_map.erase(it);
+      }
+    }
+    module_data->inserted_modules.clear();
   }
 
   return result;
