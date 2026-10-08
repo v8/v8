@@ -278,7 +278,7 @@ class Deserializer : public SerializerDeserializer {
                                 InstanceType instance_type,
                                 SnapshotSpace space);
 
-  Tagged<HeapObject> Allocate(AllocationType allocation, int size,
+  Tagged<HeapObject> Allocate(AllocationType allocation, uint32_t size,
                               AllocationAlignment alignment);
 
   // Cached current isolate.
@@ -357,7 +357,7 @@ class Deserializer : public SerializerDeserializer {
 
   // Record the previous object allocated for DCHECKs.
   DirectHandle<HeapObject> previous_allocation_obj_;
-  int previous_allocation_size_ = 0;
+  uint32_t previous_allocation_size_ = 0;
 #endif  // DEBUG
 };
 
