@@ -800,14 +800,10 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_WASM(TFJ, WasmMethodWrapper, kDontAdaptArgumentsSentinel)                 \
   ASM(FunctionPrototypeCall, JSTrampoline)                                     \
   CPP(FunctionPrototypeToString, kDontAdaptArgumentsSentinel)                  \
-  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
-      CPP, FunctionPrototypeLegacyArgumentsGetter, JSParameterCount(0))        \
-  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
-      CPP, FunctionPrototypeLegacyArgumentsSetter, JSParameterCount(1))        \
-  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
-      CPP, FunctionPrototypeLegacyCallerGetter, JSParameterCount(0))           \
-  IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
-      CPP, FunctionPrototypeLegacyCallerSetter, JSParameterCount(1))           \
+  CPP(FunctionPrototypeLegacyArgumentsGetter, JSParameterCount(0))             \
+  CPP(FunctionPrototypeLegacyArgumentsSetter, JSParameterCount(1))             \
+  CPP(FunctionPrototypeLegacyCallerGetter, JSParameterCount(0))                \
+  CPP(FunctionPrototypeLegacyCallerSetter, JSParameterCount(1))                \
                                                                                \
   /* Belongs to Objects but is a dependency of GeneratorPrototypeResume */     \
   TFS(CreateIterResultObject, NeedsContext{true}, kValue, kDone)               \

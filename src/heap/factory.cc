@@ -4930,8 +4930,8 @@ DirectHandle<String> Factory::ToPrimitiveHintString(ToPrimitiveHint hint) {
 DirectHandle<Map> Factory::CreateSloppyFunctionMap(
     FunctionMode function_mode,
     MaybeDirectHandle<JSFunction> maybe_empty_function) {
-  // TODO(syg): Does sloppy/strict function map distinction need to exist
-  // anymore after V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS is removed?
+  // TODO(https://crbug.com/414525205): Merge sloppy and strict function maps
+  // now that legacy .arguments and .caller are no longer own properties.
   bool has_prototype = IsFunctionModeWithPrototype(function_mode);
   InstanceType instance_type;
   int header_size;
@@ -4943,9 +4943,6 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
     header_size = JSFunctionWithoutPrototype::kHeaderSize;
   }
   int descriptors_count = has_prototype ? 3 : 2;
-#ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
-  descriptors_count += 2;
-#endif
   int inobject_properties_count = 0;
   if (IsFunctionModeWithName(function_mode)) ++inobject_properties_count;
 
@@ -5007,18 +5004,6 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
         name_string(), function_name_accessor(), roc_attribs);
     map->AppendDescriptor(isolate(), &d);
   }
-#ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
-  {  // Add arguments accessor.
-    Descriptor d = Descriptor::AccessorConstant(
-        arguments_string(), function_arguments_accessor(), ro_attribs);
-    map->AppendDescriptor(isolate(), &d);
-  }
-  {  // Add caller accessor.
-    Descriptor d = Descriptor::AccessorConstant(
-        caller_string(), function_caller_accessor(), ro_attribs);
-    map->AppendDescriptor(isolate(), &d);
-  }
-#endif  // V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
   if (IsFunctionModeWithPrototype(function_mode)) {
     // Add prototype accessor.
     PropertyAttributes attribs =

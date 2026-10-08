@@ -331,17 +331,12 @@
   'intl402/DateTimeFormat/prototype/format/timedatestyle-en': [FAIL],
 
   # In alignment with Firefox and Safari, Function.prototype.arguments and
-  # .caller are ordinary accessors instead of the "poison pill thrower" when V8 is
-  # compiled without V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS.
-  #
-  # These expectations should be negated if the build time flag is true.
+  # .caller are ordinary accessors instead of the "poison pill thrower".
   #
   # See also https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Function/prototype/arguments/prop-desc': [FAIL],
   'built-ins/Function/prototype/caller-arguments/accessor-properties': [FAIL],
   'built-ins/Function/prototype/caller/prop-desc': [FAIL],
-  'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [PASS],
-  'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [PASS],
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
 
   ############################ INVALID TESTS #############################

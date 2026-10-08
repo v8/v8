@@ -537,9 +537,6 @@ declare_args() {
   # usages. The plugin is not exhaustive but covers most common known pitfalls.
   use_cppgc_clang_plugin = true
 
-  # Expose F.p.caller and .arguments as own properties.
-  v8_function_arguments_caller_are_own_props = false
-
   # Use a hard-coded secret value when hashing.
   v8_use_default_hasher_secret = true
 
@@ -1705,9 +1702,6 @@ config("features") {
   }
   if (v8_target_is_simulator) {
     defines += [ "USE_SIMULATOR" ]
-  }
-  if (v8_function_arguments_caller_are_own_props) {
-    defines += [ "V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS" ]
   }
   if (v8_x64_16byte_stack_alignment) {
     defines += [ "V8_X64_16BYTE_STACK_ALIGNMENT" ]

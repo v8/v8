@@ -910,12 +910,10 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kFastFunctionPrototypeBind:
     case Builtin::kFunctionPrototypeCall:
     case Builtin::kFunctionPrototypeApply:
-#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
     case Builtin::kFunctionPrototypeLegacyArgumentsGetter:
     case Builtin::kFunctionPrototypeLegacyArgumentsSetter:
     case Builtin::kFunctionPrototypeLegacyCallerGetter:
     case Builtin::kFunctionPrototypeLegacyCallerSetter:
-#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
     // Error builtins.
     case Builtin::kErrorConstructor:
     // RegExp builtins.
