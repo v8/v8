@@ -7647,6 +7647,7 @@ v8_component("v8_libbase") {
     "src/base/threaded-list.h",
     "src/base/timezone-cache.h",
     "src/base/types/is-instantiation.h",
+    "src/base/unique-array.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
     "src/base/vector.h",

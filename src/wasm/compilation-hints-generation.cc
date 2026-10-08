@@ -5,6 +5,7 @@
 #include "src/wasm/compilation-hints-generation.h"
 
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
@@ -208,7 +209,7 @@ void WriteCompilationHintsToFile(ZoneBuffer& buffer,
   base::EmbeddedVector<char, 48> filename;
   SNPrintF(filename, "compilation-hints-wasm-%08x.wasm-no-header", hash);
 
-  base::OwnedVector<uint8_t> data = base::OwnedCopyOf(buffer);
+  base::UniqueArray<uint8_t> data = base::UniqueCopyOf(buffer);
 
   if (FILE* file = base::OS::FOpen(filename.begin(), "wb")) {
     PrintF("Emitting compilation hints to file '%s'\n", filename.begin());

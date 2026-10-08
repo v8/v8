@@ -16,6 +16,7 @@
 #include "src/api/api-natives.h"
 #include "src/base/fpu.h"
 #include "src/base/logging.h"
+#include "src/base/unique-array.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"
@@ -312,7 +313,7 @@ GET_FIRST_ARGUMENT_AS(Tag)
 
 #undef GET_FIRST_ARGUMENT_AS
 
-base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
+base::UniqueArray<const uint8_t> GetAndCopyFirstArgumentAsBytes(
     const v8::FunctionCallbackInfo<v8::Value>& info, size_t max_length,
     ErrorThrower* thrower) {
   const uint8_t* start = nullptr;
@@ -354,7 +355,7 @@ base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
 
   // Use relaxed reads (and writes, which is unnecessary here) to avoid TSan
   // reports in case the buffer is shared and is being modified concurrently.
-  auto result = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+  auto result = base::UniqueArray<uint8_t>::NewForOverwrite(length);
   base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(result.begin()),
                        reinterpret_cast<const base::Atomic8*>(start), length);
   return result;
@@ -756,7 +757,7 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     resolver->OnCompilationFailed(thrower.Reify());
@@ -790,7 +791,7 @@ void WasmStreamingCallbackForTesting(
   // We don't check the buffer length up front, to allow d8 to test that the
   // streaming decoder implementation handles overly large inputs correctly.
   size_t unlimited = std::numeric_limits<size_t>::max();
-  base::OwnedVector<const uint8_t> bytes =
+  base::UniqueArray<const uint8_t> bytes =
       GetAndCopyFirstArgumentAsBytes(info, unlimited, &thrower);
   if (bytes.empty()) {
     streaming->Abort(Utils::ToLocal(thrower.Reify()));
@@ -918,7 +919,7 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   // Always copy. Even if the buffer isn't shared,
   // {WasmJs::CompileTimeImportsFromArgument} could detach it.
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     js_api_scope.AssertException();
@@ -988,7 +989,7 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
 
   if (bytes.empty()) return js_api_scope.AssertException();
@@ -1242,7 +1243,7 @@ void WebAssemblyInstantiateImpl(
     return;
   }
 
-  base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
+  base::UniqueArray<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
     InstantiateModuleResultResolver::FailInstantiation(

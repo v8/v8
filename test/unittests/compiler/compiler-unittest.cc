@@ -15,6 +15,7 @@
 #include "include/v8-profiler.h"
 #include "include/v8-script.h"
 #include "src/api/api-inl.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/script-details.h"
 #include "src/heap/factory.h"
@@ -264,7 +265,7 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
   const char function_f[] = "function f() {}";
   const int max_rows = 1000;
   const int buffer_size = max_rows + sizeof(function_f);
-  auto buffer = base::OwnedVector<char>::NewForOverwrite(buffer_size);
+  auto buffer = base::UniqueArray<char>::NewForOverwrite(buffer_size);
   memset(buffer.begin(), '\n', buffer_size - 1);
   buffer[buffer_size - 1] = '\0';
 

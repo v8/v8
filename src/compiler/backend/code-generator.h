@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "src/base/small-vector.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/safepoint-table.h"
@@ -101,12 +102,12 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   MaybeHandle<Code> FinalizeCode();
 
 #if V8_ENABLE_WEBASSEMBLY
-  base::OwnedVector<uint8_t> GenerateWasmDeoptimizationData();
-  base::OwnedVector<uint8_t> GenerateWasmEffectHandlers();
+  base::UniqueArray<uint8_t> GenerateWasmDeoptimizationData();
+  base::UniqueArray<uint8_t> GenerateWasmEffectHandlers();
 #endif
 
-  base::OwnedVector<uint8_t> GetSourcePositionTable();
-  base::OwnedVector<uint8_t> GetTrappingInstructionsData();
+  base::UniqueArray<uint8_t> GetSourcePositionTable();
+  base::UniqueArray<uint8_t> GetTrappingInstructionsData();
 
   InstructionSequence* instructions() const { return instructions_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }

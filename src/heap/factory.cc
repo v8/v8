@@ -13,6 +13,7 @@
 
 #include "src/ast/ast-source-ranges.h"
 #include "src/base/strong-alias.h"
+#include "src/base/unique-array.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/constants-table-builder.h"
@@ -972,18 +973,18 @@ MaybeHandle<String> NewStringFromUtf8Variant(Isolate* isolate,
   UNREACHABLE();
 }
 
-inline base::OwnedVector<uint8_t> CopyBytes(const base::Atomic8* src,
+inline base::UniqueArray<uint8_t> CopyBytes(const base::Atomic8* src,
                                             size_t length) {
-  auto copy = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+  auto copy = base::UniqueArray<uint8_t>::NewForOverwrite(length);
   base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(copy.data()), src,
                        length);
   return copy;
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-inline base::OwnedVector<uint16_t> CopyCodeUnits(const base::Atomic16* src,
+inline base::UniqueArray<uint16_t> CopyCodeUnits(const base::Atomic16* src,
                                                  size_t length) {
-  auto copy = base::OwnedVector<uint16_t>::NewForOverwrite(length);
+  auto copy = base::UniqueArray<uint16_t>::NewForOverwrite(length);
   for (size_t i = 0; i < length; i++) {
     auto dest = reinterpret_cast<base::Atomic16*>(copy.data() + i);
     base::Relaxed_Store(dest, base::Relaxed_Load(src + i));
@@ -1002,7 +1003,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
     // strings from them anyway.
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
-  base::OwnedVector<uint8_t> private_copy;
+  base::UniqueArray<uint8_t> private_copy;
   if (config.source_shared()) {
     private_copy = CopyBytes(
         reinterpret_cast<const base::Atomic8*>(string.data()), string.size());
@@ -1037,7 +1038,7 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf8(
   static_assert(WasmArray::MaxLength(sizeof(uint8_t)) <= kMaxInt);
 
   uint32_t length = end - start;
-  base::OwnedVector<uint8_t> private_copy;
+  base::UniqueArray<uint8_t> private_copy;
   if (config.source_shared()) {
     private_copy = CopyBytes(
         reinterpret_cast<const base::Atomic8*>(array->ElementAddress(start)),
@@ -1105,7 +1106,7 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf16(
   static_assert(WasmArray::MaxLength(sizeof(uint16_t)) <= kMaxInt);
 
   uint32_t length = end - start;
-  base::OwnedVector<uint16_t> private_copy;
+  base::UniqueArray<uint16_t> private_copy;
   if (config.source_shared()) {
     private_copy = CopyCodeUnits(
         reinterpret_cast<const base::Atomic16*>(array->ElementAddress(start)),
@@ -1228,7 +1229,7 @@ MaybeDirectHandle<String> Factory::NewStringFromTwoByteLittleEndian(
   if (str.size() > String::kMaxLength) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
-  base::OwnedVector<uint16_t> private_copy;
+  base::UniqueArray<uint16_t> private_copy;
   if (config.source_shared()) {
     private_copy = CopyCodeUnits(
         reinterpret_cast<const base::Atomic16*>(str.data()), str.size());

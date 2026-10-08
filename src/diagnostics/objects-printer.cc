@@ -9,6 +9,7 @@
 #include "include/v8-internal.h"
 #include "src/api/api-arguments.h"
 #include "src/base/logging.h"
+#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/disasm.h"
@@ -2311,7 +2312,7 @@ void JSDate::JSDatePrint(std::ostream& os) {
     os << "\n - time = NaN\n";
   } else {
     // TODO(svenpanne) Add some basic formatting to our streams.
-    auto buf = base::OwnedVector<char>::NewForOverwrite(100);
+    auto buf = base::UniqueArray<char>::NewForOverwrite(100);
     SNPrintF(buf.as_vector(), "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
              weekdays[IsSmi(weekday()) ? Smi::ToInt(weekday()) + 1 : 0],
              IsSmi(year()) ? Smi::ToInt(year()) : -1,

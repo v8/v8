@@ -11,6 +11,7 @@
 #include <sstream>
 
 #include "src/base/macros.h"
+#include "src/base/unique-array.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/bailout-reason.h"
@@ -2865,12 +2866,12 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
 
 namespace {
 
-base::OwnedVector<uint8_t> SerializeInliningPositions(
+base::UniqueArray<uint8_t> SerializeInliningPositions(
     const ZoneVector<WasmInliningPosition>& positions) {
   const size_t entry_size = sizeof positions[0].inlinee_func_index +
                             sizeof positions[0].was_tail_call +
                             sizeof positions[0].caller_pos;
-  auto result = base::OwnedVector<uint8_t>::New(positions.size() * entry_size);
+  auto result = base::UniqueArray<uint8_t>::New(positions.size() * entry_size);
   uint8_t* iter = result.begin();
   for (const auto& [func_index, was_tail_call, caller_pos] : positions) {
     size_t index_size = sizeof func_index;

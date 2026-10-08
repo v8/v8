@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "src/base/logging.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/assert-scope.h"
 #include "src/common/simd128.h"
@@ -318,7 +319,7 @@ class DebugInfoImpl {
     // Insert new code into the cache. Insert before existing elements for LRU.
     cached_debugging_code_.insert(
         cached_debugging_code_.begin(),
-        CachedDebuggingCode{func_index, base::OwnedCopyOf(offsets),
+        CachedDebuggingCode{func_index, base::UniqueCopyOf(offsets),
                             dead_breakpoint, new_code});
     // Increase the ref count (for the cache entry).
     new_code->IncRef();
@@ -902,7 +903,7 @@ class DebugInfoImpl {
   static constexpr size_t kMaxCachedDebuggingCode = 3;
   struct CachedDebuggingCode {
     int func_index;
-    base::OwnedVector<const int> breakpoint_offsets;
+    base::UniqueArray<const int> breakpoint_offsets;
     int dead_breakpoint;
     WasmCode* code;
   };

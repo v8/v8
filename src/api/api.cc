@@ -46,6 +46,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/strong-alias.h"
 #include "src/base/template-utils.h"
+#include "src/base/unique-array.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/vector.h"
 #include "src/builtins/accessors.h"
@@ -9076,7 +9077,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
 #if V8_ENABLE_WEBASSEMBLY
   i::wasm::CompileTimeImports compile_imports =
       i::wasm::CompileTimeImportsFromOptions(options);
-  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(wire_bytes);
+  base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(wire_bytes);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   // We don't check for `IsWasmCodegenAllowed` here, because this function is
   // used for ESM integration, which in terms of security is equivalent to

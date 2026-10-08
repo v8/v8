@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/base/iterator.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/common/checks.h"
 
@@ -27,7 +28,7 @@ template <typename T, int growth_factor = 2, int max_growth = 1 * MB>
 class Collector {
  public:
   explicit Collector(int initial_capacity = kMinCapacity)
-      : current_chunk_(base::OwnedVector<T>::NewForOverwrite(initial_capacity)),
+      : current_chunk_(base::UniqueArray<T>::NewForOverwrite(initial_capacity)),
         index_(0),
         size_(0) {}
 
@@ -96,9 +97,9 @@ class Collector {
 
   // Allocate a single contiguous vector, copy all the collected
   // elements to the vector, and return it.
-  base::OwnedVector<T> ToVector() {
-    base::OwnedVector<T> new_store =
-        base::OwnedVector<T>::NewForOverwrite(size_);
+  base::UniqueArray<T> ToVector() {
+    base::UniqueArray<T> new_store =
+        base::UniqueArray<T>::NewForOverwrite(size_);
     WriteTo(new_store.as_vector());
     return new_store;
   }
@@ -115,13 +116,13 @@ class Collector {
 
  protected:
   struct Chunk {
-    base::OwnedVector<T> data;
+    base::UniqueArray<T> data;
     int length;
   };
 
   static const int kMinCapacity = 16;
   std::vector<Chunk> chunks_;
-  base::OwnedVector<T>
+  base::UniqueArray<T>
       current_chunk_;        // Block of memory currently being written into.
   int index_;                // Current index in current chunk.
   int size_;                 // Total number of elements in collector.
@@ -154,8 +155,8 @@ class Collector {
   // the current index_ value to represent data no longer in the current chunk.
   // Returns the initial index of the new chunk (after copied data).
   virtual void NewChunk(int new_capacity) {
-    base::OwnedVector<T> new_chunk =
-        base::OwnedVector<T>::NewForOverwrite(new_capacity);
+    base::UniqueArray<T> new_chunk =
+        base::UniqueArray<T>::NewForOverwrite(new_capacity);
     if (index_ > 0) {
       chunks_.push_back({std::move(current_chunk_), index_});
     }
@@ -222,8 +223,8 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
       return;
     }
     int sequence_length = this->index_ - sequence_start_;
-    base::OwnedVector<T> new_chunk =
-        base::OwnedVector<T>::NewForOverwrite(sequence_length + new_capacity);
+    base::UniqueArray<T> new_chunk =
+        base::UniqueArray<T>::NewForOverwrite(sequence_length + new_capacity);
     DCHECK(sequence_length < new_chunk.as_vector().length());
     for (int i = 0; i < sequence_length; i++) {
       new_chunk[i] = this->current_chunk_[sequence_start_ + i];

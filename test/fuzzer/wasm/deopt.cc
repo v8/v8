@@ -6,6 +6,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/execution/isolate.h"
 #include "src/objects/property-descriptor.h"
@@ -324,7 +325,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeDirectHandle<WasmModuleObject> compiled = GetWasmEngine()->SyncCompile(
       i_isolate, enabled_features, CompileTimeImportsForFuzzing(), &thrower,
-      base::OwnedCopyOf(buffer));
+      base::UniqueCopyOf(buffer));
   if (!valid) {
     FATAL("Generated module should validate, but got: %s\n",
           thrower.error_msg());

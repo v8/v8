@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/hashing.h"
+#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
@@ -2168,11 +2169,11 @@ DirectHandle<Map> Map::TransitionToDataProperty(
   if (!maybe_map.ToHandle(&result)) {
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
-    base::OwnedVector<char> buffer;
+    base::UniqueArray<char> buffer;
     if (v8_flags.log_maps) {
-      auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
+      auto name_buffer = base::UniqueArray<char>::NewForOverwrite(100);
       name->NameShortPrint(name_buffer.as_vector());
-      buffer = base::OwnedVector<char>::NewForOverwrite(128);
+      buffer = base::UniqueArray<char>::NewForOverwrite(128);
       SNPrintF(buffer.as_vector(), "TooManyFastProperties %s",
                name_buffer.begin());
       reason = buffer.begin();

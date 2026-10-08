@@ -9,6 +9,7 @@
 #include "include/v8config.h"
 #include "src/base/small-vector.h"
 #include "src/base/strong-alias.h"
+#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/synchronization-point-support.h"
@@ -366,7 +367,7 @@ bool String::MakeExternal(Isolate* isolate,
     uint32_t str_length = this->length();
     DCHECK(static_cast<size_t>(str_length) == resource->length());
     auto smart_chars =
-        base::OwnedVector<base::uc16>::NewForOverwrite(str_length);
+        base::UniqueArray<base::uc16>::NewForOverwrite(str_length);
     String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
@@ -460,11 +461,11 @@ bool String::MakeExternal(Isolate* isolate,
     DCHECK(static_cast<size_t>(str_length) == resource->length());
     if (this->IsTwoByteRepresentation()) {
       auto smart_chars =
-          base::OwnedVector<uint16_t>::NewForOverwrite(str_length);
+          base::UniqueArray<uint16_t>::NewForOverwrite(str_length);
       String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
       DCHECK(String::IsOneByte(smart_chars.begin(), str_length));
     }
-    auto smart_chars = base::OwnedVector<char>::NewForOverwrite(str_length);
+    auto smart_chars = base::UniqueArray<char>::NewForOverwrite(str_length);
     String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));

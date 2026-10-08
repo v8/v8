@@ -15,6 +15,7 @@
 #include "src/base/fpu.h"
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
+#include "src/base/unique-array.h"
 #include "src/bigint/bigint-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
@@ -1275,8 +1276,8 @@ std::string_view DoubleToFixedStringView(double value, int f,
   unsigned rep_length =
       zero_prefix_length + decimal_rep_length + zero_postfix_length;
   // TODO(pthier): Get rid of this intermediate string builder.
-  base::OwnedVector<char> rep_buffer =
-      base::OwnedVector<char>::NewForOverwrite(rep_length + 1);
+  base::UniqueArray<char> rep_buffer =
+      base::UniqueArray<char>::NewForOverwrite(rep_length + 1);
   SimpleStringBuilder rep_builder(rep_buffer.begin(), rep_buffer.size());
   rep_builder.AddPadding('0', zero_prefix_length);
   rep_builder.AddString(decimal_rep, decimal_rep_length);

@@ -17,6 +17,7 @@
 #include <optional>
 
 #include "src/base/iterator.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/compiler/wasm-compiler.h"
@@ -2982,7 +2983,7 @@ std::unique_ptr<char[]> WasmExportedFunction::GetDebugName(
   constexpr const char kPrefix[] = "js-to-wasm:";
   // prefix + parameters + delimiter + returns + zero byte
   size_t len = strlen(kPrefix) + sig->all().size() + 2;
-  auto buffer = base::OwnedVector<char>::New(len);
+  auto buffer = base::UniqueArray<char>::New(len);
   memcpy(buffer.begin(), kPrefix, strlen(kPrefix));
   PrintSignature(buffer.as_vector() + strlen(kPrefix), sig);
   return buffer.ReleaseData();

@@ -37,6 +37,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/execution/messages.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
@@ -1723,7 +1724,7 @@ TEST(InvalidExternalString) {
     static_assert(String::kMaxLength < kMaxInt);                        \
     static const int invalid = String::kMaxLength + 1;                  \
     HandleScope scope(isolate);                                         \
-    auto dummy = v8::base::OwnedVector<TYPE>::NewForOverwrite(invalid); \
+    auto dummy = v8::base::UniqueArray<TYPE>::NewForOverwrite(invalid); \
     memset(dummy.begin(), 0x0, dummy.size() * sizeof(TYPE));            \
     CHECK(isolate->factory()->FUN(dummy.as_vector()).is_null());        \
     memset(dummy.begin(), 0x20, dummy.size() * sizeof(TYPE));           \

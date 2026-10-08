@@ -20,6 +20,7 @@
 #include "src/base/sanitizer/tsan.h"
 #include "src/base/small-vector.h"
 #include "src/base/string-format.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
@@ -1958,7 +1959,7 @@ namespace {
 class NativeModuleWireBytesStorage final : public WireBytesStorage {
  public:
   explicit NativeModuleWireBytesStorage(
-      std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes)
+      std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes)
       : wire_bytes_(std::move(wire_bytes)) {}
 
   base::Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
@@ -1973,13 +1974,13 @@ class NativeModuleWireBytesStorage final : public WireBytesStorage {
   }
 
  private:
-  const std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes_;
+  const std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes_;
 };
 }  // namespace
 
-void NativeModule::SetWireBytes(base::OwnedVector<const uint8_t> wire_bytes) {
+void NativeModule::SetWireBytes(base::UniqueArray<const uint8_t> wire_bytes) {
   auto shared_wire_bytes =
-      std::make_shared<base::OwnedVector<const uint8_t>>(std::move(wire_bytes));
+      std::make_shared<base::UniqueArray<const uint8_t>>(std::move(wire_bytes));
   std::atomic_store(&wire_bytes_, shared_wire_bytes);
   if (!shared_wire_bytes->empty()) {
     compilation_state_->SetWireBytesStorage(
@@ -2925,7 +2926,7 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 
-  std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes =
+  std::shared_ptr<base::UniqueArray<const uint8_t>> wire_bytes =
       std::atomic_load(&wire_bytes_);
   size_t wire_bytes_size = wire_bytes ? wire_bytes->size() : 0;
   result += wire_bytes_size;

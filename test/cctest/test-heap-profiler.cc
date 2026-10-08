@@ -41,6 +41,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/flags/flags.h"
@@ -293,7 +294,7 @@ bool HasString(v8::Isolate* isolate, const v8::HeapGraphNode* node,
 void EnsureNoUninstrumentedInternals(v8::Isolate* isolate,
                                      const v8::HeapGraphNode* node) {
   for (int i = 0; i < 20; ++i) {
-    auto buffer = v8::base::OwnedVector<char>::NewForOverwrite(10);
+    auto buffer = v8::base::UniqueArray<char>::NewForOverwrite(10);
     std::string_view str = i::IntToStringView(i, buffer.as_vector());
     // GetProperty requires a null-terminated string.
     const v8::HeapGraphNode* internal = GetProperty(
@@ -1365,7 +1366,7 @@ TEST(HeapSnapshotJSONSerialization) {
   snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
-  auto json = v8::base::OwnedVector<char>::NewForOverwrite(stream.size());
+  auto json = v8::base::UniqueArray<char>::NewForOverwrite(stream.size());
   stream.WriteTo(json.as_vector());
 
   // Verify that snapshot string is valid JSON.
@@ -4481,7 +4482,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto source = v8::base::UniqueArray<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(source.as_vector(),
                      "var number_elements = %d;"
                      "var elements = new Array(number_elements);"

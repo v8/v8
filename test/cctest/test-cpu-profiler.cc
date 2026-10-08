@@ -39,6 +39,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -1407,7 +1408,7 @@ static void TickLines(bool optimize) {
   unsigned int line_count = func_node->GetHitLineCount();
   CHECK_EQ(2u, line_count);  // Expect two hit source lines - #1 and #5.
   auto entries =
-      base::OwnedVector<v8::CpuProfileNode::LineTick>::NewForOverwrite(
+      base::UniqueArray<v8::CpuProfileNode::LineTick>::NewForOverwrite(
           line_count);
   CHECK(func_node->GetLineTicks(&entries[0], line_count));
   int value = 0;
@@ -4945,7 +4946,7 @@ TEST(CpuProfileJSONSerialization) {
   cpu_profiler->Dispose();
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
-  auto json = base::OwnedVector<char>::NewForOverwrite(stream.size());
+  auto json = base::UniqueArray<char>::NewForOverwrite(stream.size());
   stream.WriteTo(json.as_vector());
 
   // Verify that snapshot string is valid JSON.
@@ -5032,7 +5033,7 @@ TEST(CpuProfileJSONSerializationWithEscapedStrings) {
   profile->Delete();
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
-  auto json = base::OwnedVector<char>::NewForOverwrite(stream.size());
+  auto json = base::UniqueArray<char>::NewForOverwrite(stream.size());
   stream.WriteTo(json.as_vector());
 
   OneByteResource* json_res = new OneByteResource(json.as_vector());

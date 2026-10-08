@@ -40,6 +40,7 @@
 #include "include/v8-sandbox.h"
 #include "include/v8-snapshot.h"
 #include "src/api/api-inl.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/script-details.h"
@@ -87,9 +88,9 @@ constexpr EmbedderDataTypeTag kRawDataTag = 2;
 // A convenience struct to simplify management of the blobs required to
 // deserialize an isolate.
 struct StartupBlobs {
-  base::OwnedVector<const uint8_t> startup;
-  base::OwnedVector<const uint8_t> read_only;
-  base::OwnedVector<const uint8_t> shared_space;
+  base::UniqueArray<const uint8_t> startup;
+  base::UniqueArray<const uint8_t> read_only;
+  base::UniqueArray<const uint8_t> shared_space;
 };
 
 }  // namespace
@@ -148,9 +149,9 @@ namespace {
 
 enum CodeCacheType { kLazy, kEager, kAfterExecute };
 
-base::OwnedVector<const uint8_t> WritePayload(
+base::UniqueArray<const uint8_t> WritePayload(
     const base::Vector<const uint8_t>& payload) {
-  return base::OwnedCopyOf(payload);
+  return base::UniqueCopyOf(payload);
 }
 
 // Convenience wrapper around the convenience wrapper.
@@ -222,12 +223,12 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
           WritePayload(shared_space_snapshot.RawData())};
 }
 
-base::OwnedVector<const char> ConstructSource(base::Vector<const char> head,
+base::UniqueArray<const char> ConstructSource(base::Vector<const char> head,
                                               base::Vector<const char> body,
                                               base::Vector<const char> tail,
                                               int repeats) {
   size_t source_length = head.size() + body.size() * repeats + tail.size();
-  auto source = base::OwnedVector<char>::NewForOverwrite(source_length);
+  auto source = base::UniqueArray<char>::NewForOverwrite(source_length);
   CopyChars(source.begin(), head.begin(), head.length());
   for (int i = 0; i < repeats; i++) {
     CopyChars(source.begin() + head.length() + i * body.length(), body.begin(),
@@ -354,10 +355,10 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
 }
 
 static void SerializeContext(
-    base::OwnedVector<const uint8_t>* startup_blob_out,
-    base::OwnedVector<const uint8_t>* read_only_blob_out,
-    base::OwnedVector<const uint8_t>* shared_space_blob_out,
-    base::OwnedVector<const uint8_t>* context_blob_out) {
+    base::UniqueArray<const uint8_t>* startup_blob_out,
+    base::UniqueArray<const uint8_t>* read_only_blob_out,
+    base::UniqueArray<const uint8_t>* shared_space_blob_out,
+    base::UniqueArray<const uint8_t>* context_blob_out) {
   v8::Isolate* v8_isolate = TestSerializer::NewIsolateInitialized();
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   Heap* heap = isolate->heap();
@@ -452,10 +453,10 @@ static void SerializeContext(
 
 #ifdef SNAPSHOT_COMPRESSION
 UNINITIALIZED_TEST(SnapshotCompression) {
-  base::OwnedVector<const uint8_t> startup_blob;
-  base::OwnedVector<const uint8_t> read_only_blob;
-  base::OwnedVector<const uint8_t> shared_space_blob;
-  base::OwnedVector<const uint8_t> context_blob;
+  base::UniqueArray<const uint8_t> startup_blob;
+  base::UniqueArray<const uint8_t> read_only_blob;
+  base::UniqueArray<const uint8_t> shared_space_blob;
+  base::UniqueArray<const uint8_t> context_blob;
   SerializeContext(&startup_blob, &read_only_blob, &shared_space_blob,
                    &context_blob);
   SnapshotData original_snapshot_data(context_blob.as_vector());
@@ -468,10 +469,10 @@ UNINITIALIZED_TEST(SnapshotCompression) {
 #endif  // SNAPSHOT_COMPRESSION
 
 UNINITIALIZED_TEST(ContextSerializerContext) {
-  base::OwnedVector<const uint8_t> startup_blob;
-  base::OwnedVector<const uint8_t> read_only_blob;
-  base::OwnedVector<const uint8_t> shared_space_blob;
-  base::OwnedVector<const uint8_t> context_blob;
+  base::UniqueArray<const uint8_t> startup_blob;
+  base::UniqueArray<const uint8_t> read_only_blob;
+  base::UniqueArray<const uint8_t> shared_space_blob;
+  base::UniqueArray<const uint8_t> context_blob;
   SerializeContext(&startup_blob, &read_only_blob, &shared_space_blob,
                    &context_blob);
 
@@ -516,10 +517,10 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
 }
 
 static void SerializeCustomContext(
-    base::OwnedVector<const uint8_t>* startup_blob_out,
-    base::OwnedVector<const uint8_t>* read_only_blob_out,
-    base::OwnedVector<const uint8_t>* shared_space_blob_out,
-    base::OwnedVector<const uint8_t>* context_blob_out) {
+    base::UniqueArray<const uint8_t>* startup_blob_out,
+    base::UniqueArray<const uint8_t>* read_only_blob_out,
+    base::UniqueArray<const uint8_t>* shared_space_blob_out,
+    base::UniqueArray<const uint8_t>* context_blob_out) {
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
@@ -549,7 +550,7 @@ static void SerializeCustomContext(
           "var p = 0;"
           "(async ()=>{ p = await 42; })();");
 
-      base::OwnedVector<const char> source = ConstructSource(
+      base::UniqueArray<const char> source = ConstructSource(
           base::StaticCharVector("function g() { return [,"),
           base::StaticCharVector("1,"),
           base::StaticCharVector("];} a = g(); b = g(); b.push(1);"), 100000);
@@ -647,10 +648,10 @@ static void SerializeCustomContext(
 }
 
 UNINITIALIZED_TEST(ContextSerializerCustomContext) {
-  base::OwnedVector<const uint8_t> startup_blob;
-  base::OwnedVector<const uint8_t> read_only_blob;
-  base::OwnedVector<const uint8_t> shared_space_blob;
-  base::OwnedVector<const uint8_t> context_blob;
+  base::UniqueArray<const uint8_t> startup_blob;
+  base::UniqueArray<const uint8_t> read_only_blob;
+  base::UniqueArray<const uint8_t> shared_space_blob;
+  base::UniqueArray<const uint8_t> context_blob;
   SerializeCustomContext(&startup_blob, &read_only_blob, &shared_space_blob,
                          &context_blob);
 
@@ -1789,7 +1790,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   // Flood the startup snapshot with shared function infos. If they are
   // serialized before the immortal immovable root, the root will no longer end
   // up on the first page.
-  base::OwnedVector<const char> source =
+  base::UniqueArray<const char> source =
       ConstructSource(base::StaticCharVector("var a = [];"),
                       base::StaticCharVector("a.push(function() {return 7});"),
                       base::StaticCharVector("\0"), 10000);
@@ -2493,7 +2494,7 @@ TEST(CodeSerializerLargeCodeObject) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::OwnedVector<const char> source = ConstructSource(
+  base::UniqueArray<const char> source = ConstructSource(
       base::StaticCharVector("var j=1; if (j == 0) {"),
       base::StaticCharVector(
           "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);"),
@@ -2556,7 +2557,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::OwnedVector<const char> source = ConstructSource(
+  base::UniqueArray<const char> source = ConstructSource(
       base::StaticCharVector("var j=1; if (j == 0) {"),
       base::StaticCharVector("for (var i = 0; i < Object.prototype; i++);"),
       base::StaticCharVector("} j=7; var s = 'happy_hippo'; j"), 20000);
@@ -2633,10 +2634,10 @@ TEST(CodeSerializerLargeStrings) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::OwnedVector<const char> source_s = ConstructSource(
+  base::UniqueArray<const char> source_s = ConstructSource(
       base::StaticCharVector("var s = \""), base::StaticCharVector("abcdef"),
       base::StaticCharVector("\";"), 1000000);
-  base::OwnedVector<const char> source_t = ConstructSource(
+  base::UniqueArray<const char> source_t = ConstructSource(
       base::StaticCharVector("var t = \""), base::StaticCharVector("uvwxyz"),
       base::StaticCharVector("\"; s + t"), 999999);
   Handle<String> source_str =
@@ -2700,19 +2701,19 @@ TEST(CodeSerializerThreeBigStrings) {
   const int32_t length_of_b = kMaxRegularHeapObjectSize / 2;
   const int32_t length_of_c = kMaxRegularHeapObjectSize / 2;
 
-  base::OwnedVector<const char> source_a = ConstructSource(
+  base::UniqueArray<const char> source_a = ConstructSource(
       base::StaticCharVector("var a = \""), base::StaticCharVector("a"),
       base::StaticCharVector("\";"), length_of_a);
   Handle<String> source_a_str =
       f->NewStringFromUtf8(source_a.as_vector()).ToHandleChecked();
 
-  base::OwnedVector<const char> source_b = ConstructSource(
+  base::UniqueArray<const char> source_b = ConstructSource(
       base::StaticCharVector("var b = \""), base::StaticCharVector("b"),
       base::StaticCharVector("\";"), length_of_b);
   Handle<String> source_b_str =
       f->NewStringFromUtf8(source_b.as_vector()).ToHandleChecked();
 
-  base::OwnedVector<const char> source_c = ConstructSource(
+  base::UniqueArray<const char> source_c = ConstructSource(
       base::StaticCharVector("var c = \""), base::StaticCharVector("c"),
       base::StaticCharVector("\";"), length_of_c);
   Handle<String> source_c_str =
@@ -2965,7 +2966,7 @@ TEST(CodeSerializerLargeExternalString) {
   v8::HandleScope scope(CcTest::isolate());
 
   // Create a huge external internalized string to use as variable name.
-  base::OwnedVector<const char> string = ConstructSource(
+  base::UniqueArray<const char> string = ConstructSource(
       base::StaticCharVector(""), base::StaticCharVector("abcdef"),
       base::StaticCharVector(""), 999999);
   Handle<String> name =

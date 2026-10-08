@@ -31,6 +31,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/bit-field.h"
+#include "src/base/unique-array.h"
 #include "src/numbers/conversions.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/collector.h"
@@ -102,8 +103,8 @@ TEST(BitSetComputer) {
   const int words = 750;
   CHECK_EQ(words, TwoBits::word_count(3000));
   const int offset = 10;
-  base::OwnedVector<unsigned char> buffer =
-      base::OwnedVector<unsigned char>::New(offset + words);
+  base::UniqueArray<unsigned char> buffer =
+      base::UniqueArray<unsigned char>::New(offset + words);
   for (int i = 0; i < words; i++) {
     const int index = TwoBits::index(offset, i);
     unsigned char data = buffer[index];
@@ -126,8 +127,8 @@ TEST(SNPrintF) {
   int length = static_cast<int>(strlen(s));
   for (int i = 1; i < length * 2; i++) {
     static const char kMarker = static_cast<char>(42);
-    base::OwnedVector<char> buffer =
-        base::OwnedVector<char>::NewForOverwrite(i + 1);
+    base::UniqueArray<char> buffer =
+        base::UniqueArray<char>::NewForOverwrite(i + 1);
     buffer[i] = kMarker;
     int n = SNPrintF(base::Vector<char>(buffer.begin(), i), "%s", s);
     CHECK(n <= i);
@@ -199,7 +200,7 @@ TEST(Collector) {
       block[i] = i * 7;
     }
   }
-  base::OwnedVector<int> result = collector.ToVector();
+  base::UniqueArray<int> result = collector.ToVector();
   CHECK_EQ(kLoops * (kBlockSize + kSequentialSize), result.size());
   for (int i = 0; i < kLoops; i++) {
     int offset = i * (kSequentialSize + kBlockSize);
@@ -231,7 +232,7 @@ TEST(SequenceCollector) {
     }
     total_length += seq_length;
   }
-  base::OwnedVector<int> result = collector.ToVector();
+  base::UniqueArray<int> result = collector.ToVector();
   CHECK_EQ(total_length, result.size());
   int offset = 0;
   for (int loop = 0; loop < kLoops; loop++) {

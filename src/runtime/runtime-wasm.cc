@@ -4,6 +4,7 @@
 
 #include <optional>
 
+#include "src/base/unique-array.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/data-view-ops.h"
 #include "src/common/assert-scope.h"
@@ -2169,9 +2170,9 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   // Arrays on the heap can move on GC, so we create an immovable copy of
   // the data we'll need to decode.
   uint32_t length = data->length();
-  base::OwnedVector<uint8_t> immovable_data;
+  base::UniqueArray<uint8_t> immovable_data;
   if (length) {
-    immovable_data = base::OwnedCopyOf(
+    immovable_data = base::UniqueCopyOf(
         reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
   }
 

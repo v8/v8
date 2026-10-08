@@ -8,6 +8,7 @@
 
 #include "src/base/bounds.h"
 #include "src/base/iterator.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -504,13 +505,13 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
   }
 }
 
-base::OwnedVector<uint8_t> CodeGenerator::GetSourcePositionTable() {
+base::UniqueArray<uint8_t> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTableVector();
 }
 
-base::OwnedVector<uint8_t> CodeGenerator::GetTrappingInstructionsData() {
+base::UniqueArray<uint8_t> CodeGenerator::GetTrappingInstructionsData() {
 #if V8_ENABLE_WEBASSEMBLY
-  return base::OwnedCopyOf(
+  return base::UniqueCopyOf(
       base::Vector<uint8_t>::cast(base::VectorOf(trapping_instructions_)));
 #else
   return {};
@@ -1132,7 +1133,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
+base::UniqueArray<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   CHECK_EQ(result_, kSuccess);
   int deopt_count = static_cast<int>(deoptimization_exits_.size());
   if (deopt_count == 0) {
@@ -1144,7 +1145,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   DCHECK_EQ(inlined_function_count_, 0);
 
   auto deopt_entries =
-      base::OwnedVector<wasm::WasmDeoptEntry>::New(deopt_count);
+      base::UniqueArray<wasm::WasmDeoptEntry>::New(deopt_count);
   // Populate deoptimization entries.
   for (int i = 0; i < deopt_count; i++) {
     const DeoptimizationExit* deoptimization_exit = deoptimization_exits_[i];
@@ -1156,7 +1157,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
 
   base::Vector<const uint8_t> frame_translations =
       translations_.ToFrameTranslationWasm();
-  base::OwnedVector<uint8_t> result = wasm::WasmDeoptDataProcessor::Serialize(
+  base::UniqueArray<uint8_t> result = wasm::WasmDeoptDataProcessor::Serialize(
       deopt_exit_start_offset_, eager_deopt_count_, frame_translations,
       base::VectorOf(deopt_entries), deoptimization_literals_);
 #if DEBUG
@@ -1184,7 +1185,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   return result;
 }
 
-base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmEffectHandlers() {
+base::UniqueArray<uint8_t> CodeGenerator::GenerateWasmEffectHandlers() {
   size_t size = 0;
   for (size_t i = 0; i < effect_handlers_.size(); ++i) {
     size += wasm::LEBHelper::sizeof_u32v(effect_handlers_[i].pc_offset);
@@ -1195,7 +1196,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmEffectHandlers() {
       size += wasm::LEBHelper::sizeof_u32v(effect_handlers_[i].sig.index);
     }
   }
-  auto bytes = base::OwnedVector<uint8_t>::New(size);
+  auto bytes = base::UniqueArray<uint8_t>::New(size);
   uint8_t* ptr = bytes.data();
   for (size_t i = 0; i < effect_handlers_.size(); ++i) {
     wasm::LEBHelper::write_u32v(&ptr, effect_handlers_[i].pc_offset);

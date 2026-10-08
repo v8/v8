@@ -143,7 +143,7 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
      packing.
    - **Types & containers**: Strong types / `enum class` / `base::Flags` over
      boolean flags; V8 containers (`base::SmallVector`, `base::Vector`,
-     `base::OwnedVector`, `absl::flat_hash_map`, `absl::flat_hash_set`,
+     `base::UniqueArray`, `absl::flat_hash_map`, `absl::flat_hash_set`,
      `base::FunctionRef`).
 
 7. `tests`:

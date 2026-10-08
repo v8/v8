@@ -57,6 +57,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/constants-arch.h"
@@ -9581,7 +9582,7 @@ void Simulator::PushShadowStack(uintptr_t value) {
     size_t old_size = shadow_stack_.size();
     size_t new_size = old_size * 2;
     size_t new_ssp = new_size - old_size;
-    auto new_stack = base::OwnedVector<uintptr_t>::New(new_size);
+    auto new_stack = base::UniqueArray<uintptr_t>::New(new_size);
     new_stack.as_vector().SubVectorFrom(new_ssp).OverwriteWith(
         shadow_stack_.as_vector());
     shadow_stack_ = std::move(new_stack);

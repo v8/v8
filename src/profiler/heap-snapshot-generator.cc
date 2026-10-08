@@ -11,6 +11,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
+#include "src/base/unique-array.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/assembler-inl.h"
@@ -4378,7 +4379,7 @@ void HeapSnapshotJSONSerializer::SerializeSamples() {
 
 void HeapSnapshotJSONSerializer::SerializeStrings() {
   auto sorted_strings =
-      base::OwnedVector<const unsigned char*>::NewForOverwrite(
+      base::UniqueArray<const unsigned char*>::NewForOverwrite(
           strings_.occupancy() + 1);
   for (base::HashMap::Entry* entry = strings_.Start(); entry != nullptr;
        entry = strings_.Next(entry)) {

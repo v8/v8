@@ -19,6 +19,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/base/build_config.h"
+#include "src/base/unique-array.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-buffer.h"
@@ -3480,8 +3481,8 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
     i::wasm::ErrorThrower thrower(i_isolate(), "MakeWasm");
     auto enabled_features =
         i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
-    base::OwnedVector<const uint8_t> wire_bytes =
-        base::OwnedCopyOf(kIncrementerWasm);
+    base::UniqueArray<const uint8_t> wire_bytes =
+        base::UniqueCopyOf(kIncrementerWasm);
     i::MaybeDirectHandle<i::JSObject> compiled =
         i::wasm::GetWasmEngine()->SyncCompile(i_isolate(), enabled_features,
                                               i::wasm::CompileTimeImports{},

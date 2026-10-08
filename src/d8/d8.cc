@@ -54,6 +54,7 @@
 #include "src/base/sanitizer/msan.h"
 #include "src/base/strong-alias.h"
 #include "src/base/sys-info.h"
+#include "src/base/unique-array.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -2352,7 +2353,7 @@ bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
   TryCatch try_catch(isolate);
 
   std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
-  base::OwnedVector<char> data = ReadChars(absolute_path.c_str());
+  base::UniqueArray<char> data = ReadChars(absolute_path.c_str());
   if (data.data() == nullptr) {
     printf("Error reading '%s'\n", file_name);
     base::OS::ExitProcess(1);
@@ -3557,13 +3558,13 @@ void Shell::WasmDeserializeModule(
   // deserialization.
   // For the wire bytes, we need a new copy anyway for storing in the new
   // NativeModule (if it does not come from the cache).
-  base::OwnedVector<const uint8_t> wire_bytes_vec = ([&] {
+  base::UniqueArray<const uint8_t> wire_bytes_vec = ([&] {
     size_t length = wire_bytes_view->ByteLength();
-    auto vec = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+    auto vec = base::UniqueArray<uint8_t>::NewForOverwrite(length);
     CHECK_EQ(length, wire_bytes_view->CopyContents(vec.data(), length));
-    return vec;  // `OwnedVector<uint8_t>` to `OwnedVector<const uint8_t>`.
+    return vec;  // `UniqueArray<uint8_t>` to `UniqueArray<const uint8_t>`.
   })();
-  base::OwnedVector<uint8_t> serialized_bytes_vec = base::OwnedCopyOf(
+  base::UniqueArray<uint8_t> serialized_bytes_vec = base::UniqueCopyOf(
       reinterpret_cast<uint8_t*>(serialized_bytes_buffer->Data()),
       serialized_bytes_buffer->ByteLength());
 
@@ -5795,7 +5796,7 @@ V8_NOINLINE void FuzzerMonitor::UseOfUninitializedValue() {
 #endif
 }
 
-base::OwnedVector<char> Shell::ReadChars(const char* name) {
+base::UniqueArray<char> Shell::ReadChars(const char* name) {
   if (options.read_from_tcp_port >= 0) {
     return ReadCharsFromTcpPort(name);
   }
@@ -5807,22 +5808,21 @@ base::OwnedVector<char> Shell::ReadChars(const char* name) {
   size_t size = ftell(file);
   rewind(file);
 
-  char* chars = new char[size];
+  auto chars = base::UniqueArray<char>::NewForOverwrite(size);
   for (size_t i = 0; i < size;) {
     i += fread(&chars[i], 1, size - i, file);
     if (ferror(file)) {
       base::Fclose(file);
-      delete[] chars;
       return {};
     }
   }
   base::Fclose(file);
-  return base::OwnedVector<char>(std::unique_ptr<char[]>(chars), size);
+  return chars;
 }
 
 MaybeLocal<PrimitiveArray> Shell::ReadLines(Isolate* isolate,
                                             const char* name) {
-  base::OwnedVector<char> data = ReadChars(name);
+  base::UniqueArray<char> data = ReadChars(name);
 
   if (data.data() == nullptr) {
     return MaybeLocal<PrimitiveArray>();
@@ -5858,7 +5858,7 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
   SafeUtf8Value filename(isolate, info[0]);
   if (!filename) return;
 
-  base::OwnedVector<char> data = ReadChars(*filename);
+  base::UniqueArray<char> data = ReadChars(*filename);
   if (data.data() == nullptr) {
     std::ostringstream error_msg;
     error_msg << "Error reading file \""
@@ -8491,7 +8491,7 @@ int Shell::Main(int argc, char* argv[]) {
       if (options.trace_enabled) {
         platform::tracing::TraceConfig* trace_config;
         if (options.trace_config) {
-          base::OwnedVector<char> trace_config_json_str =
+          base::UniqueArray<char> trace_config_json_str =
               ReadChars(options.trace_config);
           if (trace_config_json_str.data() == nullptr) {
             printf("Failed to read trace config from '%s'\n",

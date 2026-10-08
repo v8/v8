@@ -10,6 +10,7 @@
 #include "src/base/bits.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/allocation.h"
@@ -37,8 +38,8 @@ const char* StringsStorage::GetCopy(const char* src) {
   int len = static_cast<int>(strlen(src));
   base::HashMap::Entry* entry = GetEntry(src, len);
   if (entry->value == nullptr) {
-    base::OwnedVector<char> dst =
-        base::OwnedVector<char>::NewForOverwrite(len + 1);
+    base::UniqueArray<char> dst =
+        base::UniqueArray<char>::NewForOverwrite(len + 1);
     base::StrNCpy(dst.as_vector(), src, len);
     dst[len] = '\0';
     entry->key = dst.ReleaseData().release();
@@ -79,8 +80,8 @@ const char* StringsStorage::GetCopy(const AstRawString* src) {
   base::MutexGuard guard(&mutex_);
   base::HashMap::Entry* entry = GetEntry(utf8_buffer.data(), bytes_written);
   if (entry->value == nullptr) {
-    base::OwnedVector<char> dst =
-        base::OwnedVector<char>::NewForOverwrite(bytes_written + 1);
+    base::UniqueArray<char> dst =
+        base::UniqueArray<char>::NewForOverwrite(bytes_written + 1);
     base::StrNCpy(dst.as_vector(), utf8_buffer.data(), bytes_written);
     dst[bytes_written] = '\0';
     entry->key = dst.ReleaseData().release();
@@ -115,7 +116,7 @@ const char* StringsStorage::AddOrDisposeString(char* str, size_t len) {
 }
 
 const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
-  base::OwnedVector<char> str = base::OwnedVector<char>::NewForOverwrite(4096);
+  base::UniqueArray<char> str = base::UniqueArray<char>::NewForOverwrite(4096);
   int len = base::VSNPrintF(str.as_vector(), format, args);
   size_t str_len = (len == -1) ? strlen(str.begin()) : static_cast<size_t>(len);
   return AddOrDisposeString(str.ReleaseData().release(), str_len);

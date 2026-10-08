@@ -7,6 +7,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "test/cctest/test-api.h"
 
 using ::v8::Array;
@@ -746,7 +747,7 @@ TEST(SourceURLInStackTrace) {
       "}\n"
       "eval('(' + outer +')()%s');";
 
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto code = v8::base::UniqueArray<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=eval_url");
   CHECK(CompileRun(code.begin())->IsUndefined());
   v8::base::SNPrintF(code.as_vector(), source, "//@ sourceURL=eval_url");
@@ -1753,7 +1754,7 @@ TEST(InlineScriptWithSourceURLInStackTrace) {
       "}\n"
       "outer()\n%s";
 
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto code = v8::base::UniqueArray<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 1)->IsUndefined());
   v8::base::SNPrintF(code.as_vector(), source, "//@ sourceURL=source_url");
@@ -1798,7 +1799,7 @@ TEST(DynamicWithSourceURLInStackTrace) {
       "}\n"
       "outer()\n%s";
 
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto code = v8::base::UniqueArray<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 0)->IsUndefined());
   v8::base::SNPrintF(code.as_vector(), source, "//@ sourceURL=source_url");
@@ -1818,7 +1819,7 @@ TEST(DynamicWithSourceURLInStackTraceString) {
       "}\n"
       "outer()\n%s";
 
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto code = v8::base::UniqueArray<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=source_url");
   v8::TryCatch try_catch(context.isolate());
   CompileRunWithOrigin(code.begin(), "", 0, 0);

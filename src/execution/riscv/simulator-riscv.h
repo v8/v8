@@ -77,6 +77,7 @@ typedef unsigned __uint128_t __attribute__((__mode__(__TI__)));
 // Running with a simulator.
 
 #include "src/base/hashmap.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constants-arch.h"
 #include "src/execution/simulator-base.h"
@@ -1289,8 +1290,8 @@ class Simulator : public SimulatorBase {
   // Floating-point control and status register.
   uint32_t FCSR_;
 
-  base::OwnedVector<uintptr_t> shadow_stack_ =
-      base::OwnedVector<uintptr_t>::New(kInitialShadowStackSize);
+  base::UniqueArray<uintptr_t> shadow_stack_ =
+      base::UniqueArray<uintptr_t>::New(kInitialShadowStackSize);
   size_t csr_ssp_ = shadow_stack_.size();  // Shadow stack pointer
   int64_t ss_mismatch_count_ = 0;
 

@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/compiler/pipeline.h"
 #include "src/diagnostics/code-tracer.h"
@@ -404,8 +405,8 @@ uint32_t TestingModuleBuilder::AddBytes(base::Vector<const uint8_t> bytes) {
   // set", e.g. for function names.
   uint32_t bytes_offset = old_size ? old_size : 1;
   size_t new_size = bytes_offset + bytes.size();
-  base::OwnedVector<uint8_t> new_bytes =
-      base::OwnedVector<uint8_t>::New(new_size);
+  base::UniqueArray<uint8_t> new_bytes =
+      base::UniqueArray<uint8_t>::New(new_size);
   if (old_size > 0) {
     memcpy(new_bytes.begin(), old_bytes.begin(), old_size);
   } else {
@@ -491,7 +492,7 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
       module_, code_size_estimate);
   // Reset the declared functions; functions will be added later in the test.
   module_->num_declared_functions = 0;
-  native_module->SetWireBytes(base::OwnedVector<const uint8_t>());
+  native_module->SetWireBytes(base::UniqueArray<const uint8_t>());
   native_module->compilation_state()->set_compilation_id(0);
   constexpr base::Vector<const char> kNoSourceUrl{"", 0};
   DirectHandle<Script> script =
@@ -546,7 +547,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
 
   CompilationEnv env = CompilationEnv::ForModule(native_module);
   auto func_wire_bytes =
-      base::OwnedVector<uint8_t>::NewForOverwrite(function_->code.length());
+      base::UniqueArray<uint8_t>::NewForOverwrite(function_->code.length());
   memcpy(func_wire_bytes.begin(), wire_bytes.begin() + function_->code.offset(),
          func_wire_bytes.size());
 

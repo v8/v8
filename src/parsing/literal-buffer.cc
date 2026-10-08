@@ -5,6 +5,7 @@
 #include "src/parsing/literal-buffer.h"
 
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/heap/factory.h"
@@ -36,8 +37,8 @@ size_t LiteralBuffer::NewCapacity(size_t min_capacity) {
 
 void LiteralBuffer::ExpandBuffer() {
   size_t min_capacity = std::max(kInitialCapacity, backing_store_.size());
-  base::OwnedVector<uint8_t> new_store =
-      base::OwnedVector<uint8_t>::NewForOverwrite(NewCapacity(min_capacity));
+  base::UniqueArray<uint8_t> new_store =
+      base::UniqueArray<uint8_t>::NewForOverwrite(NewCapacity(min_capacity));
   if (position_ > 0) {
     MemCopy(new_store.begin(), backing_store_.begin(), position_);
   }
@@ -57,8 +58,8 @@ void LiteralBuffer::ExpandBufferTo(size_t min_size) {
   size_t min_capacity = RoundUp<2>(min_size);
   min_capacity =
       std::max({kInitialCapacity, backing_store_.size(), min_capacity});
-  base::OwnedVector<uint8_t> new_store =
-      base::OwnedVector<uint8_t>::NewForOverwrite(NewCapacity(min_capacity));
+  base::UniqueArray<uint8_t> new_store =
+      base::UniqueArray<uint8_t>::NewForOverwrite(NewCapacity(min_capacity));
   if (position_ > 0) {
     MemCopy(new_store.begin(), backing_store_.begin(), position_);
   }
@@ -67,13 +68,13 @@ void LiteralBuffer::ExpandBufferTo(size_t min_size) {
 
 void LiteralBuffer::ConvertToTwoByte() {
   DCHECK(is_one_byte());
-  base::OwnedVector<uint8_t> new_store;
+  base::UniqueArray<uint8_t> new_store;
   uint8_t* dst_bytes = backing_store_.begin();
   size_t new_content_size = position_ * base::kUC16Size;
   if (new_content_size >= backing_store_.size()) {
     // Ensure room for all currently read code units as UC16 as well
     // as the code unit about to be stored.
-    new_store = base::OwnedVector<uint8_t>::NewForOverwrite(
+    new_store = base::UniqueArray<uint8_t>::NewForOverwrite(
         NewCapacity(new_content_size));
     dst_bytes = new_store.begin();
   }

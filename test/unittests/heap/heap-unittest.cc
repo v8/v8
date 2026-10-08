@@ -28,6 +28,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
@@ -2423,7 +2424,7 @@ TEST_F(HeapTest, OptimizedPretenuringNestedDoubleLiterals) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
   base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
@@ -2473,7 +2474,7 @@ TEST_F(HeapTest, OptimizedPretenuringNestedInObjectProperties) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
   base::SNPrintF(
       source.as_vector(),
       "let number_elements = %d;"
@@ -2516,7 +2517,7 @@ TEST_F(HeapTest, OptimizedPretenuringNestedObjectLiterals) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
   base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
@@ -2566,7 +2567,7 @@ TEST_F(HeapTest, OptimizedPretenuringMixedInObjectProperties) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
   base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
@@ -2617,7 +2618,7 @@ TEST_F(HeapTest, OptimizedPretenuringDoubleArrayLiterals) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
   base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
@@ -2660,7 +2661,7 @@ TEST_F(HeapTest, OptimizedPretenuringNestedMixedArrayLiterals) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
   base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"

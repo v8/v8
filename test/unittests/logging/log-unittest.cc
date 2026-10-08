@@ -35,6 +35,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/vm-state-inl.h"
@@ -299,7 +300,7 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
  public:
   explicit SimpleExternalString(const char* source) {
     size_t len = strlen(source);
-    utf_source_ = base::OwnedVector<uint16_t>::NewForOverwrite(len);
+    utf_source_ = base::UniqueArray<uint16_t>::NewForOverwrite(len);
     std::copy(source, source + len, utf_source_.data());
   }
   ~SimpleExternalString() override = default;
@@ -307,7 +308,7 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
   const uint16_t* data() const override { return utf_source_.begin(); }
 
  private:
-  v8::base::OwnedVector<uint16_t> utf_source_;
+  v8::base::UniqueArray<uint16_t> utf_source_;
 };
 
 }  // namespace

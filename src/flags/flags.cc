@@ -24,6 +24,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/cpu-features.h"
 #include "src/flags/flags-impl.h"
 #include "src/logging/tracing-flags.h"
@@ -928,7 +929,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
   }
 
   // Allocate argument array.
-  auto argv = base::OwnedVector<char*>::NewForOverwrite(argc);
+  auto argv = base::UniqueArray<char*>::NewForOverwrite(argc);
 
   // Split the flags string into arguments.
   argc = 1;  // be compatible with SetFlagsFromCommandLine()

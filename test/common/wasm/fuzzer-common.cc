@@ -24,6 +24,7 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-metrics.h"
+#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/objects/managed.h"
@@ -475,7 +476,7 @@ MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
   native_module = GetWasmEngine()->NewNativeModule(
       isolate, enabled_features, detected_features,
       CompileTimeImportsForFuzzing(), module, code_size_estimate);
-  native_module->SetWireBytes(base::OwnedCopyOf(wire_bytes));
+  native_module->SetWireBytes(base::UniqueCopyOf(wire_bytes));
 
   // The value is -3 so that it is different than the compilation ID of actual
   // compilations, different than the sentinel value of the CompilationState
@@ -747,7 +748,7 @@ bool sparse_memory_equal(uint8_t* addr1, uint8_t* addr2, size_t total_length) {
 #endif
   // Allocate storage for the two residency vectors.
   auto storage =
-      base::OwnedVector<residency_type>::NewForOverwrite(2 * num_pages);
+      base::UniqueArray<residency_type>::NewForOverwrite(2 * num_pages);
   residency_type* vec1 = storage.data();
   residency_type* vec2 = vec1 + num_pages;
 
@@ -1115,7 +1116,7 @@ int ExecuteAgainstReference(Isolate* isolate,
     MaybeDirectHandle<WasmModuleObject> maybe_module =
         GetWasmEngine()->SyncCompile(isolate, enabled_features,
                                      CompileTimeImportsForFuzzing(), &thrower,
-                                     base::OwnedCopyOf(wire_bytes));
+                                     base::UniqueCopyOf(wire_bytes));
     module_object_traced = maybe_module.ToHandleChecked();
     CHECK(!thrower.error());
   }
@@ -1443,7 +1444,7 @@ int SyncCompileAndExecuteAgainstReference(
   MaybeDirectHandle<WasmModuleObject> compiled_module =
       GetWasmEngine()->SyncCompile(i_isolate, enabled_features,
                                    CompileTimeImportsForFuzzing(), &thrower,
-                                   base::OwnedCopyOf(wire_bytes));
+                                   base::UniqueCopyOf(wire_bytes));
   CHECK_EQ(valid, !compiled_module.is_null());
   CHECK_EQ(!valid, thrower.error());
   if (require_valid && !valid) {

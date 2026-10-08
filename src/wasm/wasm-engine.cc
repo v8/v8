@@ -9,6 +9,7 @@
 #include "src/base/hashing.h"
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -647,7 +648,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
 MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
-    base::OwnedVector<const uint8_t> bytes,
+    base::UniqueArray<const uint8_t> bytes,
     base::Vector<const char> source_url) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
@@ -764,7 +765,7 @@ void WasmEngine::AsyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled,
     CompileTimeImports compile_imports,
     std::shared_ptr<CompilationResultResolver> resolver,
-    base::OwnedVector<const uint8_t> bytes,
+    base::UniqueArray<const uint8_t> bytes,
     const char* api_method_name_for_errors) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT("v8.wasm", "wasm.AsyncCompile", "id", compilation_id);
@@ -1049,7 +1050,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
     ErrorThrower thrower(isolate, "WasmEngine::ImportNativeModule");
     return SyncCompile(
         isolate, native_module->enabled_features(), target_imports, &thrower,
-        base::OwnedCopyOf(native_module->wire_bytes()), source_url);
+        base::UniqueCopyOf(native_module->wire_bytes()), source_url);
   }
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   DirectHandle<Script> script =
@@ -1127,7 +1128,7 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
-    base::OwnedVector<const uint8_t> bytes, const char* api_method_name,
+    base::UniqueArray<const uint8_t> bytes, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
   AsyncCompileJob* job =
       new AsyncCompileJob(enabled, std::move(compile_imports), std::move(bytes),

@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/enum-set.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/assembler-inl.h"
 // TODO(clemensb): Remove dependences on compiler stuff.
 #include "src/codegen/external-reference.h"
@@ -942,12 +943,12 @@ class LiftoffCompiler {
     return std::move(frame_description_);
   }
 
-  base::OwnedVector<uint8_t> GetSourcePositionTable() {
+  base::UniqueArray<uint8_t> GetSourcePositionTable() {
     return source_position_table_builder_.ToSourcePositionTableVector();
   }
 
-  base::OwnedVector<uint8_t> GetTrappingInstructionsData() const {
-    return base::OwnedCopyOf(base::Vector<const uint8_t>::cast(
+  base::UniqueArray<uint8_t> GetTrappingInstructionsData() const {
+    return base::UniqueCopyOf(base::Vector<const uint8_t>::cast(
         base::VectorOf(trapping_instructions_)));
   }
 
@@ -1604,10 +1605,10 @@ class LiftoffCompiler {
       FunctionTypeFeedback& function_feedback =
           type_feedback.feedback_for_function[func_index_];
       function_feedback.liftoff_frame_size = __ GetTotalFrameSize();
-      base::OwnedVector<uint32_t>& call_targets =
+      base::UniqueArray<uint32_t>& call_targets =
           function_feedback.call_targets;
       if (call_targets.empty()) {
-        call_targets = base::OwnedCopyOf(encountered_call_instructions_);
+        call_targets = base::UniqueCopyOf(encountered_call_instructions_);
       } else {
         DCHECK_EQ(call_targets.as_vector(),
                   base::VectorOf(encountered_call_instructions_));
@@ -4892,11 +4893,11 @@ class LiftoffCompiler {
     }
   }
 
-  base::OwnedVector<ValueType> GetStackValueTypesForDebugging(
+  base::UniqueArray<ValueType> GetStackValueTypesForDebugging(
       FullDecoder* decoder) {
     DCHECK(for_debugging_);
     auto stack_value_types =
-        base::OwnedVector<ValueType>::NewForOverwrite(decoder->stack_size());
+        base::UniqueArray<ValueType>::NewForOverwrite(decoder->stack_size());
 
     int depth = 0;
     for (ValueType& type : base::Reversed(stack_value_types)) {
@@ -4905,7 +4906,7 @@ class LiftoffCompiler {
     return stack_value_types;
   }
 
-  base::OwnedVector<DebugSideTable::Entry::Value>
+  base::UniqueArray<DebugSideTable::Entry::Value>
   GetCurrentDebugSideTableEntries(
       FullDecoder* decoder,
       DebugSideTableBuilder::AssumeSpilling assume_spilling) {
@@ -4924,7 +4925,7 @@ class LiftoffCompiler {
 #endif
 
     auto values =
-        base::OwnedVector<DebugSideTable::Entry::Value>::NewForOverwrite(
+        base::UniqueArray<DebugSideTable::Entry::Value>::NewForOverwrite(
             stack_state.size());
 
     int index = 0;
@@ -11432,7 +11433,7 @@ class LiftoffCompiler {
   compiler::CallDescriptor* const descriptor_;
   CompilationEnv* const env_;
   DebugSideTableBuilder* const debug_sidetable_builder_;
-  base::OwnedVector<ValueType> stack_value_types_for_debugging_;
+  base::UniqueArray<ValueType> stack_value_types_for_debugging_;
   const ForDebugging for_debugging_;
   LiftoffBailoutReason bailout_reason_ = kNoReason;
   const int func_index_;

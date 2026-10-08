@@ -27,7 +27,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
-#include "src/base/vector.h"
+#include "src/base/unique-array.h"
 #include "src/d8/async-hooks-wrapper.h"
 // For V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT.
 #include "src/d8/hardware-watchpoints.h"
@@ -819,7 +819,7 @@ class Shell : public i::AllStatic {
   static void ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void CreateWasmMemoryMapDescriptor(
       const v8::FunctionCallbackInfo<v8::Value>& info);
-  static base::OwnedVector<char> ReadChars(const char* name);
+  static base::UniqueArray<char> ReadChars(const char* name);
   static MaybeLocal<PrimitiveArray> ReadLines(Isolate* isolate,
                                               const char* name);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -933,7 +933,7 @@ class Shell : public i::AllStatic {
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
 
-  static base::OwnedVector<char> ReadCharsFromTcpPort(const char* name);
+  static base::UniqueArray<char> ReadCharsFromTcpPort(const char* name);
 
   static void set_script_executed() { script_executed_.store(true); }
   static bool ChangeWorkingDirectory(const std::string& path,

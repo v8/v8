@@ -63,6 +63,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
+#include "src/base/unique-array.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/common/globals.h"
 #include "src/compiler/globals.h"
@@ -231,7 +232,7 @@ THREADED_TEST(IsolateOfContext) {
 
 static void TestSignatureLooped(const char* operation, Local<Value> receiver,
                                 v8::Isolate* isolate) {
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(200);
+  auto source = v8::base::UniqueArray<char>::NewForOverwrite(200);
   v8::base::SNPrintF(source.as_vector(),
                      "for (var i = 0; i < 10; i++) {"
                      "  %s"
@@ -258,7 +259,7 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
 
 static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
                                    v8::Isolate* isolate) {
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(200);
+  auto source = v8::base::UniqueArray<char>::NewForOverwrite(200);
   v8::base::SNPrintF(source.as_vector(),
                      "function test() {"
                      "  %s"
@@ -382,7 +383,7 @@ THREADED_TEST(ReceiverSignature) {
       "unrelated",    "inherited",        "inherited_direct"};
   unsigned bad_signature_start_offset = 3;
   for (unsigned i = 0; i < arraysize(test_objects); i++) {
-    auto source = v8::base::OwnedVector<char>::NewForOverwrite(200);
+    auto source = v8::base::UniqueArray<char>::NewForOverwrite(200);
     v8::base::SNPrintF(source.as_vector(), "var test_object = %s; test_object",
                        test_objects[i]);
     Local<Value> test_object = CompileRun(source.begin());
@@ -3274,7 +3275,7 @@ THREADED_TEST(InternalFieldsOfRegularObjects) {
 
   const char* sources[] = {"new Object()", "{ a: 'a property' }", "arguments"};
   for (size_t i = 0; i < arraysize(sources); ++i) {
-    auto source = v8::base::OwnedVector<char>::NewForOverwrite(128);
+    auto source = v8::base::UniqueArray<char>::NewForOverwrite(128);
     v8::base::SNPrintF(source.as_vector(), "(function() { return %s })()",
                        sources[i]);
     v8::Local<v8::Object> obj = CompileRun(source.begin()).As<v8::Object>();
@@ -4427,7 +4428,7 @@ class TwoPassCallbackData {
         trigger_gc_(false),
         metadata_(metadata) {
     HandleScope scope(isolate);
-    auto buffer = v8::base::OwnedVector<char>::NewForOverwrite(40);
+    auto buffer = v8::base::UniqueArray<char>::NewForOverwrite(40);
     v8::base::SNPrintF(buffer.as_vector(), "%p", static_cast<void*>(this));
     auto string =
         v8::String::NewFromUtf8(isolate, buffer.begin()).ToLocalChecked();
@@ -4552,7 +4553,7 @@ TEST(TwoPassPhantomCallbacksTriggeredByStringAlloc) {
   data->SetWeak();
   CHECK_EQ(metadata.instance_counter, 1);
 
-  auto source = v8::base::OwnedVector<uint8_t>::NewForOverwrite(200000);
+  auto source = v8::base::UniqueArray<uint8_t>::NewForOverwrite(200000);
 
   // In the rest of this test, we need to invoke GC without stack, otherwise the
   // weak references may not be cleared because of conservative stack scanning.
@@ -7732,7 +7733,7 @@ TEST(ExtensionWithSourceLength) {
   for (int source_len = kEmbeddedExtensionSourceValidLen - 1;
        source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
     v8::HandleScope handle_scope(CcTest::isolate());
-    auto extension_name = v8::base::OwnedVector<char>::NewForOverwrite(32);
+    auto extension_name = v8::base::UniqueArray<char>::NewForOverwrite(32);
     v8::base::SNPrintF(extension_name.as_vector(), "ext #%d", source_len);
     v8::RegisterExtension(std::make_unique<Extension>(extension_name.begin(),
                                                       kEmbeddedExtensionSource,
@@ -11306,7 +11307,7 @@ THREADED_TEST(Regress91517) {
   t4->InstanceTemplate()->Set(isolate, "baz", v8_num(4));
 
   // Force dictionary-based properties.
-  auto name_buf = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto name_buf = v8::base::UniqueArray<char>::NewForOverwrite(1024);
   for (int i = 1; i <= 1000; i++) {
     v8::base::SNPrintF(name_buf.as_vector(), "sdf%d", i);
     t2->InstanceTemplate()->Set(v8_str(name_buf.begin()), v8_num(2));
@@ -19457,7 +19458,7 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
   LocalContext context(isolate);
-  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto code = v8::base::UniqueArray<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(code.as_vector(),
                      "function fib(n) {"
                      "  if (n <= 2) return 1;"
@@ -22045,7 +22046,7 @@ void CheckCorrectThrow(const char* script) {
   // The subsequent try-catch should run without any exception.
   access_check_fail_thrown = false;
   catch_callback_called = false;
-  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  auto source = v8::base::UniqueArray<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(source.as_vector(),
                      "try { %s; } catch (e) { catcher(e); }", script);
   CompileRun(source.begin());
@@ -22947,7 +22948,7 @@ class ApiCallOptimizationChecker {
       }
     }
     // build wrap_function
-    auto wrap_function = v8::base::OwnedVector<char>::NewForOverwrite(200);
+    auto wrap_function = v8::base::UniqueArray<char>::NewForOverwrite(200);
     if (global) {
       v8::base::SNPrintF(wrap_function.as_vector(),
                          "function wrap_f_%d() { var f = g_f; return f(); }\n"
@@ -22963,7 +22964,7 @@ class ApiCallOptimizationChecker {
           key, key, key);
     }
     // build source string
-    auto source = v8::base::OwnedVector<char>::NewForOverwrite(1000);
+    auto source = v8::base::UniqueArray<char>::NewForOverwrite(1000);
     v8::base::SNPrintF(source.as_vector(),
                        "%s\n"  // wrap functions
                        "function wrap_f() { return wrap_f_%d(); }\n"
@@ -26860,7 +26861,7 @@ TEST(ObjectTemplateArrayProtoIntrinsics) {
   };
 
   for (unsigned i = 0; i < arraysize(intrinsics_comparisons); i++) {
-    auto test_string = v8::base::OwnedVector<char>::NewForOverwrite(64);
+    auto test_string = v8::base::UniqueArray<char>::NewForOverwrite(64);
 
     v8::base::SNPrintF(test_string.as_vector(), "typeof obj1.%s",
                        intrinsics_comparisons[i].object_property_name);
