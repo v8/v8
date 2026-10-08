@@ -3688,9 +3688,10 @@ void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
   __ RestoreVectorRegisters(simd_saves);
   __ PopAll(gp_saves);
 
+  __ Move(sp, fp);
   __ LoadWord(ra, MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
-  __ AddWord(sp, fp, Operand(CommonFrameConstants::kFixedFrameSizeAboveFp));
   __ LoadWord(fp, MemOperand(fp, CommonFrameConstants::kCallerFPOffset));
+  __ AddWord(sp, sp, Operand(CommonFrameConstants::kFixedFrameSizeAboveFp));
   SwitchSimulatorStackLimit(masm);
   __ Ret();
 }
