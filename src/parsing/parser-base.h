@@ -6717,7 +6717,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
       expression = ParseExpressionCoverGrammar();
       // `for (async of` is disallowed but `for (async.x of` is allowed, so
       // check if the token is kAsync after parsing the expression.
-      bool expression_is_async = scanner()->current_token() == Token::kAsync &&
+      bool expression_is_async = impl()->IsIdentifier(expression) &&
+                                 scanner()->current_token() == Token::kAsync &&
                                  !scanner()->literal_contains_escapes();
       // Initializer is reference followed by in/of.
       lhs_end_pos = end_position();
