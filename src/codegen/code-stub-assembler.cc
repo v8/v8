@@ -2051,9 +2051,9 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
   if (tag_range.Size() == 1) {
     // The common and simple case: we expect exactly one tag.
     TNode<IntPtrT> tag_bits = UncheckedCast<IntPtrT>(
-        WordAnd(entry, UintPtrConstant(kExternalPointerTagMask)));
+        WordAnd(entry, UniqueUintPtrConstant(kExternalPointerTagMask)));
     tag_bits = UncheckedCast<IntPtrT>(
-        WordShr(tag_bits, UintPtrConstant(kExternalPointerTagShift)));
+        WordShr(tag_bits, UniqueUintPtrConstant(kExternalPointerTagShift)));
     TNode<Uint32T> tag =
         UncheckedCast<Uint32T>(TruncateIntPtrToInt32(tag_bits));
     TNode<Uint32T> expected_tag = Uint32Constant(tag_range.first);
@@ -2064,7 +2064,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
     UNREACHABLE();
   }
   return UncheckedCast<IntPtrT>(
-      WordAnd(entry, UintPtrConstant(kExternalPointerPayloadMask)));
+      WordAnd(entry, UniqueUintPtrConstant(kExternalPointerPayloadMask)));
 #else
   return LoadObjectField<RawPtrT>(object, offset);
 #endif  // V8_ENABLE_SANDBOX
@@ -2094,8 +2094,8 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 
   TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
   value = UncheckedCast<UintPtrT>(WordOr(
-      value, UintPtrConstant((uint64_t{tag} << kExternalPointerTagShift) |
-                             kExternalPointerMarkBit)));
+      value, UniqueUintPtrConstant((uint64_t{tag} << kExternalPointerTagShift) |
+                                   kExternalPointerMarkBit)));
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), table, table_offset,
                       value);
 #else
@@ -2314,10 +2314,10 @@ TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
 
   if (IsFastIndirectPointerTagRange(tag_range)) {
     uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
-    value = WordAnd(value, UintPtrConstant(mask));
+    value = WordAnd(value, UniqueUintPtrConstant(mask));
   } else {
     TNode<UintPtrT> tag =
-        WordShr(value, UintPtrConstant(kTrustedPointerTableTagShift));
+        WordShr(value, UniqueUintPtrConstant(kTrustedPointerTableTagShift));
 
     TNode<BoolT> is_valid;
     if (tag_range.Size() == 1) {
@@ -2330,7 +2330,8 @@ TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
 
     value = SelectConstant<UintPtrT>(is_valid, value, UintPtrConstant(0));
 
-    value = WordAnd(value, UintPtrConstant(kTrustedPointerTablePayloadMask));
+    value =
+        WordAnd(value, UniqueUintPtrConstant(kTrustedPointerTablePayloadMask));
   }
   return TrustedCast<TrustedObject>(BitcastWordToTagged(value),
                                     "from trusted table");
