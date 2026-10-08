@@ -71,9 +71,9 @@ for (let lane = 0; lane < 8; lane++) {
     const instance = builder.instantiate();
     instance.exports.test();
 
-    const memoryView = new Uint16Array(instance.exports.memory.buffer, 0, 8);
+    const memoryView = new DataView(instance.exports.memory.buffer);
     for (let i = 0; i < 8; i++) {
-      assertEquals(expected[i], memoryView[i],
+      assertEquals(expected[i], memoryView.getUint16(i * 2, true),
                    `Mismatch at lane ${i} (splat lane ${lane}, splat_on_right: ${splat_on_right})`);
     }
   }
