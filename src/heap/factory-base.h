@@ -401,11 +401,11 @@ class FactoryBase {
   Handle<ClassPositions> NewClassPositions(int start, int end);
 
   Handle<SwissNameDictionary> NewSwissNameDictionary(
-      int at_least_space_for = kSwissNameDictionaryInitialCapacity,
+      uint32_t at_least_space_for = kSwissNameDictionaryInitialCapacity,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<SwissNameDictionary> NewSwissNameDictionaryWithCapacity(
-      int capacity, AllocationType allocation);
+      uint32_t capacity, AllocationType allocation);
 
   DirectHandle<FunctionTemplateRareData> NewFunctionTemplateRareData();
 

@@ -3223,7 +3223,7 @@ using NeedsContext = base::StrongAlias<struct NeedsContextTag, bool>;
 constexpr int kInvalidInfoId = -1;
 constexpr int kFunctionLiteralIdTopLevel = 0;
 
-constexpr int kSwissNameDictionaryInitialCapacity = 4;
+constexpr uint32_t kSwissNameDictionaryInitialCapacity = 4;
 
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;

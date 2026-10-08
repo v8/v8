@@ -2714,10 +2714,10 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
 
   meta_table()->ByteArrayVerify(isolate);
 
-  int seen_deleted = 0;
-  int seen_present = 0;
+  uint32_t seen_deleted = 0;
+  uint32_t seen_present = 0;
 
-  for (int i = 0; i < Capacity(); i++) {
+  for (uint32_t i = 0; i < Capacity(); i++) {
     ctrl_t ctrl = GetCtrl(i);
 
     if (IsFull(ctrl) || slow_checks) {
@@ -2756,18 +2756,18 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
 
     // Verify copy of first group at end (= after Capacity() slots) of control
     // table.
-    for (int i = 0; i < std::min(static_cast<int>(Group::kWidth), Capacity());
-         ++i) {
+    for (uint32_t i = 0;
+         i < std::min(static_cast<uint32_t>(Group::kWidth), Capacity()); ++i) {
       CHECK_EQ(CtrlTable()[i], CtrlTable()[Capacity() + i]);
     }
     // If 2 * capacity is smaller than the capacity plus group width, the slots
     // after that must be empty.
-    for (int i = 2 * Capacity(); i < Capacity() + kGroupWidth; ++i) {
+    for (uint32_t i = 2 * Capacity(); i < Capacity() + kGroupWidth; ++i) {
       CHECK_EQ(Ctrl::kEmpty, CtrlTable()[i]);
     }
 
-    for (int enum_index = 0; enum_index < UsedCapacity(); ++enum_index) {
-      int entry = EntryForEnumerationIndex(enum_index);
+    for (uint32_t enum_index = 0; enum_index < UsedCapacity(); ++enum_index) {
+      uint32_t entry = EntryForEnumerationIndex(enum_index);
       CHECK_LT(entry, Capacity());
       ctrl_t ctrl = GetCtrl(entry);
 

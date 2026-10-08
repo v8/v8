@@ -912,7 +912,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       TNode<IntPtrT> index_ptr = Signed(ChangeUint32ToWord(index));
       if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         TNode<Uint32T> capacity =
-            Unsigned(LoadSwissNameDictionaryCapacity(CAST(properties)));
+            LoadSwissNameDictionaryCapacity(CAST(properties));
         GotoIf(Uint32GreaterThanOrEqual(index, capacity), &lookup);
         TNode<Object> key =
             LoadSwissNameDictionaryKey(CAST(properties), index_ptr);

@@ -1385,7 +1385,13 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRaw(int size,
 template <typename Impl>
 Handle<SwissNameDictionary>
 FactoryBase<Impl>::NewSwissNameDictionaryWithCapacity(
-    int capacity, AllocationType allocation) {
+    uint32_t capacity, AllocationType allocation) {
+  if (capacity > SwissNameDictionary::MaxCapacity()) {
+    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %u",
+                                capacity);
+    UNREACHABLE();
+  }
+
   DCHECK(SwissNameDictionary::IsValidCapacity(capacity));
 
   if (capacity == 0) {
@@ -1396,13 +1402,7 @@ FactoryBase<Impl>::NewSwissNameDictionaryWithCapacity(
     return empty_swiss_property_dictionary();
   }
 
-  if (capacity < 0 || capacity > SwissNameDictionary::MaxCapacity()) {
-    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
-                                capacity);
-    UNREACHABLE();
-  }
-
-  int meta_table_length = SwissNameDictionary::MetaTableSizeFor(capacity);
+  uint32_t meta_table_length = SwissNameDictionary::MetaTableSizeFor(capacity);
   DirectHandle<ByteArray> meta_table =
       impl()->NewByteArray(meta_table_length, allocation);
 
@@ -1417,7 +1417,7 @@ FactoryBase<Impl>::NewSwissNameDictionaryWithCapacity(
 
 template <typename Impl>
 Handle<SwissNameDictionary> FactoryBase<Impl>::NewSwissNameDictionary(
-    int at_least_space_for, AllocationType allocation) {
+    uint32_t at_least_space_for, AllocationType allocation) {
   return NewSwissNameDictionaryWithCapacity(
       SwissNameDictionary::CapacityFor(at_least_space_for), allocation);
 }

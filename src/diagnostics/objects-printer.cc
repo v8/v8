@@ -1787,7 +1787,7 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
 
   std::ios_base::fmtflags sav_flags = os.flags();
   os << "\n - ctrl table (omitting buckets where key is hole value): {";
-  for (int i = 0; i < this->Capacity() + kGroupWidth; i++) {
+  for (uint32_t i = 0; i < this->Capacity() + kGroupWidth; i++) {
     ctrl_t ctrl = CtrlTable()[i];
 
     if (ctrl == Ctrl::kEmpty) continue;
@@ -1813,14 +1813,15 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
   os << "\n }";
 
   os << "\n - enumeration table: {";
-  for (int enum_index = 0; enum_index < this->UsedCapacity(); enum_index++) {
-    int entry = EntryForEnumerationIndex(enum_index);
+  for (uint32_t enum_index = 0; enum_index < this->UsedCapacity();
+       enum_index++) {
+    uint32_t entry = EntryForEnumerationIndex(enum_index);
     os << "\n   " << std::setw(12) << std::dec << enum_index << ": " << entry;
   }
   os << "\n }";
 
   os << "\n - data table (omitting slots where key is the hole): {";
-  for (int bucket = 0; bucket < this->Capacity(); ++bucket) {
+  for (uint32_t bucket = 0; bucket < this->Capacity(); ++bucket) {
     Tagged<Object> k;
     if (!this->ToKey(GetReadOnlyRoots(), bucket, &k)) continue;
 
