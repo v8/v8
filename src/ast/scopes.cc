@@ -1763,6 +1763,8 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   sloppy_block_functions_.Clear();
   rare_data_ = nullptr;
   set_has_rest(false);
+  set_has_using_declaration(false);
+  set_has_await_using_declaration(false);
   function_ = nullptr;
 
   DCHECK_NE(zone(), ast_value_factory->single_parse_zone());
