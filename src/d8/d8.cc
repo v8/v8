@@ -5769,7 +5769,9 @@ V8_NOINLINE void FuzzerMonitor::ControlFlowViolation() {
 
 V8_NOINLINE void FuzzerMonitor::DCheck() {
   // Caught in debug builds.
-  DCHECK(false);
+  constexpr bool kSimulatedDcheckError = false;
+  USE(kSimulatedDcheckError);
+  DCHECK(kSimulatedDcheckError);
 }
 
 V8_NOINLINE void FuzzerMonitor::Fatal() {
