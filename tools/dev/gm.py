@@ -461,6 +461,8 @@ def _write(filename, content, log=True):
 
 
 def _notify(summary, body):
+  if QUIET:
+    return
   if (shutil.which('notify-send') is not None and
       os.environ.get("DISPLAY") is not None):
     _call(f"notify-send '{summary}' '{body}'", silent=True)
