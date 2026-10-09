@@ -222,35 +222,53 @@ class DebugInfoImpl {
     return offset;
   }
 
-  // Find the dead breakpoint (see above) for the top Wasm frame, if that frame
-  // is in the function of the given index.
-  int DeadBreakpoint(int func_index, base::Vector<const int> breakpoints,
-                     Isolate* isolate) {
+  // Find the dead breakpoints (see above) for all Wasm frames of the given
+  // function that are currently paused at a breakpoint.
+  std::vector<int> DeadBreakpoints(int func_index,
+                                   base::Vector<const int> breakpoints,
+                                   Isolate* isolate) {
     auto isolate_it = per_isolate_data_.find(isolate);
     StackFrameId stepping_frame = isolate_it == per_isolate_data_.end()
                                       ? NO_ID
                                       : isolate_it->second.stepping_frame;
 
-    for (DebuggableStackFrameIterator it(isolate); !it.done(); it.Advance()) {
-      if (it.frame()->id() == stepping_frame) continue;
-      if (!it.is_wasm()) continue;
+    std::vector<int> dead_breakpoints;
+    for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+      if (!it.frame()->is_wasm_debug_break()) continue;
+      bool at_trap = it.frame()->LookupCode()->builtin_id() ==
+                     Builtin::kWasmTrapHandlerThrowTrap;
+      it.Advance();
+      CHECK(!it.done());
+      // Frames paused at a trap (rather than a breakpoint) are patched using
+      // kAfterWasmCall and do not need a dead breakpoint; skip the underlying
+      // Wasm frame.
+      if (at_trap) continue;
+      if (!it.frame()->is_wasm()) continue;
 #if V8_ENABLE_DRUMBRAKE
       // TODO(paolosev@microsoft.com) - Implement for Wasm interpreter.
-      if (it.is_wasm_interpreter_entry()) break;
+      if (it.frame()->is_wasm_interpreter_entry()) continue;
 #endif  // V8_ENABLE_DRUMBRAKE
       WasmFrame* wasm_frame = WasmFrame::cast(it.frame());
-      if (wasm_frame->native_module() != native_module_) break;
-      FrameSummary::WasmFrameSummary summary =
-          FrameSummary::GetInnermost(wasm_frame).AsWasm();
-      if (static_cast<int>(summary.function_index()) != func_index) break;
-      return DeadBreakpoint(wasm_frame, breakpoints);
+      if (wasm_frame->id() == stepping_frame) continue;
+      if (wasm_frame->native_module() != native_module_) continue;
+      WasmCode* code = wasm_frame->wasm_code();
+      if (!code->is_liftoff() || code->index() != func_index ||
+          !code->for_debugging()) {
+        continue;
+      }
+      int offset = DeadBreakpoint(wasm_frame, breakpoints);
+      if (offset != 0) dead_breakpoints.push_back(offset);
     }
-    return 0;
+    std::sort(dead_breakpoints.begin(), dead_breakpoints.end());
+    dead_breakpoints.erase(
+        std::unique(dead_breakpoints.begin(), dead_breakpoints.end()),
+        dead_breakpoints.end());
+    return dead_breakpoints;
   }
 
-  WasmCode* RecompileLiftoffWithBreakpoints(int func_index,
-                                            base::Vector<const int> offsets,
-                                            int dead_breakpoint) {
+  WasmCode* RecompileLiftoffWithBreakpoints(
+      int func_index, base::Vector<const int> offsets,
+      base::Vector<const int> dead_breakpoints) {
     mutex_.AssertHeld();  // Mutex is held externally.
     DCHECK(!v8_flags.wasm_jitless);
 
@@ -264,7 +282,7 @@ class DebugInfoImpl {
          it != end; ++it) {
       if (it->func_index == func_index &&
           it->breakpoint_offsets.as_vector() == offsets &&
-          it->dead_breakpoint == dead_breakpoint) {
+          it->dead_breakpoints.as_vector() == dead_breakpoints) {
         // Rotate the cache entry to the front (for LRU).
         for (; it != begin; --it) std::iter_swap(it, it - 1);
         if (for_debugging == kWithBreakpoints) {
@@ -293,10 +311,10 @@ class DebugInfoImpl {
                        .for_debugging = for_debugging,
                        .counter_updates = native_module_->counter_updates(),
                        .breakpoints = offsets,
+                       .dead_breakpoints = dead_breakpoints,
                        .debug_sidetable = generate_debug_sidetable
                                               ? &debug_sidetable
-                                              : nullptr,
-                       .dead_breakpoint = dead_breakpoint});
+                                              : nullptr});
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) {
@@ -320,7 +338,7 @@ class DebugInfoImpl {
     cached_debugging_code_.insert(
         cached_debugging_code_.begin(),
         CachedDebuggingCode{func_index, base::UniqueCopyOf(offsets),
-                            dead_breakpoint, new_code});
+                            base::UniqueCopyOf(dead_breakpoints), new_code});
     // Increase the ref count (for the cache entry).
     new_code->IncRef();
     // Remove exceeding element.
@@ -377,10 +395,11 @@ class DebugInfoImpl {
       all_breakpoints.insert(insertion_point, offset);
     }
 
-    int dead_breakpoint =
-        DeadBreakpoint(func_index, base::VectorOf(all_breakpoints), isolate);
+    std::vector<int> dead_breakpoints =
+        DeadBreakpoints(func_index, base::VectorOf(all_breakpoints), isolate);
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
-        func_index, base::VectorOf(all_breakpoints), dead_breakpoint);
+        func_index, base::VectorOf(all_breakpoints),
+        base::VectorOf(dead_breakpoints));
     UpdateReturnAddresses(isolate, new_code, isolate_data.stepping_frame);
   }
 
@@ -397,13 +416,13 @@ class DebugInfoImpl {
 
   void UpdateBreakpoints(int func_index, base::Vector<int> breakpoints,
                          Isolate* isolate, StackFrameId stepping_frame,
-                         int dead_breakpoint) {
+                         base::Vector<const int> dead_breakpoints) {
     // TODO(paolosev@microsoft.com) - Add support for breakpoints in Wasm
     // interpreter.
     if (v8_flags.wasm_jitless) return;
     mutex_.AssertHeld();  // Mutex is held externally.
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
-        func_index, breakpoints, dead_breakpoint);
+        func_index, breakpoints, dead_breakpoints);
     UpdateReturnAddresses(isolate, new_code, stepping_frame);
   }
 
@@ -418,7 +437,7 @@ class DebugInfoImpl {
     base::MutexGuard guard(&mutex_);
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
         FrameSummary::GetInnermost(frame).AsWasm().function_index(),
-        base::ArrayVector(kFloodingBreakpoints), 0);
+        base::ArrayVector(kFloodingBreakpoints), {});
     UpdateReturnAddress(frame, new_code, return_location);
 
     per_isolate_data_[frame->isolate()].stepping_frame = frame->id();
@@ -478,8 +497,11 @@ class DebugInfoImpl {
     int func_index = code->index();
     std::vector<int> breakpoints = FindAllBreakpoints(func_index);
     int dead_breakpoint = DeadBreakpoint(frame, base::VectorOf(breakpoints));
+    base::Vector<const int> dead_breakpoints =
+        dead_breakpoint == 0 ? base::Vector<const int>{}
+                             : base::VectorOf(&dead_breakpoint, 1);
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
-        func_index, base::VectorOf(breakpoints), dead_breakpoint);
+        func_index, base::VectorOf(breakpoints), dead_breakpoints);
     UpdateReturnAddress(frame, new_code, kAfterBreakpoint);
   }
 
@@ -524,10 +546,11 @@ class DebugInfoImpl {
     // If the breakpoint is still set in another isolate, don't remove it.
     DCHECK(std::is_sorted(remaining.begin(), remaining.end()));
     if (std::binary_search(remaining.begin(), remaining.end(), offset)) return;
-    int dead_breakpoint =
-        DeadBreakpoint(func_index, base::VectorOf(remaining), isolate);
+    std::vector<int> dead_breakpoints =
+        DeadBreakpoints(func_index, base::VectorOf(remaining), isolate);
     UpdateBreakpoints(func_index, base::VectorOf(remaining), isolate,
-                      isolate_data.stepping_frame, dead_breakpoint);
+                      isolate_data.stepping_frame,
+                      base::VectorOf(dead_breakpoints));
   }
 
   void RemoveDebugSideTables(base::Vector<WasmCode* const> codes) {
@@ -572,14 +595,14 @@ class DebugInfoImpl {
       std::vector<int> remaining = FindAllBreakpoints(func_index);
       if (HasRemovedBreakpoints(removed, remaining)) {
         RecompileLiftoffWithBreakpoints(func_index, base::VectorOf(remaining),
-                                        0);
+                                        {});
       }
     }
   }
 
   size_t EstimateCurrentMemoryConsumption() const {
     UPDATE_WHEN_CLASS_CHANGES(DebugInfoImpl, 144);
-    UPDATE_WHEN_CLASS_CHANGES(CachedDebuggingCode, 40);
+    UPDATE_WHEN_CLASS_CHANGES(CachedDebuggingCode, 48);
     UPDATE_WHEN_CLASS_CHANGES(PerIsolateDebugData, 48);
     size_t result = sizeof(DebugInfoImpl);
     {
@@ -593,7 +616,9 @@ class DebugInfoImpl {
       base::MutexGuard lock(&mutex_);
       result += ContentSize(cached_debugging_code_);
       for (const CachedDebuggingCode& code : cached_debugging_code_) {
-        result += code.breakpoint_offsets.size() * sizeof(int);
+        result +=
+            (code.breakpoint_offsets.size() + code.dead_breakpoints.size()) *
+            sizeof(int);
       }
       result += ContentSize(per_isolate_data_);
       for (const auto& [isolate, data] : per_isolate_data_) {
@@ -904,7 +929,7 @@ class DebugInfoImpl {
   struct CachedDebuggingCode {
     int func_index;
     base::UniqueArray<const int> breakpoint_offsets;
-    int dead_breakpoint;
+    base::UniqueArray<const int> dead_breakpoints;
     WasmCode* code;
   };
   std::vector<CachedDebuggingCode> cached_debugging_code_;

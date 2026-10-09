@@ -901,7 +901,8 @@ class LiftoffCompiler {
         safepoint_table_builder_(zone_),
         next_breakpoint_ptr_(options.breakpoints.begin()),
         next_breakpoint_end_(options.breakpoints.end()),
-        dead_breakpoint_(options.dead_breakpoint),
+        next_dead_breakpoint_ptr_(options.dead_breakpoints.begin()),
+        next_dead_breakpoint_end_(options.dead_breakpoints.end()),
         handlers_(zone),
         max_steps_(options.max_steps),
         deopt_info_bytecode_offset_(options.deopt_info_bytecode_offset),
@@ -918,6 +919,9 @@ class LiftoffCompiler {
     DCHECK_IMPLIES(
         next_breakpoint_ptr_ == next_breakpoint_end_,
         next_breakpoint_ptr_ == nullptr && next_breakpoint_end_ == nullptr);
+    DCHECK_IMPLIES(next_dead_breakpoint_ptr_ == next_dead_breakpoint_end_,
+                   next_dead_breakpoint_ptr_ == nullptr &&
+                       next_dead_breakpoint_end_ == nullptr);
     DCHECK_IMPLIES(!for_debugging_, debug_sidetable_builder_ == nullptr);
 
     if (v8_flags.wasm_code_coverage) {
@@ -1598,6 +1602,7 @@ class LiftoffCompiler {
     // The previous calls may have also generated a bailout.
     DidAssemblerBailout(decoder);
     DCHECK_EQ(num_exceptions_, 0);
+    DCHECK_NULL(next_dead_breakpoint_ptr_);
 
     if (v8_flags.wasm_inlining && !encountered_call_instructions_.empty()) {
       // Update the call targets stored in the WasmModule.
@@ -1765,16 +1770,26 @@ class LiftoffCompiler {
       }
     }
 
+    bool has_dead_breakpoint = false;
+    if (next_dead_breakpoint_ptr_) {
+      DCHECK_LE(decoder->position(), *next_dead_breakpoint_ptr_);
+      if (*next_dead_breakpoint_ptr_ == decoder->position()) {
+        DCHECK(!has_breakpoint);
+        has_dead_breakpoint = true;
+        if (++next_dead_breakpoint_ptr_ == next_dead_breakpoint_end_) {
+          next_dead_breakpoint_ptr_ = next_dead_breakpoint_end_ = nullptr;
+        }
+      }
+    }
+
     if (has_breakpoint) {
       CODE_COMMENT("breakpoint");
       EmitBreakpoint(decoder);
-    } else if (dead_breakpoint_ == decoder->position()) {
-      DCHECK(!next_breakpoint_ptr_ ||
-             *next_breakpoint_ptr_ != dead_breakpoint_);
-      // The top frame is paused at this position, but the breakpoint was
-      // removed. Adding a dead breakpoint here ensures that the source
-      // position exists, and that the offset to the return address is the
-      // same as in the old code.
+    } else if (has_dead_breakpoint) {
+      // A frame is paused at this position, but the breakpoint was removed.
+      // Adding a dead breakpoint here ensures that the source position exists,
+      // and that the offset to the return address is the same as in the old
+      // code.
       CODE_COMMENT("dead breakpoint");
       Label cont;
       __ emit_jump(&cont);
@@ -11464,9 +11479,11 @@ class LiftoffCompiler {
   std::unique_ptr<WasmCoverageInstrumentation<FullDecoder>>
       coverage_instrumentation_;
 
-  // Introduce a dead breakpoint to ensure that the calculation of the return
-  // address in OSR is correct.
-  int dead_breakpoint_ = 0;
+  // Introduce dead breakpoints to ensure that the calculation of the return
+  // address in OSR is correct when active frames are paused at removed
+  // breakpoints.
+  const int* next_dead_breakpoint_ptr_ = nullptr;
+  const int* next_dead_breakpoint_end_ = nullptr;
 
   // Remember whether the did function-entry break checks (for "hook on function
   // call" and "break on entry" a.k.a. instrumentation breakpoint). This happens
