@@ -99,7 +99,7 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:f82afe92417ee9d1699a428f0787edcdcc528ca8',
+  'gn_version': 'git_revision:0035961837fbcfe875d855744b3eda4fd2eefb43',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,7 +129,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_platform-tools_version
   # and whatever else without interference from each other.
-  'android_sdk_platform-tools_version': 'qTD9QdBlBf3dyHsN1lJ0RH6AhHxR42Hmg2Ih-Vj4zIEC',
+  'android_sdk_platform-tools_version': 'j9ae9h2iaxMBUMJcE7tpd30e97xvJWcp3UpePJDXaS0C',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_platforms_version
   # and whatever else without interference from each other.
@@ -161,9 +161,9 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8f500ca6f1a76a89e940b0bb75355a5c67fc676a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e9460d71f113ae236306d1c705780285a9be8aaf',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '59a37766f17bdd79f4cf9154498cbb823b681531',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8790f824690e131a78f36e80ecc05a9272f061c8',
   'buildtools/linux64': {
     'packages': [
       {
@@ -280,7 +280,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '04c1a455860dfe75e9bce450d9ad349606fe4dd6',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3de62e5b4fe72ecae5eff72356d0527eccb3b8c0',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -533,7 +533,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '9843f023eb4f3aa9760c559f8bceb7e29525160a',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'd11b8db914bbfbbbcb9576a99bd94bc87db46fb7',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '9fbbf0b210753390b790e4f1e74ddff5d7d97bbf',
   'third_party/re2/src':
