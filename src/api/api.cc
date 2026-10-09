@@ -1720,14 +1720,11 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   auto cons = EnsureConstructor(i_isolate, this);
   EnsureNotPublished(cons, "v8::ObjectTemplate::SetAccessCheckCallback");
 
-  i::DirectHandle<i::Struct> struct_info = i_isolate->factory()->NewStruct(
-      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
-  auto info = i::Cast<i::AccessCheckInfo>(struct_info);
+  i::DirectHandle<i::AccessCheckInfo> info =
+      i_isolate->factory()->NewAccessCheckInfo();
 
   SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback,
                     internal::kApiAccessCheckCallbackTag);
-  info->set_named_interceptor(i::Smi::zero());
-  info->set_indexed_interceptor(i::Smi::zero());
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -1750,9 +1747,8 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   EnsureNotPublished(cons,
                      "v8::ObjectTemplate::SetAccessCheckCallbackWithHandler");
 
-  i::DirectHandle<i::Struct> struct_info = i_isolate->factory()->NewStruct(
-      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
-  auto info = i::Cast<i::AccessCheckInfo>(struct_info);
+  i::DirectHandle<i::AccessCheckInfo> info =
+      i_isolate->factory()->NewAccessCheckInfo();
 
   SET_FIELD_WRAPPED(i_isolate, info, set_callback, callback,
                     internal::kApiAccessCheckCallbackTag);

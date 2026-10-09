@@ -24,7 +24,6 @@ class StructBodyDescriptor;
 V8_OBJECT class TemplateObjectDescription final : public Struct {
  public:
   inline TemplateObjectDescription(const AllocationWitness& witness,
-                                   ReadOnlyRoots roots,
                                    Tagged<FixedArray> raw_strings,
                                    Tagged<FixedArray> cooked_strings);
 

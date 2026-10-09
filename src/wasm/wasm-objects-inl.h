@@ -1528,10 +1528,11 @@ bool WasmTagObject::has_trusted_data_unpublished(
 }
 void WasmTagObject::clear_trusted_data() { trusted_data_.clear(this); }
 
+WasmExceptionTag::WasmExceptionTag(const AllocationWitness& witness, int index)
+    : Struct(witness.roots().wasm_exception_tag_map()),
+      index_(Smi::FromInt(index)) {}
+
 int WasmExceptionTag::index() const { return index_.load().value(); }
-void WasmExceptionTag::set_index(int value) {
-  index_.store(this, Smi::FromInt(value));
-}
 Tagged<JSReceiver> WasmSuspendingObject::callable() const {
   return callable_.load();
 }

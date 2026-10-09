@@ -148,6 +148,11 @@ class TrustedPointerMember
                               Tagged<T> value);
   inline TrustedPointerMember(const AllocationWitness& witness, Tagged<T> value,
                               WriteBarrierMode mode);
+  inline TrustedPointerMember(const AllocationWitness& witness,
+                              Tagged<UnionOf<T, Undefined>> maybe_value);
+  inline TrustedPointerMember(const AllocationWitness& witness,
+                              Tagged<UnionOf<T, Undefined>> maybe_value,
+                              WriteBarrierMode mode);
 
   inline Tagged<T> load(IsolateForSandbox isolate) const;
   inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate) const;

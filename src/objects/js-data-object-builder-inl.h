@@ -84,12 +84,12 @@ class FoldedMutableHeapNumberAllocator {
 
   Tagged<HeapNumber> Allocate(Float64 value) {
     AllocationWitness witness = AllocateRaw();
-    return new (witness) HeapNumber(roots_, value);
+    return new (witness) HeapNumber(witness, value);
   }
 
   Tagged<UninitializedHeapNumber> AllocateUninitialized() {
     AllocationWitness witness = AllocateRaw();
-    return new (witness) UninitializedHeapNumber(roots_);
+    return new (witness) UninitializedHeapNumber(witness);
   }
 
  private:
@@ -101,7 +101,7 @@ class FoldedMutableHeapNumberAllocator {
         ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(HeapNumber));
     DCHECK_LE(mutable_double_address_,
               reinterpret_cast<Address>(raw_bytes_->end()));
-    return AllocationWitness(obj, UPDATE_WRITE_BARRIER);
+    return AllocationWitness(obj, roots_, UPDATE_WRITE_BARRIER);
   }
   Isolate* isolate_;
   ReadOnlyRoots roots_;

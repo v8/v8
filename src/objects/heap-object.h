@@ -13,6 +13,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/slots.h"
 #include "src/objects/tagged-field.h"
+#include "src/roots/roots.h"
 #include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/isolate.h"
 
@@ -30,7 +31,6 @@ class ExposedTrustedObject;
 class ObjectVisitor;
 class WritableFreeSpace;
 class WriteBarrierModeScope;
-class EarlyReadOnlyRoots;
 
 // A safe HeapObject size is a uint32_t that's guaranteed to yield in OOB within
 // the sandbox. The alias exists to force appropriate conversions at the
@@ -61,15 +61,16 @@ using InSharedSpace = base::StrongAlias<struct InSharedSpaceTag, bool>;
 
 class V8_NODISCARD AllocationWitness {
  public:
-  inline AllocationWitness(Tagged<HeapObject> object,
+  inline AllocationWitness(Tagged<HeapObject> object, ReadOnlyRoots roots,
                            AllocationType allocation);
-  inline AllocationWitness(Tagged<HeapObject> object,
+  inline AllocationWitness(Tagged<HeapObject> object, ReadOnlyRoots roots,
                            WriteBarrierMode write_barrier_mode);
 
   AllocationWitness(const AllocationWitness&) = delete;
   AllocationWitness& operator=(const AllocationWitness&) = delete;
 
   HeapObject* object() const { return &*object_; }
+  ReadOnlyRoots roots() const { return roots_; }
   WriteBarrierMode write_barrier_mode() const { return write_barrier_mode_; }
 
  private:
@@ -78,6 +79,7 @@ class V8_NODISCARD AllocationWitness {
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
   const Tagged<HeapObject> object_;
+  const ReadOnlyRoots roots_;
   const WriteBarrierMode write_barrier_mode_;
 };
 

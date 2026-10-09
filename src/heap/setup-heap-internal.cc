@@ -23,7 +23,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects.h"
-#include "src/objects/descriptor-array.h"
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/foreign.h"
 #include "src/objects/hash-seed-wrapper.h"
@@ -461,20 +461,21 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
     // Finally, initialise the non-map objects using those maps.
     {
-      AllocationWitness witness(undefined_value, AllocationType::kReadOnly);
-      new (witness) Undefined(roots);
+      AllocationWitness witness(undefined_value, roots,
+                                AllocationType::kReadOnly);
+      new (witness) Undefined(witness);
     }
     {
-      AllocationWitness witness(null_value, AllocationType::kReadOnly);
-      new (witness) Null(roots);
+      AllocationWitness witness(null_value, roots, AllocationType::kReadOnly);
+      new (witness) Null(witness);
     }
     {
-      AllocationWitness witness(true_value, AllocationType::kReadOnly);
-      new (witness) True(roots);
+      AllocationWitness witness(true_value, roots, AllocationType::kReadOnly);
+      new (witness) True(witness);
     }
     {
-      AllocationWitness witness(false_value, AllocationType::kReadOnly);
-      new (witness) False(roots);
+      AllocationWitness witness(false_value, roots, AllocationType::kReadOnly);
+      new (witness) False(witness);
     }
 
     // The empty string is initialised with an empty hash despite being
@@ -575,13 +576,13 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
   // Allocate the empty enum cache.
   {
-    AllocationResult allocation =
-        Allocate(roots_table().enum_cache_map(), AllocationType::kReadOnly);
-    if (!allocation.To(&obj)) return false;
+    if (!AllocateRaw(sizeof(EnumCache), AllocationType::kReadOnly).To(&obj)) {
+      return false;
+    }
+    AllocationWitness witness(obj, roots, AllocationType::kReadOnly);
+    set_empty_enum_cache(new (witness) EnumCache(
+        witness, roots.empty_fixed_array(), roots.empty_fixed_array()));
   }
-  set_empty_enum_cache(Cast<EnumCache>(obj));
-  Cast<EnumCache>(obj)->set_keys(roots.empty_fixed_array());
-  Cast<EnumCache>(obj)->set_indices(roots.empty_fixed_array());
 
   // Allocate the empty descriptor array.
   {
@@ -682,9 +683,9 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       AllocationResult alloc =
           AllocateRaw(sizeof(Cell), AllocationType::kReadOnly);
       if (!alloc.To(&obj)) return false;
-      AllocationWitness witness(obj, AllocationType::kReadOnly);
+      AllocationWitness witness(obj, roots, AllocationType::kReadOnly);
       set_invalid_prototype_validity_cell(
-          new (witness) Cell(roots, Map::kPrototypeChainInvalid));
+          new (witness) Cell(witness, Map::kPrototypeChainInvalid));
     }
 
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, sizeof(PropertyCell), global_property_cell)
@@ -1135,10 +1136,10 @@ bool Heap::CreateReadOnlyObjects() {
                                          AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
 
-    AllocationWitness witness(obj, AllocationType::kReadOnly);
+    AllocationWitness witness(obj, roots, AllocationType::kReadOnly);
     set_empty_array_boilerplate_description(
         new (witness) ArrayBoilerplateDescription(
-            witness, roots, ElementsKind::PACKED_SMI_ELEMENTS,
+            witness, ElementsKind::PACKED_SMI_ELEMENTS,
             roots.empty_fixed_array()));
   }
 

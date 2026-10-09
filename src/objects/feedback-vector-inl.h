@@ -39,9 +39,10 @@ namespace v8::internal {
       static_cast<intptr_t>(                                             \
           Builtin::kLoadIC##Location##Representation##Kind##Index##Baseline));
 
-FeedbackMetadata::FeedbackMetadata(ReadOnlyRoots roots, int32_t slot_count,
+FeedbackMetadata::FeedbackMetadata(const AllocationWitness& witness,
+                                   int32_t slot_count,
                                    int32_t create_closure_slot_count)
-    : HeapObject(roots.feedback_metadata_map()),
+    : HeapObject(witness.roots().feedback_metadata_map()),
       slot_count_(slot_count),
       create_closure_slot_count_(create_closure_slot_count) {
   DCHECK_LE(0, slot_count);
@@ -127,18 +128,18 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
 }
 
 FeedbackVector::FeedbackVector(
-    const AllocationWitness& witness, ReadOnlyRoots roots, int32_t length,
+    const AllocationWitness& witness, int32_t length,
     Tagged<SharedFunctionInfo> shared_function_info,
     Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
     Tagged<FeedbackCell> parent_feedback_cell)
-    : HeapObject(roots.feedback_vector_map()),
+    : HeapObject(witness.roots().feedback_vector_map()),
       length_(length),
       shared_function_info_(witness, shared_function_info),
       closure_feedback_cell_array_(witness, closure_feedback_cell_array),
       parent_feedback_cell_(witness, parent_feedback_cell) {
   DCHECK_LE(0, length);
   // TODO(leszeks): Initialize based on the feedback metadata.
-  MemsetTagged(slots_start(), roots.undefined_value(), length);
+  MemsetTagged(slots_start(), witness.roots().undefined_value(), length);
 }
 
 bool FeedbackVector::is_empty() const { return length().value() == 0; }

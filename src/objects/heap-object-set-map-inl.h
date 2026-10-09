@@ -128,13 +128,15 @@ WriteBarrierMode AllocationWitness::WriteBarrierModeForAllocation(
 }
 
 AllocationWitness::AllocationWitness(Tagged<HeapObject> object,
+                                     ReadOnlyRoots roots,
                                      AllocationType allocation)
-    : AllocationWitness(object,
+    : AllocationWitness(object, roots,
                         WriteBarrierModeForAllocation(object, allocation)) {}
 
 AllocationWitness::AllocationWitness(Tagged<HeapObject> object,
+                                     ReadOnlyRoots roots,
                                      WriteBarrierMode write_barrier_mode)
-    : object_(object), write_barrier_mode_(write_barrier_mode) {}
+    : object_(object), roots_(roots), write_barrier_mode_(write_barrier_mode) {}
 
 HeapObject::HeapObject(Tagged<ReadOnly<Map>> map) {
   DCHECK(!map.is_null());

@@ -23,6 +23,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
 #include "src/execution/futex-emulation.h"
+#include "src/heap/factory-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object-set-map-inl.h"
@@ -3127,10 +3128,7 @@ bool WasmExternalFunction::IsWasmExternalFunction(Tagged<Object> object) {
 
 DirectHandle<WasmExceptionTag> WasmExceptionTag::New(Isolate* isolate,
                                                      int index) {
-  auto result = Cast<WasmExceptionTag>(isolate->factory()->NewStruct(
-      WASM_EXCEPTION_TAG_TYPE, AllocationType::kOld));
-  result->set_index(index);
-  return result;
+  return isolate->factory()->New<WasmExceptionTag, AllocationType::kOld>(index);
 }
 
 namespace {

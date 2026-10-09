@@ -1029,7 +1029,6 @@ V8_OBJECT class Map : public HeapObject {
 
   static constexpr std::optional<RootIndex> TryGetMapRootIdxFor(
       InstanceType type);
-  static inline Tagged<Map> GetMapFor(ReadOnlyRoots roots, InstanceType type);
 
   bool IsMapInArrayPrototypeChain(Isolate* isolate) const;
 

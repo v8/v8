@@ -163,6 +163,9 @@ int RegExpData::capture_count() const {
   UNREACHABLE();
 }
 
+RegExpDataWrapper::RegExpDataWrapper(const AllocationWitness& witness)
+    : Struct(witness.roots().regexp_data_wrapper_map()) {}
+
 Tagged<RegExpData> RegExpDataWrapper::data(IsolateForSandbox isolate) const {
   return data_.load(isolate);
 }

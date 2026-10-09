@@ -16,6 +16,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/torque/runtime-macro-shims.h"
 #include "src/torque/runtime-support.h"
@@ -26,11 +27,14 @@
 namespace v8 {
 namespace internal {
 
+BreakPointInfo::BreakPointInfo(const AllocationWitness& witness,
+                               int source_position)
+    : Struct(witness.roots().break_point_info_map()),
+      source_position_(Smi::FromInt(source_position)),
+      break_points_(witness.roots().undefined_value()) {}
+
 int BreakPointInfo::source_position() const {
   return source_position_.load().value();
-}
-void BreakPointInfo::set_source_position(int value) {
-  source_position_.store(this, Smi::FromInt(value));
 }
 
 Tagged<UnionOf<FixedArray, BreakPoint, Undefined>>
@@ -43,13 +47,15 @@ void BreakPointInfo::set_break_points(
   break_points_.store(this, value, mode);
 }
 
+BreakPoint::BreakPoint(const AllocationWitness& witness, int id,
+                       Tagged<String> condition)
+    : Struct(witness.roots().break_point_map()),
+      id_(Smi::FromInt(id)),
+      condition_(witness, condition) {}
+
 int BreakPoint::id() const { return id_.load().value(); }
-void BreakPoint::set_id(int value) { id_.store(this, Smi::FromInt(value)); }
 
 Tagged<String> BreakPoint::condition() const { return condition_.load(); }
-void BreakPoint::set_condition(Tagged<String> value, WriteBarrierMode mode) {
-  condition_.store(this, value, mode);
-}
 
 Tagged<SharedFunctionInfo> DebugInfo::shared() const { return shared_.load(); }
 void DebugInfo::set_shared(Tagged<SharedFunctionInfo> value,
@@ -158,6 +164,18 @@ Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray(Isolate* isolate) {
   return result;
 }
 
+StackFrameInfo::StackFrameInfo(
+    const AllocationWitness& witness,
+    Tagged<UnionOf<SharedFunctionInfo, Script>> shared_or_script,
+    int bytecode_offset_or_source_position, Tagged<String> function_name,
+    bool is_constructor)
+    : Struct(witness.roots().stack_frame_info_map()),
+      shared_or_script_(witness, shared_or_script),
+      function_name_(witness, function_name),
+      flags_(Smi::FromInt(IsConstructorBit::encode(is_constructor))),
+      bytecode_offset_or_source_position_(
+          Smi::FromInt(bytecode_offset_or_source_position)) {}
+
 Tagged<UnionOf<SharedFunctionInfo, Script>> StackFrameInfo::shared_or_script()
     const {
   return shared_or_script_.load();
@@ -170,15 +188,8 @@ void StackFrameInfo::set_shared_or_script(
 Tagged<String> StackFrameInfo::function_name() const {
   return function_name_.load();
 }
-void StackFrameInfo::set_function_name(Tagged<String> value,
-                                       WriteBarrierMode mode) {
-  function_name_.store(this, value, mode);
-}
 
 int StackFrameInfo::flags() const { return flags_.load().value(); }
-void StackFrameInfo::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
 
 Tagged<Script> StackFrameInfo::script() const {
   Tagged<HeapObject> object = shared_or_script();
@@ -194,17 +205,18 @@ int StackFrameInfo::bytecode_offset_or_source_position() const {
 void StackFrameInfo::set_bytecode_offset_or_source_position(int value) {
   bytecode_offset_or_source_position_.store(this, Smi::FromInt(value));
 }
-BIT_FIELD_ACCESSORS(StackFrameInfo, flags, is_constructor,
-                    StackFrameInfo::IsConstructorBit)
+BOOL_GETTER(StackFrameInfo, flags, is_constructor,
+            StackFrameInfo::IsConstructorBit::kShift)
+
+StackTraceInfo::StackTraceInfo(const AllocationWitness& witness, int id,
+                               Tagged<FixedArray> frames)
+    : Struct(witness.roots().stack_trace_info_map()),
+      id_(Smi::FromInt(id)),
+      frames_(witness, frames) {}
 
 int StackTraceInfo::id() const { return id_.load().value(); }
-void StackTraceInfo::set_id(int value) { id_.store(this, Smi::FromInt(value)); }
 
 Tagged<FixedArray> StackTraceInfo::frames() const { return frames_.load(); }
-void StackTraceInfo::set_frames(Tagged<FixedArray> value,
-                                WriteBarrierMode mode) {
-  frames_.store(this, value, mode);
-}
 
 inline int StackTraceInfo::length() const {
   // TODO(375937549): Convert to uint32_t.
@@ -214,6 +226,16 @@ inline int StackTraceInfo::length() const {
 inline Tagged<StackFrameInfo> StackTraceInfo::get(int index) const {
   return Cast<StackFrameInfo>(frames()->get(index));
 }
+
+ErrorStackData::ErrorStackData(
+    const AllocationWitness& witness,
+    Tagged<UnionOf<FixedArray, JSAny>>
+        raw_data_for_call_site_infos_or_formatted_stack,
+    Tagged<StackTraceInfo> stack_trace)
+    : Struct(witness.roots().error_stack_data_map()),
+      raw_data_for_call_site_infos_or_formatted_stack_(
+          witness, raw_data_for_call_site_infos_or_formatted_stack),
+      stack_trace_(witness, stack_trace) {}
 
 bool ErrorStackData::HasFormattedStack() const {
   return !IsFixedArray(raw_data_for_call_site_infos_or_formatted_stack());
@@ -257,16 +279,11 @@ void ErrorStackData::set_raw_data_for_call_site_infos_or_formatted_stack(
 Tagged<StackTraceInfo> ErrorStackData::stack_trace() const {
   return stack_trace_.load();
 }
-void ErrorStackData::set_stack_trace(Tagged<StackTraceInfo> value,
-                                     WriteBarrierMode mode) {
-  stack_trace_.store(this, value, mode);
-}
 
 DebugScriptScopeInfo::DebugScriptScopeInfo(const AllocationWitness& witness,
-                                           ReadOnlyRoots roots,
                                            Tagged<ByteArray> numeric_data,
                                            Tagged<FixedArray> string_table)
-    : Struct(roots.debug_script_scope_info_map()),
+    : Struct(witness.roots().debug_script_scope_info_map()),
       numeric_data_(witness, numeric_data),
       string_table_(witness, string_table) {}
 

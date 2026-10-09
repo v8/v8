@@ -36,6 +36,16 @@ class NativeModule;
 // Script describes a script which has been added to the VM.
 V8_OBJECT class Script : public Struct {
  public:
+  inline Script(const AllocationWitness& witness,
+                Tagged<UnionOf<String, Undefined>> source, int script_id);
+  inline Script(const AllocationWitness& witness, Tagged<Script> old_script,
+                Tagged<String> source, int script_id
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+                ,
+                Tagged<ArrayList> script_or_modules
+#endif
+  );
+
   // Script ID used for temporary scripts, which shouldn't be added to the
   // script list.
   static constexpr int kTemporaryScriptId = -2;

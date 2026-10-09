@@ -218,9 +218,10 @@ V8_OBJECT class DebugInfo : public ExposedTrustedObject {
 // position with one or more break points.
 V8_OBJECT class BreakPointInfo : public Struct {
  public:
+  inline BreakPointInfo(const AllocationWitness& witness, int source_position);
+
   // Accessors
   inline int source_position() const;
-  inline void set_source_position(int value);
 
   inline Tagged<UnionOf<FixedArray, BreakPoint, Undefined>> break_points()
       const;
@@ -251,7 +252,7 @@ V8_OBJECT class BreakPointInfo : public Struct {
   DECL_PRINTER(BreakPointInfo)
   DECL_VERIFIER(BreakPointInfo)
 
-  TaggedMember<Smi> source_position_;
+  const TaggedMember<Smi> source_position_;
   TaggedMember<UnionOf<FixedArray, BreakPoint, Undefined>> break_points_;
 } V8_OBJECT_END;
 
@@ -271,7 +272,8 @@ inline constexpr int CoverageInfoSlot::kSize = sizeof(CoverageInfoSlot);
 // Holds information related to block code coverage.
 V8_OBJECT class CoverageInfo : public HeapObject {
  public:
-  CoverageInfo(ReadOnlyRoots roots, const ZoneVector<SourceRange>& slots);
+  CoverageInfo(const AllocationWitness& witness,
+               const ZoneVector<SourceRange>& slots);
 
   inline int32_t slot_count() const;
 
@@ -313,25 +315,30 @@ constexpr int CoverageInfo::SizeFor(int slot_count) {
 // Holds breakpoint related information. This object is used by inspector.
 V8_OBJECT class BreakPoint : public Struct {
  public:
+  inline BreakPoint(const AllocationWitness& witness, int id,
+                    Tagged<String> condition);
+
   // Accessors
   inline int id() const;
-  inline void set_id(int value);
-
   inline Tagged<String> condition() const;
-  inline void set_condition(Tagged<String> value,
-                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   using BodyDescriptor = StructBodyDescriptor;
 
   DECL_PRINTER(BreakPoint)
   DECL_VERIFIER(BreakPoint)
 
-  TaggedMember<Smi> id_;
-  TaggedMember<String> condition_;
+  const TaggedMember<Smi> id_;
+  const TaggedMember<String> condition_;
 } V8_OBJECT_END;
 
 V8_OBJECT class StackFrameInfo : public Struct {
  public:
+  inline StackFrameInfo(
+      const AllocationWitness& witness,
+      Tagged<UnionOf<SharedFunctionInfo, Script>> shared_or_script,
+      int bytecode_offset_or_source_position, Tagged<String> function_name,
+      bool is_constructor);
+
   static int GetSourcePosition(DirectHandle<StackFrameInfo> info);
 
   // The script for the stack frame.
@@ -343,7 +350,6 @@ V8_OBJECT class StackFrameInfo : public Struct {
 
   // Indicates that the frame corresponds to a 'new' invocation.
   inline bool is_constructor() const;
-  inline void set_is_constructor(bool value);
 
   inline Tagged<UnionOf<SharedFunctionInfo, Script>> shared_or_script() const;
   inline void set_shared_or_script(
@@ -351,11 +357,7 @@ V8_OBJECT class StackFrameInfo : public Struct {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<String> function_name() const;
-  inline void set_function_name(Tagged<String> value,
-                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline int flags() const;
-  inline void set_flags(int value);
 
   // Bit positions in |flags|.
   using IsConstructorBit = base::BitField<bool, 0, 1, uint32_t>;
@@ -366,8 +368,8 @@ V8_OBJECT class StackFrameInfo : public Struct {
   DECL_PRINTER(StackFrameInfo)
 
   TaggedMember<UnionOf<SharedFunctionInfo, Script>> shared_or_script_;
-  TaggedMember<String> function_name_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<StackFrameInfoFlags>);
+  const TaggedMember<String> function_name_;
+  const TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<StackFrameInfoFlags>);
   TaggedMember<Smi> bytecode_offset_or_source_position_;
 #if V8_ENABLE_WEBASSEMBLY
   // Wasm wire byte offsets are 0-indexed instruction positions within a module
@@ -380,13 +382,12 @@ V8_OBJECT class StackFrameInfo : public Struct {
 
 V8_OBJECT class StackTraceInfo : public Struct {
  public:
+  inline StackTraceInfo(const AllocationWitness& witness, int id,
+                        Tagged<FixedArray> frames);
+
   // Accessors
   inline int id() const;
-  inline void set_id(int value);
-
   inline Tagged<FixedArray> frames() const;
-  inline void set_frames(Tagged<FixedArray> value,
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Access to the stack frames.
   int length() const;
@@ -398,12 +399,17 @@ V8_OBJECT class StackTraceInfo : public Struct {
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TaggedMember<Smi> id_;
-  TaggedMember<FixedArray> frames_;
+  const TaggedMember<Smi> id_;
+  const TaggedMember<FixedArray> frames_;
 } V8_OBJECT_END;
 
 V8_OBJECT class ErrorStackData : public Struct {
  public:
+  inline ErrorStackData(const AllocationWitness& witness,
+                        Tagged<UnionOf<FixedArray, JSAny>>
+                            raw_data_for_call_site_infos_or_formatted_stack,
+                        Tagged<StackTraceInfo> stack_trace);
+
   inline bool HasFormattedStack() const;
   inline Tagged<JSAny> formatted_stack() const;
   inline void set_formatted_stack(Tagged<JSAny> value,
@@ -421,8 +427,6 @@ V8_OBJECT class ErrorStackData : public Struct {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<StackTraceInfo> stack_trace() const;
-  inline void set_stack_trace(Tagged<StackTraceInfo> value,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(ErrorStackData)
   DECL_PRINTER(ErrorStackData)
@@ -431,7 +435,7 @@ V8_OBJECT class ErrorStackData : public Struct {
 
   TaggedMember<UnionOf<FixedArray, JSAny>>
       raw_data_for_call_site_infos_or_formatted_stack_;
-  TaggedMember<StackTraceInfo> stack_trace_;
+  const TaggedMember<StackTraceInfo> stack_trace_;
 } V8_OBJECT_END;
 
 // DebugScriptScopeInfo holds the serialized scope tree of a Script for the
@@ -443,7 +447,6 @@ V8_OBJECT class ErrorStackData : public Struct {
 V8_OBJECT class DebugScriptScopeInfo : public Struct {
  public:
   inline DebugScriptScopeInfo(const AllocationWitness& witness,
-                              ReadOnlyRoots roots,
                               Tagged<ByteArray> numeric_data,
                               Tagged<FixedArray> string_table);
 

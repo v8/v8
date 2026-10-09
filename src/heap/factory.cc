@@ -42,13 +42,14 @@
 #include "src/numbers/conversions.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/allocation-site-inl.h"
-#include "src/objects/api-callbacks.h"
+#include "src/objects/api-callbacks-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/fixed-array-base-inl.h"
@@ -82,7 +83,9 @@
 #include "src/objects/pod-array-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
+#include "src/objects/prototype-info-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/script-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/synthetic-module-inl.h"
@@ -378,30 +381,15 @@ DirectHandle<HeapObject> Factory::NewFillerObject(int size,
 }
 
 DirectHandle<PrototypeInfo> Factory::NewPrototypeInfo() {
-  auto result = NewStructInternal<PrototypeInfo>(PROTOTYPE_INFO_TYPE,
-                                                 AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  result->set_prototype_users(Smi::zero());
-  result->set_registry_slot(PrototypeInfo::UNREGISTERED);
-  result->set_bit_field(0);
-  result->set_module_namespace(*undefined_value(), SKIP_WRITE_BARRIER);
-  for (int i = 0; i < PrototypeInfo::kCachedHandlerCount; i++) {
-    result->set_cached_handler(i, Smi::zero(), SKIP_WRITE_BARRIER);
-  }
-  return direct_handle(result, isolate());
+  return New<PrototypeInfo, AllocationType::kOld>();
 }
 
 DirectHandle<PrototypeSharedClosureInfo> Factory::NewPrototypeSharedClosureInfo(
     DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description,
     DirectHandle<Context> context,
     DirectHandle<ClosureFeedbackCellArray> feedback_array) {
-  AllocationWitness witness = AllocateWithWitness(
-      sizeof(PrototypeSharedClosureInfo), AllocationType::kOld);
-  return direct_handle(
-      new (witness) PrototypeSharedClosureInfo(witness, read_only_roots(),
-                                               *object_boilerplate_description,
-                                               *feedback_array, *context),
-      isolate());
+  return New<PrototypeSharedClosureInfo, AllocationType::kOld>(
+      object_boilerplate_description, feedback_array, context);
 }
 
 DirectHandle<EnumCache> Factory::NewEnumCache(DirectHandle<FixedArray> keys,
@@ -412,46 +400,28 @@ DirectHandle<EnumCache> Factory::NewEnumCache(DirectHandle<FixedArray> keys,
   DCHECK_EQ(allocation == AllocationType::kSharedOld,
             HeapLayout::InAnySharedSpace(*keys) &&
                 HeapLayout::InAnySharedSpace(*indices));
-  auto result = NewStructInternal<EnumCache>(ENUM_CACHE_TYPE, allocation);
-  DisallowGarbageCollection no_gc;
-  result->set_keys(*keys);
-  result->set_indices(*indices);
-  return direct_handle(result, isolate());
+  return New<EnumCache>(allocation, keys, indices);
 }
 
 DirectHandle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
                                         DirectHandle<Object> value2,
                                         AllocationType allocation) {
-  auto result = NewStructInternal<Tuple2>(TUPLE2_TYPE, allocation, false);
-  DisallowGarbageCollection no_gc;
-  result->set_value1(*value1);
-  result->set_value2(*value2);
-  return direct_handle(result, isolate());
+  return New<Tuple2>(allocation, value1, value2);
 }
 
 DirectHandle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
                                         DirectHandle<Object> value2,
                                         RelaxedStoreTag tag,
                                         AllocationType allocation) {
-  auto result = NewStructInternal<Tuple2>(TUPLE2_TYPE, allocation, false);
-  DisallowGarbageCollection no_gc;
-  result->set_value1(*value1, tag);
-  result->set_value2(*value2, tag);
-  return direct_handle(result, isolate());
+  return New<Tuple2>(allocation, value1, value2, tag);
 }
 
 DirectHandle<ForInEnumeratorHolder> Factory::NewForInEnumeratorHolder(
     DirectHandle<Map> enum_cache_map, DirectHandle<FixedArray> named_keys,
     Tagged<Smi> elements_length, Tagged<Smi> cache_length,
     AllocationType allocation) {
-  auto result = NewStructInternal<ForInEnumeratorHolder>(
-      FOR_IN_ENUMERATOR_HOLDER_TYPE, allocation, false);
-  DisallowGarbageCollection no_gc;
-  result->set_enum_cache_map(*enum_cache_map);
-  result->set_named_keys(*named_keys);
-  result->set_elements_length(elements_length);
-  result->set_cache_length(cache_length);
-  return direct_handle(result, isolate());
+  return New<ForInEnumeratorHolder>(allocation, enum_cache_map, named_keys,
+                                    elements_length, cache_length);
 }
 
 DirectHandle<Hole> Factory::NewHole() {
@@ -508,9 +478,9 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   int size = FeedbackVector::SizeFor(length);
 
   AllocationWitness witness = AllocateWithWitness(size, AllocationType::kOld);
-  return handle(new (witness) FeedbackVector(
-                    witness, read_only_roots(), length, *shared,
-                    *closure_feedback_cell_array, *parent_feedback_cell),
+  return handle(new (witness) FeedbackVector(witness, length, *shared,
+                                             *closure_feedback_cell_array,
+                                             *parent_feedback_cell),
                 isolate());
 }
 
@@ -762,15 +732,7 @@ DirectHandle<NameDictionary> Factory::NewNameDictionary(
 }
 
 DirectHandle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
-  auto object = NewStructInternal<PropertyDescriptorObject>(
-      PROPERTY_DESCRIPTOR_OBJECT_TYPE, AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  object->set_flags(0);
-  Tagged<TheHole> the_hole = read_only_roots().the_hole_value();
-  object->set_value(the_hole, SKIP_WRITE_BARRIER);
-  object->set_get(the_hole, SKIP_WRITE_BARRIER);
-  object->set_set(the_hole, SKIP_WRITE_BARRIER);
-  return direct_handle(object, isolate());
+  return New<PropertyDescriptorObject, AllocationType::kYoung>();
 }
 
 DirectHandle<SwissNameDictionary>
@@ -1898,10 +1860,8 @@ DirectHandle<ContextCell> Factory::NewContextCell(
 
 DirectHandle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
     int aliased_context_slot) {
-  auto entry = NewStructInternal<AliasedArgumentsEntry>(
-      ALIASED_ARGUMENTS_ENTRY_TYPE, AllocationType::kYoung);
-  entry->set_aliased_context_slot(aliased_context_slot);
-  return direct_handle(entry, isolate());
+  return New<AliasedArgumentsEntry, AllocationType::kYoung>(
+      aliased_context_slot);
 }
 
 DirectHandle<AccessorInfo> Factory::NewAccessorInfo() {
@@ -1920,6 +1880,10 @@ DirectHandle<AccessorInfo> Factory::NewAccessorInfo() {
   info->clear_padding();
 
   return direct_handle(info, isolate());
+}
+
+DirectHandle<AccessCheckInfo> Factory::NewAccessCheckInfo() {
+  return New<AccessCheckInfo, AllocationType::kOld>();
 }
 
 DirectHandle<InterceptorInfo> Factory::NewInterceptorInfo(
@@ -1949,13 +1913,8 @@ DirectHandle<ErrorStackData> Factory::NewErrorStackData(
     DirectHandle<UnionOf<JSAny, FixedArray>>
         raw_data_for_call_site_infos_or_formatted_stack,
     DirectHandle<StackTraceInfo> stack_trace) {
-  Tagged<ErrorStackData> error_stack_data = NewStructInternal<ErrorStackData>(
-      ERROR_STACK_DATA_TYPE, AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  error_stack_data->set_raw_data_for_call_site_infos_or_formatted_stack(
-      *raw_data_for_call_site_infos_or_formatted_stack, SKIP_WRITE_BARRIER);
-  error_stack_data->set_stack_trace(*stack_trace, SKIP_WRITE_BARRIER);
-  return direct_handle(error_stack_data, isolate());
+  return New<ErrorStackData, AllocationType::kYoung>(
+      raw_data_for_call_site_infos_or_formatted_stack, stack_trace);
 }
 
 void Factory::ProcessNewScript(DirectHandle<Script> script,
@@ -1980,34 +1939,14 @@ Handle<Script> Factory::CloneScript(DirectHandle<Script> script,
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
   DirectHandle<ArrayList> list = ArrayList::New(isolate(), 0);
 #endif
-  Handle<Script> new_script_handle =
-      Cast<Script>(NewStruct(SCRIPT_TYPE, AllocationType::kOld));
-  {
-    DisallowGarbageCollection no_gc;
-    Tagged<Script> new_script = *new_script_handle;
-    const Tagged<Script> old_script = *script;
-    new_script->set_source(*source);
-    new_script->set_name(old_script->name());
-    new_script->set_id(script_id);
-    new_script->set_line_offset(old_script->line_offset());
-    new_script->set_column_offset(old_script->column_offset());
-    new_script->set_context_data(old_script->context_data());
-    new_script->set_type(old_script->type());
-    new_script->set_line_ends(Smi::zero());
-    new_script->set_eval_from_shared_or_wrapped_arguments(
-        script->eval_from_shared_or_wrapped_arguments());
-    new_script->set_infos(*empty_weak_fixed_array(), SKIP_WRITE_BARRIER);
-    new_script->set_eval_from_position(old_script->eval_from_position());
-    new_script->set_eval_from_scope_info(old_script->eval_from_scope_info());
-    new_script->set_flags(old_script->flags());
-    new_script->set_host_defined_options(old_script->host_defined_options());
-    new_script->set_source_hash(*undefined_value(), SKIP_WRITE_BARRIER);
-    new_script->set_compiled_lazy_function_positions(*undefined_value(),
-                                                     SKIP_WRITE_BARRIER);
+  Handle<Script> new_script_handle = indirect_handle(
+      New<Script, AllocationType::kOld>(script, source, script_id
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
-    new_script->set_script_or_modules(*list);
+                                        ,
+                                        list
 #endif
-  }
+                                        ),
+      isolate());
   ProcessNewScript(new_script_handle, ScriptEventType::kCreate);
   return new_script_handle;
 }
@@ -2015,32 +1954,24 @@ Handle<Script> Factory::CloneScript(DirectHandle<Script> script,
 DirectHandle<CallableTask> Factory::NewCallableTask(
     DirectHandle<JSReceiver> callable, DirectHandle<NativeContext> context) {
   DCHECK(IsCallable(*callable));
-  auto microtask = NewStructInternal<CallableTask>(CALLABLE_TASK_TYPE,
-                                                   AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  microtask->set_callable(*callable, SKIP_WRITE_BARRIER);
-  microtask->set_context(*context, SKIP_WRITE_BARRIER);
+  return New<CallableTask, AllocationType::kYoung>(
+      callable, context
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  microtask->set_continuation_preserved_embedder_data(
-      isolate()->isolate_data()->continuation_preserved_embedder_data(),
-      SKIP_WRITE_BARRIER);
+      ,
+      isolate()->isolate_data()->continuation_preserved_embedder_data_handle()
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return direct_handle(microtask, isolate());
+  );
 }
 
 DirectHandle<CallbackTask> Factory::NewCallbackTask(
     DirectHandle<Foreign> callback, DirectHandle<Object> data) {
-  auto microtask = NewStructInternal<CallbackTask>(CALLBACK_TASK_TYPE,
-                                                   AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  microtask->set_callback(*callback, SKIP_WRITE_BARRIER);
-  microtask->set_data(*data, SKIP_WRITE_BARRIER);
+  return New<CallbackTask, AllocationType::kYoung>(
+      callback, data
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  microtask->set_continuation_preserved_embedder_data(
-      isolate()->isolate_data()->continuation_preserved_embedder_data(),
-      SKIP_WRITE_BARRIER);
+      ,
+      isolate()->isolate_data()->continuation_preserved_embedder_data_handle()
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return direct_handle(microtask, isolate());
+  );
 }
 
 DirectHandle<PromiseResolveThenableJobTask>
@@ -2049,19 +1980,13 @@ Factory::NewPromiseResolveThenableJobTask(
     DirectHandle<JSReceiver> thenable, DirectHandle<JSReceiver> then,
     DirectHandle<Context> context) {
   DCHECK(IsCallable(*then));
-  auto microtask = NewStructInternal<PromiseResolveThenableJobTask>(
-      PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  microtask->set_promise_to_resolve(*promise_to_resolve, SKIP_WRITE_BARRIER);
-  microtask->set_thenable(*thenable, SKIP_WRITE_BARRIER);
-  microtask->set_then(*then, SKIP_WRITE_BARRIER);
-  microtask->set_context(*context, SKIP_WRITE_BARRIER);
+  return New<PromiseResolveThenableJobTask, AllocationType::kYoung>(
+      promise_to_resolve, thenable, then, context
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  microtask->set_continuation_preserved_embedder_data(
-      isolate()->isolate_data()->continuation_preserved_embedder_data(),
-      SKIP_WRITE_BARRIER);
+      ,
+      isolate()->isolate_data()->continuation_preserved_embedder_data_handle()
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  return direct_handle(microtask, isolate());
+  );
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2617,46 +2542,28 @@ Factory::NewSharedFunctionInfoForWasmCapiFunction(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Handle<Cell> Factory::NewCell(Tagged<Smi> value) {
-  static_assert(sizeof(Cell) <= kMaxRegularHeapObjectSize);
-  AllocationWitness witness =
-      AllocateWithWitness(sizeof(Cell), AllocationType::kOld);
-  return handle(new (witness) Cell(read_only_roots(), value), isolate());
+  return indirect_handle(New<Cell, AllocationType::kOld>(value), isolate());
 }
 
 Handle<Cell> Factory::NewCell() {
-  static_assert(sizeof(Cell) <= kMaxRegularHeapObjectSize);
-  AllocationWitness witness =
-      AllocateWithWitness(sizeof(Cell), AllocationType::kOld);
-  return handle(new (witness) Cell(read_only_roots()), isolate());
+  return indirect_handle(New<Cell, AllocationType::kOld>(), isolate());
 }
 
 DirectHandle<FeedbackCell> Factory::NewNoClosuresCell() {
-  AllocationWitness witness =
-      AllocateWithWitness(sizeof(FeedbackCell), AllocationType::kOld);
-  return direct_handle(
-      new (witness) FeedbackCell(read_only_roots(),
-                                 read_only_roots().no_closures_cell_map()),
-      isolate());
+  return New<FeedbackCell, AllocationType::kOld>(
+      read_only_roots().no_closures_cell_map());
 }
 
 DirectHandle<FeedbackCell> Factory::NewOneClosureCell(
     DirectHandle<ClosureFeedbackCellArray> value) {
-  AllocationWitness witness =
-      AllocateWithWitness(sizeof(FeedbackCell), AllocationType::kOld);
-  return direct_handle(
-      new (witness) FeedbackCell(
-          witness, read_only_roots().one_closure_cell_map(), *value),
-      isolate());
+  return New<FeedbackCell, AllocationType::kOld>(
+      read_only_roots().one_closure_cell_map(), value);
 }
 
 DirectHandle<FeedbackCell> Factory::NewManyClosuresCell(
     AllocationType allocation) {
-  AllocationWitness witness =
-      AllocateWithWitness(sizeof(FeedbackCell), allocation);
-  return direct_handle(
-      new (witness) FeedbackCell(read_only_roots(),
-                                 read_only_roots().many_closures_cell_map()),
-      isolate());
+  return New<FeedbackCell>(allocation,
+                           read_only_roots().many_closures_cell_map());
 }
 
 Handle<PropertyCell> Factory::NewPropertyCell(DirectHandle<Name> name,
@@ -4584,23 +4491,13 @@ Handle<DebugInfo> Factory::NewDebugInfo(
 }
 
 DirectHandle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
-  auto new_break_point_info = NewStructInternal<BreakPointInfo>(
-      BREAK_POINT_INFO_TYPE, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  new_break_point_info->set_source_position(source_position);
-  new_break_point_info->set_break_points(*undefined_value(),
-                                         SKIP_WRITE_BARRIER);
-  return direct_handle(new_break_point_info, isolate());
+  return New<BreakPointInfo, AllocationType::kOld>(source_position);
 }
 
 Handle<BreakPoint> Factory::NewBreakPoint(int id,
                                           DirectHandle<String> condition) {
-  auto new_break_point =
-      NewStructInternal<BreakPoint>(BREAK_POINT_TYPE, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  new_break_point->set_id(id);
-  new_break_point->set_condition(*condition);
-  return handle(new_break_point, isolate());
+  return indirect_handle(New<BreakPoint, AllocationType::kOld>(id, condition),
+                         isolate());
 }
 
 Handle<CallSiteInfo> Factory::NewCallSiteInfo(
@@ -4608,15 +4505,10 @@ Handle<CallSiteInfo> Factory::NewCallSiteInfo(
     DirectHandle<UnionOf<Smi, JSFunction>> function,
     DirectHandle<Union<Code, BytecodeArray, Undefined>> code_object,
     int code_offset_or_source_position, int flags) {
-  auto info = NewStructInternal<CallSiteInfo>(CALL_SITE_INFO_TYPE,
-                                              AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  info->set_receiver_or_instance(*receiver_or_instance, SKIP_WRITE_BARRIER);
-  info->set_function(*function, SKIP_WRITE_BARRIER);
-  info->set_code_object(*code_object, SKIP_WRITE_BARRIER);
-  info->set_code_offset_or_source_position(code_offset_or_source_position);
-  info->set_flags(flags);
-  return handle(info, isolate());
+  return indirect_handle(New<CallSiteInfo, AllocationType::kYoung>(
+                             receiver_or_instance, function, code_object,
+                             code_offset_or_source_position, flags),
+                         isolate());
 }
 
 DirectHandle<StackFrameInfo> Factory::NewStackFrameInfo(
@@ -4624,36 +4516,24 @@ DirectHandle<StackFrameInfo> Factory::NewStackFrameInfo(
     int bytecode_offset_or_source_position, DirectHandle<String> function_name,
     bool is_constructor) {
   DCHECK_GE(bytecode_offset_or_source_position, 0);
-  Tagged<StackFrameInfo> info = NewStructInternal<StackFrameInfo>(
-      STACK_FRAME_INFO_TYPE, AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  info->set_flags(0);
-  info->set_shared_or_script(*shared_or_script, SKIP_WRITE_BARRIER);
-  info->set_bytecode_offset_or_source_position(
-      bytecode_offset_or_source_position);
-  info->set_function_name(*function_name, SKIP_WRITE_BARRIER);
-  info->set_is_constructor(is_constructor);
-  return direct_handle(info, isolate());
+  return New<StackFrameInfo, AllocationType::kYoung>(
+      shared_or_script, bytecode_offset_or_source_position, function_name,
+      is_constructor);
 }
 
 Handle<StackTraceInfo> Factory::NewStackTraceInfo(
     DirectHandle<FixedArray> frames) {
-  Tagged<StackTraceInfo> info = NewStructInternal<StackTraceInfo>(
-      STACK_TRACE_INFO_TYPE, AllocationType::kYoung);
-  DisallowGarbageCollection no_gc;
-  info->set_id(isolate()->heap()->NextStackTraceId());
-  info->set_frames(*frames, SKIP_WRITE_BARRIER);
-  return handle(info, isolate());
+  return indirect_handle(New<StackTraceInfo, AllocationType::kYoung>(
+                             isolate()->heap()->NextStackTraceId(), frames),
+                         isolate());
 }
 
 Handle<DebugScriptScopeInfo> Factory::NewDebugScriptScopeInfo(
     DirectHandle<ByteArray> numeric_data,
     DirectHandle<FixedArray> string_table) {
-  AllocationWitness witness =
-      AllocateWithWitness(sizeof(DebugScriptScopeInfo), AllocationType::kOld);
-  return handle(new (witness) DebugScriptScopeInfo(
-                    witness, read_only_roots(), *numeric_data, *string_table),
-                isolate());
+  return indirect_handle(New<DebugScriptScopeInfo, AllocationType::kOld>(
+                             numeric_data, string_table),
+                         isolate());
 }
 
 Handle<JSObject> Factory::NewArgumentsObject(DirectHandle<JSFunction> callee,
@@ -5218,12 +5098,8 @@ DirectHandle<JSFunction> Factory::CreatePromiseAllResolveElementFunction(
 DirectHandle<PromiseCapability> Factory::CreatePromiseCapabilityObject(
     DirectHandle<JSPromise> promise, DirectHandle<JSFunction> resolve,
     DirectHandle<JSFunction> reject) {
-  Handle<PromiseCapability> capability = Cast<PromiseCapability>(
-      NewStruct(PROMISE_CAPABILITY_TYPE, AllocationType::kYoung));
-  capability->set_promise(*promise);
-  capability->set_resolve(*resolve);
-  capability->set_reject(*reject);
-  return capability;
+  return New<PromiseCapability, AllocationType::kYoung>(promise, resolve,
+                                                        reject);
 }
 
 bool Factory::CanAllocateInReadOnlySpace() {

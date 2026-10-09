@@ -142,6 +142,8 @@ enum class ArrayStorageAllocationMode {
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
+  using FactoryBase<Factory>::New;
+
   inline ReadOnlyRoots read_only_roots() const;
 
   DirectHandle<Hole> NewHole();
@@ -533,6 +535,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int aliased_context_slot);
 
   DirectHandle<AccessorInfo> NewAccessorInfo();
+  DirectHandle<AccessCheckInfo> NewAccessCheckInfo();
 
   DirectHandle<InterceptorInfo> NewInterceptorInfo(
       InterceptorKind kind, AllocationType allocation = AllocationType::kOld);

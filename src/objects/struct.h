@@ -35,6 +35,11 @@ V8_OBJECT class Tuple2 : public Struct {
   V8_IT_NO_AUTO_DISPATCH;
 
  public:
+  inline Tuple2(const AllocationWitness& witness, Tagged<Object> value1,
+                Tagged<Object> value2);
+  inline Tuple2(const AllocationWitness& witness, Tagged<Object> value1,
+                Tagged<Object> value2, RelaxedStoreTag tag);
+
   void BriefPrintDetails(std::ostream& os);
 
   inline Tagged<Object> value1() const;
@@ -74,6 +79,8 @@ V8_OBJECT class AccessorPair : public Struct {
   V8_IT_NO_AUTO_DISPATCH;
 
  public:
+  inline explicit AccessorPair(const AllocationWitness& witness);
+
   static DirectHandle<AccessorPair> Copy(Isolate* isolate,
                                          DirectHandle<AccessorPair> pair);
 
@@ -123,11 +130,10 @@ V8_OBJECT class ClassPositions : public Struct {
   V8_IT_NO_AUTO_DISPATCH;
 
  public:
-  inline int start() const;
-  inline void set_start(int value);
+  inline ClassPositions(const AllocationWitness& witness, int start, int end);
 
+  inline int start() const;
   inline int end() const;
-  inline void set_end(int value);
 
   // Dispatched behavior.
   void BriefPrintDetails(std::ostream& os);
@@ -138,27 +144,22 @@ V8_OBJECT class ClassPositions : public Struct {
  private:
   friend class TorqueGeneratedClassPositionsAsserts;
 
-  TaggedMember<Smi> start_;
-  TaggedMember<Smi> end_;
+  const TaggedMember<Smi> start_;
+  const TaggedMember<Smi> end_;
 } V8_OBJECT_END;
 
 V8_OBJECT class ForInEnumeratorHolder : public Struct {
  public:
+  inline ForInEnumeratorHolder(const AllocationWitness& witness,
+                               Tagged<Map> enum_cache_map,
+                               Tagged<FixedArray> named_keys,
+                               Tagged<Smi> elements_length,
+                               Tagged<Smi> cache_length);
+
   inline Tagged<Map> enum_cache_map() const;
-  inline void set_enum_cache_map(Tagged<Map> value,
-                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<FixedArray> named_keys() const;
-  inline void set_named_keys(Tagged<FixedArray> value,
-                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<Smi> elements_length() const;
-  inline void set_elements_length(Tagged<Smi> value,
-                                  WriteBarrierMode mode = SKIP_WRITE_BARRIER);
-
   inline Tagged<Smi> cache_length() const;
-  inline void set_cache_length(Tagged<Smi> value,
-                               WriteBarrierMode mode = SKIP_WRITE_BARRIER);
 
   DECL_PRINTER(ForInEnumeratorHolder)
   DECL_VERIFIER(ForInEnumeratorHolder)
@@ -169,10 +170,10 @@ V8_OBJECT class ForInEnumeratorHolder : public Struct {
   friend class TorqueGeneratedForInEnumeratorHolderAsserts;
   friend struct ObjectTraits<ForInEnumeratorHolder>;
 
-  TaggedMember<Map> enum_cache_map_;
-  TaggedMember<FixedArray> named_keys_;
-  TaggedMember<Smi> elements_length_;
-  TaggedMember<Smi> cache_length_;
+  const TaggedMember<Map> enum_cache_map_;
+  const TaggedMember<FixedArray> named_keys_;
+  const TaggedMember<Smi> elements_length_;
+  const TaggedMember<Smi> cache_length_;
 } V8_OBJECT_END;
 
 template <>

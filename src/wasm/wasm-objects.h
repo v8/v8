@@ -1669,11 +1669,12 @@ class WasmScript : public AllStatic {
 //  - {WasmInstanceObject::tags_table}: List of tags used by an instance.
 V8_OBJECT class WasmExceptionTag : public Struct {
  public:
+  inline WasmExceptionTag(const AllocationWitness& witness, int index);
+
   V8_EXPORT_PRIVATE static DirectHandle<WasmExceptionTag> New(Isolate* isolate,
                                                               int index);
 
   inline int index() const;
-  inline void set_index(int value);
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -1683,7 +1684,7 @@ V8_OBJECT class WasmExceptionTag : public Struct {
  private:
   friend class TorqueGeneratedWasmExceptionTagAsserts;
 
-  TaggedMember<Smi> index_;
+  const TaggedMember<Smi> index_;
 } V8_OBJECT_END;
 
 V8_OBJECT class WasmTypeInfo : public HeapObject {

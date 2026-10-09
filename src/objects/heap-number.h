@@ -29,8 +29,8 @@ class JSContextSpecialization;
 // represented in a Smi (small integer).
 V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
  public:
-  inline HeapNumber(ReadOnlyRoots roots, double value);
-  inline HeapNumber(ReadOnlyRoots roots, Float64 value);
+  inline HeapNumber(const AllocationWitness& witness, double value);
+  inline HeapNumber(const AllocationWitness& witness, Float64 value);
 
   inline double value() const;
   inline void set_value(double value);
@@ -84,7 +84,7 @@ V8_OBJECT class UninitializedHeapNumber : public HeapObject {
  public:
   static constexpr int kSize = sizeof(HeapNumber);
 
-  inline explicit UninitializedHeapNumber(ReadOnlyRoots roots);
+  inline explicit UninitializedHeapNumber(const AllocationWitness& witness);
 
   inline double value() const { return value_.value(); }
   inline void set_value(double value) { value_.set_value(value); }

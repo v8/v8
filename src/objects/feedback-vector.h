@@ -306,7 +306,7 @@ class NexusConfig;
 V8_OBJECT class FeedbackVector : public HeapObject {
  public:
   inline FeedbackVector(
-      const AllocationWitness& witness, ReadOnlyRoots roots, int32_t length,
+      const AllocationWitness& witness, int32_t length,
       Tagged<SharedFunctionInfo> shared_function_info,
       Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
       Tagged<FeedbackCell> parent_feedback_cell);
@@ -761,7 +761,7 @@ class SharedFeedbackSlot {
 // after the int32s of the slots.
 V8_OBJECT class FeedbackMetadata : public HeapObject {
  public:
-  inline FeedbackMetadata(ReadOnlyRoots roots, int32_t slot_count,
+  inline FeedbackMetadata(const AllocationWitness& witness, int32_t slot_count,
                           int32_t create_closure_slot_count);
 
   // The number of slots that this metadata contains. Stored as an int32.

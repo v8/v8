@@ -19,14 +19,15 @@
 namespace v8 {
 namespace internal {
 
-Cell::Cell(ReadOnlyRoots roots)
-    : HeapObject(roots.cell_map()), maybe_value_(roots.undefined_value()) {}
+Cell::Cell(const AllocationWitness& witness)
+    : HeapObject(witness.roots().cell_map()),
+      maybe_value_(witness.roots().undefined_value()) {}
 
-Cell::Cell(ReadOnlyRoots roots, Tagged<Smi> value)
-    : HeapObject(roots.cell_map()), maybe_value_(value) {}
+Cell::Cell(const AllocationWitness& witness, Tagged<Smi> value)
+    : HeapObject(witness.roots().cell_map()), maybe_value_(value) {}
 
-Cell::Cell(ReadOnlyRoots roots, Tagged<ClearedWeakValue> value)
-    : HeapObject(roots.cell_map()), maybe_value_(value) {}
+Cell::Cell(const AllocationWitness& witness, Tagged<ClearedWeakValue> value)
+    : HeapObject(witness.roots().cell_map()), maybe_value_(value) {}
 
 Tagged<MaybeObject> Cell::maybe_value() const { return maybe_value_.load(); }
 

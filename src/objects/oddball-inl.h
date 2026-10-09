@@ -43,17 +43,20 @@ void Oddball::FinishInitialization(Tagged<String> to_string,
   set_type_of(type_of, SKIP_WRITE_BARRIER);
 }
 
-Null::Null(ReadOnlyRoots roots) : Oddball(roots.null_map(), Oddball::kNull) {}
+Null::Null(const AllocationWitness& witness)
+    : Oddball(witness.roots().null_map(), Oddball::kNull) {}
 
-Undefined::Undefined(ReadOnlyRoots roots)
-    : Oddball(roots.undefined_map(), Oddball::kUndefined) {}
+Undefined::Undefined(const AllocationWitness& witness)
+    : Oddball(witness.roots().undefined_map(), Oddball::kUndefined) {}
 
-Boolean::Boolean(ReadOnlyRoots roots, uint8_t kind)
-    : Oddball(roots.boolean_map(), kind) {}
+Boolean::Boolean(const AllocationWitness& witness, uint8_t kind)
+    : Oddball(witness.roots().boolean_map(), kind) {}
 
-True::True(ReadOnlyRoots roots) : Boolean(roots, Oddball::kTrue) {}
+True::True(const AllocationWitness& witness)
+    : Boolean(witness, Oddball::kTrue) {}
 
-False::False(ReadOnlyRoots roots) : Boolean(roots, Oddball::kFalse) {}
+False::False(const AllocationWitness& witness)
+    : Boolean(witness, Oddball::kFalse) {}
 
 double Oddball::to_number_raw() const { return to_number_raw_.value(); }
 void Oddball::set_to_number_raw(double value) {

@@ -293,6 +293,8 @@ V8_OBJECT class RegExpData : public ExposedTrustedObject {
 
 V8_OBJECT class RegExpDataWrapper : public Struct {
  public:
+  inline explicit RegExpDataWrapper(const AllocationWitness& witness);
+
   DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
 
   DECL_PRINTER(RegExpDataWrapper)

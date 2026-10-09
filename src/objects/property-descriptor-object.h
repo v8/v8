@@ -53,6 +53,8 @@ V8_OBJECT class PropertyDescriptorObject : public Struct {
                               HasWritableBit::kMask | HasValueBit::kMask |
                               HasGetBit::kMask | HasSetBit::kMask;
 
+  inline explicit PropertyDescriptorObject(const AllocationWitness& witness);
+
   inline int flags() const;
   inline void set_flags(int value);
 

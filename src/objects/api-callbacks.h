@@ -127,6 +127,8 @@ inline constexpr int AccessorInfo::kSize = sizeof(AccessorInfo);
 
 V8_OBJECT class AccessCheckInfo : public Struct {
  public:
+  inline explicit AccessCheckInfo(const AllocationWitness& witness);
+
   static Tagged<AccessCheckInfo> Get(Isolate* isolate,
                                      DirectHandle<JSObject> receiver);
 

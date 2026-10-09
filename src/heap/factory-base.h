@@ -98,6 +98,11 @@ struct NewCodeOptions {
 template <typename Impl>
 class FactoryBase {
  public:
+  template <typename T, typename... Args>
+  inline DirectHandle<T> New(AllocationType allocation, Args&&... args);
+  template <typename T, AllocationType kAllocation, typename... Args>
+  inline DirectHandle<T> New(Args&&... args);
+
   Handle<Code> NewCode(const NewCodeOptions& options);
 
   DirectHandle<CodeWrapper> NewCodeWrapper();
@@ -135,9 +140,6 @@ class FactoryBase {
 
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<UninitializedHeapNumber> NewUninitializedHeapNumber();
-
-  Handle<Struct> NewStruct(InstanceType type,
-                           AllocationType allocation = AllocationType::kYoung);
 
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
@@ -432,14 +434,6 @@ class FactoryBase {
                                            AllocationType allocation);
   Tagged<HeapObject> AllocateRawWeakArrayList(uint32_t length,
                                               AllocationType allocation);
-
-  template <typename StructType>
-  inline Tagged<StructType> NewStructInternal(InstanceType type,
-                                              AllocationType allocation,
-                                              bool initialize_fields = true);
-  inline Tagged<Struct> NewStructInternal(ReadOnlyRoots roots, Tagged<Map> map,
-                                          int size, AllocationType allocation,
-                                          bool initialize_fields);
 
   AllocationWitness AllocateWithWitness(
       int size, AllocationType allocation,

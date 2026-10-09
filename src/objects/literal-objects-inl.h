@@ -91,59 +91,49 @@ int ObjectBoilerplateDescription::boilerplate_properties_count() const {
 // ClassBoilerplate
 //
 
+ClassBoilerplate::ClassBoilerplate(
+    const AllocationWitness& witness, int arguments_count,
+    Tagged<Object> static_properties_template,
+    Tagged<Object> static_elements_template,
+    Tagged<FixedArray> static_computed_properties,
+    Tagged<Object> instance_properties_template,
+    Tagged<Object> instance_elements_template,
+    Tagged<FixedArray> instance_computed_properties)
+    : Struct(witness.roots().class_boilerplate_map()),
+      arguments_count_(Smi::FromInt(arguments_count)),
+      static_properties_template_(witness, static_properties_template),
+      static_elements_template_(witness, static_elements_template),
+      static_computed_properties_(witness, static_computed_properties),
+      instance_properties_template_(witness, instance_properties_template),
+      instance_elements_template_(witness, instance_elements_template),
+      instance_computed_properties_(witness, instance_computed_properties) {}
+
 int ClassBoilerplate::arguments_count() const {
   return arguments_count_.load().value();
-}
-void ClassBoilerplate::set_arguments_count(int value) {
-  arguments_count_.store(this, Smi::FromInt(value));
 }
 
 Tagged<Object> ClassBoilerplate::static_properties_template() const {
   return static_properties_template_.load();
 }
-void ClassBoilerplate::set_static_properties_template(Tagged<Object> value,
-                                                      WriteBarrierMode mode) {
-  static_properties_template_.store(this, value, mode);
-}
 
 Tagged<Object> ClassBoilerplate::static_elements_template() const {
   return static_elements_template_.load();
-}
-void ClassBoilerplate::set_static_elements_template(Tagged<Object> value,
-                                                    WriteBarrierMode mode) {
-  static_elements_template_.store(this, value, mode);
 }
 
 Tagged<FixedArray> ClassBoilerplate::static_computed_properties() const {
   return static_computed_properties_.load();
 }
-void ClassBoilerplate::set_static_computed_properties(Tagged<FixedArray> value,
-                                                      WriteBarrierMode mode) {
-  static_computed_properties_.store(this, value, mode);
-}
 
 Tagged<Object> ClassBoilerplate::instance_properties_template() const {
   return instance_properties_template_.load();
-}
-void ClassBoilerplate::set_instance_properties_template(Tagged<Object> value,
-                                                        WriteBarrierMode mode) {
-  instance_properties_template_.store(this, value, mode);
 }
 
 Tagged<Object> ClassBoilerplate::instance_elements_template() const {
   return instance_elements_template_.load();
 }
-void ClassBoilerplate::set_instance_elements_template(Tagged<Object> value,
-                                                      WriteBarrierMode mode) {
-  instance_elements_template_.store(this, value, mode);
-}
 
 Tagged<FixedArray> ClassBoilerplate::instance_computed_properties() const {
   return instance_computed_properties_.load();
-}
-void ClassBoilerplate::set_instance_computed_properties(
-    Tagged<FixedArray> value, WriteBarrierMode mode) {
-  instance_computed_properties_.store(this, value, mode);
 }
 
 //
@@ -151,9 +141,9 @@ void ClassBoilerplate::set_instance_computed_properties(
 //
 
 ArrayBoilerplateDescription::ArrayBoilerplateDescription(
-    const AllocationWitness& witness, ReadOnlyRoots roots,
-    ElementsKind elements_kind, Tagged<FixedArrayBase> constant_values)
-    : Struct(roots.array_boilerplate_description_map()),
+    const AllocationWitness& witness, ElementsKind elements_kind,
+    Tagged<FixedArrayBase> constant_values)
+    : Struct(witness.roots().array_boilerplate_description_map()),
       flags_(Smi::FromInt(elements_kind)),
       constant_elements_(witness, constant_values) {}
 
@@ -176,9 +166,9 @@ bool ArrayBoilerplateDescription::is_empty() const {
 //
 
 RegExpBoilerplateDescription::RegExpBoilerplateDescription(
-    const AllocationWitness& witness, ReadOnlyRoots roots,
-    Tagged<RegExpData> data, Tagged<Smi> flags)
-    : Struct(roots.regexp_boilerplate_description_map()),
+    const AllocationWitness& witness, Tagged<RegExpData> data,
+    Tagged<Smi> flags)
+    : Struct(witness.roots().regexp_boilerplate_description_map()),
       data_(witness, data),
       flags_(flags) {}
 
@@ -192,11 +182,11 @@ int RegExpBoilerplateDescription::flags() const {
 }
 
 PrototypeSharedClosureInfo::PrototypeSharedClosureInfo(
-    const AllocationWitness& witness, ReadOnlyRoots roots,
+    const AllocationWitness& witness,
     Tagged<ObjectBoilerplateDescription> boilerplate_description,
     Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
     Tagged<Context> context)
-    : Struct(roots.prototype_shared_closure_info_map()),
+    : Struct(witness.roots().prototype_shared_closure_info_map()),
       boilerplate_description_(witness, boilerplate_description),
       closure_feedback_cell_array_(witness, closure_feedback_cell_array),
       context_(witness, context) {}

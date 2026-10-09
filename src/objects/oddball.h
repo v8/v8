@@ -97,14 +97,14 @@ V8_OBJECT class Null : public Oddball {
   V8_IT_REUSE_PARENT;
 
  public:
-  inline explicit Null(ReadOnlyRoots roots);
+  inline explicit Null(const AllocationWitness& witness);
 } V8_OBJECT_END;
 
 V8_OBJECT class Undefined : public Oddball {
   V8_IT_REUSE_PARENT;
 
  public:
-  inline explicit Undefined(ReadOnlyRoots roots);
+  inline explicit Undefined(const AllocationWitness& witness);
 } V8_OBJECT_END;
 
 V8_OBJECT class Boolean : public Oddball {
@@ -112,7 +112,7 @@ V8_OBJECT class Boolean : public Oddball {
   V8_IT_NO_AUTO_CHECKER;
 
  public:
-  inline Boolean(ReadOnlyRoots roots, uint8_t kind);
+  inline Boolean(const AllocationWitness& witness, uint8_t kind);
 
   V8_INLINE bool ToBool(Isolate* isolate) const;
 } V8_OBJECT_END;
@@ -121,14 +121,14 @@ V8_OBJECT class True : public Boolean {
   V8_IT_REUSE_PARENT;
 
  public:
-  inline explicit True(ReadOnlyRoots roots);
+  inline explicit True(const AllocationWitness& witness);
 } V8_OBJECT_END;
 
 V8_OBJECT class False : public Boolean {
   V8_IT_REUSE_PARENT;
 
  public:
-  inline explicit False(ReadOnlyRoots roots);
+  inline explicit False(const AllocationWitness& witness);
 } V8_OBJECT_END;
 
 }  // namespace internal

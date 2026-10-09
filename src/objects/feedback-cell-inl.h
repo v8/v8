@@ -22,8 +22,9 @@
 
 namespace v8::internal {
 
-FeedbackCell::FeedbackCell(ReadOnlyRoots roots, Tagged<ReadOnly<Map>> map)
-    : Struct(map), value_(roots.undefined_value()) {}
+FeedbackCell::FeedbackCell(const AllocationWitness& witness,
+                           Tagged<ReadOnly<Map>> map)
+    : Struct(map), value_(witness.roots().undefined_value()) {}
 
 FeedbackCell::FeedbackCell(const AllocationWitness& witness,
                            Tagged<ReadOnly<Map>> map,

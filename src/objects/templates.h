@@ -130,6 +130,8 @@ V8_OBJECT class TemplateInfoWithProperties : public TemplateInfo {
 // Contains data members that are rarely set on a FunctionTemplateInfo.
 V8_OBJECT class FunctionTemplateRareData : public Struct {
  public:
+  inline explicit FunctionTemplateRareData(const AllocationWitness& witness);
+
   inline Tagged<UnionOf<Undefined, ObjectTemplateInfo>> prototype_template()
       const;
   inline void set_prototype_template(

@@ -25,7 +25,7 @@ class StructBodyDescriptor;
 V8_OBJECT class PrototypeSharedClosureInfo : public Struct {
  public:
   inline PrototypeSharedClosureInfo(
-      const AllocationWitness& witness, ReadOnlyRoots roots,
+      const AllocationWitness& witness,
       Tagged<ObjectBoilerplateDescription> boilerplate_description,
       Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
       Tagged<Context> context);
@@ -108,7 +108,6 @@ V8_OBJECT class ObjectBoilerplateDescription
 V8_OBJECT class ArrayBoilerplateDescription : public Struct {
  public:
   inline ArrayBoilerplateDescription(const AllocationWitness& witness,
-                                     ReadOnlyRoots roots,
                                      ElementsKind elements_kind,
                                      Tagged<FixedArrayBase> constant_values);
 
@@ -138,7 +137,6 @@ V8_OBJECT class ArrayBoilerplateDescription : public Struct {
 V8_OBJECT class RegExpBoilerplateDescription : public Struct {
  public:
   inline RegExpBoilerplateDescription(const AllocationWitness& witness,
-                                      ReadOnlyRoots roots,
                                       Tagged<RegExpData> data,
                                       Tagged<Smi> flags);
 
@@ -196,37 +194,26 @@ V8_OBJECT class ClassBoilerplate : public Struct {
   static const int kMinimumClassPropertiesCount = 6;
   static const int kMinimumPrototypePropertiesCount = 1;
 
+  inline ClassBoilerplate(const AllocationWitness& witness, int arguments_count,
+                          Tagged<Object> static_properties_template,
+                          Tagged<Object> static_elements_template,
+                          Tagged<FixedArray> static_computed_properties,
+                          Tagged<Object> instance_properties_template,
+                          Tagged<Object> instance_elements_template,
+                          Tagged<FixedArray> instance_computed_properties);
+
   template <typename IsolateT>
   static Handle<ClassBoilerplate> New(
       IsolateT* isolate, ClassLiteral* expr,
       AllocationType allocation = AllocationType::kYoung);
 
   inline int arguments_count() const;
-  inline void set_arguments_count(int value);
-
   inline Tagged<Object> static_properties_template() const;
-  inline void set_static_properties_template(
-      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<Object> static_elements_template() const;
-  inline void set_static_elements_template(
-      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<FixedArray> static_computed_properties() const;
-  inline void set_static_computed_properties(
-      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<Object> instance_properties_template() const;
-  inline void set_instance_properties_template(
-      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<Object> instance_elements_template() const;
-  inline void set_instance_elements_template(
-      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline Tagged<FixedArray> instance_computed_properties() const;
-  inline void set_instance_computed_properties(
-      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   template <typename IsolateT, typename Dictionary>
   static void AddToPropertiesTemplate(IsolateT* isolate,
@@ -249,13 +236,13 @@ V8_OBJECT class ClassBoilerplate : public Struct {
   friend class Factory;
   friend class TorqueGeneratedClassBoilerplateAsserts;
 
-  TaggedMember<Smi> arguments_count_;
-  TaggedMember<Object> static_properties_template_;
-  TaggedMember<Object> static_elements_template_;
-  TaggedMember<FixedArray> static_computed_properties_;
-  TaggedMember<Object> instance_properties_template_;
-  TaggedMember<Object> instance_elements_template_;
-  TaggedMember<FixedArray> instance_computed_properties_;
+  const TaggedMember<Smi> arguments_count_;
+  const TaggedMember<Object> static_properties_template_;
+  const TaggedMember<Object> static_elements_template_;
+  const TaggedMember<FixedArray> static_computed_properties_;
+  const TaggedMember<Object> instance_properties_template_;
+  const TaggedMember<Object> instance_elements_template_;
+  const TaggedMember<FixedArray> instance_computed_properties_;
 } V8_OBJECT_END;
 
 }  // namespace internal

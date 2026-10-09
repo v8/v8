@@ -44,14 +44,15 @@
 
 namespace v8::internal {
 
-PreparseData::PreparseData(ReadOnlyRoots roots, int data_length,
+PreparseData::PreparseData(const AllocationWitness& witness, int data_length,
                            int children_length)
-    : HeapObject(roots.preparse_data_map()),
+    : HeapObject(witness.roots().preparse_data_map()),
       data_length_(data_length),
       children_length_(children_length) {
   DCHECK_LE(0, data_length);
   DCHECK_LE(0, children_length);
-  MemsetTagged(ObjectSlot(children()), roots.null_value(), children_length);
+  MemsetTagged(ObjectSlot(children()), witness.roots().null_value(),
+               children_length);
   clear_padding();
 }
 

@@ -38,6 +38,9 @@ class StructBodyDescriptor;
 // An EnumCache is a pair used to hold keys and indices caches.
 V8_OBJECT class EnumCache : public Struct {
  public:
+  inline EnumCache(const AllocationWitness& witness, Tagged<FixedArray> keys,
+                   Tagged<FixedArray> indices);
+
   inline Tagged<FixedArray> keys() const;
   inline void set_keys(Tagged<FixedArray> value,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

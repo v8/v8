@@ -21,6 +21,8 @@ class PrototypeSharedClosureInfo;
 // Container for metadata stored on each prototype map.
 V8_OBJECT class PrototypeInfo : public Struct {
  public:
+  inline explicit PrototypeInfo(const AllocationWitness& witness);
+
   // Accessors
   inline Tagged<UnionOf<JSModuleNamespace, Undefined>> module_namespace() const;
   inline void set_module_namespace(

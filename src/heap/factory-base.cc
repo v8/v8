@@ -20,18 +20,23 @@
 #include "src/heap/read-only-heap.h"
 #include "src/logging/log.h"
 #include "src/objects/arguments-inl.h"
+#include "src/objects/bytecode-array-inl.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/oddball.h"
+#include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/string.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/template-objects-inl.h"
+#include "src/objects/templates-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/check.h"
 
@@ -39,23 +44,8 @@ namespace v8 {
 namespace internal {
 
 template <typename Impl>
-Handle<Struct> FactoryBase<Impl>::NewStruct(InstanceType type,
-                                            AllocationType allocation) {
-  ReadOnlyRoots roots = read_only_roots();
-  Tagged<Map> map = Map::GetMapFor(roots, type);
-  int size = map->instance_size();
-  return handle(NewStructInternal(roots, map, size, allocation, true),
-                isolate());
-}
-
-template <typename Impl>
 Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
-  auto accessors = NewStructInternal<AccessorPair>(ACCESSOR_PAIR_TYPE,
-                                                   AllocationType::kOld, false);
-  DisallowGarbageCollection no_gc;
-  accessors->set_getter(read_only_roots().null_value(), SKIP_WRITE_BARRIER);
-  accessors->set_setter(read_only_roots().null_value(), SKIP_WRITE_BARRIER);
-  return handle(accessors, isolate());
+  return indirect_handle(New<AccessorPair, AllocationType::kOld>(), isolate());
 }
 
 template <typename Impl>
@@ -149,15 +139,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
 
 template <typename Impl>
 DirectHandle<CodeWrapper> FactoryBase<Impl>::NewCodeWrapper() {
-  DirectHandle<CodeWrapper> wrapper(
-      Cast<CodeWrapper>(NewWithImmortalMap(read_only_roots().code_wrapper_map(),
-                                           AllocationType::kOld)),
-      isolate());
-  // The CodeWrapper is typically created before the Code object it wraps, so
-  // the code field cannot yet be set. However, as a heap verifier might see
-  // the wrapper before the field can be set, we need to clear the field here.
-  wrapper->clear_code();
-  return wrapper;
+  return New<CodeWrapper, AllocationType::kOld>();
 }
 
 template <typename Impl>
@@ -361,17 +343,7 @@ DirectHandle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper(
     AllocationType allocation) {
   DCHECK(allocation == AllocationType::kOld ||
          allocation == AllocationType::kSharedOld);
-
-  DirectHandle<BytecodeWrapper> wrapper(
-      Cast<BytecodeWrapper>(NewWithImmortalMap(
-          read_only_roots().bytecode_wrapper_map(), allocation)),
-      isolate());
-  // The BytecodeWrapper is typically created before the BytecodeArray it
-  // wraps, so the bytecode field cannot yet be set. However, as a heap
-  // verifier might see the wrapper before the field can be set, we need to
-  // clear the field here.
-  wrapper->clear_bytecode();
-  return wrapper;
+  return New<BytecodeWrapper>(allocation);
 }
 
 template <typename Impl>
@@ -388,34 +360,8 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     ScriptEventType script_event_type) {
   DCHECK(IsString(*source) || IsUndefined(*source));
   // Create and initialize script object.
-  ReadOnlyRoots roots = read_only_roots();
-  Handle<Script> script = handle(
-      NewStructInternal<Script>(SCRIPT_TYPE, AllocationType::kOld), isolate());
-  {
-    DisallowGarbageCollection no_gc;
-    Tagged<Script> raw = *script;
-    raw->set_source(*source);
-    raw->set_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
-    raw->set_id(script_id);
-    raw->set_line_offset(0);
-    raw->set_column_offset(0);
-    raw->set_context_data(roots.undefined_value(), SKIP_WRITE_BARRIER);
-    raw->set_type(Script::Type::kNormal);
-    raw->set_line_ends(Smi::zero());
-    raw->set_eval_from_shared_or_wrapped_arguments(roots.undefined_value(),
-                                                   SKIP_WRITE_BARRIER);
-    raw->set_eval_from_position(0);
-    raw->set_infos(roots.empty_weak_fixed_array(), SKIP_WRITE_BARRIER);
-    raw->set_flags(0);
-    raw->set_host_defined_options(roots.empty_fixed_array(),
-                                  SKIP_WRITE_BARRIER);
-    raw->set_source_hash(roots.undefined_value(), SKIP_WRITE_BARRIER);
-    raw->set_compiled_lazy_function_positions(roots.undefined_value(),
-                                              SKIP_WRITE_BARRIER);
-#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
-    raw->set_script_or_modules(roots.empty_array_list());
-#endif
-  }
+  Handle<Script> script = indirect_handle(
+      New<Script, AllocationType::kOld>(source, script_id), isolate());
   impl()->ProcessNewScript(script, script_event_type);
   return script;
 }
@@ -468,11 +414,9 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
     DirectHandle<SharedFunctionInfo> other) {
-  AllocationWitness witness =
-      AllocateWithWitness(sizeof(SharedFunctionInfo), AllocationType::kOld);
-  return handle(new (witness)
-                    SharedFunctionInfo(read_only_roots(), *other, isolate()),
-                isolate());
+  return indirect_handle(
+      New<SharedFunctionInfo, AllocationType::kOld>(other, isolate()),
+      isolate());
 }
 
 template <typename Impl>
@@ -494,8 +438,8 @@ Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
                                                         int children_length) {
   int size = PreparseData::SizeFor(data_length, children_length);
   AllocationWitness witness = AllocateWithWitness(size, AllocationType::kOld);
-  return handle(new (witness) PreparseData(read_only_roots(), data_length,
-                                           children_length),
+  return handle(new (witness)
+                    PreparseData(witness, data_length, children_length),
                 isolate());
 }
 
@@ -649,33 +593,21 @@ template <typename Impl>
 Handle<ArrayBoilerplateDescription>
 FactoryBase<Impl>::NewArrayBoilerplateDescription(
     ElementsKind elements_kind, DirectHandle<FixedArrayBase> constant_values) {
-  AllocationWitness witness = AllocateWithWitness(
-      sizeof(ArrayBoilerplateDescription), AllocationType::kOld);
-  return handle(
-      new (witness) ArrayBoilerplateDescription(
-          witness, read_only_roots(), elements_kind, *constant_values),
-      isolate());
+  return indirect_handle(New<ArrayBoilerplateDescription, AllocationType::kOld>(
+                             elements_kind, constant_values),
+                         isolate());
 }
 
 template <typename Impl>
 DirectHandle<RegExpDataWrapper> FactoryBase<Impl>::NewRegExpDataWrapper() {
-  DirectHandle<RegExpDataWrapper> wrapper(
-      Cast<RegExpDataWrapper>(NewWithImmortalMap(
-          read_only_roots().regexp_data_wrapper_map(), AllocationType::kOld)),
-      isolate());
-  wrapper->clear_data();
-  return wrapper;
+  return New<RegExpDataWrapper, AllocationType::kOld>();
 }
 
 template <typename Impl>
 DirectHandle<RegExpBoilerplateDescription>
 FactoryBase<Impl>::NewRegExpBoilerplateDescription(
     DirectHandle<RegExpData> data, Tagged<Smi> flags) {
-  AllocationWitness witness = AllocateWithWitness(
-      sizeof(RegExpBoilerplateDescription), AllocationType::kOld);
-  return direct_handle(new (witness) RegExpBoilerplateDescription(
-                           witness, read_only_roots(), *data, flags),
-                       isolate());
+  return New<RegExpBoilerplateDescription, AllocationType::kOld>(data, flags);
 }
 
 template <typename Impl>
@@ -689,11 +621,9 @@ FactoryBase<Impl>::NewTemplateObjectDescription(
   DCHECK_EQ(raw_strings_len, cooked_strings_len);
   DCHECK_LT(0, raw_strings_len);
 #endif
-  AllocationWitness witness = AllocateWithWitness(
-      sizeof(TemplateObjectDescription), AllocationType::kOld);
-  return handle(new (witness) TemplateObjectDescription(
-                    witness, read_only_roots(), *raw_strings, *cooked_strings),
-                isolate());
+  return indirect_handle(New<TemplateObjectDescription, AllocationType::kOld>(
+                             raw_strings, cooked_strings),
+                         isolate());
 }
 
 template <typename Impl>
@@ -704,7 +634,7 @@ Handle<FeedbackMetadata> FactoryBase<Impl>::NewFeedbackMetadata(
   AllocationWitness witness = AllocateWithWitness(size, allocation);
   // Fields have been zeroed out but not initialized, so this object will not
   // pass object verification at this point.
-  return handle(new (witness) FeedbackMetadata(read_only_roots(), slot_count,
+  return handle(new (witness) FeedbackMetadata(witness, slot_count,
                                                create_closure_slot_count),
                 isolate());
 }
@@ -716,8 +646,7 @@ Handle<CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
 
   int size = CoverageInfo::SizeFor(slot_count);
   AllocationWitness witness = AllocateWithWitness(size, AllocationType::kOld);
-  return handle(new (witness) CoverageInfo(read_only_roots(), slots),
-                isolate());
+  return handle(new (witness) CoverageInfo(witness, slots), isolate());
 }
 
 template <typename Impl>
@@ -1215,11 +1144,9 @@ FactoryBase<Impl>::NewSourceTextModuleInfo() {
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     AllocationType allocation) {
-  AllocationWitness witness =
-      AllocateWithWitness(sizeof(SharedFunctionInfo), allocation);
-  return handle(new (witness) SharedFunctionInfo(
-                    read_only_roots(), isolate()->GetAndIncNextUniqueSfiId()),
-                isolate());
+  return indirect_handle(New<SharedFunctionInfo>(
+                             allocation, isolate()->GetAndIncNextUniqueSfiId()),
+                         isolate());
 }
 
 template <typename Impl>
@@ -1242,11 +1169,8 @@ Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
 template <typename Impl>
 Handle<ClassPositions> FactoryBase<Impl>::NewClassPositions(int start,
                                                             int end) {
-  auto result = NewStructInternal<ClassPositions>(CLASS_POSITIONS_TYPE,
-                                                  AllocationType::kOld);
-  result->set_start(start);
-  result->set_end(end);
-  return handle(result, isolate());
+  return indirect_handle(New<ClassPositions, AllocationType::kOld>(start, end),
+                         isolate());
 }
 
 template <typename Impl>
@@ -1371,7 +1295,7 @@ AllocationWitness FactoryBase<Impl>::AllocateWithWitness(
     int size, AllocationType allocation, AllocationAlignment alignment,
     AllocationHint hint) {
   return AllocationWitness(AllocateRaw(size, allocation, alignment, hint),
-                           allocation);
+                           read_only_roots(), allocation);
 }
 
 template <typename Impl>
@@ -1425,13 +1349,7 @@ Handle<SwissNameDictionary> FactoryBase<Impl>::NewSwissNameDictionary(
 template <typename Impl>
 DirectHandle<FunctionTemplateRareData>
 FactoryBase<Impl>::NewFunctionTemplateRareData() {
-  auto function_template_rare_data =
-      NewStructInternal<FunctionTemplateRareData>(
-          FUNCTION_TEMPLATE_RARE_DATA_TYPE, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  function_template_rare_data->set_c_function_overloads(
-      *impl()->empty_fixed_array(), SKIP_WRITE_BARRIER);
-  return direct_handle(function_template_rare_data, isolate());
+  return New<FunctionTemplateRareData, AllocationType::kOld>();
 }
 
 template <typename Impl>

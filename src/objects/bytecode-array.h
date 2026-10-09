@@ -175,6 +175,8 @@ inline constexpr int BytecodeArray::kMaxLength =
 // stored along other tagged pointers inside an array or similar datastructure.
 V8_OBJECT class BytecodeWrapper : public Struct {
  public:
+  inline explicit BytecodeWrapper(const AllocationWitness& witness);
+
   DECL_TRUSTED_POINTER_ACCESSORS(bytecode, BytecodeArray)
 
   DECL_PRINTER(BytecodeWrapper)

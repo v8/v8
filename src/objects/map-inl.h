@@ -1035,12 +1035,6 @@ void Map::SetBackPointer(Tagged<HeapObject> value, WriteBarrierMode mode) {
 }
 
 // static
-Tagged<Map> Map::GetMapFor(ReadOnlyRoots roots, InstanceType type) {
-  RootIndex map_idx = TryGetMapRootIdxFor(type).value();
-  return UncheckedCast<Map>(roots.object_at(map_idx));
-}
-
-// static
 Tagged<Map> Map::ElementsTransitionMap(Isolate* isolate,
                                        ConcurrencyMode cmode) {
   return TransitionsAccessor(isolate, this, IsConcurrent(cmode))
