@@ -11,7 +11,6 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
-#include "src/base/vector.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"

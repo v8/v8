@@ -11,6 +11,7 @@
 
 #include <cmath>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "src/base/bits.h"
@@ -904,8 +905,8 @@ inline Float16 FpOpWorkaround(Float16 input, Float16 value) {
 
 #endif
 
-V8_EXPORT_PRIVATE bool PassesFilter(base::Vector<const char> name,
-                                    base::Vector<const char> filter);
+V8_EXPORT_PRIVATE bool PassesFilter(std::string_view name,
+                                    std::string_view filter);
 
 // Zap the specified area with a specific byte pattern. This currently defaults
 // to int3 on x64 and ia32. On other architectures this will produce unspecified

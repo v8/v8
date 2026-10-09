@@ -39,10 +39,9 @@ SubtypeCheckExactness GetExactness(const wasm::WasmModule* module,
   return SubtypeCheckExactness::kMayBeSubtype;
 }
 
-base::Vector<const char> GetDebugName(Zone* zone,
-                                      const wasm::WasmModule* module,
-                                      const wasm::WireBytesStorage* wire_bytes,
-                                      int index) {
+std::string_view GetDebugName(Zone* zone, const wasm::WasmModule* module,
+                              const wasm::WireBytesStorage* wire_bytes,
+                              int index) {
   std::optional<wasm::ModuleWireBytes> module_bytes =
       wire_bytes->GetModuleBytes();
   if (module_bytes.has_value() &&
@@ -58,7 +57,7 @@ base::Vector<const char> GetDebugName(Zone* zone,
       int name_len = name.length();
       char* index_name = zone->AllocateArray<char>(name_len);
       memcpy(index_name, module_bytes->start() + name.offset(), name_len);
-      return base::Vector<const char>(index_name, name_len);
+      return std::string_view(index_name, name_len);
     }
   }
 
@@ -70,7 +69,7 @@ base::Vector<const char> GetDebugName(Zone* zone,
 
   char* index_name = zone->AllocateArray<char>(name_len);
   memcpy(index_name, name_vector.data(), name_len);
-  return base::Vector<const char>(index_name, name_len);
+  return std::string_view(index_name, name_len);
 }
 
 TrapId GetTrapIdForTrap(wasm::TrapReason reason) {

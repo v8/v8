@@ -1128,8 +1128,7 @@ class CodeGeneratorTester {
   explicit CodeGeneratorTester(TestEnvironment* environment,
                                int extra_stack_space = 0)
       : zone_(environment->main_zone()),
-        info_(base::ArrayVector("test"), environment->main_zone(),
-              CodeKind::FOR_TESTING),
+        info_("test", environment->main_zone(), CodeKind::FOR_TESTING),
         linkage_(environment->test_descriptor()),
         frame_(environment->test_descriptor()->CalculateFixedFrameSize(
                    CodeKind::FOR_TESTING),
@@ -1658,8 +1657,7 @@ TEST(TurboFanFrameSlotAlignment) {
         }
         frame.EnsureReturnSlots(return_slots);
 
-        OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
-                                      CodeKind::FOR_TESTING);
+        OptimizedCompilationInfo info("test", &zone, CodeKind::FOR_TESTING);
         CodeGenerator codegen(
             &zone, &frame, &linkage, env.instructions(), &info, isolate,
             std::optional<OsrHelper>(), kNoSourcePosition, nullptr,
@@ -1736,8 +1734,8 @@ TEST(Regress_1171759) {
 
   m.Return(m.Int32Constant(0));
 
-  OptimizedCompilationInfo info(base::ArrayVector("testing"),
-                                handles.main_zone(), CodeKind::WASM_FUNCTION);
+  OptimizedCompilationInfo info("testing", handles.main_zone(),
+                                CodeKind::WASM_FUNCTION);
   wasm::WasmCompilationResult result = Pipeline::GenerateWasmCodeForTesting(
       &info, handles.main_isolate(), desc, m.graph(),
       AssemblerOptions::Default(handles.main_isolate()), m.ExportForTest());

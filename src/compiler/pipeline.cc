@@ -1563,8 +1563,7 @@ class WasmTurboshaftWrapperCompilationJob final
                                  CompilationJob::State::kReadyToExecute),
         zone_(wasm::GetWasmEngine()->allocator(), ZONE_NAME),
         debug_name_(std::move(debug_name)),
-        info_(base::CStrVector(debug_name_.get()), &zone_,
-              wrapper_info.code_kind),
+        info_(debug_name_.get(), &zone_, wrapper_info.code_kind),
         sig_(sig),
         wrapper_info_(wrapper_info),
         call_descriptor_(
@@ -2166,7 +2165,7 @@ CodeAssemblerCompilationJob::CodeAssemblerCompilationJob(
       code_assembler_state_(isolate, &zone_, get_call_descriptor(&zone_),
                             code_kind, name, builtin),
       assembler_options_(assembler_options),
-      compilation_info_(base::CStrVector(name), &zone_, code_kind),
+      compilation_info_(name, &zone_, code_kind),
       jump_opt_(ShouldOptimizeJumps(isolate) ? new JumpOptimizationInfo()
                                              : nullptr),
       finalize_order_(finalize_order) {
@@ -2330,7 +2329,7 @@ TurboshaftAssemblerBuiltinCompilationJob::
       name_(name),
       zone_stats_(isolate->allocator()),
       zone_(&zone_stats_, kBuiltinCompilationZoneName),
-      compilation_info_(base::CStrVector(name), zone_, code_kind),
+      compilation_info_(name, zone_, code_kind),
       data_(&zone_stats_, turboshaft::TurboshaftPipelineKind::kTSABuiltin,
             isolate, &compilation_info_, assembler_options),
       jump_opt_(ShouldOptimizeJumps(isolate) ? new JumpOptimizationInfo()
@@ -2785,8 +2784,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
   Linkage linkage(call_descriptor);
-  OptimizedCompilationInfo info(base::CStrVector(debug_name), &zone,
-                                wrapper_info.code_kind);
+  OptimizedCompilationInfo info(debug_name, &zone, wrapper_info.code_kind);
   ZoneStats zone_stats(wasm_engine->allocator());
   TFPipelineData data(&zone_stats, &info, nullptr,
                       wasm::GetWasmEngine()->allocator(), nullptr, nullptr,
