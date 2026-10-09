@@ -130,9 +130,9 @@ builder.addFunction('test', makeSig(
   ]).exportFunc();
 
 const instance = builder.instantiate();
-const mem = new Int32Array(instance.exports.memory.buffer);
+const mem = new DataView(instance.exports.memory.buffer);
 for (let i = 0; i < 12; i++) {
-  mem[i] = i + 100;
+  mem.setInt32(i * 4, i + 100, true);
 }
 
 // Run once on Liftoff first.
