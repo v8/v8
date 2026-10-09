@@ -1343,7 +1343,8 @@ class ParserBase {
   // a pattern.
   V8_INLINE ExpressionT ParseExpression();
   V8_INLINE ExpressionT ParseAssignmentExpression();
-  V8_INLINE ExpressionT ParseConditionalChainAssignmentExpression();
+  V8_INLINE ExpressionT
+  ParseConditionalChainAssignmentExpression(bool* else_found);
 
   // These methods do not wrap the parsing of the expression inside a new
   // expression_scope; they use the outer expression_scope instead. They should
@@ -1356,7 +1357,8 @@ class ParserBase {
   ExpressionT ParseAssignmentExpressionCoverGrammar();
   ExpressionT ParseAssignmentExpressionCoverGrammarContinuation(
       int lhs_beg_pos, ExpressionT expression);
-  ExpressionT ParseConditionalChainAssignmentExpressionCoverGrammar();
+  ExpressionT ParseConditionalChainAssignmentExpressionCoverGrammar(
+      bool* else_found);
 
   ExpressionT ParseArrowParametersWithRest(ExpressionListT* list,
                                            AccumulationScope* scope,
@@ -2309,9 +2311,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseExpression() {
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseConditionalChainAssignmentExpression() {
+ParserBase<Impl>::ParseConditionalChainAssignmentExpression(bool* else_found) {
   ExpressionParsingScope expression_scope(impl());
-  ExpressionT result = ParseConditionalChainAssignmentExpressionCoverGrammar();
+  ExpressionT result =
+      ParseConditionalChainAssignmentExpressionCoverGrammar(else_found);
   expression_scope.ValidateExpression();
   return result;
 }
@@ -3238,7 +3241,8 @@ void ParserBase<Impl>::ParseArguments(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseConditionalChainAssignmentExpressionCoverGrammar() {
+ParserBase<Impl>::ParseConditionalChainAssignmentExpressionCoverGrammar(
+    bool* else_found) {
   // AssignmentExpression ::
   //   ArrowFunction
   //   YieldExpression
@@ -3246,6 +3250,7 @@ ParserBase<Impl>::ParseConditionalChainAssignmentExpressionCoverGrammar() {
   int lhs_beg_pos = peek_position();
 
   if (peek() == Token::kYield && is_generator()) {
+    *else_found = true;
     return ParseYieldExpression();
   }
 
@@ -3257,10 +3262,12 @@ ParserBase<Impl>::ParseConditionalChainAssignmentExpressionCoverGrammar() {
 
   Token::Value op = peek();
 
-  if (!Token::IsArrowOrAssignmentOp(op) || peek() == Token::kConditional) {
+  if (!Token::IsArrowOrAssignmentOp(op)) {
+    *else_found = (op != Token::kConditional);
     return expression;
   }
 
+  *else_found = true;
   return ParseAssignmentExpressionCoverGrammarContinuation(lhs_beg_pos,
                                                            expression);
 }
@@ -3606,10 +3613,8 @@ ParserBase<Impl>::ParseConditionalChainExpression(ExpressionT condition,
                                                      &condition_or_else_range);
       Expect(Token::kColon);
       condition_or_else_expression =
-          ParseConditionalChainAssignmentExpression();
+          ParseConditionalChainAssignmentExpression(&else_found);
     }
-
-    else_found = (peek() != Token::kConditional);
 
     if (else_found) {
       else_expression = condition_or_else_expression;
