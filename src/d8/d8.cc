@@ -7379,6 +7379,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   handle_unsafe_d8_flag(options.lcov_file);
   handle_unsafe_d8_flag(options.enable_os_system);
   handle_unsafe_d8_flag(options.snapshot_blob);
+  handle_unsafe_d8_flag(options.icu_data_file);
 #ifdef V8_OS_LINUX
   handle_unsafe_d8_flag(options.perf_ctl_fd);
   handle_unsafe_d8_flag(options.perf_ack_fd);
