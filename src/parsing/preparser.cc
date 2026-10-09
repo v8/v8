@@ -224,11 +224,11 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
       return kPreParseNotIdentifiableError;
     }
+  }
 
-    if (is_strict(function_scope->language_mode())) {
-      int end_pos = scanner()->location().end_pos;
-      CheckStrictOctalLiteral(function_scope->start_position(), end_pos);
-    }
+  if (is_strict(function_scope->language_mode())) {
+    int end_pos = scanner()->location().end_pos;
+    CheckStrictOctalLiteral(function_scope->start_position(), end_pos);
   }
 
   DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());

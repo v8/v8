@@ -4927,6 +4927,10 @@ void ParserBase<Impl>::ParseFunctionBody(
         UseThis();
         expression_scope.ValidateExpression();
       }
+      if (is_strict(language_mode())) {
+        CheckStrictOctalLiteral(function_scope->start_position(),
+                                peek_end_position());
+      }
       Expect(closing_token);
     }
   }
@@ -5450,6 +5454,9 @@ void ParserBase<Impl>::ParseClassLiteralBody(ClassInfo& class_info,
     impl()->InferFunctionName();
   }
 
+  if (end_token == Token::kRightBrace) {
+    CheckStrictOctalLiteral(scope()->start_position(), peek_end_position());
+  }
   Expect(end_token);
   scope()->set_end_position(end_position());
 }
