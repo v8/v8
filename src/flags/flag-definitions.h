@@ -12,23 +12,29 @@
 //
 // PRESUBMIT_INTENTIONALLY_MISSING_INCLUDE_GUARD
 
+// Enforces that `thenflag` is set to `true` if `cond` holds.
 #define DEFINE_IMPLICATION(cond, thenflag) \
   DEFINE_VALUE_IMPLICATION(cond, thenflag, true)
 
-// A weak implication will be overwritten by a normal implication or by an
-// explicit flag.
+// Enforces that `thenflag` is weakly set to `true` if `cond` holds. A weak
+// implication is overwritten by a normal implication or by an explicit flag.
 #define DEFINE_WEAK_IMPLICATION(cond, thenflag) \
   DEFINE_WEAK_VALUE_IMPLICATION(cond, thenflag, true)
 
+// Enforces that `thenflag` is weakly set to `false` if `cond` holds. A weak
+// implication is overwritten by a normal implication or by an explicit flag.
 #define DEFINE_WEAK_NEG_IMPLICATION(cond, thenflag) \
   DEFINE_WEAK_VALUE_IMPLICATION(cond, thenflag, false)
 
+// Enforces that `thenflag` is set to `false` if `cond` holds.
 #define DEFINE_NEG_IMPLICATION(cond, thenflag) \
   DEFINE_VALUE_IMPLICATION(cond, thenflag, false)
 
+// Enforces that `thenflag` is set to `false` if `whenflag` is `false`.
 #define DEFINE_NEG_NEG_IMPLICATION(whenflag, thenflag) \
   DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, false)
 
+// Unconditionally marks `flag` as unsafe (see `DISALLOW_UNSAFE_FLAG_IF`).
 #define DISALLOW_UNSAFE_FLAG(flag) DISALLOW_UNSAFE_FLAG_IF(true, flag)
 
 // With FLAG_MODE_DECLARE we declare the fields in the {FlagValues} struct.
@@ -61,19 +67,22 @@
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
+// Enforces that `thenflag` is set to `value` if `cond` holds.
 #define DEFINE_VALUE_IMPLICATION(cond, thenflag, value)                     \
   changed |= TriggerImplication(cond, #cond, &v8_flags.thenflag, #thenflag, \
                                 value, kStrongImplication);
 
-// A weak implication will be overwritten by a normal implication or by an
-// explicit flag.
+// Enforces that `thenflag` is weakly set to `value` if `cond` holds. A weak
+// implication is overwritten by a normal implication or by an explicit flag.
 #define DEFINE_WEAK_VALUE_IMPLICATION(cond, thenflag, value)                \
   changed |= TriggerImplication(cond, #cond, &v8_flags.thenflag, #thenflag, \
                                 value, kWeakImplication);
 
+// Executes `statement` if `cond` holds.
 #define DEFINE_GENERIC_IMPLICATION(cond, statement) \
   if (cond) statement;
 
+// Enforces that `statement` holds, reporting a flag error otherwise.
 #define DEFINE_REQUIREMENT(statement) \
   do {                                \
     if (V8_UNLIKELY(!(statement))) {  \
@@ -82,11 +91,13 @@
     }                                 \
   } while (false);
 
+// Enforces that `thenflag` is set to `value` if `whenflag` is `false`.
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)          \
   changed |=                                                             \
       TriggerImplication(!(whenflag), "!" #whenflag, &v8_flags.thenflag, \
                          #thenflag, value, kStrongImplication);
 
+// Enforces that `thenflag` is set to `thenvalue` if `whenflag != whenvalue`.
 #define DEFINE_NEG_VALUE_VALUE_IMPLICATION(whenflag, whenvalue, thenflag, \
                                            thenvalue)                     \
   changed |= TriggerImplication(                                          \
@@ -94,16 +105,22 @@
       NegValuePremiseName(whenvalue, #whenflag, "!" #whenflag),           \
       &v8_flags.thenflag, #thenflag, thenvalue, kStrongImplication);
 
+// Enforces that `flag` is at least `min_value` (sets `flag = min_value` if
+// `flag < min_value`).
 #define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)                        \
   changed |= TriggerImplication(v8_flags.flag < min_value,                   \
                                 #flag "<" #min_value, &v8_flags.flag, #flag, \
                                 min_value, kStrongImplication);
 
+// Enforces that `flag` is at most `max_value` (sets `flag = max_value` if
+// `flag > max_value`).
 #define DEFINE_MAX_VALUE_IMPLICATION(flag, max_value)                        \
   changed |= TriggerImplication(v8_flags.flag > max_value,                   \
                                 #max_value "<" #flag, &v8_flags.flag, #flag, \
                                 max_value, kStrongImplication);
 
+// Enforces that `thenflag` is set to `false` if `whenflag` holds, printing a
+// warning to stderr if both `whenflag` and `thenflag` are enabled.
 #define DEFINE_DISABLE_FLAG_IMPLICATION(whenflag, thenflag) \
   if (whenflag && thenflag) {                               \
     PrintF(stderr, "Warning: disabling flag --" #thenflag   \
@@ -174,6 +191,11 @@
 
 #ifndef DEFINE_NEG_VALUE_IMPLICATION
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)
+#endif
+
+#ifndef DEFINE_NEG_VALUE_VALUE_IMPLICATION
+#define DEFINE_NEG_VALUE_VALUE_IMPLICATION(whenflag, whenvalue, thenflag, \
+                                           thenvalue)
 #endif
 
 #ifndef DEFINE_MIN_VALUE_IMPLICATION
