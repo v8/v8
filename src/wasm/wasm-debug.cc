@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "src/base/logging.h"
+#include "src/base/small-vector.h"
 #include "src/base/unique-array.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/assert-scope.h"
@@ -55,8 +56,8 @@ Address FindNewPC(WasmFrame* frame, WasmCode* wasm_code, int byte_offset,
   int pc_offset = static_cast<int>(frame->pc() - old_code->instruction_start());
   base::Vector<const uint8_t> old_pos_table = old_code->source_positions();
   int call_offset = -1;
-  for (SourcePositionTableIterator old_it(old_pos_table);
-       !old_it.done() && old_it.code_offset() < pc_offset; old_it.Advance()) {
+  SourcePositionTableIterator old_it(old_pos_table);
+  for (; !old_it.done() && old_it.code_offset() < pc_offset; old_it.Advance()) {
     call_offset = old_it.code_offset();
   }
   DCHECK_LE(0, call_offset);
@@ -65,56 +66,47 @@ Address FindNewPC(WasmFrame* frame, WasmCode* wasm_code, int byte_offset,
   // If {return_location == kAfterBreakpoint}, we want to skip the breakpoint
   // preamble/handler and resume at the first instruction representing the Wasm
   // statement. Thus, we find the first code offset marked as a statement.
-  // If {return_location == kAfterWasmCall}, the frame is waiting for a call
-  // to return. The call instruction may be inline or inside Out-Of-Line (OOL)
-  // code (which is appended at the end of the function). In both cases, the
-  // call is the last instruction emitted for this bytecode offset. Thus, we
-  // want the last matching code offset.
-  SourcePositionTableIterator it(new_pos_table);
-  while (true) {
-    CHECK(!it.done());
-    if (it.source_position().ScriptOffset() == byte_offset) break;
-    it.Advance();
-  }
-  int code_offset;
   if (return_location == kAfterBreakpoint) {
+    SourcePositionTableIterator it(new_pos_table);
+    while (true) {
+      CHECK(!it.done());
+      if (it.source_position().ScriptOffset() == byte_offset) break;
+      it.Advance();
+    }
     while (!it.is_statement()) {
       it.Advance();
       CHECK(!it.done());
     }
     DCHECK_EQ(byte_offset, it.source_position().ScriptOffset());
-    code_offset = it.code_offset();
-  } else {
-    DCHECK_EQ(kAfterWasmCall, return_location);
-    // Find the last matching entry in the old code. If the old suspend point
-    // was the last match, we want the last match in the new code (e.g. for OOL
-    // trap). Otherwise we want the inline call (which is the last matching
-    // entry in the first contiguous run).
-    int last_old_match = -1;
-    for (SourcePositionTableIterator old_group_it(old_pos_table);
-         !old_group_it.done(); old_group_it.Advance()) {
-      if (old_group_it.source_position().ScriptOffset() == byte_offset) {
-        last_old_match = old_group_it.code_offset();
-      }
-    }
-    bool was_last_entry = (call_offset == last_old_match);
+    return wasm_code->instruction_start() + it.code_offset() +
+           call_instruction_size;
+  }
 
-    // Find the last match in the first contiguous run.
-    code_offset = it.code_offset();
-    for (; !it.done() && it.source_position().ScriptOffset() == byte_offset;
-         it.Advance()) {
-      code_offset = it.code_offset();
-    }
-    if (was_last_entry) {
-      // Find the absolute last match in the rest of the table (e.g., OOL trap).
-      for (; !it.done(); it.Advance()) {
-        if (it.source_position().ScriptOffset() == byte_offset) {
-          code_offset = it.code_offset();
-        }
-      }
+  // If {return_location == kAfterWasmCall}, the frame is waiting for a call or
+  // trap to return. Multiple calls or Out-Of-Line (OOL) traps can be emitted
+  // for the same bytecode offset. Because the only source position difference
+  // between {old_code} and {new_code} is whether a breakpoint is emitted at the
+  // start of each instruction (before any calls or OOL traps for that
+  // instruction), the number of matching entries *after* {call_offset} is
+  // identical in both tables.
+  DCHECK_EQ(kAfterWasmCall, return_location);
+  size_t remaining_matches = 0;
+  for (; !old_it.done(); old_it.Advance()) {
+    if (old_it.source_position().ScriptOffset() == byte_offset) {
+      ++remaining_matches;
     }
   }
-  CHECK_NE(code_offset, -1);
+
+  base::SmallVector<int, 4> matching_offsets;
+  for (SourcePositionTableIterator it(new_pos_table); !it.done();
+       it.Advance()) {
+    if (it.source_position().ScriptOffset() == byte_offset) {
+      matching_offsets.push_back(it.code_offset());
+    }
+  }
+  CHECK_LT(remaining_matches, matching_offsets.size());
+  int code_offset =
+      matching_offsets[matching_offsets.size() - 1 - remaining_matches];
   return wasm_code->instruction_start() + code_offset + call_instruction_size;
 }
 
@@ -859,14 +851,6 @@ class DebugInfoImpl {
         FindNewPC(frame, new_code, summary.code_offset(), return_location);
 #ifdef DEBUG
     int old_position = summary.SourcePosition();
-#if !defined(V8_TARGET_ARCH_X64)
-    // On non-x64 architectures, we patch the return address of the currently
-    // executing builtin (e.g. kWasmDebugBreak) to jump directly into the new
-    // code. If the new code has a different safepoint entry than the physical
-    // frame state, a GC could miss live references or cause type confusion. On
-    // x64, we return to the old code first, which then performs a cooperative
-    // transition to the new code, so the safepoint information does not need to
-    // match exactly at the OSR target PC.
     {
       SafepointTable old_table(frame->wasm_code());
       SafepointTable new_table(new_code);
@@ -880,7 +864,6 @@ class DebugInfoImpl {
         DCHECK_EQ(old_entry.tagged_slots()[i], new_entry.tagged_slots()[i]);
       }
     }
-#endif
 #endif
 #if V8_TARGET_ARCH_X64
     base::Memory<Address>(frame->fp() - kOSRTargetOffset) = new_pc;
