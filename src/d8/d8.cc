@@ -7044,6 +7044,16 @@ bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
   return false;
 }
 
+PRINTF_FORMAT(1, 2)
+void ReportFlagWarning(const char* format, ...) {
+  base::OS::PrintError("Warning: ");
+  va_list args;
+  va_start(args, format);
+  base::OS::VPrintError(format, args);
+  va_end(args);
+  base::OS::PrintError("\n");
+}
+
 }  // namespace
 
 bool Shell::SetOptions(int argc, char* argv[]) {
@@ -7267,8 +7277,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       int requested_size = atoi(flag_value);
       int clamped_size = std::clamp(requested_size, 0, 16);
       if (clamped_size != requested_size) {
-        printf("Warning: clamping --thread-pool-size from %d to %d\n",
-               requested_size, clamped_size);
+        ReportFlagWarning("clamping --thread-pool-size from %d to %d",
+                          requested_size, clamped_size);
       }
       options.thread_pool_size = clamped_size;
     } else if (FlagMatches("--no-can-block", &argv[i])) {
@@ -7341,64 +7351,66 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   DCHECK(options.num_isolates);
 
-  if (disallow_unsafe_flags) {
-    const auto check_flag_is_not_specified = [&](auto& flag) {
-      if (!flag.WasSpecified()) return;
+  const auto handle_unsafe_d8_flag = [&](auto& flag) {
+    if (!flag.WasSpecified()) return;
+    if (disallow_unsafe_flags) {
       if (check_d8_flag_contradictions) {
         ReportFlagError(
             "Command-line provided flag --%s is prohibited by "
             "--disallow-unsafe-flags",
             flag.name());
       } else {
-        printf(
-            "Warning: resetting d8 flag --%s due to "
-            "--disallow-unsafe-flags\n",
+        ReportFlagWarning(
+            "resetting d8 flag --%s due to --disallow-unsafe-flags",
             flag.name());
         flag.Reset();
       }
-    };
-    // The --disallow-unsafe-flags is meant to block known unsafe configurations
-    // and mitigate spurious reports due invalid flag combinations/values. To
-    // prevent AI agents and/or fuzzers from using a new unsafe flag, add it to
-    // the list below.
-    check_flag_is_not_specified(options.trace_enabled);
-    check_flag_is_not_specified(options.trace_config);
-    check_flag_is_not_specified(options.trace_path);
-    check_flag_is_not_specified(options.lcov_file);
-    check_flag_is_not_specified(options.enable_os_system);
-    check_flag_is_not_specified(options.snapshot_blob);
+    } else {
+      i::v8_flags.test_only_unsafe = true;
+    }
+  };
+  // The flags below represent known unsafe configurations. They are blocked by
+  // --disallow-unsafe-flags or marked as test_only_unsafe to mitigate spurious
+  // reports due to invalid flag combinations/values. To prevent AI agents
+  // and/or fuzzers from using a new unsafe flag, add it to the list below.
+  handle_unsafe_d8_flag(options.trace_enabled);
+  handle_unsafe_d8_flag(options.trace_config);
+  handle_unsafe_d8_flag(options.trace_path);
+  handle_unsafe_d8_flag(options.lcov_file);
+  handle_unsafe_d8_flag(options.enable_os_system);
+  handle_unsafe_d8_flag(options.snapshot_blob);
 #ifdef V8_OS_LINUX
-    check_flag_is_not_specified(options.perf_ctl_fd);
-    check_flag_is_not_specified(options.perf_ack_fd);
-    check_flag_is_not_specified(options.scope_linux_perf_to_mark_measure);
+  handle_unsafe_d8_flag(options.perf_ctl_fd);
+  handle_unsafe_d8_flag(options.perf_ack_fd);
+  handle_unsafe_d8_flag(options.scope_linux_perf_to_mark_measure);
 #endif
-  }
 
-  if (disallow_developer_only_features) {
-    const auto check_developer_only_flag = [&](auto& flag) {
-      if (!flag.WasSpecified()) return;
+  const auto handle_developer_only_d8_flag = [&](auto& flag) {
+    if (!flag.WasSpecified()) return;
+    if (disallow_developer_only_features) {
       if (check_d8_flag_contradictions) {
         ReportFlagError(
             "Command-line provided flag --%s is prohibited by "
             "--disallow-developer-only-features",
             flag.name());
       } else {
-        printf(
-            "Warning: resetting d8 flag --%s due to "
-            "--disallow-developer-only-features\n",
+        ReportFlagWarning(
+            "resetting d8 flag --%s due to --disallow-developer-only-features",
             flag.name());
         flag.Reset();
       }
-    };
-    // Inspector security bugs must be shown through the embedder (i.e. Chrome,
-    // or content_shell).
-    check_developer_only_flag(options.enable_inspector);
-    // Forbid some d8-only developer-only flags.
-    check_developer_only_flag(options.dump_counters);
-    check_developer_only_flag(options.dump_counters_nvp);
-    check_developer_only_flag(options.dump_system_memory_stats);
-    check_developer_only_flag(options.simulate_errors);
-  }
+    } else {
+      i::v8_flags.developer_only_features = true;
+    }
+  };
+  // Inspector security bugs must be shown through the embedder (i.e. Chrome,
+  // or content_shell).
+  handle_developer_only_d8_flag(options.enable_inspector);
+  // Handle d8-only developer-only flags.
+  handle_developer_only_d8_flag(options.dump_counters);
+  handle_developer_only_d8_flag(options.dump_counters_nvp);
+  handle_developer_only_d8_flag(options.dump_system_memory_stats);
+  handle_developer_only_d8_flag(options.simulate_errors);
 
 #ifdef V8_OS_LINUX
   if (options.scope_linux_perf_to_mark_measure) {
@@ -7454,9 +7466,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     if (check_d8_flag_contradictions) {
       FATAL("Flag --enable-tracing is incompatible with --predictable.");
     } else {
-      fprintf(stderr,
-              "Warning: disabling flag --enable-tracing due to conflicting "
-              "flags\n");
+      ReportFlagWarning(
+          "disabling flag --enable-tracing due to conflicting flags");
       options.trace_enabled = false;
     }
   }
@@ -7485,7 +7496,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // Pass on to SourceGroup, which understands these options.
     } else if (strncmp(str, "--", 2) == 0) {
       if (!i::v8_flags.correctness_fuzzer_suppressions) {
-        printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+        ReportFlagWarning("unknown flag %s.\nTry --help for options", str);
       }
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
       set_script_executed();
@@ -8406,8 +8417,9 @@ int Shell::Main(int argc, char* argv[]) {
   if (i::v8_flags.test_only_unsafe) {
     fprintf(stderr,
             "V8 is running with an unsupported configuration. Important "
-            "subsystems are mocked or disabled. Bugs reported under this "
-            "configuration will be considered invalid.\n");
+            "subsystems are mocked or disabled, or unsupported features / "
+            "modes are enabled. Bugs reported under this configuration will "
+            "be considered invalid.\n");
   }
 
   if (i::v8_flags.developer_only_features) {
