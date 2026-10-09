@@ -1528,40 +1528,9 @@ class DeoptFrameUpdater {
     DeoptFrame* new_frame_state =
         DeepClone(node->lazy_deopt_info()->top_frame(), zone());
 
-    interpreter::Register result_location =
-        interpreter::Register::virtual_accumulator();
-    int result_size = 1;
-    switch (node->lazy_deopt_info()->top_frame().type()) {
-      case DeoptFrame::FrameType::kInterpretedFrame:
-        // Interpreted frames obviously need a result location.
-        result_location = node->lazy_deopt_info()->result_location();
-        result_size = node->lazy_deopt_info()->result_size();
-        break;
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        break;
-      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        // Normally if the function is going to be deoptimized then the top
-        // frame should be an interpreted one, except for LazyDeoptContinuation
-        // builtin.
-        switch (node->lazy_deopt_info()
-                    ->top_frame()
-                    .as_builtin_continuation()
-                    .builtin_id()) {
-          case Builtin::kGenericLazyDeoptContinuation:
-          case Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation:
-          case Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation:
-          case Builtin::kProxyGetPropertyTrapResultLazyDeoptContinuation:
-            result_location = node->lazy_deopt_info()->result_location();
-            result_size = node->lazy_deopt_info()->result_size();
-            break;
-          default:
-            break;
-        }
-    }
-
-    node->SetLazyDeoptInfo(zone(), new_frame_state, result_location,
-                           result_size,
+    node->SetLazyDeoptInfo(zone(), new_frame_state,
+                           node->lazy_deopt_info()->result_location(),
+                           node->lazy_deopt_info()->result_size(),
                            node->lazy_deopt_info()->feedback_to_update());
     UpdateDeoptFrame(new_frame_state);
   }

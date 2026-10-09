@@ -1100,11 +1100,17 @@ MaglevGraphBuilder::GetDeoptFrameForLazyDeopt(bool can_throw) {
   } else {
     std::tie(result_location, result_size) = GetResultLocationAndSize();
   }
-  return std::make_tuple(
-      GetDeoptFrameForLazyDeoptHelper(result_location, result_size,
-                                      reducer_.current_lazy_deopt_scope(),
-                                      false, can_throw),
-      result_location, result_size);
+  DeoptFrame* top_frame = GetDeoptFrameForLazyDeoptHelper(
+      result_location, result_size, reducer_.current_lazy_deopt_scope(), false,
+      can_throw);
+  if (top_frame->type() != DeoptFrame::FrameType::kInterpretedFrame) {
+    // Deopt continuation builtins don't consider the result location or size
+    // encoded in the deopt data; they behave like function calls and return
+    // into the accumulator.
+    return std::make_tuple(top_frame,
+                           interpreter::Register::virtual_accumulator(), 1);
+  }
+  return std::make_tuple(top_frame, result_location, result_size);
 }
 
 void MaglevGraphBuilder::AddDeoptUseToScopeData(

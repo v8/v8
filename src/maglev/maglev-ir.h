@@ -1849,7 +1849,9 @@ class LazyDeoptInfo : public DeoptInfo {
         result_location_(result_location),
         bitfield_(
             DeoptingCallReturnPcField::encode(kUninitializedCallReturnPc) |
-            ResultSizeField::encode(result_size)) {}
+            ResultSizeField::encode(result_size)) {
+    DCHECK(IsConsideredForResultLocation());
+  }
 
   interpreter::Register result_location() const {
     DCHECK(IsConsideredForResultLocation());
@@ -1899,32 +1901,12 @@ class LazyDeoptInfo : public DeoptInfo {
  private:
 #ifdef DEBUG
   bool IsConsideredForResultLocation() const {
-    switch (top_frame().type()) {
-      case DeoptFrame::FrameType::kInterpretedFrame:
-        // Interpreted frames obviously need a result location.
-        return true;
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        return false;
-      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        // Normally if the function is going to be deoptimized then the top
-        // frame should be an interpreted one, except for LazyDeoptContinuation
-        // builtin.
-        switch (top_frame().as_builtin_continuation().builtin_id()) {
-          case Builtin::kGenericLazyDeoptContinuation:
-          case Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation:
-          case Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation:
-          case Builtin::kForOfNextLoadDoneLazyDeoptContinuation:
-          case Builtin::kForOfNextLoadValueLazyDeoptContinuation:
-          case Builtin::kArrayDestructureLazyDeoptContinuation:
-          case Builtin::kGeneratorPrototypeNextLazyDeoptContinuation:
-          case Builtin::kProxyGetPropertyTrapResultLazyDeoptContinuation:
-            return true;
-          default:
-            return false;
-        }
-    }
-    UNREACHABLE();
+    // Deopt continuation builtins don't consider the result location or size
+    // encoded in the deopt data; they behave like function calls and return
+    // into the accumulator.
+    return top_frame().type() == DeoptFrame::FrameType::kInterpretedFrame ||
+           (result_location_ == interpreter::Register::virtual_accumulator() &&
+            ResultSizeField::decode(bitfield_) == 1);
   }
 #endif  // DEBUG
 

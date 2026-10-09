@@ -80,6 +80,8 @@ MaglevGraphOptimizer::GetDeoptFrameForLazyDeopt(bool can_throw) {
     frame = GetDeoptFrameForLazyDeoptHelper(graph()->zone(),
                                             reducer_.current_lazy_deopt_scope(),
                                             frame, frame->GetVirtualObjects());
+    result_location = interpreter::Register::virtual_accumulator();
+    result_size = 1;
   }
   return {frame, result_location, result_size};
 }
