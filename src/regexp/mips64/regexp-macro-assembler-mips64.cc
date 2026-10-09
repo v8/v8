@@ -139,6 +139,8 @@ RegExpMacroAssemblerMIPS::RegExpMacroAssemblerMIPS(Isolate* isolate, Zone* zone,
       backtrack_label_(),
       exit_label_(),
       internal_failure_label_() {
+  masm()->GetScratchRegisterList()->clear(s0);
+
   DCHECK_EQ(0, registers_to_save % 2);
   __ jmp(&entry_label_);   // We'll write the entry code later.
   // If the code gets too big or corrupted, an internal exception will be
@@ -160,6 +162,7 @@ RegExpMacroAssemblerMIPS::~RegExpMacroAssemblerMIPS() {
   stack_overflow_label_.Unuse();
   internal_failure_label_.Unuse();
   fallback_label_.Unuse();
+  masm()->GetScratchRegisterList()->set(s0);
 }
 
 void RegExpMacroAssemblerMIPS::AdvanceCurrentPosition(int by) {
