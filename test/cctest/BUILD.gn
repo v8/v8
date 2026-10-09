@@ -116,7 +116,6 @@ v8_cluster_source_set("cctest_sources") {
     "heap/test-incremental-marking.cc",
     "heap/test-limit-based-memory-reducer.cc",
     "heap/test-memory-measurement.cc",
-    "heap/test-pool.cc",
     "jsonstream-helper.h",
     "manually-externalized-buffer.h",
     "print-extension.cc",

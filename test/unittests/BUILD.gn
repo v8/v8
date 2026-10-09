@@ -409,7 +409,6 @@ v8_cluster_source_set("v8_unittests_sources") {
     "heap/page-promotion-unittest.cc",
     "heap/pending-allocations-unittest.cc",
     "heap/persistent-handles-unittest.cc",
-    "heap/pool-unittest.cc",
     "heap/safepoint-unittest.cc",
     "heap/shared-heap-unittest.cc",
     "heap/slot-set-unittest.cc",
