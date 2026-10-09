@@ -1761,6 +1761,7 @@ SINGLETON_CONSTANT_ENTRY_TYPES(ENTRY_GETTER)
 BytecodeJumpTable* BytecodeArrayBuilder::AllocateJumpTable(
     int size, int case_value_base) {
   DCHECK_GT(size, 0);
+  DCHECK(!RemainderOfBlockIsDead());
 
   size_t constant_pool_index = constant_array_builder()->InsertJumpTable(size);
 
