@@ -2347,10 +2347,11 @@ ParserBase<Impl>::ParseExpressionCoverGrammar() {
     expression = ParseAssignmentExpressionCoverGrammar();
 
     ClassifyArrowParameter(&accumulation_scope, expr_pos, expression);
+    if (V8_UNLIKELY(expression_scope()->CanBeArrowParameterDeclaration())) {
+      variable_index =
+          expression_scope()->SetInitializers(variable_index, peek_position());
+    }
     list.Add(expression);
-
-    variable_index =
-        expression_scope()->SetInitializers(variable_index, peek_position());
 
     if (!Check(Token::kComma)) break;
 
@@ -3210,6 +3211,8 @@ void ParserBase<Impl>::ParseArguments(
               scanner()->peek_location(), MessageTemplate::kParamAfterRest);
         }
       }
+      variable_index =
+          expression_scope()->SetInitializers(variable_index, peek_position());
     } else {
       accumulation_scope.ValidateExpression();
     }
@@ -3218,9 +3221,6 @@ void ParserBase<Impl>::ParseArguments(
       argument = factory()->NewSpread(argument, start_pos, expr_pos);
     }
     args->Add(argument);
-
-    variable_index =
-        expression_scope()->SetInitializers(variable_index, peek_position());
 
     if (!Check(Token::kComma)) break;
   }
