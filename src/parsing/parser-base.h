@@ -3384,6 +3384,7 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
                                           end_position());
   } else {
     DCHECK(!IsValidReferenceExpression(expression));
+    expression_scope()->ValidateAsExpression();
     // For web compatibility reasons, throw early errors only for logical
     // assignment, not for regular assignment.
     const bool early_error = Token::IsLogicalAssignmentOp(op);
@@ -3781,6 +3782,7 @@ ParserBase<Impl>::ParseUnaryOrPrefixExpression() {
       expression_scope()->MarkIdentifierAsAssigned();
     }
   } else {
+    expression_scope()->ValidateAsExpression();
     const bool early_error = false;
     expression = RewriteInvalidReferenceExpression(
         expression, expression_position, end_position(),
@@ -3870,6 +3872,7 @@ typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParsePostfixContinuation(ExpressionT expression,
                                            int lhs_beg_pos) {
   if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
+    expression_scope()->ValidateAsExpression();
     const bool early_error = false;
     expression = RewriteInvalidReferenceExpression(
         expression, lhs_beg_pos, end_position(),
