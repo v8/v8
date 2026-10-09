@@ -1477,6 +1477,19 @@ void ConstraintBuilder::AllocateFixed(UnallocatedOperand* operand, int pos,
     rep = data()->RepresentationFor(virtual_register);
   }
   if (operand->HasFixedSlotPolicy()) {
+#ifdef V8_TARGET_ARCH_X64
+    // A fixed slot is only ever used for ABI-visible locations (e.g. a wasm
+    // return value spilled to its caller frame slot), and Simd256 is never
+    // an ABI-visible type. So a Simd256 representation here can only come
+    // from an ExtractF128 node with lane 0 that got elided and aliased to
+    // its Simd256 input (see VisitExtractF128 on x64). Narrow it back to
+    // Simd128 so the move only writes the low 128 bits into the fixed slot,
+    // instead of overwriting the adjacent stack slot with the upper 128
+    // bits of the aliased Simd256 value.
+    if (rep == MachineRepresentation::kSimd256) {
+      rep = MachineRepresentation::kSimd128;
+    }
+#endif
     allocated = AllocatedOperand(AllocatedOperand::STACK_SLOT, rep,
                                  operand->fixed_slot_index());
   } else if (operand->HasFixedRegisterPolicy()) {
