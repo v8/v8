@@ -2109,12 +2109,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBindingPattern() {
 
   if (Token::IsAnyIdentifier(token)) {
     IdentifierT name = ParseAndClassifyIdentifier(Next());
-    if (V8_UNLIKELY(is_strict(language_mode()) &&
-                    impl()->IsEvalOrArguments(name))) {
-      impl()->ReportMessageAt(scanner()->location(),
-                              MessageTemplate::kStrictEvalArguments);
-      return impl()->FailureExpression();
-    }
     return impl()->ExpressionFromIdentifier(name, beg_pos);
   }
 
@@ -2342,7 +2336,8 @@ ParserBase<Impl>::ParseExpressionCoverGrammar() {
   AccumulationScope accumulation_scope(expression_scope());
   int variable_index = 0;
   while (true) {
-    if (V8_UNLIKELY(peek() == Token::kEllipsis)) {
+    if (V8_UNLIKELY(peek() == Token::kEllipsis &&
+                    expression_scope()->CanBeArrowParameterDeclaration())) {
       return ParseArrowParametersWithRest(&list, &accumulation_scope,
                                           variable_index);
     }
@@ -2358,7 +2353,8 @@ ParserBase<Impl>::ParseExpressionCoverGrammar() {
 
     if (!Check(Token::kComma)) break;
 
-    if (peek() == Token::kRightParen && PeekAhead() == Token::kArrow) {
+    if (expression_scope()->CanBeArrowParameterDeclaration() &&
+        peek() == Token::kRightParen && PeekAhead() == Token::kArrow) {
       // a trailing comma is allowed at the end of an arrow parameter list
       break;
     }

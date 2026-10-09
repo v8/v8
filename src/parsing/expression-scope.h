@@ -245,6 +245,11 @@ class ExpressionScope {
     return has_possible_arrow_parameter_in_scope_chain_;
   }
 
+  bool CanBeArrowParameterDeclaration() const {
+    return base::IsInRange(type_, kMaybeArrowParameterDeclaration,
+                           kMaybeAsyncArrowParameterDeclaration);
+  }
+
  protected:
   enum ScopeType : uint8_t {
     // Expression or assignment target.
@@ -340,10 +345,6 @@ class ExpressionScope {
   bool CanBeParameterDeclaration() const {
     return base::IsInRange(type_, kMaybeArrowParameterDeclaration,
                            kParameterDeclaration);
-  }
-  bool CanBeArrowParameterDeclaration() const {
-    return base::IsInRange(type_, kMaybeArrowParameterDeclaration,
-                           kMaybeAsyncArrowParameterDeclaration);
   }
   bool IsCertainlyParameterDeclaration() const {
     return type_ == kParameterDeclaration;
