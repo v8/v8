@@ -4667,7 +4667,44 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
-  __ Trap();
+  RegList gp_saves;
+  for (Register r : wasm::kGpReturnRegisters) gp_saves.set(r);
+  DoubleRegList fp_saves;
+  for (DoubleRegister r : wasm::kFpReturnRegisters) fp_saves.set(r);
+  Simd128RegList simd128_saves;
+  for (Simd128Register r : wasm::kSimd128ReturnRegisters) simd128_saves.set(r);
+
+  __ MultiPush(gp_saves);
+  __ MultiPushF64AndV128(fp_saves, simd128_saves);
+
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    int saved_size = gp_saves.Count() * kSystemPointerSize +
+                     fp_saves.Count() * kDoubleSize +
+                     simd128_saves.Count() * kSimd128Size;
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+    __ AddS64(kCArgRegs[1], sp, Operand(saved_size));
+    __ PrepareCallCFunction(2);
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 2);
+  }
+  __ mr(fp, kReturnRegister0);
+
+  __ MultiPopF64AndV128(fp_saves, simd128_saves);
+  __ MultiPop(gp_saves);
+
+  UseScratchRegisterScope temps(masm);
+  Register scratch1 = temps.Acquire();
+  Register scratch2 = temps.Acquire();
+  __ LoadU64(scratch2, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  __ LoadU64(scratch1, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
+    __ LoadU64(kConstantPoolRegister,
+               MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
+  }
+  __ mtlr(scratch2);
+  __ AddS64(sp, fp, Operand(StandardFrameConstants::kCallerSPOffset));
+  __ mr(fp, scratch1);
+  __ blr();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

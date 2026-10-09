@@ -3025,7 +3025,7 @@
 }],  # (arch == mips64el)
 
 ##############################################################################
-['arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != riscv64', {
+['arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != riscv64 and arch != ppc64 and arch != s390x', {
   # Growable stacks are not supported on all platforms..
   'wasm/growable-stacks': [SKIP],
   'wasm/growable-stacks-simd': [SKIP],

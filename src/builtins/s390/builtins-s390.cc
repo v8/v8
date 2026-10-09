@@ -4679,7 +4679,33 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
-  __ Trap();
+  RegList gp_saves;
+  for (Register r : wasm::kGpReturnRegisters) gp_saves.set(r);
+  DoubleRegList fp_saves;
+  for (DoubleRegister r : wasm::kFpReturnRegisters) fp_saves.set(r);
+
+  __ MultiPush(gp_saves);
+  __ MultiPushF64OrV128(fp_saves, r1);
+
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    int saved_size =
+        gp_saves.Count() * kSystemPointerSize + fp_saves.Count() * kSimd128Size;
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+    __ AddS64(kCArgRegs[1], sp, Operand(saved_size));
+    __ PrepareCallCFunction(2, r0);
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 2);
+  }
+  __ mov(fp, kReturnRegister0);
+
+  __ MultiPopF64OrV128(fp_saves, r1);
+  __ MultiPop(gp_saves);
+
+  __ LoadU64(r14, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  __ AddS64(r1, fp, Operand(StandardFrameConstants::kCallerSPOffset));
+  __ LoadU64(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(sp, r1);
+  __ b(r14);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
