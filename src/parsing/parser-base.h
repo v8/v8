@@ -1174,7 +1174,8 @@ class ParserBase {
                 original_scope_) &&
             IsModule(function_state_->kind())));
     return IsAsyncFunction(kind) ||
-           IsClassStaticInitializerFunction(kind);
+           (IsClassStaticInitializerFunction(kind) &&
+            GetDeclarationScope()->scope_type() == BLOCK_SCOPE);
   }
   bool is_using_allowed() const {
     // UsingDeclaration and AwaitUsingDeclaration are Syntax Errors if the goal
@@ -1885,7 +1886,7 @@ bool ParserBase<Impl>::ClassifyPropertyIdentifier(
   if (next == Token::kAwait) {
     DCHECK(!is_async_function());
     expression_scope()->RecordAsyncArrowParametersError(
-        scanner()->peek_location(), MessageTemplate::kAwaitBindingIdentifier);
+        scanner()->location(), MessageTemplate::kAwaitBindingIdentifier);
   }
   return true;
 }
