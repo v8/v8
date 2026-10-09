@@ -414,14 +414,14 @@ class PosixCommand(DesktopCommand):
       return arg
     try:
       return subprocess.Popen(
-        args=' '.join(map(wrapped, self._get_popen_args())),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=self._get_env(),
-        shell=True,
-        # Make the new shell create its own process group. This allows to kill
-        # all spawned processes reliably (https://crbug.com/v8/8292).
-        preexec_fn=os.setsid,
+          args=' '.join(map(wrapped, self._get_popen_args())),
+          stdout=subprocess.PIPE,
+          stderr=subprocess.PIPE,
+          env=self._get_env(),
+          shell=True,
+          # Make the new shell create its own process group. This allows to kill
+          # all spawned processes reliably (https://crbug.com/v8/8292).
+          start_new_session=True,
       )
     except Exception as e:
       sys.stderr.write('Error executing: %s\n' % self)
@@ -473,7 +473,7 @@ class IOSCommand(BaseCommand):
           shell=True,
           # Make the new shell create its own process group. This allows to kill
           # all spawned processes reliably (https://crbug.com/v8/8292).
-          preexec_fn=os.setsid,
+          start_new_session=True,
       )
     except Exception as e:
       sys.stderr.write('Error executing: %s\n' % self)
