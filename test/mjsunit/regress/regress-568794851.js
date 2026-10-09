@@ -89,6 +89,36 @@ function* gen_switch_throwing_tag(o) {
   return 42;
 }
 
+function outer_without_eval() {
+  let outer_var = 1;
+  return function* (o) {
+    do {
+      with (o) {
+        return outer_var;
+      }
+    } while ((yield, yield, x));
+    eval("");
+  };
+}
+const gen_outer_without_eval = outer_without_eval();
+
+function* gen_unreachable_resumable_loop(o) {
+  eval("");
+  with (o) {
+    return;
+  }
+  do {
+    yield x;
+  } while (x);
+}
+
+function inlined_returns_in_different_scopes(cond, o) {
+  if (cond) return 1;
+  with (o) {
+    return 2;
+  }
+}
+
 for (let i = 0; i < 1000; i++) {
   gen_yield({}).next();
   gen_yield_star({}).next();
@@ -96,4 +126,7 @@ for (let i = 0; i < 1000; i++) {
   gen_switch({}).next();
   gen_switch_table({}).next();
   gen_switch_throwing_tag(() => {}).next();
+  gen_outer_without_eval({}).next();
+  gen_unreachable_resumable_loop({}).next();
+  inlined_returns_in_different_scopes(i % 2 === 0, {});
 }

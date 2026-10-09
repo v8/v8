@@ -14895,6 +14895,9 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
 
   } else {
     // If there already is a frame state, merge.
+    DCHECK_IMPLIES(
+        merge_states_[target]->has_context_scope_info(),
+        merge_states_[target]->context_scope_info() == GetCurrentScopeInfo());
     merge_states_[target]->Merge(graph(), is_tracing(), *compilation_unit(),
                                  current_interpreter_frame_, predecessor,
                                  GetCurrentScopeInfo());
@@ -14902,14 +14905,11 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
 }
 
 void MaglevGraphBuilder::SetCurrentScopeInfo(ContextScopeInfo scope_info) {
+  DCHECK(scope_info.has_value());
   if (v8_flags.trace_maglev_scope_info) {
     int offset = iterator_.done() ? -1 : iterator_.current_offset();
-    if (scope_info.has_value()) {
-      TRACE("  [ScopeInfo] Activated " << scope_info.value() << " at offset "
-                                       << offset);
-    } else {
-      TRACE("  [ScopeInfo] Activated <empty> at offset " << offset);
-    }
+    TRACE("  [ScopeInfo] Activated " << scope_info.value() << " at offset "
+                                     << offset);
   }
   register_scope_infos_[interpreter::Register::current_context()] = scope_info;
 }
@@ -14939,7 +14939,19 @@ void MaglevGraphBuilder::MergeDeadIntoFrameState(int target,
                 << iterator_.current_offset());
         }
         dead_scope_infos_.insert({target, GetCurrentScopeInfo()});
+      } else {
+        // When inlining a generator, VisitSwitchOnGeneratorState marks all
+        // ResumeGenerator targets dead from offset 0 (before
+        // CreateFunctionContext or inner scopes), which can disagree with
+        // dead jumps after ResumeGenerator.
+        DCHECK_IMPLIES(!is_inline(), jump_it->second == GetCurrentScopeInfo());
       }
+    } else if (merge_state->has_context_scope_info()) {
+      // At inline_exit_offset() (or after dead ResumeGenerator targets in
+      // inlined generators), dead returns from different inner scopes can merge
+      // with different ScopeInfos.
+      DCHECK_IMPLIES(!is_inline(), merge_state->context_scope_info() ==
+                                       GetCurrentScopeInfo());
     }
   }
   // If there is no merge state yet, don't create one, but just reduce the
@@ -16995,6 +17007,9 @@ void MaglevGraphBuilder::ProcessMergePoint(int offset,
   if (merge_state.is_loop() && !merge_state.has_context_scope_info()) {
     merge_state.set_context_scope_info(GetCurrentScopeInfo());
   }
+  DCHECK_IMPLIES(
+      iterator_.current_bytecode() == interpreter::Bytecode::kResumeGenerator,
+      merge_state.context_scope_info() == GetCurrentScopeInfo());
   current_interpreter_frame_.CopyFrom(*compilation_unit_, merge_state,
                                       preserve_known_node_aspects, zone());
   SetCurrentScopeInfo(merge_state.context_scope_info());
