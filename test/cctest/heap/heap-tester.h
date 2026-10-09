@@ -15,9 +15,7 @@
   V(CompactionPartiallyAbortedPage)                         \
   V(CompactionPartiallyAbortedPageIntraAbortedPointers)     \
   V(CompactionPartiallyAbortedPageWithRememberedSetEntries) \
-  V(StressHandles)                                          \
-  V(Regress777177)                                          \
-  V(Regress791582)
+  V(StressHandles)
 
 #define HEAP_TEST(Name)                                                   \
   CcTest register_test_##Name(v8::internal::heap::HeapTester::Test##Name, \

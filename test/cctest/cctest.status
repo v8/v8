@@ -114,8 +114,6 @@
   'test-serialize/StartupSerializerOnceRunScript': [PASS, SLOW, HEAVY],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, SLOW, HEAVY],
   'test-serialize/StaticRootsPredictableSnapshot': [PASS, SLOW, HEAVY],
-  'test-spaces/OldLargeObjectSpace': [PASS, HEAVY],
-  'test-spaces/OldSpace': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromOneByte': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromUtf8': [PASS, HEAVY],
 
