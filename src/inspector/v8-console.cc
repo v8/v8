@@ -150,6 +150,7 @@ class ConsoleHelper {
             m_inspector->client()->currentTimeMS(), type, arguments,
             consoleContextToString(isolate(), m_consoleContext),
             std::move(stackTrace));
+    if (!groupId()) return;
     consoleMessageStorage()->addMessage(std::move(message));
   }
 
