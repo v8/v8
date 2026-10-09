@@ -4285,14 +4285,14 @@ ParserBase<Impl>::ParseSuperExpression() {
         impl()->ReportMessage(MessageTemplate::kUnexpectedPrivateField);
         return impl()->FailureExpression();
       }
-      if (peek() == Token::kQuestionPeriod) {
-        Consume(Token::kQuestionPeriod);
-        impl()->ReportMessage(MessageTemplate::kOptionalChainingNoSuper);
-        return impl()->FailureExpression();
-      }
       scope->RecordSuperPropertyUsage();
       UseThis();
       return impl()->NewSuperPropertyReference(pos);
+    }
+    if (peek() == Token::kQuestionPeriod) {
+      Consume(Token::kQuestionPeriod);
+      impl()->ReportMessage(MessageTemplate::kOptionalChainingNoSuper);
+      return impl()->FailureExpression();
     }
     // super() is only allowed in derived constructor. new super() is never
     // allowed; it's reported as an error by
