@@ -4241,8 +4241,8 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   St_d(ra, MemOperand(sp, 0));
   // Stack is still aligned.
 
-  // TODO(LOONG_dev): can be jirl target? a0 -- a7?
-  jirl(zero_reg, target, 0);
+  // Call the C routine.
+  jirl(ra, target, 0);
   // Make sure the stored 'ra' points to this position.
   DCHECK_EQ(kNumInstructionsToJump, InstructionsGeneratedSince(&find_ra));
 }
