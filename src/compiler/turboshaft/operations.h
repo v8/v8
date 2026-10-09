@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cmath>
+#include <compare>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -3239,14 +3240,7 @@ struct LoadOp : OperationT<LoadOp> {
       return new_kind;
     }
 
-    bool operator==(const Kind& other) const {
-      return tagged_base == other.tagged_base &&
-             maybe_unaligned == other.maybe_unaligned &&
-             with_trap_handler == other.with_trap_handler &&
-             load_eliminable == other.load_eliminable &&
-             is_immutable == other.is_immutable &&
-             is_atomic == other.is_atomic && shared_base == other.shared_base;
-    }
+    auto operator<=>(const Kind& other) const = default;
   };
   Kind kind;
   MemoryRepresentation loaded_rep;
@@ -3258,7 +3252,12 @@ struct LoadOp : OperationT<LoadOp> {
     // Loads might depend on checks for pointer validity, object layout, bounds
     // checks, etc.
     // TODO(tebbi): Distinguish between on-heap and off-heap loads.
-    OpEffects effects = OpEffects().CanReadMemory().CanDependOnChecks();
+    OpEffects effects = OpEffects().CanDependOnChecks();
+    if (kind.is_immutable) {
+      effects = effects.CanReadImmutableMemory();
+    } else {
+      effects = effects.CanReadMemory();
+    }
     if (kind.with_trap_handler) effects = effects.CanLeaveCurrentFunction();
     if (kind.is_atomic) {
       // Atomic load should not be reordered with other loads.
@@ -3329,6 +3328,11 @@ struct LoadOp : OperationT<LoadOp> {
   void PrintOptions(std::ostream& os) const;
   auto options() const {
     return std::tuple{kind, loaded_rep, result_rep, offset, element_size_log2};
+  }
+  bool operator<(const LoadOp& other) const {
+    return std::tuple{base(), index().value_or_invalid(), options()} <
+           std::tuple{other.base(), other.index().value_or_invalid(),
+                      other.options()};
   }
 };
 

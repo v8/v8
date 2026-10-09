@@ -423,9 +423,7 @@ class TurboshaftGraphBuildingInterface
 
     if (mode_ == kRegular) {
       StackCheck(WasmStackCheckOp::Kind::kFunctionEntry);
-      // The stack check could make memory growth visible, so only initialize
-      // the InstanceCache after that.
-      instance_cache_.Initialize(trusted_instance_data, decoder->module_);
+      instance_cache_.Initialize(trusted_instance_data);
     }
 
     if (v8_flags.trace_wasm) {
@@ -1662,7 +1660,6 @@ class TurboshaftGraphBuildingInterface
 
       result->op = result_64;
     }
-    instance_cache_.ReloadCachedMemory();
   }
 
   V<Word32> IsExternRefString(const Value value) {
@@ -2167,7 +2164,6 @@ class TurboshaftGraphBuildingInterface
     OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
                               base::VectorOf(inputs), ts_call_descriptor);
     BuildSwitchBackFromCentralStack(old_sp, old_limit);
-    instance_cache_.ReloadCachedMemory();
 
 #if DEBUG
     // Reset the context again after the call, to make sure nobody is using the
@@ -4326,7 +4322,6 @@ class TurboshaftGraphBuildingInterface
           AnnotateResultIfReference(loaded, tag_params[index].type);
     });
 
-    instance_cache_.ReloadCachedMemory();
     cont_val->op = __ AnnotateWasmType(cont, cont_val->type);
     DCHECK_EQ(kOnSuspend, handler.kind);
     BrOrRet(decoder, handler.maybe_depth.br.depth);
@@ -4450,7 +4445,6 @@ class TurboshaftGraphBuildingInterface
     // pointer is not freed prematurely.
     __ Retain(V<Object>::Cast(cont_ref.op));
 
-    instance_cache_.ReloadCachedMemory();
     UnpackResumeReturns(return_sig->parameters(), returns, result_buffer);
   }
 
@@ -4462,7 +4456,6 @@ class TurboshaftGraphBuildingInterface
   void EndEffectHandlers(FullDecoder* decoder) {
     current_resume_handlers_ = {};
     __ Bind(resume_return_block_);
-    instance_cache_.ReloadCachedMemory();
   }
 
   MemoryRepresentation MemoryRepresentationFor(ValueType type) {
@@ -4531,7 +4524,6 @@ class TurboshaftGraphBuildingInterface
         {wanted_tag, cont, arg_buffer,
          __ RelocatableWasmCanonicalSignatureId(csig_index.index)},
         CheckForException::kCatchInThisFrame);
-    instance_cache_.ReloadCachedMemory();
 
     // Unpack tag returns.
     IterateWasmFXArgBuffer(sig->returns(), [&](size_t index, int offset) {
@@ -6702,26 +6694,13 @@ class TurboshaftGraphBuildingInterface
   }
 
  private:
-  // The InstanceCache caches commonly used fields of the
+  // The InstanceCache caches commonly used immutable fields of the
   // WasmTrustedInstanceData.
-  // We can extend the set of cached fields as needed.
-  // This caching serves two purposes:
-  // (1) It makes sure that the respective fields are loaded early on, as
-  //     opposed to within conditional branches, so the values are easily
-  //     reusable.
-  // (2) It makes sure that the loaded values are actually reused.
-  // It achieves these effects more reliably and more cheaply than general-
-  // purpose optimizations could (loop peeling isn't always used; load
-  // elimination struggles with arbitrary side effects of indexed stores;
-  // we don't currently have a generic mechanism for hoisting loads out of
-  // conditional branches).
   class InstanceCache {
    public:
-    explicit InstanceCache(Assembler& assembler)
-        : mem_start_(assembler), mem_size_(assembler), asm_(assembler) {}
+    explicit InstanceCache(Assembler& assembler) : asm_(assembler) {}
 
-    void Initialize(V<WasmTrustedInstanceData> trusted_instance_data,
-                    const WasmModule* mod) {
+    void Initialize(V<WasmTrustedInstanceData> trusted_instance_data) {
       DCHECK(!trusted_data_.valid());  // Only call {Initialize()} once.
       trusted_data_ = trusted_instance_data;
       managed_object_maps_ =
@@ -6732,78 +6711,13 @@ class TurboshaftGraphBuildingInterface
           __ Load(trusted_instance_data, LoadOp::Kind::TaggedBase().Immutable(),
                   MemoryRepresentation::TaggedPointer(),
                   WasmTrustedInstanceData::kNativeContextOffset);
-
-      if (!mod->memories.empty()) {
-#if DEBUG
-        has_memory_ = true;
-#endif
-        const WasmMemory& mem = mod->memories[0];
-        memory_can_grow_ = mem.can_grow();
-        memory_can_move_ = mem.can_move();
-        memory_is_shared_ = mem.is_shared.value();
-        memory_size_cached_ = !memory_can_grow_;
-        if (memory_size_cached_) {
-          mem_size_ = LoadMemSize();
-        }
-        mem_start_ = LoadMemStart();
-      }
-    }
-
-    // TODO(14108): Port the dynamic "cached_memory_index" infrastructure
-    // from Turbofan.
-    void ReloadCachedMemory() {
-      if (memory_can_move_) mem_start_ = LoadMemStart();
-      if (memory_can_grow_ && memory_size_cached_) mem_size_ = LoadMemSize();
     }
 
     V<WasmTrustedInstanceData> trusted_instance_data() { return trusted_data_; }
     V<FixedArray> managed_object_maps() { return managed_object_maps_; }
     V<NativeContext> native_context() { return native_context_; }
-    V<WordPtr> memory0_start() {
-      DCHECK(has_memory_);
-      return mem_start_;
-    }
-    V<WordPtr> memory0_size() {
-      DCHECK(has_memory_);
-      if (!memory_size_cached_) return LoadMemSize();
-      return mem_size_;
-    }
 
    private:
-    static constexpr uint8_t kUnused = ~uint8_t{0};
-
-    V<WordPtr> LoadMemStart() {
-      DCHECK(has_memory_);
-      // In contrast to memory size loads, we can mark memory start loads as
-      // eliminable: shared memories never move, and non-shared memories can't
-      // have their start modified by other threads.
-      LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
-      if (!memory_can_move_) kind = kind.Immutable();
-      return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
-                     WasmTrustedInstanceData::kMemory0StartOffset);
-    }
-
-    V<WordPtr> LoadMemSize() {
-      DCHECK(has_memory_);
-      if (memory_is_shared_) {
-        V<WordPtr> size_addr =
-            __ Load(trusted_data_, LoadOp::Kind::TaggedBase().Immutable(),
-                    MemoryRepresentation::UintPtr(),
-                    WasmTrustedInstanceData::kMemory0SizeOrAddressOffset);
-        // A relaxed (non-atomic) aligned word load is sufficient for bounds
-        // checks; `memory.size` uses an explicit atomic load.
-        LoadOp::Kind deref_kind =
-            memory_can_grow_ ? LoadOp::Kind::RawAligned().NotLoadEliminable()
-                             : LoadOp::Kind::RawAligned().Immutable();
-        return __ Load(size_addr, deref_kind, MemoryRepresentation::UintPtr(),
-                       0);
-      }
-      LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
-      if (!memory_can_grow_) kind = kind.Immutable();
-      return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
-                     WasmTrustedInstanceData::kMemory0SizeOrAddressOffset);
-    }
-
     // For compatibility with `__` macro.
     Assembler& Asm() { return asm_; }
 
@@ -6812,19 +6726,8 @@ class TurboshaftGraphBuildingInterface
     V<FixedArray> managed_object_maps_;
     V<NativeContext> native_context_;
 
-    // Cached mutable fields:
-    ScopedVar<WordPtr> mem_start_;
-    ScopedVar<WordPtr> mem_size_;
-
     // Other fields for internal usage.
     Assembler& asm_;
-    bool memory_is_shared_{false};
-    bool memory_can_grow_{false};
-    bool memory_can_move_{false};
-    bool memory_size_cached_{false};
-#if DEBUG
-    bool has_memory_{false};
-#endif
   };
 
  private:
@@ -8297,19 +8200,22 @@ class TurboshaftGraphBuildingInterface
   }
 
   V<WordPtr> MemStart(uint32_t index) {
+    const WasmMemory& mem = env_->module->memories[index];
+    LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
+    if (!mem.can_move()) kind = kind.Immutable();
+    V<WasmTrustedInstanceData> trusted_data =
+        instance_cache_.trusted_instance_data();
+
     if (index == 0) {
-      // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
-      return instance_cache_.memory0_start();
-    } else {
-      // TODO(14616): Fix sharedness.
-      V<TrustedFixedAddressArray> instance_memories =
-          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
-              instance_cache_.trusted_instance_data(), MemoryBasesAndSizes,
-              TrustedFixedAddressArray);
-      return __ Load(instance_memories, LoadOp::Kind::TaggedBase(),
-                     MemoryRepresentation::UintPtr(),
-                     TrustedFixedAddressArray::OffsetOfElementAt(2 * index));
+      return __ Load(trusted_data, kind, MemoryRepresentation::UintPtr(),
+                     WasmTrustedInstanceData::kMemory0StartOffset);
     }
+
+    V<TrustedFixedAddressArray> instance_memories =
+        LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+            trusted_data, MemoryBasesAndSizes, TrustedFixedAddressArray);
+    return __ Load(instance_memories, kind, MemoryRepresentation::UintPtr(),
+                   TrustedFixedAddressArray::OffsetOfElementAt(2 * index));
   }
 
   V<WordPtr> MemBuffer(uint32_t mem_index, uintptr_t offset) {
@@ -8338,33 +8244,33 @@ class TurboshaftGraphBuildingInterface
   }
 
   V<WordPtr> MemSize(uint32_t index) {
-    if (index == 0) {
-      // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
-      return instance_cache_.memory0_size();
-    } else {
-      bool is_shared = env_->module->memories[index].is_shared.value();
-      bool can_grow = env_->module->memories[index].can_grow();
-      if (!is_shared) {
-        LoadOp::Kind kind = can_grow
-                                ? LoadOp::Kind::TaggedBase().NotLoadEliminable()
-                                : LoadOp::Kind::TaggedBase().Immutable();
-        V<TrustedFixedAddressArray> instance_memories =
-            LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
-                instance_cache_.trusted_instance_data(), MemoryBasesAndSizes,
-                TrustedFixedAddressArray);
-        return __ Load(
-            instance_memories, kind, MemoryRepresentation::UintPtr(),
-            TrustedFixedAddressArray::OffsetOfElementAt(2 * index + 1));
-      }
+    const WasmMemory& mem = env_->module->memories[index];
+    if (mem.is_shared) {
       V<WordPtr> size_address = MemSizeAddress(index);
       // A relaxed (non-atomic) aligned word load is sufficient for bounds
       // checks; `memory.size` uses an explicit atomic load.
       LoadOp::Kind deref_kind =
-          can_grow ? LoadOp::Kind::RawAligned().NotLoadEliminable()
-                   : LoadOp::Kind::RawAligned().Immutable();
+          mem.can_grow() ? LoadOp::Kind::RawAligned().NotLoadEliminable()
+                         : LoadOp::Kind::RawAligned().Immutable();
       return __ Load(size_address, deref_kind, MemoryRepresentation::UintPtr(),
                      0);
     }
+
+    LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
+    if (!mem.can_grow()) kind = kind.Immutable();
+    V<WasmTrustedInstanceData> trusted_data =
+        instance_cache_.trusted_instance_data();
+
+    if (index == 0) {
+      return __ Load(trusted_data, kind, MemoryRepresentation::UintPtr(),
+                     WasmTrustedInstanceData::kMemory0SizeOrAddressOffset);
+    }
+
+    V<TrustedFixedAddressArray> instance_memories =
+        LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+            trusted_data, MemoryBasesAndSizes, TrustedFixedAddressArray);
+    return __ Load(instance_memories, kind, MemoryRepresentation::UintPtr(),
+                   TrustedFixedAddressArray::OffsetOfElementAt(2 * index + 1));
   }
 
   LoadOp::Kind GetMemoryAccessKind(
@@ -8665,8 +8571,6 @@ class TurboshaftGraphBuildingInterface
             __ Projection(call, i, RepresentationFor(type)), type);
       }
     }
-    // Calls might mutate cached instance fields.
-    instance_cache_.ReloadCachedMemory();
   }
 
  private:
@@ -8828,14 +8732,9 @@ class TurboshaftGraphBuildingInterface
       __ Bind(exception_block);
       OpIndex exception = __ CatchBlockBegin();
       if (handled_in_this_frame) {
-        // The exceptional operation could have modified memory size; we need
-        // to reload the memory context into the exceptional control path.
-        instance_cache_.ReloadCachedMemory();
         SetupControlFlowEdge(decoder, catch_block, 0, exception);
       } else if (mode_ == kInlinedWithCatch) {
         if (exception.valid()) return_phis_->AddIncomingException(exception);
-        // Reloading the InstanceCache will happen when {return_exception_phis_}
-        // are retrieved.
       }
       __ Goto(catch_block);
     }
@@ -9537,16 +9436,11 @@ class TurboshaftGraphBuildingInterface
         Control* current_catch =
             decoder->control_at(decoder->control_depth_of_current_catch());
         catch_block = current_catch->false_or_loop_or_catch_block;
-        // The exceptional operation could have modified memory size; we need
-        // to reload the memory context into the exceptional control path.
-        instance_cache_.ReloadCachedMemory();
         SetupControlFlowEdge(decoder, catch_block, 0, exception);
       } else {
         DCHECK_EQ(mode_, kInlinedWithCatch);
         catch_block = return_catch_block_;
         if (exception.valid()) return_phis_->AddIncomingException(exception);
-        // Reloading the InstanceCache will happen when {return_exception_phis_}
-        // are retrieved.
       }
       __ Goto(catch_block);
     }
