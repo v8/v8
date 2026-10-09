@@ -1859,10 +1859,8 @@ Tagged<Object> String::LastIndexOf(Isolate* isolate,
   return Smi::FromInt(last_index);
 }
 
-bool String::HasOneBytePrefix(base::Vector<const char> str) {
-  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
-  return IsEqualToImpl<EqualityType::kPrefix>(
-      str, SharedStringAccessGuardIfNeeded::NotNeeded());
+bool String::HasOneBytePrefix(std::string_view str) {
+  return IsEqualTo<EqualityType::kPrefix>(str);
 }
 
 namespace {

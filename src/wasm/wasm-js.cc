@@ -1499,8 +1499,8 @@ std::optional<AddressType> GetAddressType(Isolate* isolate,
     return std::nullopt;
   }
 
-  if (address->IsEqualTo(base::CStrVector("i64"))) return AddressType::kI64;
-  if (address->IsEqualTo(base::CStrVector("i32"))) return AddressType::kI32;
+  if (address->IsEqualTo("i64")) return AddressType::kI64;
+  if (address->IsEqualTo("i32")) return AddressType::kI32;
 
   thrower->TypeError("Unknown address type '%s'; pass 'i32' or 'i64'",
                      address->ToCString().get());
@@ -1538,22 +1538,22 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     }
     auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
     // The JS api uses 'anyfunc' instead of 'funcref'.
-    if (string->IsEqualTo(base::CStrVector("anyfunc"))) {
+    if (string->IsEqualTo("anyfunc")) {
       type = i::wasm::kWasmFuncRef;
-    } else if (string->IsEqualTo(base::CStrVector("externref"))) {
+    } else if (string->IsEqualTo("externref")) {
       type = i::wasm::kWasmExternRef;
     } else if (enabled_features.has_stringref() &&
-               string->IsEqualTo(base::CStrVector("stringref"))) {
+               string->IsEqualTo("stringref")) {
       type = i::wasm::kWasmStringRef;
-    } else if (string->IsEqualTo(base::CStrVector("anyref"))) {
+    } else if (string->IsEqualTo("anyref")) {
       type = i::wasm::kWasmAnyRef;
-    } else if (string->IsEqualTo(base::CStrVector("eqref"))) {
+    } else if (string->IsEqualTo("eqref")) {
       type = i::wasm::kWasmEqRef;
-    } else if (string->IsEqualTo(base::CStrVector("structref"))) {
+    } else if (string->IsEqualTo("structref")) {
       type = i::wasm::kWasmStructRef;
-    } else if (string->IsEqualTo(base::CStrVector("arrayref"))) {
+    } else if (string->IsEqualTo("arrayref")) {
       type = i::wasm::kWasmArrayRef;
-    } else if (string->IsEqualTo(base::CStrVector("i31ref"))) {
+    } else if (string->IsEqualTo("i31ref")) {
       type = i::wasm::kWasmI31Ref;
     } else {
       thrower.TypeError(
@@ -1780,35 +1780,35 @@ std::optional<i::wasm::ValueType> GetValueType(
            .ToHandle(&string)) {
     return std::nullopt;
   }
-  if (string->IsEqualTo(base::CStrVector("i32"))) {
+  if (string->IsEqualTo("i32")) {
     return i::wasm::kWasmI32;
-  } else if (string->IsEqualTo(base::CStrVector("f32"))) {
+  } else if (string->IsEqualTo("f32")) {
     return i::wasm::kWasmF32;
-  } else if (string->IsEqualTo(base::CStrVector("i64"))) {
+  } else if (string->IsEqualTo("i64")) {
     return i::wasm::kWasmI64;
-  } else if (string->IsEqualTo(base::CStrVector("f64"))) {
+  } else if (string->IsEqualTo("f64")) {
     return i::wasm::kWasmF64;
-  } else if (string->IsEqualTo(base::CStrVector("v128"))) {
+  } else if (string->IsEqualTo("v128")) {
     return i::wasm::kWasmS128;
-  } else if (string->IsEqualTo(base::CStrVector("externref"))) {
+  } else if (string->IsEqualTo("externref")) {
     return i::wasm::kWasmExternRef;
-  } else if (string->IsEqualTo(base::CStrVector("anyfunc"))) {
+  } else if (string->IsEqualTo("anyfunc")) {
     // The JS api spec uses 'anyfunc' instead of 'funcref'.
     return i::wasm::kWasmFuncRef;
-  } else if (string->IsEqualTo(base::CStrVector("eqref"))) {
+  } else if (string->IsEqualTo("eqref")) {
     return i::wasm::kWasmEqRef;
   } else if (enabled_features.has_stringref() &&
-             string->IsEqualTo(base::CStrVector("stringref"))) {
+             string->IsEqualTo("stringref")) {
     return i::wasm::kWasmStringRef;
-  } else if (string->IsEqualTo(base::CStrVector("anyref"))) {
+  } else if (string->IsEqualTo("anyref")) {
     return i::wasm::kWasmAnyRef;
-  } else if (string->IsEqualTo(base::CStrVector("structref"))) {
+  } else if (string->IsEqualTo("structref")) {
     return i::wasm::kWasmStructRef;
-  } else if (string->IsEqualTo(base::CStrVector("arrayref"))) {
+  } else if (string->IsEqualTo("arrayref")) {
     return i::wasm::kWasmArrayRef;
-  } else if (string->IsEqualTo(base::CStrVector("i31ref"))) {
+  } else if (string->IsEqualTo("i31ref")) {
     return i::wasm::kWasmI31Ref;
-  } else if (string->IsEqualTo(base::CStrVector("exnref"))) {
+  } else if (string->IsEqualTo("exnref")) {
     return i::wasm::kWasmExnRef;
   }
   // Unrecognized type.
@@ -3640,23 +3640,23 @@ CompileTimeImports WasmJs::CompileTimeImportsFromArgument(
                                        {});
       if (IsString(*value)) {
         Tagged<String> builtin = Cast<String>(*value);
-        if (builtin->IsEqualTo(base::CStrVector("js-string"))) {
+        if (builtin->IsEqualTo("js-string")) {
           result.Add(CompileTimeImport::kJsString);
           continue;
         }
         if (enabled_features.has_imported_strings_utf8()) {
-          if (builtin->IsEqualTo(base::CStrVector("text-encoder"))) {
+          if (builtin->IsEqualTo("text-encoder")) {
             result.Add(CompileTimeImport::kTextEncoder);
             continue;
           }
-          if (builtin->IsEqualTo(base::CStrVector("text-decoder"))) {
+          if (builtin->IsEqualTo("text-decoder")) {
             result.Add(CompileTimeImport::kTextDecoder);
             continue;
           }
         }
         if (enabled_features.has_custom_descriptors() &&
             v8_flags.wasm_js_interop) {
-          if (builtin->IsEqualTo(base::CStrVector("js-prototypes"))) {
+          if (builtin->IsEqualTo("js-prototypes")) {
             result.Add(CompileTimeImport::kJsPrototypes);
             continue;
           }

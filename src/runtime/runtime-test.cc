@@ -399,8 +399,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
   if (args.length() == 2) {
     DirectHandle<Object> type = args.at(1);
     CHECK_UNLESS_FUZZING(IsString(*type));
-    if (Cast<String>(type)->IsOneByteEqualTo(
-            base::StaticCharVector("concurrent")) &&
+    if (Cast<String>(type)->IsOneByteEqualTo("concurrent") &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }

@@ -2007,7 +2007,7 @@ TEST_F(DebugScopeInfoTest, FindEvalOuterScopeNestedBlocks) {
   ASSERT_TRUE(block_c.has_value());
   EXPECT_TRUE(block_c->is_block_scope());
   ASSERT_EQ(block_c->variable_count(), 1);
-  EXPECT_TRUE(block_c->variable(0).name->IsEqualTo(base::CStrVector("c")));
+  EXPECT_TRUE(block_c->variable(0).name->IsEqualTo("c"));
 
   DirectHandle<Script> outer_script(
       Cast<Script>(eval_script->eval_from_shared()->script()), isolate());
@@ -2018,7 +2018,7 @@ TEST_F(DebugScopeInfoTest, FindEvalOuterScopeNestedBlocks) {
   ASSERT_TRUE(block_b.has_value());
   EXPECT_TRUE(block_b->is_block_scope());
   ASSERT_EQ(block_b->variable_count(), 1);
-  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo(base::CStrVector("b")));
+  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo("b"));
 
   std::optional<DebugScriptScope> fn_outer = block_b->parent();
   ASSERT_TRUE(fn_outer.has_value());
@@ -2051,7 +2051,7 @@ TEST_F(DebugScopeInfoTest, FindEvalOuterScopeChainedDirectEval) {
   ASSERT_TRUE(block_d.has_value());
   EXPECT_TRUE(block_d->is_block_scope());
   ASSERT_EQ(block_d->variable_count(), 1);
-  EXPECT_TRUE(block_d->variable(0).name->IsEqualTo(base::CStrVector("d")));
+  EXPECT_TRUE(block_d->variable(0).name->IsEqualTo("d"));
 
   std::optional<DebugScriptScope> mid_eval_scope = block_d->parent();
   ASSERT_TRUE(mid_eval_scope.has_value());
@@ -2065,7 +2065,7 @@ TEST_F(DebugScopeInfoTest, FindEvalOuterScopeChainedDirectEval) {
   ASSERT_TRUE(block_b.has_value());
   EXPECT_TRUE(block_b->is_block_scope());
   ASSERT_EQ(block_b->variable_count(), 1);
-  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo(base::CStrVector("b")));
+  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo("b"));
 
   std::optional<DebugScriptScope> fn_outer = block_b->parent();
   ASSERT_TRUE(fn_outer.has_value());
@@ -2092,7 +2092,7 @@ TEST_F(DebugScopeInfoTest, FindEvalOuterScopeTopLevelScript) {
   ASSERT_TRUE(block_b.has_value());
   EXPECT_TRUE(block_b->is_block_scope());
   ASSERT_EQ(block_b->variable_count(), 1);
-  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo(base::CStrVector("top_b")));
+  EXPECT_TRUE(block_b->variable(0).name->IsEqualTo("top_b"));
 
   std::optional<DebugScriptScope> script_scope = block_b->parent();
   ASSERT_TRUE(script_scope.has_value());

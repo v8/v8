@@ -106,7 +106,7 @@ void SourceCodeCache::Iterate(RootVisitor* v) {
   v->VisitRootPointer(Root::kExtensions, nullptr, FullObjectSlot(&cache_));
 }
 
-bool SourceCodeCache::Lookup(Isolate* isolate, base::Vector<const char> name,
+bool SourceCodeCache::Lookup(Isolate* isolate, std::string_view name,
                              DirectHandle<SharedFunctionInfo>* handle) {
   uint32_t cache_len = cache_->ulength().value();
   for (uint32_t i = 0; i < cache_len; i += 2) {
@@ -120,7 +120,7 @@ bool SourceCodeCache::Lookup(Isolate* isolate, base::Vector<const char> name,
   return false;
 }
 
-void SourceCodeCache::Add(Isolate* isolate, base::Vector<const char> name,
+void SourceCodeCache::Add(Isolate* isolate, std::string_view name,
                           DirectHandle<SharedFunctionInfo> shared) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
@@ -131,7 +131,7 @@ void SourceCodeCache::Add(Isolate* isolate, base::Vector<const char> name,
   cache_ = *new_array;
   DirectHandle<String> str =
       factory
-          ->NewStringFromOneByte(base::Vector<const uint8_t>::cast(name),
+          ->NewStringFromOneByte(base::OneByteVector(name.data(), name.size()),
                                  AllocationType::kOld)
           .ToHandleChecked();
   DCHECK(!str.is_null());
@@ -5303,7 +5303,7 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
 
   // If we can't find the function in the cache, we compile a new
   // function and insert it into the cache.
-  base::Vector<const char> name = base::CStrVector(extension->name());
+  std::string_view name(extension->name());
   SourceCodeCache* cache = isolate->bootstrapper()->extensions_cache();
   DirectHandle<Context> context(isolate->context(), isolate);
   DCHECK(IsNativeContext(*context));

@@ -4000,9 +4000,9 @@ PromiseMethod GetPromiseMethod(
   auto str = Cast<String>(object);
   if (str->Equals(ReadOnlyRoots(isolate).then_string())) {
     return kThen;
-  } else if (str->IsEqualTo(base::StaticCharVector("catch"))) {
+  } else if (str->IsEqualTo("catch")) {
     return kCatch;
-  } else if (str->IsEqualTo(base::StaticCharVector("finally"))) {
+  } else if (str->IsEqualTo("finally")) {
     return kFinally;
   } else {
     return kInvalid;

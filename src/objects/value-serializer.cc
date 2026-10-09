@@ -1180,17 +1180,17 @@ Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
     return Nothing<bool>();
   }
 
-  if (name->IsOneByteEqualTo(base::CStrVector("EvalError"))) {
+  if (name->IsOneByteEqualTo("EvalError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kEvalErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("RangeError"))) {
+  } else if (name->IsOneByteEqualTo("RangeError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kRangeErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("ReferenceError"))) {
+  } else if (name->IsOneByteEqualTo("ReferenceError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kReferenceErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("SyntaxError"))) {
+  } else if (name->IsOneByteEqualTo("SyntaxError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kSyntaxErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("TypeError"))) {
+  } else if (name->IsOneByteEqualTo("TypeError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kTypeErrorPrototype));
-  } else if (name->IsOneByteEqualTo(base::CStrVector("URIError"))) {
+  } else if (name->IsOneByteEqualTo("URIError")) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kUriErrorPrototype));
   } else {
     // The default prototype in the deserialization side is Error.prototype, so

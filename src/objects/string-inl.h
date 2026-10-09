@@ -715,6 +715,11 @@ bool String::IsEqualTo(base::Vector<const Char> str) const {
                                 SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
+template <String::EqualityType kEqType>
+bool String::IsEqualTo(std::string_view str) const {
+  return IsEqualTo<kEqType>(base::Vector<const char>(str.data(), str.size()));
+}
+
 template <String::EqualityType kEqType, typename Char>
 bool String::IsEqualTo(base::Vector<const Char> str,
                        LocalIsolate* isolate) const {
@@ -814,9 +819,7 @@ bool String::IsConsStringEqualToImpl(
   return true;
 }
 
-bool String::IsOneByteEqualTo(base::Vector<const char> str) {
-  return IsEqualTo(str);
-}
+bool String::IsOneByteEqualTo(std::string_view str) { return IsEqualTo(str); }
 
 template <typename Char>
 const Char* String::GetDirectStringChars(
