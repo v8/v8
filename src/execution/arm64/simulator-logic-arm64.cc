@@ -24,6 +24,8 @@ class half {
 
   uint16_t bits() const { return bits_; }
 
+  half operator-() const { return half(static_cast<uint16_t>(bits_ ^ 0x8000)); }
+
  private:
   uint16_t bits_;
 };

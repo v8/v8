@@ -494,15 +494,13 @@ void f32x4_nearest_int_wrapper(Address data) {
   simd_float_round_wrapper<float, &nearbyintf>(data);
 }
 
-Float16 f16_abs(Float16 a) {
-  return Float16::FromFloat32(std::abs(a.ToFloat32()));
-}
+Float16 f16_abs(Float16 a) { return Float16::FromBits(a.get_bits() & 0x7fff); }
 
 void f16x8_abs_wrapper(Address data) {
   simd_float_round_wrapper<Float16, &f16_abs>(data);
 }
 
-Float16 f16_neg(Float16 a) { return Float16::FromFloat32(-(a.ToFloat32())); }
+Float16 f16_neg(Float16 a) { return Float16::FromBits(a.get_bits() ^ 0x8000); }
 
 void f16x8_neg_wrapper(Address data) {
   simd_float_round_wrapper<Float16, &f16_neg>(data);
