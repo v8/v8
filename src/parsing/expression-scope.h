@@ -234,16 +234,11 @@ class ExpressionScope {
   }
 
   int SetInitializers(int variable_index, int peek_position) {
-    if (CanBeArrowParameterDeclaration()) {
+    if (CanBeExpression()) {
       return AsExpressionParsingScope()->SetInitializers(variable_index,
                                                          peek_position);
     }
     return variable_index;
-  }
-
-  bool CanBeArrowParameterDeclaration() const {
-    return base::IsInRange(type_, kMaybeArrowParameterDeclaration,
-                           kMaybeAsyncArrowParameterDeclaration);
   }
 
   bool has_possible_arrow_parameter_in_scope_chain() const {
@@ -596,12 +591,15 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
     if (len == 0) return 0;
 
     int end = len - 1;
+    // Loop backwards and abort as soon as we see one that's already set to
+    // avoid a loop on expressions like a,b,c,d,e,f,g (outside of an arrowhead).
+    // TODO(delphick): Look into removing this loop.
     for (int i = end; i >= first_variable_index &&
                       variable_list_.at(i).second == kNoSourcePosition;
          --i) {
       variable_list_.at(i).second = position;
     }
-    return len;
+    return end;
   }
 
   ScopedList<std::pair<VariableProxy*, int>>* variable_list() {
