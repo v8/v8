@@ -5001,9 +5001,9 @@ void Builtins::Generate_WasmReturnFromSegment(MacroAssembler* masm) {
   __ PopAll(fp_saves, kSimd128Size);
   __ PopAll(gp_saves);
 
+  SwitchSimulatorStackLimit(masm);
   __ Mov(sp, fp);
   __ Pop<MacroAssembler::kAuthLR>(fp, lr);
-  SwitchSimulatorStackLimit(masm);
   __ Ret();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
