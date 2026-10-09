@@ -382,7 +382,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                         Expression** each_variable);
   Block* CreateForEachStatementTDZ(Block* init_block, const ForInfo& for_info);
 
-  Statement* DesugarLexicalBindingsInForStatement(
+  Statement* DesugarLetBindingsInForStatement(
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
       Statement* body, Scope* inner_scope, const ForInfo& for_info);
 

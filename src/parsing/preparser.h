@@ -1365,15 +1365,16 @@ class PreParser : public ParserBase<PreParser> {
     return init_block;
   }
 
-  V8_INLINE StatementT DesugarLexicalBindingsInForStatement(
+  V8_INLINE StatementT DesugarLetBindingsInForStatement(
       PreParserStatement loop, PreParserStatement init,
       const PreParserExpression& cond, PreParserStatement next,
       PreParserStatement body, Scope* inner_scope, const ForInfo& for_info) {
-    // See Parser::DesugarLexicalBindingsInForStatement.
+    // See Parser::DesugarLetBindingsInForStatement.
+    DCHECK_GT(for_info.bound_names.length(), 0);
+    DCHECK_EQ(for_info.parsing_result.descriptor.mode, VariableMode::kLet);
     for (auto name : for_info.bound_names) {
       bool was_added;
-      DeclareVariableName(name, for_info.parsing_result.descriptor.mode,
-                          inner_scope, &was_added);
+      DeclareVariableName(name, VariableMode::kLet, inner_scope, &was_added);
     }
     return loop;
   }

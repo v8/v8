@@ -2429,7 +2429,7 @@ Block* Parser::CreateForEachStatementTDZ(Block* init_block,
   return init_block;
 }
 
-Statement* Parser::DesugarLexicalBindingsInForStatement(
+Statement* Parser::DesugarLetBindingsInForStatement(
     ForStatement* loop, Statement* init, Expression* cond, Statement* next,
     Statement* body, Scope* inner_scope, const ForInfo& for_info) {
   // ES6 13.7.4.8 specifies that on each loop iteration the let variables are
@@ -2440,18 +2440,18 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   //
   // We are given a for statement of the form
   //
-  //  labels: for (let/const x = i; cond; next) body
+  //  labels: for (let x = i; cond; next) body
   //
   // and rewrite it as follows.  Here we write {{ ... }} for init-blocks, ie.,
   // blocks whose ignore_completion_value_ flag is set.
   //
   //  {
-  //    let/const x = i;
+  //    let x = i;
   //    temp_x = x;
   //    first = 1;
   //    undefined;
   //    outer: for (;;) {
-  //      let/const x = temp_x;
+  //      let x = temp_x;
   //      {{ if (first == 1) {
   //           first = 0;
   //         } else {
@@ -2470,17 +2470,18 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   //  }
 
   DCHECK_GT(for_info.bound_names.length(), 0);
+  DCHECK_EQ(for_info.parsing_result.descriptor.mode, VariableMode::kLet);
   ScopedPtrList<Variable> temps(pointer_buffer());
 
   Block* outer_block =
       factory()->NewBlock(for_info.bound_names.length() + 4, false);
 
-  // Add statement: let/const x = i.
+  // Add statement: let x = i.
   outer_block->statements()->Add(init, zone());
 
   const AstRawString* temp_name = ast_value_factory()->dot_for_string();
 
-  // For each lexical variable x:
+  // For each let variable x:
   //   make statement: temp_x = x.
   for (const AstRawString* bound_name : for_info.bound_names) {
     VariableProxy* proxy = NewUnresolved(bound_name);
@@ -2530,14 +2531,10 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
         factory()->NewBlock(for_info.bound_names.length() + 3, true);
     ScopedPtrList<Variable> inner_vars(pointer_buffer());
     // For each let variable x:
-    //    make statement: let/const x = temp_x.
+    //    make statement: let x = temp_x.
     for (int i = 0; i < for_info.bound_names.length(); i++) {
       VariableProxy* proxy = DeclareBoundVariable(
-          for_info.bound_names[i],
-          IsResourceManagedVariableMode(for_info.parsing_result.descriptor.mode)
-              ? VariableMode::kConst
-              : for_info.parsing_result.descriptor.mode,
-          kNoSourcePosition);
+          for_info.bound_names[i], VariableMode::kLet, kNoSourcePosition);
       inner_vars.Add(proxy->var());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
       Assignment* assignment = factory()->NewAssignment(

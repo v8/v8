@@ -6900,31 +6900,41 @@ ParserBase<Impl>::ParseStandardForLoopWithLexicalDeclarations(
     ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels) {
   // The condition and the next statement of the for loop must be parsed
-  // in a new scope.
-  Scope* inner_scope = NewScope(BLOCK_SCOPE);
+  // in a new scope when desugaring per-iteration let bindings.
+  const bool is_let_with_bound_names =
+      for_info->parsing_result.descriptor.mode == VariableMode::kLet &&
+      for_info->bound_names.length() > 0;
+  Scope* inner_scope = nullptr;
   ForStatementT loop = impl()->NullStatement();
   ExpressionT cond = impl()->NullExpression();
   StatementT next = impl()->NullStatement();
   StatementT body = impl()->NullStatement();
   {
-    BlockState block_state(&scope_, inner_scope);
-    scope()->set_start_position(scanner()->location().beg_pos);
+    std::optional<BlockState> block_state;
+    if (is_let_with_bound_names) {
+      inner_scope = NewScope(BLOCK_SCOPE);
+      block_state.emplace(&scope_, inner_scope);
+      scope()->set_start_position(scanner()->location().beg_pos);
+    }
     loop =
         ParseStandardForLoop(stmt_pos, labels, own_labels, &cond, &next, &body);
     RETURN_IF_PARSE_ERROR;
-    scope()->set_end_position(end_position());
+    if (is_let_with_bound_names) {
+      scope()->set_end_position(end_position());
+    }
   }
 
   scope()->set_end_position(end_position());
-  if (for_info->bound_names.length() > 0 &&
-      function_state_->contains_function_or_eval()) {
-    scope()->set_is_hidden();
-    return impl()->DesugarLexicalBindingsInForStatement(
-        loop, init, cond, next, body, inner_scope, *for_info);
-  } else {
-    inner_scope = inner_scope->FinalizeBlockScope();
-    DCHECK_NULL(inner_scope);
-    USE(inner_scope);
+  if (is_let_with_bound_names) {
+    if (function_state_->contains_function_or_eval()) {
+      scope()->set_is_hidden();
+      return impl()->DesugarLetBindingsInForStatement(
+          loop, init, cond, next, body, inner_scope, *for_info);
+    } else {
+      inner_scope = inner_scope->FinalizeBlockScope();
+      DCHECK_NULL(inner_scope);
+      USE(inner_scope);
+    }
   }
 
   Scope* for_scope = scope()->FinalizeBlockScope();
