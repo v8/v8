@@ -204,7 +204,9 @@ Pins the properties that decay silently: every grammar rule stays reachable
 under every profile, mode-specific syntax stays in its mode, generated patterns
 parse, a meaningful share of cases match, and the emitted testcase format
 stands alone, survives a line-based minimizer, and round-trips through
-`--testcase`. Omit `--d8` to run only the checks that need no build.
+`--testcase`. Omit `--d8` for the fast presubmit checks with bounded samples.
+Use `--exhaustive` for full Python samples and rule/profile coverage without
+a build. `--d8` also enables the exhaustive Python checks.
 
 ## Files
 

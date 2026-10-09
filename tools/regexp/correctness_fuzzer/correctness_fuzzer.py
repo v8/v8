@@ -312,11 +312,55 @@ def minimize(runner, pattern, flags, subject, last_index=0):
   return pattern, flags, subject, last_index
 
 
+def _regexp_literal(pattern, flags):
+  """Format a valid constructor pattern as a UTF-8-safe regexp literal."""
+  # Combine raw surrogate pairs before escaping lone surrogates.
+  pattern = pattern.encode("utf-16-le",
+                           "surrogatepass").decode("utf-16-le", "surrogatepass")
+  escapes = {
+      "\n": r"\n",
+      "\r": r"\r",
+      "\t": r"\t",
+      "\u2028": r"\u2028",
+      "\u2029": r"\u2029"
+  }
+  unicode = "u" in flags or "v" in flags
+  out = []
+  in_class = False
+  chars = iter(pattern)
+  for c in chars:
+    if c == "\\":
+      c = next(chars, "")
+      if not c:
+        out.append("\\")
+        break
+      if c not in escapes and not (ord(c) < 32 or 0xd800 <= ord(c) <= 0xdfff):
+        out.append("\\" + c)
+        continue
+      # Legacy identity escapes of raw controls/surrogates lose their prefix.
+    if c in escapes:
+      out.append(escapes[c])
+    elif ord(c) < 32 or ord(c) == 127:
+      out.append(r"\x%02x" % ord(c))
+    elif 0xd800 <= ord(c) <= 0xdfff:
+      # Braces prevent pairing with an adjacent \uXXXX escape in Unicode mode.
+      out.append((r"\u{%04x}" if unicode else r"\u%04x") % ord(c))
+    else:
+      if c == "/" and not in_class:
+        out.append("\\")
+      elif c == "[":
+        in_class = True
+      elif c == "]":
+        in_class = False
+      out.append(c)
+  return "/%s/%s" % ("".join(out) or "(?:)", flags)
+
+
 def _print_case(runner, pattern, flags, subject, last_index, header):
   rc_r, res_r = runner.run_one(runner.ref, pattern, flags, subject, last_index)
   rc_t, res_t = runner.run_one(runner.test, pattern, flags, subject, last_index)
   print(header)
-  print("  pattern: /%s/%s" % (json.dumps(pattern)[1:-1], flags))
+  print("  pattern: %s" % _regexp_literal(pattern, flags))
   print("  subject: %r" % subject)
   if last_index:
     print("  lastIndex: %d" % last_index)
