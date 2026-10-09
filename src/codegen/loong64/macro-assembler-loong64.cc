@@ -2839,19 +2839,35 @@ void MacroAssembler::RoundDouble(FPURegister dst, FPURegister src,
 }
 
 void MacroAssembler::Floor_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_floor);
+  if (IsEnabled(LSX)) {
+    vfrintrm_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_floor);
+  }
 }
 
 void MacroAssembler::Ceil_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_ceil);
+  if (IsEnabled(LSX)) {
+    vfrintrp_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_ceil);
+  }
 }
 
 void MacroAssembler::Trunc_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_trunc);
+  if (IsEnabled(LSX)) {
+    vfrintrz_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_trunc);
+  }
 }
 
 void MacroAssembler::Round_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, mode_round);
+  if (IsEnabled(LSX)) {
+    vfrintrne_d(dst.toV(), src.toV());
+  } else {
+    RoundDouble(dst, src, mode_round);
+  }
 }
 
 void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
@@ -2868,19 +2884,35 @@ void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
 }
 
 void MacroAssembler::Floor_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_floor);
+  if (IsEnabled(LSX)) {
+    vfrintrm_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_floor);
+  }
 }
 
 void MacroAssembler::Ceil_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_ceil);
+  if (IsEnabled(LSX)) {
+    vfrintrp_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_ceil);
+  }
 }
 
 void MacroAssembler::Trunc_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_trunc);
+  if (IsEnabled(LSX)) {
+    vfrintrz_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_trunc);
+  }
 }
 
 void MacroAssembler::Round_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, mode_round);
+  if (IsEnabled(LSX)) {
+    vfrintrne_s(dst.toV(), src.toV());
+  } else {
+    RoundFloat(dst, src, mode_round);
+  }
 }
 
 void MacroAssembler::CompareF(FPURegister cmp1, FPURegister cmp2,
