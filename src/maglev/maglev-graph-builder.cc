@@ -4534,12 +4534,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
           {heap_number, value},
           static_cast<int>(offsetof(HeapNumber, value_))));
       if (IsDefiningStore(access_mode)) {
-        // The map store must follow the value write so background threads
-        // (e.g. concurrent compiler) see a consistent initialized state upon
-        // observing the HeapNumber map.
+        // Use kInitializing since transitioning an UninitializedHeapNumber to
+        // HeapNumber cannot invalidate any unstable maps in KnownNodeAspects.
         RETURN_IF_ABORT(reducer_.BuildStoreMap(heap_number,
                                                broker()->heap_number_map(),
-                                               StoreMap::Kind::kTransitioning));
+                                               StoreMap::Kind::kInitializing));
       }
       return ReduceResult::Done();
     }

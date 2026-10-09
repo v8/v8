@@ -1205,8 +1205,8 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
       DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==
                                                  PropertyConstness::kConst,
                      CanStayConst(*value));
-      Cast<JSObject>(*holder)->WriteToField(
-          descriptor_number(), property_details_, *value, initializing_store);
+      Cast<JSObject>(*holder)->WriteToField(descriptor_number(),
+                                            property_details_, *value);
     } else {
       DCHECK_EQ(PropertyLocation::kDescriptor, property_details_.location());
       DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());

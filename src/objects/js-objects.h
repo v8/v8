@@ -832,8 +832,7 @@ V8_OBJECT class JSObject : public JSReceiver {
                                            Tagged<Object> value,
                                            SeqCstAccessTag tag);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
-                           Tagged<Object> value,
-                           bool initializing_store = false);
+                           Tagged<Object> value);
 
   inline Tagged<Object> RawFastInobjectPropertyAtSwap(FieldIndex index,
                                                       Tagged<Object> value,

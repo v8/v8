@@ -3799,18 +3799,12 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(ValueInput());
   if (NoWriteBarrier()) {
     if (MaglevAssembler::kSupportsStoreTaggedConstant) {
-      if (kind() == Kind::kTransitioning) {
-        __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
-      }
       __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
                                         map_.object());
       __ AssertElidedWriteBarrier(object, map_, register_snapshot());
     } else {
       Register value = temps.Acquire();
       __ MoveTagged(value, map_.object());
-      if (kind() == Kind::kTransitioning) {
-        __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
-      }
       __ StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_),
                                         value);
       __ AssertElidedWriteBarrier(object, value, register_snapshot());
@@ -3821,9 +3815,6 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(object, WriteBarrierDescriptor::ObjectRegister());
   Register value = temps.Acquire();
   __ MoveTagged(value, map_.object());
-  if (kind() == Kind::kTransitioning) {
-    __ MemoryBarrier(AtomicMemoryOrder::kAcqRel);
-  }
   __ StoreTaggedFieldWithWriteBarrier(
       object, offsetof(HeapObject, map_), value, register_snapshot(),
       MaglevAssembler::kValueIsCompressed, MaglevAssembler::kValueCannotBeSmi);
