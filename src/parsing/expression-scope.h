@@ -863,6 +863,7 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
   void RecordDeclarationError(const Scanner::Location& loc,
                               MessageTemplate message) {
     DCHECK_IMPLIES(!this->has_error(), loc.IsValid());
+    if (declaration_error_location.IsValid()) return;
     declaration_error_location = loc;
     declaration_error_message = message;
   }
