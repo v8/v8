@@ -253,8 +253,6 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* LoadFunctionDataFromJSFunction(Node* js_function);
 
-  Node* LoadExportedFunctionInstanceData(Node* exported_function_data);
-
   // JavaScript objects.
 
   Node* LoadJSArrayElements(Node* js_array);

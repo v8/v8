@@ -471,14 +471,6 @@ Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
       kWasmExportedFunctionDataTrustedPointerTag);
 }
 
-Node* WasmGraphAssembler::LoadExportedFunctionInstanceData(
-    Node* exported_function_data) {
-  return LoadImmutableProtectedPointerFromObject(
-      exported_function_data,
-      offsetof(WasmExportedFunctionData, protected_instance_data_) -
-          kHeapObjectTag);
-}
-
 // JavaScript objects.
 
 Node* WasmGraphAssembler::LoadJSArrayElements(Node* js_array) {

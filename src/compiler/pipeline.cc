@@ -1385,24 +1385,6 @@ struct WasmGCOptimizationPhase {
   }
 };
 
-struct WasmGCLoweringPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(WasmGCLowering)
-
-  void Run(TFPipelineData* data, Zone* temp_zone,
-           const wasm::WasmModule* module) {
-    GraphReducer graph_reducer(
-        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
-        data->jsgraph()->Dead(), data->observe_node_manager());
-    WasmGCLowering lowering(&graph_reducer, data->mcgraph(), module, false,
-                            data->source_positions());
-    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone);
-    AddReducer(data, &graph_reducer, &lowering);
-    AddReducer(data, &graph_reducer, &dead_code_elimination);
-    graph_reducer.ReduceGraph();
-  }
-};
-
 struct WasmOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmOptimization)
 

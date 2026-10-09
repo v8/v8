@@ -21,12 +21,9 @@
 namespace v8 {
 namespace internal {
 
-namespace compiler {
-class WasmGraphBuilder;
-namespace turboshaft {
+namespace compiler::turboshaft {
 class AccessBuilderTS;
-}
-}
+}  // namespace compiler::turboshaft
 
 namespace maglev {
 class MaglevGraphBuilder;
@@ -303,7 +300,6 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   friend class maglev::MaglevAssembler;
   friend struct maglev::VirtualNameShape;
   friend class compiler::AccessBuilder;
-  friend class compiler::WasmGraphBuilder;
   friend class TorqueGeneratedNameAsserts;
 
   inline uint32_t GetRawHashFromForwardingTable(uint32_t raw_hash) const;

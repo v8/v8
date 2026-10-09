@@ -333,10 +333,7 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Untyper)                           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, VerifyGraph)                       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmBaseOptimization)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCLowering)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCOptimization)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmOptimization)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmTyping)                        \
                                                                               \
