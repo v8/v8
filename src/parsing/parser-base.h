@@ -2389,21 +2389,24 @@ ParserBase<Impl>::ParseArrowParametersWithRest(
   Scanner::Location ellipsis = scanner()->location();
   int pattern_pos = peek_position();
   ExpressionT pattern = ParseBindingPattern();
-  ClassifyArrowParameter(accumulation_scope, pattern_pos, pattern);
+  if (!pattern->IsFailureExpression()) {
+    ClassifyArrowParameter(accumulation_scope, pattern_pos, pattern);
+  }
 
   expression_scope()->RecordNonSimpleParameter();
 
   if (V8_UNLIKELY(peek() == Token::kAssign)) {
     ReportMessage(MessageTemplate::kRestDefaultInitializer);
+  } else if (V8_UNLIKELY(peek() == Token::kComma)) {
+    ReportMessage(MessageTemplate::kParamAfterRest);
+  }
+  if (has_error()) {
+    accumulation_scope->ValidateDeclaration();
     return impl()->FailureExpression();
   }
 
   ExpressionT spread =
       factory()->NewSpread(pattern, ellipsis.beg_pos, pattern_pos);
-  if (V8_UNLIKELY(peek() == Token::kComma)) {
-    ReportMessage(MessageTemplate::kParamAfterRest);
-    return impl()->FailureExpression();
-  }
 
   expression_scope()->SetInitializers(seen_variables, peek_position());
 

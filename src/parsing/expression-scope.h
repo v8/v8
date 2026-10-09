@@ -292,9 +292,7 @@ class ExpressionScope {
     return static_cast<ExpressionParsingScope<Types>*>(this);
   }
 
-#ifdef DEBUG
   bool has_error() const { return parser_->has_error(); }
-#endif
 
   bool CanBeExpression() const {
     return base::IsInRange(type_, kExpression,
@@ -726,6 +724,24 @@ class AccumulationScope {
 #endif
   }
 
+  void ValidateDeclaration() {
+    if (scope_ == nullptr) return;
+    if (!scope_->IsArrowHeadParsingScope()) {
+      ValidateExpression();
+      return;
+    }
+    DCHECK(!scope_->is_verified());
+    Accumulate();
+    copy_back(ExpressionParsingScope<Types>::kPatternIndex);
+    scope_->AsArrowHeadParsingScope()->ValidateDeclaration();
+#ifdef DEBUG
+    scope_->clear_verified();
+#endif
+    scope_->clear(ExpressionParsingScope<Types>::kPatternIndex);
+    clear(ExpressionParsingScope<Types>::kExpressionIndex);
+    clear(ExpressionParsingScope<Types>::kPatternIndex);
+  }
+
   ~AccumulationScope() {
     if (scope_ == nullptr) return;
     Accumulate();
@@ -742,6 +758,11 @@ class AccumulationScope {
     if (!locations_[entry].IsValid()) return;
     scope_->messages_[entry] = messages_[entry];
     scope_->locations_[entry] = locations_[entry];
+  }
+
+  void clear(int entry) {
+    messages_[entry] = MessageTemplate::kNone;
+    locations_[entry] = Scanner::Location::invalid();
   }
 
   ExpressionParsingScope<Types>* scope_;
@@ -788,15 +809,19 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
     this->parent()->MergeVariableList(this->variable_list());
   }
 
-  DeclarationScope* ValidateAndCreateScope() {
+  void ValidateDeclaration() {
     DCHECK(!this->is_verified());
-    DeclarationScope* result = this->parser()->NewFunctionScope(kind());
     if (declaration_error_location.IsValid()) {
       ExpressionScope<Types>::Report(declaration_error_location,
                                      declaration_error_message);
-      return result;
     }
     this->ValidatePattern();
+  }
+
+  DeclarationScope* ValidateAndCreateScope() {
+    DeclarationScope* result = this->parser()->NewFunctionScope(kind());
+    ValidateDeclaration();
+    if (this->has_error()) return result;
 
     if (!has_simple_parameter_list_) result->SetHasNonSimpleParameters();
     VariableKind kind = PARAMETER_VARIABLE;
