@@ -577,17 +577,28 @@ TEST_F(FlagDefinitionsTest, ArrayDestructureBytecodeImplications) {
     FlagList::EnforceFlagImplications();
     CHECK(v8_flags.array_destructure_bytecode);
     CHECK(v8_flags.turbolev);
+    CHECK(v8_flags.test_only_unsafe);
+  }
+  {
+    SaveFlags save_flags;
+    const char* str = "--fuzzing --array-destructure-bytecode";
+    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.disallow_unsafe_flags);
+    CHECK(!v8_flags.array_destructure_bytecode);
+    CHECK(!v8_flags.test_only_unsafe);
   }
 #ifdef V8_ENABLE_TURBOFAN
   {
     SaveFlags save_flags;
-    const char* str = "--fuzzing --array-destructure-bytecode --no-turbolev";
+    const char* str = "--array-destructure-bytecode --no-turbolev";
     CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
-    FlagList::ResolveContradictionsWhenFuzzing();
     FlagList::EnforceFlagImplications();
     CHECK(v8_flags.turbofan);
     CHECK(!v8_flags.turbolev);
     CHECK(!v8_flags.array_destructure_bytecode);
+    CHECK(!v8_flags.test_only_unsafe);
   }
   {
     SaveFlags save_flags;
@@ -600,6 +611,7 @@ TEST_F(FlagDefinitionsTest, ArrayDestructureBytecodeImplications) {
     CHECK(v8_flags.turbofan);
     CHECK(!v8_flags.turbolev);
     CHECK(!v8_flags.array_destructure_bytecode);
+    CHECK(!v8_flags.test_only_unsafe);
   }
 #endif  // V8_ENABLE_TURBOFAN
 }
