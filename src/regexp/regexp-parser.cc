@@ -3364,11 +3364,8 @@ ClassSetResult<mode> ParserImpl<CharT, mode>::ParseCharacterClass(
       if (!ignore_case()) {
         character_class_flags |= ClassRanges::NO_CASE_FOLDING_NEEDED;
       }
-      if (!IsUnicodeMode()) {
-        // Outside of unicode mode, a character class always matches exactly
-        // one code unit. In unicode mode, even a one-byte pattern source can
-        // describe supplementary code points (e.g. \u{1F600}, \uD83D\uDE00,
-        // \p{...}, or /iu case closure), which match a surrogate pair.
+      if (sizeof(CharT) == 1 && !is_negated) {
+        // No surrogate pairs.
         character_class_flags |= ClassRanges::IS_CERTAINLY_ONE_CODE_POINT;
       }
       tree = zone()->template New<ClassRanges>(zone(), ranges,
