@@ -19,10 +19,11 @@ from contextlib import contextmanager
 import filecmp
 import hashlib
 import os
+from pathlib import Path
+import pprint
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 try:
   import fcntl
@@ -115,6 +116,28 @@ def get_shared_dirs(root_entries_file: Path) -> list[str]:
   return pruned
 
 
+def write_v8_gclient(src_gclient: Path, dst_gclient: Path):
+  config = {}
+  exec(src_gclient.read_text(), config)
+  solutions = config.get("solutions")
+  if not isinstance(solutions, list):
+    print(
+        f"Error: No 'solutions' list found in {src_gclient}.", file=sys.stderr)
+    sys.exit(1)
+  v8_solutions = [
+      s for s in solutions if isinstance(s, dict) and s.get("name") == "v8"
+  ]
+  if not v8_solutions:
+    print(f"Error: No 'v8' solution found in {src_gclient}.", file=sys.stderr)
+    sys.exit(1)
+  config["solutions"] = v8_solutions
+  lines = [
+      f"{k} = {pprint.pformat(v)}\n" for k, v in config.items()
+      if not k.startswith("__")
+  ]
+  dst_gclient.write_text("".join(lines))
+
+
 def init_deps_cache(main_repo: Path, deps_worktree: Path,
                     shared_dirs: list[str], cache_root: Path,
                     content_hash: str):
@@ -169,11 +192,11 @@ def init_deps_cache(main_repo: Path, deps_worktree: Path,
         except Exception as e:
           print(f"Warning during caching {d}: {e}", file=sys.stderr)
 
-    # Step 5: Preserve custom gclient configurations.
+    # Step 5: Preserve custom gclient configurations for the v8 solution only.
     gclient_main = main_repo.parent / ".gclient"
     gclient_file = tmp_root / ".gclient"
     if gclient_main.is_file():
-      shutil.copy2(gclient_main, gclient_file)
+      write_v8_gclient(gclient_main, gclient_file)
     else:
       print(
           "Error: .gclient file not found in the parent directory of the main repository.\n"
