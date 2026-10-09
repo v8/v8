@@ -2439,11 +2439,20 @@ bool UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope,
     // but the variable they shadow might need a hole check, which we want to do
     // if we decide that no shadowing variable was dynamically introduced.
     DCHECK_EQ(kCreatedInitialized, var->initialization_flag());
+    Variable* target = var->local_if_not_shadowed();
+    if (target->scope()->IsOuterScopeUpToClosureScopeOf(var->scope())) {
+      // When the shadowed variable is in the same closure scope as the
+      // kDynamicLocal variable (e.g., a non-simple parameter in FUNCTION_SCOPE
+      // shadowed by a kDynamicLocal in the body's VarBlock), HoleCheckState is
+      // not scope-independent because the kDynamicLocal variable can be shared
+      // across references in the body and references in inner closures.
+      return UpdateNeedsHoleCheck(target, proxy, scope, access_position);
+    }
     // The access_position passed to the recursive call is the closest access
     // position to the underlying variable (since it was updated during the
     // lookup traversal).
-    bool needs_check = UpdateNeedsHoleCheck(var->local_if_not_shadowed(), proxy,
-                                            scope, access_position);
+    bool needs_check =
+        UpdateNeedsHoleCheck(target, proxy, scope, access_position);
     if (needs_check) {
       var->set_hole_check_state(Variable::HoleCheckState::kForce);
     } else {
