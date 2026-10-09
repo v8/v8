@@ -94,8 +94,8 @@ FunctionLiteral* Parser::MakeAutoAccessorGetter(VariableProxy* name_proxy,
                                                 bool is_static, int pos) {
   ScopedPtrList<Statement> body(pointer_buffer());
   DeclarationScope* function_scope =
-      NewFunctionScope(is_static ? FunctionKind::kGetterFunction
-                                 : FunctionKind::kStaticGetterFunction);
+      NewFunctionScope(is_static ? FunctionKind::kStaticGetterFunction
+                                 : FunctionKind::kGetterFunction);
   SetLanguageMode(function_scope, LanguageMode::kStrict);
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
@@ -122,8 +122,8 @@ FunctionLiteral* Parser::MakeAutoAccessorSetter(VariableProxy* name_proxy,
                                                 bool is_static, int pos) {
   ScopedPtrList<Statement> body(pointer_buffer());
   DeclarationScope* function_scope =
-      NewFunctionScope(is_static ? FunctionKind::kSetterFunction
-                                 : FunctionKind::kStaticSetterFunction);
+      NewFunctionScope(is_static ? FunctionKind::kStaticSetterFunction
+                                 : FunctionKind::kSetterFunction);
   SetLanguageMode(function_scope, LanguageMode::kStrict);
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);

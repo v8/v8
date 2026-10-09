@@ -1207,7 +1207,7 @@ class PreParser : public ParserBase<PreParser> {
     bool has_default_constructor = !class_info->has_seen_constructor;
     // Account for the default constructor.
     if (has_default_constructor) {
-      bool has_extends = class_info->extends.IsNull();
+      bool has_extends = !class_info->extends.IsNull();
       FunctionKind kind = has_extends ? FunctionKind::kDefaultDerivedConstructor
                                       : FunctionKind::kDefaultBaseConstructor;
       AddSyntheticFunctionDeclaration(kind, pos);
@@ -1557,11 +1557,11 @@ class PreParser : public ParserBase<PreParser> {
                                  class_info->autoaccessor_count++),
         VariableMode::kConst, scope, &was_added);
     DCHECK(was_added);
-    FunctionKind kind = is_static ? FunctionKind::kGetterFunction
-                                  : FunctionKind::kStaticGetterFunction;
+    FunctionKind kind = is_static ? FunctionKind::kStaticGetterFunction
+                                  : FunctionKind::kGetterFunction;
     AddSyntheticFunctionDeclaration(kind, pos + 1);
-    kind = is_static ? FunctionKind::kSetterFunction
-                     : FunctionKind::kStaticSetterFunction;
+    kind = is_static ? FunctionKind::kStaticSetterFunction
+                     : FunctionKind::kSetterFunction;
     AddSyntheticFunctionDeclaration(kind, pos + 2);
     return factory()->NewClassLiteralProperty(
         key, value, ClassLiteralProperty::Kind::AUTO_ACCESSOR, is_static,
