@@ -1156,10 +1156,6 @@ void InstructionSelector::InitializeCallBuffer(
                             i < outputs_needed_by_framestate;
       if (output_is_live) {
         LinkageLocation location = buffer->output_nodes[i].location;
-        if (location.IsCallerFrameSlot()) {
-          // Caller frame slots are defined later via Peek in VisitCall.
-          continue;
-        }
         MachineRepresentation rep = location.GetType().representation();
 
         OpIndex output = buffer->output_nodes[i].node;
@@ -1168,9 +1164,11 @@ void InstructionSelector::InitializeCallBuffer(
                                     : g.DefineAsLocation(output, location);
         MarkAsRepresentation(rep, op);
 
-        DCHECK(!UnallocatedOperand::cast(op).HasFixedSlotPolicy());
-        buffer->outputs.push_back(op);
-        buffer->output_nodes[i].node = {};
+        // Caller frame slots are defined later via Peek in VisitCall.
+        if (!UnallocatedOperand::cast(op).HasFixedSlotPolicy()) {
+          buffer->outputs.push_back(op);
+          buffer->output_nodes[i].node = {};
+        }
       }
     }
   }
