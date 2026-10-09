@@ -1986,17 +1986,18 @@ BaselineCompiler::GetCompareBranchCandidate() {
 #endif
   if (v8_flags.slow_debug_code) return std::nullopt;
 
-  switch (iterator().next_bytecode()) {
+  DisallowGarbageCollection no_gc;
+  interpreter::BytecodeArrayIterator next_iterator = iterator().Clone(no_gc);
+  next_iterator.Advance();
+  switch (next_iterator.current_bytecode()) {
     case interpreter::Bytecode::kJumpIfTrue:
-    case interpreter::Bytecode::kJumpIfTrueConstant: {
-      auto [target_offset, fallthrough_offset] = iterator_.GetNextJumpOffsets();
-      return CompareBranchCandidate{target_offset, fallthrough_offset};
-    }
+    case interpreter::Bytecode::kJumpIfTrueConstant:
+      return CompareBranchCandidate{next_iterator.GetJumpTargetOffset(),
+                                    next_iterator.next_offset()};
     case interpreter::Bytecode::kJumpIfFalse:
-    case interpreter::Bytecode::kJumpIfFalseConstant: {
-      auto [target_offset, fallthrough_offset] = iterator_.GetNextJumpOffsets();
-      return CompareBranchCandidate{fallthrough_offset, target_offset};
-    }
+    case interpreter::Bytecode::kJumpIfFalseConstant:
+      return CompareBranchCandidate{next_iterator.next_offset(),
+                                    next_iterator.GetJumpTargetOffset()};
     default:
       return std::nullopt;
   }
