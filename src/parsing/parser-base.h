@@ -727,6 +727,7 @@ class ParserBase {
           return true;
         case Token::kMul:
         case Token::kSemicolon:
+        case Token::kEos:
           kind = ParsePropertyKind::kClassField;
           return true;
         default:
@@ -2688,8 +2689,7 @@ bool ParserBase<Impl>::ParseCurrentSymbolAsClassFieldOrMethod(
     *name_expression = factory()->NewStringLiteral(prop_info->name, position());
     return true;
   }
-  if (peek() == Token::kAssign || peek() == Token::kSemicolon ||
-      peek() == Token::kRightBrace) {
+  if (peek() == Token::kAssign || Token::IsAutoSemicolon(peek())) {
     prop_info->name = impl()->GetIdentifier();
     *name_expression = factory()->NewStringLiteral(prop_info->name, position());
     return true;
