@@ -1238,18 +1238,29 @@ struct type_sew_t<128> {
     Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), 0, true) = vd_0; \
   }
 
-#define RVV_VI_VFP_VV_LOOP_REDUCTION(BODY16, BODY32, BODY64) \
-  if (rvv_vsew() == E16) {                                   \
-    UNIMPLEMENTED();                                         \
-  } else if (rvv_vsew() == E32) {                            \
-    VI_VFP_LOOP_REDUCTION_BASE(32)                           \
-    BODY32;                                                  \
-    VI_VFP_LOOP_REDUCTION_END(32)                            \
-  } else if (rvv_vsew() == E64) {                            \
-    VI_VFP_LOOP_REDUCTION_BASE(64)                           \
-    BODY64;                                                  \
-    VI_VFP_LOOP_REDUCTION_END(64)                            \
-  }                                                          \
+#define RVV_VI_VFP_VV_LOOP_REDUCTION(BODY16, BODY32, BODY64)               \
+  if (rvv_vsew() == E16) {                                                 \
+    uint16_t vd_0 = Rvvelt<uint16_t>(rvv_vd_reg(), 0);                     \
+    uint16_t vs1_0 = Rvvelt<uint16_t>(rvv_vs1_reg(), 0);                   \
+    vd_0 = vs1_0;                                                          \
+    for (reg_t i = rvv_vstart(); i < rvv_vl(); ++i) {                      \
+      RVV_VI_LOOP_MASK_SKIP();                                             \
+      Float16 vs2 = Float16::FromBits(Rvvelt<uint16_t>(rvv_vs2_reg(), i)); \
+      BODY16;                                                              \
+    }                                                                      \
+    set_rvv_vstart(0);                                                     \
+    if (rvv_vl() > 0) {                                                    \
+      Rvvelt<uint16_t>(rvv_vd_reg(), 0, true) = vd_0;                      \
+    }                                                                      \
+  } else if (rvv_vsew() == E32) {                                          \
+    VI_VFP_LOOP_REDUCTION_BASE(32)                                         \
+    BODY32;                                                                \
+    VI_VFP_LOOP_REDUCTION_END(32)                                          \
+  } else if (rvv_vsew() == E64) {                                          \
+    VI_VFP_LOOP_REDUCTION_BASE(64)                                         \
+    BODY64;                                                                \
+    VI_VFP_LOOP_REDUCTION_END(64)                                          \
+  }                                                                        \
   rvv_trace_vd();
 
 // reduction loop - unsgied
@@ -2839,6 +2850,36 @@ T Simulator::FMaxMinHelper(T a, T b, MaxMinKind kind) {
 
   return result;
 }
+
+uint16_t Simulator::F16FmaHelper(Float16 a, Float16 b, Float16 c) {
+  float fa = a.ToFloat32();
+  float fb = b.ToFloat32();
+  float fc = c.ToFloat32();
+  // Any NaN operand yields the canonical quiet NaN; a signaling NaN raises
+  // the invalid operation flag.
+  if (std::isnan(fa) || std::isnan(fb) || std::isnan(fc)) {
+    if (isSnan(fa) || isSnan(fb) || isSnan(fc)) {
+      set_fflags(kInvalidOperation);
+    }
+    return kFP16DefaultNaN;
+  }
+  // Compute the exact product-sum in double precision and round once to
+  // Float16. This avoids the double rounding that a float intermediate would
+  // cause (see the declaration for the precision argument).
+  double result = std::fma(static_cast<double>(fa), static_cast<double>(fb),
+                           static_cast<double>(fc));
+  if (std::isnan(result)) {  // e.g. Inf * 0.
+    set_fflags(kInvalidOperation);
+    return kFP16DefaultNaN;
+  }
+  return DoubleToFloat16(result);
+}
+
+namespace {
+inline Float16 NegateF16(Float16 value) {
+  return Float16::FromBits(static_cast<uint16_t>(value.get_bits() ^ 0x8000));
+}
+}  // namespace
 
 // IEEE 754-2019 minimum/maximum for Zfa extension (fminm/fmaxm).
 // Like Fmax/Fmin except that if either input is NaN, the result
@@ -8494,8 +8535,10 @@ void Simulator::DecodeRvvFVV() {
     case RO_V_VFMAX_VV: {
       RVV_VI_VFP_VV_LOOP(
           {
-            vd = FMaxMinHelper(vs2.ToFloat32(), vs1.ToFloat32(),
-                               MaxMinKind::kMax);
+            vd = Float16::FromFloat32(FMaxMinHelper(vs2.ToFloat32(),
+                                                    vs1.ToFloat32(),
+                                                    MaxMinKind::kMax))
+                     .get_bits();
           },
           { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMax); },
           { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMax); })
@@ -8503,7 +8546,12 @@ void Simulator::DecodeRvvFVV() {
     }
     case RO_V_VFREDMAX_VV: {
       RVV_VI_VFP_VV_LOOP_REDUCTION(
-          { UNIMPLEMENTED(); },
+          {
+            vd_0 = Float16::FromFloat32(
+                       FMaxMinHelper(Float16::FromBits(vd_0).ToFloat32(),
+                                     vs2.ToFloat32(), MaxMinKind::kMax))
+                       .get_bits();
+          },
           { vd_0 = FMaxMinHelper(vd_0, vs2, MaxMinKind::kMax); },
           { vd_0 = FMaxMinHelper(vd_0, vs2, MaxMinKind::kMax); })
       break;
@@ -8511,8 +8559,10 @@ void Simulator::DecodeRvvFVV() {
     case RO_V_VFMIN_VV: {
       RVV_VI_VFP_VV_LOOP(
           {
-            vd = FMaxMinHelper(vs2.ToFloat32(), vs1.ToFloat32(),
-                               MaxMinKind::kMin);
+            vd = Float16::FromFloat32(FMaxMinHelper(vs2.ToFloat32(),
+                                                    vs1.ToFloat32(),
+                                                    MaxMinKind::kMin))
+                     .get_bits();
           },
           { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMin); },
           { vd = FMaxMinHelper(vs2, vs1, MaxMinKind::kMin); })
@@ -8757,15 +8807,41 @@ void Simulator::DecodeRvvFVV() {
     case RO_V_VFWREDOSUM_VS:
       RVV_VI_CHECK_DSS(true);
       switch (rvv_vsew()) {
-        case E16:
+        case E16: {
+          float vs1 = Rvvelt<float>(rvv_vs1_reg(), 0);
+          float alu_out = vs1;
+          for (uint64_t i = rvv_vstart(); i < rvv_vl(); ++i) {
+            RVV_VI_LOOP_MASK_SKIP();
+            float vs2 = Float16::FromBits(Rvvelt<uint16_t>(rvv_vs2_reg(), i))
+                            .ToFloat32();
+            if (is_invalid_fadd(alu_out, vs2)) {
+              set_fflags(kInvalidOperation);
+              alu_out = std::numeric_limits<float>::quiet_NaN();
+              break;
+            }
+            alu_out = alu_out + vs2;
+            if (std::isnan(alu_out) || std::isnan(vs2)) {
+              // signaling_nan sets kInvalidOperation bit
+              if (isSnan(alu_out) || isSnan(vs2)) set_fflags(kInvalidOperation);
+              alu_out = std::numeric_limits<float>::quiet_NaN();
+              break;
+            }
+          }
+          // Only update the destination when at least one element is active,
+          // matching the RVV reduction semantics.
+          if (rvv_vl() > 0) {
+            Rvvelt<float>(rvv_vd_reg(), 0, true) = alu_out;
+          }
+          break;
+        }
         case E64: {
           UNIMPLEMENTED();
         }
         case E32: {
-          double& vd = Rvvelt<double>(rvv_vd_reg(), 0, true);
           double vs1 = Rvvelt<double>(rvv_vs1_reg(), 0);
           double alu_out = vs1;
           for (uint64_t i = rvv_vstart(); i < rvv_vl(); ++i) {
+            RVV_VI_LOOP_MASK_SKIP();
             double vs2 = static_cast<double>(Rvvelt<float>(rvv_vs2_reg(), i));
             if (is_invalid_fadd(alu_out, vs2)) {
               set_fflags(kInvalidOperation);
@@ -8780,7 +8856,9 @@ void Simulator::DecodeRvvFVV() {
               break;
             }
           }
-          vd = alu_out;
+          if (rvv_vl() > 0) {
+            Rvvelt<double>(rvv_vd_reg(), 0, true) = alu_out;
+          }
           break;
         }
         default:
@@ -8791,56 +8869,28 @@ void Simulator::DecodeRvvFVV() {
       break;
     case RO_V_VFMADD_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            float src1 = vs1.ToFloat32();
-            float src2 = vs2.ToFloat32();
-            float dst = Float16::FromBits(vd).ToFloat32();
-            float alu_out = std::fma(dst, src1, src2);
-
-            if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
-                std::isnan(dst)) {
-              // signaling_nan sets kInvalidOperation bit
-              if (isSnan(alu_out) || isSnan(src1) || isSnan(src2) ||
-                  isSnan(dst)) {
-                set_fflags(kInvalidOperation);
-              }
-              alu_out = std::numeric_limits<float>::quiet_NaN();
-            }
-            vd = Float16::FromFloat32(alu_out).get_bits();
-          },
+          { vd = F16FmaHelper(Float16::FromBits(vd), vs1, vs2); },
           {RVV_VI_VFP_FMA(float, vd, vs1, vs2)},
           {RVV_VI_VFP_FMA(double, vd, vs1, vs2)})
       break;
     case RO_V_VFNMADD_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
           {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
+            vd = F16FmaHelper(NegateF16(Float16::FromBits(vd)), vs1,
+                              NegateF16(vs2));
           },
           {RVV_VI_VFP_FMA(float, -vd, vs1, -vs2)},
           {RVV_VI_VFP_FMA(double, -vd, vs1, -vs2)})
       break;
     case RO_V_VFMSUB_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
-          },
+          { vd = F16FmaHelper(Float16::FromBits(vd), vs1, NegateF16(vs2)); },
           {RVV_VI_VFP_FMA(float, vd, vs1, -vs2)},
           {RVV_VI_VFP_FMA(double, vd, vs1, -vs2)})
       break;
     case RO_V_VFNMSUB_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
-          },
+          { vd = F16FmaHelper(NegateF16(Float16::FromBits(vd)), vs1, vs2); },
           {
             float alu_out = std::fma(-vd, vs1, +vs2);
 
@@ -8857,45 +8907,28 @@ void Simulator::DecodeRvvFVV() {
       break;
     case RO_V_VFMACC_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
-          },
+          { vd = F16FmaHelper(vs2, vs1, Float16::FromBits(vd)); },
           {RVV_VI_VFP_FMA(float, vs2, vs1, vd)},
           {RVV_VI_VFP_FMA(double, vs2, vs1, vd)})
       break;
     case RO_V_VFNMACC_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
           {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
+            vd = F16FmaHelper(NegateF16(vs2), vs1,
+                              NegateF16(Float16::FromBits(vd)));
           },
           {RVV_VI_VFP_FMA(float, -vs2, vs1, -vd)},
           {RVV_VI_VFP_FMA(double, -vs2, vs1, -vd)})
       break;
     case RO_V_VFMSAC_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
-          },
+          { vd = F16FmaHelper(vs2, vs1, NegateF16(Float16::FromBits(vd))); },
           {RVV_VI_VFP_FMA(float, vs2, vs1, -vd)},
           {RVV_VI_VFP_FMA(double, vs2, vs1, -vd)})
       break;
     case RO_V_VFNMSAC_VV:
       RVV_VI_VFP_FMA_VV_LOOP(
-          {
-            UNIMPLEMENTED();
-            USE(vd);
-            USE(vs1);
-            USE(vs2);
-          },
+          { vd = F16FmaHelper(NegateF16(vs2), vs1, Float16::FromBits(vd)); },
           {RVV_VI_VFP_FMA(float, -vs2, vs1, +vd)},
           {RVV_VI_VFP_FMA(double, -vs2, vs1, +vd)})
       break;

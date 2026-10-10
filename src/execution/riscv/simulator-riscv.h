@@ -555,6 +555,14 @@ class Simulator : public SimulatorBase {
   template <typename T>
   T FMaxMinHelper(T a, T b, MaxMinKind kind);
 
+  // Fused multiply-add of three Float16 operands with a single rounding to
+  // Float16. The intermediate computation is done in double precision, whose
+  // 53-bit significand is far more than the 2*11+2 bits needed to make the
+  // additional rounding innocuous (avoids the double rounding that a float
+  // intermediate would introduce). Returns the canonical quiet NaN and raises
+  // the invalid operation flag for signaling NaNs / invalid operations.
+  uint16_t F16FmaHelper(Float16 a, Float16 b, Float16 c);
+
   // IEEE 754-2019 minimum/maximum for Zfa extension (fminm/fmaxm).
   template <typename T>
   T FMaxMinMHelper(T a, T b, MaxMinKind kind);
