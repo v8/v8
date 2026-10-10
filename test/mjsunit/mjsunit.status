@@ -1398,6 +1398,7 @@
 
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
+  'harmony/regexp-unicode-sets-class-string-disjunction': [SKIP],
   'regexp-unicode-sets': [PASS,FAIL],
   'regexp-not-jetstream': [SKIP],
   'regexp-jetstream': [SKIP],

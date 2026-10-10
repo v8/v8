@@ -614,6 +614,9 @@ class ParserImpl final {
       base::uc32 next, InClassEscapeState in_class_escape_state,
       ZoneList<CharacterRange>* ranges, CharacterClassStrings* strings,
       Zone* zone, bool add_unicode_case_equivalents);
+  bool AddClassString(ZoneList<base::uc32>* normalized_string,
+                      Tree* regexp_string, ZoneList<CharacterRange>* ranges,
+                      CharacterClassStrings* strings);
   ClassSetResult<mode> ParseClassStringDisjunction(
       ZoneList<CharacterRange>* ranges, CharacterClassStrings* strings);
   ClassSetResult<mode> ParseClassSetOperand(const Builder<mode>* builder,
@@ -2866,27 +2869,24 @@ ClassSetResult<mode> ParserImpl<CharT, mode>::TryParseCharacterClassEscape(
   }
 }
 
-namespace {
-
 // Add |string| to |ranges| if length of |string| == 1, otherwise add |string|
 // to |strings|. Returns true if a string (length != 1) was added.
-template <ParseMode mode>
-bool AddClassString(ZoneList<base::uc32>* normalized_string,
-                    Tree* regexp_string, ZoneList<CharacterRange>* ranges,
-                    CharacterClassStrings* strings, Zone* zone) {
+template <class CharT, ParseMode mode>
+bool ParserImpl<CharT, mode>::AddClassString(
+    ZoneList<base::uc32>* normalized_string, Tree* regexp_string,
+    ZoneList<CharacterRange>* ranges, CharacterClassStrings* strings) {
   const bool is_string = normalized_string->length() != 1;
   if constexpr (mode == ParseMode::kVerifySyntax) return is_string;
   DCHECK_NOT_NULL(ranges);
   DCHECK_NOT_NULL(strings);
   if (!is_string) {
-    ranges->Add(CharacterRange::Singleton(normalized_string->at(0)), zone);
+    AddMaybeSimpleCaseFoldedRange(
+        ranges, CharacterRange::Singleton(normalized_string->at(0)));
   } else {
     strings->emplace(normalized_string->ToVector(), regexp_string);
   }
   return is_string;
 }
-
-}  // namespace
 
 // https://tc39.es/ecma262/#prod-ClassStringDisjunction
 template <class CharT, ParseMode mode>
@@ -2910,8 +2910,8 @@ ClassSetResult<mode> ParserImpl<CharT, mode>::ParseClassStringDisjunction(
   bool contains_strings = false;
   while (has_more() && current() != '}') {
     if (current() == '|') {
-      contains_strings |= AddClassString<mode>(
-          string, string_builder.ToRegExp(), ranges, strings, zone());
+      contains_strings |=
+          AddClassString(string, string_builder.ToRegExp(), ranges, strings);
       string = zone()->template New<ZoneList<base::uc32>>(4, zone());
       string_storage.clear();
       Advance();
@@ -2929,11 +2929,8 @@ ClassSetResult<mode> ParserImpl<CharT, mode>::ParseClassStringDisjunction(
     }
   }
 
-  contains_strings |= AddClassString<mode>(string, string_builder.ToRegExp(),
-                                           ranges, strings, zone());
-  if constexpr (mode == ParseMode::kBuildAST) {
-    CharacterRange::Canonicalize(ranges);
-  }
+  contains_strings |=
+      AddClassString(string, string_builder.ToRegExp(), ranges, strings);
 
   // We don't need to handle missing closing '}' here.
   // If the character class is correctly closed, ParseClassSetCharacter will
