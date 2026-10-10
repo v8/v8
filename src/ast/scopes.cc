@@ -748,12 +748,6 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   }
 }
 
-void DeclarationScope::TakeUnresolvedReferencesFromParent() {
-  DCHECK(outer_scope_->reparsing_for_class_initializer_);
-  unresolved_list_.MoveTail(&outer_scope_->unresolved_list_,
-                            outer_scope_->unresolved_list_.begin());
-}
-
 bool DeclarationScope::Analyze(ParseInfo* info) {
   RCS_SCOPE(info->runtime_call_stats(),
             RuntimeCallCounterId::kCompileScopeAnalysis,

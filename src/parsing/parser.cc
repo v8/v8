@@ -1382,7 +1382,6 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
       DCHECK_EQ(class_info.static_elements_function_id, initializer_id);
       initializer = CreateStaticElementsInitializer(class_name, &class_info);
     }
-    initializer->scope()->TakeUnresolvedReferencesFromParent();
   }
 
   if (has_error()) return nullptr;

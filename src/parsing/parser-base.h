@@ -4312,11 +4312,20 @@ ParserBase<Impl>::ParseSuperExpression() {
     // super() is only allowed in derived constructor. new super() is never
     // allowed; it's reported as an error by
     // ParseMemberWithPresentNewPrefixesExpression.
-    if (peek() == Token::kLeftParen && IsDerivedConstructor(kind)) {
+    if (peek() == Token::kLeftParen &&
+        (IsDerivedConstructor(kind) ||
+         this->scope()->GetClosureScope()->from_scope_info())) {
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
       expression_scope()->RecordThisUse();
       UseThis();
+      return impl()->NewSuperCallReference(pos);
+    }
+  } else if (this->scope()->GetClosureScope()->from_scope_info()) {
+    if (Token::IsProperty(peek())) {
+      return impl()->NewSuperPropertyReference(pos);
+    }
+    if (peek() == Token::kLeftParen) {
       return impl()->NewSuperCallReference(pos);
     }
   }
@@ -4334,7 +4343,8 @@ ParserBase<Impl>::ParseNewTargetExpression() {
   ExpectContextualKeyword(ast_value_factory()->target_string(), "new.target",
                           pos);
 
-  if (!GetReceiverScope()->is_function_scope()) {
+  if (!GetReceiverScope()->is_function_scope() &&
+      !this->scope()->GetClosureScope()->from_scope_info()) {
     impl()->ReportMessageAt(scanner()->location(),
                             MessageTemplate::kUnexpectedNewTarget);
     return impl()->FailureExpression();
