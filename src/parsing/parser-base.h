@@ -3930,20 +3930,28 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
                   !scanner()->literal_contains_escapes())) {
     DCHECK(impl()->IsAsync(impl()->AsIdentifier(result)));
     int pos = position();
-
-    ArrowHeadParsingScope maybe_arrow(impl(), FunctionKind::kAsyncArrowFunction,
-                                      PeekNextInfoId());
-    Scope::Snapshot scope_snapshot(scope());
-
     ExpressionListT args(pointer_buffer());
     bool has_spread;
-    ParseArguments(&args, &has_spread, kMaybeArrowHead);
+    {
+      ArrowHeadParsingScope maybe_arrow(
+          impl(), FunctionKind::kAsyncArrowFunction, PeekNextInfoId());
+      Scope::Snapshot scope_snapshot(scope());
+
+      ParseArguments(&args, &has_spread, kMaybeArrowHead);
+      if (V8_LIKELY(peek() == Token::kArrow)) {
+        fni_.RemoveAsyncKeywordFromEnd();
+        next_arrow_function_info_.scope = maybe_arrow.ValidateAndCreateScope();
+        next_arrow_function_info_.function_literal_id =
+            maybe_arrow.function_literal_id();
+        scope_snapshot.Reparent(next_arrow_function_info_.scope);
+      } else {
+        result = factory()->NewCall(result, args, pos, has_spread);
+        maybe_arrow.ValidateExpression();
+        fni_.RemoveLastFunction();
+      }
+    }
     if (V8_LIKELY(peek() == Token::kArrow)) {
-      fni_.RemoveAsyncKeywordFromEnd();
-      next_arrow_function_info_.scope = maybe_arrow.ValidateAndCreateScope();
-      next_arrow_function_info_.function_literal_id =
-          maybe_arrow.function_literal_id();
-      scope_snapshot.Reparent(next_arrow_function_info_.scope);
+      expression_scope()->RemoveAsyncKeyword();
       // async () => ...
       if (!args.length()) return factory()->NewEmptyParentheses(pos);
       // async ( Arguments ) => ...
@@ -3951,12 +3959,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
       result->mark_parenthesized();
       return result;
     }
-
-    result = factory()->NewCall(result, args, pos, has_spread);
-
-    maybe_arrow.ValidateExpression();
-
-    fni_.RemoveLastFunction();
     if (!Token::IsPropertyOrCall(peek())) return result;
   }
 

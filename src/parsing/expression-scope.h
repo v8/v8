@@ -128,6 +128,11 @@ class ExpressionScope {
     AsExpressionParsingScope()->MarkIdentifierAsAssigned();
   }
 
+  void RemoveAsyncKeyword() {
+    if (!CanBeExpression()) return;
+    AsExpressionParsingScope()->RemoveAsyncKeyword();
+  }
+
   void ValidateAsPattern(ExpressionT expression, int begin, int end,
                          int variable_index) {
     if (!CanBeExpression()) return;
@@ -599,6 +604,17 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
       this->parser()->scope()->AddUnresolved(variable);
     }
     variable_list_.Add({variable, kNoSourcePosition});
+  }
+
+  void RemoveAsyncKeyword() {
+    DCHECK_GT(variable_list_.length(), 0);
+    VariableProxy* proxy = variable_list_.at(variable_list_.length() - 1).first;
+    DCHECK_EQ(proxy->raw_name(),
+              this->parser()->ast_value_factory()->async_string());
+    if (!this->CanBeDeclaration()) {
+      this->parser()->scope()->DeleteUnresolved(proxy);
+    }
+    variable_list_.DropLast();
   }
 
   void MarkIdentifierAsAssigned() {

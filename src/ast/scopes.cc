@@ -1033,6 +1033,7 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   if (outer_scope_->calls_eval()) {
     new_parent->RecordEvalCall();
     outer_scope_->set_calls_eval(false);
+    declaration_scope_->set_calls_eval(false);
     declaration_scope_->set_sloppy_eval_can_extend_vars(false);
     declaration_scope_->set_is_dynamic_scope(false);
   }

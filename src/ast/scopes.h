@@ -135,6 +135,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
         declaration_scope_->set_is_dynamic_scope(true);
         declaration_scope_->set_sloppy_eval_can_extend_vars(true);
       }
+      if (declaration_scope_calls_eval_) {
+        declaration_scope_->set_calls_eval(true);
+      }
       if (calls_eval_) {
         outer_scope_->set_calls_eval(true);
       }
@@ -155,6 +158,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     // scope. Otherwise the cached flags will be merged with the flags from the
     // arrow head.
     bool calls_eval_;
+    bool declaration_scope_calls_eval_;
     bool sloppy_eval_can_extend_vars_;
   };
 
@@ -1529,12 +1533,15 @@ Scope::Snapshot::Snapshot(Scope* scope)
       top_unresolved_(scope->unresolved_list_.end()),
       top_local_(scope->GetClosureScope()->locals_.end()),
       calls_eval_(outer_scope_->calls_eval()),
+      declaration_scope_calls_eval_(declaration_scope_->calls_eval()),
       sloppy_eval_can_extend_vars_(
           declaration_scope_->sloppy_eval_can_extend_vars()) {
   // Reset in order to record (sloppy) eval calls during this Snapshot's
   // lifetime.
   outer_scope_->set_calls_eval(false);
+  declaration_scope_->set_calls_eval(false);
   declaration_scope_->set_sloppy_eval_can_extend_vars(false);
+  declaration_scope_->set_is_dynamic_scope(false);
 }
 
 class ModuleScope final : public DeclarationScope {

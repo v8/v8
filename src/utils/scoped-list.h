@@ -82,6 +82,13 @@ class V8_NODISCARD ScopedList final {
     ++end_;
   }
 
+  void DropLast() {
+    DCHECK_EQ(buffer_.size(), end_);
+    DCHECK_GT(end_, start_);
+    buffer_.pop_back();
+    --end_;
+  }
+
   void AddAll(base::Vector<const T> list) {
     DCHECK_EQ(buffer_.size(), end_);
     buffer_.reserve(buffer_.size() + list.length());
