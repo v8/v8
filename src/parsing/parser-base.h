@@ -1302,12 +1302,11 @@ class ParserBase {
     DeclarationScope* receiver_scope = closure_scope->GetReceiverScope();
     Variable* var = receiver_scope->receiver();
     var->set_is_used();
-    if (closure_scope == receiver_scope) {
-      // It's possible that we're parsing the head of an arrow function, in
-      // which case we haven't realized yet that closure_scope !=
-      // receiver_scope. Mark through the ExpressionScope for now.
-      expression_scope()->RecordThisUse();
-    } else {
+    // It's possible that we're parsing the head of an arrow function, in
+    // which case the arrow function's DeclarationScope hasn't been created yet.
+    // Mark through the ExpressionScope for now.
+    expression_scope()->RecordThisUse();
+    if (closure_scope != receiver_scope) {
       closure_scope->set_has_this_reference(true);
       var->ForceContextAllocation();
     }
