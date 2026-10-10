@@ -848,12 +848,15 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
   // According to https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
   // step 18 we should set argumentsObjectNeeded to false if has lexical
   // declared arguments only when hasParameterExpressions is false
-  if (!was_added && IsLexicalVariableMode(arguments_->mode()) &&
-      has_simple_parameters()) {
-    // Check if there's lexically declared variable named arguments to avoid
-    // redeclaration. See
-    // https://tc39.es/ecma262/#sec-functiondeclarationinstantiation, step 20.
-    arguments_ = nullptr;
+  if (!was_added) {
+    if (IsLexicalVariableMode(arguments_->mode()) && has_simple_parameters()) {
+      // Check if there's lexically declared variable named arguments to avoid
+      // redeclaration. See
+      // https://tc39.es/ecma262/#sec-functiondeclarationinstantiation, step 20.
+      arguments_ = nullptr;
+    } else {
+      arguments_->SetMaybeAssigned();
+    }
   }
 }
 
