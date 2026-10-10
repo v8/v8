@@ -1335,7 +1335,8 @@ class ParserBase {
   // become destructuring identifiers.
   V8_INLINE IdentifierT ParsePropertyName();
 
-  ExpressionT ParsePropertyOrPrivatePropertyName();
+  ExpressionT ParsePropertyOrPrivatePropertyName(
+      bool is_property_access = true);
 
   const AstRawString* GetNextSymbolForRegExpLiteral() const {
     return scanner()->NextSymbol(ast_value_factory());
@@ -2015,11 +2016,14 @@ bool ParserBase<Impl>::IsExtraordinaryPrivateNameAccessAllowed() const {
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
+ParserBase<Impl>::ParsePropertyOrPrivatePropertyName(bool is_property_access) {
   int pos = position();
   IdentifierT name;
   ExpressionT key;
   Token::Value next = Next();
+  if (!is_property_access) {
+    pos = position();
+  }
   if (V8_LIKELY(Token::IsPropertyName(next))) {
     name = impl()->GetSymbol();
     key = factory()->NewStringLiteral(name, pos);
@@ -2049,7 +2053,9 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     ReportUnexpectedToken(next);
     return impl()->FailureExpression();
   }
-  impl()->PushLiteralName(name);
+  if (is_property_access) {
+    impl()->PushLiteralName(name);
+  }
   return key;
 }
 
@@ -3732,7 +3738,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
   // "#foo in ShiftExpression" needs to be parsed separately, since private
   // identifiers are not valid PrimaryExpressions.
   if (V8_UNLIKELY(peek() == Token::kPrivateName)) {
-    ExpressionT x = ParsePropertyOrPrivatePropertyName();
+    ExpressionT x = ParsePropertyOrPrivatePropertyName(false);
     int prec1 = Token::Precedence(peek(), accept_IN_);
     if (peek() != Token::kIn || prec1 < prec) {
       ReportUnexpectedToken(Token::kPrivateName);

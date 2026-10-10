@@ -1297,7 +1297,8 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
 
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.
-  ScopedModification<Mode> mode_scope(&mode_, PARSE_LAZILY);
+  ScopedModification<Mode> mode_scope(
+      &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
 
   ExpressionParsingScope no_expression_scope(impl());
 
