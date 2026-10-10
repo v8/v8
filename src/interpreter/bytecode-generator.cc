@@ -5108,6 +5108,14 @@ void BytecodeGenerator::BuildVariableAssignment(
         BuildHoleCheckForVariableAssignment(variable, op);
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
+      if (op == Token::kInit) {
+        if (variable->HasHoleCheckUseInSameClosureScope()) {
+          // After initializing a variable it won't be the hole anymore, so
+          // elide subsequent checks.
+          RememberHoleCheckInCurrentBlock(variable);
+        }
+        AddDisposableValue(mode);
+      }
       builder()->StoreModuleVariable(variable->index(), depth);
       break;
     }
@@ -5135,6 +5143,10 @@ void BytecodeGenerator::BuildVariableAssignment(
       } else {
         if (mode == VariableMode::kConst) {
           builder()->CallRuntime(Runtime::kThrowConstAssignError);
+        } else if (mode == VariableMode::kUsing) {
+          builder()->CallRuntime(Runtime::kThrowUsingAssignError);
+        } else if (mode == VariableMode::kAwaitUsing) {
+          builder()->CallRuntime(Runtime::kThrowAwaitUsingAssignError);
         } else {
           BuildStoreGlobal(variable);
         }
