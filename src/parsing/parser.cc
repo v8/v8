@@ -1211,7 +1211,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Enter arrow function
         // scope for formal parameter parsing.
-        BlockState inner_block_state(&scope_, scope);
+        FunctionState inner_function_state(&function_state_, &scope_, scope);
         if (Check(Token::kLeftParen)) {
           // '(' StrictFormalParameters ')'
           ParseFormalParameterList(&formals);
