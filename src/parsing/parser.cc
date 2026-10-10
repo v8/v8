@@ -2373,6 +2373,7 @@ Block* Parser::RewriteForVarInLegacy(const ForInfo& for_info) {
     ++use_counts_[v8::Isolate::kForInInitializer];
     const AstRawString* name = decl.pattern->AsVariableProxy()->raw_name();
     VariableProxy* single_var = NewUnresolved(name);
+    single_var->set_is_assigned();
     Block* init_block = factory()->NewBlock(2, true);
     init_block->statements()->Add(
         factory()->NewExpressionStatement(
@@ -3553,6 +3554,7 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
     }
     const AstRawString* name = decl.first->raw_name();
     VariableProxy* to = NewUnresolved(name);
+    to->set_is_assigned();
     VariableProxy* from = factory()->NewVariableProxy(decl.second);
     Expression* assignment =
         factory()->NewAssignment(Token::kAssign, to, from, kNoSourcePosition);

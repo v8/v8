@@ -703,6 +703,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
 
     if (!should_hoist) continue;
 
+    Variable* var;
     if (factory) {
       DCHECK(!is_being_lazily_parsed_);
       int pos = sloppy_block_function->position();
@@ -724,7 +725,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       // Redeclarations for vars do not create new bindings, but the
       // redeclarations' initializers are still run. That is, shadowed FiB will
       // result in multiple assignments to the same synthesized var.
-      Variable* var = DeclareVariable(
+      var = DeclareVariable(
           declaration, name, pos, VariableMode::kVar, NORMAL_VARIABLE,
           Variable::DefaultInitializationFlag(VariableMode::kVar), &was_added,
           nullptr, &ok);
@@ -740,10 +741,10 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
     } else {
       DCHECK(is_being_lazily_parsed_);
       bool was_added;
-      Variable* var = DeclareVariableName(name, VariableMode::kVar, &was_added);
-      if (sloppy_block_function->init() == Token::kAssign) {
-        var->SetMaybeAssigned();
-      }
+      var = DeclareVariableName(name, VariableMode::kVar, &was_added);
+    }
+    if (sloppy_block_function->init() == Token::kAssign) {
+      var->SetMaybeAssigned();
     }
   }
 }
