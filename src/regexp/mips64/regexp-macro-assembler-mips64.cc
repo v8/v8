@@ -1408,9 +1408,6 @@ void RegExpMacroAssemblerMIPS::CheckStackLimit() {
 
 void RegExpMacroAssemblerMIPS::AssertAboveStackLimitMinusSlack() {
   DCHECK(backtrack_stack_used());
-  __ Ld(a0, MemOperand(regexp_stack(), Stack::kLimitOffset));
-  SafeCall(&stack_overflow_label_, ls, backtrack_stackpointer(), Operand(a0));
-
   DCHECK(v8_flags.slow_debug_code);
   Label no_stack_overflow;
   ASM_CODE_COMMENT_STRING(masm_.get(), "AssertAboveStackLimitMinusSlack");
