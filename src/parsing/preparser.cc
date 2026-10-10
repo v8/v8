@@ -369,23 +369,6 @@ PreParserBlock PreParser::BuildParameterInitializationBlock(
     const PreParserFormalParameters& parameters) {
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
-  if (scope()->AsDeclarationScope()->sloppy_eval_can_extend_vars() &&
-      preparse_data_builder_ != nullptr) {
-    // We cannot replicate the Scope structure constructed by the Parser,
-    // because we've lost information whether each individual parameter was
-    // simple or not. Give up trying to produce data to skip inner functions.
-    if (preparse_data_builder_->parent() != nullptr) {
-      // Lazy parsing started before the current function; the function which
-      // cannot contain skippable functions is the parent function. (Its inner
-      // functions cannot either; they are implicitly bailed out.)
-      preparse_data_builder_->parent()->Bailout();
-    } else {
-      // Lazy parsing started at the current function; it cannot contain
-      // skippable functions.
-      preparse_data_builder_->Bailout();
-    }
-  }
-
   return PreParserBlock::Default();
 }
 

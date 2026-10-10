@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/parsing/preparser.h"
+
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/strings.h"
@@ -34,8 +36,6 @@ enum SkipTests {
 };
 
 enum class PreciseMaybeAssigned { YES, NO };
-
-enum class Bailout { BAILOUT_IF_OUTER_SLOPPY, NO };
 
 }  // namespace
 
@@ -133,14 +133,11 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
     Inner(const char* p, const char* s, SkipTests skip,
           PreciseMaybeAssigned precise)
         : params(p), source(s), skip(skip), precise_maybe_assigned(precise) {}
-    Inner(const char* p, const char* s, SkipTests skip, Bailout bailout)
-        : params(p), source(s), skip(skip), bailout(bailout) {}
 
     const char* params = "";
     const char* source;
     SkipTests skip = DONT_SKIP;
     PreciseMaybeAssigned precise_maybe_assigned = PreciseMaybeAssigned::YES;
-    Bailout bailout = Bailout::NO;
     std::function<void()> prologue = nullptr;
     std::function<void()> epilogue = nullptr;
   } inners[] = {
@@ -607,14 +604,14 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
 
       // Sloppy eval in default parameter.
       {"var1, var2 = eval(''), var3", "let var4 = 0;", SKIP_STRICT_FUNCTION,
-       Bailout::BAILOUT_IF_OUTER_SLOPPY},
+       PreciseMaybeAssigned::NO},
       {"var1, var2 = eval(''), var3 = eval('')", "let var4 = 0;",
-       SKIP_STRICT_FUNCTION, Bailout::BAILOUT_IF_OUTER_SLOPPY},
+       SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
 
       // Sloppy eval in arrow function parameter list which is inside another
       // arrow function parameter list.
       {"var1, var2 = (var3, var4 = eval(''), var5) => { let var6; }, var7",
-       "let var8 = 0;", SKIP_STRICT_FUNCTION, Bailout::BAILOUT_IF_OUTER_SLOPPY},
+       "let var8 = 0;", SKIP_STRICT_FUNCTION, PreciseMaybeAssigned::NO},
 
       // Sloppy eval in a function body with non-simple parameters.
       {"var1 = 1, var2 = 2", "eval('');", SKIP_STRICT_FUNCTION},
@@ -727,12 +724,6 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
       i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(o);
       i::DirectHandle<i::SharedFunctionInfo> shared(f->shared(), isolate);
-
-      if (inner.bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
-          !outer.strict_outer) {
-        CHECK(!shared->HasUncompiledDataWithPreparseData(isolate));
-        continue;
-      }
 
       CHECK(shared->HasUncompiledDataWithPreparseData(isolate));
       i::Handle<i::PreparseData> produced_data_on_heap(
@@ -1014,6 +1005,15 @@ TEST_F(PreParserTest, ProducingAndConsumingByteData) {
     // We should have consumed all data at this point.
     CHECK(!bytes_for_reading.HasRemainingBytes(1));
   }
+}
+
+TEST_F(PreParserTest, DefaultExpressionIsNotThis) {
+  CHECK(!PreParserExpression::Default().IsThis());
+  CHECK(PreParserExpression::This().IsThis());
+  CHECK(!PreParserExpression::Property().IsThisProperty());
+  CHECK(PreParserExpression::ThisProperty().IsThisProperty());
+  CHECK(!PreParserExpression::PrivateReference().IsThisProperty());
+  CHECK(PreParserExpression::ThisPrivateReference().IsThisProperty());
 }
 
 }  // namespace internal

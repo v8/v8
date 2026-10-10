@@ -90,7 +90,8 @@ class PreParserExpression {
   }
 
   static PreParserExpression Default() {
-    return PreParserExpression(TypeField::encode(kExpression));
+    return PreParserExpression(TypeField::encode(kExpression) |
+                               ExpressionTypeField::encode(kDefaultExpression));
   }
 
   static PreParserExpression FromIdentifier(const PreParserIdentifier& id) {
@@ -288,6 +289,7 @@ class PreParserExpression {
   };
 
   enum ExpressionType {
+    kDefaultExpression,
     kThisExpression,
     kThisPropertyExpression,
     kThisPrivateReferenceExpression,
