@@ -1717,20 +1717,21 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
                              bool maybe_in_arrowhead) {
   this->ForEach([max_outer_scope, ast_node_factory, new_unresolved_list,
                  maybe_in_arrowhead](Scope* scope) {
-    // Skip already lazily parsed scopes. This can only happen to functions
-    // inside arrowheads.
-    if (WasLazilyParsed(scope)) {
-      DCHECK(max_outer_scope->is_arrow_scope());
-      return Iteration::kContinue;
-    }
+    // Functions inside arrowheads may have already been lazily parsed. Their
+    // unresolved variables were already resolved against their own scope, so
+    // continue resolving them from their outer scope.
+    bool was_lazily_parsed = WasLazilyParsed(scope);
+    DCHECK_IMPLIES(was_lazily_parsed, max_outer_scope->is_arrow_scope());
+    Scope* lookup_scope = was_lazily_parsed ? scope->outer_scope() : scope;
 
     for (VariableProxy* proxy = scope->unresolved_list_.first();
          proxy != nullptr; proxy = proxy->next_unresolved()) {
       if (proxy->is_removed_from_unresolved()) continue;
       DCHECK(!proxy->is_resolved());
       int access_position = proxy->position();
-      Variable* var = Lookup<kParsedScope>(
-          proxy, scope, max_outer_scope->outer_scope(), &access_position);
+      Variable* var = Lookup<kParsedScope>(proxy, lookup_scope,
+                                           max_outer_scope->outer_scope(),
+                                           &access_position);
       if (var == nullptr) {
         // Don't copy unresolved references to the script scope, unless it's a
         // reference to a private name or method. In that case keep it so we
@@ -1748,7 +1749,7 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
 
     // Clear unresolved_list_ as it's in an inconsistent state.
     scope->unresolved_list_.Clear();
-    return Iteration::kDescend;
+    return was_lazily_parsed ? Iteration::kContinue : Iteration::kDescend;
   });
 }
 
