@@ -4241,7 +4241,7 @@ ParserBase<Impl>::ParseImportExpressions() {
     } else {
       ExpectContextualKeyword(ast_value_factory()->meta_string(), "import.meta",
                               pos);
-      if (!flags().is_module() && !IsParsingWhileDebugging()) {
+      if (!has_module_in_scope_chain() && !IsParsingWhileDebugging()) {
         impl()->ReportMessageAt(scanner()->location(),
                                 MessageTemplate::kImportMetaOutsideModule);
         return impl()->FailureExpression();

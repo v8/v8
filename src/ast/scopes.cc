@@ -427,6 +427,7 @@ Scope* Scope::DeserializeScopeChain(
   Scope* current_scope = nullptr;
   Scope* innermost_scope = nullptr;
   Scope* outer_scope = nullptr;
+  bool has_debug_evaluate_scope = false;
 
   while (!scope_info.is_null()) {
     if (scope_info == eval_outer_info) {
@@ -525,6 +526,7 @@ Scope* Scope::DeserializeScopeChain(
             zone->New<DeclarationScope>(zone, FUNCTION_SCOPE, ast_value_factory,
                                         handle(scope_info, isolate));
         outer_scope->set_is_dynamic_scope();
+        has_debug_evaluate_scope = true;
       } else {
         // For scope analysis, debug-evaluate is equivalent to a with scope.
         outer_scope = zone->New<Scope>(zone, WITH_SCOPE, ast_value_factory,
@@ -533,7 +535,7 @@ Scope* Scope::DeserializeScopeChain(
     } else if (scope_info->scope_type() == MODULE_SCOPE) {
       outer_scope = zone->New<ModuleScope>(handle(scope_info, isolate),
                                            ast_value_factory);
-      if (parse_info) {
+      if (parse_info && has_debug_evaluate_scope) {
         parse_info->set_has_module_in_scope_chain();
       }
     } else {
