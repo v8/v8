@@ -1516,6 +1516,7 @@ void Scope::RecordEvalCall() {
     GetDeclarationScope()->RecordDeclarationScopeEvalCall();
   }
   RecordInnerScopeEvalCall();
+  GetClosureScope()->RecordNeedsPrivateNameContextChainRecalc();
   // The eval contents might access "super" (if it's inside a function that
   // binds super).
   DeclarationScope* receiver_scope = GetReceiverScope();
