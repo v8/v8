@@ -1131,4 +1131,18 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/Locale/prototype/getCollations/preferred-from-unicode-extension-true-empty': [SKIP],
+  'intl402/Locale/prototype/getNumberingSystems/preferred-from-unicode-extension-true-empty': [SKIP],
+  'intl402/Locale/prototype/getTextInfo/language-subtag-with-more-than-three-letters': [SKIP],
+  'intl402/Locale/prototype/getTextInfo/script-metadata-rtl-is-unknown': [SKIP],
+  'intl402/Locale/prototype/getTextInfo/script-metadata-unlisted-language-script-is-rtl': [SKIP],
+  'intl402/Locale/prototype/getTextInfo/script-subtag-missing': [SKIP],
+  'intl402/Locale/prototype/getTextInfo/script-unregistered-or-privateuse': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
