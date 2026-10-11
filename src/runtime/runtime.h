@@ -374,6 +374,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(HandleExceptionsInDisposeDisposableStack, 3, 1)                    \
   F(HasFastPackedElements, 1, 1)                                       \
   F(HasInPrototypeChain, 2, 1)                                         \
+  F(HasPrivateMember, 2, 1)                                            \
   F(HasProperty, 2, 1)                                                 \
   F(InitializeDisposableStack, 0, 1)                                   \
   F(InternalSetPrototype, 2, 1)                                        \
@@ -1052,6 +1053,15 @@ class Runtime : public AllStatic {
   GetObjectProperty(Isolate* isolate, DirectHandle<JSAny> lookup_start_object,
                     DirectHandle<Object> key, DirectHandle<JSAny> receiver = {},
                     bool* is_found = nullptr);
+
+  // Look up for a private member with a name matching "desc" and return
+  // whether it exists on "receiver". "desc" should be a #-prefixed string, in
+  // the case of private fields, it should match the description of the private
+  // name symbol. Throw an error if there are more than one matching private
+  // member (which would be ambiguous).
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
+  HasPrivateMember(Isolate* isolate, DirectHandle<JSReceiver> receiver,
+                   DirectHandle<String> desc);
 
   // Look up for a private member with a name matching "desc" and return its
   // value. "desc" should be a #-prefixed string, in the case of private fields,

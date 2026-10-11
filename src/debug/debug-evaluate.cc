@@ -361,6 +361,7 @@ bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
   V(LoadLookupSlotForCall)               \
   V(GetPrivateMember)                    \
   V(GetProperty)                         \
+  V(HasPrivateMember)                    \
   /* Arrays */                           \
   V(ArraySpeciesConstructor)             \
   V(HasFastPackedElements)               \

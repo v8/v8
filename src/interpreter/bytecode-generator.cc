@@ -4813,8 +4813,8 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
         default: {
           // Normally, private names should not be looked up dynamically,
           // but we make an exception in debug-evaluate, in that case the
-          // lookup will be done in %SetPrivateMember() and %GetPrivateMember()
-          // calls, not here.
+          // lookup will be done in %HasPrivateMember(), %SetPrivateMember(),
+          // and %GetPrivateMember() calls, not here.
           DCHECK(!variable->raw_name()->IsPrivateName());
           builder()->LoadLookupSlot(variable->raw_name(), typeof_mode);
           break;
@@ -6634,6 +6634,22 @@ void BytecodeGenerator::BuildPrivateDebugDynamicSet(Property* property,
       .CallRuntime(Runtime::kSetPrivateMember, args);
 }
 
+void BytecodeGenerator::BuildPrivateDebugDynamicIn(
+    Variable* private_name, Expression* object_expression) {
+  DCHECK_EQ(private_name->mode(), VariableMode::kDynamic);
+  VisitForAccumulatorValue(object_expression);
+
+  RegisterAllocationScope scope(this);
+  RegisterList args = register_allocator()->NewRegisterList(2);
+  builder()->SetExpressionPosition(object_expression);
+  builder()
+      ->StoreAccumulatorInRegister(args[0])
+      .LoadLiteral(private_name->raw_name())
+      .StoreAccumulatorInRegister(args[1])
+      .CallRuntime(Runtime::kHasPrivateMember, args);
+  execution_result()->SetResultIsBoolean();
+}
+
 void BytecodeGenerator::BuildPrivateGetterAccess(Register object,
                                                  Register accessor_pair) {
   RegisterAllocationScope scope(this);
@@ -7973,6 +7989,10 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       Variable* var = expr->left()->AsVariableProxy()->var();
       if (IsPrivateMethodOrAccessorVariableMode(var->mode())) {
         BuildPrivateMethodIn(var, expr->right());
+        return;
+      }
+      if (var->mode() == VariableMode::kDynamic) {
+        BuildPrivateDebugDynamicIn(var, expr->right());
         return;
       }
       // For private fields, the code below does the right thing.
