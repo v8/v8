@@ -1046,7 +1046,7 @@ bool KnownNodeAspects::MarkSingleMapAsStale(ValueNode* node,
 }
 
 #ifdef DEBUG
-bool IsStringRootIndex(RootIndex index) {
+V8_EXPORT_PRIVATE bool IsStringRootIndex(RootIndex index) {
   if (index > RootIndex::kLastReadOnlyRoot) return false;
   ReadOnlyRoots roots = GetReadOnlyRoots();
   Tagged<Object> obj = roots.object_at(index);

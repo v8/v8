@@ -30,7 +30,7 @@ using UpdateTypeOnContradiction =
 using PossibleMaps = compiler::ZoneRefSet<Map>;
 
 #ifdef DEBUG
-bool IsStringRootIndex(RootIndex index);
+V8_EXPORT_PRIVATE bool IsStringRootIndex(RootIndex index);
 
 inline bool IsInternalizedStringConstant(ValueNode* node) {
   if (auto constant = node->TryCast<HeapConstant>()) {

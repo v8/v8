@@ -636,12 +636,13 @@ class ElementsTransitionWithMultipleSources final {
   FeedbackSource feedback_;
 };
 
-bool operator==(ElementsTransition const&, ElementsTransition const&);
-bool operator==(ElementsTransitionWithMultipleSources const&,
-                ElementsTransitionWithMultipleSources const&);
+V8_EXPORT_PRIVATE bool operator==(ElementsTransition const&,
+                                  ElementsTransition const&);
+V8_EXPORT_PRIVATE bool operator==(ElementsTransitionWithMultipleSources const&,
+                                  ElementsTransitionWithMultipleSources const&);
 
-size_t hash_value(ElementsTransition);
-size_t hash_value(ElementsTransitionWithMultipleSources);
+V8_EXPORT_PRIVATE size_t hash_value(ElementsTransition);
+V8_EXPORT_PRIVATE size_t hash_value(ElementsTransitionWithMultipleSources);
 
 std::ostream& operator<<(std::ostream&, ElementsTransition);
 std::ostream& operator<<(std::ostream&, ElementsTransitionWithMultipleSources);
