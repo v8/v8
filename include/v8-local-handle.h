@@ -63,7 +63,6 @@ template <class F>
 class Traced;
 class TypecheckWitness;
 class Utils;
-class Uint32;
 class Value;
 
 namespace debug {
@@ -90,7 +89,6 @@ void TypeCheckLocal(V* value) {
     // TODO(419454582): Remove all these exceptions.
     if (std::is_same_v<ArrayBuffer, T> && value->IsSharedArrayBuffer()) return;
     if (std::is_same_v<Object, T> && value->IsNull()) return;
-    if (std::is_same_v<Uint32, T> && value->IsInt32()) return;
     // Execute the actual check (part of the cast).
     T::Cast(value);
   }

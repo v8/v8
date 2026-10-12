@@ -635,8 +635,9 @@ class Object : public AllStatic {
       Isolate* isolate, HandleType<Object> input);
   template <template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
-  V8_WARN_UNUSED_RESULT static HandleType<Number>::MaybeType ConvertToUint32(
-      Isolate* isolate, HandleType<Object> input);
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  V8_WARN_UNUSED_RESULT static typename HandleType<Number>::MaybeType
+      ConvertToUint32(Isolate* isolate, HandleType<Object> input);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Number>
   ConvertToLength(Isolate* isolate, DirectHandle<Object> input);
   template <template <typename> typename HandleType>

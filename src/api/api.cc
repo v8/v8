@@ -4173,7 +4173,9 @@ MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
 
 MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   auto obj = Utils::OpenDirectHandle(this);
-  if (i::IsSmi(*obj)) return ToApiHandle<Uint32>(obj);
+  if (i::IsSmi(*obj) && i::Smi::ToInt(*obj) >= 0) {
+    return ToApiHandle<Uint32>(obj);
+  }
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Object_ToUint32};
   i::Isolate* i_isolate = api_scope.i_isolate();
   return api_scope.EscapeMaybe(
