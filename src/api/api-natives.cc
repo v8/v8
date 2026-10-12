@@ -639,8 +639,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   DCHECK(result->has_prototype_slot());
 
   if (obj->read_only_prototype()) {
-    result->set_map(isolate,
-                    *isolate->sloppy_function_with_readonly_prototype_map());
+    result->set_map(isolate, *isolate->function_with_readonly_prototype_map());
   }
 
   if (IsTheHole(*prototype)) {

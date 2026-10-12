@@ -735,11 +735,11 @@ bool FunctionKindIsConstructable(FunctionKind kind) {
 }
 TEST_FUNCTION_KIND(IsConstructable)
 
-bool FunctionKindIsStrictFunctionWithoutPrototype(FunctionKind kind) {
+bool FunctionKindIsFunctionWithoutPrototype(FunctionKind kind) {
   return IsArrowFunction(kind) || IsConciseMethod(kind) ||
          IsAccessorFunction(kind);
 }
-TEST_FUNCTION_KIND(IsStrictFunctionWithoutPrototype)
+TEST_FUNCTION_KIND(IsFunctionWithoutPrototype)
 
 #undef TEST_FUNCTION_KIND
 

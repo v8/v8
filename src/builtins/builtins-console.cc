@@ -243,7 +243,7 @@ void InstallContextFunction(Isolate* isolate, DirectHandle<JSObject> target,
                             DirectHandle<Context> context) {
   Factory* const factory = isolate->factory();
 
-  DirectHandle<Map> map = isolate->sloppy_function_without_prototype_map();
+  DirectHandle<Map> map = isolate->function_without_prototype_map();
 
   DirectHandle<String> name_string = factory->InternalizeUtf8String(name);
 

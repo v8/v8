@@ -4807,11 +4807,9 @@ DirectHandle<String> Factory::ToPrimitiveHintString(ToPrimitiveHint hint) {
   UNREACHABLE();
 }
 
-DirectHandle<Map> Factory::CreateSloppyFunctionMap(
+DirectHandle<Map> Factory::CreateFunctionMap(
     FunctionMode function_mode,
     MaybeDirectHandle<JSFunction> maybe_empty_function) {
-  // TODO(https://crbug.com/414525205): Merge sloppy and strict function maps
-  // now that legacy .arguments and .caller are no longer own properties.
   bool has_prototype = IsFunctionModeWithPrototype(function_mode);
   InstanceType instance_type;
   int header_size;
@@ -4884,92 +4882,6 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
         name_string(), function_name_accessor(), roc_attribs);
     map->AppendDescriptor(isolate(), &d);
   }
-  if (IsFunctionModeWithPrototype(function_mode)) {
-    // Add prototype accessor.
-    PropertyAttributes attribs =
-        IsFunctionModeWithWritablePrototype(function_mode) ? rw_attribs
-                                                           : ro_attribs;
-    Descriptor d = Descriptor::AccessorConstant(
-        prototype_string(), function_prototype_accessor(), attribs);
-    map->AppendDescriptor(isolate(), &d);
-  }
-  DCHECK_EQ(inobject_properties_count, field_index);
-  DCHECK_EQ(0, map->instance_descriptors()->number_of_slack_descriptors());
-  LOG(isolate(), MapDetails(*map));
-  return map;
-}
-
-DirectHandle<Map> Factory::CreateStrictFunctionMap(
-    FunctionMode function_mode, DirectHandle<JSFunction> empty_function) {
-  bool has_prototype = IsFunctionModeWithPrototype(function_mode);
-  InstanceType instance_type;
-  int header_size;
-  if (has_prototype) {
-    instance_type = JS_FUNCTION_TYPE;
-    header_size = JSFunctionWithPrototype::kHeaderSize;
-  } else {
-    instance_type = JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE;
-    header_size = JSFunctionWithoutPrototype::kHeaderSize;
-  }
-  int inobject_properties_count = 0;
-  // length and prototype accessors or just length accessor.
-  int descriptors_count = IsFunctionModeWithPrototype(function_mode) ? 2 : 1;
-  if (IsFunctionModeWithName(function_mode)) {
-    ++inobject_properties_count;  // name property.
-  } else {
-    ++descriptors_count;  // name accessor.
-  }
-  descriptors_count += inobject_properties_count;
-
-  DirectHandle<Map> map = NewContextfulMapForCurrentContext(
-      instance_type, header_size + inobject_properties_count * kTaggedSize,
-      TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
-  {
-    DisallowGarbageCollection no_gc;
-    Tagged<Map> raw_map = *map;
-    raw_map->set_is_constructor(has_prototype);
-    raw_map->set_is_callable(true);
-    // Temporarily set constructor to empty function to calm down map verifier.
-    raw_map->SetConstructor(*empty_function);
-  }
-  Map::SetPrototype(isolate(), map, empty_function);
-
-  //
-  // Setup descriptors array.
-  //
-  Map::EnsureDescriptorSlack(isolate(), map, descriptors_count);
-
-  PropertyAttributes rw_attribs =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-  PropertyAttributes ro_attribs =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  PropertyAttributes roc_attribs =
-      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-
-  int field_index = 0;
-  static_assert(JSFunction::kLengthDescriptorIndex == 0);
-  {  // Add length accessor.
-    Descriptor d = Descriptor::AccessorConstant(
-        length_string(), function_length_accessor(), roc_attribs);
-    map->AppendDescriptor(isolate(), &d);
-  }
-
-  static_assert(JSFunction::kNameDescriptorIndex == 1);
-  if (IsFunctionModeWithName(function_mode)) {
-    // Add name field.
-    DirectHandle<Name> name = isolate()->factory()->name_string();
-    Descriptor d = Descriptor::DataField(
-        isolate(), name, map->GetInObjectPropertyOffset(field_index++),
-        roc_attribs, Representation::Tagged(), true);
-    map->AppendDescriptor(isolate(), &d);
-
-  } else {
-    // Add name accessor.
-    Descriptor d = Descriptor::AccessorConstant(
-        name_string(), function_name_accessor(), roc_attribs);
-    map->AppendDescriptor(isolate(), &d);
-  }
-
   if (IsFunctionModeWithPrototype(function_mode)) {
     // Add prototype accessor.
     PropertyAttributes attribs =

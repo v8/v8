@@ -557,7 +557,6 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   int hints = flags(kRelaxedLoad);
   hints = IsStrictBit::update(hints, is_strict(language_mode));
   set_flags(hints, kRelaxedStore);
-  UpdateFunctionMapIndex();
 }
 
 FunctionKind SharedFunctionInfo::kind() const {
@@ -635,8 +634,7 @@ void SharedFunctionInfo::set_function_map_index(int index) {
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
-  int map_index =
-      Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());
+  int map_index = Context::FunctionMapIndex(kind(), HasSharedName());
   set_function_map_index(map_index);
 }
 

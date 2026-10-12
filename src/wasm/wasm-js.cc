@@ -3324,8 +3324,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
   // By default, make all exported functions an instance of {Function}.
   {
-    DirectHandle<Map> function_map =
-        isolate->sloppy_function_without_prototype_map();
+    DirectHandle<Map> function_map = isolate->function_without_prototype_map();
     native_context->set_wasm_exported_function_map(*function_map);
   }
 

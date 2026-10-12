@@ -1602,8 +1602,7 @@ class PrototypesSetup : public wasm::Decoder {
         context->SetNoCell(wasm::kMethodWrapperContextSlot, *function);
         function =
             Factory::JSFunctionBuilder{isolate_, method_wrapper(), context}
-                .set_map(
-                    isolate_->strict_function_with_readonly_prototype_map())
+                .set_map(isolate_->function_with_readonly_prototype_map())
                 .Build();
         // For nicer stack traces, we could call
         //   JSFunction::SetName(..., function, name, ...);
@@ -1611,7 +1610,7 @@ class PrototypesSetup : public wasm::Decoder {
         // to hide the wrappers on stack traces instead.
         // Note to our future selves: if we wanted names, the most performant
         // way would likely be to add a pre-created
-        //   strict_function_with_NAME_AND_readonly_prototype_map
+        //   function_with_NAME_AND_readonly_prototype_map
         // and use that for these wrappers, to avoid needing individual SFIs
         // for storing their names.
 
@@ -1858,7 +1857,7 @@ class PrototypesSetup : public wasm::Decoder {
     sfi->set_language_mode(LanguageMode::kStrict);
     DirectHandle<JSFunction> constructor =
         Factory::JSFunctionBuilder{isolate_, sfi, context}
-            .set_map(isolate_->strict_function_with_readonly_prototype_map())
+            .set_map(isolate_->function_with_readonly_prototype_map())
             .Build();
     constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
 

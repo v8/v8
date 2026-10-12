@@ -947,10 +947,6 @@ V8_OBJECT class Map : public HeapObject {
   V8_EXPORT_PRIVATE static Handle<Map> AsDetachedTypedArray(
       Isolate* isolate, DirectHandle<Map> map);
 
-  static DirectHandle<Map> AsLanguageMode(
-      Isolate* isolate, DirectHandle<Map> initial_map,
-      DirectHandle<SharedFunctionInfo> shared_info);
-
   V8_EXPORT_PRIVATE static Handle<Map> CopyForPreventExtensions(
       Isolate* isolate, DirectHandle<Map> map, PropertyAttributes attrs_to_add,
       DirectHandle<Symbol> transition_marker, const char* reason,

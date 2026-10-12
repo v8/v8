@@ -241,7 +241,7 @@ DirectHandle<JSFunction> CreateBoundFunction(Isolate* isolate,
           isolate->factory()->empty_string(), builtin, len, kAdapt);
 
   return Factory::JSFunctionBuilder{isolate, info, context}
-      .set_map(isolate->strict_function_without_prototype_map())
+      .set_map(isolate->function_without_prototype_map())
       .Build();
 }
 

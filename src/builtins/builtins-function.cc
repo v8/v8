@@ -160,12 +160,9 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
         JSFunction::GetDerivedMap(isolate, target, new_target));
 
     DirectHandle<SharedFunctionInfo> shared_info(function->shared(), isolate);
-    DirectHandle<Map> map =
-        Map::AsLanguageMode(isolate, initial_map, shared_info);
-
     DirectHandle<Context> context(function->context(), isolate);
     function = Factory::JSFunctionBuilder{isolate, shared_info, context}
-                   .set_map(map)
+                   .set_map(initial_map)
                    .set_allocation_type(AllocationType::kYoung)
                    .Build();
   }

@@ -213,8 +213,7 @@ class Genesis {
   // See https://tc39.es/ecma262/#sec-%throwtypeerror% for details.
   DirectHandle<JSFunction> GetThrowTypeErrorIntrinsic();
 
-  void CreateSloppyModeFunctionMaps(DirectHandle<JSFunction> empty);
-  void CreateStrictModeFunctionMaps(DirectHandle<JSFunction> empty);
+  void CreateFunctionMaps(DirectHandle<JSFunction> empty);
   void CreateObjectFunction(DirectHandle<JSFunction> empty);
   void CreateIteratorMaps(DirectHandle<JSFunction> empty);
   void CreateAsyncIteratorMaps(DirectHandle<JSFunction> empty);
@@ -401,12 +400,11 @@ namespace {
 bool IsFunctionMapOrSpecialBuiltin(DirectHandle<Map> map, Builtin builtin,
                                    DirectHandle<Context> context) {
   // During bootstrapping some of these maps could be not created yet.
-  return ((*map == context->GetNoCell(Context::STRICT_FUNCTION_MAP_INDEX)) ||
-          (*map == context->GetNoCell(
-                       Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX)) ||
+  return ((*map == context->GetNoCell(Context::FUNCTION_MAP_INDEX)) ||
           (*map ==
-           context->GetNoCell(
-               Context::STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX)) ||
+           context->GetNoCell(Context::FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX)) ||
+          (*map == context->GetNoCell(
+                       Context::FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX)) ||
           // Check if it's a creation of an empty or Proxy function during
           // bootstrapping.
           (builtin == Builtin::kEmptyFunction ||
@@ -454,10 +452,9 @@ V8_NOINLINE DirectHandle<JSFunction> CreateFunctionForBuiltinWithPrototype(
     MutableMode prototype_mutability, int len, AdaptArguments adapt) {
   Factory* factory = isolate->factory();
   DirectHandle<NativeContext> context(isolate->native_context());
-  DirectHandle<Map> map =
-      prototype_mutability == MUTABLE
-          ? isolate->strict_function_map()
-          : isolate->strict_function_with_readonly_prototype_map();
+  DirectHandle<Map> map = prototype_mutability == MUTABLE
+                              ? isolate->function_map()
+                              : isolate->function_with_readonly_prototype_map();
   DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin, context));
 
   DirectHandle<SharedFunctionInfo> info =
@@ -501,7 +498,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithoutPrototype(
     Isolate* isolate, DirectHandle<String> name, Builtin builtin, int len,
     AdaptArguments adapt) {
   DirectHandle<NativeContext> context(isolate->native_context());
-  DirectHandle<Map> map = isolate->strict_function_without_prototype_map();
+  DirectHandle<Map> map = isolate->function_without_prototype_map();
   DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin, context));
 
   DirectHandle<SharedFunctionInfo> info =
@@ -581,8 +578,8 @@ V8_NOINLINE void SetConstructorInstanceType(
   Tagged<Map> map = constructor->map();
 
   // Check we don't accidentally change one of the existing maps.
-  DCHECK_NE(map, *isolate->strict_function_map());
-  DCHECK_NE(map, *isolate->strict_function_with_readonly_prototype_map());
+  DCHECK_NE(map, *isolate->function_map());
+  DCHECK_NE(map, *isolate->function_with_readonly_prototype_map());
   // Constructor function map is always a root map, and thus we don't have to
   // deal with updating the whole transition tree.
   DCHECK(IsUndefined(map->GetBackPointer()));
@@ -637,7 +634,7 @@ V8_NOINLINE DirectHandle<JSFunction> CreateSharedObjectConstructor(
   info->set_language_mode(LanguageMode::kStrict);
   DirectHandle<JSFunction> constructor =
       Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
-          .set_map(isolate->strict_function_with_readonly_prototype_map())
+          .set_map(isolate->function_with_readonly_prototype_map())
           .Build();
   constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
 
@@ -774,7 +771,7 @@ DirectHandle<Map> CreateLiteralObjectMapFromCache(
 DirectHandle<JSFunction> Genesis::CreateEmptyFunction() {
   // Allocate the function map first and then patch the prototype later.
   DirectHandle<Map> empty_function_map =
-      factory()->CreateSloppyFunctionMap(FUNCTION_WITHOUT_PROTOTYPE, {});
+      factory()->CreateFunctionMap(FUNCTION_WITHOUT_PROTOTYPE);
   empty_function_map->set_is_prototype_map(true);
   DCHECK(!empty_function_map->is_dictionary_map());
 
@@ -799,35 +796,6 @@ DirectHandle<JSFunction> Genesis::CreateEmptyFunction() {
   sfi->UpdateFunctionMapIndex();
 
   return empty_function;
-}
-
-void Genesis::CreateSloppyModeFunctionMaps(DirectHandle<JSFunction> empty) {
-  Factory* factory = isolate_->factory();
-  DirectHandle<Map> map;
-
-  //
-  // Allocate maps for sloppy functions without prototype.
-  //
-  map = factory->CreateSloppyFunctionMap(FUNCTION_WITHOUT_PROTOTYPE, empty);
-  native_context()->set_sloppy_function_without_prototype_map(*map);
-
-  //
-  // Allocate maps for sloppy functions with readonly prototype.
-  //
-  map =
-      factory->CreateSloppyFunctionMap(FUNCTION_WITH_READONLY_PROTOTYPE, empty);
-  native_context()->set_sloppy_function_with_readonly_prototype_map(*map);
-
-  //
-  // Allocate maps for sloppy functions with writable prototype.
-  //
-  map = factory->CreateSloppyFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE,
-                                         empty);
-  native_context()->set_sloppy_function_map(*map);
-
-  map = factory->CreateSloppyFunctionMap(
-      FUNCTION_WITH_NAME_AND_WRITEABLE_PROTOTYPE, empty);
-  native_context()->set_sloppy_function_with_name_map(*map);
 }
 
 DirectHandle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
@@ -865,36 +833,34 @@ DirectHandle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
   return function;
 }
 
-void Genesis::CreateStrictModeFunctionMaps(DirectHandle<JSFunction> empty) {
+void Genesis::CreateFunctionMaps(DirectHandle<JSFunction> empty) {
   Factory* factory = isolate_->factory();
   DirectHandle<Map> map;
 
   //
-  // Allocate maps for strict functions without prototype.
+  // Allocate maps for functions without prototype.
   //
-  map = factory->CreateStrictFunctionMap(FUNCTION_WITHOUT_PROTOTYPE, empty);
-  native_context()->set_strict_function_without_prototype_map(*map);
+  map = factory->CreateFunctionMap(FUNCTION_WITHOUT_PROTOTYPE, empty);
+  native_context()->set_function_without_prototype_map(*map);
 
-  map = factory->CreateStrictFunctionMap(METHOD_WITH_NAME, empty);
+  map = factory->CreateFunctionMap(METHOD_WITH_NAME, empty);
   native_context()->set_method_with_name_map(*map);
 
   //
-  // Allocate maps for strict functions with writable prototype.
+  // Allocate maps for functions with writable prototype.
   //
-  map = factory->CreateStrictFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE,
-                                         empty);
-  native_context()->set_strict_function_map(*map);
+  map = factory->CreateFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE, empty);
+  native_context()->set_function_map(*map);
 
-  map = factory->CreateStrictFunctionMap(
-      FUNCTION_WITH_NAME_AND_WRITEABLE_PROTOTYPE, empty);
-  native_context()->set_strict_function_with_name_map(*map);
+  map = factory->CreateFunctionMap(FUNCTION_WITH_NAME_AND_WRITEABLE_PROTOTYPE,
+                                   empty);
+  native_context()->set_function_with_name_map(*map);
 
   //
-  // Allocate maps for strict functions with readonly prototype.
+  // Allocate maps for functions with readonly prototype.
   //
-  map =
-      factory->CreateStrictFunctionMap(FUNCTION_WITH_READONLY_PROTOTYPE, empty);
-  native_context()->set_strict_function_with_readonly_prototype_map(*map);
+  map = factory->CreateFunctionMap(FUNCTION_WITH_READONLY_PROTOTYPE, empty);
+  native_context()->set_function_with_readonly_prototype_map(*map);
 
   //
   // Allocate map for class functions.
@@ -963,24 +929,18 @@ void Genesis::CreateObjectFunction(DirectHandle<JSFunction> empty_function) {
 namespace {
 
 DirectHandle<Map> CreateNonConstructorMap(Isolate* isolate,
-                                          DirectHandle<Map> source_map,
-                                          DirectHandle<JSObject> prototype,
-                                          const char* reason) {
-  DirectHandle<Map> map = Map::Copy(isolate, source_map, reason);
+                                          FunctionMode function_mode,
+                                          DirectHandle<JSFunction> empty,
+                                          DirectHandle<JSObject> prototype) {
   // Ensure the resulting map has prototype slot (it is necessary for storing
   // initial map even when the prototype property is not required).
-  DCHECK(map->instance_type() == JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE ||
-         map->instance_type() == JS_FUNCTION_TYPE);
-  if (IsJSFunctionWithoutPrototypeMap(*map)) {
-    // Re-set the unused property fields after changing the instance size.
-    int unused_property_fields = map->UnusedPropertyFields();
-    map->set_instance_type(JS_FUNCTION_TYPE);
-    map->set_instance_size(map->instance_size() + kTaggedSize);
-    // The prototype slot shifts the in-object properties area by one slot.
-    map->SetInObjectPropertiesStartInWords(
-        map->GetInObjectPropertiesStartInWords() + 1);
-    map->SetInObjectUnusedPropertyFields(unused_property_fields);
-  }
+  DCHECK(IsFunctionModeWithPrototype(function_mode));
+  // Create a fresh function map instead of calling Map::Copy on an existing
+  // function map, as Map::Copy would call NotifyLeafMapLayoutChange and mark
+  // the source map as unstable.
+  DirectHandle<Map> map =
+      isolate->factory()->CreateFunctionMap(function_mode, empty);
+  DCHECK(IsJSFunctionWithPrototypeMap(*map));
   map->set_is_constructor(false);
   Map::SetPrototype(isolate, map, prototype);
   return map;
@@ -1070,14 +1030,13 @@ void Genesis::CreateIteratorMaps(DirectHandle<JSFunction> empty) {
   // 04-14-15, section 25.2.4.3).
   // Generator functions do not have "caller" or "arguments" accessors.
   DirectHandle<Map> map;
-  map = CreateNonConstructorMap(isolate(), isolate()->strict_function_map(),
-                                generator_function_prototype,
-                                "GeneratorFunction");
+  map = CreateNonConstructorMap(isolate(), FUNCTION_WITH_WRITEABLE_PROTOTYPE,
+                                empty, generator_function_prototype);
   native_context()->set_generator_function_map(*map);
 
-  map = CreateNonConstructorMap(
-      isolate(), isolate()->strict_function_with_name_map(),
-      generator_function_prototype, "GeneratorFunction with name");
+  map = CreateNonConstructorMap(isolate(),
+                                FUNCTION_WITH_NAME_AND_WRITEABLE_PROTOTYPE,
+                                empty, generator_function_prototype);
   native_context()->set_generator_function_with_name_map(*map);
 
   DirectHandle<JSFunction> object_function(native_context()->object_function(),
@@ -1178,14 +1137,13 @@ void Genesis::CreateAsyncIteratorMaps(DirectHandle<JSFunction> empty) {
   // 04-14-15, section 25.2.4.3).
   // Async Generator functions do not have "caller" or "arguments" accessors.
   DirectHandle<Map> map;
-  map = CreateNonConstructorMap(isolate(), isolate()->strict_function_map(),
-                                async_generator_function_prototype,
-                                "AsyncGeneratorFunction");
+  map = CreateNonConstructorMap(isolate(), FUNCTION_WITH_WRITEABLE_PROTOTYPE,
+                                empty, async_generator_function_prototype);
   native_context()->set_async_generator_function_map(*map);
 
-  map = CreateNonConstructorMap(
-      isolate(), isolate()->strict_function_with_name_map(),
-      async_generator_function_prototype, "AsyncGeneratorFunction with name");
+  map = CreateNonConstructorMap(isolate(),
+                                FUNCTION_WITH_NAME_AND_WRITEABLE_PROTOTYPE,
+                                empty, async_generator_function_prototype);
   native_context()->set_async_generator_function_with_name_map(*map);
 
   DirectHandle<JSFunction> object_function(native_context()->object_function(),
@@ -1207,13 +1165,11 @@ void Genesis::CreateAsyncFunctionMaps(DirectHandle<JSFunction> empty) {
   InstallToStringTag(isolate(), async_function_prototype, "AsyncFunction");
 
   DirectHandle<Map> map =
-      Map::Copy(isolate(), isolate()->strict_function_without_prototype_map(),
-                "AsyncFunction");
+      factory()->CreateFunctionMap(FUNCTION_WITHOUT_PROTOTYPE, empty);
   Map::SetPrototype(isolate(), map, async_function_prototype);
   native_context()->set_async_function_map(*map);
 
-  map = Map::Copy(isolate(), isolate()->method_with_name_map(),
-                  "AsyncFunction with name");
+  map = factory()->CreateFunctionMap(METHOD_WITH_NAME, empty);
   Map::SetPrototype(isolate(), map, async_function_prototype);
   native_context()->set_async_function_with_name_map(*map);
 }
@@ -2280,8 +2236,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
         InstallFunction(isolate_, global, "Function", JS_FUNCTION_TYPE,
                         JSFunctionWithPrototype::kMinSize, 0, prototype,
                         Builtin::kFunctionConstructor, 1, kDontAdapt);
-    // Function instances are sloppy by default.
-    function_fun->set_prototype_or_initial_map(*isolate_->sloppy_function_map(),
+    function_fun->set_prototype_or_initial_map(*isolate_->function_map(),
                                                kReleaseStore);
     InstallWithIntrinsicDefaultProto(isolate_, function_fun,
                                      Context::FUNCTION_FUNCTION_INDEX);
@@ -2321,19 +2276,11 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
     // Complete setting up function maps.
     {
-      isolate_->sloppy_function_map()->SetConstructor(*function_fun);
-      isolate_->sloppy_function_with_name_map()->SetConstructor(*function_fun);
-      isolate_->sloppy_function_with_readonly_prototype_map()->SetConstructor(
+      isolate_->function_map()->SetConstructor(*function_fun);
+      isolate_->function_with_name_map()->SetConstructor(*function_fun);
+      isolate_->function_with_readonly_prototype_map()->SetConstructor(
           *function_fun);
-      isolate_->sloppy_function_without_prototype_map()->SetConstructor(
-          *function_fun);
-
-      isolate_->strict_function_map()->SetConstructor(*function_fun);
-      isolate_->strict_function_with_name_map()->SetConstructor(*function_fun);
-      isolate_->strict_function_with_readonly_prototype_map()->SetConstructor(
-          *function_fun);
-      isolate_->strict_function_without_prototype_map()->SetConstructor(
-          *function_fun);
+      isolate_->function_without_prototype_map()->SetConstructor(*function_fun);
 
       isolate_->class_function_map()->SetConstructor(*function_fun);
     }
@@ -4835,8 +4782,9 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     CreateJSProxyMaps();
     // Proxy function map has prototype slot for storing initial map but does
     // not have a prototype property.
-    DirectHandle<Map> proxy_function_map = Map::Copy(
-        isolate_, isolate_->strict_function_without_prototype_map(), "Proxy");
+    DirectHandle<Map> proxy_function_map =
+        factory->CreateFunctionMap(FUNCTION_WITHOUT_PROTOTYPE, empty_function);
+    proxy_function_map->SetConstructor(native_context()->function_function());
     proxy_function_map->set_is_constructor(true);
 
     DirectHandle<String> name = factory->Proxy_string();
@@ -5856,8 +5804,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
     DirectHandle<String> name =
         isolate()->factory()->InternalizeUtf8String("SharedStructType");
     DirectHandle<JSFunction> shared_struct_type_fun = CreateFunctionForBuiltin(
-        isolate(), name,
-        isolate()->strict_function_with_readonly_prototype_map(),
+        isolate(), name, isolate()->function_with_readonly_prototype_map(),
         Builtin::kSharedStructTypeConstructor, 1, kDontAdapt);
     JSObject::MakePrototypesFast(shared_struct_type_fun, kStartAtReceiver,
                                  isolate());
@@ -7055,8 +7002,7 @@ Genesis::Genesis(Isolate* isolate,
     CreateRoots();
     MathRandom::InitializeContext(isolate, native_context());
     DirectHandle<JSFunction> empty_function = CreateEmptyFunction();
-    CreateSloppyModeFunctionMaps(empty_function);
-    CreateStrictModeFunctionMaps(empty_function);
+    CreateFunctionMaps(empty_function);
     CreateObjectFunction(empty_function);
     CreateIteratorMaps(empty_function);
     CreateAsyncIteratorMaps(empty_function);

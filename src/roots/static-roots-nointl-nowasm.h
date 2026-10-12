@@ -982,10 +982,8 @@ struct StaticReadOnlyRoot {
       ksealed_symbol + 16;
   static constexpr Tagged_t kshared_struct_map_registry_key_symbol =
       kshared_struct_map_elements_template_symbol + 16;
-  static constexpr Tagged_t kstrict_function_transition_symbol =
-      kshared_struct_map_registry_key_symbol + 16;
   static constexpr Tagged_t ktemplate_literal_function_literal_id_symbol =
-      kstrict_function_transition_symbol + 16;
+      kshared_struct_map_registry_key_symbol + 16;
   static constexpr Tagged_t ktemplate_literal_slot_id_symbol =
       ktemplate_literal_function_literal_id_symbol + 16;
   static constexpr Tagged_t kwasm_cross_instance_call_symbol =
@@ -1078,7 +1076,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x1a0189;
 };
 
-static constexpr std::array<Tagged_t, 884> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 883> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1884,7 +1882,6 @@ static constexpr std::array<Tagged_t, 884> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::ksealed_symbol,
     StaticReadOnlyRoot::kshared_struct_map_elements_template_symbol,
     StaticReadOnlyRoot::kshared_struct_map_registry_key_symbol,
-    StaticReadOnlyRoot::kstrict_function_transition_symbol,
     StaticReadOnlyRoot::ktemplate_literal_function_literal_id_symbol,
     StaticReadOnlyRoot::ktemplate_literal_slot_id_symbol,
     StaticReadOnlyRoot::kwasm_cross_instance_call_symbol,

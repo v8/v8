@@ -1640,16 +1640,14 @@ void Heap::CreateInitialMutableObjects() {
         isolate_, Builtin::kPromiseCapabilityDefaultResolve, 1,
         FunctionKind::kConciseMethod);
     info->set_native(true);
-    info->set_function_map_index(
-        Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+    info->set_function_map_index(Context::FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
     set_promise_capability_default_resolve_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(isolate_,
                                     Builtin::kPromiseCapabilityDefaultReject, 1,
                                     FunctionKind::kConciseMethod);
     info->set_native(true);
-    info->set_function_map_index(
-        Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+    info->set_function_map_index(Context::FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
     set_promise_capability_default_reject_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(

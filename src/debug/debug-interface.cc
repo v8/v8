@@ -1174,7 +1174,7 @@ Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin requested_builtin) {
   info->set_language_mode(i::LanguageMode::kStrict);
   i::Handle<i::JSFunction> fun =
       i::Factory::JSFunctionBuilder{isolate, info, context}
-          .set_map(isolate->strict_function_without_prototype_map())
+          .set_map(isolate->function_without_prototype_map())
           .Build();
 
   return Utils::ToLocal(handle_scope.CloseAndEscape(fun));

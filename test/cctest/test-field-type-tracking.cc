@@ -1565,7 +1565,7 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
       Factory* factory = isolate->factory();
       DirectHandle<String> name = factory->empty_string();
       DirectHandle<Map> sloppy_map =
-          Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
+          Map::CopyInitialMap(isolate, isolate->function_map());
       DirectHandle<SharedFunctionInfo> info =
           factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal, 0,
                                                    kDontAdapt);
@@ -2852,7 +2852,7 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
 
   DirectHandle<String> name = factory->empty_string();
   DirectHandle<Map> sloppy_map =
-      Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
+      Map::CopyInitialMap(isolate, isolate->function_map());
   DirectHandle<SharedFunctionInfo> info =
       factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal, 0,
                                                kDontAdapt);

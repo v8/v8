@@ -134,6 +134,18 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
+inline bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
+  return (function_mode & kWithPrototypeBits) != 0;
+}
+
+inline bool IsFunctionModeWithWritablePrototype(FunctionMode function_mode) {
+  return (function_mode & kWithWritablePrototypeBit) != 0;
+}
+
+inline bool IsFunctionModeWithName(FunctionMode function_mode) {
+  return (function_mode & kWithNameBit) != 0;
+}
+
 enum class ArrayStorageAllocationMode {
   DONT_INITIALIZE_ARRAY_ELEMENTS,
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
@@ -1131,24 +1143,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<InterpreterData> NewInterpreterData(
       DirectHandle<BytecodeArray> bytecode_array, DirectHandle<Code> code);
 
-  static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
-    return (function_mode & kWithPrototypeBits) != 0;
-  }
-
-  static bool IsFunctionModeWithWritablePrototype(FunctionMode function_mode) {
-    return (function_mode & kWithWritablePrototypeBit) != 0;
-  }
-
-  static bool IsFunctionModeWithName(FunctionMode function_mode) {
-    return (function_mode & kWithNameBit) != 0;
-  }
-
-  DirectHandle<Map> CreateSloppyFunctionMap(
+  DirectHandle<Map> CreateFunctionMap(
       FunctionMode function_mode,
-      MaybeDirectHandle<JSFunction> maybe_empty_function);
-
-  DirectHandle<Map> CreateStrictFunctionMap(
-      FunctionMode function_mode, DirectHandle<JSFunction> empty_function);
+      MaybeDirectHandle<JSFunction> maybe_empty_function = {});
 
   DirectHandle<Map> CreateClassFunctionMap(
       DirectHandle<JSFunction> empty_function);

@@ -1518,12 +1518,10 @@ void EnsureInitialMap(Isolate* isolate, DirectHandle<Map> map) {
   DCHECK((IsJSFunction(maybe_constructor) &&
           *map == Cast<JSFunction>(maybe_constructor)->initial_map()) ||
          // Below are the exceptions to the check above.
-         // |Function|'s initial map is a |sloppy_function_map| but
-         // other function map variants such as sloppy with name or readonly
-         // prototype or various strict function maps variants, etc. also
-         // have Function as a constructor.
-         *map == *isolate->strict_function_map() ||
-         *map == *isolate->strict_function_with_name_map() ||
+         // |Function|'s initial map is a |function_map| but other function map
+         // variants such as function with name or readonly prototype also have
+         // Function as a constructor.
+         *map == *isolate->function_with_name_map() ||
          // Same applies to |GeneratorFunction|'s initial map and generator
          // function map variants.
          *map == *isolate->generator_function_with_name_map() ||
@@ -1858,16 +1856,6 @@ Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, DirectHandle<Map> map,
   Handle<Map> new_map = Copy(isolate, map, "CopyAsElementsKind");
   new_map->set_elements_kind(kind);
   return new_map;
-}
-
-DirectHandle<Map> Map::AsLanguageMode(
-    Isolate* isolate, DirectHandle<Map> initial_map,
-    DirectHandle<SharedFunctionInfo> shared_info) {
-  DCHECK(InstanceTypeChecker::IsJSFunction(initial_map->instance_type()));
-  // TODO(https://crbug.com/414525205): Remove Map::AsLanguageMode and
-  // strict_function_transition_symbol now that strict and sloppy function maps
-  // have the same own descriptors.
-  return initial_map;
 }
 
 Handle<Map> Map::CopyForElementsTransition(Isolate* isolate,
@@ -2395,19 +2383,6 @@ bool Map::EquivalentToForTransition(
     if (*new_prototype != other->prototype()) return false;
   }
   if (new_target_is_base() != other->new_target_is_base()) return false;
-  if (InstanceTypeChecker::IsJSFunction(instance_type())) {
-    // JSFunctions require more checks to ensure that sloppy function is
-    // not equivalent to strict function.
-    int nof =
-        std::min(NumberOfOwnDescriptors(), other->NumberOfOwnDescriptors());
-    Tagged<DescriptorArray> this_descriptors =
-        IsConcurrent(cmode) ? instance_descriptors(kAcquireLoad)
-                            : instance_descriptors();
-    Tagged<DescriptorArray> that_descriptors =
-        IsConcurrent(cmode) ? other->instance_descriptors(kAcquireLoad)
-                            : other->instance_descriptors();
-    return this_descriptors->IsEqualUpTo(that_descriptors, nof);
-  }
   return true;
 }
 

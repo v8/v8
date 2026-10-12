@@ -1599,7 +1599,7 @@ DirectHandle<JSFunction> CreateFunctionForCompileTimeImport(
   auto [name, builtin, length] = NameBuiltinLength(wki);
   Factory* factory = isolate->factory();
   DirectHandle<NativeContext> context(isolate->native_context());
-  DirectHandle<Map> map = isolate->strict_function_without_prototype_map();
+  DirectHandle<Map> map = isolate->function_without_prototype_map();
   DirectHandle<String> name_str = factory->InternalizeUtf8String(name);
   DirectHandle<SharedFunctionInfo> info =
       factory->NewSharedFunctionInfoForBuiltin(name_str, builtin, length,
