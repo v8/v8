@@ -7016,9 +7016,45 @@ namespace {
 
 using KeepFlag = base::StrongAlias<struct KeepFlagTag, bool>;
 
+// Match `arg` against `flag`, normalizing '_' to '-' and accepting both '-'
+// and '--' for long flags (as well as "--nofoo" for "--no-foo"), matching
+// FlagList::SetFlagsFromCommandLine. Returns a pointer to the remainder of
+// `arg` after the matched flag name, or nullptr on mismatch.
+char* MatchFlagPrefix(char* arg, const char* flag) {
+  if (arg == nullptr || arg[0] != '-') return nullptr;
+  DCHECK_EQ('-', flag[0]);
+  ++flag;
+  ++arg;
+  auto normalize_char = [](char ch) { return ch == '_' ? '-' : ch; };
+  if (*flag == '-') {
+    ++flag;
+    // The "--" end-of-options separator requires a second '-'.
+    if (*flag == '\0') return *arg == '-' ? arg + 1 : nullptr;
+    // Long flags ("--foo") accept both "-" and "--" prefixes in `arg`.
+    if (*arg == '-') ++arg;
+    // Negated flags ("--no-foo") also accept "--nofoo" and "--no_foo".
+    if (flag[0] == 'n' && flag[1] == 'o' && flag[2] == '-' && arg[0] == 'n' &&
+        arg[1] == 'o') {
+      flag += 3;
+      arg += 2;
+      if (normalize_char(*arg) == '-') ++arg;
+    }
+  }
+  DCHECK_NE('\0', *flag);
+  // Match the remaining characters, normalizing '_' in `arg` to '-'.
+  while (*flag != '\0') {
+    DCHECK_NE('_', *flag);
+    if (normalize_char(*arg) != *flag) return nullptr;
+    ++flag;
+    ++arg;
+  }
+  return arg;
+}
+
 bool FlagMatches(const char* flag, char** arg,
                  KeepFlag keep_flag = KeepFlag{false}) {
-  if (strcmp(*arg, flag) == 0) {
+  const char* rest = MatchFlagPrefix(*arg, flag);
+  if (rest != nullptr && *rest == '\0') {
     if (!keep_flag) {
       *arg = nullptr;
     }
@@ -7027,23 +7063,19 @@ bool FlagMatches(const char* flag, char** arg,
   return false;
 }
 
-template <size_t N>
-bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
+bool FlagWithArgMatches(const char* flag, char** flag_value, int argc,
                         char* argv[], int* i,
                         KeepFlag keep_flag = KeepFlag{false}) {
-  char* current_arg = argv[*i];
-
-  // Compare the flag up to the last character of the flag name (not including
-  // the null terminator).
-  if (strncmp(current_arg, flag, N - 1) == 0) {
+  char* rest = MatchFlagPrefix(argv[*i], flag);
+  if (rest != nullptr) {
     // Match against --flag=value
-    if (current_arg[N - 1] == '=') {
-      *flag_value = argv[*i] + N;
+    if (*rest == '=') {
+      *flag_value = rest + 1;
       if (!keep_flag) argv[*i] = nullptr;
       return true;
     }
     // Match against --flag value
-    if (current_arg[N - 1] == '\0') {
+    if (*rest == '\0') {
       CHECK_LT(*i, argc - 1);
       if (!keep_flag) argv[*i] = nullptr;
       (*i)++;
@@ -7053,7 +7085,7 @@ bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
     }
   }
 
-  flag_value = nullptr;
+  *flag_value = nullptr;
   return false;
 }
 
@@ -7158,8 +7190,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.interactive_shell = true;
     } else if (FlagMatches("--test", &argv[i])) {
       options.test_shell = true;
-    } else if (FlagMatches("--notest", &argv[i]) ||
-               FlagMatches("--no-test", &argv[i])) {
+    } else if (FlagMatches("--no-test", &argv[i])) {
       options.test_shell = false;
     } else if (FlagMatches("--send-idle-notification", &argv[i])) {
       options.send_idle_notification = true;
@@ -7207,7 +7238,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                                   &i)) {
       options.icu_locale = flag_value;
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
-    } else if (FlagWithArgMatches("--snapshot_blob", &flag_value, argc, argv,
+    } else if (FlagWithArgMatches("--snapshot-blob", &flag_value, argc, argv,
                                   &i)) {
       options.snapshot_blob = flag_value;
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
@@ -7234,8 +7265,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       }
     } else if (FlagMatches("--streaming-compile", &argv[i])) {
       options.streaming_compile = true;
-    } else if ((FlagMatches("--no-streaming-compile", &argv[i])) ||
-               (FlagMatches("--nostreaming-compile", &argv[i]))) {
+    } else if (FlagMatches("--no-streaming-compile", &argv[i])) {
       options.streaming_compile = false;
     } else if (FlagMatches("--enable-tracing", &argv[i])) {
       options.trace_enabled = true;
