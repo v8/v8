@@ -260,7 +260,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     BIND(&next);
   }
 
-  void IndirectPointerWriteBarrier(SaveFPRegsMode fp_mode) {
+  void TrustedPointerWriteBarrier(SaveFPRegsMode fp_mode) {
     CSA_DCHECK(this, IsMarking());
 
     // For this barrier, the slot contains an index into a pointer table and not
@@ -268,15 +268,15 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     // with the trusted pointer tag of the slot, so it cannot directly be
     // dereferenced but needs to be decoded first.
     TNode<IntPtrT> slot = UncheckedParameter<IntPtrT>(
-        IndirectPointerWriteBarrierDescriptor::kSlotAddress);
+        TrustedPointerWriteBarrierDescriptor::kSlotAddress);
     TNode<IntPtrT> object = BitcastTaggedToWord(UncheckedParameter<Object>(
-        IndirectPointerWriteBarrierDescriptor::kObject));
+        TrustedPointerWriteBarrierDescriptor::kObject));
     TNode<IntPtrT> tag = UncheckedParameter<IntPtrT>(
-        IndirectPointerWriteBarrierDescriptor::kTrustedPointerTag);
+        TrustedPointerWriteBarrierDescriptor::kTrustedPointerTag);
 
     TNode<ExternalReference> function = ExternalConstant(
         ExternalReference::
-            write_barrier_indirect_pointer_marking_from_code_function());
+            write_barrier_trusted_pointer_marking_from_code_function());
     CallCFunctionWithCallerSavedRegisters(
         function, MachineTypeOf<Int32T>::value, fp_mode,
         std::make_pair(MachineTypeOf<IntPtrT>::value, object),
@@ -577,7 +577,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     Return(TrueConstant());
   }
 
-  void GenerateIndirectPointerBarrier(SaveFPRegsMode fp_mode) {
+  void GenerateTrustedPointerBarrier(SaveFPRegsMode fp_mode) {
     if (V8_DISABLE_WRITE_BARRIERS_BOOL) {
       Return(TrueConstant());
       return;
@@ -588,7 +588,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
       return;
     }
 
-    IndirectPointerWriteBarrier(fp_mode);
+    TrustedPointerWriteBarrier(fp_mode);
     IncrementCounter(isolate()->counters()->write_barriers(), 1);
     Return(TrueConstant());
   }
@@ -626,12 +626,12 @@ TF_BUILTIN(RecordWriteIgnoreFP, WriteBarrierCodeStubAssembler) {
   GenerateRecordWrite(SaveFPRegsMode::kIgnore);
 }
 
-TF_BUILTIN(IndirectPointerBarrierSaveFP, WriteBarrierCodeStubAssembler) {
-  GenerateIndirectPointerBarrier(SaveFPRegsMode::kSave);
+TF_BUILTIN(TrustedPointerBarrierSaveFP, WriteBarrierCodeStubAssembler) {
+  GenerateTrustedPointerBarrier(SaveFPRegsMode::kSave);
 }
 
-TF_BUILTIN(IndirectPointerBarrierIgnoreFP, WriteBarrierCodeStubAssembler) {
-  GenerateIndirectPointerBarrier(SaveFPRegsMode::kIgnore);
+TF_BUILTIN(TrustedPointerBarrierIgnoreFP, WriteBarrierCodeStubAssembler) {
+  GenerateTrustedPointerBarrier(SaveFPRegsMode::kIgnore);
 }
 
 TF_BUILTIN(EphemeronKeyBarrierSaveFP, WriteBarrierCodeStubAssembler) {

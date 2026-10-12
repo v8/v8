@@ -282,8 +282,8 @@ void BodyDescriptorBase::IterateTrustedPointer(
     Tagged<HeapObject> obj, int offset, ObjectVisitor* v,
     TrustedPointerMode mode, TrustedPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  v->VisitIndirectPointer(obj, obj->RawIndirectPointerField(offset, tag_range),
-                          mode);
+  v->VisitTrustedPointer(obj, obj->RawTrustedPointerField(offset, tag_range),
+                         mode);
 #else
   if (mode == TrustedPointerMode::kStrong) {
     IteratePointer(obj, offset, v);
@@ -298,7 +298,7 @@ void BodyDescriptorBase::IterateTrustedPointer(
     Tagged<HeapObject> obj, TrustedPointerMember<T, kTagRange>* member,
     ObjectVisitor* v, TrustedPointerMode mode) {
 #ifdef V8_ENABLE_SANDBOX
-  v->VisitIndirectPointer(obj, IndirectPointerSlot(member), mode);
+  v->VisitTrustedPointer(obj, TrustedPointerSlot(member), mode);
 #else
   if (mode == TrustedPointerMode::kStrong) {
     v->VisitPointer(obj, ObjectSlot(member));
@@ -330,7 +330,7 @@ void BodyDescriptorBase::IterateSelfTrustedPointer(
 #ifdef V8_ENABLE_SANDBOX
   v->VisitTrustedPointerTableEntry(
       obj,
-      obj->RawIndirectPointerField(
+      obj->RawTrustedPointerField(
           offsetof(ExposedTrustedObject, self_trusted_pointer_), tag_range));
 #endif
 }

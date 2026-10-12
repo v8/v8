@@ -100,7 +100,7 @@ class SlotAccessorForHeapObject {
     return Write(*value, ref_type, slot_offset, mode);
   }
 
-  int WriteIndirectPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
+  int WriteTrustedPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
     // Only ExposedTrustedObjects can be referenced via indirect pointers, so
     // we must have one of these objects here. See the comments in
     // trusted-object.h for more details.
@@ -112,10 +112,10 @@ class SlotAccessorForHeapObject {
     SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(value));
     TrustedPointerTag tag =
         TrustedPointerTagFromInstanceType(instance_type, shared);
-    IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_, tag);
+    TrustedPointerSlot dest = object_->RawTrustedPointerField(offset_, tag);
     dest.store(object);
 
-    WriteBarrier::ForIndirectPointer(*object_, dest, value, mode);
+    WriteBarrier::ForTrustedPointer(*object_, dest, value, mode);
     return 1;
   }
 
@@ -165,7 +165,7 @@ class SlotAccessorForRootSlots {
             int slot_offset, WriteBarrierMode mode) {
     return Write(*value, ref_type, slot_offset, mode);
   }
-  int WriteIndirectPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
+  int WriteTrustedPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
     UNREACHABLE();
   }
   int WriteProtectedPointerTo(Tagged<TrustedObject> value,
@@ -209,7 +209,7 @@ class SlotAccessorForHandle {
     *handle_ = value;
     return 1;
   }
-  int WriteIndirectPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
+  int WriteTrustedPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
     UNREACHABLE();
   }
   int WriteProtectedPointerTo(Tagged<TrustedObject> value,
@@ -229,7 +229,7 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
                                              ReferenceDescriptor descr,
                                              WriteBarrierMode mode) {
   if (descr.is_indirect_pointer) {
-    return slot_accessor.WriteIndirectPointerTo(heap_object, mode);
+    return slot_accessor.WriteTrustedPointerTo(heap_object, mode);
   } else {
     return slot_accessor.Write(heap_object, descr.type, 0, mode);
   }
@@ -241,7 +241,7 @@ int Deserializer<IsolateT>::WriteHeapPointer(
     SlotAccessor slot_accessor, DirectHandle<HeapObject> heap_object,
     ReferenceDescriptor descr, WriteBarrierMode mode) {
   if (descr.is_indirect_pointer) {
-    return slot_accessor.WriteIndirectPointerTo(*heap_object, mode);
+    return slot_accessor.WriteTrustedPointerTo(*heap_object, mode);
   } else if (descr.is_protected_pointer) {
     DCHECK(IsTrustedObject(*heap_object));
     return slot_accessor.WriteProtectedPointerTo(

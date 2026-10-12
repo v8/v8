@@ -1988,7 +1988,7 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   }
   // We can't use ReadTrustedPointerField here because the tag is not a
   // compile-time constant.
-  IndirectPointerSlot slot = RawIndirectPointerField(
+  TrustedPointerSlot slot = RawTrustedPointerField(
       offsetof(ExposedTrustedObject, self_trusted_pointer_), tag);
   Tagged<Object> self = slot.load(isolate);
   CHECK_EQ(self, this);

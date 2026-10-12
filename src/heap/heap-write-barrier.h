@@ -73,8 +73,8 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                                                Address key_slot_address,
                                                Isolate* isolate);
   static int MarkingFromCode(Address raw_host, Address raw_slot);
-  static int IndirectPointerMarkingFromCode(Address raw_host, Address raw_slot,
-                                            Address raw_tag);
+  static int TrustedPointerMarkingFromCode(Address raw_host, Address raw_slot,
+                                           Address raw_tag);
   static int SharedMarkingFromCode(Address raw_host, Address raw_slot);
   static int SharedFromCode(Address raw_host, Address raw_slot);
 
@@ -103,11 +103,11 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
       Tagged<HeapObject> host, ExternalPointerSlot slot,
       ExternalPointerHandle handle,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  static inline void ForIndirectPointer(
-      Tagged<HeapObject> host, IndirectPointerSlot slot,
+  static inline void ForTrustedPointer(
+      Tagged<HeapObject> host, TrustedPointerSlot slot,
       Tagged<HeapObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   template <typename T, TrustedPointerTagRange kTagRange>
-  static inline void ForIndirectPointer(
+  static inline void ForTrustedPointer(
       HeapObject* host, TrustedPointerMember<T, kTagRange>* slot,
       Tagged<T> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   static inline void ForProtectedPointer(
@@ -203,7 +203,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                                          RelocInfo*, Tagged<HeapObject> value);
   static inline void Marking(Tagged<HeapObject> host, ExternalPointerSlot slot,
                              ExternalPointerHandle handle);
-  static inline void Marking(Tagged<HeapObject> host, IndirectPointerSlot slot);
+  static inline void Marking(Tagged<HeapObject> host, TrustedPointerSlot slot);
   static inline void Marking(Tagged<TrustedObject> host,
                              ProtectedPointerSlot slot,
                              Tagged<TrustedObject> value);
@@ -219,8 +219,8 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(
       Tagged<HeapObject> host, ExternalPointerSlot slot,
       ExternalPointerHandle handle);
-  V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(
-      Tagged<HeapObject> host, IndirectPointerSlot slot);
+  V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(Tagged<HeapObject> host,
+                                                       TrustedPointerSlot slot);
   V8_NOINLINE V8_PRESERVE_MOST static void MarkingSlow(
       Tagged<TrustedObject> host, ProtectedPointerSlot slot,
       Tagged<TrustedObject> value);

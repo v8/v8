@@ -190,8 +190,8 @@ class Deserializer : public SerializerDeserializer {
   inline int WriteExternalPointer(Tagged<HeapObject> host,
                                   ExternalPointerSlot dest, Address value,
                                   ExternalPointerTag tag);
-  inline int WriteIndirectPointer(IndirectPointerSlot dest,
-                                  Tagged<HeapObject> value);
+  inline int WriteTrustedPointer(TrustedPointerSlot dest,
+                                 Tagged<HeapObject> value);
 
   // Fills in a heap object's data from start to end (exclusive). Start and end
   // are slot indices within the object.

@@ -369,33 +369,33 @@ void CppHeapPointerSlot::RestoreContentAfterSerialization(
 #endif  // V8_COMPRESS_POINTERS
 }
 
-Tagged<Object> IndirectPointerSlot::load(IsolateForSandbox isolate) const {
+Tagged<Object> TrustedPointerSlot::load(IsolateForSandbox isolate) const {
   return Relaxed_Load(isolate);
 }
 
-void IndirectPointerSlot::store(Tagged<ExposedTrustedObject> value) const {
+void TrustedPointerSlot::store(Tagged<ExposedTrustedObject> value) const {
   return Relaxed_Store(value);
 }
 
-Tagged<Object> IndirectPointerSlot::Relaxed_Load(
+Tagged<Object> TrustedPointerSlot::Relaxed_Load(
     IsolateForSandbox isolate) const {
   TrustedPointerHandle handle = Relaxed_LoadHandle();
   return ResolveHandle(handle, isolate);
 }
 
-Tagged<Object> IndirectPointerSlot::Relaxed_Load_AllowUnpublished(
+Tagged<Object> TrustedPointerSlot::Relaxed_Load_AllowUnpublished(
     IsolateForSandbox isolate) const {
   TrustedPointerHandle handle = Relaxed_LoadHandle();
   return ResolveHandle<kAllowUnpublishedEntries>(handle, isolate);
 }
 
-Tagged<Object> IndirectPointerSlot::Acquire_Load(
+Tagged<Object> TrustedPointerSlot::Acquire_Load(
     IsolateForSandbox isolate) const {
   TrustedPointerHandle handle = Acquire_LoadHandle();
   return ResolveHandle(handle, isolate);
 }
 
-void IndirectPointerSlot::Relaxed_Store(
+void TrustedPointerSlot::Relaxed_Store(
     Tagged<ExposedTrustedObject> value) const {
 #ifdef V8_ENABLE_SANDBOX
   TrustedPointerHandle handle = value->ReadField<TrustedPointerHandle>(
@@ -407,7 +407,7 @@ void IndirectPointerSlot::Relaxed_Store(
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void IndirectPointerSlot::Release_Store(
+void TrustedPointerSlot::Release_Store(
     Tagged<ExposedTrustedObject> value) const {
 #ifdef V8_ENABLE_SANDBOX
   TrustedPointerHandle handle = value->ReadField<TrustedPointerHandle>(
@@ -418,30 +418,30 @@ void IndirectPointerSlot::Release_Store(
 #endif  // V8_ENABLE_SANDBOX
 }
 
-TrustedPointerHandle IndirectPointerSlot::Relaxed_LoadHandle() const {
+TrustedPointerHandle TrustedPointerSlot::Relaxed_LoadHandle() const {
   return base::AsAtomic32::Relaxed_Load(location());
 }
 
-TrustedPointerHandle IndirectPointerSlot::Acquire_LoadHandle() const {
+TrustedPointerHandle TrustedPointerSlot::Acquire_LoadHandle() const {
   return base::AsAtomic32::Acquire_Load(location());
 }
 
-void IndirectPointerSlot::Relaxed_StoreHandle(
+void TrustedPointerSlot::Relaxed_StoreHandle(
     TrustedPointerHandle handle) const {
   return base::AsAtomic32::Relaxed_Store(location(), handle);
 }
 
-void IndirectPointerSlot::Release_StoreHandle(
+void TrustedPointerSlot::Release_StoreHandle(
     TrustedPointerHandle handle) const {
   return base::AsAtomic32::Release_Store(location(), handle);
 }
 
-bool IndirectPointerSlot::IsEmpty() const {
+bool TrustedPointerSlot::IsEmpty() const {
   return Relaxed_LoadHandle() == kNullTrustedPointerHandle;
 }
 
-template <IndirectPointerSlot::TagCheckStrictness allow_unpublished>
-Tagged<Object> IndirectPointerSlot::ResolveHandle(
+template <TrustedPointerSlot::TagCheckStrictness allow_unpublished>
+Tagged<Object> TrustedPointerSlot::ResolveHandle(
     TrustedPointerHandle handle, IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
   // TODO(saelo) Maybe come up with a different entry encoding scheme that
@@ -455,8 +455,8 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
 }
 
 #ifdef V8_ENABLE_SANDBOX
-template <IndirectPointerSlot::TagCheckStrictness allow_unpublished>
-Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
+template <TrustedPointerSlot::TagCheckStrictness allow_unpublished>
+Tagged<Object> TrustedPointerSlot::ResolveTrustedPointerHandle(
     TrustedPointerHandle handle, IsolateForSandbox isolate) const {
   DCHECK_NE(handle, kNullTrustedPointerHandle);
   const TrustedPointerTable& table =

@@ -487,10 +487,10 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
 
   void VisitExternalPointer(Tagged<HeapObject> host,
                             ExternalPointerSlot slot) override;
-  void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                            TrustedPointerMode mode) override;
+  void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
+                           TrustedPointerMode mode) override;
   void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                     IndirectPointerSlot slot) override;
+                                     TrustedPointerSlot slot) override;
   void VisitProtectedPointer(Tagged<TrustedObject> host,
                              ProtectedPointerSlot slot) override;
   void VisitProtectedPointer(Tagged<TrustedObject> host,

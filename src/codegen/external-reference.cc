@@ -465,8 +465,8 @@ FUNCTION_REFERENCE(ieee754_fp16_raw_bits_to_fp32_raw_bits,
 FUNCTION_REFERENCE(write_barrier_marking_from_code_function,
                    WriteBarrier::MarkingFromCode)
 
-FUNCTION_REFERENCE(write_barrier_indirect_pointer_marking_from_code_function,
-                   WriteBarrier::IndirectPointerMarkingFromCode)
+FUNCTION_REFERENCE(write_barrier_trusted_pointer_marking_from_code_function,
+                   WriteBarrier::TrustedPointerMarkingFromCode)
 
 FUNCTION_REFERENCE(write_barrier_shared_marking_from_code_function,
                    WriteBarrier::SharedMarkingFromCode)
@@ -480,8 +480,8 @@ FUNCTION_REFERENCE(insert_remembered_set_function,
 FUNCTION_REFERENCE(verify_skipped_write_barrier,
                    Heap::VerifySkippedWriteBarrier)
 
-FUNCTION_REFERENCE(verify_skipped_indirect_write_barrier,
-                   Heap::VerifySkippedIndirectWriteBarrier)
+FUNCTION_REFERENCE(verify_skipped_trusted_write_barrier,
+                   Heap::VerifySkippedTrustedWriteBarrier)
 
 namespace {
 

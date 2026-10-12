@@ -1079,7 +1079,7 @@ class FunctionAnalyzer {
                    clang::CXXRecordDecl* cpp_heap_pointer_member_decl,
                    clang::CXXRecordDecl* external_pointer_slot_decl,
                    clang::CXXRecordDecl* cpp_heap_pointer_slot_decl,
-                   clang::CXXRecordDecl* indirect_pointer_slot_decl,
+                   clang::CXXRecordDecl* trusted_pointer_slot_decl,
                    clang::ClassTemplateDecl* tagged_member_decl,
                    clang::ClassTemplateDecl* unaligned_value_member_decl,
                    clang::CXXRecordDecl* unaligned_double_member_decl,
@@ -1102,7 +1102,7 @@ class FunctionAnalyzer {
         cpp_heap_pointer_member_decl_(cpp_heap_pointer_member_decl),
         external_pointer_slot_decl_(external_pointer_slot_decl),
         cpp_heap_pointer_slot_decl_(cpp_heap_pointer_slot_decl),
-        indirect_pointer_slot_decl_(indirect_pointer_slot_decl),
+        trusted_pointer_slot_decl_(trusted_pointer_slot_decl),
         tagged_member_decl_(tagged_member_decl),
         unaligned_value_member_decl_(unaligned_value_member_decl),
         unaligned_double_member_decl_(unaligned_double_member_decl),
@@ -1883,8 +1883,8 @@ class FunctionAnalyzer {
          canonical == external_pointer_slot_decl_) ||
         (cpp_heap_pointer_slot_decl_ &&
          canonical == cpp_heap_pointer_slot_decl_) ||
-        (indirect_pointer_slot_decl_ &&
-         canonical == indirect_pointer_slot_decl_) ||
+        (trusted_pointer_slot_decl_ &&
+         canonical == trusted_pointer_slot_decl_) ||
         (unaligned_double_member_decl_ &&
          canonical == unaligned_double_member_decl_)) {
       return true;
@@ -2181,7 +2181,7 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* cpp_heap_pointer_member_decl_;
   clang::CXXRecordDecl* external_pointer_slot_decl_;
   clang::CXXRecordDecl* cpp_heap_pointer_slot_decl_;
-  clang::CXXRecordDecl* indirect_pointer_slot_decl_;
+  clang::CXXRecordDecl* trusted_pointer_slot_decl_;
   clang::ClassTemplateDecl* tagged_member_decl_;
   clang::ClassTemplateDecl* unaligned_value_member_decl_;
   clang::CXXRecordDecl* unaligned_double_member_decl_;
@@ -2367,8 +2367,8 @@ class ProblemsFinder : public clang::ASTConsumer,
     clang::CXXRecordDecl* cpp_heap_pointer_slot_decl =
         v8_internal.Resolve<clang::CXXRecordDecl>("CppHeapPointerSlot");
 
-    clang::CXXRecordDecl* indirect_pointer_slot_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("IndirectPointerSlot");
+    clang::CXXRecordDecl* trusted_pointer_slot_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("TrustedPointerSlot");
 
     clang::ClassTemplateDecl* tagged_member_decl =
         v8_internal.Resolve<clang::ClassTemplateDecl>("TaggedMember");
@@ -2444,9 +2444,8 @@ class ProblemsFinder : public clang::ASTConsumer,
           cpp_heap_pointer_slot_decl->getCanonicalDecl();
     }
 
-    if (indirect_pointer_slot_decl != nullptr) {
-      indirect_pointer_slot_decl =
-          indirect_pointer_slot_decl->getCanonicalDecl();
+    if (trusted_pointer_slot_decl != nullptr) {
+      trusted_pointer_slot_decl = trusted_pointer_slot_decl->getCanonicalDecl();
     }
 
     if (tagged_member_decl != nullptr) {
@@ -2473,7 +2472,7 @@ class ProblemsFinder : public clang::ASTConsumer,
           js_dispatch_handle_member_decl, external_pointer_member_decl,
           trusted_pointer_member_decl, cpp_heap_pointer_member_decl,
           external_pointer_slot_decl, cpp_heap_pointer_slot_decl,
-          indirect_pointer_slot_decl, tagged_member_decl,
+          trusted_pointer_slot_decl, tagged_member_decl,
           unaligned_value_member_decl, unaligned_double_member_decl,
           no_gc_mole_decl, conservative_pinning_scope_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());

@@ -227,8 +227,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH,     \
                                 ASM)                                           \
   /* GC write barriers */                                                      \
-  TFC(IndirectPointerBarrierSaveFP, IndirectPointerWriteBarrier)               \
-  TFC(IndirectPointerBarrierIgnoreFP, IndirectPointerWriteBarrier)             \
+  TFC(TrustedPointerBarrierSaveFP, TrustedPointerWriteBarrier)                 \
+  TFC(TrustedPointerBarrierIgnoreFP, TrustedPointerWriteBarrier)               \
                                                                                \
   /* Adaptors for CPP builtins with various formal parameter counts. */        \
   /* We split these versions for simplicity (not all architectures have */     \

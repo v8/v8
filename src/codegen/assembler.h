@@ -288,12 +288,12 @@ class SlotDescriptor {
     return trusted_pointer_tag_ == kTrustedPointerNullTag;
   }
 
-  bool contains_indirect_pointer() const {
+  bool contains_trusted_pointer() const {
     return trusted_pointer_tag_ != kTrustedPointerNullTag;
   }
 
   TrustedPointerTag trusted_pointer_tag() const {
-    DCHECK(contains_indirect_pointer());
+    DCHECK(contains_trusted_pointer());
     return trusted_pointer_tag_;
   }
 
@@ -301,13 +301,9 @@ class SlotDescriptor {
     return SlotDescriptor(kTrustedPointerNullTag);
   }
 
-  static SlotDescriptor ForIndirectPointerSlot(TrustedPointerTag tag) {
-    return SlotDescriptor(tag);
-  }
-
   static SlotDescriptor ForTrustedPointerSlot(TrustedPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-    return ForIndirectPointerSlot(tag);
+    return SlotDescriptor(tag);
 #else
     return ForDirectPointerSlot();
 #endif

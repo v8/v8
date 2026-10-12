@@ -2720,10 +2720,10 @@ void TranslatedState::InitializeJSObjectAt(
         value = CheckedCast<RegExpData>(*field_value);
       }
       object_storage
-          ->RawIndirectPointerField(offset, kRegExpDataTrustedPointerTag)
+          ->RawTrustedPointerField(offset, kRegExpDataTrustedPointerTag)
           .Relaxed_Store(value);
-      INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset,
-                                     kRegExpDataTrustedPointerTag, value);
+      TRUSTED_POINTER_WRITE_BARRIER(*object_storage, offset,
+                                    kRegExpDataTrustedPointerTag, value);
       continue;
     }
 #endif  // V8_ENABLE_SANDBOX

@@ -457,8 +457,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       // We must have a valid trusted pointer tag here. Otherwise, we risk not
       // invoking the correct write barrier, which may lead to subtle issues.
       CHECK(IsValidTrustedPointerTag(trusted_pointer_tag_));
-      __ CallIndirectPointerBarrier(object_, scratch1_, save_fp_mode,
-                                    trusted_pointer_tag_);
+      __ CallTrustedPointerBarrier(object_, scratch1_, save_fp_mode,
+                                   trusted_pointer_tag_);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -521,10 +521,10 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
   Zone* zone_;
 };
 
-class OutOfLineVerifySkippedIndirectWriteBarrier final : public OutOfLineCode {
+class OutOfLineVerifySkippedTrustedWriteBarrier final : public OutOfLineCode {
  public:
-  OutOfLineVerifySkippedIndirectWriteBarrier(CodeGenerator* gen,
-                                             Register object, Register value)
+  OutOfLineVerifySkippedTrustedWriteBarrier(CodeGenerator* gen, Register object,
+                                            Register value)
       : OutOfLineCode(gen),
         object_(object),
         value_(value),
@@ -535,8 +535,8 @@ class OutOfLineVerifySkippedIndirectWriteBarrier final : public OutOfLineCode {
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
-    __ CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(object_, value_,
-                                                              save_fp_mode);
+    __ CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(object_, value_,
+                                                             save_fp_mode);
   }
 
  private:
@@ -2214,7 +2214,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif  // DEBUG
 
       DCHECK(v8_flags.verify_write_barriers);
-      auto ool = zone()->New<OutOfLineVerifySkippedIndirectWriteBarrier>(
+      auto ool = zone()->New<OutOfLineVerifySkippedTrustedWriteBarrier>(
           this, object, value);
       __ jmp(ool->entry());
       __ bind(ool->exit());

@@ -489,8 +489,8 @@ WasmInstanceObject::trusted_data_allow_unpublished(
     IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
   Tagged<Object> obj =
-      RawIndirectPointerField(offsetof(WasmInstanceObject, trusted_data_),
-                              kWasmTrustedInstanceDataTrustedPointerTag)
+      RawTrustedPointerField(offsetof(WasmInstanceObject, trusted_data_),
+                             kWasmTrustedInstanceDataTrustedPointerTag)
           .Relaxed_Load_AllowUnpublished(isolate);
   return TrustedCast<WasmTrustedInstanceData>(obj);
 #else

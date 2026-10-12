@@ -1090,7 +1090,7 @@ class Heap final {
                                              size_t slot_offset);
 
   static void VerifySkippedWriteBarrier(Address object, Address value);
-  static void VerifySkippedIndirectWriteBarrier(Address object);
+  static void VerifySkippedTrustedWriteBarrier(Address object);
 
 #ifdef DEBUG
   void VerifySlotRangeHasNoRecordedSlots(Address start, Address end);

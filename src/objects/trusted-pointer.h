@@ -173,7 +173,7 @@ class TrustedPointerMember
 
  private:
 #ifdef V8_ENABLE_SANDBOX
-  friend class IndirectPointerSlot;
+  friend class TrustedPointerSlot;
 
   inline Address storage_address() const;
 

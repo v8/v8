@@ -314,9 +314,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitCppHeapPointer(
 }
 
 template <typename ConcreteVisitor>
-void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
-    Tagged<HeapObject> host, IndirectPointerSlot slot,
-    TrustedPointerMode mode) {
+void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointer(
+    Tagged<HeapObject> host, TrustedPointerSlot slot, TrustedPointerMode mode) {
 #ifdef V8_ENABLE_SANDBOX
   if (mode == TrustedPointerMode::kStrong) {
     // Load the referenced object (if the slot is initialized) and mark it as
@@ -343,7 +342,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
 
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
-    Tagged<HeapObject> host, IndirectPointerSlot slot) {
+    Tagged<HeapObject> host, TrustedPointerSlot slot) {
   concrete_visitor()->MarkPointerTableEntry(host, slot);
 }
 
@@ -481,9 +480,9 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
     // If the SharedFunctionInfo doesn't have old bytecode visit the function
     // data strongly.
 #ifdef V8_ENABLE_SANDBOX
-    VisitIndirectPointer(
+    VisitTrustedPointer(
         shared_info,
-        shared_info->RawIndirectPointerField(
+        shared_info->RawTrustedPointerField(
             offsetof(SharedFunctionInfo, trusted_function_data_),
             SharedFunctionInfo::kTrustedDataTrustedPointerRange),
         TrustedPointerMode::kStrong);
@@ -847,7 +846,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitTransitionArray(
 
 template <typename ConcreteVisitor>
 void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
-    Tagged<HeapObject> host, IndirectPointerSlot slot) {
+    Tagged<HeapObject> host, TrustedPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
   TrustedPointerTagRange tag_range = slot.tag_range();
 

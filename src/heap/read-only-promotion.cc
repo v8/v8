@@ -370,8 +370,8 @@ class Committee final {
       VisitPointers(host, slot, slot + 1);
     }
 #ifdef V8_ENABLE_SANDBOX
-    void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                              TrustedPointerMode mode) final {
+    void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
+                             TrustedPointerMode mode) final {
       if (!all_slots_are_promo_candidates()) return;
       TrustedPointerHandle handle = slot.Relaxed_LoadHandle();
       if (handle == kNullTrustedPointerHandle) return;
@@ -633,14 +633,14 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       }
 #endif  // V8_ENABLE_SANDBOX
     }
-    void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                              TrustedPointerMode mode) final {
+    void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
+                             TrustedPointerMode mode) final {
 #ifdef V8_ENABLE_SANDBOX
       VisitCodePointer(host, slot);
 #endif  // V8_ENABLE_SANDBOX
     }
     void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                       IndirectPointerSlot slot) final {
+                                       TrustedPointerSlot slot) final {
 #ifdef V8_ENABLE_SANDBOX
       VisitCodePointer(host, slot);
 #endif  // V8_ENABLE_SANDBOX
@@ -698,7 +698,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     }
 
 #ifdef V8_ENABLE_SANDBOX
-    void VisitCodePointer(Tagged<HeapObject> host, IndirectPointerSlot slot) {
+    void VisitCodePointer(Tagged<HeapObject> host, TrustedPointerSlot slot) {
       TrustedPointerHandle old_handle = slot.Relaxed_LoadHandle();
       if (old_handle == kNullTrustedPointerHandle) return;
 
@@ -745,7 +745,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       TrustedPointerTag tag =
           TrustedPointerTagFromInstanceType(instance_type, shared);
 
-      IndirectPointerSlot slot = obj->RawIndirectPointerField(
+      TrustedPointerSlot slot = obj->RawTrustedPointerField(
           offsetof(ExposedTrustedObject, self_trusted_pointer_), tag);
 
       TrustedPointerHandle old_handle = slot.Relaxed_LoadHandle();
@@ -807,7 +807,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
                 << reinterpret_cast<void*>(slot_value) << "}\n";
     }
     void LogUpdatedCodePointerTableEntry(Tagged<HeapObject> host,
-                                         IndirectPointerSlot slot,
+                                         TrustedPointerSlot slot,
                                          TrustedPointerHandle old_handle,
                                          TrustedPointerHandle new_handle) {
       std::cout << "ro-promotion: updated code pointer table entry {host "

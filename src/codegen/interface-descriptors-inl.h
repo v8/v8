@@ -331,26 +331,25 @@ constexpr RegList WriteBarrierDescriptor::ComputeSavedRegisters(
 }
 
 // static
-constexpr auto IndirectPointerWriteBarrierDescriptor::registers() {
+constexpr auto TrustedPointerWriteBarrierDescriptor::registers() {
   return WriteBarrierDescriptor::registers();
 }
 // static
-constexpr Register IndirectPointerWriteBarrierDescriptor::ObjectRegister() {
+constexpr Register TrustedPointerWriteBarrierDescriptor::ObjectRegister() {
   return std::get<kObject>(registers());
 }
 // static
-constexpr Register
-IndirectPointerWriteBarrierDescriptor::SlotAddressRegister() {
+constexpr Register TrustedPointerWriteBarrierDescriptor::SlotAddressRegister() {
   return std::get<kSlotAddress>(registers());
 }
 // static
 constexpr Register
-IndirectPointerWriteBarrierDescriptor::TrustedPointerTagRegister() {
+TrustedPointerWriteBarrierDescriptor::TrustedPointerTagRegister() {
   return std::get<kTrustedPointerTag>(registers());
 }
 
 // static
-constexpr RegList IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(
+constexpr RegList TrustedPointerWriteBarrierDescriptor::ComputeSavedRegisters(
     Register object, Register slot_address) {
   DCHECK(!AreAliased(object, slot_address));
   // This write barrier behaves identical to the generic one, except that it

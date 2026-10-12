@@ -259,7 +259,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                         ValueIsCompressed value_is_compressed,
                                         ValueCanBeSmi value_can_be_smi);
 
-  void CheckAndEmitDeferredIndirectPointerWriteBarrier(
+  void CheckAndEmitDeferredTrustedPointerWriteBarrier(
       Register object, int offset, Register value,
       RegisterSnapshot register_snapshot, TrustedPointerTag tag);
 

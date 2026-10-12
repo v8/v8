@@ -4188,22 +4188,21 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
   MaybeRestoreRegisters(registers);
 }
 
-void MacroAssembler::CallIndirectPointerBarrier(Register object, Operand offset,
-                                                SaveFPRegsMode fp_mode,
-                                                TrustedPointerTag tag) {
+void MacroAssembler::CallTrustedPointerBarrier(Register object, Operand offset,
+                                               SaveFPRegsMode fp_mode,
+                                               TrustedPointerTag tag) {
   ASM_CODE_COMMENT(this);
   RegList registers =
-      IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
+      TrustedPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
   MaybeSaveRegisters(registers);
 
-  MoveObjectAndSlot(
-      IndirectPointerWriteBarrierDescriptor::ObjectRegister(),
-      IndirectPointerWriteBarrierDescriptor::SlotAddressRegister(), object,
-      offset);
-  Mov(IndirectPointerWriteBarrierDescriptor::TrustedPointerTagRegister(),
+  MoveObjectAndSlot(TrustedPointerWriteBarrierDescriptor::ObjectRegister(),
+                    TrustedPointerWriteBarrierDescriptor::SlotAddressRegister(),
+                    object, offset);
+  Mov(TrustedPointerWriteBarrierDescriptor::TrustedPointerTagRegister(),
       Operand(tag));
 
-  CallBuiltin(Builtins::IndirectPointerBarrier(fp_mode));
+  CallBuiltin(Builtins::TrustedPointerBarrier(fp_mode));
   MaybeRestoreRegisters(registers);
 }
 
@@ -4260,19 +4259,19 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
                 SetIsolateDataSlots::kNo);
 }
 
-void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+void MacroAssembler::CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(
     Register object, Register value, SaveFPRegsMode fp_mode) {
   ASM_CODE_COMMENT(this);
   PushCallerSaved(fp_mode);
-  CallVerifySkippedIndirectWriteBarrierStub(object, value);
+  CallVerifySkippedTrustedWriteBarrierStub(object, value);
   PopCallerSaved(fp_mode);
 }
 
-void MacroAssembler::CallVerifySkippedIndirectWriteBarrierStub(Register object,
-                                                               Register value) {
+void MacroAssembler::CallVerifySkippedTrustedWriteBarrierStub(Register object,
+                                                              Register value) {
   ASM_CODE_COMMENT(this);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
-  CallCFunction(ExternalReference::verify_skipped_indirect_write_barrier(), 2,
+  CallCFunction(ExternalReference::verify_skipped_trusted_write_barrier(), 2,
                 SetIsolateDataSlots::kNo);
 }
 
@@ -4328,7 +4327,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Register temp = temps.AcquireX();
     DCHECK(!AreAliased(object, value, temp));
     Add(temp, object, offset);
-    if (slot.contains_indirect_pointer()) {
+    if (slot.contains_trusted_pointer()) {
       LoadIndirectPointerField(temp, MemOperand(temp),
                                slot.trusted_pointer_tag());
     } else {
@@ -4357,7 +4356,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     JumpIfSmi(value, &done);
   }
 
-  if (slot.contains_indirect_pointer()) {
+  if (slot.contains_trusted_pointer()) {
     // The indirect pointer write barrier is only enabled during marking.
     JumpIfNotMarking(&done);
   } else {
@@ -4381,9 +4380,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     CallRecordWriteStub(object, slot_address, fp_mode,
                         StubCallMode::kCallBuiltinPointer);
   } else {
-    DCHECK(slot.contains_indirect_pointer());
-    CallIndirectPointerBarrier(object, offset, fp_mode,
-                               slot.trusted_pointer_tag());
+    DCHECK(slot.contains_trusted_pointer());
+    CallTrustedPointerBarrier(object, offset, fp_mode,
+                              slot.trusted_pointer_tag());
   }
   if (lr_status == kLRHasNotBeenSaved) {
     Pop<MacroAssembler::kAuthLR>(lr, padreg);

@@ -537,22 +537,21 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
   MaybeRestoreRegisters(registers);
 }
 
-void MacroAssembler::CallIndirectPointerBarrier(Register object, Operand offset,
-                                                SaveFPRegsMode fp_mode,
-                                                TrustedPointerTag tag) {
+void MacroAssembler::CallTrustedPointerBarrier(Register object, Operand offset,
+                                               SaveFPRegsMode fp_mode,
+                                               TrustedPointerTag tag) {
   ASM_CODE_COMMENT(this);
   RegList registers =
-      IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
+      TrustedPointerWriteBarrierDescriptor::ComputeSavedRegisters(object);
   MaybeSaveRegisters(registers);
 
-  MoveObjectAndSlot(
-      IndirectPointerWriteBarrierDescriptor::ObjectRegister(),
-      IndirectPointerWriteBarrierDescriptor::SlotAddressRegister(), object,
-      offset);
-  li(IndirectPointerWriteBarrierDescriptor::TrustedPointerTagRegister(),
+  MoveObjectAndSlot(TrustedPointerWriteBarrierDescriptor::ObjectRegister(),
+                    TrustedPointerWriteBarrierDescriptor::SlotAddressRegister(),
+                    object, offset);
+  li(TrustedPointerWriteBarrierDescriptor::TrustedPointerTagRegister(),
      Operand(tag));
 
-  CallBuiltin(Builtins::IndirectPointerBarrier(fp_mode));
+  CallBuiltin(Builtins::TrustedPointerBarrier(fp_mode));
   MaybeRestoreRegisters(registers);
 }
 
@@ -730,7 +729,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     DCHECK(!AreAliased(object, value, temp));
     AddWord(temp, object, offset);
 #ifdef V8_TARGET_ARCH_RISCV64
-    if (slot.contains_indirect_pointer()) {
+    if (slot.contains_trusted_pointer()) {
       LoadIndirectPointerField(temp, MemOperand(temp, 0),
                                slot.trusted_pointer_tag());
     } else {
@@ -762,7 +761,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     JumpIfSmi(value, &done);
   }
 
-  if (slot.contains_indirect_pointer()) {
+  if (slot.contains_trusted_pointer()) {
     // The indirect pointer write barrier is only enabled during marking.
     JumpIfNotMarking(&done);
   } else {
@@ -793,9 +792,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     CallRecordWriteStub(object, slot_address, fp_mode,
                         StubCallMode::kCallBuiltinPointer);
   } else {
-    DCHECK(slot.contains_indirect_pointer());
-    CallIndirectPointerBarrier(object, offset, fp_mode,
-                               slot.trusted_pointer_tag());
+    DCHECK(slot.contains_trusted_pointer());
+    CallTrustedPointerBarrier(object, offset, fp_mode,
+                              slot.trusted_pointer_tag());
   }
   if (ra_status == kRAHasNotBeenSaved) {
     pop(ra);

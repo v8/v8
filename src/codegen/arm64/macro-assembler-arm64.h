@@ -933,9 +933,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
 
-  void CallIndirectPointerBarrier(Register object, Operand offset,
-                                  SaveFPRegsMode fp_mode,
-                                  TrustedPointerTag tag);
+  void CallTrustedPointerBarrier(Register object, Operand offset,
+                                 SaveFPRegsMode fp_mode, TrustedPointerTag tag);
 
   void CallRecordWriteStubSaveRegisters(
       Register object, Operand offset, SaveFPRegsMode fp_mode,
@@ -949,10 +948,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                                       SaveFPRegsMode fp_mode);
   void CallVerifySkippedWriteBarrierStub(Register object, Register value);
 
-  void CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+  void CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(
       Register object, Register value, SaveFPRegsMode fp_mode);
-  void CallVerifySkippedIndirectWriteBarrierStub(Register object,
-                                                 Register value);
+  void CallVerifySkippedTrustedWriteBarrierStub(Register object,
+                                                Register value);
 
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.

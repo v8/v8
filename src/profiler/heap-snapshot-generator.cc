@@ -1525,8 +1525,8 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     VisitSlotImpl(code_cage_base(), slot);
   }
 
-  void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                            TrustedPointerMode mode) override {
+  void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
+                           TrustedPointerMode mode) override {
     VisitSlotImpl(generator_->isolate(), slot);
   }
 

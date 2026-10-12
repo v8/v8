@@ -1279,9 +1279,8 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
   }
 }
 
-void Serializer::ObjectSerializer::VisitIndirectPointer(
-    Tagged<HeapObject> host, IndirectPointerSlot slot,
-    TrustedPointerMode mode) {
+void Serializer::ObjectSerializer::VisitTrustedPointer(
+    Tagged<HeapObject> host, TrustedPointerSlot slot, TrustedPointerMode mode) {
 #ifdef V8_ENABLE_SANDBOX
   // If the slot is empty (i.e. contains a null handle), then we can just skip
   // it since in that case the correct action is to encode the null handle as
@@ -1301,7 +1300,7 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
   // Currently we cannot see pending objects here, but we may need to support
   // them in the future. They should already be supported by the deserializer.
   CHECK(!serializer_->SerializePendingObject(*slot_value));
-  sink_->Put(kTrustedPointerPrefix, "IndirectPointer");
+  sink_->Put(kTrustedPointerPrefix, "TrustedPointer");
   serializer_->SerializeObject(slot_value, SlotType::kAnySlot);
 #else
   UNREACHABLE();
@@ -1309,7 +1308,7 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
 }
 
 void Serializer::ObjectSerializer::VisitTrustedPointerTableEntry(
-    Tagged<HeapObject> host, IndirectPointerSlot slot) {
+    Tagged<HeapObject> host, TrustedPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
   // These fields only exist on the ExposedTrustedObject class, and they are
   // located directly after the Map word.

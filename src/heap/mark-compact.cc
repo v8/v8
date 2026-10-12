@@ -1384,12 +1384,12 @@ class RecordMigratedSlotVisitor
   inline void VisitExternalPointer(Tagged<HeapObject> host,
                                    ExternalPointerSlot slot) final {}
 
-  inline void VisitIndirectPointer(Tagged<HeapObject> host,
-                                   IndirectPointerSlot slot,
-                                   TrustedPointerMode mode) final {}
+  inline void VisitTrustedPointer(Tagged<HeapObject> host,
+                                  TrustedPointerSlot slot,
+                                  TrustedPointerMode mode) final {}
 
   inline void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
-                                            IndirectPointerSlot slot) final {}
+                                            TrustedPointerSlot slot) final {}
 
   inline void VisitProtectedPointer(Tagged<TrustedObject> host,
                                     ProtectedPointerSlot slot) final {

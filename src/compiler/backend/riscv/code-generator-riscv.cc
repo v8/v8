@@ -255,8 +255,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ CallEphemeronKeyBarrier(object_, offset_, save_fp_mode);
     } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
       DCHECK(IsValidTrustedPointerTag(trusted_pointer_tag_));
-      __ CallIndirectPointerBarrier(object_, offset_, save_fp_mode,
-                                    trusted_pointer_tag_);
+      __ CallTrustedPointerBarrier(object_, offset_, save_fp_mode,
+                                   trusted_pointer_tag_);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.

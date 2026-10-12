@@ -770,9 +770,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CallEphemeronKeyBarrier(Register object, Register slot_address,
                                SaveFPRegsMode fp_mode);
 
-  void CallIndirectPointerBarrier(Register object, Register slot_address,
-                                  SaveFPRegsMode fp_mode,
-                                  TrustedPointerTag tag);
+  void CallTrustedPointerBarrier(Register object, Register slot_address,
+                                 SaveFPRegsMode fp_mode, TrustedPointerTag tag);
 
   void CallRecordWriteStubSaveRegisters(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
@@ -786,10 +785,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                                       SaveFPRegsMode fp_mode);
   void CallVerifySkippedWriteBarrierStub(Register object, Register value);
 
-  void CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(
+  void CallVerifySkippedTrustedWriteBarrierStubSaveRegisters(
       Register object, Register value, SaveFPRegsMode fp_mode);
-  void CallVerifySkippedIndirectWriteBarrierStub(Register object,
-                                                 Register value);
+  void CallVerifySkippedTrustedWriteBarrierStub(Register object,
+                                                Register value);
 
 #ifdef V8_IS_TSAN
   void CallTSANStoreStub(Register address, Register value,

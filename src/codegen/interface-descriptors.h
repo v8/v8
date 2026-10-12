@@ -177,7 +177,7 @@ namespace internal {
   V(WasmSuspend)                                                \
   V(WasmHandleStackOverflow)                                    \
   V(WriteBarrier)                                               \
-  V(IndirectPointerWriteBarrier)                                \
+  V(TrustedPointerWriteBarrier)                                 \
   SELECT_TSA_LEVEL(IGNORE_BUILTIN, V, IGNORE_BUILTIN, ToString) \
   IF_TSAN(V, TSANLoad)                                          \
   IF_TSAN(V, TSANStore)                                         \
@@ -1707,9 +1707,9 @@ class WriteBarrierDescriptor final
 // Write barriers for indirect pointer field writes require one additional
 // parameter (the TrustedPointerTag associated with the stored field).
 // Otherwise, they are identical to the other write barriers.
-class IndirectPointerWriteBarrierDescriptor final
+class TrustedPointerWriteBarrierDescriptor final
     : public StaticCallInterfaceDescriptor<
-          IndirectPointerWriteBarrierDescriptor> {
+          TrustedPointerWriteBarrierDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
@@ -1718,7 +1718,7 @@ class IndirectPointerWriteBarrierDescriptor final
                          MachineType::Pointer(),        // kSlotAddress
                          MachineType::Uint64())         // kTrustedPointerTag
 
-  DECLARE_DESCRIPTOR(IndirectPointerWriteBarrierDescriptor)
+  DECLARE_DESCRIPTOR(TrustedPointerWriteBarrierDescriptor)
   static constexpr auto registers();
   static constexpr bool kRestrictAllocatableRegisters = true;
   static constexpr bool kCalleeSaveRegisters = true;

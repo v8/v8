@@ -26,7 +26,7 @@ namespace internal {
 class Heap;
 class PrimitiveHeapObject;
 class ExternalPointerSlot;
-class IndirectPointerSlot;
+class TrustedPointerSlot;
 class ExposedTrustedObject;
 class ObjectVisitor;
 class WritableFreeSpace;
@@ -322,7 +322,7 @@ V8_OBJECT class HeapObject {
   inline ExternalPointerSlot RawExternalPointerField(
       int byte_offset, ExternalPointerTagRange tag_range) const;
   inline CppHeapPointerSlot RawCppHeapPointerField(int byte_offset) const;
-  inline IndirectPointerSlot RawIndirectPointerField(
+  inline TrustedPointerSlot RawTrustedPointerField(
       int byte_offset, TrustedPointerTagRange tag_range) const;
 
   // Return the write barrier mode for this. Callers of this function

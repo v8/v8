@@ -203,7 +203,7 @@ void TrustedPointerMember<T, kTagRange>::Release_Store(HeapObject* host,
   handle_.store(
       Cast<ExposedTrustedObject>(value)->self_trusted_pointer_handle(),
       std::memory_order_release);
-  WriteBarrier::ForIndirectPointer(host, this, value, mode);
+  WriteBarrier::ForTrustedPointer(host, this, value, mode);
 #else
   Base::Release_Store(host, value, mode);
 #endif

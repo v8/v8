@@ -69,7 +69,7 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
      on the stack or raw `GarbageCollected<T>*` in heap objects (trace all
      `Member<T>` in `Trace(Visitor*)` and call `Base::Trace(visitor)`).
    - **Write barriers & heap invariants**: Missing `WriteBarrier`,
-     `CONDITIONAL_WRITE_BARRIER`, `IndirectPointerWriteBarrier`, or
+     `CONDITIONAL_WRITE_BARRIER`, `TrustedPointerWriteBarrier`, or
      `ProtectedPointerWriteBarrier`, unsafe `SKIP_WRITE_BARRIER`, `Smi` vs.
      `HeapObject` assumptions.
 

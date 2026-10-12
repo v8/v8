@@ -956,14 +956,14 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)
+#define TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value)
 #else
-#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
-  do {                                                                       \
-    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                     \
-    WriteBarrier::ForIndirectPointer(                                        \
-        object, Tagged(object)->RawIndirectPointerField(offset, tag), value, \
-        UPDATE_WRITE_BARRIER);                                               \
+#define TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
+  do {                                                                      \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                    \
+    WriteBarrier::ForTrustedPointer(                                        \
+        object, Tagged(object)->RawTrustedPointerField(offset, tag), value, \
+        UPDATE_WRITE_BARRIER);                                              \
   } while (false)
 #endif
 
@@ -1014,8 +1014,8 @@
                                                    mode)                       \
   do {                                                                         \
     DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
-    WriteBarrier::ForIndirectPointer(                                          \
-        object, Tagged(object)->RawIndirectPointerField(offset, tag), value,   \
+    WriteBarrier::ForTrustedPointer(                                           \
+        object, Tagged(object)->RawTrustedPointerField(offset, tag), value,    \
         mode);                                                                 \
   } while (false)
 #endif

@@ -6668,7 +6668,7 @@ void Heap::VerifySkippedWriteBarrier(Address object, Address value) {
 }
 
 // static
-void Heap::VerifySkippedIndirectWriteBarrier(Address object) {
+void Heap::VerifySkippedTrustedWriteBarrier(Address object) {
 #if V8_VERIFY_WRITE_BARRIERS
   DCHECK(v8_flags.verify_write_barriers);
   LocalHeap* local_heap = LocalHeap::Current();

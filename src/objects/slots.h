@@ -444,16 +444,16 @@ class CppHeapPointerSlot
       RawContent content, const DisallowGarbageCollection& no_gc);
 };
 
-// An IndirectPointerSlot instance describes a 32-bit field ("slot") containing
+// An TrustedPointerSlot instance describes a 32-bit field ("slot") containing
 // an TrustedPointerHandle, i.e. an index to an entry in a pointer table which
 // contains the "real" pointer to the referenced HeapObject. These slots are
 // used when the sandbox is enabled to securely reference HeapObjects outside
 // of the sandbox.
-class IndirectPointerSlot
-    : public SlotBase<IndirectPointerSlot, TrustedPointerHandle,
+class TrustedPointerSlot
+    : public SlotBase<TrustedPointerSlot, TrustedPointerHandle,
                       kTaggedSize /* slot alignment */> {
  public:
-  IndirectPointerSlot()
+  TrustedPointerSlot()
       : SlotBase(kNullAddress)
 #ifdef V8_ENABLE_SANDBOX
         ,
@@ -462,7 +462,7 @@ class IndirectPointerSlot
   {
   }
 
-  explicit IndirectPointerSlot(Address ptr, TrustedPointerTagRange tag_range)
+  explicit TrustedPointerSlot(Address ptr, TrustedPointerTagRange tag_range)
       : SlotBase(ptr)
 #ifdef V8_ENABLE_SANDBOX
         ,
@@ -472,7 +472,7 @@ class IndirectPointerSlot
   }
 
   template <typename T, TrustedPointerTagRange kTagRange>
-  explicit IndirectPointerSlot(TrustedPointerMember<T, kTagRange>* member)
+  explicit TrustedPointerSlot(TrustedPointerMember<T, kTagRange>* member)
 #ifdef V8_ENABLE_SANDBOX
       : SlotBase(member->storage_address()),
         tag_range_(kTagRange)
@@ -482,7 +482,7 @@ class IndirectPointerSlot
   {
   }
 
-  // Even though only HeapObjects can be stored into an IndirectPointerSlot,
+  // Even though only HeapObjects can be stored into an TrustedPointerSlot,
   // these slots can be empty (containing kNullTrustedPointerHandle), in which
   // case load() will return Smi::zero().
   inline Tagged<Object> load(IsolateForSandbox isolate) const;

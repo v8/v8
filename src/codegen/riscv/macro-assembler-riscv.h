@@ -426,9 +426,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
-  void CallIndirectPointerBarrier(Register object, Operand offset,
-                                  SaveFPRegsMode fp_mode,
-                                  TrustedPointerTag tag);
+  void CallTrustedPointerBarrier(Register object, Operand offset,
+                                 SaveFPRegsMode fp_mode, TrustedPointerTag tag);
   void CallRecordWriteStubSaveRegisters(
       Register object, Operand offset, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
