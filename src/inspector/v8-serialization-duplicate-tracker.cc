@@ -5,7 +5,8 @@
 #include "src/inspector/v8-serialization-duplicate-tracker.h"
 
 #include "include/v8-context.h"
-#include "include/v8-external.h"
+#include "include/v8-isolate.h"
+#include "include/v8-primitive.h"
 #include "src/base/logging.h"
 
 namespace v8_inspector {
@@ -48,11 +49,14 @@ V8SerializationDuplicateTracker::LinkExistingOrCreate(
 
 void V8SerializationDuplicateTracker::SetKnownSerializedValue(
     v8::Local<v8::Value> v8Value, protocol::DictionaryValue* serializedValue) {
+  // Don't store the raw `serializedValue` pointer in the (in-sandbox) map,
+  // but only its index into `m_serializedValues`.
+  int32_t index = static_cast<int32_t>(m_serializedValues.size());
+  m_serializedValues.push_back(serializedValue);
   m_v8ObjectToSerializedDictionary =
       m_v8ObjectToSerializedDictionary
           ->Set(m_context, v8Value,
-                v8::External::New(v8::Isolate::GetCurrent(), serializedValue,
-                                  v8::kDictionaryValueTag))
+                v8::Integer::New(v8::Isolate::GetCurrent(), index))
           .ToLocalChecked();
 }
 
@@ -62,12 +66,17 @@ V8SerializationDuplicateTracker::FindKnownSerializedValue(
   v8::Local<v8::Value> knownValue;
   if (!m_v8ObjectToSerializedDictionary->Get(m_context, v8Value)
            .ToLocal(&knownValue) ||
-      knownValue->IsUndefined()) {
+      !knownValue->IsInt32()) {
     return nullptr;
   }
 
-  return static_cast<protocol::DictionaryValue*>(
-      knownValue.As<v8::External>()->Value(v8::kDictionaryValueTag));
+  // The map lives in the sandbox and might have been corrupted, so the index
+  // must be treated as untrusted and bounds-checked.
+  int32_t index = knownValue.As<v8::Int32>()->Value();
+  if (index < 0 || static_cast<size_t>(index) >= m_serializedValues.size()) {
+    return nullptr;
+  }
+  return m_serializedValues[index];
 }
 
 V8SerializationDuplicateTracker::V8SerializationDuplicateTracker(

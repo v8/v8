@@ -5,6 +5,8 @@
 #ifndef V8_INSPECTOR_V8_SERIALIZATION_DUPLICATE_TRACKER_H_
 #define V8_INSPECTOR_V8_SERIALIZATION_DUPLICATE_TRACKER_H_
 
+#include <vector>
+
 #include "include/v8-container.h"
 #include "src/base/vector.h"
 #include "src/debug/debug-interface.h"
@@ -26,8 +28,16 @@ class V8SerializationDuplicateTracker {
  private:
   v8::Local<v8::Context> m_context;
   int m_counter;
-  // Maps v8 value to corresponding serialized value.
+  // Maps v8 value to the index of the corresponding serialized value in
+  // `m_serializedValues`. The map lives in sandbox-corruptible memory, so it
+  // must never hold raw (out-of-sandbox) pointers. Instead it holds indices
+  // that are range-checked on lookup, so that a corrupted or replayed map
+  // value can at worst alias another serialized value of the same
+  // serialization, but never produce a dangling pointer.
   v8::Local<v8::Map> m_v8ObjectToSerializedDictionary;
+  // Serialized values registered during this serialization. The values are
+  // owned by the resulting protocol tree, which outlives this tracker.
+  std::vector<protocol::DictionaryValue*> m_serializedValues;
 
   V8_EXPORT protocol::DictionaryValue* FindKnownSerializedValue(
       v8::Local<v8::Value> v8Value);
