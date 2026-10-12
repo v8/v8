@@ -3599,14 +3599,19 @@ TEST(ContextData) {
   v8::debug::SetDebugDelegate(isolate, &delegate);
 
   // Default data value is undefined.
-  CHECK_EQ(0, context_1->GetNumberOfEmbedderDataFields());
-  CHECK_EQ(0, context_2->GetNumberOfEmbedderDataFields());
+  CHECK_EQ(V8_EMBEDDER_DATA_ARRAY_SIZE,
+           context_1->GetNumberOfEmbedderDataFields());
+  CHECK_EQ(V8_EMBEDDER_DATA_ARRAY_SIZE,
+           context_2->GetNumberOfEmbedderDataFields());
 
   // Set and check different data values.
   v8::Local<v8::String> data_1 = v8_str(isolate, "1");
   v8::Local<v8::String> data_2 = v8_str(isolate, "2");
+  START_ALLOW_USE_DEPRECATED()
+  // TODO(b/570436596): Migrate to V3.
   context_1->SetEmbedderDataV2(0, data_1);
   context_2->SetEmbedderDataV2(0, data_2);
+  END_ALLOW_USE_DEPRECATED()
   CHECK(v8::Local<v8::Value>::Cast(context_1->GetEmbedderDataV2(0))
             ->StrictEquals(data_1));
   CHECK(v8::Local<v8::Value>::Cast(context_2->GetEmbedderDataV2(0))
@@ -3660,11 +3665,12 @@ TEST(EvalContextData) {
   v8::debug::SetDebugDelegate(isolate, &delegate);
 
   // Contexts initially do not have embedder data fields.
-  CHECK_EQ(0, context_1->GetNumberOfEmbedderDataFields());
+  CHECK_EQ(V8_EMBEDDER_DATA_ARRAY_SIZE,
+           context_1->GetNumberOfEmbedderDataFields());
 
   // Set and check a data value.
   v8::Local<v8::String> data_1 = v8_str(isolate, "1");
-  context_1->SetEmbedderDataV2(0, data_1);
+  context_1->SetEmbedderDataV3(0, data_1);
   CHECK(v8::Local<v8::Value>::Cast(context_1->GetEmbedderDataV2(0))
             ->StrictEquals(data_1));
 

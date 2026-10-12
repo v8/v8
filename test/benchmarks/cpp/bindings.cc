@@ -216,8 +216,8 @@ class BindingsBenchmarkBase : public v8::benchmarking::BenchmarkWithIsolate {
 
     auto* per_context_data = new PerContextData{allocation_handle(), {}};
 
-    context->SetAlignedPointerInEmbedderData(0, per_context_data,
-                                             kPerContextDataTag);
+    context->SetAlignedPointerInEmbedderDataV2(0, per_context_data,
+                                               kPerContextDataTag);
 
     auto* global_wrappable =
         ConcreteBindings::CreateGlobalWrappable(per_context_data);

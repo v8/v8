@@ -115,6 +115,9 @@ declare_args() {
   # Sets the number of internal fields on array buffer view objects.
   v8_array_buffer_view_internal_field_count = 0
 
+  # Sets the size of the EmbedderDataArray on context objects.
+  v8_embedder_data_array_size = 5
+
   # Sets -DENABLE_VTUNE_JIT_INTERFACE.
   v8_enable_vtunejit = false
 
@@ -1120,6 +1123,7 @@ external_v8_defines = [
   "V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT=${v8_array_buffer_internal_field_count}",
   "V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT=${v8_array_buffer_view_internal_field_count}",
   "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}",
+  "V8_EMBEDDER_DATA_ARRAY_SIZE=${v8_embedder_data_array_size}",
   "V8_USE_DEFAULT_HASHER_SECRET=${v8_use_default_hasher_secret}",
   "V8_ENABLE_CHECKS",
   "V8_ENABLE_MEMORY_ACCOUNTING_CHECKS",
@@ -1157,6 +1161,7 @@ enabled_external_v8_defines = [
   "V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT=${v8_array_buffer_internal_field_count}",
   "V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT=${v8_array_buffer_view_internal_field_count}",
   "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}",
+  "V8_EMBEDDER_DATA_ARRAY_SIZE=${v8_embedder_data_array_size}",
   "V8_USE_DEFAULT_HASHER_SECRET=${v8_use_default_hasher_secret}",
 ]
 

@@ -57,6 +57,8 @@ def _custom_config_impl(ctx):
     defs = []
     defs.append("V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=" +
                 str(ctx.attr._v8_typed_array_max_size_in_heap[FlagInfo].value))
+    defs.append("V8_EMBEDDER_DATA_ARRAY_SIZE=" +
+                str(ctx.attr._v8_embedder_data_array_size[FlagInfo].value))
     context = cc_common.create_compilation_context(defines = depset(defs))
     return [CcInfo(compilation_context = context)]
 
@@ -64,6 +66,7 @@ v8_custom_config = rule(
     implementation = _custom_config_impl,
     attrs = {
         "_v8_typed_array_max_size_in_heap": attr.label(default = ":v8_typed_array_max_size_in_heap"),
+        "_v8_embedder_data_array_size": attr.label(default = ":v8_embedder_data_array_size"),
     },
 )
 

@@ -1075,7 +1075,7 @@ i::CppGCManaged<ModuleEmbedderData>::Ptr InitializeModuleEmbedderData(
           std::make_shared<ModuleEmbedderData>(
               reinterpret_cast<v8::Isolate*>(i_isolate)));
   v8::Local<v8::Data> module_data = Utils::ToLocal(module_data_managed);
-  context->SetEmbedderDataV2(kModuleEmbedderDataIndex, module_data);
+  context->SetEmbedderDataV3(kModuleEmbedderDataIndex, module_data);
   return module_data_managed->ptr();
 }
 
@@ -6037,8 +6037,11 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         inspector_->connect(1, channel_.get(), v8_inspector::StringView(),
                             v8_inspector::V8Inspector::kFullyTrusted,
                             v8_inspector::V8Inspector::kNotWaitingForDebugger);
+    // TODO(b/570436596): Migrate to V2.
+    START_ALLOW_USE_DEPRECATED()
     context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this,
                                              kInspectorClientTag);
+    END_ALLOW_USE_DEPRECATED()
     inspector_->contextCreated(v8_inspector::V8ContextInfo(
         context, kContextGroupId, v8_inspector::StringView()));
 
@@ -6062,8 +6065,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     if (!isolate_) return;
     HandleScope scope(isolate_);
     Local<Context> context = context_.Get(isolate_);
-    context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, nullptr,
-                                             kInspectorClientTag);
+    context->SetAlignedPointerInEmbedderDataV2(kInspectorClientIndex, nullptr,
+                                               kInspectorClientTag);
   }
 
   void runMessageLoopOnPause(int contextGroupId) override {

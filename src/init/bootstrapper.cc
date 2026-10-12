@@ -3382,7 +3382,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   // TODO(ishell): microtask queue pointer will be moved from native context
   // to the embedder data array so we don't need an empty embedder data array.
   DirectHandle<EmbedderDataArray> embedder_data =
-      factory->NewEmbedderDataArray(0);
+      factory->NewEmbedderDataArray(V8_EMBEDDER_DATA_ARRAY_SIZE);
   native_context()->set_embedder_data(*embedder_data);
 
   {  // -- g l o b a l T h i s

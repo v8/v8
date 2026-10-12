@@ -4060,8 +4060,11 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
       v8::Context::Scope context_scope(context);
       v8::Local<v8::External> writable_external =
           v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
+      START_ALLOW_USE_DEPRECATED()
+      // TODO(b/570436596): Migrate to V3.
       context->SetEmbedderDataV2(my_context_embedder_field_index,
                                  writable_external);
+      END_ALLOW_USE_DEPRECATED()
       v8::Local<v8::External> external =
           v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       v8::Local<v8::FunctionTemplate> callback =
@@ -4774,7 +4777,10 @@ void DeserializeContextData(v8::Local<v8::Context> context, int index,
   InternalFieldData* field = new InternalFieldData{0};
   memcpy(field, payload.data, payload.raw_size);
   CHECK_EQ(context_data.data, field->data);
+  START_ALLOW_USE_DEPRECATED()
+  // TODO(b/570436596): Migrate to V2.
   context->SetAlignedPointerInEmbedderData(index, field, kInternalFieldDataTag);
+  END_ALLOW_USE_DEPRECATED()
 }
 
 }  // namespace context_data_test
@@ -4805,8 +4811,8 @@ UNINITIALIZED_TEST(SerializeContextData) {
         v8::HandleScope handle_scope(isolate);
         v8::Local<v8::Context> context = v8::Context::New(isolate);
         v8::Context::Scope context_scope(context);
-        context->SetAlignedPointerInEmbedderData(0, nullptr, kRawDataTag);
-        context->SetAlignedPointerInEmbedderData(
+        context->SetAlignedPointerInEmbedderDataV2(0, nullptr, kRawDataTag);
+        context->SetAlignedPointerInEmbedderDataV2(
             1, &context_data_test::context_data, kRawDataTag);
 
         v8::Local<v8::ObjectTemplate> object_template =
@@ -4844,7 +4850,7 @@ UNINITIALIZED_TEST(SerializeContextData) {
             context->GetAlignedPointerFromEmbedderData(1,
                                                        kInternalFieldDataTag));
         CHECK_EQ(context_data_test::context_data.data, data->data);
-        context->SetAlignedPointerInEmbedderData(1, nullptr, kRawDataTag);
+        context->SetAlignedPointerInEmbedderDataV2(1, nullptr, kRawDataTag);
         delete data;
 
         v8::Local<v8::Value> obj_val =
@@ -4875,8 +4881,8 @@ UNINITIALIZED_TEST(SerializeContextData) {
 
         v8::Local<v8::Context> context = v8::Context::New(isolate);
         v8::Context::Scope context_scope(context);
-        context->SetAlignedPointerInEmbedderData(0, nullptr, kRawDataTag);
-        context->SetAlignedPointerInEmbedderData(
+        context->SetAlignedPointerInEmbedderDataV2(0, nullptr, kRawDataTag);
+        context->SetAlignedPointerInEmbedderDataV2(
             1, &context_data_test::context_data, kRawDataTag);
 
         v8::Local<v8::ObjectTemplate> object_template =
@@ -4916,7 +4922,7 @@ UNINITIALIZED_TEST(SerializeContextData) {
             context->GetAlignedPointerFromEmbedderData(1,
                                                        kInternalFieldDataTag));
         CHECK_EQ(context_data_test::context_data.data, data->data);
-        context->SetAlignedPointerInEmbedderData(1, nullptr, kRawDataTag);
+        context->SetAlignedPointerInEmbedderDataV2(1, nullptr, kRawDataTag);
         delete data;
 
         v8::Local<v8::Value> obj_val =
@@ -4951,8 +4957,8 @@ UNINITIALIZED_TEST(SerializeContextData) {
 
         v8::Local<v8::Context> context = v8::Context::New(isolate);
         v8::Context::Scope context_scope(context);
-        context->SetAlignedPointerInEmbedderData(0, nullptr, kRawDataTag);
-        context->SetAlignedPointerInEmbedderData(1, raw_data, kRawDataTag);
+        context->SetAlignedPointerInEmbedderDataV2(0, nullptr, kRawDataTag);
+        context->SetAlignedPointerInEmbedderDataV2(1, raw_data, kRawDataTag);
 
         v8::Local<v8::ObjectTemplate> object_template =
             v8::ObjectTemplate::New(isolate);

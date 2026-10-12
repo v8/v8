@@ -3355,7 +3355,24 @@ static void CheckAlignedPointerInEmbedderData(LocalContext* env,
                                               v8::Local<v8::Object> some_obj,
                                               int index, void* value) {
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
+  START_ALLOW_USE_DEPRECATED()
+  // TODO(b/570436596): Migrate to V2.
   (*env)->SetAlignedPointerInEmbedderData(index, value, kTestTypeTagA);
+  END_ALLOW_USE_DEPRECATED()
+  i::heap::InvokeMajorGC(CcTest::heap());
+  CHECK_EQ(value,
+           (*env)->GetAlignedPointerFromEmbedderData(index, kTestTypeTagA));
+  CHECK_EQ(value, some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                      index, kTestTypeTagA));
+  CHECK_EQ(value, some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                      CcTest::isolate(), index, kTestTypeTagA));
+}
+
+static void CheckAlignedPointerInEmbedderDataV2(LocalContext* env,
+                                                v8::Local<v8::Object> some_obj,
+                                                int index, void* value) {
+  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
+  (*env)->SetAlignedPointerInEmbedderDataV2(index, value, kTestTypeTagA);
   i::heap::InvokeMajorGC(CcTest::heap());
   CHECK_EQ(value,
            (*env)->GetAlignedPointerFromEmbedderData(index, kTestTypeTagA));
@@ -3377,27 +3394,30 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
 
   CheckAlignedPointerInEmbedderData(&env, obj, 0, nullptr);
-  CHECK_EQ(1, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(1, (*env)->GetNumberOfEmbedderDataFields());
 
   int* heap_allocated = new int[100];
   CheckAlignedPointerInEmbedderData(&env, obj, 1, heap_allocated);
-  CHECK_EQ(2, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(2, (*env)->GetNumberOfEmbedderDataFields());
   delete[] heap_allocated;
 
   int stack_allocated[100];
   CheckAlignedPointerInEmbedderData(&env, obj, 2, stack_allocated);
-  CHECK_EQ(3, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(3, (*env)->GetNumberOfEmbedderDataFields());
 
   // The aligned pointer must have the top bits be zero on 64-bit machines (at
   // least if the sandboxed external pointers are enabled).
   void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInEmbedderData(&env, obj, 3, huge);
-  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(4, (*env)->GetNumberOfEmbedderDataFields());
 
   // Test growing of the embedder data's backing store.
   for (int i = 0; i < 100; i++) {
+    START_ALLOW_USE_DEPRECATED()
+    // TODO(b/570436596): Migrate to V2.
     env->SetAlignedPointerInEmbedderData(i, AlignedTestPointer(i),
                                          i % V8_EMBEDDER_DATA_TAG_COUNT);
+    END_ALLOW_USE_DEPRECATED()
   }
   i::heap::InvokeMajorGC(CcTest::heap());
   for (int i = 0; i < 100; i++) {
@@ -3405,6 +3425,28 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
     CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(
                                         i, i % V8_EMBEDDER_DATA_TAG_COUNT));
   }
+}
+
+THREADED_TEST(EmbedderDataAlignedPointersV2) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 0, nullptr);
+
+  int* heap_allocated = new int[100];
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 1, heap_allocated);
+  delete[] heap_allocated;
+
+  int stack_allocated[100];
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 2, stack_allocated);
+
+  // The aligned pointer must have the top bits be zero on 64-bit machines (at
+  // least if the sandboxed external pointers are enabled).
+  void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 3, huge);
 }
 
 THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
@@ -3415,11 +3457,39 @@ THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
   v8::Local<v8::Object> obj = env->Global();
 
   CheckAlignedPointerInEmbedderData(&env, obj, 0, nullptr);
-  CHECK_EQ(1, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(1, (*env)->GetNumberOfEmbedderDataFields());
 
   int stack_allocated[100];
   CheckAlignedPointerInEmbedderData(&env, obj, 1, stack_allocated);
-  CHECK_EQ(2, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(2, (*env)->GetNumberOfEmbedderDataFields());
+
+  i::heap::InvokeMajorGC(CcTest::heap());
+
+  CHECK_EQ(stack_allocated,
+           obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+               isolate, 1, kTestTypeTagA));
+
+  env->DetachGlobal();
+
+  // In case the global object is detached the embedder data can be read
+  // directly from current native context as long as its global object IS the
+  // detached global object.
+  CHECK_EQ(stack_allocated,
+           obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+               isolate, 1, kTestTypeTagA));
+}
+
+THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobalV2) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> obj = env->Global();
+
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 0, nullptr);
+
+  int stack_allocated[100];
+  CheckAlignedPointerInEmbedderDataV2(&env, obj, 1, stack_allocated);
 
   i::heap::InvokeMajorGC(CcTest::heap());
 
@@ -3439,7 +3509,17 @@ THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
 
 static void CheckEmbedderData(LocalContext* env, int index,
                               v8::Local<Value> data) {
+  START_ALLOW_USE_DEPRECATED()
+  // TODO(b/570436596): Migrate to V3.
   (*env)->SetEmbedderDataV2(index, data);
+  END_ALLOW_USE_DEPRECATED()
+  CHECK(v8::Local<v8::Value>::Cast((*env)->GetEmbedderDataV2(index))
+            ->StrictEquals(data));
+}
+
+static void CheckEmbedderDataV3(LocalContext* env, int index,
+                                v8::Local<Value> data) {
+  (*env)->SetEmbedderDataV3(index, data);
   CHECK(v8::Local<v8::Value>::Cast((*env)->GetEmbedderDataV2(index))
             ->StrictEquals(data));
 }
@@ -3449,19 +3529,28 @@ THREADED_TEST(EmbedderData) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
-  CHECK_EQ(0, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 3, v8_str("The quick brown fox jumps"));
-  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 2, v8_str("over the lazy dog."));
-  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 1, v8::Number::New(isolate, 1.2345));
-  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 0, v8::Boolean::New(isolate, true));
-  CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
+  CHECK_LE(4, (*env)->GetNumberOfEmbedderDataFields());
   CheckEmbedderData(&env, 211, v8::Boolean::New(isolate, true));
   CHECK_EQ(212, (*env)->GetNumberOfEmbedderDataFields());
 }
 
+THREADED_TEST(EmbedderDataV3) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  CheckEmbedderDataV3(&env, 3, v8_str("The quick brown fox jumps"));
+  CheckEmbedderDataV3(&env, 2, v8_str("over the lazy dog."));
+  CheckEmbedderDataV3(&env, 1, v8::Number::New(isolate, 1.2345));
+  CheckEmbedderDataV3(&env, 0, v8::Boolean::New(isolate, true));
+}
 
 THREADED_TEST(IdentityHash) {
   LocalContext env;
@@ -18089,7 +18178,7 @@ TEST(Regress528) {
 
     context->Enter();
     Local<v8::String> obj = v8_str("");
-    context->SetEmbedderDataV2(0, obj);
+    context->SetEmbedderDataV3(0, obj);
     CompileRun(source_simple);
     context->Exit();
   }
@@ -27214,10 +27303,10 @@ TEST(CorrectEnteredContext) {
   v8::HandleScope scope(CcTest::isolate());
 
   LocalContext currentContext;
-  currentContext->SetEmbedderDataV2(
+  currentContext->SetEmbedderDataV3(
       1, v8::Integer::New(currentContext.isolate(), CurrentContext));
   LocalContext enteredContext;
-  enteredContext->SetEmbedderDataV2(
+  enteredContext->SetEmbedderDataV3(
       1, v8::Integer::New(enteredContext.isolate(), EnteredContext));
 
   v8::Context::Scope contextScope(enteredContext.local());
@@ -32319,8 +32408,11 @@ TEST(EmbedderDataAlignedPointers_CppHeapPointer) {
             cpp_heap->GetAllocationHandle()));
 
     // Null pointer test.
+    START_ALLOW_USE_DEPRECATED()
+    // TODO(b/570436596): Migrate to V2.
     (*env)->SetAlignedPointerInEmbedderData(
         0, static_cast<TestGarbagedCollectedData*>(nullptr), i::kTagForTesting);
+    END_ALLOW_USE_DEPRECATED()
     CHECK_EQ(
         nullptr,
         (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
@@ -32329,8 +32421,11 @@ TEST(EmbedderDataAlignedPointers_CppHeapPointer) {
                           isolate, 0, i::kTagForTesting));
 
     // Valid cppgc object test.
+    START_ALLOW_USE_DEPRECATED()
+    // TODO(b/570436596): Migrate to V2.
     (*env)->SetAlignedPointerInEmbedderData(1, cpp_object.Get(),
                                             i::kTagForTesting);
+    END_ALLOW_USE_DEPRECATED()
     CHECK_EQ(
         cpp_object.Get(),
         (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
@@ -32341,8 +32436,69 @@ TEST(EmbedderDataAlignedPointers_CppHeapPointer) {
 
     // Detached global proxy test.
     v8::Local<v8::Object> global_obj = env->Global();
+    START_ALLOW_USE_DEPRECATED()
+    // TODO(b/570436596): Migrate to V2.
     (*env)->SetAlignedPointerInEmbedderData(2, cpp_object.Get(),
                                             i::kTagForTesting);
+    END_ALLOW_USE_DEPRECATED()
+    CHECK_EQ(cpp_object.Get(),
+             global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                 isolate, 2, i::kTagForTesting));
+
+    env->DetachGlobal();
+    CHECK_EQ(cpp_object.Get(),
+             global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                 isolate, 2, i::kTagForTesting));
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+TEST(EmbedderDataAlignedPointersV2_CppHeapPointer) {
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  create_params.cpp_heap =
+      v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),
+                          v8::CppHeapCreateParams({}))
+          .release();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
+
+  {
+    v8::HandleScope scope(isolate);
+    LocalContext env(isolate);
+    v8::Local<v8::Object> obj = v8::Object::New(isolate);
+
+    cppgc::Persistent<TestGarbagedCollectedData> cpp_object(
+        cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
+            cpp_heap->GetAllocationHandle()));
+
+    // Null pointer test.
+    (*env)->SetAlignedPointerInEmbedderDataV2(
+        0, static_cast<TestGarbagedCollectedData*>(nullptr), i::kTagForTesting);
+    CHECK_EQ(
+        nullptr,
+        (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
+            isolate, 0, i::kTagForTesting));
+    CHECK_EQ(nullptr, obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                          isolate, 0, i::kTagForTesting));
+
+    // Valid cppgc object test.
+    (*env)->SetAlignedPointerInEmbedderDataV2(1, cpp_object.Get(),
+                                              i::kTagForTesting);
+    CHECK_EQ(
+        cpp_object.Get(),
+        (*env)->GetAlignedPointerFromEmbedderData<TestGarbagedCollectedData>(
+            isolate, 1, i::kTagForTesting));
+    CHECK_EQ(cpp_object.Get(),
+             obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                 isolate, 1, i::kTagForTesting));
+
+    // Detached global proxy test.
+    v8::Local<v8::Object> global_obj = env->Global();
+    (*env)->SetAlignedPointerInEmbedderDataV2(2, cpp_object.Get(),
+                                              i::kTagForTesting);
     CHECK_EQ(cpp_object.Get(),
              global_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
                  isolate, 2, i::kTagForTesting));

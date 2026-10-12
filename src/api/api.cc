@@ -1036,6 +1036,17 @@ void Context::SetEmbedderDataV2(int index, v8::Local<Data> value) {
             *Utils::OpenDirectHandle(*GetEmbedderDataV2(index)));
 }
 
+void Context::SetEmbedderDataV3(int index, v8::Local<Data> value) {
+  const char* location = "v8::Context::SetEmbedderDataV3()";
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
+  if (data.is_null()) return;
+  auto val = Utils::OpenDirectHandle(*value);
+  i::EmbedderDataSlot::store_tagged(*data, index, *val);
+  DCHECK_EQ(*Utils::OpenDirectHandle(*value),
+            *Utils::OpenDirectHandle(*GetEmbedderDataV2(index)));
+}
+
 void* Context::GetAlignedPointerFromEmbedderData(int index,
                                                  EmbedderDataTypeTag tag) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
@@ -1079,12 +1090,37 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value,
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index, tag));
 }
 
+void Context::SetAlignedPointerInEmbedderDataV2(int index, void* value,
+                                                EmbedderDataTypeTag tag) {
+  const char* location = "v8::Context::SetAlignedPointerInEmbedderDataV2()";
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
+  if (data.is_null()) return;
+  bool ok = i::EmbedderDataSlot::store_aligned_pointer(
+      i_isolate, data, index, value, ToExternalPointerTag(tag));
+  Utils::ApiCheck(ok, location, "Pointer is not aligned");
+  DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index, tag));
+}
+
 void Context::SetAlignedPointerInEmbedderDataInternal(int index, void* value,
                                                       CppHeapPointerTag tag) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
   i::Isolate* i_isolate = i::Isolate::Current();
   i::DirectHandle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
+  bool ok = i::EmbedderDataSlot(*data, index)
+                .store_aligned_pointer(i_isolate, *data, value, tag);
+  Utils::ApiCheck(ok, location, "Pointer is not aligned");
+}
+
+void Context::SetAlignedPointerInEmbedderDataInternalV2(int index, void* value,
+                                                        CppHeapPointerTag tag) {
+  const char* location = "v8::Context::SetAlignedPointerInEmbedderDataV2()";
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
+  if (data.is_null()) return;
   bool ok = i::EmbedderDataSlot(*data, index)
                 .store_aligned_pointer(i_isolate, *data, value, tag);
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
