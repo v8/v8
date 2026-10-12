@@ -274,7 +274,7 @@ void WriteBarrier::ForIndirectPointer(Tagged<HeapObject> host,
 }
 
 // static
-template <typename T, IndirectPointerTagRange kTagRange>
+template <typename T, TrustedPointerTagRange kTagRange>
 void WriteBarrier::ForIndirectPointer(HeapObject* host,
                                       TrustedPointerMember<T, kTagRange>* slot,
                                       Tagged<T> value, WriteBarrierMode mode) {

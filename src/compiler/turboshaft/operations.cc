@@ -761,8 +761,8 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   }
   if (offset != 0) os << ", offset: " << offset;
   if (maybe_initializing_or_transitioning) os << ", initializing";
-  if (indirect_pointer_tag() != kIndirectPointerNullTag) {
-    os << ", indirect pointer tag: " << indirect_pointer_tag();
+  if (trusted_pointer_tag() != kTrustedPointerNullTag) {
+    os << ", trusted pointer tag: " << trusted_pointer_tag();
   }
   os << ']';
 }

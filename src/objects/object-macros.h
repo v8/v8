@@ -818,7 +818,7 @@
 #define DECL_CODE_POINTER_ACCESSORS(name) \
   DECL_TRUSTED_POINTER_ACCESSORS(name, Code)
 #define CODE_POINTER_ACCESSORS(holder, name, offset) \
-  TRUSTED_POINTER_ACCESSORS(holder, name, Code, offset, kCodeIndirectPointerTag)
+  TRUSTED_POINTER_ACCESSORS(holder, name, Code, offset, kCodeTrustedPointerTag)
 
 // Accessors for "protected" pointers, i.e. references from one trusted object
 // to another trusted object. For these pointers it can be assumed that neither
@@ -1031,7 +1031,7 @@
 #endif  // V8_ENABLE_SANDBOX
 #define CONDITIONAL_CODE_POINTER_WRITE_BARRIER(object, offset, value, mode) \
   CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(                                \
-      object, offset, kCodeIndirectPointerTag, value, mode)
+      object, offset, kCodeTrustedPointerTag, value, mode)
 
 #define CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(object, offset, value, \
                                                     mode)                  \

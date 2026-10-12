@@ -178,7 +178,7 @@ class MaglevGraphBuilder {
     return graph()->GetConstant(ref);
   }
   ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
-                                IndirectPointerTag tag) {
+                                TrustedPointerTag tag) {
     return graph()->GetTrustedConstant(ref, tag);
   }
 

@@ -110,8 +110,8 @@ class SlotAccessorForHeapObject {
 
     InstanceType instance_type = value->map()->instance_type();
     SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(value));
-    IndirectPointerTag tag =
-        IndirectPointerTagFromInstanceType(instance_type, shared);
+    TrustedPointerTag tag =
+        TrustedPointerTagFromInstanceType(instance_type, shared);
     IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_, tag);
     dest.store(object);
 

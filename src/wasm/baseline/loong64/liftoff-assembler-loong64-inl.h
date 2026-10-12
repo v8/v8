@@ -465,7 +465,7 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
 }
 
 void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
-                                          int offset, IndirectPointerTag tag) {
+                                          int offset, TrustedPointerTag tag) {
   MemOperand src{src_addr, offset};
   LoadTrustedPointerField(dst, src, tag);
 }

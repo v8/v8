@@ -2235,12 +2235,12 @@ class MachineOptimizationReducer : public Next {
                         std::optional<AtomicMemoryOrder> memory_order,
                         int32_t offset, uint8_t element_scale,
                         bool maybe_initializing_or_transitioning,
-                        IndirectPointerTag maybe_indirect_pointer_tag) {
+                        TrustedPointerTag maybe_trusted_pointer_tag) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceStore(
           base_idx, index, value, kind, stored_rep, write_barrier, memory_order,
           offset, element_scale, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
+          maybe_trusted_pointer_tag);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 #if V8_TARGET_ARCH_32_BIT
@@ -2289,7 +2289,7 @@ class MachineOptimizationReducer : public Next {
       // {offset}, or just do other optimizations on this Store.
       __ Store(base_idx, index, value, kind, stored_rep, write_barrier,
                memory_order, offset, element_scale,
-               maybe_initializing_or_transitioning, maybe_indirect_pointer_tag);
+               maybe_initializing_or_transitioning, maybe_trusted_pointer_tag);
 
       return V<None>::Invalid();
     }
@@ -2297,7 +2297,7 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceStore(base_idx, index, value, kind, stored_rep,
                              write_barrier, memory_order, offset, element_scale,
                              maybe_initializing_or_transitioning,
-                             maybe_indirect_pointer_tag);
+                             maybe_trusted_pointer_tag);
   }
 
   OpIndex REDUCE(Load)(OpIndex base_idx, OptionalOpIndex index,

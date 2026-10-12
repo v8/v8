@@ -4085,7 +4085,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       suspender,
       FieldMemOperand(resume_data,
                       offsetof(WasmResumeData, trusted_suspender_)),
-      kWasmSuspenderIndirectPointerTag);
+      kWasmSuspenderTrustedPointerTag);
   regs.ResetExcept(suspender);
 
   // -------------------------------------------
@@ -5529,7 +5529,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
       code_obj,
       FieldMemOperand(code_obj,
                       offsetof(SharedFunctionInfo, trusted_function_data_)),
-      kCodeIndirectPointerTag);
+      kCodeTrustedPointerTag);
 
   // For OSR entry it is safe to assume we always have baseline code.
   if (v8_flags.debug_code) {

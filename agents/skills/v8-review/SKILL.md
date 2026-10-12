@@ -29,7 +29,7 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
      direct `TrustedObject` refs in-sandbox; require `ExternalPointerTable`,
      `TrustedPointerTable`, `CodePointerTable`, `JSDispatchTable`, or
      `CppHeapPointerTable` with narrow tags (`ExternalPointerTag`,
-     `IndirectPointerTag`), and `ProtectedPointerSlot` between `TrustedObject`s.
+     `TrustedPointerTag`), and `ProtectedPointerSlot` between `TrustedObject`s.
      Never use `TrustedCast<T>` on untrusted or 1:N TPT-tagged inputs (use
      `SbxCast<T>` / `TryCast<T>`). Guard against **pointer-swap attacks** across
      same-tag handles: never assume a `TrustedObject` (`BytecodeArray`, `Code`,

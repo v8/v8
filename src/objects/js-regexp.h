@@ -175,7 +175,7 @@ V8_OBJECT class JSRegExp : public JSObject {
   friend class TorqueGeneratedJSRegExpAsserts;
 
  public:
-  TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
+  TrustedPointerMember<RegExpData, kRegExpDataTrustedPointerTag> data_;
   TaggedMember<Object> flags_ V8_TQ_TYPE(SmiTagged<JSRegExpFlags> | Undefined);
 } V8_OBJECT_END;
 
@@ -302,7 +302,7 @@ V8_OBJECT class RegExpDataWrapper : public Struct {
 
   class BodyDescriptor;
 
-  TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
+  TrustedPointerMember<RegExpData, kRegExpDataTrustedPointerTag> data_;
 } V8_OBJECT_END;
 
 V8_OBJECT class AtomRegExpData : public RegExpData {

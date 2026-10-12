@@ -198,7 +198,7 @@ CppHeapPointerSlot HeapObject::RawCppHeapPointerField(int byte_offset) const {
 }
 
 IndirectPointerSlot HeapObject::RawIndirectPointerField(
-    int byte_offset, IndirectPointerTagRange tag_range) const {
+    int byte_offset, TrustedPointerTagRange tag_range) const {
   return IndirectPointerSlot(field_address(byte_offset), tag_range);
 }
 

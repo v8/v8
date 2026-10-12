@@ -57,9 +57,9 @@ class BodyDescriptorBase {
   static inline void IterateTrustedPointer(Tagged<HeapObject> obj, int offset,
                                            ObjectVisitor* visitor,
                                            IndirectPointerMode mode,
-                                           IndirectPointerTagRange tag_range);
+                                           TrustedPointerTagRange tag_range);
   template <typename ObjectVisitor, typename T,
-            IndirectPointerTagRange kTagRange>
+            TrustedPointerTagRange kTagRange>
   static inline void IterateTrustedPointer(
       Tagged<HeapObject> obj, TrustedPointerMember<T, kTagRange>* member,
       ObjectVisitor* v, IndirectPointerMode mode);
@@ -71,12 +71,12 @@ class BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateCodePointer(
       Tagged<HeapObject> obj,
-      TrustedPointerMember<Code, kCodeIndirectPointerTag>* member,
+      TrustedPointerMember<Code, kCodeTrustedPointerTag>* member,
       ObjectVisitor* v, IndirectPointerMode mode);
 
   template <typename ObjectVisitor>
   static inline void IterateSelfIndirectPointer(
-      Tagged<HeapObject> obj, IndirectPointerTagRange tag_range,
+      Tagged<HeapObject> obj, TrustedPointerTagRange tag_range,
       ObjectVisitor* v);
 
   template <typename ObjectVisitor>
@@ -286,7 +286,7 @@ class SubclassBodyDescriptor : public BodyDescriptorBase {
 
 // Visitor for exposed trusted objects with fixed layout according to
 // FixedBodyDescriptor.
-template <typename T, IndirectPointerTagRange kTagRange>
+template <typename T, TrustedPointerTagRange kTagRange>
 class FixedExposedTrustedObjectBodyDescriptor
     : public FixedBodyDescriptorFor<T> {
   static_assert(std::is_base_of_v<ExposedTrustedObject, T>);
@@ -302,7 +302,7 @@ class FixedExposedTrustedObjectBodyDescriptor
 };
 
 // A mix-in for visiting a trusted pointer field.
-template <size_t kFieldOffset, IndirectPointerTagRange kTagRange>
+template <size_t kFieldOffset, TrustedPointerTagRange kTagRange>
 struct WithStrongTrustedPointer {
   template <typename Base>
   class BodyDescriptor : public Base {
@@ -319,7 +319,7 @@ struct WithStrongTrustedPointer {
 
 template <size_t kFieldOffset>
 using WithStrongCodePointer =
-    WithStrongTrustedPointer<kFieldOffset, kCodeIndirectPointerTag>;
+    WithStrongTrustedPointer<kFieldOffset, kCodeTrustedPointerTag>;
 
 // A mix-in for visiting an external pointer field.
 template <size_t kFieldOffset, ExternalPointerTagRange kTagRange>

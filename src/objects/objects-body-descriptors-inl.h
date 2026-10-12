@@ -280,7 +280,7 @@ void BodyDescriptorBase::IterateCustomWeakPointer(Tagged<HeapObject> obj,
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateTrustedPointer(
     Tagged<HeapObject> obj, int offset, ObjectVisitor* v,
-    IndirectPointerMode mode, IndirectPointerTagRange tag_range) {
+    IndirectPointerMode mode, TrustedPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
   v->VisitIndirectPointer(obj, obj->RawIndirectPointerField(offset, tag_range),
                           mode);
@@ -293,7 +293,7 @@ void BodyDescriptorBase::IterateTrustedPointer(
 #endif
 }
 
-template <typename ObjectVisitor, typename T, IndirectPointerTagRange kTagRange>
+template <typename ObjectVisitor, typename T, TrustedPointerTagRange kTagRange>
 void BodyDescriptorBase::IterateTrustedPointer(
     Tagged<HeapObject> obj, TrustedPointerMember<T, kTagRange>* member,
     ObjectVisitor* v, IndirectPointerMode mode) {
@@ -312,20 +312,20 @@ template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateCodePointer(Tagged<HeapObject> obj, int offset,
                                             ObjectVisitor* v,
                                             IndirectPointerMode mode) {
-  IterateTrustedPointer(obj, offset, v, mode, kCodeIndirectPointerTag);
+  IterateTrustedPointer(obj, offset, v, mode, kCodeTrustedPointerTag);
 }
 
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateCodePointer(
     Tagged<HeapObject> obj,
-    TrustedPointerMember<Code, kCodeIndirectPointerTag>* member,
+    TrustedPointerMember<Code, kCodeTrustedPointerTag>* member,
     ObjectVisitor* v, IndirectPointerMode mode) {
   IterateTrustedPointer(obj, member, v, mode);
 }
 
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateSelfIndirectPointer(
-    Tagged<HeapObject> obj, IndirectPointerTagRange tag_range,
+    Tagged<HeapObject> obj, TrustedPointerTagRange tag_range,
     ObjectVisitor* v) {
 #ifdef V8_ENABLE_SANDBOX
   v->VisitTrustedPointerTableEntry(
@@ -563,10 +563,10 @@ class RegExpData::BodyDescriptor final : public BodyDescriptorBase {
     // If new pointers are added to RegExpData, make sure to also add them to
     // the subclasses descriptors (AtomRegExpData and IrRegExpData).
     // We don't directly call the base class IterateBody, as in the future
-    // the subclasses will have a different indirect pointer tag from the base
+    // the subclasses will have a different trusted pointer tag from the base
     // class (once inheritance hierarchies are supported for indirect pointer
     // tags).
-    IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kRegExpDataTrustedPointerTag, v);
     IteratePointer(obj, offsetof(RegExpData, original_source_), v);
     IteratePointer(obj, offsetof(RegExpData, escaped_source_), v);
     IteratePointer(obj, offsetof(RegExpData, wrapper_), v);
@@ -582,7 +582,7 @@ class AtomRegExpData::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kRegExpDataTrustedPointerTag, v);
 
     IteratePointer(obj, offsetof(AtomRegExpData, original_source_), v);
     IteratePointer(obj, offsetof(AtomRegExpData, escaped_source_), v);
@@ -601,7 +601,7 @@ class IrRegExpData::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kRegExpDataTrustedPointerTag, v);
 
     IteratePointer(obj, offsetof(IrRegExpData, original_source_), v);
     IteratePointer(obj, offsetof(IrRegExpData, escaped_source_), v);
@@ -1039,7 +1039,7 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kBytecodeArrayIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kBytecodeArrayTrustedPointerTag, v);
     IteratePointer(obj, offsetof(BytecodeArray, wrapper_), v);
     IterateProtectedPointer(obj,
                             offsetof(BytecodeArray, source_position_table_), v);
@@ -1110,7 +1110,7 @@ class InterpreterData::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kInterpreterDataIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kInterpreterDataTrustedPointerTag, v);
     IterateProtectedPointer(obj, offsetof(InterpreterData, bytecode_array_), v);
     IterateProtectedPointer(
         obj, offsetof(InterpreterData, interpreter_trampoline_), v);
@@ -1127,7 +1127,7 @@ class UncompiledDataWithoutPreparseData::BodyDescriptor final
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kUncompiledDataTrustedPointerTag, v);
     IteratePointer(
         obj, offsetof(UncompiledDataWithoutPreparseData, inferred_name_), v);
   }
@@ -1143,7 +1143,7 @@ class UncompiledDataWithPreparseData::BodyDescriptor final
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kUncompiledDataTrustedPointerTag, v);
     IteratePointer(obj,
                    offsetof(UncompiledDataWithPreparseData, inferred_name_), v);
     IteratePointer(obj,
@@ -1161,7 +1161,7 @@ class UncompiledDataWithoutPreparseDataWithJob::BodyDescriptor final
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kUncompiledDataTrustedPointerTag, v);
     IteratePointer(
         obj, offsetof(UncompiledDataWithoutPreparseDataWithJob, inferred_name_),
         v);
@@ -1178,7 +1178,7 @@ class UncompiledDataWithPreparseDataAndJob::BodyDescriptor final
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kUncompiledDataTrustedPointerTag, v);
     IteratePointer(
         obj, offsetof(UncompiledDataWithPreparseDataAndJob, inferred_name_), v);
     IteratePointer(
@@ -1197,7 +1197,7 @@ class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IterateTrustedPointer(
         obj, offsetof(SharedFunctionInfo, trusted_function_data_), v,
-        IndirectPointerMode::kCustom, kTrustedDataIndirectPointerRange);
+        IndirectPointerMode::kCustom, kTrustedDataTrustedPointerRange);
     IteratePointers(obj, offsetof(SharedFunctionInfo, untrusted_function_data_),
                     kEndOfStrongFieldsOffset, v);
   }
@@ -1212,7 +1212,7 @@ class DebugInfo::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kDebugInfoIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kDebugInfoTrustedPointerTag, v);
     IteratePointers(obj, offsetof(DebugInfo, shared_),
                     offsetof(DebugInfo, coverage_info_) + kTaggedSize, v);
     IterateProtectedPointer(obj, offsetof(DebugInfo, debug_bytecode_array_), v);
@@ -1441,7 +1441,7 @@ class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kWasmInternalFunctionIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kWasmInternalFunctionTrustedPointerTag, v);
     IterateProtectedPointer(
         obj, offsetof(WasmInternalFunction, protected_implicit_arg_), v);
     IteratePointer(obj, offsetof(WasmInternalFunction, external_), v);
@@ -1458,8 +1458,7 @@ class WasmFunctionData::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kWasmFunctionDataIndirectPointerTagRange,
-                               v);
+    IterateSelfIndirectPointer(obj, kWasmFunctionDataTrustedPointerTagRange, v);
     IteratePointer(obj, offsetof(WasmFunctionData, func_ref_), v);
     IteratePointer(obj, offsetof(WasmFunctionData, js_promise_flags_), v);
     IterateProtectedPointer(obj,
@@ -1514,7 +1513,7 @@ class WasmSuspenderObject::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kWasmSuspenderIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kWasmSuspenderTrustedPointerTag, v);
     IterateProtectedPointer(obj, offsetof(WasmSuspenderObject, parent_), v);
     IteratePointer(obj, offsetof(WasmSuspenderObject, promise_), v);
     IteratePointer(obj, offsetof(WasmSuspenderObject, resume_), v);
@@ -1533,9 +1532,9 @@ class WasmTrustedInstanceData::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     bool shared = HeapLayout::InAnySharedSpace(obj);
-    IndirectPointerTag tag =
-        shared ? kSharedWasmTrustedInstanceDataIndirectPointerTag
-               : kWasmTrustedInstanceDataIndirectPointerTag;
+    TrustedPointerTag tag =
+        shared ? kSharedWasmTrustedInstanceDataTrustedPointerTag
+               : kWasmTrustedInstanceDataTrustedPointerTag;
     IterateSelfIndirectPointer(obj, tag, v);
     for (uint16_t offset : kTaggedFieldOffsets) {
       IteratePointer(obj, offset, v);
@@ -1599,8 +1598,8 @@ class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     bool shared = HeapLayout::InAnySharedSpace(obj);
-    IndirectPointerTag tag = shared ? kSharedWasmDispatchTableIndirectPointerTag
-                                    : kWasmDispatchTableIndirectPointerTag;
+    TrustedPointerTag tag = shared ? kSharedWasmDispatchTableTrustedPointerTag
+                                   : kWasmDispatchTableTrustedPointerTag;
     IterateSelfIndirectPointer(obj, tag, v);
     IterateProtectedPointer(obj, kProtectedOffheapDataOffset, v);
     IterateProtectedPointer(obj, kProtectedUsesOffset, v);
@@ -1879,7 +1878,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kCodeIndirectPointerTag, v);
+    IterateSelfIndirectPointer(obj, kCodeTrustedPointerTag, v);
     IterateProtectedPointer(
         obj, Code::kDeoptimizationDataOrInterpreterDataOffset, v);
     IterateProtectedPointer(obj, Code::kPositionTableOffset, v);

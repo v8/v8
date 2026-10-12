@@ -741,7 +741,7 @@ FieldAccess AccessBuilder::ForJSRegExpData() {
                         ConstFieldInfo::None(),
                         false,
                         kExternalPointerNullTag,
-                        kRegExpDataIndirectPointerTag,
+                        kRegExpDataTrustedPointerTag,
                         false,
                         false};
   return access;

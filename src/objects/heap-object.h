@@ -14,8 +14,8 @@
 #include "src/objects/slots.h"
 #include "src/objects/tagged-field.h"
 #include "src/roots/roots.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/isolate.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -323,7 +323,7 @@ V8_OBJECT class HeapObject {
       int byte_offset, ExternalPointerTagRange tag_range) const;
   inline CppHeapPointerSlot RawCppHeapPointerField(int byte_offset) const;
   inline IndirectPointerSlot RawIndirectPointerField(
-      int byte_offset, IndirectPointerTagRange tag_range) const;
+      int byte_offset, TrustedPointerTagRange tag_range) const;
 
   // Return the write barrier mode for this. Callers of this function
   // must be able to present a reference to an DisallowGarbageCollection

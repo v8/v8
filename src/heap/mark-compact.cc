@@ -87,8 +87,8 @@
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/trusted-pointer-table.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -3768,7 +3768,7 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
 
       // Read the object from the table. It is now an UncompiledData.
       Address obj_addr = isolate->trusted_pointer_table().GetMaybeUnpublished(
-          handle, kBytecodeArrayIndirectPointerTag);
+          handle, kBytecodeArrayTrustedPointerTag);
       Tagged<TrustedObject> trusted_obj =
           UncheckedCast<TrustedObject>(Tagged<Object>(obj_addr));
       Tagged<UncompiledData> uncompiled_data =

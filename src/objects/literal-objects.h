@@ -156,7 +156,7 @@ V8_OBJECT class RegExpBoilerplateDescription : public Struct {
   friend class ConstructorBuiltinsAssembler;
   friend struct ObjectTraits<RegExpBoilerplateDescription>;
 
-  const TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
+  const TrustedPointerMember<RegExpData, kRegExpDataTrustedPointerTag> data_;
   const TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSRegExpFlags>);
 } V8_OBJECT_END;
 
@@ -167,7 +167,7 @@ struct ObjectTraits<RegExpBoilerplateDescription> {
                           sizeof(RegExpBoilerplateDescription),
                           sizeof(RegExpBoilerplateDescription)>,
       WithStrongTrustedPointer<offsetof(RegExpBoilerplateDescription, data_),
-                               kRegExpDataIndirectPointerTag>>;
+                               kRegExpDataTrustedPointerTag>>;
 };
 
 V8_OBJECT class ClassBoilerplate : public Struct {

@@ -5370,7 +5370,7 @@ class TrustedConstant : public FixedInputValueNodeT<0, TrustedConstant> {
   using OutputRegister = Register;
 
   explicit TrustedConstant(uint64_t bitfield, compiler::HeapObjectRef object,
-                           IndirectPointerTag tag)
+                           TrustedPointerTag tag)
       : Base(bitfield), object_(object), tag_(tag) {}
 
   static constexpr OpProperties kProperties = OpProperties::TrustedPointer();
@@ -5382,14 +5382,14 @@ class TrustedConstant : public FixedInputValueNodeT<0, TrustedConstant> {
   void PrintParams(std::ostream&) const;
 
   compiler::HeapObjectRef object() const { return object_; }
-  IndirectPointerTag tag() const { return tag_; }
+  TrustedPointerTag tag() const { return tag_; }
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister) const;
   DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const compiler::HeapObjectRef object_;
-  const IndirectPointerTag tag_;
+  const TrustedPointerTag tag_;
 };
 
 class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
@@ -9599,7 +9599,7 @@ class StoreTrustedPointerFieldWithWriteBarrier
  public:
   explicit StoreTrustedPointerFieldWithWriteBarrier(uint64_t bitfield,
                                                     int offset,
-                                                    IndirectPointerTag tag,
+                                                    TrustedPointerTag tag,
                                                     StoreTaggedMode store_mode)
       : Base(bitfield | InitializingOrTransitioningField::encode(
                             IsInitializingOrTransitioning(store_mode))),
@@ -9612,7 +9612,7 @@ class StoreTrustedPointerFieldWithWriteBarrier
   DECLARE_INPUT_TYPES(Tagged, Tagged)
 
   int offset() const { return offset_; }
-  IndirectPointerTag tag() const { return tag_; }
+  TrustedPointerTag tag() const { return tag_; }
   bool initializing_or_transitioning() const {
     return InitializingOrTransitioningField::decode(bitfield());
   }
@@ -9633,7 +9633,7 @@ class StoreTrustedPointerFieldWithWriteBarrier
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
 
   const int offset_;
-  const IndirectPointerTag tag_;
+  const TrustedPointerTag tag_;
 };
 
 class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {

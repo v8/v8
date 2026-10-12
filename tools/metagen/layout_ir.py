@@ -30,7 +30,7 @@ STORAGE_KINDS = frozenset({
     "tagged",
     "protected_tagged",
     # TrustedPointerMember<T, tag>: an indirect pointer handle; `tag`
-    # names the IndirectPointerTag constant.
+    # names the TrustedPointerTag constant.
     "trusted_pointer",
     "external_pointer",
     "cpp_heap_pointer",

@@ -247,8 +247,8 @@ int WriteBarrier::IndirectPointerMarkingFromCode(Address raw_host,
                                                  Address raw_slot,
                                                  Address raw_tag) {
   Tagged<HeapObject> host = Cast<HeapObject>(Tagged<Object>(raw_host));
-  IndirectPointerTag tag = static_cast<IndirectPointerTag>(raw_tag);
-  DCHECK(IsValidIndirectPointerTag(tag));
+  TrustedPointerTag tag = static_cast<TrustedPointerTag>(raw_tag);
+  DCHECK(IsValidTrustedPointerTag(tag));
   IndirectPointerSlot slot(raw_slot, tag);
 
 #if DEBUG

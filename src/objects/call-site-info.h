@@ -173,9 +173,9 @@ V8_OBJECT class CallSiteInfo : public Struct {
   friend class TorqueGeneratedCallSiteInfoAsserts;
   friend struct ObjectTraits<CallSiteInfo>;
 
-  static constexpr IndirectPointerTagRange kCodeObjectTagRange =
-      IndirectPointerTagRange(kBytecodeArrayIndirectPointerTag,
-                              kCodeIndirectPointerTag);
+  static constexpr TrustedPointerTagRange kCodeObjectTagRange =
+      TrustedPointerTagRange(kBytecodeArrayTrustedPointerTag,
+                             kCodeTrustedPointerTag);
   static_assert(kCodeObjectTagRange.Size() == 2);
 
   const TrustedPointerMember<Union<Code, BytecodeArray>, kCodeObjectTagRange>

@@ -3342,7 +3342,7 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
 #if V8_ENABLE_SANDBOX
 struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
   LoadOp::Kind kind;
-  IndirectPointerTagRange tag_range;
+  TrustedPointerTagRange tag_range;
   const int offset;
 
   OpEffects Effects() const {
@@ -3355,7 +3355,7 @@ struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
 
   explicit LoadTrustedPointerOp(V<HeapObject> base, V<WordPtr> table,
                                 LoadOp::Kind kind,
-                                IndirectPointerTagRange tag_range, int offset)
+                                TrustedPointerTagRange tag_range, int offset)
       : Base(base, table), kind(kind), tag_range(tag_range), offset(offset) {
     DCHECK(kind.tagged_base);
     DCHECK(!kind.is_atomic);
@@ -3731,7 +3731,7 @@ struct StoreOp : OperationT<StoreOp> {
   AtomicMemoryOrder memory_order_;  // use the padding after prev field
 
  public:
-  uint16_t indirect_pointer_tag_;
+  uint16_t trusted_pointer_tag_;
 
   std::optional<AtomicMemoryOrder> memory_order() const {
     if (kind.is_atomic) return memory_order_;
@@ -3783,16 +3783,15 @@ struct StoreOp : OperationT<StoreOp> {
     return input_count == 3 ? input(2) : OpIndex::Invalid();
   }
 
-  IndirectPointerTag indirect_pointer_tag() const {
-    return static_cast<IndirectPointerTag>(indirect_pointer_tag_);
+  TrustedPointerTag trusted_pointer_tag() const {
+    return static_cast<TrustedPointerTag>(trusted_pointer_tag_);
   }
 
-  StoreOp(
-      OpIndex base, OptionalOpIndex index, OpIndex value, Kind kind,
-      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-      std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
-      uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag)
+  StoreOp(OpIndex base, OptionalOpIndex index, OpIndex value, Kind kind,
+          MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+          std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
+          uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
+          TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag)
       : Base(2 + index.valid()),
         kind(kind),
         stored_rep(stored_rep),
@@ -3802,9 +3801,8 @@ struct StoreOp : OperationT<StoreOp> {
         maybe_initializing_or_transitioning(
             maybe_initializing_or_transitioning),
         memory_order_(memory_order.value_or(AtomicMemoryOrder::kSeqCst)),
-        indirect_pointer_tag_(
-            static_cast<uint16_t>(maybe_indirect_pointer_tag)) {
-    DCHECK_EQ(indirect_pointer_tag(), maybe_indirect_pointer_tag);
+        trusted_pointer_tag_(static_cast<uint16_t>(maybe_trusted_pointer_tag)) {
+    DCHECK_EQ(trusted_pointer_tag(), maybe_trusted_pointer_tag);
     input(0) = base;
     input(1) = value;
     if (index.valid()) {
@@ -3817,7 +3815,7 @@ struct StoreOp : OperationT<StoreOp> {
     return fn(mapper.Map(base()), mapper.Map(index()), mapper.Map(value()),
               kind, stored_rep, write_barrier, memory_order(), offset,
               element_size_log2, maybe_initializing_or_transitioning,
-              indirect_pointer_tag());
+              trusted_pointer_tag());
   }
 
   void Validate(const Graph& graph) const {
@@ -3832,11 +3830,11 @@ struct StoreOp : OperationT<StoreOp> {
       WriteBarrierKind write_barrier,
       std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
       uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+      TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     return Base::New(graph, 2 + index.valid(), base, index, value, kind,
                      stored_rep, write_barrier, memory_order, offset,
                      element_size_log2, maybe_initializing_or_transitioning,
-                     maybe_indirect_pointer_tag);
+                     maybe_trusted_pointer_tag);
   }
 
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
@@ -3849,7 +3847,7 @@ struct StoreOp : OperationT<StoreOp> {
                       offset,
                       element_size_log2,
                       maybe_initializing_or_transitioning,
-                      indirect_pointer_tag()};
+                      trusted_pointer_tag()};
   }
 };
 
@@ -11233,7 +11231,7 @@ constexpr size_t input_count(MemoryRepresentation) { return 0; }
 constexpr size_t input_count(OpEffects) { return 0; }
 constexpr size_t input_count(ExternalPointerTagRange) { return 0; }
 #if V8_ENABLE_SANDBOX
-constexpr size_t input_count(IndirectPointerTagRange) { return 0; }
+constexpr size_t input_count(TrustedPointerTagRange) { return 0; }
 #endif
 inline size_t input_count(const ElementsTransition) { return 0; }
 inline size_t input_count(const ElementsTransitionWithMultipleSources) {

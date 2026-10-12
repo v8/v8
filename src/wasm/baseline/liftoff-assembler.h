@@ -718,7 +718,7 @@ class LiftoffAssembler : public MacroAssembler {
                                      Register mem_start, bool reload_mem_start,
                                      int mem_index);
   inline void LoadTrustedPointer(Register dst, Register src_addr, int offset,
-                                 IndirectPointerTag tag);
+                                 TrustedPointerTag tag);
   inline void LoadFromInstance(Register dst, Register instance, int offset,
                                int size);
   inline void LoadTaggedPointerFromInstance(Register dst, Register instance,

@@ -595,7 +595,7 @@ V8_OBJECT class CodeWrapper : public Struct {
   class BodyDescriptor;
 
  public:
-  TrustedPointerMember<Code, kCodeIndirectPointerTag> code_;
+  TrustedPointerMember<Code, kCodeTrustedPointerTag> code_;
 } V8_OBJECT_END;
 
 }  // namespace internal

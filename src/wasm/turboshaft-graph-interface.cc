@@ -8624,7 +8624,7 @@ class TurboshaftGraphBuildingInterface
 
     V<WasmInternalFunction> internal_function =
         V<WasmInternalFunction>::Cast(__ LoadTrustedPointer(
-            func_ref, load_kind, kWasmInternalFunctionIndirectPointerTag,
+            func_ref, load_kind, kWasmInternalFunctionTrustedPointerTag,
             offsetof(WasmFuncRef, trusted_internal_)));
     return BuildFunctionTargetAndImplicitArg(internal_function);
   }

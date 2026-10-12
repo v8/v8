@@ -345,8 +345,8 @@ IndirectPointerWriteBarrierDescriptor::SlotAddressRegister() {
 }
 // static
 constexpr Register
-IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister() {
-  return std::get<kIndirectPointerTag>(registers());
+IndirectPointerWriteBarrierDescriptor::TrustedPointerTagRegister() {
+  return std::get<kTrustedPointerTag>(registers());
 }
 
 // static
@@ -357,7 +357,7 @@ constexpr RegList IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(
   // passes one additional parameter.
   RegList saved_registers =
       WriteBarrierDescriptor::ComputeSavedRegisters(object, slot_address);
-  saved_registers.set(IndirectPointerTagRegister());
+  saved_registers.set(TrustedPointerTagRegister());
   return saved_registers;
 }
 

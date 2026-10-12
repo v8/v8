@@ -175,7 +175,7 @@ bool WasmGlobalObject::has_trusted_data_unpublished(
     IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
       Tagged<HeapObject>(this), offsetof(WasmGlobalObject, trusted_data_),
-      kWasmTrustedInstanceDataIndirectPointerTag, isolate);
+      kWasmTrustedInstanceDataTrustedPointerTag, isolate);
 }
 void WasmGlobalObject::clear_trusted_data() { trusted_data_.clear(this); }
 
@@ -480,7 +480,7 @@ bool WasmInstanceObject::has_trusted_data_unpublished(
     IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
       Tagged<HeapObject>(this), offsetof(WasmInstanceObject, trusted_data_),
-      kWasmTrustedInstanceDataIndirectPointerTag, isolate);
+      kWasmTrustedInstanceDataTrustedPointerTag, isolate);
 }
 void WasmInstanceObject::clear_trusted_data() { trusted_data_.clear(this); }
 
@@ -490,7 +490,7 @@ WasmInstanceObject::trusted_data_allow_unpublished(
 #ifdef V8_ENABLE_SANDBOX
   Tagged<Object> obj =
       RawIndirectPointerField(offsetof(WasmInstanceObject, trusted_data_),
-                              kWasmTrustedInstanceDataIndirectPointerTag)
+                              kWasmTrustedInstanceDataTrustedPointerTag)
           .Relaxed_Load_AllowUnpublished(isolate);
   return TrustedCast<WasmTrustedInstanceData>(obj);
 #else
@@ -1070,7 +1070,7 @@ bool WasmTableObject::has_trusted_data_unpublished(
     IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
       Tagged<HeapObject>(this), offsetof(WasmTableObject, trusted_data_),
-      kWasmTrustedInstanceDataIndirectPointerTag, isolate);
+      kWasmTrustedInstanceDataTrustedPointerTag, isolate);
 }
 void WasmTableObject::clear_trusted_data() { trusted_data_.clear(this); }
 
@@ -1098,7 +1098,7 @@ bool WasmTableObject::has_trusted_dispatch_table_unpublished(
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
       Tagged<HeapObject>(this),
       offsetof(WasmTableObject, trusted_dispatch_table_),
-      kWasmDispatchTableIndirectPointerTag, isolate);
+      kWasmDispatchTableTrustedPointerTag, isolate);
 }
 void WasmTableObject::clear_trusted_dispatch_table() {
   trusted_dispatch_table_.clear(this);
@@ -1524,7 +1524,7 @@ bool WasmTagObject::has_trusted_data_unpublished(
     IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
       Tagged<HeapObject>(this), offsetof(WasmTagObject, trusted_data_),
-      kWasmTrustedInstanceDataIndirectPointerTag, isolate);
+      kWasmTrustedInstanceDataTrustedPointerTag, isolate);
 }
 void WasmTagObject::clear_trusted_data() { trusted_data_.clear(this); }
 

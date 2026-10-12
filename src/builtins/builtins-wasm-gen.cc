@@ -36,7 +36,7 @@ TNode<WasmTrustedInstanceData>
 WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
     TNode<WasmInstanceObject> instance_object) {
   return LoadTrustedPointerFromObject<
-      kWasmTrustedInstanceDataIndirectPointerTag>(
+      kWasmTrustedInstanceDataTrustedPointerTag>(
       instance_object, offsetof(WasmInstanceObject, trusted_data_));
 }
 

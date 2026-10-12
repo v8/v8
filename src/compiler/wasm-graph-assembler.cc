@@ -10,7 +10,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/objects/string.h"
-#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8::internal::compiler {
@@ -243,7 +243,7 @@ Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
 }
 
 Node* WasmGraphAssembler::BuildDecodeTrustedPointer(
-    Node* handle, IndirectPointerTagRange tag_range) {
+    Node* handle, TrustedPointerTagRange tag_range) {
 #if V8_ENABLE_SANDBOX
   Node* index = Word32Shr(handle, Int32Constant(kTrustedPointerHandleShift));
   Node* offset = ChangeUint32ToUint64(
@@ -253,8 +253,8 @@ Node* WasmGraphAssembler::BuildDecodeTrustedPointer(
                          Internals::kExternalEntityTableBasePointerOffset);
   Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
 
-  if (IsFastIndirectPointerTagRange(tag_range)) {
-    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+  if (IsFastTrustedPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastTrustedPointerTag(tag_range);
     decoded_ptr = WordAnd(decoded_ptr, IntPtrConstant(mask));
   } else {
     Node* tag =
@@ -265,7 +265,7 @@ Node* WasmGraphAssembler::BuildDecodeTrustedPointer(
       // The common and simple case: we expect exactly one tag.
       Node* expected_tag = IntPtrConstant(tag_range.first);
       GotoIf(WordEqual(tag, expected_tag), &ok, BranchHint::kTrue);
-      RuntimeAbort(AbortReason::kIndirectPointerTagMismatch);
+      RuntimeAbort(AbortReason::kTrustedPointerTagMismatch);
       Goto(&ok);  // Unreachable, but needed for graph coherency.
     } else {
       // Range check.
@@ -273,7 +273,7 @@ Node* WasmGraphAssembler::BuildDecodeTrustedPointer(
       GotoIf(Uint64LessThanOrEqual(
                  diff, IntPtrConstant(tag_range.last - tag_range.first)),
              &ok, BranchHint::kTrue);
-      RuntimeAbort(AbortReason::kIndirectPointerTagMismatch);
+      RuntimeAbort(AbortReason::kTrustedPointerTagMismatch);
       Goto(&ok);  // Unreachable, but needed for graph coherency.
     }
 
@@ -409,7 +409,7 @@ Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
 }
 
 Node* WasmGraphAssembler::LoadImmutableTrustedPointerFromObject(
-    Node* object, int field_offset, IndirectPointerTagRange tag) {
+    Node* object, int field_offset, TrustedPointerTagRange tag) {
   Node* offset = IntPtrConstant(field_offset);
 #ifdef V8_ENABLE_SANDBOX
   Node* handle = LoadImmutableFromObject(MachineType::Uint32(), object, offset);
@@ -420,7 +420,7 @@ Node* WasmGraphAssembler::LoadImmutableTrustedPointerFromObject(
 }
 
 Node* WasmGraphAssembler::LoadTrustedPointerFromObject(
-    Node* object, int field_offset, IndirectPointerTagRange tag) {
+    Node* object, int field_offset, TrustedPointerTagRange tag) {
   Node* offset = IntPtrConstant(field_offset);
 #ifdef V8_ENABLE_SANDBOX
   Node* handle = LoadFromObject(MachineType::Uint32(), object, offset);
@@ -432,7 +432,7 @@ Node* WasmGraphAssembler::LoadTrustedPointerFromObject(
 
 std::pair<Node*, Node*>
 WasmGraphAssembler::LoadTrustedPointerFromObjectTrapOnNull(
-    Node* object, int field_offset, IndirectPointerTagRange tag) {
+    Node* object, int field_offset, TrustedPointerTagRange tag) {
   Node* offset = IntPtrConstant(field_offset);
 #ifdef V8_ENABLE_SANDBOX
   Node* handle = LoadTrapOnNull(MachineType::Uint32(), object, offset);
@@ -468,7 +468,7 @@ Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
   return LoadImmutableTrustedPointerFromObject(
       shared,
       offsetof(SharedFunctionInfo, trusted_function_data_) - kHeapObjectTag,
-      kWasmExportedFunctionDataIndirectPointerTag);
+      kWasmExportedFunctionDataTrustedPointerTag);
 }
 
 Node* WasmGraphAssembler::LoadExportedFunctionInstanceData(
@@ -628,7 +628,7 @@ Node* WasmGraphAssembler::LoadTrustedDataFromInstanceObject(
   return LoadImmutableTrustedPointerFromObject(
       instance_object,
       offsetof(WasmInstanceObject, trusted_data_) - kHeapObjectTag,
-      kWasmTrustedInstanceDataIndirectPointerTag);
+      kWasmTrustedInstanceDataTrustedPointerTag);
 }
 
 // Generic HeapObject helpers.

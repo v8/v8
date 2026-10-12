@@ -665,7 +665,7 @@ ReduceResult MaglevReducer<BaseT>::BuildStoreTaggedFieldNoWriteBarrier(
 
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildStoreTrustedPointerField(
-    ValueNode* object, ValueNode* value, int offset, IndirectPointerTag tag,
+    ValueNode* object, ValueNode* value, int offset, TrustedPointerTag tag,
     StoreTaggedMode store_mode) {
 #ifdef V8_ENABLE_SANDBOX
   return AddNewNode<StoreTrustedPointerFieldWithWriteBarrier>(
@@ -6123,9 +6123,9 @@ VirtualObject* MaglevReducer<BaseT>::CreateRegExpLiteralObject(
             GetRootConstant(RootIndex::kEmptyFixedArray));
   vobj->set(offsetof(JSObject, elements_),
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSRegExp, data_),
-            GetTrustedConstant(literal.data(broker()),
-                               kRegExpDataIndirectPointerTag));
+  vobj->set(
+      offsetof(JSRegExp, data_),
+      GetTrustedConstant(literal.data(broker()), kRegExpDataTrustedPointerTag));
   vobj->set(offsetof(JSRegExp, flags_), GetInt32Constant(literal.flags()));
   vobj->set(JSRegExp::kLastIndexOffset,
             GetInt32Constant(JSRegExp::kInitialLastIndexValue));

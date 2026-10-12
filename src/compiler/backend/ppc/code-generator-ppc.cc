@@ -185,7 +185,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       CodeGenerator* gen, Register object, Register offset, Register value,
       Register scratch0, Register scratch1, RecordWriteMode mode,
       StubCallMode stub_mode, UnwindingInfoWriter* unwinding_info_writer,
-      IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
+      TrustedPointerTag trusted_pointer_tag = kTrustedPointerNullTag)
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),

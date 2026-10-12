@@ -46,7 +46,7 @@ CallSiteInfo::CallSiteInfo(
 
 Tagged<HeapObject> CallSiteInfo::code_object(IsolateForSandbox isolate) const {
   // The field can contain either a Code or a BytecodeArray, so we need to use
-  // the kUnknownIndirectPointerTag. Since we can then no longer rely on the
+  // the kUnknownTrustedPointerTag. Since we can then no longer rely on the
   // type-checking mechanism of trusted pointers we need to perform manual type
   // checks afterwards.
   Tagged<Object> object = code_object_.Acquire_Load_maybe_empty(isolate);

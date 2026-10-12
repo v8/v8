@@ -32,8 +32,8 @@
 #include "src/objects/string.h"
 #include "src/sandbox/check.h"
 #include "src/sandbox/external-pointer-inl.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -485,7 +485,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
         shared_info,
         shared_info->RawIndirectPointerField(
             offsetof(SharedFunctionInfo, trusted_function_data_),
-            SharedFunctionInfo::kTrustedDataIndirectPointerRange),
+            SharedFunctionInfo::kTrustedDataTrustedPointerRange),
         IndirectPointerMode::kStrong);
 #else
     VisitPointer(shared_info, shared_info->RawField(offsetof(
@@ -849,7 +849,7 @@ template <typename ConcreteVisitor>
 void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
-  IndirectPointerTagRange tag_range = slot.tag_range();
+  TrustedPointerTagRange tag_range = slot.tag_range();
 
   IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
 

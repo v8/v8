@@ -2953,7 +2953,7 @@ class AssemblerOpInterface : public Next {
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
   V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
-                               IndirectPointerTagRange tag_range, int offset) {
+                               TrustedPointerTagRange tag_range, int offset) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
     V<WordPtr> table =
@@ -2970,7 +2970,7 @@ class AssemblerOpInterface : public Next {
 #if V8_ENABLE_SANDBOX
   V<Object> LoadTrustedPointer(V<HeapObject> base, V<WordPtr> table,
                                LoadOp::Kind kind,
-                               IndirectPointerTagRange tag_range,
+                               TrustedPointerTagRange tag_range,
                                int32_t offset) {
     return ReduceIfReachableLoadTrustedPointer(base, table, kind, tag_range,
                                                offset);
@@ -3101,31 +3101,31 @@ class AssemblerOpInterface : public Next {
       std::optional<AtomicMemoryOrder> memory_order, int32_t offset = 0,
       uint8_t element_size_log2 = 0,
       bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+      TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     DCHECK_EQ(kind.is_atomic, memory_order.has_value());
     ReduceIfReachableStore(base, index, value, kind, stored_rep, write_barrier,
                            memory_order, offset, element_size_log2,
                            maybe_initializing_or_transitioning,
-                           maybe_indirect_pointer_tag);
+                           maybe_trusted_pointer_tag);
   }
   void Store(
       OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
       int32_t offset = 0, uint8_t element_size_log2 = 0,
       bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+      TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     Store(base, index, value, kind, stored_rep, write_barrier, std::nullopt,
           offset, element_size_log2, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
+          maybe_trusted_pointer_tag);
   }
   void Store(
       OpIndex base, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
       int32_t offset = 0, bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+      TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
           offset, 0, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
+          maybe_trusted_pointer_tag);
   }
   void Store(
       OpIndex base, OpIndex value, StoreOp::Kind kind,
@@ -3133,10 +3133,10 @@ class AssemblerOpInterface : public Next {
       std::optional<AtomicMemoryOrder> memory_order, int32_t offset = 0,
       uint8_t element_size_log2 = 0,
       bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+      TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
           memory_order, offset, 0, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
+          maybe_trusted_pointer_tag);
   }
 
   template <typename T>

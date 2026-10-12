@@ -1033,7 +1033,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
-  template <IndirectPointerTagRange tag_range>
+  template <TrustedPointerTagRange tag_range>
   inline TNode<TrustedTypeFor<tag_range>> LoadTrustedPointerFromObject(
       TNode<HeapObject> object, int field_offset);
 
@@ -1041,7 +1041,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
       Label* if_empty, Label* if_default,
       const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
-      IndirectPointerTagRange tag_range = kAllIndirectPointerTags);
+      TrustedPointerTagRange tag_range = kAllTrustedPointerTags);
 
   // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
@@ -1055,17 +1055,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #ifdef V8_ENABLE_SANDBOX
   // Load an indirect pointer field.
   TNode<TrustedObject> LoadIndirectPointerFromObject(
-      TNode<HeapObject> object, int offset, IndirectPointerTagRange tag_range);
+      TNode<HeapObject> object, int offset, TrustedPointerTagRange tag_range);
 
   // Retrieve the heap object referenced by the given indirect pointer handle.
   TNode<TrustedObject> ResolveIndirectPointerHandle(
-      TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range);
+      TNode<IndirectPointerHandleT> handle, TrustedPointerTagRange tag_range);
 
   void ResolveIndirectUnknownPointerHandle(
       TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
       TVariable<Uint16T>* type_out, Label* if_default,
       const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
-      IndirectPointerTagRange tag_range = kAllIndirectPointerTags);
+      TrustedPointerTagRange tag_range = kAllTrustedPointerTags);
 #endif
 
   TNode<JSDispatchHandleT> InvalidDispatchHandleConstant();
@@ -1811,20 +1811,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Stores that may require a write barrier also need to know the indirect
   // pointer tag for the field. Otherwise, it is not needed
   void StoreIndirectPointerField(TNode<HeapObject> object, int offset,
-                                 IndirectPointerTag tag,
+                                 TrustedPointerTag tag,
                                  TNode<ExposedTrustedObject> value);
   void StoreIndirectPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+      TNode<HeapObject> object, int offset, TrustedPointerTag tag,
       TNode<ExposedTrustedObject> value);
 
   // Store a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
   void StoreTrustedPointerField(TNode<HeapObject> object, int offset,
-                                IndirectPointerTag tag,
+                                TrustedPointerTag tag,
                                 TNode<ExposedTrustedObject> value);
   void StoreTrustedPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+      TNode<HeapObject> object, int offset, TrustedPointerTag tag,
       TNode<ExposedTrustedObject> value);
 
   void ClearTrustedPointerField(TNode<HeapObject> object, int offset);
@@ -1834,12 +1834,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // enabled, reference code objects through the code pointer table.
   void StoreCodePointerField(TNode<HeapObject> object, int offset,
                              TNode<Code> value) {
-    StoreTrustedPointerField(object, offset, kCodeIndirectPointerTag, value);
+    StoreTrustedPointerField(object, offset, kCodeTrustedPointerTag, value);
   }
   void StoreCodePointerFieldNoWriteBarrier(TNode<HeapObject> object, int offset,
                                            TNode<Code> value) {
     StoreTrustedPointerFieldNoWriteBarrier(object, offset,
-                                           kCodeIndirectPointerTag, value);
+                                           kCodeTrustedPointerTag, value);
   }
 
   template <class T>

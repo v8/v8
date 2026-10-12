@@ -338,10 +338,10 @@ V8_OBJECT class WasmTableObject : public JSObject {
   TaggedMember<Smi> current_length_;
   TaggedMember<UnionOf<Smi, HeapNumber, BigInt, Undefined>> maximum_length_;
   TaggedMember<Smi> raw_type_;
-  TrustedPointerMember<WasmDispatchTable, kWasmDispatchTableIndirectPointerTag>
+  TrustedPointerMember<WasmDispatchTable, kWasmDispatchTableTrustedPointerTag>
       trusted_dispatch_table_;
   TrustedPointerMember<WasmTrustedInstanceData,
-                       kWasmTrustedInstanceDataIndirectPointerTag>
+                       kWasmTrustedInstanceDataTrustedPointerTag>
       trusted_data_;
   uint8_t address_type_ V8_TQ_TYPE(AddressType);
   uint8_t padding_for_address_type_0_;
@@ -549,7 +549,7 @@ V8_OBJECT class WasmGlobalObject : public JSObject {
   static const int kHeaderSize;
 
   TrustedPointerMember<WasmTrustedInstanceData,
-                       kWasmTrustedInstanceDataIndirectPointerTag>
+                       kWasmTrustedInstanceDataTrustedPointerTag>
       trusted_data_;
   TaggedMember<BufferType> buffer_;
   TaggedMember<Smi> offset_;
@@ -872,7 +872,7 @@ V8_OBJECT class WasmInstanceObject : public JSObject {
   static const int kHeaderSize;
 
   TrustedPointerMember<WasmTrustedInstanceData,
-                       kWasmTrustedInstanceDataIndirectPointerTag>
+                       kWasmTrustedInstanceDataTrustedPointerTag>
       trusted_data_;
   TaggedMember<WasmModuleObject> module_object_;
   TaggedMember<JSObject> exports_object_;
@@ -921,7 +921,7 @@ V8_OBJECT class WasmTagObject : public JSObject {
   TaggedMember<HeapObject> tag_;
   TaggedMember<Smi> canonical_type_index_;
   TrustedPointerMember<WasmTrustedInstanceData,
-                       kWasmTrustedInstanceDataIndirectPointerTag>
+                       kWasmTrustedInstanceDataTrustedPointerTag>
       trusted_data_;
 } V8_OBJECT_END;
 
@@ -1534,7 +1534,7 @@ V8_OBJECT class WasmFuncRef : public HeapObject {
   static const int kSize;
 
   TrustedPointerMember<WasmInternalFunction,
-                       kWasmInternalFunctionIndirectPointerTag>
+                       kWasmInternalFunctionTrustedPointerTag>
       trusted_internal_;
 } V8_OBJECT_END;
 
@@ -1589,7 +1589,7 @@ V8_OBJECT class WasmResumeData : public HeapObject {
   static const int kHeaderSize;
   static const int kSize;
 
-  TrustedPointerMember<WasmSuspenderObject, kWasmSuspenderIndirectPointerTag>
+  TrustedPointerMember<WasmSuspenderObject, kWasmSuspenderTrustedPointerTag>
       trusted_suspender_;
   TaggedMember<Smi> on_resume_;
 } V8_OBJECT_END;

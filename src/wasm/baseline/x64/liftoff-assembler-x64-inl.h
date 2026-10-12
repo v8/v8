@@ -417,7 +417,7 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
 }
 
 void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
-                                          int offset, IndirectPointerTag tag) {
+                                          int offset, TrustedPointerTag tag) {
   LoadTrustedPointerField(dst, Operand{src_addr, offset}, tag,
                           kScratchRegister);
 }

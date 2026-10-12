@@ -26,7 +26,7 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
@@ -4032,7 +4032,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ LoadTrustedPointerField(
       suspender,
       FieldOperand(resume_data, offsetof(WasmResumeData, trusted_suspender_)),
-      kWasmSuspenderIndirectPointerTag, kScratchRegister);
+      kWasmSuspenderTrustedPointerTag, kScratchRegister);
   closure = no_reg;
   sfi = no_reg;
 
@@ -5657,7 +5657,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
       code_obj,
       FieldOperand(shared_function_info,
                    offsetof(SharedFunctionInfo, trusted_function_data_)),
-      kCodeIndirectPointerTag, kScratchRegister);
+      kCodeTrustedPointerTag, kScratchRegister);
 
   // For OSR entry it is safe to assume we always have baseline code.
   if (v8_flags.debug_code) {

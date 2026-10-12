@@ -8,7 +8,7 @@
 #include "include/v8-sandbox.h"
 #include "src/common/globals.h"
 #include "src/sandbox/check.h"
-#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 namespace v8 {
 namespace internal {

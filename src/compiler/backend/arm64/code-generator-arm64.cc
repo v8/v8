@@ -311,7 +311,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       CodeGenerator* gen, Register object, Operand offset, Register value,
       RecordWriteMode mode, StubCallMode stub_mode,
       UnwindingInfoWriter* unwinding_info_writer,
-      IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
+      TrustedPointerTag trusted_pointer_tag = kTrustedPointerNullTag)
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),
@@ -323,7 +323,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         unwinding_info_writer_(unwinding_info_writer),
         zone_(gen->zone()),
-        indirect_pointer_tag_(indirect_pointer_tag) {
+        trusted_pointer_tag_(trusted_pointer_tag) {
   }
 
   void Generate() final {
@@ -352,11 +352,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, offset_, save_fp_mode);
     } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
-      // We must have a valid indirect pointer tag here. Otherwise, we risk not
+      // We must have a valid trusted pointer tag here. Otherwise, we risk not
       // invoking the correct write barrier, which may lead to subtle issues.
-      CHECK(IsValidIndirectPointerTag(indirect_pointer_tag_));
+      CHECK(IsValidTrustedPointerTag(trusted_pointer_tag_));
       __ CallIndirectPointerBarrier(object_, offset_, save_fp_mode,
-                                    indirect_pointer_tag_);
+                                    trusted_pointer_tag_);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -385,7 +385,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   bool must_save_lr_;
   UnwindingInfoWriter* const unwinding_info_writer_;
   Zone* zone_;
-  IndirectPointerTag indirect_pointer_tag_;
+  TrustedPointerTag trusted_pointer_tag_;
 };
 
 class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
@@ -1397,8 +1397,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         offset = Operand(i.InputRegister(1));
       }
       Register value = i.InputRegister(2);
-      IndirectPointerTag tag = static_cast<IndirectPointerTag>(i.InputInt64(3));
-      DCHECK(IsValidIndirectPointerTag(tag));
+      TrustedPointerTag tag = static_cast<TrustedPointerTag>(i.InputInt64(3));
+      DCHECK(IsValidTrustedPointerTag(tag));
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, value, mode, DetermineStubCallMode(),
@@ -1423,8 +1423,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
 
 #if DEBUG
-      IndirectPointerTag tag = static_cast<IndirectPointerTag>(i.InputInt64(3));
-      DCHECK(IsValidIndirectPointerTag(tag));
+      TrustedPointerTag tag = static_cast<TrustedPointerTag>(i.InputInt64(3));
+      DCHECK(IsValidTrustedPointerTag(tag));
 #endif  // DEBUG
 
       DCHECK(v8_flags.verify_write_barriers);
@@ -2579,11 +2579,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register base = i.InputRegister(0);
       int32_t offset = i.InputInt32(1);
       Register table = i.InputRegister(2);
-      IndirectPointerTag first =
-          static_cast<IndirectPointerTag>(i.InputInt32(3));
-      IndirectPointerTag last =
-          static_cast<IndirectPointerTag>(i.InputInt32(4));
-      IndirectPointerTagRange tag_range(first, last);
+      TrustedPointerTag first = static_cast<TrustedPointerTag>(i.InputInt32(3));
+      TrustedPointerTag last = static_cast<TrustedPointerTag>(i.InputInt32(4));
+      TrustedPointerTagRange tag_range(first, last);
 
       Register destination = i.OutputRegister();
       Register handle = i.TempRegister(0);
@@ -2594,9 +2592,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ldr(destination,
              MemOperand(table, handle, LSL, kTrustedPointerTableEntrySizeLog2));
 
-      if (IsFastIndirectPointerTagRange(tag_range)) {
-        uint64_t mask =
-            ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+      if (IsFastTrustedPointerTagRange(tag_range)) {
+        uint64_t mask = ComputeUntaggingMaskForFastTrustedPointerTag(tag_range);
         __ And(destination, destination, mask);
       } else {
         Register tag = handle;  // Reuse handle for tag

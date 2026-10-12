@@ -2660,7 +2660,7 @@ filegroup(
         "src/sandbox/isolate.h",
         "src/sandbox/isolate-inl.h",
         "src/sandbox/indirect-pointer.h",
-        "src/sandbox/indirect-pointer-tag.h",
+        "src/sandbox/trusted-pointer-tag.h",
         "src/sandbox/indirect-pointer-inl.h",
         "src/sandbox/code-entrypoint-tag.h",
         "src/sandbox/external-entity-table.h",

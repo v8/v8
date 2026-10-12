@@ -75,7 +75,7 @@ _STRUCT_TYPES = frozenset({
 
 _POINTER_TAG_TYPES = frozenset({
     "v8::internal::ExternalPointerTag",
-    "v8::internal::IndirectPointerTag",
+    "v8::internal::TrustedPointerTag",
 })
 
 
@@ -181,7 +181,7 @@ def _template_args(t: cindex.Type) -> list[cindex.Type]:
 
 def _pointer_tag_names(field: cindex.Cursor) -> list[str]:
   """Names of the pointer-tag constants referenced in the field's
-  declared type (e.g. kFooIndirectPointerTag, or a kFoo...TagRange
+  declared type (e.g. kFooTrustedPointerTag, or a kFoo...TagRange
   constant). The reference can sit below an implicit conversion, so
   walk the whole subtree; the filter keeps unrelated references (array
   extents, defaults) out."""

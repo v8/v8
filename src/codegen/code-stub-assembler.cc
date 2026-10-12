@@ -2148,7 +2148,7 @@ void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
     TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
     Label* if_empty, Label* if_default,
     const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
-    IndirectPointerTagRange tag_range) {
+    TrustedPointerTagRange tag_range) {
   Label unreachable(this, Label::kDeferred);
   if (!if_default) if_default = &unreachable;
   if (!if_empty) if_empty = &unreachable;
@@ -2180,7 +2180,7 @@ void CodeStubAssembler::ResolveIndirectUnknownPointerHandle(
     TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
     TVariable<Uint16T>* type_out, Label* if_default,
     const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
-    IndirectPointerTagRange tag_range) {
+    TrustedPointerTagRange tag_range) {
   *value_out = ResolveIndirectPointerHandle(handle, tag_range);
   DispatchOnInstanceType(value_out->value(), type_out, if_default, cases);
 }
@@ -2188,8 +2188,8 @@ void CodeStubAssembler::ResolveIndirectUnknownPointerHandle(
 
 TNode<Code> CodeStubAssembler::LoadCodePointerFromObject(
     TNode<HeapObject> object, int field_offset) {
-  return LoadTrustedPointerFromObject<kCodeIndirectPointerTag>(object,
-                                                               field_offset);
+  return LoadTrustedPointerFromObject<kCodeTrustedPointerTag>(object,
+                                                              field_offset);
 }
 
 
@@ -2295,14 +2295,14 @@ void CodeStubAssembler::TailCallJSCode(
 
 TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
     TNode<HeapObject> object, int field_offset,
-    IndirectPointerTagRange tag_range) {
+    TrustedPointerTagRange tag_range) {
   TNode<IndirectPointerHandleT> handle =
       LoadObjectField<IndirectPointerHandleT>(object, field_offset);
   return ResolveIndirectPointerHandle(handle, tag_range);
 }
 
 TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
-    TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range) {
+    TNode<IndirectPointerHandleT> handle, TrustedPointerTagRange tag_range) {
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::trusted_pointer_table_base_address(isolate()));
   TNode<Uint32T> index =
@@ -2314,8 +2314,8 @@ TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
       Word32Shl(index, Uint32Constant(kTrustedPointerTableEntrySizeLog2)));
   TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
 
-  if (IsFastIndirectPointerTagRange(tag_range)) {
-    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+  if (IsFastTrustedPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastTrustedPointerTag(tag_range);
     value = WordAnd(value, UniqueUintPtrConstant(mask));
   } else {
     TNode<UintPtrT> tag =
@@ -4052,7 +4052,7 @@ void CodeStubAssembler::GotoIfSharedFunctionInfoHasBaselineCode(
   LoadTrustedUnknownPointerFromObject(
       sfi, offsetof(SharedFunctionInfo, trusted_function_data_), &var_result,
       &if_default, &if_default, {{CODE_TYPE, &if_code}},
-      SharedFunctionInfo::kTrustedDataIndirectPointerRange);
+      SharedFunctionInfo::kTrustedDataTrustedPointerRange);
 
   BIND(&if_code);
   CSA_SBXCHECK(this,
@@ -4086,7 +4086,7 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
        {CODE_TYPE, &is_code}
 #endif
       },
-      SharedFunctionInfo::kTrustedDataIndirectPointerRange);
+      SharedFunctionInfo::kTrustedDataTrustedPointerRange);
 
   BIND(&is_interpreter_data);
   {
@@ -4137,7 +4137,7 @@ TNode<WasmExportedFunctionData>
 CodeStubAssembler::LoadSharedFunctionInfoWasmExportedFunctionData(
     TNode<SharedFunctionInfo> sfi) {
   return LoadTrustedPointerFromObject<
-      kWasmExportedFunctionDataIndirectPointerTag>(
+      kWasmExportedFunctionDataTrustedPointerTag>(
       sfi, offsetof(SharedFunctionInfo, trusted_function_data_));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -4215,21 +4215,21 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
 }
 
 void CodeStubAssembler::StoreIndirectPointerField(
-    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<HeapObject> object, int offset, TrustedPointerTag tag,
     TNode<ExposedTrustedObject> value) {
   DCHECK(V8_ENABLE_SANDBOX_BOOL);
   OptimizedStoreIndirectPointerField(object, offset, tag, value);
 }
 
 void CodeStubAssembler::StoreIndirectPointerFieldNoWriteBarrier(
-    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<HeapObject> object, int offset, TrustedPointerTag tag,
     TNode<ExposedTrustedObject> value) {
   DCHECK(V8_ENABLE_SANDBOX_BOOL);
   OptimizedStoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);
 }
 
 void CodeStubAssembler::StoreTrustedPointerField(
-    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<HeapObject> object, int offset, TrustedPointerTag tag,
     TNode<ExposedTrustedObject> value) {
 #ifdef V8_ENABLE_SANDBOX
   StoreIndirectPointerField(object, offset, tag, value);
@@ -4239,7 +4239,7 @@ void CodeStubAssembler::StoreTrustedPointerField(
 }
 
 void CodeStubAssembler::StoreTrustedPointerFieldNoWriteBarrier(
-    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<HeapObject> object, int offset, TrustedPointerTag tag,
     TNode<ExposedTrustedObject> value) {
 #ifdef V8_ENABLE_SANDBOX
   StoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);

@@ -69,7 +69,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildToJSFunctionRef(
     V<WasmFuncRef> ret, V<Context> context) -> V<Object> {
   V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
       __ LoadTrustedPointer(ret, LoadOp::Kind::TaggedBase(),
-                            kWasmInternalFunctionIndirectPointerTag,
+                            kWasmInternalFunctionTrustedPointerTag,
                             offsetof(WasmFuncRef, trusted_internal_)));
   V<Object> maybe_external = __ Load(internal, LoadOp::Kind::TaggedBase(),
                                      MemoryRepresentation::TaggedPointer(),
@@ -364,7 +364,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     V<WasmFunctionData> function_data =
         V<WasmFunctionData>::Cast(__ LoadTrustedPointer(
             sfi, LoadOp::Kind::TaggedBase().Immutable(),
-            kWasmExportedFunctionDataIndirectPointerTag,
+            kWasmExportedFunctionDataTrustedPointerTag,
             offsetof(SharedFunctionInfo, trusted_function_data_)));
     V<WasmInternalFunction> internal =
         V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
@@ -625,7 +625,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
       AbortReason::kUnexpectedInstanceType);
   V<WasmInternalFunction> internal_function = V<WasmInternalFunction>::Cast(
       __ LoadTrustedPointer(func_ref, LoadOp::Kind::TaggedBase().Immutable(),
-                            kWasmInternalFunctionIndirectPointerTag,
+                            kWasmInternalFunctionTrustedPointerTag,
                             offsetof(WasmFuncRef, trusted_internal_)));
   auto [target, instance] =
       this->BuildFunctionTargetAndImplicitArg(internal_function);
@@ -712,7 +712,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
   V<WasmFunctionData> function_data =
       V<WasmFunctionData>::Cast(__ LoadTrustedPointer(
           shared, LoadOp::Kind::TaggedBase(),
-          kWasmCapiFunctionDataIndirectPointerTag,
+          kWasmCapiFunctionDataTrustedPointerTag,
           offsetof(SharedFunctionInfo, trusted_function_data_)));
   V<Object> host_data_foreign = __ LoadTaggedField(
       function_data, offsetof(WasmCapiFunctionData, embedder_data_));
@@ -794,7 +794,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
   V<WasmTrustedInstanceData> instance_data = V<WasmTrustedInstanceData>::Cast(
       __ LoadTrustedPointer(V<HeapObject>::Cast(object_ref),
                             LoadOp::Kind::TaggedBase().Immutable(),
-                            kWasmTrustedInstanceDataIndirectPointerTag,
+                            kWasmTrustedInstanceDataTrustedPointerTag,
                             offsetof(WasmInstanceObject, trusted_data_)));
   args[pos++] = instance_data;
 

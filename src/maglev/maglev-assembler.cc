@@ -634,12 +634,12 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
 
 void MaglevAssembler::CheckAndEmitDeferredIndirectPointerWriteBarrier(
     Register object, int offset, Register value,
-    RegisterSnapshot register_snapshot, IndirectPointerTag tag) {
+    RegisterSnapshot register_snapshot, TrustedPointerTag tag) {
   ZoneLabelRef done(this);
   Label* deferred_write_barrier = MakeDeferredCode(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register object, int offset,
          Register value, RegisterSnapshot register_snapshot,
-         IndirectPointerTag tag) {
+         TrustedPointerTag tag) {
         ASM_CODE_COMMENT_STRING(masm, "Write barrier slow path");
 
         Register stub_object_reg =
@@ -647,7 +647,7 @@ void MaglevAssembler::CheckAndEmitDeferredIndirectPointerWriteBarrier(
         Register slot_reg =
             IndirectPointerWriteBarrierDescriptor::SlotAddressRegister();
         Register tag_reg =
-            IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister();
+            IndirectPointerWriteBarrierDescriptor::TrustedPointerTagRegister();
 
         RegList saved;
         if (object != stub_object_reg &&
@@ -705,7 +705,7 @@ void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
 
 void MaglevAssembler::StoreTrustedPointerFieldWithWriteBarrier(
     Register object, int offset, Register value,
-    RegisterSnapshot register_snapshot, IndirectPointerTag tag) {
+    RegisterSnapshot register_snapshot, TrustedPointerTag tag) {
   AssertNotSmi(object);
   StoreTrustedPointerFieldNoWriteBarrier(object, offset, value);
   CheckAndEmitDeferredIndirectPointerWriteBarrier(object, offset, value,

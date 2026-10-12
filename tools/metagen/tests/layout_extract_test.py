@@ -93,7 +93,7 @@ class TaggedMember {
 template <typename T>
 using ProtectedTaggedMember = TaggedMember<T, TrustedSpaceCompressionScheme>;
 
-enum IndirectPointerTag { kTestBytecodeTag, kTestCodeTag };
+enum TrustedPointerTag { kTestBytecodeTag, kTestCodeTag };
 enum ExternalPointerTag { kTestCallbackTag };
 template <typename Tag>
 struct TagRange {
@@ -103,8 +103,8 @@ struct TagRange {
   Tag last;
 };
 using ExternalPointerTagRange = TagRange<ExternalPointerTag>;
-using IndirectPointerTagRange = TagRange<IndirectPointerTag>;
-template <typename T, IndirectPointerTagRange tag>
+using TrustedPointerTagRange = TagRange<TrustedPointerTag>;
+template <typename T, TrustedPointerTagRange tag>
 class TrustedPointerMember {
   uint32_t handle_;
 };
@@ -478,7 +478,7 @@ class SimpleClassTest(unittest.TestCase):
   def test_pointer_tag_ranges(self):
     layouts = extract_layouts("""
       constexpr ExternalPointerTagRange kCallbackRange(kTestCallbackTag);
-      constexpr IndirectPointerTagRange kCodeRange(kTestBytecodeTag,
+      constexpr TrustedPointerTagRange kCodeRange(kTestBytecodeTag,
                                                   kTestCodeTag);
       class Callback : public HeapObject {
        public:

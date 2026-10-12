@@ -506,7 +506,7 @@ void LiftoffAssembler::LoadInstanceDataFromFrame(Register dst) {
 }
 
 void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
-                                          int offset, IndirectPointerTag tag) {
+                                          int offset, TrustedPointerTag tag) {
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
   static_assert(!COMPRESS_POINTERS_BOOL);
   Ld(dst, MemOperand{src_addr, offset});

@@ -261,7 +261,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   void CheckAndEmitDeferredIndirectPointerWriteBarrier(
       Register object, int offset, Register value,
-      RegisterSnapshot register_snapshot, IndirectPointerTag tag);
+      RegisterSnapshot register_snapshot, TrustedPointerTag tag);
 
   inline void MemoryBarrier(AtomicMemoryOrder order);
 
@@ -319,7 +319,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   void StoreTrustedPointerFieldWithWriteBarrier(
       Register object, int offset, Register value,
-      RegisterSnapshot register_snapshot, IndirectPointerTag tag);
+      RegisterSnapshot register_snapshot, TrustedPointerTag tag);
   inline void StoreTrustedPointerFieldNoWriteBarrier(Register object,
                                                      int offset,
                                                      Register value);
@@ -530,7 +530,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 #ifdef V8_TARGET_ARCH_64_BIT
   inline void Move(Register dst, intptr_t p);
 #endif
-  inline void Move(Register dst, IndirectPointerTag i);
+  inline void Move(Register dst, TrustedPointerTag i);
   inline void Move(DoubleRegister dst, double n);
   inline void Move(DoubleRegister dst, Float64 n);
   inline void Move(Register dst, Handle<HeapObject> obj);

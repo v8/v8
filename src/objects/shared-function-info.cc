@@ -32,7 +32,7 @@ Tagged<Union<Smi, TrustedObject>> SharedFunctionInfo::GetTrustedData(
     IsolateForSandbox isolate) const {
   if (HasUnpublishedTrustedData(isolate)) return Smi::zero();
   return TrustedPointerField::ReadMaybeEmptyTrustedPointerField<
-      kTrustedDataIndirectPointerRange>(
+      kTrustedDataTrustedPointerRange>(
       Tagged<HeapObject>(this),
       offsetof(SharedFunctionInfo, trusted_function_data_), isolate,
       kAcquireLoad);

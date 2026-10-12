@@ -1075,7 +1075,7 @@ class MaglevReducer {
 
   ReduceResult BuildStoreTrustedPointerField(ValueNode* object,
                                              ValueNode* value, int offset,
-                                             IndirectPointerTag tag,
+                                             TrustedPointerTag tag,
                                              StoreTaggedMode store_mode);
 
   ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
@@ -1575,7 +1575,7 @@ class MaglevReducer {
     return graph()->GetConstant(ref);
   }
   ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
-                                IndirectPointerTag tag) {
+                                TrustedPointerTag tag) {
     return graph()->GetTrustedConstant(ref, tag);
   }
 

@@ -780,7 +780,7 @@ void MacroAssembler::LoadExternalPointerField(
 
 void MacroAssembler::LoadTrustedPointerField(Register destination,
                                              Operand field_operand,
-                                             IndirectPointerTagRange tag_range,
+                                             TrustedPointerTagRange tag_range,
                                              Register scratch) {
 #ifdef V8_ENABLE_SANDBOX
   LoadIndirectPointerField(destination, field_operand, tag_range, scratch);
@@ -811,7 +811,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
     testl(handle, handle);
     j(zero, is_unavailable, Label::kNear);
 
-    ResolveIndirectPointerHandle(destination, handle, kAllIndirectPointerTags);
+    ResolveIndirectPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -850,7 +850,7 @@ void MacroAssembler::StoreTrustedPointerField(Operand dst_field_operand,
 
 void MacroAssembler::LoadIndirectPointerField(Register destination,
                                               Operand field_operand,
-                                              IndirectPointerTagRange tag_range,
+                                              TrustedPointerTagRange tag_range,
                                               Register scratch) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!AreAliased(destination, scratch));
@@ -875,7 +875,7 @@ void MacroAssembler::StoreIndirectPointerField(Operand dst_field_operand,
 
 #ifdef V8_ENABLE_SANDBOX
 void MacroAssembler::ResolveIndirectPointerHandle(
-    Register destination, Register handle, IndirectPointerTagRange tag_range) {
+    Register destination, Register handle, TrustedPointerTagRange tag_range) {
   DCHECK(!AreAliased(handle, destination));
   shrl(handle, Immediate(kTrustedPointerHandleShift));
   static_assert(kTrustedPointerTableEntrySize == 8);
@@ -884,8 +884,8 @@ void MacroAssembler::ResolveIndirectPointerHandle(
        Operand{kRootRegister, IsolateData::trusted_pointer_table_offset()});
   movq(destination, Operand{destination, handle, times_8, 0});
 
-  if (IsFastIndirectPointerTagRange(tag_range)) {
-    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+  if (IsFastTrustedPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastTrustedPointerTag(tag_range);
     movq(kScratchRegister, Immediate64(mask));
     andq(destination, kScratchRegister);
   } else {
@@ -1019,7 +1019,7 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object,
 void MacroAssembler::CallIndirectPointerBarrier(Register object,
                                                 Register slot_address,
                                                 SaveFPRegsMode fp_mode,
-                                                IndirectPointerTag tag) {
+                                                TrustedPointerTag tag) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(object, slot_address));
   // TODO(saelo) if necessary, we could introduce a "SaveRegisters version of
@@ -1038,7 +1038,7 @@ void MacroAssembler::CallIndirectPointerBarrier(Register object,
   MovePair(slot_address_parameter, slot_address, object_parameter, object);
 
   Register tag_parameter =
-      IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister();
+      IndirectPointerWriteBarrierDescriptor::TrustedPointerTagRegister();
   Move(tag_parameter, tag);
 
   CallBuiltin(Builtins::IndirectPointerBarrier(fp_mode));
@@ -1242,7 +1242,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
       Push(slot_address);  // Use slot address register to load the value into
       Register value_in_slot = slot_address;
       LoadIndirectPointerField(value_in_slot, Operand(slot_address, 0),
-                               slot.indirect_pointer_tag(), scratch);
+                               slot.trusted_pointer_tag(), scratch);
       cmp_tagged(value, value_in_slot);
       // These pops don't affect the flag registers, so we can do them before
       // the conditional jump below.
@@ -1312,7 +1312,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   } else {
     DCHECK(slot.contains_indirect_pointer());
     CallIndirectPointerBarrier(object, slot_address, fp_mode,
-                               slot.indirect_pointer_tag());
+                               slot.trusted_pointer_tag());
   }
 
   bind(&done);

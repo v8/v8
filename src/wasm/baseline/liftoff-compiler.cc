@@ -11027,7 +11027,7 @@ class LiftoffCompiler {
       __ LoadTrustedPointer(
           internal_function, func_ref,
           offsetof(WasmFuncRef, trusted_internal_) - kHeapObjectTag,
-          kWasmInternalFunctionIndirectPointerTag);
+          kWasmInternalFunctionTrustedPointerTag);
 
       // Load the implicit argument (WasmTrustedInstanceData or WasmImportData)
       // and target.

@@ -185,7 +185,7 @@ V8_OBJECT class BytecodeWrapper : public Struct {
   class BodyDescriptor;
 
  public:
-  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
+  TrustedPointerMember<BytecodeArray, kBytecodeArrayTrustedPointerTag>
       bytecode_;
 } V8_OBJECT_END;
 

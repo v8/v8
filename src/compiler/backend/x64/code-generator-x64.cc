@@ -33,8 +33,8 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots-inl.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
@@ -386,7 +386,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       CodeGenerator* gen, Register object, Operand operand, Register value,
       Register scratch0, Register scratch1, RecordWriteMode mode,
       StubCallMode stub_mode,
-      IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
+      TrustedPointerTag trusted_pointer_tag = kTrustedPointerNullTag)
       : OutOfLineCode(gen),
         object_(object),
         operand_(operand),
@@ -398,7 +398,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
         zone_(gen->zone()),
-        indirect_pointer_tag_(indirect_pointer_tag) {
+        trusted_pointer_tag_(trusted_pointer_tag) {
     DCHECK(!AreAliased(object, scratch0, scratch1));
     DCHECK(!AreAliased(value, scratch0, scratch1));
   }
@@ -454,11 +454,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
     } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
-      // We must have a valid indirect pointer tag here. Otherwise, we risk not
+      // We must have a valid trusted pointer tag here. Otherwise, we risk not
       // invoking the correct write barrier, which may lead to subtle issues.
-      CHECK(IsValidIndirectPointerTag(indirect_pointer_tag_));
+      CHECK(IsValidTrustedPointerTag(trusted_pointer_tag_));
       __ CallIndirectPointerBarrier(object_, scratch1_, save_fp_mode,
-                                    indirect_pointer_tag_);
+                                    trusted_pointer_tag_);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -483,7 +483,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
   Zone* zone_;
-  IndirectPointerTag indirect_pointer_tag_;
+  TrustedPointerTag trusted_pointer_tag_;
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
   Label stub_call_;
 #endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
@@ -2187,9 +2187,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index++);
-      IndirectPointerTag tag =
-          static_cast<IndirectPointerTag>(i.InputInt64(index));
-      DCHECK(IsValidIndirectPointerTag(tag));
+      TrustedPointerTag tag =
+          static_cast<TrustedPointerTag>(i.InputInt64(index));
+      DCHECK(IsValidTrustedPointerTag(tag));
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
 
@@ -2209,9 +2209,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index++);
 #if DEBUG
-      IndirectPointerTag tag =
-          static_cast<IndirectPointerTag>(i.InputInt64(index));
-      DCHECK(IsValidIndirectPointerTag(tag));
+      TrustedPointerTag tag =
+          static_cast<TrustedPointerTag>(i.InputInt64(index));
+      DCHECK(IsValidTrustedPointerTag(tag));
 #endif  // DEBUG
 
       DCHECK(v8_flags.verify_write_barriers);
@@ -3446,11 +3446,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register base = i.InputRegister(0);
       int32_t offset = i.InputInt32(1);
       Register table = i.InputRegister(2);
-      IndirectPointerTag first =
-          static_cast<IndirectPointerTag>(i.InputInt32(3));
-      IndirectPointerTag last =
-          static_cast<IndirectPointerTag>(i.InputInt32(4));
-      IndirectPointerTagRange tag_range(first, last);
+      TrustedPointerTag first = static_cast<TrustedPointerTag>(i.InputInt32(3));
+      TrustedPointerTag last = static_cast<TrustedPointerTag>(i.InputInt32(4));
+      TrustedPointerTagRange tag_range(first, last);
 
       Register destination = i.OutputRegister();
       Register handle = i.TempRegister(0);
@@ -3461,9 +3459,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       static_assert(kTrustedPointerTableEntrySizeLog2 == times_8);
       __ movq(destination, Operand{table, handle, times_8, 0});
 
-      if (IsFastIndirectPointerTagRange(tag_range)) {
-        uint64_t mask =
-            ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+      if (IsFastTrustedPointerTagRange(tag_range)) {
+        uint64_t mask = ComputeUntaggingMaskForFastTrustedPointerTag(tag_range);
         __ movq(kScratchRegister, Immediate64(mask));
         __ andq(destination, kScratchRegister);
       } else {

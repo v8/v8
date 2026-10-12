@@ -12,14 +12,14 @@
 #include "src/sandbox/cppheap-pointer.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/external-pointer.h"
-#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/isolate.h"
+#include "src/sandbox/trusted-pointer-tag.h"
 
 namespace v8::internal {
 
 class Object;
 class ExposedTrustedObject;
-template <typename T, IndirectPointerTagRange kTagRange>
+template <typename T, TrustedPointerTagRange kTagRange>
 class TrustedPointerMember;
 using TaggedBase = TaggedImpl<HeapObjectReferenceType::STRONG, Address>;
 
@@ -462,7 +462,7 @@ class IndirectPointerSlot
   {
   }
 
-  explicit IndirectPointerSlot(Address ptr, IndirectPointerTagRange tag_range)
+  explicit IndirectPointerSlot(Address ptr, TrustedPointerTagRange tag_range)
       : SlotBase(ptr)
 #ifdef V8_ENABLE_SANDBOX
         ,
@@ -471,7 +471,7 @@ class IndirectPointerSlot
   {
   }
 
-  template <typename T, IndirectPointerTagRange kTagRange>
+  template <typename T, TrustedPointerTagRange kTagRange>
   explicit IndirectPointerSlot(TrustedPointerMember<T, kTagRange>* member)
 #ifdef V8_ENABLE_SANDBOX
       : SlotBase(member->storage_address()),
@@ -507,11 +507,9 @@ class IndirectPointerSlot
   inline void Release_StoreHandle(IndirectPointerHandle handle) const;
 
 #ifdef V8_ENABLE_SANDBOX
-  IndirectPointerTagRange tag_range() const { return tag_range_; }
+  TrustedPointerTagRange tag_range() const { return tag_range_; }
 #else
-  IndirectPointerTagRange tag_range() const {
-    return IndirectPointerTagRange();
-  }
+  TrustedPointerTagRange tag_range() const { return TrustedPointerTagRange(); }
 #endif
 
   // Whether this slot is empty, i.e. contains a null handle.
@@ -537,7 +535,7 @@ class IndirectPointerSlot
       IndirectPointerHandle handle, IsolateForSandbox isolate) const;
 
   // The tag associated with this slot.
-  IndirectPointerTagRange tag_range_;
+  TrustedPointerTagRange tag_range_;
 #endif  // V8_ENABLE_SANDBOX
 };
 

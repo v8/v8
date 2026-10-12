@@ -900,8 +900,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     turboshaft::OpIndex base() const { return op_->base(); }
     turboshaft::OptionalOpIndex index() const { return op_->index(); }
     turboshaft::OpIndex value() const { return op_->value(); }
-    IndirectPointerTag indirect_pointer_tag() const {
-      return static_cast<IndirectPointerTag>(op_->indirect_pointer_tag());
+    TrustedPointerTag trusted_pointer_tag() const {
+      return static_cast<TrustedPointerTag>(op_->trusted_pointer_tag());
     }
     int32_t displacement() const {
       static_assert(

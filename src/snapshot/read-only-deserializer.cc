@@ -458,8 +458,8 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
 #ifdef V8_ENABLE_SANDBOX
     if (IsExposedTrustedObject(o)) {
       SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(o));
-      IndirectPointerTag tag =
-          IndirectPointerTagFromInstanceType(instance_type, shared);
+      TrustedPointerTag tag =
+          TrustedPointerTagFromInstanceType(instance_type, shared);
       Tagged<ExposedTrustedObject> exposed =
           TrustedCast<ExposedTrustedObject>(o);
       TrustedPointerHandle handle = exposed->self_indirect_pointer_handle();

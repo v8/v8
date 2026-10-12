@@ -19,10 +19,10 @@ namespace internal {
 
 V8_INLINE void InitSelfIndirectPointerField(
     Address field_address, IsolateForSandbox isolate, Tagged<HeapObject> host,
-    IndirectPointerTag tag,
+    TrustedPointerTag tag,
     TrustedPointerPublishingScope* opt_publishing_scope) {
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(tag, kIndirectPointerNullTag);
+  DCHECK_NE(tag, kTrustedPointerNullTag);
 
   TrustedPointerTable::Space* space =
       isolate.GetTrustedPointerTableSpaceFor(tag, host.address());
@@ -41,7 +41,7 @@ V8_INLINE void InitSelfIndirectPointerField(
 }
 
 #ifdef V8_ENABLE_SANDBOX
-template <IndirectPointerTagRange tag_range>
+template <TrustedPointerTagRange tag_range>
 V8_INLINE Tagged<Object> ResolveIndirectPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) {
   const TrustedPointerTable& table =
@@ -49,7 +49,7 @@ V8_INLINE Tagged<Object> ResolveIndirectPointerHandle(
   return Tagged<Object>(table.Get(handle, tag_range));
 }
 
-template <IndirectPointerTagRange tag_range>
+template <TrustedPointerTagRange tag_range>
 V8_INLINE Tagged<Object> ReadIndirectPointerHandle(IndirectPointerHandle handle,
                                                    IsolateForSandbox isolate) {
   return ResolveIndirectPointerHandle<tag_range>(handle, isolate);
@@ -57,7 +57,7 @@ V8_INLINE Tagged<Object> ReadIndirectPointerHandle(IndirectPointerHandle handle,
 
 #endif  // V8_ENABLE_SANDBOX
 
-template <IndirectPointerTagRange tag_range>
+template <TrustedPointerTagRange tag_range>
 V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
                                                   IsolateForSandbox isolate,
                                                   AcquireLoadTag) {
@@ -74,7 +74,7 @@ V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
 #endif
 }
 
-template <IndirectPointerTagRange tag_range>
+template <TrustedPointerTagRange tag_range>
 V8_INLINE void WriteIndirectPointerField(Address field_address,
                                          Tagged<ExposedTrustedObject> value,
                                          ReleaseStoreTag) {

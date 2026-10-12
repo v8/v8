@@ -1705,7 +1705,7 @@ class WriteBarrierDescriptor final
 };
 
 // Write barriers for indirect pointer field writes require one additional
-// parameter (the IndirectPointerTag associated with the stored field).
+// parameter (the TrustedPointerTag associated with the stored field).
 // Otherwise, they are identical to the other write barriers.
 class IndirectPointerWriteBarrierDescriptor final
     : public StaticCallInterfaceDescriptor<
@@ -1713,10 +1713,10 @@ class IndirectPointerWriteBarrierDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress, kIndirectPointerTag)
+  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress, kTrustedPointerTag)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
                          MachineType::Pointer(),        // kSlotAddress
-                         MachineType::Uint64())         // kIndirectPointerTag
+                         MachineType::Uint64())         // kTrustedPointerTag
 
   DECLARE_DESCRIPTOR(IndirectPointerWriteBarrierDescriptor)
   static constexpr auto registers();
@@ -1724,7 +1724,7 @@ class IndirectPointerWriteBarrierDescriptor final
   static constexpr bool kCalleeSaveRegisters = true;
   static constexpr inline Register ObjectRegister();
   static constexpr inline Register SlotAddressRegister();
-  static constexpr inline Register IndirectPointerTagRegister();
+  static constexpr inline Register TrustedPointerTagRegister();
   static constexpr inline RegList ComputeSavedRegisters(
       Register object, Register slot_address = no_reg);
 #if DEBUG

@@ -1977,13 +1977,13 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
 #if defined(V8_ENABLE_SANDBOX)
   // Check that the self indirect pointer is consistent, i.e. points back to
   // this object.
-  IndirectPointerTag tag;
+  TrustedPointerTag tag;
   if (IsPublished(isolate)) {
     InstanceType instance_type = map()->instance_type();
     SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(this));
-    tag = IndirectPointerTagFromInstanceType(instance_type, shared);
+    tag = TrustedPointerTagFromInstanceType(instance_type, shared);
   } else {
-    tag = kUnpublishedIndirectPointerTag;
+    tag = kUnpublishedTrustedPointerTag;
   }
   // We can't use ReadIndirectPointerField here because the tag is not a
   // compile-time constant.
@@ -1993,10 +1993,10 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   CHECK_EQ(self, this);
   // If the object is in the read-only space, the self indirect pointer entry
   // must be in the read-only segment, and vice versa.
-  if (tag == kCodeIndirectPointerTag) {
+  if (tag == kCodeTrustedPointerTag) {
     TrustedPointerTable::Space* space =
         IsolateForSandbox(isolate).GetTrustedPointerTableSpaceFor(
-            kCodeIndirectPointerTag, slot.address());
+            kCodeTrustedPointerTag, slot.address());
     // During snapshot creation, the code pointer space of the read-only heap is
     // not marked as an internal read-only space.
     const bool is_space_read_only =

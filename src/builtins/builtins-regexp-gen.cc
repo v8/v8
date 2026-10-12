@@ -177,8 +177,8 @@ void RegExpBuiltinsAssembler::SlowStoreLastIndex(TNode<Context> context,
 
 TNode<RegExpData> RegExpBuiltinsAssembler::LoadRegExpDataFromObject(
     TNode<HeapObject> object, int offset) {
-  return LoadTrustedPointerFromObject<kRegExpDataIndirectPointerTag>(object,
-                                                                     offset);
+  return LoadTrustedPointerFromObject<kRegExpDataTrustedPointerTag>(object,
+                                                                    offset);
 }
 
 // On a hit, sets {var_result} to a fresh array over the cached parts and jumps
@@ -1034,7 +1034,7 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
 
 #ifdef V8_ENABLE_SANDBOX
     TNode<Code> code = TrustedCast<Code>(
-        ResolveIndirectPointerHandle(var_code.value(), kCodeIndirectPointerTag),
+        ResolveIndirectPointerHandle(var_code.value(), kCodeTrustedPointerTag),
         "from trusted table");
 #else
     TNode<Code> code = TrustedCast<Code>(var_code.value(), "no sandbox");

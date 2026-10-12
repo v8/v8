@@ -662,7 +662,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     void ZapOldCodePointerTableEntries() {
       TrustedPointerTable* tpt =
           &IsolateForSandbox(isolate_).GetTrustedPointerTableFor(
-              kCodeIndirectPointerTag);
+              kCodeTrustedPointerTag);
       for (auto [old_handle, _new_handle] : code_pointer_moves_) {
         tpt->Zap(old_handle);
       }
@@ -742,8 +742,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
       InstanceType instance_type = obj->map()->instance_type();
       SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(obj));
-      IndirectPointerTag tag =
-          IndirectPointerTagFromInstanceType(instance_type, shared);
+      TrustedPointerTag tag =
+          TrustedPointerTagFromInstanceType(instance_type, shared);
 
       IndirectPointerSlot slot = obj->RawIndirectPointerField(
           offsetof(ExposedTrustedObject, self_indirect_pointer_), tag);

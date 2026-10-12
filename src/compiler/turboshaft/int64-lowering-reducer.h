@@ -432,7 +432,7 @@ class Int64LoweringReducer : public Next {
                         std::optional<AtomicMemoryOrder> memory_order,
                         int32_t offset, uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
-                        IndirectPointerTag maybe_indirect_pointer_tag) {
+                        TrustedPointerTag maybe_trusted_pointer_tag) {
     if (stored_rep == MemoryRepresentation::Int64() ||
         stored_rep == MemoryRepresentation::Uint64()) {
       auto [low, high] = Unpack(value);
@@ -455,20 +455,20 @@ class Int64LoweringReducer : public Next {
       Next::ReduceStore(base, index, low, kind, MemoryRepresentation::Int32(),
                         write_barrier, memory_order, offset, element_size_log2,
                         maybe_initializing_or_transitioning,
-                        maybe_indirect_pointer_tag);
+                        maybe_trusted_pointer_tag);
       // high store
       int32_t high_offset =
           base::bits::WraparoundAdd32(offset, sizeof(int32_t));
       Next::ReduceStore(base, index, high, kind, MemoryRepresentation::Int32(),
                         write_barrier, memory_order, high_offset,
                         element_size_log2, maybe_initializing_or_transitioning,
-                        maybe_indirect_pointer_tag);
+                        maybe_trusted_pointer_tag);
       return V<None>::Invalid();
     }
     return Next::ReduceStore(
         base, index, value, kind, stored_rep, write_barrier, memory_order,
         offset, element_size_log2, maybe_initializing_or_transitioning,
-        maybe_indirect_pointer_tag);
+        maybe_trusted_pointer_tag);
   }
 
   OpIndex REDUCE(AtomicRMW)(OpIndex base, OpIndex index, OpIndex value,

@@ -601,11 +601,11 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
   }
   if (machine_type.representation() ==
       MachineRepresentation::kIndirectPointer) {
-    // Indirect pointer stores require knowledge of the indirect pointer tag of
+    // Indirect pointer stores require knowledge of the trusted pointer tag of
     // the field. This is technically only required for stores that need a
     // write barrier, but currently we track the tag for all such stores.
-    DCHECK_NE(access.indirect_pointer_tag, kIndirectPointerNullTag);
-    Node* tag = __ IntPtrConstant(access.indirect_pointer_tag);
+    DCHECK_NE(access.trusted_pointer_tag, kTrustedPointerNullTag);
+    Node* tag = __ IntPtrConstant(access.trusted_pointer_tag);
     node->InsertInput(graph_zone(), 3, tag);
     NodeProperties::ChangeOp(
         node, machine()->StoreIndirectPointer(write_barrier_kind));

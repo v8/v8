@@ -61,7 +61,7 @@ bool JSRegExp::has_data() const { return !data_.is_empty(); }
 bool JSRegExp::has_data_unpublished(IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
       Tagged<HeapObject>(this), offsetof(JSRegExp, data_),
-      kRegExpDataIndirectPointerTag, isolate);
+      kRegExpDataTrustedPointerTag, isolate);
 }
 void JSRegExp::clear_data() { data_.clear(this); }
 
