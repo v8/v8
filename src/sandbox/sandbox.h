@@ -9,6 +9,7 @@
 #include "include/v8-platform.h"
 #include "include/v8config.h"
 #include "src/base/bounds.h"
+#include "src/base/platform/platform.h"
 #include "src/common/globals.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -402,6 +403,13 @@ V8_INLINE void* EmptyBackingStoreBuffer() {
 #else
   return nullptr;
 #endif
+}
+
+// Hardware address tagging features on x64 (such as Intel LAM or AMD UAI)
+// mask out upper pointer bits during memory accesses. Returns true if the OS
+// untag mask does not clash with the given tagging mask.
+V8_INLINE bool IsTaggingMaskCompatible(uint64_t mask) {
+  return (base::OS::GetAddressUntagMask() & mask) == mask;
 }
 
 }  // namespace internal

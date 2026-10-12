@@ -364,6 +364,13 @@ class V8_BASE_EXPORT OS {
   // Make part of the process's data memory read-only.
   static void SetDataReadOnly(void* address, size_t size);
 
+  // Returns the address untag mask for the current process (~0ULL if disabled).
+#if defined(V8_OS_LINUX)
+  static uint64_t GetAddressUntagMask();
+#else
+  static uint64_t GetAddressUntagMask() { return ~uint64_t{0}; }
+#endif  // defined(V8_OS_LINUX)
+
  private:
   // Assign a name to a memory region.
   //

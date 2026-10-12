@@ -107,6 +107,10 @@ struct TrustedPointerTableEntry {
 
   using Payload = TaggedPayload<TrustedPointerTaggingScheme>;
 
+ public:
+  static constexpr uint64_t kTagAndMarkBitMask = Payload::kTagAndMarkBitMask;
+
+ private:
   std::atomic<Payload> payload_;
 };
 

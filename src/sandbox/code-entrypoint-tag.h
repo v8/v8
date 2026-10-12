@@ -37,6 +37,8 @@ constexpr int kCodeEntrypointTagShift = 57;
 #else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
 constexpr int kCodeEntrypointTagShift = 48;
 #endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
+constexpr uint64_t kCodeEntrypointTagMask = uint64_t{0x7f}
+                                            << kCodeEntrypointTagShift;
 enum CodeEntrypointTag : uint64_t {
   kJSEntrypointTag = 0,
   kWasmEntrypointTag = uint64_t{1} << kCodeEntrypointTagShift,

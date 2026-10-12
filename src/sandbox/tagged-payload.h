@@ -28,6 +28,7 @@ struct TaggedPayload {
   static constexpr uint64_t kPayloadMask = PayloadTaggingScheme::kPayloadMask;
   static constexpr uint64_t kTagMask = PayloadTaggingScheme::kTagMask;
   static constexpr uint64_t kMarkBit = PayloadTaggingScheme::kMarkBit;
+  static constexpr uint64_t kTagAndMarkBitMask = kTagMask | kMarkBit;
   static constexpr TagType kFreeEntryTag = PayloadTaggingScheme::kFreeEntryTag;
   static constexpr TagType kEvacuationEntryTag =
       PayloadTaggingScheme::kEvacuationEntryTag;

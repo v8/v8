@@ -118,11 +118,13 @@ struct JSDispatchEntry {
 #endif  // V8_TARGET_BIG_ENDIAN
   static constexpr uint32_t kObjectPointerShift = kMaxParameterCountBits;
 #endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
+  static constexpr uint64_t kTagAndMarkBitMask = kFreeEntryTag;
 #elif defined(V8_TARGET_ARCH_32_BIT)
   static constexpr uintptr_t kParameterCountOffset =
       kCodeObjectOffset + kSystemPointerSize;
   static constexpr uint32_t kObjectPointerShift = 0;
   static constexpr uint32_t kParameterCountMask = 0x0;
+  static constexpr uint64_t kTagAndMarkBitMask = 0;
 #else
 #error "Unsupported Architecture"
 #endif
