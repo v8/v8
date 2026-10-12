@@ -461,8 +461,8 @@ class DebugInfoImpl {
     wasm::WasmCode* code = frame->wasm_code();
     if (!code->is_liftoff()) return false;  // Cannot step in TurboFan code.
     if (IsAtReturn(frame)) return false;    // Will return after this step.
-    ReturnLocation return_location = kAfterBreakpoint;
-    // Check if the frame above is a WasmTrapHandlerThrowTrap builtin call.
+    // Check if the frame is paused at a WasmDebugBreak builtin call, or waiting
+    // for a call/trap to return.
     StackFrameIterator it(frame->isolate());
     Builtin last_builtin = Builtin::kNoBuiltinId;
     while (!it.done()) {
@@ -472,9 +472,9 @@ class DebugInfoImpl {
                          : Builtin::kNoBuiltinId;
       it.Advance();
     }
-    if (last_builtin == Builtin::kWasmTrapHandlerThrowTrap) {
-      return_location = kAfterWasmCall;
-    }
+    ReturnLocation return_location = last_builtin == Builtin::kWasmDebugBreak
+                                         ? kAfterBreakpoint
+                                         : kAfterWasmCall;
     FloodWithBreakpoints(frame, return_location);
     return true;
   }
