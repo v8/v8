@@ -98,6 +98,7 @@ void ScopeIterator::Restart() {
   debug_scope_info_ = EnsureDebugScriptScopeInfo(isolate_, script_);
   current_scope_index_ = start_scope_index_;
   DCHECK_NE(current_scope_index_, -1);
+  if (ignore_nested_scopes_) UnwindToClosureContext();
   UnwrapEvaluationContext();
   seen_script_scope_ = false;
 }
@@ -152,17 +153,29 @@ void ScopeIterator::TryParseAndRetrieveScopes() {
   current_scope_index_ = start_scope_index_;
 
   if (ignore_nested_scopes) {
+    ignore_nested_scopes_ = true;
     current_scope_index_ = closure_scope_index_;
     start_scope_index_ = current_scope_index_;
-    // ignore_nested_scopes is only used for the return-position breakpoint,
-    // so we can safely assume that the closure context for the current
-    // function exists if it needs one.
-    if (closure_scope().needs_context()) {
-      context_ = handle(context_->closure_context(), isolate_);
-    }
+    UnwindToClosureContext();
   }
 
   UnwrapEvaluationContext();
+}
+
+void ScopeIterator::UnwindToClosureContext() {
+  DCHECK(ignore_nested_scopes_);
+  DCHECK_EQ(current_scope_index_, closure_scope_index_);
+  // ignore_nested_scopes_ is only used for the return-position breakpoint,
+  // so we can safely assume that the closure context for the current
+  // function exists if it needs one. The `Return` bytecode does not pop
+  // block, catch or with contexts, so the frame's context may still be one
+  // of those. If the closure scope doesn't need a context, the scopes outside
+  // of it start with the function's context.
+  if (closure_scope().needs_context()) {
+    context_ = handle(context_->closure_context(), isolate_);
+  } else {
+    context_ = handle(function_->context(), isolate_);
+  }
 }
 
 void ScopeIterator::UnwrapEvaluationContext() {
@@ -471,6 +484,7 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
   }
   if (type == ScopeTypeWith) {
     DCHECK_EQ(Mode::ALL, mode);
+    DCHECK(HasContext());
     return WithContextExtension();
   }
 
@@ -743,6 +757,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
     } else {
       auto [fn_alloc, fn_index] = current_scope().function_variable_info();
       if (fn_alloc == VariableAllocationInfo::CONTEXT && HasContext()) {
+        CHECK_LT(static_cast<unsigned>(fn_index),
+                 static_cast<unsigned>(context_->length()));
         function_value = indirect_handle(
             Context::Get(context_, fn_index, isolate_), isolate_);
       } else {
@@ -855,6 +871,10 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           break;
         }
         DCHECK_EQ(context_->scope_info()->ContextSlotIndex(*name), index);
+        // Context::get() only DCHECKs the index. Make sure a context that is
+        // out of sync with the parsed scope can't cause an out-of-bounds read.
+        CHECK_LT(static_cast<unsigned>(index),
+                 static_cast<unsigned>(context_->length()));
         value =
             indirect_handle(Context::Get(context_, index, isolate_), isolate_);
         break;
@@ -878,7 +898,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
 // Retrieve the with-context extension object. If the extension object is
 // a proxy, return an empty object.
 Handle<JSObject> ScopeIterator::WithContextExtension() {
-  DCHECK(context_->IsWithContext());
+  CHECK(context_->IsWithContext());
   if (!IsJSObject(context_->extension_receiver())) {
     DCHECK(IsJSProxy(context_->extension_receiver()) ||
            IsWasmObject(context_->extension_receiver()));

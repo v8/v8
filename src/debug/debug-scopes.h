@@ -156,6 +156,9 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   int closure_scope_index_ = -1;
   int current_scope_index_ = -1;
   bool seen_script_scope_ = false;
+  // Set when paused at a return position. Iteration then starts at the
+  // closure scope and nested block, catch and with scopes are skipped.
+  bool ignore_nested_scopes_ = false;
 
   DebugScriptScope current_scope() const {
     return DebugScriptScope::FromIndex(debug_scope_info_, current_scope_index_);
@@ -176,6 +179,7 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   int GetSourcePosition() const;
 
   void TryParseAndRetrieveScopes();
+  void UnwindToClosureContext();
 
   void UnwrapEvaluationContext();
 
