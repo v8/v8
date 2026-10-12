@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --maglev
-// Flags: --typed-array-length-loading
+// Flags: --typed-array-length-loading --multi-mapped-mock-allocator
 // Flags: --no-optimize-maglev-optimizes-to-turbofan
 
 function foo(size) {
@@ -17,10 +17,7 @@ function foo(size) {
 if (%Is64Bit()) {
   try {
     foo(100);
-    // The test requires a length that exceeds Uint32/Int32/Smi; 4 GiB (2^32)
-    // satisfies that while allowing both buffers in `foo` to fit in PA's 16 GiB
-    // configurable pool.
-    const largeLength = 4294967296;
+    const largeLength = 8589934592;
     foo(largeLength);
 
     %OptimizeMaglevOnNextCall(foo);
