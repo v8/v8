@@ -1506,8 +1506,6 @@ class PrototypesSetup : public wasm::Decoder {
         return ReadOnlyRoots(isolate()).exception();
       }
 
-      bool fast_path = CheckFastPathEligibility(prototype);
-
       uint32_t has_constructor = consume_u32v("constructor");
       if (!ok()) break;
 
@@ -1575,13 +1573,40 @@ class PrototypesSetup : public wasm::Decoder {
                 "too many methods in configureAll")));
         return ReadOnlyRoots(isolate()).exception();
       }
+      // Important: installing {constructor} on {constructors} can invoke
+      // user code. Only determine fast path eligibility after that.
+      bool fast_path = false;
       DirectHandle<NameDictionary> dictionary;
       if (!prototype_is_null) {
         if (IsJSObject(*prototype)) {
           DirectHandle<JSObject> proto = Cast<JSObject>(prototype);
+          if (!proto->map()->is_prototype_map()) {
+            // Important for correctness: switch to a non-shared map.
+            // Important for performance: switch to dictionary mode.
+            JSObject::OptimizeAsPrototype(proto);
+          } else {
+            // Prepare the fast path by invalidating any ICs that might already
+            // rely on this prototype.
+            JSObject::InvalidatePrototypeChains(proto->map());
+          }
           ToDictionaryMode(proto, num_methods);
-          if (fast_path) {
+          DisallowGarbageCollection using_plain_tagged_values;
+          Tagged<Map> map = proto->map();
+          if (map->instance_type() == JS_OBJECT_TYPE) {
+            if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+              // Support for swiss name dictionaries isn't implemented here yet.
+              UNIMPLEMENTED();
+            }
+            // JS_OBJECT_TYPE implies no access checks or interceptors.
+            DCHECK(!map->is_access_check_needed());
+            DCHECK(!map->has_indexed_interceptor());
+            DCHECK(!map->has_named_interceptor());
+            DCHECK(!IsJSGlobalObject(*proto));
+            DCHECK(map->is_dictionary_map());
             dictionary = handle(proto->property_dictionary(), isolate_);
+            if (map->is_extensible() && dictionary->NumberOfElements() == 0) {
+              fast_path = true;
+            }
           }
         }
       } else if (num_methods > 0) {
@@ -1781,17 +1806,7 @@ class PrototypesSetup : public wasm::Decoder {
           ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
           return {};
         }
-        DirectHandle<JSObject> proto = Cast<JSObject>(heap_proto);
-        if (!proto->map()->is_prototype_map()) {
-          // Important for correctness: switch to a non-shared map.
-          // Important for performance: switch to dictionary mode.
-          JSObject::OptimizeAsPrototype(proto);
-        } else {
-          // Prepare the fast path by invalidating any ICs that might already
-          // rely on this prototype.
-          JSObject::InvalidatePrototypeChains(proto->map());
-        }
-        return proto;
+        return Cast<JSObject>(heap_proto);
       }
       if (IsJSReceiver(*heap_proto)) {
         return Cast<JSReceiver>(heap_proto);
@@ -1893,33 +1908,6 @@ class PrototypesSetup : public wasm::Decoder {
       return {};
     }
     return constructor;
-  }
-
-  // Fast path, skipping the LookupIterator.
-  bool CheckFastPathEligibility(DirectHandle<JSReceiver> prototype) {
-    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      // Support for swiss name dictionaries isn't implemented here yet.
-      UNIMPLEMENTED();
-    }
-    if (prototype.is_null()) return false;
-    Tagged<Map> map = prototype->map();
-    if (map->instance_type() != JS_OBJECT_TYPE) return false;
-    if (!map->is_extensible()) return false;
-    // JS_OBJECT_TYPE implies no access checks or interceptors.
-    DCHECK(!map->is_access_check_needed());
-    DCHECK(!map->has_indexed_interceptor());
-    DCHECK(!map->has_named_interceptor());
-    DCHECK(!IsJSGlobalObject(*prototype));
-    if (map->is_dictionary_map()) {
-      if (Cast<JSObject>(prototype)
-              ->property_dictionary()
-              ->NumberOfElements() != 0) {
-        return false;
-      }
-    } else {
-      if (map->NumberOfOwnDescriptors() != 0) return false;
-    }
-    return true;
   }
 
   bool MayBeArrayIndex(base::Vector<const uint8_t> name) {
