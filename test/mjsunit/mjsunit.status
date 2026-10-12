@@ -1401,6 +1401,7 @@
   'regexp-unicode-sets': [PASS,FAIL],
   'regexp-not-jetstream': [SKIP],
   'regexp-jetstream': [SKIP],
+  'regress/regress-571871980': [SKIP],
 
   # The noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [FAIL],
