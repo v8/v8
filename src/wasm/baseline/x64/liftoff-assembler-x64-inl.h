@@ -243,13 +243,17 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
-  // The frame setup builtin also pushes the feedback vector.
   if (feedback_vector_slot) {
-    frame_size -= kSystemPointerSize;
+    // WasmLiftoffFrameSetup also pushes the feedback vector, and (with 16-byte
+    // alignment) a zero into the OSR target slot so that sp stays aligned.
+    static_assert(kOSRTargetOffset == 4 * kSystemPointerSize);
+    frame_size -= V8_X64_16BYTE_STACK_ALIGNMENT_BOOL ? 2 * kSystemPointerSize
+                                                     : kSystemPointerSize;
   }
+  DCHECK_GE(frame_size, 0);
   DCHECK_EQ(0, frame_size % kSystemPointerSize);
 #if V8_X64_16BYTE_STACK_ALIGNMENT
-  DCHECK_EQ(0, GetTotalFrameSize() % (2 * kSystemPointerSize));
+  DCHECK_EQ(0, frame_size % (2 * kSystemPointerSize));
 #endif
 
   // We can't run out of space when patching, just pass anything big enough to
@@ -329,6 +333,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     safepoint_table_builder->DefineSafepoint(this);
     PopRegisters(regs_to_save);
   } else {
+    AssertSpAlignedForCall();
     near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
               RelocInfo::WASM_STUB_CALL);
     // The call will not return; just define an empty safepoint.
@@ -5045,6 +5050,10 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL &&
+      (gp_regs.GetNumRegsSet() & 1) != 0) {
+    pushq(Immediate(0));
+  }
   while (!gp_regs.is_empty()) {
     LiftoffRegister reg = gp_regs.GetFirstRegSet();
     pushq(reg.gp());
@@ -5076,10 +5085,15 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   }
   if (fp_offset) addq(rsp, Immediate(fp_offset));
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
+  bool pad_gp =
+      V8_X64_16BYTE_STACK_ALIGNMENT_BOOL && (gp_regs.GetNumRegsSet() & 1) != 0;
   while (!gp_regs.is_empty()) {
     LiftoffRegister reg = gp_regs.GetLastRegSet();
     popq(reg.gp());
     gp_regs.clear(reg);
+  }
+  if (pad_gp) {
+    addq(rsp, Immediate(kSystemPointerSize));
   }
 }
 
@@ -5089,6 +5103,11 @@ void LiftoffAssembler::RecordSpillsInSafepoint(
   LiftoffRegList fp_spills = all_spills & kFpCacheRegList;
   int spill_space_size = fp_spills.GetNumRegsSet() * kSimd128Size;
   LiftoffRegList gp_spills = all_spills & kGpCacheRegList;
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL &&
+      (gp_spills.GetNumRegsSet() & 1) != 0) {
+    ++spill_offset;
+    spill_space_size += kSystemPointerSize;
+  }
   while (!gp_spills.is_empty()) {
     LiftoffRegister reg = gp_spills.GetFirstRegSet();
     if (ref_spills.has(reg)) {
@@ -5204,17 +5223,29 @@ void LiftoffAssembler::TailCallIndirect(
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {
+  if (builtin != Builtin::kWasmLiftoffFrameSetup) {
+    // {kWasmLiftoffFrameSetup} is called at function entry before {rbp} is
+    // pushed, while {rsp} still points to the caller's return address
+    // ({rsp % 16 == 8}).
+    AssertSpAlignedForCall();
+  }
   // A direct call to a builtin. Just encode the builtin index. This will be
   // patched at relocation.
   near_call(static_cast<Address>(builtin), RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    size = RoundUp(size, 2 * kSystemPointerSize);
+  }
   AllocateStackSpace(size);
   movq(addr, rsp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    size = RoundUp(size, 2 * kSystemPointerSize);
+  }
   addq(rsp, Immediate(size));
 }
 
