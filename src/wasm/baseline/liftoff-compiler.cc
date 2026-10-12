@@ -2252,6 +2252,7 @@ class LiftoffCompiler {
     CallBuiltin(Builtin::kWasmThrowRef, MakeSig::Params(kRef), {exn},
                 decoder->position());
     int pc_offset = __ pc_offset_for_safepoint();
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     MaybeOSR();
     EmitLandingPad(decoder, pc_offset);
   }
@@ -2840,6 +2841,7 @@ class LiftoffCompiler {
                     MakeSig::Returns(kRefNull).Params(kRefNull), {input_state},
                     decoder->position());
         __ DropValues(1);
+        RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
         __ PushRegister(kRef, LiftoffRegister(kReturnRegister0));
         return;
       }
@@ -7214,6 +7216,7 @@ class LiftoffCompiler {
         {struct_obj, VarState{kI32, offset, 0}, expected_value, waitqueue,
          timeout},
         decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     __ PushRegister(kI32, LiftoffRegister{kReturnRegister0});
     MaybeOSR();
   }
@@ -7285,6 +7288,7 @@ class LiftoffCompiler {
         {VarState{kRef, array, 0}, VarState{kI32, index, 0}, expected_value,
          waitqueue, timeout},
         decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     __ PushRegister(kI32, LiftoffRegister{kReturnRegister0});
     MaybeOSR();
   }
@@ -8548,6 +8552,7 @@ class LiftoffCompiler {
                  __ cache_state()->stack_state.end()[-3]},
                 decoder->position());
     __ DropValues(5);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
@@ -8730,8 +8735,8 @@ class LiftoffCompiler {
     // Pop parameters from the value stack.
     __ DropValues(2);
 
-    MaybeOSR();
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+    MaybeOSR();
 
     LiftoffRegister result(kReturnRegister0);
     __ PushRegister(kRef, result);
@@ -8767,6 +8772,7 @@ class LiftoffCompiler {
                  __ cache_state()->stack_state.end()[-4]},
                 decoder->position());
     __ DropValues(4);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     MaybeOSR();
   }
 
@@ -9128,6 +9134,7 @@ class LiftoffCompiler {
                     VarState{kI32, null_succeeds_reg, 0},
                 },
                 decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     MaybeOSR();
   }
 
