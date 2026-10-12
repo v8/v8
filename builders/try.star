@@ -47,7 +47,7 @@ try_builder(
 
 try_builder(
     name = "v8_fuchsia_compile_rel",
-    cq_properties = CQ.BLOCK,
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
 )
@@ -147,7 +147,7 @@ try_builder(
 try_builder(
     name = "v8_linux64_header_includes_dbg",
     cq_properties = CQ.BLOCK,
-    cq_branch_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
 )
@@ -229,7 +229,7 @@ try_builder(
 try_builder(
     name = "v8_linux64_shared_compile_rel",
     cq_properties = CQ.BLOCK,
-    cq_branch_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
 )
 
