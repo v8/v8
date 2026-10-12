@@ -3227,6 +3227,12 @@ class AssemblerOpInterface : public Next {
                           AccessBuilder::ForMap(kMapWriteBarrier, shared_base));
   }
 
+  V<Map> LoadImmutableMapField(V<HeapObject> object) {
+    FieldAccessTS<Object, Map> access = AccessBuilderTS::ForMap();
+    access.is_immutable = true;
+    return LoadField<Map>(object, access);
+  }
+
   V<Word32> LoadInstanceTypeField(V<Map> map) {
     return LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
   }

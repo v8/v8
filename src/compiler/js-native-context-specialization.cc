@@ -2349,7 +2349,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
              StoreModeCanGrow(feedback.keyed_mode().store_mode())) &&
 #if V8_ENABLE_WEBASSEMBLY
-            !(receiver_map.IsWasmObjectMap() &&
+            !(receiver_map.IsAnyWasmObjectMap() &&
               access_info.is_proxy_on_prototype()) &&
 #endif  // V8_ENABLE_WEBASSEMBLY
             !receiver_map.PrototypesElementsDoNotHaveAccessorsOrThrow(
@@ -3605,7 +3605,7 @@ JSNativeContextSpecialization::BuildElementAccess(
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (receiver_maps.size() == 1 && receiver_maps.front().IsWasmObjectMap() &&
+  if (receiver_maps.size() == 1 && receiver_maps.front().IsAnyWasmObjectMap() &&
       access_info.is_proxy_on_prototype()) {
     return BuildPrototypeProxyElementAccess(
         receiver, index, value, effect, control, context, access_info,

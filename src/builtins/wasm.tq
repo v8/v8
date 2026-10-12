@@ -52,8 +52,11 @@ extern runtime WasmManagedObjectWaitRef(
 extern runtime WasmWaitqueueNew(Context): HeapObject;
 extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
     JSAny;
+// Return type depends on v8_flags.wasm_merged_descriptors; simplify when
+// dropping that flag.
 extern runtime WasmAllocateDescriptorStruct(
-    Context, WasmTrustedInstanceData, Map, Smi, Object): WasmStruct;
+    Context, WasmTrustedInstanceData, Map, Smi, Object): WasmStruct
+    |WasmCustomMap;
 extern runtime WasmArrayNewSegment(
     Context, WasmTrustedInstanceData, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewSegmentWtf8(
@@ -539,14 +542,14 @@ builtin WasmAllocateStructWithRtt(rtt: Map, instanceSize: int32): HeapObject {
   return result;
 }
 
+// Return type depends on v8_flags.wasm_merged_descriptors; simplify when
+// dropping that flag.
 builtin WasmAllocateDescriptorStruct(
-    map: Map, typeIndex: int32, firstField: Object): WasmStruct {
-  // TODO(42204563): Figure out support for shared objects.
+    map: Map, typeIndex: int32, firstField: Object): WasmStruct|WasmCustomMap {
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
-  const result: WasmStruct = runtime::WasmAllocateDescriptorStruct(
+  return runtime::WasmAllocateDescriptorStruct(
       LoadContextFromInstanceData(trustedData), trustedData, map,
       SmiTag(Convert<intptr>(typeIndex)), firstField);
-  return result;
 }
 
 builtin WasmAllocateSharedStructWithRtt(rtt: Map, instanceSize: int32):
@@ -1681,6 +1684,9 @@ builtin WasmAnyConvertExternShared(externObject: JSAny): JSAny {
       context, externObject, SmiConstant(kSharedAnyType));
 }
 
+builtin WasmExternConvertAny(wasmObject: HeapObject): JSAny {
+  tail runtime::WasmWasmToJSObject(LoadContextFromFrame(), wasmObject);
+}
 
 extern macro CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
     JSReceiver, HeapObject, Context): JSReceiver;
@@ -1718,7 +1724,8 @@ builtin WasmLiftoffIsEqRefUnshared(obj: Object, nullSucceeds: bool): int32 {
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
     return Convert<int32>(
         !InSharedSpace(heapObject) &&
-        (Is<WasmArray>(heapObject) || Is<WasmStruct>(heapObject)));
+        (Is<WasmArray>(heapObject) || Is<WasmStruct>(heapObject) ||
+         Is<WasmCustomMap>(heapObject)));
   } label ReturnFalse {
     return 0;
   }
@@ -1741,7 +1748,8 @@ builtin WasmLiftoffIsStructRefUnshared(obj: Object, nullSucceeds: bool):
   try {
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
     return Convert<int32>(
-        !InSharedSpace(heapObject) && Is<WasmStruct>(heapObject));
+        !InSharedSpace(heapObject) &&
+        (Is<WasmStruct>(heapObject) || Is<WasmCustomMap>(heapObject)));
   } label ReturnFalse {
     return 0;
   }
@@ -1761,7 +1769,8 @@ builtin WasmLiftoffCastEqRefUnshared(obj: Object, nullSucceeds: bool): JSAny {
     }
     const heapObject: HeapObject = UnsafeCast<HeapObject>(obj);
     if (InSharedSpace(heapObject) ||
-        (!Is<WasmArray>(heapObject) && !Is<WasmStruct>(heapObject))) {
+        (!Is<WasmArray>(heapObject) && !Is<WasmStruct>(heapObject) &&
+         !Is<WasmCustomMap>(heapObject))) {
       goto IllegalCast;
     }
     return SmiConstant(0);
@@ -1795,7 +1804,8 @@ builtin WasmLiftoffCastStructRefUnshared(obj: Object, nullSucceeds: bool):
       goto IllegalCast;
     }
     const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise IllegalCast;
-    if (InSharedSpace(heapObject) || (!Is<WasmStruct>(heapObject))) {
+    if (InSharedSpace(heapObject) ||
+        (!Is<WasmStruct>(heapObject) && !Is<WasmCustomMap>(heapObject))) {
       goto IllegalCast;
     }
     return SmiConstant(0);

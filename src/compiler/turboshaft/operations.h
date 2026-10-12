@@ -7972,7 +7972,10 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
 struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
   bool is_nullable;
 
-  static constexpr OpEffects effects = OpEffects();
+  // Cares about non-null values actually being non-null. We could eliminate
+  // the dependency on "checks" if we marked this as a trapping instruction
+  // when necessary.
+  static constexpr OpEffects effects = OpEffects().CanDependOnChecks();
 
   explicit ExternConvertAnyOp(V<Object> object, bool is_nullable)
       : Base(object), is_nullable(is_nullable) {}

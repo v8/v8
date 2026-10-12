@@ -158,6 +158,7 @@ namespace v8::internal::wasm {
   V(WasmStringHash)                                                            \
   V(WasmAnyConvertExtern)                                                      \
   V(WasmAnyConvertExternShared)                                                \
+  V(WasmExternConvertAny)                                                      \
   V(WasmStringFromDataSegment)                                                 \
   V(WasmStringAdd_NoMapCheck)                                                  \
   V(WasmStringAdd_NoMapCheck_Shared)                                           \

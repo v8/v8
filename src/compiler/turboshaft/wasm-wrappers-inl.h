@@ -87,25 +87,6 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildToJSFunctionRef(
 }
 
 template <typename Assembler>
-void WasmWrapperTSGraphBuilder<Assembler>::CheckAndConvertSharedString(
-    V<Object> ret, ScopedVar<Object>& result) {
-  IF (__ IsSmi(ret)) {
-    result = ret;
-  } ELSE {
-    V<Word32> instance_type = __ LoadInstanceTypeField(__ LoadMapField(ret));
-    V<Word32> is_string = __ Uint32LessThan(
-        instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
-    IF (is_string) {
-      // Since this is a shared externref, the string will be shared.
-      result = __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmWasmToJSObject,
-                                  {ret}, __ NoContextConstant());
-    } ELSE {
-      result = ret;
-    }
-  }
-}
-
-template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
                                                 CanonicalValueType type,
                                                 V<Context> context)
@@ -131,17 +112,6 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
     }
   }
 
-#ifdef V8_IS_TSAN
-  if (v8_flags.wasm_shared &&
-      (type.is_shared() || type.is_reference_to(GenericKind::kAny))) {
-    IF_NOT (__ IsSmi(ret)) {
-      __ WasmCallRuntime(__ phase_zone(),
-                         Runtime::kTsanAcquireForInitializationFence, {ret},
-                         __ NoContextConstant(), CanThrow{false});
-    }
-  }
-#endif
-
   if (type.ref_type_kind() == wasm::RefTypeKind::kFunction) {
     // Function reference. Extract the external function.
     if (type.is_nullable()) {
@@ -161,39 +131,84 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
   // Always null.
   if (type.is_none_type()) return __ template LoadRoot<RootIndex::kNullValue>();
 
-  if (wasm::IsSubtypeOf(type, wasm::kWasmSharedExternRef)) {
-    // We have to unshare shared strings before passing them to JS.
-    ScopedVar<Object> result(this, OpIndex::Invalid());
-    CheckAndConvertSharedString(ret, result);
-    return result;
+  Label<Object> done(&Asm());
+  Label<> runtime(&Asm());
+
+  bool is_abs = type.is_abstract_ref();
+  bool is_any = is_abs && type.generic_kind() == GenericKind::kAny;
+  bool is_eq = is_abs && type.generic_kind() == GenericKind::kEq;
+  bool is_i31 = is_abs && type.generic_kind() == GenericKind::kI31;
+  bool is_struct = is_abs && type.generic_kind() == GenericKind::kStruct;
+  bool is_extern = is_abs && type.generic_kind() == GenericKind::kExtern;
+
+  bool can_be_smi = is_any || is_eq || is_i31 || is_extern;
+
+  bool can_be_shared_string =
+      wasm::IsSubtypeOf(type, wasm::kWasmSharedExternRef) ||
+      (type.is_shared() && is_any);
+
+  bool must_be_descriptor =
+      type.has_index() &&
+      wasm::GetTypeCanonicalizer()->is_descriptor(type.ref_index());
+  bool can_be_descriptor = must_be_descriptor || is_any || is_eq || is_struct;
+
+  if (can_be_smi) {
+    GOTO_IF(__ IsSmi(ret), done, ret);
+  }
+  if (type.is_nullable() && type.use_wasm_null()) {
+    GOTO_IF(__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>()),
+            done, __ template LoadRoot<RootIndex::kNullValue>());
   }
 
-  if (type.is_reference_to(GenericKind::kAny) && type.is_shared()) {
-    ScopedVar<Object> result(this, OpIndex::Invalid());
-    if (type.is_nullable()) {
-      IF (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
-        result = __ template LoadRoot<RootIndex::kNullValue>();
-      } ELSE {
-        CheckAndConvertSharedString(ret, result);
-      }
-    } else {
-      CheckAndConvertSharedString(ret, result);
+#ifdef V8_IS_TSAN
+  if (v8_flags.wasm_shared) {
+    // Unshared anyref can hold shared objects.
+    // TODO(jkummerow): ...but only when they came from any.convert_extern,
+    // which means we would have previously applied the barrier on the
+    // preceding to-extern conversion; so "|| is_any" is unnecessary here?
+    if (type.is_shared() || is_any) {
+      __ WasmCallRuntime(__ phase_zone(),
+                         Runtime::kTsanAcquireForInitializationFence, {ret},
+                         __ NoContextConstant(), CanThrow{false});
     }
-    return result;
+  }
+#endif  // V8_IS_TSAN
+
+  // If we don't need the instance type, the load will be eliminated.
+  V<Word32> instance_type = __ LoadInstanceTypeField(__ LoadMapField(ret));
+
+  // We have to unshare shared strings before passing them to JS.
+  if (can_be_shared_string) {
+    V<Word32> is_string = __ Uint32LessThan(
+        instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
+    GOTO_IF(is_string, runtime);
   }
 
-  // At this point, we only have to process WasmNull.
-  // These two cases are never WasmNull.
-  if (!type.is_nullable()) return ret;
-  if (!type.use_wasm_null()) return ret;
-
-  // Nullable reference. Convert WasmNull if needed.
-  ScopedVar<Object> result(this, OpIndex::Invalid());
-  IF_NOT (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
-    result = ret;
-  } ELSE {
-    result = __ template LoadRoot<RootIndex::kNullValue>();
+  // Indexed and generic types that could be a descriptor struct have to
+  // check for {ret} being a descriptor, and load its JS wrapper if so.
+  if (v8_flags.wasm_merged_descriptors && can_be_descriptor) {
+    if (!must_be_descriptor) {
+      GOTO_IF_NOT(__ Word32Equal(instance_type, WASM_CUSTOM_MAP_TYPE), done,
+                  ret);
+    }
+    // At this point, it's guaranteed that {ret} is a WasmCustomMap.
+    V<HeapObject> maybe_wrapper = __ Load(ret, LoadOp::Kind::TaggedBase(),
+                                          MemoryRepresentation::TaggedPointer(),
+                                          offsetof(WasmCustomMap, js_wrapper_));
+    // The wrapper is lazily created on first use.
+    V<Word32> no_wrapper = __ TaggedEqual(
+        maybe_wrapper, __ template LoadRoot<RootIndex::kNullValue>());
+    GOTO_IF(UNLIKELY(no_wrapper), runtime);
+    GOTO(done, maybe_wrapper);
+  } else {
+    GOTO(done, ret);
   }
+
+  BIND(runtime);
+  GOTO(done, __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmWasmToJSObject,
+                                {ret}, __ NoContextConstant()));
+
+  BIND(done, result);
   return result;
 }
 

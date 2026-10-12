@@ -1859,10 +1859,19 @@ V8_OBJECT class WasmCustomMap : public Map {
   // To save memory, we could store the NativeContext in the {js_wrapper} field
   // before allocating the wrapper, but that would make checking for the
   // wrapper's presence more expensive.
+  // We currently also need the NC for prototype chain validity cells.
+  // TODO(jkummerow): Find a more elegant solution.
   TaggedMember<NativeContext> native_context_for_wrapper_;
 } V8_OBJECT_END;
 
 inline constexpr int WasmCustomMap::kHeaderSize = sizeof(WasmCustomMap);
+
+int WasmStruct::FieldOffset(const wasm::StructType* type, int field_index) {
+  int header_size = type->is_descriptor() && v8_flags.wasm_merged_descriptors
+                        ? WasmCustomMap::kHeaderSize
+                        : WasmStruct::kHeaderSize;
+  return header_size + type->field_offset(field_index);
+}
 
 int WasmCustomMap::Size(const wasm::StructType* type) {
   // Object size must fit into a Smi (because of runtime functions), and its

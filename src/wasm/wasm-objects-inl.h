@@ -1315,12 +1315,6 @@ int WasmStruct::GcSafeSize(Tagged<Map> map) {
   return DecodeInstanceSizeFromMap(map);
 }
 
-int WasmStruct::FieldOffset(const wasm::StructType* type, int field_index) {
-  int header_size = type->is_descriptor() ? WasmCustomMap::kHeaderSize
-                                          : WasmStruct::kHeaderSize;
-  return header_size + type->field_offset(field_index);
-}
-
 Address WasmStruct::RawFieldAddress(int raw_offset) {
   int offset = WasmStruct::kHeaderSize + raw_offset;
   return FIELD_ADDR(Tagged<WasmStruct>(this), offset);

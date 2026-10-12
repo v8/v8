@@ -122,8 +122,6 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   V<Object> ConvertWasmResultsToJS(base::Vector<OpIndex> returns,
                                    V<Context> js_context);
 
-  void CheckAndConvertSharedString(V<Object> ret, ScopedVar<Object>& result);
-
   // Overload for the inlined JS-to-Wasm wrapper.
   // Returns the result of the Wasm function converted to a JS value.
   V<Any> BuildJSToWasmWrapper(V<JSFunction> js_closure, V<Context> js_context,

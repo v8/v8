@@ -88,8 +88,8 @@ TNode<HeapObjectReference> AccessorAssembler::TryMonomorphicCase(
 
   // Try to quickly handle the monomorphic case without knowing for sure
   // if we have a weak reference in feedback.
-  CSA_DCHECK(this,
-             IsMap(GetHeapObjectAssumeWeak(weak_lookup_start_object_map)));
+  CSA_DCHECK(this, IsMapOrCustomMap(
+                       GetHeapObjectAssumeWeak(weak_lookup_start_object_map)));
   GotoIfNot(TaggedEqual(feedback, weak_lookup_start_object_map), if_miss);
 
   TNode<MaybeObject> handler = UncheckedCast<MaybeObject>(
@@ -126,8 +126,8 @@ void AccessorAssembler::HandlePolymorphicCase(
     TNode<IntPtrT> index = ChangePositiveInt32ToIntPtr(var_index.value());
     TNode<MaybeObject> maybe_cached_map =
         LoadWeakFixedArrayElement(feedback, index);
-    CSA_DCHECK(this,
-               IsMap(GetHeapObjectAssumeWeak(weak_lookup_start_object_map)));
+    CSA_DCHECK(this, IsMapOrCustomMap(GetHeapObjectAssumeWeak(
+                         weak_lookup_start_object_map)));
     GotoIfNot(TaggedEqual(maybe_cached_map, weak_lookup_start_object_map),
               &loop_next);
 

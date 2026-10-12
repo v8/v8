@@ -88,6 +88,7 @@ using compiler::turboshaft::Variable;
 using compiler::turboshaft::WasmArrayNullable;
 using compiler::turboshaft::WasmStackCheckOp;
 using compiler::turboshaft::WasmStringRefNullable;
+using compiler::turboshaft::WasmStructNonNullable;
 using compiler::turboshaft::WasmStructNullable;
 using compiler::turboshaft::WasmTypeAnnotationOp;
 using compiler::turboshaft::WasmTypeCastOp;
@@ -412,8 +413,8 @@ class TurboshaftGraphBuildingInterface
       IF_NOT (LIKELY(__ HasInstanceType(trusted_instance_data,
                                         WASM_TRUSTED_INSTANCE_DATA_TYPE,
                                         SharedFlag{false}))) {
-        OpIndex message_id = __ TaggedIndexConstant(
-            static_cast<int32_t>(AbortReason::kUnexpectedInstanceType));
+        OpIndex message_id =
+            __ SmiConstant(Smi::FromEnum(AbortReason::kUnexpectedInstanceType));
         __ WasmCallRuntime(decoder->zone(), Runtime::kAbort, {message_id},
                            __ NoContextConstant());
         __ Unreachable();
@@ -5519,9 +5520,8 @@ class TurboshaftGraphBuildingInterface
                   const FieldImmediate& imm, const Value& waitqueue,
                   const Value& expected_value, const Value& timeout_ns,
                   Value* result) {
-    V<Word32> offset = __ Word32Constant(
-        WasmStruct::kHeaderSize +
-        imm.struct_imm.struct_type->field_offset(imm.field_imm.index));
+    V<Word32> offset = __ Word32Constant(WasmStruct::FieldOffset(
+        imm.struct_imm.struct_type, imm.field_imm.index));
     ManagedObjectWait(decoder, struct_obj, offset, waitqueue, expected_value,
                       timeout_ns, result);
   }
@@ -9153,6 +9153,16 @@ class TurboshaftGraphBuildingInterface
   }
 
   V<Map> GetRttFromDescriptor(const Value& descriptor) {
+    if (v8_flags.wasm_merged_descriptors) {
+      V<WasmCustomMap> descriptor_struct = descriptor.get<WasmCustomMap>();
+      // The descriptor is the RTT, but we have to check if it's null, and
+      // there's no load that could trigger an implicit check.
+      if (descriptor.type.is_nullable()) {
+        __ TrapIf(__ IsNull(descriptor_struct, wasm::kWasmAnyRef),
+                  TrapId::kTrapNullDereference);
+      }
+      return descriptor_struct;
+    }
     V<WasmStructNullable> descriptor_struct =
         descriptor.get<WasmStructNullable>();
     // TODO(jkummerow): Refactor this to share the logic with
@@ -9176,10 +9186,11 @@ class TurboshaftGraphBuildingInterface
                    WasmStruct::kHeaderSize);
   }
 
-  V<WasmStruct> StructNewImpl(FullDecoder* decoder,
-                              const StructIndexImmediate& imm,
-                              const Value& descriptor, OpIndex args[],
-                              bool has_nondefault_args) {
+  V<WasmStructNonNullable> StructNewImpl(FullDecoder* decoder,
+                                         const StructIndexImmediate& imm,
+                                         const Value& descriptor,
+                                         OpIndex args[],
+                                         bool has_nondefault_args) {
     if (__ generating_unreachable_operations()) return {};
     const TypeDefinition& type = decoder->module_->type(imm.index);
     DCHECK_EQ(type.has_descriptor(), descriptor.op.valid());
@@ -9190,7 +9201,7 @@ class TurboshaftGraphBuildingInterface
       rtt = __ RttCanon(instance_cache_.managed_object_maps(), imm.index);
     }
 
-    V<WasmStruct> struct_value;
+    V<WasmStructNonNullable> struct_value;
     if (type.is_descriptor()) {
       bool pass_potential_prototype =
           has_nondefault_args &&

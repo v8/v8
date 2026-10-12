@@ -8865,6 +8865,15 @@ TNode<BoolT> CodeStubAssembler::IsMapInstanceType(TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, MAP_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsMapOrCustomMap(TNode<HeapObject> object) {
+#if V8_ENABLE_WEBASSEMBLY
+  return UncheckedCast<BoolT>(
+      Word32Or(IsMap(object), HasInstanceType(object, WASM_CUSTOM_MAP_TYPE)));
+#else
+  return IsMap(object);
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapperInstanceType(
     TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_PRIMITIVE_WRAPPER_TYPE);

@@ -1033,6 +1033,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool IsBooleanMap(JSHeapBroker* broker) const;
   bool IsNullMap(JSHeapBroker* broker) const;
   bool IsUndefinedMap(JSHeapBroker* broker) const;
+  bool IsAnyWasmObjectMap() const;
 
   OptionalHeapObjectRef GetBackPointer(JSHeapBroker* broker) const;
 
