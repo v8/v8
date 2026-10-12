@@ -332,6 +332,14 @@ selects.config_setting_group(
     ],
 )
 
+selects.config_setting_group(
+    name = "webassembly_on_arm64_simulator",
+    match_all = [
+        "@v8//bazel/config:v8_arm64_simulator",
+        ":is_v8_enable_webassembly",
+    ],
+)
+
 v8_flag(
     name = "v8_jitless",
     default = False,
@@ -3062,7 +3070,7 @@ filegroup(
         ],
         "//conditions:default": [],
     }) + select({
-        "@v8//bazel/config:v8_arm64_simulator": [
+        ":webassembly_on_arm64_simulator": [
             "src/trap-handler/handler-outside-simulator.cc",
             "src/trap-handler/trap-handler-simulator.h",
         ],
