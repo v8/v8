@@ -4668,14 +4668,13 @@ const char* Symbol::PrivateSymbolToName() const {
 }
 
 v8::Promise::PromiseState JSPromise::status() const {
-  int value = flags() & StatusBits::kMask;
+  v8::Promise::PromiseState value = flags().status();
   DCHECK(value == 0 || value == 1 || value == 2);
-  return static_cast<v8::Promise::PromiseState>(value);
+  return value;
 }
 
 void JSPromise::set_status(Promise::PromiseState status) {
-  int value = flags() & ~StatusBits::kMask;
-  set_flags(value | status);
+  set_flags(flags().with<Flags::StatusBits>(status));
 }
 
 // static

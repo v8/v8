@@ -37,6 +37,8 @@ STORAGE_KINDS = frozenset({
     # A BitFieldGroup member: `name` is the C++ struct name and `bits`
     # contains the fields in bit order.
     "bitfield",
+    # A SmiBitFieldMember: a tagged slot containing at most 31 bits.
+    "smi_bitfield",
     # Integral storage: `width` bytes, `signed` flag, and
     # `pointer_width_alias` when the member was written through one
     # (uintptr_t, size_t, ...), which its width alone does not say.
@@ -307,8 +309,8 @@ class StorageType:
   pointer_width_alias: str | None = None
   # C++ type name without namespaces; includes enclosing classes for bitfields.
   name: str | None = None
-  # "bitfield": the group's fields, in declaration order, which is bit
-  # order.
+  # "bitfield" / "smi_bitfield": the group's fields, in declaration
+  # order, which is bit order.
   bits: tuple[BitFieldEntry, ...] = ()
 
   def __post_init__(self) -> None:
@@ -330,13 +332,19 @@ class StorageType:
     if self.kind == "struct":
       _check(self.width is not None and self.width > 0,
              "struct storage needs a size")
-    if self.kind == "bitfield":
+    if self.kind in ("bitfield", "smi_bitfield"):
       _check(
-          isinstance(self.name, str), "bitfield storage name must be a string")
+          isinstance(self.name, str),
+          f"{self.kind} storage name must be a string")
       for part in (self.name or "").split("::"):
-        _check_identifier(part, "bitfield storage name")
-      _check(self.width in (1, 2, 4, 8), "bitfield storage width invalid")
-      _check(bool(self.bits), "bitfield storage without fields")
+        _check_identifier(part, f"{self.kind} storage name")
+      if self.kind == "bitfield":
+        _check(self.width in (1, 2, 4, 8), "bitfield storage width invalid")
+        capacity = self.width * 8
+      else:
+        _check(self.width is None, "smi_bitfield storage with a width")
+        capacity = 31
+      _check(bool(self.bits), f"{self.kind} storage without fields")
       # A base::BitField chain starts at bit 0 and has no holes; a gap
       # means an alias is missing from the group.
       next_bit = 0
@@ -346,7 +354,7 @@ class StorageType:
             f"bitfield {self.name}: {bit.cpp_name} starts at {bit.offset}, "
             f"expected {next_bit}")
         next_bit += bit.num_bits
-      _check(next_bit <= self.width * 8,
+      _check(next_bit <= capacity,
              f"bitfield {self.name}: {next_bit} bits exceed the storage")
     else:
       _check(not self.bits, f"{self.kind} storage with bit fields")

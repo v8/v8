@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/smi.h"
 #include "src/objects/tagged.h"
 
 namespace v8 {
@@ -231,6 +232,28 @@ void TaggedMember<T, CompressionScheme>::WriteBarrier(HeapObject* host,
     }
   }
 #endif
+}
+
+template <typename Group>
+Group SmiBitFieldMember<Group>::load() const {
+  return Group(Smi::To31BitPattern(TaggedMember<Smi>::load()));
+}
+
+template <typename Group>
+void SmiBitFieldMember<Group>::store(Group value) {
+  store_no_write_barrier(
+      Smi::From31BitPattern(static_cast<int>(value.value())));
+}
+
+template <typename Group>
+Group SmiBitFieldMember<Group>::Relaxed_Load() const {
+  return Group(Smi::To31BitPattern(TaggedMember<Smi>::Relaxed_Load()));
+}
+
+template <typename Group>
+void SmiBitFieldMember<Group>::Relaxed_Store(Group value) {
+  Relaxed_Store_no_write_barrier(
+      Smi::From31BitPattern(static_cast<int>(value.value())));
 }
 
 // static

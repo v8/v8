@@ -12537,7 +12537,7 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionAwait(
   RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
       value,
       GetSmiConstant(static_cast<int>(Promise::kFulfilled) |
-                     JSPromise::HasHandlerBit::kMask),
+                     JSPromise::Flags::HasHandlerBit::kMask),
       offsetof(JSPromise, flags_), StoreTaggedMode::kDefault));
 
   VirtualObject* task = reducer_.CreateAsyncResumeTask(

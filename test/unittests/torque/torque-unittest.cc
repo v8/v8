@@ -1780,6 +1780,74 @@ TEST(TorqueLayoutLoader, ImporterDeclaresBitFieldStructFromCppOnlyBase) {
       json.str(), /*use_cpp_layouts=*/true);
 }
 
+std::string TestSmiBitFieldStorage() {
+  return R"({"kind": "smi_bitfield", "name": "TestFlags", "bits": [)"
+         R"({"cpp_name": "IsFooBit", "type": "bool", )"
+         R"("offset": 0, "num_bits": 1}, )"
+         R"({"cpp_name": "CountBits", "type": "uint32_t", )"
+         R"("offset": 1, "num_bits": 30}]})";
+}
+
+std::string TestSmiBitFieldStruct(
+    const std::string& count = "count: uint32: 30 bit;") {
+  return R"(
+  @cppScope('TestScalar::Flags')
+  bitfield struct TestFlags extends uint31 {
+    is_foo: bool: 1 bit;
+    )" + count +
+         R"(
+  }
+)";
+}
+
+TEST(TorqueLayoutLoader, ImporterDeclaresSmiBitFieldStructFromRecord) {
+  ExpectSuccessfulLayoutCompilation(
+      TestScalarClass("SmiTagged<TestFlags>"),
+      TestScalarJson(TestSmiBitFieldStorage(), kTaggedSize),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterReplacesMatchingSmiBitFieldStruct) {
+  ExpectSuccessfulLayoutCompilation(
+      TestSmiBitFieldStruct() + TestScalarClass("SmiTagged<TestFlags>"),
+      TestScalarJson(TestSmiBitFieldStorage(), kTaggedSize),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterRejectsSmiBitFieldStructWithWrongParent) {
+  std::string source = TestSmiBitFieldStruct();
+  size_t pos = source.find("uint31");
+  CHECK_NE(pos, std::string::npos);
+  source.replace(pos, 6, "uint32");
+  ExpectFailingLayoutCompilation(
+      source + TestScalarClass("SmiTagged<TestFlags>"),
+      TestScalarJson(TestSmiBitFieldStorage(), kTaggedSize),
+      /*use_cpp_layouts=*/true, ".tq extends uint32, C++ uint31");
+}
+
+TEST(TorqueLayoutLoader, VerifierAcceptsMatchingSmiBitFieldStruct) {
+  ExpectSuccessfulLayoutCompilation(
+      TestSmiBitFieldStruct() + TestScalarClass("SmiTagged<TestFlags>"),
+      TestScalarJson(TestSmiBitFieldStorage(), kTaggedSize),
+      /*use_cpp_layouts=*/false);
+}
+
+TEST(TorqueLayoutLoader, VerifierRejectsSmiBitFieldWidthMismatch) {
+  ExpectFailingLayoutCompilation(
+      TestSmiBitFieldStruct("count: uint32: 29 bit;") +
+          TestScalarClass("SmiTagged<TestFlags>"),
+      TestScalarJson(TestSmiBitFieldStorage(), kTaggedSize),
+      /*use_cpp_layouts=*/false, "30 bit(s) at 1 in C++, 29 at 1 in Torque");
+}
+
+TEST(TorqueLayoutLoader, VerifierRejectsSmiBitFieldWithoutSmiTagged) {
+  ExpectFailingLayoutCompilation(
+      TestSmiBitFieldStruct() + TestScalarClass("Smi"),
+      TestScalarJson(TestSmiBitFieldStorage(), kTaggedSize),
+      /*use_cpp_layouts=*/false,
+      "a bit field group in a Smi in C++, Smi in Torque");
+}
+
 TEST(TorqueLayoutLoader, RejectsBitFieldGap) {
   // Torque derives offsets from declaration order, so a hole in the record
   // would shift every following field instead of being preserved.

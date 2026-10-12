@@ -4945,7 +4945,7 @@ Handle<JSPromise> Factory::NewJSPromiseWithoutHook() {
   DisallowGarbageCollection no_gc;
   Tagged<JSPromise> raw = *promise;
   raw->set_reactions_or_result(Smi::zero(), SKIP_WRITE_BARRIER);
-  raw->set_flags(0);
+  raw->set_flags(JSPromise::Flags());
   // TODO(v8) remove once embedder data slots are always zero-initialized.
   InitEmbedderFields(*promise, Smi::zero());
   DCHECK_EQ(raw->GetEmbedderFieldCount(), v8::Promise::kEmbedderFieldCount);

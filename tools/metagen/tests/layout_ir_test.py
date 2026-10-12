@@ -44,6 +44,10 @@ def bitfield(*bits, width=1):
   return StorageType(kind="bitfield", name="Foo::Bits", width=width, bits=bits)
 
 
+def smi_bitfield(*bits, **kwargs):
+  return StorageType(kind="smi_bitfield", name="FooFlags", bits=bits, **kwargs)
+
+
 def field(cpp_name, offset, size, storage=None, cpp_type=None, **kwargs):
   return Field(
       cpp_name=cpp_name,
@@ -161,6 +165,23 @@ class StorageTypeTest(unittest.TestCase):
       bitfield(
           BitFieldEntry("LowBits", "uint8_t", 0, 5),
           BitFieldEntry("HighBits", "uint8_t", 5, 4))
+
+  def test_smi_bitfield_roundtrip(self):
+    s = smi_bitfield(
+        BitFieldEntry("IsFooBit", "bool", 0, 1),
+        BitFieldEntry("CountBits", "uint32_t", 1, 30))
+    self.assertEqual(StorageType.from_json(s.to_json()), s)
+    self.assertNotIn("width", s.to_json())
+
+  def test_smi_bitfield_chain_must_fit_31_bits(self):
+    with self.assertRaisesRegex(LayoutError, "32 bits exceed the storage"):
+      smi_bitfield(
+          BitFieldEntry("IsFooBit", "bool", 0, 1),
+          BitFieldEntry("CountBits", "uint32_t", 1, 31))
+
+  def test_smi_bitfield_has_no_width(self):
+    with self.assertRaisesRegex(LayoutError, "with a width"):
+      smi_bitfield(BitFieldEntry("IsFooBit", "bool", 0, 1), width=4)
 
   def test_bits_only_on_bitfield_storage(self):
     with self.assertRaisesRegex(LayoutError, "int storage with bit fields"):

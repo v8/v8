@@ -2839,7 +2839,7 @@ Reduction JSTypedLowering::ReduceJSAsyncFunctionAwait(Node* node) {
           AccessBuilder::ForJSObjectOffset(offsetof(JSPromise, flags_))),
       value,
       jsgraph()->SmiConstant(v8::Promise::kFulfilled |
-                             JSPromise::HasHandlerBit::kMask),
+                             JSPromise::Flags::HasHandlerBit::kMask),
       fast_effect, fast_control);
 
   // Note: resume_mode is NOT set here — the AsyncResumeTask handler in

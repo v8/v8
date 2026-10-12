@@ -2614,7 +2614,7 @@ void PromiseReaction::PromiseReactionVerify(Isolate* isolate) {
 
 void JSPromise::JSPromiseVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(flags_.load().IsSmi());
+  CHECK(flags_.IsSmi());
   if (status() == Promise::kPending) {
     CHECK(IsSmi(reactions()) || IsPromiseReaction(reactions()));
   }

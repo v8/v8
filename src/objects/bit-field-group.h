@@ -40,7 +40,9 @@ namespace v8::internal {
 // Implicit conversions to and from U support Bit::decode(bit_field()) and
 // set_bit_field(Bit::update(bit_field(), v)). get<Bit>() reads a field;
 // with<Bit>(v) returns a copy with that field updated. The caller must store
-// the updated copy back to the member.
+// the updated copy back to the member. value() returns the underlying integer.
+//
+// Use SmiBitFieldMember<Group> for groups stored as Smis.
 template <typename Derived, typename U>
 class BitFieldGroup {
  public:
@@ -52,6 +54,7 @@ class BitFieldGroup {
   // NOLINTNEXTLINE(runtime/explicit)
   constexpr BitFieldGroup(U value) : value_(value) {}
   constexpr operator U() const { return value_; }
+  constexpr U value() const { return value_; }
 
   template <typename Bit>
   constexpr typename Bit::FieldType get() const {

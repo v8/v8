@@ -703,6 +703,8 @@ class BitFieldGroupTest(unittest.TestCase):
     class BitFieldGroup {
       U value_;
     };
+    template <typename Group>
+    class SmiBitFieldMember : TaggedMember<Smi> {};
     enum class Kind : uint8_t { kA, kB, kC };
   """
 
@@ -766,6 +768,49 @@ class BitFieldGroupTest(unittest.TestCase):
       }
     """)["Foo"].fields
     self.assertEqual(field.storage.name, "Foo::Holder::Bits")
+
+  def test_smi_member_records_the_group_as_a_tagged_slot(self):
+    (field,) = self._layouts("""
+      class Foo : public HeapObject {
+       public:
+        struct Flags : BitFieldGroup<Flags, uint32_t> {
+          using IsFooBit = base::BitField<bool, 0, 1, uint32_t>;
+          using CountBits = IsFooBit::Next<uint32_t, 30>;
+        };
+        SmiBitFieldMember<Flags> flags_;
+      };
+    """)["Foo"].fields
+    self.assertEqual(field.storage.kind, "smi_bitfield")
+    self.assertEqual(field.storage.name, "Foo::Flags")
+    self.assertIsNone(field.storage.width)
+    self.assertEqual(
+        [(b.cpp_name, b.offset, b.num_bits) for b in field.storage.bits],
+        [("IsFooBit", 0, 1), ("CountBits", 1, 30)])
+
+  def test_smi_member_bits_must_fit_31(self):
+    with self.assertRaisesRegex(LayoutError, "32 bits exceed the storage"):
+      self._layouts("""
+        class Foo : public HeapObject {
+         public:
+          struct Flags : BitFieldGroup<Flags, uint32_t> {
+            using IsFooBit = base::BitField<bool, 0, 1, uint32_t>;
+            using CountBits = IsFooBit::Next<uint32_t, 31>;
+          };
+          SmiBitFieldMember<Flags> flags_;
+        };
+      """)
+
+  def test_smi_member_argument_must_be_a_group(self):
+    with self.assertRaisesRegex(LayoutError, "is not a BitFieldGroup"):
+      self._layouts("""
+        class Foo : public HeapObject {
+         public:
+          struct Flags {
+            using IsFooBit = base::BitField<bool, 0, 1, uint32_t>;
+          };
+          SmiBitFieldMember<Flags> flags_;
+        };
+      """)
 
   def test_non_bit_field_alias_is_fatal(self):
     with self.assertRaisesRegex(LayoutError, "is not a base::BitField"):

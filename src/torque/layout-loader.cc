@@ -354,8 +354,14 @@ std::string_view CategoryName(StorageCategory category) {
   }
 }
 
+bool IsBitFieldKind(const std::string& kind) {
+  return kind == "bitfield" || kind == "smi_bitfield";
+}
+
 std::optional<StorageCategory> CategoryOfStorageKind(const std::string& kind) {
-  if (kind == "tagged") return StorageCategory::kTagged;
+  if (kind == "tagged" || kind == "smi_bitfield") {
+    return StorageCategory::kTagged;
+  }
   if (kind == "protected_tagged") return StorageCategory::kProtectedTagged;
   if (kind == "trusted_pointer") return StorageCategory::kTrustedPointer;
   if (kind == "external_pointer") return StorageCategory::kExternalPointer;
@@ -1028,14 +1034,21 @@ class LayoutVerifier {
     const JsonObject& s = storage->ToObject();
     const JsonValue* kind = Lookup(s, "kind");
     if (kind == nullptr || !kind->IsString() ||
-        kind->ToString() != "bitfield") {
+        !IsBitFieldKind(kind->ToString())) {
       return;
     }
-    const auto* type =
-        BitFieldStructType::DynamicCast(field.name_and_type.type);
+    bool smi = kind->ToString() == "smi_bitfield";
+    // Groups stored as Smis have type SmiTagged<Struct> in Torque.
+    const Type* struct_type = field.name_and_type.type;
+    if (smi) {
+      std::optional<const Type*> unwrapped = Type::MatchUnaryGeneric(
+          struct_type, TypeOracle::GetSmiTaggedGeneric());
+      struct_type = unwrapped.value_or(nullptr);
+    }
+    const auto* type = BitFieldStructType::DynamicCast(struct_type);
     if (type == nullptr) {
-      Error("field ", context, ": a bit field group in C++, ",
-            field.name_and_type.type->ToString(), " in Torque")
+      Error("field ", context, ": a bit field group ", smi ? "in a Smi " : "",
+            "in C++, ", field.name_and_type.type->ToString(), " in Torque")
           .Position(field.pos);
       return;
     }
@@ -1228,7 +1241,7 @@ class LayoutImporter {
       const JsonObject& s = storage->ToObject();
       const JsonValue* kind = Lookup(s, "kind");
       if (kind == nullptr || !kind->IsString() ||
-          kind->ToString() != "bitfield") {
+          !IsBitFieldKind(kind->ToString())) {
         continue;
       }
       const std::string name = TorqueBitFieldStructName(s, cpp_name);
@@ -1304,9 +1317,12 @@ class LayoutImporter {
            std::to_string(field.num_bits) + " bit";
   }
 
-  // Convert the storage width in bytes to a Torque unsigned integer type.
+  // Groups stored as Smis use uint31; other groups use their storage width.
   TypeExpression* BitFieldParent(const std::string& context,
                                  const JsonObject& storage) {
+    if (RequireString(storage, "kind", context) == "smi_bitfield") {
+      return NamedType("uint31");
+    }
     return NamedType(
         "uint" + std::to_string(RequireSize(storage, "width", context) * 8));
   }
@@ -1659,6 +1675,10 @@ class LayoutImporter {
     }
     if (kind == "enum" || kind == "struct") {
       return NamedType(TorqueTypeName(RequireString(storage, "name", context)));
+    }
+    if (kind == "smi_bitfield") {
+      return NamedType("SmiTagged",
+                       NamedType(TorqueBitFieldStructName(storage, context)));
     }
     if (kind == "int") {
       if (const JsonValue* alias = Lookup(storage, "pointer_width_alias")) {
