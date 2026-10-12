@@ -4001,13 +4001,9 @@ void SloppyArgsIndexedPropertyEnumerator(
       indexed_property_names_script->Run(info.GetIsolate()->GetCurrentContext())
           .ToLocalChecked()
           .As<Object>();
-  // Have to populate the handle manually, as it's not Cast-able.
-  i::DirectHandle<i::JSReceiver> o =
-      v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(result);
-  i::DirectHandle<i::JSArray> array(
-      i::UncheckedCast<i::JSArray>(*o),
-      reinterpret_cast<i::Isolate*>(info.GetIsolate()));
-  info.GetReturnValue().Set(v8::Utils::ToLocal(array));
+  // Return the Arguments object via `ReturnValue<Value>` since it is not a
+  // `v8::Array`.
+  v8::ReturnValue<v8::Value>(info.GetReturnValue()).Set(result);
 }
 
 v8::Intercepted SloppyIndexedPropertyGetter(

@@ -296,7 +296,7 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
           if (std::isnan(value_as_double)) {
             value_as_double = std::numeric_limits<double>::quiet_NaN();
           }
-          property_values[i] = ToApiHandle<v8::Object>(
+          property_values[i] = ToApiHandle<v8::Number>(
               isolate->factory()->NewHeapNumber(value_as_double));
         }
       }
