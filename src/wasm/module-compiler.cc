@@ -4088,14 +4088,12 @@ void CompilationStateImpl::TriggerCachingAfterTimeout() {
   // If we are still half a millisecond or more away from the timeout,
   // reschedule the task. Otherwise, call the caching callback.
   if (time_until_caching >= base::TimeDelta::FromMicroseconds(500)) {
-    int ms_remaining =
-        static_cast<int>(time_until_caching.InMillisecondsRoundedUp());
-    DCHECK_LE(1, ms_remaining);
+    double seconds_remaining = time_until_caching.InSecondsF();
     V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
         TaskPriority::kUserVisible,
         std::make_unique<TriggerCodeCachingAfterTimeoutTask>(
             native_module_weak_),
-        ms_remaining);
+        seconds_remaining);
     return;
   }
 
