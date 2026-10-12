@@ -6500,9 +6500,12 @@ Node* Compiler::PreprocessRegExp(CompileData* data, bool is_one_byte) {
       TRACE_GRAPH("* Unroll loop once");
       ChoiceNode* first_step_node = zone()->New<ChoiceNode>(2, flags(), zone());
       first_step_node->AddAlternative(GuardedAlternative(captured_body));
-      first_step_node->AddAlternative(GuardedAlternative(zone()->New<TextNode>(
-          zone()->New<ClassRanges>(StandardCharacterSet::kEverything), false,
-          loop_node, flags())));
+      // Use code point advancement in Unicode mode to avoid matching between
+      // surrogate halves.
+      Node* step = zone()
+                       ->New<ClassRanges>(StandardCharacterSet::kEverything)
+                       ->ToNode(this, loop_node);
+      first_step_node->AddAlternative(GuardedAlternative(step));
       REGISTER_NODE(first_step_node);
       node = first_step_node;
     } else {
