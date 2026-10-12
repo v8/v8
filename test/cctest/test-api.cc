@@ -25738,7 +25738,7 @@ TEST(ModuleEvaluateImportTerminateExecution) {
   // The exception thrown by terminate execution is not catchable by JavaScript
   // so the promise can not be settled.
   CHECK_EQ(promise->State(), v8::Promise::kPending);
-  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+  CHECK_EQ(module->GetStatus(), Module::kErrored);
   CHECK(try_catch.HasCaught());
   CHECK(try_catch.HasTerminated());
 }
