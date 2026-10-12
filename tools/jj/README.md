@@ -49,4 +49,4 @@ Uses the alias in `tools/jj/config.toml` (runs `jj fix` on mutable revisions in 
 ```bash
 jj fix
 ```
-Uses the configuration in `tools/jj/config.toml` (`clang_format.py` for C++/JS/TS and `gn format` for GN/GNI).
+Uses the configuration in `tools/jj/config.toml` (mirrors `git cl format`: `clang_format.py` on changed C++ lines, `gn format` for GN/GNI, JS untouched).

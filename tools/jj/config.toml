@@ -43,24 +43,22 @@ jj gerrit upload "$@"
 """, ""]
 "upload"    = ["v8-upload"]
 
-# Disable google3format for internal Piper users
 [fix.tools.google3format]
 enabled = false
+# If you're not using the google-internal jj, this will complain that
+# google3format is an invalid fix tool because it has no command/patterns
 command = ["/dev/null"]
 patterns = ["null"]
 
-# Mirror depot_tools/git_cl.py formatters exactly as Chromium does:
+# The source of truth for formatters is depot_tools' git_cl.py
+# Mirror plain `git cl format`: C++ only on changed lines (clang-format-diff),
+# no JS (V8 doesn't set FORMAT_JS). `git cl format --stdin-filename` formats
+# whole files, so it's only used where `git cl format` does too (GN).
 [fix.tools.clang-format]
 command = ["clang_format.py", "--assume-filename=$path"]
 line-range-arg = "--lines=$first:$last"
-patterns = [
-  "glob:'**/*.cc'",
-  "glob:'**/*.h'",
-  "glob:'**/*.js'",
-  "glob:'**/*.mjs'",
-  "glob:'**/*.ts'",
-]
+patterns = ["glob:'**/*.cc'", "glob:'**/*.h'"]
 
-[fix.tools.gn-format]
-command = ["gn", "format", "--stdin"]
+[fix.tools.git-cl-format]
+command = ["git", "cl", "format", "--stdin-filename=$path"]
 patterns = ["glob:'**/*.gn'", "glob:'**/*.gni'"]
