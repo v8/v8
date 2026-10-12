@@ -987,8 +987,7 @@ SourceTextModule::TransitionAsyncToEvaluated(
 
 // https://tc39.es/ecma262/#sec-moduleevaluation
 MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
-    Isolate* isolate,
-    Handle<InState<kLinked, kEvaluatingAsync, kEvaluated, kErrored>> module) {
+    Isolate* isolate, Handle<InState<kLinked>> module) {
   DCHECK(IsUndefined(module->top_level_capability()));
 
   // 5. Let stack be a new empty List.

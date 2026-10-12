@@ -266,8 +266,7 @@ V8_OBJECT class SourceTextModule : public Module {
 
   // Implementation of spec concrete method Evaluate.
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSPromise> Evaluate(
-      Isolate* isolate,
-      Handle<InState<kLinked, kEvaluatingAsync, kEvaluated, kErrored>> module);
+      Isolate* isolate, Handle<InState<kLinked>> module);
 
   // Implementation of spec abstract operation InnerModuleEvaluation.
   static V8_WARN_UNUSED_RESULT bool InnerModuleEvaluation(

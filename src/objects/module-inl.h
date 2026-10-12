@@ -178,6 +178,17 @@ Handle<SourceTextModule> Module::InState<ModuleT, kStates...>::GetCycleRoot(
 }
 
 template <typename ModuleT, Module::Status... kStates>
+MaybeHandle<SourceTextModule>
+Module::InState<ModuleT, kStates...>::TryGetCycleRoot(Isolate* isolate) const
+  requires(IsAllowed<kErrored>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  Tagged<UnionOf<SourceTextModule, TheHole>> root = this->cycle_root();
+  if (IsTheHole(root)) return {};
+  return v8::internal::handle(Cast<SourceTextModule>(root), isolate);
+}
+
+template <typename ModuleT, Module::Status... kStates>
 int Module::InState<ModuleT, kStates...>::dfs_index() const
   requires(IsAllowed<kLinking, kEvaluating>())
 {

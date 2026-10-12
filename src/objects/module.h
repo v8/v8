@@ -364,6 +364,8 @@ V8_OBJECT class Module::InState : public ModuleT {
     requires(IsAllowed<kEvaluatingAsync, kEvaluated>());
   inline Handle<SourceTextModule> GetCycleRoot(Isolate* isolate) const
     requires(IsAllowed<kEvaluatingAsync, kEvaluated>());
+  inline MaybeHandle<SourceTextModule> TryGetCycleRoot(Isolate* isolate) const
+    requires(IsAllowed<kErrored>());
 
   inline int dfs_index() const
     requires(IsAllowed<kLinking, kEvaluating>());

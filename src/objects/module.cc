@@ -310,27 +310,15 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
 #ifdef DEBUG
   PrintStatusMessage(*module, "Evaluating module ");
 #endif  // DEBUG
-  // In the event of errored evaluation, return a rejected promise.
-  if (module->status() == kErrored) {
-    // If we have a top level capability we assume it has already been
-    // rejected, and return it here. Otherwise create a new promise and
-    // reject it with the module's exception.
-    if (IsJSPromise(module->top_level_capability())) {
-      DirectHandle<JSPromise> top_level_capability(
-          Cast<JSPromise>(module->top_level_capability()), isolate);
-      DCHECK(top_level_capability->status() == Promise::kRejected &&
-             top_level_capability->result() == module->exception());
-      return top_level_capability;
-    }
-    DirectHandle<JSPromise> capability = isolate->factory()->NewJSPromise();
-    JSPromise::Reject(capability, direct_handle(module->exception(), isolate));
-    return capability;
-  }
 
   // 2. Assert: module.[[Status]] is one of LINKED, EVALUATING-ASYNC, or
   //    EVALUATED.
-  // 3. If module.[[Status]] is either EVALUATING-ASYNC or EVALUATED, set module
-  //    to module.[[CycleRoot]].
+  // 3. If module.[[Status]] is either EVALUATING-ASYNC or EVALUATED, then
+  //    a. If module.[[CycleRoot]] is not EMPTY, then
+  //       i. Set module to module.[[CycleRoot]].
+  //    b. Else,
+  //       i. Assert: module.[[Status]] is EVALUATED and
+  //          module.[[EvaluationError]] is a throw completion.
   // A synthetic module has no dependencies, so it is its own cycle root.
   if (Handle<SourceTextModule> stm; TryCast(module, &stm)) {
     module = MatchState(
@@ -341,28 +329,90 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
         },
         [&](DirectHandle<
             InState<SourceTextModule, kEvaluatingAsync, kEvaluated>>
-                m) -> Handle<Module> { return m->GetCycleRoot(isolate); });
+                m) -> Handle<Module> { return m->GetCycleRoot(isolate); },
+        [&](Handle<InState<SourceTextModule, kErrored>> m) -> Handle<Module> {
+          if (Handle<SourceTextModule> cycle_root;
+              m->TryGetCycleRoot(isolate).ToHandle(&cycle_root)) {
+            return cycle_root;
+          }
+          return m;
+        });
   }
 
   // 4. If module.[[TopLevelCapability]] is not EMPTY, then
   //    a. Return module.[[TopLevelCapability]].[[Promise]].
   if (IsJSPromise(module->top_level_capability())) {
-    return DirectHandle<JSPromise>(
+    DirectHandle<JSPromise> capability(
         Cast<JSPromise>(module->top_level_capability()), isolate);
+    DCHECK_IMPLIES(module->status() == kErrored,
+                   capability->status() == Promise::kRejected &&
+                       capability->result() == module->exception());
+    return capability;
   }
   DCHECK(IsUndefined(module->top_level_capability()));
 
-  if (Handle<SourceTextModule> stm; TryCast(module, &stm)) {
-    return MatchState(
-        stm, [&](Handle<InState<SourceTextModule, kLinked, kEvaluatingAsync,
-                                kEvaluated, kErrored>>
-                     m) { return SourceTextModule::Evaluate(isolate, m); });
-  } else {
-    return MatchState(Cast<SyntheticModule>(module),
-                      [&](DirectHandle<InState<SyntheticModule, kLinked>> m) {
-                        return SyntheticModule::Evaluate(isolate, m);
-                      });
-  }
+  // If module.[[TopLevelCapability]] is EMPTY for an already-evaluating or
+  // already-evaluated module, steps 6-11 of #sec-moduleevaluation allocate and
+  // store a new capability on `module` and call InnerModuleEvaluation(module,
+  // stack, 0), which immediately returns in step 2 (#sec-innermoduleevaluation)
+  // without modifying `stack`:
+  //   - EVALUATING-ASYNC: step 2.a returns NormalCompletion(0); step 10.c is
+  //     skipped; step 11 returns the pending capability.
+  //   - EVALUATED (no error): step 2.a returns NormalCompletion(0); step
+  //     10.c.iii resolves the capability with undefined; step 11 returns it.
+  //   - EVALUATED (errored): step 2.b returns module.[[EvaluationError]] with
+  //     `stack` empty; step 9.d rejects the capability with the error; step 11
+  //     returns it.
+  return MatchState(
+      module,
+      [&](DirectHandle<InState<Module, kEvaluatingAsync>> m)
+          -> MaybeDirectHandle<JSPromise> {
+        // 6. Let capability be ! NewPromiseCapability(%Promise%).
+        DirectHandle<JSPromise> capability = isolate->factory()->NewJSPromise();
+        // 7. Set module.[[TopLevelCapability]] to capability.
+        m->set_top_level_capability(*capability);
+        // 8. InnerModuleEvaluation step 2.a returns 0.
+        // 11. Return capability.[[Promise]].
+        return capability;
+      },
+      [&](DirectHandle<InState<Module, kEvaluated>> m)
+          -> MaybeDirectHandle<JSPromise> {
+        // 6. Let capability be ! NewPromiseCapability(%Promise%).
+        DirectHandle<JSPromise> capability = isolate->factory()->NewJSPromise();
+        // 7. Set module.[[TopLevelCapability]] to capability.
+        m->set_top_level_capability(*capability);
+        // 8. InnerModuleEvaluation step 2.a returns 0.
+        // 10.c.iii. Perform ! Call(capability.[[Resolve]], undefined,
+        //                          « undefined »).
+        JSPromise::Resolve(capability, isolate->factory()->undefined_value())
+            .ToHandleChecked();
+        // 11. Return capability.[[Promise]].
+        return capability;
+      },
+      [&](DirectHandle<InState<Module, kErrored>> m)
+          -> MaybeDirectHandle<JSPromise> {
+        // 6. Let capability be ! NewPromiseCapability(%Promise%).
+        DirectHandle<JSPromise> capability = isolate->factory()->NewJSPromise();
+        // 7. Set module.[[TopLevelCapability]] to capability.
+        m->set_top_level_capability(*capability);
+        // 8. InnerModuleEvaluation step 2.b returns module.[[EvaluationError]].
+        // 9.d. Perform ! Call(capability.[[Reject]], undefined,
+        //                     « result.[[Value]] »).
+        JSPromise::Reject(capability,
+                          direct_handle(m->GetException(), isolate));
+        // 11. Return capability.[[Promise]].
+        return capability;
+      },
+      [&](Handle<InState<Module, kLinked>> linked)
+          -> MaybeDirectHandle<JSPromise> {
+        if (Handle<InState<SourceTextModule, kLinked>> stm;
+            TryCast(linked, &stm)) {
+          return SourceTextModule::Evaluate(isolate, stm);
+        } else {
+          return SyntheticModule::Evaluate(
+              isolate, Cast<InState<SyntheticModule, kLinked>>(linked));
+        }
+      });
 }
 
 Handle<Cell> Module::GetModuleNamespaceCell(Isolate* isolate,
