@@ -4013,9 +4013,14 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
 
 void MacroAssembler::LoadTrustedPointerField(Register destination,
                                              MemOperand field_operand,
-                                             TrustedPointerTag tag) {
+                                             TrustedPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  LoadIndirectPointerField(destination, field_operand, tag);
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+
+  Register handle = temps.AcquireX();
+  Ldr(handle.W(), field_operand);
+  ResolveTrustedPointerHandle(destination, handle, tag_range);
 #else
   LoadTaggedField(destination, field_operand);
 #endif
@@ -4074,30 +4079,6 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
 void MacroAssembler::StoreTrustedPointerField(Register value,
                                               MemOperand dst_field_operand) {
 #ifdef V8_ENABLE_SANDBOX
-  StoreIndirectPointerField(value, dst_field_operand);
-#else
-  StoreTaggedField(value, dst_field_operand);
-#endif
-}
-
-void MacroAssembler::LoadIndirectPointerField(
-    Register destination, MemOperand field_operand,
-    TrustedPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-
-  Register handle = temps.AcquireX();
-  Ldr(handle.W(), field_operand);
-  ResolveTrustedPointerHandle(destination, handle, tag_range);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-void MacroAssembler::StoreIndirectPointerField(Register value,
-                                               MemOperand dst_field_operand) {
-#ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
@@ -4105,8 +4086,8 @@ void MacroAssembler::StoreIndirectPointerField(Register value,
                                                    self_trusted_pointer_)));
   Str(scratch.W(), dst_field_operand);
 #else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
+  StoreTaggedField(value, dst_field_operand);
+#endif
 }
 
 #ifdef V8_ENABLE_SANDBOX
@@ -4407,8 +4388,8 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     DCHECK(!AreAliased(object, value, temp));
     Add(temp, object, offset);
     if (slot.contains_trusted_pointer()) {
-      LoadIndirectPointerField(temp, MemOperand(temp),
-                               slot.trusted_pointer_tag());
+      LoadTrustedPointerField(temp, MemOperand(temp),
+                              slot.trusted_pointer_tag());
     } else {
       DCHECK(slot.contains_direct_pointer());
       LoadTaggedField(temp, MemOperand(temp));

@@ -783,7 +783,10 @@ void MacroAssembler::LoadTrustedPointerField(Register destination,
                                              TrustedPointerTagRange tag_range,
                                              Register scratch) {
 #ifdef V8_ENABLE_SANDBOX
-  LoadIndirectPointerField(destination, field_operand, tag_range, scratch);
+  DCHECK(!AreAliased(destination, scratch));
+  Register handle = scratch;
+  movl(handle, field_operand);
+  ResolveTrustedPointerHandle(destination, handle, tag_range);
 #else
   LoadTaggedField(destination, field_operand);
 #endif  // V8_ENABLE_SANDBOX
@@ -842,34 +845,11 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
 void MacroAssembler::StoreTrustedPointerField(Operand dst_field_operand,
                                               Register value) {
 #ifdef V8_ENABLE_SANDBOX
-  StoreIndirectPointerField(dst_field_operand, value);
-#else
-  StoreTaggedField(dst_field_operand, value);
-#endif  // V8_ENABLE_SANDBOX
-}
-
-void MacroAssembler::LoadIndirectPointerField(Register destination,
-                                              Operand field_operand,
-                                              TrustedPointerTagRange tag_range,
-                                              Register scratch) {
-#ifdef V8_ENABLE_SANDBOX
-  DCHECK(!AreAliased(destination, scratch));
-  Register handle = scratch;
-  movl(handle, field_operand);
-  ResolveTrustedPointerHandle(destination, handle, tag_range);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-void MacroAssembler::StoreIndirectPointerField(Operand dst_field_operand,
-                                               Register value) {
-#ifdef V8_ENABLE_SANDBOX
   movl(kScratchRegister, FieldOperand(value, offsetof(ExposedTrustedObject,
                                                       self_trusted_pointer_)));
   movl(dst_field_operand, kScratchRegister);
 #else
-  UNREACHABLE();
+  StoreTaggedField(dst_field_operand, value);
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -1241,8 +1221,8 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
       Register scratch = object;
       Push(slot_address);  // Use slot address register to load the value into
       Register value_in_slot = slot_address;
-      LoadIndirectPointerField(value_in_slot, Operand(slot_address, 0),
-                               slot.trusted_pointer_tag(), scratch);
+      LoadTrustedPointerField(value_in_slot, Operand(slot_address, 0),
+                              slot.trusted_pointer_tag(), scratch);
       cmp_tagged(value, value_in_slot);
       // These pops don't affect the flag registers, so we can do them before
       // the conditional jump below.

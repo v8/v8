@@ -1006,24 +1006,19 @@
         mode);                                                                \
   } while (false)
 #endif
-#ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
-                                                   mode)
-#else
-#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
-                                                   mode)                       \
-  do {                                                                         \
-    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
-    WriteBarrier::ForTrustedPointer(                                           \
-        object, Tagged(object)->RawTrustedPointerField(offset, tag), value,    \
-        mode);                                                                 \
-  } while (false)
-#endif
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value, \
+                                                  mode)
+#elif defined(V8_ENABLE_SANDBOX)
 #define CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                   mode)                       \
-  CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, mode)
+  do {                                                                        \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                      \
+    WriteBarrier::ForTrustedPointer(                                          \
+        object, Tagged(object)->RawTrustedPointerField(offset, tag), value,   \
+        mode);                                                                \
+  } while (false)
 #else
 #define CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                   mode)                       \

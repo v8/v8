@@ -265,7 +265,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
     // For this barrier, the slot contains an index into a pointer table and not
     // directly a pointer to a HeapObject. Further, the slot address is tagged
-    // with the trusted pointer tag of the slot, so it cannot directly be
+    // with the indirect pointer tag of the slot, so it cannot directly be
     // dereferenced but needs to be decoded first.
     TNode<IntPtrT> slot = UncheckedParameter<IntPtrT>(
         TrustedPointerWriteBarrierDescriptor::kSlotAddress);

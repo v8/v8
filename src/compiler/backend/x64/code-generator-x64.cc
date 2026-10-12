@@ -572,7 +572,7 @@ int EmitStore(MacroAssembler* masm, Operand operand, Register value,
         masm->StoreSandboxedPointerField(operand, value);
         break;
       case MachineRepresentation::kTrustedPointer:
-        masm->StoreIndirectPointerField(operand, value);
+        masm->StoreTrustedPointerField(operand, value);
         break;
       default:
         UNREACHABLE();

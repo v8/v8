@@ -452,9 +452,14 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
 
 void MacroAssembler::LoadTrustedPointerField(Register destination,
                                              MemOperand field_operand,
-                                             TrustedPointerTag tag) {
+                                             TrustedPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  LoadIndirectPointerField(destination, field_operand, tag);
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register handle = temps.Acquire();
+  Ld_wu(handle, field_operand);
+
+  ResolveTrustedPointerHandle(destination, handle, tag_range);
 #else
   LoadTaggedField(destination, field_operand);
 #endif
@@ -509,32 +514,8 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
 }
 
 void MacroAssembler::StoreTrustedPointerField(Register value,
-                                              MemOperand dst_field_operand) {
-#ifdef V8_ENABLE_SANDBOX
-  StoreIndirectPointerField(value, dst_field_operand);
-#else
-  StoreTaggedField(value, dst_field_operand);
-#endif
-}
-
-void MacroAssembler::LoadIndirectPointerField(
-    Register destination, MemOperand field_operand,
-    TrustedPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register handle = temps.Acquire();
-  Ld_wu(handle, field_operand);
-
-  ResolveTrustedPointerHandle(destination, handle, tag_range);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-}
-
-void MacroAssembler::StoreIndirectPointerField(Register value,
-                                               MemOperand dst_field_operand,
-                                               int* trap_pc) {
+                                              MemOperand dst_field_operand,
+                                              int* trap_pc) {
 #ifdef V8_ENABLE_SANDBOX
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
@@ -542,7 +523,7 @@ void MacroAssembler::StoreIndirectPointerField(Register value,
                                                 self_trusted_pointer_)));
   St_w(scratch, dst_field_operand, trap_pc);
 #else
-  UNREACHABLE();
+  StoreTaggedField(value, dst_field_operand, trap_pc);
 #endif
 }
 
@@ -847,8 +828,8 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Register scratch = temps.Acquire();
     Add_d(scratch, object, offset);
     if (slot.contains_trusted_pointer()) {
-      LoadIndirectPointerField(scratch, MemOperand(scratch, 0),
-                               slot.trusted_pointer_tag());
+      LoadTrustedPointerField(scratch, MemOperand(scratch, 0),
+                              slot.trusted_pointer_tag());
     } else {
       DCHECK(slot.contains_direct_pointer());
       LoadTaggedField(scratch, MemOperand(scratch, 0));

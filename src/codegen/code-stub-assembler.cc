@@ -2291,7 +2291,7 @@ void CodeStubAssembler::TailCallJSCode(
 
 #ifdef V8_ENABLE_SANDBOX
 
-TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
+TNode<TrustedObject> CodeStubAssembler::LoadTrustedPointerFromObject(
     TNode<HeapObject> object, int field_offset,
     TrustedPointerTagRange tag_range) {
   TNode<TrustedPointerHandleT> handle =
@@ -4315,25 +4315,11 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
   }
 }
 
-void CodeStubAssembler::StoreIndirectPointerField(
-    TNode<HeapObject> object, int offset, TrustedPointerTag tag,
-    TNode<ExposedTrustedObject> value) {
-  DCHECK(V8_ENABLE_SANDBOX_BOOL);
-  OptimizedStoreTrustedPointerField(object, offset, tag, value);
-}
-
-void CodeStubAssembler::StoreIndirectPointerFieldNoWriteBarrier(
-    TNode<HeapObject> object, int offset, TrustedPointerTag tag,
-    TNode<ExposedTrustedObject> value) {
-  DCHECK(V8_ENABLE_SANDBOX_BOOL);
-  OptimizedStoreTrustedPointerFieldNoWriteBarrier(object, offset, tag, value);
-}
-
 void CodeStubAssembler::StoreTrustedPointerField(
     TNode<HeapObject> object, int offset, TrustedPointerTag tag,
     TNode<ExposedTrustedObject> value) {
 #ifdef V8_ENABLE_SANDBOX
-  StoreIndirectPointerField(object, offset, tag, value);
+  OptimizedStoreTrustedPointerField(object, offset, tag, value);
 #else
   StoreObjectField(object, offset, value);
 #endif  // V8_ENABLE_SANDBOX
@@ -4343,7 +4329,7 @@ void CodeStubAssembler::StoreTrustedPointerFieldNoWriteBarrier(
     TNode<HeapObject> object, int offset, TrustedPointerTag tag,
     TNode<ExposedTrustedObject> value) {
 #ifdef V8_ENABLE_SANDBOX
-  StoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);
+  OptimizedStoreTrustedPointerFieldNoWriteBarrier(object, offset, tag, value);
 #else
   StoreObjectFieldNoWriteBarrier(object, offset, value);
 #endif  // V8_ENABLE_SANDBOX

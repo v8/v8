@@ -1054,7 +1054,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #ifdef V8_ENABLE_SANDBOX
   // Load an indirect pointer field.
-  TNode<TrustedObject> LoadIndirectPointerFromObject(
+  TNode<TrustedObject> LoadTrustedPointerFromObject(
       TNode<HeapObject> object, int offset, TrustedPointerTagRange tag_range);
 
   // Retrieve the heap object referenced by the given indirect pointer handle.
@@ -1816,18 +1816,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
                         TNode<Object> value);
 
-  // Store to an indirect pointer field. This involves loading the index for
-  // the pointer table entry owned by the pointed-to object (which points back
-  // to it) and storing that into the specified field.
-  // Stores that may require a write barrier also need to know the indirect
-  // pointer tag for the field. Otherwise, it is not needed
-  void StoreIndirectPointerField(TNode<HeapObject> object, int offset,
-                                 TrustedPointerTag tag,
-                                 TNode<ExposedTrustedObject> value);
-  void StoreIndirectPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, TrustedPointerTag tag,
-      TNode<ExposedTrustedObject> value);
-
   // Store a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
@@ -1842,7 +1830,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Store a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
-  // enabled, reference code objects through the code pointer table.
+  // enabled, reference code objects through the trusted pointer table.
   void StoreCodePointerField(TNode<HeapObject> object, int offset,
                              TNode<Code> value) {
     StoreTrustedPointerField(object, offset, kCodeTrustedPointerTag, value);

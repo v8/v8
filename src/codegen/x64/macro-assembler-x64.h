@@ -967,7 +967,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
-  // enabled, reference code objects through the code pointer table.
+  // enabled, reference code objects through the trusted pointer table.
   void LoadCodePointerField(Register destination, Operand field_operand,
                             Register scratch) {
     LoadTrustedPointerField(destination, field_operand, kCodeTrustedPointerTag,
@@ -978,20 +978,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
     StoreTrustedPointerField(dst_field_operand, value);
   }
 
-  // Load an indirect pointer field.
-  // Only available when the sandbox is enabled, but always visible to avoid
-  // having to place the #ifdefs into the caller.
-  void LoadIndirectPointerField(Register destination, Operand field_operand,
-                                TrustedPointerTagRange tag_range,
-                                Register scratch);
-
-  // Store an indirect pointer field.
-  // Only available when the sandbox is enabled, but always visible to avoid
-  // having to place the #ifdefs into the caller.
-  void StoreIndirectPointerField(Operand dst_field_operand, Register value);
-
 #ifdef V8_ENABLE_SANDBOX
-  // Retrieve the heap object referenced by the given indirect pointer handle.
+  // Retrieve the heap object referenced by the given trusted pointer handle.
   void ResolveTrustedPointerHandle(Register destination, Register handle,
                                    TrustedPointerTagRange tag_range);
 #endif  // V8_ENABLE_SANDBOX

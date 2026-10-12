@@ -251,7 +251,7 @@ CodeStubAssembler::LoadTrustedPointerFromObject(TNode<HeapObject> object,
   using T = TrustedTypeFor<tag_range>;
 #ifdef V8_ENABLE_SANDBOX
   return TrustedCast<T>(
-      LoadIndirectPointerFromObject(object, field_offset, tag_range),
+      LoadTrustedPointerFromObject(object, field_offset, tag_range),
       "type tagged handle");
 #else
   return TrustedCast<T>(LoadObjectField<Object>(object, field_offset),
