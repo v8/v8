@@ -1009,17 +1009,28 @@ MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
   if (!InnerModuleEvaluation(isolate, module, &stack, &dfs_index)) {
     DirectHandle<Object> exception(isolate->exception(), isolate);
     // a. For each Cyclic Module Record m in stack, do
+    DirectHandle<InState<kErrored>> errored_module;
     for (DirectHandle<InState<kEvaluating>> m : stack) {
       //   i. Assert: m.[[Status]] is EVALUATING.
       //  ii. Set m.[[Status]] to EVALUATED.
       // iii. Set m.[[EvaluationError]] to result.
-      RecordError(isolate, m, exception);
+      const bool is_root = *m == *module;
+      DirectHandle<InState<kErrored>> errored =
+          RecordError(isolate, m, exception);
+      if (is_root) errored_module = errored;
     }
     // b. Assert: module.[[Status]] is EVALUATED.
-    CHECK_EQ(module->status(), kErrored);
+    CHECK(!errored_module.is_null());
 
+    // A termination exception cannot reject the capability: that would run
+    // embedder code (see Isolate::ReportPromiseReject). Drop the capability
+    // instead; Module::Evaluate materializes a rejected one for an errored
+    // module.
     if (isolate->is_execution_terminating()) {
-      CHECK_EQ(module->exception(), ReadOnlyRoots(isolate).null_value());
+      CHECK_EQ(errored_module->exception(),
+               ReadOnlyRoots(isolate).null_value());
+      errored_module->set_top_level_capability(
+          ReadOnlyRoots(isolate).undefined_value());
       return {};
     }
     CHECK(try_catch.HasCaught());

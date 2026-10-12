@@ -63,9 +63,11 @@ V8_OBJECT class Module : public HeapObject {
   // component, so the capability lives on cycle roots (and on synthetic
   // modules) and mirrors their status: pending while kEvaluating or
   // kEvaluatingAsync, fulfilled when kEvaluated, and rejected with {exception}
-  // when kErrored. These are steady-state invariants: JSPromise resolution
-  // runs embedder hooks before the promise changes state, so they are asserted
-  // where the capability is used, not in the heap verifier.
+  // when kErrored (dropped to undefined if termination prevented rejecting it,
+  // in which case a later Evaluate() materializes a fresh capability rejected
+  // with null). These are steady-state invariants: JSPromise resolution runs
+  // embedder hooks before the promise changes state, so they are asserted where
+  // the capability is used, not in the heap verifier.
   enum Status : int {
     kFirst,
 
