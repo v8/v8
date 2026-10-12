@@ -7764,7 +7764,8 @@ struct RttCanonOp : FixedArityOperationT<1, RttCanonOp> {
 struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
   WasmTypeCheckConfig config;
 
-  static constexpr OpEffects effects = OpEffects().AssumesConsistentHeap();
+  static constexpr OpEffects effects =
+      OpEffects().AssumesConsistentHeap().CanDependOnChecks();
 
   WasmTypeCheckOp(V<Object> object, OptionalV<Map> rtt,
                   WasmTypeCheckConfig config)

@@ -1089,8 +1089,8 @@ class TurboshaftGraphBuildingInterface
 
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
                               Value* result) {
-    __ AssertNotNull(obj.get<Object>(), obj.type, TrapId::kTrapIllegalCast);
-    Forward(decoder, obj, result);
+    result->op =
+        __ AssertNotNull(obj.get<Object>(), obj.type, TrapId::kTrapIllegalCast);
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {
