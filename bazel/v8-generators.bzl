@@ -89,13 +89,13 @@ def v8_tool_impl(ctx):
 
 def _v8_torque_pointer_compression_transition_impl(_settings, attr):
     return {
-        "@v8//:v8_enable_pointer_compression": str(attr.pointer_compression),
+        "//:v8_enable_pointer_compression": str(attr.pointer_compression),
     }
 
 _v8_torque_pointer_compression_transition = transition(
     implementation = _v8_torque_pointer_compression_transition_impl,
     inputs = [],
-    outputs = ["@v8//:v8_enable_pointer_compression"],
+    outputs = ["//:v8_enable_pointer_compression"],
 )
 
 _v8_torque_tool = rule(
@@ -164,7 +164,7 @@ def v8_torque_files(
             initializer_extras = initializer_extras,
             layout_json = layout_json,
             tool = select({
-                Label("//:is_v8_enable_pointer_compression"): tools["compressed"],
+                ":is_v8_enable_pointer_compression": tools["compressed"],
                 "//conditions:default": tools["uncompressed"],
             }),
         )
