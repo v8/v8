@@ -516,6 +516,12 @@ class MemoryContentTable
   }
 
   void Insert(const StoreOp& store) {
+    if (store.stored_rep == MemoryRepresentation::TrustedPointer()) {
+      // We do not track stores of trusted pointers in MemoryContentTable
+      // because LoadTrustedPointerOp expects any entry with
+      // MemoryRepresentation::TrustedPointer() to be a LoadTrustedPointerOp.
+      return;
+    }
     OpIndex base = ResolveBase(store.base());
     OptionalOpIndex index = store.index();
     int32_t offset = store.offset;

@@ -551,9 +551,8 @@ class MemoryRepresentation {
     kUncompressedTaggedPointer,
     kUncompressedTaggedSigned,
     kProtectedPointer,
-    kIndirectPointer,
-    kSandboxedPointer,
     kTrustedPointer,
+    kSandboxedPointer,
     kSimd128,
     kSimd256
   };
@@ -630,14 +629,11 @@ class MemoryRepresentation {
   static constexpr MemoryRepresentation ProtectedPointer() {
     return MemoryRepresentation(Enum::kProtectedPointer);
   }
-  static constexpr MemoryRepresentation IndirectPointer() {
-    return MemoryRepresentation(Enum::kIndirectPointer);
+  static constexpr MemoryRepresentation TrustedPointer() {
+    return MemoryRepresentation(Enum::kTrustedPointer);
   }
   static constexpr MemoryRepresentation SandboxedPointer() {
     return MemoryRepresentation(Enum::kSandboxedPointer);
-  }
-  static constexpr MemoryRepresentation TrustedPointer() {
-    return MemoryRepresentation(Enum::kTrustedPointer);
   }
   static constexpr MemoryRepresentation Simd128() {
     return MemoryRepresentation(Enum::kSimd128);
@@ -668,9 +664,8 @@ class MemoryRepresentation {
       case UncompressedTaggedPointer():
       case UncompressedTaggedSigned():
       case ProtectedPointer():
-      case IndirectPointer():
-      case SandboxedPointer():
       case TrustedPointer():
+      case SandboxedPointer():
       case Simd128():
       case Simd256():
         UNREACHABLE();
@@ -679,7 +674,7 @@ class MemoryRepresentation {
   }
 
   // This predicate is used in particular to decide which load/store ops
-  // have to deal with pointer compression. Indirect/sandboxed/trusted pointers,
+  // have to deal with pointer compression. Sandbox/trusted pointers,
   // while they resolve to tagged pointers, return {false} because they
   // use incompatible compression schemes.
   bool IsCompressibleTagged() const {
@@ -702,10 +697,9 @@ class MemoryRepresentation {
       case AnyUncompressedTagged():
       case UncompressedTaggedPointer():
       case UncompressedTaggedSigned():
-      case IndirectPointer():
+      case TrustedPointer():
       case ProtectedPointer():
       case SandboxedPointer():
-      case TrustedPointer():
       case Simd128():
       case Simd256():
         return false;
@@ -736,9 +730,8 @@ class MemoryRepresentation {
       case AnyUncompressedTagged():
       case UncompressedTaggedPointer():
       case UncompressedTaggedSigned():
-      case IndirectPointer():
-      case ProtectedPointer():
       case TrustedPointer():
+      case ProtectedPointer():
         return RegisterRepresentation::Tagged();
       case SandboxedPointer():
         return RegisterRepresentation::Word64();
@@ -824,12 +817,10 @@ class MemoryRepresentation {
         return MachineType::TaggedSigned();
       case ProtectedPointer():
         return MachineType::ProtectedPointer();
-      case IndirectPointer():
+      case TrustedPointer():
         return MachineType::TrustedPointer();
       case SandboxedPointer():
         return MachineType::SandboxedPointer();
-      case TrustedPointer():
-        return MachineType::Uint32();
       case Simd128():
         return MachineType::Simd128();
       case Simd256():
@@ -859,7 +850,7 @@ class MemoryRepresentation {
       case MachineRepresentation::kProtectedPointer:
         return ProtectedPointer();
       case MachineRepresentation::kTrustedPointer:
-        return IndirectPointer();
+        return TrustedPointer();
       case MachineRepresentation::kTagged:
         return AnyTagged();
       case MachineRepresentation::kFloat16:
@@ -942,7 +933,6 @@ class MemoryRepresentation {
       case Int32():
       case Uint32():
       case Float32():
-      case IndirectPointer():
       case TrustedPointer():
         return 2;
       case Int64():

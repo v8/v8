@@ -397,10 +397,7 @@ ArchOpcode SelectLoadOpcode(MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Simd128());
       return kS390_LoadSimd128;
     case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
     case MemoryRepresentation::ProtectedPointer():
-    case MemoryRepresentation::IndirectPointer():
     case MemoryRepresentation::SandboxedPointer():
     case MemoryRepresentation::Simd256():
       UNREACHABLE();
@@ -1016,9 +1013,6 @@ static void VisitGeneralStore(
         // We never store directly to protected pointers from generated code.
         UNREACHABLE();
       case MemoryRepresentation::TrustedPointer():
-        // Only LoadTrustedPointer uses this representation.
-        UNREACHABLE();
-      case MemoryRepresentation::IndirectPointer():
       case MemoryRepresentation::SandboxedPointer():
       case MemoryRepresentation::Simd256():
         UNREACHABLE();

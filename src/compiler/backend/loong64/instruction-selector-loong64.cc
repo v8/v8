@@ -744,8 +744,6 @@ ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
     case MemoryRepresentation::ProtectedPointer():
       CHECK(V8_ENABLE_SANDBOX_BOOL);
       return kLoong64LoadDecompressProtected;
-    case MemoryRepresentation::IndirectPointer():
-      UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
       UNREACHABLE();
     case MemoryRepresentation::SandboxedPointer():
@@ -789,9 +787,6 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       // We never store directly to protected pointers from generated code.
       UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
-    case MemoryRepresentation::IndirectPointer():
       return kLoong64StoreTrustedPointer;
     case MemoryRepresentation::SandboxedPointer():
       return kLoong64StoreEncodeSandboxedPointer;

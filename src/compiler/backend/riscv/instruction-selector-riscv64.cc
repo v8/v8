@@ -645,8 +645,6 @@ ArchOpcode GetLoadOpcode(MemoryRepresentation loaded_rep,
     case MemoryRepresentation::ProtectedPointer():
       CHECK(V8_ENABLE_SANDBOX_BOOL);
       return kRiscvLoadDecompressTrapping;
-    case MemoryRepresentation::IndirectPointer():
-      UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
       // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
@@ -691,9 +689,6 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       // We never store directly to protected pointers from generated code.
       UNREACHABLE();
     case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
-    case MemoryRepresentation::IndirectPointer():
       return kRiscvStoreTrustedPointer;
     case MemoryRepresentation::SandboxedPointer():
       return kRiscvStoreEncodeSandboxedPointer;
