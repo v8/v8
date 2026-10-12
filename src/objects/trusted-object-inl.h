@@ -12,8 +12,7 @@
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-inl.h"
-#include "src/objects/trusted-pointer-inl.h"
-#include "src/sandbox/indirect-pointer-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

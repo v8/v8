@@ -1,15 +1,16 @@
-// Copyright 2025 the V8 project authors. All rights reserved.
+// Copyright 2023 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OBJECTS_TRUSTED_POINTER_H_
-#define V8_OBJECTS_TRUSTED_POINTER_H_
+#ifndef V8_SANDBOX_TRUSTED_POINTER_H_
+#define V8_SANDBOX_TRUSTED_POINTER_H_
 
 #include "src/common/globals.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged-field.h"
 #include "src/objects/tagged.h"
+#include "src/sandbox/isolate.h"
 #include "src/sandbox/trusted-pointer-tag.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,7 +19,7 @@
 namespace v8 {
 namespace internal {
 
-class IsolateForSandbox;
+class TrustedPointerPublishingScope;
 class Code;
 class BytecodeArray;
 class InterpreterData;
@@ -185,9 +186,36 @@ class TrustedPointerMember
 
 using CodePointerMember = TrustedPointerMember<Code, kCodeTrustedPointerTag>;
 
+// Initialize the 'self' trusted pointer that contains a reference back to the
+// owning object through its trusted pointer table entry.
+//
+// Only available when the sandbox is enabled.
+V8_INLINE void InitSelfTrustedPointerField(
+    Address field_address, IsolateForSandbox isolate, Tagged<HeapObject> host,
+    TrustedPointerTag tag, TrustedPointerPublishingScope* opt_publishing_scope);
+
+// Reads the TrustedPointerHandle from the field and loads the Object
+// referenced by this handle from the trusted pointer table. The given
+// TrustedPointerTagRange specifies the expected type of object.
+//
+// Only available when the sandbox is enabled.
+template <TrustedPointerTagRange tag_range>
+V8_INLINE Tagged<Object> ReadTrustedPointerField(Address field_address,
+                                                 IsolateForSandbox isolate,
+                                                 AcquireLoadTag);
+
+// Loads the 'self' TrustedPointerHandle from the given object and stores it
+// into the trusted pointer field.
+//
+// Only available when the sandbox is enabled.
+template <TrustedPointerTagRange tag_range>
+V8_INLINE void WriteTrustedPointerField(Address field_address,
+                                        Tagged<ExposedTrustedObject> value,
+                                        ReleaseStoreTag);
+
 }  // namespace internal
 }  // namespace v8
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_OBJECTS_TRUSTED_POINTER_H_
+#endif  // V8_SANDBOX_TRUSTED_POINTER_H_

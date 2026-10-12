@@ -60,9 +60,9 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates-inl.h"
-#include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/isolate-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -21,7 +21,7 @@
 #include "src/objects/instruction-stream-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/trusted-object-inl.h"
-#include "src/objects/trusted-pointer-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/utils/memcopy.h"
 

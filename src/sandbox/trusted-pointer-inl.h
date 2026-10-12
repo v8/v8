@@ -1,24 +1,99 @@
-// Copyright 2025 the V8 project authors. All rights reserved.
+// Copyright 2023 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OBJECTS_TRUSTED_POINTER_INL_H_
-#define V8_OBJECTS_TRUSTED_POINTER_INL_H_
+#ifndef V8_SANDBOX_TRUSTED_POINTER_INL_H_
+#define V8_SANDBOX_TRUSTED_POINTER_INL_H_
 
-#include "src/objects/trusted-pointer.h"
+#include "src/sandbox/trusted-pointer.h"
 // Include the non-inl header before the rest of the headers.
 
 #include <atomic>
 
+#include "include/v8-internal.h"
+#include "src/base/atomic-utils.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/trusted-object.h"
-#include "src/sandbox/indirect-pointer-inl.h"
+#include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
 
 namespace v8 {
 namespace internal {
+
+V8_INLINE void InitSelfTrustedPointerField(
+    Address field_address, IsolateForSandbox isolate, Tagged<HeapObject> host,
+    TrustedPointerTag tag,
+    TrustedPointerPublishingScope* opt_publishing_scope) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kTrustedPointerNullTag);
+
+  TrustedPointerTable::Space* space =
+      isolate.GetTrustedPointerTableSpaceFor(tag, host.address());
+  TrustedPointerHandle handle =
+      isolate.GetTrustedPointerTableFor(tag).AllocateAndInitializeEntry(
+          space, host.ptr(), tag, opt_publishing_scope);
+
+  // Use a Release_Store to ensure that the store of the pointer into the table
+  // is not reordered after the store of the handle. Otherwise, other threads
+  // may access an uninitialized table entry and crash.
+  auto location = reinterpret_cast<TrustedPointerHandle*>(field_address);
+  base::AsAtomic32::Release_Store(location, handle);
+#else
+  UNREACHABLE();
+#endif
+}
+
+#ifdef V8_ENABLE_SANDBOX
+template <TrustedPointerTagRange tag_range>
+V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
+    TrustedPointerHandle handle, IsolateForSandbox isolate) {
+  const TrustedPointerTable& table =
+      isolate.GetTrustedPointerTableFor(tag_range);
+  return Tagged<Object>(table.Get(handle, tag_range));
+}
+
+template <TrustedPointerTagRange tag_range>
+V8_INLINE Tagged<Object> ReadTrustedPointerHandle(TrustedPointerHandle handle,
+                                                  IsolateForSandbox isolate) {
+  return ResolveTrustedPointerHandle<tag_range>(handle, isolate);
+}
+
+#endif  // V8_ENABLE_SANDBOX
+
+template <TrustedPointerTagRange tag_range>
+V8_INLINE Tagged<Object> ReadTrustedPointerField(Address field_address,
+                                                 IsolateForSandbox isolate,
+                                                 AcquireLoadTag) {
+#ifdef V8_ENABLE_SANDBOX
+  // Load the trusted pointer handle from the object.
+  // Technically, we could use memory_order_consume here as the loads are
+  // dependent, but that appears to be deprecated in favor of acquire ordering.
+  auto location = reinterpret_cast<TrustedPointerHandle*>(field_address);
+  TrustedPointerHandle handle = base::AsAtomic32::Acquire_Load(location);
+  if (handle == kNullTrustedPointerHandle) return Smi::zero();
+  return ReadTrustedPointerHandle<tag_range>(handle, isolate);
+#else
+  return Tagged<Object>(*reinterpret_cast<Address*>(field_address));
+#endif
+}
+
+template <TrustedPointerTagRange tag_range>
+V8_INLINE void WriteTrustedPointerField(Address field_address,
+                                        Tagged<ExposedTrustedObject> value,
+                                        ReleaseStoreTag) {
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(!tag_range.IsEmpty());
+  TrustedPointerHandle handle = value->self_trusted_pointer_handle();
+  DCHECK_NE(handle, kNullTrustedPointerHandle);
+  auto location = reinterpret_cast<TrustedPointerHandle*>(field_address);
+  base::AsAtomic32::Release_Store(location, handle);
+#else
+  UNREACHABLE();
+#endif
+}
 
 template <TrustedPointerTagRange tag_range>
 Tagged<TrustedTypeFor<tag_range>> TrustedPointerField::ReadTrustedPointerField(
@@ -48,7 +123,7 @@ TrustedPointerField::ReadMaybeEmptyTrustedPointerField(
   // Reading a TrustedPointer field is just a ReadTrustedPointerField with the
   // proper tag.
   Address field_address = host->ptr() + offset - kHeapObjectTag;
-  Tagged<Object> object = v8::internal::ReadTrustedPointerField<tag_range>(
+  Tagged<Object> object = i::ReadTrustedPointerField<tag_range>(
       field_address, isolate, kAcquireLoad);
 #else
   Tagged<Object> object =
@@ -63,8 +138,7 @@ void TrustedPointerField::WriteTrustedPointerField(
     Tagged<ExposedTrustedObject> value) {
 #ifdef V8_ENABLE_SANDBOX
   Address field_address = host->ptr() + offset - kHeapObjectTag;
-  v8::internal::WriteTrustedPointerField<tag_range>(field_address, value,
-                                                    kReleaseStore);
+  i::WriteTrustedPointerField<tag_range>(field_address, value, kReleaseStore);
 #else
   TaggedField<ExposedTrustedObject>::Release_Store(
       host, static_cast<int>(offset), value);
@@ -132,7 +206,6 @@ TrustedPointerMember<T, kTagRange>::TrustedPointerMember(
     const AllocationWitness& witness, Tagged<T> value, WriteBarrierMode mode) {
   store(witness.object(), value, mode);
 }
-
 template <typename T, TrustedPointerTagRange kTagRange>
 TrustedPointerMember<T, kTagRange>::TrustedPointerMember(
     const AllocationWitness& witness, Tagged<UnionOf<T, Undefined>> maybe_value)
@@ -261,4 +334,4 @@ Address TrustedPointerMember<T, kTagRange>::storage_address() const {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_OBJECTS_TRUSTED_POINTER_INL_H_
+#endif  // V8_SANDBOX_TRUSTED_POINTER_INL_H_

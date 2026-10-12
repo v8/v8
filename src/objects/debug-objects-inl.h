@@ -17,7 +17,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/objects/struct-inl.h"
-#include "src/objects/trusted-pointer-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 #include "src/torque/runtime-macro-shims.h"
 #include "src/torque/runtime-support.h"
 

@@ -24,7 +24,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/roots/roots.h"
-#include "src/sandbox/indirect-pointer-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 #include "src/strings/string-builder-inl.h"
 
 namespace v8 {

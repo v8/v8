@@ -14,8 +14,8 @@
 #include "src/sandbox/bounded-size-inl.h"
 #include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
-#include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
+#include "src/sandbox/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

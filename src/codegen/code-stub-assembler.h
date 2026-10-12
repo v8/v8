@@ -44,8 +44,8 @@
 #include "src/objects/tagged-index.h"
 #include "src/objects/tagged.h"
 #include "src/objects/templates.h"
-#include "src/objects/trusted-pointer.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/trusted-pointer.h"
 #include "torque-generated/exported-macros-assembler.h"
 
 #if V8_ENABLE_WEBASSEMBLY

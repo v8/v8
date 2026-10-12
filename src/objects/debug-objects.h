@@ -11,7 +11,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
-#include "src/objects/trusted-pointer.h"
+#include "src/sandbox/trusted-pointer.h"
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-limits.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
