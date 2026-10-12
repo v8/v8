@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <iosfwd>
+#include <span>
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
@@ -159,7 +160,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   DECL_VERIFIER(Name)
   DECL_PRINTER(Name)
   void NameShortPrint();
-  int NameShortPrint(base::Vector<char> str);
+  int NameShortPrint(std::span<char> str);
 
   // Mask constant for checking if a name has a computed hash code and the type
   // of information stored in the hash field. The least significant bit

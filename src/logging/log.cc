@@ -413,8 +413,8 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate) : CodeEventLogger(isolate) {
     // Open the perf JIT dump file.
     auto perf_dump_name = base::UniqueArray<char>::NewForOverwrite(
         strlen(base_dir) + kFilenameBufferPadding);
-    int size = SNPrintF(perf_dump_name.as_vector(), "%s/perf-%d.map", base_dir,
-                        process_id_);
+    int size = base::SNPrintF(perf_dump_name.as_span(), "%s/perf-%d.map",
+                              base_dir, process_id_);
     CHECK_NE(size, -1);
     perf_output_handle_ =
         base::OS::FOpen(perf_dump_name.begin(), base::OS::LogFileOpenMode);

@@ -295,8 +295,8 @@ bool HasString(v8::Isolate* isolate, const v8::HeapGraphNode* node,
 void EnsureNoUninstrumentedInternals(v8::Isolate* isolate,
                                      const v8::HeapGraphNode* node) {
   for (int i = 0; i < 20; ++i) {
-    auto buffer = v8::base::UniqueArray<char>::NewForOverwrite(10);
-    std::string_view str = i::IntToStringView(i, buffer.as_vector());
+    std::array<char, 10> buffer;
+    std::string_view str = i::IntToStringView(i, buffer);
     // GetProperty requires a null-terminated string.
     const v8::HeapGraphNode* internal = GetProperty(
         isolate, node, v8::HeapGraphEdge::kInternal, std::string(str).c_str());
@@ -4483,8 +4483,8 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  auto source = v8::base::UniqueArray<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(source.as_vector(),
+  std::array<char, 1024> source;
+  v8::base::SNPrintF(source,
                      "var number_elements = %d;"
                      "var elements = new Array(number_elements);"
                      "function f() {"
@@ -4502,7 +4502,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
                      i::PretenuringHandler::GetMinMementoCountForTesting() + 1);
 
   v8::Local<v8::Function> f =
-      v8::Local<v8::Function>::Cast(CompileRun(source.begin()));
+      v8::Local<v8::Function>::Cast(CompileRun(source.data()));
 
   // Make sure the function is producing pre-tenured objects.
   auto res = f->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();

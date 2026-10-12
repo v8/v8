@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <iomanip>
 #include <memory>
 #include <optional>
@@ -9,7 +10,6 @@
 #include "include/v8-internal.h"
 #include "src/api/api-arguments.h"
 #include "src/base/logging.h"
-#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/disasm.h"
@@ -2313,16 +2313,16 @@ void JSDate::JSDatePrint(std::ostream& os) {
     os << "\n - time = NaN\n";
   } else {
     // TODO(svenpanne) Add some basic formatting to our streams.
-    auto buf = base::UniqueArray<char>::NewForOverwrite(100);
-    SNPrintF(buf.as_vector(), "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
-             weekdays[IsSmi(weekday()) ? Smi::ToInt(weekday()) + 1 : 0],
-             IsSmi(year()) ? Smi::ToInt(year()) : -1,
-             IsSmi(month()) ? Smi::ToInt(month()) : -1,
-             IsSmi(day()) ? Smi::ToInt(day()) : -1,
-             IsSmi(hour()) ? Smi::ToInt(hour()) : -1,
-             IsSmi(min()) ? Smi::ToInt(min()) : -1,
-             IsSmi(sec()) ? Smi::ToInt(sec()) : -1);
-    os << buf.begin();
+    std::array<char, 100> buf;
+    base::SNPrintF(buf, "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
+                   weekdays[IsSmi(weekday()) ? Smi::ToInt(weekday()) + 1 : 0],
+                   IsSmi(year()) ? Smi::ToInt(year()) : -1,
+                   IsSmi(month()) ? Smi::ToInt(month()) : -1,
+                   IsSmi(day()) ? Smi::ToInt(day()) : -1,
+                   IsSmi(hour()) ? Smi::ToInt(hour()) : -1,
+                   IsSmi(min()) ? Smi::ToInt(min()) : -1,
+                   IsSmi(sec()) ? Smi::ToInt(sec()) : -1);
+    os << buf.data();
   }
   JSObjectPrintBody(os, this);
 }
@@ -4764,17 +4764,17 @@ void Name::NameShortPrint() {
 }
 
 // TODO(cbruni): remove once the new maptracer is in place.
-int Name::NameShortPrint(base::Vector<char> str) {
+int Name::NameShortPrint(std::span<char> str) {
   if (Is<String>(this)) {
-    return SNPrintF(str, "%s", Cast<String>(this)->ToCString().get());
+    return base::SNPrintF(str, "%s", Cast<String>(this)->ToCString().get());
   } else {
     DCHECK(Is<Symbol>(this));
     Tagged<Symbol> s = Cast<Symbol>(this);
     if (IsUndefined(s->description())) {
-      return SNPrintF(str, "#<%s>", s->PrivateSymbolToName());
+      return base::SNPrintF(str, "#<%s>", s->PrivateSymbolToName());
     } else {
-      return SNPrintF(str, "<%s>",
-                      Cast<String>(s->description())->ToCString().get());
+      return base::SNPrintF(str, "<%s>",
+                            Cast<String>(s->description())->ToCString().get());
     }
   }
 }

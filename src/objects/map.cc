@@ -4,10 +4,10 @@
 
 #include "src/objects/map.h"
 
+#include <array>
 #include <optional>
 
 #include "src/base/hashing.h"
-#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
@@ -2119,14 +2119,12 @@ DirectHandle<Map> Map::TransitionToDataProperty(
   if (!maybe_map.ToHandle(&result)) {
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
-    base::UniqueArray<char> buffer;
+    std::array<char, 128> buffer;
     if (v8_flags.log_maps) {
-      auto name_buffer = base::UniqueArray<char>::NewForOverwrite(100);
-      name->NameShortPrint(name_buffer.as_vector());
-      buffer = base::UniqueArray<char>::NewForOverwrite(128);
-      SNPrintF(buffer.as_vector(), "TooManyFastProperties %s",
-               name_buffer.begin());
-      reason = buffer.begin();
+      std::array<char, 100> name_buffer;
+      name->NameShortPrint(name_buffer);
+      base::SNPrintF(buffer, "TooManyFastProperties %s", name_buffer.data());
+      reason = buffer.data();
     }
 #endif
     DirectHandle<Object> maybe_constructor(map->GetConstructor(), isolate);

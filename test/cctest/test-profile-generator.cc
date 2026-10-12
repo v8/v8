@@ -33,7 +33,6 @@
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
-#include "src/base/unique-array.h"
 #include "src/init/v8.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/objects-inl.h"
@@ -804,16 +803,13 @@ TEST(Issue51919) {
   CpuProfilesCollection collection(CcTest::i_isolate());
   CpuProfiler profiler(CcTest::i_isolate());
   collection.set_cpu_profiler(&profiler);
-  std::array<base::UniqueArray<char>,
+  std::array<std::array<char, 16>,
              CpuProfilesCollection::kMaxSimultaneousProfiles>
       titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
-    base::UniqueArray<char> title =
-        v8::base::UniqueArray<char>::NewForOverwrite(16);
-    base::SNPrintF(title.as_vector(), "%d", i);
+    base::SNPrintF(titles[i], "%d", i);
     CHECK_EQ(CpuProfilingStatus::kStarted,
-             collection.StartProfiling(title.begin()).status);
-    titles[i] = std::move(title);
+             collection.StartProfiling(titles[i].data()).status);
   }
   CHECK_EQ(CpuProfilingStatus::kErrorTooManyProfilers,
            collection.StartProfiling("maximum").status);

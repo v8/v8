@@ -425,7 +425,7 @@ class ParsingTest : public TestWithContextAndZone {
         auto program =
             base::UniqueArray<char>::NewForOverwrite(kProgramSize + 1);
         int length =
-            base::SNPrintF(program.as_vector(), "%s%s%s", context_data[i][0],
+            base::SNPrintF(program.as_span(), "%s%s%s", context_data[i][0],
                            statement_data[j], context_data[i][1]);
         PrintF("%s\n", program.begin());
         CHECK_EQ(length, kProgramSize);
@@ -1422,7 +1422,7 @@ TEST_F(ParsingTest, ScopeUsesArgumentsSuperThis) {
                                               strlen(source_data[i].body));
       auto program =
           base::UniqueArray<char>::NewForOverwrite(kProgramByteSize + 1);
-      base::SNPrintF(program.as_vector(), "%s%s%s", surroundings[j].prefix,
+      base::SNPrintF(program.as_span(), "%s%s%s", surroundings[j].prefix,
                      source_data[i].body, surroundings[j].suffix);
       i::DirectHandle<i::String> source =
           factory->NewStringFromUtf8(base::CStrVector(program.begin()))
@@ -1753,7 +1753,7 @@ TEST_F(ParsingTest, ScopePositions) {
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
     auto program =
         base::UniqueArray<char>::NewForOverwrite(kProgramByteSize + 1);
-    base::SNPrintF(program.as_vector(), "%s%s%s", source_data[i].outer_prefix,
+    base::SNPrintF(program.as_span(), "%s%s%s", source_data[i].outer_prefix,
                    source_data[i].inner_source, source_data[i].outer_suffix);
 
     // Parse program source.
@@ -1922,7 +1922,7 @@ TEST_F(ParsingTest, ParserSync) {
         auto program =
             base::UniqueArray<char>::NewForOverwrite(kProgramSize + 1);
         int length =
-            base::SNPrintF(program.as_vector(), "label: for (;;) { %s%s%s%s }",
+            base::SNPrintF(program.as_span(), "label: for (;;) { %s%s%s%s }",
                            context_data[i][0], statement_data[j],
                            termination_data[k], context_data[i][1]);
         CHECK_EQ(length, kProgramSize);
@@ -3272,7 +3272,7 @@ TEST_F(ParsingTest, SerializationOfMaybeAssignmentFlag) {
 
   auto program =
       base::UniqueArray<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
-  base::SNPrintF(program.as_vector(), "%s", src);
+  base::SNPrintF(program.as_span(), "%s", src);
   i::DirectHandle<i::String> source =
       factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
@@ -3320,7 +3320,7 @@ TEST_F(ParsingTest, IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
 
   auto program =
       base::UniqueArray<char>::NewForOverwrite(Utf8LengthHelper(src) + 1);
-  base::SNPrintF(program.as_vector(), "%s", src);
+  base::SNPrintF(program.as_span(), "%s", src);
   i::DirectHandle<i::String> source =
       factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
@@ -3474,7 +3474,7 @@ TEST_F(ParsingTest, InnerAssignment) {
         int len = prefix_len + outer_len + midfix_len + inner_len + suffix_len;
         auto program = base::UniqueArray<char>::NewForOverwrite(len + 1);
 
-        base::SNPrintF(program.as_vector(), "%s%s%s%s%s", prefix, outer, midfix,
+        base::SNPrintF(program.as_span(), "%s%s%s%s%s", prefix, outer, midfix,
                        inner, suffix);
 
         UnoptimizedCompileState compile_state;
@@ -3597,7 +3597,7 @@ TEST_F(ParsingTest, MaybeAssignedParameters) {
     for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
       auto program = base::UniqueArray<char>::NewForOverwrite(
           Utf8LengthHelper(source) + Utf8LengthHelper(suffix) + 1);
-      base::SNPrintF(program.as_vector(), "%s%s", source, suffix);
+      base::SNPrintF(program.as_span(), "%s%s", source, suffix);
       printf("%s\n", program.begin());
       v8::Local<v8::Value> v = RunJS(program.begin());
       i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
@@ -12352,11 +12352,11 @@ TEST_F(ParsingTest, NoPessimisticContextAllocation) {
                 suffix_len;
 
       auto program = base::UniqueArray<char>::NewForOverwrite(len + 1);
-      base::SNPrintF(program.as_vector(), "%s", prefix);
-      base::SNPrintF(program.as_vector() + prefix_len, inner_function,
+      base::SNPrintF(program.as_span(), "%s", prefix);
+      base::SNPrintF(program.as_span().subspan(prefix_len), inner_function,
                      inners[i].params, inners[i].source);
-      base::SNPrintF(program.as_vector() + prefix_len + inner_function_len +
-                         params_len + source_len,
+      base::SNPrintF(program.as_span().subspan(prefix_len + inner_function_len +
+                                               params_len + source_len),
                      "%s", suffix);
 
       i::DirectHandle<i::String> source =

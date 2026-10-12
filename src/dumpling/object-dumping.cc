@@ -5,10 +5,10 @@
 #include "src/dumpling/object-dumping.h"
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <vector>
 
-#include "src/base/unique-array.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/object-conversions-inl.h"
@@ -125,9 +125,9 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
     if (IsString(*key_name)) {
       FuzzingStringShortPrint(Cast<String>(*key_name), accumulator);
     } else {
-      auto name_buffer = base::UniqueArray<char>::NewForOverwrite(100);
-      key_name->NameShortPrint(name_buffer.as_vector());
-      PrintSanitizedCString(name_buffer.begin(), accumulator);
+      std::array<char, 100> name_buffer;
+      key_name->NameShortPrint(name_buffer);
+      PrintSanitizedCString(name_buffer.data(), accumulator);
     }
 
     std::stringstream attributes_stream;

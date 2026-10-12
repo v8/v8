@@ -232,8 +232,8 @@ THREADED_TEST(IsolateOfContext) {
 
 static void TestSignatureLooped(const char* operation, Local<Value> receiver,
                                 v8::Isolate* isolate) {
-  auto source = v8::base::UniqueArray<char>::NewForOverwrite(200);
-  v8::base::SNPrintF(source.as_vector(),
+  std::array<char, 200> source;
+  v8::base::SNPrintF(source,
                      "for (var i = 0; i < 10; i++) {"
                      "  %s"
                      "}",
@@ -242,7 +242,7 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
   signature_expected_receiver_global.Reset(isolate, receiver);
   bool expected_to_throw = receiver.IsEmpty();
   v8::TryCatch try_catch(isolate);
-  CompileRun(source.begin());
+  CompileRun(source.data());
   CHECK_EQ(expected_to_throw, try_catch.HasCaught());
   if (!expected_to_throw) {
     CHECK_EQ(10, signature_callback_count);
@@ -259,8 +259,8 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
 
 static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
                                    v8::Isolate* isolate) {
-  auto source = v8::base::UniqueArray<char>::NewForOverwrite(200);
-  v8::base::SNPrintF(source.as_vector(),
+  std::array<char, 200> source;
+  v8::base::SNPrintF(source,
                      "function test() {"
                      "  %s"
                      "};"
@@ -274,7 +274,7 @@ static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
   signature_expected_receiver_global.Reset(isolate, receiver);
   bool expected_to_throw = receiver.IsEmpty();
   v8::TryCatch try_catch(isolate);
-  CompileRun(source.begin());
+  CompileRun(source.data());
   CHECK_EQ(expected_to_throw, try_catch.HasCaught());
   if (!expected_to_throw) {
     CHECK_EQ(3, signature_callback_count);
@@ -383,10 +383,10 @@ THREADED_TEST(ReceiverSignature) {
       "unrelated",    "inherited",        "inherited_direct"};
   unsigned bad_signature_start_offset = 3;
   for (unsigned i = 0; i < arraysize(test_objects); i++) {
-    auto source = v8::base::UniqueArray<char>::NewForOverwrite(200);
-    v8::base::SNPrintF(source.as_vector(), "var test_object = %s; test_object",
+    std::array<char, 200> source;
+    v8::base::SNPrintF(source, "var test_object = %s; test_object",
                        test_objects[i]);
-    Local<Value> test_object = CompileRun(source.begin());
+    Local<Value> test_object = CompileRun(source.data());
     TestSignature("test_object.prop();", test_object, isolate);
     TestSignature("test_object.accessor;", test_object, isolate);
     TestSignature("test_object[accessor_key];", test_object, isolate);
@@ -3275,10 +3275,9 @@ THREADED_TEST(InternalFieldsOfRegularObjects) {
 
   const char* sources[] = {"new Object()", "{ a: 'a property' }", "arguments"};
   for (size_t i = 0; i < arraysize(sources); ++i) {
-    auto source = v8::base::UniqueArray<char>::NewForOverwrite(128);
-    v8::base::SNPrintF(source.as_vector(), "(function() { return %s })()",
-                       sources[i]);
-    v8::Local<v8::Object> obj = CompileRun(source.begin()).As<v8::Object>();
+    std::array<char, 128> source;
+    v8::base::SNPrintF(source, "(function() { return %s })()", sources[i]);
+    v8::Local<v8::Object> obj = CompileRun(source.data()).As<v8::Object>();
     CHECK_EQ(0, obj->InternalFieldCount());
   }
 }
@@ -4428,10 +4427,10 @@ class TwoPassCallbackData {
         trigger_gc_(false),
         metadata_(metadata) {
     HandleScope scope(isolate);
-    auto buffer = v8::base::UniqueArray<char>::NewForOverwrite(40);
-    v8::base::SNPrintF(buffer.as_vector(), "%p", static_cast<void*>(this));
+    std::array<char, 40> buffer;
+    v8::base::SNPrintF(buffer, "%p", static_cast<void*>(this));
     auto string =
-        v8::String::NewFromUtf8(isolate, buffer.begin()).ToLocalChecked();
+        v8::String::NewFromUtf8(isolate, buffer.data()).ToLocalChecked();
     cell_.Reset(isolate, string);
     metadata_->instance_counter++;
   }
@@ -7733,12 +7732,12 @@ TEST(ExtensionWithSourceLength) {
   for (int source_len = kEmbeddedExtensionSourceValidLen - 1;
        source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
     v8::HandleScope handle_scope(CcTest::isolate());
-    auto extension_name = v8::base::UniqueArray<char>::NewForOverwrite(32);
-    v8::base::SNPrintF(extension_name.as_vector(), "ext #%d", source_len);
-    v8::RegisterExtension(std::make_unique<Extension>(extension_name.begin(),
+    std::array<char, 32> extension_name;
+    v8::base::SNPrintF(extension_name, "ext #%d", source_len);
+    v8::RegisterExtension(std::make_unique<Extension>(extension_name.data(),
                                                       kEmbeddedExtensionSource,
                                                       0, nullptr, source_len));
-    const char* extension_names[1] = {extension_name.begin()};
+    const char* extension_names[1] = {extension_name.data()};
     v8::ExtensionConfiguration extensions(1, extension_names);
     v8::Local<Context> context = Context::New(CcTest::isolate(), &extensions);
     if (source_len == kEmbeddedExtensionSourceValidLen) {
@@ -11307,10 +11306,10 @@ THREADED_TEST(Regress91517) {
   t4->InstanceTemplate()->Set(isolate, "baz", v8_num(4));
 
   // Force dictionary-based properties.
-  auto name_buf = v8::base::UniqueArray<char>::NewForOverwrite(1024);
+  std::array<char, 1024> name_buf;
   for (int i = 1; i <= 1000; i++) {
-    v8::base::SNPrintF(name_buf.as_vector(), "sdf%d", i);
-    t2->InstanceTemplate()->Set(v8_str(name_buf.begin()), v8_num(2));
+    v8::base::SNPrintF(name_buf, "sdf%d", i);
+    t2->InstanceTemplate()->Set(v8_str(name_buf.data()), v8_num(2));
   }
 
   Local<v8::Object> o1 = t1->GetFunction(context.local())
@@ -19458,15 +19457,15 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
   LocalContext context(isolate);
-  auto code = v8::base::UniqueArray<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(code.as_vector(),
+  std::array<char, 1024> code;
+  v8::base::SNPrintF(code,
                      "function fib(n) {"
                      "  if (n <= 2) return 1;"
                      "  return fib(n-1) + fib(n-2);"
                      "}"
                      "fib(%d)",
                      limit);
-  Local<Value> value = CompileRun(code.begin());
+  Local<Value> value = CompileRun(code.data());
   CHECK(value->IsNumber());
   return static_cast<int>(value->NumberValue(context.local()).FromJust());
 }
@@ -22046,10 +22045,9 @@ void CheckCorrectThrow(const char* script) {
   // The subsequent try-catch should run without any exception.
   access_check_fail_thrown = false;
   catch_callback_called = false;
-  auto source = v8::base::UniqueArray<char>::NewForOverwrite(1024);
-  v8::base::SNPrintF(source.as_vector(),
-                     "try { %s; } catch (e) { catcher(e); }", script);
-  CompileRun(source.begin());
+  std::array<char, 1024> source;
+  v8::base::SNPrintF(source, "try { %s; } catch (e) { catcher(e); }", script);
+  CompileRun(source.data());
   CHECK(access_check_fail_thrown);
   CHECK(catch_callback_called);
 
@@ -22948,24 +22946,24 @@ class ApiCallOptimizationChecker {
       }
     }
     // build wrap_function
-    auto wrap_function = v8::base::UniqueArray<char>::NewForOverwrite(200);
+    std::array<char, 200> wrap_function;
     if (global) {
-      v8::base::SNPrintF(wrap_function.as_vector(),
+      v8::base::SNPrintF(wrap_function,
                          "function wrap_f_%d() { var f = g_f; return f(); }\n"
                          "function wrap_get_%d() { return this.g_acc; }\n"
                          "function wrap_set_%d() { return this.g_acc = 1; }\n",
                          key, key, key);
     } else {
       v8::base::SNPrintF(
-          wrap_function.as_vector(),
+          wrap_function,
           "function wrap_f_%d() { return receiver_subclass.f(); }\n"
           "function wrap_get_%d() { return receiver_subclass.acc; }\n"
           "function wrap_set_%d() { return receiver_subclass.acc = 1; }\n",
           key, key, key);
     }
     // build source string
-    auto source = v8::base::UniqueArray<char>::NewForOverwrite(1000);
-    v8::base::SNPrintF(source.as_vector(),
+    std::array<char, 1000> source;
+    v8::base::SNPrintF(source,
                        "%s\n"  // wrap functions
                        "function wrap_f() { return wrap_f_%d(); }\n"
                        "function wrap_get() { return wrap_get_%d(); }\n"
@@ -22994,10 +22992,10 @@ class ApiCallOptimizationChecker {
                        "check(wrap_set());\n"
                        "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
                        "check(wrap_set());\n",
-                       wrap_function.begin(), key, key, key, key, key, key, key,
+                       wrap_function.data(), key, key, key, key, key, key, key,
                        key, key);
     v8::TryCatch try_catch(isolate);
-    CompileRun(source.begin());
+    CompileRun(source.data());
     CHECK(!try_catch.HasCaught());
     CHECK_EQ(9, count);
 
@@ -26861,29 +26859,29 @@ TEST(ObjectTemplateArrayProtoIntrinsics) {
   };
 
   for (unsigned i = 0; i < arraysize(intrinsics_comparisons); i++) {
-    auto test_string = v8::base::UniqueArray<char>::NewForOverwrite(64);
+    std::array<char, 64> test_string;
 
-    v8::base::SNPrintF(test_string.as_vector(), "typeof obj1.%s",
+    v8::base::SNPrintF(test_string, "typeof obj1.%s",
                        intrinsics_comparisons[i].object_property_name);
-    ExpectString(test_string.begin(), "function");
+    ExpectString(test_string.data(), "function");
 
-    v8::base::SNPrintF(test_string.as_vector(), "obj1.%s === %s",
+    v8::base::SNPrintF(test_string, "obj1.%s === %s",
                        intrinsics_comparisons[i].object_property_name,
                        intrinsics_comparisons[i].array_property_name);
-    ExpectTrue(test_string.begin());
+    ExpectTrue(test_string.data());
 
-    v8::base::SNPrintF(test_string.as_vector(), "obj1.%s = 42",
+    v8::base::SNPrintF(test_string, "obj1.%s = 42",
                        intrinsics_comparisons[i].object_property_name);
-    CompileRun(test_string.begin());
+    CompileRun(test_string.data());
 
-    v8::base::SNPrintF(test_string.as_vector(), "obj1.%s === %s",
+    v8::base::SNPrintF(test_string, "obj1.%s === %s",
                        intrinsics_comparisons[i].object_property_name,
                        intrinsics_comparisons[i].array_property_name);
-    ExpectFalse(test_string.begin());
+    ExpectFalse(test_string.data());
 
-    v8::base::SNPrintF(test_string.as_vector(), "typeof obj1.%s",
+    v8::base::SNPrintF(test_string, "typeof obj1.%s",
                        intrinsics_comparisons[i].object_property_name);
-    ExpectString(test_string.begin(), "number");
+    ExpectString(test_string.data(), "number");
   }
 }
 

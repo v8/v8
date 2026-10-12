@@ -271,9 +271,9 @@ class V8_BASE_EXPORT OS {
 
   // Safe formatting print. Ensures that str is always null-terminated.
   // Returns the number of chars written, or -1 if output was truncated.
-  static PRINTF_FORMAT(3, 4) int SNPrintF(char* str, int length,
+  static PRINTF_FORMAT(3, 4) int SNPrintF(char* str, size_t length,
                                           const char* format, ...);
-  static PRINTF_FORMAT(3, 0) int VSNPrintF(char* str, int length,
+  static PRINTF_FORMAT(3, 0) int VSNPrintF(char* str, size_t length,
                                            const char* format, va_list args);
 
   static void StrNCpy(char* dest, int length, const char* src, size_t n);

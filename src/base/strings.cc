@@ -13,11 +13,11 @@
 namespace v8 {
 namespace base {
 
-int VSNPrintF(Vector<char> str, const char* format, va_list args) {
-  return OS::VSNPrintF(str.begin(), str.length(), format, args);
+int VSNPrintF(std::span<char> str, const char* format, va_list args) {
+  return OS::VSNPrintF(str.data(), str.size(), format, args);
 }
 
-int SNPrintF(Vector<char> str, const char* format, ...) {
+int SNPrintF(std::span<char> str, const char* format, ...) {
   va_list args;
   va_start(args, format);
   int result = VSNPrintF(str, format, args);

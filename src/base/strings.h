@@ -5,6 +5,8 @@
 #ifndef V8_BASE_STRINGS_H_
 #define V8_BASE_STRINGS_H_
 
+#include <span>
+
 #include "src/base/base-export.h"
 #include "src/base/macros.h"
 #include "src/base/vector.h"
@@ -20,12 +22,12 @@ using uc32 = uint32_t;
 constexpr int kUC16Size = sizeof(uc16);
 
 V8_BASE_EXPORT int PRINTF_FORMAT(2, 0)
-    VSNPrintF(Vector<char> str, const char* format, va_list args);
+    VSNPrintF(std::span<char> str, const char* format, va_list args);
 
 // Safe formatting print. Ensures that str is always null-terminated.
 // Returns the number of chars written, or -1 if output was truncated.
 V8_BASE_EXPORT int PRINTF_FORMAT(2, 3)
-    SNPrintF(Vector<char> str, const char* format, ...);
+    SNPrintF(std::span<char> str, const char* format, ...);
 
 V8_BASE_EXPORT void StrNCpy(base::Vector<char> dest, const char* src, size_t n);
 

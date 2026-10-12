@@ -4,12 +4,12 @@
 
 #include "src/deoptimizer/deoptimizer.h"
 
+#include <array>
 #include <optional>
 
 #include "src/base/logging.h"
 #include "src/base/memory.h"
 #include "src/base/numerics/safe_conversions.h"
-#include "src/base/unique-array.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/register-configuration.h"
@@ -3079,21 +3079,21 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       config->num_allocatable_general_registers();
   for (int i = 0; i < allocatable_register_count; ++i) {
     int code = config->GetAllocatableGeneralCode(i);
-    auto str = base::UniqueArray<char>::NewForOverwrite(128);
+    std::array<char, 128> str;
     if (verbose_tracing_enabled()) {
       if (BuiltinContinuationModeIsJavaScript(mode) &&
           code == kJavaScriptCallArgCountRegister.code()) {
-        SNPrintF(
-            str.as_vector(),
+        base::SNPrintF(
+            str,
             "tagged argument count %s (will be untagged by continuation)\n",
             RegisterName(Register::from_code(code)));
       } else {
-        SNPrintF(str.as_vector(), "builtin register argument %s\n",
-                 RegisterName(Register::from_code(code)));
+        base::SNPrintF(str, "builtin register argument %s\n",
+                       RegisterName(Register::from_code(code)));
       }
     }
     frame_writer.PushTranslatedValue(
-        register_values[code], verbose_tracing_enabled() ? str.begin() : "");
+        register_values[code], verbose_tracing_enabled() ? str.data() : "");
   }
 
   // Some architectures must pad the stack frame with extra stack slots

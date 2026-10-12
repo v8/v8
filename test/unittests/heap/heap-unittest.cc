@@ -29,7 +29,6 @@
 #include "src/api/api-inl.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/strings.h"
-#include "src/base/unique-array.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
@@ -2425,8 +2424,8 @@ TEST_F(HeapTest, OptimizedPretenuringNestedDoubleLiterals) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
-  base::SNPrintF(source.as_vector(),
+  std::array<char, 1024> source;
+  base::SNPrintF(source,
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -2442,7 +2441,7 @@ TEST_F(HeapTest, OptimizedPretenuringNestedDoubleLiterals) {
                  "f();",
                  kPretenureCreationCount);
 
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.begin()));
+  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
 
   DirectHandle<JSObject> double_array_handle_1 = Cast<JSObject>(
       JSReceiver::GetElement(i_isolate(), o, 0).ToHandleChecked());
@@ -2475,9 +2474,9 @@ TEST_F(HeapTest, OptimizedPretenuringNestedInObjectProperties) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
+  std::array<char, 1024> source;
   base::SNPrintF(
-      source.as_vector(),
+      source,
       "let number_elements = %d;"
       "let elements = new Array(number_elements);"
       "function f() {"
@@ -2494,7 +2493,7 @@ TEST_F(HeapTest, OptimizedPretenuringNestedInObjectProperties) {
       "f();",
       kPretenureCreationCount);
 
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.begin()));
+  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
 
   EXPECT_TRUE(HeapLayout::InYoungGeneration(*o));
 }
@@ -2518,8 +2517,8 @@ TEST_F(HeapTest, OptimizedPretenuringNestedObjectLiterals) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
-  base::SNPrintF(source.as_vector(),
+  std::array<char, 1024> source;
+  base::SNPrintF(source,
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -2535,7 +2534,7 @@ TEST_F(HeapTest, OptimizedPretenuringNestedObjectLiterals) {
                  "f();",
                  kPretenureCreationCount);
 
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.begin()));
+  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
 
   DirectHandle<JSObject> int_array_handle_1 = Cast<JSObject>(
       JSReceiver::GetElement(i_isolate(), o, 0).ToHandleChecked());
@@ -2568,8 +2567,8 @@ TEST_F(HeapTest, OptimizedPretenuringMixedInObjectProperties) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
-  base::SNPrintF(source.as_vector(),
+  std::array<char, 1024> source;
+  base::SNPrintF(source,
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -2585,7 +2584,7 @@ TEST_F(HeapTest, OptimizedPretenuringMixedInObjectProperties) {
                  "f();",
                  kPretenureCreationCount);
 
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.begin()));
+  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
 
   EXPECT_TRUE(heap()->InOldSpace(*o));
   FieldIndex idx1 = FieldIndex::ForPropertyIndex(o->map(), 0);
@@ -2619,8 +2618,8 @@ TEST_F(HeapTest, OptimizedPretenuringDoubleArrayLiterals) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
-  base::SNPrintF(source.as_vector(),
+  std::array<char, 1024> source;
+  base::SNPrintF(source,
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -2636,7 +2635,7 @@ TEST_F(HeapTest, OptimizedPretenuringDoubleArrayLiterals) {
                  "f();",
                  kPretenureCreationCount);
 
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.begin()));
+  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
 
   EXPECT_TRUE(heap()->InOldSpace(o->elements()));
   EXPECT_TRUE(heap()->InOldSpace(*o));
@@ -2662,8 +2661,8 @@ TEST_F(HeapTest, OptimizedPretenuringNestedMixedArrayLiterals) {
   static const int kPretenureCreationCount =
       PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
-  auto source = base::UniqueArray<char>::NewForOverwrite(1024);
-  base::SNPrintF(source.as_vector(),
+  std::array<char, 1024> source;
+  base::SNPrintF(source,
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -2679,7 +2678,7 @@ TEST_F(HeapTest, OptimizedPretenuringNestedMixedArrayLiterals) {
                  "f();",
                  kPretenureCreationCount);
 
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.begin()));
+  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
 
   v8::Local<v8::Value> int_array = v8::Utils::ToLocal(o)
                                        ->ToObject(ctx)

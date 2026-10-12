@@ -117,7 +117,7 @@ const char* StringsStorage::AddOrDisposeString(char* str, size_t len) {
 
 const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   base::UniqueArray<char> str = base::UniqueArray<char>::NewForOverwrite(4096);
-  int len = base::VSNPrintF(str.as_vector(), format, args);
+  int len = base::VSNPrintF(str.as_span(), format, args);
   size_t str_len = (len == -1) ? strlen(str.begin()) : static_cast<size_t>(len);
   return AddOrDisposeString(str.ReleaseData().release(), str_len);
 }

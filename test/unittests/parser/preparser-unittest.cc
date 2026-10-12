@@ -707,7 +707,7 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
       int len = code_len + params_len + source_len;
 
       auto program = v8::base::UniqueArray<char>::NewForOverwrite(len + 1);
-      v8::base::SNPrintF(program.as_vector(), code, inner.params, inner.source);
+      v8::base::SNPrintF(program.as_span(), code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
