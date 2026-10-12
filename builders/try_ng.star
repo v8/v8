@@ -265,7 +265,7 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_linux64_no_metagen_dbg",
-    cq_properties = CQ.EXP_100_PERCENT,
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
 )
 
@@ -499,7 +499,7 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     # TODO(almuthanna): add this to Branch CQ after current milestone + 3
     # (i.e. M100).
-    cq_compile_only_properties = CQ.EXP_100_PERCENT,
+    cq_compile_only_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "x86-64"},
 )
 

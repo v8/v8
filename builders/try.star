@@ -242,7 +242,7 @@ try_builder(
 
 try_builder(
     name = "v8_linux_blink_rel",
-    cq_properties = CQ.EXP_5_PERCENT,
+    cq_properties = CQ.OPTIONAL,
     executable = "recipe:chromium_trybot",
     dimensions = {"host_class": "chromium", "os": "Ubuntu-22.04", "cpu": "x86-64"},
     execution_timeout = 4400,
