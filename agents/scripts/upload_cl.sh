@@ -121,18 +121,22 @@ if [ "$MODE" = "new" ] && [ "$READY_FOR_REVIEW" = true ]; then
 fi
 
 if [ "$READY_FOR_REVIEW" = false ] && [ "$HAS_SEND_MAIL_OR_CQ" = true ]; then
-  echo "Error: Cannot send mail or use commit queue on a WIP upload. Pass '--ready' when the CL is ready for review."
+  echo "Error: Cannot send mail or use commit queue without '--ready'. Pass '--ready' when the CL is ready for review."
   exit 1
 fi
 
-if [ "$READY_FOR_REVIEW" = true ]; then
+if [ "$MODE" = "new" ] || [ "$EXPLICIT_WIP" = true ]; then
+  # Pass -o wip on initial uploads (because git cl upload omits it on squashed
+  # uploads and Gerrit's project default is work_in_progress_by_default=false)
+  # or when --wip is explicitly requested. On default subsequent ('cur')
+  # uploads, omit -o wip so Gerrit preserves the CL's existing state.
+  UPLOAD_ARGS+=("-o" "wip")
+elif [ "$READY_FOR_REVIEW" = true ]; then
   # Keep WIP CLs in WIP during the dry-run; wait-dry-run will switch the CL to
   # ready only after the CQ dry-run passes.
   if [ "$HAS_DRY_RUN_OR_CQ" = false ]; then
     UPLOAD_ARGS+=("--cq-dry-run")
   fi
-else
-  UPLOAD_ARGS+=("-o" "wip")
 fi
 
 # If uploading a new CL and no explicit commit description flag was passed, check local commit message
@@ -268,16 +272,14 @@ wait_for_cl_dry_run() {
         return 0
       else
         echo "STATUS: failed"
-        echo "CQ dry-run failed. Switching CL $issue_num back to WIP until it is fixed..."
+        echo "CQ dry-run failed. Not marking CL $issue_num as ready for review."
         echo "$try_out"
-        set_cl_wip "$issue_num" "CQ dry-run failed; switching back to WIP until fixed."
         return 1
       fi
     fi
 
     if (( SECONDS - start_time >= timeout )); then
-      echo "Error: Timed out after ${timeout}s waiting for CQ dry-run on $cl_url. Switching back to WIP..." >&2
-      set_cl_wip "$issue_num" "CQ dry-run timed out; switching back to WIP."
+      echo "Error: Timed out after ${timeout}s waiting for CQ dry-run on $cl_url." >&2
       return 1
     fi
 
@@ -320,7 +322,7 @@ else
       if [ "$READY_FOR_REVIEW" = true ]; then
         git cl set-commit -d
         UPLOAD_STATUS=$?
-      else
+      elif [ "$EXPLICIT_WIP" = true ]; then
         set_cl_wip "$ISSUE_NUM" "$PATCH_MSG"
         UPLOAD_STATUS=$?
       fi
@@ -353,7 +355,7 @@ fi
 
 if [ "$READY_FOR_REVIEW" = true ] && [ -n "$CL_URL" ]; then
   CL_ISSUE_NUM=$(echo "$CL_URL" | grep -oE '[0-9]+$' | tail -n 1)
-  echo "Waiting for CQ dry-run on $CL_URL (will switch to ready if it passes, or WIP if it fails)..."
+  echo "Waiting for CQ dry-run on $CL_URL (will mark ready for review if it passes)..."
   wait_for_cl_dry_run "$CL_ISSUE_NUM" "$CL_URL"
   DRY_RUN_STATUS=$?
   if [ $DRY_RUN_STATUS -ne 0 ]; then
