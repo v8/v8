@@ -807,11 +807,11 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
     Register handle = scratch;
     movl(handle, field_operand);
 
-    static_assert(kNullIndirectPointerHandle == 0);
+    static_assert(kNullTrustedPointerHandle == 0);
     testl(handle, handle);
     j(zero, is_unavailable, Label::kNear);
 
-    ResolveIndirectPointerHandle(destination, handle, kAllTrustedPointerTags);
+    ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -856,7 +856,7 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
   DCHECK(!AreAliased(destination, scratch));
   Register handle = scratch;
   movl(handle, field_operand);
-  ResolveIndirectPointerHandle(destination, handle, tag_range);
+  ResolveTrustedPointerHandle(destination, handle, tag_range);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
@@ -866,7 +866,7 @@ void MacroAssembler::StoreIndirectPointerField(Operand dst_field_operand,
                                                Register value) {
 #ifdef V8_ENABLE_SANDBOX
   movl(kScratchRegister, FieldOperand(value, offsetof(ExposedTrustedObject,
-                                                      self_indirect_pointer_)));
+                                                      self_trusted_pointer_)));
   movl(dst_field_operand, kScratchRegister);
 #else
   UNREACHABLE();
@@ -874,7 +874,7 @@ void MacroAssembler::StoreIndirectPointerField(Operand dst_field_operand,
 }
 
 #ifdef V8_ENABLE_SANDBOX
-void MacroAssembler::ResolveIndirectPointerHandle(
+void MacroAssembler::ResolveTrustedPointerHandle(
     Register destination, Register handle, TrustedPointerTagRange tag_range) {
   DCHECK(!AreAliased(handle, destination));
   shrl(handle, Immediate(kTrustedPointerHandleShift));

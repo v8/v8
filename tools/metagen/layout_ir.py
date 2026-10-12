@@ -319,7 +319,7 @@ class StorageType:
       _check(self.arg is not None, f"{self.kind} storage without type arg")
     if self.kind == "trusted_pointer":
       # Both absent for an object's own pointer-table entry (the
-      # atomic IndirectPointerHandle member).
+      # atomic TrustedPointerHandle member).
       _check((self.arg is None) == (self.tag is None),
              "trusted_pointer storage needs pointee and tag together")
     if self.kind == "external_pointer":

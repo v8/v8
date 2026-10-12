@@ -563,7 +563,7 @@ TNode<Code> AccessorAssembler::CastToCode(TNode<MaybeObject> code_candidate) {
   // TaggedMember<UnionOf<Smi,Code>> requires manual validation of the Code
   // object here.
   code = LoadCodePointerFromObject(
-      code, offsetof(ExposedTrustedObject, self_indirect_pointer_));
+      code, offsetof(ExposedTrustedObject, self_trusted_pointer_));
 #endif
   return code;
 }

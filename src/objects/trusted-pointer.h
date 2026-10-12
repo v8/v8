@@ -177,7 +177,7 @@ class TrustedPointerMember
 
   inline Address storage_address() const;
 
-  std::atomic<IndirectPointerHandle> handle_{kNullIndirectPointerHandle};
+  std::atomic<TrustedPointerHandle> handle_{kNullTrustedPointerHandle};
 #else
   using Base = TaggedMember<T>;
 #endif

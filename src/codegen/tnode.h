@@ -98,7 +98,7 @@ struct CppHeapPointerHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 
-struct IndirectPointerHandleT : Uint32T {
+struct TrustedPointerHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 
@@ -149,7 +149,7 @@ using TaggedT = IntPtrT;
 #endif
 
 #ifdef V8_ENABLE_SANDBOX
-using TrustedPointerT = IndirectPointerHandleT;
+using TrustedPointerT = TrustedPointerHandleT;
 #else
 using TrustedPointerT = TaggedT;
 #endif

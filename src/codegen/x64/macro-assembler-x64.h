@@ -989,8 +989,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
 #ifdef V8_ENABLE_SANDBOX
   // Retrieve the heap object referenced by the given indirect pointer handle.
-  void ResolveIndirectPointerHandle(Register destination, Register handle,
-                                    TrustedPointerTagRange tag_range);
+  void ResolveTrustedPointerHandle(Register destination, Register handle,
+                                   TrustedPointerTagRange tag_range);
 #endif  // V8_ENABLE_SANDBOX
 
   void LoadEntrypointFromJSDispatchTable(Register destination,

@@ -199,7 +199,7 @@ class ObjectVisitor {
 
   virtual void VisitIndirectPointer(Tagged<HeapObject> host,
                                     IndirectPointerSlot slot,
-                                    IndirectPointerMode mode) {}
+                                    TrustedPointerMode mode) {}
 
   virtual void VisitProtectedPointer(Tagged<TrustedObject> host,
                                      ProtectedPointerSlot slot) {}

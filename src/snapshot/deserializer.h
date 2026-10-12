@@ -245,10 +245,10 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadWeakPrefix(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
-  int ReadIndirectPointerPrefix(uint8_t data, SlotAccessor slot_accessor);
+  int ReadTrustedPointerPrefix(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
-  int ReadInitializeSelfIndirectPointer(uint8_t data,
-                                        SlotAccessor slot_accessor);
+  int ReadInitializeSelfTrustedPointer(uint8_t data,
+                                       SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadAllocateJSDispatchEntry(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
@@ -340,7 +340,7 @@ class Deserializer : public SerializerDeserializer {
   const bool deserializing_user_code_;
 
   bool next_reference_is_weak_ = false;
-  bool next_reference_is_indirect_pointer_ = false;
+  bool next_reference_is_trusted_pointer_ = false;
   bool next_reference_is_protected_pointer = false;
 
   // TODO(6593): generalize rehashing, and remove this flag.

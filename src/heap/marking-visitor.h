@@ -145,7 +145,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
                                      CppHeapPointerSlot slot) override;
   V8_INLINE void VisitIndirectPointer(Tagged<HeapObject> host,
                                       IndirectPointerSlot slot,
-                                      IndirectPointerMode mode) final;
+                                      TrustedPointerMode mode) final;
 
   void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                      IndirectPointerSlot slot) final;

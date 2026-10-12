@@ -464,7 +464,7 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
           TrustedPointerTagFromInstanceType(instance_type, shared);
       Tagged<ExposedTrustedObject> exposed =
           TrustedCast<ExposedTrustedObject>(o);
-      TrustedPointerHandle handle = exposed->self_indirect_pointer_handle();
+      TrustedPointerHandle handle = exposed->self_trusted_pointer_handle();
       trusted_pointer_entries.emplace_back(handle, exposed.ptr(), tag);
     }
 #endif  // V8_ENABLE_SANDBOX

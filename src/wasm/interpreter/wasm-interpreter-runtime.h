@@ -372,7 +372,7 @@ class WasmInterpreterRuntime {
   // (which the GC scans), so the runtime never keeps a global handle to it.
   // All trusted-data accesses (see wasm_trusted_instance_data()) read this
   // off-cage, validated value instead of re-loading the in-cage
-  // WasmInstanceObject::trusted_data_ IndirectPointerHandle on every call,
+  // WasmInstanceObject::trusted_data_ TrustedPointerHandle on every call,
   // which would let a sandbox attacker same-tag swap it mid-execution. The
   // WasmInstanceObject (needed only for stack traces) is reached on demand via
   // the trusted `instance_object()` back-link.

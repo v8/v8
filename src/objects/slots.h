@@ -445,12 +445,12 @@ class CppHeapPointerSlot
 };
 
 // An IndirectPointerSlot instance describes a 32-bit field ("slot") containing
-// an IndirectPointerHandle, i.e. an index to an entry in a pointer table which
+// an TrustedPointerHandle, i.e. an index to an entry in a pointer table which
 // contains the "real" pointer to the referenced HeapObject. These slots are
 // used when the sandbox is enabled to securely reference HeapObjects outside
 // of the sandbox.
 class IndirectPointerSlot
-    : public SlotBase<IndirectPointerSlot, IndirectPointerHandle,
+    : public SlotBase<IndirectPointerSlot, TrustedPointerHandle,
                       kTaggedSize /* slot alignment */> {
  public:
   IndirectPointerSlot()
@@ -483,7 +483,7 @@ class IndirectPointerSlot
   }
 
   // Even though only HeapObjects can be stored into an IndirectPointerSlot,
-  // these slots can be empty (containing kNullIndirectPointerHandle), in which
+  // these slots can be empty (containing kNullTrustedPointerHandle), in which
   // case load() will return Smi::zero().
   inline Tagged<Object> load(IsolateForSandbox isolate) const;
   inline void store(Tagged<ExposedTrustedObject> value) const;
@@ -501,10 +501,10 @@ class IndirectPointerSlot
   inline void Relaxed_Store(Tagged<ExposedTrustedObject> value) const;
   inline void Release_Store(Tagged<ExposedTrustedObject> value) const;
 
-  inline IndirectPointerHandle Relaxed_LoadHandle() const;
-  inline IndirectPointerHandle Acquire_LoadHandle() const;
-  inline void Relaxed_StoreHandle(IndirectPointerHandle handle) const;
-  inline void Release_StoreHandle(IndirectPointerHandle handle) const;
+  inline TrustedPointerHandle Relaxed_LoadHandle() const;
+  inline TrustedPointerHandle Acquire_LoadHandle() const;
+  inline void Relaxed_StoreHandle(TrustedPointerHandle handle) const;
+  inline void Release_StoreHandle(TrustedPointerHandle handle) const;
 
 #ifdef V8_ENABLE_SANDBOX
   TrustedPointerTagRange tag_range() const { return tag_range_; }
@@ -523,7 +523,7 @@ class IndirectPointerSlot
   // tag specified by the slot.
   enum TagCheckStrictness { kRequireExactMatch, kAllowUnpublishedEntries };
   template <TagCheckStrictness allow_unpublished = kRequireExactMatch>
-  inline Tagged<Object> ResolveHandle(IndirectPointerHandle handle,
+  inline Tagged<Object> ResolveHandle(TrustedPointerHandle handle,
                                       IsolateForSandbox isolate) const;
 
  private:
@@ -531,8 +531,8 @@ class IndirectPointerSlot
   // Retrieve the object referenced through the given trusted pointer handle
   // from the trusted pointer table.
   template <TagCheckStrictness allow_unpublished = kRequireExactMatch>
-  inline Tagged<Object> ResolveIndirectPointerHandle(
-      IndirectPointerHandle handle, IsolateForSandbox isolate) const;
+  inline Tagged<Object> ResolveTrustedPointerHandle(
+      TrustedPointerHandle handle, IsolateForSandbox isolate) const;
 
   // The tag associated with this slot.
   TrustedPointerTagRange tag_range_;

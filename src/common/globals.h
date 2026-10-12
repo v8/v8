@@ -701,12 +701,10 @@ static_assert(kCppHeapPointerSlotSize == sizeof(uint32_t));
 static_assert(kCppHeapPointerSlotSize == kSystemPointerSize);
 #endif
 
-constexpr int kIndirectPointerSize = sizeof(IndirectPointerHandle);
-// When the sandbox is enabled, trusted pointers are implemented as indirect
-// pointers (indices into the trusted pointer table). Otherwise they are regular
-// tagged pointers.
+// When the sandbox is enabled, trusted pointers are indices into the trusted
+// pointer table. Otherwise they are regular tagged pointers.
 #ifdef V8_ENABLE_SANDBOX
-constexpr int kTrustedPointerSize = kIndirectPointerSize;
+constexpr int kTrustedPointerSize = sizeof(TrustedPointerHandle);
 using TrustedPointer_t = TrustedPointerHandle;
 #else
 constexpr int kTrustedPointerSize = kTaggedSize;
@@ -919,13 +917,13 @@ enum class ContextMode { kNoContextCells, kHasContextCells };
 // Whether floating point registers should be saved (and restored).
 enum class SaveFPRegsMode { kIgnore, kSave };
 
-// This enum describes the ownership semantics of an indirect pointer.
-enum class IndirectPointerMode {
-  // A regular reference from one HeapObject to another one through an indirect
+// This enum describes the ownership semantics of a trusted pointer.
+enum class TrustedPointerMode {
+  // A regular reference from one HeapObject to another one through a trusted
   // pointer, where the referenced object should be kept alive as long as the
   // referencing object is alive.
   kStrong,
-  // A reference from one HeapObject to another one through an indirect pointer
+  // A reference from one HeapObject to another one through a trusted pointer
   // with custom ownership semantics. Used for example for references from
   // JSFunctions to Code objects which follow custom weak ownership semantics.
   kCustom

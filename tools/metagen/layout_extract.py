@@ -451,14 +451,14 @@ class _Extractor:
     canonical = elem_type.get_canonical()
     decl = _decl_of(canonical)
 
-    # A bare IndirectPointerHandle member (always atomic-wrapped in
+    # A bare TrustedPointerHandle member (always atomic-wrapped in
     # practice) is an object's own pointer-table entry -- physically
     # the same slot a TrustedPointerMember holds, minus pointee and
     # tag.
-    handle_alias = self.parsed.aliases.get("IndirectPointerHandle")
+    handle_alias = self.parsed.aliases.get("TrustedPointerHandle")
     if handle_alias is None:
       raise LayoutError(
-          f"{_where(field)}: missing IndirectPointerHandle declaration; "
+          f"{_where(field)}: missing TrustedPointerHandle declaration; "
           "update trusted-pointer storage classification")
     written = _decl_of(elem_type)
     if written == handle_alias:
@@ -479,7 +479,7 @@ class _Extractor:
       if name == "atomic":
         # std::atomic<T> has T's size and alignment; the atomicity is
         # accessor semantics, not layout. Prefer the sugared argument
-        # so aliases like IndirectPointerHandle stay recognizable.
+        # so aliases like TrustedPointerHandle stay recognizable.
         args = _template_args(elem_type) or _template_args(canonical)
         if len(args) != 1:
           raise LayoutError(f"{_where(field)}: atomic member without one "

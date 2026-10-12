@@ -1386,7 +1386,7 @@ class RecordMigratedSlotVisitor
 
   inline void VisitIndirectPointer(Tagged<HeapObject> host,
                                    IndirectPointerSlot slot,
-                                   IndirectPointerMode mode) final {}
+                                   TrustedPointerMode mode) final {}
 
   inline void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                             IndirectPointerSlot slot) final {}
@@ -3710,7 +3710,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // Mark the new entry in the trusted pointer table as alive.
   TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
   TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
-  table.Mark(space, uncompiled_data->self_indirect_pointer_handle());
+  table.Mark(space, uncompiled_data->self_trusted_pointer_handle());
 #endif
 
   shared_info->set_uncompiled_data(uncompiled_data);
@@ -3752,8 +3752,8 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
     bool is_unpublished =
         flushing_candidate->HasUnpublishedTrustedData(isolate);
     if (is_unpublished) {
-      IndirectPointerHandle handle =
-          flushing_candidate->Relaxed_ReadField<IndirectPointerHandle>(
+      TrustedPointerHandle handle =
+          flushing_candidate->Relaxed_ReadField<TrustedPointerHandle>(
               offsetof(SharedFunctionInfo, trusted_function_data_));
 
       // Read the object from the table. It is now an UncompiledData.
@@ -5958,7 +5958,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
                                             Address content) {
       Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
       if (relocated_object.is_null()) return;
-      DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
+      DCHECK_EQ(handle, relocated_object->self_trusted_pointer_handle());
       table.Update(handle, relocated_object.ptr());
     });
   };

@@ -2154,14 +2154,14 @@ void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
   if (!if_empty) if_empty = &unreachable;
 
 #ifdef V8_ENABLE_SANDBOX
-  TNode<IndirectPointerHandleT> handle =
-      LoadObjectField<IndirectPointerHandleT>(object, offset);
+  TNode<TrustedPointerHandleT> handle =
+      LoadObjectField<TrustedPointerHandleT>(object, offset);
 
-  GotoIf(Word32Equal(handle, Int32Constant(kNullIndirectPointerHandle)),
+  GotoIf(Word32Equal(handle, Int32Constant(kNullTrustedPointerHandle)),
          if_empty);
 
-  ResolveIndirectUnknownPointerHandle(handle, value_out, /* type_out */ nullptr,
-                                      if_default, cases, tag_range);
+  ResolveTrustedUnknownPointerHandle(handle, value_out, /* type_out */ nullptr,
+                                     if_default, cases, tag_range);
 #else
   *value_out = LoadObjectField<Object>(object, offset);
   GotoIf(TaggedIsSmi(value_out->value()), if_empty);
@@ -2176,12 +2176,12 @@ void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
 }
 
 #ifdef V8_ENABLE_SANDBOX
-void CodeStubAssembler::ResolveIndirectUnknownPointerHandle(
-    TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
+void CodeStubAssembler::ResolveTrustedUnknownPointerHandle(
+    TNode<TrustedPointerHandleT> handle, TVariable<Object>* value_out,
     TVariable<Uint16T>* type_out, Label* if_default,
     const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
     TrustedPointerTagRange tag_range) {
-  *value_out = ResolveIndirectPointerHandle(handle, tag_range);
+  *value_out = ResolveTrustedPointerHandle(handle, tag_range);
   DispatchOnInstanceType(value_out->value(), type_out, if_default, cases);
 }
 #endif  // V8_ENABLE_SANDBOX
@@ -2296,13 +2296,13 @@ void CodeStubAssembler::TailCallJSCode(
 TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
     TNode<HeapObject> object, int field_offset,
     TrustedPointerTagRange tag_range) {
-  TNode<IndirectPointerHandleT> handle =
-      LoadObjectField<IndirectPointerHandleT>(object, field_offset);
-  return ResolveIndirectPointerHandle(handle, tag_range);
+  TNode<TrustedPointerHandleT> handle =
+      LoadObjectField<TrustedPointerHandleT>(object, field_offset);
+  return ResolveTrustedPointerHandle(handle, tag_range);
 }
 
-TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
-    TNode<IndirectPointerHandleT> handle, TrustedPointerTagRange tag_range) {
+TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
+    TNode<TrustedPointerHandleT> handle, TrustedPointerTagRange tag_range) {
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::trusted_pointer_table_base_address(isolate()));
   TNode<Uint32T> index =
@@ -20319,15 +20319,15 @@ void CodeStubAssembler::LoadSharedFunctionInfoTrustedDataAndDispatch(
     TVariable<Uint16T>* data_type_out, Label* if_empty, Label* if_default,
     const std::initializer_list<std::pair<InstanceType, Label*>>& cases) {
 #ifdef V8_ENABLE_SANDBOX
-  TNode<IndirectPointerHandleT> trusted_data_handle =
-      LoadObjectField<IndirectPointerHandleT>(
+  TNode<TrustedPointerHandleT> trusted_data_handle =
+      LoadObjectField<TrustedPointerHandleT>(
           shared_info, offsetof(SharedFunctionInfo, trusted_function_data_));
 
   GotoIf(Word32Equal(trusted_data_handle,
-                     Int32Constant(kNullIndirectPointerHandle)),
+                     Int32Constant(kNullTrustedPointerHandle)),
          if_empty);
-  ResolveIndirectUnknownPointerHandle(trusted_data_handle, sfi_data_out,
-                                      data_type_out, if_default, cases);
+  ResolveTrustedUnknownPointerHandle(trusted_data_handle, sfi_data_out,
+                                     data_type_out, if_default, cases);
 #else
   *sfi_data_out = LoadObjectField<Object>(
       shared_info, offsetof(SharedFunctionInfo, trusted_function_data_));

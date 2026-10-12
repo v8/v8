@@ -316,9 +316,9 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitCppHeapPointer(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
     Tagged<HeapObject> host, IndirectPointerSlot slot,
-    IndirectPointerMode mode) {
+    TrustedPointerMode mode) {
 #ifdef V8_ENABLE_SANDBOX
-  if (mode == IndirectPointerMode::kStrong) {
+  if (mode == TrustedPointerMode::kStrong) {
     // Load the referenced object (if the slot is initialized) and mark it as
     // alive if necessary. Indirect pointers never have to be added to a
     // remembered set because the referenced object will update the pointer
@@ -486,7 +486,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
         shared_info->RawIndirectPointerField(
             offsetof(SharedFunctionInfo, trusted_function_data_),
             SharedFunctionInfo::kTrustedDataTrustedPointerRange),
-        IndirectPointerMode::kStrong);
+        TrustedPointerMode::kStrong);
 #else
     VisitPointer(shared_info, shared_info->RawField(offsetof(
                                   SharedFunctionInfo, trusted_function_data_)));
@@ -851,11 +851,11 @@ void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
 #ifdef V8_ENABLE_SANDBOX
   TrustedPointerTagRange tag_range = slot.tag_range();
 
-  IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
+  TrustedPointerHandle handle = slot.Relaxed_LoadHandle();
 
   // We must not see an uninitialized 'self' indirect pointer as we might
   // otherwise fail to mark the table entry as alive.
-  DCHECK_NE(handle, kNullIndirectPointerHandle);
+  DCHECK_NE(handle, kNullTrustedPointerHandle);
 
   const bool use_shared_table = IsSharedTrustedPointerType(tag_range);
   DCHECK_EQ(use_shared_table, HeapLayout::InWritableSharedSpace(host));

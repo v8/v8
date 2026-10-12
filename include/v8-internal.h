@@ -890,33 +890,6 @@ V8_INLINE static constexpr bool ExternalPointerCanBeEmpty(
          kAnyInterceptorInfoExternalPointerTagRange.Contains(tag_range);
 }
 
-// Indirect Pointers.
-//
-// When the sandbox is enabled, indirect pointers are used to reference
-// HeapObjects that live outside of the sandbox (but are still managed by V8's
-// garbage collector). When object A references an object B through an indirect
-// pointer, object A will contain a IndirectPointerHandle, i.e. a shifted
-// 32-bit index, which identifies an entry in a pointer table (either the
-// trusted pointer table for TrustedObjects, or the code pointer table if it is
-// a Code object). This table entry then contains the actual pointer to object
-// B. Further, object B owns this pointer table entry, and it is responsible
-// for updating the "self-pointer" in the entry when it is relocated in memory.
-// This way, in contrast to "normal" pointers, indirect pointers never need to
-// be tracked by the GC (i.e. there is no remembered set for them).
-// These pointers do not exist when the sandbox is disabled.
-
-// An IndirectPointerHandle represents a 32-bit index into a pointer table.
-using IndirectPointerHandle = uint32_t;
-
-// A null handle always references an entry that contains nullptr.
-constexpr IndirectPointerHandle kNullIndirectPointerHandle = 0;
-
-// When the sandbox is enabled, indirect pointers are used to implement:
-// - TrustedPointers: an indirect pointer using the trusted pointer table (TPT)
-//   and referencing a TrustedObject in one of the trusted heap spaces.
-// - CodePointers, an indirect pointer using the code pointer table (CPT) and
-//   referencing a Code object together with its instruction stream.
-
 //
 // Trusted Pointers.
 //
@@ -924,9 +897,19 @@ constexpr IndirectPointerHandle kNullIndirectPointerHandle = 0;
 // When the sandbox is enabled, these are indirect pointers using the trusted
 // pointer table (TPT). They are used to reference trusted objects (located in
 // one of V8's trusted heap spaces, outside of the sandbox) from inside the
-// sandbox in a memory-safe way. When the sandbox is disabled, these are
-// regular tagged pointers.
-using TrustedPointerHandle = IndirectPointerHandle;
+// sandbox in a memory-safe way. When object A references an object B through a
+// trusted pointer, object A will contain a TrustedPointerHandle, i.e. a shifted
+// 32-bit index, which identifies an entry in the trusted pointer table. This
+// table entry then contains the actual pointer to object B. Further, object B
+// owns this pointer table entry, and it is responsible for updating the
+// "self-pointer" in the entry when it is relocated in memory. This way, in
+// contrast to "normal" pointers, trusted pointers never need to be tracked by
+// the GC (i.e. there is no remembered set for them).
+// When the sandbox is disabled, these are regular tagged pointers.
+
+// A TrustedPointerHandle represents a 32-bit index into a trusted pointer
+// table.
+using TrustedPointerHandle = uint32_t;
 
 // The size of the virtual memory reservation for the trusted pointer table.
 // As with the external pointer table, a maximum table size in combination with
@@ -938,8 +921,7 @@ constexpr size_t kTrustedPointerTableReservationSize = 64 * MB;
 constexpr uint32_t kTrustedPointerHandleShift = 9;
 
 // A null handle always references an entry that contains nullptr.
-constexpr TrustedPointerHandle kNullTrustedPointerHandle =
-    kNullIndirectPointerHandle;
+constexpr TrustedPointerHandle kNullTrustedPointerHandle = 0;
 
 // The byte size of an entry in the trusted pointer table.
 constexpr int kTrustedPointerTableEntrySize = 8;

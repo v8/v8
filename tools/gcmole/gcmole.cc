@@ -1072,7 +1072,7 @@ class FunctionAnalyzer {
                    clang::CXXRecordDecl* js_dispatch_handle_decl,
                    clang::TypedefNameDecl* external_pointer_handle_decl,
                    clang::TypedefNameDecl* cpp_heap_pointer_handle_decl,
-                   clang::TypedefNameDecl* indirect_pointer_handle_decl,
+                   clang::TypedefNameDecl* trusted_pointer_handle_decl,
                    clang::CXXRecordDecl* js_dispatch_handle_member_decl,
                    clang::ClassTemplateDecl* external_pointer_member_decl,
                    clang::ClassTemplateDecl* trusted_pointer_member_decl,
@@ -1095,7 +1095,7 @@ class FunctionAnalyzer {
         js_dispatch_handle_decl_(js_dispatch_handle_decl),
         external_pointer_handle_decl_(external_pointer_handle_decl),
         cpp_heap_pointer_handle_decl_(cpp_heap_pointer_handle_decl),
-        indirect_pointer_handle_decl_(indirect_pointer_handle_decl),
+        trusted_pointer_handle_decl_(trusted_pointer_handle_decl),
         js_dispatch_handle_member_decl_(js_dispatch_handle_member_decl),
         external_pointer_member_decl_(external_pointer_member_decl),
         trusted_pointer_member_decl_(trusted_pointer_member_decl),
@@ -1862,8 +1862,8 @@ class FunctionAnalyzer {
            decl == external_pointer_handle_decl_) ||
           (cpp_heap_pointer_handle_decl_ &&
            decl == cpp_heap_pointer_handle_decl_) ||
-          (indirect_pointer_handle_decl_ &&
-           decl == indirect_pointer_handle_decl_)) {
+          (trusted_pointer_handle_decl_ &&
+           decl == trusted_pointer_handle_decl_)) {
         return true;
       }
       current = decl->getUnderlyingType();
@@ -2174,7 +2174,7 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* js_dispatch_handle_decl_;
   clang::TypedefNameDecl* external_pointer_handle_decl_;
   clang::TypedefNameDecl* cpp_heap_pointer_handle_decl_;
-  clang::TypedefNameDecl* indirect_pointer_handle_decl_;
+  clang::TypedefNameDecl* trusted_pointer_handle_decl_;
   clang::CXXRecordDecl* js_dispatch_handle_member_decl_;
   clang::ClassTemplateDecl* external_pointer_member_decl_;
   clang::ClassTemplateDecl* trusted_pointer_member_decl_;
@@ -2346,8 +2346,8 @@ class ProblemsFinder : public clang::ASTConsumer,
     clang::TypedefNameDecl* cpp_heap_pointer_handle_decl =
         v8_internal.Resolve<clang::TypedefNameDecl>("CppHeapPointerHandle");
 
-    clang::TypedefNameDecl* indirect_pointer_handle_decl =
-        v8_internal.Resolve<clang::TypedefNameDecl>("IndirectPointerHandle");
+    clang::TypedefNameDecl* trusted_pointer_handle_decl =
+        v8_internal.Resolve<clang::TypedefNameDecl>("TrustedPointerHandle");
 
     clang::CXXRecordDecl* js_dispatch_handle_member_decl =
         v8_internal.Resolve<clang::CXXRecordDecl>("JSDispatchHandleMember");
@@ -2409,9 +2409,9 @@ class ProblemsFinder : public clang::ASTConsumer,
           cpp_heap_pointer_handle_decl->getCanonicalDecl();
     }
 
-    if (indirect_pointer_handle_decl != nullptr) {
-      indirect_pointer_handle_decl =
-          indirect_pointer_handle_decl->getCanonicalDecl();
+    if (trusted_pointer_handle_decl != nullptr) {
+      trusted_pointer_handle_decl =
+          trusted_pointer_handle_decl->getCanonicalDecl();
     }
 
     if (js_dispatch_handle_member_decl != nullptr) {
@@ -2469,7 +2469,7 @@ class ProblemsFinder : public clang::ASTConsumer,
           clang::ItaniumMangleContext::create(ctx, d_), heap_object_decl,
           smi_decl, tagged_index_decl, cleared_weak_value_decl, tagged_decl,
           js_dispatch_handle_decl, external_pointer_handle_decl,
-          cpp_heap_pointer_handle_decl, indirect_pointer_handle_decl,
+          cpp_heap_pointer_handle_decl, trusted_pointer_handle_decl,
           js_dispatch_handle_member_decl, external_pointer_member_decl,
           trusted_pointer_member_decl, cpp_heap_pointer_member_decl,
           external_pointer_slot_decl, cpp_heap_pointer_slot_decl,

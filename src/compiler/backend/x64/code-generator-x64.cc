@@ -817,9 +817,8 @@ Register GetTSANValueRegister(MacroAssembler* masm, Register value,
     // Indirect pointer fields contain an index to a pointer table entry, which
     // is obtained from the referenced object.
     Register value_reg = i.TempRegister(1);
-    masm->movl(value_reg,
-               FieldOperand(value, offsetof(ExposedTrustedObject,
-                                            self_indirect_pointer_)));
+    masm->movl(value_reg, FieldOperand(value, offsetof(ExposedTrustedObject,
+                                                       self_trusted_pointer_)));
     return value_reg;
   }
   return value;
@@ -844,7 +843,7 @@ Register GetTSANValueRegister<std::memory_order_relaxed>(
     // is obtained from the referenced object.
     masm->movl(value_reg,
                FieldOperand(value_reg, offsetof(ExposedTrustedObject,
-                                                self_indirect_pointer_)));
+                                                self_trusted_pointer_)));
   }
   return value_reg;
 }

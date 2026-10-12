@@ -502,7 +502,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   // "trusted" part containing a trusted pointer and the regular/untrusted part
   // containing a tagged pointer. In that case, code accessing the data field
   // will first load the trusted data field. If that is empty (i.e.
-  // kNullIndirectPointerHandle), it will then load the regular field. With
+  // kNullTrustedPointerHandle), it will then load the regular field. With
   // that, the only racy transition would be a tagged -> trusted transition
   // (one thread may first read the empty trusted pointer, then another thread
   // transitions to the trusted field, clearing the tagged field, and then the

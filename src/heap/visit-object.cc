@@ -99,7 +99,7 @@ class ObjectVisitorForwarder final
   }
 
   void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                            IndirectPointerMode mode) override {
+                            TrustedPointerMode mode) override {
     visitor_->VisitIndirectPointer(host, slot, mode);
   }
 

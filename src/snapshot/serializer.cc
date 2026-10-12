@@ -553,8 +553,7 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     // object cannot be referenced.
     if (V8_ENABLE_SANDBOX_BOOL && IsExposedTrustedObject(*object_)) {
       SBXCHECK_EQ(space, SnapshotSpace::kTrusted);
-      sink_->Put(kInitializeSelfIndirectPointer,
-                 "InitializeSelfIndirectPointer");
+      sink_->Put(kInitializeSelfTrustedPointer, "InitializeSelfTrustedPointer");
     }
 
     // Now that the object is allocated, we can resolve pending references to
@@ -1280,7 +1279,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
 
 void Serializer::ObjectSerializer::VisitIndirectPointer(
     Tagged<HeapObject> host, IndirectPointerSlot slot,
-    IndirectPointerMode mode) {
+    TrustedPointerMode mode) {
 #ifdef V8_ENABLE_SANDBOX
   // If the slot is empty (i.e. contains a null handle), then we can just skip
   // it since in that case the correct action is to encode the null handle as
@@ -1295,12 +1294,12 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
   Handle<HeapObject> slot_value(Cast<HeapObject>(slot.load(isolate())),
                                 isolate());
   CHECK(IsHeapObject(*slot_value));
-  bytes_processed_so_far_ += kIndirectPointerSize;
+  bytes_processed_so_far_ += kTrustedPointerSize;
 
   // Currently we cannot see pending objects here, but we may need to support
   // them in the future. They should already be supported by the deserializer.
   CHECK(!serializer_->SerializePendingObject(*slot_value));
-  sink_->Put(kIndirectPointerPrefix, "IndirectPointer");
+  sink_->Put(kTrustedPointerPrefix, "IndirectPointer");
   serializer_->SerializeObject(slot_value, SlotType::kAnySlot);
 #else
   UNREACHABLE();
@@ -1313,11 +1312,11 @@ void Serializer::ObjectSerializer::VisitTrustedPointerTableEntry(
   // These fields only exist on the ExposedTrustedObject class, and they are
   // located directly after the Map word.
   DCHECK_EQ(bytes_processed_so_far_,
-            offsetof(ExposedTrustedObject, self_indirect_pointer_));
+            offsetof(ExposedTrustedObject, self_trusted_pointer_));
 
-  // Nothing to do here. We already emitted the kInitializeSelfIndirectPointer
+  // Nothing to do here. We already emitted the kInitializeSelfTrustedPointer
   // after processing the Map word in SerializePrologue.
-  bytes_processed_so_far_ += kIndirectPointerSize;
+  bytes_processed_so_far_ += kTrustedPointerSize;
 #else
   UNREACHABLE();
 #endif

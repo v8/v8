@@ -371,10 +371,10 @@ class Committee final {
     }
 #ifdef V8_ENABLE_SANDBOX
     void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                              IndirectPointerMode mode) final {
+                              TrustedPointerMode mode) final {
       if (!all_slots_are_promo_candidates()) return;
-      IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
-      if (handle == kNullIndirectPointerHandle) return;
+      TrustedPointerHandle handle = slot.Relaxed_LoadHandle();
+      if (handle == kNullTrustedPointerHandle) return;
 
       Isolate* isolate = committee_->isolate_;
       TrustedPointerTable* tpt =
@@ -634,7 +634,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 #endif  // V8_ENABLE_SANDBOX
     }
     void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
-                              IndirectPointerMode mode) final {
+                              TrustedPointerMode mode) final {
 #ifdef V8_ENABLE_SANDBOX
       VisitCodePointer(host, slot);
 #endif  // V8_ENABLE_SANDBOX
@@ -699,8 +699,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
 #ifdef V8_ENABLE_SANDBOX
     void VisitCodePointer(Tagged<HeapObject> host, IndirectPointerSlot slot) {
-      IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
-      if (old_handle == kNullIndirectPointerHandle) return;
+      TrustedPointerHandle old_handle = slot.Relaxed_LoadHandle();
+      if (old_handle == kNullTrustedPointerHandle) return;
 
       TrustedPointerTable* tpt =
           &IsolateForSandbox(isolate_).GetTrustedPointerTableFor(
@@ -715,7 +715,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
             TrustedCast<ExposedTrustedObject>(it->second);
         auto it2 = promoted_code_to_handle_.find(promoted_obj.address());
         if (it2 != promoted_code_to_handle_.end()) {
-          IndirectPointerHandle new_handle = it2->second;
+          TrustedPointerHandle new_handle = it2->second;
           RecordProcessedSlotIfDebug(slot.address());
           slot.Relaxed_StoreHandle(new_handle);
           if (v8_flags.trace_read_only_promotion_verbose) [[unlikely]] {
@@ -724,9 +724,9 @@ class ReadOnlyPromotionImpl final : public AllStatic {
           return;
         }
       } else if (HeapLayout::InReadOnlySpace(old_obj)) {
-        IndirectPointerHandle new_handle =
+        TrustedPointerHandle new_handle =
             TrustedCast<ExposedTrustedObject>(old_obj)
-                ->self_indirect_pointer_handle();
+                ->self_trusted_pointer_handle();
         slot.Relaxed_StoreHandle(new_handle);
         if (v8_flags.trace_read_only_promotion_verbose) [[unlikely]] {
           LogUpdatedCodePointerTableEntry(host, slot, old_handle, new_handle);
@@ -746,10 +746,10 @@ class ReadOnlyPromotionImpl final : public AllStatic {
           TrustedPointerTagFromInstanceType(instance_type, shared);
 
       IndirectPointerSlot slot = obj->RawIndirectPointerField(
-          offsetof(ExposedTrustedObject, self_indirect_pointer_), tag);
+          offsetof(ExposedTrustedObject, self_trusted_pointer_), tag);
 
-      IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
-      if (old_handle == kNullIndirectPointerHandle) return;
+      TrustedPointerHandle old_handle = slot.Relaxed_LoadHandle();
+      if (old_handle == kNullTrustedPointerHandle) return;
 
       TrustedPointerTable* tpt =
           &IsolateForSandbox(isolate_).GetTrustedPointerTableFor(tag);
@@ -764,7 +764,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       DisallowJavascriptExecution no_js(isolate_);
       TrustedPointerPublishingScope scope(isolate_, no_js);
       SegmentedTableBase::UnsealReadOnlySegmentScope unseal_scope(tpt);
-      IndirectPointerHandle new_handle =
+      TrustedPointerHandle new_handle =
           tpt->AllocateAndInitializeEntry(space, obj.ptr(), tag, &scope);
       scope.MarkSuccess();
 
@@ -808,8 +808,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     }
     void LogUpdatedCodePointerTableEntry(Tagged<HeapObject> host,
                                          IndirectPointerSlot slot,
-                                         IndirectPointerHandle old_handle,
-                                         IndirectPointerHandle new_handle) {
+                                         TrustedPointerHandle old_handle,
+                                         TrustedPointerHandle new_handle) {
       std::cout << "ro-promotion: updated code pointer table entry {host "
                 << reinterpret_cast<void*>(host.address()) << " slot "
                 << reinterpret_cast<void*>(slot.address()) << " from "
@@ -839,10 +839,10 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     // (see b/330450848). A new pointer table entry must be allocated for the
     // relocated object, in a RO segment of the table.
 
-    using IndirectPointerHandleMap =
-        std::unordered_map<IndirectPointerHandle, IndirectPointerHandle>;
-    IndirectPointerHandleMap code_pointer_moves_;
-    std::unordered_map<Address, IndirectPointerHandle> promoted_code_to_handle_;
+    using TrustedPointerHandleMap =
+        std::unordered_map<TrustedPointerHandle, TrustedPointerHandle>;
+    TrustedPointerHandleMap code_pointer_moves_;
+    std::unordered_map<Address, TrustedPointerHandle> promoted_code_to_handle_;
 #endif  // V8_ENABLE_SANDBOX
   };
 
@@ -854,8 +854,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
   }
 
   static void LogPromotedCodePointerTableEntry(
-      Tagged<Code> code, IndirectPointerHandle old_handle,
-      IndirectPointerHandle new_handle) {
+      Tagged<Code> code, TrustedPointerHandle old_handle,
+      TrustedPointerHandle new_handle) {
     std::cout << "ro-promotion: promoted code pointer table entry {code "
               << reinterpret_cast<void*>(code.ptr()) << " slot "
               << AsHex(old_handle, 8, true) << " to "

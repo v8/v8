@@ -1058,11 +1058,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<HeapObject> object, int offset, TrustedPointerTagRange tag_range);
 
   // Retrieve the heap object referenced by the given indirect pointer handle.
-  TNode<TrustedObject> ResolveIndirectPointerHandle(
-      TNode<IndirectPointerHandleT> handle, TrustedPointerTagRange tag_range);
+  TNode<TrustedObject> ResolveTrustedPointerHandle(
+      TNode<TrustedPointerHandleT> handle, TrustedPointerTagRange tag_range);
 
-  void ResolveIndirectUnknownPointerHandle(
-      TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
+  void ResolveTrustedUnknownPointerHandle(
+      TNode<TrustedPointerHandleT> handle, TVariable<Object>* value_out,
       TVariable<Uint16T>* type_out, Label* if_default,
       const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
       TrustedPointerTagRange tag_range = kAllTrustedPointerTags);

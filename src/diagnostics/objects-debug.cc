@@ -1985,10 +1985,10 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   } else {
     tag = kUnpublishedTrustedPointerTag;
   }
-  // We can't use ReadIndirectPointerField here because the tag is not a
+  // We can't use ReadTrustedPointerField here because the tag is not a
   // compile-time constant.
   IndirectPointerSlot slot = RawIndirectPointerField(
-      offsetof(ExposedTrustedObject, self_indirect_pointer_), tag);
+      offsetof(ExposedTrustedObject, self_trusted_pointer_), tag);
   Tagged<Object> self = slot.load(isolate);
   CHECK_EQ(self, this);
   // If the object is in the read-only space, the self indirect pointer entry

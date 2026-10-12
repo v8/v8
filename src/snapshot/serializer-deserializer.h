@@ -151,14 +151,14 @@ class SerializerDeserializer : public RootVisitor {
     // When the sandbox is enabled, a prefix indicating that the following
     // object is referenced through an indirect pointer, i.e. through an entry
     // in a pointer table.
-    kIndirectPointerPrefix,
+    kTrustedPointerPrefix,
     // When the sandbox is enabled, this bytecode instructs the deserializer to
     // initialize the "self" indirect pointer of trusted objects, which
     // references the object's pointer table entry. As the "self" indirect
     // pointer is always the first field after the map word, it is guaranteed
     // that it will be deserialized before any inner objects, which may require
     // the pointer table entry for back reference to the trusted object.
-    kInitializeSelfIndirectPointer,
+    kInitializeSelfTrustedPointer,
     // This bytecode instructs the deserializer to allocate an entry in the
     // JSDispatchTable for the host object and store the corresponding dispatch
     // handle into the current slot.

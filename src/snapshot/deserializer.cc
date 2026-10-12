@@ -256,10 +256,10 @@ int Deserializer<IsolateT>::WriteExternalPointer(Tagged<HeapObject> host,
                                                  ExternalPointerSlot dest,
                                                  Address value,
                                                  ExternalPointerTag tag) {
-  DCHECK(!next_reference_is_weak_ && !next_reference_is_indirect_pointer_ &&
+  DCHECK(!next_reference_is_weak_ && !next_reference_is_trusted_pointer_ &&
          !next_reference_is_protected_pointer);
 
-  #ifdef V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   ExternalPointerTable::ManagedResource* managed_resource = nullptr;
   ExternalPointerTable* owning_table = nullptr;
   ExternalPointerHandle original_handle = kNullExternalPointerHandle;
@@ -744,13 +744,13 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
 template <typename IsolateT>
 typename Deserializer<IsolateT>::ReferenceDescriptor
 Deserializer<IsolateT>::GetAndResetNextReferenceDescriptor() {
-  DCHECK(!(next_reference_is_weak_ && next_reference_is_indirect_pointer_));
+  DCHECK(!(next_reference_is_weak_ && next_reference_is_trusted_pointer_));
   ReferenceDescriptor desc;
   desc.type = next_reference_is_weak_ ? HeapObjectReferenceType::WEAK
                                       : HeapObjectReferenceType::STRONG;
   next_reference_is_weak_ = false;
-  desc.is_indirect_pointer = next_reference_is_indirect_pointer_;
-  next_reference_is_indirect_pointer_ = false;
+  desc.is_indirect_pointer = next_reference_is_trusted_pointer_;
+  next_reference_is_trusted_pointer_ = false;
   desc.is_protected_pointer = next_reference_is_protected_pointer;
   next_reference_is_protected_pointer = false;
   return desc;
@@ -957,7 +957,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRepeatedRoot(SlotAccessor slot_accessor,
                                              int repeat_count) {
   DCHECK(!next_reference_is_weak_);
-  DCHECK(!next_reference_is_indirect_pointer_);
+  DCHECK(!next_reference_is_trusted_pointer_);
   DCHECK(!next_reference_is_protected_pointer);
   CHECK_LE(2, repeat_count);
 
@@ -1092,10 +1092,10 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadClearedWeakReference(data, slot_accessor);
     case kWeakPrefix:
       return ReadWeakPrefix(data, slot_accessor);
-    case kIndirectPointerPrefix:
-      return ReadIndirectPointerPrefix(data, slot_accessor);
-    case kInitializeSelfIndirectPointer:
-      return ReadInitializeSelfIndirectPointer(data, slot_accessor);
+    case kTrustedPointerPrefix:
+      return ReadTrustedPointerPrefix(data, slot_accessor);
+    case kInitializeSelfTrustedPointer:
+      return ReadInitializeSelfTrustedPointer(data, slot_accessor);
     case kAllocateJSDispatchEntry:
       return ReadAllocateJSDispatchEntry(data, slot_accessor);
     case kJSDispatchEntry:
@@ -1503,28 +1503,28 @@ int Deserializer<IsolateT>::ReadWeakPrefix(uint8_t data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadIndirectPointerPrefix(
+int Deserializer<IsolateT>::ReadTrustedPointerPrefix(
     uint8_t data, SlotAccessor slot_accessor) {
   if (v8_flags.trace_deserialization) {
-    PrintF("%*sIndirectPointerPrefix\n", depth_, "");
+    PrintF("%*sTrustedPointerPrefix\n", depth_, "");
   }
   // We shouldn't have two indirect pointer prefixes in a row.
-  DCHECK(!next_reference_is_indirect_pointer_);
+  DCHECK(!next_reference_is_trusted_pointer_);
   // We shouldn't have a indirect pointer prefix without a current object.
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
-  next_reference_is_indirect_pointer_ = true;
+  next_reference_is_trusted_pointer_ = true;
   return 0;
 }
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadInitializeSelfIndirectPointer(
+int Deserializer<IsolateT>::ReadInitializeSelfTrustedPointer(
     uint8_t data, SlotAccessor slot_accessor) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
   DCHECK(IsExposedTrustedObject(*slot_accessor.object()));
   DCHECK_EQ(slot_accessor.offset(),
-            offsetof(ExposedTrustedObject, self_indirect_pointer_));
+            offsetof(ExposedTrustedObject, self_trusted_pointer_));
 
   Tagged<ExposedTrustedObject> host =
       TrustedCast<ExposedTrustedObject>(*slot_accessor.object());

@@ -507,8 +507,7 @@ void SandboxUnpublishTrustedHandle(
     return;
   }
 
-  IndirectPointerHandle handle =
-      static_cast<IndirectPointerHandle>(handle_value);
+  TrustedPointerHandle handle = static_cast<TrustedPointerHandle>(handle_value);
   i_isolate->trusted_pointer_table().Unpublish(handle);
 }
 

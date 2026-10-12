@@ -71,7 +71,7 @@ class atomic {
 namespace v8 {
 namespace internal {
 
-using IndirectPointerHandle = uint32_t;
+using TrustedPointerHandle = uint32_t;
 
 class Map;
 class Smi;
@@ -535,7 +535,7 @@ class ConfigTest(unittest.TestCase):
   """extract_config reads each size from the alias V8 itself takes it
   from, so Config tracks the build configuration. Reading a type
   that merely resembles one is how trusted_pointer_size went wrong:
-  IndirectPointerHandle is uint32_t in every configuration, while a
+  TrustedPointerHandle is uint32_t in every configuration, while a
   trusted pointer slot is tagged when the sandbox is off."""
 
   _ALIASES = """
@@ -867,19 +867,19 @@ class ParseDiagnosticsTest(unittest.TestCase):
 
 class FailureModeTest(unittest.TestCase):
 
-  def test_missing_indirect_pointer_handle_alias_is_fatal(self):
+  def test_missing_trusted_pointer_handle_alias_is_fatal(self):
     h = parse(
         """
       class Holder : public HeapObject {
        public:
-        std::atomic<RenamedIndirectPointerHandle> handle_;
+        std::atomic<RenamedTrustedPointerHandle> handle_;
       };
     """,
-        prelude=_PRELUDE.replace("IndirectPointerHandle",
-                                 "RenamedIndirectPointerHandle"))
+        prelude=_PRELUDE.replace("TrustedPointerHandle",
+                                 "RenamedTrustedPointerHandle"))
     field = next(_find_class(h, "Holder").type.get_fields())
     with self.assertRaisesRegex(LayoutError,
-                                "missing IndirectPointerHandle declaration"):
+                                "missing TrustedPointerHandle declaration"):
       layout_extract._Extractor(h, _V8_ROOT)._storage_type_of(field, field.type)
 
   def test_torque_generated_base_is_fatal(self):
