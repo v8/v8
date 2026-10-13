@@ -75,8 +75,10 @@ to the **`git-cl-helper`** skill
     must carefully evaluate them: preserve any human-authored background
     context, rationale, or formatting, while surgically updating only the
     outdated technical statements resulting from the new patchset.
-- **Wrap Commit Message**: Ensure commit message descriptions are strictly
-  wrapped at 78 characters. `upload_cl.sh` automatically enforces this limit.
+- **Commit Message Length Limits**: Keep the commit title at most 64 characters
+  and wrap description body lines at 72 characters. `upload_cl.sh` and
+  `edit_cl_description.sh` automatically enforce these limits via
+  `validate_cl_description.py`.
 - Verify `git diff` is not empty before uploading.
 
 ## Safeguards & Code Quality

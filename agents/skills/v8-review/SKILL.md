@@ -205,12 +205,13 @@ Instructions for every subagent:
    comments on unmodified lines (unless flagging a newly exposed bug or missed
    variant anchored to the diff).
 2. **Commit Message** (if reviewing a commit/CL): Verify factual accuracy
-   against the diff. Check `[subsystem] Imperative subject` (\<= 72 chars, no
-   period), concise body (\<= 10 lines, wrapped at \<= 72 chars, explaining
-   *why* and high-level *what*), CL references as `https://crrev.com/c/<number>`
-   (not git hashes), and trailers (`Bug: <id>` or `Fixed: <id>` with plain
-   numeric ID for Chromium or `b:<id>` for Buganizer, never `BUG=`; plus
-   `TAG=agy` and `R=<reviewer>@chromium.org` for agent-authored CLs).
+   against the diff. Check `[subsystem] Imperative subject` (\<= 64 chars,
+   aiming for ~50, no period), concise body (\<= 10 lines, wrapped at \<= 72
+   chars, explaining *why* and high-level *what*), CL references as
+   `https://crrev.com/c/<number>` (not git hashes), and trailers (`Bug: <id>` or
+   `Fixed: <id>` with plain numeric ID for Chromium or `b:<id>` for Buganizer,
+   never `BUG=`; plus `TAG=agy` and `R=<reviewer>@chromium.org` for
+   agent-authored CLs).
 3. **Deduplicate**: Merge overlapping comments on the same `file:line` (within 2
    lines) or the same root cause repeated across architectures/files. Keep \<=
    25 comments ordered by `security` > `bug` > `design` > `question` > `nit`.

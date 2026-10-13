@@ -38,7 +38,7 @@ else
   fi
 fi
 
-# Guardrail: Check commit description line lengths (max 78 chars, ignoring lines with URLs)
+# Guardrail: Check commit description line lengths (max 64-char title, max 72-char body lines, ignoring lines with URLs)
 DESC_TO_CHECK=""
 CHECK_DESC=false
 HAS_CUSTOM_DESC=false
