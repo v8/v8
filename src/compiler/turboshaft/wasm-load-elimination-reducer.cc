@@ -332,6 +332,9 @@ void WasmLoadEliminationAnalyzer::ProcessStructAtomicRMW(
   memory_.Invalidate(op);
   // See ProcessStructGet/Set.
   memory_.InvalidateMutableSharedBase();
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(op.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessArrayAtomicRMW(
@@ -340,6 +343,9 @@ void WasmLoadEliminationAnalyzer::ProcessArrayAtomicRMW(
   // the state because array atomic operations could be used to sync among
   // threads.
   memory_.InvalidateMutableSharedBase();
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(op.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
@@ -380,6 +386,9 @@ void WasmLoadEliminationAnalyzer::ProcessArraySet(OpIndex op_idx,
     // among threads.
     memory_.InvalidateMutableSharedBase();
   }
+
+  // Updating aliases if the value stored was known as non-aliasing.
+  InvalidateIfAlias(op.value());
 }
 
 void WasmLoadEliminationAnalyzer::ProcessArrayLength(
