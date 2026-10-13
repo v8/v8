@@ -31,6 +31,7 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   int contextId = InspectedContext::contextId(context);
   int groupId = inspector->contextGroupId(contextId);
+  if (!groupId) return;
   v8::Local<v8::String> message = toV8String(isolate, "<no message available>");
   if (!tryCatch.Message().IsEmpty()) message = tryCatch.Message()->Get();
   v8::Local<v8::String> prefix =
@@ -38,13 +39,14 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
   message = v8::String::Concat(isolate, prefix, message);
   v8::LocalVector<v8::Value> arguments(isolate);
   arguments.push_back(message);
-  V8ConsoleMessageStorage* storage =
-      inspector->ensureConsoleMessageStorage(groupId);
-  if (!storage) return;
-  storage->addMessage(V8ConsoleMessage::createForConsoleAPI(
-      context, contextId, groupId, inspector,
-      inspector->client()->currentTimeMS(), ConsoleAPIType::kError, arguments,
-      String16(), nullptr));
+  std::unique_ptr<V8ConsoleMessage> consoleMessage =
+      V8ConsoleMessage::createForConsoleAPI(
+          context, contextId, groupId, inspector,
+          inspector->client()->currentTimeMS(), ConsoleAPIType::kError,
+          arguments, String16(), nullptr);
+  if (!inspector->contextGroupId(contextId)) return;
+  inspector->ensureConsoleMessageStorage(groupId)->addMessage(
+      std::move(consoleMessage));
 }
 
 void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch,
