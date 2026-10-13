@@ -4075,12 +4075,19 @@ void CompilationStateImpl::TriggerCallbacks(
 void CompilationStateImpl::TriggerCachingAfterTimeout() {
   base::MutexGuard guard{&callbacks_mutex_};
 
-  // It can happen that we reached the hard threshold while waiting for the
-  // timeout to expire. In that case, {bytes_since_last_chunk_} might be zero
-  // and there is nothing new to cache.
-  if (bytes_since_last_chunk_ == 0) return;
-
   DCHECK(!last_top_tier_compilation_timestamp_.IsNull());
+
+  // It can happen that we reached the hard threshold while waiting for the
+  // timeout to expire. In that case, {bytes_since_last_chunk_} was reset to
+  // zero and might still be below the caching threshold (or zero), so there is
+  // nothing new to cache yet.
+  if (bytes_since_last_chunk_ == 0 ||
+      bytes_since_last_chunk_ <
+          static_cast<size_t>(v8_flags.wasm_caching_threshold)) {
+    last_top_tier_compilation_timestamp_ = {};
+    return;
+  }
+
   base::TimeTicks caching_time =
       last_top_tier_compilation_timestamp_ +
       base::TimeDelta::FromMilliseconds(v8_flags.wasm_caching_timeout_ms);
