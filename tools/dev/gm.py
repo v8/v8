@@ -277,6 +277,14 @@ def detect_reclient():
     return Reclient.CUSTOM
   if "download_remoteexec_cfg" in custom_vars:
     return Reclient.GOOGLE
+  # On Linux corp machines (including Cog), Siso's built-in remote execution
+  # uses .sisoenv and does not require download_remoteexec_cfg in .gclient.
+  sisoenv_path = (
+      (CHROMIUM_DIR or V8_ROOT_DIR) / "build" / "config" / "siso" / ".sisoenv"
+  )
+  if (platform.system() == "Linux" and shutil.which("gcert") is not None and
+      sisoenv_path.exists()):
+    return Reclient.GOOGLE
   return Reclient.NONE
 
 
