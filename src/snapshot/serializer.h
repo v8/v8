@@ -519,7 +519,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
   void SerializeSlicedStringAsSequentialString();
-  void SerializeStringAsSequentialString(bool one_byte, const uint8_t* content);
+  void SerializeStringAsSequentialString(bool one_byte, uint32_t length,
+                                         const uint8_t* content);
 
   Isolate* isolate_;
   Serializer* serializer_;

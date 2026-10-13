@@ -718,13 +718,19 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   // an imaginary sequential string with the same content.
   DCHECK(IsExternalString(*object_));
   DirectHandle<ExternalString> string = Cast<ExternalString>(object_);
+  uint32_t length = string->length();
   bool one_byte = IsExternalOneByteString(*object_);
-  const uint8_t* content =
-      one_byte ? reinterpret_cast<const uint8_t*>(
-                     Cast<ExternalOneByteString>(string)->resource()->data())
-               : reinterpret_cast<const uint8_t*>(
-                     Cast<ExternalTwoByteString>(string)->resource()->data());
-  SerializeStringAsSequentialString(one_byte, content);
+  const uint8_t* content;
+  if (one_byte) {
+    const auto* ext_resource = Cast<ExternalOneByteString>(string)->resource();
+    SBXCHECK_EQ(length, ext_resource->length());
+    content = reinterpret_cast<const uint8_t*>(ext_resource->data());
+  } else {
+    const auto* ext_resource = Cast<ExternalTwoByteString>(string)->resource();
+    SBXCHECK_EQ(length, ext_resource->length());
+    content = reinterpret_cast<const uint8_t*>(ext_resource->data());
+  }
+  SerializeStringAsSequentialString(one_byte, length, content);
 }
 
 void Serializer::ObjectSerializer::SerializeSlicedStringAsSequentialString() {
@@ -735,30 +741,31 @@ void Serializer::ObjectSerializer::SerializeSlicedStringAsSequentialString() {
   DisallowGarbageCollection no_gc;
   String::FlatContent flat = Cast<String>(*object_)->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());
+  uint32_t length = flat.length();
   if (flat.IsOneByte()) {
-    SerializeStringAsSequentialString(true, flat.ToOneByteVector().begin());
+    SerializeStringAsSequentialString(true, length,
+                                      flat.ToOneByteVector().begin());
     return;
   }
   base::Vector<const base::uc16> chars = flat.ToUC16Vector();
-  if (String::IsOneByte(chars.begin(), static_cast<uint32_t>(chars.size()))) {
+  if (String::IsOneByte(chars.begin(), length)) {
     // The parent of the slice is two-byte, but its contents are one-byte, so
     // serialize a one-byte string (which is also what copying them would
     // create).
     base::UniqueArray<uint8_t> one_byte =
-        base::UniqueArray<uint8_t>::NewForOverwrite(chars.size());
-    CopyChars(one_byte.begin(), chars.begin(), chars.size());
-    SerializeStringAsSequentialString(true, one_byte.begin());
+        base::UniqueArray<uint8_t>::NewForOverwrite(length);
+    CopyChars(one_byte.begin(), chars.begin(), length);
+    SerializeStringAsSequentialString(true, length, one_byte.begin());
     return;
   }
   SerializeStringAsSequentialString(
-      false, reinterpret_cast<const uint8_t*>(chars.begin()));
+      false, length, reinterpret_cast<const uint8_t*>(chars.begin()));
 }
 
 void Serializer::ObjectSerializer::SerializeStringAsSequentialString(
-    bool one_byte, const uint8_t* content) {
+    bool one_byte, uint32_t length, const uint8_t* content) {
   ReadOnlyRoots roots(isolate());
   DirectHandle<String> string = Cast<String>(object_);
-  uint32_t length = string->length();
   Tagged<Map> map;
   int content_size;
   int allocation_size;
@@ -789,10 +796,13 @@ void Serializer::ObjectSerializer::SerializeStringAsSequentialString(
   sink_->PutUint30(slots_to_output, "length");
 
   // Serialize string header (except for map).
-  uint8_t* string_start = reinterpret_cast<uint8_t*>(string->address());
-  for (size_t i = sizeof(HeapObject); i < sizeof(SeqString); i++) {
-    sink_->Put(string_start[i], "StringHeader");
-  }
+  static_assert(offsetof(SeqString, raw_hash_field_) == sizeof(HeapObject));
+  static_assert(offsetof(SeqString, length_) ==
+                offsetof(SeqString, raw_hash_field_) + sizeof(uint32_t));
+  static_assert(sizeof(SeqString) ==
+                sizeof(HeapObject) + sizeof(uint32_t) + sizeof(uint32_t));
+  sink_->PutUint32(string->raw_hash_field(), "StringHash");
+  sink_->PutUint32(length, "StringLength");
 
   // Serialize string content.
   sink_->PutRaw(content, content_size, "StringContent");

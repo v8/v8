@@ -293,6 +293,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
 
  private:
   friend class V8HeapExplorer;
+  friend class Serializer;
   friend class CodeStubAssembler;
   friend class StringBuiltinsAssembler;
   friend class SandboxTesting;
