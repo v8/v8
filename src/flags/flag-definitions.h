@@ -1804,7 +1804,6 @@ DEFINE_BOOL(turbolev, false,
             "compiler instead of Turbofan")
 // ArrayDestructure bytecode is only supported in Turbolev, not Turbofan.
 DEFINE_WEAK_IMPLICATION(array_destructure_bytecode, turbolev)
-DEFINE_NEG_IMPLICATION(turbofan && !turbolev, array_destructure_bytecode)
 
 DEFINE_DEVELOPER_FLAG(print_turbolev_frontend,
                       "print Turbolev frontend (Maglev graphs)")
@@ -4386,7 +4385,7 @@ DISALLOW_UNSAFE_FLAG(perf_prof)
 DISALLOW_UNSAFE_FLAG(perf_prof_annotate_wasm)
 // Known-broken features/configuration.
 DISALLOW_UNSAFE_FLAG(feedback_normalization)
-DISALLOW_UNSAFE_FLAG(array_destructure_bytecode)
+DISALLOW_UNSAFE_FLAG_IF(turbofan && !turbolev, array_destructure_bytecode)
 // Disabled-by-default misc. "unsafe" flags that should not be enabled.
 DISALLOW_UNSAFE_FLAG(abort_on_bad_builtin_profile_data)
 DISALLOW_UNSAFE_FLAG(abort_on_uncaught_exception)
