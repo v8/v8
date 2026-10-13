@@ -977,6 +977,40 @@ void DisassemblingDecoder::VisitLoadStoreUnscaledOffset(Instruction* instr) {
 
 #undef LOAD_STORE_UNSCALED_LIST
 
+#define LOAD_STORE_RCPC_UNSCALED_LIST(V) \
+  V(STLURB, "stlurb", "'Wt")             \
+  V(STLURH, "stlurh", "'Wt")             \
+  V(STLUR_w, "stlur", "'Wt")             \
+  V(STLUR_x, "stlur", "'Xt")             \
+  V(LDAPURB, "ldapurb", "'Wt")           \
+  V(LDAPURH, "ldapurh", "'Wt")           \
+  V(LDAPUR_w, "ldapur", "'Wt")           \
+  V(LDAPUR_x, "ldapur", "'Xt")           \
+  V(LDAPURSB_x, "ldapursb", "'Xt")       \
+  V(LDAPURSH_x, "ldapursh", "'Xt")       \
+  V(LDAPURSW_x, "ldapursw", "'Xt")       \
+  V(LDAPURSB_w, "ldapursb", "'Wt")       \
+  V(LDAPURSH_w, "ldapursh", "'Wt")
+
+void DisassemblingDecoder::VisitLoadStoreRCpcUnscaledOffset(
+    Instruction* instr) {
+  const char* mnemonic = "unimplemented";
+  const char* form = "(LoadStoreRCpcUnscaledOffset)";
+
+  switch (instr->Mask(LoadStoreRCpcUnscaledOffsetMask)) {
+#define LS_RCPC_UNSCALEDOFFSET(A, B, C) \
+  case A:                               \
+    mnemonic = B;                       \
+    form = C ", ['Xns'ILS]";            \
+    break;
+    LOAD_STORE_RCPC_UNSCALED_LIST(LS_RCPC_UNSCALEDOFFSET)
+#undef LS_RCPC_UNSCALEDOFFSET
+  }
+  Format(instr, mnemonic, form);
+}
+
+#undef LOAD_STORE_RCPC_UNSCALED_LIST
+
 void DisassemblingDecoder::VisitLoadLiteral(Instruction* instr) {
   const char* mnemonic = "ldr";
   const char* form = "(LoadLiteral)";

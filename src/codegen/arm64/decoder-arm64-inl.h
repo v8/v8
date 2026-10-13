@@ -354,6 +354,14 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
         } else if (instr->Mask(SetFMask) == SetFixed &&
                    instr->Bits(15, 14) != 0x3) {
           V::VisitSet(instr);
+        } else if (instr->Mask(LoadStoreRCpcUnscaledOffsetFMask) ==
+                   LoadStoreRCpcUnscaledOffsetFixed) {
+          if ((instr->Bits(31, 30) == 0x2 && instr->Bits(23, 22) == 0x3) ||
+              (instr->Bits(31, 30) == 0x3 && instr->Bit(23) == 1)) {
+            V::VisitUnallocated(instr);
+          } else {
+            V::VisitLoadStoreRCpcUnscaledOffset(instr);
+          }
         } else {
           V::VisitUnallocated(instr);
         }

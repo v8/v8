@@ -6769,6 +6769,56 @@ TEST_F(AssemblerArm64Test, ldur_stur) {
   CHECK_EQUAL_64(dst_base + 32, x20);
 }
 
+TEST_F(AssemblerArm64Test, ldapur_stlur) {
+  SETUP();
+  SETUP_FEATURE(LRCPC2);
+
+  uint64_t src[2] = {0x0123456789ABCDEFUL, 0xFEDCBA9876543210UL};
+  uint64_t dst[3] = {0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x28, dst_base + 1);
+  __ Mov(x19, src_base + 15);
+  __ Mov(x20, dst_base + 19);
+  __ Ldapur(w0, MemOperand(x17, -1));
+  __ Stlur(w0, MemOperand(x28, -1));
+  __ Ldapur(w2, MemOperand(x17, 3));
+  __ Stlur(w2, MemOperand(x28, 3));
+  __ Ldapur(x1, MemOperand(x17, 7));
+  __ Stlur(x1, MemOperand(x28, 7));
+  __ Ldapurb(w3, MemOperand(x19, -2));
+  __ Stlurb(w3, MemOperand(x20, -1));
+  __ Ldapursb(x4, MemOperand(x19, -15));
+  __ Ldapursh(x5, MemOperand(x19, -13));
+  __ Ldapursw(x6, MemOperand(x19, -3));
+  __ Ldapurh(w7, MemOperand(x19, -13));
+  __ Stlurh(w7, MemOperand(x20, -3));
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0x89ABCDEFUL, x0);
+    CHECK_EQUAL_64(0x01234567UL, x2);
+    CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[0]);
+    CHECK_EQUAL_64(0xFEDCBA9876543210UL, x1);
+    CHECK_EQUAL_64(0xFEDCBA9876543210UL, dst[1]);
+    CHECK_EQUAL_64(0x000000BAUL, x3);
+    CHECK_EQUAL_64(0xFFFFFFFFFFFFFFEFUL, x4);
+    CHECK_EQUAL_64(0xFFFFFFFFFFFF89ABUL, x5);
+    CHECK_EQUAL_64(0xFFFFFFFFFEDCBA98UL, x6);
+    CHECK_EQUAL_64(0x000089ABUL, x7);
+    CHECK_EQUAL_64(0x00BA89ABUL, dst[2]);
+    CHECK_EQUAL_64(src_base + 1, x17);
+    CHECK_EQUAL_64(dst_base + 1, x28);
+    CHECK_EQUAL_64(src_base + 15, x19);
+    CHECK_EQUAL_64(dst_base + 19, x20);
+  }
+}
+
 TEST_F(AssemblerArm64Test, ldr_pcrel_large_offset) {
   SETUP_SIZE(1 * MB);
 
