@@ -624,12 +624,11 @@ MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, DirectHandle<Map> map,
     return MaybeHandle<Map>();
   }
 
-  auto [representation, constness] =
-      Object::OptimalRepresentation(*constant, PropertyConstness::kConst);
+  Representation representation = Object::OptimalRepresentation(*constant);
   DirectHandle<FieldType> type =
       Object::OptimalType(*constant, isolate, representation);
-  return CopyWithField(isolate, map, name, type, attributes, constness,
-                       representation, flag);
+  return CopyWithField(isolate, map, name, type, attributes,
+                       PropertyConstness::kConst, representation, flag);
 }
 
 bool Map::InstancesNeedRewriting(Tagged<Map> target,
@@ -2048,9 +2047,7 @@ DirectHandle<Map> UpdateDescriptorForValue(Isolate* isolate,
 
   PropertyAttributes attributes =
       map->instance_descriptors()->GetDetails(descriptor).attributes();
-  Representation representation;
-  std::tie(representation, constness) =
-      Object::OptimalRepresentation(*value, constness);
+  Representation representation = Object::OptimalRepresentation(*value);
   DirectHandle<FieldType> type =
       Object::OptimalType(*value, isolate, representation);
 
@@ -2106,9 +2103,7 @@ DirectHandle<Map> Map::TransitionToDataProperty(
       isolate->bootstrapper()->IsActive() ? OMIT_TRANSITION : INSERT_TRANSITION;
   MaybeDirectHandle<Map> maybe_map;
   if (!map->TooManyFastProperties(store_origin)) {
-    Representation representation;
-    std::tie(representation, constness) =
-        Object::OptimalRepresentation(*value, constness);
+    Representation representation = Object::OptimalRepresentation(*value);
     DirectHandle<FieldType> type =
         Object::OptimalType(*value, isolate, representation);
     maybe_map = Map::CopyWithField(isolate, map, name, type, attributes,

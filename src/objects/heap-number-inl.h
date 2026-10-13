@@ -31,10 +31,6 @@ void HeapNumber::set_value_as_bits(uint64_t bits) {
   value_.set_value_as_bits(bits);
 }
 
-bool HeapNumber::is_the_hole() const {
-  return value_as_bits() == kHoleNanInt64;
-}
-
 UninitializedHeapNumber::UninitializedHeapNumber(
     const AllocationWitness& witness)
     : HeapObject(witness.roots().uninitialized_heap_number_map()),

@@ -393,7 +393,8 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
     // TODO(leszeks): We could instead sleep/yield and spin the load, since the
     // timing on this is tight enough that we wouldn't delay the compiler thread
     // by much.
-    if (IsUninitializedHole(constant.value())) {
+    if (IsUninitializedHole(constant.value()) ||
+        IsUninitializedHeapNumber(constant.value())) {
       TRACE_BROKER_MISSING(broker, "Read uninitialized property.");
       return {};
     }
@@ -2375,10 +2376,6 @@ std::optional<Float64> JSObjectRef::GetOwnFastConstantDoubleProperty(
   Float64 unboxed_value = Float64::FromBits(
       RacyReadHeapNumberBits(Cast<HeapNumber>(constant.value())));
 
-  // Const double fields should not contain values with the hole NaN pattern
-  // unless in-sandbox memory was corrupted.
-  DCHECK_IMPLIES(!v8_flags.expose_memory_corruption_api,
-                 !unboxed_value.is_hole_nan());
   dependencies->DependOnOwnConstantDoubleProperty(*this, map(broker), index,
                                                   unboxed_value);
   return unboxed_value;

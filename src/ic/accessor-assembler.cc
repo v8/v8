@@ -2580,6 +2580,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
             &do_store);
   {
     if (store_value_as_double) {
+      CSA_DCHECK(this, IsHeapNumber(property_storage));
       TNode<Float64T> current_value =
           LoadObjectField<Float64T>(property_storage, offset);
       GotoIfNotSameNumberBitPattern(current_value, *double_value, miss);
