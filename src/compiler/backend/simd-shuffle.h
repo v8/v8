@@ -334,6 +334,10 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   static CanonicalShuffle TryMatchCanonical(
       const ShuffleArray<kSimd128QuarterSize>& shuffle);
 
+  // Matches a CanonicalShuffle to a byte mask
+  static std::optional<ShuffleArray<kSimd128Size>> TryGetCanonicalMask(
+      const CanonicalShuffle canonical);
+
 #ifdef V8_TARGET_ARCH_X64
   // If matching success, the corresponding instrution should be:
   // vpshufd ymm, ymm, imm8
