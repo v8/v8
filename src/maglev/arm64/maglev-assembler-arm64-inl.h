@@ -103,10 +103,18 @@ inline MapCompare::MapCompare(MaglevAssembler* masm, Register object,
 
 void MapCompare::Generate(Handle<Map> map, Condition cond, Label* if_true,
                           Label::Distance distance) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm_);
-  Register temp = temps.AcquireScratch();
-  masm_->Move(temp, map);
-  masm_->CmpTagged(map_, temp);
+  // A root map is compared through its root index, which under static roots
+  // makes a read-only map's compressed pointer an immediate, as
+  // CompareMapWithRoot does. Any other map is loaded from the constant pool.
+  RootIndex root_index;
+  if (masm_->isolate()->roots_table().IsRootHandle(map, &root_index)) {
+    masm_->CompareTaggedRoot(map_, root_index);
+  } else {
+    MaglevAssembler::TemporaryRegisterScope temps(masm_);
+    Register temp = temps.AcquireScratch();
+    masm_->Move(temp, map);
+    masm_->CmpTagged(map_, temp);
+  }
   masm_->JumpIf(cond, if_true, distance);
 }
 
@@ -1534,9 +1542,18 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1,
                                                     Condition cond,
                                                     Label* target,
                                                     Label::Distance distance) {
-  CmpTagged(r1, Operand(obj, COMPRESS_POINTERS_BOOL
-                                 ? RelocInfo::COMPRESSED_EMBEDDED_OBJECT
-                                 : RelocInfo::FULL_EMBEDDED_OBJECT));
+  // A root is compared through its root index: under static roots a read-only
+  // root's compressed pointer is an immediate, or a mov away when it does not
+  // encode, in place of a constant-pool load and a relocation for a value that
+  // never changes. Any other object is loaded from the constant pool.
+  RootIndex root_index;
+  if (isolate()->roots_table().IsRootHandle(obj, &root_index)) {
+    CompareTaggedRoot(r1, root_index);
+  } else {
+    CmpTagged(r1, Operand(obj, COMPRESS_POINTERS_BOOL
+                                   ? RelocInfo::COMPRESSED_EMBEDDED_OBJECT
+                                   : RelocInfo::FULL_EMBEDDED_OBJECT));
+  }
   JumpIf(cond, target, distance);
 }
 
