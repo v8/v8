@@ -263,6 +263,10 @@ class DelayedTasksPlatform final : public Platform {
       return task_runner_->NonNestableTasksEnabled();
     }
 
+    bool NonNestableDelayedTasksEnabled() const final {
+      return task_runner_->NonNestableDelayedTasksEnabled();
+    }
+
    private:
     void PostTaskImpl(std::unique_ptr<Task> task,
                       const SourceLocation& location) final {
@@ -281,6 +285,14 @@ class DelayedTasksPlatform final : public Platform {
                              const SourceLocation& location) final {
       task_runner_->PostDelayedTask(platform_->MakeDelayedTask(std::move(task)),
                                     delay_in_seconds, location);
+    }
+
+    void PostNonNestableDelayedTaskImpl(std::unique_ptr<Task> task,
+                                        double delay_in_seconds,
+                                        const SourceLocation& location) final {
+      task_runner_->PostNonNestableDelayedTask(
+          platform_->MakeDelayedTask(std::move(task)), delay_in_seconds,
+          location);
     }
 
     void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
