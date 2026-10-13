@@ -1162,6 +1162,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     // Load frame size from the BytecodeArray object.
     __ movl(rcx, FieldOperand(kInterpreterBytecodeArrayRegister,
                               offsetof(BytecodeArray, frame_size_)));
+    if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // Round up the frame size to a multiple of 2 * kSystemPointerSize.
+      __ addl(rcx, Immediate(kSystemPointerSize));
+      __ andl(rcx, Immediate(~(2 * kSystemPointerSize - 1)));
+    }
+
     __ movzxwl(r11, FieldOperand(kInterpreterBytecodeArrayRegister,
                                  offsetof(BytecodeArray, max_arguments_)));
     __ leaq(r11, Operand(rcx, r11, times_system_pointer_size, 0));
@@ -2097,7 +2103,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), rax.code());
   __ movq(rax, Operand(rsp, kPCOnStackSize));
-  __ ret(1 * kSystemPointerSize);  // Remove rax.
+  __ ret(AddArgumentPaddingSlots(1) *
+         kSystemPointerSize);  // Remove rax and padding.
 }
 
 static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
@@ -5724,6 +5731,9 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   // Get bytecode array from the stack frame.
   __ movq(kInterpreterBytecodeArrayRegister,
           MemOperand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    __ pushq(kInterpreterAccumulatorRegister);
+  }
   __ pushq(kInterpreterAccumulatorRegister);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -5736,6 +5746,9 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   __ LoadCodeInstructionStart(code_obj, code_obj, kJSEntrypointTag);
   __ addq(code_obj, kReturnRegister0);
   __ popq(kInterpreterAccumulatorRegister);
+  if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    __ popq(kInterpreterAccumulatorRegister);
+  }
 
   Generate_OSREntry(masm, code_obj);
   __ Trap();  // Unreachable.
