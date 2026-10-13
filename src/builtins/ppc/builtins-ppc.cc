@@ -1694,8 +1694,8 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   GenerateInterpreterPushArgs(masm, argc_without_receiver, r7, r8);
 
   // Push a slot for the receiver to be constructed.
-  __ li(r0, Operand::Zero());
-  __ push(r0);
+  __ li(scratch, Operand::Zero());
+  __ push(scratch);
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // Pass the spread in the register r2.
