@@ -452,11 +452,11 @@ MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
                                              ONLY_ENUMERABLE);
   }
 
-  if (v8_flags.trace_for_in_enumerate) {
-    PrintF(
-        "| strings=%d symbols=0 elements=%u || prototypes>=1 ||\n",
-        keys->ulength().value(),
-        result.ToHandleChecked()->ulength().value() - keys->ulength().value());
+  Handle<FixedArray> result_array;
+  if (v8_flags.trace_for_in_enumerate && result.ToHandle(&result_array)) {
+    PrintF("| strings=%d symbols=0 elements=%u || prototypes>=1 ||\n",
+           keys->ulength().value(),
+           result_array->ulength().value() - keys->ulength().value());
   }
   return result;
 }
