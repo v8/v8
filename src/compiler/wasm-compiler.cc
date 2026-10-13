@@ -280,22 +280,21 @@ class WasmWrapperGraphBuilder {
     return call;
   }
 
-  Node* BuildWasmCall(const wasm::CanonicalSig* sig, base::Vector<Node*> args,
-                      base::Vector<Node*> rets, Node* implicit_first_arg,
-                      bool indirect, Node* frame_state) {
-    WasmCallKind call_kind = indirect ? kWasmIndirectFunction : kWasmFunction;
-    CallDescriptor* call_descriptor = GetWasmCallDescriptor(
-        mcgraph_->zone(), sig, call_kind, frame_state != nullptr);
+  void BuildWasmCall(base::Vector<Node*> args, base::Vector<Node*> rets,
+                     Node* implicit_first_arg, Node* frame_state) {
+    CallDescriptor* call_descriptor =
+        GetWasmCallDescriptor(mcgraph_->zone(), wrapper_sig_,
+                              kWasmIndirectFunction, frame_state != nullptr);
     const Operator* op = mcgraph_->common()->Call(call_descriptor);
-    Node* call = BuildCallNode(sig->parameter_count(), args, implicit_first_arg,
-                               op, frame_state);
+    Node* call = BuildCallNode(wrapper_sig_->parameter_count(), args,
+                               implicit_first_arg, op, frame_state);
     // TODO(manoskouk): These assume the call has control and effect outputs.
     DCHECK_GT(op->ControlOutputCount(), 0);
     DCHECK_GT(op->EffectOutputCount(), 0);
     SetEffectControl(call);
 
-    size_t ret_count = sig->return_count();
-    if (ret_count == 0) return call;  // No return value.
+    size_t ret_count = wrapper_sig_->return_count();
+    if (ret_count == 0) return;  // No return value.
 
     DCHECK_EQ(ret_count, rets.size());
     if (ret_count == 1) {
@@ -308,7 +307,6 @@ class WasmWrapperGraphBuilder {
                                    graph()->start());
       }
     }
-    return call;
   }
 
   // Only call this function for code which is not reused across instantiations,
@@ -392,8 +390,8 @@ class WasmWrapperGraphBuilder {
     Node* implicit_arg = gasm_.LoadImmutableProtectedPointerFromObject(
         internal, offsetof(WasmInternalFunction, protected_implicit_arg_) -
                       kHeapObjectTag);
-    BuildWasmCall(wrapper_sig_, base::VectorOf(args), base::VectorOf(rets),
-                  implicit_arg, true, frame_state);
+    BuildWasmCall(base::VectorOf(args), base::VectorOf(rets), implicit_arg,
+                  frame_state);
 
     Node* jsval;
     if (wrapper_sig_->return_count() == 0) {
