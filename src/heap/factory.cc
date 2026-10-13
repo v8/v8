@@ -1068,6 +1068,9 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf16(
   static_assert(WasmArray::MaxLength(sizeof(uint16_t)) <= kMaxInt);
 
   uint32_t length = end - start;
+  if (length > String::kMaxLength) {
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
+  }
   base::UniqueArray<uint16_t> private_copy;
   if (config.source_shared()) {
     private_copy = CopyCodeUnits(
