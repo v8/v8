@@ -21623,13 +21623,6 @@ CodeStubAssembler::SwissNameDictionaryOffsetIntoPropertyDetailsTableMT(
   TNode<IntPtrT> property_details_table_start =
       IntPtrAdd(data_table_start, data_and_ctrl_table_size);
 
-  CSA_DCHECK(
-      this,
-      WordEqual(FieldSliceSwissNameDictionaryPropertyDetailsTable(dict).offset,
-                // Our calculation subtracted the tag, Torque's offset didn't.
-                IntPtrAdd(property_details_table_start,
-                          IntPtrConstant(kHeapObjectTag))));
-
   TNode<IntPtrT> offset_within_details_table = index;
   return IntPtrAdd(property_details_table_start, offset_within_details_table);
 }
@@ -21733,10 +21726,6 @@ void CodeStubAssembler::SwissNameDictionarySetCtrl(
 
   TNode<IntPtrT> one = IntPtrConstant(1);
   TNode<IntPtrT> offset = SwissNameDictionaryCtrlTableStartOffsetMT(capacity);
-
-  CSA_DCHECK(this,
-             WordEqual(FieldSliceSwissNameDictionaryCtrlTable(table).offset,
-                       IntPtrAdd(offset, one)));
 
   TNode<IntPtrT> offset_entry = IntPtrAdd(offset, entry);
   StoreToObject(MachineRepresentation::kWord8, table, offset_entry, ctrl,

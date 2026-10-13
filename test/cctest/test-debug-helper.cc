@@ -590,7 +590,9 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
       d::GetObjectProperties(set->ptr(), &ReadMemory, heap_addresses);
   CHECK_EQ(props->type_check_result, d::TypeCheckResult::kUsedMap);
   CHECK_EQ(props->type, std::string("v8::internal::SmallOrderedHashSet"));
-  CHECK_EQ(props->num_properties, 8);
+  // The variable-length tail (data, hash and chain tables) is not visible to
+  // Torque and thus not reported by the debug helper.
+  CHECK_EQ(props->num_properties, 5);
 
   CheckProp(*props->properties[0],
             "v8::internal::TaggedMember<v8::internal::Map>", "map");
@@ -604,15 +606,6 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
   CheckProp(*props->properties[4], "uint8_t", "padding",
             d::PropertyKind::kArrayOfKnownSize, 1);
 #endif
-  CheckProp(*props->properties[5],
-            "v8::internal::TaggedMember<v8::internal::Object>", "data_table",
-            d::PropertyKind::kArrayOfKnownSize,
-            number_of_buckets * OrderedHashMap::kLoadFactor);
-  CheckProp(*props->properties[6], "uint8_t", "hash_table",
-            d::PropertyKind::kArrayOfKnownSize, number_of_buckets);
-  CheckProp(*props->properties[7], "uint8_t", "chain_table",
-            d::PropertyKind::kArrayOfKnownSize,
-            number_of_buckets * OrderedHashMap::kLoadFactor);
 }
 
 }  // namespace internal

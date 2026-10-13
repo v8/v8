@@ -716,13 +716,11 @@ V8_OBJECT class SmallOrderedHashSet
 #else
   uint8_t padding_[1];
 #endif
-  // Torque splits the flexible tail into indexed sections.
-  V8_TQ_TAIL_SECTIONS(data_table[Convert<intptr>(number_of_buckets) *
-                                 kSmallOrderedHashTableLoadFactor] : JSAny |
-                          TheHole;
-                      hash_table[number_of_buckets] : uint8;
-                      chain_table[Convert<intptr>(number_of_buckets) *
-                                  kSmallOrderedHashTableLoadFactor] : uint8;);
+  // The tail holds the data table (capacity entries), the uint8 hash table
+  // (number_of_buckets) and the uint8 chain table (capacity); see
+  // DataTableStartOffset(), GetBucketsStartOffset() and
+  // GetChainTableOffset(). Torque never accesses it.
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
 } V8_OBJECT_END;
 
@@ -766,13 +764,11 @@ V8_OBJECT class SmallOrderedHashMap
 #else
   uint8_t padding_[1];
 #endif
-  // Torque splits the flexible tail into indexed sections.
-  V8_TQ_TAIL_SECTIONS(
-      data_table[Convert<intptr>(number_of_buckets) *
-                 kSmallOrderedHashTableLoadFactor] : HashMapEntry;
-      hash_table[number_of_buckets] : uint8;
-      chain_table[Convert<intptr>(number_of_buckets) *
-                  kSmallOrderedHashTableLoadFactor] : uint8;);
+  // The tail holds the data table (capacity entries), the uint8 hash table
+  // (number_of_buckets) and the uint8 chain table (capacity); see
+  // DataTableStartOffset(), GetBucketsStartOffset() and
+  // GetChainTableOffset(). Torque never accesses it.
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
 } V8_OBJECT_END;
 
@@ -1017,12 +1013,11 @@ V8_OBJECT class SmallOrderedNameDictionary
 #else
   uint8_t padding_1_[1];
 #endif
-  // Torque splits the flexible tail into indexed sections.
-  V8_TQ_TAIL_SECTIONS(
-      data_table[Convert<intptr>(number_of_buckets) *
-                 kSmallOrderedHashTableLoadFactor] : NameDictionaryEntry;
-      hash_table[number_of_buckets] : uint8;
-      chain_table[number_of_buckets] : uint8;);
+  // The tail holds the data table (capacity entries of key, value, details),
+  // the uint8 hash table (number_of_buckets) and the uint8 chain table
+  // (capacity); see DataTableStartOffset(), GetBucketsStartOffset() and
+  // GetChainTableOffset(). Torque never accesses it.
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
 } V8_OBJECT_END;
 

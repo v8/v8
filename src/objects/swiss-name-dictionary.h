@@ -367,12 +367,9 @@ V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   // The data_table is followed by ctrl_table and property_details_table.
   // Their start offsets are computed by CtrlTableStartOffset(capacity) /
   // PropertyDetailsTableStartOffset(capacity) since FLEXIBLE_ARRAY_MEMBER
-  // can only model a single trailing variable-length section.
-  // Torque splits the flexible tail into indexed sections.
-  V8_TQ_TAIL_SECTIONS(
-      data_table[Convert<intptr>(capacity) * 2] : JSAny | TheHole;
-      ctrl_table[Convert<intptr>(capacity) + swiss_table::kGroupWidth] : uint8;
-      property_details_table[Convert<intptr>(capacity)] : uint8;);
+  // can only model a single trailing variable-length section. Torque (and
+  // CSA) only ever reach the tail through these C++ offset helpers.
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
 } V8_OBJECT_END;
 
