@@ -277,6 +277,27 @@ void ProcessPerFunctionCompileHints(const base::Vector<const uint8_t>& data,
 
 }  // namespace
 
+template <typename CharCallback>
+Scanner::Location Scanner::ScanMagicCommentValue(CharCallback on_char) {
+  DCHECK_EQ(c0_, '=');
+  Advance();
+  while (IsWhiteSpace(c0_)) {
+    Advance();
+  }
+  int value_beg_pos = source_pos();
+  while (c0_ != kEndOfInput && !IsWhiteSpaceOrLineTerminator(c0_)) {
+    on_char(c0_);
+    Advance();
+  }
+  Location value_location(value_beg_pos, source_pos());
+  // Allow whitespace at the end.
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
+    if (!IsWhiteSpace(c0_)) return Location::invalid();
+    Advance();
+  }
+  return value_location;
+}
+
 void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
@@ -297,7 +318,6 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   // they can be created as substrings of the source instead of being copied.
   Location* value_location = nullptr;
   bool is_compile_hints = false;
-  LiteralBuffer per_function_compile_hints_value;
   if (name_literal == base::StaticOneByteVector("sourceURL")) {
     value_location = &debug_magic_comment_locations_.source_url;
   } else if (name_literal == base::StaticOneByteVector("sourceMappingURL")) {
@@ -322,38 +342,23 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   if (c0_ != '=') {
     return;
   }
-  if (is_compile_hints) per_function_compile_hints_value.Start();
-  Advance();
-  while (IsWhiteSpace(c0_)) {
-    Advance();
+  if (!is_compile_hints) {
+    DCHECK_NOT_NULL(value_location);
+    *value_location = ScanMagicCommentValue([](base::uc32) {});
+    return;
   }
-  int value_beg_pos = source_pos();
-  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    if (IsWhiteSpace(c0_)) {
-      break;
-    }
-    if (is_compile_hints) per_function_compile_hints_value.AddChar(c0_);
-    Advance();
-  }
-  Location value_location_in_source(value_beg_pos, source_pos());
-  // Allow whitespace at the end.
-  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    if (!IsWhiteSpace(c0_)) {
-      if (is_compile_hints) per_function_compile_hints_value.Start();
-      value_location_in_source = Location::invalid();
-      break;
-    }
-    Advance();
-  }
-  if (value_location != nullptr) *value_location = value_location_in_source;
-  if (is_compile_hints && per_function_compile_hints_value.is_one_byte()) {
-    base::Vector<const uint8_t> value_literal =
-        per_function_compile_hints_value.one_byte_literal();
-    per_function_compile_hint_positions_.clear();
-    per_function_compile_hint_positions_idx_ = 0;
-    ProcessPerFunctionCompileHints(value_literal, source_pos(),
-                                   per_function_compile_hint_positions_);
-  }
+  LiteralBuffer value;
+  value.Start();
+  Location value_location_in_source =
+      ScanMagicCommentValue([&value](base::uc32 c) { value.AddChar(c); });
+  // A value followed by trailing garbage is treated as empty, which clears
+  // the previously recorded compile hints.
+  if (!value_location_in_source.IsValid()) value.Start();
+  if (!value.is_one_byte()) return;
+  per_function_compile_hint_positions_.clear();
+  per_function_compile_hint_positions_idx_ = 0;
+  ProcessPerFunctionCompileHints(value.one_byte_literal(), source_pos(),
+                                 per_function_compile_hint_positions_);
 }
 
 bool Scanner::HasPerFunctionCompileHint(int position) {
