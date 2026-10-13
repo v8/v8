@@ -2975,7 +2975,7 @@ std::unique_ptr<char[]> WasmExportedFunction::GetDebugName(
   size_t len = strlen(kPrefix) + sig->all().size() + 2;
   auto buffer = base::UniqueArray<char>::New(len);
   memcpy(buffer.begin(), kPrefix, strlen(kPrefix));
-  PrintSignature(buffer.as_vector() + strlen(kPrefix), sig);
+  PrintSignature(buffer.subspan(strlen(kPrefix)), sig);
   return buffer.ReleaseData();
 }
 

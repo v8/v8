@@ -241,7 +241,7 @@ SourcePositionTableBuilder::ToSourcePositionTableVector() {
   // Brute force testing: Record all positions and decode
   // the entire table to verify they are identical.
   SourcePositionTableIterator it(
-      table.as_vector(), SourcePositionTableIterator::kAll,
+      table.as_span(), SourcePositionTableIterator::kAll,
       SourcePositionTableIterator::kDontSkipFunctionEntry);
   CheckTableEquals(raw_entries_, &it);
   // No additional source positions after creating the table.

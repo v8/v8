@@ -280,9 +280,8 @@ class DebugInfoImpl {
     for (auto begin = cached_debugging_code_.begin(), it = begin,
               end = cached_debugging_code_.end();
          it != end; ++it) {
-      if (it->func_index == func_index &&
-          it->breakpoint_offsets.as_vector() == offsets &&
-          it->dead_breakpoints.as_vector() == dead_breakpoints) {
+      if (it->func_index == func_index && it->breakpoint_offsets == offsets &&
+          it->dead_breakpoints == dead_breakpoints) {
         // Rotate the cache entry to the front (for LRU).
         for (; it != begin; --it) std::iter_swap(it, it - 1);
         if (for_debugging == kWithBreakpoints) {

@@ -57,7 +57,7 @@ class StreamingDecoder::SectionBuffer : public WireBytesStorage {
   std::optional<ModuleWireBytes> GetModuleBytes() const final { return {}; }
 
   uint32_t module_offset() const { return module_offset_; }
-  base::Vector<uint8_t> bytes() const { return bytes_.as_vector(); }
+  base::Vector<uint8_t> bytes() const { return bytes_.as_span(); }
   base::Vector<uint8_t> payload() const { return bytes() + payload_offset_; }
   size_t length() const { return bytes_.size(); }
   size_t payload_offset() const { return payload_offset_; }

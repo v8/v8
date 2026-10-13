@@ -3587,8 +3587,8 @@ void Shell::WasmDeserializeModule(
   {
     size_t hash = base::Hasher{}
                       .Add(wire_bytes_vec.size())
-                      .AddRange(wire_bytes_vec.as_vector())
-                      .AddRange(serialized_bytes_vec.as_vector())
+                      .AddRange(wire_bytes_vec.as_span())
+                      .AddRange(serialized_bytes_vec.as_span())
                       .hash();
     base::MutexGuard mutex_guard(Shell::wasm_serialized_bytes_mutex_.Pointer());
     if (!Shell::wasm_serialized_bytes_hashes_.count(hash)) {
@@ -3615,7 +3615,7 @@ void Shell::WasmDeserializeModule(
     // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
     // JSArrayBuffer backing store doesn't get relocated.
     if (!i::wasm::DeserializeNativeModule(
-             i_isolate, enabled_features, serialized_bytes_vec.as_vector(),
+             i_isolate, enabled_features, serialized_bytes_vec.as_span(),
              wire_bytes_vec, compile_time_imports, {})
              .ToHandle(&module_object)) {
       // Deserialization failed, probably because of mismatched compile time
@@ -8555,7 +8555,7 @@ int Shell::Main(int argc, char* argv[]) {
             base::OS::ExitProcess(1);
           }
           trace_config = tracing::CreateTraceConfigFromJSON(
-              isolate, trace_config_json_str->as_vector());
+              isolate, trace_config_json_str->as_span());
         } else {
           trace_config =
               platform::tracing::TraceConfig::CreateDefaultTraceConfig();

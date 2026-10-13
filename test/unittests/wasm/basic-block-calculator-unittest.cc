@@ -24,11 +24,11 @@ class TestWireBytesStorage final : public WireBytesStorage {
       : wire_bytes_(base::UniqueCopyOf(wire_bytes)) {}
 
   base::Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
-    return wire_bytes_.as_vector().SubVector(ref.offset(), ref.end_offset());
+    return wire_bytes_.subspan(ref.offset(), ref.length());
   }
 
   std::optional<ModuleWireBytes> GetModuleBytes() const final {
-    return std::optional<ModuleWireBytes>(wire_bytes_.as_vector());
+    return std::optional<ModuleWireBytes>(wire_bytes_.as_span());
   }
 
  private:
@@ -46,7 +46,7 @@ class WasmBasicBlockCalculatorTest : public TestWithIsolateAndZone {
       base::UniqueArray<const uint8_t>& module_bytes,
       WasmDetectedFeatures* detected_features) {
     ModuleResult result =
-        DecodeWasmModule(WasmEnabledFeatures::All(), module_bytes.as_vector(),
+        DecodeWasmModule(WasmEnabledFeatures::All(), module_bytes.as_span(),
                          false, detected_features);
     CHECK(result.ok());
 

@@ -16,7 +16,6 @@
 #include "include/v8config.h"
 #include "src/base/algorithm.h"
 #include "src/base/logging.h"
-#include "src/base/vector.h"
 
 namespace v8::base {
 
@@ -70,19 +69,19 @@ class UniqueArray final {
   UniqueArray& operator=(const UniqueArray&) = delete;
 
   // Move construction and move assignment from `UniqueArray<U>` to
-  // `UniqueArray<T>`, instantiable if `std::unique_ptr<U>` can be converted to
-  // `std::unique_ptr<T>`. Can also be used to convert `UniqueArray<T>` to
+  // `UniqueArray<T>`, instantiable if `std::unique_ptr<U[]>` can be converted
+  // to `std::unique_ptr<T[]>`. Can also be used to convert `UniqueArray<T>` to
   // `UniqueArray<const T>`.
   // These also function as the standard move construction/assignment operator.
   // `other` is left as an empty array.
   template <typename U>
-    requires std::is_convertible_v<std::unique_ptr<U>, std::unique_ptr<T>>
+    requires std::is_convertible_v<std::unique_ptr<U[]>, std::unique_ptr<T[]>>
   UniqueArray(UniqueArray<U>&& other) V8_NOEXCEPT {
     *this = std::move(other);
   }
 
   template <typename U>
-    requires std::is_convertible_v<std::unique_ptr<U>, std::unique_ptr<T>>
+    requires std::is_convertible_v<std::unique_ptr<U[]>, std::unique_ptr<T[]>>
   UniqueArray& operator=(UniqueArray<U>&& other) V8_NOEXCEPT {
     static_assert(sizeof(U) == sizeof(T));
     data_ = std::move(other.data_);
@@ -122,11 +121,18 @@ class UniqueArray final {
     return data_[index];
   }
 
-  // Returns a `Vector<T>` view of the data in this array.
-  Vector<T> as_vector() const V8_LIFETIME_BOUND { return {begin(), size()}; }
-
   // Returns a `std::span<T>` view of the data in this array.
   std::span<T> as_span() const V8_LIFETIME_BOUND { return {begin(), size()}; }
+  std::span<T> first(size_t count) const V8_LIFETIME_BOUND {
+    return as_span().first(count);
+  }
+  std::span<T> last(size_t count) const V8_LIFETIME_BOUND {
+    return as_span().last(count);
+  }
+  std::span<T> subspan(size_t offset, size_t count = std::dynamic_extent) const
+      V8_LIFETIME_BOUND {
+    return as_span().subspan(offset, count);
+  }
 
   // Releases the backing data from this array and transfers ownership to the
   // caller. This array will be empty afterwards.
@@ -149,6 +155,25 @@ class UniqueArray final {
   std::unique_ptr<T[]> data_;
   size_t length_ = 0;
 };
+
+template <typename T>
+constexpr bool operator==(const UniqueArray<T>& lhs,
+                          const UniqueArray<T>& rhs) {
+  return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+}
+
+template <typename T>
+  requires(!std::is_const_v<T>)
+constexpr bool operator==(const UniqueArray<T>& lhs,
+                          const UniqueArray<const T>& rhs) {
+  return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+}
+
+template <typename T>
+constexpr bool operator==(const UniqueArray<T>& lhs,
+                          std::span<const std::remove_const_t<T>> rhs) {
+  return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+}
 
 // Construct a UniqueArray from a start pointer and a size.
 // The data will be copied.

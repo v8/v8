@@ -85,9 +85,8 @@ class MemoryProtectionTest : public TestWithNativeContext {
     base::UniqueArray<const uint8_t> bytes = base::UniqueCopyOf(module_bytes);
 
     WasmDetectedFeatures detected_features;
-    ModuleResult result =
-        DecodeWasmModule(WasmEnabledFeatures::All(), bytes.as_vector(), false,
-                         &detected_features);
+    ModuleResult result = DecodeWasmModule(
+        WasmEnabledFeatures::All(), bytes.as_span(), false, &detected_features);
     CHECK(result.ok());
 
     ErrorThrower thrower(isolate(), "");

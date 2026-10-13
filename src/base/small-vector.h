@@ -7,13 +7,13 @@
 
 #include <algorithm>
 #include <bit>
+#include <span>
 #include <type_traits>
 #include <utility>
 
 #include "include/v8config.h"
 #include "src/base/macros.h"
 #include "src/base/memcopy.h"
-#include "src/base/vector.h"
 
 namespace v8 {
 namespace base {
@@ -78,7 +78,7 @@ class SmallVector {
     std::uninitialized_move(init.begin(), init.end(), begin_);
     end_ = begin_ + init.size();
   }
-  explicit V8_INLINE SmallVector(base::Vector<const T> init,
+  explicit V8_INLINE SmallVector(std::span<const T> init,
                                  const Allocator& allocator = Allocator())
       : allocator_(allocator) {
     if (init.size() > capacity()) Grow(init.size());

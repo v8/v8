@@ -539,7 +539,7 @@ void NativeModuleSerializer::WriteCode(
   // We always call Measure() before serializing the module, so the map should
   // already be filled.
   DCHECK_NE(it, translated_effect_handlers_.end());
-  base::Vector<const uint8_t> effect_handlers = it->second.as_vector();
+  base::Vector<const uint8_t> effect_handlers = it->second.as_span();
   writer->Write(static_cast<uint32_t>(effect_handlers.size()));
   writer->Write(code->kind());
   writer->Write(code->tier());
@@ -1050,7 +1050,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
       tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
       constant_pool_offset, code_comment_offset, jump_table_info_offset,
       unpadded_binary_size, trapping_instructions, reloc_info, source_pos,
-      inlining_pos, deopt_data, kind, tier, effect_handlers.as_vector());
+      inlining_pos, deopt_data, kind, tier, effect_handlers.as_span());
   unit.jump_tables = current_jump_tables_;
   return unit;
 }
@@ -1208,7 +1208,7 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
 
   WasmDetectedFeatures detected_features;
   ModuleResult decode_result =
-      DecodeWasmModule(isolate, enabled_features, wire_bytes_vec.as_vector(),
+      DecodeWasmModule(isolate, enabled_features, wire_bytes_vec.as_span(),
                        false, DecodingMethod::kDeserialize, &detected_features);
   // The wire bytes were previously considered valid for the same enabled
   // features (checked above).
@@ -1218,7 +1218,7 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
 
   WasmEngine* wasm_engine = GetWasmEngine();
   std::shared_ptr<NativeModule> shared_native_module =
-      wasm_engine->MaybeGetNativeModule(wire_bytes_vec.as_vector(),
+      wasm_engine->MaybeGetNativeModule(wire_bytes_vec.as_span(),
                                         enabled_features, compile_imports);
   if (shared_native_module) {
     // For consistency, take ownership of the passed `wire_bytes_vec` also when

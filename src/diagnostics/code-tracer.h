@@ -29,7 +29,7 @@ class CodeTracer final : public Malloced {
 
     if (v8_flags.redirect_code_traces_to != nullptr) {
       base::StrNCpy(filename_, v8_flags.redirect_code_traces_to,
-                    filename_.size());
+                    base::checked_cast<uint32_t>(filename_.size()));
     } else if (isolate_id >= 0) {
       base::SNPrintF(filename_, "code-%d-%d.asm",
                      base::OS::GetCurrentProcessId(), isolate_id);

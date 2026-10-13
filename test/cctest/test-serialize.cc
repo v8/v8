@@ -119,9 +119,9 @@ class TestSerializer {
   }
 
   static v8::Isolate* NewIsolateFromBlob(const StartupBlobs& blobs) {
-    SnapshotData startup_snapshot(blobs.startup.as_vector());
-    SnapshotData read_only_snapshot(blobs.read_only.as_vector());
-    SnapshotData shared_space_snapshot(blobs.shared_space.as_vector());
+    SnapshotData startup_snapshot(blobs.startup.as_span());
+    SnapshotData read_only_snapshot(blobs.read_only.as_span());
+    SnapshotData shared_space_snapshot(blobs.shared_space.as_span());
     const bool kEnableSerializer = false;
     v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer);
     v8::Isolate::Scope isolate_scope(v8_isolate);
@@ -459,12 +459,12 @@ UNINITIALIZED_TEST(SnapshotCompression) {
   base::UniqueArray<const uint8_t> context_blob;
   SerializeContext(&startup_blob, &read_only_blob, &shared_space_blob,
                    &context_blob);
-  SnapshotData original_snapshot_data(context_blob.as_vector());
+  SnapshotData original_snapshot_data(context_blob.as_span());
   SnapshotData compressed =
       i::SnapshotCompression::Compress(&original_snapshot_data);
   SnapshotData decompressed =
       i::SnapshotCompression::Decompress(compressed.RawData());
-  CHECK_EQ(context_blob.as_vector(), decompressed.RawData());
+  CHECK_EQ(context_blob, decompressed.RawData());
 }
 #endif  // SNAPSHOT_COMPRESSION
 
@@ -490,7 +490,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
         isolate->factory()->NewUninitializedJSGlobalProxy(
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
-      SnapshotData snapshot_data(context_blob.as_vector());
+      SnapshotData snapshot_data(context_blob.as_span());
       root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, 0, false, global_proxy,
                  DeserializeEmbedderFieldsCallback(
@@ -502,7 +502,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
 
     DirectHandle<Object> root2;
     {
-      SnapshotData snapshot_data(context_blob.as_vector());
+      SnapshotData snapshot_data(context_blob.as_span());
       root2 = ContextDeserializer::DeserializeContext(
                   isolate, &snapshot_data, 0, false, global_proxy,
                   DeserializeEmbedderFieldsCallback(
@@ -669,7 +669,7 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
         isolate->factory()->NewUninitializedJSGlobalProxy(
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
-      SnapshotData snapshot_data(context_blob.as_vector());
+      SnapshotData snapshot_data(context_blob.as_span());
       root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, 0, false, global_proxy,
                  DeserializeEmbedderFieldsCallback(
@@ -2499,9 +2499,8 @@ TEST(CodeSerializerLargeCodeObject) {
       base::StaticCharVector(
           "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);"),
       base::StaticCharVector("} j=7; j"), 2000);
-  Handle<String> source_str = isolate->factory()
-                                  ->NewStringFromUtf8(source.as_vector())
-                                  .ToHandleChecked();
+  Handle<String> source_str =
+      isolate->factory()->NewStringFromUtf8(source.as_span()).ToHandleChecked();
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
@@ -2561,9 +2560,8 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
       base::StaticCharVector("var j=1; if (j == 0) {"),
       base::StaticCharVector("for (var i = 0; i < Object.prototype; i++);"),
       base::StaticCharVector("} j=7; var s = 'happy_hippo'; j"), 20000);
-  Handle<String> source_str = isolate->factory()
-                                  ->NewStringFromUtf8(source.as_vector())
-                                  .ToHandleChecked();
+  Handle<String> source_str =
+      isolate->factory()->NewStringFromUtf8(source.as_span()).ToHandleChecked();
 
   // Create a string on an evacuation candidate in old space.
   DirectHandle<String> moving_object;
@@ -2642,8 +2640,8 @@ TEST(CodeSerializerLargeStrings) {
       base::StaticCharVector("\"; s + t"), 999999);
   Handle<String> source_str =
       f->NewConsString(
-           f->NewStringFromUtf8(source_s.as_vector()).ToHandleChecked(),
-           f->NewStringFromUtf8(source_t.as_vector()).ToHandleChecked())
+           f->NewStringFromUtf8(source_s.as_span()).ToHandleChecked(),
+           f->NewStringFromUtf8(source_t.as_span()).ToHandleChecked())
           .ToHandleChecked();
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -2705,19 +2703,19 @@ TEST(CodeSerializerThreeBigStrings) {
       base::StaticCharVector("var a = \""), base::StaticCharVector("a"),
       base::StaticCharVector("\";"), length_of_a);
   Handle<String> source_a_str =
-      f->NewStringFromUtf8(source_a.as_vector()).ToHandleChecked();
+      f->NewStringFromUtf8(source_a.as_span()).ToHandleChecked();
 
   base::UniqueArray<const char> source_b = ConstructSource(
       base::StaticCharVector("var b = \""), base::StaticCharVector("b"),
       base::StaticCharVector("\";"), length_of_b);
   Handle<String> source_b_str =
-      f->NewStringFromUtf8(source_b.as_vector()).ToHandleChecked();
+      f->NewStringFromUtf8(source_b.as_span()).ToHandleChecked();
 
   base::UniqueArray<const char> source_c = ConstructSource(
       base::StaticCharVector("var c = \""), base::StaticCharVector("c"),
       base::StaticCharVector("\";"), length_of_c);
   Handle<String> source_c_str =
-      f->NewStringFromUtf8(source_c.as_vector()).ToHandleChecked();
+      f->NewStringFromUtf8(source_c.as_span()).ToHandleChecked();
 
   Handle<String> source_str =
       f->NewConsString(
@@ -2970,7 +2968,7 @@ TEST(CodeSerializerLargeExternalString) {
       base::StaticCharVector(""), base::StaticCharVector("abcdef"),
       base::StaticCharVector(""), 999999);
   Handle<String> name =
-      f->NewStringFromUtf8(string.as_vector()).ToHandleChecked();
+      f->NewStringFromUtf8(string.as_span()).ToHandleChecked();
   SerializerOneByteResource one_byte_resource(
       reinterpret_cast<const char*>(string.begin()), string.size());
   name = f->InternalizeString(name);
@@ -7302,7 +7300,7 @@ UNINITIALIZED_TEST(StaticRootsPredictableSnapshot) {
   // relative to the cage base are identical. However, we can't test this, since
   // when we create two isolates in the same process, the offsets will actually
   // be different.
-  CHECK_EQ(blobs1.read_only.as_vector(), blobs2.read_only.as_vector());
+  CHECK_EQ(blobs1.read_only, blobs2.read_only);
 
   FreeCurrentEmbeddedBlob();
 }

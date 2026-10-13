@@ -1114,7 +1114,7 @@ int OS::VSNPrintF(char* str, size_t length, const char* format, va_list args) {
 // POSIX string support.
 //
 
-void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
+void OS::StrNCpy(char* dest, size_t length, const char* src, size_t n) {
   strncpy(dest, src, n);
 }
 

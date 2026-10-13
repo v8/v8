@@ -943,8 +943,7 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   bool validated = i::wasm::GetWasmEngine()->SyncValidate(
-      i_isolate, enabled_features, std::move(compile_imports),
-      bytes.as_vector());
+      i_isolate, enabled_features, std::move(compile_imports), bytes.as_span());
 
   return_value.Set(validated);
 }

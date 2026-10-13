@@ -45,7 +45,7 @@ class SafepointEntry : public SafepointEntryBase {
   base::Vector<const uint8_t> tagged_slots() const {
     DCHECK(is_initialized());
     DCHECK_NOT_NULL(tagged_slots_.data());
-    return tagged_slots_.as_vector();
+    return tagged_slots_.as_span();
   }
 
   // For clearing cache entries.

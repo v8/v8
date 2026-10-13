@@ -155,8 +155,7 @@ void DeserializeTypeFeedback(Decoder& decoder, const WasmModule* module) {
       FunctionTypeFeedback& old_feedback = feedback_it->second;
       CHECK(old_feedback.feedback_vector.empty() ||
             old_feedback.feedback_vector.size() == feedback_vector_size);
-      CHECK_EQ(old_feedback.call_targets.as_vector(),
-               function_feedback.call_targets.as_vector());
+      CHECK_EQ(old_feedback.call_targets, function_feedback.call_targets);
       std::swap(old_feedback.feedback_vector,
                 function_feedback.feedback_vector);
     }
@@ -253,7 +252,7 @@ std::unique_ptr<ProfileInformation> LoadProfileFromFile(
 
   base::Fclose(file);
 
-  return RestoreProfileData(module, profile_data.as_vector());
+  return RestoreProfileData(module, profile_data.as_span());
 }
 
 }  // namespace v8::internal::wasm

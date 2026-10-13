@@ -52,8 +52,7 @@ class WasmUseCounterTest
       case kAsync:
         return WasmCompileHelper::AsyncCompile(isolate(), std::move(bytes));
       case kStreaming:
-        return WasmCompileHelper::StreamingCompile(isolate(),
-                                                   bytes.as_vector());
+        return WasmCompileHelper::StreamingCompile(isolate(), bytes.as_span());
     }
   }
 

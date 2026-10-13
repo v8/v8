@@ -40,7 +40,7 @@ const char* StringsStorage::GetCopy(const char* src) {
   if (entry->value == nullptr) {
     base::UniqueArray<char> dst =
         base::UniqueArray<char>::NewForOverwrite(len + 1);
-    base::StrNCpy(dst.as_vector(), src, len);
+    base::StrNCpy(dst.as_span(), src, len);
     dst[len] = '\0';
     entry->key = dst.ReleaseData().release();
     string_size_ += len;
@@ -82,7 +82,8 @@ const char* StringsStorage::GetCopy(const AstRawString* src) {
   if (entry->value == nullptr) {
     base::UniqueArray<char> dst =
         base::UniqueArray<char>::NewForOverwrite(bytes_written + 1);
-    base::StrNCpy(dst.as_vector(), utf8_buffer.data(), bytes_written);
+    base::StrNCpy(dst.as_span(), utf8_buffer.data(),
+                  base::checked_cast<uint32_t>(bytes_written));
     dst[bytes_written] = '\0';
     entry->key = dst.ReleaseData().release();
     string_size_ += bytes_written;

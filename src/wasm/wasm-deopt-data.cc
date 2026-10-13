@@ -52,7 +52,7 @@ base::UniqueArray<uint8_t> WasmDeoptDataProcessor::Serialize(
   size_t byte_size = sizeof(data) + translation_array_byte_size +
                      deopt_entries_byte_size + deopt_literals_byte_size;
   auto result = base::UniqueArray<uint8_t>::New(byte_size);
-  base::Vector<uint8_t> remaining_buffer = result.as_vector();
+  base::Vector<uint8_t> remaining_buffer = result.as_span();
   std::memcpy(remaining_buffer.begin(), &data, sizeof(data));
   remaining_buffer += sizeof(data);
   std::memcpy(remaining_buffer.begin(), translation_array.data(),

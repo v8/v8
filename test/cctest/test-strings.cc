@@ -1726,7 +1726,7 @@ TEST(InvalidExternalString) {
     HandleScope scope(isolate);                                         \
     auto dummy = v8::base::UniqueArray<TYPE>::NewForOverwrite(invalid); \
     memset(dummy.begin(), 0x0, dummy.size() * sizeof(TYPE));            \
-    CHECK(isolate->factory()->FUN(dummy.as_vector()).is_null());        \
+    CHECK(isolate->factory()->FUN(dummy.as_span()).is_null());          \
     memset(dummy.begin(), 0x20, dummy.size() * sizeof(TYPE));           \
     CHECK(isolate->has_exception());                                    \
     isolate->clear_exception();                                         \

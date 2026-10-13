@@ -9,7 +9,6 @@
 
 #include "src/base/base-export.h"
 #include "src/base/macros.h"
-#include "src/base/vector.h"
 
 namespace v8 {
 namespace base {
@@ -29,7 +28,7 @@ V8_BASE_EXPORT int PRINTF_FORMAT(2, 0)
 V8_BASE_EXPORT int PRINTF_FORMAT(2, 3)
     SNPrintF(std::span<char> str, const char* format, ...);
 
-V8_BASE_EXPORT void StrNCpy(base::Vector<char> dest, const char* src, size_t n);
+V8_BASE_EXPORT void StrNCpy(std::span<char> dest, const char* src, uint32_t n);
 
 // Returns the value (0 .. 15) of a hexadecimal character c.
 // If c is not a legal hexadecimal character, returns a value < 0.

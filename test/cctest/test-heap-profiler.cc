@@ -1368,11 +1368,11 @@ TEST(HeapSnapshotJSONSerialization) {
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
   auto json = v8::base::UniqueArray<char>::NewForOverwrite(stream.size());
-  stream.WriteTo(json.as_vector());
+  stream.WriteTo(json.as_span());
 
   // Verify that snapshot string is valid JSON.
   v8::internal::OneByteResource* json_res =
-      new v8::internal::OneByteResource(json.as_vector());
+      new v8::internal::OneByteResource(json.as_span());
   v8::Local<v8::String> json_string =
       v8::String::NewExternalOneByte(env.isolate(), json_res).ToLocalChecked();
   v8::Local<v8::Context> context = v8::Context::New(env.isolate());

@@ -36,7 +36,7 @@ class Collector {
 
   // Add a single element.
   inline void Add(T value) {
-    if (index_ >= current_chunk_.as_vector().length()) {
+    if (index_ >= static_cast<int>(current_chunk_.size())) {
       Grow(1);
     }
     current_chunk_[index_] = value;
@@ -50,7 +50,7 @@ class Collector {
   // is alive.
   inline base::Vector<T> AddBlock(int size, T initial_value) {
     DCHECK_GT(size, 0);
-    if (size > current_chunk_.as_vector().length() - index_) {
+    if (size > static_cast<int>(current_chunk_.size()) - index_) {
       Grow(size);
     }
     T* position = current_chunk_.begin() + index_;
@@ -67,7 +67,7 @@ class Collector {
   // A basic Collector will keep this vector valid as long as the Collector
   // is alive.
   inline base::Vector<T> AddBlock(base::Vector<const T> source) {
-    if (source.length() > current_chunk_.as_vector().length() - index_) {
+    if (source.length() > static_cast<int>(current_chunk_.size()) - index_) {
       Grow(source.length());
     }
     T* position = current_chunk_.begin() + index_;
@@ -100,7 +100,7 @@ class Collector {
   base::UniqueArray<T> ToVector() {
     base::UniqueArray<T> new_store =
         base::UniqueArray<T>::NewForOverwrite(size_);
-    WriteTo(new_store.as_vector());
+    WriteTo(new_store.as_span());
     return new_store;
   }
 
@@ -131,7 +131,7 @@ class Collector {
   void Grow(int min_capacity) {
     DCHECK_GT(growth_factor, 1);
     int new_capacity;
-    int current_length = current_chunk_.as_vector().length();
+    int current_length = static_cast<int>(current_chunk_.size());
     if (current_length < kMinCapacity) {
       // The collector started out as empty.
       new_capacity = min_capacity * growth_factor;
@@ -147,7 +147,7 @@ class Collector {
       }
     }
     NewChunk(new_capacity);
-    DCHECK(index_ + min_capacity <= current_chunk_.as_vector().length());
+    DCHECK(index_ + min_capacity <= static_cast<int>(current_chunk_.size()));
   }
 
   // Before replacing the current chunk, give a subclass the option to move
@@ -193,8 +193,8 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
     int sequence_start = sequence_start_;
     sequence_start_ = kNoSequence;
     if (sequence_start == this->index_) return base::Vector<T>();
-    return this->current_chunk_.as_vector().SubVector(sequence_start,
-                                                      this->index_);
+    return this->current_chunk_.subspan(sequence_start,
+                                        this->index_ - sequence_start);
   }
 
   // Drops the currently added sequence, and all collected elements in it.
@@ -225,7 +225,7 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
     int sequence_length = this->index_ - sequence_start_;
     base::UniqueArray<T> new_chunk =
         base::UniqueArray<T>::NewForOverwrite(sequence_length + new_capacity);
-    DCHECK(sequence_length < new_chunk.as_vector().length());
+    DCHECK(sequence_length < static_cast<int>(new_chunk.size()));
     for (int i = 0; i < sequence_length; i++) {
       new_chunk[i] = this->current_chunk_[sequence_start_ + i];
     }

@@ -2172,8 +2172,8 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
         reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
   }
 
-  PrototypesSetup_Arrays decoder(isolate, immovable_data.as_vector(),
-                                 prototypes, functions);
+  PrototypesSetup_Arrays decoder(isolate, immovable_data.as_span(), prototypes,
+                                 functions);
   return decoder.SetupPrototypes(constructors);
 }
 

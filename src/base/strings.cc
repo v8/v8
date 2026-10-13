@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <span>
 
 #include "src/base/platform/platform.h"
 
@@ -25,8 +26,8 @@ int SNPrintF(std::span<char> str, const char* format, ...) {
   return result;
 }
 
-void StrNCpy(base::Vector<char> dest, const char* src, size_t n) {
-  base::OS::StrNCpy(dest.begin(), dest.length(), src, n);
+void StrNCpy(std::span<char> dest, const char* src, uint32_t n) {
+  base::OS::StrNCpy(dest.data(), dest.size(), src, n);
 }
 
 }  // namespace base

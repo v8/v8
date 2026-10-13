@@ -111,7 +111,7 @@ class WasmStreamingDecoderTest : public ::testing::Test {
       EXPECT_TRUE(result.ok());
       EXPECT_EQ(expected_sections, result.num_sections);
       EXPECT_EQ(expected_functions, result.num_functions);
-      EXPECT_EQ(data, result.received_bytes.as_vector());
+      EXPECT_EQ(data, result.received_bytes);
     }
   }
 

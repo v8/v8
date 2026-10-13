@@ -276,7 +276,7 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(3, 0) int VSNPrintF(char* str, size_t length,
                                            const char* format, va_list args);
 
-  static void StrNCpy(char* dest, int length, const char* src, size_t n);
+  static void StrNCpy(char* dest, size_t length, const char* src, size_t n);
 
   // Support for the profiler.  Can do nothing, in which case ticks
   // occurring in shared libraries will not be properly accounted for.

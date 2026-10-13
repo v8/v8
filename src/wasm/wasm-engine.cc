@@ -661,7 +661,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     // This is where sync / sync streaming compilations validate function
     // bodies. See {DecodeWasmModule} for an overview.
     ModuleResult result =
-        DecodeWasmModule(isolate, enabled_features, bytes.as_vector(), true,
+        DecodeWasmModule(isolate, enabled_features, bytes.as_span(), true,
                          DecodingMethod::kSync, &detected_features);
     if (result.failed()) {
       thrower->CompileFailed(result.error());
@@ -669,7 +669,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     }
     module = std::move(result).value();
     if (WasmError error =
-            ValidateAndSetBuiltinImports(module.get(), bytes.as_vector(),
+            ValidateAndSetBuiltinImports(module.get(), bytes.as_span(),
                                          compile_imports, &detected_features)) {
       thrower->CompileError("%s @+%u", error.message().c_str(), error.offset());
       return {};
@@ -679,7 +679,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // If experimental PGO via files is enabled, load profile information now.
   std::unique_ptr<ProfileInformation> pgo_info;
   if (V8_UNLIKELY(v8_flags.wasm_pgo_from_file)) {
-    pgo_info = LoadProfileFromFile(module.get(), bytes.as_vector());
+    pgo_info = LoadProfileFromFile(module.get(), bytes.as_span());
   }
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
@@ -800,7 +800,7 @@ void WasmEngine::AsyncCompile(
 
     auto* rng = isolate->random_number_generator();
     base::SmallVector<base::Vector<const uint8_t>, 16> ranges;
-    if (!bytes.empty()) ranges.push_back(bytes.as_vector());
+    if (!bytes.empty()) ranges.push_back(bytes.as_span());
     // Split into up to 16 ranges (2^4).
     for (int round = 0; round < 4; ++round) {
       for (auto it = ranges.begin(); it != ranges.end(); ++it) {

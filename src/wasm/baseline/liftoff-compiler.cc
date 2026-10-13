@@ -1618,8 +1618,7 @@ class LiftoffCompiler {
       if (call_targets.empty()) {
         call_targets = base::UniqueCopyOf(encountered_call_instructions_);
       } else {
-        DCHECK_EQ(call_targets.as_vector(),
-                  base::VectorOf(encountered_call_instructions_));
+        DCHECK_EQ(call_targets, base::VectorOf(encountered_call_instructions_));
       }
     }
 
@@ -5011,14 +5010,14 @@ class LiftoffCompiler {
     if (V8_LIKELY(!debug_sidetable_builder_)) return;
     debug_sidetable_builder_->NewEntry(
         __ pc_offset_for_safepoint(),
-        GetCurrentDebugSideTableEntries(decoder, assume_spilling).as_vector());
+        GetCurrentDebugSideTableEntries(decoder, assume_spilling).as_span());
   }
 
   DebugSideTableBuilder::EntryBuilder* RegisterOOLDebugSideTableEntry(
       FullDecoder* decoder, DebugSideTableBuilder::AssumeSpilling spilling) {
     if (V8_LIKELY(!debug_sidetable_builder_)) return nullptr;
     return debug_sidetable_builder_->NewOOLEntry(
-        GetCurrentDebugSideTableEntries(decoder, spilling).as_vector());
+        GetCurrentDebugSideTableEntries(decoder, spilling).as_span());
   }
 
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
@@ -11366,7 +11365,7 @@ class LiftoffCompiler {
               WasmFrameConstants::kTrappingInstructionReturnAddressOffset,
           GetCurrentDebugSideTableEntries(
               decoder, DebugSideTableBuilder::kAllowRegisters)
-              .as_vector());
+              .as_span());
     }
   }
 

@@ -1205,30 +1205,30 @@ WasmCode* NativeModule::AddCodeForTesting(const WasmCompilationResult& result,
   // Flush the i-cache after relocation.
   FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
 
-  std::unique_ptr<WasmCode> unique_code{new (reserved_code) WasmCode{
-      this,
-      kAnonymousFuncIndex,
-      dst_code_bytes,
-      static_cast<int>(result.frame_slot_count),
-      static_cast<int>(result.ool_spill_count),
-      result.tagged_parameter_slots,
-      safepoint_table_offset,
-      handler_table_offset,
-      constant_pool_offset,
-      code_comments_offset,
-      jump_table_info_offset,
-      instr_size,
-      result.trapping_instructions_data.as_vector(),
-      reloc_info,
-      result.source_positions.as_vector(),
-      result.inlining_positions.as_vector(),
-      result.deopt_data.as_vector(),
-      GetCodeKind(result),
-      result.result_tier,
-      result.for_debugging,
-      signature_hash,
-      result.effect_handlers.as_vector(),
-      result.frame_has_feedback_slot}};
+  std::unique_ptr<WasmCode> unique_code{
+      new (reserved_code) WasmCode{this,
+                                   kAnonymousFuncIndex,
+                                   dst_code_bytes,
+                                   static_cast<int>(result.frame_slot_count),
+                                   static_cast<int>(result.ool_spill_count),
+                                   result.tagged_parameter_slots,
+                                   safepoint_table_offset,
+                                   handler_table_offset,
+                                   constant_pool_offset,
+                                   code_comments_offset,
+                                   jump_table_info_offset,
+                                   instr_size,
+                                   result.trapping_instructions_data.as_span(),
+                                   reloc_info,
+                                   result.source_positions.as_span(),
+                                   result.inlining_positions.as_span(),
+                                   result.deopt_data.as_span(),
+                                   GetCodeKind(result),
+                                   result.result_tier,
+                                   result.for_debugging,
+                                   signature_hash,
+                                   result.effect_handlers.as_span(),
+                                   result.frame_has_feedback_slot}};
 
   unique_code->MaybePrint();
   unique_code->Validate();
@@ -1963,14 +1963,12 @@ class NativeModuleWireBytesStorage final : public WireBytesStorage {
       : wire_bytes_(std::move(wire_bytes)) {}
 
   base::Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
-    return std::atomic_load(&wire_bytes_)
-        ->as_vector()
-        .SubVector(ref.offset(), ref.end_offset());
+    return std::atomic_load(&wire_bytes_)->subspan(ref.offset(), ref.length());
   }
 
   std::optional<ModuleWireBytes> GetModuleBytes() const final {
     return std::optional<ModuleWireBytes>(
-        std::atomic_load(&wire_bytes_)->as_vector());
+        std::atomic_load(&wire_bytes_)->as_span());
   }
 
  private:
@@ -2791,12 +2789,11 @@ std::vector<UnpublishedWasmCode> NativeModule::AddCompiledCode(
         AddCodeWithCodeSpace(
             result.func_index, result.code_desc, result.frame_slot_count,
             result.ool_spill_count, result.tagged_parameter_slots,
-            result.trapping_instructions_data.as_vector(),
-            result.source_positions.as_vector(),
-            result.inlining_positions.as_vector(),
-            result.deopt_data.as_vector(), GetCodeKind(result),
-            result.result_tier, result.for_debugging,
-            result.effect_handlers.as_vector(), result.frame_has_feedback_slot,
+            result.trapping_instructions_data.as_span(),
+            result.source_positions.as_span(),
+            result.inlining_positions.as_span(), result.deopt_data.as_span(),
+            GetCodeKind(result), result.result_tier, result.for_debugging,
+            result.effect_handlers.as_span(), result.frame_has_feedback_slot,
             this_code_space, jump_tables),
         std::move(result.assumptions));
   }

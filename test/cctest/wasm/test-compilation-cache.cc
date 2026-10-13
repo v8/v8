@@ -213,7 +213,7 @@ TEST(TestStreamingAndSyncCache) {
   memcpy(full_bytes.begin(), kPrefix, kPrefixSize);
   memcpy(full_bytes.begin() + kPrefixSize, kFunctionA, kFunctionSize);
   CppGCManaged<NativeModule>::Ptr native_module_sync =
-      SyncCompile(full_bytes.as_vector());
+      SyncCompile(full_bytes.as_span());
 
   // Streaming compilation should just discard its native module now and use the
   // one inserted in the cache by sync compilation.
