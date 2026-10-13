@@ -325,6 +325,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 
   auto gc_retry = [&](const auto& fn) {
     if (fn()) return true;
+    if (isolate == nullptr) return false;
     // Collect garbage and retry.
     did_retry = true;
     return isolate->heap()->allocator()->RetryCustomAllocate(
