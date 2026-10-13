@@ -18,7 +18,7 @@ class V8SerializationDuplicateTracker {
  public:
   // Returns a `protocol::DictionaryValue` value either empty if the V8 value
   // was not serialized yet, or filled in as a reference to previousely
-  // serialized protocol value.
+  // serialized protocol value. Returns nullptr if a V8 exception occurs.
   V8_EXPORT std::unique_ptr<protocol::DictionaryValue> LinkExistingOrCreate(
       v8::Local<v8::Value> v8Value, bool* isKnown);
 
@@ -39,10 +39,12 @@ class V8SerializationDuplicateTracker {
   // owned by the resulting protocol tree, which outlives this tracker.
   std::vector<protocol::DictionaryValue*> m_serializedValues;
 
-  V8_EXPORT protocol::DictionaryValue* FindKnownSerializedValue(
-      v8::Local<v8::Value> v8Value);
+  // Looks up a previously serialized value; returns false if Map::Get fails.
+  V8_EXPORT bool FindKnownSerializedValue(v8::Local<v8::Value> v8Value,
+                                          protocol::DictionaryValue** result);
 
-  V8_EXPORT void SetKnownSerializedValue(
+  // Records a newly serialized value; returns false if Map::Set fails.
+  V8_EXPORT bool SetKnownSerializedValue(
       v8::Local<v8::Value> v8Value, protocol::DictionaryValue* serializedValue);
 };
 }  // namespace v8_inspector
