@@ -31,7 +31,7 @@ builder.addFunction("testAbs", makeSig([kWasmI32, kWasmI32], []))
   .exportFunc();
 
 const instance = builder.instantiate();
-const u16 = new Uint16Array(instance.exports.memory.buffer);
+const dv = new DataView(instance.exports.memory.buffer);
 
 const testValues = [
   0x7e01, // positive quiet NaN with payload 1
@@ -55,18 +55,18 @@ const testValues = [
 // Test batches of 8 values
 for (let offset = 0; offset + 8 <= testValues.length; offset += 8) {
   for (let i = 0; i < 8; i++) {
-    u16[i] = testValues[offset + i];
+    dv.setUint16(i * 2, testValues[offset + i], true);
   }
 
   instance.exports.testNeg(0, 16);
   for (let i = 0; i < 8; i++) {
     const expected = testValues[offset + i] ^ 0x8000;
-    assertEquals(expected, u16[8 + i], `f16x8.neg mismatch at index ${offset + i}`);
+    assertEquals(expected, dv.getUint16((8 + i) * 2, true), `f16x8.neg mismatch at index ${offset + i}`);
   }
 
   instance.exports.testAbs(0, 16);
   for (let i = 0; i < 8; i++) {
     const expected = testValues[offset + i] & 0x7fff;
-    assertEquals(expected, u16[8 + i], `f16x8.abs mismatch at index ${offset + i}`);
+    assertEquals(expected, dv.getUint16((8 + i) * 2, true), `f16x8.abs mismatch at index ${offset + i}`);
   }
 }
