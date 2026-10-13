@@ -44,7 +44,8 @@ struct VariableLookupResult {
   int initializer_position;
 };
 
-// LINT.IfChange(ScopeInfoStructs)
+// Layout of the function_variable_info / module_variables sections of the
+// ScopeInfo tail (see the layout comment at the end of the class).
 struct FunctionVariableInfo {
   TaggedMember<Object> name;
   TaggedMember<Smi> context_or_stack_slot_index;
@@ -55,7 +56,6 @@ struct ModuleVariableInfo {
   TaggedMember<Smi> index;
   TaggedMember<Smi> properties;
 };
-// LINT.ThenChange(src/objects/scope-info.tq)
 
 // ScopeInfo represents information about different scopes of a source
 // program  and the allocation of the scope's variables. Scope information
@@ -567,69 +567,38 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   };
   PositionInfo position_info_;
   // Variable-length tagged tail. The presence and position of each
-  // sub-section is determined by flags and by header counts; see the
-  // These Torque sections correspond to the Foo...Offset() accessors below.
-  // clang-format off
-  V8_TQ_TAIL_SECTIONS(
-      const module_variable_count?
-          [flags.scope_type == ScopeType::MODULE_SCOPE]: Smi;
-
-      // The names of inlined local variables and parameters allocated in
-      // the context, in increasing order of context slot index starting
-      // with Context::MIN_CONTEXT_SLOTS.
-      context_local_names
-          [Convert<intptr>(context_local_count) < kMaxInlinedLocalNamesSize
-               ? context_local_count
-               : 0]: String;
-
-      // A hash_map from local names to context slot index, used only when
-      // the local names are not inlined above.
-      context_local_names_hashtable?
-          [kMaxInlinedLocalNamesSize <= Convert<intptr>(context_local_count)]:
-          NameToIndexHashTable;
-
-      // The variable modes and initialization flags of the context locals.
-      context_local_infos[context_local_count]: SmiTagged<VariableProperties>;
-
-      // For a class scope with static private methods reachable directly
-      // or through eval: the name of the class variable, or its slot index
-      // when the locals are inlined.
-      saved_class_variable_info?[flags.has_saved_class_variable]: Smi|Name;
-
-      // For a named function expression: the name of the function variable
-      // and its context or stack slot index.
-      function_variable_info?
-          [flags.function_variable !=
-           FromConstexpr<VariableAllocationInfo>(VariableAllocationInfo::NONE)]:
-          FunctionVariableInfo;
-
-      inferred_function_name?
-          [flags.has_inferred_function_name]: String|Undefined;
-
-      outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo;
-
-      // For a module scope: the SourceTextModuleInfo and the metadata of
-      // the module-allocated variables. Empty for other scopes.
-      module_info?[flags.scope_type == ScopeType::MODULE_SCOPE]:
-          SourceTextModuleInfo;
-      module_variables
-          [flags.scope_type == ScopeType::MODULE_SCOPE
-               ? module_variable_count
-               : 0]: ModuleVariable;
-
-      // Maps a module variable name to its index in module_variables, once
-      // there are enough of them that a linear scan is too slow.
-      module_variables_hashtable?
-          [flags.scope_type == ScopeType::MODULE_SCOPE
-               ? kMaxInlinedLocalNamesSize <=
-                     Convert<intptr>(module_variable_count)
-               : false]: NameToIndexHashTable;
-
-      dependent_code?[flags.sloppy_eval_can_extend_vars]: DependentCode;
-
-      const unused_parameter_bits?
-          [flags.scope_type == ScopeType::FUNCTION_SCOPE]: Smi;);
-  // clang-format on
+  // sub-section is determined by flags and by header counts; the layout is
+  // defined by the Foo...Offset() accessors above (scope-info-inl.h). In
+  // order:
+  //
+  //   module_variable_count      [scope_type == MODULE_SCOPE]: Smi
+  //   context_local_names        [context_local_count < kMax ? count : 0]:
+  //                              String
+  //   context_local_names_hashtable [kMax <= context_local_count]:
+  //                              NameToIndexHashTable
+  //   context_local_infos        [context_local_count]:
+  //                              SmiTagged<VariableProperties>
+  //   saved_class_variable_info  [has_saved_class_variable]: Smi|Name
+  //   function_variable_info     [function_variable != NONE]:
+  //                              {name: String|Zero, slot_index: Smi}
+  //   inferred_function_name     [has_inferred_function_name]:
+  //                              String|Undefined
+  //   outer_scope_info           [has_outer_scope_info]: ScopeInfo
+  //   module_info                [scope_type == MODULE_SCOPE]:
+  //                              SourceTextModuleInfo
+  //   module_variables           [module_variable_count]:
+  //                              {name: String, index: Smi,
+  //                               properties: SmiTagged<VariableProperties>}
+  //   module_variables_hashtable [MODULE_SCOPE && kMax <= module_var_count]:
+  //                              NameToIndexHashTable
+  //   dependent_code             [sloppy_eval_can_extend_vars]: DependentCode
+  //   unused_parameter_bits      [scope_type == FUNCTION_SCOPE]: Smi
+  //
+  // where kMax is kScopeInfoMaxInlinedLocalNamesSize. Torque only sees the
+  // fixed header; CSA reaches context_local_names / _hashtable /
+  // context_local_infos through CodeStubAssembler::IndexOfLocalName and
+  // GetFunctionContextSlotInitialValue.
+  V8_TQ_NO_TAIL;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data);
 } V8_OBJECT_END;
 

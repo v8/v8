@@ -89,6 +89,7 @@ void ScopeInfo::set_position_info_end(int value) {
 // (context_local_count, module_variable_count). Each returned offset is
 // the byte offset from the start of the object.
 
+// LINT.IfChange(ContextLocalOffsets)
 int ScopeInfo::ModuleVariableCountOffset() const {
   // ModuleVariableCount is the first slot of the variable tail. It's
   // always at OFFSET_OF_DATA_START(ScopeInfo) regardless of whether the
@@ -114,6 +115,7 @@ int ScopeInfo::ContextLocalInfosOffset() const {
   const bool has_hashtable = local_count >= kScopeInfoMaxInlinedLocalNamesSize;
   return ContextLocalNamesHashtableOffset() + (has_hashtable ? kTaggedSize : 0);
 }
+// LINT.ThenChange(/src/codegen/code-stub-assembler.cc:ScopeInfoContextLocalOffsets)
 
 int ScopeInfo::SavedClassVariableInfoOffset() const {
   return ContextLocalInfosOffset() + context_local_count() * kTaggedSize;

@@ -1707,6 +1707,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> LoadScopeInfoClassScopeHasPrivateBrand(
       TNode<ScopeInfo> scope_info);
   TNode<IntPtrT> LoadScopeInfoContextLocalCount(TNode<ScopeInfo> scope_info);
+  // Returns the index of the named context local, i.e. its context slot
+  // index minus Context::MIN_CONTEXT_SLOTS. Assumes that |name| is
+  // internalized and uses pointer comparisons. Mirrors
+  // ScopeInfo::ContextSlotIndex.
+  TNode<IntPtrT> IndexOfLocalName(TNode<ScopeInfo> scope_info, TNode<Name> name,
+                                  Label* not_found);
+  // Returns the value a freshly allocated function context slot should be
+  // initialized with for the |index|-th context local: the undefined context
+  // cell for locals that may be reassigned, undefined otherwise.
+  TNode<Object> GetFunctionContextSlotInitialValue(TNode<ScopeInfo> scope_info,
+                                                   TNode<IntPtrT> index);
 
   // Context manipulation:
   void StoreContextElementNoWriteBarrier(TNode<Context> context, int slot_index,

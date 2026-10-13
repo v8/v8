@@ -3790,6 +3790,106 @@ TNode<IntPtrT> CodeStubAssembler::LoadScopeInfoContextLocalCount(
       scope_info, offsetof(ScopeInfo, context_local_count_)));
 }
 
+// LINT.IfChange(ScopeInfoContextLocalOffsets)
+namespace {
+
+// Offset of the context_local_names section (or, when the locals are not
+// inlined, of the single context_local_names_hashtable slot). Mirrors
+// ScopeInfo::ContextLocalNamesOffset: the tail starts with a
+// module_variable_count slot for module scopes only.
+TNode<IntPtrT> ScopeInfoContextLocalNamesOffset(CodeStubAssembler* csa,
+                                                TNode<ScopeInfo> scope_info) {
+  TNode<Uint32T> flags =
+      csa->LoadObjectField<Uint32T>(scope_info, offsetof(ScopeInfo, flags_));
+  TNode<BoolT> is_module = csa->Word32Equal(
+      csa->DecodeWord32<ScopeInfo::ScopeTypeBits>(flags),
+      csa->Uint32Constant(static_cast<uint32_t>(ScopeType::MODULE_SCOPE)));
+  return csa->Select<IntPtrT>(
+      is_module,
+      [=] {
+        return csa->IntPtrConstant(OFFSET_OF_DATA_START(ScopeInfo) +
+                                   kTaggedSize);
+      },
+      [=] { return csa->IntPtrConstant(OFFSET_OF_DATA_START(ScopeInfo)); });
+}
+
+}  // namespace
+
+TNode<IntPtrT> CodeStubAssembler::IndexOfLocalName(TNode<ScopeInfo> scope_info,
+                                                   TNode<Name> name,
+                                                   Label* not_found) {
+  TNode<IntPtrT> count = LoadScopeInfoContextLocalCount(scope_info);
+  TNode<IntPtrT> names_offset =
+      ScopeInfoContextLocalNamesOffset(this, scope_info);
+
+  TVARIABLE(IntPtrT, var_result);
+  // Exits to |not_found| go through a local label so that no local variables
+  // are live at the jump; |not_found| may be an already-bound loop header.
+  Label inlined(this), hashtable(this), local_not_found(this),
+      done(this, &var_result);
+  Branch(
+      IntPtrLessThan(count, IntPtrConstant(kScopeInfoMaxInlinedLocalNamesSize)),
+      &inlined, &hashtable);
+
+  BIND(&inlined);
+  {
+    // Mirrors ScopeInfo::InlinedLocalNamesLookup.
+    TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
+    Label loop(this, &var_index), found(this);
+    Goto(&loop);
+    BIND(&loop);
+    GotoIfNot(IntPtrLessThan(var_index.value(), count), &local_not_found);
+    TNode<Object> local_name = LoadObjectField(
+        scope_info,
+        IntPtrAdd(names_offset, TimesTaggedSize(var_index.value())));
+    GotoIf(TaggedEqual(local_name, name), &found);
+    var_index = IntPtrAdd(var_index.value(), IntPtrConstant(1));
+    Goto(&loop);
+
+    BIND(&found);
+    var_result = var_index.value();
+    Goto(&done);
+  }
+
+  BIND(&hashtable);
+  {
+    TNode<NameToIndexHashTable> table =
+        CAST(LoadObjectField(scope_info, names_offset));
+    var_result = NameToIndexHashTableLookup(table, name, &local_not_found);
+    Goto(&done);
+  }
+
+  BIND(&local_not_found);
+  Goto(not_found);
+
+  BIND(&done);
+  return var_result.value();
+}
+
+TNode<Object> CodeStubAssembler::GetFunctionContextSlotInitialValue(
+    TNode<ScopeInfo> scope_info, TNode<IntPtrT> index) {
+  TNode<IntPtrT> count = LoadScopeInfoContextLocalCount(scope_info);
+  CSA_DCHECK(this, IntPtrLessThan(index, count));
+  // Mirrors ScopeInfo::ContextLocalInfosOffset: the infos follow either the
+  // inlined names or the single hashtable slot.
+  TNode<IntPtrT> names_offset =
+      ScopeInfoContextLocalNamesOffset(this, scope_info);
+  TNode<IntPtrT> names_slots = Select<IntPtrT>(
+      IntPtrLessThan(count, IntPtrConstant(kScopeInfoMaxInlinedLocalNamesSize)),
+      [=] { return count; }, [this] { return IntPtrConstant(1); });
+  TNode<IntPtrT> infos_offset =
+      IntPtrAdd(names_offset, TimesTaggedSize(names_slots));
+  TNode<Smi> info = CAST(LoadObjectField(
+      scope_info, IntPtrAdd(infos_offset, TimesTaggedSize(index))));
+  TNode<BoolT> maybe_assigned = Word32NotEqual(
+      DecodeWord32<ScopeInfo::MaybeAssignedFlagBit>(SmiToInt32(info)),
+      Uint32Constant(static_cast<uint32_t>(MaybeAssignedFlag::kNotAssigned)));
+  return Select<Object>(
+      maybe_assigned, [this] { return UndefinedContextCellConstant(); },
+      [this] { return UndefinedConstant(); });
+}
+// LINT.ThenChange(/src/objects/scope-info-inl.h:ContextLocalOffsets)
+
 void CodeStubAssembler::StoreContextElementNoWriteBarrier(
     TNode<Context> context, int slot_index, TNode<Object> value) {
   int offset = Context::SlotOffset(slot_index);
