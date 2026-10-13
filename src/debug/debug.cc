@@ -233,6 +233,7 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
   DirectHandle<AbstractCode> abstract_code = summary.abstract_code();
   BreakIterator it(debug_info);
   it.SkipTo(BreakIndexFromCodeOffset(debug_info, abstract_code, offset));
+  if (it.Done()) return BreakLocation::Invalid();
   return it.GetBreakLocation();
 }
 
@@ -341,6 +342,7 @@ bool BreakLocation::HasBreakPoint(Isolate* isolate,
     DCHECK(IsBytecodeArray(*abstract_code_));
     BreakIterator it(debug_info);
     it.SkipToPosition(position_);
+    if (it.Done()) return false;
     return it.code_offset() == code_offset_;
   }
 }
@@ -369,9 +371,7 @@ BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
               ->SourcePositionTable()) {
   position_ = debug_info->shared()->StartPosition();
   statement_position_ = position_;
-  // There is at least one break location.
-  DCHECK(!Done());
-  Next();
+  if (!Done()) Next();
 }
 
 int BreakIterator::BreakIndexFromPosition(int source_position) {
@@ -467,6 +467,7 @@ void BreakIterator::ClearDebugBreak() {
 }
 
 BreakLocation BreakIterator::GetBreakLocation() {
+  DCHECK(!Done());
   Isolate* isolate = Isolate::Current();
   Handle<AbstractCode> code(
       Cast<AbstractCode>(debug_info_->DebugBytecodeArray(isolate)), isolate);
@@ -1120,6 +1121,7 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
       DCHECK(debug_info->HasInstrumentedBytecodeArray());
       BreakIterator it(debug_info);
       it.SkipToPosition(info->source_position());
+      if (it.Done()) continue;
       it.SetDebugBreak();
     }
   }
