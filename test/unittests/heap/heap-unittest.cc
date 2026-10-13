@@ -5686,6 +5686,57 @@ TEST_F(HeapTest, RetainedMapsCleanup) {
             native_context->retained_maps());
 }
 
+TEST_F(HeapTest, TrimDescriptorArrayClearsSlackDescriptors) {
+  FlagScope<bool> no_stress_trimming(&v8_flags.stress_descriptor_array_trimming,
+                                     false);
+  ManualGCScope manual_gc_scope(i_isolate());
+  HandleScope scope(i_isolate());
+
+  IndirectHandle<JSObject> parent =
+      RunJS<JSObject>("var parent = { a: 1 }; parent");
+  IndirectHandle<WeakFixedArray> weak_getter = factory()->NewWeakFixedArray(1);
+  {
+    HandleScope inner_scope(i_isolate());
+    DirectHandle<JSFunction> getter = RunJS<JSFunction>(
+        "(function() {"
+        "  var child = { a: 1 };"
+        "  var getter = function() { return 42; };"
+        "  Object.defineProperty(child, 'b', { get: getter });"
+        "  return getter;"
+        "})()");
+    weak_getter->set(0, MakeWeak(*getter));
+  }
+  EXPECT_EQ(1, parent->map()->NumberOfOwnDescriptors());
+  EXPECT_FALSE(parent->map()->owns_descriptors());
+  EXPECT_EQ(2, parent->map()->instance_descriptors()->number_of_descriptors());
+  EXPECT_EQ(2,
+            parent->map()->instance_descriptors()->number_of_all_descriptors());
+  EXPECT_FALSE(weak_getter->get(0).IsCleared());
+
+  // The first GC clears the dead child map transition and trims
+  // `number_of_descriptors` back to 1 without right-trimming the
+  // DescriptorArray. It should clear the slack descriptor slots.
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+  EXPECT_TRUE(parent->map()->owns_descriptors());
+  EXPECT_EQ(1, parent->map()->instance_descriptors()->number_of_descriptors());
+  EXPECT_EQ(2,
+            parent->map()->instance_descriptors()->number_of_all_descriptors());
+  // `getter` was still marked during the first GC before `TrimDescriptorArray`
+  // cleared the slack descriptor slot during weak clearing.
+  EXPECT_FALSE(weak_getter->get(0).IsCleared());
+
+  // The second GC should now reclaim `getter` since the slack descriptor slot
+  // was cleared.
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+  EXPECT_TRUE(weak_getter->get(0).IsCleared());
+}
+
 namespace {
 void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
   ASSERT_LE(static_cast<size_t>(OFFSET_OF_DATA_START(FixedArray)), bytes);

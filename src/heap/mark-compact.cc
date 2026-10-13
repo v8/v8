@@ -4123,6 +4123,10 @@ void MarkCompactCollector::TrimDescriptorArray(
     descriptors->set_number_of_descriptors(number_of_own_descriptors);
     if (can_trim) {
       RightTrimDescriptorArray(heap_, descriptors, to_trim);
+    } else {
+      MemsetTagged(descriptors->GetDescriptorSlot(number_of_own_descriptors),
+                   ReadOnlyRoots(heap_).undefined_value(),
+                   to_trim * DescriptorArray::kEntrySize);
     }
     TrimEnumCache(heap_, map, descriptors);
     descriptors->Sort();
