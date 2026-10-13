@@ -1007,8 +1007,6 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
         case VariableLocation::LOOKUP:
         case VariableLocation::UNALLOCATED:
           // Drop assignments to unallocated locals.
-          DCHECK(*variable_name == ReadOnlyRoots(isolate_).this_string() ||
-                 *variable_name == ReadOnlyRoots(isolate_).arguments_string());
           return false;
 
         case VariableLocation::REPL_GLOBAL:
