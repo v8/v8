@@ -6,6 +6,7 @@
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
+#include "src/wasm/wasm-subtyping.h"
 #include "test/unittests/fuzztest.h"
 #include "test/unittests/test-utils.h"
 
@@ -14,6 +15,12 @@ namespace v8::internal::wasm {
 // Introduce a separate representation for recursion groups to be used by this
 // fuzz test.
 namespace test {
+
+constexpr std::array kAllGenericKinds = {
+    GenericKind::kFunc,     GenericKind::kNoFunc, GenericKind::kAny,
+    GenericKind::kEq,       GenericKind::kI31,    GenericKind::kStruct,
+    GenericKind::kArray,    GenericKind::kNone,   GenericKind::kExtern,
+    GenericKind::kNoExtern, GenericKind::kExn,    GenericKind::kNoExn};
 
 // Provide operator<<(std::ostream&, T> for types with T.Print(std::ostream*).
 template <typename T>
@@ -28,39 +35,49 @@ struct SubType;
 // Variance for type adaptation when deriving a subtype from a supertype.
 enum class Variance { kInvariant, kCovariant, kContravariant };
 
-// `reftype` in the spec.
+// `reftype` in the spec (`ref null? heaptype`, where `heaptype` is either
+// `absheaptype` or `typeidx`).
 struct RefType {
-  // The fuzzer domain initially chooses an unconstrained `index`.
-  // `FixupRefTypes` will restrict this index to be within [0,
-  // current_rec_group_end) and will potentially set `index_in_recgroup`.
-  // `CanonicalizeIndexes` will replace `index` by a canonical index if it
+  // For indexed heap types (`uint32_t`), the fuzzer domain initially chooses an
+  // unconstrained index. `FixupRefType` will restrict this index to be within
+  // [0, current_rec_group_end) and will potentially set `index_in_recgroup`.
+  // `CanonicalizeIndexes` will replace the index by a canonical index if it
   // references a type from an earlier recgroup (i.e. if `index_in_recgroup` is
   // not set).
-  uint32_t index;
+  std::variant<GenericKind, uint32_t> heap_type;
   SharedFlag shared;
   Nullability nullable;
 
-  // `ref_type_kind` and `index_in_recgroup` will be set by `FixupRefType`.
-  RefTypeKind ref_type_kind;
+  // `ref_type_kind` and `index_in_recgroup` will be set by `FixupRefType` for
+  // indexed heap types.
+  RefTypeKind ref_type_kind = RefTypeKind::kOther;
   std::optional<uint32_t> index_in_recgroup;
 
   // Construction only passes the first three fields.
-  RefType(uint32_t index, SharedFlag shared, Nullability nullable)
-      : index(index), shared(shared), nullable(nullable) {}
+  RefType(std::variant<GenericKind, uint32_t> heap_type, SharedFlag shared,
+          Nullability nullable)
+      : heap_type(heap_type), shared(shared), nullable(nullable) {}
 
   void FixupRefType(const std::vector<RefTypeKind>& available_ref_types,
                     uint32_t recgroup_start) {
+    uint32_t* index = std::get_if<uint32_t>(&heap_type);
+    if (index == nullptr) {
+      // Abstract heap types never have a `RefTypeKind` or recgroup offset.
+      DCHECK_EQ(RefTypeKind::kOther, ref_type_kind);
+      DCHECK(!index_in_recgroup.has_value());
+      return;
+    }
     DCHECK(!available_ref_types.empty());
     // Restrict the index to anything until the end of the current rec group.
-    index %= base::checked_cast<uint32_t>(available_ref_types.size());
+    *index %= base::checked_cast<uint32_t>(available_ref_types.size());
     // Populate the ref type kind, which is encoded in the `ValueType` returned
     // by `value_type()`.
-    ref_type_kind = available_ref_types[index];
+    ref_type_kind = available_ref_types[*index];
     DCHECK(ref_type_kind == RefTypeKind::kFunction ||
            ref_type_kind == RefTypeKind::kStruct ||
            ref_type_kind == RefTypeKind::kArray);
-    if (index >= recgroup_start) {
-      index_in_recgroup = index - recgroup_start;
+    if (*index >= recgroup_start) {
+      index_in_recgroup = *index - recgroup_start;
     } else {
       // `this` may have been copied from a supertype in an earlier recgroup;
       // clear any inherited intra-recgroup offset.
@@ -69,18 +86,25 @@ struct RefType {
   }
 
   void AdaptToSupertype(const RefType& super_ref, Variance variance,
+                        const std::vector<RefTypeKind>& available_ref_types,
                         const std::vector<const SubType*>& previous_types);
 
   void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
     if (index_in_recgroup.has_value()) return;
-    // Update the index to the canonical index from a previous recgroup.
-    DCHECK_LT(index, canonical_indexes.size());
-    index = canonical_indexes[index];
+    if (uint32_t* index = std::get_if<uint32_t>(&heap_type)) {
+      // Update the index to the canonical index from a previous recgroup.
+      DCHECK_LT(*index, canonical_indexes.size());
+      *index = canonical_indexes[*index];
+    }
   }
 
   ValueType value_type() const {
-    return ValueType::RefMaybeNull(ModuleTypeIndex{index}, nullable, shared,
-                                   ref_type_kind);
+    if (const uint32_t* index = std::get_if<uint32_t>(&heap_type)) {
+      return ValueType::RefMaybeNull(ModuleTypeIndex{*index}, nullable, shared,
+                                     ref_type_kind);
+    }
+    return ValueType::Generic(std::get<GenericKind>(heap_type), nullable,
+                              shared);
   }
 
   void Print(std::ostream& os) const {
@@ -88,8 +112,10 @@ struct RefType {
     if (shared) os << "shared ";
     if (index_in_recgroup.has_value()) {
       os << "recref " << index_in_recgroup.value();
+    } else if (const uint32_t* index = std::get_if<uint32_t>(&heap_type)) {
+      os << "ref " << *index;
     } else {
-      os << "ref " << index;
+      os << "ref " << value_type().generic_heaptype_name();
     }
   }
 };
@@ -119,12 +145,14 @@ struct ValType : public std::variant<NumType, RefType> {
   }
 
   void AdaptToSupertype(const ValType& super_val, Variance variance,
+                        const std::vector<RefTypeKind>& available_ref_types,
                         const std::vector<const SubType*>& previous_types) {
     const RefType* super_ref = std::get_if<RefType>(&super_val);
     RefType* sub_ref = std::get_if<RefType>(this);
     if (super_ref != nullptr && sub_ref != nullptr &&
         variance != Variance::kInvariant) {
-      sub_ref->AdaptToSupertype(*super_ref, variance, previous_types);
+      sub_ref->AdaptToSupertype(*super_ref, variance, available_ref_types,
+                                previous_types);
       return;
     }
     // Numeric types and invariant positions must match the supertype's value
@@ -158,12 +186,14 @@ struct FieldType {
   }
 
   void AdaptToSupertype(const FieldType& super_field,
+                        const std::vector<RefTypeKind>& available_ref_types,
                         const std::vector<const SubType*>& previous_types) {
     mutability = super_field.mutability;
     // Mutable fields are invariant; immutable fields are covariant.
     Variance variance =
         mutability ? Variance::kInvariant : Variance::kCovariant;
-    val_type.AdaptToSupertype(super_field.val_type, variance, previous_types);
+    val_type.AdaptToSupertype(super_field.val_type, variance,
+                              available_ref_types, previous_types);
   }
 
   void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
@@ -188,6 +218,7 @@ struct StructType {
   }
 
   void AdaptToSupertype(const StructType& supertype,
+                        const std::vector<RefTypeKind>& available_ref_types,
                         const std::vector<const SubType*>& previous_types) {
     // Struct subtyping allows depth subtyping on existing fields and width
     // subtyping by appending extra fields (which remain at the end of
@@ -195,7 +226,8 @@ struct StructType {
     size_t generated_fields =
         std::min(field_types.size(), supertype.field_types.size());
     for (size_t i = 0; i < generated_fields; ++i) {
-      field_types[i].AdaptToSupertype(supertype.field_types[i], previous_types);
+      field_types[i].AdaptToSupertype(supertype.field_types[i],
+                                      available_ref_types, previous_types);
     }
     if (field_types.size() < supertype.field_types.size()) {
       field_types.insert(field_types.end(),
@@ -250,8 +282,10 @@ struct ArrayType {
   }
 
   void AdaptToSupertype(const ArrayType& supertype,
+                        const std::vector<RefTypeKind>& available_ref_types,
                         const std::vector<const SubType*>& previous_types) {
-    field_type.AdaptToSupertype(supertype.field_type, previous_types);
+    field_type.AdaptToSupertype(supertype.field_type, available_ref_types,
+                                previous_types);
   }
 
   void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
@@ -287,23 +321,26 @@ struct FunctionType {
   }
 
   void AdaptToSupertype(const FunctionType& supertype,
+                        const std::vector<RefTypeKind>& available_ref_types,
                         const std::vector<const SubType*>& previous_types) {
     // Function subtyping is contravariant in parameters and covariant in
     // returns, with matching arities.
     AdaptVector(params, supertype.params, Variance::kContravariant,
-                previous_types);
+                available_ref_types, previous_types);
     AdaptVector(returns, supertype.returns, Variance::kCovariant,
-                previous_types);
+                available_ref_types, previous_types);
   }
 
   static void AdaptVector(std::vector<ValType>& sub_vec,
                           const std::vector<ValType>& super_vec,
                           Variance variance,
+                          const std::vector<RefTypeKind>& available_ref_types,
                           const std::vector<const SubType*>& previous_types) {
     // Adapt the overlapping prefix and resize to match the supertype's arity.
     size_t generated = std::min(sub_vec.size(), super_vec.size());
     for (size_t i = 0; i < generated; ++i) {
-      sub_vec[i].AdaptToSupertype(super_vec[i], variance, previous_types);
+      sub_vec[i].AdaptToSupertype(super_vec[i], variance, available_ref_types,
+                                  previous_types);
     }
     if (sub_vec.size() > super_vec.size()) {
       sub_vec.erase(sub_vec.begin() + super_vec.size(), sub_vec.end());
@@ -397,7 +434,8 @@ struct SubType {
         // fields/parameters/returns added by subtyping are also fixed up.
         std::visit(
             [&]<typename T>(T& t) {
-              t.AdaptToSupertype(std::get<T>(super->type), previous_types);
+              t.AdaptToSupertype(std::get<T>(super->type), available_ref_types,
+                                 previous_types);
             },
             type);
       }
@@ -440,44 +478,87 @@ struct SubType {
 
 void RefType::AdaptToSupertype(
     const RefType& super_ref, Variance variance,
+    const std::vector<RefTypeKind>& available_ref_types,
     const std::vector<const SubType*>& previous_types) {
   shared = super_ref.shared;
-  uint32_t super_idx = super_ref.index;
-  base::SmallVector<uint32_t, 8> candidates{super_idx};
+  // Non-nullable covariant references must remain non-nullable; nullable
+  // contravariant references must remain nullable.
+  if (variance == Variance::kCovariant &&
+      super_ref.nullable == Nullability::kNonNullable) {
+    nullable = Nullability::kNonNullable;
+  } else if (variance == Variance::kContravariant &&
+             super_ref.nullable == Nullability::kNullable) {
+    nullable = Nullability::kNullable;
+  }
 
-  if (variance == Variance::kCovariant) {
-    // Non-nullable covariant references must remain non-nullable.
-    if (super_ref.nullable == Nullability::kNonNullable) {
-      nullable = Nullability::kNonNullable;
-    }
-    // Collect all earlier types that transitively have `super_idx` as a
-    // supertype.
-    for (uint32_t i = super_idx + 1; i < previous_types.size(); ++i) {
-      for (uint32_t cur = previous_types[i]->supertype;
-           cur != kNoSuperType.index; cur = previous_types[cur]->supertype) {
-        if (cur == super_idx) {
-          candidates.push_back(i);
-          break;
+  HeapType super_heap = super_ref.value_type().heap_type();
+  if (uint32_t* sub_idx = std::get_if<uint32_t>(&heap_type)) {
+    base::SmallVector<uint32_t, 8> candidates;
+    if (const uint32_t* super_idx =
+            std::get_if<uint32_t>(&super_ref.heap_type)) {
+      candidates.push_back(*super_idx);
+      if (variance == Variance::kCovariant) {
+        // Collect all earlier types that transitively have `*super_idx` as a
+        // supertype.
+        for (uint32_t i = *super_idx + 1; i < previous_types.size(); ++i) {
+          for (uint32_t cur = previous_types[i]->supertype;
+               cur != kNoSuperType.index;
+               cur = previous_types[cur]->supertype) {
+            if (cur == *super_idx) {
+              candidates.push_back(i);
+              break;
+            }
+          }
+        }
+      } else {
+        DCHECK_EQ(Variance::kContravariant, variance);
+        // If `*super_idx` is not a forward reference within the supertype's
+        // recgroup, collect all of its transitive supertypes.
+        if (*super_idx < previous_types.size()) {
+          for (uint32_t cur = previous_types[*super_idx]->supertype;
+               cur != kNoSuperType.index;
+               cur = previous_types[cur]->supertype) {
+            candidates.push_back(cur);
+          }
         }
       }
-    }
-  } else {
-    DCHECK_EQ(Variance::kContravariant, variance);
-    // Nullable contravariant references must remain nullable.
-    if (super_ref.nullable == Nullability::kNullable) {
-      nullable = Nullability::kNullable;
-    }
-    // If `super_idx` is not a forward reference within the supertype's
-    // recgroup, collect all of its transitive supertypes.
-    if (super_idx < previous_types.size()) {
-      for (uint32_t cur = previous_types[super_idx]->supertype;
-           cur != kNoSuperType.index; cur = previous_types[cur]->supertype) {
-        candidates.push_back(cur);
+    } else {
+      // `super_ref` has an abstract heap type; check which indexed types up to
+      // the end of the current recgroup are valid subtypes/supertypes (e.g. a
+      // struct/array/func type refining `any`, `eq`, `struct`, `array`, or
+      // `func`).
+      for (uint32_t i = 0; i < available_ref_types.size(); ++i) {
+        HeapType cand_heap =
+            HeapType::Index(ModuleTypeIndex{i}, shared, available_ref_types[i]);
+        bool match = variance == Variance::kCovariant
+                         ? IsHeapSubtypeOf(cand_heap, super_heap, nullptr)
+                         : IsHeapSubtypeOf(super_heap, cand_heap, nullptr);
+        if (match) candidates.push_back(i);
       }
+    }
+    if (!candidates.empty()) {
+      *sub_idx = candidates[*sub_idx % candidates.size()];
+      return;
     }
   }
 
-  index = candidates[index % candidates.size()];
+  // Either `this` was generated as an abstract heap type, or no indexed type
+  // matched (e.g. `super_ref` is `i31`, `none`, `extern`, or contravariant from
+  // an abstract supertype). Pick a matching abstract heap type using a
+  // deterministic seed derived from `this`.
+  uint32_t seed = std::holds_alternative<uint32_t>(heap_type)
+                      ? std::get<uint32_t>(heap_type)
+                      : static_cast<uint32_t>(value_type().standard_type());
+  base::SmallVector<GenericKind, 8> generic_candidates;
+  for (GenericKind cand : kAllGenericKinds) {
+    HeapType cand_heap = HeapType::Generic(cand, shared);
+    bool match = variance == Variance::kCovariant
+                     ? IsHeapSubtypeOf(cand_heap, super_heap, nullptr)
+                     : IsHeapSubtypeOf(super_heap, cand_heap, nullptr);
+    if (match) generic_candidates.push_back(cand);
+  }
+  DCHECK(!generic_candidates.empty());
+  heap_type = generic_candidates[seed % generic_candidates.size()];
 }
 
 // `rectype` in the spec.
@@ -584,11 +665,14 @@ class TypeCanonicalizerTest
 // FuzzTest domain construction.
 
 static fuzztest::Domain<test::Module> ArbitraryModule() {
-  // reftype ::= ref null? heaptype
+  // absheaptype
+  auto abs_heap_type_domain = fuzztest::ElementOf(test::kAllGenericKinds);
   // heaptype ::= absheaptype | typeidx
-  // TODO(381687256): Introduce abstract heap types.
+  auto heap_type_domain = fuzztest::VariantOf(
+      abs_heap_type_domain, fuzztest::InRange<uint32_t>(0, kMaxInt));
+  // reftype ::= ref null? heaptype
   auto ref_type_domain = fuzztest::ConstructorOf<test::RefType>(
-      /* index */ fuzztest::NonNegative<int>(),
+      heap_type_domain,
       // TODO(clemensb): Support shared types; the bit currently gets lost in
       // the module builder.
       /* shared */
