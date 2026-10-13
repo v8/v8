@@ -1,5 +1,6 @@
 # This file is auto-generated. Do not edit.
 ACTIVE_BRANCHES = [
+    "15.7",
     "15.6",
     "15.5",
     "15.2",
