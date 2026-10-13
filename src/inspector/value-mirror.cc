@@ -479,7 +479,7 @@ String16 descriptionForPrivateMethod(v8::Local<v8::Context> context,
            .ToLocal(&value)) {
     return String16();
   }
-  DCHECK(value->IsFunction());
+  if (!value->IsFunction()) return String16();
   return descriptionForFunction(value.As<v8::Function>());
 }
 
