@@ -35,6 +35,7 @@ void ExplicitManagementImpl::FreeUnreferencedObject(HeapHandle& heap_handle,
   }
 
   auto& header = HeapObjectHeader::FromObject(object);
+  HeapBase::From(heap_handle).RemoveSampledObject(&header);
   header.Finalize();
 
   // `object` is guaranteed to be of type GarbageCollected, so getting the

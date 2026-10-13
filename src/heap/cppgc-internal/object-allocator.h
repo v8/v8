@@ -20,6 +20,8 @@
 
 namespace cppgc {
 
+class AllocationSampler;
+
 namespace internal {
 class ObjectAllocator;
 class PreFinalizerHandler;
@@ -47,7 +49,8 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   static constexpr size_t kSmallestSpaceSize = 32;
 
   ObjectAllocator(RawHeap&, PageBackend&, StatsCollector&, PreFinalizerHandler&,
-                  FatalOutOfMemoryHandler&, GarbageCollector&);
+                  FatalOutOfMemoryHandler&, GarbageCollector&,
+                  cppgc::AllocationSampler* = nullptr);
 
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo,
                               MayContainMixins);
@@ -98,7 +101,9 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
 
   bool TryRefillLinearAllocationBuffer(NormalPageSpace&, size_t);
   bool TryRefillLinearAllocationBufferFromFreeList(NormalPageSpace&, size_t);
-  bool TryExpandAndRefillLinearAllocationBuffer(NormalPageSpace&);
+  bool TryExpandAndRefillLinearAllocationBuffer(NormalPageSpace&, size_t);
+  void ClampAndReplaceLinearAllocationBuffer(NormalPageSpace&, Address, size_t,
+                                             size_t);
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   void TriggerGCOnAllocationTimeoutIfNeeded();
@@ -110,6 +115,7 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   PreFinalizerHandler& prefinalizer_handler_;
   FatalOutOfMemoryHandler& oom_handler_;
   GarbageCollector& garbage_collector_;
+  cppgc::AllocationSampler* allocation_sampler_ = nullptr;
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   // Specifies how many allocations should be performed until triggering a
   // garbage collection.
