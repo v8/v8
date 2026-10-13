@@ -6889,7 +6889,7 @@ void BytecodeGenerator::VisitProperty(Property* expr) {
 void BytecodeGenerator::VisitArguments(const ZonePtrList<Expression>* args,
                                        RegisterList* arg_regs) {
   // Visit arguments.
-  builder()->UpdateMaxArguments(static_cast<uint16_t>(args->length()));
+  builder()->UpdateMaxArguments(args->length());
   for (int i = 0; i < static_cast<int>(args->length()); i++) {
     VisitAndPushIntoRegisterList(args->at(i), arg_regs);
   }

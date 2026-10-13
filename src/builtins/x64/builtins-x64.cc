@@ -1162,10 +1162,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     // Load frame size from the BytecodeArray object.
     __ movl(rcx, FieldOperand(kInterpreterBytecodeArrayRegister,
                               offsetof(BytecodeArray, frame_size_)));
+    __ movzxwl(r11, FieldOperand(kInterpreterBytecodeArrayRegister,
+                                 offsetof(BytecodeArray, max_arguments_)));
+    __ leaq(r11, Operand(rcx, r11, times_system_pointer_size, 0));
 
     // Do a stack check to ensure we don't go over the limit.
     __ movq(rax, rsp);
-    __ subq(rax, rcx);
+    __ subq(rax, r11);
     __ cmpq(rax, __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
     __ j(below, &stack_overflow);
 

@@ -972,10 +972,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     Register frame_size = ecx;
     __ mov(frame_size, FieldOperand(kInterpreterBytecodeArrayRegister,
                                     offsetof(BytecodeArray, frame_size_)));
+    __ movzx_w(eax, FieldOperand(kInterpreterBytecodeArrayRegister,
+                                 offsetof(BytecodeArray, max_arguments_)));
+    __ lea(eax, Operand(frame_size, eax, times_system_pointer_size, 0));
 
     // Do a stack check to ensure we don't go over the limit.
-    __ mov(eax, esp);
-    __ sub(eax, frame_size);
+    __ neg(eax);
+    __ add(eax, esp);
     __ CompareStackLimit(eax, StackLimitKind::kRealStackLimit);
     __ j(below, &stack_overflow);
 
