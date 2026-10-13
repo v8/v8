@@ -159,7 +159,8 @@ class TypeCanonicalizer {
     return depth;
   }
 
-  bool IsHeapSubtype(CanonicalTypeIndex sub, CanonicalTypeIndex super) const;
+  V8_EXPORT_PRIVATE bool IsHeapSubtype(CanonicalTypeIndex sub,
+                                       CanonicalTypeIndex super) const;
   bool IsCanonicalSubtype_Locked(CanonicalTypeIndex sub_index,
                                  CanonicalTypeIndex super_index) const;
 

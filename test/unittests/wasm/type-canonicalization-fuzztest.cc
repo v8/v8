@@ -23,6 +23,11 @@ std::ostream& operator<<(std::ostream& os, const T& t) {
   return os;
 }
 
+struct SubType;
+
+// Variance for type adaptation when deriving a subtype from a supertype.
+enum class Variance { kInvariant, kCovariant, kContravariant };
+
 // `reftype` in the spec.
 struct RefType {
   // The fuzzer domain initially chooses an unconstrained `index`.
@@ -54,8 +59,17 @@ struct RefType {
     DCHECK(ref_type_kind == RefTypeKind::kFunction ||
            ref_type_kind == RefTypeKind::kStruct ||
            ref_type_kind == RefTypeKind::kArray);
-    if (index >= recgroup_start) index_in_recgroup = index - recgroup_start;
+    if (index >= recgroup_start) {
+      index_in_recgroup = index - recgroup_start;
+    } else {
+      // `this` may have been copied from a supertype in an earlier recgroup;
+      // clear any inherited intra-recgroup offset.
+      index_in_recgroup.reset();
+    }
   }
+
+  void AdaptToSupertype(const RefType& super_ref, Variance variance,
+                        const std::vector<const SubType*>& previous_types);
 
   void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
     if (index_in_recgroup.has_value()) return;
@@ -99,13 +113,27 @@ struct ValType : public std::variant<NumType, RefType> {
 
   void FixupRefType(const std::vector<RefTypeKind>& available_ref_types,
                     uint32_t recgroup_start) {
-    if (auto* ref_type = std::get_if<RefType>(this)) {
+    if (RefType* ref_type = std::get_if<RefType>(this)) {
       ref_type->FixupRefType(available_ref_types, recgroup_start);
     }
   }
 
+  void AdaptToSupertype(const ValType& super_val, Variance variance,
+                        const std::vector<const SubType*>& previous_types) {
+    const RefType* super_ref = std::get_if<RefType>(&super_val);
+    RefType* sub_ref = std::get_if<RefType>(this);
+    if (super_ref != nullptr && sub_ref != nullptr &&
+        variance != Variance::kInvariant) {
+      sub_ref->AdaptToSupertype(*super_ref, variance, previous_types);
+      return;
+    }
+    // Numeric types and invariant positions must match the supertype's value
+    // type; also fall back to copying if only one of the two is a `RefType`.
+    *this = super_val;
+  }
+
   void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
-    if (auto* ref_type = std::get_if<RefType>(this)) {
+    if (RefType* ref_type = std::get_if<RefType>(this)) {
       ref_type->CanonicalizeIndexes(canonical_indexes);
     }
   }
@@ -129,6 +157,15 @@ struct FieldType {
     val_type.FixupRefType(available_ref_types, recgroup_start);
   }
 
+  void AdaptToSupertype(const FieldType& super_field,
+                        const std::vector<const SubType*>& previous_types) {
+    mutability = super_field.mutability;
+    // Mutable fields are invariant; immutable fields are covariant.
+    Variance variance =
+        mutability ? Variance::kInvariant : Variance::kCovariant;
+    val_type.AdaptToSupertype(super_field.val_type, variance, previous_types);
+  }
+
   void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
     val_type.CanonicalizeIndexes(canonical_indexes);
   }
@@ -150,6 +187,23 @@ struct StructType {
     }
   }
 
+  void AdaptToSupertype(const StructType& supertype,
+                        const std::vector<const SubType*>& previous_types) {
+    // Struct subtyping allows depth subtyping on existing fields and width
+    // subtyping by appending extra fields (which remain at the end of
+    // `field_types` if `field_types.size() > supertype.field_types.size()`).
+    size_t generated_fields =
+        std::min(field_types.size(), supertype.field_types.size());
+    for (size_t i = 0; i < generated_fields; ++i) {
+      field_types[i].AdaptToSupertype(supertype.field_types[i], previous_types);
+    }
+    if (field_types.size() < supertype.field_types.size()) {
+      field_types.insert(field_types.end(),
+                         supertype.field_types.begin() + generated_fields,
+                         supertype.field_types.end());
+    }
+  }
+
   void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
     for (FieldType& field_type : field_types) {
       field_type.CanonicalizeIndexes(canonical_indexes);
@@ -158,12 +212,10 @@ struct StructType {
 
   static RefTypeKind ref_type_kind() { return RefTypeKind::kStruct; }
 
-  void BuildType(Zone* zone, WasmModuleBuilder* builder) const {
-    // TODO(381687256): Populate final and supertype.
-    constexpr bool kNotFinal = false;
-    constexpr ModuleTypeIndex kNoSupertype = ModuleTypeIndex::Invalid();
+  void BuildType(Zone* zone, WasmModuleBuilder* builder, bool is_final,
+                 ModuleTypeIndex supertype) const {
     // If this fails, we need to constrain vector sizes in the fuzzer domains.
-    DCHECK_GE(kMaxUInt32, field_types.size());
+    DCHECK_GE(kV8MaxWasmStructFields, field_types.size());
     uint32_t field_count = static_cast<uint32_t>(field_types.size());
     // Offsets are not used and never accessed, hence we can pass nullptr.
     constexpr uint32_t* kNoOffsets = nullptr;
@@ -178,7 +230,7 @@ struct StructType {
     builder->AddStructType(
         zone->New<wasm::StructType>(field_count, kNoOffsets, reps, mutabilities,
                                     is_descriptor, SharedFlag{false}),
-        kNotFinal, kNoSupertype);
+        is_final, supertype);
   }
 
   void Print(std::ostream& os) const {
@@ -197,18 +249,21 @@ struct ArrayType {
     field_type.val_type.FixupRefType(available_ref_types, recgroup_start);
   }
 
+  void AdaptToSupertype(const ArrayType& supertype,
+                        const std::vector<const SubType*>& previous_types) {
+    field_type.AdaptToSupertype(supertype.field_type, previous_types);
+  }
+
   void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
     field_type.val_type.CanonicalizeIndexes(canonical_indexes);
   }
 
-  void BuildType(Zone* zone, WasmModuleBuilder* builder) const {
-    // TODO(381687256): Populate final and supertype.
-    constexpr bool kNotFinal = false;
-    constexpr ModuleTypeIndex kNoSupertype = ModuleTypeIndex::Invalid();
+  void BuildType(Zone* zone, WasmModuleBuilder* builder, bool is_final,
+                 ModuleTypeIndex supertype) const {
     builder->AddArrayType(
         zone->New<wasm::ArrayType>(field_type.val_type.value_type(),
                                    field_type.mutability, SharedFlag{false}),
-        kNotFinal, kNoSupertype);
+        is_final, supertype);
   }
 
   void Print(std::ostream& os) const { os << "array(" << field_type << ")"; }
@@ -231,20 +286,45 @@ struct FunctionType {
     }
   }
 
+  void AdaptToSupertype(const FunctionType& supertype,
+                        const std::vector<const SubType*>& previous_types) {
+    // Function subtyping is contravariant in parameters and covariant in
+    // returns, with matching arities.
+    AdaptVector(params, supertype.params, Variance::kContravariant,
+                previous_types);
+    AdaptVector(returns, supertype.returns, Variance::kCovariant,
+                previous_types);
+  }
+
+  static void AdaptVector(std::vector<ValType>& sub_vec,
+                          const std::vector<ValType>& super_vec,
+                          Variance variance,
+                          const std::vector<const SubType*>& previous_types) {
+    // Adapt the overlapping prefix and resize to match the supertype's arity.
+    size_t generated = std::min(sub_vec.size(), super_vec.size());
+    for (size_t i = 0; i < generated; ++i) {
+      sub_vec[i].AdaptToSupertype(super_vec[i], variance, previous_types);
+    }
+    if (sub_vec.size() > super_vec.size()) {
+      sub_vec.erase(sub_vec.begin() + super_vec.size(), sub_vec.end());
+    } else if (sub_vec.size() < super_vec.size()) {
+      sub_vec.insert(sub_vec.end(), super_vec.begin() + generated,
+                     super_vec.end());
+    }
+  }
+
   void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
     for (ValType& t : params) t.CanonicalizeIndexes(canonical_indexes);
     for (ValType& t : returns) t.CanonicalizeIndexes(canonical_indexes);
   }
 
-  void BuildType(Zone* zone, WasmModuleBuilder* builder) const {
-    // TODO(381687256): Populate final and supertype.
-    constexpr bool kNotFinal = false;
-    constexpr ModuleTypeIndex kNoSupertype = ModuleTypeIndex::Invalid();
+  void BuildType(Zone* zone, WasmModuleBuilder* builder, bool is_final,
+                 ModuleTypeIndex supertype) const {
     FunctionSig::Builder sig_builder(zone, returns.size(), params.size());
     for (ValType param : params) sig_builder.AddParam(param.value_type());
     for (ValType ret : returns) sig_builder.AddReturn(ret.value_type());
     FunctionSig* sig = sig_builder.Get();
-    builder->ForceAddSignature(sig, kNotFinal, kNoSupertype);
+    builder->ForceAddSignature(sig, is_final, supertype);
   }
 
   void Print(std::ostream& os) const {
@@ -262,48 +342,179 @@ std::ostream& operator<<(std::ostream& os, const CompType& type) {
   return os;
 }
 
+// `subtype` in the spec (`sub final? typeidx* comptype`).
+struct SubType {
+  CompType type;
+  bool is_final;
+  // The fuzzer domain initially chooses either `kNoSuperType.index` or an
+  // unconstrained non-negative index.
+  // `Fixup` will restrict this index to a valid earlier supertype index (or
+  // reset it to `kNoSuperType.index` if none exists) and will potentially set
+  // `supertype_in_recgroup`.
+  // `CanonicalizeIndexes` will replace `supertype` by a canonical index if it
+  // references a type from an earlier recgroup (i.e. if `supertype_in_recgroup`
+  // is not set).
+  uint32_t supertype;
+
+  // `supertype_in_recgroup` and `subtyping_depth` will be set by `Fixup`.
+  std::optional<uint32_t> supertype_in_recgroup;
+  uint32_t subtyping_depth = 0;
+
+  // Construction only passes the first three fields.
+  SubType(CompType type, bool is_final, uint32_t supertype)
+      : type(std::move(type)), is_final(is_final), supertype(supertype) {}
+
+  RefTypeKind ref_type_kind() const {
+    return std::visit([](const auto& t) { return t.ref_type_kind(); }, type);
+  }
+
+  void Fixup(const std::vector<RefTypeKind>& available_ref_types,
+             const std::vector<const SubType*>& previous_types,
+             uint32_t recgroup_start) {
+    if (supertype != kNoSuperType.index) {
+      // Collect all valid non-final earlier types of the same kind and within
+      // the maximum subtyping depth.
+      RefTypeKind kind = ref_type_kind();
+      base::SmallVector<uint32_t, 16> candidates;
+      for (uint32_t i = 0; i < previous_types.size(); ++i) {
+        const SubType* cand = previous_types[i];
+        if (!cand->is_final &&
+            cand->subtyping_depth < kV8MaxRttSubtypingDepth &&
+            cand->ref_type_kind() == kind) {
+          candidates.push_back(i);
+        }
+      }
+      if (candidates.empty()) {
+        supertype = kNoSuperType.index;
+      } else {
+        supertype = candidates[supertype % candidates.size()];
+        const SubType* super = previous_types[supertype];
+        subtyping_depth = super->subtyping_depth + 1;
+        if (supertype >= recgroup_start) {
+          supertype_in_recgroup = supertype - recgroup_start;
+        }
+        // Adapt to the supertype before fixing up reference types so that any
+        // fields/parameters/returns added by subtyping are also fixed up.
+        std::visit(
+            [&]<typename T>(T& t) {
+              t.AdaptToSupertype(std::get<T>(super->type), previous_types);
+            },
+            type);
+      }
+    }
+
+    std::visit(
+        [&](auto& t) { t.FixupRefTypes(available_ref_types, recgroup_start); },
+        type);
+  }
+
+  void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
+    if (supertype != kNoSuperType.index && !supertype_in_recgroup.has_value()) {
+      // Update the supertype index to the canonical index from an earlier
+      // recgroup.
+      DCHECK_LT(supertype, canonical_indexes.size());
+      supertype = canonical_indexes[supertype];
+    }
+    std::visit([&](auto& t) { t.CanonicalizeIndexes(canonical_indexes); },
+               type);
+  }
+
+  void BuildType(Zone* zone, WasmModuleBuilder* builder) const {
+    std::visit(
+        [&](const auto& t) {
+          t.BuildType(zone, builder, is_final, ModuleTypeIndex{supertype});
+        },
+        type);
+  }
+
+  void Print(std::ostream& os) const {
+    if (is_final) os << "final ";
+    if (supertype_in_recgroup.has_value()) {
+      os << "sub rec " << supertype_in_recgroup.value() << " ";
+    } else if (supertype != kNoSuperType.index) {
+      os << "sub " << supertype << " ";
+    }
+    os << type;
+  }
+};
+
+void RefType::AdaptToSupertype(
+    const RefType& super_ref, Variance variance,
+    const std::vector<const SubType*>& previous_types) {
+  shared = super_ref.shared;
+  uint32_t super_idx = super_ref.index;
+  base::SmallVector<uint32_t, 8> candidates{super_idx};
+
+  if (variance == Variance::kCovariant) {
+    // Non-nullable covariant references must remain non-nullable.
+    if (super_ref.nullable == Nullability::kNonNullable) {
+      nullable = Nullability::kNonNullable;
+    }
+    // Collect all earlier types that transitively have `super_idx` as a
+    // supertype.
+    for (uint32_t i = super_idx + 1; i < previous_types.size(); ++i) {
+      for (uint32_t cur = previous_types[i]->supertype;
+           cur != kNoSuperType.index; cur = previous_types[cur]->supertype) {
+        if (cur == super_idx) {
+          candidates.push_back(i);
+          break;
+        }
+      }
+    }
+  } else {
+    DCHECK_EQ(Variance::kContravariant, variance);
+    // Nullable contravariant references must remain nullable.
+    if (super_ref.nullable == Nullability::kNullable) {
+      nullable = Nullability::kNullable;
+    }
+    // If `super_idx` is not a forward reference within the supertype's
+    // recgroup, collect all of its transitive supertypes.
+    if (super_idx < previous_types.size()) {
+      for (uint32_t cur = previous_types[super_idx]->supertype;
+           cur != kNoSuperType.index; cur = previous_types[cur]->supertype) {
+        candidates.push_back(cur);
+      }
+    }
+  }
+
+  index = candidates[index % candidates.size()];
+}
+
 // `rectype` in the spec.
 struct RecursionGroup {
-  std::vector<CompType> types;
+  std::vector<SubType> types;
   // If {single_type} is false, this type will be outside any recursion group.
   // This is only allowed if {types.size() == 1}.
   bool single_type = false;
 
-  void UpdateAvailableRefTypesAndFixupRefTypes(
-      std::vector<RefTypeKind>& available_ref_types) {
+  void UpdateAvailableTypesAndFixup(
+      std::vector<RefTypeKind>& available_ref_types,
+      std::vector<const SubType*>& previous_types) {
     uint32_t recgroup_start =
         base::checked_cast<uint32_t>(available_ref_types.size());
-    for (const CompType& type : types) {
-      available_ref_types.push_back(
-          std::visit([](auto& t) { return t.ref_type_kind(); }, type));
+    for (const SubType& type : types) {
+      available_ref_types.push_back(type.ref_type_kind());
     }
-    for (CompType& type : types) {
-      std::visit(
-          [&](auto& t) {
-            t.FixupRefTypes(available_ref_types, recgroup_start);
-          },
-          type);
+    for (SubType& type : types) {
+      type.Fixup(available_ref_types, previous_types, recgroup_start);
+      previous_types.push_back(&type);
     }
   }
 
   void CanonicalizeIndexes(const std::vector<uint32_t>& canonical_indexes) {
-    for (CompType& type : types) {
-      std::visit([&](auto& t) { t.CanonicalizeIndexes(canonical_indexes); },
-                 type);
+    for (SubType& type : types) {
+      type.CanonicalizeIndexes(canonical_indexes);
     }
   }
 
   void BuildTypes(Zone* zone, WasmModuleBuilder* builder) const {
-    auto build_type = [zone, builder](const auto& t) {
-      t.BuildType(zone, builder);
-    };
     if (single_type) {
       DCHECK_EQ(1, types.size());
-      std::visit(build_type, types[0]);
+      types[0].BuildType(zone, builder);
     } else {
       builder->StartRecursiveTypeGroup();
-      for (const CompType& type : types) {
-        std::visit(build_type, type);
+      for (const SubType& type : types) {
+        type.BuildType(zone, builder);
       }
       builder->EndRecursiveTypeGroup();
     }
@@ -320,10 +531,12 @@ struct RecursionGroup {
 struct Module {
   std::vector<RecursionGroup> rec_groups;
 
-  void FixupRefTypes() {
+  void Fixup() {
     std::vector<RefTypeKind> available_ref_types;
+    std::vector<const SubType*> previous_types;
     for (RecursionGroup& rec_group : rec_groups) {
-      rec_group.UpdateAvailableRefTypesAndFixupRefTypes(available_ref_types);
+      rec_group.UpdateAvailableTypesAndFixup(available_ref_types,
+                                             previous_types);
     }
   }
 
@@ -420,17 +633,22 @@ static fuzztest::Domain<test::Module> ArbitraryModule() {
   auto comptype_domain = fuzztest::VariantOf<test::CompType>(
       function_type_domain, struct_type_domain, array_type_domain);
 
-  // rectype ::= rec subtype*
   // subtype ::= sub final? typeidx* comptype
-  // TODO(381687256): support final types and subtyping.
+  auto subtype_domain = fuzztest::ConstructorOf<test::SubType>(
+      comptype_domain,
+      /* is_final */ fuzztest::Arbitrary<bool>(),
+      /* supertype */
+      fuzztest::OneOf(fuzztest::Just(kNoSuperType.index),
+                      fuzztest::InRange<uint32_t>(0, kMaxInt)));
+
+  // rectype ::= rec subtype*
   auto recgroup_domain = fuzztest::OneOf(
       // A single type declared outside any recursion group.
       fuzztest::StructOf<test::RecursionGroup>(
-          fuzztest::VectorOf(comptype_domain).WithSize(1),
-          fuzztest::Just(true)),
+          fuzztest::VectorOf(subtype_domain).WithSize(1), fuzztest::Just(true)),
       // An actual recursion group of arbitrary size.
       fuzztest::StructOf<test::RecursionGroup>(
-          fuzztest::VectorOf(comptype_domain), fuzztest::Just(false)));
+          fuzztest::VectorOf(subtype_domain), fuzztest::Just(false)));
 
   auto module_domain =
       fuzztest::StructOf<test::Module>(fuzztest::VectorOf(recgroup_domain));
@@ -467,9 +685,9 @@ void TypeCanonicalizerTest::TestCanonicalization(
     // 2) we want to avoid relying on `WasmModule` internals.
     std::vector<uint32_t> canonical_indexes;
 
-    // After module generation by the fuzzer, fix up ref types to include the
-    // correct ref type kind and restrict indexes to the valid index space.
-    test_module.FixupRefTypes();
+    // After module generation by the fuzzer, fix up ref types and supertypes
+    // to restrict indexes to the valid index space and ensure valid subtyping.
+    test_module.Fixup();
 
     WasmModuleBuilder builder(&zone_);
     test_module.BuildTypes(&zone_, &builder);
@@ -484,7 +702,7 @@ void TypeCanonicalizerTest::TestCanonicalization(
 
     // If this fails due to too many types, we need to constrain vector sizes in
     // the fuzzer domains.
-    ASSERT_TRUE(result.ok());
+    ASSERT_TRUE(result.ok()) << result.error().message();
     std::shared_ptr<WasmModule> module = std::move(result).value();
     size_t total_types = 0;
     for (const test::RecursionGroup& rec_group : test_module.rec_groups) {
@@ -518,8 +736,24 @@ void TypeCanonicalizerTest::TestCanonicalization(
                       ModuleTypeIndex{first_type_id.index + i}));
       }
       for (uint32_t i = 0; i < rec_group.types.size(); ++i) {
+        CanonicalTypeIndex canonical_id{first_canonical_id.index + i};
         // This canonical ID can be used by successive recgroups.
-        canonical_indexes.push_back(first_canonical_id.index + i);
+        canonical_indexes.push_back(canonical_id.index);
+
+        // Verify that the canonicalized subtype is recognized as a heap subtype
+        // of its canonical supertype (and not vice versa).
+        const test::SubType& subtype = rec_group.types[i];
+        if (subtype.supertype != kNoSuperType.index) {
+          CanonicalTypeIndex canonical_supertype{
+              subtype.supertype_in_recgroup.has_value()
+                  ? first_canonical_id.index +
+                        subtype.supertype_in_recgroup.value()
+                  : subtype.supertype};
+          ASSERT_TRUE(GetTypeCanonicalizer()->IsHeapSubtype(
+              canonical_id, canonical_supertype));
+          ASSERT_FALSE(GetTypeCanonicalizer()->IsHeapSubtype(
+              canonical_supertype, canonical_id));
+        }
       }
       std::string recgroup_str = (std::ostringstream{} << rec_group).str();
       auto [it, added] = canonical_types.insert(
