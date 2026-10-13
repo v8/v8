@@ -203,7 +203,7 @@ using AccessorNameSetterCallbackV2 =
              const PropertyCallbackInfo<Boolean>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
 using AccessorNameSetterCallback  //
-    V8_DEPRECATE_SOON("Use AccessorNameSetterCallbackV2 instead.") =
+    V8_DEPRECATED("Use AccessorNameSetterCallbackV2 instead.") =
         void (*)(Local<Name> property, Local<Value> value,
                  const PropertyCallbackInfo<void>& info);
 
