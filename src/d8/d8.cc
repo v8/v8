@@ -6046,7 +6046,7 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
 #ifdef DEBUG
       i::DirectHandle<i::Object> i_exception;
       if (maybe_exception.ToHandle(&i_exception) &&
-          !try_catch.HasTerminated() && !i::v8_flags.fuzzing) {
+          !try_catch.HasTerminated()) {
         Local<Value> exception = Utils::ToLocal(i_exception);
         Local<Object> exception_obj = exception.As<Object>();
         Local<String> key = v8::String::NewFromUtf8Literal(
@@ -7419,6 +7419,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   handle_unsafe_d8_flag(options.trace_enabled);
   handle_unsafe_d8_flag(options.trace_config);
   handle_unsafe_d8_flag(options.trace_path);
+  // Inspector security bugs must be shown through the embedder (i.e. Chrome,
+  // or content_shell).
+  handle_unsafe_d8_flag(options.enable_inspector);
   handle_unsafe_d8_flag(options.lcov_file);
   handle_unsafe_d8_flag(options.enable_os_system);
   handle_unsafe_d8_flag(options.snapshot_blob);
@@ -7447,9 +7450,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       i::v8_flags.developer_only_features = true;
     }
   };
-  // Inspector security bugs must be shown through the embedder (i.e. Chrome,
-  // or content_shell).
-  handle_developer_only_d8_flag(options.enable_inspector);
   // Handle d8-only developer-only flags.
   handle_developer_only_d8_flag(options.dump_counters);
   handle_developer_only_d8_flag(options.dump_counters_nvp);
