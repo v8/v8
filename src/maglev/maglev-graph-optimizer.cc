@@ -1186,11 +1186,8 @@ ProcessResult MaglevGraphOptimizer::VisitCheckValue(
     CheckValue* node, const ProcessingState& state) {
   ValueNode* input = node->input_node(0);
   if (HeapConstant* constant = input->TryCast<HeapConstant>()) {
-    if (constant->object() == node->value()) {
-      return RemoveCurrentNode();
-    }
-    // TODO(victorgomes): Support soft deopting and killing the rest of the
-    // block.
+    return RemoveCheckOrDeopt(constant->object() == node->value(),
+                              node->deoptimize_reason());
   }
   return ProcessResult::kContinue;
 }

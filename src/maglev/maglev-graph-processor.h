@@ -298,7 +298,7 @@ class GraphProcessor {
                 break;
               }
             }
-            TruncateBlockAtNode(block, node);
+            block->TruncateAt(node);
             node_it_ = block->nodes().end();
             graph_->set_may_have_unreachable_blocks(true);
             break;
@@ -393,18 +393,6 @@ class GraphProcessor {
     np->HasPendingSplice();
   };
 
-  // Truncates `block` to end just before `node`, dropping `node` and every
-  // node after it. The cut point is located by value rather than a cached
-  // iterator or index: a mid-block deopt or throw can emit an abrupt block
-  // end whose node flush reallocates block->nodes(), dangling any iterator
-  // taken before the flush.
-  void TruncateBlockAtNode(BasicBlock* block, Node* node) {
-    auto& nodes = block->nodes();
-    auto it = std::find(nodes.begin(), nodes.end(), node);
-    DCHECK_NE(it, nodes.end());
-    nodes.resize(it - nodes.begin());
-  }
-
   // Splices the subgraph recorded by the processor's reducer into the
   // graph at the visited node. If `truncate` is false, the tail (after the
   // visited node) moves to splice.exit; the visited node itself is expected
@@ -421,7 +409,7 @@ class GraphProcessor {
     ZoneVector<Node*> tail_nodes(graph_->zone());
     if (truncate) {
       // Drop the visited node and everything after it.
-      TruncateBlockAtNode(block, node);
+      block->TruncateAt(node);
     } else {
       // The visitor must have rewritten the visited node to an Identity
       // (typically to the spliced result Phi), so uses on the join-block

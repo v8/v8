@@ -159,12 +159,14 @@ void MaglevCompilationUnit::InitializeSpecializationContextForInlined(
   // same ScopeInfo as `caller_->specialization_context()`).
   if (FastCreateClosure* fast_closure =
           function->TryCast<FastCreateClosure>()) {
+    DCHECK_EQ(fast_closure->shared_function_info(), *shared_function_info_);
     DCHECK_EQ(fast_closure->context_scope_info().value(), scope_info);
     specialization_context_ = fast_closure->specialization_context();
     incoming_context_scope_info_ = fast_closure->context_scope_info();
     return;
   }
   if (CreateClosure* slow_closure = function->TryCast<CreateClosure>()) {
+    DCHECK_EQ(slow_closure->shared_function_info(), *shared_function_info_);
     DCHECK_EQ(slow_closure->context_scope_info().value(), scope_info);
     specialization_context_ = slow_closure->specialization_context();
     incoming_context_scope_info_ = slow_closure->context_scope_info();
