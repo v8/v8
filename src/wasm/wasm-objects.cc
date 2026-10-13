@@ -1613,17 +1613,6 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   instance_object->set_module_object(*module_object);
   trusted_data->set_instance_object(*instance_object);
 
-  // Insert the new instance into the script's weak list of instances. This
-  // list is used for breakpoints affecting all instances belonging to the
-  // script.
-  DCHECK_EQ(module_object->script()->type(), Script::Type::kWasm);
-  DirectHandle<WeakArrayList> weak_instance_list(
-      module_object->script()->wasm_weak_instance_list(), isolate);
-  weak_instance_list =
-      WeakArrayList::Append(isolate, weak_instance_list,
-                            MaybeObjectDirectHandle::Weak(instance_object));
-  module_object->script()->set_wasm_weak_instance_list(*weak_instance_list);
-
   return trusted_data;
 }
 

@@ -1377,6 +1377,22 @@ void InstanceBuilder::Build_Phase1_Infallible() {
     WasmDispatchTable::AddUse(isolate_, dispatch_table_handle, trusted_data_,
                               i);
   }
+
+  //--------------------------------------------------------------------------
+  // Insert the new instance into the script's weak list of instances. This
+  // list is used for breakpoints affecting all instances belonging to the
+  // script.
+  //--------------------------------------------------------------------------
+  DCHECK_EQ(untrusted_module_object_->script()->type(), Script::Type::kWasm);
+  DirectHandle<WeakArrayList> weak_instance_list(
+      untrusted_module_object_->script()->wasm_weak_instance_list(), isolate_);
+  DirectHandle<WasmInstanceObject> instance_object(
+      trusted_data_->instance_object(), isolate_);
+  weak_instance_list =
+      WeakArrayList::Append(isolate_, weak_instance_list,
+                            MaybeObjectDirectHandle::Weak(instance_object));
+  untrusted_module_object_->script()->set_wasm_weak_instance_list(
+      *weak_instance_list);
 }
 
 Maybe<bool> InstanceBuilder::Build_Phase2() {
