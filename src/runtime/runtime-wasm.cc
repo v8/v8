@@ -2994,9 +2994,16 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   alignment = RoundUp(alignment, 2 * kSystemPointerSize);
 #endif
   stack->jmpbuf()->fp = kNullAddress;
-  stack->jmpbuf()->sp = RoundDown(stack->base() - arg_buffer_size, alignment);
-  Address arg_buffer = stack->jmpbuf()->sp;
+  Address arg_buffer = RoundDown(stack->base() - arg_buffer_size, alignment);
   stack->set_arg_buffer(arg_buffer);
+  stack->jmpbuf()->sp = arg_buffer;
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+  // Return address slot. The wrapper returns by switching to the parent
+  // jump buffer and does not actually use this slot, but it is read by the
+  // profiler.
+  stack->jmpbuf()->sp -= kSystemPointerSize;
+  base::Memory<Address>(stack->jmpbuf()->sp) = kNullAddress;
+#endif
   stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
   stack->jmpbuf()->stack_limit = stack->jslimit();
   stack->jmpbuf()->is_on_central_stack = false;
