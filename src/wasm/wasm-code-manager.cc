@@ -513,8 +513,8 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   if (trapping_instructions_size_ > 0) {
     os << "Trapping instructions:\n pc offset\n";
     for (auto& data : trapping_instructions()) {
-      os << std::setw(10) << std::hex << data.instr_offset << std::setw(10)
-         << "\n";
+      os << std::setw(10) << std::hex << data.instr_offset << std::dec
+         << std::setw(10) << "\n";
     }
     os << "\n";
   }

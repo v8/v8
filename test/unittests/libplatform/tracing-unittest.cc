@@ -632,7 +632,7 @@ class TestListener : public TraceEventListener {
         } else if (it.has_string_value()) {
           value << "(string)" << it.string_value();
         } else if (it.has_pointer_value()) {
-          value << "(pointer)0x" << std::hex << it.pointer_value();
+          value << "(pointer)0x" << std::hex << it.pointer_value() << std::dec;
         } else if (it.has_legacy_json_value()) {
           value << "(json)" << it.legacy_json_value();
         } else if (it.has_nested_value()) {

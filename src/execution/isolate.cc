@@ -5963,7 +5963,7 @@ bool Isolate::InitWithSnapshot(SnapshotData* startup_snapshot_data,
 namespace {
 static std::string ToHexString(uintptr_t address) {
   std::stringstream stream_address;
-  stream_address << "0x" << std::hex << address;
+  stream_address << "0x" << std::hex << address << std::dec;
   return stream_address.str();
 }
 }  // namespace

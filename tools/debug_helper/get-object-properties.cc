@@ -32,7 +32,8 @@ constexpr char kObjectAsStoredInHeap[] =
 std::string AppendAddressAndType(const std::string& brief, uintptr_t address,
                                  const char* type) {
   std::stringstream brief_stream;
-  brief_stream << "0x" << std::hex << address << " <" << type << ">";
+  brief_stream << "0x" << std::hex << address << std::dec << " <" << type
+               << ">";
   return brief.empty() ? brief_stream.str()
                        : brief + " (" + brief_stream.str() + ")";
 }
@@ -725,7 +726,7 @@ std::unique_ptr<ObjectPropertiesResult> GetObjectProperties(
   // untagged value.
   int32_t value = i::PlatformSmiTagging::SmiToInt(address);
   std::stringstream stream;
-  stream << value << " (0x" << std::hex << value << ")";
+  stream << value << " (0x" << std::hex << value << std::dec << ")";
   return std::make_unique<ObjectPropertiesResult>(d::TypeCheckResult::kSmi,
                                                   stream.str(), kSmi);
 }

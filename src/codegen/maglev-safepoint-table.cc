@@ -117,8 +117,8 @@ void MaglevSafepointTable::Print(std::ostream& os) const {
 
     if (entry.has_deoptimization_index()) {
       os << "  deopt " << std::setw(6) << entry.deoptimization_index()
-         << " trampoline: " << std::setw(6) << std::hex
-         << entry.trampoline_pc();
+         << " trampoline: " << std::setw(6) << std::hex << entry.trampoline_pc()
+         << std::dec;
     }
     os << "\n";
   }

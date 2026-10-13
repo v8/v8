@@ -2063,7 +2063,7 @@ int ComputeInitialGraphHash(Builtin builtin,
       std::ofstream out(v8_flags.dump_builtins_hashes_to_file,
                         std::ios_base::app);
       out << "Builtin: " << Builtins::name(builtin) << ", hash: 0x" << std::hex
-          << initial_graph_hash << std::endl;
+          << initial_graph_hash << std::dec << std::endl;
     }
   }
   return initial_graph_hash;

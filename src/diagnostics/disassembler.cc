@@ -261,7 +261,8 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
     out << "    ;; external reference (" << reference_name << ")";
   } else if (rmode == RelocInfo::JS_DISPATCH_HANDLE) {
     JSDispatchHandle dispatch_handle = relocinfo->js_dispatch_handle();
-    out << "    ;; js dispatch handle:0x" << std::hex << dispatch_handle;
+    out << "    ;; js dispatch handle:0x" << std::hex << dispatch_handle
+        << std::dec;
     if (dispatch_handle != kNullJSDispatchHandle) {
       Tagged<Code> code =
           isolate->js_dispatch_table().GetCode(relocinfo->js_dispatch_handle());
@@ -424,7 +425,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       out << "\033[33;1m";
     }
     out << static_cast<void*>(prev_pc) << "  " << std::setw(4) << std::hex
-        << prev_pc - begin << "  ";
+        << prev_pc - begin << std::dec << "  ";
 
     // Instruction.
     out << decode_buffer.data();

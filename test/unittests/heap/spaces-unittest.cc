@@ -1428,6 +1428,7 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
       PrintRegion(os, contiguous_region_start, contiguous_region_end,
                   contiguous_region_access, contiguous_region_access_committed);
     }
+    os << std::dec << std::noshowbase;
   }
 
  private:

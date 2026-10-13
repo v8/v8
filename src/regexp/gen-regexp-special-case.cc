@@ -199,6 +199,7 @@ void WriteHeader(const char* header_filename) {
       << "namespace regexp {\n\n";
 
   PrintSpecial(out);
+  out << std::dec;
 
   out << "\n"
       << "}  // namespace regexp\n"

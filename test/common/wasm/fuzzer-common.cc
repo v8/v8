@@ -869,6 +869,7 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
 
           ss << "\n  - Actual:    ";
           print_mem_block(ss, data + j);
+          ss << std::dec;
 
           ss << "\n               ";
           for (size_t k = 0; k < block_size; ++k) {

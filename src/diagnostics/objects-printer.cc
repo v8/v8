@@ -502,11 +502,12 @@ void PrintByteArrayElements(std::ostream& os, const T* array) {
   uint32_t length = array->ulength().value();
   uint32_t i = 0;
   while (i < length) {
-    os << "   0x" << std::setfill('0') << std::setw(4) << std::hex << i << ":";
+    os << "   0x" << std::setfill('0') << std::setw(4) << std::hex << i
+       << std::dec << ":";
     uint32_t line_end = std::min(i + 16, length);
     for (; i < line_end; ++i) {
       os << " " << std::setfill('0') << std::setw(2) << std::hex
-         << static_cast<int>(array->get(i));
+         << static_cast<int>(array->get(i)) << std::dec;
     }
     os << "\n";
   }
@@ -1774,7 +1775,7 @@ void OrderedNameDictionary::OrderedNameDictionaryPrint(std::ostream& os) {
 
 void print_hex_byte(std::ostream& os, int value) {
   os << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex
-     << (value & 0xff) << std::setfill(' ');
+     << (value & 0xff) << std::dec << std::setfill(' ');
 }
 
 void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {

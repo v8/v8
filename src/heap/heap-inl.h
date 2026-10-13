@@ -312,7 +312,7 @@ bool Heap::IsPendingAllocation(Tagged<HeapObject> object) {
   bool result = IsPendingAllocationInternal(object);
   if (v8_flags.trace_pending_allocations && result) {
     StdoutStream{} << "Pending allocation: " << std::hex << "0x" << object.ptr()
-                   << "\n";
+                   << std::dec << "\n";
   }
   return result;
 }

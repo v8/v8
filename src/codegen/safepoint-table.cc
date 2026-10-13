@@ -436,7 +436,7 @@ void SafepointTable::Print(std::ostream& os) {
     if (entry_.has_deoptimization_index()) {
       os << "  deopt " << std::setw(6) << entry_.deoptimization_index()
          << " trampoline: " << std::setw(6) << std::hex
-         << entry_.trampoline_pc();
+         << entry_.trampoline_pc() << std::dec;
     }
     os << "\n";
   }

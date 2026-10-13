@@ -9482,7 +9482,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
       if (1) {
         std::cout << "Unrecognized instruction [@pc=0x" << std::hex
                   << registers_[pc] << "]: 0x" << instr->InstructionBits()
-                  << std::endl;
+                  << std::dec << std::endl;
       }
       UNSUPPORTED();
   }
@@ -9711,7 +9711,7 @@ void Simulator::CallImpl(Address entry, CallArgument* args) {
               << " fa3 = 0x" << get_fpu_register(fa3) << " fa4 = 0x"
               << get_fpu_register(fa4) << " fa5 = 0x" << get_fpu_register(fa5)
               << " fa6 = 0x" << get_fpu_register(fa6) << " fa7 = 0x"
-              << get_fpu_register(fa7) << std::endl;
+              << get_fpu_register(fa7) << std::dec << std::endl;
   }
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
@@ -9754,7 +9754,7 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
               << " a2 (func/target) = 0x" << get_register(a2)
               << " a3 (receiver) = 0x" << get_register(a3) << " a4 (argc) = 0x"
               << get_register(a4) << " a5 (argv) = 0x" << get_register(a5)
-              << std::endl;
+              << std::dec << std::endl;
   }
   // Remaining arguments passed on stack.
   sreg_t original_stack = get_register(sp);
