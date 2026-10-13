@@ -4436,6 +4436,15 @@ template <typename BaseT>
 template <typename BranchBuilderT>
 BranchResult MaglevReducer<BaseT>::BuildBranchIfInt32ToBooleanTrue(
     BranchBuilderT& b, ValueNode* node) {
+  // Fuse `Int32BitwiseAnd(x, mask)` feeding a ToBoolean branch into a single
+  // test-and-branch, avoiding a separate `and` and compare against zero.
+  if (auto* and_node = node->TryCast<Int32BitwiseAnd>()) {
+    ValueNode* lhs = and_node->input_node(0);
+    ValueNode* rhs = and_node->input_node(1);
+    if (auto mask = TryGetInt32Constant(rhs); mask && *mask != 0) {
+      return b.template Build<BranchIfInt32BitwiseAndNonZero>({lhs}, *mask);
+    }
+  }
   return b.template Build<BranchIfInt32ToBooleanTrue>({node});
 }
 

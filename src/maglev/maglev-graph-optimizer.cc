@@ -3748,6 +3748,15 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32ToBooleanTrue(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32BitwiseAndNonZero(
+    BranchIfInt32BitwiseAndNonZero* node, const ProcessingState& state) {
+  if (auto cst = reducer_.TryGetInt32Constant(node->ValueInput().node())) {
+    FoldBranch(state.block(), node, (cst.value() & node->mask()) != 0);
+    return ProcessResult::kRevisit;
+  }
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitBranchIfIntPtrToBooleanTrue(
     BranchIfIntPtrToBooleanTrue* node, const ProcessingState& state) {
   if (auto cst = reducer_.TryGetIntPtrConstant(node->input_node(0))) {

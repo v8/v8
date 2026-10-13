@@ -4353,6 +4353,14 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::BranchIfInt32BitwiseAndNonZero* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> masked =
+        __ Word32BitwiseAnd(Map(node->ValueInput()), node->mask());
+    __ Branch(masked, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::BranchIfIntPtrToBooleanTrue* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition =

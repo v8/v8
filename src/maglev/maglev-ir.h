@@ -514,6 +514,7 @@ class ExceptionHandlerInfo;
   V(BranchIfRootConstant)                    \
   V(BranchIfToBooleanTrue)                   \
   V(BranchIfInt32ToBooleanTrue)              \
+  V(BranchIfInt32BitwiseAndNonZero)          \
   V(BranchIfIntPtrToBooleanTrue)             \
   V(BranchIfFloat64ToBooleanTrue)            \
   V(BranchIfHoleyFloat64ToBooleanTrue)       \
@@ -11890,6 +11891,31 @@ class BranchIfInt32ToBooleanTrue
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+// Fused form of BranchIfInt32ToBooleanTrue(Int32BitwiseAnd(value, mask)):
+// branches to if_true when (value & mask) != 0. This lets the branch emit a
+// single test-and-branch (tbnz/tst on arm64, test on x64) instead of a
+// separate `and` and compare against zero.
+class BranchIfInt32BitwiseAndNonZero
+    : public BranchControlNodeT<1, BranchIfInt32BitwiseAndNonZero> {
+ public:
+  explicit BranchIfInt32BitwiseAndNonZero(uint64_t bitfield, int32_t mask,
+                                          BasicBlockRef* if_true_refs,
+                                          BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs), mask_(mask) {}
+
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Int32)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  int32_t mask() const { return mask_; }
+
+ private:
+  int32_t mask_;
 };
 
 class BranchIfIntPtrToBooleanTrue

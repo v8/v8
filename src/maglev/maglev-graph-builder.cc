@@ -15184,8 +15184,8 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfRootConstant(
       if (node->Cast<Int32ToBoolean>()->flip()) {
         builder.SwapTargets();
       }
-      return builder.template Build<BranchIfInt32ToBooleanTrue>(
-          {node->Cast<Int32ToBoolean>()->ValueInput().node()});
+      return reducer_.BuildBranchIfInt32ToBooleanTrue(
+          builder, node->Cast<Int32ToBoolean>()->ValueInput().node());
     case Opcode::kIntPtrToBoolean:
       if (node->Cast<IntPtrToBoolean>()->flip()) {
         builder.SwapTargets();

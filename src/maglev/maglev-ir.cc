@@ -8615,6 +8615,25 @@ void BranchIfInt32ToBooleanTrue::GenerateCode(MaglevAssembler* masm,
                            if_true(), if_false(), state.next_block());
 }
 
+void BranchIfInt32BitwiseAndNonZero::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+}
+void BranchIfInt32BitwiseAndNonZero::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register value = ToRegister(ValueInput());
+  BasicBlock* next_block = state.next_block();
+  if (if_true() == next_block) {
+    // The true target is the fallthrough: branch to the false target when no
+    // masked bit is set, i.e. when (value & mask) == 0.
+    __ TestInt32AndJumpIfAllClear(value, mask_, if_false()->label());
+  } else {
+    __ TestInt32AndJumpIfAnySet(value, mask_, if_true()->label());
+    if (if_false() != next_block) {
+      __ Jump(if_false()->label());
+    }
+  }
+}
+
 void BranchIfIntPtrToBooleanTrue::SetValueLocationConstraints() {
   // TODO(victorgomes): consider using any input instead.
   UseRegister(ConditionInput());
@@ -9552,6 +9571,10 @@ void BranchIfFloat64Compare::PrintParams(std::ostream& os) const {
 
 void BranchIfInt32Compare::PrintParams(std::ostream& os) const {
   os << "(" << operation_ << ")";
+}
+
+void BranchIfInt32BitwiseAndNonZero::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << static_cast<uint32_t>(mask_) << std::dec << ")";
 }
 
 void BranchIfUint32Compare::PrintParams(std::ostream& os) const {

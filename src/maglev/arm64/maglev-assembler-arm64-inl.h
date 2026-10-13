@@ -1566,7 +1566,9 @@ inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
 
 inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
-  TestAndBranchIfAnySet(r1.W(), mask, target);
+  // Zero-extend so a sign-bit mask (e.g. 0x80000000) tests the 32-bit register
+  // rather than a sign-extended 64-bit pattern.
+  TestAndBranchIfAnySet(r1.W(), static_cast<uint32_t>(mask), target);
 }
 
 inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
@@ -1587,7 +1589,9 @@ inline void MaglevAssembler::TestUint8AndJumpIfAnySet(
 
 inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
-  TestAndBranchIfAllClear(r1.W(), mask, target);
+  // Zero-extend so a sign-bit mask (e.g. 0x80000000) tests the 32-bit register
+  // rather than a sign-extended 64-bit pattern.
+  TestAndBranchIfAllClear(r1.W(), static_cast<uint32_t>(mask), target);
 }
 
 inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
