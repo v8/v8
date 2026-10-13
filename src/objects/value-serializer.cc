@@ -2743,8 +2743,12 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
           }
         } else if (tag == SerializationTag::kUtf8String) {
           base::Vector<const uint8_t> key_chars;
-          if (ReadRawBytes(byte_length).To(&key_chars) &&
-              String::IsAscii(key_chars.begin(), key_chars.length())) {
+          // For ASCII strings, the UTF-8 byte length equals the character
+          // length, so an ASCII string cannot exceed String::kMaxLength.
+          // Non-ASCII or overly long strings fall back to ReadObject() below.
+          if (byte_length <= String::kMaxLength &&
+              ReadRawBytes(byte_length).To(&key_chars) &&
+              String::IsAscii(key_chars.begin(), byte_length)) {
             expected_transition = transitions.ExpectedTransition(key_chars);
           }
         }
