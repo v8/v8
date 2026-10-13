@@ -4,6 +4,7 @@
 
 #include "src/utils/ostreams.h"
 #include "src/wasm/canonical-types.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -120,9 +121,17 @@ struct RefType {
   }
 };
 
-// `numtype` in the spec.
+// `numtype` or `vectype` in the spec.
 struct NumType {
   ValueType type;
+
+  void Fixup() {
+    // Fall back to `i32` if the host CPU does not support SIMD, as the module
+    // decoder rejects `v128` without hardware SIMD support.
+    if (type == kWasmS128 && !CheckHardwareSupportsSimd()) {
+      type = kWasmI32;
+    }
+  }
 
   void Print(std::ostream& os) const { os << type.name(); }
 
@@ -141,6 +150,8 @@ struct ValType : public std::variant<NumType, RefType> {
                     uint32_t recgroup_start) {
     if (RefType* ref_type = std::get_if<RefType>(this)) {
       ref_type->FixupRefType(available_ref_types, recgroup_start);
+    } else {
+      std::get<NumType>(*this).Fixup();
     }
   }
 
@@ -681,10 +692,11 @@ static fuzztest::Domain<test::Module> ArbitraryModule() {
       fuzztest::ElementOf({Nullability::kNullable, Nullability::kNonNullable}));
 
   // numtype ::= i32 | i64 | f32 | f64
-  auto num_type_domain = fuzztest::StructOf<test::NumType>(
-      fuzztest::ElementOf<ValueType>({kWasmI32, kWasmI64, kWasmF32, kWasmF64}));
+  // vectype ::= v128
+  auto num_type_domain =
+      fuzztest::StructOf<test::NumType>(fuzztest::ElementOf<ValueType>(
+          {kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmS128}));
   // valtype ::= numtype | vectype | reftype
-  // TODO(381687256): Add vectype (kS128) on SIMD-enabled hosts.
   auto val_type_domain = fuzztest::ConstructorOf<test::ValType>(
       fuzztest::VariantOf(num_type_domain, ref_type_domain));
   // resulttype ::= [vec(valtype)]
