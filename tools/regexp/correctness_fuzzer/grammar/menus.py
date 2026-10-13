@@ -38,6 +38,9 @@ ASCII_LETTER = list("abcxyzABXYZ")
 # something the pattern can actually match.
 ESCAPE_LITERALS = {"f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v"}
 
+# Line terminators and CRLF: suffixes that distinguish `\Z` from `\z`.
+LINE_TERMINATORS = ["\n", "\r", "\r\n", "\u2028", "\u2029"]
+
 # Property names that exist in every ICU build V8 ships with.
 UNICODE_PROPERTIES = [
     "L",
@@ -79,6 +82,9 @@ SUBJECT_NOISE = list("abcxyz019 \n") + ["é", "\U0001f0a1"]
 # makes a meaningful share of cases match at all (see gen_subject).
 SUBJECT_LITERAL_SHARE = 0.75
 SUBJECT_MAX_LEN = 10
+
+# Probability of appending a tail requested by the pattern.
+SUBJECT_TAIL_SHARE = 0.5
 
 # Probability that a case sets a nonzero lastIndex.
 LAST_INDEX_SHARE = 0.3

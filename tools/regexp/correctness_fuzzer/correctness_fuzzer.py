@@ -40,7 +40,8 @@ Replay a generated testcase file, e.g. one ClusterFuzz attached to a bug
 
 The reference is treated as ground truth; only cases the reference
 executes cleanly are compared, so an unsupported-syntax difference in
-the reference is never reported as a test failure.
+the reference is never reported as a test failure. Both configurations
+use --js-staging by default; see README.md for flag overrides.
 """
 
 import argparse
@@ -98,7 +99,7 @@ class Runner:
   def _run(self, config, casefile):
     path, flags = config
     try:
-      p = subprocess.run([path, *flags, casefile],
+      p = subprocess.run([path, *grammar.D8_FLAGS, *flags, casefile],
                          capture_output=True,
                          text=True,
                          timeout=60)
@@ -112,9 +113,12 @@ class Runner:
 
     Selecting by shape keeps the diff robust to any banner or warning
     lines a d8 configuration might print around the harness output.
+
+    str.splitlines() would also split at U+2028, U+2029 and U+0085,
+    which JSON.stringify leaves unescaped inside strings.
     """
     results = {}
-    for line in out.splitlines():
+    for line in out.split("\n"):
       key, tab, value = line.partition("\t")
       if tab and key.isdigit():
         results[int(key)] = value

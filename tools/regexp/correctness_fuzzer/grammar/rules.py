@@ -18,9 +18,9 @@ you it never fired.
 """
 
 from .menus import (ASCII_LETTER, CLASS_SET_SAFE, CONTROL_ESCAPE,
-                    ESCAPE_LITERALS, LATIN1_ONLY, LITERAL, LITERAL_WIDE,
-                    RANGE_ALPHABET, SURROGATES, UNICODE_PROPERTIES,
-                    UNICODE_PROPERTIES_OF_STRINGS)
+                    ESCAPE_LITERALS, LATIN1_ONLY, LINE_TERMINATORS, LITERAL,
+                    LITERAL_WIDE, RANGE_ALPHABET, SURROGATES,
+                    UNICODE_PROPERTIES, UNICODE_PROPERTIES_OF_STRINGS)
 from .registry import (NOT_SETS, NOT_UNICODE, SETS, UNICODE, concat_terms,
                        expand, repeat, rule)
 
@@ -90,6 +90,7 @@ def quantified_atom(ctx):
 
 
 # Assertion :: `^` `$` `\b` `\B`
+#              [+UnicodeMode] `\A` `\z` `\Z`
 #              `(?=` Disjunction `)` and the three other lookaround forms
 
 
@@ -111,6 +112,34 @@ def word_boundary(ctx):
 @rule("Assertion", weight=0.7)
 def not_word_boundary(ctx):
   return r"\B"
+
+
+# Outside Unicode mode these are identity escapes (see
+# identity_escape_boundary_letter). Assertion is not derived inside classes.
+
+
+@rule("Assertion", weight=1.0, guard=UNICODE)
+def start_of_input(ctx):
+  # Anchoring can remove the search loop; nonzero lastIndex with g/y must
+  # still fail rather than restart at the anchor.
+  return r"\A"
+
+
+@rule("Assertion", weight=0.7, guard=UNICODE)
+def end_of_input(ctx):
+  # Use the same suffixes as `\Z` to exercise their differing semantics.
+  ctx.note_tails(LINE_TERMINATORS)
+  return r"\z"
+
+
+@rule("Assertion", weight=0.8, guard=UNICODE)
+def end_of_buffer(ctx):
+  # `\Z` matches at end of input or before a trailing line terminator or CRLF.
+  # Also put terminators inside subjects, where the assertion must fail unless
+  # the remaining suffix is itself a single terminator or CRLF.
+  ctx.note_tails(LINE_TERMINATORS)
+  ctx.note_literal(ctx.rng.choice(LINE_TERMINATORS))
+  return r"\Z"
 
 
 @rule("Assertion", weight=1.0, recursive=True)
@@ -420,6 +449,14 @@ def identity_escape(ctx):
 def identity_escape_extended(ctx):
   # Only [~UnicodeMode] admits arbitrary non-ID characters.
   return ctx.note_literal(ctx.rng.choice(list("^$\\.*+?()[]{}|/-@~")))
+
+
+@rule("CharacterEscape", weight=0.5, guard=NOT_UNICODE)
+def identity_escape_boundary_letter(ctx):
+  # In legacy mode these match letters, both inside and outside classes.
+  letter = ctx.rng.choice(list("AzZ"))
+  ctx.note_literal(letter)
+  return letter
 
 
 # CharacterClassEscape :: `d` `D` `s` `S` `w` `W`

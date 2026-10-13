@@ -20,7 +20,16 @@ emitted in a mode that accepts it and generated patterns are essentially always
 syntactically valid. Cases span the interesting character-width axes -- ASCII,
 Latin-1, BMP two-byte, supplementary -- and subjects are drawn from the
 characters the pattern itself mentions, so roughly half of all cases match
-rather than failing at the first character.
+rather than failing at the first character. Patterns containing `\Z` or `\z`
+request subjects with trailing line terminators to exercise the difference
+between these assertions.
+
+The grammar includes the staged `\A`, `\z`, and `\Z` assertions
+([proposal](https://github.com/tc39/proposal-regexp-buffer-boundaries),
+`--js-regexp-buffer-boundaries`). Like foozzie, this tool enables
+`--js-staging` through `grammar.D8_FLAGS`. These flags precede the `--ref` and
+`--test` configuration flags, which can override them. Disabling a staged
+feature in the reference causes cases using it to be skipped as syntax errors.
 
 Each case runs on two separately constructed `RegExp` objects, and both results
 are reported. The two differ in what the engine has cached by the time they
@@ -112,7 +121,7 @@ tools/regexp/correctness_fuzzer/correctness_fuzzer.py --ref A --test B \
 | `--batch-size` | `500` | Cases per batch. |
 | `--max-findings` | `20` | Stop after this many divergences. |
 | `--progress-every` | `25` | Print a flushed progress line every N clean batches (`0` disables). |
-| `--profile` | `default` | Weight overlay: `anchored`, `classes`, `backtracking`, `loops`, `lookaround`. |
+| `--profile` | `default` | Weight overlay: `anchored`, `buffer_boundaries`, `classes`, `backtracking`, `loops`, `lookaround`. |
 | `--weight` | | Multiply one rule's weight, `Production.rule=N`; repeatable. |
 | `--max-depth` | `5` | Derivation depth budget. The default is the smallest that reaches every grammar rule. |
 | `--coverage` | off | Report per-rule expansion counts and unexercised rules. |

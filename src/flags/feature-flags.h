@@ -77,9 +77,6 @@
                                                                                \
   JS_FEATURE(js_source_phase_imports, "source phase imports")                  \
                                                                                \
-  JS_FEATURE(js_regexp_buffer_boundaries,                                      \
-             "RegExp \\A \\z \\Z buffer boundary assertions")                  \
-                                                                               \
   IF_SPARKPLUG_PLUS_ENABLED(INTERNAL_FEATURE, sparkplug_inline_smi,            \
                             "inline the Smi fast path of embedded feedback "   \
                             "operations into JS baseline code")                \
@@ -172,6 +169,9 @@
   JS_FEATURE(js_import_bytes, "import bytes")                                  \
                                                                                \
   JS_FEATURE(js_defer_import_eval, "defer import eval")                        \
+                                                                               \
+  JS_FEATURE(js_regexp_buffer_boundaries,                                      \
+             "RegExp \\A \\z \\Z buffer boundary assertions")                  \
                                                                                \
   /* Custom Descriptors proposal. */                                           \
   /* https://github.com/WebAssembly/custom-descriptors */                      \
