@@ -119,6 +119,7 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     return !function_.is_null() && HasScope();
   }
   bool HasContext() const;
+  bool InPausedFunctionScopes() const;
   bool NeedsContext() const;
   bool NeedsAndHasContext() const { return NeedsContext() && HasContext(); }
   Handle<Context> CurrentContext() const {

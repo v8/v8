@@ -292,16 +292,45 @@ bool ScopeIterator::AdvanceToScopeNumber(int scope_number) {
   return scope_number == 0 && !Done();
 }
 
+bool ScopeIterator::InPausedFunctionScopes() const {
+  if (function_.is_null() || !HasScope()) return false;
+  // `function_` is only reset after Next() has moved past the closure scope,
+  // so explicitly check that the closure scope is (an ancestor of) the current
+  // scope.
+  for (std::optional<DebugScriptScope> scope = current_scope();
+       scope.has_value(); scope = scope->parent()) {
+    if (scope->scope_index() == closure_scope_index_) return true;
+  }
+  return false;
+}
+
 bool ScopeIterator::HasContext() const {
-  // In rare cases we pause in a scope that doesn't have its context pushed yet.
-  // E.g. when pausing in for-of loop headers (see https://crbug.com/399002824).
-  //
-  // We can detect this by comparing the scope ID of the parsed scope and the
-  // runtime scope.
-  if (HasScope() && NeedsContext() &&
-      current_scope().unique_id_in_script() !=
-          context_->scope_info()->UniqueIdInScript()) {
-    return false;
+  if (HasScope() && NeedsContext()) {
+    // In rare cases we pause in a scope that doesn't have its context pushed
+    // yet. E.g. when pausing in for-of loop headers (see
+    // https://crbug.com/399002824).
+    //
+    // While we are still in the scopes of the paused function, the function's
+    // creation context means that none of the function's own contexts have
+    // been pushed. Check this first: the creation context can belong to a
+    // different script (the caller of a direct eval), so comparing scope IDs,
+    // which are only unique within a script, would be meaningless.
+    // Top-level script and module functions are the exception: they are
+    // created with the script/module context as their context.
+    const bool closure_created_in_own_context =
+        current_scope().is_script_scope() || current_scope().is_module_scope();
+    if (!closure_created_in_own_context && InPausedFunctionScopes() &&
+        *context_ == function_->context()) {
+      return false;
+    }
+
+    // Otherwise, context_ belongs to the same script as current_scope() and
+    // we can detect a not-yet-pushed context by comparing the scope ID of the
+    // parsed scope and the runtime scope.
+    if (current_scope().unique_id_in_script() !=
+        context_->scope_info()->UniqueIdInScript()) {
+      return false;
+    }
   }
 
   return !HasScope() || NeedsContext();
