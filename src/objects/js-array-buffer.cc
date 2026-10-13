@@ -72,6 +72,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     SetEmbedderField(i, Smi::zero());
   }
   if (!backing_store) {
+    DCHECK(!resizable);
     set_backing_store(isolate, EmptyBackingStoreBuffer());
     set_byte_length(0);
     set_max_byte_length(0);

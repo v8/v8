@@ -2934,6 +2934,8 @@ void JSArrayBuffer::JSArrayBufferVerify(Isolate* isolate) {
           (v.IsWeak() && IsJSArrayBufferView(v.GetHeapObjectAssumeWeak())) ||
           v.IsCleared());
   }
+  CHECK_IMPLIES(is_resizable_by_js() && !was_detached(),
+                GetBackingStore() != nullptr);
 }
 
 void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
