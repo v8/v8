@@ -126,8 +126,8 @@ void MaglevSafepointTable::Print(std::ostream& os) const {
 
 MaglevSafepointTableBuilder::Safepoint
 MaglevSafepointTableBuilder::DefineSafepoint(Assembler* assembler) {
-  entries_.push_back(EntryBuilder(assembler->pc_offset_for_safepoint()));
-  return MaglevSafepointTableBuilder::Safepoint(&entries_.back());
+  return MaglevSafepointTableBuilder::Safepoint(
+      assembler->pc_offset_for_safepoint(), this);
 }
 
 int MaglevSafepointTableBuilder::UpdateDeoptimizationInfo(int pc,
