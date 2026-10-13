@@ -336,6 +336,14 @@ bool ScopeIterator::AdvanceOneScope() {
   }
   if (std::optional<DebugScriptScope> outer =
           FindEvalOuterScope(isolate_, script_)) {
+    // The root scope of the paused script is either the closure scope itself
+    // or one of its ancestors, so we have left the paused function by now.
+    // Reset `function_` right away: `closure_scope_index_` indexes into the
+    // paused script's scope tree, so comparing it with `current_scope_index_`
+    // in the caller's script tree is meaningless (e.g. both are 0 when pausing
+    // in the top-level code of a direct eval called from another eval's
+    // top-level code).
+    function_ = Handle<JSFunction>();
     script_ =
         handle(Cast<Script>(script_->eval_from_shared()->script()), isolate_);
     debug_scope_info_ = handle(*outer->info(), isolate_);

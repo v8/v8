@@ -178,14 +178,25 @@ Paused in :
   scopeNumber 3: blockLet = ReferenceError: blockLet is not defined
   scopeNumber 3: evalLet = ReferenceError: evalLet is not defined
 
+Running test: testPauseInNestedDirectEvalCode
+Paused in :
+[0] closure 0:0-0:28 [anonymous #1]
+    y : 1
+[1] closure name=pauseInNestedEvalCode 53:30-55:1
+    arguments : Arguments(0)
+[2] global
+  scopeNumber 0: y = 1
+  scopeNumber 1: y = ReferenceError: y is not defined
+  scopeNumber 2: y = ReferenceError: y is not defined
+
 Running test: testSloppyDirectEvalInCatchAndWith
 Paused in sloppyInner:
 [0] local name=sloppyInner emptyReason=no-variables 0:44-0:60 [anonymous #1]
-[1] with name=sloppyDirectEval 56:32-58:5
+[1] with name=sloppyDirectEval 60:32-62:5
     withProp : "withProp"
-[2] catch name=sloppyDirectEval 55:29-59:3
+[2] catch name=sloppyDirectEval 59:29-63:3
     caught : "err"
-[3] closure name=sloppyDirectEval 53:25-60:1
+[3] closure name=sloppyDirectEval 57:25-64:1
     param : 42
     fnVar : "fnVar"
     arguments : Arguments(1)
@@ -220,9 +231,9 @@ Paused in sloppyInner:
 Running test: testSetVariableValueInDirectEvalCaller
 Paused in setInner:
 [0] local name=setInner emptyReason=no-variables 0:18-0:34 [anonymous #1]
-[1] block name=setVariableInCaller 64:2-68:3
+[1] block name=setVariableInCaller 68:2-72:3
     blockVar : "block"
-[2] closure name=setVariableInCaller 62:28-69:1
+[2] closure name=setVariableInCaller 66:28-73:1
     outerVar : "outer"
     arguments : Arguments(0)
 [3] global

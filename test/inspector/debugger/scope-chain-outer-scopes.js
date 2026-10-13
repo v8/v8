@@ -58,6 +58,10 @@ function pauseInEvalCode() {
   }
 }
 
+function pauseInNestedEvalCode() {
+  eval("let y = 1; eval('debugger;')");
+}
+
 function sloppyDirectEval(param) {
   var fnVar = 'fnVar';
   try { throw 'err'; } catch (caught) {
@@ -220,6 +224,10 @@ InspectorTest.runAsyncTestSuite([
   async function testPauseInDirectEvalCode() {
     await pauseAndLogScopes(
         'pauseInEvalCode()', ['outerLet', 'blockLet', 'evalLet']);
+  },
+
+  async function testPauseInNestedDirectEvalCode() {
+    await pauseAndLogScopes('pauseInNestedEvalCode()', ['y']);
   },
 
   async function testSloppyDirectEvalInCatchAndWith() {
