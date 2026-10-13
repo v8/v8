@@ -275,10 +275,10 @@ class WasmLoweringReducer : public Next {
       V<JSObject> wrapper;
       if (__ data()->pipeline_kind() == TurboshaftPipelineKind::kWasm) {
         wrapper =
-            __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmWasmToJSObject,
+            __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmExternConvertAny,
                                {object}, __ NoContextConstant());
       } else {
-        wrapper = __ template CallRuntime<runtime::WasmWasmToJSObject>(
+        wrapper = __ template CallRuntime<runtime::WasmExternConvertAny>(
             __ NoContextConstant(), {.object = object});
       }
       GOTO(end, wrapper);

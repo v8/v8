@@ -121,7 +121,15 @@ RUNTIME_FUNCTION(Runtime_WasmWasmToJSObject) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<Object> value(args[0], isolate);
-  return *wasm::WasmToJSObject(isolate, value);
+  return *wasm::WasmToJSObject(isolate, value, wasm::kUnshareStrings);
+}
+
+// Identical to Runtime_WasmWasmToJSObject, except it keeps shared strings.
+RUNTIME_FUNCTION(Runtime_WasmExternConvertAny) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DirectHandle<Object> value(args[0], isolate);
+  return *wasm::WasmToJSObject(isolate, value, wasm::kKeepSharedStrings);
 }
 
 // Parameters:

@@ -549,7 +549,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
           IsWasmStringViewIter(*value) || IsForeign(*value)) {
         return CrashUnlessFuzzing(isolate);
       }
-      value = wasm::WasmToJSObject(isolate, value);
+      value = wasm::WasmToJSObject(isolate, value, wasm::kUnshareStrings);
       DCHECK(IsPrimitiveHeapObject(*value) || IsJSReceiver(*value));
     }
     externalized_values->set(i, *value);

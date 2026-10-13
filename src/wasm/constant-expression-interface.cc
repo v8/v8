@@ -60,20 +60,26 @@ void ConstantExpressionInterface::UnOp(FullDecoder* decoder, WasmOpcode opcode,
   if (!generate_value()) return;
   switch (opcode) {
     case kExprExternConvertAny: {
-      result->runtime_value =
-          WasmValue(WasmToJSObject(isolate_, input.runtime_value.to_ref()),
-                    CanonicalValueType::RefMaybeNull(kWasmExternRef,
-                                                     input.type.nullability()));
+      result->runtime_value = WasmValue(
+          // We should not unshare strings; otherwise we might end up with an
+          // unshared string in a shared externref field. Note: for non-shared
+          // anyref it is not possible to get a shared string here, because that
+          // could only come from any.convert_extern, or via the JS->Wasm
+          // boundary; but JS strings are unshared.
+          WasmToJSObject(isolate_, input.runtime_value.to_ref(),
+                         kKeepSharedStrings),
+          CanonicalValueType::RefMaybeNull(CanonicalValueType{result->type},
+                                           input.type.nullability()));
       break;
     }
     case kExprAnyConvertExtern: {
       const char* error_message = nullptr;
-      result->runtime_value =
-          WasmValue(JSToWasmObject(isolate_, input.runtime_value.to_ref(),
-                                   kWasmAnyRef, &error_message)
-                        .ToHandleChecked(),
-                    CanonicalValueType::RefMaybeNull(kWasmAnyRef,
-                                                     input.type.nullability()));
+      result->runtime_value = WasmValue(
+          JSToWasmObject(isolate_, input.runtime_value.to_ref(),
+                         CanonicalValueType{result->type}, &error_message)
+              .ToHandleChecked(),
+          CanonicalValueType::RefMaybeNull(CanonicalValueType{result->type},
+                                           input.type.nullability()));
       break;
     }
     default:

@@ -3461,7 +3461,8 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
 }
 
 DirectHandle<Object> WasmToJSObject(Isolate* isolate,
-                                    DirectHandle<Object> value) {
+                                    DirectHandle<Object> value,
+                                    UnshareStringsMode unshare_strings) {
   if (IsWasmNull(*value)) {
     return direct_handle(ReadOnlyRoots(isolate).null_value(), isolate);
   }
@@ -3482,9 +3483,11 @@ DirectHandle<Object> WasmToJSObject(Isolate* isolate,
     return WasmInternalFunction::GetOrCreateExternal(internal);
   }
   if (IsString(*value)) {
-    DirectHandle<String> string = Cast<String>(value);
-    if (HeapLayout::InWritableSharedSpace(*string)) {
-      return String::Unshare(isolate, string);
+    if (unshare_strings) {
+      DirectHandle<String> string = Cast<String>(value);
+      if (HeapLayout::InWritableSharedSpace(*string)) {
+        return String::Unshare(isolate, string);
+      }
     }
   } else if (IsWasmCustomMap(*value)) {
     DirectHandle<WasmCustomMap> map = Cast<WasmCustomMap>(value);

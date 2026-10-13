@@ -2211,11 +2211,16 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
                                          ValueType expected,
                                          const char** error_message);
 
+enum UnshareStringsMode : bool {
+  kKeepSharedStrings = false,
+  kUnshareStrings = true
+};
 // Takes a {value} in the Wasm representation and transforms it to the
 // respective JS representation. The caller is responsible for not providing an
 // object which cannot be transformed to JS.
 DirectHandle<Object> WasmToJSObject(Isolate* isolate,
-                                    DirectHandle<Object> value);
+                                    DirectHandle<Object> value,
+                                    UnshareStringsMode unshare_strings);
 
 }  // namespace wasm
 }  // namespace internal

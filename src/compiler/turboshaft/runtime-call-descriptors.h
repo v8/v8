@@ -461,8 +461,8 @@ struct runtime : CallDescriptorBuilder {
   };
 
 #if V8_ENABLE_WEBASSEMBLY
-  struct WasmWasmToJSObject : public Descriptor<WasmWasmToJSObject> {
-    static constexpr auto kFunction = Runtime::kWasmWasmToJSObject;
+  struct WasmExternConvertAny : public Descriptor<WasmExternConvertAny> {
+    static constexpr auto kFunction = Runtime::kWasmExternConvertAny;
     struct Arguments : ArgumentsBase {
       ARG(V<Object>, object)
     };

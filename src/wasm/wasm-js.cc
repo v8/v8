@@ -2479,7 +2479,8 @@ V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
     thrower->TypeError("invalid type %s", unsafe_type.name().c_str());
     return false;
   }
-  return_value.Set(Utils::ToLocal(i::wasm::WasmToJSObject(isolate, value)));
+  return_value.Set(Utils::ToLocal(
+      i::wasm::WasmToJSObject(isolate, value, i::wasm::kUnshareStrings)));
   return true;
 }
 }  // namespace
