@@ -1334,6 +1334,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
   switch (bytecode) {
     case Bytecode::kSetNamedProperty:
     case Bytecode::kDefineNamedOwnProperty:
+    case Bytecode::kDefineNamedOwnPropertyInLiteral:
     case Bytecode::kSetKeyedProperty:
     case Bytecode::kStaInArrayLiteral:
     case Bytecode::kDefineKeyedOwnPropertyInLiteral:
