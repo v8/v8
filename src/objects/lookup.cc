@@ -480,12 +480,6 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
     // Check that current value matches new value otherwise we should make
     // the property mutable.
     if (holder->HasFastProperties()) {
-      if (property_details_.representation().IsDouble() && IsNumber(*value)) {
-        double v = Object::NumberValue(*value);
-        if (std::isnan(v)) {
-          value = isolate_->factory()->nan_value();
-        }
-      }
       if (!CanStayConst(*value)) new_constness = PropertyConstness::kMutable;
     } else if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
       if (!DictCanStayConst(*value)) {
@@ -1194,12 +1188,6 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
   } else if (holder->HasFastProperties()) {
     DCHECK(IsJSObject(*holder));
     if (property_details_.location() == PropertyLocation::kField) {
-      if (property_details_.representation().IsDouble() && IsNumber(*value)) {
-        double v = Object::NumberValue(*value);
-        if (std::isnan(v)) {
-          value = isolate_->factory()->nan_value();
-        }
-      }
       // Check that in case of VariableMode::kConst field the existing value is
       // equal to |value|.
       DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==

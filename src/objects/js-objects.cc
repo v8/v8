@@ -3802,12 +3802,6 @@ bool TryFastAddDataProperty(Isolate* isolate, DirectHandle<JSObject> object,
   // loaded in PrepareForDataProperty.
   PropertyDetails details =
       new_map->instance_descriptors()->GetDetails(descriptor);
-  if (details.representation().IsDouble()) {
-    if (Tagged<HeapNumber> heap_number;
-        TryCast(*value, &heap_number) && std::isnan(heap_number->value())) {
-      value = isolate->factory()->nan_value();
-    }
-  }
   object->WriteToField(descriptor, details, *value);
   return true;
 }
