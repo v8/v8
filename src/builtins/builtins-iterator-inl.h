@@ -415,9 +415,6 @@ MaybeDirectHandle<Object> IterableForEach(
               Object::ToUint32(array_iterator->next_index(), &current_index)) {
             DCHECK_IMPLIES(max_count, len < *max_count);
             if (max_count_out) *max_count_out = len;
-            if (len == 0) {
-              return isolate->root_handle(RootIndex::kUndefinedValue);
-            }
             DirectHandle<Object> obj_handle(Smi::zero(), isolate);
             {
               std::optional<DisallowJavascriptExecution> no_js;

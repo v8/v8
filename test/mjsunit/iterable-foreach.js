@@ -426,6 +426,15 @@ if (typeof Float16Array !== 'undefined') {
   assertEquals([99], result);
 })();
 
+// Empty array iterator exhausted by IterableForEach (crbug.com/572143990)
+(function TestEmptyArrayIteratorExhausted() {
+  let arr = [];
+  let it = arr.values();
+  %IterableForEach(it, () => {});
+  arr.push(1);
+  assertEquals({ value: undefined, done: true }, it.next());
+})();
+
 // Modified Array Iterator -> Slow path
 (function TestModifiedArrayIterator() {
   let result = [];
