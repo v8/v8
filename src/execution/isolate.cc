@@ -1636,7 +1636,10 @@ void VisitStack_ForCallSiteBuilder(Isolate* isolate, CallSiteBuilder* visitor) {
                 CallSiteInfo::kIsDeferredBaselineFrame)) {
           return;
         }
-        skipped_last_frame = true;
+        // Visibility (incl. security origin) is tracked by skipped_prev_frame_
+        // in AppendDeferredFrame; count this frame as appended so the caller's
+        // inlined construct stub can still flag it.
+        skipped_last_frame = false;
         break;
       case StackFrame::API_CALLBACK_EXIT:
       case StackFrame::API_CONSTRUCT_EXIT:
