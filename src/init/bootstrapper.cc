@@ -2009,9 +2009,19 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   return temporal;
 }
 
+// The lazy Temporal accessors may be reached cross-realm, in which case the
+// current context is the caller's. Initialize Temporal in the holder's realm,
+// since the result is installed on the holder.
+Tagged<NativeContext> GetHolderNativeContext(
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  DirectHandle<JSReceiver> holder = Utils::OpenDirectHandle(*info.Holder());
+  return holder->GetCreationContext().value();
+}
+
 void LazyInitializeDateToTemporalInstant(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  SaveAndSwitchContext save(isolate, GetHolderNativeContext(info));
   InitializeTemporal(isolate);
   DirectHandle<JSFunction> function = SimpleCreateFunction(
       isolate, isolate->factory()->InternalizeUtf8String("toTemporalInstant"),
@@ -2022,6 +2032,7 @@ void LazyInitializeDateToTemporalInstant(
 void LazyInitializeGlobalThisTemporal(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  SaveAndSwitchContext save(isolate, GetHolderNativeContext(info));
   DirectHandle<JSObject> temporal = InitializeTemporal(isolate);
   info.GetReturnValue().Set(v8::Utils::ToLocal(temporal));
 }
