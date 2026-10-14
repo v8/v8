@@ -215,5 +215,27 @@ TEST_F(MarkCompactTest, Regress5829) {
   }
 }
 
+TEST_F(MarkCompactTest, IncrementalMarkingUsingTasks) {
+  if (!v8_flags.incremental_marking) return;
+  FLAG_VALUE_SCOPE(stress_concurrent_allocation, false);
+  FLAG_VALUE_SCOPE(stress_incremental_marking, false);
+
+  IncrementalMarking* marking = heap()->incremental_marking();
+  if (marking->IsMarking()) {
+    InvokeAtomicMajorGC();
+  }
+  SimulateFullSpace(heap()->old_space());
+  EXPECT_TRUE(marking->IsStopped());
+
+  heap()->StartIncrementalMarking(GCFlag::kNoFlags,
+                                  GarbageCollectionReason::kTesting);
+  EXPECT_TRUE(marking->IsMajorMarking());
+  while (marking->IsMajorMarking()) {
+    ASSERT_TRUE(
+        v8::platform::PumpMessageLoop(V8::GetCurrentPlatform(), v8_isolate()));
+  }
+  EXPECT_TRUE(marking->IsStopped());
+}
+
 }  // namespace internal
 }  // namespace v8
