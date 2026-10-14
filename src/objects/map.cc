@@ -2413,10 +2413,9 @@ bool Map::EquivalentToForNormalization(const Tagged<Map> other,
   int properties =
       mode == CLEAR_INOBJECT_PROPERTIES ? 0 : other->GetInObjectProperties();
   // Make sure the elements_kind bits are in bit_field2.
-  DCHECK_EQ(this->elements_kind(),
-            Map::Bits2::ElementsKindBits::decode(bit_field2()));
-  int adjusted_other_bit_field2 =
-      Map::Bits2::ElementsKindBits::update(other->bit_field2(), elements_kind);
+  DCHECK_EQ(this->elements_kind(), bit_field2().elements_kind());
+  Bits2 adjusted_other_bit_field2 =
+      other->bit_field2().with<Bits2::ElementsKindBits>(elements_kind);
   return CheckEquivalentModuloProto(this, other) &&
          prototype() == other_prototype &&
          bit_field2() == adjusted_other_bit_field2 &&

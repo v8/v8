@@ -341,8 +341,7 @@ InternalIndex Map::LastAdded() const {
 
 // TODO(375937549): Convert to uint32_t.
 int Map::NumberOfOwnDescriptors() const {
-  return Bits3::NumberOfOwnDescriptorsBits::decode(
-      release_acquire_bit_field3());
+  return release_acquire_bit_field3().number_of_own_descriptors();
 }
 
 void Map::SetNumberOfOwnDescriptors(int number) {
@@ -350,16 +349,14 @@ void Map::SetNumberOfOwnDescriptors(int number) {
   CHECK_LE(static_cast<unsigned>(number),
            static_cast<unsigned>(kMaxNumberOfDescriptors));
   set_release_acquire_bit_field3(
-      Bits3::NumberOfOwnDescriptorsBits::update(bit_field3(), number));
+      bit_field3().with<Bits3::NumberOfOwnDescriptorsBits>(number));
 }
 
 InternalIndex::Range Map::IterateOwnDescriptors() const {
   return InternalIndex::Range(NumberOfOwnDescriptors());
 }
 
-int Map::EnumLength() const {
-  return Bits3::EnumLengthBits::decode(bit_field3());
-}
+int Map::EnumLength() const { return bit_field3().enum_length(); }
 
 void Map::SetEnumLength(int length) {
   if (length != kInvalidEnumCacheSentinel) {
@@ -367,7 +364,7 @@ void Map::SetEnumLength(int length) {
     CHECK_LE(static_cast<unsigned>(length),
              static_cast<unsigned>(kMaxNumberOfDescriptors));
   }
-  set_relaxed_bit_field3(Bits3::EnumLengthBits::update(bit_field3(), length));
+  set_relaxed_bit_field3(bit_field3().with<Bits3::EnumLengthBits>(length));
 }
 
 Tagged<FixedArrayBase> Map::GetInitialElements() const {
@@ -780,13 +777,10 @@ bool Map::TryGetValidityCellHolderMap(
 
 void Map::set_elements_kind(ElementsKind elements_kind) {
   CHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
-  set_bit_field2(
-      Map::Bits2::ElementsKindBits::update(bit_field2(), elements_kind));
+  set_bit_field2(bit_field2().with<Bits2::ElementsKindBits>(elements_kind));
 }
 
-ElementsKind Map::elements_kind() const {
-  return Map::Bits2::ElementsKindBits::decode(bit_field2());
-}
+ElementsKind Map::elements_kind() const { return bit_field2().elements_kind(); }
 
 bool Map::has_fast_smi_elements() const {
   return IsSmiElementsKind(elements_kind());
@@ -862,23 +856,21 @@ bool Map::has_shared_array_elements() const {
 }
 
 void Map::set_is_dictionary_map(bool value) {
-  uint32_t new_bit_field3 =
-      Bits3::IsDictionaryMapBit::update(bit_field3(), value);
-  new_bit_field3 = Bits3::IsUnstableBit::update(new_bit_field3, value);
-  set_bit_field3(new_bit_field3);
+  set_bit_field3(bit_field3()
+                     .with<Bits3::IsDictionaryMapBit>(value)
+                     .with<Bits3::IsUnstableBit>(value));
 }
 
 bool Map::is_dictionary_map() const {
-  return Bits3::IsDictionaryMapBit::decode(relaxed_bit_field3());
+  return relaxed_bit_field3().is_dictionary_map();
 }
 
 void Map::mark_unstable() {
-  set_release_acquire_bit_field3(
-      Bits3::IsUnstableBit::update(bit_field3(), true));
+  set_release_acquire_bit_field3(bit_field3().with<Bits3::IsUnstableBit>(true));
 }
 
 bool Map::is_stable() const {
-  return !Bits3::IsUnstableBit::decode(release_acquire_bit_field3());
+  return !release_acquire_bit_field3().is_unstable();
 }
 
 bool Map::CanBeDeprecated() const {
@@ -1301,11 +1293,11 @@ void ExtendedMap::set_bit_field_ex(BitsEx value) {
 }
 
 ExtendedMapKind ExtendedMap::map_kind() const {
-  return BitsEx::MapKindBits::decode(relaxed_bit_field_ex());
+  return relaxed_bit_field_ex().map_kind();
 }
 
 uint8_t ExtendedMap::map_size_in_words() const {
-  return BitsEx::MapSizeInWordsBits::decode(relaxed_bit_field_ex());
+  return relaxed_bit_field_ex().map_size_in_words();
 }
 
 int ExtendedMap::map_size() const {
@@ -1318,13 +1310,10 @@ void ExtendedMap::set_map_kind_and_size(ExtendedMapKind kind,
   int size_in_words = size_in_bytes >> kTaggedSizeLog2;
   CHECK_LE(static_cast<unsigned>(size_in_words), kMaxUInt8);
 
-  uint8_t field =
-      BitsEx::MapKindBits::encode(kind) |
-      BitsEx::MapSizeInWordsBits::encode(static_cast<uint8_t>(size_in_words));
-  set_relaxed_bit_field_ex(field);
+  set_relaxed_bit_field_ex(
+      BitsEx().with<BitsEx::MapKindBits>(kind).with<BitsEx::MapSizeInWordsBits>(
+          static_cast<uint8_t>(size_in_words)));
 }
-
-
 
 int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,
                                  Tagged<HeapObject> prototype) {
