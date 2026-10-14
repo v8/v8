@@ -807,6 +807,34 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOverwriteGlobal) {
   FreeCurrentEmbeddedBlob();
 }
 
+UNINITIALIZED_TEST(CustomSnapshotDataBlobDirectEval) {
+  // The direct eval records f's ScopeInfo weakly in Script::infos(). That
+  // ScopeInfo is promoted to RO space during snapshot creation; the reference
+  // must stay weak or calling f() again after deserialization fails a CHECK.
+  const char* source = "function f() { var x = 1; return eval('x + 1'); } f();";
+
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData data = CreateSnapshotDataBlobInternal(
+      v8::SnapshotCreator::FunctionCodeHandling::kKeep, source);
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &data;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestSerializer::NewIsolate(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope c_scope(context);
+    ExpectInt32("f()", 2);
+  }
+  isolate->Dispose();
+  delete[] data.data;
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
   const char* source1 =
       R"javascript(

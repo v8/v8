@@ -686,12 +686,14 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       }
     }
     void ProcessSlot(Tagged<HeapObject> host, MaybeObjectSlot slot) {
+      Tagged<MaybeObject> old_value = slot.load(isolate_);
       Tagged<HeapObject> old_slot_value;
-      if (!slot.load(isolate_).GetHeapObject(&old_slot_value)) return;
+      if (!old_value.GetHeapObject(&old_slot_value)) return;
       auto it = moves_->find(old_slot_value);
       if (it == moves_->end()) return;
       Tagged<HeapObject> new_slot_value = it->second;
-      slot.store(new_slot_value);
+      slot.store(old_value.IsWeak() ? MakeWeak(new_slot_value)
+                                    : Tagged<MaybeObject>(new_slot_value));
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
         LogUpdatedPointer(host, slot, old_slot_value, new_slot_value);
       }
