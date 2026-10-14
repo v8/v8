@@ -5616,17 +5616,14 @@ ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
     return impl()->FailureExpression();
   }
   if (expression->IsCall() && !expression->AsCall()->is_tagged_template() &&
-      !early_error) {
+      !early_error && is_sloppy(language_mode())) {
     expression_scope()->RecordPatternError(
         Scanner::Location(beg_pos, end_pos),
         MessageTemplate::kInvalidDestructuringTarget);
     // If it is a call, make it a runtime error for legacy web compatibility.
     // Bug: https://bugs.chromium.org/p/v8/issues/detail?id=4480
     // Rewrite `expr' to `expr[throw ReferenceError]'.
-    impl()->CountUsage(
-        is_strict(language_mode())
-            ? v8::Isolate::kAssigmentExpressionLHSIsCallInStrict
-            : v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy);
+    impl()->CountUsage(v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy);
     ExpressionT error = impl()->NewThrowReferenceError(message, beg_pos);
     return factory()->NewProperty(expression, error, beg_pos);
   }

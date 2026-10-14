@@ -751,21 +751,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'language/expressions/assignmenttargettype/direct-callexpression': [SKIP],
-  'language/expressions/assignmenttargettype/direct-callexpression-as-for-in-lhs': [SKIP],
-  'language/expressions/assignmenttargettype/direct-callexpression-as-for-of-lhs': [SKIP],
-  'language/expressions/assignmenttargettype/direct-callexpression-in-compound-assignment': [SKIP],
-  'language/expressions/assignmenttargettype/direct-callexpression-in-postfix-update': [SKIP],
-  'language/expressions/assignmenttargettype/direct-callexpression-in-prefix-update': [SKIP],
-  'language/expressions/assignmenttargettype/parenthesized-callexpression': [SKIP],
-  'language/expressions/assignmenttargettype/parenthesized-callexpression-in-compound-assignment': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'intl402/String/prototype/toLocaleLowerCase/validates-all-locale-identifiers': [SKIP],
   'intl402/String/prototype/toLocaleUpperCase/validates-all-locale-identifiers': [SKIP],
   'staging/sm/DataView/get-set-index-range': [SKIP],

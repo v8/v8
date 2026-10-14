@@ -3116,17 +3116,22 @@ TEST_F(ParsingTest, InvalidLeftHandSide) {
   const char* postfix_context_data[][2] = {
       {"", "++;"}, {"\"use strict\"; ", "++;"}, {nullptr, nullptr}};
 
+  const char* sloppy_call_context_data[][2] = {
+      {"", " = 1;"}, {"++", ";"}, {"", "++;"}, {nullptr, nullptr}};
+
+  const char* strict_call_context_data[][2] = {{"\"use strict\"; ", " = 1;"},
+                                               {"\"use strict\"; ++", ";"},
+                                               {"\"use strict\"; ", "++;"},
+                                               {nullptr, nullptr}};
+
   // Good left hand sides for assigment or prefix / postfix operations.
-  const char* good_statement_data[] = {"foo",
-                                       "foo.bar",
-                                       "foo[bar]",
-                                       "foo()[bar]",
-                                       "foo().bar",
-                                       "this.foo",
-                                       "this[foo]",
-                                       "new foo()[bar]",
-                                       "new foo().bar",
-                                       "foo()",
+  const char* good_statement_data[] = {
+      "foo",      "foo.bar",   "foo[bar]",       "foo()[bar]",    "foo().bar",
+      "this.foo", "this[foo]", "new foo()[bar]", "new foo().bar", nullptr};
+
+  // Call expressions are accepted as left hand sides only in sloppy mode for
+  // legacy web compatibility.
+  const char* call_statement_data[] = {"foo()",
                                        "foo(bar)",
                                        "foo[bar]()",
                                        "foo.bar()",
@@ -3165,6 +3170,9 @@ TEST_F(ParsingTest, InvalidLeftHandSide) {
 
   RunParserSyncTest(postfix_context_data, good_statement_data, kSuccess);
   RunParserSyncTest(postfix_context_data, bad_statement_data_common, kError);
+
+  RunParserSyncTest(sloppy_call_context_data, call_statement_data, kSuccess);
+  RunParserSyncTest(strict_call_context_data, call_statement_data, kError);
 }
 
 TEST_F(ParsingTest, FuncNameInferrerBasic) {

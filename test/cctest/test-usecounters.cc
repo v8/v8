@@ -37,25 +37,17 @@ TEST(AssigmentExpressionLHSIsCall) {
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
 
-  // AssignmentExpressions whose LHS is a call increment appropriate counters
+  // AssignmentExpressions whose LHS is a call increment the sloppy counter.
   CompileRun("function f(){ a() = 0; }");
   CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
   use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy] = 0;
-  CompileRun("function f(){ 'use strict'; a() = 0; }");
-  CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
-  CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
-  use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict] = 0;
 
-  // UpdateExpressions whose LHS is a call increment appropriate counters
+  // UpdateExpressions whose LHS is a call increment the sloppy counter.
   CompileRun("function f(){ ++a(); }");
   CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
   use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy] = 0;
-  CompileRun("function f(){ 'use strict'; ++a(); }");
-  CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
-  CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
-  use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict] = 0;
 
   global_use_counts = nullptr;
 }
