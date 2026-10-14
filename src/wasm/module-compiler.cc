@@ -21,7 +21,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
 #include "src/handles/global-handles-inl.h"
-#include "src/logging/counters-scopes.h"
+#include "src/logging/counters.h"
 #include "src/logging/metrics.h"
 #include "src/objects/managed.h"
 #include "src/tracing/trace-event.h"
@@ -3386,11 +3386,6 @@ bool AsyncStreamingProcessor::Deserialize(
     base::UniqueArray<const uint8_t>& wire_bytes) {
   TRACE_EVENT("v8.wasm", "wasm.Deserialize");
   Isolate* isolate = job_->isolate_specific_info_.isolate_;
-  std::optional<TimedHistogramScope> time_scope;
-  if (base::TimeTicks::IsHighResolution()) {
-    time_scope.emplace(isolate->counters()->wasm_deserialization_time(),
-                       isolate);
-  }
   // DeserializeNativeModule and FinishCompile assume that they are executed in
   // a HandleScope, and that a context is set on the isolate.
   HandleScope scope(isolate);
@@ -3741,10 +3736,6 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   TRACE_EVENT("v8.wasm", "wasm.CompilationAfterDeserialization",
               "num_lazy_functions", lazy_functions.size(),
               "num_eager_functions", eager_functions.size());
-  base::ElapsedTimer lazy_compile_time;
-  if (base::TimeTicks::IsHighResolution()) {
-    lazy_compile_time.Start();
-  }
 
   auto* module = native_module_->module();
   {
@@ -3799,11 +3790,6 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   InitializeCompilationUnits(std::move(builder));
   if (!v8_flags.wasm_lazy_compilation) {
     WaitForBaselineCompileJob();
-  }
-
-  if (lazy_compile_time.IsStarted()) {
-    native_module_->counter_updates()->AddTimedSample(
-        &Counters::wasm_compile_after_deserialize, lazy_compile_time.Elapsed());
   }
 }
 

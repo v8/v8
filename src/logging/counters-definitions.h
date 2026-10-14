@@ -291,8 +291,6 @@ namespace internal {
      V8.WasmCompileModuleStreamingMicroSeconds, 100000000, MICROSECOND)        \
   HT(wasm_streaming_finish_wasm_module_time,                                   \
      V8.WasmFinishModuleStreamingMicroSeconds, 100000000, MICROSECOND)         \
-  HT(wasm_deserialization_time, V8.WasmDeserializationTimeMilliSeconds, 10000, \
-     MILLISECOND)                                                              \
   HT(wasm_compile_asm_function_time, V8.WasmCompileFunctionMicroSeconds.asm,   \
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_wasm_function_time, V8.WasmCompileFunctionMicroSeconds.wasm, \
@@ -305,8 +303,6 @@ namespace internal {
      V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
   HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,    \
      MICROSECOND)                                                              \
-  HT(wasm_compile_after_deserialize,                                           \
-     V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)         \
   /* Total compilation time incl. caching/parsing for various cache states. */ \
   HT(compile_script_with_produce_cache,                                        \
      V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \
