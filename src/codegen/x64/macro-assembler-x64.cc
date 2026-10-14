@@ -4576,16 +4576,18 @@ void MacroAssembler::InvokeFunctionCode(
   // call sites.
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   LoadEntrypointFromJSDispatchTable(rcx, dispatch_handle);
+  Label done;
   switch (type) {
     case InvokeType::kCall:
       call(rcx);
+      jmp(&done, Label::kNear);
       break;
     case InvokeType::kJump:
+      // The tail jump does not return, so jumping to `done` here would be
+      // unreachable dead code.
       jmp(rcx);
       break;
   }
-  Label done;
-  jmp(&done, Label::kNear);
 
   // Deferred debug hook.
   bind(&debug_hook);

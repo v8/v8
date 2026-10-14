@@ -576,13 +576,16 @@ void BaselineCompiler::VisitSingleBytecode() {
 #ifdef DEBUG
     std::optional<EnsureAccumulatorPreservedScope> accumulator_preserved_scope;
     // We should make sure to preserve the accumulator whenever the bytecode
-    // isn't registered as writing to it. We can't do this for jumps or switches
-    // though, since the control flow would not match the control flow of this
-    // scope.
+    // isn't registered as writing to it. We can't do this for jumps, switches,
+    // returns, unconditional throws, or aborts though, since control flow does
+    // not fall through to the end of this scope.
     if (v8_flags.slow_debug_code &&
         !interpreter::Bytecodes::WritesOrClobbersAccumulator(bytecode) &&
         !interpreter::Bytecodes::IsJump(bytecode) &&
-        !interpreter::Bytecodes::IsSwitch(bytecode)) {
+        !interpreter::Bytecodes::IsSwitch(bytecode) &&
+        !interpreter::Bytecodes::Returns(bytecode) &&
+        !interpreter::Bytecodes::UnconditionallyThrows(bytecode) &&
+        bytecode != interpreter::Bytecode::kAbort) {
       accumulator_preserved_scope.emplace(&basm_);
     }
 #endif  // DEBUG

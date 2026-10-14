@@ -2925,20 +2925,22 @@ void MacroAssembler::InvokeFunctionCode(
   // call sites.
   LoadEntrypointFromJSDispatchTable(kJavaScriptCallCodeStartRegister,
                                     dispatch_handle, scratch);
+  Label done;
   switch (type) {
     case InvokeType::kCall:
       Call(kJavaScriptCallCodeStartRegister);
+      B(&done);
       break;
     case InvokeType::kJump:
       // We jump through x17 here because for Branch Identification (BTI) we use
       // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for
       // tail-called code. See TailCallBuiltin for more information.
+      // The tail jump does not return, so jumping to `done` here would be
+      // unreachable dead code.
       Mov(x17, kJavaScriptCallCodeStartRegister);
       Jump(x17);
       break;
   }
-  Label done;
-  B(&done);
 
   // Deferred debug hook.
   bind(&debug_hook);
