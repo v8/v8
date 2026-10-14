@@ -2214,7 +2214,12 @@ Handle<SharedFunctionInfo> Debug::FindClosestSharedFunctionInfoFromPosition(
   const int end_position = outer_shared->EndPosition();
   if (start_position == end_position) return outer_shared;
 
-  if (closest_position == 0) closest_position = end_position;
+  // If the outer function has no breakable position at or after the requested
+  // position, FindBreakablePosition() returns the last breakable position of
+  // the outer function (or its start position if it has no breakable positions
+  // at all), which comes before the requested position. In that case, search
+  // for nested functions until the end of the outer function instead.
+  if (closest_position < position) closest_position = end_position;
   std::vector<Handle<SharedFunctionInfo>> candidates;
   // Find all shared function infos of functions that are intersecting from
   // the requested position until the end of the enclosing function.
