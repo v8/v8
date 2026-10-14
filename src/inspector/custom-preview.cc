@@ -37,6 +37,12 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
   v8::Local<v8::String> prefix =
       toV8String(isolate, "Custom Formatter Failed: ");
   message = v8::String::Concat(isolate, prefix, message);
+  if (message.IsEmpty()) {
+    // String::Concat() returns an empty handle if the resulting string would
+    // exceed v8::String::kMaxLength, so leave out the actual message then.
+    message = v8::String::Concat(isolate, prefix,
+                                 toV8String(isolate, "<message too long>"));
+  }
   v8::LocalVector<v8::Value> arguments(isolate);
   arguments.push_back(message);
   std::unique_ptr<V8ConsoleMessage> consoleMessage =
