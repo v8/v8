@@ -86,13 +86,17 @@ Response objectToProtocolValue(
       v8::Maybe<bool> hasRealNamedProperty =
           object->HasRealNamedProperty(context, name.As<v8::String>());
       // Don't access properties with interceptors.
-      if (hasRealNamedProperty.IsNothing() ||
-          !hasRealNamedProperty.FromJust()) {
+      if (hasRealNamedProperty.IsNothing()) {
+        return Response::InternalError();
+      }
+      if (!hasRealNamedProperty.FromJust()) {
         continue;
       }
     }
     v8::Local<v8::String> propertyName;
-    if (!name->ToString(context).ToLocal(&propertyName)) continue;
+    if (!name->ToString(context).ToLocal(&propertyName)) {
+      return Response::InternalError();
+    }
     v8::Local<v8::Value> property;
     if (!object->Get(context, name).ToLocal(&property)) {
       return Response::InternalError();
@@ -281,25 +285,29 @@ v8::MaybeLocal<v8::Value> getErrorProperty(v8::Local<v8::Context> context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Value> descriptor;
   if (!object->GetOwnPropertyDescriptor(context, name).ToLocal(&descriptor)) {
-    tryCatch.Reset();
-    return object->Get(context, name);
+    return v8::MaybeLocal<v8::Value>();
   }
   if (!descriptor->IsObject()) return object->Get(context, name);
 
   v8::Local<v8::Object> descriptorObject = descriptor.As<v8::Object>();
-  v8::Local<v8::Value> getDescriptor;
-  if (!descriptorObject->HasOwnProperty(context, toV8String(isolate, "get"))
-           .FromJust()) {
-    tryCatch.Reset();
+  v8::Maybe<bool> hasGet =
+      descriptorObject->HasOwnProperty(context, toV8String(isolate, "get"));
+  if (hasGet.IsNothing()) {
+    return v8::MaybeLocal<v8::Value>();
+  }
+  if (!hasGet.FromJust()) {
     return object->Get(context, name);
   }
+  if (v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+    return v8::MaybeLocal<v8::Value>();
+  }
+  v8::Local<v8::Value> getDescriptor;
   if (!descriptorObject->Get(context, toV8String(isolate, "get"))
            .ToLocal(&getDescriptor)) {
-    tryCatch.Reset();
-    return object->Get(context, name);
+    return v8::MaybeLocal<v8::Value>();
   }
 
-  if (getDescriptor->IsFunction() &&
+  if (!getDescriptor->IsFunction() ||
       !isBuiltinGetter(getDescriptor.As<v8::Function>())) {
     return v8::MaybeLocal<v8::Value>();
   }
@@ -330,6 +338,7 @@ String16 descriptionForError(v8::Local<v8::Context> context,
         name = toProtocolString(isolate, nameString);
       }
     }
+    if (tryCatch.HasTerminated()) return String16();
   }
 
   std::optional<String16> stack;
@@ -345,6 +354,7 @@ String16 descriptionForError(v8::Local<v8::Context> context,
         stack = stackString.substring(pos);
       }
     }
+    if (tryCatch.HasTerminated()) return String16();
   }
 
   std::optional<String16> message;
@@ -356,6 +366,7 @@ String16 descriptionForError(v8::Local<v8::Context> context,
       String16 msg = toProtocolStringWithTypeCheck(isolate, messageValue);
       if (!msg.isEmpty()) message = msg;
     }
+    if (tryCatch.HasTerminated()) return String16();
   }
 
   String16 description = name;
@@ -1840,9 +1851,14 @@ std::unique_ptr<ValueMirror> clientMirror(v8::Local<v8::Context> context,
         value, subtype, toString16(descriptionForValueSubtype->string()));
   }
   if (subtype == "error") {
-    return std::make_unique<ObjectMirror>(value,
-                                          RemoteObject::SubtypeEnum::Error,
-                                          descriptionForError(context, value));
+    String16 description = descriptionForError(context, value);
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    if (isolate->IsExecutionTerminating() &&
+        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+      return nullptr;
+    }
+    return std::make_unique<ObjectMirror>(
+        value, RemoteObject::SubtypeEnum::Error, description);
   }
   if (subtype == "array" && value->IsObject()) {
     v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -1856,6 +1872,10 @@ std::unique_ptr<ValueMirror> clientMirror(v8::Local<v8::Context> context,
             descriptionForCollection(isolate, value,
                                      lengthValue.As<v8::Int32>()->Value()));
       }
+    }
+    if (tryCatch.HasTerminated() &&
+        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+      return nullptr;
     }
   }
   return std::make_unique<ObjectMirror>(
@@ -1932,9 +1952,13 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
         descriptionForObject(isolate, promise));
   }
   if (object->IsNativeError()) {
-    return std::make_unique<ObjectMirror>(object,
-                                          RemoteObject::SubtypeEnum::Error,
-                                          descriptionForError(context, object));
+    String16 description = descriptionForError(context, object);
+    if (isolate->IsExecutionTerminating() &&
+        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+      return nullptr;
+    }
+    return std::make_unique<ObjectMirror>(
+        object, RemoteObject::SubtypeEnum::Error, description);
   }
   if (object->IsMap()) {
     v8::Local<v8::Map> map = object.As<v8::Map>();
@@ -2043,6 +2067,10 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
     return std::make_unique<ObjectMirror>(
         object, RemoteObject::SubtypeEnum::Array,
         descriptionForCollection(isolate, object, length));
+  }
+  if (isolate->IsExecutionTerminating() &&
+      v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+    return nullptr;
   }
   return std::make_unique<ObjectMirror>(object,
                                         descriptionForObject(isolate, object));

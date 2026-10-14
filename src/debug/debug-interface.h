@@ -621,6 +621,7 @@ class V8_NODISCARD SideEffectCheckScope {
  public:
   explicit SideEffectCheckScope(v8::Isolate* isolate);
   ~SideEffectCheckScope();
+  static bool IsActive(v8::Isolate* isolate);
 
  private:
   i::Isolate* isolate_;

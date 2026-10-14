@@ -23,12 +23,33 @@ contextGroup.addScript(`
       }
     });
   }
+  function makeProxyWithDescriptorSideEffectTrap(tag) {
+    return new Proxy({a: 1, b: 2}, {
+      getOwnPropertyDescriptor(target, prop) {
+        sideEffects.push(tag);
+        return Object.getOwnPropertyDescriptor(target, prop);
+      }
+    });
+  }
   function makePureObject() {
     return {a: 42, nested: [1, 2]};
   }
+  function makeErrorWithSideEffectPrototype(tag) {
+    const err = new Error();
+    Object.setPrototypeOf(err, new Proxy({}, {
+      get(target, prop) {
+        sideEffects.push(tag);
+        return 'custom';
+      }
+    }));
+    return err;
+  }
   var globalObjEvalJson = makeObjectWithSideEffectGetter('eval-json');
   var globalObjEvalDeep = makeObjectWithSideEffectGetter('eval-deep');
+  var globalErrorEvalJson = makeErrorWithSideEffectPrototype('error-proto-json');
+  var globalErrorEvalDeep = makeErrorWithSideEffectPrototype('error-proto-deep');
   var globalProxyEvalJson = makeProxyWithSideEffectTrap('proxy-ownKeys');
+  var globalProxyDescriptorEvalJson = makeProxyWithDescriptorSideEffectTrap('proxy-getOwnPropertyDescriptor');
   var globalObjCallJson = makeObjectWithSideEffectGetter('callFunctionOn-json');
   var globalObjCallDeep = makeObjectWithSideEffectGetter('callFunctionOn-deep');
   var resolvedPromiseJson = Promise.resolve(makeObjectWithSideEffectGetter('promise-json'));
@@ -67,6 +88,20 @@ InspectorTest.runAsyncTestSuite([
           throwOnSideEffect: true,
           returnByValue: true,
         }));
+    await logResult(
+        'returnByValue with Error object',
+        await Protocol.Runtime.evaluate({
+          expression: 'new Error()',
+          throwOnSideEffect: true,
+          returnByValue: true,
+        }));
+    await logResult(
+        'returnByValue with Error side-effect prototype',
+        await Protocol.Runtime.evaluate({
+          expression: 'globalErrorEvalJson',
+          throwOnSideEffect: true,
+          returnByValue: true,
+        }));
   },
 
   async function testRuntimeEvaluateDeepSerialization() {
@@ -77,6 +112,20 @@ InspectorTest.runAsyncTestSuite([
           throwOnSideEffect: true,
           serializationOptions: {serialization: 'deep'},
         }));
+    await logResult(
+        'deep serialization with Error object',
+        await Protocol.Runtime.evaluate({
+          expression: 'new Error()',
+          throwOnSideEffect: true,
+          serializationOptions: {serialization: 'deep'},
+        }));
+    await logResult(
+        'deep serialization with Error side-effect prototype',
+        await Protocol.Runtime.evaluate({
+          expression: 'globalErrorEvalDeep',
+          throwOnSideEffect: true,
+          serializationOptions: {serialization: 'deep'},
+        }));
   },
 
   async function testRuntimeEvaluateProxyTrap() {
@@ -84,6 +133,13 @@ InspectorTest.runAsyncTestSuite([
         'returnByValue with proxy ownKeys side-effect',
         await Protocol.Runtime.evaluate({
           expression: 'globalProxyEvalJson',
+          throwOnSideEffect: true,
+          returnByValue: true,
+        }));
+    await logResult(
+        'returnByValue with proxy getOwnPropertyDescriptor side-effect',
+        await Protocol.Runtime.evaluate({
+          expression: 'globalProxyDescriptorEvalJson',
           throwOnSideEffect: true,
           returnByValue: true,
         }));
@@ -200,5 +256,33 @@ InspectorTest.runAsyncTestSuite([
       returnByValue: true,
     });
     InspectorTest.log('sideEffects length: ' + value.length);
+  },
+
+  async function testTerminateExecutionDuringMapEntryErrorPreview() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    const paused = Protocol.Debugger.oncePaused();
+    const evaluated = Protocol.Runtime.evaluate({
+      expression: `
+        let pausing = false;
+        const err = new Error();
+        Object.setPrototypeOf(err, {
+          get name() {
+            if (pausing) return 'Error';
+            pausing = true;
+            debugger;
+            for (;;) {}
+          }
+        });
+        console.log(new Map([[1, err]]));
+      `
+    });
+    await paused;
+    Protocol.Runtime.terminateExecution();
+    await Protocol.Debugger.resume();
+    const response = await evaluated;
+    InspectorTest.log('terminateExecution during Map entry Error preview: ' + response.error.message);
+    await Protocol.Debugger.disable();
+    await Protocol.Runtime.disable();
   },
 ]);

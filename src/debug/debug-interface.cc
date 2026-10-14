@@ -1384,6 +1384,11 @@ SideEffectCheckScope::~SideEffectCheckScope() {
   isolate_->debug()->StopSideEffectCheckMode();
 }
 
+// static
+bool SideEffectCheckScope::IsActive(v8::Isolate* isolate) {
+  return reinterpret_cast<i::Isolate*>(isolate)->should_check_side_effects();
+}
+
 int Coverage::BlockData::StartOffset() const { return block_->start; }
 
 int Coverage::BlockData::EndOffset() const { return block_->end; }
