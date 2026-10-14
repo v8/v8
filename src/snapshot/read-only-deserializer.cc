@@ -399,7 +399,7 @@ class ObjectPostProcessor final {
       o->set_is_disabled_builtin(true);
     }
     o->SetInstructionStartForOffHeapBuiltin(
-        isolate_, EmbeddedData::FromBlob(isolate_).InstructionStartOf(builtin));
+        isolate_, embedded_data_.InstructionStartOf(builtin));
 
 #if V8_ENABLE_GEARBOX
     UpdateGearboxPlaceholderBuiltin(o);
@@ -441,6 +441,7 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
 #ifdef V8_ENABLE_SANDBOX
   std::vector<ReadOnlyArtifacts::TrustedPointerRegistryEntry>
       trusted_pointer_entries;
+  trusted_pointer_entries.reserve(Builtins::kBuiltinCount);
 #endif  // V8_ENABLE_SANDBOX
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
     if (IsInaccessible(o)) continue;
