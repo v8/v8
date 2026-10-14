@@ -471,7 +471,6 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kInvalidPrivateFieldReinitialization,
       MessageTemplate::kInvalidPrivateMemberWrite,
       MessageTemplate::kInvalidRegExpExecResult,
-      MessageTemplate::kInvalidTimeValue,
       MessageTemplate::kInvalidWeakMapKey,
       MessageTemplate::kInvalidWeakSetValue,
       MessageTemplate::kIteratorReduceNoInitial,
@@ -481,7 +480,6 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kJsonParseUnexpectedTokenShortString,
       MessageTemplate::kJsonParseUnexpectedTokenStartStringWithContext,
       MessageTemplate::kJsonParseUnexpectedTokenSurroundStringWithContext,
-      MessageTemplate::kMustBePositive,
       MessageTemplate::kNotIterable,
       MessageTemplate::kNotTypedArray,
       MessageTemplate::kProxyNonObject,
@@ -494,8 +492,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kTopLevelAwaitStalled,
       MessageTemplate::kUndefinedOrNullToObject,
       MessageTemplate::kUnexpectedStrictReserved,
-      MessageTemplate::kUnexpectedTokenIdentifier,
-      MessageTemplate::kWeakRefsCleanupMustBeCallable};
+      MessageTemplate::kUnexpectedTokenIdentifier};
 
   base::Vector<const DirectHandle<String>> remaining_args = args;
   for (const char* c = template_string; *c != '\0'; c++) {
