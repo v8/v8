@@ -8,6 +8,13 @@ load("//lib/gclient.star", "gclient_vars_properties")
 load("//lib/lib.star", "BARRIER", "CQ", "add_barrier_properties", "bq_exports", "branch_descriptors", "fix_args", "resolve_parent_triggering", "skip_builder")
 load("//lib/siso.star", "SISO")
 
+def with_cancel(cq_properties):
+    if not cq_properties:
+        return cq_properties
+    result = dict(cq_properties)
+    result["cancel_stale"] = True
+    return result
+
 def v8_basic_builder(defaults, **kwargs):
     cq_properties = kwargs.pop("cq_properties", None)
     if cq_properties != None:
@@ -170,8 +177,8 @@ def try_builder(
     v8_builder(
         name = name,
         bucket = bucket,
-        cq_properties = cq_properties,
-        cq_branch_properties = cq_branch_properties,
+        cq_properties = with_cancel(cq_properties),
+        cq_branch_properties = with_cancel(cq_branch_properties),
         in_list = console or "tryserver",
         disable_resultdb_exports = disable_resultdb_exports,
         use_siso = use_siso,
