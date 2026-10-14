@@ -537,14 +537,17 @@ void JsonParser<Char>::ReportUnexpectedToken(
                    ? Cast<SlicedString>(*original_source_)->offset()
                    : 0;
   int pos = position() - offset;
-  DirectHandle<Object> arg(Smi::FromInt(pos), isolate());
+  DirectHandle<Object> arg;
   DirectHandle<Object> arg2;
   DirectHandle<Object> arg3;
-  CalculateFileLocation(arg2, arg3);
 
   MessageTemplate message =
       errorMessage ? errorMessage.value()
                    : LookUpErrorMessageForJsonToken(token, arg, arg2, pos);
+  if (arg.is_null() && message != MessageTemplate::kJsonParseUnexpectedEOS) {
+    arg = direct_handle(Smi::FromInt(pos), isolate());
+    CalculateFileLocation(arg2, arg3);
+  }
 
   Handle<Script> script(factory->NewScript(original_source_));
   DCHECK_IMPLIES(isolate_->NeedsSourcePositions(), script->has_line_ends());
@@ -571,8 +574,14 @@ void JsonParser<Char>::ReportUnexpectedToken(
   // separated source file.
   isolate()->debug()->OnCompileError(script);
   MessageLocation location(script, pos, pos + 1);
-  isolate()->ThrowAt(factory->NewSyntaxError(message, arg, arg2, arg3),
-                     &location);
+  DirectHandle<Object> args[] = {arg, arg2, arg3};
+  size_t num_args = 0;
+  while (num_args < arraysize(args) && !args[num_args].is_null()) {
+    ++num_args;
+  }
+  isolate()->ThrowAt(
+      factory->NewSyntaxError(message, base::VectorOf(args, num_args)),
+      &location);
 
   // Move the cursor to the end so we won't be able to proceed parsing.
   cursor_ = end_;
