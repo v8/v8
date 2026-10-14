@@ -450,7 +450,7 @@ void Deserializer<IsolateT>::DeserializeTrustedSection() {
   }
   source_.Reset(trusted_payload_);
   untrusted_back_refs_ = std::exchange(back_refs_, {});
-  hot_objects_.Reset();
+  num_fixed_back_refs_ = 0;
   DirectHandleVector<HeapObject> trusted_exports(isolate());
   while (source_.Peek() != kSynchronize) {
     trusted_exports.push_back(ReadObject());
@@ -781,7 +781,6 @@ Handle<HeapObject> Deserializer<IsolateT>::GetBackReferencedObject(
   // a thin string, then it should also update the backref handle.
   DCHECK(!IsThinString(*obj));
 
-  hot_objects_.Add(obj);
   DCHECK(!HasWeakHeapObjectTag(*obj));
   return obj;
 }
@@ -1025,6 +1024,7 @@ constexpr uint8_t VerifyBytecodeCount(uint8_t bytecode) {
 #define CASE_R8(byte_code) CASE_R4(byte_code) : case CASE_R4(byte_code + 4)
 #define CASE_R16(byte_code) CASE_R8(byte_code) : case CASE_R8(byte_code + 8)
 #define CASE_R32(byte_code) CASE_R16(byte_code) : case CASE_R16(byte_code + 16)
+#define CASE_R64(byte_code) CASE_R32(byte_code) : case CASE_R32(byte_code + 32)
 
 // This generates a case range for all the spaces.
 // clang-format off
@@ -1131,12 +1131,12 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadUntrustedRef(data, slot_accessor);
     case CASE_RANGE(kRootArrayConstants, 32):
       return ReadRootArrayConstants(data, slot_accessor);
-    case CASE_RANGE(kHotObject, 8):
-      return ReadHotObject(data, slot_accessor);
     case CASE_RANGE(kFixedRawData, 32):
       return ReadFixedRawData(data, slot_accessor);
     case CASE_RANGE(kFixedRepeatRoot, 16):
       return ReadFixedRepeatRoot(data, slot_accessor);
+    case CASE_RANGE(kFixedBackref, 64):
+      return ReadFixedBackref(data, slot_accessor);
 
 #ifdef DEBUG
 #define UNUSED_CASE(byte_code) \
@@ -1197,7 +1197,11 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadBackref(uint8_t data,
                                         SlotAccessor slot_accessor) {
   uint32_t index = source_.GetUint30();
-  DirectHandle<HeapObject> heap_object = GetBackReferencedObject(index);
+  Handle<HeapObject> heap_object = GetBackReferencedObject(index);
+  if (num_fixed_back_refs_ < kFixedBackrefCount &&
+      SerializerReference::CanBeFixedBackReference(index)) {
+    fixed_back_refs_[num_fixed_back_refs_++] = heap_object.location();
+  }
   if (v8_flags.trace_deserialization) {
     PrintF("%*sBackref [%u]\n", depth_, "", index);
     // Don't print the backref object, since it might still be being
@@ -1251,7 +1255,6 @@ int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
     PrintF("%*sRootArray [%u] : %s\n", depth_, "", id,
            RootsTable::name(root_index));
   }
-  hot_objects_.Add(heap_object);
   return WriteHeapPointer(
       slot_accessor, heap_object, GetAndResetNextReferenceDescriptor(),
       RootsTable::IsReadOnly(root_index) ? SKIP_WRITE_BARRIER
@@ -1685,21 +1688,6 @@ int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadHotObject(uint8_t data,
-                                          SlotAccessor slot_accessor) {
-  uint32_t index = HotObject::Decode(data);
-  DirectHandle<HeapObject> hot_object = hot_objects_.Get(index);
-  if (v8_flags.trace_deserialization) {
-    PrintF("%*sHotObject [%u] : ", depth_, "", index);
-    ShortPrint(*hot_object);
-    PrintF("\n");
-  }
-  return WriteHeapPointer(slot_accessor, hot_object,
-                          GetAndResetNextReferenceDescriptor());
-}
-
-template <typename IsolateT>
-template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadFixedRawData(uint8_t data,
                                              SlotAccessor slot_accessor) {
   using TSlot = decltype(slot_accessor.slot());
@@ -1759,8 +1747,23 @@ int Deserializer<IsolateT>::ReadFixedRepeatRoot(uint8_t data,
   return ret;
 }
 
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadFixedBackref(uint8_t data,
+                                             SlotAccessor slot_accessor) {
+  int index = FixedBackref::Decode(data);
+  DCHECK_LT(index, num_fixed_back_refs_);
+  Handle<HeapObject> heap_object(fixed_back_refs_[index]);
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sFixedBackref [%u]\n", depth_, "", index);
+  }
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor());
+}
+
 #undef CASE_RANGE_ALL_SPACES
 #undef CASE_RANGE
+#undef CASE_R64
 #undef CASE_R32
 #undef CASE_R16
 #undef CASE_R8

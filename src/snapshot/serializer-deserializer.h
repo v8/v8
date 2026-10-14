@@ -38,17 +38,6 @@ class SerializerDeserializer : public RootVisitor {
   /* Free range 0x30..0x3f */                                     \
   V(0x30) V(0x31) V(0x32) V(0x33) V(0x34) V(0x35) V(0x36) V(0x37) \
   V(0x38) V(0x39) V(0x3a) V(0x3b) V(0x3c) V(0x3d) V(0x3e) V(0x3f) \
-  /* Free range 0x97..0x9f */                                     \
-  V(0x98) V(0x99) V(0x9a) V(0x9b) V(0x9c) V(0x9d) V(0x9e) V(0x9f) \
-  /* Free range 0xa0..0xaf */                                     \
-  V(0xa0) V(0xa1) V(0xa2) V(0xa3) V(0xa4) V(0xa5) V(0xa6) V(0xa7) \
-  V(0xa8) V(0xa9) V(0xaa) V(0xab) V(0xac) V(0xad) V(0xae) V(0xaf) \
-  /* Free range 0xb0..0xbf */                                     \
-  V(0xb0) V(0xb1) V(0xb2) V(0xb3) V(0xb4) V(0xb5) V(0xb6) V(0xb7) \
-  V(0xb8) V(0xb9) V(0xba) V(0xbb) V(0xbc) V(0xbd) V(0xbe) V(0xbf) \
-  /* Free range 0xc0..0xcf */                                     \
-  V(0xc0) V(0xc1) V(0xc2) V(0xc3) V(0xc4) V(0xc5) V(0xc6) V(0xc7) \
-  V(0xc8) V(0xc9) V(0xca) V(0xcb) V(0xcc) V(0xcd) V(0xce) V(0xcf) \
   /* Free range 0xd0..0xdf */                                     \
   V(0xd0) V(0xd1) V(0xd2) V(0xd3) V(0xd4) V(0xd5) V(0xd6) V(0xd7) \
   V(0xd8) V(0xd9) V(0xda) V(0xdb) V(0xdc) V(0xdd) V(0xde) V(0xdf) \
@@ -73,8 +62,8 @@ class SerializerDeserializer : public RootVisitor {
   // 16 repeats lengths.
   static const int kFixedRepeatRootCount = 0x10;
 
-  // 8 hot (recently seen or back-referenced) objects with optional skip.
-  static const int kHotObjectCount = 8;
+  // First 64 back-referenced objects.
+  static const int kFixedBackrefCount = 0x40;
 
   enum Bytecode : uint8_t {
     //
@@ -184,14 +173,14 @@ class SerializerDeserializer : public RootVisitor {
     kFixedRawData = 0x60,
 
     //
-    // ---------- byte code range 0x80..0x9f ----------
+    // ---------- byte code range 0x80..0xcf ----------
     //
 
     // 0x80..0x8f
     kFixedRepeatRoot = 0x80,
 
-    // 0x90..0x97
-    kHotObject = 0x90,
+    // 0x90..0xcf
+    kFixedBackref = 0x90,
   };
 
   // Helper class for encoding and decoding a value into and from a bytecode.
@@ -279,7 +268,8 @@ class SerializerDeserializer : public RootVisitor {
   using RootArrayConstant =
       BytecodeValueEncoder<kRootArrayConstants, 0, kRootArrayConstantsCount - 1,
                            RootIndex>;
-  using HotObject = BytecodeValueEncoder<kHotObject, 0, kHotObjectCount - 1>;
+  using FixedBackref =
+      BytecodeValueEncoder<kFixedBackref, 0, kFixedBackrefCount - 1>;
 
   // This backing store reference value represents empty backing stores during
   // serialization/deserialization.

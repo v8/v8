@@ -127,7 +127,6 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   {
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
-    if (SerializeHotObject(raw)) return;
     if (SerializeRoot(raw)) return;
     if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
     if (SerializeBackReference(raw)) return;

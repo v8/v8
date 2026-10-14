@@ -35,7 +35,6 @@ namespace internal {
 
 Serializer::Serializer(Isolate* isolate, Snapshot::SerializerFlags flags)
     : isolate_(isolate),
-      hot_objects_(isolate->heap()),
       reference_map_(isolate),
       external_reference_encoder_(isolate),
       root_index_map_(isolate),
@@ -225,24 +224,9 @@ bool Serializer::SerializeRoot(Tagged<HeapObject> obj) {
   return false;
 }
 
-bool Serializer::SerializeHotObject(Tagged<HeapObject> obj) {
-  DisallowGarbageCollection no_gc;
-  // Encode a reference to a hot object by its index in the working set.
-  int index = hot_objects_.Find(obj);
-  if (index == HotObjectsList::kNotFound) return false;
-  DCHECK(index >= 0 && index < kHotObjectCount);
-  if (v8_flags.trace_serializer) {
-    PrintF(" Encoding hot object %d:", index);
-    ShortPrint(obj);
-    PrintF("\n");
-  }
-  sink_.Put(HotObject::Encode(index), "HotObject");
-  return true;
-}
-
 bool Serializer::SerializeBackReference(Tagged<HeapObject> obj) {
   DisallowGarbageCollection no_gc;
-  const SerializerReference* reference = reference_map_.LookupReference(obj);
+  SerializerReference* reference = reference_map_.LookupReference(obj);
   if (reference == nullptr) return false;
   // Encode the location of an already deserialized object in order to write
   // its location into a later object.  We can encode the location as an
@@ -254,6 +238,14 @@ bool Serializer::SerializeBackReference(Tagged<HeapObject> obj) {
              reference->attached_reference_index());
     }
     PutAttachedReference(*reference);
+  } else if (reference->is_fixed_back_reference()) {
+    uint32_t fixed_index = reference->fixed_back_ref_index();
+    if (v8_flags.trace_serializer) {
+      PrintF(" Encoding fixed back reference %d to: ", fixed_index);
+      ShortPrint(obj);
+      PrintF("\n");
+    }
+    sink_.Put(FixedBackref::Encode(fixed_index), "FixedBackref");
   } else {
     DCHECK(reference->is_back_reference());
     if (v8_flags.trace_serializer) {
@@ -263,7 +255,7 @@ bool Serializer::SerializeBackReference(Tagged<HeapObject> obj) {
     }
 
     sink_.Put(kBackref, "Backref");
-    PutBackReference(obj, *reference);
+    PutBackReference(obj, reference);
   }
   return true;
 }
@@ -310,7 +302,6 @@ void Serializer::PutRoot(RootIndex root) {
   } else {
     sink_.Put(kRootArray, "RootSerialization");
     sink_.PutUint30(root_index, "root_index");
-    hot_objects_.Add(object);
   }
 }
 
@@ -331,10 +322,14 @@ void Serializer::PutSmiRoot(FullObjectSlot slot) {
 }
 
 void Serializer::PutBackReference(Tagged<HeapObject> object,
-                                  SerializerReference reference) {
-  DCHECK_EQ(object, *back_refs_[reference.back_ref_index()]);
-  sink_.PutUint30(reference.back_ref_index(), "BackRefIndex");
-  hot_objects_.Add(object);
+                                  SerializerReference* reference) {
+  uint32_t index = reference->back_ref_index();
+  DCHECK_EQ(object, *back_refs_[index]);
+  sink_.PutUint30(index, "BackRefIndex");
+  if (num_fixed_back_refs_ < kFixedBackrefCount &&
+      SerializerReference::CanBeFixedBackReference(index)) {
+    reference->set_fixed_back_ref_index(num_fixed_back_refs_++);
+  }
 }
 
 void Serializer::PutAttachedReference(SerializerReference reference) {
@@ -1478,15 +1473,6 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
                     bytes_to_output, "Bytes");
     }
   }
-}
-
-Serializer::HotObjectsList::HotObjectsList(Heap* heap) : heap_(heap) {
-  strong_roots_entry_ = heap->RegisterStrongRoots(
-      "Serializer::HotObjectsList", FullObjectSlot(&circular_queue_[0]),
-      FullObjectSlot(&circular_queue_[kSize]));
-}
-Serializer::HotObjectsList::~HotObjectsList() {
-  heap_->UnregisterStrongRoots(strong_roots_entry_);
 }
 
 DirectHandle<FixedArray> ObjectCacheIndexMap::Values(Isolate* isolate) {

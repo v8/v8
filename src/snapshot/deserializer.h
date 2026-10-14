@@ -131,40 +131,6 @@ class Deserializer : public SerializerDeserializer {
   DirectHandle<HeapObject> ReadObject();
 
  private:
-  // A circular queue of hot objects. This is added to in the same order as in
-  // Serializer::HotObjectsList, but this stores the objects as a vector of
-  // existing handles. This allows us to add Handles to the queue without having
-  // to create new handles. Note that this depends on those Handles staying
-  // valid as long as the HotObjectsList is alive.
-  class HotObjectsList {
-   public:
-    HotObjectsList() = default;
-    HotObjectsList(const HotObjectsList&) = delete;
-    HotObjectsList& operator=(const HotObjectsList&) = delete;
-
-    void Add(DirectHandle<HeapObject> object) {
-      circular_queue_[index_] = object;
-      index_ = (index_ + 1) & kSizeMask;
-    }
-
-    DirectHandle<HeapObject> Get(int index) {
-      DCHECK(!circular_queue_[index].is_null());
-      return circular_queue_[index];
-    }
-
-    void Reset() {
-      for (auto& entry : circular_queue_) entry = {};
-      index_ = 0;
-    }
-
-   private:
-    static const int kSize = kHotObjectCount;
-    static const int kSizeMask = kSize - 1;
-    static_assert(base::bits::IsPowerOfTwo(kSize));
-    DirectHandle<HeapObject> circular_queue_[kSize];
-    int index_ = 0;
-  };
-
   struct ReferenceDescriptor {
     HeapObjectReferenceType type;
     bool is_indirect_pointer;
@@ -262,13 +228,13 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadRootArrayConstants(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
-  int ReadHotObject(uint8_t data, SlotAccessor slot_accessor);
-  template <typename SlotAccessor>
   int ReadFixedRawData(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadExtendedMapBitfieldEx(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadFixedRepeatRoot(uint8_t data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadFixedBackref(uint8_t data, SlotAccessor slot_accessor);
 
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
@@ -303,7 +269,6 @@ class Deserializer : public SerializerDeserializer {
   SnapshotByteSource source_;
   uint32_t magic_number_;
 
-  HotObjectsList hot_objects_;
   DirectHandleVector<Map> new_maps_;
   DirectHandleVector<AllocationSite> new_allocation_sites_;
   DirectHandleVector<InstructionStream> new_instruction_stream_objects_;
@@ -316,6 +281,8 @@ class Deserializer : public SerializerDeserializer {
 
   // Vector of allocated objects that can be accessed by a backref, by index.
   std::vector<IndirectHandle<HeapObject>> back_refs_;
+  Address* fixed_back_refs_[kFixedBackrefCount];
+  int num_fixed_back_refs_ = 0;
 
   // Vector of already allocated JSDispatchTable entries.
   std::vector<JSDispatchHandle> js_dispatch_entries_;
