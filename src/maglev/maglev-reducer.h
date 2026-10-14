@@ -1825,6 +1825,9 @@ class MaglevReducer {
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
       VirtualObject* value);
+
+  // Converts a VirtualObject slot value to the ValueRepresentation expected by
+  // BuildInitializeStore for `desc.type`.
   ReduceResult ConvertForField(ValueNode* value, const vobj::Field& desc);
   ReduceResult BuildInitializeStore(
       vobj::Field desc, InlinedAllocation* alloc, ValueNode* value,

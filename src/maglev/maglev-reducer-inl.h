@@ -837,41 +837,13 @@ template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::ConvertForField(ValueNode* value,
                                                    const vobj::Field& desc) {
   switch (desc.type) {
-    case vobj::FieldType::kTagged: {
-      // Subtle: we don't use `NodeTypeIs(...)` since the predicate must NOT
-      // be true for NodeType::kNone.
-      // TODO(jgruber): NodeType::kNone should never reach here.
-      if (GetType(value) == NodeType::kSmi) {
-        // TODO(jgruber): This is needed because HoleyFloat64ToTagged does not
-        // canonicalize smis by default in GetTaggedValue. We rely on
-        // canonicalization though in TryReduceConstructArrayConstructor.
-        // We should make this more robust.
-        // TODO(454485895): Consider removing this workaround since
-        // HoleyFloat64ToTagged now canonicalizes by default.
-        MaybeReduceResult res = GetSmiValue(value);
-        CHECK(res.IsDoneWithValue());
-        return res.value();
-      }
-      if (value->Is<Float64Constant>()) {
-        // Note that NodeType::kSmi MUST go through GetSmiValue for proper
-        // canonicalization. If we see a Float64Constant with type kSmi, it has
-        // passed BuildCheckSmi, i.e. the runtime value is guaranteed to be
-        // convertible to smi (we would have deoptimized otherwise).
-        //
-        // TODO(jgruber): We have to allocate a new object since the
-        // object field could contain a mutable HeapNumber and thus cannot
-        // share instances. However, we could specify such mutable fields
-        // through vobj::Field; and then only allocate a new object here
-        // if needed.
-        return BuildInlinedAllocation(CreateHeapNumber(value));
-      }
+    case vobj::FieldType::kTagged:
+      // Canonicalizes Smis and deopts on empty types.
       return GetTaggedValue(value);
-    }
     case vobj::FieldType::kTrustedPointer:
       DCHECK(value->Is<TrustedConstant>());
       return value;
     case vobj::FieldType::kInt32:
-      // TODO(jgruber): Add conversions here once needed.
       DCHECK_EQ(value->properties().value_representation(),
                 ValueRepresentation::kInt32);
       return value;
