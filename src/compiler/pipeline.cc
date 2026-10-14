@@ -64,7 +64,6 @@
 #include "src/compiler/loop-variable-optimizer.h"
 #include "src/compiler/machine-graph-verifier.h"
 #include "src/compiler/machine-operator-reducer.h"
-#include "src/compiler/memory-optimizer.h"
 #include "src/compiler/node-observer.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/osr.h"
@@ -1316,36 +1315,6 @@ struct LoadEliminationPhase {
     UnparkedScopeIfNeeded scope(data->broker());
 
     graph_reducer.ReduceGraph();
-  }
-};
-
-struct MemoryOptimizationPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(MemoryOptimization)
-
-  void Run(TFPipelineData* data, Zone* temp_zone) {
-    // The memory optimizer requires the graphs to be trimmed, so trim now.
-    GraphTrimmer trimmer(temp_zone, data->graph());
-    NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
-    {
-      UnparkedScopeIfNeeded scope(data->broker(),
-                                  v8_flags.trace_turbo_trimming);
-      trimmer.TrimGraph(roots.begin(), roots.end());
-    }
-
-    // Optimize allocations and load/store operations.
-#if V8_ENABLE_WEBASSEMBLY
-    bool is_wasm = data->info()->IsWasm() || data->info()->IsWasmBuiltin();
-#else
-    bool is_wasm = false;
-#endif
-    MemoryOptimizer optimizer(
-        data->broker(), data->jsgraph(), temp_zone,
-        data->info()->allocation_folding()
-            ? MemoryLowering::AllocationFolding::kDoAllocationFolding
-            : MemoryLowering::AllocationFolding::kDontAllocationFolding,
-        data->debug_name(), &data->info()->tick_counter(), is_wasm);
-    optimizer.Optimize();
   }
 };
 
