@@ -390,6 +390,8 @@ MaybeDirectHandle<Object> IterableForEach(
 
   // Medium fast path for JSArrayIterator.
   if (IsJSArrayIterator(*iterator) &&
+      iterator->map()->prototype() ==
+          isolate->native_context()->initial_array_iterator_prototype() &&
       Protectors::IsArrayIteratorLookupChainIntact(isolate) &&
       Protectors::IsNoElementsIntact(isolate)) {
     DirectHandle<JSArrayIterator> array_iterator =
@@ -537,6 +539,8 @@ MaybeDirectHandle<Object> IterableForEach(
 
   // Medium fast path for JSSetIterator.
   if (!kAllowJSExecution && IsJSSetIterator(*iterator) &&
+      iterator->map()->prototype() ==
+          isolate->native_context()->initial_set_iterator_prototype() &&
       Protectors::IsSetIteratorLookupChainIntact(isolate)) {
     DirectHandle<JSSetIterator> set_iterator = Cast<JSSetIterator>(iterator);
     DirectHandle<Object> table_obj(set_iterator->table(), isolate);
