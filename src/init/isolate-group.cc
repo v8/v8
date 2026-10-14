@@ -209,13 +209,14 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
       std::make_unique<OptimizingCompileTaskExecutor>();
 
   if (v8_flags.memory_pool) {
-    memory_pool_ = std::make_unique<MemoryPool>(MemoryPool::Config{
-        .single_threaded = v8_flags.single_threaded,
-        .share_memory_on_teardown =
-            v8_flags.memory_pool_share_memory_on_teardown,
-        .trace_gc_nvp = v8_flags.trace_gc_nvp,
-        .max_large_page_pool_size = v8_flags.max_large_page_pool_size,
-        .timeout_in_sec = v8_flags.memory_pool_timeout});
+    memory_pool_ = std::make_unique<MemoryPool>(
+        this, MemoryPool::Config{
+                  .single_threaded = v8_flags.single_threaded,
+                  .share_memory_on_teardown =
+                      v8_flags.memory_pool_share_memory_on_teardown,
+                  .trace_gc_nvp = v8_flags.trace_gc_nvp,
+                  .max_large_page_pool_size = v8_flags.max_large_page_pool_size,
+                  .timeout_in_sec = v8_flags.memory_pool_timeout});
   }
 }
 #elif defined(V8_COMPRESS_POINTERS)
@@ -249,12 +250,14 @@ void IsolateGroup::Initialize(bool process_wide) {
   trusted_pointer_compression_cage_ = &reservation_;
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
-  memory_pool_ = std::make_unique<MemoryPool>(MemoryPool::Config{
-      .single_threaded = v8_flags.single_threaded,
-      .share_memory_on_teardown = v8_flags.memory_pool_share_memory_on_teardown,
-      .trace_gc_nvp = v8_flags.trace_gc_nvp,
-      .max_large_page_pool_size = v8_flags.max_large_page_pool_size,
-      .timeout_in_sec = v8_flags.memory_pool_timeout});
+  memory_pool_ = std::make_unique<MemoryPool>(
+      this, MemoryPool::Config{
+                .single_threaded = v8_flags.single_threaded,
+                .share_memory_on_teardown =
+                    v8_flags.memory_pool_share_memory_on_teardown,
+                .trace_gc_nvp = v8_flags.trace_gc_nvp,
+                .max_large_page_pool_size = v8_flags.max_large_page_pool_size,
+                .timeout_in_sec = v8_flags.memory_pool_timeout});
 }
 #else   // !V8_COMPRESS_POINTERS
 void IsolateGroup::Initialize(bool process_wide) {
@@ -262,12 +265,14 @@ void IsolateGroup::Initialize(bool process_wide) {
   page_allocator_ = GetPlatformPageAllocator();
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
-  memory_pool_ = std::make_unique<MemoryPool>(MemoryPool::Config{
-      .single_threaded = v8_flags.single_threaded,
-      .share_memory_on_teardown = v8_flags.memory_pool_share_memory_on_teardown,
-      .trace_gc_nvp = v8_flags.trace_gc_nvp,
-      .max_large_page_pool_size = v8_flags.max_large_page_pool_size,
-      .timeout_in_sec = v8_flags.memory_pool_timeout});
+  memory_pool_ = std::make_unique<MemoryPool>(
+      this, MemoryPool::Config{
+                .single_threaded = v8_flags.single_threaded,
+                .share_memory_on_teardown =
+                    v8_flags.memory_pool_share_memory_on_teardown,
+                .trace_gc_nvp = v8_flags.trace_gc_nvp,
+                .max_large_page_pool_size = v8_flags.max_large_page_pool_size,
+                .timeout_in_sec = v8_flags.memory_pool_timeout});
 }
 #endif  // V8_ENABLE_SANDBOX
 
