@@ -23,11 +23,7 @@
 #include <sys/syscall.h>
 #endif
 
-#if V8_OS_AIX || V8_TARGET_ARCH_S390X
-
-#include "src/base/platform/time.h"
-
-#elif V8_OS_DARWIN
+#if V8_OS_DARWIN
 #include <mach/mach.h>
 // OpenBSD doesn't have <ucontext.h>. ucontext_t lives in <signal.h>
 // and is a typedef for struct sigcontext. There is no uc_mcontext.
@@ -362,12 +358,15 @@ class SignalHandler {
   static void Restore() {
     if (signal_handler_installed_) {
       signal_handler_installed_ = false;
-#if V8_OS_AIX || V8_TARGET_ARCH_S390X
-      // On Aix, IBMi & zLinux SIGPROF can sometimes arrive after the
-      // default signal handler is restored, resulting in intermittent test
-      // failure when profiling is enabled (https://crbug.com/v8/12952)
-      base::OS::Sleep(base::TimeDelta::FromMicroseconds(10));
-#endif
+      // Setting SIG_IGN discards any pending SIGPROF signals on all threads in
+      // the process (POSIX.1) before restoring the previous disposition, which
+      // may be SIG_DFL and would otherwise terminate the process if a signal
+      // sent by DoSample() is still pending.
+      struct sigaction sa;
+      sa.sa_handler = SIG_IGN;
+      sigemptyset(&sa.sa_mask);
+      sa.sa_flags = 0;
+      sigaction(SIGPROF, &sa, nullptr);
       sigaction(SIGPROF, &old_signal_handler_, nullptr);
     }
   }
