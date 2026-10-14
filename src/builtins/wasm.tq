@@ -58,11 +58,12 @@ extern runtime WasmAllocateDescriptorStruct(
     Context, WasmTrustedInstanceData, Map, Smi, Object): WasmStruct
     |WasmCustomMap;
 extern runtime WasmArrayNewSegment(
-    Context, WasmTrustedInstanceData, Smi, Smi, Smi, Map): Object;
+    Context, WasmTrustedInstanceData, Smi, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewSegmentWtf8(
     Context, WasmTrustedInstanceData, Smi, Smi, Smi, Smi): String|WasmNull;
 extern runtime WasmArrayInitSegment(
-    Context, WasmTrustedInstanceData, Smi, WasmArray, Smi, Smi, Smi): JSAny;
+    Context, WasmTrustedInstanceData, Smi, Smi, WasmArray, Smi, Smi,
+    Smi): JSAny;
 extern runtime WasmStringNewWtf8(
     Context, WasmTrustedInstanceData, Smi, Smi, Number, Number): String
     |WasmNull;
@@ -606,8 +607,10 @@ builtin WasmArrayNewSegment(
   try {
     const smiOffset = Convert<PositiveSmi>(offset) otherwise SegmentOutOfBounds;
     const smiLength = Convert<PositiveSmi>(length) otherwise ArrayTooLarge;
-    tail runtime::WasmArrayNewSegment(
-        LoadContextFromInstanceData(trustedData), trustedData,
+    // Cannot use a tail call because we are exceeding the maximum number of
+    // arguments.
+    return runtime::WasmArrayNewSegment(
+        LoadContextFromInstanceData(trustedData), trustedData, isElement,
         SmiFromUint32(segmentIndex), smiOffset, smiLength, rtt);
   } label SegmentOutOfBounds {
     if (isElement == SmiConstant(0)) {
@@ -635,10 +638,11 @@ builtin WasmArrayInitSegment(
     const smiOffset =
         Convert<PositiveSmi>(segmentOffset) otherwise SegmentOutOfBounds;
     const smiLength = Convert<PositiveSmi>(length) otherwise ArrayOutOfBounds;
-
-    tail runtime::WasmArrayInitSegment(
-        LoadContextFromInstanceData(trustedData), trustedData, segmentIndex,
-        array, smiArrayIndex, smiOffset, smiLength);
+    // Cannot use a tail call because we are exceeding the maximum number of
+    // arguments.
+    return runtime::WasmArrayInitSegment(
+        LoadContextFromInstanceData(trustedData), trustedData, isElement,
+        segmentIndex, array, smiArrayIndex, smiOffset, smiLength);
   } label SegmentOutOfBounds {
     if (isElement == SmiConstant(0)) {
       tail ThrowWasmTrapDataSegmentOutOfBounds();

@@ -1170,13 +1170,14 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateDescriptorStruct) {
 
 RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
   HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(6, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
       TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
-  uint32_t segment_index = args.positive_smi_value_at(1);
-  uint32_t offset = args.positive_smi_value_at(2);
-  uint32_t length = args.positive_smi_value_at(3);
-  DirectHandle<Map> rtt(Cast<Map>(args[4]), isolate);
+  bool is_numeric = args.positive_smi_value_at(1) == 0;
+  uint32_t segment_index = args.positive_smi_value_at(2);
+  uint32_t offset = args.positive_smi_value_at(3);
+  uint32_t length = args.positive_smi_value_at(4);
+  DirectHandle<Map> rtt(Cast<Map>(args[5]), isolate);
 
   Tagged<WasmTypeInfo> type_info = rtt->wasm_type_info();
   wasm::CanonicalValueType element_type = type_info->element_type();
@@ -1190,8 +1191,9 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapArrayTooLarge);
   }
 
-  if (element_type.is_numeric()) {
-    // No chance of overflow due to the check above.
+  if (is_numeric) {
+    DCHECK(element_type.is_numeric());
+    // No chance of overflow due to the check a few lines above.
     uint32_t length_in_bytes = length * element_size;
 
     wasm::WireBytesRef segment_source =
@@ -1208,6 +1210,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, allocation,
                                                        element_type, source);
   } else {
+    DCHECK(element_type.is_ref());
     DirectHandle<Object> elem_segment_raw(
         trusted_instance_data->element_segments()->get(segment_index), isolate);
     const wasm::WasmElemSegment* module_elem_segment =
@@ -1240,12 +1243,13 @@ namespace {
 DISABLE_TSAN Tagged<Object> WasmArrayInitSegmentImpl(
     Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-    uint32_t segment_index, DirectHandle<WasmArray> array, uint32_t array_index,
-    uint32_t segment_offset, uint32_t length) {
+    bool is_numeric, uint32_t segment_index, DirectHandle<WasmArray> array,
+    uint32_t array_index, uint32_t segment_offset, uint32_t length) {
   wasm::CanonicalValueType element_type =
       array->map()->wasm_type_info()->element_type();
 
-  if (element_type.is_numeric()) {
+  if (is_numeric) {
+    DCHECK(element_type.is_numeric());
     if (!base::IsInBounds<uint32_t>(array_index, length, array->length())) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapArrayOutOfBounds);
@@ -1276,6 +1280,7 @@ DISABLE_TSAN Tagged<Object> WasmArrayInitSegmentImpl(
 #endif
     return *isolate->factory()->undefined_value();
   } else {
+    DCHECK(element_type.is_ref());
     DirectHandle<Object> elem_segment_raw(
         trusted_instance_data->element_segments()->get(segment_index), isolate);
     const wasm::WasmElemSegment* module_elem_segment =
@@ -1320,16 +1325,18 @@ DISABLE_TSAN Tagged<Object> WasmArrayInitSegmentImpl(
 
 RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
   HandleScope scope(isolate);
-  DCHECK_EQ(6, args.length());
+  DCHECK_EQ(7, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
       TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
-  uint32_t segment_index = args.positive_smi_value_at(1);
-  DirectHandle<WasmArray> array(Cast<WasmArray>(args[2]), isolate);
-  uint32_t array_index = args.positive_smi_value_at(3);
-  uint32_t segment_offset = args.positive_smi_value_at(4);
-  uint32_t length = args.positive_smi_value_at(5);
-  return WasmArrayInitSegmentImpl(isolate, trusted_instance_data, segment_index,
-                                  array, array_index, segment_offset, length);
+  bool is_numeric = args.positive_smi_value_at(1) == 0;
+  uint32_t segment_index = args.positive_smi_value_at(2);
+  DirectHandle<WasmArray> array(Cast<WasmArray>(args[3]), isolate);
+  uint32_t array_index = args.positive_smi_value_at(4);
+  uint32_t segment_offset = args.positive_smi_value_at(5);
+  uint32_t length = args.positive_smi_value_at(6);
+  return WasmArrayInitSegmentImpl(isolate, trusted_instance_data, is_numeric,
+                                  segment_index, array, array_index,
+                                  segment_offset, length);
 }
 
 // Allocate a new suspender, and prepare for stack switching by updating the
