@@ -451,8 +451,16 @@ void Deserializer<IsolateT>::DeserializeTrustedSection() {
   source_.Reset(trusted_payload_);
   untrusted_back_refs_ = std::exchange(back_refs_, {});
   hot_objects_.Reset();
-  while (source_.Peek() != kSynchronize) ReadObject();
+  DirectHandleVector<HeapObject> trusted_exports(isolate());
+  while (source_.Peek() != kSynchronize) {
+    trusted_exports.push_back(ReadObject());
+  }
   DCHECK_EQ(kSynchronize, source_.Get());
+  for (const auto& [index, ref] : trusted_export_refs_) {
+    WriteHeapPointer(
+        SlotAccessorForHeapObject::ForSlotOffset(ref.object, ref.offset),
+        *trusted_exports[index], ref.descr);
+  }
 }
 
 template <typename IsolateT>
@@ -1102,6 +1110,10 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadJSDispatchEntry(data, slot_accessor);
     case kProtectedPointerPrefix:
       return ReadProtectedPointerPrefix(data, slot_accessor);
+    case kTrustedExportRef:
+      return ReadTrustedExportRef(data, slot_accessor);
+    case kUntrustedRef:
+      return ReadUntrustedRef(data, slot_accessor);
     case CASE_RANGE(kRootArrayConstants, 32):
       return ReadRootArrayConstants(data, slot_accessor);
     case CASE_RANGE(kHotObject, 8):
@@ -1599,6 +1611,34 @@ int Deserializer<IsolateT>::ReadProtectedPointerPrefix(
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
   next_reference_is_protected_pointer = true;
   return 0;
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadTrustedExportRef(uint8_t data,
+                                                 SlotAccessor slot_accessor) {
+  uint32_t index = source_.GetUint30();
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sTrustedExportRef [%u]\n", depth_, "", index);
+  }
+  ReferenceDescriptor descr = GetAndResetNextReferenceDescriptor();
+  DCHECK(descr.is_indirect_pointer);
+  trusted_export_refs_.emplace_back(
+      index, UnresolvedForwardRef(slot_accessor.object(),
+                                  slot_accessor.offset(), descr));
+  return 1;
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadUntrustedRef(uint8_t data,
+                                             SlotAccessor slot_accessor) {
+  uint32_t index = source_.GetUint30();
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sUntrustedRef [%u]\n", depth_, "", index);
+  }
+  return WriteHeapPointer(slot_accessor, *untrusted_back_refs_[index],
+                          GetAndResetNextReferenceDescriptor());
 }
 
 template <typename IsolateT>

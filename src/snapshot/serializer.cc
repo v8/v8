@@ -1491,6 +1491,20 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                offsetof(JSArrayBuffer, backing_store_),
                                sizeof(field_value), field_value);
+    } else if (IsUncompiledDataWithoutPreparseDataWithJob(*object_)) {
+      // The job field contains a raw pointer that is not valid after
+      // deserialization, so write zeros instead.
+      static uint8_t field_value[kSystemPointerSize] = {0};
+      OutputRawWithCustomField(
+          sink_, object_start, base, bytes_to_output,
+          offsetof(UncompiledDataWithoutPreparseDataWithJob, job_),
+          sizeof(field_value), field_value);
+    } else if (IsUncompiledDataWithPreparseDataAndJob(*object_)) {
+      static uint8_t field_value[kSystemPointerSize] = {0};
+      OutputRawWithCustomField(
+          sink_, object_start, base, bytes_to_output,
+          offsetof(UncompiledDataWithPreparseDataAndJob, job_),
+          sizeof(field_value), field_value);
     } else if (IsSeqString(*object_)) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.

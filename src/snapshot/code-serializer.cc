@@ -27,6 +27,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/visitors.h"
+#include "src/sandbox/sandbox.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
@@ -50,7 +51,7 @@ AlignedCachedData::AlignedCachedData(const uint8_t* data, int length)
 CodeSerializer::CodeSerializer(Isolate* isolate, SourceHash source_hash)
     : Serializer(isolate, Snapshot::kDefaultSerializerFlags),
       source_hash_(source_hash),
-      trusted_serializer_(isolate) {}
+      trusted_serializer_(isolate, this) {}
 
 // static
 ScriptCompiler::CachedData* CodeSerializer::Serialize(
@@ -111,6 +112,7 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
   VisitRootPointer(Root::kHandleScope, nullptr,
                    FullObjectSlot(info.location()));
   SerializeDeferredObjects();
+  trusted_serializer_.SerializeExports();
   trusted_serializer_.FinishSection();
   FinishSection();
 
@@ -119,17 +121,122 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
   return data.GetScriptData();
 }
 
-void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
-                                         SlotType slot_type) {
-  ReadOnlyRoots roots(isolate());
-  InstanceType instance_type;
+CodeSerializer::TrustedSectionSerializer::TrustedSectionSerializer(
+    Isolate* isolate, CodeSerializer* untrusted_serializer)
+    : Serializer(isolate, Snapshot::kDefaultSerializerFlags),
+      untrusted_serializer_(untrusted_serializer),
+      exports_(isolate->heap()),
+      export_queue_(isolate->heap()) {}
+
+uint32_t CodeSerializer::TrustedSectionSerializer::Export(
+    Tagged<HeapObject> obj) {
+  int index;
+  if (!exports_.LookupOrInsert(obj, &index)) export_queue_.Push(obj);
+  return base::checked_cast<uint32_t>(index);
+}
+
+void CodeSerializer::TrustedSectionSerializer::SerializeExports() {
+  if (v8_flags.trace_serializer) {
+    PrintF("Serializing trusted exports\n");
+  }
+  // Serializing an export can add untrusted objects to the untrusted section,
+  // and those can export more trusted objects. Export() appends them to the
+  // queue, so keep going until it is drained.
+  size_t serialized = 0;
+  while (serialized < export_queue_.size()) {
+    HandleScope scope(isolate());
+    Handle<HeapObject> obj = handle(*export_queue_[serialized++], isolate());
+    SerializeObject(obj, SlotType::kAnySlot);
+  }
+  DCHECK(deferred_objects_empty());
+}
+
+bool CodeSerializer::TrustedSectionSerializer::SerializeUntrustedReference(
+    Handle<HeapObject> obj) {
+  if (OutsideSandbox(obj->address())) return false;
+  if (!untrusted_serializer_->ReferenceMapContains(obj)) {
+    untrusted_serializer_->SerializeObject(obj, SlotType::kAnySlot);
+    untrusted_serializer_->SerializeDeferredObjects();
+  }
+  const SerializerReference* reference =
+      untrusted_serializer_->reference_map()->LookupReference(*obj);
+  DCHECK_NOT_NULL(reference);
+  if (v8_flags.trace_serializer) {
+    PrintF(" Encoding untrusted reference to: ");
+    ShortPrint(*obj);
+    PrintF("\n");
+  }
+  if (reference->is_attached_reference()) {
+    PutAttachedReference(*reference);
+  } else {
+    sink_.Put(kUntrustedRef, "UntrustedRef");
+    sink_.PutUint30(reference->back_ref_index(), "UntrustedRefIndex");
+  }
+  return true;
+}
+
+void CodeSerializer::TrustedSectionSerializer::SerializeObjectImpl(
+    Handle<HeapObject> obj, SlotType slot_type) {
   {
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> raw = *obj;
     if (SerializeHotObject(raw)) return;
     if (SerializeRoot(raw)) return;
+    if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
+    if (SerializeUntrustedReference(obj)) return;
+    if (SerializeBackReference(raw)) return;
+#ifdef DEBUG
+    DCHECK(!untrusted_serializer_->ReferenceMapContains(obj));
+    if (IsExposedTrustedObject(raw)) {
+      int index;
+      DCHECK(exports_.Lookup(raw, &index));
+      DCHECK_GE(index, 0);
+    }
+#endif
+  }
+  ObjectSerializer serializer(this, obj, &sink_);
+  serializer.Serialize(slot_type);
+}
+
+// The untrusted section can only reach exposed trusted objects, and exports
+// all of them. Which trusted objects a code cache may contain is decided by
+// SERIALIZABLE_TRUSTED_OBJECT_MAP_ROOT_LIST (see Serializer::PutRoot).
+bool CodeSerializer::SerializeTrustedExport(Tagged<HeapObject> obj) {
+  if (!V8_ENABLE_SANDBOX_BOOL || !IsExposedTrustedObject(obj)) return false;
+  if (v8_flags.trace_serializer) {
+    PrintF(" Encoding trusted export reference to: ");
+    ShortPrint(obj);
+    PrintF("\n");
+  }
+  sink_.Put(kTrustedExportRef, "TrustedExportRef");
+  sink_.PutUint30(trusted_serializer_.Export(obj), "TrustedExportIndex");
+  return true;
+}
+
+void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
+                                         SlotType slot_type) {
+  // NOTE(mmarchini): If we try to serialize an InterpreterData our process
+  // will crash since it stores a code object. Instead, we serialize the
+  // bytecode array stored within the InterpreterData, which is the important
+  // information. On deserialization we'll create our code objects again, if
+  // --interpreted-frames-native-stack is on. See v8:9122 for more context
+  if (V8_UNLIKELY(isolate()->interpreted_frames_native_stack()) &&
+      IsInterpreterData(*obj)) {
+    obj =
+        handle(TrustedCast<InterpreterData>(*obj)->bytecode_array(), isolate());
+  }
+
+  ReadOnlyRoots roots(isolate());
+  InstanceType instance_type;
+  {
+    DisallowGarbageCollection no_gc;
+    Tagged<HeapObject> raw = *obj;
+    if (SerializeTrustedExport(raw)) return;
+    if (SerializeHotObject(raw)) return;
+    if (SerializeRoot(raw)) return;
     if (SerializeBackReference(raw)) return;
     if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
+    DCHECK(!trusted_serializer_.ReferenceMapContains(obj));
 
     instance_type = raw->map()->instance_type();
     CHECK(!InstanceTypeChecker::IsInstructionStream(instance_type));
@@ -205,24 +312,6 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       sfi->set_cached_tiering_decision(cached_tiering_decision);
     }
     return;
-  } else if (InstanceTypeChecker::IsUncompiledDataWithoutPreparseDataWithJob(
-                 instance_type)) {
-    Handle<UncompiledDataWithoutPreparseDataWithJob> data =
-        TrustedCast<UncompiledDataWithoutPreparseDataWithJob>(obj);
-    Address job = data->job();
-    data->set_job(kNullAddress);
-    SerializeGeneric(data, slot_type);
-    data->set_job(job);
-    return;
-  } else if (InstanceTypeChecker::IsUncompiledDataWithPreparseDataAndJob(
-                 instance_type)) {
-    Handle<UncompiledDataWithPreparseDataAndJob> data =
-        TrustedCast<UncompiledDataWithPreparseDataAndJob>(obj);
-    Address job = data->job();
-    data->set_job(kNullAddress);
-    SerializeGeneric(data, slot_type);
-    data->set_job(job);
-    return;
   } else if (InstanceTypeChecker::IsScopeInfo(instance_type)) {
     // TODO(ishell): define a dedicated instance type for DependentCode and
     // serialize DependentCode objects as an empty_dependent_code instead
@@ -248,17 +337,6 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       scope_info->set_dependent_code(*dependent_code);
     }
     return;
-  }
-
-  // NOTE(mmarchini): If we try to serialize an InterpreterData our process
-  // will crash since it stores a code object. Instead, we serialize the
-  // bytecode array stored within the InterpreterData, which is the important
-  // information. On deserialization we'll create our code objects again, if
-  // --interpreted-frames-native-stack is on. See v8:9122 for more context
-  if (V8_UNLIKELY(isolate()->interpreted_frames_native_stack()) &&
-      IsInterpreterData(*obj)) {
-    obj =
-        handle(TrustedCast<InterpreterData>(*obj)->bytecode_array(), isolate());
   }
 
   // Past this point we should not see any (context-specific) maps anymore.

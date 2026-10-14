@@ -227,25 +227,32 @@ class CodeSerializer : public Serializer {
  private:
   class TrustedSectionSerializer final : public Serializer {
    public:
-    explicit TrustedSectionSerializer(Isolate* isolate)
-        : Serializer(isolate, Snapshot::kDefaultSerializerFlags) {}
+    TrustedSectionSerializer(Isolate* isolate,
+                             CodeSerializer* untrusted_serializer);
     ~TrustedSectionSerializer() override {
       OutputStatistics("TrustedSectionSerializer");
     }
 
+    // Returns the index of |obj| in the exports, adding it if it is new.
+    uint32_t Export(Tagged<HeapObject> obj);
+    void SerializeExports();
     void FinishSection() {
       sink_.Put(kSynchronize, "EndOfTrustedSection");
       Pad();
     }
 
    private:
-    void SerializeObjectImpl(Handle<HeapObject> o,
-                             SlotType slot_type) override {
-      UNREACHABLE();
-    }
+    void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
+    // Puts in-sandbox objects into the untrusted section and refers to them.
+    bool SerializeUntrustedReference(Handle<HeapObject> obj);
+
+    CodeSerializer* const untrusted_serializer_;
+    ObjectCacheIndexMap exports_;
+    GlobalHandleVector<HeapObject> export_queue_;
   };
 
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
+  bool SerializeTrustedExport(Tagged<HeapObject> obj);
   void FinishSection() {
     sink_.Put(kSynchronize, "EndOfUntrustedSection");
     Pad();
