@@ -361,6 +361,12 @@ greedy_batching_of_1 = scheduler.policy(
     max_batch_size = 1,
 )
 
+parallel_greedy_batching_of_1 = scheduler.policy(
+    kind = scheduler.GREEDY_BATCHING_KIND,
+    max_concurrent_invocations = 3,
+    max_batch_size = 1,
+)
+
 def console_view(
         name,
         title = None,

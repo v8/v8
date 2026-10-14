@@ -4,7 +4,7 @@
 
 load("//lib/builders.star", "main_multibranch_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
-load("//lib/lib.star", "BARRIER", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console")
+load("//lib/lib.star", "BARRIER", "ci_pair_factory", "in_branch_console", "parallel_greedy_batching_of_1")
 
 in_category = in_branch_console("main")
 main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)
@@ -13,7 +13,7 @@ in_category(
     "Linux",
     main_multibranch_builder_pair(
         name = "V8 Linux",
-        triggering_policy = greedy_batching_of_1,
+        triggering_policy = parallel_greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "d8"}},
         gclient_vars = [GCLIENT_VARS.GCMOLE],
@@ -51,7 +51,7 @@ in_category(
     "Linux64",
     main_multibranch_builder(
         name = "V8 Linux64 - builder",
-        triggering_policy = greedy_batching_of_1,
+        triggering_policy = parallel_greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"track_build_dependencies": True, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
         gclient_vars = [GCLIENT_VARS.GCMOLE],
@@ -64,7 +64,7 @@ in_category(
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - debug builder",
-        triggering_policy = greedy_batching_of_1,
+        triggering_policy = parallel_greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.JSFUNFUZZ],
         barrier = BARRIER.LKGR_TREE_CLOSER,
@@ -298,7 +298,7 @@ in_category(
     "Misc",
     main_multibranch_builder(
         name = "V8 Presubmit",
-        triggering_policy = greedy_batching_of_1,
+        triggering_policy = parallel_greedy_batching_of_1,
         executable = "recipe:v8/presubmit",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         disable_resultdb_exports = True,
