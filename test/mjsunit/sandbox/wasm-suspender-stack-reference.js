@@ -10,8 +10,47 @@ const read32 = p => memory.getUint32(p, true);
 const write32 = (p, value) => memory.setUint32(p, value, true);
 const address = object => Sandbox.getAddressOf(object);
 const bytes = new Uint8Array([
-  0,97,115,109,1,0,0,0,1,7,2,96,0,0,96,0,0,2,7,1,1,109,1,112,0,0,
-  3,2,1,1,7,5,1,1,102,0,1,10,6,1,4,0,16,0,11
+  0x00, 0x61, 0x73, 0x6d,  // wasm magic
+  0x01, 0x00, 0x00, 0x00,  // wasm version
+
+  0x01,                    // section kind: Type
+  0x07,                    // section length 7
+  0x02,                    // types count 2
+  0x60,                    //  kind: func
+  0x00,                    // param count 0
+  0x00,                    // return count 0
+  0x60,                    //  kind: func
+  0x00,                    // param count 0
+  0x00,                    // return count 0
+
+  0x02,                    // section kind: Import
+  0x07,                    // section length 7
+  0x01, 0x01,              // imports count 1: module name length:  1
+  0x6d,                    // module name: m
+  0x01,                    // field name length:  1
+  0x70,                    // field name: p
+  0x00, 0x00,              // kind or compact flag: function
+                           // import #0
+
+  0x03,                    // section kind: Function
+  0x02,                    // section length 2
+  0x01, 0x01,              // functions count 1: 1 $f
+
+  0x07,                    // section kind: Export
+  0x05,                    // section length 5
+  0x01,                    // exports count 1: export # 0
+  0x01,                    // field name length:  1
+  0x66,                    // field name: f
+  0x00, 0x01,              // kind: function index:  1
+
+  0x0a,                    // section kind: Code
+  0x06,                    // section length 6
+  0x01,                    // functions count 1
+                           // function #1 $f
+  0x04,                    // body size 4
+  0x00,                    // 0 entries in locals list
+  0x10, 0x00,              // call $m.p
+  0x0b,                    // end
 ]);
 const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes), {
   m: {p: new WebAssembly.Suspending(() => new Promise(() => {}))}

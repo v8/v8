@@ -5,14 +5,125 @@
 // Flags: --wasm-custom-descriptors --wasm-js-interop
 
 const wasm_bytes = new Uint8Array([
-  0,97,115,109,1,0,0,0,1,26,6,94,111,1,94,112,1,94,120,1,96,4,99,0,99,1,99,2,111,0,96,0,0,96,0,0,
-  2,81,4,18,119,97,115,109,58,106,115,45,112,114,111,116,111,116,121,112,101,115,12,99,111,110,
-  102,105,103,117,114,101,65,108,108,0,3,1,99,12,99,111,110,115,116,114,117,99,116,111,114,115,
-  3,111,0,3,109,111,100,10,111,117,116,101,114,95,102,117,110,99,0,4,1,99,5,112,114,111,116,111,
-  3,111,0,3,3,2,4,5,8,1,3,9,11,2,5,111,1,35,0,11,1,0,1,2,12,1,1,10,37,2,4,0,16,1,11,30,0,65,0,
-  65,1,251,10,0,0,65,0,65,1,251,10,1,1,65,0,65,14,251,9,2,0,35,0,16,0,11,11,17,1,1,14,1,0,1,0,
-  8,109,121,77,101,116,104,111,100,127,0,25,4,110,97,109,101,1,18,2,2,8,109,121,77,101,116,104,
-  111,100,3,5,115,116,97,114,116
+  0x00, 0x61, 0x73, 0x6d,  // wasm magic
+  0x01, 0x00, 0x00, 0x00,  // wasm version
+
+  0x01,                    // section kind: Type
+  0x1a,                    // section length 26
+  0x06,                    // types count 6
+  0x5e, 0x6f, 0x01,        // type #0 $type0 kind: array externref mutable
+  0x5e, 0x70, 0x01,        // type #1 $type1 kind: array funcref mutable
+  0x5e, 0x78, 0x01,        // type #2 $type2 kind: array i8 mutable
+  0x60,                    // type #3 $type3 kind: func
+  0x04,                    // param count 4
+  0x63, 0x00, 0x63, 0x01,  // (ref null $type0) (ref null $type1)
+  0x63, 0x02, 0x6f,        // (ref null $type2) externref
+  0x00,                    // return count 0
+  0x60,                    // type #4 $type4 kind: func
+  0x00,                    // param count 0
+  0x00,                    // return count 0
+  0x60,                    // type #5 $type5 kind: func
+  0x00,                    // param count 0
+  0x00,                    // return count 0
+
+  0x02,                    // section kind: Import
+  0x51,                    // section length 81
+  0x04,                    // imports count 4
+  0x12,                    // module name length:  18
+  0x77, 0x61, 0x73, 0x6d, 0x3a, 0x6a, 0x73, 0x2d,
+  0x70, 0x72, 0x6f, 0x74, 0x6f, 0x74, 0x79, 0x70,
+  0x65, 0x73,              // module name: wasm:js-prototypes
+  0x0c,                    // field name length:  12
+  0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x75, 0x72,
+  0x65, 0x41, 0x6c, 0x6c,  // field name: configureAll
+  0x00, 0x03,              // kind or compact flag: function (param (ref null $type0) (ref null $type1) (ref null $type2) externref)
+                           // import #0
+  0x01,                    // module name length:  1
+  0x63,                    // module name: c
+  0x0c,                    // field name length:  12
+  0x63, 0x6f, 0x6e, 0x73, 0x74, 0x72, 0x75, 0x63,
+  0x74, 0x6f, 0x72, 0x73,  // field name: constructors
+  0x03, 0x6f, 0x00,        // kind or compact flag: global externref immutable
+                           // import #1
+  0x03,                    // module name length:  3
+  0x6d, 0x6f, 0x64,        // module name: mod
+  0x0a,                    // field name length:  10
+  0x6f, 0x75, 0x74, 0x65, 0x72, 0x5f, 0x66, 0x75,
+  0x6e, 0x63,              // field name: outer_func
+  0x00, 0x04,              // kind or compact flag: function
+                           // import #2
+  0x01,                    // module name length:  1
+  0x63,                    // module name: c
+  0x05,                    // field name length:  5
+  0x70, 0x72, 0x6f, 0x74, 0x6f,  // field name: proto
+  0x03, 0x6f, 0x00,        // kind or compact flag: global externref immutable
+                           // import #3
+
+  0x03,                    // section kind: Function
+  0x03,                    // section length 3
+  0x02,                    // functions count 2
+  0x04,                    // 2 $myMethod
+  0x05,                    // 3 $start
+
+  0x08,                    // section kind: Start
+  0x01,                    // section length 1
+  0x03,                    // index:  3
+
+  0x09,                    // section kind: Element
+  0x0b,                    // section length 11
+  0x02,                    // segment count 2
+  0x05, 0x6f, 0x01,        // flag: passive, element type: externref number of elements 1:
+  0x23, 0x00, 0x0b,        // global.get $c.constructors
+  0x01, 0x00, 0x01,        // flag: passive, element type: function number of elements 1:
+  0x02,                    // index:  2
+
+  0x0c,                    // section kind: DataCount
+  0x01,                    // section length 1
+  0x01,                    // data segments count 1:
+
+  0x0a,                    // section kind: Code
+  0x25,                    // section length 37
+  0x02,                    // functions count 2
+                           // function #2 $myMethod
+  0x04,                    // body size 4
+  0x00,                    // 0 entries in locals list
+  0x10, 0x01,              // call $mod.outer_func
+  0x0b,                    // end
+                           // function #3 $start
+  0x1e,                    // body size 30
+  0x00,                    // 0 entries in locals list
+  0x41, 0x00,              // i32.const 0
+  0x41, 0x01,              // i32.const 1
+  0xfb, 0x0a, 0x00, 0x00,  // array.new_elem $type0 $elem0
+  0x41, 0x00,              // i32.const 0
+  0x41, 0x01,              // i32.const 1
+  0xfb, 0x0a, 0x01, 0x01,  // array.new_elem $type1 $elem1
+  0x41, 0x00,              // i32.const 0
+  0x41, 0x0e,              // i32.const 14
+  0xfb, 0x09, 0x02, 0x00,  // array.new_data $type2 0
+  0x23, 0x00,              // global.get $c.constructors
+  0x10, 0x00,              // call $wasm:js-prototypes.configureAll
+  0x0b,                    // end
+
+  0x0b,                    // section kind: Data
+  0x11,                    // section length 17
+  0x01, 0x01,              // data segments count 1: flag: passive
+  0x0e,                    // source size 14
+  0x01, 0x00, 0x01, 0x00, 0x08, 0x6d, 0x79, 0x4d,
+  0x65, 0x74, 0x68, 0x6f, 0x64, 0x7f,
+                           // segment data
+
+  0x00,                    // section kind: Unknown
+  0x19,                    // section length 25
+  0x04,                    // section name length:  4
+  0x6e, 0x61, 0x6d, 0x65,  // section name: name
+  0x01,                    // name type: function
+  0x12,                    // payload length: 18
+  0x02,                    // names count 2
+  0x02, 0x08,              // index 2 name length:  8
+  0x6d, 0x79, 0x4d, 0x65, 0x74, 0x68, 0x6f, 0x64,  // name: myMethod
+  0x03, 0x05,              // index 3 name length:  5
+  0x73, 0x74, 0x61, 0x72, 0x74,  // name: start
 ]);
 
 const myProto = {};
