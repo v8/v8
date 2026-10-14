@@ -636,17 +636,18 @@ class PrototypeSetupSequenceDetector : public Decoder {
     if (!module_->has_array(actual_type)) return false;
     if (module_->canonical_type_id(actual_type) != type) return false;
     uint32_t segment_index = consume_u32v(kNoTrace);
-    uint32_t segment_length;
     ValueType element_type = module_->array_type(actual_type)->element_type();
     if (element_type.is_ref()) {
       if (segment_index >= module_->elem_segments.size()) return false;
-      segment_length = module_->elem_segments[segment_index].element_count;
+      uint32_t segment_length =
+          module_->elem_segments[segment_index].element_count;
+      if (start > segment_length) return false;
+      if (length > segment_length - start) return false;
     } else {
-      if (segment_index >= module_->data_segments.size()) return false;
-      segment_length = module_->data_segments[segment_index].source.length();
+      if (segment_index >= module_->num_declared_data_segments) return false;
+      // We can't inspect the segment yet, because it comes after the code
+      // section and we might be streaming.
     }
-    if (start > segment_length) return false;
-    if (length > segment_length - start) return false;
     if (length > static_cast<uint32_t>(
                      WasmArray::MaxLength(element_type.value_kind_size()))) {
       return false;
@@ -8616,7 +8617,7 @@ class LiftoffCompiler {
     // code for debugging (1) doesn't need optimizations, and (2) relies on
     // PC offsets not changing, so it's safer to skip all conditional
     // decision-making for it on general principle.
-    if (prototype_setup_end_ == nullptr && for_debugging_ != kNotForDebugging &&
+    if (prototype_setup_end_ == nullptr && !for_debugging_ &&
         decoder->enabled_.has_custom_descriptors() &&
         v8_flags.wasm_js_interop) {
       PrototypeSetupSequenceDetector matcher(decoder->pc(), decoder->end(),
@@ -8698,9 +8699,11 @@ class LiftoffCompiler {
               MakeSig::Params(kIntPtrKind, kRef),
               {VarState{kIntPtrKind, buffer, 0}, VarState{kRef, global, 0}},
               position);
+          int pc_offset = __ pc_offset_for_safepoint();
           __ DeallocateStackSlot(kBufferSize);
           static constexpr int kNumDroppedConstants = 2;
           __ DropValues(kNumDroppedConstants);
+          EmitLandingPad(decoder, pc_offset);
 
           uint32_t num_locals = __ num_locals();
           uint32_t stack_depth =
