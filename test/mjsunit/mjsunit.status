@@ -1185,6 +1185,7 @@
   'regress/wasm/regress-567911985': [SKIP],
   'regress/wasm/regress-570433240': [SKIP],
   'regress/wasm/regress-570433264': [SKIP],
+  'regress/wasm/regress-573260377': [SKIP],
   'regress/wasm/regress-simd-526303932': [SKIP],
   'wasm/fp16-load-mul': [SKIP],
   'wasm/fp16-oob-trap': [SKIP],
