@@ -125,6 +125,12 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
+  // On 64-bit systems, size can be at most 33 bits, so we know that adding
+  // sizeof(HeapObjectHeader) to it can't overflow. On 32-bit systems, we need
+  // to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
+  CHECK_GT(allocation_size, size);
+#endif
   const RawHeap::RegularSpaceType type =
       GetInitialSpaceIndexForSize(allocation_size);
   return AllocateObjectOnSpace(NormalPageSpace::From(*raw_heap_.Space(type)),
@@ -140,6 +146,12 @@ void* ObjectAllocator::AllocateObject(size_t size, AlignVal alignment,
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
+  // On 64-bit systems, size can be at most 33 bits, so we know that adding
+  // sizeof(HeapObjectHeader) to it can't overflow. On 32-bit systems, we need
+  // to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
+  CHECK_GT(allocation_size, size);
+#endif
   const RawHeap::RegularSpaceType type =
       GetInitialSpaceIndexForSize(allocation_size);
   return AllocateObjectOnSpace(NormalPageSpace::From(*raw_heap_.Space(type)),
@@ -156,6 +168,12 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
+  // On 64-bit systems, size can be at most 33 bits, so we know that adding
+  // sizeof(HeapObjectHeader) to it can't overflow. On 32-bit systems, we need
+  // to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
+  CHECK_GT(allocation_size, size);
+#endif
   return AllocateObjectOnSpace(
       NormalPageSpace::From(*raw_heap_.CustomSpace(space_index)),
       allocation_size, gcinfo, may_contain_mixins);
@@ -171,6 +189,12 @@ void* ObjectAllocator::AllocateObject(size_t size, AlignVal alignment,
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
+  // On 64-bit systems, size can be at most 33 bits, so we know that adding
+  // sizeof(HeapObjectHeader) to it can't overflow. On 32-bit systems, we need
+  // to check it.
+#if !defined(V8_HOST_ARCH_64_BIT)
+  CHECK_GT(allocation_size, size);
+#endif
   return AllocateObjectOnSpace(
       NormalPageSpace::From(*raw_heap_.CustomSpace(space_index)),
       allocation_size, alignment, gcinfo, may_contain_mixins);

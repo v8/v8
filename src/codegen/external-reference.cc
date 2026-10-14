@@ -713,7 +713,7 @@ class GCedBuffer final : public cppgc::GarbageCollected<GCedBuffer> {
   void Trace(cppgc::Visitor* visitor) const {}
 };
 
-void* allocate_buffer_impl(Isolate* isolate, size_t size) {
+void* allocate_buffer_impl(Isolate* isolate, uint32_t size) {
   void* result = cppgc::MakeGarbageCollected<GCedBuffer>(
       isolate->heap()->cpp_heap()->GetAllocationHandle(),
       cppgc::AdditionalBytes(size));
