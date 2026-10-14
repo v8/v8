@@ -88,6 +88,7 @@ namespace internal {
   V(Cpy)                                \
   V(Set)                                \
   V(SVEBitPerm)                         \
+  V(SVE2Mul)                            \
   V(Unallocated)                        \
   V(Unimplemented)
 

@@ -5218,6 +5218,20 @@ TEST_F(DisasmArm64Test, sve_bit_permute) {
   CLEANUP();
 }
 
+TEST_F(DisasmArm64Test, mul) {
+  SET_UP_MASM();
+
+  CpuFeatureScope feature_scope(assm, SVE2,
+                                CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE(Mul(z0.VnB(), z1.VnB(), z2.VnB()), "mul z0.b, z1.b, z2.b");
+  COMPARE(Mul(z0.VnH(), z1.VnH(), z2.VnH()), "mul z0.h, z1.h, z2.h");
+  COMPARE(Mul(z0.VnS(), z1.VnS(), z2.VnS()), "mul z0.s, z1.s, z2.s");
+  COMPARE(Mul(z0.VnD(), z1.VnD(), z2.VnD()), "mul z0.d, z1.d, z2.d");
+
+  CLEANUP();
+}
+
 #undef TEST_
 #undef EXP_SIZE
 #undef INSTR_SIZE

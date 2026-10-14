@@ -68,6 +68,8 @@ enum CpuFeature {
   SVE,
   // Scalable Vector Bit Permutes instructions
   SVEBITPERM,
+  // Scalable Vector Extension 2
+  SVE2,
   // Load-Acquire RCpc instructions v2 (LDAPUR and STLUR with unscaled offset)
   LRCPC2,
 
@@ -173,6 +175,9 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
     DCHECK_NE(vlen_, 0);
     return vlen_;
   }
+
+  // Current thread's SVE vector length in bytes, 0 if unavailable.
+  static unsigned svevlen();
 
   static void PrintInformation();
 

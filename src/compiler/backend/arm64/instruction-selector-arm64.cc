@@ -5819,6 +5819,12 @@ void InstructionSelector::VisitI64x2Mul(OpIndex node) {
   OpIndex left = op.left();
   OpIndex right = op.right();
 
+  // Call unpredicated SVE2 mul if supported.
+  if (IsSupported(SVE2) && CpuFeatures::svevlen() == kSimd128Size) {
+    return VisitRRR(this, kArm64IMul | LaneSizeField::encode(LaneSize::kL64),
+                    node);
+  }
+
   // This 2x64-bit multiplication is performed with several 32-bit
   // multiplications.
 

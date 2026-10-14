@@ -2774,6 +2774,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Gather lower bits from positions selected by bitmask
   void bext(const ZRegister& zd, const ZRegister& zn, const ZRegister& zm);
 
+  // Multiply (unpredicated).
+  void mul(const ZRegister& zd, const ZRegister& zn, const ZRegister& zm);
+
   // Copy a string into the instruction stream, including the terminating
   // nullptr character. The instruction pointer (pc_) is then aligned correctly
   // for subsequent instructions.

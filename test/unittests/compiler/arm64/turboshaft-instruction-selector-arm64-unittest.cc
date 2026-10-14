@@ -3477,6 +3477,33 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, I64x2MulSVE2) {
+  if (!CpuFeatures::IsSupported(SVE2) ||
+      CpuFeatures::svevlen() != kSimd128Size) {
+    GTEST_SKIP() << "Requires a 128-bit SVE vector-length";
+  }
+
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  V<Simd128> lhs = m.Parameter<Simd128>(0);
+  V<Simd128> rhs = m.Parameter<Simd128>(1);
+  V<Simd128> prod = m.Simd128Binop(lhs, rhs, Simd128BinopOp::Kind::kI64x2Mul);
+  m.Return(prod);
+  Stream s = m.Build(SVE2);
+
+  ASSERT_EQ(1U, s.size());
+
+  EXPECT_EQ(kArm64IMul, s[0]->arch_opcode());
+  EXPECT_EQ(64, LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(lhs), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(rhs), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(prod), s.ToVreg(s[0]->Output()));
+
+  return;
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, I64x2Mul) {
   StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
                   MachineType::Simd128());

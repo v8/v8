@@ -3833,6 +3833,24 @@ void DisassemblingDecoder::VisitSVEBitPerm(Instruction* instr) {
   Format(instr, mnemonic, ssd.Substitute(form));
 }
 
+void DisassemblingDecoder::VisitSVE2Mul(Instruction* instr) {
+  const char* form = "'Zd.%s, 'Zn.%s, 'Zm.%s";
+  const char* mnemonic = "unimplemented";
+  SVESizeDecoder ssd(instr);
+
+  DCHECK_EQ(instr->Mask(SVE2MulFMask), SVE2MulFixed);
+
+  switch (instr->Mask(SVE2MulMask)) {
+    case SVE2_MUL:
+      mnemonic = "mul";
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Format(instr, mnemonic, ssd.Substitute(form));
+}
+
 void DisassemblingDecoder::VisitUnimplemented(Instruction* instr) {
   Format(instr, "unimplemented", "(Unimplemented)");
 }

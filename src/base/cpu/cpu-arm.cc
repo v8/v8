@@ -115,6 +115,7 @@ namespace v8::base {
 /*
  * HWCAP2 flags - for elf_hwcap2 (in kernel) and AT_HWCAP2
  */
+#define HWCAP2_SVE2 (1 << 1)
 #define HWCAP2_SVEBITPERM (1 << 4)
 #define HWCAP2_MTE (1 << 18)
 #define HWCAP2_CSSC (1UL << 34)
@@ -353,6 +354,9 @@ void CPU::DetectFeatures() {
 #if !defined(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_SVE_INSTRUCTIONS_AVAILABLE = 46;
 #endif
+#if !defined(PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE = 47;
+#endif
 #if !defined(PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE = 67;
 #endif
@@ -368,6 +372,7 @@ void CPU::DetectFeatures() {
   has_fp16_ = IsProcessorFeaturePresent(PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE);
   has_sha3_ = IsProcessorFeaturePresent(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE);
   has_sve_ = IsProcessorFeaturePresent(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE);
+  has_sve2_ = IsProcessorFeaturePresent(PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE);
   has_svebitperm_ =
       IsProcessorFeaturePresent(PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE);
 
@@ -380,6 +385,7 @@ void CPU::DetectFeatures() {
   has_hbc_ = (hwcaps2 & HWCAP2_HBC) != 0;
   has_mops_ = (hwcaps2 & HWCAP2_MOPS) != 0;
   has_svebitperm_ = (hwcaps2 & HWCAP2_SVEBITPERM) != 0;
+  has_sve2_ = (hwcaps2 & HWCAP2_SVE2) != 0;
   if (hwcaps != 0) {
     has_jscvt_ = (hwcaps & HWCAP_JSCVT) != 0;
     has_dot_prod_ = (hwcaps & HWCAP_ASIMDDP) != 0;

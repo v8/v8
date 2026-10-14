@@ -3398,11 +3398,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64IMul: {
       uint32_t lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
-      DCHECK_NE(lane_size, 64);
-      VectorFormat format = VectorFormatFillQ(lane_size);
-      __ Mul(i.OutputSimd128Register().Format(format),
-             i.InputSimd128Register(0).Format(format),
-             i.InputSimd128Register(1).Format(format));
+      if (lane_size == 64) {
+        CpuFeatureScope scope(masm(), SVE2);
+        __ Mul(i.OutputSimd128Register().Z().VnD(),
+               i.InputSimd128Register(0).Z().VnD(),
+               i.InputSimd128Register(1).Z().VnD());
+      } else {
+        VectorFormat format = VectorFormatFillQ(lane_size);
+        __ Mul(i.OutputSimd128Register().Format(format),
+               i.InputSimd128Register(0).Format(format),
+               i.InputSimd128Register(1).Format(format));
+      }
       break;
     }
     case kArm64IAddv: {

@@ -2665,6 +2665,13 @@ constexpr SVEBitPermOp SVEBitPermFMask = 0xFF20F000;
 constexpr SVEBitPermOp SVEBitPermMask = 0xFF20FC00;
 constexpr SVEBitPermOp BEXT = SVEBitPermFixed;
 
+// SVE2 multiply (unpredicated) instructions.
+using SVE2MulOp = uint32_t;
+constexpr SVE2MulOp SVE2MulFixed = 0x04206000;
+constexpr SVE2MulOp SVE2MulFMask = 0xFF20F000;
+constexpr SVE2MulOp SVE2MulMask = 0xFF20FC00;
+constexpr SVE2MulOp SVE2_MUL = SVE2MulFixed;
+
 // Unimplemented and unallocated instructions. These are defined to make fixed
 // bit assertion easier.
 using UnimplementedOp = uint32_t;

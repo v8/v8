@@ -578,6 +578,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     bext(zd, zn, zm);
   }
 
+  void Mul(const ZRegister& zd, const ZRegister& zn, const ZRegister& zm) {
+    DCHECK(allow_macro_instructions());
+    mul(zd, zn, zm);
+  }
+
   // This is required for compatibility in architecture independent code.
   inline void jmp(Label* L);
 
