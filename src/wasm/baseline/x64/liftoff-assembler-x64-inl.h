@@ -137,7 +137,7 @@ inline void StoreToMemory(LiftoffAssembler* assm, Operand dst,
   if (src.is_reg()) {
     liftoff::StoreToMemory(assm, dst, src.reg(), src.kind());
   } else if (src.is_const()) {
-    if (src.kind() == kI32) {
+    if (src.kind() == kI32 || src.kind() == kF32) {
       assm->movl(dst, Immediate(src.i32_const()));
     } else {
       assm->MacroAssembler::Move(dst, static_cast<int64_t>(src.i32_const()));
@@ -700,11 +700,13 @@ void LiftoffAssembler::StoreConst(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
+    case StoreType::kF32Store:
       movl(dst_op, Immediate(value));
       break;
     case StoreType::kI64Store:
-      // The 32-bit immediate is sign-extended, matching how Liftoff keeps i64
-      // constants.
+    case StoreType::kF64Store:
+      // The 32-bit immediate is sign-extended, matching how Liftoff keeps
+      // 64-bit constants.
       movq(dst_op, Immediate(value));
       break;
     default:
@@ -1275,22 +1277,28 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
     case kI32:
       movl(dst, Immediate(value.to_i32()));
       break;
-    case kI64: {
-      if (is_int32(value.to_i64())) {
+    case kF32:
+      movl(dst, Immediate(value.to_f32_boxed().get_bits()));
+      break;
+    case kI64:
+    case kF64: {
+      int64_t val64 = value.type().kind() == kI64
+                          ? value.to_i64()
+                          : value.to_f64_boxed().get_bits();
+      if (is_int32(val64)) {
         // Sign extend low word.
-        movq(dst, Immediate(static_cast<int32_t>(value.to_i64())));
-      } else if (is_uint32(value.to_i64())) {
+        movq(dst, Immediate(static_cast<int32_t>(val64)));
+      } else if (is_uint32(val64)) {
         // Zero extend low word.
-        movl(kScratchRegister, Immediate(static_cast<int32_t>(value.to_i64())));
+        movl(kScratchRegister, Immediate(static_cast<int32_t>(val64)));
         movq(dst, kScratchRegister);
       } else {
-        movq(kScratchRegister, value.to_i64());
+        movq(kScratchRegister, val64);
         movq(dst, kScratchRegister);
       }
       break;
     }
     default:
-      // We do not track f32 and f64 constants, hence they are unreachable.
       UNREACHABLE();
   }
 }

@@ -1515,15 +1515,21 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
     case kI32:
       mov(dst, Immediate(value.to_i32()));
       break;
-    case kI64: {
-      int32_t low_word = value.to_i64();
-      int32_t high_word = value.to_i64() >> 32;
+    case kF32:
+      mov(dst, Immediate(value.to_f32_boxed().get_bits()));
+      break;
+    case kI64:
+    case kF64: {
+      int64_t val64 = value.type().kind() == kI64
+                          ? value.to_i64()
+                          : value.to_f64_boxed().get_bits();
+      int32_t low_word = static_cast<int32_t>(val64);
+      int32_t high_word = static_cast<int32_t>(val64 >> 32);
       mov(liftoff::GetHalfStackSlot(offset, kLowWord), Immediate(low_word));
       mov(liftoff::GetHalfStackSlot(offset, kHighWord), Immediate(high_word));
       break;
     }
     default:
-      // We do not track f32 and f64 constants, hence they are unreachable.
       UNREACHABLE();
   }
 }
@@ -5344,6 +5350,12 @@ void LiftoffStackSlots::Construct(int param_slots) {
         }
         break;
       case LiftoffAssembler::VarState::kIntConst:
+        if (src.kind() == kF64) {
+          asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
+          DCHECK_EQ(kLowWord, slot.half_);
+          asm_->push(Immediate(src.i32_const() >> 31));
+          stack_decrement = kSystemPointerSize;
+        }
         asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         // The high word is the sign extension of the low word.
         asm_->push(Immediate(slot.half_ == kLowWord ? src.i32_const()

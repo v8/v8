@@ -706,12 +706,9 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
     case kF32:
       vmov(liftoff::GetFloatRegister(reg.fp()), value.to_f32_boxed());
       break;
-    case kF64: {
-      Register extra_scratch = GetUnusedRegister(kGpReg, {}).gp();
-      vmov(reg.fp(), base::Double(value.to_f64_boxed().get_bits()),
-           extra_scratch);
+    case kF64:
+      vmov(reg.fp(), base::Double(value.to_f64_boxed().get_bits()));
       break;
-    }
     default:
       UNREACHABLE();
   }
@@ -1775,17 +1772,24 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
       mov(src, Operand(value.to_i32()));
       str(src, dst);
       break;
-    case kI64: {
-      int32_t low_word = value.to_i64();
+    case kF32:
+      mov(src, Operand(value.to_f32_boxed().get_bits()));
+      str(src, dst);
+      break;
+    case kI64:
+    case kF64: {
+      int64_t val64 = value.type().kind() == kI64
+                          ? value.to_i64()
+                          : value.to_f64_boxed().get_bits();
+      int32_t low_word = static_cast<int32_t>(val64);
       mov(src, Operand(low_word));
       str(src, liftoff::GetHalfStackSlot(offset, kLowWord));
-      int32_t high_word = value.to_i64() >> 32;
+      int32_t high_word = static_cast<int32_t>(val64 >> 32);
       mov(src, Operand(high_word));
       str(src, liftoff::GetHalfStackSlot(offset, kHighWord));
       break;
     }
     default:
-      // We do not track f32 and f64 constants, hence they are unreachable.
       UNREACHABLE();
   }
 }
@@ -5178,10 +5182,18 @@ void LiftoffStackSlots::Construct(int param_slots) {
         break;
       }
       case LiftoffAssembler::VarState::kIntConst: {
-        asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
-        DCHECK(src.kind() == kI32 || src.kind() == kI64);
+        DCHECK(src.kind() == kI32 || src.kind() == kI64 || src.kind() == kF32 ||
+               src.kind() == kF64);
         UseScratchRegisterScope temps(asm_);
         Register scratch = temps.Acquire();
+        if (src.kind() == kF64) {
+          asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
+          DCHECK_EQ(kLowWord, slot.half_);
+          asm_->mov(scratch, Operand(src.i32_const() >> 31));
+          asm_->push(scratch);
+          stack_decrement = kSystemPointerSize;
+        }
+        asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
         // The high word is the sign extension of the low word.
         asm_->mov(scratch,
                   Operand(slot.half_ == kLowWord ? src.i32_const()

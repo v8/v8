@@ -177,30 +177,23 @@ struct WasmValWrapper {
   bool operator==(const WasmValWrapper& other) const {
     return val == other.val;
   }
-};
 
-// Only needed in debug builds. Avoid unused warning otherwise.
-#ifdef DEBUG
-std::ostream& operator<<(std::ostream& out, const WasmValWrapper& wrapper) {
-  switch (wrapper.val.type().kind()) {
-    case kI32:
-      out << "i32: " << wrapper.val.to<int32_t>();
-      break;
-    case kI64:
-      out << "i64: " << wrapper.val.to<int64_t>();
-      break;
-    case kF32:
-      out << "f32: " << wrapper.val.to<float>();
-      break;
-    case kF64:
-      out << "f64: " << wrapper.val.to<double>();
-      break;
-    default:
-      UNIMPLEMENTED();
+  [[maybe_unused]] friend std::ostream& operator<<(
+      std::ostream& out, const WasmValWrapper& wrapper) {
+    switch (wrapper.val.type().kind()) {
+      case kI32:
+        return out << "i32: " << wrapper.val.to<int32_t>();
+      case kI64:
+        return out << "i64: " << wrapper.val.to<int64_t>();
+      case kF32:
+        return out << "f32: " << wrapper.val.to<float>();
+      case kF64:
+        return out << "f64: " << wrapper.val.to<double>();
+      default:
+        UNIMPLEMENTED();
+    }
   }
-  return out;
-}
-#endif
+};
 
 class CollectValuesBreakHandler : public debug::DebugDelegate {
  public:

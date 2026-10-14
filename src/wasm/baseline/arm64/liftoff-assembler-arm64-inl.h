@@ -213,13 +213,13 @@ inline CPURegister LoadToRegister(LiftoffAssembler* assm,
     return GetRegFromType(src.reg(), src.kind());
   }
   if (src.is_const()) {
-    if (src.kind() == kI32) {
+    if (src.kind() == kI32 || src.kind() == kF32) {
       if (src.i32_const() == 0) return wzr;
       Register temp = temps->AcquireW();
       assm->Mov(temp, src.i32_const());
       return temp;
     }
-    DCHECK_EQ(kI64, src.kind());
+    DCHECK(src.kind() == kI64 || src.kind() == kF64);
     if (src.i32_const() == 0) return xzr;
     Register temp = temps->AcquireX();
     assm->Mov(temp, static_cast<int64_t>(src.i32_const()));
@@ -1504,23 +1504,32 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   CPURegister src = CPURegister::no_reg();
   switch (value.type().kind()) {
     case kI32:
-      if (value.to_i32() == 0) {
+    case kF32: {
+      int32_t val32 = value.type().kind() == kI32
+                          ? value.to_i32()
+                          : value.to_f32_boxed().get_bits();
+      if (val32 == 0) {
         src = wzr;
       } else {
         src = temps.AcquireW();
-        Mov(src.W(), value.to_i32());
+        Mov(src.W(), val32);
       }
       break;
+    }
     case kI64:
-      if (value.to_i64() == 0) {
+    case kF64: {
+      int64_t val64 = value.type().kind() == kI64
+                          ? value.to_i64()
+                          : value.to_f64_boxed().get_bits();
+      if (val64 == 0) {
         src = xzr;
       } else {
         src = temps.AcquireX();
-        Mov(src.X(), value.to_i64());
+        Mov(src.X(), val64);
       }
       break;
+    }
     default:
-      // We do not track f32 and f64 constants, hence they are unreachable.
       UNREACHABLE();
   }
   Str(src, dst);
@@ -4624,19 +4633,21 @@ void LiftoffStackSlots::Construct(int param_slots) {
         asm_->Poke(liftoff::GetRegFromType(slot.src_.reg(), slot.src_.kind()),
                    poke_offset);
         break;
-      case LiftoffAssembler::VarState::kIntConst:
-        DCHECK(slot.src_.kind() == kI32 || slot.src_.kind() == kI64);
+      case LiftoffAssembler::VarState::kIntConst: {
+        ValueKind kind = slot.src_.kind();
+        DCHECK(kind == kI32 || kind == kI64 || kind == kF32 || kind == kF64);
+        bool is_32bit = kind == kI32 || kind == kF32;
         if (slot.src_.i32_const() == 0) {
-          Register zero_reg = slot.src_.kind() == kI32 ? wzr : xzr;
+          Register zero_reg = is_32bit ? wzr : xzr;
           asm_->Poke(zero_reg, poke_offset);
         } else {
           UseScratchRegisterScope temps(asm_);
-          Register scratch =
-              slot.src_.kind() == kI32 ? temps.AcquireW() : temps.AcquireX();
+          Register scratch = is_32bit ? temps.AcquireW() : temps.AcquireX();
           asm_->Mov(scratch, int64_t{slot.src_.i32_const()});
           asm_->Poke(scratch, poke_offset);
         }
         break;
+      }
     }
   }
 }
