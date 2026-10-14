@@ -601,11 +601,21 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
     case ScopeTypeBlock:
     case ScopeTypeCatch:
     case ScopeTypeModule:
-      if (HasScope()) return SetLocalVariableValue(name, value);
-      if (Type() == ScopeTypeModule && SetModuleVariableValue(name, value)) {
-        return true;
+      if (HasScope()) {
+        if (SetLocalVariableValue(name, value)) return true;
+      } else {
+        if (Type() == ScopeTypeModule && SetModuleVariableValue(name, value)) {
+          return true;
+        }
+        if (SetContextVariableValue(name, value)) return true;
       }
-      return SetContextVariableValue(name, value);
+      // The varblock scope of a sloppy function with non-simple parameters
+      // can hold eval-introduced variables on its context extension object.
+      // Mirror VisitLocalScope, which lists them.
+      if (HasContext() && context_->scope_info()->SloppyEvalCanExtendVars()) {
+        return SetContextExtensionValue(name, value);
+      }
+      return false;
 
     case ScopeTypeLocal:
     case ScopeTypeClosure:
