@@ -1014,9 +1014,42 @@ void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
   PtrComprCageBase cage_base(isolate());
   DisallowGarbageCollection no_gc;
 
+  auto IsRawCopyable = [&](MaybeObjectSlot slot) {
+    Tagged<MaybeObject> value = slot.load(cage_base);
+    if (value.IsSmi()) return true;
+#if V8_STATIC_ROOTS_BOOL
+    Tagged<HeapObject> obj;
+    RootIndex root_index;
+    if (value.GetHeapObjectIfStrong(&obj) && HeapLayout::InReadOnlySpace(obj) &&
+        !serializer_->root_index_map()->Lookup(obj, &root_index)) {
+      return true;
+    }
+#endif  // V8_STATIC_ROOTS_BOOL
+    return false;
+  };
+
+  // Advance `current` across contiguous slots that can be emitted as a single
+  // raw-data memcpy (`FixedRawData` / `VariableRawData`). Smis are always raw.
+  // On static-roots builds, non-root read-only strong pointers also reside at
+  // fixed cage offsets and need no relocation or write barriers, so they can be
+  // raw-copied too. However, RO refs only *join* a run and never start a
+  // one-slot run, since an isolated ref is cheaper as `kReadOnlyHeapRef` than
+  // as `FixedRawData`.
+  const Address object_end = object_->address() + object_->Size();
   MaybeObjectSlot current = start;
   while (current < end) {
-    while (current < end && current.load(cage_base).IsSmi()) {
+    const Address raw_start = object_->address() + bytes_processed_so_far_;
+    while (current < end && IsRawCopyable(current)) {
+      if (!current.load(cage_base).IsSmi()) {
+        MaybeObjectSlot next = current + 1;
+        const bool run_already_open = current.address() > raw_start;
+        const bool followed_by_raw_payload =
+            next == end && end.address() < object_end;
+        const bool next_is_raw = next < end && IsRawCopyable(next);
+        if (!run_already_open && !followed_by_raw_payload && !next_is_raw) {
+          break;
+        }
+      }
       ++current;
     }
     if (current < end) {
