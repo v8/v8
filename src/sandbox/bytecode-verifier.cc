@@ -247,6 +247,14 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
       interpreter::Register reg = iterator.GetStarTargetRegister();
       VerifyRegister(reg, true);
     }
+
+    if (current_bytecode == interpreter::Bytecode::kSuspendGenerator ||
+        current_bytecode == interpreter::Bytecode::kResumeGenerator ||
+        current_bytecode == interpreter::Bytecode::kSwitchOnGeneratorState) {
+      interpreter::Register generator = iterator.GetRegisterOperand(0);
+      Check(!generator.is_parameter(),
+            "Generator register cannot be a parameter");
+    }
   }
 
   Check(previous_bytecode_end == bytecode->length(),

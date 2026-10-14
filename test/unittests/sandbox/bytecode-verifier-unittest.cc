@@ -958,6 +958,64 @@ TEST_F(BytecodeVerifierTest, RegisterListInParameterRegisters) {
   }
 }
 
+TEST_F(BytecodeVerifierTest, GeneratorRegisterInParameterRegisters) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(1);
+  constant_pool->set(0, Smi::FromInt(5));
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  uint8_t param0_operand = static_cast<uint8_t>(
+      interpreter::Register::FromParameterIndex(0).ToOperand());
+  uint8_t context_operand = static_cast<uint8_t>(
+      interpreter::Register::current_context().ToOperand());
+  uint8_t reg0_operand =
+      static_cast<uint8_t>(interpreter::Register(0).ToOperand());
+
+  // 1. kSuspendGenerator with parameter generator register fails.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kSuspendGenerator),
+        param0_operand,
+        reg0_operand,
+        1,
+        0,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Generator register cannot be a parameter");
+  }
+
+  // 2. kResumeGenerator with parameter generator register fails.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kResumeGenerator),
+        context_operand, reg0_operand, 1,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Generator register cannot be a parameter");
+  }
+
+  // 3. kSwitchOnGeneratorState with parameter generator register fails.
+  {
+    std::vector<uint8_t> kRawBytes = {
+        static_cast<uint8_t>(interpreter::Bytecode::kSwitchOnGeneratorState),
+        param0_operand, 0, 1,
+        static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+    Handle<BytecodeArray> bc =
+        MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table,
+                          /*frame_size=*/32, /*parameter_count=*/3);
+    ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                              "Generator register cannot be a parameter");
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

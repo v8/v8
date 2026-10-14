@@ -141,14 +141,18 @@ void UpdateInLiveness(BytecodeLivenessState* in_liveness,
   // Special case Suspend and Resume to just pass through liveness.
   if constexpr (bytecode == Bytecode::kSuspendGenerator) {
     // The generator object has to be live.
-    in_liveness->MarkRegisterLive(iterator.GetRegisterOperand(0).index());
+    Register generator_reg = iterator.GetRegisterOperand(0);
+    DCHECK(!generator_reg.is_parameter());
+    in_liveness->MarkRegisterLive(generator_reg.index());
     // Suspend additionally reads and returns the accumulator
     DCHECK(Bytecodes::ReadsAccumulator(bytecode));
     in_liveness->MarkAccumulatorLive();
     return;
   } else if constexpr (bytecode == Bytecode::kResumeGenerator) {
     // The generator object has to be live.
-    in_liveness->MarkRegisterLive(iterator.GetRegisterOperand(0).index());
+    Register generator_reg = iterator.GetRegisterOperand(0);
+    DCHECK(!generator_reg.is_parameter());
+    in_liveness->MarkRegisterLive(generator_reg.index());
     return;
   }
 
@@ -246,11 +250,12 @@ void UpdateOutLiveness(BytecodeLiveness& liveness,
     if (IsFirstUpdate) {
       // The generator register won't be live in the fallthrough, so copy the
       // liveness and make it live here.
-      int generator_reg_index = iterator.GetRegisterOperand(0).index();
-      DCHECK(!next_bytecode_in_liveness->RegisterIsLive(generator_reg_index));
+      Register generator_reg = iterator.GetRegisterOperand(0);
+      DCHECK(!generator_reg.is_parameter());
+      DCHECK(!next_bytecode_in_liveness->RegisterIsLive(generator_reg.index()));
       liveness.out =
           zone->New<BytecodeLivenessState>(*next_bytecode_in_liveness, zone);
-      liveness.out->MarkRegisterLive(generator_reg_index);
+      liveness.out->MarkRegisterLive(generator_reg.index());
     } else {
       liveness.out->Union(*next_bytecode_in_liveness);
     }
