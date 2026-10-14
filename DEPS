@@ -161,9 +161,9 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2dd7cce498050731d52d923993d9827a06d8072e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ce12ffd1c3f80b6042477256b7a6eba7f3aa3ca2',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8790f824690e131a78f36e80ecc05a9272f061c8',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '54989aa9486c639962bec871e62404cbe3ea1667',
   'buildtools/linux64': {
     'packages': [
       {
@@ -533,7 +533,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'b480aedf9171d15257a110f893bcaa940f94b907',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '7a3972e400b922c363a867a4d85549a1066edfea',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '9fbbf0b210753390b790e4f1e74ddff5d7d97bbf',
   'third_party/re2/src':
