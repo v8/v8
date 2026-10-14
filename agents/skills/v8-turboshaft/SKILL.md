@@ -67,3 +67,7 @@ description: Turboshaft C++ coding conventions. Use when writing, modifying, or 
 - Optimization reducers should check `ShouldSkipOptimizationStep()` (at least at
   the beginning of `REDUCE` / `REDUCE_INPUT_GRAPH` methods) before performing
   non-mandatory transformations.
+
+- For every branch, consider whether it is checking something that can actually
+  happen or whether compiler invariants prevent the condition from being true
+  (or false), in which case it should be a `DCHECK` instead.
