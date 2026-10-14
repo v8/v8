@@ -67,9 +67,6 @@
                                                                                \
   JS_FEATURE(harmony_shadow_realm, "harmony ShadowRealm")                      \
                                                                                \
-  JS_FEATURE(harmony_struct,                                                   \
-             "harmony structs, shared structs, and shared arrays")             \
-                                                                               \
   IF_INTL_ENABLED(JS_FEATURE, harmony_intl_best_fit_matcher,                   \
                   "Intl BestFitMatcher")                                       \
                                                                                \

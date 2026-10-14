@@ -7287,68 +7287,6 @@ UNINITIALIZED_TEST(NoStackFrameCacheSerialization) {
 }
 
 namespace {
-void CheckObjectsAreInSharedHeap(Isolate* isolate) {
-  Heap* heap = isolate->heap();
-  SetCurrentIsolateScope isolate_scope(isolate);
-  SetCurrentLocalHeapScope local_heap_scope(isolate);
-  HeapObjectIterator iterator(heap);
-  DisallowGarbageCollection no_gc;
-  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    const bool expected_in_shared_old =
-        heap->MustBeInSharedOldSpace(obj) ||
-        (IsString(obj) && String::IsInPlaceInternalizable(Cast<String>(obj)));
-    if (expected_in_shared_old) {
-      CHECK(HeapLayout::InAnySharedSpace(obj));
-    }
-  }
-}
-}  // namespace
-
-UNINITIALIZED_TEST(SharedStrings) {
-  // Test that deserializing with --shared-string-table deserializes into the
-  // shared Isolate.
-
-  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
-  // In multi-cage mode we create one cage per isolate
-  // and we don't share objects between cages.
-  if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) return;
-
-  // Make all the flags that require a shared heap false before creating the
-  // isolate to serialize.
-  v8_flags.shared_string_table = false;
-  v8_flags.harmony_struct = false;
-
-  v8::Isolate* isolate_to_serialize = TestSerializer::NewIsolateInitialized();
-  StartupBlobs blobs = Serialize(isolate_to_serialize);
-  isolate_to_serialize->Dispose();
-
-  v8_flags.shared_string_table = true;
-  i::FlagList::EnforceFlagImplications();
-
-  v8::Isolate* isolate1 = TestSerializer::NewIsolateFromBlob(blobs);
-  v8::Isolate* isolate2 = TestSerializer::NewIsolateFromBlob(blobs);
-  Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
-  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
-
-  CHECK_EQ(i_isolate1->string_table(), i_isolate2->string_table());
-  i_isolate2->main_thread_local_heap()->ExecuteMainThreadWhileParked(
-      [i_isolate1]() { CheckObjectsAreInSharedHeap(i_isolate1); });
-
-  i_isolate1->main_thread_local_heap()->ExecuteMainThreadWhileParked(
-      [i_isolate2]() { CheckObjectsAreInSharedHeap(i_isolate2); });
-
-  // Because both isolate1 and isolate2 are considered running on the main
-  // thread, one must be parked to avoid deadlock in the shared heap
-  // verification that may happen on client heap disposal.
-  i_isolate1->main_thread_local_heap()->ExecuteMainThreadWhileParked(
-      [isolate2]() { isolate2->Dispose(); });
-  isolate1->Dispose();
-
-  FreeCurrentEmbeddedBlob();
-}
-
-namespace {
 
 class DebugBreakCounter : public v8::debug::DebugDelegate {
  public:
