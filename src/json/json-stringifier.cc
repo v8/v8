@@ -3492,9 +3492,30 @@ bool FastJsonStringifier<Char>::AppendStringSWAR(
   for (; i + (stride - 1) < length; i += stride) {
     PackedT packed =
         base::ReadUnalignedValue<PackedT>(reinterpret_cast<Address>(chars + i));
-    if (V8_UNLIKELY(NeedsEscape<SrcChar>(packed))) break;
+    if (V8_UNLIKELY(NeedsEscape<SrcChar>(packed))) {
+      return AppendStringScalar(chars, length, i, uncopied_src_index, no_gc);
+    }
   }
-  return AppendStringScalar(chars, length, i, uncopied_src_index, no_gc);
+  if (i < length) {
+    if (length - uncopied_src_index >= stride) {
+      PackedT tail = base::ReadUnalignedValue<PackedT>(
+          reinterpret_cast<Address>(chars + length - stride));
+      if (V8_UNLIKELY(NeedsEscape<SrcChar>(tail))) {
+        return AppendStringScalar(chars, length, i, uncopied_src_index, no_gc);
+      }
+    } else {
+      for (; i < length; i++) {
+        if (V8_UNLIKELY(!DoNotEscape(chars[i]))) {
+          return AppendStringScalar(chars, length, i, uncopied_src_index,
+                                    no_gc);
+        }
+      }
+    }
+  }
+  if (V8_LIKELY(uncopied_src_index < length)) {
+    buffer_.Append(chars + uncopied_src_index, length - uncopied_src_index);
+  }
+  return false;
 }
 
 template <typename Char>
