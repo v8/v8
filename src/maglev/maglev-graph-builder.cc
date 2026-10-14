@@ -11733,16 +11733,7 @@ MaglevGraphBuilder::TryExtractArgumentsFromElements(
           [&](int32_t i, bool& has_hole) -> std::optional<ValueNode*> {
             ValueNode* el =
                 elements->get(FixedDoubleArray::OffsetOfElementAt(i));
-            if (auto* float_cst = el->TryCast<Float64Constant>()) {
-              if (float_cst->value().is_hole_nan()) {
-                has_hole = true;
-                el = GetRootConstant(RootIndex::kUndefinedValue);
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-              } else if (float_cst->value().is_undefined_nan()) {
-                el = GetRootConstant(RootIndex::kUndefinedValue);
-#endif
-              }
-            } else if (auto* holey_cst = el->TryCast<HoleyFloat64Constant>()) {
+            if (auto* holey_cst = el->TryCast<HoleyFloat64Constant>()) {
               if (holey_cst->value().is_hole_nan()) {
                 has_hole = true;
                 el = GetRootConstant(RootIndex::kUndefinedValue);
@@ -11751,8 +11742,7 @@ MaglevGraphBuilder::TryExtractArgumentsFromElements(
                 el = GetRootConstant(RootIndex::kUndefinedValue);
 #endif
               }
-            } else if (el->properties().value_representation() ==
-                       ValueRepresentation::kHoleyFloat64) {
+            } else if (el->is_holey_float64()) {
               return {};
             }
             return el->Unwrap();
@@ -12825,15 +12815,19 @@ ValueNode* MaglevGraphBuilder::BuildElementsArray(ElementsKind elements_kind,
   DCHECK(IsHoleyElementsKind(elements_kind) ||
          length == JSArray::kPreallocatedArrayElements);
 
-  ValueNode* the_hole_value;
   if (IsDoubleElementsKind(elements_kind)) {
-    the_hole_value = GetFloat64Constant(Float64::hole_nan());
-  } else {
-    the_hole_value = GetRootConstant(RootIndex::kTheHoleValue);
+    // Preallocated slack is initialized with holes even for packed elements
+    // kinds. `new Array()` may pass a packed elements kind, which is fine
+    // because the JSArray has length 0 and all holes are past its end.
+    base::SmallVector<ValueNode*, 16> values(
+        length, GetHoleyFloat64Constant(Float64::hole_nan()));
+    return reducer_.CreateFixedDoubleArray<VirtualHoleyFixedDoubleArrayShape>(
+        base::VectorOf(values));
   }
 
-  base::SmallVector<ValueNode*, 16> values(length, the_hole_value);
-  return BuildElementsArray(elements_kind, base::VectorOf(values));
+  base::SmallVector<ValueNode*, 16> values(
+      length, GetRootConstant(RootIndex::kTheHoleValue));
+  return reducer_.CreateFixedArray(base::VectorOf(values));
 }
 
 ValueNode* MaglevGraphBuilder::BuildElementsArray(
@@ -13977,16 +13971,32 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
 
       compiler::FixedDoubleArrayRef boilerplate_elements_as_fda =
           boilerplate_elements.AsFixedDoubleArray();
+
+      // Only holes and undefined are HoleyFloat64, numbers stay Float64 so
+      // that the shape follows the actual backing store contents.
       base::SmallVector<ValueNode*, 16> values;
       values.reserve(elements_length);
+      bool has_hole = false;
       for (uint32_t i = 0; i < elements_length; i++) {
-        values.push_back(GetFloat64Constant(
-            boilerplate_elements_as_fda.GetFromImmutableFixedDoubleArray(i)));
+        Float64 value =
+            boilerplate_elements_as_fda.GetFromImmutableFixedDoubleArray(i);
+        if (value.is_undefined_or_hole_nan()) {
+          has_hole = true;
+          values.push_back(GetHoleyFloat64Constant(value));
+        } else {
+          values.push_back(GetFloat64Constant(value));
+        }
       }
 
-      fast_literal->set(
-          offsetof(JSObject, elements_),
-          reducer_.CreateFixedDoubleArray(base::VectorOf(values)));
+      base::Vector<ValueNode* const> elements = base::VectorOf(values);
+      VirtualObject* elements_array =
+          has_hole
+              ? reducer_
+                    .CreateFixedDoubleArray<VirtualHoleyFixedDoubleArrayShape>(
+                        elements)
+              : reducer_.CreateFixedDoubleArray<VirtualFixedDoubleArrayShape>(
+                    elements);
+      fast_literal->set(offsetof(JSObject, elements_), elements_array);
     } else {
       int const size = FixedArray::SizeFor(elements_length);
       if (size > kMaxRegularHeapObjectSize) return {};

@@ -1373,6 +1373,12 @@ ProcessResult MaglevGraphOptimizer::VisitStoreFixedHoleyDoubleArrayElement(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitInitializeFixedHoleyDoubleArrayElement(
+    InitializeFixedHoleyDoubleArrayElement* node,
+    const ProcessingState& state) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayElement(
     StoreFixedDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(

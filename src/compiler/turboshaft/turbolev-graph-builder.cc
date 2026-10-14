@@ -3697,6 +3697,15 @@ class GraphBuildingNodeProcessor {
         __ ChangeInt32ToIntPtr(Map(node->IndexInput())), value);
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(
+      maglev::InitializeFixedHoleyDoubleArrayElement* node,
+      const maglev::ProcessingState& state) {
+    // Bits are stored as is, so a hole NaN stays a hole.
+    __ Store(Map(node->ObjectInput()), Map(node->ValueInput()),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::Float64(),
+             WriteBarrierKind::kNoWriteBarrier, node->offset());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::StoreMap* node,
                                 const maglev::ProcessingState& state) {
     __ Store(Map(node->ValueInput()), __ HeapConstant(node->map().object()),
@@ -6378,6 +6387,7 @@ class GraphBuildingNodeProcessor {
             case maglev::vobj::FieldType::kTagged:
             case maglev::vobj::FieldType::kTrustedPointer:
             case maglev::vobj::FieldType::kFloat64:
+            case maglev::vobj::FieldType::kHoleyFloat64:
             case maglev::vobj::FieldType::kInt32:
               AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
               break;

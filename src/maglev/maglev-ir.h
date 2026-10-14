@@ -474,6 +474,7 @@ class ExceptionHandlerInfo;
   V(StoreFixedDoubleArrayElement)             \
   V(StoreFixedDoubleArrayHole)                \
   V(StoreFixedHoleyDoubleArrayElement)        \
+  V(InitializeFixedHoleyDoubleArrayElement)   \
   V(StoreInt32)                               \
   V(StoreFloat64)                             \
   V(StoreIntTypedArrayElement)                \
@@ -704,7 +705,9 @@ constexpr bool IsInt32BitwiseBinaryOperationNode(Opcode opcode) {
 constexpr bool IsSimpleFieldStore(Opcode opcode) {
   return opcode == Opcode::kStoreTaggedFieldWithWriteBarrier ||
          opcode == Opcode::kStoreTaggedFieldNoWriteBarrier ||
-         opcode == Opcode::kStoreFloat64 || opcode == Opcode::kStoreInt32 ||
+         opcode == Opcode::kStoreFloat64 ||
+         opcode == Opcode::kInitializeFixedHoleyDoubleArrayElement ||
+         opcode == Opcode::kStoreInt32 ||
          opcode == Opcode::kUpdateJSArrayLength ||
          opcode == Opcode::kStoreFixedArrayElementWithWriteBarrier ||
          opcode == Opcode::kStoreFixedArrayElementNoWriteBarrier ||
@@ -783,6 +786,7 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
     case Opcode::kStoreTaggedFieldNoWriteBarrier:
     case Opcode::kStoreContextSlotWithWriteBarrier:
     case Opcode::kStoreFloat64:
+    case Opcode::kInitializeFixedHoleyDoubleArrayElement:
       return true;
     default:
       return false;
@@ -5568,6 +5572,7 @@ enum class FieldType {
   kTrustedPointer,
   kInt32,
   kFloat64,
+  kHoleyFloat64,
 };
 
 enum class FieldConstness {
@@ -5584,6 +5589,7 @@ constexpr int FieldSizeOf(FieldType type) {
     case FieldType::kInt32:
       return kInt32Size;
     case FieldType::kFloat64:
+    case FieldType::kHoleyFloat64:
       return kDoubleSize;
     case FieldType::kNone:
       UNREACHABLE();
@@ -6237,10 +6243,17 @@ struct VirtualConsStringShape : VirtualNameShape {
 #undef FIELD_LIST
 };
 
-struct VirtualFixedDoubleArrayShape : VirtualHeapObjectShape {
+// Shape for FixedDoubleArray backing stores parameterized by whether elements
+// may contain hole or undefined NaNs. This depends on the backing store
+// contents rather than the array ElementsKind since a packed array can still
+// have hole initialized preallocated slack beyond its length.
+template <vobj::FieldType kElementFieldType>
+struct VirtualFixedDoubleArrayShapeT : VirtualHeapObjectShape {
+  static_assert(kElementFieldType == vobj::FieldType::kFloat64 ||
+                kElementFieldType == vobj::FieldType::kHoleyFloat64);
   static constexpr bool kInstancesHaveStaticSize = false;
   static constexpr vobj::ObjectType kObjectType = vobj::ObjectType::kFixedArray;
-  static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kFloat64;
+  static constexpr vobj::FieldType kBodyFieldType = kElementFieldType;
 #if TAGGED_SIZE_8_BYTES
 #define OPTIONAL_PADDING(V) \
   V(optional_padding, FixedArrayBase::kPaddingOffset, vobj::FieldType::kInt32)
@@ -6254,6 +6267,11 @@ struct VirtualFixedDoubleArrayShape : VirtualHeapObjectShape {
 #undef OPTIONAL_PADDING
 #undef FIELD_LIST
 };
+
+using VirtualFixedDoubleArrayShape =
+    VirtualFixedDoubleArrayShapeT<vobj::FieldType::kFloat64>;
+using VirtualHoleyFixedDoubleArrayShape =
+    VirtualFixedDoubleArrayShapeT<vobj::FieldType::kHoleyFloat64>;
 
 class VirtualObjectList {
  public:
@@ -8837,8 +8855,11 @@ class StoreFixedDoubleArrayElement
 };
 
 // Writes the hole into an element, marking it absent. This is the only way a
-// hole gets into a double array on purpose, which is what lets
-// StoreFixedDoubleArrayElement mean "stores a number".
+// hole gets into an existing double array on purpose, which is what lets
+// StoreFixedDoubleArrayElement mean "stores a number". The only other node
+// that writes holes is InitializeFixedHoleyDoubleArrayElement, and only as an
+// initializing store of HoleyFloat64Constant(hole_nan) into a freshly allocated
+// FixedDoubleArray backing store.
 class StoreFixedDoubleArrayHole
     : public FixedInputNodeT<2, StoreFixedDoubleArrayHole> {
  public:
@@ -9195,14 +9216,25 @@ class StoreInt32 : public FixedInputNodeT<2, StoreInt32> {
   const int offset_;
 };
 
-class StoreFloat64 : public FixedInputNodeT<2, StoreFloat64> {
+// Raw 64 bit field store parameterized by input representation. Unlike
+// StoreFixedHoleyDoubleArrayElement, InitializeFixedHoleyDoubleArrayElement
+// stores hole NaNs as is without silencing them to undefined, so it can
+// initialize holes in FixedDoubleArray backing stores.
+template <typename Derived, ValueRepresentation value_input_rep>
+class StoreFloat64T : public FixedInputNodeT<2, Derived> {
+  static_assert(value_input_rep == ValueRepresentation::kFloat64 ||
+                value_input_rep == ValueRepresentation::kHoleyFloat64);
+
  public:
-  explicit StoreFloat64(uint64_t bitfield, int offset)
-      : Base(bitfield), offset_(offset) {}
+  using Base = StoreFloat64T;
+
+  explicit StoreFloat64T(uint64_t bitfield, int offset)
+      : FixedInputNodeT<2, Derived>(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   DECLARE_INPUTS(Object, Value)
-  DECLARE_INPUT_TYPES(Tagged, Float64)
+  static constexpr typename Base::InputRepresentations kInputRepresentations{
+      ValueRepresentation::kTagged, value_input_rep};
 
   int offset() const { return offset_; }
 
@@ -9212,6 +9244,26 @@ class StoreFloat64 : public FixedInputNodeT<2, StoreFloat64> {
 
  private:
   const int offset_;
+};
+
+class StoreFloat64
+    : public StoreFloat64T<StoreFloat64, ValueRepresentation::kFloat64> {
+ public:
+  explicit StoreFloat64(uint64_t bitfield, int offset)
+      : Base(bitfield, offset) {}
+};
+
+// Initializes an element of a freshly allocated holey FixedDoubleArray. Unlike
+// StoreFixedHoleyDoubleArrayElement it keeps the bits, so a hole NaN stays a
+// hole.
+class InitializeFixedHoleyDoubleArrayElement
+    : public StoreFloat64T<InitializeFixedHoleyDoubleArrayElement,
+                           ValueRepresentation::kHoleyFloat64> {
+ public:
+  explicit InitializeFixedHoleyDoubleArrayElement(uint64_t bitfield, int offset)
+      : Base(bitfield, offset) {}
+
+  void VerifyInputs() const;
 };
 
 enum class StoreTaggedMode : uint8_t {

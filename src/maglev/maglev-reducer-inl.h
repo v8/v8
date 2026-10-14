@@ -7,6 +7,7 @@
 
 #include "src/maglev/maglev-reducer.h"
 // Include the non-inl header before the rest of the headers.
+#include <algorithm>
 #include <cmath>
 
 #include "src/base/bits.h"
@@ -822,12 +823,17 @@ ReduceResult MaglevReducer<BaseT>::ConvertForField(ValueNode* value,
       DCHECK_EQ(value->properties().value_representation(),
                 ValueRepresentation::kInt32);
       return value;
+
+    case vobj::FieldType::kHoleyFloat64:
+      // Only HoleyFloat64Constant may carry hole/undefined NaNs. A dynamic
+      // HoleyFloat64 hole means `undefined`, but
+      // InitializeFixedHoleyDoubleArrayElement stores raw bits and would turn
+      // it into an array hole.
+      DCHECK_IMPLIES(value->is_holey_float64(),
+                     value->Is<HoleyFloat64Constant>());
+      return GetHoleyFloat64(value);
     case vobj::FieldType::kFloat64:
-      if (value->properties().value_representation() ==
-          ValueRepresentation::kHoleyFloat64) {
-        return AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>(
-            {value});
-      }
+      // Deopts on holes and non-numbers.
       return GetFloat64(value);
     case vobj::FieldType::kNone:
       UNREACHABLE();
@@ -898,6 +904,11 @@ ReduceResult MaglevReducer<BaseT>::BuildInitializeStore(
     case vobj::FieldType::kFloat64:
       return AddNewNodeNoInputConversion<StoreFloat64>({object, value},
                                                        desc.offset);
+    case vobj::FieldType::kHoleyFloat64:
+      DCHECK_EQ(object->object()->object_layout(),
+                &VirtualHoleyFixedDoubleArrayShape::kObjectLayout);
+      return AddNewNodeNoInputConversion<
+          InitializeFixedHoleyDoubleArrayElement>({object, value}, desc.offset);
     case vobj::FieldType::kNone:
       UNREACHABLE();
   }
@@ -2104,11 +2115,13 @@ std::optional<Float64> MaglevReducer<BaseT>::TryGetFloatConstantImpl(
       return Float64{
           static_cast<double>(value->Cast<SmiConstant>()->value().value())};
     case Opcode::kFloat64Constant: {
-      if constexpr (kUseRepr == UseRepresentation::kFloat64) {
-        return value->Cast<Float64Constant>()->value();
+      Float64 cst = value->Cast<Float64Constant>()->value();
+      if constexpr (kUseRepr == UseRepresentation::kHoleyFloat64) {
+        // A number must not start meaning the hole or undefined, so silence it
+        // like ChangeFloat64ToHoleyFloat64 does.
+        if (cst.is_signalling_nan()) return cst.to_quiet_nan();
       }
-      // TODO(nicohartmann): We could optimize the HoleyFloat64 case here, too.
-      return {};
+      return cst;
     }
     case Opcode::kHoleyFloat64Constant: {
       if constexpr (kUseRepr == UseRepresentation::kHoleyFloat64) {
@@ -5977,14 +5990,26 @@ VirtualObject* MaglevReducer<BaseT>::CreateFixedArray(
 }
 
 template <typename BaseT>
+template <typename Shape>
 VirtualObject* MaglevReducer<BaseT>::CreateFixedDoubleArray(
     base::Vector<ValueNode* const> values) {
+  static_assert(std::is_same_v<Shape, VirtualFixedDoubleArrayShape> ||
+                std::is_same_v<Shape, VirtualHoleyFixedDoubleArrayShape>);
   compiler::MapRef map = broker()->fixed_double_array_map();
 
   using T = FixedDoubleArray;
-  using Shape = VirtualFixedDoubleArrayShape;
   uint32_t length = values.length();
   DCHECK_NE(length, 0);  // Use kEmptyFixedArray instead.
+  if constexpr (Shape::kBodyFieldType == vobj::FieldType::kFloat64) {
+    DCHECK(std::ranges::all_of(values, [](ValueNode* v) {
+      return v->is_float64() && !v->MayBeHoleOrUndefinedNan();
+    }));
+  } else {
+    // Only constants may carry hole or undefined NaNs, see ConvertForField.
+    DCHECK(std::ranges::all_of(values, [](ValueNode* v) {
+      return !v->is_holey_float64() || v->Is<HoleyFloat64Constant>();
+    }));
+  }
 
   int slot_count = Shape::header_slot_count + length;
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
@@ -6005,6 +6030,17 @@ VirtualObject* MaglevReducer<BaseT>::CreateFixedDoubleArray(
     vobj->set(T::OffsetOfElementAt(i), values[i]);
   }
   return vobj;
+}
+
+template <typename BaseT>
+VirtualObject* MaglevReducer<BaseT>::CreateFixedDoubleArray(
+    base::Vector<ValueNode* const> values) {
+  // The shape follows the backing store contents, not the ElementsKind. Only
+  // holes and undefined are HoleyFloat64.
+  return std::ranges::any_of(values,
+                             [](ValueNode* v) { return v->is_holey_float64(); })
+             ? CreateFixedDoubleArray<VirtualHoleyFixedDoubleArrayShape>(values)
+             : CreateFixedDoubleArray<VirtualFixedDoubleArrayShape>(values);
 }
 
 template <typename BaseT>

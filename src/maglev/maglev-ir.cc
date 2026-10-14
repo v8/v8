@@ -1110,6 +1110,15 @@ void StoreFixedDoubleArrayElement::VerifyInputs() const {
   CHECK(!ValueInput().node()->UnwrapIdentities()->MayBeHoleOrUndefinedNan());
 }
 
+void InitializeFixedHoleyDoubleArrayElement::VerifyInputs() const {
+  Base::VerifyInputs();
+  // Only HoleyFloat64Constant may carry hole/undefined NaNs. A dynamic
+  // HoleyFloat64 hole means `undefined`, which this raw store would turn into
+  // an array hole.
+  const ValueNode* value = ValueInput().node()->UnwrapIdentities();
+  CHECK(value->Is<HoleyFloat64Constant>() || !value->MayBeHoleOrUndefinedNan());
+}
+
 AllocationBlock* InlinedAllocation::allocation_block() {
   return AllocationBlockInput().node()->Cast<AllocationBlock>();
 }
@@ -6126,12 +6135,14 @@ void CheckedSmiTagHoleyFloat64::GenerateCode(MaglevAssembler* masm,
       object, __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi));
 }
 
-void StoreFloat64::SetValueLocationConstraints() {
+template <typename Derived, ValueRepresentation value_input_rep>
+void StoreFloat64T<Derived, value_input_rep>::SetValueLocationConstraints() {
   UseRegister(ObjectInput());
   UseRegister(ValueInput());
 }
-void StoreFloat64::GenerateCode(MaglevAssembler* masm,
-                                const ProcessingState& state) {
+template <typename Derived, ValueRepresentation value_input_rep>
+void StoreFloat64T<Derived, value_input_rep>::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
   Register object = ToRegister(ObjectInput());
   DoubleRegister value = ToDoubleRegister(ValueInput());
 
@@ -9399,9 +9410,15 @@ void LoadFixedArrayElement::PrintParams(std::ostream& os) const {
   os << ", " << load_type();
 }
 
-void StoreFloat64::PrintParams(std::ostream& os) const {
+template <typename Derived, ValueRepresentation value_input_rep>
+void StoreFloat64T<Derived, value_input_rep>::PrintParams(
+    std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
+
+template class StoreFloat64T<StoreFloat64, ValueRepresentation::kFloat64>;
+template class StoreFloat64T<InitializeFixedHoleyDoubleArrayElement,
+                             ValueRepresentation::kHoleyFloat64>;
 
 void StoreInt32::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";

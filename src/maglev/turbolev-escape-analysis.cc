@@ -510,6 +510,7 @@ class AnalyzerPrePass {
   V(StoreFixedArrayElementNoWriteBarrier)   \
   V(StoreFixedArrayElementWithWriteBarrier) \
   V(StoreFixedDoubleArrayElement)           \
+  V(InitializeFixedHoleyDoubleArrayElement) \
   V(StoreInt32)                             \
   V(StoreFloat64)                           \
   V(AssertEscapeAnalysisElided)             \
@@ -731,6 +732,14 @@ class CandidateAnalyzer {
   ProcessResult Process(StoreFixedDoubleArrayElement* node,
                         const ProcessingState&) {
     return ProcessFixedArrayStore<FixedDoubleArray>(node);
+  }
+
+  ProcessResult Process(InitializeFixedHoleyDoubleArrayElement* node,
+                        const ProcessingState&) {
+    TRACE("Process " << PRINT_NODE(node));
+    ProcessFieldStore(node, node->ObjectInput().node(), node->offset(),
+                      node->ValueInput().node());
+    return ProcessResult::kContinue;
   }
 
   ProcessResult Process(StoreFloat64* node, const ProcessingState&) {
@@ -1718,6 +1727,11 @@ class Elider {
   ProcessResult Process(StoreFixedDoubleArrayElement* node,
                         const ProcessingState&) {
     return RemoveIfElidedBase(node->ElementsInput().node(), node);
+  }
+
+  ProcessResult Process(InitializeFixedHoleyDoubleArrayElement* node,
+                        const ProcessingState&) {
+    return RemoveIfElidedBase(node->ObjectInput().node(), node);
   }
 
   ProcessResult Process(StoreInt32* node, const ProcessingState&) {
