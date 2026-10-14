@@ -810,14 +810,26 @@ AllocationType SpaceToAllocation(SnapshotSpace space) {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
-  const uint32_t size_in_tagged = source_.GetUint30();
-  const uint32_t size_in_bytes = size_in_tagged * kTaggedSize;
-
   // The map can't be a forward ref. If you want the map to be a forward ref,
   // then you're probably serializing the meta-map, in which case you want to
   // use the kNewContextlessMetaMap/kNewContextfulMetaMap bytecode.
   DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
   DirectHandle<Map> map = Cast<Map>(ReadObject());
+
+  // Only read the instance size from the map if it resides in ReadOnlySpace.
+  // Mutable maps live inside the sandbox and could be concurrently corrupted
+  // while being read, causing a size mismatch between serialization and
+  // deserialization.
+  uint32_t size_in_tagged;
+  if (HeapLayout::InReadOnlySpace(*map)) {
+    const int instance_size_in_words = map->instance_size_in_words();
+    size_in_tagged = instance_size_in_words == kVariableSizeSentinel
+                         ? source_.GetUint30()
+                         : static_cast<uint32_t>(instance_size_in_words);
+  } else {
+    size_in_tagged = source_.GetUint30();
+  }
+  const uint32_t size_in_bytes = size_in_tagged * kTaggedSize;
 
   AllocationType allocation = SpaceToAllocation(space);
 
@@ -931,8 +943,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
-  const uint32_t size_in_tagged = source_.GetUint30();
-  const uint32_t size_in_bytes = size_in_tagged * kTaggedSize;
+  const uint32_t size_in_bytes = Map::kSize;
+  const uint32_t size_in_tagged = size_in_bytes / kTaggedSize;
   const InstanceType instance_type =
       static_cast<InstanceType>(source_.GetUint30());
 

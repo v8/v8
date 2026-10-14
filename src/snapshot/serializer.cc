@@ -487,13 +487,11 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     if (map == ReadOnlyRoots(isolate()).meta_map()) {
       DCHECK_EQ(space, SnapshotSpace::kReadOnlyHeap);
       sink_->Put(kNewContextlessMetaMap, "NewContextlessMetaMap");
-      sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
       sink_->PutUint30(map->instance_type(), "MetaMapInstanceType");
     } else {
       DCHECK_EQ(space, SnapshotSpace::kOld);
       DCHECK(IsContext(map->native_context_or_null()));
       sink_->Put(kNewContextfulMetaMap, "NewContextfulMetaMap");
-      sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
       sink_->PutUint30(map->instance_type(), "MetaMapInstanceType");
 
       // Defer serialization of the native context in order to break
@@ -519,9 +517,6 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
   } else {
     sink_->Put(NewObject::Encode(space), "NewObject");
 
-    // TODO(leszeks): Skip this when the map has a fixed size.
-    sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
-
     // Until the space for the object is allocated, it is considered "pending".
     serializer_->RegisterObjectIsPending(*object_);
 
@@ -531,6 +526,13 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     // deferred.
     DCHECK(IsMap(map));
     serializer_->SerializeObject(handle(map, isolate()), SlotType::kMapSlot);
+    // Only omit the object size for fixed-size maps in ReadOnlySpace. Mutable
+    // maps live inside the sandbox and could be concurrently corrupted during
+    // deserialization, changing their instance size.
+    if (!HeapLayout::InReadOnlySpace(map) ||
+        map->instance_size_in_words() == kVariableSizeSentinel) {
+      sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
+    }
     if (IsExtendedMap(*object_)) {
       // Extended maps store their actual size in bit_field_ex_, write it
       // upfront to make sure the ExtendedMap size can be fully initialized,
