@@ -1106,7 +1106,10 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
   for (uint32_t i = 0; i < names->Length(); ++i) {
     v8::Local<v8::Value> name;
     if (!names->Get(context, i).ToLocal(&name) || !name->IsName()) continue;
-    if (global->Has(context, name).FromMaybe(true)) continue;
+    if (global->HasRealNamedProperty(context, name.As<v8::Name>())
+            .FromMaybe(true)) {
+      continue;
+    }
 
     const v8::SideEffectType get_accessor_side_effect_type =
         IsUnsafeCommandLineAPIFn(context, commandLineAPI, name.As<v8::Name>(),
