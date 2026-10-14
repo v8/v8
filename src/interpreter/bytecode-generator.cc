@@ -6587,6 +6587,7 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
     }
     case PRIVATE_GETTER_ONLY:
     case PRIVATE_GETTER_AND_SETTER: {
+      RegisterAllocationScope register_scope(this);
       Register key = VisitForRegisterValue(property->key());
       BuildPrivateBrandCheck(property, obj);
       BuildPrivateGetterAccess(obj, key);
