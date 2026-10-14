@@ -1030,6 +1030,9 @@ V8_OBJECT class Map : public HeapObject {
   static constexpr std::optional<RootIndex> TryGetMapRootIdxFor(
       InstanceType type);
 
+  // Returns true if this map belongs to the initial Array.prototype or
+  // Object.prototype of any native context (i.e. objects guarded by the
+  // isolate-wide "no elements" protector).
   bool IsMapInArrayPrototypeChain(Isolate* isolate) const;
 
   // Dispatched behavior.

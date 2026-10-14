@@ -1118,14 +1118,19 @@ Tagged<Map> Map::LookupElementsTransitionMap(Isolate* isolate,
 }
 
 bool Map::IsMapInArrayPrototypeChain(Isolate* isolate) const {
-  if (isolate->initial_array_prototype()->map() == this) {
+  DisallowGarbageCollection no_gc;
+  InstanceType type = instance_type();
+  if (type == JS_OBJECT_PROTOTYPE_TYPE) {
     return true;
   }
-
-  if (isolate->initial_object_prototype()->map() == this) {
-    return true;
+  if (type == JS_ARRAY_TYPE) {
+    // Keep in sync with Isolate::IsInCreationContext.
+    Tagged<Map> metamap = map();
+    // Filter out native-context independent objects.
+    if (metamap == ReadOnlyRoots(isolate).meta_map()) return false;
+    Tagged<NativeContext> native_context = metamap->native_context();
+    return native_context->initial_array_prototype()->map() == this;
   }
-
   return false;
 }
 
