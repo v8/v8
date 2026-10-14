@@ -190,7 +190,8 @@ void StartupSerializer::SerializeStrongReferences(
   isolate->heap()->IterateSmiRoots(this);
   isolate->heap()->IterateRoots(
       this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak,
-                                    SkipRoot::kTracedHandles});
+                                    SkipRoot::kTracedHandles,
+                                    SkipRoot::kReadOnlyBuiltins});
 }
 
 SerializedHandleChecker::SerializedHandleChecker(

@@ -207,6 +207,9 @@ class ObjectPostProcessor final {
       : isolate_(isolate), embedded_data_(EmbeddedData::FromBlob(isolate_)) {}
 
   void Finalize() {
+    if (Builtins::kCodeObjectsAreInROSpace) {
+      isolate_->builtins()->MarkInitialized();
+    }
 #ifdef V8_ENABLE_SANDBOX
     std::vector<ReadOnlyArtifacts::ExternalPointerRegistryEntry> registry;
     registry.reserve(external_pointer_slots_.size());
@@ -393,6 +396,7 @@ class ObjectPostProcessor final {
     DCHECK(o->is_builtin());
     DCHECK(!o->has_instruction_stream());
     Builtin builtin = o->builtin_id();
+    isolate_->builtins()->set_code(builtin, o);
     // Mark disabled builtins as such (RO space serializer resets this flag).
     DCHECK(!o->is_disabled_builtin());
     if (Builtins::IsDisabled(builtin)) {

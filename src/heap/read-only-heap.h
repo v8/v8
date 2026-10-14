@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/builtins/builtins.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots.h"
@@ -78,7 +79,7 @@ class ReadOnlyHeap final {
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
-  void InitializeIsolateRoots(Isolate* isolate);
+  void InitializeIsolateRootsAndBuiltins(Isolate* isolate);
   void InitializeFromIsolateRoots(Isolate* isolate);
 
   bool roots_init_complete() const { return roots_init_complete_; }
@@ -116,6 +117,7 @@ class ReadOnlyHeap final {
  private:
   friend ReadOnlyRoots GetReadOnlyRoots();
   Address read_only_roots_[kEntriesCount];
+  Address read_only_builtins_[Builtins::kBuiltinCount];
 };
 
 enum class SkipFreeSpaceOrFiller {

@@ -4579,12 +4579,14 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
   isolate_->compilation_cache()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kCompilationCache);
 
+  Tagged<Object> first_builtin(isolate_->builtin_table()[0]);
   const bool skip_iterate_builtins =
       options.contains(SkipRoot::kOldGeneration) ||
       (Builtins::kCodeObjectsAreInROSpace &&
        options.contains(SkipRoot::kReadOnlyBuiltins) &&
        // Prior to ReadOnlyPromotion, builtins may be on the mutable heap.
-       !isolate_->serializer_enabled());
+       IsHeapObject(first_builtin) &&
+       HeapLayout::InReadOnlySpace(Cast<HeapObject>(first_builtin)));
   if (!skip_iterate_builtins) {
     IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
