@@ -8,6 +8,8 @@ member wrappers using the bundled libclang. The tests use the production
 code for class discovery, base resolution, and layout extraction.
 """
 
+import contextlib
+import io
 import os
 import sys
 import unittest
@@ -834,6 +836,33 @@ class BitFieldGroupTest(unittest.TestCase):
           Bits bits_;
         };
       """)
+
+
+class ParseDiagnosticsTest(unittest.TestCase):
+
+  def test_error_and_note(self):
+    tu = _INDEX.parse(
+        "diagnostics.cc",
+        args=["-std=c++20"],
+        unsaved_files=[("diagnostics.cc", "void f(int);\nvoid g() { f(); }\n")])
+    stderr = io.StringIO()
+    with contextlib.redirect_stderr(stderr), self.assertRaises(
+        SystemExit) as ctx:
+      cpp_hier._reject_recovery_ast(tu)
+    self.assertEqual(ctx.exception.code, 1)
+    output = stderr.getvalue()
+    self.assertIn("diagnostics.cc:2:12: error:", output)
+    self.assertIn("diagnostics.cc:1:6: note:", output)
+    self.assertNotIn("[metagen]", output)
+    self.assertNotIn("SourceLocation", output)
+
+  def test_valid_translation_unit(self):
+    tu = _INDEX.parse(
+        "diagnostics.cc", unsaved_files=[("diagnostics.cc", "int field;\n")])
+    stderr = io.StringIO()
+    with contextlib.redirect_stderr(stderr):
+      cpp_hier._reject_recovery_ast(tu)
+    self.assertEqual(stderr.getvalue(), "")
 
 
 class FailureModeTest(unittest.TestCase):

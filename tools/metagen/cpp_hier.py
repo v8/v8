@@ -198,71 +198,50 @@ def _class_info_from_cursor(
 def _dump_parse_failure(v8_root: str,
                         driver_path: str,
                         parse_flags: list[str],
-                        reason: str,
                         parse_cwd: str | None = None) -> None:
-  """Re-run the parse through the clang binary and forward its stderr.
-
-  Covers both ways the parse fails. On an unrecoverable TU the Python
-  binding drops the diagnostics: CXTranslationUnit is NULL and
-  from_source raises, so all we have is "Error parsing translation
-  unit". On a TU that parsed with errors we have diagnostics but not the
-  `In file included from ...` stacks, which are what show a header
-  resolving to a different file than the build's compile uses. clang
-  prints both.
-
-  Best-effort: if the bundled clang is missing or won't spawn, we log
-  that and let the caller fail as it would have anyway.
-  """
-  # libclang's argv mirrors the GCC-style clang driver, not clang-cl.
-  # On Linux/Mac the Chromium toolchain ships clang directly; on
-  # Windows it ships only clang-cl.exe -- invoke that with
-  # --driver-mode=g++ to make it parse the same flag set libclang did.
-  # Probe both <v8_root>/third_party/... and <v8_root>/../third_party/...
-  # to handle Chromium subproject builds where the toolchain lives at
-  # the chromium toplevel.
-  clang_extra_args: list[str] = []
+  """Ask clang for diagnostics when libclang returned no translation unit."""
+  # libclang takes GCC-style arguments, including on Windows.
+  clang_extra_args = []
   if sys.platform == "win32":
     clang_rel = "third_party/llvm-build/Release+Asserts/bin/clang-cl.exe"
     clang_extra_args = ["--driver-mode=g++"]
   else:
     clang_rel = "third_party/llvm-build/Release+Asserts/bin/clang"
-  clang_bin = ""
+  # Chromium builds keep the toolchain above the V8 checkout.
   for root in (v8_root, os.path.abspath(os.path.join(v8_root, os.pardir))):
-    candidate = os.path.join(root, clang_rel)
-    if os.path.isfile(candidate):
-      clang_bin = candidate
+    clang_bin = os.path.join(root, clang_rel)
+    if os.path.isfile(clang_bin):
       break
-  print(
-      f"[metagen] {reason}; re-running via clang -fsyntax-only to surface "
-      "diagnostics:",
-      file=sys.stderr)
-  print(f"[metagen]   clang: {clang_bin}", file=sys.stderr)
-  print(f"[metagen]   driver: {driver_path}", file=sys.stderr)
-  print(
-      f"[metagen]   flags ({len(parse_flags)}): "
-      f"{' '.join(parse_flags[:12])}{' ...' if len(parse_flags) > 12 else ''}",
-      file=sys.stderr)
-  if not clang_bin or not os.path.isfile(clang_bin):
+  else:
     print(
-        f"[metagen]   (clang binary not found; cannot re-run)", file=sys.stderr)
+        "metagen: note: clang is unavailable for additional diagnostics.",
+        file=sys.stderr)
     return
+
+  # Match PARSE_SKIP_FUNCTION_BODIES: bodies can reference declarations
+  # that have not been generated yet.
   try:
     proc = subprocess.run(
-        [clang_bin] + clang_extra_args + ["-fsyntax-only", driver_path] +
-        parse_flags,
+        [clang_bin] + clang_extra_args + [
+            "-fsyntax-only", "-Xclang", "-skip-function-bodies", "-w",
+            driver_path
+        ] + parse_flags,
         cwd=parse_cwd or v8_root,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-  except (OSError, subprocess.SubprocessError) as e:
-    print(f"[metagen]   (subprocess failed: {e})", file=sys.stderr)
+        timeout=60)
+  except subprocess.TimeoutExpired:
+    print(
+        "metagen: note: clang diagnostic rerun timed out after 60 seconds.",
+        file=sys.stderr)
     return
-  if proc.stderr:
-    print("[metagen] clang stderr (first 80 lines):", file=sys.stderr)
-    for line in proc.stderr.splitlines()[:80]:
-      print(f"[metagen]   {line}", file=sys.stderr)
-  print(f"[metagen] clang exited with {proc.returncode}", file=sys.stderr)
+  except OSError as e:
+    print(
+        f"metagen: note: could not run clang for diagnostics: {e}",
+        file=sys.stderr)
+    return
+  if proc.returncode != 1:
+    print(
+        f"metagen: note: clang diagnostic rerun exited with {proc.returncode}.",
+        file=sys.stderr)
 
 
 def scan_cpp(v8_root: str,
@@ -304,16 +283,14 @@ def scan_cpp(v8_root: str,
     try:
       tu = index.parse(driver_path, args=parse_flags, options=options)
     except cindex.TranslationUnitLoadError:
-      # libclang couldn't even start the parse -- typically a sysroot
-      # / include-path / target-triple mismatch (Windows MSVC paths,
-      # missing builtin headers, ...). At this point the TU is NULL
-      # so we have no diagnostics to read via libclang. Re-run the
-      # parse via the clang binary as a subprocess; its stderr carries
-      # the actual error.
-      _dump_parse_failure(v8_root, driver_path, parse_flags,
-                          "libclang refused the TU", parse_cwd)
-      raise
-    _reject_recovery_ast(tu, v8_root, driver_path, parse_flags, parse_cwd)
+      print(
+          f"{driver_path}: error: libclang could not parse the translation "
+          "unit.",
+          file=sys.stderr,
+          flush=True)
+      _dump_parse_failure(v8_root, driver_path, parse_flags, parse_cwd)
+      sys.exit(1)
+    _reject_recovery_ast(tu)
     return _harvest_classes(tu, v8_root)
   finally:
     if saved_cwd is not None:
@@ -324,11 +301,7 @@ def _position(cursor: cindex.Cursor, v8_root: str) -> str:
   return extract.position(cursor, v8_root) or "<unknown>"
 
 
-def _reject_recovery_ast(tu,
-                         v8_root: str,
-                         driver_path: str,
-                         parse_flags: list[str],
-                         parse_cwd: str | None = None) -> None:
+def _reject_recovery_ast(tu) -> None:
   """Exit unless the TU parsed cleanly.
 
   Never consume Clang's recovery AST. A missing declaration can corrupt a
@@ -338,16 +311,10 @@ def _reject_recovery_ast(tu,
   errors = [d for d in tu.diagnostics if d.severity >= cindex.Diagnostic.Error]
   if not errors:
     return
-  for d in errors[:30]:
-    print(
-        f"[metagen] diag {d.severity} {d.location}: {d.spelling}",
-        file=sys.stderr)
-  if len(errors) > 30:
-    print(f"[metagen] ... and {len(errors) - 30} more", file=sys.stderr)
-  _dump_parse_failure(v8_root, driver_path, parse_flags,
-                      f"libclang reported {len(errors)} error diagnostic(s)",
-                      parse_cwd)
-  print("[metagen] refusing to harvest a recovery AST.", file=sys.stderr)
+  for diagnostic in errors:
+    print(diagnostic.format(), file=sys.stderr)
+    for note in diagnostic.children:
+      print(note.format(), file=sys.stderr)
   sys.exit(1)
 
 
