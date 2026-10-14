@@ -3597,15 +3597,102 @@ void MacroAssembler::StoreTaggedField(const Register& value,
   }
 }
 
-void MacroAssembler::AtomicStoreTaggedField(const Register& value,
-                                            const Register& dst_base,
-                                            const Register& dst_index,
-                                            const Register& temp) {
-  Add(temp, dst_base, dst_index);
+// Note: Ldar* is used for both acquire and seq-cst loads and therefore must
+// emit RCsc `ldar*` rather than FEAT_LRCPC2 `ldapur*` (which only provides
+// weaker RCpc acquire semantics and can be reordered before a preceding
+// `stlr`/`stlur` to a different address). By contrast, Stlr* below can use
+// FEAT_LRCPC2 `stlur*` unconditionally because both `stlr*` and `stlur*`
+// provide full RCsc store-release semantics.
+#define DEFINE_LDA_MEM_OP(FN, OP)                                           \
+  int MacroAssembler::FN(const Register& rt, const MemOperand& src) {       \
+    DCHECK(allow_macro_instructions());                                     \
+    if (src.IsImmediateOffset() && src.offset() == 0) {                     \
+      int pc_offset_of_load = pc_offset();                                  \
+      OP(rt, src.base());                                                   \
+      return pc_offset_of_load;                                             \
+    }                                                                       \
+    UseScratchRegisterScope temps(this);                                    \
+    Register temp = temps.AcquireX();                                       \
+    if (src.IsImmediateOffset()) {                                          \
+      int64_t offset = src.offset();                                        \
+      if (IsImmAddSub(offset) ||                                            \
+          (offset < 0 && offset != std::numeric_limits<int64_t>::min() &&   \
+           IsImmAddSub(-offset))) {                                         \
+        Add(temp, src.base(), offset);                                      \
+      } else {                                                              \
+        Mov(temp, offset);                                                  \
+        Add(temp, src.base(), temp);                                        \
+      }                                                                     \
+    } else {                                                                \
+      DCHECK(src.IsRegisterOffset());                                       \
+      Operand offset_op =                                                   \
+          (src.shift() != NO_SHIFT)                                         \
+              ? Operand(src.regoffset(), src.shift(), src.shift_amount())   \
+              : Operand(src.regoffset(), src.extend(), src.shift_amount()); \
+      Add(temp, src.base(), offset_op);                                     \
+    }                                                                       \
+    int pc_offset_of_load = pc_offset();                                    \
+    OP(rt, temp);                                                           \
+    return pc_offset_of_load;                                               \
+  }
+DEFINE_LDA_MEM_OP(Ldarb, ldarb)
+DEFINE_LDA_MEM_OP(Ldarh, ldarh)
+DEFINE_LDA_MEM_OP(Ldar, ldar)
+#undef DEFINE_LDA_MEM_OP
+
+#define DEFINE_STL_MEM_OP(FN, OP, UNSCALED_OP)                            \
+  int MacroAssembler::FN(const Register& rt, const MemOperand& dst) {     \
+    DCHECK(allow_macro_instructions());                                   \
+    if (dst.IsImmediateOffset()) {                                        \
+      int64_t offset = dst.offset();                                      \
+      if (offset == 0) {                                                  \
+        int pc_offset_of_store = pc_offset();                             \
+        OP(rt, dst.base());                                               \
+        return pc_offset_of_store;                                        \
+      }                                                                   \
+      if (IsImmLSUnscaled(offset) && CpuFeatures::IsSupported(LRCPC2)) {  \
+        CpuFeatureScope scope(this, LRCPC2);                              \
+        int pc_offset_of_store = pc_offset();                             \
+        UNSCALED_OP(rt, dst);                                             \
+        return pc_offset_of_store;                                        \
+      }                                                                   \
+      UseScratchRegisterScope temps(this);                                \
+      Register temp = temps.AcquireX();                                   \
+      if (IsImmAddSub(offset) ||                                          \
+          (offset < 0 && offset != std::numeric_limits<int64_t>::min() && \
+           IsImmAddSub(-offset))) {                                       \
+        Add(temp, dst.base(), offset);                                    \
+      } else {                                                            \
+        Mov(temp, offset);                                                \
+        Add(temp, dst.base(), temp);                                      \
+      }                                                                   \
+      int pc_offset_of_store = pc_offset();                               \
+      OP(rt, temp);                                                       \
+      return pc_offset_of_store;                                          \
+    }                                                                     \
+    DCHECK(dst.IsRegisterOffset());                                       \
+    UseScratchRegisterScope temps(this);                                  \
+    Register temp = temps.AcquireX();                                     \
+    Operand offset_op =                                                   \
+        (dst.shift() != NO_SHIFT)                                         \
+            ? Operand(dst.regoffset(), dst.shift(), dst.shift_amount())   \
+            : Operand(dst.regoffset(), dst.extend(), dst.shift_amount()); \
+    Add(temp, dst.base(), offset_op);                                     \
+    int pc_offset_of_store = pc_offset();                                 \
+    OP(rt, temp);                                                         \
+    return pc_offset_of_store;                                            \
+  }
+DEFINE_STL_MEM_OP(Stlrb, stlrb, stlurb)
+DEFINE_STL_MEM_OP(Stlrh, stlrh, stlurh)
+DEFINE_STL_MEM_OP(Stlr, stlr, stlur)
+#undef DEFINE_STL_MEM_OP
+
+int MacroAssembler::AtomicStoreTaggedField(
+    const Register& value, const MemOperand& dst_field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
-    Stlr(value.W(), temp);
+    return Stlr(value.W(), dst_field_operand);
   } else {
-    Stlr(value, temp);
+    return Stlr(value, dst_field_operand);
   }
 }
 
@@ -3678,28 +3765,22 @@ void MacroAssembler::DecompressProtected(const Register& destination,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void MacroAssembler::AtomicDecompressTaggedSigned(const Register& destination,
-                                                  const Register& base,
-                                                  const Register& index,
-                                                  const Register& temp) {
+int MacroAssembler::AtomicDecompressTaggedSigned(
+    const Register& destination, const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
-  Add(temp, base, index);
-  Ldar(destination.W(), temp);
+  int pc_offset_of_load = Ldar(destination.W(), field_operand);
   if (v8_flags.slow_debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     Add(destination, destination,
         ((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32);
   }
+  return pc_offset_of_load;
 }
 
 int MacroAssembler::AtomicDecompressTagged(const Register& destination,
-                                           const Register& base,
-                                           const Register& index,
-                                           const Register& temp) {
+                                           const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
-  Add(temp, base, index);
-  int pc_offset_of_load = pc_offset();
-  Ldar(destination.W(), temp);
+  int pc_offset_of_load = Ldar(destination.W(), field_operand);
   Orr(destination, kPtrComprCageBaseRegister, destination);
   return pc_offset_of_load;
 }

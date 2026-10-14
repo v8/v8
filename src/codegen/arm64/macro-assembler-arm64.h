@@ -66,6 +66,17 @@ class JumpTableAssembler;
   V(Stlrh, stlrh)             \
   V(Stlr, stlr)
 
+#define LDA_STL_UNSCALED_MACRO_LIST(V) \
+  V(Ldapurb, ldapurb)                  \
+  V(Ldapursb, ldapursb)                \
+  V(Ldapurh, ldapurh)                  \
+  V(Ldapursh, ldapursh)                \
+  V(Ldapur, ldapur)                    \
+  V(Ldapursw, ldapursw)                \
+  V(Stlurb, stlurb)                    \
+  V(Stlurh, stlurh)                    \
+  V(Stlur, stlur)
+
 #define STLX_MACRO_LIST(V) \
   V(Stlxrb, stlxrb)        \
   V(Stlxrh, stlxrh)        \
@@ -1487,6 +1498,22 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #undef DECLARE_FUNCTION
 
 #define DECLARE_FUNCTION(FN, OP) \
+  inline void FN(const Register& rt, const MemOperand& addr);
+  LDA_STL_UNSCALED_MACRO_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
+
+  // Load-acquire/store-release macros with general MemOperand addressing.
+  // Because non-zero/non-LRCPC2 offsets emit address-calculation instructions
+  // before the memory access, these return the pc_offset() of the underlying
+  // load/store instruction itself for Wasm trap-handler registration.
+  int Ldarb(const Register& rt, const MemOperand& src);
+  int Ldarh(const Register& rt, const MemOperand& src);
+  int Ldar(const Register& rt, const MemOperand& src);
+  int Stlrb(const Register& rt, const MemOperand& dst);
+  int Stlrh(const Register& rt, const MemOperand& dst);
+  int Stlr(const Register& rt, const MemOperand& dst);
+
+#define DECLARE_FUNCTION(FN, OP) \
   inline void FN(const Register& rs, const Register& rt, const MemOperand& src);
   CAS_SINGLE_MACRO_LIST(DECLARE_FUNCTION)
 #undef DECLARE_FUNCTION
@@ -1623,8 +1650,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     StoreTaggedField(value, dst_field_operand);
   }
 
-  void AtomicStoreTaggedField(const Register& value, const Register& dst_base,
-                              const Register& dst_index, const Register& temp);
+  // Returns the pc_offset() of the underlying atomic store instruction (after
+  // any address-calculation instructions) for Wasm trap-handler registration.
+  int AtomicStoreTaggedField(const Register& value,
+                             const MemOperand& dst_field_operand);
 
   void DecompressTaggedSigned(const Register& destination,
                               const MemOperand& field_operand);
@@ -1635,12 +1664,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressProtected(const Register& destination,
                            const MemOperand& field_operand);
 
-  void AtomicDecompressTaggedSigned(const Register& destination,
-                                    const Register& base, const Register& index,
-                                    const Register& temp);
-  // Returns the pc offset of the atomic load instruction.
-  int AtomicDecompressTagged(const Register& destination, const Register& base,
-                             const Register& index, const Register& temp);
+  // Return the pc_offset() of the underlying atomic load instruction (after
+  // any address-calculation instructions) for Wasm trap-handler registration.
+  int AtomicDecompressTaggedSigned(const Register& destination,
+                                   const MemOperand& field_operand);
+  int AtomicDecompressTagged(const Register& destination,
+                             const MemOperand& field_operand);
 
   // Restore FP and LR from the values stored in the current frame. This will
   // authenticate the LR when pointer authentication is enabled.

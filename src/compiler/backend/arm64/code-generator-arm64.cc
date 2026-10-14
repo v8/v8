@@ -2615,13 +2615,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #endif
     case kArm64LdarDecompressTaggedSigned:
-      __ AtomicDecompressTaggedSigned(i.OutputRegister(), i.InputRegister(0),
-                                      i.InputRegister(1), i.TempRegister(0));
+      __ AtomicDecompressTaggedSigned(
+          i.OutputRegister(),
+          MemOperand(i.InputRegister(0), i.InputRegister(1)));
       break;
     case kArm64LdarDecompressTagged: {
-      const int pc_offset =
-          __ AtomicDecompressTagged(i.OutputRegister(), i.InputRegister(0),
-                                    i.InputRegister(1), i.TempRegister(0));
+      const int pc_offset = __ AtomicDecompressTagged(
+          i.OutputRegister(),
+          MemOperand(i.InputRegister(0), i.InputRegister(1)));
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, pc_offset);
       break;
     }
@@ -2644,8 +2645,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64StlrCompressTagged:
       // To be consistent with other STLR instructions, the value is stored at
       // the 3rd input register instead of the 1st.
-      __ AtomicStoreTaggedField(i.InputRegister(2), i.InputRegister(0),
-                                i.InputRegister(1), i.TempRegister(0));
+      __ AtomicStoreTaggedField(
+          i.InputRegister(2),
+          MemOperand(i.InputRegister(0), i.InputRegister(1)));
       break;
     case kArm64StrIndirectPointer:
       __ StoreIndirectPointerField(i.InputOrZeroRegister64(0),

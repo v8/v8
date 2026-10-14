@@ -1689,6 +1689,57 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
+void Assembler::LoadStoreRCpcUnscaledOffset(const Register& rt,
+                                            const MemOperand& addr,
+                                            LoadStoreRCpcUnscaledOffsetOp op) {
+  DCHECK(IsEnabled(LRCPC2));
+  DCHECK(addr.IsImmediateOffset());
+  DCHECK(IsImmLSUnscaled(addr.offset()));
+  int offset = static_cast<int>(addr.offset());
+  Emit(op | ImmLS(offset) | RnSP(addr.base()) | Rt(rt));
+}
+
+void Assembler::stlurb(const Register& rt, const MemOperand& dst) {
+  DCHECK(rt.Is32Bits());
+  LoadStoreRCpcUnscaledOffset(rt, dst, STLURB);
+}
+
+void Assembler::stlurh(const Register& rt, const MemOperand& dst) {
+  DCHECK(rt.Is32Bits());
+  LoadStoreRCpcUnscaledOffset(rt, dst, STLURH);
+}
+
+void Assembler::stlur(const Register& rt, const MemOperand& dst) {
+  LoadStoreRCpcUnscaledOffset(rt, dst, rt.Is64Bits() ? STLUR_x : STLUR_w);
+}
+
+void Assembler::ldapurb(const Register& rt, const MemOperand& src) {
+  DCHECK(rt.Is32Bits());
+  LoadStoreRCpcUnscaledOffset(rt, src, LDAPURB);
+}
+
+void Assembler::ldapursb(const Register& rt, const MemOperand& src) {
+  LoadStoreRCpcUnscaledOffset(rt, src, rt.Is64Bits() ? LDAPURSB_x : LDAPURSB_w);
+}
+
+void Assembler::ldapurh(const Register& rt, const MemOperand& src) {
+  DCHECK(rt.Is32Bits());
+  LoadStoreRCpcUnscaledOffset(rt, src, LDAPURH);
+}
+
+void Assembler::ldapursh(const Register& rt, const MemOperand& src) {
+  LoadStoreRCpcUnscaledOffset(rt, src, rt.Is64Bits() ? LDAPURSH_x : LDAPURSH_w);
+}
+
+void Assembler::ldapur(const Register& rt, const MemOperand& src) {
+  LoadStoreRCpcUnscaledOffset(rt, src, rt.Is64Bits() ? LDAPUR_x : LDAPUR_w);
+}
+
+void Assembler::ldapursw(const Register& rt, const MemOperand& src) {
+  DCHECK(rt.Is64Bits());
+  LoadStoreRCpcUnscaledOffset(rt, src, LDAPURSW_x);
+}
+
 #define COMPARE_AND_SWAP_W_X_LIST(V) \
   V(cas, CAS)                        \
   V(casa, CASA)                      \
