@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --max-old-space-size=16
+// Flags: --max-old-space-size=16 --no-concurrent-recompilation
 
 const {session, contextGroup, Protocol} = InspectorTest.start(
     'Tests that an OOM break pauses even if all frames are blackboxed');
@@ -34,7 +34,7 @@ Protocol.Debugger.onPaused(async message => {
       let arr = [];
       let stop = false;
       while (!stop) {
-        arr.push(new Array(10000).fill(0));
+        arr.push(1n << (4n * 1024n * 1024n));
         f();
       }
       //# sourceURL=blackboxed-loop.js`
