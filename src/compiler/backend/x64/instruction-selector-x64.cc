@@ -2259,23 +2259,14 @@ void InstructionSelector::VisitInt32Sub(OpIndex node) {
   auto [left, right] = Inputs<WordBinopOp>(node);
   if (g.CanBeImmediate(right)) {
     int32_t imm = g.GetImmediateIntegerValue(right);
-    if (imm == 0) {
-      if (ZeroExtendsWord32ToWord64(left)) {
-        // {EmitIdentity} reuses the virtual register of the first input
-        // for the output. This is only safe if it is known to zero-extend
-        // (as the int32 subtraction advertises itself as zero-extending.)
-        EmitIdentity(node);
-      } else {
-        // Emit "movl" for subtraction of 0.
-        Emit(kX64Movl, g.DefineAsRegister(node), g.UseRegister(left));
-      }
-    } else {
-      // Omit truncation and turn subtractions of constant values into immediate
-      // "leal" instructions by negating the value.
-      Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
-           g.DefineAsRegister(node), g.UseRegister(left),
-           g.TempImmediate(base::NegateWithWraparound(imm)));
-    }
+    // This is guaranteed by the InstructionSelectionNormalizationReducer. If
+    // this DCHECK fails, it indicates a missed optimization only.
+    DCHECK_NE(imm, 0);
+    // Omit truncation and turn subtractions of constant values into immediate
+    // "leal" instructions by negating the value.
+    Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(left),
+         g.TempImmediate(base::NegateWithWraparound(imm)));
     return;
   }
 
@@ -2298,6 +2289,9 @@ void InstructionSelector::VisitInt64Sub(OpIndex node) {
   }
   if (auto constant = TryGetRightWordConstant(this, node)) {
     int64_t immediate_value = -*constant;
+    // This is guaranteed by the InstructionSelectionNormalizationReducer. If
+    // this DCHECK fails, it indicates a missed optimization only.
+    DCHECK_NE(immediate_value, 0);
     if (ValueFitsIntoImmediate(immediate_value)) {
       // Turn subtractions of constant values into immediate "leaq" instructions
       // by negating the value.

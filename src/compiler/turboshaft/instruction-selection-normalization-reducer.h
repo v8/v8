@@ -29,6 +29,8 @@ namespace v8::internal::compiler::turboshaft {
 //
 //  * Replacing multiplications by small powers of 2 with shifts.
 //
+//  * Folding additions and subtractions of 0.
+//
 //  * Splitting widening SIMD loads into 64-bit zero-extending loads and
 //    low-half extensions on ARM64.
 //
@@ -51,6 +53,11 @@ class InstructionSelectionNormalizationReducer : public Next {
       } else if (!IsComplexConstant(right) && IsComplexConstant(left)) {
         std::swap(left, right);
       }
+    }
+
+    if (kind == any_of(WordBinopOp::Kind::kAdd, WordBinopOp::Kind::kSub) &&
+        __ matcher().MatchIntegralZero(right)) {
+      return left;
     }
 
     // Transforming multiplications by power of two constants into shifts

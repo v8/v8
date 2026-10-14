@@ -477,6 +477,10 @@ TEST_P(TurboshaftInstructionSelectorAddSubTest, ImmediateOnRight) {
     StreamBuilder m(this, type, type);
     m.Return(m.Emit(dpi.mi.op, m.Parameter(0), BuildConstant(&m, type, imm)));
     Stream s = m.Build();
+    if (imm == 0) {
+      ASSERT_EQ(0U, s.size());
+      continue;
+    }
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(dpi.mi.arch_opcode, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
@@ -645,6 +649,10 @@ TEST_F(TurboshaftInstructionSelectorTest, AddImmediateOnLeft) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     m.Return(m.Word32Add(m.Int32Constant(imm), m.Parameter(0)));
     Stream s = m.Build();
+    if (imm == 0) {
+      ASSERT_EQ(0U, s.size());
+      continue;
+    }
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
@@ -658,6 +666,10 @@ TEST_F(TurboshaftInstructionSelectorTest, AddImmediateOnLeft) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
     m.Return(m.Word64Add(m.Int64Constant(imm), m.Parameter(0)));
     Stream s = m.Build();
+    if (imm == 0) {
+      ASSERT_EQ(0U, s.size());
+      continue;
+    }
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
@@ -1123,7 +1135,8 @@ TEST_F(TurboshaftInstructionSelectorTest, AddBranchWithImmediateOnRight) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Cmn32, s[0]->arch_opcode());
+    EXPECT_EQ((imm == 0) ? kArm64CompareAndBranch32 : kArm64Cmn32,
+              s[0]->arch_opcode());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
   }
@@ -1207,7 +1220,8 @@ TEST_F(TurboshaftInstructionSelectorTest, AddBranchWithImmediateOnLeft) {
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Cmn32, s[0]->arch_opcode());
+    EXPECT_EQ((imm == 0) ? kArm64CompareAndBranch32 : kArm64Cmn32,
+              s[0]->arch_opcode());
     ASSERT_LE(1U, s[0]->InputCount());
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
