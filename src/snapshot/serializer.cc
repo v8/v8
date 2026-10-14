@@ -1554,11 +1554,11 @@ DirectHandle<FixedArray> ObjectCacheIndexMap::Values(Isolate* isolate) {
 
 bool Serializer::SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
                                                   SnapshotByteSink* sink) {
-  if (!ReadOnlyHeap::Contains(obj)) return false;
+  if (!HeapLayout::InReadOnlySpace(obj)) return false;
 
   // For objects on the read-only heap, never serialize the object, but instead
   // create a back reference that encodes the page number as the chunk_index and
-  // the offset within the page as the chunk_offset.
+  // the aligned offset within the page.
   Address address = obj.address();
   BasePage* chunk = BasePage::FromAddress(isolate(), address);
   uint32_t chunk_index = 0;
@@ -1569,9 +1569,12 @@ bool Serializer::SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
     ++chunk_index;
   }
   uint32_t chunk_offset = static_cast<uint32_t>(chunk->Offset(address));
+  DCHECK(IsAligned(chunk_offset, kObjectAlignment));
+  DCHECK_LT(chunk_offset, kRegularPageSize);
+  uint32_t encoded = (chunk_index << kReadOnlyHeapRefOffsetBits) |
+                     (chunk_offset >> kObjectAlignmentBits);
   sink->Put(kReadOnlyHeapRef, "ReadOnlyHeapRef");
-  sink->PutUint30(chunk_index, "ReadOnlyHeapRefChunkIndex");
-  sink->PutUint30(chunk_offset, "ReadOnlyHeapRefChunkOffset");
+  sink->PutUint30(encoded, "ReadOnlyHeapRef");
   return true;
 }
 

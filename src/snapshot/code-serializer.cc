@@ -234,8 +234,8 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     if (SerializeTrustedExport(raw)) return;
     if (SerializeHotObject(raw)) return;
     if (SerializeRoot(raw)) return;
-    if (SerializeBackReference(raw)) return;
     if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
+    if (SerializeBackReference(raw)) return;
     DCHECK(!trusted_serializer_.ReferenceMapContains(obj));
 
     instance_type = raw->map()->instance_type();

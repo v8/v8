@@ -284,6 +284,10 @@ class SerializerDeserializer : public RootVisitor {
   // This backing store reference value represents empty backing stores during
   // serialization/deserialization.
   static const uint32_t kEmptyBackingStoreRefSentinel = 0;
+
+  // Number of bits used to encode the aligned chunk offset in kReadOnlyHeapRef.
+  static constexpr int kReadOnlyHeapRefOffsetBits =
+      kPageSizeBits - kObjectAlignmentBits;
 };
 
 struct SerializeEmbedderFieldsCallback {

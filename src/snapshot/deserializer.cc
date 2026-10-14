@@ -1211,8 +1211,10 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadReadOnlyHeapRef(uint8_t data,
                                                 SlotAccessor slot_accessor) {
-  uint32_t chunk_index = source_.GetUint30();
-  uint32_t chunk_offset = source_.GetUint30();
+  uint32_t encoded = source_.GetUint30();
+  uint32_t chunk_index = encoded >> kReadOnlyHeapRefOffsetBits;
+  uint32_t chunk_offset = (encoded & ((1u << kReadOnlyHeapRefOffsetBits) - 1))
+                          << kObjectAlignmentBits;
 
   ReadOnlySpace* read_only_space = isolate()->heap()->read_only_space();
   ReadOnlyPage* page = read_only_space->pages()[chunk_index];
@@ -1664,8 +1666,8 @@ int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
                 static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
 
   RootIndex root_index = RootArrayConstant::Decode(data);
-  DirectHandle<HeapObject> heap_object =
-      Cast<HeapObject>(isolate()->root_handle(root_index));
+  Tagged<HeapObject> heap_object =
+      Cast<HeapObject>(isolate()->root(root_index));
   if (v8_flags.trace_deserialization) {
     PrintF("%*sRootArrayConstants [%u] : %s\n", depth_, "",
            static_cast<int>(root_index), RootsTable::name(root_index));
