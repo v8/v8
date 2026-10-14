@@ -294,7 +294,6 @@ V8_OBJECT class ClosureFeedbackCellArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
-  V8_TQ_TAIL_NAME(objects);
   V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
@@ -564,7 +563,6 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   // Variable-length tail: each slot is a maybe-weak feedback value. Access
   // goes through Get/SynchronizedGet/Set; callers should not reach the tail
   // directly.
-  V8_TQ_TAIL_NAME(raw_feedback_slots);
   V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, raw_feedback_slots,
                         V8_TQ_RELAXED);

@@ -71,7 +71,6 @@ V8_OBJECT class TurboshaftWord32SetType : public TurboshaftWord32Type {
   friend class TorqueGeneratedTurboshaftWord32SetTypeAsserts;
 
   V8_TQ_CONST uint32_t set_size_;
-  V8_TQ_TAIL_NAME(elements);
   V8_TQ_TAIL_LENGTH(set_size);
   FLEXIBLE_ARRAY_MEMBER(uint32_t, elements);
 } V8_OBJECT_END;
@@ -137,9 +136,7 @@ V8_OBJECT class TurboshaftWord64SetType : public TurboshaftWord64Type {
   V8_TQ_CONST uint32_t set_size_;
   // Layout: elements_[0..set_size) is the high-32-bit array; the following
   // set_size slots hold the low-32-bit array.
-  // Torque splits the flexible tail into indexed sections.
-  V8_TQ_TAIL_SECTIONS(elements_high[set_size] : uint32;
-                      elements_low[set_size] : uint32;);
+  V8_TQ_TAIL_LENGTH(Convert<intptr>(set_size) * 2);
   FLEXIBLE_ARRAY_MEMBER(uint32_t, elements);
 } V8_OBJECT_END;
 
@@ -207,7 +204,6 @@ V8_OBJECT class TurboshaftFloat64SetType : public TurboshaftFloat64Type {
   friend class TorqueGeneratedTurboshaftFloat64SetTypeAsserts;
 
   V8_TQ_CONST uint32_t set_size_;
-  V8_TQ_TAIL_NAME(elements);
   V8_TQ_TAIL_LENGTH(set_size);
   FLEXIBLE_ARRAY_MEMBER(UnalignedDoubleMember, elements);
 } V8_OBJECT_END;

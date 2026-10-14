@@ -218,18 +218,14 @@ constexpr AnnotationSpec kAnnotations[] = {
     {"V8_TQ_NAME", true, AnnotationOn::kField},
     {"V8_TQ_EXTENT_NAME", true, AnnotationOn::kField},
     {"V8_TQ_TYPE", true, AnnotationOn::kField},
-    {"V8_TQ_TAIL_NAME", true, AnnotationOn::kClass},
     {"V8_TQ_TAIL_LENGTH", true, AnnotationOn::kClass},
     {"V8_TQ_NO_TAIL", false, AnnotationOn::kClass},
-    {"V8_TQ_TAIL_SECTIONS", true, AnnotationOn::kClass},
 };
 
-// Tails accept field annotations except the name overrides. V8_TQ_TAIL_NAME
-// names the tail instead.
+// Tails accept field annotations except fixed-array extents.
 bool AnnotationAllowedOn(const AnnotationSpec& spec, AnnotationOn on) {
   if (spec.on == on) return true;
   return on == AnnotationOn::kTail && spec.on == AnnotationOn::kField &&
-         std::string_view(spec.name) != "V8_TQ_NAME" &&
          std::string_view(spec.name) != "V8_TQ_EXTENT_NAME";
 }
 
@@ -698,41 +694,28 @@ enum class TailRepresentation {
   kNone,
   // The tail is one indexed Torque field.
   kIndexedField,
-  // Torque splits the tail into several indexed sections, as in ScopeInfo.
-  kIndexedSections,
-  // No V8_TQ_TAIL_* annotation: the tail cannot become a Torque field.
+  // No length expression: the tail cannot become a Torque field.
   kUnspecified,
 };
 
 TailRepresentation GetTailRepresentation(const JsonObject& class_record,
                                          const JsonObject* tail_record,
                                          const std::string& context) {
-  bool has_name = HasAnnotation(class_record, "V8_TQ_TAIL_NAME", context);
   bool has_length = HasAnnotation(class_record, "V8_TQ_TAIL_LENGTH", context);
   bool no_tail = HasAnnotation(class_record, "V8_TQ_NO_TAIL", context);
-  bool sections = HasAnnotation(class_record, "V8_TQ_TAIL_SECTIONS", context);
-  if (has_name != has_length) {
+  if (has_length && no_tail) {
     ReportError("layout JSON: ", context,
-                ": V8_TQ_TAIL_NAME and V8_TQ_TAIL_LENGTH must be given "
-                "together");
-  }
-  if (has_name + no_tail + sections > 1) {
-    ReportError("layout JSON: ", context,
-                ": V8_TQ_TAIL_NAME, V8_TQ_NO_TAIL and V8_TQ_TAIL_SECTIONS "
-                "are exclusive");
+                ": V8_TQ_TAIL_LENGTH and V8_TQ_NO_TAIL are exclusive");
   }
   if (tail_record == nullptr) {
-    if (has_name || no_tail || sections) {
+    if (has_length || no_tail) {
       ReportError("layout JSON: ", context, ": ",
-                  has_name
-                      ? "V8_TQ_TAIL_NAME"
-                      : (no_tail ? "V8_TQ_NO_TAIL" : "V8_TQ_TAIL_SECTIONS"),
+                  has_length ? "V8_TQ_TAIL_LENGTH" : "V8_TQ_NO_TAIL",
                   " without a flexible array member");
     }
     return TailRepresentation::kNone;
   }
-  if (has_name) return TailRepresentation::kIndexedField;
-  if (sections) return TailRepresentation::kIndexedSections;
+  if (has_length) return TailRepresentation::kIndexedField;
   return no_tail ? TailRepresentation::kNone : TailRepresentation::kUnspecified;
 }
 
@@ -1099,8 +1082,7 @@ class LayoutVerifier {
 
   void VerifyTail(const std::string& class_name, const Field& field,
                   const JsonObject& class_record, const JsonObject& record) {
-    std::string name =
-        *AnnotationArgument(class_record, "V8_TQ_TAIL_NAME", class_name);
+    std::string name = TorqueFieldName(record, class_name);
     std::string context = class_name + "." + name + " (member " +
                           RequireString(record, "cpp_name", name) + ")";
 
@@ -1132,11 +1114,14 @@ class LayoutVerifier {
             torque_element_size, " in Torque")
           .Position(field.pos);
     }
-    const std::string& length_field =
+    const std::string& length =
         *AnnotationArgument(class_record, "V8_TQ_TAIL_LENGTH", context);
-    auto* index = IdentifierExpression::DynamicCast(field.index->expr);
-    if (index == nullptr || index->name->value != length_field) {
-      Error("tail ", context, ": indexed by ", length_field,
+    // Parsed nodes and parse errors take the Torque field's position.
+    CurrentSourcePosition::Scope position_scope(field.pos);
+    std::string expected_key = ExpressionKey(ParseTorqueExpression(length));
+    std::string torque_key = ExpressionKey(field.index->expr);
+    if (torque_key != expected_key) {
+      Error("tail ", context, ": indexed by ", length,
             " in C++, but Torque uses a different index expression")
           .Position(field.pos);
     }
@@ -1451,7 +1436,7 @@ class LayoutImporter {
     }
 
     const JsonObject* tail_record = LookupTail(record, name);
-    // Keep the .tq fields when the tail has no annotation. An omitted tail
+    // Keep the .tq fields when the tail has no length. An omitted tail
     // contributes no field, but its fixed header still does.
     TailRepresentation tail_representation =
         GetTailRepresentation(record, tail_record, name);
@@ -1494,10 +1479,7 @@ class LayoutImporter {
     std::map<std::string, std::string> cpp_names_by_torque_name;
     auto build = [&](const JsonObject& field_record,
                      const std::string& owner_cpp_name, bool is_tail) {
-      std::string torque_name =
-          is_tail
-              ? *AnnotationArgument(class_record, "V8_TQ_TAIL_NAME", class_name)
-              : TorqueFieldName(field_record, class_name);
+      std::string torque_name = TorqueFieldName(field_record, class_name);
       const std::string& cpp_name =
           RequireString(field_record, "cpp_name", class_name);
       auto [name_it, inserted] =
@@ -1525,22 +1507,6 @@ class LayoutImporter {
     if (tail_representation == TailRepresentation::kIndexedField) {
       build(*tail_record, RequireString(*groups.back(), "cpp_name", class_name),
             /*is_tail=*/true);
-    } else if (tail_representation == TailRepresentation::kIndexedSections) {
-      // C++ does not encode the Torque expressions that divide this tail. Parse
-      // them together at the tail position while still verifying its storage.
-      SourcePosition position =
-          positions != nullptr
-              ? positions->at(fields.size())
-              : MemberPosition(
-                    RequireString(*groups.back(), "cpp_name", class_name),
-                    RequireString(*tail_record, "cpp_name", class_name),
-                    default_position);
-      CurrentSourcePosition::Scope position_scope(position);
-      for (ClassFieldExpression& section :
-           ParseTorqueClassFields(*AnnotationArgument(
-               class_record, "V8_TQ_TAIL_SECTIONS", class_name))) {
-        fields.push_back(std::move(section));
-      }
     }
     return fields;
   }
@@ -1609,15 +1575,12 @@ class LayoutImporter {
                                  const JsonObject& class_record,
                                  const JsonObject& record,
                                  SourcePosition position) {
-    std::string name =
-        *AnnotationArgument(class_record, "V8_TQ_TAIL_NAME", class_name);
+    std::string name = TorqueFieldName(record, class_name);
     std::string context = class_name + "." + name;
     CurrentSourcePosition::Scope position_scope(position);
-    const std::string& length_field =
+    const std::string& length =
         *AnnotationArgument(class_record, "V8_TQ_TAIL_LENGTH", context);
-    ClassFieldIndexInfo index{
-        MakeNode<IdentifierExpression>(MakeNode<Identifier>(length_field)),
-        false};
+    ClassFieldIndexInfo index{ParseTorqueExpression(length), false};
     return {NameAndTypeExpression{
                 MakeNode<Identifier>(name),
                 BuildFieldType(context, record, "element_storage")},

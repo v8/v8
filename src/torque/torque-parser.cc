@@ -2578,11 +2578,6 @@ struct TorqueGrammar : Grammar {
             Token(";")},
            MakeClassField)};
 
-  // Result: std::vector<ClassFieldExpression>
-  // Entry point for V8_TQ_TAIL_SECTIONS payloads; not reachable from
-  // `declaration`.
-  Symbol* classFieldList = List<ClassFieldExpression>(&classField);
-
   // Result: StructFieldExpression
   Symbol structField = {
       Rule({CheckIf(Token("const")), &name, Token(":"), &type, Token(";")},
@@ -3006,18 +3001,6 @@ TypeExpression* ParseTorqueTypeExpression(const std::string& input) {
     ReportError("cannot parse Torque type expression: ", input);
   }
   return std::move(*result).Cast<TypeExpression*>();
-}
-
-std::vector<ClassFieldExpression> ParseTorqueClassFields(
-    const std::string& input) {
-  BuildFlags::Scope build_flags_scope;
-  TorqueGrammar& grammar = AnnotationGrammar();
-  std::optional<ParseResult> result = grammar.Parse(
-      grammar.classFieldList, input, CurrentSourcePosition::Get());
-  if (!result.has_value()) {
-    ReportError("cannot parse Torque field declarations: ", input);
-  }
-  return std::move(*result).Cast<std::vector<ClassFieldExpression>>();
 }
 
 Expression* ParseTorqueExpression(const std::string& input) {

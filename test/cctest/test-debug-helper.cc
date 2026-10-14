@@ -392,7 +392,7 @@ TEST(GetObjectProperties) {
   CHECK(props2->brief == std::string("2 (0x2)"));
 
   // Verify the result for a heap object field which is itself a struct: the
-  // "descriptors" field on a DescriptorArray.
+  // "entries" field on a DescriptorArray.
   // Start by getting the object's map and the map's descriptor array.
   uintptr_t map_ptr = ReadProp<i::Tagged_t>(*props, "map");
 #if V8_MAP_PACKING
@@ -408,12 +408,12 @@ TEST(GetObjectProperties) {
   uint16_t number_of_all_descriptors =
       *reinterpret_cast<uint16_t*>(props->properties[1]->address);
   CHECK_GE(number_of_all_descriptors, 2);
-  // The "descriptors" property should describe the struct layout for each
+  // The "entries" property should describe the struct layout for each
   // element in the array.
   const d::ObjectProperty& descriptors = *props->properties[5];
   // No C++ type is reported directly because there may not be an actual C++
   // struct with this layout, hence the empty string in this check.
-  CheckProp(descriptors, /*type=*/"", "descriptors",
+  CheckProp(descriptors, /*type=*/"", "entries",
             d::PropertyKind::kArrayOfKnownSize, number_of_all_descriptors);
   CHECK_EQ(descriptors.size, 3 * i::kTaggedSize);
   CHECK_EQ(descriptors.num_struct_fields, 3);

@@ -301,7 +301,6 @@ V8_OBJECT class CoverageInfo : public HeapObject {
   using Slot = CoverageInfoSlot;
 
   V8_TQ_CONST const int32_t slot_count_;
-  V8_TQ_TAIL_NAME(slots);
   V8_TQ_TAIL_LENGTH(slot_count);
   FLEXIBLE_ARRAY_MEMBER(CoverageInfoSlot, slots);
 } V8_OBJECT_END;

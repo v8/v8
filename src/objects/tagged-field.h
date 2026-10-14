@@ -218,6 +218,7 @@ static_assert(sizeof(JSDispatchHandleMember) == sizeof(uint32_t));
   const FlexibleDataReturnType& name() const {                             \
     return flexible_array_member_data_;                                    \
   }                                                                        \
+  V8_TQ_FIELD_MARK("V8_TQ_NAME(" #name ")")                                \
   __VA_ARGS__ Type flexible_array_member_data_[0];                         \
                                                                            \
  public:                                                                   \

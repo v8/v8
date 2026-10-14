@@ -44,8 +44,6 @@ _PRELUDE = r"""
 #define V8_TQ_ANNOTATE(P) [[clang::annotate(P)]]
 #define V8_TQ_MARK(NAME, PAYLOAD) \
   using V8TQ_##NAME V8_TQ_ANNOTATE(PAYLOAD) = void
-#define V8_TQ_TAIL_NAME(N) \
-  V8_TQ_MARK(TqTailName, "V8_TQ_TAIL_NAME(" #N ")")
 #define V8_TQ_TAIL_LENGTH(F) \
   V8_TQ_MARK(TqTailLength, "V8_TQ_TAIL_LENGTH(" #F ")")
 #define V8_TQ_CONST V8_TQ_ANNOTATE("V8_TQ_CONST")
@@ -622,9 +620,9 @@ class BaseChainTest(unittest.TestCase):
     layouts = extract_layouts(self._ARRAY_BASE + """
       class FakeArray
           : public TaggedArrayBase<FakeArray, Map, FakeArrayBase> {
-        V8_TQ_TAIL_NAME(objects);
-        V8_TQ_TAIL_LENGTH(length);
        public:
+        V8_TQ_TAIL_LENGTH(length);
+        V8_TQ_NAME(objects)
         TaggedMember<Map> objects_[0];
       };
     """)
@@ -657,18 +655,19 @@ class TailTest(unittest.TestCase):
   def test_tail(self):
     layouts = extract_layouts("""
       class Blob : public HeapObject {
-        V8_TQ_TAIL_NAME(bytes);
-        V8_TQ_TAIL_LENGTH(length);
        public:
         V8_TQ_CONST TaggedMember<Smi> length_;
+        V8_TQ_TAIL_LENGTH(length);
+        V8_TQ_NAME(bytes)
         uint8_t flexible_array_member_data_[0];
       };
     """)
     blob = layouts["Blob"]
     self.assertEqual(blob.size, 8)
     self.assertEqual([(a.name, a.arg) for a in blob.annotations],
-                     [("V8_TQ_TAIL_LENGTH", "length"),
-                      ("V8_TQ_TAIL_NAME", "bytes")])
+                     [("V8_TQ_TAIL_LENGTH", "length")])
+    self.assertEqual([(a.name, a.arg) for a in blob.tail.annotations],
+                     [("V8_TQ_NAME", "bytes")])
     tail = blob.tail
     self.assertEqual(tail.element_size, 1)
     self.assertEqual(tail.element_storage.kind, "int")

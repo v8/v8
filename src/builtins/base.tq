@@ -301,7 +301,10 @@ type TrustedPointer
 type TrustedPointer<To : type extends ExposedTrustedObject> extends
     TrustedPointer;
 type ProtectedPointer extends Tagged;
-type ProtectedPointer<To : type extends TrustedObject> extends ProtectedPointer;
+// A protected pointer may also hold a Smi or a weak reference, as
+// ProtectedTaggedMember<UnionOf<...>> does in C++.
+type ProtectedPointer<To : type extends TrustedObject|Smi|
+                      Weak<TrustedObject>> extends ProtectedPointer;
 extern class InstructionStream extends TrustedObject;
 type BuiltinPtr extends Smi generates 'BuiltinPtr';
 

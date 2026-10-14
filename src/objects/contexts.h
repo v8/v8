@@ -735,7 +735,6 @@ V8_OBJECT class Context : public HeapObject {
 
  public:
   V8_TQ_CONST TaggedMember<Smi> length_;
-  V8_TQ_TAIL_NAME(elements);
   V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, elements);
 } V8_OBJECT_END;
@@ -937,7 +936,6 @@ V8_OBJECT class ScriptContextTable
   V8_TQ_CONST uint32_t capacity_;
   uint32_t length_;
   TaggedMember<NameToIndexHashTable> names_to_context_index_;
-  V8_TQ_TAIL_NAME(objects);
   V8_TQ_TAIL_LENGTH(capacity);
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;

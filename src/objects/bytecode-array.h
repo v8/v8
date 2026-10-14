@@ -158,7 +158,6 @@ V8_OBJECT class BytecodeArray : public ExposedTrustedObject {
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
-  V8_TQ_TAIL_NAME(bytes);
   V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(uint8_t, bytes);
 } V8_OBJECT_END;

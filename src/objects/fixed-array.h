@@ -318,7 +318,6 @@ V8_OBJECT class FixedArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
-  V8_TQ_TAIL_NAME(objects);
   V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, objects);
 } V8_OBJECT_END;
@@ -360,7 +359,6 @@ V8_OBJECT class TrustedFixedArray
 
  public:
   // length_ / optional_padding_ live in TrustedFixedArrayBase.
-  V8_TQ_TAIL_NAME(objects);
   V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, objects);
 } V8_OBJECT_END;
@@ -400,8 +398,7 @@ V8_OBJECT class ProtectedFixedArray
 
  public:
   // length_ / optional_padding_ live in TrustedFixedArrayBase.
-  // Torque splits the flexible tail into indexed sections.
-  V8_TQ_TAIL_SECTIONS(objects[length] : TrustedObject | Smi;);
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -438,7 +435,6 @@ V8_OBJECT class WeakFixedArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
-  V8_TQ_TAIL_NAME(objects);
   V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
@@ -472,7 +468,6 @@ V8_OBJECT class WeakHomomorphicFixedArray
 
  public:
   // length_ / optional_padding_ live in FixedArrayBase.
-  V8_TQ_TAIL_NAME(objects);
   V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
@@ -501,7 +496,6 @@ V8_OBJECT class TrustedWeakFixedArray
 
  public:
   // length_ / optional_padding_ live in TrustedFixedArrayBase.
-  V8_TQ_TAIL_NAME(objects);
   V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
@@ -533,8 +527,7 @@ V8_OBJECT class ProtectedWeakFixedArray
 
  public:
   // length_ / optional_padding_ live in TrustedFixedArrayBase.
-  // Torque splits the flexible tail into indexed sections.
-  V8_TQ_TAIL_SECTIONS(objects[length] : TrustedObject | Smi;);
+  V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -655,7 +648,6 @@ V8_OBJECT class WeakArrayList
  public:
   V8_TQ_CONST uint32_t capacity_;
   uint32_t length_;
-  V8_TQ_TAIL_NAME(objects);
   V8_TQ_TAIL_LENGTH(capacity);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
@@ -734,7 +726,6 @@ V8_OBJECT class ArrayList
  public:
   V8_TQ_CONST uint32_t capacity_;
   uint32_t length_;
-  V8_TQ_TAIL_NAME(objects);
   V8_TQ_TAIL_LENGTH(capacity);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, objects);
 } V8_OBJECT_END;

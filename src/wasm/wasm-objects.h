@@ -1720,7 +1720,6 @@ V8_OBJECT class WasmTypeInfo : public HeapObject {
   uint32_t canonical_type_;
   uint32_t canonical_element_type_;
   V8_TQ_CONST TaggedMember<Smi> supertypes_length_;
-  V8_TQ_TAIL_NAME(supertypes);
   V8_TQ_TAIL_LENGTH(supertypes_length);
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, supertypes);
 } V8_OBJECT_END;

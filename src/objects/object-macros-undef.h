@@ -23,10 +23,8 @@
 #undef V8_IT_NO_AUTO_DISPATCH
 #undef V8_IT_MARK
 #undef V8_TQ_FIELD_MARK
-#undef V8_TQ_TAIL_NAME
 #undef V8_TQ_TAIL_LENGTH
 #undef V8_TQ_NO_TAIL
-#undef V8_TQ_TAIL_SECTIONS
 #undef V8_TQ_CONST
 #undef V8_TQ_RELAXED
 #undef V8_TQ_ACQ_REL

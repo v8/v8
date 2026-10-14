@@ -100,7 +100,6 @@ V8_OBJECT class ObjectBoilerplateDescription
   // length_ / optional_padding_ live in FixedArrayBase.
   TaggedMember<Smi> backing_store_size_;
   TaggedMember<Smi> flags_;
-  V8_TQ_TAIL_NAME(raw_entries);
   V8_TQ_TAIL_LENGTH(length);
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;

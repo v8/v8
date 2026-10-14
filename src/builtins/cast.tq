@@ -707,9 +707,7 @@ Cast<JSArrayForFastToString>(
       goto CastError;
     }
     dcheck(TaggedEqual(
-        %RawDownCast<DescriptorArray>(map.instance_descriptors)
-            .descriptors[0]
-            .key,
+        %RawDownCast<DescriptorArray>(map.instance_descriptors).entries[0].key,
         kLengthString));
   }
 

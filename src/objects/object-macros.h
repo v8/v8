@@ -148,9 +148,9 @@
 // Metagen exports the layouts defined in C++ to Torque. These annotations
 // describe properties not encoded in C++ types, such as Torque accessor
 // semantics, custom weak marking, semantic types, and field names.
-// The tail annotations describe whether Torque omits the flexible tail,
-// represents it as one indexed field, or splits it into indexed sections. They
-// annotate the class; field annotations apply to the flexible array member.
+// Class annotations omit the flexible tail (V8_TQ_NO_TAIL) or specify its
+// Torque length expression (V8_TQ_TAIL_LENGTH).
+// Field annotations apply to the flexible array member.
 //
 // Metagen passes each optional annotation argument to Torque without parsing
 // it.
@@ -161,13 +161,9 @@
 #else
 #define V8_TQ_FIELD_MARK(PAYLOAD)
 #endif
-#define V8_TQ_TAIL_NAME(...) \
-  V8_IT_MARK(TqTailName, "V8_TQ_TAIL_NAME(" #__VA_ARGS__ ")")
 #define V8_TQ_TAIL_LENGTH(...) \
   V8_IT_MARK(TqTailLength, "V8_TQ_TAIL_LENGTH(" #__VA_ARGS__ ")")
 #define V8_TQ_NO_TAIL V8_IT_MARK(TqNoTail, "V8_TQ_NO_TAIL")
-#define V8_TQ_TAIL_SECTIONS(...) \
-  V8_IT_MARK(TqTailSections, "V8_TQ_TAIL_SECTIONS(" #__VA_ARGS__ ")")
 #define V8_TQ_CONST V8_TQ_FIELD_MARK("V8_TQ_CONST")
 #define V8_TQ_RELAXED V8_TQ_FIELD_MARK("V8_TQ_RELAXED")
 #define V8_TQ_ACQ_REL V8_TQ_FIELD_MARK("V8_TQ_ACQ_REL")
