@@ -3141,6 +3141,22 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
         stack_.push_back(
             ContinuationRecord::ForJSArrayResume<kind, with_interrupt_checks>(
                 elements, i + 1, length));
+        if constexpr (!with_interrupt_checks) {
+          if (result == JS_OBJECT) {
+            DisallowGarbageCollection no_gc;
+            FastJsonStringifierResult obj_result =
+                SerializeJSObject(Cast<JSObject>(obj), no_gc);
+            if (V8_LIKELY(obj_result == SUCCESS)) {
+              DCHECK(
+                  ContinuationRecord::IsArrayResumeType(stack_.back().type()));
+              DCHECK_EQ(stack_.back().array_elements(), elements);
+              DCHECK_EQ(stack_.back().array_index(), i + 1);
+              DCHECK_EQ(stack_.back().array_length(), length);
+              stack_.pop_back();
+            }
+            return obj_result;
+          }
+        }
         stack_.push_back(ContinuationRecord::ForJSAny(obj, result));
         return result;
       case SUCCESS:
