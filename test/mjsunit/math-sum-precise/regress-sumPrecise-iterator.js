@@ -84,3 +84,11 @@
   });
   assertEquals(42, Math.sumPrecise({ [Symbol.iterator]() { return it; } }));
 }
+
+{
+  // Case 8: Set.prototype.entries() yields [key, value] arrays and must throw
+  // TypeError (crbug.com/566973695).
+  let it = new Set([1, 2, 3]).entries();
+  assertThrows(() => Math.sumPrecise(it), TypeError);
+  assertEquals({ value: undefined, done: true }, it.next());
+}

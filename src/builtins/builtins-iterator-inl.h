@@ -537,8 +537,8 @@ MaybeDirectHandle<Object> IterableForEach(
     }
   }
 
-  // Medium fast path for JSSetIterator.
-  if (!kAllowJSExecution && IsJSSetIterator(*iterator) &&
+  // Medium fast path for JSSetValueIterator.
+  if (!kAllowJSExecution && IsJSSetValueIterator(*iterator) &&
       iterator->map()->prototype() ==
           isolate->native_context()->initial_set_iterator_prototype() &&
       Protectors::IsSetIteratorLookupChainIntact(isolate)) {
