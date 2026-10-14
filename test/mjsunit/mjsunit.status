@@ -3353,6 +3353,7 @@
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
   'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
+  'wasm/stack-switching-profiler': [SKIP],
 }], # sandbox_hardware_support
 
 ['variant == experimental_regexp', {
