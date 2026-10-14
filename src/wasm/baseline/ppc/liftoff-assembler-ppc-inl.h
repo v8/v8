@@ -116,7 +116,7 @@ inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
         UNREACHABLE();
     }
   } else if (src.is_const()) {
-    if (src.kind() == kI32) {
+    if (src.kind() == kI32 || src.kind() == kF32) {
       assm->mov(scratch, Operand(src.i32_const()));
       assm->StoreU32(scratch, dst);
     } else {
@@ -1330,8 +1330,17 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
       StoreU64(src, liftoff::GetStackSlot(offset));
       break;
     }
+    case kF32: {
+      mov(src, Operand(value.to_f32_boxed().get_bits()));
+      StoreU32(src, liftoff::GetStackSlot(offset + stack_bias));
+      break;
+    }
+    case kF64: {
+      mov(src, Operand(value.to_f64_boxed().get_bits()));
+      StoreU64(src, liftoff::GetStackSlot(offset));
+      break;
+    }
     default:
-      // We do not track f32 and f64 constants, hence they are unreachable.
       UNREACHABLE();
   }
 }
@@ -3272,15 +3281,23 @@ void LiftoffStackSlots::Construct(int param_slots) {
       }
       case LiftoffAssembler::VarState::kIntConst: {
         asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
-        DCHECK(src.kind() == kI32 || src.kind() == kI64);
+        DCHECK(src.kind() == kI32 || src.kind() == kI64 || src.kind() == kF32 ||
+               src.kind() == kF64);
         UseScratchRegisterScope temps(asm_);
         Register scratch = temps.Acquire();
 
+        if (src.kind() == kF32) {
+          asm_->mov(scratch, Operand(src.i32_const()));
+          asm_->AddS64(sp, sp, Operand(-kSystemPointerSize));
+          asm_->StoreU32(scratch, MemOperand(sp));
+          break;
+        }
         switch (src.kind()) {
           case kI32:
             asm_->mov(scratch, Operand(src.i32_const()));
             break;
           case kI64:
+          case kF64:
             asm_->mov(scratch, Operand(int64_t{slot.src_.i32_const()}));
             break;
           default:
