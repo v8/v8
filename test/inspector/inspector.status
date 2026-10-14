@@ -77,6 +77,7 @@
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'runtime/get-properties': [SKIP],
+  'regress/regress-532288251': [SKIP],
   'regress/regress-crbug-349248170': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
@@ -190,6 +191,7 @@
   'debugger/set-breakpoint-at-last-line': [SKIP],
   'debugger/set-breakpoint-breaks-on-first-breakable-location': [SKIP],
   'heap-profiler/collect-garbage' : [SKIP],
+  'regress/regress-532288251': [SKIP],
   'runtime/context-destroyed-on-context-collected': [SKIP],
   'runtime/evaluate-async': [SKIP],
   'runtime/internal-properties-entries': [SKIP],
