@@ -2372,6 +2372,7 @@ DEFINE_BOOL_READONLY(wasm_memory64_trap_handling, false,
 // DrumBrake flags.
 DEFINE_EXPERIMENTAL_FEATURE(wasm_jitless,
                             "Execute all wasm code in the Wasm interpreter")
+DEFINE_IMPLICATION(wasm_jitless, jitless)
 #ifdef V8_OS_TVOS
 // Enable wasm_jitless on tvOS where jit is not available.
 DEFINE_IMPLICATION(jitless, wasm_jitless)
@@ -2381,6 +2382,9 @@ DEFINE_BOOL(wasm_jitless_if_available_for_testing, false,
             "the 'v8_enable_drumbrake' flag is set.")
 DEFINE_IMPLICATION(wasm_jitless_if_available_for_testing, wasm_jitless)
 
+DEFINE_BOOL_READONLY(drumbrake_exnref, false,
+                     "enable new exception-handling support in the Wasm "
+                     "interpreter")
 DEFINE_BOOL(drumbrake_compact_bytecode, false,
             "Compress the Wasm interpreter bytecode")
 DEFINE_DEVELOPER_FLAG(trace_drumbrake_compact_bytecode,
@@ -2442,6 +2446,7 @@ DEFINE_BOOL_READONLY(wasm_jitless, false,
                      "execute all Wasm code in the Wasm interpreter")
 DEFINE_BOOL(wasm_jitless_if_available_for_testing, false, "")
 DEFINE_NEG_IMPLICATION(wasm_jitless_if_available_for_testing, turbolev)
+DEFINE_BOOL_READONLY(drumbrake_exnref, false, "")
 #endif  // V8_ENABLE_DRUMBRAKE
 
 DEFINE_BOOL(wasm_allow_mixed_eh_for_testing, false,

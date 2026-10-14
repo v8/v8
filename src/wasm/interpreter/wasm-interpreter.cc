@@ -225,6 +225,15 @@ void WasmInterpreter::CodeMap::Preprocess(uint32_t function_index) {
   // Compute the control targets map and the local declarations.
   BytecodeIterator it(code->start, code->end, &code->locals, zone_);
 
+  // {BytecodeIterator} decodes the local declarations without a module, so
+  // indexed reference types are left with a default {RefTypeKind::kOther}.
+  // Populate them now that the module is available, otherwise subtyping checks
+  // performed while generating the bytecode (e.g. for ref.cast/ref.test) would
+  // hit an UNREACHABLE in {UpcastToStandardType}.
+  for (uint32_t i = 0; i < code->locals.num_locals; i++) {
+    value_type_reader::Populate(&code->locals.local_types[i], module_);
+  }
+
   WasmBytecodeGenerator bytecode_generator(function_index, code, module_);
   code->bytecode = bytecode_generator.GenerateBytecode();
 
@@ -5670,8 +5679,9 @@ class Handlers : public HandlersBase {
 
       DirectHandle<WasmExceptionPackage> exception_object =
           wasm_runtime->CreateWasmExceptionPackage(tag_index);
-      DirectHandle<FixedArray> encoded_values = TrustedCast<FixedArray>(
-          WasmExceptionPackage::GetExceptionValues(isolate, exception_object));
+      DirectHandle<FixedArray> encoded_values =
+          WasmInterpreterRuntime::GetExceptionValuesField(isolate,
+                                                          exception_object);
 
       // Encode the exception values on the operand stack into the exception
       // package allocated above.
@@ -5711,10 +5721,9 @@ class Handlers : public HandlersBase {
           }
           case kRef:
           case kRefNull: {
+            // Store refs unchanged (as Liftoff does): internal-type nulls stay
+            // WasmNull and extern-type nulls stay JS null.
             DirectHandle<Object> ref = pop<WasmRef>(sp, code, wasm_runtime);
-            if (IsWasmNull(*ref)) {
-              ref = direct_handle(ReadOnlyRoots(isolate).null_value(), isolate);
-            }
             encoded_values->set(encoded_index++, *ref);
             break;
           }
@@ -7899,8 +7908,6 @@ void WasmBytecodeGenerator::StoreBlockParamsIntoSlots(
       if (update_stack) {
         DCHECK_EQ(GetParamType(target_block_data, i),
                   slots_[first_param_slot_index + i].value_type);
-        DCHECK_EQ(GetParamType(target_block_data, i),
-                  slots_[first_param_slot_index + i].value_type);
         UpdateStack(stack_top_index() - (params_count - 1) + i,
                     first_param_slot_index + i);
 
@@ -7964,8 +7971,6 @@ void WasmBytecodeGenerator::StoreBlockParamsAndResultsIntoSlots(
     stack_.resize(new_stack_height);
 
     for (uint32_t i = 0; i < rets_count; i++) {
-      DCHECK_EQ(GetReturnType(target_block_data, i),
-                slots_[target_block_data.first_block_index_ + i].value_type);
       DCHECK_EQ(GetReturnType(target_block_data, i),
                 slots_[target_block_data.first_block_index_ + i].value_type);
       UpdateStack(target_block_data.stack_size_ - params_count + i,
@@ -10215,9 +10220,17 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                                                              CurrentCodePos());
       }
 
+      // Tail-call validation guarantees matching caller and callee result
+      // counts.
+      CHECK_IMPLIES(
+          is_tail_call,
+          sig->return_count() == wasm_code_->function->sig->return_count());
+      const FunctionSig* result_slot_sig =
+          is_tail_call ? wasm_code_->function->sig : sig;
+
       // Function results are pushed to the stack.
       for (size_t index = 0; index < sig->return_count(); index++) {
-        const ValueType value_type = sig->GetReturn(index);
+        const ValueType value_type = result_slot_sig->GetReturn(index);
         const ValueKind kind = value_type.kind();
         switch (kind) {
           case kI32:
@@ -10307,9 +10320,17 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                                                              CurrentCodePos());
       }
 
+      // Tail-call validation guarantees matching caller and callee result
+      // counts.
+      CHECK_IMPLIES(
+          is_tail_call,
+          sig->return_count() == wasm_code_->function->sig->return_count());
+      const FunctionSig* result_slot_sig =
+          is_tail_call ? wasm_code_->function->sig : sig;
+
       // Function result is pushed to the stack.
       for (size_t index = 0; index < sig->return_count(); index++) {
-        ValueType value_type = sig->GetReturn(index);
+        const ValueType value_type = result_slot_sig->GetReturn(index);
         switch (value_type.kind()) {
           case kI32:
           case kI64:
@@ -10389,9 +10410,17 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                                                              CurrentCodePos());
       }
 
+      // Tail-call validation guarantees matching caller and callee result
+      // counts.
+      CHECK_IMPLIES(
+          is_tail_call,
+          sig->return_count() == wasm_code_->function->sig->return_count());
+      const FunctionSig* result_slot_sig =
+          is_tail_call ? wasm_code_->function->sig : sig;
+
       // Function result is pushed to the stack.
       for (size_t index = 0; index < sig->return_count(); index++) {
-        const ValueType value_type = sig->GetReturn(index);
+        const ValueType value_type = result_slot_sig->GetReturn(index);
         const ValueKind kind = value_type.kind();
         switch (kind) {
           case kI32:

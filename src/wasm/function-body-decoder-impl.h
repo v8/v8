@@ -210,6 +210,18 @@ V8_INLINE void DecodeError(Decoder* decoder, const char* str, Args&&... args) {
 
 namespace value_type_reader {
 
+#ifdef V8_ENABLE_DRUMBRAKE
+template <typename ValidationTag>
+bool IsExnRefUnsupportedByDrumBrake(Decoder* decoder, const uint8_t* pc) {
+  if (!VALIDATE(!v8_flags.wasm_jitless || v8_flags.drumbrake_exnref)) {
+    DecodeError<ValidationTag>(decoder, pc,
+                               "exnref not supported by the Wasm interpreter");
+    return true;
+  }
+  return false;
+}
+#endif  // V8_ENABLE_DRUMBRAKE
+
 template <typename ValidationTag>
 std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
                                              const uint8_t* pc,
@@ -263,6 +275,11 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
         return {HeapType::from_code(code, is_shared), length};
       case kNoExnCode:
       case kExnRefCode:
+#ifdef V8_ENABLE_DRUMBRAKE
+        if (IsExnRefUnsupportedByDrumBrake<ValidationTag>(decoder, pc)) {
+          return {kWasmBottom, 0};
+        }
+#endif  // V8_ENABLE_DRUMBRAKE
         if (!VALIDATE(!detected->has_legacy_eh() ||
                       v8_flags.wasm_allow_mixed_eh_for_testing)) {
           DecodeError<ValidationTag>(
@@ -392,6 +409,11 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
               1};
     case kNoExnCode:
     case kExnRefCode:
+#ifdef V8_ENABLE_DRUMBRAKE
+      if (IsExnRefUnsupportedByDrumBrake<ValidationTag>(decoder, pc)) {
+        return {kWasmBottom, 0};
+      }
+#endif  // V8_ENABLE_DRUMBRAKE
       if (!VALIDATE(!detected->has_legacy_eh() ||
                     v8_flags.wasm_allow_mixed_eh_for_testing)) {
         DecodeError<ValidationTag>(
@@ -3797,6 +3819,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(TryTable) {
+#ifdef V8_ENABLE_DRUMBRAKE
+    if (value_type_reader::IsExnRefUnsupportedByDrumBrake<ValidationTag>(
+            this, this->pc_)) {
+      return 0;
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
     this->detected_->add_exnref();
     if (!VALIDATE(!this->detected_->has_legacy_eh() ||
                   v8_flags.wasm_allow_mixed_eh_for_testing)) {
@@ -3880,6 +3908,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(ThrowRef) {
+#ifdef V8_ENABLE_DRUMBRAKE
+    if (value_type_reader::IsExnRefUnsupportedByDrumBrake<ValidationTag>(
+            this, this->pc_)) {
+      return 0;
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
     this->detected_->add_exnref();
     if (!VALIDATE(!this->detected_->has_legacy_eh() ||
                   v8_flags.wasm_allow_mixed_eh_for_testing)) {
