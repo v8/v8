@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 
@@ -4295,11 +4296,17 @@ void ImplementationVisitor::GenerateClassDefinitions(
     NamespaceScope forward_declarations_namespaces(forward_declarations,
                                                    {"v8", "internal"});
 
-    // Emit forward declarations.
+    // Emit forward declarations. Several class types can share a
+    // generated name, and the order TypeOracle creates them in follows
+    // type resolution, which is not stable across host platforms. Sort
+    // and deduplicate so the file only depends on the set of classes.
+    std::set<std::string> generated_names;
     for (const ClassType* type : TypeOracle::GetClasses()) {
       CurrentSourcePosition::Scope position_activator(type->GetPosition());
-      forward_declarations << "class " << type->GetGeneratedTNodeTypeName()
-                           << ";\n";
+      generated_names.insert(type->GetGeneratedTNodeTypeName());
+    }
+    for (const std::string& name : generated_names) {
+      forward_declarations << "class " << name << ";\n";
     }
 
     for (const ClassType* type : TypeOracle::GetClasses()) {

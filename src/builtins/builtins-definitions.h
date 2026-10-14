@@ -16,8 +16,15 @@
 #define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)
 #define TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(V)
 #else
-#include "builtins-generated/bytecodes-builtins-list.h"
-#include "torque-generated/builtin-definitions.h"
+#include "src/builtins/bytecodes-builtins-list.h"
+// Torque's builtin definitions: the checked-in copy under src/gen/ if
+// v8_use_checked_in_generated_headers, the generated header otherwise. See
+// src/gen/README.md.
+#ifdef V8_USE_CHECKED_IN_GENERATED_HEADERS
+#include "src/gen/intl-wasm/builtin-definitions.h"  // IWYU pragma: export
+#else
+#include "torque-generated/builtin-definitions.h"  // IWYU pragma: export, nogncheck
+#endif
 #endif
 #include "src/base/strong-alias.h"
 #include "src/common/globals.h"

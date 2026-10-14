@@ -19,8 +19,14 @@
 #ifndef V8_METAGEN_GENERATION_PASS
 // Forward declarations only, and generated after the metagen harvest
 // parses this header. The harvest reads class definitions, so nothing
-// it collects comes from here.
-#include "torque-generated/class-forward-declarations.h"
+// it collects comes from here. The checked-in copy under src/gen/ if
+// v8_use_checked_in_generated_headers, the generated header otherwise.
+// See src/gen/README.md.
+#ifdef V8_USE_CHECKED_IN_GENERATED_HEADERS
+#include "src/gen/intl-wasm/class-forward-declarations.h"  // IWYU pragma: export
+#else
+#include "torque-generated/class-forward-declarations.h"  // IWYU pragma: export, nogncheck
+#endif
 #endif
 
 namespace v8 {

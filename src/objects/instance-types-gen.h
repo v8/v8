@@ -33,7 +33,11 @@
 #define INSTANCE_TYPE_LIST_MULTIPLE(V)
 #define INSTANCE_TYPE_LIST_RANGE(V)
 #elif V8_USE_METAGEN
+#ifdef V8_USE_CHECKED_IN_GENERATED_HEADERS
+#include "src/gen/intl-wasm/instance-types.h"
+#else
 #include "metagen/instance-types.h"
+#endif
 #else
 #include "torque-generated/instance-types.h"
 // metagen emits the INSTANCE_TYPE_LIST_{SINGLE,MULTIPLE,RANGE} buckets

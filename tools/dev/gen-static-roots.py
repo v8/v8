@@ -168,10 +168,9 @@ def build_and_check(target):
       env=e)
 
   # Generate static roots file and check if it changed
-  filename = f"static-roots-{target}.h"
-  out_file = Path(tempfile.gettempdir()) / filename
+  out_file = Path(tempfile.gettempdir()) / f"static-roots-{target}.h"
   run([f"{build_dir / 'mksnapshot'}", "--static-roots-src", f"{out_file}"])
-  target_file = V8_PATH / 'src' / 'roots' / filename
+  target_file = V8_PATH / 'src' / 'gen' / target / 'static-roots.h'
   if not filecmp.cmp(out_file, target_file):
     shutil.move(out_file, target_file)
     return True
@@ -195,7 +194,7 @@ def update_v8_internal_h():
   }
 
   for config in STATIC_ROOT_CONFIGURATIONS.keys():
-    file_path = V8_PATH / 'src' / 'roots' / f"static-roots-{config}.h"
+    file_path = V8_PATH / 'src' / 'gen' / config / 'static-roots.h'
     if not file_path.exists():
       print(
           f"Warning: {file_path} does not exist. Skipping v8-internal.h update."

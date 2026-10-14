@@ -578,6 +578,18 @@ assert(!v8_verify_torque_generation_invariance || !v8_use_metagen,
        "v8_verify_torque_generation_invariance requires " +
            "v8_use_metagen=false.")
 
+declare_args() {
+  # Checked-in headers let compilation start before the generators finish.
+  # Enable them only for the configuration they match; the build verifies
+  # their contents. See src/gen/README.md for configuration and regeneration.
+  v8_use_checked_in_generated_headers =
+      v8_enable_i18n_support && v8_enable_webassembly &&
+      v8_enable_temporal_support && !v8_enable_drumbrake &&
+      !v8_enable_experimental_tsa_builtins &&
+      !v8_enable_experimental_tq_to_tsa && v8_use_metagen &&
+      (v8_current_cpu == "x64" || v8_current_cpu == "arm64")
+}
+
 # Derived defaults.
 if (v8_logging_level == "") {
   if (v8_enable_verification_features || v8_dcheck_always_on) {
@@ -1346,6 +1358,12 @@ config("features") {
   # when this is undefined, so only the off case needs a define.
   if (!v8_use_metagen) {
     defines += [ "V8_USE_METAGEN=0" ]
+  }
+
+  # Makes the hand-written headers listed in src/gen/README.md include
+  # the checked-in copies under src/gen/ instead of the generated headers.
+  if (v8_use_checked_in_generated_headers) {
+    defines += [ "V8_USE_CHECKED_IN_GENERATED_HEADERS" ]
   }
 
   configs = [
@@ -2930,6 +2948,47 @@ v8_header_set("torque_runtime_support") {
   configs = [ ":internal_config" ]
 }
 
+if (v8_use_checked_in_generated_headers) {
+  # This target has no generator dependencies, so dependents can compile
+  # immediately. :verify_checked_in_generated_headers checks the copies.
+  v8_header_set("checked_in_generated_headers") {
+    visibility = [ ":generated_headers" ]
+
+    # For src/common/globals.h, included from the bytecodes list.
+    deps = [ ":v8_shared_internal_headers" ]
+
+    sources = [
+      "src/gen/intl-wasm/builtin-definitions.h",
+      "src/gen/intl-wasm/bytecodes-builtins-list.h",
+      "src/gen/intl-wasm/class-forward-declarations.h",
+      "src/gen/intl-wasm/instance-types.h",
+      "src/gen/intl-wasm/interface-descriptors.inc",
+    ]
+
+    configs = [ ":internal_config" ]
+  }
+}
+
+# Targets that need only the headers listed in src/gen/README.md depend on
+# this group. Other generator outputs still require their generator actions.
+group("generated_headers") {
+  visibility = [ ":*" ]
+
+  if (v8_use_checked_in_generated_headers) {
+    public_deps = [ ":checked_in_generated_headers" ]
+  } else {
+    public_deps = [
+      ":generate_bytecode_builtins_list",
+      ":run_torque",
+    ]
+
+    # :run_metagen only exists when metagen is enabled.
+    if (v8_use_metagen) {
+      public_deps += [ ":run_metagen" ]
+    }
+  }
+}
+
 # Build lists of torque-generated .cc and .h files for clustering
 torque_csa_cc_files = []
 torque_csa_h_files = []
@@ -3055,6 +3114,84 @@ action("generate_bytecode_builtins_list") {
     rebase_path("$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
                 root_build_dir),
   ]
+}
+
+# The checked-in generated headers, as [generated, checked-in] pairs.
+# Both actions below use this list. See src/gen/README.md.
+_checked_in_generated_headers = [
+  [
+    "$target_gen_dir/torque-generated/builtin-definitions.h",
+    "src/gen/intl-wasm/builtin-definitions.h",
+  ],
+  [
+    "$target_gen_dir/torque-generated/class-forward-declarations.h",
+    "src/gen/intl-wasm/class-forward-declarations.h",
+  ],
+  [
+    "$target_gen_dir/torque-generated/interface-descriptors.inc",
+    "src/gen/intl-wasm/interface-descriptors.inc",
+  ],
+  [
+    "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
+    "src/gen/intl-wasm/bytecodes-builtins-list.h",
+  ],
+]
+if (v8_use_metagen) {
+  _checked_in_generated_headers += [ [
+        "$target_gen_dir/metagen/instance-types.h",
+        "src/gen/intl-wasm/instance-types.h",
+      ] ]
+}
+
+# The generators do not depend on checked-in headers, so verification and
+# regeneration can use the same build directory even when copies are stale.
+template("checked_in_generated_headers_action") {
+  action(target_name) {
+    visibility = [ ":*" ]
+    script = "tools/compare-checked-in-headers.py"
+    deps = [
+      ":generate_bytecode_builtins_list",
+      ":run_torque",
+    ]
+    if (v8_use_metagen) {
+      deps += [ ":run_metagen" ]
+    }
+    outputs = [ "$target_gen_dir/$target_name.stamp" ]
+    inputs = []
+    args = [
+      "--" + invoker.mode,
+      "--stamp",
+      rebase_path(outputs[0], root_build_dir),
+    ]
+    foreach(pair, _checked_in_generated_headers) {
+      inputs += [ pair[0] ]
+      if (invoker.mode == "verify") {
+        # So that the check re-runs when a checked-in copy is edited.
+        # Not in update mode, which must also run when a copy is missing.
+        inputs += [ pair[1] ]
+      }
+      args += [
+        "--pair",
+        rebase_path(pair[0], root_build_dir) + "=" +
+            rebase_path(pair[1], root_build_dir),
+      ]
+    }
+  }
+}
+
+if (v8_use_checked_in_generated_headers) {
+  # Verify before linking or running code compiled from checked-in headers.
+  # :v8_base covers library users; mksnapshot bypasses it and depends on this
+  # action explicitly. The CPU condition above excludes 32-bit toolchains.
+  checked_in_generated_headers_action("verify_checked_in_generated_headers") {
+    mode = "verify"
+  }
+
+  # Only the matching configuration may regenerate checked-in headers.
+  # Nothing depends on this target; gm.py gen-checked-in-headers builds it.
+  checked_in_generated_headers_action("regen_checked_in_generated_headers") {
+    mode = "update"
+  }
 }
 
 # Template to generate different V8 snapshots based on different runtime flags.
@@ -4042,9 +4179,16 @@ v8_header_set("v8_internal_headers") {
 
   public_configs = [ "src/inspector:inspector_config" ]
 
-  sources = [
+  sources = []
+  if (!v8_use_checked_in_generated_headers) {
+    # With v8_use_checked_in_generated_headers the checked-in copy is
+    # listed by :checked_in_generated_headers instead.
+    sources +=
+        [ "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h" ]
+  }
+
+  sources += [
     ### gcmole(all) ###
-    "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
     "include/cppgc/common.h",
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",
@@ -4081,6 +4225,7 @@ v8_header_set("v8_internal_headers") {
     "src/builtins/builtins-utils-inl.h",
     "src/builtins/builtins-utils.h",
     "src/builtins/builtins.h",
+    "src/builtins/bytecodes-builtins-list.h",
     "src/builtins/constants-table-builder.h",
     "src/builtins/data-view-ops.h",
     "src/builtins/profile-data-reader.h",
@@ -4455,6 +4600,10 @@ v8_header_set("v8_internal_headers") {
     "src/extensions/statistics-extension.h",
     "src/extensions/trigger-failure-extension.h",
     "src/flags/save-flags.h",
+    "src/gen/intl-nowasm/static-roots.h",
+    "src/gen/intl-wasm/static-roots.h",
+    "src/gen/nointl-nowasm/static-roots.h",
+    "src/gen/nointl-wasm/static-roots.h",
     "src/handles/global-handles-inl.h",
     "src/handles/global-handles.h",
     "src/handles/handle-scope-implementer-inl.h",
@@ -4972,10 +5121,6 @@ v8_header_set("v8_internal_headers") {
     "src/regexp/special-case.h",
     "src/roots/roots-inl.h",
     "src/roots/roots.h",
-    "src/roots/static-roots-intl-nowasm.h",
-    "src/roots/static-roots-intl-wasm.h",
-    "src/roots/static-roots-nointl-nowasm.h",
-    "src/roots/static-roots-nointl-wasm.h",
     "src/roots/static-roots.h",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime.h",
@@ -5824,8 +5969,7 @@ v8_header_set("v8_internal_headers") {
 
   deps = [
     ":cppgc_headers",
-    ":generate_bytecode_builtins_list",
-    ":run_torque",
+    ":generated_headers",
     ":v8_abseil",
     ":v8_heap_base_headers",
     ":v8_libbase",
@@ -6164,8 +6308,7 @@ v8_cluster_source_set("v8_compiler_for_mksnapshot_source_set") {
   exclude_from_cluster = exclude_from_compiler_cluster
 
   public_deps = [
-    ":generate_bytecode_builtins_list",
-    ":run_torque",
+    ":generated_headers",
     ":v8_abseil",
     ":v8_maybe_icu",
     ":v8_tracing",
@@ -6212,8 +6355,7 @@ v8_cluster_source_set("v8_compiler") {
   exclude_from_cluster = exclude_from_compiler_cluster
 
   public_deps = [
-    ":generate_bytecode_builtins_list",
-    ":run_torque",
+    ":generated_headers",
     ":v8_abseil",
     ":v8_internal_headers",
     ":v8_maybe_icu",
@@ -7256,7 +7398,6 @@ v8_cluster_source_set("v8_base_without_compiler") {
   ]
 
   deps = [
-    ":torque_generated_definitions",
     ":v8_bigint",
     ":v8_headers",
     ":v8_heap_base",
@@ -7272,6 +7413,12 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "//third_party/highway:libhwy",
   ]
 
+  # With checked-in headers, link generated definitions through :v8_base.
+  # A dependency here would make every compile wait for run_torque.
+  if (!v8_use_checked_in_generated_headers) {
+    deps += [ ":torque_generated_definitions" ]
+  }
+
   if (v8_enable_generated_code_validator) {
     sources += [ "src/sandbox/generated-code-validator.cc" ]
     if (v8_current_cpu == "x64") {
@@ -7285,8 +7432,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
 
   public_deps = [
     ":cppgc_base",
-    ":generate_bytecode_builtins_list",
-    ":run_torque",
+    ":generated_headers",
     ":v8_abseil",
     ":v8_headers",
     ":v8_internal_headers",
@@ -7381,6 +7527,12 @@ group("v8_base") {
     ":v8_base_without_compiler",
     ":v8_compiler",
   ]
+
+  # Keep generator dependencies out of v8_base_without_compiler's compiles.
+  if (v8_use_checked_in_generated_headers) {
+    public_deps += [ ":torque_generated_definitions" ]
+    deps = [ ":verify_checked_in_generated_headers" ]
+  }
 }
 
 v8_source_set("torque_base") {
@@ -8433,6 +8585,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
     ]
 
     deps = [
+      ":torque_generated_definitions",
       ":v8_base_without_compiler",
       ":v8_compiler_for_mksnapshot",
       ":v8_init",
@@ -8446,6 +8599,12 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_tracing",
       "//build/win:default_exe_manifest",
     ]
+
+    if (v8_use_checked_in_generated_headers) {
+      # mksnapshot runs during the build and does not go through :v8_base;
+      # see verify_checked_in_generated_headers.
+      deps += [ ":verify_checked_in_generated_headers" ]
+    }
   }
 
   # This config disables a link time optimization "ICF", which may merge
@@ -9251,8 +9410,7 @@ if (v8_enable_webassembly) {
 
     deps = [
       ":fuzzer_support",
-      ":generate_bytecode_builtins_list",
-      ":run_torque",
+      ":generated_headers",
       ":v8_internal_headers",
       ":v8_libbase",
       ":v8_maybe_ecma402_icu4x",

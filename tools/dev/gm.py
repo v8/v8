@@ -587,6 +587,10 @@ class RawConfig:
 
     return_code, output = _call_with_output(cmd)
     if return_code != 0 and "FAILED:" in output:
+      if "tools/dev/gm.py gen-checked-in-headers" in output:
+        _notify("V8 build requires your attention",
+                "Please regenerate the checked-in generated headers.")
+        return return_code
       if "snapshot_blob" in output:
         if "gen-static-roots.py" in output:
           _notify("V8 build requires your attention",
@@ -867,6 +871,14 @@ class ArgumentParser(object):
         arch = "arm64"
       self.populate_configs([arch], ["release"], ["mkgrokdump"], [], False)
       return
+    # Special handling for "gen-checked-in-headers": regenerate the checked-in
+    # generated headers under src/gen/ (see src/gen/README.md).
+    if argstring == "gen-checked-in-headers":
+      sys.exit(
+          subprocess.call([
+              sys.executable,
+              str(V8_DIR / "tools" / "dev" / "gen-checked-in-headers.py")
+          ]))
     if argstring.startswith("--"):
       # Pass all other flags to test runner.
       self.testrunner_args.append(argstring)
