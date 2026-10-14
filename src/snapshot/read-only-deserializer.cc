@@ -168,6 +168,9 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   HandleScope scope(isolate());
 
   ReadOnlyHeapImageDeserializer::Deserialize(isolate(), source());
+  if (should_rehash()) {
+    HashSeed::InitializeRoots(isolate());
+  }
   PostProcessNewObjects();
 
   ReadOnlyRoots roots(isolate());
@@ -178,7 +181,6 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
 #endif
 
   if (should_rehash()) {
-    HashSeed::InitializeRoots(isolate());
     Rehash();
   }
 
@@ -447,7 +449,7 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       if (InstanceTypeChecker::IsString(instance_type)) {
         Tagged<String> str = Cast<String>(o);
         str->set_raw_hash_field(Name::kEmptyHashField);
-        PushObjectToRehash(direct_handle(str, isolate()));
+        str->EnsureHash();
       } else if (o->NeedsRehashing(instance_type)) {
         PushObjectToRehash(direct_handle(o, isolate()));
       }
