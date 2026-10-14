@@ -7870,7 +7870,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               "invalid numeric opcode: 0x%x, enable with --wasm-fp16", opcode);
           return 0;
         }
-        return DecodeLoadMem(LoadType::kF32LoadF16, opcode_length);
+        return DecodeLoadMem(LoadType::kF32LoadF16, 2);
       }
       case kExprF32StoreMemF16: {
         if (!this->enabled_.has_fp16()) {
@@ -7878,7 +7878,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               "invalid numeric opcode: 0x%x, enable with --wasm-fp16", opcode);
           return 0;
         }
-        return DecodeStoreMem(StoreType::kF32StoreF16, opcode_length);
+        return DecodeStoreMem(StoreType::kF32StoreF16, 2);
       }
       case kExprI64Add128: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
