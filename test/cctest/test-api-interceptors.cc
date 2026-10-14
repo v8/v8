@@ -3988,58 +3988,6 @@ THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
 }
 
 namespace {
-void SloppyArgsIndexedPropertyEnumerator(
-    const v8::PropertyCallbackInfo<v8::Array>& info) {
-  // Force the list of returned keys to be stored in a Arguments object.
-  Local<Script> indexed_property_names_script = v8_compile(
-      "function f(w,x) {"
-      " return arguments;"
-      "}"
-      "keys = f(0, 1, 2, 3);"
-      "keys;");
-  Local<Object> result =
-      indexed_property_names_script->Run(info.GetIsolate()->GetCurrentContext())
-          .ToLocalChecked()
-          .As<Object>();
-  // Return the Arguments object via `ReturnValue<Value>` since it is not a
-  // `v8::Array`.
-  v8::ReturnValue<v8::Value>(info.GetReturnValue()).Set(result);
-}
-
-v8::Intercepted SloppyIndexedPropertyGetter(
-    uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  ApiTestFuzzer::Fuzz();
-  if (index < 4) {
-    info.GetReturnValue().Set(v8_num(index));
-    return v8::Intercepted::kYes;
-  }
-  return v8::Intercepted::kNo;
-}
-}  // namespace
-
-// Make sure that the interceptor code in the runtime properly handles
-// merging property name lists for non-string arguments arrays.
-THREADED_TEST(IndexedInterceptorSloppyArgsWithIndexedAccessor) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      SloppyIndexedPropertyGetter, nullptr, nullptr, nullptr,
-      SloppyArgsIndexedPropertyEnumerator));
-  LocalContext context;
-  context->Global()
-      ->Set(context.local(), v8_str("obj"),
-            templ->NewInstance(context.local()).ToLocalChecked())
-      .FromJust();
-  Local<Script> create_args_script = v8_compile(
-      "var key_count = 0;"
-      "for (x in obj) {key_count++;} key_count;");
-  Local<Value> result =
-      create_args_script->Run(context.local()).ToLocalChecked();
-  CHECK(v8_num(4)->Equals(context.local(), result).FromJust());
-}
-
-namespace {
 v8::Intercepted IdentityIndexedPropertyGetter(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(index);
@@ -6918,38 +6866,6 @@ THREADED_TEST(EnumeratorsAndUnenumerableNamedPropertiesWithoutSet) {
 
   ExpectTrue("Object.getOwnPropertyDescriptor(obj, 'foo').enumerable");
   ExpectInt32("Object.keys(obj).length", 1);
-}
-
-THREADED_TEST(EnumeratorsAndUnenumerableIndexedPropertiesArgumentsElements) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
-  obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      ConcatIndexedPropertyGetter, nullptr, RestrictiveIndexedQuery, nullptr,
-      SloppyArgsIndexedPropertyEnumerator));
-  LocalContext context;
-  context->Global()
-      ->Set(context.local(), v8_str("obj"),
-            obj->NewInstance(context.local()).ToLocalChecked())
-      .FromJust();
-
-  ExpectInt32("Object.getOwnPropertyNames(obj).length", 4);
-  ExpectString("Object.getOwnPropertyNames(obj)[0]", "0");
-  ExpectString("Object.getOwnPropertyNames(obj)[1]", "1");
-  ExpectString("Object.getOwnPropertyNames(obj)[2]", "2");
-  ExpectString("Object.getOwnPropertyNames(obj)[3]", "3");
-
-  ExpectTrue("Object.getOwnPropertyDescriptor(obj, '2').enumerable");
-
-  ExpectInt32("Object.entries(obj).length", 1);
-  ExpectString("Object.entries(obj)[0][0]", "2");
-  ExpectInt32("Object.entries(obj)[0][1]", 4);
-
-  ExpectInt32("Object.keys(obj).length", 1);
-  ExpectString("Object.keys(obj)[0]", "2");
-
-  ExpectInt32("Object.values(obj).length", 1);
-  ExpectInt32("Object.values(obj)[0]", 4);
 }
 
 THREADED_TEST(EnumeratorsAndUnenumerableIndexedProperties) {

@@ -44,7 +44,12 @@ class ReturnValue {
  public:
   template <class S>
   V8_INLINE ReturnValue(const ReturnValue<S>& that) : value_(that.value_) {
-    static_assert(std::is_base_of_v<T, S>, "type check");
+    // Allow narrowing `ReturnValue<Base>` to `ReturnValue<Derived>`, as any
+    // `Derived` value set on this `ReturnValue<T>` is also a valid `Base`
+    // value for the underlying `ReturnValue<S>` slot. Disallow widening
+    // `ReturnValue<Derived>` to `ReturnValue<Base>`, which would allow storing
+    // a general `Base` value into a slot that expects `Derived`.
+    static_assert(std::is_base_of_v<S, T>, "type check");
   }
   // Handle-based setters.
   template <typename S>
