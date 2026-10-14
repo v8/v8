@@ -229,9 +229,7 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_properties,
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
                     Map::Bits3::ConstructionCounterBits)
 
-bool IsMetaMap(Tagged<Map> map) {
-  return InstanceTypeChecker::IsMap(map->instance_type());
-}
+bool IsMetaMap(Tagged<Map> map) { return map->map() == map; }
 
 DEF_HEAP_OBJECT_PREDICATE(IsMetaMap) {
   if (!IsMap(obj)) return false;
@@ -1113,26 +1111,26 @@ void Map::set_constructor_or_back_pointer(Tagged<Object> value, RelaxedStoreTag,
 }
 
 Tagged<NativeContext> Map::native_context() const {
-  DCHECK(IsContextMap(this) || IsMapMap(this));
+  DCHECK(IsContextMap(this) || IsMetaMap(this));
   return Cast<NativeContext>(
       constructor_or_back_pointer_or_native_context_.load());
 }
 void Map::set_native_context(Tagged<NativeContext> value,
                              WriteBarrierMode mode) {
-  DCHECK(IsContextMap(this) || IsMapMap(this));
+  DCHECK(IsContextMap(this) || IsMetaMap(this));
   constructor_or_back_pointer_or_native_context_.store(this, value, mode);
 }
 
 Tagged<Object> Map::native_context_or_null() const {
   Tagged<Object> value = constructor_or_back_pointer_or_native_context_.load();
   DCHECK((IsNull(value) || IsNativeContext(value)) &&
-         (IsContextMap(this) || IsMapMap(this)));
+         (IsContextMap(this) || IsMetaMap(this)));
   return value;
 }
 void Map::set_native_context_or_null(Tagged<Object> value,
                                      WriteBarrierMode mode) {
   DCHECK((IsNull(value) || IsNativeContext(value)) &&
-         (IsContextMap(this) || IsMapMap(this)));
+         (IsContextMap(this) || IsMetaMap(this)));
   constructor_or_back_pointer_or_native_context_.store(this, value, mode);
 }
 
@@ -1142,7 +1140,7 @@ Tagged<Object> Map::raw_native_context_or_null() const {
   Tagged<Object> value = constructor_or_back_pointer_or_native_context_.load();
   DCHECK(IsNull(value) || IsNativeContext(value) ||
          value == Smi::uninitialized_deserialization_value());
-  DCHECK(IsContextMap(this) || IsMapMap(this));
+  DCHECK(IsContextMap(this) || IsMetaMap(this));
   return value;
 }
 

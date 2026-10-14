@@ -2029,7 +2029,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
-  if (InstanceTypeChecker::IsMap(instance_type)) {
+  if (instance_type == MAP_TYPE) {
     return UncheckedCast<Map>(this)->AllocatedSize();
   }
   if (base::IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE,

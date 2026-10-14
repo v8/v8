@@ -1133,7 +1133,7 @@ void JSObject::EnsureWritableFastElements(Isolate* isolate,
 std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() const {
   DisallowGarbageCollection no_gc;
   Tagged<Map> meta_map = map()->map();
-  DCHECK(IsMapMap(meta_map));
+  DCHECK(IsMetaMap(meta_map));
   Tagged<Object> maybe_native_context = meta_map->native_context_or_null();
   if (V8_UNLIKELY(IsNull(maybe_native_context))) return {};
   DCHECK(IsNativeContext(maybe_native_context));

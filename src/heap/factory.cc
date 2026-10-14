@@ -2737,7 +2737,7 @@ Handle<Map> Factory::NewMap(DirectHandle<HeapObject> meta_map_holder,
   auto meta_map_provider = [meta_map_holder] {
     // Tie new map to the same native context as given |meta_map_holder| object.
     Tagged<Map> meta_map = meta_map_holder->map();
-    DCHECK(IsMapMap(meta_map));
+    DCHECK(IsMetaMap(meta_map));
     return meta_map;
   };
   Handle<Map> map =
@@ -2801,7 +2801,7 @@ DirectHandle<Map> Factory::NewContextfulMap(
     // Tie new map to the creation context of given |creation_context_holder|
     // object.
     Tagged<Map> meta_map = creation_context_holder->map()->map();
-    DCHECK(IsMapMap(meta_map));
+    DCHECK(IsMetaMap(meta_map));
     return meta_map;
   };
   DirectHandle<Map> map =

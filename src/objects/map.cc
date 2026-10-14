@@ -34,6 +34,10 @@
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8::internal {
 
 Tagged<Map> Map::GetPrototypeChainRootMap(Isolate* isolate) const {
@@ -2578,9 +2582,18 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
   }
   // Otherwise create a new cell.
   Handle<Cell> cell = isolate->factory()->NewCell();
-  {
+  do {
     Tagged<Map> meta_map = validity_cell_holder_map->map();
-    DCHECK(IsMapMap(meta_map));
+#if V8_ENABLE_WEBASSEMBLY
+    if (!IsMetaMap(meta_map)) {
+      DCHECK(IsWasmCustomMap(*validity_cell_holder_map));
+      cell->set_maybe_value(
+          MakeWeak(Cast<WasmCustomMap>(validity_cell_holder_map)
+                       ->native_context_for_wrapper()));
+      break;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    DCHECK(IsMetaMap(meta_map));
     // The meta map's context slot is Null for the RO meta map (shared
     // across all contexts). Legacy code reinterpret-loaded the slot as
     // NativeContext and MakeWeak'd it; since Null is immortal the
@@ -2597,7 +2610,7 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
       DCHECK(IsNull(maybe_context));
       cell->set_maybe_value(maybe_context);
     }
-  }
+  } while (false);
   validity_cell_holder_map->set_prototype_validity_cell(*cell, kRelaxedStore);
   return cell;
 }

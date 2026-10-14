@@ -3310,6 +3310,9 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
 }
 void WasmCustomMap::WasmCustomMapPrint(std::ostream& os) {
   PrintHeader(os, "WasmCustomMap");
+  MapPrint(os);
+  os << "\n - JS wrapper: " << Brief(js_wrapper());
+  os << "\n - native context: " << Brief(native_context_for_wrapper());
   WasmStructPrintImpl(os, this, WasmCustomMap::kHeaderSize);
 }
 
@@ -4803,16 +4806,20 @@ void Map::MapPrint(std::ostream& os) {
   bool is_extended_map = Is<ExtendedMap>(this);
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm_map = IsAnyWasmObjectMap(this);
+  bool is_custom_map = IsWasmCustomMap(Tagged<HeapObject>(this));
 #else
   constexpr bool is_wasm_map = false;
+  constexpr bool is_custom_map = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef OBJECT_PRINT
   PrintHeader(os, is_meta_map       ? "MetaMap"
                   : is_extended_map ? "ExtendedMap"
+                  : is_custom_map   ? "WasmCustomMap"
                                     : "Map");
 #else
   os << (is_meta_map       ? "MetaMap="
          : is_extended_map ? "ExtendedMap="
+         : is_custom_map   ? "WasmCustomMap="
                            : "Map=")
      << reinterpret_cast<void*>(ptr());
 #endif

@@ -2221,7 +2221,6 @@ DEFINE_BOOL(wasm_custom_descriptors_permitted, true,
             "Emergency off-switch for Custom Descriptors Origin Trial")
 DEFINE_EXPERIMENTAL_FEATURE(wasm_merged_descriptors,
                             "merge Custom Descriptor into v8::internal::Map")
-DEFINE_IMPLICATION(wasm_merged_descriptors, wasm_custom_descriptors)
 
 DEFINE_DEBUG_BOOL(
     wasm_opt, true,

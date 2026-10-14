@@ -550,7 +550,7 @@ Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
   gasm_.GotoIf(gasm_.IsSmi(input), &smi_label);
   Node* is_heap_number = gasm_.HasInstanceType(input, HEAP_NUMBER_TYPE);
   gasm_.GotoIf(is_heap_number, &heap_number_label);
-  gasm_.GotoIf(gasm_.HasInstanceType(input, WASM_CUSTOM_MAP_TYPE),
+  gasm_.GotoIf(gasm_.HasInstanceType(input, WASM_CUSTOM_MAP_WRAPPER_TYPE),
                &custom_map_wrapper_label);
   // For anything else, just pass through the value.
   gasm_.Goto(&end_label, input);
@@ -627,8 +627,9 @@ Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
 
   gasm_.Bind(&custom_map_wrapper_label);
   gasm_.Goto(&end_label,
-             gasm_.LoadFromObject(MachineType::TaggedPointer(), input,
-                                  offsetof(WasmCustomMapWrapper, wrapped_)));
+             gasm_.LoadFromObject(
+                 MachineType::TaggedPointer(), input,
+                 offsetof(WasmCustomMapWrapper, wrapped_) - kHeapObjectTag));
 
   gasm_.Bind(&end_label);
   ReplaceWithValue(node, end_label.PhiAt(0), gasm_.effect(), gasm_.control());
@@ -649,9 +650,9 @@ Reduction WasmGCLowering::ReduceWasmExternConvertAny(Node* node) {
                   object);
 
   // {object} is a WasmCustomMap.
-  Node* maybe_wrapper =
-      gasm_.LoadFromObject(MachineType::TaggedPointer(), object,
-                           offsetof(WasmCustomMap, js_wrapper_));
+  Node* maybe_wrapper = gasm_.LoadFromObject(
+      MachineType::TaggedPointer(), object,
+      offsetof(WasmCustomMap, js_wrapper_) - kHeapObjectTag);
   gasm_.GotoIfNot(IsNull(maybe_wrapper, wasm::kWasmExternRef), &done,
                   maybe_wrapper);
   gasm_.Goto(&done, gasm_.CallBuiltin(Builtin::kWasmExternConvertAny,

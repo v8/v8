@@ -815,8 +815,9 @@ void Map::MapVerify(Isolate* isolate) {
     // Note: for each static type that has a descriptor, there is also a
     // canonical RTT that does not have one (and is not used by any actual
     // objects).
-    if (types->has_descriptor(index) && (IsWasmStruct(custom_descriptor()) ||
-                                         v8_flags.wasm_merged_descriptors)) {
+    if (types->has_descriptor(index) &&
+        ((IsWasmStructMap(this) && IsWasmStruct(custom_descriptor())) ||
+         map()->instance_type() == WASM_CUSTOM_MAP_TYPE)) {
       CHECK_GT(wasm_type_info()->supertypes_length(), subtyping_depth);
       CHECK_EQ(immediate_supertype_map(),
                wasm_type_info()->supertypes(subtyping_depth));
@@ -3550,7 +3551,10 @@ void WasmStruct::WasmStructVerify(Isolate* isolate) {
   CHECK(Is<WasmStruct>(this));
 }
 
-void WasmCustomMap::WasmCustomMapVerify(Isolate* isolate) { UNIMPLEMENTED(); }
+void WasmCustomMap::WasmCustomMapVerify(Isolate* isolate) {
+  CHECK(Is<WasmCustomMap>(this));
+  MapVerify(isolate);
+}
 
 void WasmCustomMapWrapper::WasmCustomMapWrapperVerify(Isolate* isolate) {
   CHECK(Is<WasmCustomMapWrapper>(this));

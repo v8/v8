@@ -2078,7 +2078,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
   }
   SetInternalReference(entry, "prototype", map->prototype(),
                        offsetof(Map, prototype_));
-  if (IsContextMap(map) || IsMapMap(map)) {
+  if (IsContextMap(map) || IsMetaMap(map)) {
     Tagged<Object> native_context = map->native_context_or_null();
     TagObject(native_context, "(native context)");
     SetInternalReference(

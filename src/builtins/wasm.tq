@@ -1686,7 +1686,8 @@ builtin WasmAnyConvertExternShared(externObject: JSAny): JSAny {
 }
 
 builtin WasmExternConvertAny(wasmObject: HeapObject): JSAny {
-  tail runtime::WasmExternConvertAny(LoadContextFromFrame(), wasmObject);
+  tail runtime::WasmExternConvertAny(
+      LoadContextFromWasmOrJsFrame(), wasmObject);
 }
 
 extern macro CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
