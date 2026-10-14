@@ -1311,25 +1311,17 @@ DEFINE_WEAK_IMPLICATION(trace_baseline, trace_baseline_batch_compilation)
 // Internalize into a shared string table in the shared isolate
 DEFINE_BOOL(shared_strings, false, "allow sharing of strings")
 DEFINE_IMPLICATION(shared_strings, shared_heap)
-DEFINE_EXPERIMENTAL_FEATURE(shared_string_table,
-                            "internalize strings into shared table")
-DEFINE_IMPLICATION(shared_string_table, shared_strings)
-DEFINE_IMPLICATION(harmony_struct, shared_string_table)
+DEFINE_BOOL_READONLY(
+    harmony_struct, false,
+    "DEPRECATED. harmony structs, shared structs, and shared arrays")
+DEFINE_BOOL_READONLY(shared_string_table, false,
+                     "DEPRECATED. internalize strings into shared table")
 DEFINE_BOOL_READONLY(always_use_string_forwarding_table, false,
                      "use string forwarding table instead of thin strings for "
                      "all strings (experimental)")
-DEFINE_IMPLICATION(always_use_string_forwarding_table, experimental)
-// With --always-use-string-forwarding-table, we can have young generation
-// string entries in the forwarding table, requiring table updates when these
-// strings get promoted to old space. Parallel GCs in client isolates
-// (enabled by --shared-heap) are not supported using a single shared
-// forwarding table.
-DEFINE_NEG_IMPLICATION(shared_heap, always_use_string_forwarding_table)
 
 DEFINE_BOOL(transition_strings_during_gc_with_stack, false,
             "Transition strings during a full GC with stack")
-DEFINE_NEG_IMPLICATION(shared_string_table,
-                       transition_strings_during_gc_with_stack)
 
 DEFINE_SIZE_T(initial_shared_heap_size, 0,
               "initial size of the shared heap (in Mbytes); "
