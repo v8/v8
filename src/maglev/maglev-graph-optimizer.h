@@ -176,6 +176,8 @@ class V8_EXPORT_PRIVATE MaglevGraphOptimizer {
   Jump* FoldBranch(BasicBlock* current, BranchControlNode* branch_node,
                    bool if_true);
 
+  ProcessResult OverwriteWith(Opcode opcode);
+
   ProcessResult ReplaceWith(ValueNode* node);
 
   template <typename NodeT, typename... Args>
