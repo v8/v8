@@ -173,6 +173,41 @@ uint32_t SourceTextModule::flags() const { return flags_.load().value(); }
 void SourceTextModule::set_flags(uint32_t value) {
   flags_.store(this, Smi::FromInt(value));
 }
+
+template <typename ModuleT, Module::Status... kStates>
+Tagged<SharedFunctionInfo> Module::InState<ModuleT, kStates...>::sfi() const
+  requires(IsAllowed<kUnlinked, kPreLinking, kErrored>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  return CheckedCast<SharedFunctionInfo>(this->code());
+}
+
+template <typename ModuleT, Module::Status... kStates>
+Tagged<JSFunction> Module::InState<ModuleT, kStates...>::function() const
+  requires(IsAllowed<kLinking>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  return CheckedCast<JSFunction>(this->code());
+}
+
+template <typename ModuleT, Module::Status... kStates>
+Tagged<JSGeneratorObject> Module::InState<ModuleT, kStates...>::generator()
+    const
+  requires(IsAllowed<kLinked, kEvaluating, kEvaluatingAsync, kEvaluated>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  return CheckedCast<JSGeneratorObject>(this->code());
+}
+
+template <typename ModuleT, Module::Status... kStates>
+Tagged<JSAsyncFunctionObject>
+Module::InState<ModuleT, kStates...>::async_function_object() const
+  requires(IsAllowed<kEvaluating, kEvaluatingAsync>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  DCHECK(this->has_toplevel_await());
+  return CheckedCast<JSAsyncFunctionObject>(this->code());
+}
 }  // namespace internal
 }  // namespace v8
 

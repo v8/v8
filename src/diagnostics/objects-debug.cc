@@ -3136,7 +3136,7 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
     if (status() == kLinked) {
       CHECK(IsJSGeneratorObject(code()));
     } else if (status() == kLinking) {
-      CHECK(IsJSFunction(code()) || IsJSGeneratorObject(code()));
+      CHECK(IsJSFunction(code()));
     } else if (status() == kPreLinking) {
       CHECK(IsSharedFunctionInfo(code()));
     } else if (status() == kUnlinked) {
