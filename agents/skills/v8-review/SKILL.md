@@ -120,9 +120,11 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
      analysis to check if the same bug pattern exists in sibling opcodes,
      builtins, reducers, or tiers.
    - **Optimization preservation & design**: Fix specific invariant flaws rather
-     than disabling fast paths wholesale; reuse existing helpers/passes; avoid
-     `#if V8_TARGET_ARCH_...` in shared code; flag edits to generated files
-     (`out/`) or unrelated drive-by refactors.
+     than disabling fast paths wholesale; reuse existing helpers/passes and
+     encapsulate state mutations on the owning class; keep headers lean (`.cc`
+     definitions for non-hot methods, `namespace {}` in `.cc` for helpers not
+     using `this`); avoid `#if V8_TARGET_ARCH_...` in shared code; flag edits to
+     generated files (`out/`) or unrelated drive-by refactors.
    - **API surface, flags & presubmit**: Swallowed errors or defensive
      workarounds instead of `CHECK`/`DCHECK`/`UNREACHABLE()` (never suggest
      defensive fallbacks that mask unexpected states or invariant violations),
@@ -157,11 +159,12 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
    - **Boundary coverage**: Edge cases (`0`, `-0`, `NaN`, `INT32_MIN`,
      `INT32_MAX`, `UINT32_MAX`, `Smi` range, empty/max-size buffers or Wasm
      modules).
-   - **V8 test guidelines**: `assertEquals(expected, found)` order; never
+   - **V8 test guidelines**: Component-specific subdirectory over catch-all
+     `test/mjsunit/regress/`; `assertEquals(expected, found)` order; never
      include `d8.file.execute('test/mjsunit/mjsunit.js')`; minimal leaf flags
-     over `--fuzzing`/`--jit-fuzzing`; no hardcoded tier flags (`--no-liftoff`,
-     `--turboshaft`, `--maglev`) already covered by test variants unless testing
-     tier-up/OSR (`assertOptimized()` requires
+     over `--fuzzing`/`--jit-fuzzing`/`--experimental-fuzzing`; no hardcoded
+     tier flags (`--no-liftoff`, `--turboshaft`, `--maglev`) already covered by
+     test variants unless testing tier-up/OSR (`assertOptimized()` requires
      `--maglev`/`--turbolev`/`--turbofan`); `--allow-natives-syntax` with no
      space after `%` (`%Foo()`); `--stack-size=100` on stack-exhaustion tests;
      no CPU-burning warmup loops or fuzzer boilerplate (`__f_0`, `__v_0`,
@@ -170,14 +173,14 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
 8. `style-comments`:
 
    - **V8 C++ style & presubmit**: Spell out types instead of `auto` unless
-     obvious or overly long; `const`-correctness and `std::forward`;
-     `base::bit_cast` (never `std::bit_cast`), `UNREACHABLE()`; V8 banned
-     constructs (`<regex>`, `std::mutex`, `absl::FunctionRef`, `dynamic_cast`,
-     exceptions, trailing whitespace); `-inl.h` rules (never
-     `#include "*-inl.h"` in normal `.h`; `foo-inl.h` must `#include "foo.h"`
-     first); `V8_NOEXCEPT` on copy/move constructors and assignment operators;
-     `{}` braces on all multi-line `if` statements; copyright header on new
-     files.
+     obvious or overly long; tight local variable scope (declared at first use);
+     `const`-correctness and `std::forward`; `base::bit_cast` (never
+     `std::bit_cast`), `UNREACHABLE()`; V8 banned constructs (`<regex>`,
+     `std::mutex`, `absl::FunctionRef`, `dynamic_cast`, exceptions, trailing
+     whitespace); `-inl.h` rules (never `#include "*-inl.h"` in normal `.h`;
+     `foo-inl.h` must `#include "foo.h"` first); `V8_NOEXCEPT` on copy/move
+     constructors and assignment operators; `{}` braces on all multi-line `if`
+     statements; copyright header on new files.
    - **Comments & readability**: Documenting class invariants and non-obvious
      rationale; updating stale adjacent comments contradicted by the diff;
      identifying pure code moves.
