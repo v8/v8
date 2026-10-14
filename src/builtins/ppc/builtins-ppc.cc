@@ -4781,32 +4781,36 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   static_assert(HeapNumber::kMantissaBitsInTopWord >= 16);
   __ oris(result_reg, result_reg,
           Operand(1 << ((HeapNumber::kMantissaBitsInTopWord)-16)));
-  __ ShiftLeftU32(r0, result_reg, scratch);
-  __ orx(result_reg, scratch_low, r0);
-  __ b(&negate);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register temp = temps.Acquire();
+    __ ShiftLeftU32(temp, result_reg, scratch);
+    __ orx(result_reg, scratch_low, temp);
+    __ b(&negate);
 
-  __ bind(&out_of_range);
-  __ mov(result_reg, Operand::Zero());
-  __ b(&done);
+    __ bind(&out_of_range);
+    __ mov(result_reg, Operand::Zero());
+    __ b(&done);
 
-  __ bind(&only_low);
-  // 52 <= exponent <= 83, shift only scratch_low.
-  // On entry, scratch contains: 52 - exponent.
-  __ neg(scratch, scratch);
-  __ ShiftLeftU32(result_reg, scratch_low, scratch);
+    __ bind(&only_low);
+    // 52 <= exponent <= 83, shift only scratch_low.
+    // On entry, scratch contains: 52 - exponent.
+    __ neg(scratch, scratch);
+    __ ShiftLeftU32(result_reg, scratch_low, scratch);
 
-  __ bind(&negate);
-  // If input was positive, scratch_high ASR 31 equals 0 and
-  // scratch_high LSR 31 equals zero.
-  // New result = (result eor 0) + 0 = result.
-  // If the input was negative, we have to negate the result.
-  // Input_high ASR 31 equals 0xFFFFFFFF and scratch_high LSR 31 equals 1.
-  // New result = (result eor 0xFFFFFFFF) + 1 = 0 - result.
-  __ srawi(r0, scratch_high, 31);
-  __ srdi(r0, r0, Operand(32));
-  __ xor_(result_reg, result_reg, r0);
-  __ srwi(r0, scratch_high, Operand(31));
-  __ add(result_reg, result_reg, r0);
+    __ bind(&negate);
+    // If input was positive, scratch_high ASR 31 equals 0 and
+    // scratch_high LSR 31 equals zero.
+    // New result = (result eor 0) + 0 = result.
+    // If the input was negative, we have to negate the result.
+    // Input_high ASR 31 equals 0xFFFFFFFF and scratch_high LSR 31 equals 1.
+    // New result = (result eor 0xFFFFFFFF) + 1 = 0 - result.
+    __ srawi(temp, scratch_high, 31);
+    __ srdi(temp, temp, Operand(32));
+    __ xor_(result_reg, result_reg, temp);
+    __ srwi(temp, scratch_high, Operand(31));
+    __ add(result_reg, result_reg, temp);
+  }
 
   __ bind(&done);
   __ Pop(scratch_high, scratch_low);
