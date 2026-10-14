@@ -419,7 +419,8 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
       v8_crdtp::SpanFrom(protocolJsonML->Serialize()), &json);
   v8::Local<v8::Value> detachedJsonML;
   v8_inspector::StringView serialized(json.data(), json.size());
-  if (!v8::JSON::Parse(context, toV8String(isolate, serialized))
+  if (serialized.length() >= v8::String::kMaxLength ||
+      !v8::JSON::Parse(context, toV8String(isolate, serialized))
            .ToLocal(&detachedJsonML)) {
     reportError(context, tryCatch, "cannot serialize body");
     return;
