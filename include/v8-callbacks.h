@@ -314,6 +314,8 @@ using FailedAccessCheckCallback = void (*)(Local<Object> target,
 
 // --- WebAssembly compilation callbacks ---
 using ExtensionCallback = bool (*)(const FunctionCallbackInfo<Value>&);
+using WasmModuleCallback = bool (*)(Isolate* isolate, Local<Value> source);
+using WasmInstanceCallback = bool (*)(Isolate* isolate, Local<Value> source);
 
 using AllowWasmCodeGenerationCallback = bool (*)(Local<Context> context,
                                                  Local<String> source);

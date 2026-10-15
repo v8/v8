@@ -11038,8 +11038,13 @@ CALLBACK_SETTER(DynamicScriptCompiledFromEmbedderCallback,
 CALLBACK_SETTER(AllowWasmCodeGenerationCallback,
                 AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback)
 
-CALLBACK_SETTER(WasmModuleCallback, ExtensionCallback, wasm_module_callback)
-CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback, wasm_instance_callback)
+CALLBACK_SETTER(WasmModuleCallback, WasmModuleCallback, wasm_module_callback)
+CALLBACK_SETTER(WasmModuleCallback, ExtensionCallback,
+                deprecated_wasm_module_callback)
+CALLBACK_SETTER(WasmInstanceCallback, WasmInstanceCallback,
+                wasm_instance_callback)
+CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback,
+                deprecated_wasm_instance_callback)
 
 CALLBACK_SETTER(WasmStreamingCallback, WasmStreamingCallback,
                 wasm_streaming_callback)

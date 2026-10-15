@@ -1758,7 +1758,11 @@ class V8_EXPORT Isolate {
    * Embedder over{ride|load} injection points for wasm APIs. The expectation
    * is that the embedder sets them at most once.
    */
+  void SetWasmModuleCallback(WasmModuleCallback callback);
+  V8_DEPRECATE_SOON("Use the WasmModuleCallback overload instead")
   void SetWasmModuleCallback(ExtensionCallback callback);
+  void SetWasmInstanceCallback(WasmInstanceCallback callback);
+  V8_DEPRECATE_SOON("Use the WasmInstanceCallback overload instead")
   void SetWasmInstanceCallback(ExtensionCallback callback);
 
   void SetWasmStreamingCallback(WasmStreamingCallback callback);

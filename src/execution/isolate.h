@@ -504,8 +504,10 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(DynamicScriptCompiledFromEmbedderCallback, dynamic_script_callback,     \
     nullptr)                                                                \
   V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr) \
-  V(ExtensionCallback, wasm_module_callback, &NoExtension)                  \
-  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                \
+  V(WasmModuleCallback, wasm_module_callback, nullptr)                      \
+  V(ExtensionCallback, deprecated_wasm_module_callback, nullptr)            \
+  V(WasmInstanceCallback, wasm_instance_callback, nullptr)                  \
+  V(ExtensionCallback, deprecated_wasm_instance_callback, nullptr)          \
   V(SharedArrayBufferConstructorEnabledCallback,                            \
     sharedarraybuffer_constructor_enabled_callback, nullptr)                \
   V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                \

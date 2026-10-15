@@ -875,8 +875,6 @@ StackTraceFailureMessage::StackTraceFailureMessage(
   }
 }
 
-bool NoExtension(const v8::FunctionCallbackInfo<v8::Value>&) { return false; }
-
 namespace {
 
 bool IsBuiltinFunction(Isolate* isolate, Tagged<HeapObject> object,
