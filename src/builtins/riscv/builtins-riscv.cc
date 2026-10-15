@@ -1379,9 +1379,16 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ Lw(scratch, FieldMemOperand(bytecode_array,
                                    offsetof(BytecodeArray, frame_size_)));
 
-    // Do a stack check to ensure we don't go over the limit.
+    // Do a stack check to ensure we don't go over the limit. Include the
+    // arguments, which are also stored in the register file, in the frame size,
+    // to match BaselineCompiler::Prologue.
     DEFINE_REG(stack_addr);
-    __ SubWord(stack_addr, sp, Operand(scratch));
+    __ Lhu(stack_addr,
+           FieldMemOperand(bytecode_array,
+                           offsetof(BytecodeArray, max_arguments_)));
+    __ CalcScaledAddress(stack_addr, scratch, stack_addr,
+                         kSystemPointerSizeLog2);
+    __ SubWord(stack_addr, sp, Operand(stack_addr));
     DEFINE_REG(stack_limit);
     __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit);
     __ Branch(&stack_overflow, Uless, stack_addr, Operand(stack_limit));
