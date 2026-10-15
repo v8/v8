@@ -246,6 +246,9 @@
   # Also disabled on Mac ASAN for https://crbug.com/v8/11437.
   'regress/regress-crbug-9161': [PASS, SLOW, ['not asan or system == macos', SKIP]],
 
+  # Test is only enabled on ASAN because it relies on ASAN stack poisoning.
+  'regress/regress-532288251': [PASS, ['not asan', SKIP]],
+
   # OOM with too many isolates/memory objects (https://crbug.com/1010272)
   # Predictable tests fail due to race between postMessage and GrowMemory
   'regress/wasm/regress-1010272': [PASS, HEAVY, NO_VARIANTS, ['system == android', SKIP], ['verify_predictable', SKIP]],

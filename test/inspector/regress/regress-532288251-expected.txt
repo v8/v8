@@ -1,2 +1,0 @@
-Tests that an async WebAssembly.compile resolution after session disconnect does not crash.
-compiledCount: 2
