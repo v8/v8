@@ -4168,9 +4168,10 @@ DEFINE_STRING(redirect_code_traces_to, nullptr,
 DEFINE_DEVELOPER_FLAG(print_opt_source,
                       "print source code of optimized and inlined functions")
 
-DEFINE_BOOL(vtune_prof_annotate_wasm, false,
-            "Used when v8_enable_vtunejit is enabled, load wasm source map and "
-            "provide annotate support (experimental).")
+DEFINE_DEVELOPER_FLAG(
+    vtune_prof_annotate_wasm,
+    "Used when v8_enable_vtunejit is enabled, load wasm source map and "
+    "provide annotate support (experimental).")
 
 DEFINE_BOOL(win64_unwinding_info, true, "Enable unwinding info for Windows/x64")
 
@@ -4379,6 +4380,7 @@ DISALLOW_UNSAFE_FLAG(turbo_profiling)
 DISALLOW_UNSAFE_FLAG(turbo_profiling_verbose)
 DISALLOW_UNSAFE_FLAG(perf_prof)
 DISALLOW_UNSAFE_FLAG(perf_prof_annotate_wasm)
+DISALLOW_UNSAFE_FLAG(vtune_prof_annotate_wasm)
 // Known-broken features/configuration.
 DISALLOW_UNSAFE_FLAG(feedback_normalization)
 DISALLOW_UNSAFE_FLAG(array_destructure_bytecode)
