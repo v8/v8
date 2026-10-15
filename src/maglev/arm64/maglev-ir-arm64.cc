@@ -1214,15 +1214,18 @@ void LoadDictionaryField::GenerateCode(MaglevAssembler* masm,
     __ CompareTaggedAndJumpIf(scratch, name().object(), kNotEqual,
                               deferred_fallback);
 
-    __ LoadTaggedField(scratch, properties,
-                       NameDictionary::OffsetOfElementAt(
-                           entry_index + NameDictionary::kEntryDetailsIndex));
-    __ SmiToInt32(scratch);
-    __ And(scratch.W(), scratch.W(),
-           Immediate(PropertyDetails::KindField::kMask));
-    __ CompareInt32AndJumpIf(
-        scratch.W(), PropertyDetails::KindField::encode(PropertyKind::kData),
-        kNotEqual, deferred_fallback);
+    // PropertyDetails is stored as a Smi, so we can test the KindField bit in
+    // place without decompressing or untagging. This works for both 31-bit and
+    // 32-bit Smis because LoadTaggedFieldWithoutDecompressing loads the full
+    // tagged width and kSmiShift accounts for the Smi tag offset.
+    static_assert(PropertyDetails::KindField::kSize == 1);
+    static_assert(static_cast<int>(PropertyKind::kData) == 0);
+    __ LoadTaggedFieldWithoutDecompressing(
+        scratch, properties,
+        NameDictionary::OffsetOfElementAt(entry_index +
+                                          NameDictionary::kEntryDetailsIndex));
+    __ Tbnz(scratch, kSmiShift + PropertyDetails::KindField::kShift,
+            deferred_fallback);
 
     __ LoadTaggedField(result_reg, properties,
                        NameDictionary::OffsetOfElementAt(
