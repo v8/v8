@@ -706,9 +706,8 @@ class WasmInJsInliningInterface {
   }
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
                               Value* result) {
-    __ TrapIf(__ IsNull(obj.get<Object>(), obj.type), frame_state_,
-              TrapId::kTrapIllegalCast);
-    Forward(decoder, obj, result);
+    result->op = __ AssertNotNull(obj.get<Object>(), frame_state_, obj.type,
+                                  TrapId::kTrapIllegalCast);
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
