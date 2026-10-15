@@ -463,10 +463,6 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kInvalidAtomicAccessIndex,
       MessageTemplate::kInvalidDataViewLength,
       MessageTemplate::kInvalidIndex,
-      MessageTemplate::kInvalidLhsInAssignment,
-      MessageTemplate::kInvalidLhsInFor,
-      MessageTemplate::kInvalidLhsInPostfixOp,
-      MessageTemplate::kInvalidLhsInPrefixOp,
       MessageTemplate::kInvalidPrivateBrandReinitialization,
       MessageTemplate::kInvalidPrivateFieldReinitialization,
       MessageTemplate::kInvalidPrivateMemberWrite,
@@ -484,9 +480,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kSpreadIteratorSymbolNonCallable,
       MessageTemplate::kSymbolIteratorInvalid,
       MessageTemplate::kTopLevelAwaitStalled,
-      MessageTemplate::kUndefinedOrNullToObject,
-      MessageTemplate::kUnexpectedStrictReserved,
-      MessageTemplate::kUnexpectedTokenIdentifier};
+      MessageTemplate::kUndefinedOrNullToObject};
 
   base::Vector<const DirectHandle<String>> remaining_args = args;
   for (const char* c = template_string; *c != '\0'; c++) {

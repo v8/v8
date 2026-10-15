@@ -210,11 +210,13 @@ void Parser::ReportUnexpectedTokenAt(Scanner::Location location,
     case Token::kStatic:
     case Token::kYield:
     case Token::kFutureStrictReservedWord:
-      message = is_strict(language_mode())
-                    ? MessageTemplate::kUnexpectedStrictReserved
-                    : MessageTemplate::kUnexpectedTokenIdentifier;
-      arg = Token::String(token);
-      break;
+      if (is_strict(language_mode())) {
+        message = MessageTemplate::kUnexpectedStrictReserved;
+        break;
+      }
+      ReportMessageAt(location, MessageTemplate::kUnexpectedTokenIdentifier,
+                      GetIdentifier());
+      return;
     case Token::kTemplateSpan:
     case Token::kTemplateTail:
       message = MessageTemplate::kUnexpectedTemplateString;
@@ -455,11 +457,9 @@ Expression* Parser::BuildUnaryExpression(Expression* expression,
 }
 
 Expression* Parser::NewThrowError(Runtime::FunctionId id,
-                                  MessageTemplate message,
-                                  const AstRawString* arg, int pos) {
+                                  MessageTemplate message, int pos) {
   ScopedPtrList<Expression> args(pointer_buffer());
   args.Add(factory()->NewSmiLiteral(static_cast<int>(message), pos));
-  args.Add(factory()->NewStringLiteral(arg, pos));
   CallRuntime* call_constructor = factory()->NewCallRuntime(id, args, pos);
   return factory()->NewThrow(call_constructor, pos);
 }

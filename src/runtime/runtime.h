@@ -305,7 +305,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(NotifyContextCellStateWillChange, 1, 1,                \
     RuntimeCallProperty::kCannotTriggerGC)                 \
   F(NewError, 2, 1)                                        \
-  F(NewReferenceError, 2, 1)                               \
+  F(NewReferenceError, 1, 1)                               \
   F(NewTypeError, -1 /* [1, 4] */, 1)                      \
   F(OrdinaryHasInstance, 2, 1)                             \
   F(PropagateException, 0, 1)                              \

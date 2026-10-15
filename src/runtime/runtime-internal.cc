@@ -298,11 +298,10 @@ RUNTIME_FUNCTION(Runtime_NewTypeError) {
 
 RUNTIME_FUNCTION(Runtime_NewReferenceError) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   int template_index = args.smi_value_at(0);
-  Handle<Object> arg0 = args.at(1);
   MessageTemplate message_template = MessageTemplateFromInt(template_index);
-  return *isolate->factory()->NewReferenceError(message_template, arg0);
+  return *isolate->factory()->NewReferenceError(message_template);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
