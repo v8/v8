@@ -1067,6 +1067,14 @@ static_assert(JSObject::kHeaderSize + JSObject::kMaxEmbedderFields *
                                           kEmbedderDataSlotSizeInTaggedSlots <=
               JSObject::kMaxInstanceSize);
 
+// JSObject alias added only because of IsJSObjectExact() predicate, which
+// checks for the exact instance type JS_OBJECT_TYPE instead of a range check:
+// [FIRST_JS_OBJECT_TYPE, LAST_JS_OBJECT_TYPE].
+V8_OBJECT
+class JSObjectExact final : public JSObject {
+  V8_IT_NO_AUTO_CHECKER;
+} V8_OBJECT_END;
+
 // An abstract superclass for JSObjects that may contain EmbedderDataSlots.
 // Carries no fields itself; the in-instance tail ([embedder fields] followed
 // by [in-object properties]) is managed by the Map + BodyDescriptor and never

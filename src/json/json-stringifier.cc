@@ -573,14 +573,19 @@ bool DoNotEscape(const SrcChar* chars, size_t length,
 }
 
 bool IsFastKey(Tagged<String> key, const DisallowGarbageCollection& no_gc) {
+  uint32_t length = key->length();
+  constexpr int kExtraLength = 4; /* optional comma + 2x double quote + colon */
+  if (V8_UNLIKELY(length + kExtraLength > String::kMaxLength)) {
+    return false;
+  };
   return key->DispatchToSpecificType(
       absl::Overload{[&](Tagged<SeqOneByteString> str) {
                        const uint8_t* chars = str->GetChars(no_gc);
-                       return DoNotEscape(chars, str->length(), no_gc);
+                       return DoNotEscape(chars, length, no_gc);
                      },
                      [&](Tagged<ExternalOneByteString> str) {
                        const uint8_t* chars = str->GetChars();
-                       return DoNotEscape(chars, str->length(), no_gc);
+                       return DoNotEscape(chars, length, no_gc);
                      },
                      [&](Tagged<String> str) { return false; }});
 }
@@ -2924,7 +2929,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
                     obj, descriptor_idx + 1, nof_descriptors,
                     in_object_properties, in_object_properties_start,
                     descriptors));
-            if (IsJSObject(property)) {
+            if (IsJSObjectExact(property)) {
               stack_.emplace_back(ContinuationRecord::ForJSObject(property));
             } else if (IsJSArray(property)) {
               stack_.emplace_back(ContinuationRecord::ForJSArray(property));
