@@ -19650,17 +19650,25 @@ TEST(RegExp) {
     ExpectTrue("ex instanceof SyntaxError");
   }
 
-  // RegExp::Exec.
+  // RegExp::Exec / RegExp::ExecV2.
   {
     v8::Local<v8::RegExp> regexp =
         v8::RegExp::New(context.local(), v8_str("a.c"), {}).ToLocalChecked();
-    v8::Local<v8::Object> result0 =
-        regexp->Exec(context.local(), v8_str("abc")).ToLocalChecked();
+    v8::Local<v8::Value> result0 =
+        regexp->ExecV2(context.local(), v8_str("abc")).ToLocalChecked();
     CHECK(result0->IsArray());
-    v8::Local<v8::Object> result1 =
-        regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
-    // TODO(jgruber): Fix the API; `v8::Null` is not a valid `v8::Object`.
+    v8::Local<v8::Value> result1 =
+        regexp->ExecV2(context.local(), v8_str("abd")).ToLocalChecked();
     CHECK(result1->IsNull());
+
+    START_ALLOW_USE_DEPRECATED();
+    v8::Local<v8::Object> deprecated_result0 =
+        regexp->Exec(context.local(), v8_str("abc")).ToLocalChecked();
+    CHECK(deprecated_result0->IsArray());
+    v8::Local<v8::Object> deprecated_result1 =
+        regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
+    CHECK(deprecated_result1->IsNull());
+    END_ALLOW_USE_DEPRECATED();
   }
 }
 

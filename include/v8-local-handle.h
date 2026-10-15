@@ -56,6 +56,7 @@ class Primitive;
 class Private;
 template <class F>
 class PropertyCallbackInfo;
+class RegExp;
 template <class F>
 class ReturnValue;
 class String;
@@ -88,7 +89,6 @@ void TypeCheckLocal(V* value) {
   if constexpr (requires { T::Cast(value); }) {
     // TODO(419454582): Remove all these exceptions.
     if (std::is_same_v<ArrayBuffer, T> && value->IsSharedArrayBuffer()) return;
-    if (std::is_same_v<Object, T> && value->IsNull()) return;
     // Execute the actual check (part of the cast).
     T::Cast(value);
   }
@@ -475,6 +475,7 @@ class V8_TRIVIAL_ABI Local : public LocalBase<T>,
   friend class Context;
   friend class Isolate;
   friend class Private;
+  friend class RegExp;
   template <class F>
   friend class internal::CustomArguments;
   friend Local<Primitive> Undefined(Isolate* isolate);

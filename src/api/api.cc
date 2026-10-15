@@ -8255,6 +8255,13 @@ v8::RegExp::Flags v8::RegExp::GetFlags() const {
 
 MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
                                         Local<v8::String> subject) {
+  Local<Value> result;
+  if (!ExecV2(context, subject).ToLocal(&result)) return {};
+  return result.UnsafeAs<Object>();
+}
+
+MaybeLocal<v8::Value> v8::RegExp::ExecV2(Local<Context> context,
+                                         Local<v8::String> subject) {
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_RegExp_Exec};
 
   i::Isolate* i_isolate = api_scope.i_isolate();
@@ -8271,11 +8278,7 @@ MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
            .ToHandle(&result)) {
     return {};
   }
-  // RegExp::Exec is documented to return Null on failure, but the return type
-  // is `MaybeLocal<Object>` which cannot legally hold `Null`, thus the unsafe
-  // `Utils::Convert<Object>`.
-  // TODO(jgruber): Fix this.
-  return api_scope.Escape(Utils::Convert<i::JSAny, Object>(result));
+  return api_scope.Escape(ToApiHandle<Value>(result));
 }
 
 Local<v8::Array> v8::Array::New(Isolate* v8_isolate, int length) {
