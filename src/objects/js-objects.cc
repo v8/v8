@@ -781,7 +781,10 @@ MaybeDirectHandle<NativeContext> JSReceiver::GetFunctionRealm(
       Tagged<JSProxy> proxy = Cast<JSProxy>(current);
       if (proxy->IsRevoked()) {
         AllowGarbageCollection allow_allocating_errors;
-        THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyRevoked));
+        THROW_NEW_ERROR(
+            isolate, NewTypeError(MessageTemplate::kProxyRevoked,
+                                  isolate->factory()->NewStringFromAsciiChecked(
+                                      "GetFunctionRealm")));
       }
       current = Cast<JSReceiver>(proxy->target());
       continue;

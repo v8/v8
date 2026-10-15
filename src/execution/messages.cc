@@ -456,12 +456,7 @@ MaybeHandle<String> MessageFormatter::TryFormat(
   // TODO(14386): Get this list empty.
   static constexpr MessageTemplate kTemplatesWithMismatchedArguments[] = {
       MessageTemplate::kIncompatibleMethodReceiver,
-      MessageTemplate::kInvalidDataViewLength,
-      MessageTemplate::kNotIterable,
-      MessageTemplate::kProxyNonObject,
-      MessageTemplate::kProxyPrivate,
-      MessageTemplate::kProxyRevoked,
-      MessageTemplate::kProxyTrapReturnedFalsishFor};
+      MessageTemplate::kInvalidDataViewLength, MessageTemplate::kNotIterable};
 
   base::Vector<const DirectHandle<String>> remaining_args = args;
   for (const char* c = template_string; *c != '\0'; c++) {

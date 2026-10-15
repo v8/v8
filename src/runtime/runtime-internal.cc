@@ -161,7 +161,8 @@ Tagged<Object> NewError(Isolate* isolate, RuntimeArguments args,
   DirectHandle<Object> message_args[kMaxMessageArgs];
   int num_message_args = 0;
   while (num_message_args < kMaxMessageArgs &&
-         args.length() > num_message_args + 1) {
+         args.length() > num_message_args + 1 &&
+         !IsTheHole(args[num_message_args + 1])) {
     message_args[num_message_args] = args.at(num_message_args + 1);
     ++num_message_args;
   }
