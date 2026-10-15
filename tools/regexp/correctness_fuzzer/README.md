@@ -154,9 +154,16 @@ interactive tool, the ClusterFuzz side gains the cross-architecture comparisons
 lines during minimization.
 
 Each case prints `v8-foozzie source: regexp-fuzzer:<tag>`. Foozzie hashes the
-last label before a difference into a `regexp-<hash>` key. `harness.py`
-derives the tag from pattern metacharacters to group similar patterns,
-independent of V8 output.
+last label before a difference into a `regexp-<hash>` key. `harness.js`
+derives the tag from pattern metacharacters at run time to group similar
+patterns, independent of V8 output.
+
+Testcase files are kept small: ClusterFuzz generates thousands per fuzz task
+onto a ~100 MB partition. Each case is a whitespace-free JSON array of
+pattern, flags, subject and lastIndex, with the tag computed by the harness
+rather than stored, and the harness embedded without its comments. A
+500-case file is ~26 KB; `--cases-per-file` is the lever if the budget
+tightens further.
 
 Simulate a job locally before uploading; this is also how to judge how noisy a
 grammar change is under foozzie's rules, which unlike the interactive tool have

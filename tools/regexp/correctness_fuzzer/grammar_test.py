@@ -588,6 +588,25 @@ class TestcaseFormatTest(unittest.TestCase):
     self.assertEqual(len(self.CASES), len(body))
     self.assertTrue(all(l.endswith(",") for l in body))
 
+  def test_emitted_cases_are_compact(self):
+    # ClusterFuzz writes thousands of these files to a small partition, so the
+    # per-case encoding is pinned: no whitespace and no stored tag.
+    lines = harness.emit_js(self.CASES).splitlines()
+    start = lines.index("const cases = [")
+    self.assertEqual('["a|b","gi","ab",1],', lines[start + 1])
+    self.assertEqual('["(?<n>x)\\\\k<n>","d","xx",0],', lines[start + 3])
+
+  def test_embedded_harness_has_no_comments(self):
+    text = harness.emit_js(self.CASES)
+    _, _, tail = text.partition("\n];\n")
+    self.assertTrue(tail)
+    for line in tail.splitlines():
+      self.assertFalse(line.lstrip().startswith("//"), line)
+      self.assertTrue(line.strip(), "blank line in embedded harness")
+    # The stripped copy is still the whole harness.
+    self.assertIn("function execOnce(", tail)
+    self.assertIn("function sourceTag(", tail)
+
   def test_cases_round_trip(self):
     text = harness.emit_js(self.CASES)
     self.assertEqual(self.CASES, harness.parse_testcase(text))
@@ -603,14 +622,6 @@ class TestcaseFormatTest(unittest.TestCase):
   def test_parser_rejects_a_foreign_file(self):
     with self.assertRaises(ValueError):
       harness.parse_testcase("print('not a fuzzer testcase');\n")
-
-  def test_tag_keeps_shape_and_drops_literals(self):
-    self.assertEqual(
-        harness.source_tag("(ab|cd)+\\d", "gi"),
-        harness.source_tag("(xy|zw)+\\d", "ig"))
-    self.assertEqual(harness.source_tag("\\.", ""), "/")
-    self.assertEqual(harness.source_tag("\\w\\1", ""), "/\\w\\1")
-    self.assertLessEqual(len(harness.source_tag("(" * 500, "")), 41)
 
 
 class FlagsFileTest(unittest.TestCase):
@@ -656,6 +667,55 @@ class GeneratedPatternTest(unittest.TestCase):
     # after this module is imported, so a decorator would capture None.
     if D8 is None:
       self.skipTest("needs --d8")
+
+  def test_source_tag_keeps_shape_and_drops_literals(self):
+    # The foozzie clustering tag is computed by harness.js so that it is not
+    # stored per case; check it through d8, which is the only place it exists.
+    cases = [
+        ["(ab|cd)+\\d", "gi", "", 0],
+        ["(xy|zw)+\\d", "ig", "", 0],
+        ["\\.", "", "", 0],
+        ["\\w\\1", "", "", 0],
+        ["(" * 500, "", "", 0],
+        [r"\d" * 41, "", "", 0],
+        ["(" * 39 + r"\d+", "", "", 0],
+        ["\\", "", "", 0],
+    ]
+    fd, path = tempfile.mkstemp(prefix="grammar_test_", suffix=".js")
+    try:
+      with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(harness.emit_js(cases))
+      p = subprocess.run([D8, path], capture_output=True, text=True, timeout=60)
+    finally:
+      os.unlink(path)
+    self.assertEqual(0, p.returncode, p.stdout + p.stderr)
+    prefix = "v8-foozzie source: regexp-fuzzer:"
+    tags = [
+        l[len(prefix):] for l in p.stdout.splitlines() if l.startswith(prefix)
+    ]
+    self.assertEqual(len(cases), len(tags), p.stdout)
+    self.assertEqual("gi/(|)+\\d", tags[0])
+    self.assertEqual(tags[0], tags[1])
+    self.assertEqual("/", tags[2])
+    self.assertEqual("/\\w\\1", tags[3])
+    self.assertLessEqual(len(tags[4]), 41)
+    self.assertEqual("/" + r"\d" * 40, tags[5])
+    self.assertEqual("/" + "(" * 39 + r"\d", tags[6])
+    self.assertEqual("/", tags[7])
+
+  def test_source_tag_does_not_execute_regexp(self):
+    script = harness.emit_js([]) + r'''
+      RegExp.prototype.exec = RegExp.prototype.test = function() {
+        throw new Error("sourceTag executed a regexp");
+      };
+      print(sourceTag("\\0\\9\\A\\Z\\a\\z\\/\\:\\@\\[\\`\\{\\é", "ig"));
+    '''
+    p = subprocess.run([D8, "-e", script],
+                       capture_output=True,
+                       text=True,
+                       timeout=60)
+    self.assertEqual(0, p.returncode, p.stdout + p.stderr)
+    self.assertEqual(["DONE", r"gi/\0\9\A\Z\a\z"], p.stdout.splitlines())
 
   def test_printed_literals_preserve_matches(self):
     atoms = ("0", "d", "\\", "/", "[", "]", '"', "\n", "\r", "\t", "\u2028",

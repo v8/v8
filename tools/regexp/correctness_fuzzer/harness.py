@@ -7,13 +7,19 @@ Local and ClusterFuzz drivers use this format:
 
   // <header lines, if any>
   const cases = [
-  ["<pattern>", "<flags>", "<subject>", <lastIndex>, "<tag>"],
+  ["<pattern>","<flags>","<subject>",<lastIndex>],
   ...
   ];
-  <harness.js verbatim>
+  <harness.js, comment-only and blank lines stripped>
 
 Each case occupies one line and ends with a comma for line-based minimization.
 json.dumps escapes non-ASCII characters and lone surrogates.
+
+ClusterFuzz writes thousands of these files per fuzz task to a small
+partition, so a case stores only what the engine needs: no JSON whitespace,
+and the foozzie source tag is derived from the pattern by harness.js at run
+time rather than stored next to each case.  The harness is embedded without
+its comments for the same reason.
 """
 
 import json
@@ -24,28 +30,16 @@ HARNESS_PATH = Path(__file__).resolve().parent / "harness.js"
 _CASES_OPEN = "const cases = ["
 _CASES_CLOSE = "];"
 
-# Characters kept when reducing a pattern to its shape for the dedup tag.
-_STRUCTURAL = set("()[]{}|*+?^$.-&!=<>:,")
-_TAG_MAX = 40
 
+def _compact_harness():
+  """harness.js with comment-only and blank lines removed.
 
-def source_tag(pattern, flags):
-  """Return a bounded source tag that groups patterns by structure."""
-  out = []
-  i = 0
-  while i < len(pattern) and len(out) < _TAG_MAX:
-    c = pattern[i]
-    if c == "\\":
-      nxt = pattern[i + 1] if i + 1 < len(pattern) else ""
-      # Keep ASCII alphanumeric escapes; other escaped characters are literals.
-      if nxt.isascii() and nxt.isalnum():
-        out.append(c + nxt)
-      i += 2
-      continue
-    if c in _STRUCTURAL:
-      out.append(c)
-    i += 1
-  return "".join(sorted(flags)) + "/" + "".join(out)
+  Only whole lines starting with `//` are dropped, so a `//` inside a string
+  or regexp literal cannot be touched.  harness.js has no block comments.
+  """
+  lines = HARNESS_PATH.read_text(encoding="utf-8").splitlines()
+  return "\n".join(
+      l for l in lines if l.strip() and not l.lstrip().startswith("//"))
 
 
 def emit_js(cases, header=()):
@@ -54,11 +48,11 @@ def emit_js(cases, header=()):
   lines.append(_CASES_OPEN)
   for pattern, flags, subject, last_index in cases:
     lines.append(
-        json.dumps(
-            [pattern, flags, subject, last_index,
-             source_tag(pattern, flags)]) + ",")
+        json.dumps([pattern, flags, subject, last_index], separators=(",",
+                                                                      ":")) +
+        ",")
   lines.append(_CASES_CLOSE)
-  lines.append(HARNESS_PATH.read_text(encoding="utf-8"))
+  lines.append(_compact_harness())
   return "\n".join(lines)
 
 

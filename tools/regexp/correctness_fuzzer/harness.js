@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Runs [pattern, flags, subject, lastIndex, tag] cases.  Each result is
+// Runs [pattern, flags, subject, lastIndex] cases.  Each result is
 // "<index>\t<json>": null, "ERR_CTOR", "ERR_EXEC:<name>", or
 // {r:[captures], idx, li}.  Constructor and exec errors do not abort the batch.
 //
-// harness.py prepends `const cases = [...]`; local and ClusterFuzz drivers use
-// the resulting script.
+// harness.py prepends `const cases = [...]` and strips these comments; local
+// and ClusterFuzz drivers use the resulting script.
 //
 // lastIndex is set before exec and read back after: for a sticky or global
 // pattern it selects where the attempt starts and is updated by the result, so
@@ -20,13 +20,11 @@
 // reaches the second object through the compilation cache, so the second runs
 // warm along paths a single-shot run would never take.
 //
-// Foozzie uses the tag as a source key for failure clustering.  The
+// Foozzie uses the source tag as a key for failure clustering.  The
 // regexp-fuzzer namespace separates it from JavaScript fuzzer source keys.
 for (let i = 0; i < cases.length; i++) {
-  const [pat, flags, sub, lastIndex, tag] = cases[i];
-  if (tag !== undefined) {
-    print("v8-foozzie source: regexp-fuzzer:" + tag);
-  }
+  const [pat, flags, sub, lastIndex] = cases[i];
+  print("v8-foozzie source: regexp-fuzzer:" + sourceTag(pat, flags));
   let out;
   try {
     const cold = execOnce(pat, flags, sub, lastIndex);
@@ -58,4 +56,25 @@ function execOnce(pat, flags, sub, lastIndex) {
   }
   if (m.groups !== undefined) r.g = m.groups;
   return r;
+}
+
+// A bounded tag that groups patterns by structure: the sorted flags, then
+// the pattern reduced to its metacharacters and ASCII alphanumeric escapes
+// (\d, \1, \p...), with literals dropped. Each escape counts as one token.
+// Avoid regexp execution so tags do not depend on the engine being tested.
+function sourceTag(pat, flags) {
+  const structural = "()[]{}|*+?^$.-&!=<>:,";
+  const out = [];
+  for (let i = 0; i < pat.length && out.length < 40; i++) {
+    const c = pat[i];
+    if (c === "\\") {
+      const nxt = pat[++i];
+      // Keep ASCII alphanumeric escapes; other escaped characters are literals.
+      if ((nxt >= "0" && nxt <= "9") || (nxt >= "A" && nxt <= "Z") ||
+          (nxt >= "a" && nxt <= "z")) out.push(c + nxt);
+      continue;
+    }
+    if (structural.includes(c)) out.push(c);
+  }
+  return Array.from(flags).sort().join("") + "/" + out.join("");
 }
