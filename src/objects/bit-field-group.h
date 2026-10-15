@@ -18,10 +18,10 @@ namespace v8::internal {
 //   class Map {
 //     struct Bits1 : BitFieldGroup<Bits1, uint8_t> {
 //       using BitFieldGroup::BitFieldGroup;
-//       using IsCallableBit = base::BitField<bool, 0, 1, uint8_t>;
+//       using IsCallableBit = First<bool, 1>;
 //       using IsUndetectableBit = IsCallableBit::Next<bool, 1>;
-//       BIT_FIELD_GETTER(is_callable, IsCallableBit)
-//       BIT_FIELD_GETTER(is_undetectable, IsUndetectableBit)
+//       BIT_FIELD_GROUP_ACCESSORS(is_callable, IsCallableBit)
+//       BIT_FIELD_GROUP_ACCESSORS(is_undetectable, IsUndetectableBit)
 //     };
 //     std::atomic<Bits1> bit_field_;
 //   };
@@ -49,6 +49,9 @@ class BitFieldGroup {
   static_assert(std::is_unsigned_v<U>);
 
   using UnderlyingType = U;
+
+  template <typename T, int size>
+  using First = base::BitField<T, 0, size, U>;
 
   constexpr BitFieldGroup() = default;
   // NOLINTNEXTLINE(runtime/explicit)

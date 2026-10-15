@@ -7521,9 +7521,9 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
           buffer, effect, control);
       Node* check = graph()->NewNode(
           simplified()->NumberEqual(),
-          graph()->NewNode(
-              simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->ConstantNoHole(JSArrayBuffer::WasDetachedBit::kMask)),
+          graph()->NewNode(simplified()->NumberBitwiseAnd(), buffer_bit_field,
+                           jsgraph()->ConstantNoHole(
+                               JSArrayBuffer::Bits::WasDetachedBit::kMask)),
           jsgraph()->ZeroConstant());
       effect = graph()->NewNode(
           simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,

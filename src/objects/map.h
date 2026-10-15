@@ -338,7 +338,7 @@ V8_OBJECT class Map : public HeapObject {
   struct Bits1 : BitFieldGroup<Bits1, uint8_t> {
     using BitFieldGroup::BitFieldGroup;
 
-    using IsCallableBit = base::BitField<bool, 0, 1, uint8_t>;
+    using IsCallableBit = First<bool, 1>;
     using IsUndetectableBit = IsCallableBit::Next<bool, 1>;
     using HasNamedInterceptorBit = IsUndetectableBit::Next<bool, 1>;
     using IsAccessCheckNeededBit = HasNamedInterceptorBit::Next<bool, 1>;
@@ -346,13 +346,13 @@ V8_OBJECT class Map : public HeapObject {
     using IsConstructorBit = HasIndexedInterceptorBit::Next<bool, 1>;
     using IsExtendedMapBit = IsConstructorBit::Next<bool, 1>;
 
-    BIT_FIELD_GETTER(is_callable, IsCallableBit)
-    BIT_FIELD_GETTER(is_undetectable, IsUndetectableBit)
-    BIT_FIELD_GETTER(has_named_interceptor, HasNamedInterceptorBit)
-    BIT_FIELD_GETTER(is_access_check_needed, IsAccessCheckNeededBit)
-    BIT_FIELD_GETTER(has_indexed_interceptor, HasIndexedInterceptorBit)
-    BIT_FIELD_GETTER(is_constructor, IsConstructorBit)
-    BIT_FIELD_GETTER(is_extended_map, IsExtendedMapBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_callable, IsCallableBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_undetectable, IsUndetectableBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_named_interceptor, HasNamedInterceptorBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_access_check_needed, IsAccessCheckNeededBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_indexed_interceptor, HasIndexedInterceptorBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_constructor, IsConstructorBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_extended_map, IsExtendedMapBit)
   };
 
   // Bit field.
@@ -373,13 +373,13 @@ V8_OBJECT class Map : public HeapObject {
   struct Bits2 : BitFieldGroup<Bits2, uint8_t> {
     using BitFieldGroup::BitFieldGroup;
 
-    using NewTargetIsBaseBit = base::BitField<bool, 0, 1, uint8_t>;
+    using NewTargetIsBaseBit = First<bool, 1>;
     using IsImmutablePrototypeBit = NewTargetIsBaseBit::Next<bool, 1>;
     using ElementsKindBits = IsImmutablePrototypeBit::Next<ElementsKind, 6>;
 
-    BIT_FIELD_GETTER(new_target_is_base, NewTargetIsBaseBit)
-    BIT_FIELD_GETTER(is_immutable_prototype, IsImmutablePrototypeBit)
-    BIT_FIELD_GETTER(elements_kind, ElementsKindBits)
+    BIT_FIELD_GROUP_ACCESSORS(new_target_is_base, NewTargetIsBaseBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_immutable_prototype, IsImmutablePrototypeBit)
+    BIT_FIELD_GROUP_ACCESSORS(elements_kind, ElementsKindBits)
   };
 
   DECL_PRIMITIVE_ACCESSORS(bit_field2, Bits2)
@@ -391,7 +391,7 @@ V8_OBJECT class Map : public HeapObject {
   struct Bits3 : BitFieldGroup<Bits3, uint32_t> {
     using BitFieldGroup::BitFieldGroup;
 
-    using EnumLengthBits = base::BitField<int32_t, 0, 10, uint32_t>;
+    using EnumLengthBits = First<int32_t, 10>;
     using NumberOfOwnDescriptorsBits = EnumLengthBits::Next<int32_t, 10>;
     using IsPrototypeMapBit = NumberOfOwnDescriptorsBits::Next<bool, 1>;
     using IsDictionaryMapBit = IsPrototypeMapBit::Next<bool, 1>;
@@ -405,19 +405,20 @@ V8_OBJECT class Map : public HeapObject {
     using ConstructionCounterBits =
         MayHaveInterestingPropertiesBit::Next<int32_t, 3>;
 
-    BIT_FIELD_GETTER(enum_length, EnumLengthBits)
-    BIT_FIELD_GETTER(number_of_own_descriptors, NumberOfOwnDescriptorsBits)
-    BIT_FIELD_GETTER(is_prototype_map, IsPrototypeMapBit)
-    BIT_FIELD_GETTER(is_dictionary_map, IsDictionaryMapBit)
-    BIT_FIELD_GETTER(owns_descriptors, OwnsDescriptorsBit)
-    BIT_FIELD_GETTER(is_in_retained_map_list, IsInRetainedMapListBit)
-    BIT_FIELD_GETTER(is_deprecated, IsDeprecatedBit)
-    BIT_FIELD_GETTER(is_unstable, IsUnstableBit)
-    BIT_FIELD_GETTER(is_migration_target, IsMigrationTargetBit)
-    BIT_FIELD_GETTER(is_extensible, IsExtensibleBit)
-    BIT_FIELD_GETTER(may_have_interesting_properties,
-                     MayHaveInterestingPropertiesBit)
-    BIT_FIELD_GETTER(construction_counter, ConstructionCounterBits)
+    BIT_FIELD_GROUP_ACCESSORS(enum_length, EnumLengthBits)
+    BIT_FIELD_GROUP_ACCESSORS(number_of_own_descriptors,
+                              NumberOfOwnDescriptorsBits)
+    BIT_FIELD_GROUP_ACCESSORS(is_prototype_map, IsPrototypeMapBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_dictionary_map, IsDictionaryMapBit)
+    BIT_FIELD_GROUP_ACCESSORS(owns_descriptors, OwnsDescriptorsBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_in_retained_map_list, IsInRetainedMapListBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_deprecated, IsDeprecatedBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_unstable, IsUnstableBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_migration_target, IsMigrationTargetBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_extensible, IsExtensibleBit)
+    BIT_FIELD_GROUP_ACCESSORS(may_have_interesting_properties,
+                              MayHaveInterestingPropertiesBit)
+    BIT_FIELD_GROUP_ACCESSORS(construction_counter, ConstructionCounterBits)
   };
 
   // Ensure that Torque-defined bit widths for |bit_field3| are as expected.
@@ -1268,11 +1269,11 @@ V8_ABSTRACT_OBJECT class ExtendedMap : public Map {
   struct BitsEx : BitFieldGroup<BitsEx, uint8_t> {
     using BitFieldGroup::BitFieldGroup;
 
-    using MapKindBits = base::BitField<ExtendedMapKind, 0, 3, uint8_t>;
+    using MapKindBits = First<ExtendedMapKind, 3>;
     using MapSizeInWordsBits = MapKindBits::Next<uint8_t, 5>;
 
-    BIT_FIELD_GETTER(map_kind, MapKindBits)
-    BIT_FIELD_GETTER(map_size_in_words, MapSizeInWordsBits)
+    BIT_FIELD_GROUP_ACCESSORS(map_kind, MapKindBits)
+    BIT_FIELD_GROUP_ACCESSORS(map_size_in_words, MapSizeInWordsBits)
   };
 
   inline BitsEx bit_field_ex() const;

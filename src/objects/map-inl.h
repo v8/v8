@@ -349,7 +349,7 @@ void Map::SetNumberOfOwnDescriptors(int number) {
   CHECK_LE(static_cast<unsigned>(number),
            static_cast<unsigned>(kMaxNumberOfDescriptors));
   set_release_acquire_bit_field3(
-      bit_field3().with<Bits3::NumberOfOwnDescriptorsBits>(number));
+      bit_field3().with_number_of_own_descriptors(number));
 }
 
 InternalIndex::Range Map::IterateOwnDescriptors() const {
@@ -364,7 +364,7 @@ void Map::SetEnumLength(int length) {
     CHECK_LE(static_cast<unsigned>(length),
              static_cast<unsigned>(kMaxNumberOfDescriptors));
   }
-  set_relaxed_bit_field3(bit_field3().with<Bits3::EnumLengthBits>(length));
+  set_relaxed_bit_field3(bit_field3().with_enum_length(length));
 }
 
 Tagged<FixedArrayBase> Map::GetInitialElements() const {
@@ -777,7 +777,7 @@ bool Map::TryGetValidityCellHolderMap(
 
 void Map::set_elements_kind(ElementsKind elements_kind) {
   CHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
-  set_bit_field2(bit_field2().with<Bits2::ElementsKindBits>(elements_kind));
+  set_bit_field2(bit_field2().with_elements_kind(elements_kind));
 }
 
 ElementsKind Map::elements_kind() const { return bit_field2().elements_kind(); }
@@ -856,9 +856,8 @@ bool Map::has_shared_array_elements() const {
 }
 
 void Map::set_is_dictionary_map(bool value) {
-  set_bit_field3(bit_field3()
-                     .with<Bits3::IsDictionaryMapBit>(value)
-                     .with<Bits3::IsUnstableBit>(value));
+  set_bit_field3(
+      bit_field3().with_is_dictionary_map(value).with_is_unstable(value));
 }
 
 bool Map::is_dictionary_map() const {
@@ -866,7 +865,7 @@ bool Map::is_dictionary_map() const {
 }
 
 void Map::mark_unstable() {
-  set_release_acquire_bit_field3(bit_field3().with<Bits3::IsUnstableBit>(true));
+  set_release_acquire_bit_field3(bit_field3().with_is_unstable(true));
 }
 
 bool Map::is_stable() const {
@@ -1310,9 +1309,8 @@ void ExtendedMap::set_map_kind_and_size(ExtendedMapKind kind,
   int size_in_words = size_in_bytes >> kTaggedSizeLog2;
   CHECK_LE(static_cast<unsigned>(size_in_words), kMaxUInt8);
 
-  set_relaxed_bit_field_ex(
-      BitsEx().with<BitsEx::MapKindBits>(kind).with<BitsEx::MapSizeInWordsBits>(
-          static_cast<uint8_t>(size_in_words)));
+  set_relaxed_bit_field_ex(BitsEx().with_map_kind(kind).with_map_size_in_words(
+      static_cast<uint8_t>(size_in_words)));
 }
 
 int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,

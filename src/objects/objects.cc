@@ -4089,7 +4089,7 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   set_number_of_all_descriptors(nof_descriptors + slack, kReleaseStore);
   set_number_of_descriptors(nof_descriptors);
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
-  set_flags(FastIterableBits::encode(FastIterableState::kUnknown),
+  set_flags(Flags().with_fast_iterable(FastIterableState::kUnknown),
             kRelaxedStore);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);
@@ -4671,7 +4671,7 @@ v8::Promise::PromiseState JSPromise::status() const {
 }
 
 void JSPromise::set_status(Promise::PromiseState status) {
-  set_flags(flags().with<Flags::StatusBits>(status));
+  set_flags(flags().with_status(status));
 }
 
 // static

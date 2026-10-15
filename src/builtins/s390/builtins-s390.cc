@@ -124,7 +124,8 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
   DCHECK(!AreAliased(feedback_vector, scratch));
   __ LoadU8(scratch, FieldMemOperand(feedback_vector,
                                      offsetof(FeedbackVector, osr_state_)));
-  __ AndP(scratch, scratch, Operand(~FeedbackVector::OsrUrgencyBits::kMask));
+  __ AndP(scratch, scratch,
+          Operand(~FeedbackVector::OsrState::OsrUrgencyBits::kMask));
   __ StoreU8(scratch, FieldMemOperand(feedback_vector,
                                       offsetof(FeedbackVector, osr_state_)));
 }

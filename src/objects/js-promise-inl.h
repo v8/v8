@@ -54,7 +54,7 @@ bool JSPromise::has_async_task_id() const {
 uint32_t JSPromise::async_task_id() const { return flags().async_task_id(); }
 
 void JSPromise::set_async_task_id(uint32_t id) {
-  set_flags(flags().with<Flags::AsyncTaskIdBits>(id));
+  set_flags(flags().with_async_task_id(id));
 }
 
 Tagged<Object> JSPromise::result() const {

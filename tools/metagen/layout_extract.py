@@ -366,7 +366,9 @@ class _Extractor:
         bits=tuple(bits))
 
   def _bit_field_type(self, t: cindex.Type) -> str:
-    """The C++ name of one bit field's value type."""
+    """The C++ name of one bit field's value type. A base::StrongAlias
+    (SharedFlag, ResizableFlag, ...) is its underlying type; Torque
+    declares such fields as that type."""
     canonical = t.get_canonical()
     if canonical.kind == cindex.TypeKind.BOOL:
       return "bool"
@@ -374,6 +376,16 @@ class _Extractor:
       decl = canonical.get_declaration()
       mark_visited(self.parsed, decl)
       return decl.spelling
+    if canonical.kind == cindex.TypeKind.RECORD:
+      decl = _decl_of(canonical)
+      if decl is not None and decl.spelling == "StrongAlias":
+        mark_visited(self.parsed, decl)
+        args = _template_args(canonical)
+        if len(args) == 2:
+          return self._bit_field_type(args[1])
+      raise LayoutError(f"unsupported bit field type {t.spelling!r}; only "
+                        f"bool, enums, integers and base::StrongAlias of "
+                        f"those are supported")
     return self._cpp_int_type_of(t).name
 
   def _is_trusted_space_scheme(self, field: cindex.Cursor,

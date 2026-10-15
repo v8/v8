@@ -16,6 +16,7 @@
 #include "src/base/small-vector.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/map.h"
@@ -310,19 +311,37 @@ V8_OBJECT class FeedbackVector : public HeapObject {
       Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array,
       Tagged<FeedbackCell> parent_feedback_cell);
 
-  // Bit positions in |osr_state|.
-  using OsrUrgencyBits = base::BitField<uint32_t, 0, 3, uint8_t>;
-  using MaybeHasTurbofanOsrCodeBit = OsrUrgencyBits::Next<bool, 1>;
-  using MaybeHasMaglevOsrCodeBit = MaybeHasTurbofanOsrCodeBit::Next<bool, 1>;
-  using DontUseTheseBitsUnlessBeneficialBits =
-      MaybeHasMaglevOsrCodeBit::Next<uint32_t, 3>;
-  // Bit positions in |flags|.
-  using TieringInProgressBit = base::BitField<bool, 0, 1, uint16_t>;
-  using OsrTieringInProgressBit = TieringInProgressBit::Next<bool, 1>;
-  using InterruptBudgetResetByIcChangeBit =
-      OsrTieringInProgressBit::Next<bool, 1>;
-  using AllYourBitsAreBelongToJgruberBits =
-      InterruptBudgetResetByIcChangeBit::Next<uint32_t, 13>;
+  struct OsrState : BitFieldGroup<OsrState, uint8_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using OsrUrgencyBits = First<uint32_t, 3>;
+    using MaybeHasTurbofanOsrCodeBit = OsrUrgencyBits::Next<bool, 1>;
+    using MaybeHasMaglevOsrCodeBit = MaybeHasTurbofanOsrCodeBit::Next<bool, 1>;
+    using DontUseTheseBitsUnlessBeneficialBits =
+        MaybeHasMaglevOsrCodeBit::Next<uint32_t, 3>;
+
+    BIT_FIELD_GROUP_ACCESSORS(osr_urgency, OsrUrgencyBits)
+    BIT_FIELD_GROUP_ACCESSORS(maybe_has_turbofan_osr_code,
+                              MaybeHasTurbofanOsrCodeBit)
+    BIT_FIELD_GROUP_ACCESSORS(maybe_has_maglev_osr_code,
+                              MaybeHasMaglevOsrCodeBit)
+  };
+
+  struct Flags : BitFieldGroup<Flags, uint16_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using TieringInProgressBit = First<bool, 1>;
+    using OsrTieringInProgressBit = TieringInProgressBit::Next<bool, 1>;
+    using InterruptBudgetResetByIcChangeBit =
+        OsrTieringInProgressBit::Next<bool, 1>;
+    using AllYourBitsAreBelongToJgruberBits =
+        InterruptBudgetResetByIcChangeBit::Next<uint32_t, 13>;
+
+    BIT_FIELD_GROUP_ACCESSORS(tiering_in_progress, TieringInProgressBit)
+    BIT_FIELD_GROUP_ACCESSORS(osr_tiering_in_progress, OsrTieringInProgressBit)
+    BIT_FIELD_GROUP_ACCESSORS(interrupt_budget_reset_by_ic_change,
+                              InterruptBudgetResetByIcChangeBit)
+  };
 
   inline bool is_empty() const;
 
@@ -345,11 +364,11 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   inline void set_invocation_count_before_stable(uint8_t value,
                                                  RelaxedStoreTag);
 
-  inline uint8_t osr_state() const;
-  inline void set_osr_state(uint8_t value);
+  inline OsrState osr_state() const;
+  inline void set_osr_state(OsrState value);
 
-  inline uint16_t flags() const;
-  inline void set_flags(uint16_t value);
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   inline Tagged<SharedFunctionInfo> shared_function_info() const;
 
@@ -365,7 +384,7 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   // the function becomes hotter. When the current loop depth is less than the
   // osr_urgency, JumpLoop calls into runtime to attempt OSR optimization.
   static constexpr int kMaxOsrUrgency = 6;
-  static_assert(OsrUrgencyBits::is_valid(kMaxOsrUrgency));
+  static_assert(OsrState::OsrUrgencyBits::is_valid(kMaxOsrUrgency));
   inline int osr_urgency() const;
   inline void set_osr_urgency(int urgency);
   inline void reset_osr_urgency();
@@ -553,8 +572,8 @@ V8_OBJECT class FeedbackVector : public HeapObject {
   const uint32_t optional_padding_ = 0;
 #endif
   std::atomic<uint8_t> invocation_count_before_stable_ = 0;
-  uint8_t osr_state_ V8_TQ_TYPE(OsrState) = 0;
-  uint16_t flags_ V8_TQ_TYPE(FeedbackVectorFlags) = 0;
+  OsrState osr_state_;
+  Flags flags_;
   const TaggedMember<SharedFunctionInfo> shared_function_info_;
   const TaggedMember<ClosureFeedbackCellArray> closure_feedback_cell_array_;
   const TaggedMember<FeedbackCell> parent_feedback_cell_;

@@ -392,7 +392,7 @@ void FeedbackVector::AddToVectorsForProfilingTools(
 }
 
 void FeedbackVector::set_tiering_in_progress(bool in_progress) {
-  set_flags(TieringInProgressBit::update(flags(), in_progress));
+  set_flags(flags().with_tiering_in_progress(in_progress));
 }
 
 void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
@@ -415,11 +415,11 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
 }
 
 bool FeedbackVector::osr_tiering_in_progress() {
-  return OsrTieringInProgressBit::decode(flags());
+  return flags().osr_tiering_in_progress();
 }
 
 void FeedbackVector::set_osr_tiering_in_progress(bool osr_in_progress) {
-  set_flags(OsrTieringInProgressBit::update(flags(), osr_in_progress));
+  set_flags(flags().with_osr_tiering_in_progress(osr_in_progress));
 }
 
 bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {

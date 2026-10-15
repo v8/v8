@@ -1875,7 +1875,8 @@ DirectHandle<AccessorInfo> Factory::NewAccessorInfo() {
   DisallowGarbageCollection no_gc;
   info->set_data(*undefined_value(), SKIP_WRITE_BARRIER);
   info->set_name(*empty_string(), SKIP_WRITE_BARRIER);
-  info->set_flags(0);  // Must clear the flags, it was initialized as undefined.
+  // Must clear the flags, it was initialized as undefined.
+  info->set_flags(AccessorInfo::Flags());
   info->set_is_sloppy(true);
   info->set_initial_property_attributes(NONE);
 
@@ -1898,7 +1899,7 @@ DirectHandle<InterceptorInfo> Factory::NewInterceptorInfo(
   DisallowGarbageCollection no_gc;
   info->set_data(*undefined_value());
   info->set_flags(
-      InterceptorInfo::NamedBit::encode(kind == InterceptorKind::kNamed));
+      InterceptorInfo::Flags().with_named(kind == InterceptorKind::kNamed));
   info->clear_padding();
 
   // Initialization of these lazy-initialized callback fields is the same

@@ -41,17 +41,18 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
   // Flags layout.
   struct Flags : BitFieldGroup<Flags, uint32_t> {
     using BitFieldGroup::BitFieldGroup;
-    using StatusBits = base::BitField<Promise::PromiseState, 0, 2, uint32_t>;
+    using StatusBits = First<Promise::PromiseState, 2>;
     using IsNativeResolverInvokedBit = StatusBits::Next<bool, 1>;
     using HasHandlerBit = IsNativeResolverInvokedBit::Next<bool, 1>;
     using IsSilentBit = HasHandlerBit::Next<bool, 1>;
     using AsyncTaskIdBits = IsSilentBit::Next<uint32_t, 26>;
 
-    BIT_FIELD_GETTER(status, StatusBits)
-    BIT_FIELD_GETTER(is_native_resolver_invoked, IsNativeResolverInvokedBit)
-    BIT_FIELD_GETTER(has_handler, HasHandlerBit)
-    BIT_FIELD_GETTER(is_silent, IsSilentBit)
-    BIT_FIELD_GETTER(async_task_id, AsyncTaskIdBits)
+    BIT_FIELD_GROUP_ACCESSORS(status, StatusBits)
+    BIT_FIELD_GROUP_ACCESSORS(is_native_resolver_invoked,
+                              IsNativeResolverInvokedBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_handler, HasHandlerBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_silent, IsSilentBit)
+    BIT_FIELD_GROUP_ACCESSORS(async_task_id, AsyncTaskIdBits)
   };
 
   static_assert(v8::Promise::kPending == 0);

@@ -859,7 +859,7 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
                                    Register feedback_vector, Register scratch) {
   __ mov_b(scratch,
            FieldOperand(feedback_vector, offsetof(FeedbackVector, osr_state_)));
-  __ and_(scratch, Immediate(~FeedbackVector::OsrUrgencyBits::kMask));
+  __ and_(scratch, Immediate(~FeedbackVector::OsrState::OsrUrgencyBits::kMask));
   __ mov_b(FieldOperand(feedback_vector, offsetof(FeedbackVector, osr_state_)),
            scratch);
 }

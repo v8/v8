@@ -11,6 +11,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
 #include "src/utils/utils.h"
@@ -312,10 +313,20 @@ inline bool IsUniqueName(Tagged<Name> obj);
 // ES6 symbols.
 V8_OBJECT class Symbol : public Name {
  public:
-  using PrivateSymbolKindBits = base::BitField<PrivateSymbolKind, 0, 2>;
-  using IsWellKnownSymbolBit = PrivateSymbolKindBits::Next<bool, 1>;
-  using IsInPublicSymbolTableBit = IsWellKnownSymbolBit::Next<bool, 1>;
-  using IsInterestingSymbolBit = IsInPublicSymbolTableBit::Next<bool, 1>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using PrivateSymbolKindBits = First<PrivateSymbolKind, 2>;
+    using IsWellKnownSymbolBit = PrivateSymbolKindBits::Next<bool, 1>;
+    using IsInPublicSymbolTableBit = IsWellKnownSymbolBit::Next<bool, 1>;
+    using IsInterestingSymbolBit = IsInPublicSymbolTableBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(private_symbol_kind, PrivateSymbolKindBits)
+    BIT_FIELD_GROUP_ACCESSORS(is_well_known_symbol, IsWellKnownSymbolBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_in_public_symbol_table,
+                              IsInPublicSymbolTableBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_interesting_symbol, IsInterestingSymbolBit)
+  };
 
   inline Tagged<UnionOf<String, Undefined>> description() const;
   inline void set_description(Tagged<UnionOf<String, Undefined>> value,
@@ -375,12 +386,12 @@ V8_OBJECT class Symbol : public Name {
   // TODO(cbruni): remove once the new maptracer is in place.
   friend class Name;  // For PrivateSymbolToName.
 
-  uint32_t flags() const { return flags_; }
-  void set_flags(uint32_t value) { flags_ = value; }
+  Flags flags() const { return flags_; }
+  void set_flags(Flags value) { flags_ = value; }
 
   const char* PrivateSymbolToName() const;
 
-  uint32_t flags_ V8_TQ_TYPE(SymbolFlags);
+  Flags flags_;
   TaggedMember<UnionOf<String, Undefined>> description_;
 } V8_OBJECT_END;
 

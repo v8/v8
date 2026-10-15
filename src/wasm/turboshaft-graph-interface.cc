@@ -1879,9 +1879,9 @@ class TurboshaftGraphBuildingInterface
     V<Word32> bit_field = __ LoadField<Word32>(
         dataview, AccessBuilder::ForJSArrayBufferViewBitField());
     V<Word32> length_tracking = __ Word32BitwiseAnd(
-        bit_field, JSArrayBufferView::IsLengthTrackingBit::kMask);
+        bit_field, JSArrayBufferView::Bits::IsLengthTrackingBit::kMask);
     V<Word32> backed_by_rab_bit = __ Word32BitwiseAnd(
-        bit_field, JSArrayBufferView::IsBackedByRabBit::kMask);
+        bit_field, JSArrayBufferView::Bits::IsBackedByRabBit::kMask);
 
     V<Object> buffer = __ LoadField<Object>(
         dataview, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());

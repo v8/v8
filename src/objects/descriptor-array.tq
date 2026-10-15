@@ -19,7 +19,7 @@ struct DescriptorEntry {
 type FastIterableState extends uint8
     constexpr 'DescriptorArray::FastIterableState';
 
-@cppScope('DescriptorArray')
+@cppScope('DescriptorArray::Flags')
 bitfield struct DescriptorArrayFlags extends uint32 {
   fast_iterable: FastIterableState: 2 bit;
 }

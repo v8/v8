@@ -1335,13 +1335,13 @@ Handle<Map> Map::RawCopy(Isolate* isolate, DirectHandle<Map> src_handle,
     raw->set_bit_field(src->bit_field());
     raw->set_bit_field2(src->bit_field2());
     Bits3 bits3 = src->bit_field3()
-                      .with<Bits3::OwnsDescriptorsBit>(true)
-                      .with<Bits3::NumberOfOwnDescriptorsBits>(0)
-                      .with<Bits3::EnumLengthBits>(kInvalidEnumCacheSentinel)
-                      .with<Bits3::IsDeprecatedBit>(false)
-                      .with<Bits3::IsInRetainedMapListBit>(false);
+                      .with_owns_descriptors(true)
+                      .with_number_of_own_descriptors(0)
+                      .with_enum_length(kInvalidEnumCacheSentinel)
+                      .with_is_deprecated(false)
+                      .with_is_in_retained_map_list(false);
     if (!bits3.is_dictionary_map()) {
-      bits3 = bits3.with<Bits3::IsUnstableBit>(false);
+      bits3 = bits3.with_is_unstable(false);
     }
     // Same as bit_field comment above.
     raw->set_bit_field3(bits3);
@@ -2420,7 +2420,7 @@ bool Map::EquivalentToForNormalization(const Tagged<Map> other,
   // Make sure the elements_kind bits are in bit_field2.
   DCHECK_EQ(this->elements_kind(), bit_field2().elements_kind());
   Bits2 adjusted_other_bit_field2 =
-      other->bit_field2().with<Bits2::ElementsKindBits>(elements_kind);
+      other->bit_field2().with_elements_kind(elements_kind);
   return CheckEquivalentModuloProto(this, other) &&
          prototype() == other_prototype &&
          bit_field2() == adjusted_other_bit_field2 &&

@@ -190,10 +190,12 @@ void FeedbackVector::set_invocation_count_before_stable(uint8_t value,
   invocation_count_before_stable_.store(value, std::memory_order_relaxed);
 }
 
-uint8_t FeedbackVector::osr_state() const { return osr_state_; }
-void FeedbackVector::set_osr_state(uint8_t value) { osr_state_ = value; }
-uint16_t FeedbackVector::flags() const { return flags_; }
-void FeedbackVector::set_flags(uint16_t value) { flags_ = value; }
+FeedbackVector::OsrState FeedbackVector::osr_state() const {
+  return osr_state_;
+}
+void FeedbackVector::set_osr_state(OsrState value) { osr_state_ = value; }
+FeedbackVector::Flags FeedbackVector::flags() const { return flags_; }
+void FeedbackVector::set_flags(Flags value) { flags_ = value; }
 
 Tagged<SharedFunctionInfo> FeedbackVector::shared_function_info() const {
   return shared_function_info_.load();
@@ -221,14 +223,13 @@ void FeedbackVector::set_raw_feedback_slots(int i, Tagged<MaybeObject> value,
   raw_feedback_slots()[i].Relaxed_Store(this, value, mode);
 }
 
-int FeedbackVector::osr_urgency() const {
-  return OsrUrgencyBits::decode(osr_state());
-}
+int FeedbackVector::osr_urgency() const { return osr_state().osr_urgency(); }
 
 void FeedbackVector::set_osr_urgency(int urgency) {
   DCHECK(0 <= urgency && urgency <= FeedbackVector::kMaxOsrUrgency);
-  static_assert(FeedbackVector::kMaxOsrUrgency <= OsrUrgencyBits::kMax);
-  set_osr_state(OsrUrgencyBits::update(osr_state(), urgency));
+  static_assert(FeedbackVector::kMaxOsrUrgency <=
+                OsrState::OsrUrgencyBits::kMax);
+  set_osr_state(osr_state().with_osr_urgency(urgency));
 }
 
 void FeedbackVector::reset_osr_urgency() { set_osr_urgency(0); }
@@ -242,30 +243,30 @@ bool FeedbackVector::maybe_has_optimized_osr_code() const {
 }
 
 bool FeedbackVector::maybe_has_maglev_osr_code() const {
-  return MaybeHasMaglevOsrCodeBit::decode(osr_state());
+  return osr_state().maybe_has_maglev_osr_code();
 }
 
 bool FeedbackVector::maybe_has_turbofan_osr_code() const {
-  return MaybeHasTurbofanOsrCodeBit::decode(osr_state());
+  return osr_state().maybe_has_turbofan_osr_code();
 }
 
 void FeedbackVector::set_maybe_has_optimized_osr_code(bool value,
                                                       CodeKind code_kind) {
   if (code_kind == CodeKind::MAGLEV) {
     CHECK(v8_flags.maglev_osr);
-    set_osr_state(MaybeHasMaglevOsrCodeBit::update(osr_state(), value));
+    set_osr_state(osr_state().with_maybe_has_maglev_osr_code(value));
   } else {
     CHECK_EQ(code_kind, CodeKind::TURBOFAN_JS);
-    set_osr_state(MaybeHasTurbofanOsrCodeBit::update(osr_state(), value));
+    set_osr_state(osr_state().with_maybe_has_turbofan_osr_code(value));
   }
 }
 
 bool FeedbackVector::interrupt_budget_reset_by_ic_change() const {
-  return InterruptBudgetResetByIcChangeBit::decode(flags());
+  return flags().interrupt_budget_reset_by_ic_change();
 }
 
 void FeedbackVector::set_interrupt_budget_reset_by_ic_change(bool value) {
-  set_flags(InterruptBudgetResetByIcChangeBit::update(flags(), value));
+  set_flags(flags().with_interrupt_budget_reset_by_ic_change(value));
 }
 
 bool FeedbackVector::was_once_deoptimized() const {
@@ -279,7 +280,7 @@ void FeedbackVector::set_was_once_deoptimized() {
 }
 
 bool FeedbackVector::tiering_in_progress() const {
-  return TieringInProgressBit::decode(flags());
+  return flags().tiering_in_progress();
 }
 
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(

@@ -85,8 +85,8 @@ void AccessorInfo::set_name(Tagged<Name> value, WriteBarrierMode mode) {
   name_.store(this, value, mode);
 }
 
-uint32_t AccessorInfo::flags() const { return flags_; }
-void AccessorInfo::set_flags(uint32_t value) { flags_ = value; }
+AccessorInfo::Flags AccessorInfo::flags() const { return flags_; }
+void AccessorInfo::set_flags(Flags value) { flags_ = value; }
 
 // InterceptorInfo.
 Tagged<Object> InterceptorInfo::data() const { return data_.load(); }
@@ -94,8 +94,8 @@ void InterceptorInfo::set_data(Tagged<Object> value, WriteBarrierMode mode) {
   data_.store(this, value, mode);
 }
 
-uint32_t InterceptorInfo::flags() const { return flags_; }
-void InterceptorInfo::set_flags(uint32_t value) { flags_ = value; }
+InterceptorInfo::Flags InterceptorInfo::flags() const { return flags_; }
+void InterceptorInfo::set_flags(Flags value) { flags_ = value; }
 
 REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
     AccessorInfo, getter, Address, offsetof(AccessorInfo, getter_),
@@ -114,13 +114,14 @@ bool AccessorInfo::has_setter(Isolate* isolate) {
 }
 
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, replace_on_access,
-                    AccessorInfo::ReplaceOnAccessBit)
-BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_sloppy, AccessorInfo::IsSloppyBit)
+                    AccessorInfo::Flags::ReplaceOnAccessBit)
+BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_sloppy,
+                    AccessorInfo::Flags::IsSloppyBit)
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, getter_side_effect_type,
-                    AccessorInfo::GetterSideEffectTypeBits)
+                    AccessorInfo::Flags::GetterSideEffectTypeBits)
 
 SideEffectType AccessorInfo::setter_side_effect_type() const {
-  return SetterSideEffectTypeBits::decode(flags());
+  return flags().setter_side_effect_type();
 }
 
 void AccessorInfo::set_setter_side_effect_type(SideEffectType value) {
@@ -129,11 +130,11 @@ void AccessorInfo::set_setter_side_effect_type(SideEffectType value) {
   // support checking receivers for temporary objects, but still expect
   // the receiver to be written to.
   CHECK_NE(value, SideEffectType::kHasNoSideEffect);
-  set_flags(SetterSideEffectTypeBits::update(flags(), value));
+  set_flags(flags().with_setter_side_effect_type(value));
 }
 
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
-                    AccessorInfo::InitialAttributesBits)
+                    AccessorInfo::Flags::InitialAttributesBits)
 
 void AccessorInfo::RemoveCallbackRedirectionForSerialization(
     IsolateForSandbox isolate) {
@@ -245,17 +246,18 @@ LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
     kApiIndexedPropertyIterableToListCallbackTag, !is_named(),
     !is_named() && (value != kNullAddress))
 
-BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
-               CanInterceptSymbolsBit::kShift)
-BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, NonMaskingBit::kShift)
-BOOL_GETTER(InterceptorInfo, flags, is_named, NamedBit::kShift)
-BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
-               HasNoSideEffectBit::kShift)
+BIT_FIELD_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
+                    InterceptorInfo::Flags::CanInterceptSymbolsBit)
+BIT_FIELD_ACCESSORS(InterceptorInfo, flags, non_masking,
+                    InterceptorInfo::Flags::NonMaskingBit)
+bool InterceptorInfo::is_named() const { return flags().named(); }
+BIT_FIELD_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
+                    InterceptorInfo::Flags::HasNoSideEffectBit)
 // TODO(ishell): remove once all the Api changes are done.
-BOOL_ACCESSORS(InterceptorInfo, flags, has_new_callbacks_signature,
-               HasNewCallbacksSignatureBit::kShift)
-BOOL_ACCESSORS(InterceptorInfo, flags, has_dont_delete_property,
-               HasDontDeletePropertyBit::kShift)
+BIT_FIELD_ACCESSORS(InterceptorInfo, flags, has_new_callbacks_signature,
+                    InterceptorInfo::Flags::HasNewCallbacksSignatureBit)
+BIT_FIELD_ACCESSORS(InterceptorInfo, flags, has_dont_delete_property,
+                    InterceptorInfo::Flags::HasDontDeletePropertyBit)
 
 void InterceptorInfo::RemoveCallbackRedirectionForSerialization(
     IsolateForSandbox isolate) {

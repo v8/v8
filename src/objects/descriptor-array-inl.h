@@ -70,11 +70,11 @@ void DescriptorArray::set_number_of_descriptors(int16_t value) {
                                std::memory_order_relaxed);
 }
 
-uint32_t DescriptorArray::flags(RelaxedLoadTag) const {
+DescriptorArray::Flags DescriptorArray::flags(RelaxedLoadTag) const {
   return flags_.load(std::memory_order_relaxed);
 }
 
-void DescriptorArray::set_flags(uint32_t value, RelaxedStoreTag) {
+void DescriptorArray::set_flags(Flags value, RelaxedStoreTag) {
   flags_.store(value, std::memory_order_relaxed);
 }
 
@@ -96,21 +96,18 @@ void DescriptorArray::set_enum_cache(Tagged<EnumCache> value,
 }
 
 DescriptorArray::FastIterableState DescriptorArray::fast_iterable() const {
-  return FastIterableBits::decode(flags(kRelaxedLoad));
+  return flags(kRelaxedLoad).fast_iterable();
 }
 
 void DescriptorArray::set_fast_iterable(FastIterableState value) {
-  uint32_t f = flags(kRelaxedLoad);
-  f = FastIterableBits::update(f, value);
-  set_flags(f, kRelaxedStore);
+  set_flags(flags(kRelaxedLoad).with_fast_iterable(value), kRelaxedStore);
 }
 
 void DescriptorArray::set_fast_iterable_if(FastIterableState new_value,
                                            FastIterableState if_value) {
-  uint32_t f = flags(kRelaxedLoad);
-  if (FastIterableBits::decode(f) == if_value) {
-    f = FastIterableBits::update(f, new_value);
-    set_flags(f, kRelaxedStore);
+  Flags f = flags(kRelaxedLoad);
+  if (f.fast_iterable() == if_value) {
+    set_flags(f.with_fast_iterable(new_value), kRelaxedStore);
   }
 }
 

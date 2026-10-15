@@ -2499,10 +2499,10 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   Label maybe_osr_because_osr_state(this, Label::kDeferred);
   // The quick initial OSR check. If it passes, we proceed on to more expensive
   // OSR logic.
-  static_assert(FeedbackVector::MaybeHasMaglevOsrCodeBit::encode(true) >
-                FeedbackVector::kMaxOsrUrgency);
-  static_assert(FeedbackVector::MaybeHasTurbofanOsrCodeBit::encode(true) >
-                FeedbackVector::kMaxOsrUrgency);
+  static_assert(FeedbackVector::OsrState::MaybeHasMaglevOsrCodeBit::encode(
+                    true) > FeedbackVector::kMaxOsrUrgency);
+  static_assert(FeedbackVector::OsrState::MaybeHasTurbofanOsrCodeBit::encode(
+                    true) > FeedbackVector::kMaxOsrUrgency);
 
   GotoIfNot(Uint32GreaterThanOrEqual(loop_depth, osr_state),
             &maybe_osr_because_osr_state);

@@ -2595,10 +2595,10 @@ void BaselineCompiler::VisitJumpLoop() {
     LoadFeedbackVector(feedback_vector);
     __ LoadWord8Field(osr_state, feedback_vector,
                       offsetof(::v8::internal::FeedbackVector, osr_state_));
-    static_assert(FeedbackVector::MaybeHasMaglevOsrCodeBit::encode(true) >
-                  FeedbackVector::kMaxOsrUrgency);
-    static_assert(FeedbackVector::MaybeHasTurbofanOsrCodeBit::encode(true) >
-                  FeedbackVector::kMaxOsrUrgency);
+    static_assert(FeedbackVector::OsrState::MaybeHasMaglevOsrCodeBit::encode(
+                      true) > FeedbackVector::kMaxOsrUrgency);
+    static_assert(FeedbackVector::OsrState::MaybeHasTurbofanOsrCodeBit::encode(
+                      true) > FeedbackVector::kMaxOsrUrgency);
     __ JumpIfByte(kUnsignedGreaterThan, osr_state, loop_depth, &osr_armed,
                   Label::kNear);
   }
@@ -2636,7 +2636,7 @@ void BaselineCompiler::VisitJumpLoop() {
       __ TryLoadOptimizedOsrCode(maybe_target_code, scratch0,
                                  iterator().GetSlotOperand(2), &osr,
                                  Label::kNear);
-      __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch1);
+      __ DecodeField<FeedbackVector::OsrState::OsrUrgencyBits>(scratch1);
       __ JumpIfByte(kUnsignedLessThanEqual, scratch1, loop_depth,
                     &osr_not_armed, Label::kNear);
     }

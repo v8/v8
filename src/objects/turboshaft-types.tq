@@ -12,7 +12,7 @@ extern macro Abort(constexpr AbortReason): never;
 bitfield struct TurboshaftFloatSpecialValues extends uint32 {
   nan: bool: 1 bit;
   minus_zero: bool: 1 bit;
-  _unused: uint32: 30 bit;
+  unused: uint32: 30 bit;
 }
 
 @abstract

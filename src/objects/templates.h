@@ -14,6 +14,7 @@
 #include "include/v8-exception.h"
 #include "src/base/bit-field.h"
 #include "src/handles/handles.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/contexts.h"
 #include "src/objects/struct.h"
 
@@ -254,8 +255,39 @@ V8_OBJECT class FunctionTemplateInfo : public TemplateInfoWithProperties {
   DECL_RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray)
 #undef DECL_RARE_ACCESSORS
 
-  DECL_PRIMITIVE_ACCESSORS(flag, uint32_t)
-  DECL_RELAXED_UINT32_ACCESSORS(flag)
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsObjectTemplateCallHandlerBit = First<bool, 1>;
+    using HasSideEffectsBit = IsObjectTemplateCallHandlerBit::Next<bool, 1>;
+    using UndetectableBit = HasSideEffectsBit::Next<bool, 1>;
+    using NeedsAccessCheckBit = UndetectableBit::Next<bool, 1>;
+    using ReadOnlyPrototypeBit = NeedsAccessCheckBit::Next<bool, 1>;
+    using RemovePrototypeBit = ReadOnlyPrototypeBit::Next<bool, 1>;
+    using AcceptAnyReceiverBit = RemovePrototypeBit::Next<bool, 1>;
+    using PublishedBit = AcceptAnyReceiverBit::Next<bool, 1>;
+    using AllowedReceiverInstanceTypeRangeStartBits =
+        PublishedBit::Next<InstanceType, 12>;
+    using AllowedReceiverInstanceTypeRangeEndBits =
+        AllowedReceiverInstanceTypeRangeStartBits::Next<InstanceType, 12>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_object_template_call_handler,
+                              IsObjectTemplateCallHandlerBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_side_effects, HasSideEffectsBit)
+    BIT_FIELD_GROUP_ACCESSORS(undetectable, UndetectableBit)
+    BIT_FIELD_GROUP_ACCESSORS(needs_access_check, NeedsAccessCheckBit)
+    BIT_FIELD_GROUP_ACCESSORS(read_only_prototype, ReadOnlyPrototypeBit)
+    BIT_FIELD_GROUP_ACCESSORS(remove_prototype, RemovePrototypeBit)
+    BIT_FIELD_GROUP_ACCESSORS(accept_any_receiver, AcceptAnyReceiverBit)
+    BIT_FIELD_GROUP_ACCESSORS(published, PublishedBit)
+    BIT_FIELD_GROUP_ACCESSORS(allowed_receiver_instance_type_range_start,
+                              AllowedReceiverInstanceTypeRangeStartBits)
+    BIT_FIELD_GROUP_ACCESSORS(allowed_receiver_instance_type_range_end,
+                              AllowedReceiverInstanceTypeRangeEndBits)
+  };
+
+  DECL_PRIMITIVE_ACCESSORS(flag, Flags)
+  DECL_RELAXED_PRIMITIVE_ACCESSORS(flag, Flags)
 
   // Begin flag bits ---------------------
 
@@ -336,20 +368,6 @@ V8_OBJECT class FunctionTemplateInfo : public TemplateInfoWithProperties {
   uint32_t GetCFunctionsCount() const;
   CFunctionWithSignature GetCFunction(uint32_t index) const;
 
-  // Bit position in the flag, from least significant bit position.
-  using IsObjectTemplateCallHandlerBit = base::BitField<bool, 0, 1, uint32_t>;
-  using HasSideEffectsBit = IsObjectTemplateCallHandlerBit::Next<bool, 1>;
-  using UndetectableBit = HasSideEffectsBit::Next<bool, 1>;
-  using NeedsAccessCheckBit = UndetectableBit::Next<bool, 1>;
-  using ReadOnlyPrototypeBit = NeedsAccessCheckBit::Next<bool, 1>;
-  using RemovePrototypeBit = ReadOnlyPrototypeBit::Next<bool, 1>;
-  using AcceptAnyReceiverBit = RemovePrototypeBit::Next<bool, 1>;
-  using PublishedBit = AcceptAnyReceiverBit::Next<bool, 1>;
-  using AllowedReceiverInstanceTypeRangeStartBits =
-      PublishedBit::Next<InstanceType, 12>;
-  using AllowedReceiverInstanceTypeRangeEndBits =
-      AllowedReceiverInstanceTypeRangeStartBits::Next<InstanceType, 12>;
-
   // C function pointer that can be called from native code.
   inline Address callback(IsolateForSandbox isolate) const;
   inline void set_callback(IsolateForSandbox isolate, Address value);
@@ -370,8 +388,8 @@ V8_OBJECT class FunctionTemplateInfo : public TemplateInfoWithProperties {
 
  private:
   // For ease of use of the BITFIELD macro.
-  inline int32_t relaxed_flag() const;
-  inline void set_relaxed_flag(int32_t flags);
+  inline Flags relaxed_flag() const;
+  inline void set_relaxed_flag(Flags flags);
 
   // Enforce using SetInstanceType() and SetAllowedReceiverInstanceTypeRange()
   // instead of raw accessors.
@@ -447,7 +465,7 @@ V8_OBJECT class FunctionTemplateInfo : public TemplateInfoWithProperties {
   TaggedMember<UnionOf<SharedFunctionInfo, Undefined>> shared_function_info_;
   TaggedMember<Object> cached_property_name_;
   V8_TQ_ACQ_REL TaggedMember<Object> callback_data_;
-  uint32_t flag_ V8_TQ_TYPE(FunctionTemplateInfoFlags);
+  std::atomic<Flags> flag_;
   int16_t length_;
   InstanceType instance_type_;
   uint32_t exception_context_;

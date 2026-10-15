@@ -7,6 +7,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -14,11 +15,16 @@
 
 namespace v8::internal {
 
-class TurboshaftFloatSpecialValues {
- public:
-  using NanBit = base::BitField<bool, 0, 1, uint32_t>;
+struct TurboshaftFloatSpecialValues
+    : BitFieldGroup<TurboshaftFloatSpecialValues, uint32_t> {
+  using BitFieldGroup::BitFieldGroup;
+
+  using NanBit = First<bool, 1>;
   using MinusZeroBit = NanBit::Next<bool, 1>;
   using UnusedBits = MinusZeroBit::Next<uint32_t, 30>;
+
+  BIT_FIELD_GROUP_ACCESSORS(nan, NanBit)
+  BIT_FIELD_GROUP_ACCESSORS(minus_zero, MinusZeroBit)
 };
 
 V8_OBJECT class TurboshaftType : public HeapObject {
@@ -149,15 +155,15 @@ V8_OBJECT class TurboshaftFloat64Type : public TurboshaftType {
   V8_IT_ABSTRACT;
 
  public:
-  inline uint32_t special_values() const;
-  inline void set_special_values(uint32_t value);
+  inline TurboshaftFloatSpecialValues special_values() const;
+  inline void set_special_values(TurboshaftFloatSpecialValues value);
 
   DECL_VERIFIER(TurboshaftFloat64Type)
 
  private:
   friend class TorqueGeneratedTurboshaftFloat64TypeAsserts;
 
-  uint32_t special_values_ V8_TQ_TYPE(TurboshaftFloatSpecialValues);
+  TurboshaftFloatSpecialValues special_values_;
 } V8_OBJECT_END;
 
 V8_OBJECT class TurboshaftFloat64RangeType : public TurboshaftFloat64Type {

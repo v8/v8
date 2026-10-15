@@ -1553,9 +1553,10 @@ void InterpreterAssembler::OnStackReplacement(
 
   // Case 2).
   {
-    static_assert(FeedbackVector::OsrUrgencyBits::kShift == 0);
+    static_assert(FeedbackVector::OsrState::OsrUrgencyBits::kShift == 0);
     TNode<Int32T> osr_urgency = Word32And(
-        osr_state, Int32Constant(FeedbackVector::OsrUrgencyBits::kMask));
+        osr_state,
+        Int32Constant(FeedbackVector::OsrState::OsrUrgencyBits::kMask));
     GotoIf(Uint32LessThan(loop_depth, osr_urgency), &maybe_osr_to_opt);
     Goto(&baseline);
 
@@ -1564,7 +1565,8 @@ void InterpreterAssembler::OnStackReplacement(
       TNode<Uint16T> flags = LoadObjectField<Uint16T>(
           feedback_vector, offsetof(FeedbackVector, flags_));
       TNode<Word32T> in_progress = Word32And(
-          flags, Int32Constant(FeedbackVector::OsrTieringInProgressBit::kMask));
+          flags,
+          Int32Constant(FeedbackVector::Flags::OsrTieringInProgressBit::kMask));
       GotoIf(Word32Equal(in_progress, 0), &osr_to_opt);
       Goto(&baseline);
     }

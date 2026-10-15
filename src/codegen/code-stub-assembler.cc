@@ -9371,7 +9371,7 @@ TNode<BoolT> CodeStubAssembler::IsAnyPrivateName(TNode<Symbol> symbol) {
   TNode<Uint32T> flags =
       LoadObjectField<Uint32T>(symbol, offsetof(Symbol, flags_));
   return Int32GreaterThanOrEqual(
-      DecodeWord32<Symbol::PrivateSymbolKindBits>(flags),
+      DecodeWord32<Symbol::Flags::PrivateSymbolKindBits>(flags),
       Int32Constant(static_cast<int>(PrivateSymbolKind::kFieldName)));
 }
 
@@ -13261,7 +13261,7 @@ TNode<BoolT> CodeStubAssembler::IsInterestingProperty(TNode<Name> name) {
   GotoIf(IsThenString(name), &return_true);
   GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(LoadMap(name)), SYMBOL_TYPE),
             &return_false);
-  Branch(IsSetWord32<Symbol::IsInterestingSymbolBit>(
+  Branch(IsSetWord32<Symbol::Flags::IsInterestingSymbolBit>(
              LoadObjectField<Uint32T>(name, offsetof(Symbol, flags_))),
          &return_true, &return_false);
 
