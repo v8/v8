@@ -6468,10 +6468,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildProxyPropertyAccess(
         },
         [&]() -> ReduceResult { return result; },
         [&]() -> ReduceResult {
-          RETURN_IF_ABORT(BuildCallRuntime(Runtime::kCheckProxyGetSetTrapResult,
-                                           {argument_name, proxy_target, result,
-                                            GetSmiConstant(JSProxy::kGet)}));
-          return result;
+          // Return the runtime call's result (which forwards `result`) so that
+          // a lazy deopt during the check does not overwrite the load result.
+          return BuildCallRuntime(Runtime::kCheckProxyGetSetTrapResult,
+                                  {argument_name, proxy_target, result,
+                                   GetSmiConstant(JSProxy::kGet)});
         });
   }
 

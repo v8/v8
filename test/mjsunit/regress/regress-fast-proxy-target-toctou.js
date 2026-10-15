@@ -314,3 +314,18 @@ for (const inlineTrap of [true, false]) {
   assertThrows(() => readWithInlinedEagerDeopt(proxy), TypeError);
   assertEquals(callsBefore + 1, trapCalls);
 }
+
+// 6. Test that Runtime::kCheckProxyGetSetTrapResult returns the trap result
+// instead of undefined.
+{
+  const target = {};
+  assertEquals(42, %CheckProxyGetSetTrapResult('x', target, 42, 0));
+  assertEquals('result', %CheckProxyGetSetTrapResult('x', target, 'result', 0));
+  const obj = { a: 1 };
+  assertEquals(obj, %CheckProxyGetSetTrapResult('x', target, obj, 0));
+  assertEquals(undefined, %CheckProxyGetSetTrapResult('x', target, undefined, 0));
+  assertEquals(null, %CheckProxyGetSetTrapResult('x', target, null, 0));
+
+  // AccessKind::kSet also returns the value.
+  assertEquals(42, %CheckProxyGetSetTrapResult('x', target, 42, 1));
+}

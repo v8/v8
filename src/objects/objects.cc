@@ -1462,10 +1462,10 @@ MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
       isolate, trap_result,
       Execution::Call(isolate, trap, handler, base::VectorOf(args)));
 
-  MaybeHandle<JSAny> result =
+  MaybeDirectHandle<JSAny> result =
       JSProxy::CheckGetSetTrapResult(isolate, name, target, trap_result, kGet);
   if (result.is_null()) {
-    return result;
+    return {};
   }
 
   // 11. Return trap_result
@@ -1473,7 +1473,7 @@ MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
 }
 
 // static
-MaybeHandle<JSAny> JSProxy::CheckGetSetTrapResult(
+MaybeDirectHandle<JSAny> JSProxy::CheckGetSetTrapResult(
     Isolate* isolate, DirectHandle<Name> name, DirectHandle<JSReceiver> target,
     DirectHandle<Object> trap_result, AccessKind access_kind) {
   // 9. Let targetDesc be ? target.[[GetOwnProperty]](P).
@@ -1528,7 +1528,7 @@ MaybeHandle<JSAny> JSProxy::CheckGetSetTrapResult(
       }
     }
   }
-  return isolate->factory()->undefined_value();
+  return Cast<JSAny>(trap_result);
 }
 
 // static
@@ -3199,7 +3199,7 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
                                 trap_name, name));
   }
 
-  MaybeDirectHandle<Object> result =
+  MaybeDirectHandle<JSAny> result =
       JSProxy::CheckGetSetTrapResult(isolate, name, target, value, kSet);
 
   if (result.is_null()) {

@@ -32812,3 +32812,60 @@ TEST(IsolateFree) {
   v8::Isolate::Free(isolate1);
   v8::Isolate::Free(isolate2);
 }
+
+#ifdef V8_ENABLE_MAGLEV
+TEST(MaglevFastProxyCheckTrapResultLazyDeopt) {
+  if (i::v8_flags.jitless) return;
+  if (i::v8_flags.disable_optimizing_compilers) return;
+  if (!i::v8_flags.maglev) return;
+
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.fast_proxy_ic = true;
+  i::v8_flags.optimize_on_next_call_optimizes_to_maglev = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+  templ->SetNativeDataProperty(
+      v8_str("prop"), [](v8::Local<v8::Name> name,
+                         const v8::PropertyCallbackInfo<v8::Value>& info) {
+        v8::Local<v8::Context> ctx = info.GetIsolate()->GetCurrentContext();
+        v8::Local<v8::Value> trigger =
+            ctx->Global()->Get(ctx, v8_str("trigger_deopt")).ToLocalChecked();
+        if (trigger->BooleanValue(info.GetIsolate())) {
+          CHECK(ctx->Global()
+                    ->Set(ctx, v8_str("global_dep"), v8_num(2))
+                    .FromJust());
+        }
+        info.GetReturnValue().Set(v8_num(100));
+      });
+
+  v8::Local<v8::Object> target = templ->NewInstance(context).ToLocalChecked();
+  v8::Local<v8::Object> target2 = templ->NewInstance(context).ToLocalChecked();
+  CHECK(target2->Set(context, v8_str("extra"), v8_num(1)).FromJust());
+  CHECK(context->Global()->Set(context, v8_str("target"), target).FromJust());
+
+  ExpectInt32(
+      "var global_dep = 1;"
+      "var trigger_deopt = false;"
+      "var mutate_target = false;"
+      "function get_trap(t, p, r) {"
+      "  if (mutate_target) { t.extra = 1; trigger_deopt = true; }"
+      "  return 42;"
+      "}"
+      "%NeverOptimizeFunction(get_trap);"
+      "const handler = { get: get_trap };"
+      "const proxy = new Proxy(target, handler);"
+      "function f(p) { return p.prop + global_dep - global_dep; }"
+      "%PrepareFunctionForOptimization(f);"
+      "f(proxy);"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f(proxy);"
+      "mutate_target = true;"
+      "f(proxy);",
+      42);
+}
+#endif  // V8_ENABLE_MAGLEV
