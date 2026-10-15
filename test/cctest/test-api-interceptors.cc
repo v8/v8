@@ -7346,3 +7346,55 @@ TEST(ScriptContextTableReentrantClash) {
   // The re-entrant declaration committed before the outer script was rejected.
   CHECK_EQ(1, v8_run_int32("a"));
 }
+
+namespace {
+
+constexpr uint32_t kDenseInterceptorLength = 2;
+
+v8::Intercepted DenseSetterMonomorphicBypass(
+    uint32_t index, v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  if (index >= kDenseInterceptorLength) return v8::Intercepted::kNo;
+  int& setter_count = *GetData<int>(info);
+  setter_count++;
+  return v8::Intercepted::kYes;
+}
+
+}  // namespace
+
+TEST(RegressKeyedStoreICMonomorphicBypassInterceptor) {
+  v8::internal::v8_flags.allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  int setter_count = 0;
+  v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  templ->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      nullptr, DenseSetterMonomorphicBypass, nullptr, nullptr, nullptr,
+      MakeData(isolate, &setter_count)));
+
+  v8::Local<v8::Object> obj = templ->GetFunction(env.local())
+                                  .ToLocalChecked()
+                                  ->NewInstance(env.local())
+                                  .ToLocalChecked();
+
+  env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust();
+
+  CompileRun(
+      "function f(o, i, v) { o[i] = v; }\n"
+      "%PrepareFunctionForOptimization(f);\n"
+      // Index 2 is outside [0, length), so it is not intercepted and goes to
+      // the fast elements backing store (allocating capacity > 2) while making
+      // the IC monomorphic with StoreFastElementIC_InBounds.
+      "f(obj, 2, 1);\n"
+      // Indices 0 and 1 are in [0, length) and must call the interceptor.
+      "f(obj, 0, 2);\n"
+      "f(obj, 1, 3);\n");
+
+  CHECK_EQ(2, setter_count);
+
+  CHECK_EQ(1, v8_run_int32("obj[2]"));
+  CHECK(CompileRun("obj[0]")->IsUndefined());
+  CHECK(CompileRun("obj[1]")->IsUndefined());
+}
