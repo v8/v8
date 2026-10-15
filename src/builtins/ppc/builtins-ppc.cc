@@ -4397,9 +4397,13 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
 
   // When we switch stack we leave home space allocated on the old stack.
   // Allocate home space on the central stack to prevent stack corruption.
-  __ li(r0, Operand::Zero());
-  __ StoreU64WithUpdate(
-      r0, MemOperand(sp, -kNumRequiredStackFrameSlots * kSystemPointerSize));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ li(scratch, Operand::Zero());
+    __ StoreU64WithUpdate(scratch, MemOperand(sp, -kNumRequiredStackFrameSlots *
+                                                      kSystemPointerSize));
+  }
 
   // Update the sp saved in the frame.
   // It will be used to calculate the callee pc during GC.
