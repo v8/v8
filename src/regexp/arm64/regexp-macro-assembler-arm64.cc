@@ -805,6 +805,7 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
         [&](Register index, Register callee_saved) {
           // No need to push callee_saved since we never fall through.
           __ Add(current_input_offset(), current_input_offset(), index);
+          LoadCurrentCharacterUnchecked(cp_offset, 1);
           __ B(on_match);
         });
     Bind(&scalar);

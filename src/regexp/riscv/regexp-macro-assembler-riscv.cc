@@ -608,6 +608,7 @@ void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
       __ And(t0, t0, Operand(0xfffe));
     }
     __ AddWord(current_input_offset(), current_input_offset(), t0);
+    LoadCurrentCharacterUnchecked(cp_offset, 1);
     __ Branch(on_match);
     Bind(&scalar);
   }
