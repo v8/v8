@@ -138,7 +138,7 @@ struct EatsAtLeastInfo final {
   uint8_t from_not_start;
 };
 
-class EmitResult final {
+class V8_NODISCARD EmitResult final {
  public:
   static EmitResult Success() { return EmitResult(kSuccess); }
   static EmitResult Error() { return EmitResult(kError); }
@@ -403,7 +403,7 @@ class V8_EXPORT_PRIVATE Node : public ZoneObject {
   virtual bool IsBacktrack() const { return false; }
 
  protected:
-  enum LimitResult { DONE, CONTINUE };
+  enum LimitResult { DONE, CONTINUE, FAILED };
   Node* replacement_;
 
   LimitResult LimitVersions(Compiler* compiler, Trace* trace);
