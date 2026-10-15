@@ -328,7 +328,7 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
                   : MessageTemplate::kInvalidPrivateFieldReinitialization;
           RETURN_FAILURE(isolate,
                          GetShouldThrow(isolate, Nothing<ShouldThrow>()),
-                         NewTypeError(message, name_string, it->GetReceiver()));
+                         NewTypeError(message, name_string));
         }
         return Just(true);
       case LookupIterator::WASM_OBJECT:
@@ -339,7 +339,7 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
           RETURN_FAILURE(
               isolate, GetShouldThrow(isolate, Nothing<ShouldThrow>()),
               NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
-                           name_string, it->GetReceiver()));
+                           name_string));
 
         } else if (it->ExtendingNonExtensible(
                        it->GetStoreTarget<JSReceiver>())) {

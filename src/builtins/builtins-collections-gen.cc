@@ -3213,7 +3213,7 @@ TF_BUILTIN(WeakMapPrototypeSet, WeakCollectionsBuiltinsAssembler) {
       CallBuiltin(Builtin::kWeakCollectionSet, context, receiver, key, value));
 
   BIND(&throw_invalid_key);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey);
 }
 
 TF_BUILTIN(WeakMapPrototypeGetOrInsert, WeakCollectionsBuiltinsAssembler) {
@@ -3241,7 +3241,7 @@ TF_BUILTIN(WeakMapPrototypeGetOrInsert, WeakCollectionsBuiltinsAssembler) {
   Return(value.value());
 
   BIND(&throw_invalid_key);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey);
 }
 
 TF_BUILTIN(WeakMapPrototypeGetOrInsertComputed,
@@ -3276,7 +3276,7 @@ TF_BUILTIN(WeakMapPrototypeGetOrInsertComputed,
   Return(value);
 
   BIND(&throw_invalid_key);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey);
 }
 
 TF_BUILTIN(WeakSetPrototypeAdd, WeakCollectionsBuiltinsAssembler) {
@@ -3294,7 +3294,7 @@ TF_BUILTIN(WeakSetPrototypeAdd, WeakCollectionsBuiltinsAssembler) {
                      TrueConstant()));
 
   BIND(&throw_invalid_value);
-  ThrowTypeError(context, MessageTemplate::kInvalidWeakSetValue, value);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakSetValue);
 }
 
 TF_BUILTIN(WeakSetPrototypeDelete, CodeStubAssembler) {

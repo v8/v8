@@ -455,26 +455,13 @@ MaybeHandle<String> MessageFormatter::TryFormat(
 
   // TODO(14386): Get this list empty.
   static constexpr MessageTemplate kTemplatesWithMismatchedArguments[] = {
-      MessageTemplate::kConstAssign,
       MessageTemplate::kIncompatibleMethodReceiver,
-      MessageTemplate::kInvalidArgument,
-      MessageTemplate::kInvalidArrayLength,
       MessageTemplate::kInvalidDataViewLength,
-      MessageTemplate::kInvalidPrivateBrandReinitialization,
-      MessageTemplate::kInvalidPrivateFieldReinitialization,
-      MessageTemplate::kInvalidPrivateMemberWrite,
-      MessageTemplate::kInvalidWeakMapKey,
-      MessageTemplate::kInvalidWeakSetValue,
-      MessageTemplate::kIteratorReduceNoInitial,
       MessageTemplate::kNotIterable,
-      MessageTemplate::kNotTypedArray,
       MessageTemplate::kProxyNonObject,
       MessageTemplate::kProxyPrivate,
       MessageTemplate::kProxyRevoked,
-      MessageTemplate::kProxyTrapReturnedFalsishFor,
-      MessageTemplate::kReduceNoInitial,
-      MessageTemplate::kSpreadIteratorSymbolNonCallable,
-      MessageTemplate::kUndefinedOrNullToObject};
+      MessageTemplate::kProxyTrapReturnedFalsishFor};
 
   base::Vector<const DirectHandle<String>> remaining_args = args;
   for (const char* c = template_string; *c != '\0'; c++) {
@@ -965,8 +952,12 @@ Tagged<Object> ErrorUtils::ThrowSpreadArgError(Isolate* isolate,
     }
   }
 
-  isolate->ThrowAt(isolate->factory()->NewTypeError(id, callsite, object),
-                   &location);
+  if (id == MessageTemplate::kSpreadIteratorSymbolNonCallable) {
+    isolate->ThrowAt(isolate->factory()->NewTypeError(id), &location);
+  } else {
+    isolate->ThrowAt(isolate->factory()->NewTypeError(id, callsite, object),
+                     &location);
+  }
   return ReadOnlyRoots(isolate).exception();
 }
 

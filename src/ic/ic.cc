@@ -2158,7 +2158,7 @@ MaybeDirectHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
         script_contexts->get(lookup_result.context_index);
     if (IsImmutableLexicalVariableMode(lookup_result.mode)) {
       AllowGarbageCollection yes_gc;
-      return TypeError(MessageTemplate::kConstAssign, global, name);
+      THROW_NEW_ERROR(isolate(), NewTypeError(MessageTemplate::kConstAssign));
     }
 
     if (script_context->IsElementTdzHole(lookup_result.slot_index)) {
@@ -3627,7 +3627,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
         script_contexts->get(lookup_result.context_index), isolate);
     if (IsImmutableLexicalVariableMode(lookup_result.mode)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
+          isolate, NewTypeError(MessageTemplate::kConstAssign));
     }
 
     {
