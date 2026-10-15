@@ -759,7 +759,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   UseScratchRegisterScope temps(this);
   MemOperand dst_op = liftoff::GetMemOp(this, &temps, dst_addr, offset_reg,
                                         offset_imm, i64_offset);
-  DCHECK(!dst_op.IsPostIndex());  // See MacroAssembler::LoadStoreMacroComplex.
+  // Post-index with a large offset emits `add` after the store, breaking
+  // `GetTrappingInstruction` (see `MacroAssembler::LoadStoreMacroComplex`).
+  DCHECK(!dst_op.IsPostIndex());
   GetTrappingInstruction<LoadOrStore::kStore> collect_trapping_store(
       this, trapping_store_pc);
   switch (type.value()) {
@@ -796,6 +798,42 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     case StoreType::kS128Store:
       Str(src.fp().Q(), dst_op);
       break;
+  }
+}
+
+void LiftoffAssembler::StoreConst(Register dst_addr, Register offset_reg,
+                                  uintptr_t offset_imm, int32_t value,
+                                  StoreType type, uint32_t* trapping_store_pc,
+                                  bool i64_offset) {
+  DCHECK_EQ(0, value);
+  UseScratchRegisterScope temps(this);
+  MemOperand dst_op = liftoff::GetMemOp(this, &temps, dst_addr, offset_reg,
+                                        offset_imm, i64_offset);
+  // Post-index with a large offset emits `add` after the store, breaking
+  // `GetTrappingInstruction` (see `MacroAssembler::LoadStoreMacroComplex`).
+  DCHECK(!dst_op.IsPostIndex());
+  GetTrappingInstruction<LoadOrStore::kStore> collect_trapping_store(
+      this, trapping_store_pc);
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8:
+      Strb(wzr, dst_op);
+      break;
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16:
+      Strh(wzr, dst_op);
+      break;
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32:
+    case StoreType::kF32Store:
+      Str(wzr, dst_op);
+      break;
+    case StoreType::kI64Store:
+    case StoreType::kF64Store:
+      Str(xzr, dst_op);
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 

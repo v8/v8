@@ -4695,8 +4695,8 @@ class LiftoffCompiler {
     // float constant directly instead of materializing it in a register first.
     // Liftoff keeps 64-bit constants as sign-extended 32-bit values.
     VarState value = __ PopVarState();
-    if (!LiftoffAssembler::kSupportsStoreConst || !value.is_const() ||
-        type.value() == StoreType::kF32StoreF16) {
+    if (!value.is_const() ||
+        !LiftoffAssembler::CanStoreConst(type, value.i32_const())) {
       LiftoffRegister reg = pinned.set(__ LoadToRegister(value, pinned));
       value.MakeRegister(reg);
     }
