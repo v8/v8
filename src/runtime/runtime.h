@@ -764,8 +764,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmDebugBreak, 0, 1)                                        \
   F(WasmAllocateDescriptorStruct, 4, 1)                          \
   F(WasmArrayCopy, 5, 1)                                         \
-  F(WasmArrayNewSegment, 5, 1)                                   \
-  F(WasmArrayInitSegment, 6, 1)                                  \
+  F(WasmArrayNewSegment, 6, 1)                                   \
+  F(WasmArrayInitSegment, 7, 1)                                  \
   F(WasmAllocateSuspender, 0, 1)                                 \
   F(WasmSuspended, 2, 1)                                         \
   F(WasmAllocateContinuation, 3, 1)                              \

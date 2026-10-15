@@ -50,8 +50,7 @@ let $segment27 = builder.addPassiveElementSegment([], kWasmAnyRef);
 let $segment28 = builder.addPassiveElementSegment([], kWasmAnyRef);
 let $segment29 = builder.addPassiveElementSegment([], kWasmAnyRef);
 let $segment30 = builder.addPassiveElementSegment([], kWasmAnyRef);
-let $segment31 = builder.addPassiveElementSegment([[
-  kExprI32Const, 42,kGCPrefix, kExprArrayNewFixed, $array1, 1]], kWasmAnyRef);
+let $segment31 = builder.addPassiveElementSegment([], kWasmAnyRef);
 
 // func $make_i8: [] -> [wasmRefNullType($array1)]
 make_i8.addBody([
@@ -86,4 +85,5 @@ memory.setUint32(
     memory.getUint32(i8_map + kWasmTypeInfoOffset, true),
     true);
 
-instance.exports.test(0, 1);
+assertTraps(kTrapElementSegmentOutOfBounds,
+            () => instance.exports.test(0, 0x01000000));
