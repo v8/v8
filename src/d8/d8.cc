@@ -3560,7 +3560,7 @@ void Shell::WasmDeserializeModule(
     ThrowError(isolate, "First argument is detached");
     return;
   }
-  if (wire_bytes_view->Buffer()->WasDetached()) {
+  if (wire_bytes_view->GetBuffer()->WasDetached()) {
     ThrowError(isolate, "Second argument's buffer is detached");
     return;
   }
@@ -3787,7 +3787,7 @@ void Shell::WriteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
       Local<v8::ArrayBufferView> buffer_view =
           Local<v8::ArrayBufferView>::Cast(info[1]);
       length = buffer_view->ByteLength();
-      data = static_cast<uint8_t*>(buffer_view->Buffer()->Data()) +
+      data = static_cast<uint8_t*>(buffer_view->GetBuffer()->Data()) +
              buffer_view->ByteOffset();
     }
     fwrite(data, 1, length, file);

@@ -131,7 +131,7 @@ TEST_F(HeapWriteBarrierTest, WriteBarrier_MarkingExtension) {
   // Concurrent marking barrier should mark the value now.
   EXPECT_TRUE(extension->IsMarked());
   // Keep object alive using the global handle.
-  v8::Global<ArrayBuffer> global_host(
+  v8::Global<ArrayBufferBase> global_host(
       v8_isolate(), Utils::ToLocal(direct_handle(host, i_isolate())));
   SimulateIncrementalMarking(true);
   EXPECT_TRUE(heap()->marking_state()->IsMarked(host));

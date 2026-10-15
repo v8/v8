@@ -253,7 +253,7 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
       HandleScope scope(isolate);
       isolate->array_buffer_detach_callback()(
           reinterpret_cast<v8::Isolate*>(isolate),
-          Utils::ToLocal(array_buffer));
+          Utils::ToLocalUnshared(array_buffer));
     }
   }
 }

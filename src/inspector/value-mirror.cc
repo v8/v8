@@ -1974,7 +1974,8 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
     return std::make_unique<ObjectMirror>(
         memory, RemoteObject::SubtypeEnum::Webassemblymemory,
         descriptionForCollection(
-            isolate, memory, memory->Buffer()->ByteLength() / kWasmPageSize));
+            isolate, memory,
+            memory->GetBuffer()->ByteLength() / kWasmPageSize));
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (v8::debug::WasmValueObject::IsWasmValueObject(object)) {

@@ -674,4 +674,32 @@ TEST_F(ApiWasmTest, WasmModuleCompilation_MultiThreaded) {
   for (auto& t : threads) t.join();
 }
 
+TEST_F(ApiWasmTest, WasmMemoryObjectGetBuffer) {
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  Local<WasmMemoryObject> unshared_memory =
+      RunJS("new WebAssembly.Memory({initial: 1})").As<WasmMemoryObject>();
+  Local<ArrayBufferBase> unshared_buffer = unshared_memory->GetBuffer();
+  EXPECT_TRUE(unshared_buffer->IsArrayBufferBase());
+  EXPECT_TRUE(unshared_buffer->IsArrayBuffer());
+  EXPECT_FALSE(unshared_buffer->IsSharedArrayBuffer());
+  EXPECT_FALSE(unshared_buffer->IsShared());
+
+  Local<WasmMemoryObject> shared_memory =
+      RunJS("new WebAssembly.Memory({initial: 1, maximum: 1, shared: true})")
+          .As<WasmMemoryObject>();
+  Local<ArrayBufferBase> shared_buffer = shared_memory->GetBuffer();
+  EXPECT_TRUE(shared_buffer->IsArrayBufferBase());
+  EXPECT_FALSE(shared_buffer->IsArrayBuffer());
+  EXPECT_TRUE(shared_buffer->IsSharedArrayBuffer());
+  EXPECT_TRUE(shared_buffer->IsShared());
+
+  START_ALLOW_USE_DEPRECATED();
+  EXPECT_TRUE(unshared_memory->Buffer()->IsArrayBuffer());
+  EXPECT_TRUE(shared_memory->Buffer()->IsSharedArrayBuffer());
+  END_ALLOW_USE_DEPRECATED();
+}
+
 }  // namespace v8

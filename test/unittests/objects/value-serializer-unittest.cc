@@ -2680,7 +2680,7 @@ TEST_F(ValueSerializerTest, RoundTripDataView) {
   ASSERT_TRUE(value->IsDataView());
   EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
   EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
-  EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+  EXPECT_EQ(4u, DataView::Cast(*value)->GetBuffer()->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed
@@ -2699,7 +2699,7 @@ TEST_F(ValueSerializerTest, DecodeDataView) {
         ASSERT_TRUE(value->IsDataView());
         EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
         EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
-        EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+        EXPECT_EQ(4u, DataView::Cast(*value)->GetBuffer()->ByteLength());
         ExpectScriptTrue(
             "Object.getPrototypeOf(result) === DataView.prototype");
       });
@@ -2711,7 +2711,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedDataView) {
   ASSERT_TRUE(value->IsDataView());
   EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
   EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
-  EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+  EXPECT_EQ(4u, DataView::Cast(*value)->GetBuffer()->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
@@ -2727,7 +2727,7 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingDataView) {
   ASSERT_TRUE(value->IsDataView());
   EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
   EXPECT_EQ(3u, DataView::Cast(*value)->ByteLength());
-  EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+  EXPECT_EQ(4u, DataView::Cast(*value)->GetBuffer()->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
   // is_backed_by_rab, once they're exposed via the API.
@@ -2746,7 +2746,7 @@ TEST_F(ValueSerializerTest, DecodeDataViewBackwardsCompatibility) {
         ASSERT_TRUE(value->IsDataView());
         EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
         EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
-        EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+        EXPECT_EQ(4u, DataView::Cast(*value)->GetBuffer()->ByteLength());
         ExpectScriptTrue(
             "Object.getPrototypeOf(result) === DataView.prototype");
       });

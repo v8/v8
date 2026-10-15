@@ -3923,6 +3923,10 @@ bool Value::IsArray() const {
   return IsJSArray(*Utils::OpenDirectHandle(this));
 }
 
+bool Value::IsArrayBufferBase() const {
+  return IsJSArrayBuffer(*Utils::OpenDirectHandle(this));
+}
+
 bool Value::IsArrayBuffer() const {
   auto obj = *Utils::OpenDirectHandle(this);
   if (!IsJSArrayBuffer(obj)) return false;
@@ -4392,36 +4396,22 @@ void v8::BackingStore::EmptyDeleter(void* data, size_t length,
   DCHECK_NULL(deleter_data);
 }
 
-std::shared_ptr<v8::BackingStore> v8::ArrayBuffer::GetBackingStore() {
+std::shared_ptr<v8::BackingStore> v8::ArrayBufferBase::GetBackingStore() {
   auto self = Utils::OpenDirectHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
   if (!backing_store) {
-    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag{false});
+    backing_store = i::BackingStore::EmptyBackingStore(self->is_shared());
   }
   std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
   return std::static_pointer_cast<v8::BackingStore>(bs_base);
 }
 
-void* v8::ArrayBuffer::Data() const {
+void* v8::ArrayBufferBase::Data() const {
   return Utils::OpenDirectHandle(this)->backing_store();
 }
 
-bool v8::ArrayBuffer::IsResizableByUserJavaScript() const {
+bool v8::ArrayBufferBase::IsResizableByUserJavaScript() const {
   return Utils::OpenDirectHandle(this)->is_resizable_by_js().value();
-}
-
-std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
-  auto self = Utils::OpenDirectHandle(this);
-  std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
-  if (!backing_store) {
-    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag{true});
-  }
-  std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
-  return std::static_pointer_cast<v8::BackingStore>(bs_base);
-}
-
-void* v8::SharedArrayBuffer::Data() const {
-  return Utils::OpenDirectHandle(this)->backing_store();
 }
 
 template <bool is_shared>
@@ -4449,17 +4439,10 @@ static size_t CopyArrayBufferBytesImpl(const void* source_buffer,
   return bytes_to_copy;
 }
 
-size_t v8::SharedArrayBuffer::CopyArrayBufferBytes(
-    size_t source_start, size_t bytes_to_copy, Local<SharedArrayBuffer> target,
-    size_t target_start) const {
-  i::DisallowGarbageCollection no_gc;
-  auto self = Utils::OpenDirectHandle(this);
-  auto that = Utils::OpenDirectHandle(*target);
-  DCHECK(!that->is_immutable());
-  return CopyArrayBufferBytesImpl<true>(self->backing_store(), source_start,
-                                        self->GetByteLength(),
-                                        that->backing_store(), target_start,
-                                        that->GetByteLength(), bytes_to_copy);
+void v8::ArrayBufferBase::CheckCast(Value* that) {
+  Utils::ApiCheck(IsJSArrayBuffer(*Utils::OpenDirectHandle(that)),
+                  "v8::ArrayBufferBase::Cast()",
+                  "Value is not an ArrayBuffer or SharedArrayBuffer");
 }
 
 void v8::ArrayBuffer::CheckCast(Value* that) {
@@ -9042,6 +9025,10 @@ std::span<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 }
 
 Local<ArrayBuffer> v8::WasmMemoryObject::Buffer() {
+  return GetBuffer().UnsafeAs<ArrayBuffer>();
+}
+
+Local<ArrayBufferBase> v8::WasmMemoryObject::GetBuffer() {
 #if V8_ENABLE_WEBASSEMBLY
   i::DirectHandle<i::WasmMemoryObject> obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
@@ -9197,27 +9184,37 @@ v8::ArrayBuffer::Allocator* v8::ArrayBuffer::Allocator::NewDefaultAllocator(
 #endif  // defined(V8_COMPRESS_POINTERS) &&
         // !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
 
-bool v8::ArrayBuffer::IsDetachable() const {
+bool v8::ArrayBufferBase::IsShared() const {
+  return Utils::OpenDirectHandle(this)->is_shared().value();
+}
+
+bool v8::ArrayBufferBase::IsDetachable() const {
   return Utils::OpenDirectHandle(this)->is_detachable();
 }
 
-bool v8::ArrayBuffer::WasDetached() const {
+bool v8::ArrayBufferBase::WasDetached() const {
   return Utils::OpenDirectHandle(this)->was_detached();
 }
 
-bool v8::ArrayBuffer::IsImmutable() const {
+bool v8::ArrayBufferBase::IsImmutable() const {
   return Utils::OpenDirectHandle(this)->is_immutable();
 }
 
-size_t v8::ArrayBuffer::CopyArrayBufferBytes(size_t source_start,
-                                             size_t bytes_to_copy,
-                                             Local<ArrayBuffer> target,
-                                             size_t target_start) const {
+size_t v8::ArrayBufferBase::CopyArrayBufferBytes(size_t source_start,
+                                                 size_t bytes_to_copy,
+                                                 Local<ArrayBufferBase> target,
+                                                 size_t target_start) const {
   i::DisallowGarbageCollection no_gc;
   auto self = Utils::OpenDirectHandle(this);
   auto that = Utils::OpenDirectHandle(*target);
   if (self->was_detached()) return 0;
   if (that->was_detached() || that->is_immutable()) return 0;
+  if (self->is_shared() || that->is_shared()) {
+    return CopyArrayBufferBytesImpl<true>(self->backing_store(), source_start,
+                                          self->GetByteLength(),
+                                          that->backing_store(), target_start,
+                                          that->GetByteLength(), bytes_to_copy);
+  }
   return CopyArrayBufferBytesImpl<false>(self->backing_store(), source_start,
                                          self->GetByteLength(),
                                          that->backing_store(), target_start,
@@ -9269,11 +9266,11 @@ void v8::ArrayBuffer::SetDetachKey(v8::Local<v8::Value> key) {
   i::JSArrayBuffer::SetDetachKey(obj, i_key, i_isolate);
 }
 
-size_t v8::ArrayBuffer::ByteLength() const {
+size_t v8::ArrayBufferBase::ByteLength() const {
   return Utils::OpenDirectHandle(this)->GetByteLength();
 }
 
-size_t v8::ArrayBuffer::MaxByteLength() const {
+size_t v8::ArrayBufferBase::MaxByteLength() const {
   return Utils::OpenDirectHandle(this)->max_byte_length();
 }
 
@@ -9307,7 +9304,7 @@ MaybeLocal<ArrayBuffer> v8::ArrayBuffer::MaybeNew(
   i::DirectHandle<i::JSArrayBuffer> array_buffer;
   if (!result.ToHandle(&array_buffer)) return {};
 
-  return Utils::ToLocal(array_buffer);
+  return Utils::ToLocalUnshared(array_buffer);
 }
 
 Local<ArrayBuffer> v8::ArrayBuffer::New(
@@ -9325,7 +9322,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
     i::V8::FatalProcessOutOfMemory(i_isolate, "v8::ArrayBuffer::New");
   }
 
-  return Utils::ToLocal(array_buffer);
+  return Utils::ToLocalUnshared(array_buffer);
 }
 
 Local<ArrayBuffer> v8::ArrayBuffer::New(
@@ -9347,7 +9344,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
           ->is_immutable()) {
     obj->MakeImmutable(i_isolate);
   }
-  return Utils::ToLocal(obj);
+  return Utils::ToLocalUnshared(obj);
 }
 
 std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
@@ -9454,6 +9451,10 @@ std::unique_ptr<BackingStore> v8::ArrayBuffer::NewResizableBackingStore(
 }
 
 Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
+  return GetBuffer().UnsafeAs<ArrayBuffer>();
+}
+
+Local<ArrayBufferBase> v8::ArrayBufferView::GetBuffer() {
   auto obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
   if (i::IsJSDataView(*obj)) {
@@ -9573,51 +9574,31 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
               "v8::TypedArray::kMaxByteLength must match "
               "i::JSTypedArray::kMaxByteLength");
 
-#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype)                            \
-  Local<Type##Array> Type##Array::New(Local<ArrayBuffer> array_buffer,      \
-                                      size_t byte_offset, size_t length) {  \
-    i::Isolate* i_isolate = i::Isolate::Current();                          \
-    ApiRuntimeCallStatsScope rcs_scope(i_isolate,                           \
-                                       RCCId::kAPI_##Type##Array_New);      \
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);                   \
-    if (!Utils::ApiCheck(length <= kMaxLength,                              \
-                         "v8::" #Type                                       \
-                         "Array::New(Local<ArrayBuffer>, size_t, size_t)",  \
-                         "length exceeds max allowed value")) {             \
-      return {};                                                            \
-    }                                                                       \
-    auto buffer = Utils::OpenDirectHandle(*array_buffer);                   \
-    i::DirectHandle<i::JSTypedArray> obj =                                  \
-        i_isolate->factory()->NewJSTypedArray(i::kExternal##Type##Array,    \
-                                              buffer, byte_offset, length); \
-    return Utils::ToLocal##Type##Array(obj);                                \
-  }                                                                         \
-  Local<Type##Array> Type##Array::New(                                      \
-      Local<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,     \
-      size_t length) {                                                      \
-    i::Isolate* i_isolate = i::Isolate::Current();                          \
-    ApiRuntimeCallStatsScope rcs_scope(i_isolate,                           \
-                                       RCCId::kAPI_##Type##Array_New);      \
-    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);                   \
-    if (!Utils::ApiCheck(                                                   \
-            length <= kMaxLength,                                           \
-            "v8::" #Type                                                    \
-            "Array::New(Local<SharedArrayBuffer>, size_t, size_t)",         \
-            "length exceeds max allowed value")) {                          \
-      return {};                                                            \
-    }                                                                       \
-    auto buffer = Utils::OpenDirectHandle(*shared_array_buffer);            \
-    i::DirectHandle<i::JSTypedArray> obj =                                  \
-        i_isolate->factory()->NewJSTypedArray(i::kExternal##Type##Array,    \
-                                              buffer, byte_offset, length); \
-    return Utils::ToLocal##Type##Array(obj);                                \
+#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype)                               \
+  Local<Type##Array> Type##Array::New(Local<ArrayBufferBase> array_buffer,     \
+                                      size_t byte_offset, size_t length) {     \
+    i::Isolate* i_isolate = i::Isolate::Current();                             \
+    ApiRuntimeCallStatsScope rcs_scope(i_isolate,                              \
+                                       RCCId::kAPI_##Type##Array_New);         \
+    EnterV8NoScriptNoExceptionScope api_scope(i_isolate);                      \
+    if (!Utils::ApiCheck(length <= kMaxLength,                                 \
+                         "v8::" #Type                                          \
+                         "Array::New(Local<ArrayBufferBase>, size_t, size_t)", \
+                         "length exceeds max allowed value")) {                \
+      return {};                                                               \
+    }                                                                          \
+    auto buffer = Utils::OpenDirectHandle(*array_buffer);                      \
+    i::DirectHandle<i::JSTypedArray> obj =                                     \
+        i_isolate->factory()->NewJSTypedArray(i::kExternal##Type##Array,       \
+                                              buffer, byte_offset, length);    \
+    return Utils::ToLocal##Type##Array(obj);                                   \
   }
 
 TYPED_ARRAYS_BASE(TYPED_ARRAY_NEW)
 #undef TYPED_ARRAY_NEW
 
 // TODO(v8:11111): Support creating length tracking DataViews via the API.
-Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
+Local<DataView> DataView::New(Local<ArrayBufferBase> array_buffer,
                               size_t byte_offset, size_t byte_length) {
   auto buffer = Utils::OpenDirectHandle(*array_buffer);
   i::Isolate* i_isolate = i::Isolate::Current();
@@ -9627,26 +9608,6 @@ Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
       i_isolate->factory()->NewJSDataViewOrRabGsabDataView(buffer, byte_offset,
                                                            byte_length));
   return Utils::ToLocal(obj);
-}
-
-Local<DataView> DataView::New(Local<SharedArrayBuffer> shared_array_buffer,
-                              size_t byte_offset, size_t byte_length) {
-  auto buffer = Utils::OpenDirectHandle(*shared_array_buffer);
-  i::Isolate* i_isolate = i::Isolate::Current();
-  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_DataView_New);
-  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  auto obj = i::Cast<i::JSDataView>(
-      i_isolate->factory()->NewJSDataViewOrRabGsabDataView(buffer, byte_offset,
-                                                           byte_length));
-  return Utils::ToLocal(obj);
-}
-
-size_t v8::SharedArrayBuffer::ByteLength() const {
-  return Utils::OpenDirectHandle(this)->GetByteLength();
-}
-
-size_t v8::SharedArrayBuffer::MaxByteLength() const {
-  return Utils::OpenDirectHandle(this)->max_byte_length();
 }
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(

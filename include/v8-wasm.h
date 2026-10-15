@@ -21,6 +21,7 @@
 namespace v8 {
 
 class ArrayBuffer;
+class ArrayBufferBase;
 class Promise;
 
 namespace internal::wasm {
@@ -77,7 +78,12 @@ class V8_EXPORT WasmMemoryObject : public Object {
   /**
    * Returns underlying ArrayBuffer.
    */
+  V8_DEPRECATE_SOON("Use GetBuffer instead")
   Local<ArrayBuffer> Buffer();
+  /**
+   * Returns underlying ArrayBuffer or SharedArrayBuffer.
+   */
+  Local<ArrayBufferBase> GetBuffer();
 
   V8_INLINE static WasmMemoryObject* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS

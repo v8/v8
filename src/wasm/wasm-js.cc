@@ -329,9 +329,9 @@ base::UniqueArray<const uint8_t> GetAndCopyFirstArgumentAsBytes(
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
     Local<TypedArray> array = Local<TypedArray>::Cast(source);
-    Local<ArrayBuffer> buffer = array->Buffer();
+    Local<ArrayBufferBase> buffer = array->GetBuffer();
 
-    auto backing_store = buffer->GetBackingStore();
+    std::shared_ptr<v8::BackingStore> backing_store = buffer->GetBackingStore();
 
     start = reinterpret_cast<const uint8_t*>(backing_store->Data()) +
             array->ByteOffset();
