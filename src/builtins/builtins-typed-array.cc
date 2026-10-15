@@ -646,9 +646,10 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
   if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
       elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  method_name)));
+        isolate,
+        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                     isolate->factory()->NewStringFromAsciiChecked(method_name),
+                     uint8array));
   }
 
   // 3. If string is not a String, throw a TypeError exception.
@@ -766,9 +767,10 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
   if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
       elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  method_name)));
+        isolate,
+        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                     isolate->factory()->NewStringFromAsciiChecked(method_name),
+                     uint8array));
   }
 
   // 3. Let opts be ? GetOptionsObject(options).
@@ -980,9 +982,10 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
   if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
       elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  method_name)));
+        isolate,
+        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                     isolate->factory()->NewStringFromAsciiChecked(method_name),
+                     uint8array));
   }
 
   // 3. If string is not a String, throw a TypeError exception.
@@ -1085,9 +1088,10 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
   if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
       elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  method_name)));
+        isolate,
+        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                     isolate->factory()->NewStringFromAsciiChecked(method_name),
+                     uint8array));
   }
 
   //  3. Let toEncode be ? GetUint8ArrayBytes(O).

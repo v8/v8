@@ -1054,7 +1054,8 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                                  isolate->factory()->NewStringFromAsciiChecked(
-                                     "UnwrapNumberFormat")));
+                                     "UnwrapNumberFormat"),
+                                 format_holder));
   }
   // 5. Return nf.
   return Cast<JSNumberFormat>(object);
