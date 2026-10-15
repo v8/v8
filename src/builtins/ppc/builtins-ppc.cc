@@ -4210,8 +4210,10 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
       // Push parameter
       {
         __ AddS64(params_end, params_end, Operand(-kSystemPointerSize));
-        __ LoadU64(r0, MemOperand(params_end));
-        __ push(r0);
+        UseScratchRegisterScope temps(masm);
+        Register scratch = temps.Acquire();
+        __ LoadU64(scratch, MemOperand(params_end));
+        __ push(scratch);
       }
       __ jmp(&loop_start);
 
