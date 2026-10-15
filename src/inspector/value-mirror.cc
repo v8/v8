@@ -49,6 +49,10 @@ Response arrayToProtocolValue(v8::Local<v8::Context> context,
   std::unique_ptr<protocol::ListValue> inspectorArray =
       protocol::ListValue::create();
   uint32_t length = array->Length();
+  if (length > kMaxArrayLength) {
+    return Response::ServerError("Array length exceeds maximum limit");
+  }
+  inspectorArray->reserve(length);
   for (uint32_t i = 0; i < length; i++) {
     v8::Local<v8::Value> value;
     if (!array->Get(context, i).ToLocal(&value)) {
