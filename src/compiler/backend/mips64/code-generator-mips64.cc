@@ -930,8 +930,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchAtomicStoreSkippedWriteBarrier:
     case kArchStoreSkippedWriteBarrier:
-    case kArchStoreIndirectWithWriteBarrier:
-    case kArchStoreIndirectSkippedWriteBarrier:
+    case kArchStoreTrustedWithWriteBarrier:
+    case kArchStoreTrustedSkippedWriteBarrier:
       UNREACHABLE();
     case kArchStackSlot: {
       FrameOffset offset =

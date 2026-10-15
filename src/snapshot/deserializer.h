@@ -167,7 +167,7 @@ class Deserializer : public SerializerDeserializer {
 
   struct ReferenceDescriptor {
     HeapObjectReferenceType type;
-    bool is_indirect_pointer;
+    bool is_trusted_pointer;
     bool is_protected_pointer;
   };
 

@@ -44,7 +44,7 @@ namespace compiler {
 enum class RecordWriteMode {
   kValueIsMap,
   kValueIsPointer,
-  kValueIsIndirectPointer,
+  kValueIsTrustedPointer,
   kValueIsEphemeronKey,
   kValueIsAny,
 };
@@ -56,8 +56,8 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
       return RecordWriteMode::kValueIsMap;
     case kPointerWriteBarrier:
       return RecordWriteMode::kValueIsPointer;
-    case kIndirectPointerWriteBarrier:
-      return RecordWriteMode::kValueIsIndirectPointer;
+    case kTrustedPointerWriteBarrier:
+      return RecordWriteMode::kValueIsTrustedPointer;
     case kEphemeronKeyWriteBarrier:
       return RecordWriteMode::kValueIsEphemeronKey;
     case kFullWriteBarrier:
@@ -110,10 +110,10 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(AtomicXorWord32)                                       \
   V(ArchStoreWithWriteBarrier)                             \
   V(ArchAtomicStoreWithWriteBarrier)                       \
-  V(ArchStoreIndirectWithWriteBarrier)                     \
+  V(ArchStoreTrustedWithWriteBarrier)                      \
   V(ArchStoreSkippedWriteBarrier)                          \
   V(ArchAtomicStoreSkippedWriteBarrier)                    \
-  V(ArchStoreIndirectSkippedWriteBarrier)                  \
+  V(ArchStoreTrustedSkippedWriteBarrier)                   \
   V(AtomicLoadInt8)                                        \
   V(AtomicLoadUint8)                                       \
   V(AtomicLoadInt16)                                       \

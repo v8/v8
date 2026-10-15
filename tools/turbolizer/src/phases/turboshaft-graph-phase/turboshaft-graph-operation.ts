@@ -568,7 +568,7 @@ enum WriteBarrierKind {
   AssertNoWriteBarrier = "AssertNoWriteBarrier",
   MapWriteBarrier = "MapWriteBarrier",
   PointerWriteBarrier = "PointerWriteBarrier",
-  IndirectPointerWriteBarrier = "IndirectPointerWriteBarrier",
+  TrustedPointerWriteBarrier = "TrustedPointerWriteBarrier",
   EphemeronKeyWriteBarrier = "EphemeronKeyWriteBarrier",
   FullWriteBarrier = "FullWriteBarrier",
 }

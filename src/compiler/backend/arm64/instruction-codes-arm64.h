@@ -384,7 +384,7 @@ namespace compiler {
   V(Arm64LdarDecompressTaggedSigned)                 \
   V(Arm64LdarDecompressTagged)                       \
   V(Arm64StlrCompressTagged)                         \
-  V(Arm64StrIndirectPointer)                         \
+  V(Arm64StrTrustedPointer)                          \
   V(Arm64LdrDecodeSandboxedPointer)                  \
   V(Arm64StrEncodeSandboxedPointer)                  \
   V(Arm64DmbIsh)                                     \

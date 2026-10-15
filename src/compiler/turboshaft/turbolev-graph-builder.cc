@@ -3647,7 +3647,7 @@ class GraphBuildingNodeProcessor {
     __ Store(Map(node->ObjectInput()), Map(node->ValueInput()),
              StoreOp::Kind::TaggedBase(),
              MemoryRepresentation::IndirectPointer(),
-             WriteBarrierKind::kIndirectPointerWriteBarrier, node->offset(),
+             WriteBarrierKind::kTrustedPointerWriteBarrier, node->offset(),
              node->initializing_or_transitioning(), node->tag());
     return maglev::ProcessResult::kContinue;
   }

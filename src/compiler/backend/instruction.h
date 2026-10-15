@@ -597,7 +597,7 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kNone:
         return false;
       case MachineRepresentation::kMapWord:
-      case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kTrustedPointer:
       case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
