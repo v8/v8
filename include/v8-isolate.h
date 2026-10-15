@@ -199,6 +199,13 @@ enum class ContextDependants {
 using StackState = cppgc::EmbedderStackState;
 
 /**
+ * A stack-allocated scope that sets the current thread's stack start address
+ * for conservative stack scanning and restores the previous stack start on
+ * destruction.
+ */
+using StackStartScope = cppgc::StackStartScope;
+
+/**
  * The set of V8 isolates in a process is partitioned into groups. Each group
  * has its own sandbox (if V8 was configured with support for the sandbox) and
  * pointer-compression cage (if configured with pointer compression).

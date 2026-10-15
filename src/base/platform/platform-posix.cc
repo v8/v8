@@ -1259,6 +1259,8 @@ static void SetThreadName(const char* name) {
 }
 
 static void* ThreadEntry(void* arg) {
+  Stack::SetCurrentThreadStackStart();
+
   // Reset denormals state to default, in case we picked up a non-default one
   // with the posix clone() call.
   base::FPU::SetFlushDenormals(false);

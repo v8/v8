@@ -381,6 +381,7 @@ Thread::~Thread() { delete data_; }
 static void SetThreadName(const char* name) { SbThreadSetName(name); }
 
 static void* ThreadEntry(void* arg) {
+  Stack::SetCurrentThreadStackStart();
   Thread* thread = reinterpret_cast<Thread*>(arg);
   // We take the lock here to make sure that pthread_create finished first since
   // we don't know which thread will run first (the original thread or the new
