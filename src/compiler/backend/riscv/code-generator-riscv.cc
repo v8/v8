@@ -5367,11 +5367,11 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
     cases.push_back({i.InputInt32(index + 0), GetLabel(i.InputRpo(index + 1))});
   }
-#ifdef V8_COMPRESS_POINTERS
   // AssembleArchBinarySearchSwitchRange use JumpIfEqual and JumpIfLessThan to
   // compare the input value with the case values.
-  // In V8_COMPRESS_POINTERS, the compare is done with the lower 32 bits of the
-  // input, requiring a sign extension.
+  // The compare is performed on the full 64-bit registers, but the switch
+  // input is a 32-bit value whose upper 32 bits are not guaranteed to be
+  // sign-extended, so a sign extension is required.
   // Since the input value remains unchanged throughout
   // AssembleArchBinarySearchSwitch, we perform the sign extension once here,
   // rather than repeatedly in JumpIfEqual and JumpIfLessThan. This reduces the
@@ -5379,7 +5379,6 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   UseScratchRegisterScope temps(masm());
   scratch = temps.Acquire();
   __ SignExtendWord(scratch, input);
-#endif
   AssembleArchBinarySearchSwitchRange(scratch, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size());
 }
