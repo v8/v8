@@ -4372,7 +4372,11 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
   message_obj->initialize_elements();
   message_obj->set_elements(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   message_obj->set_type(message);
-  message_obj->set_argument(*argument, SKIP_WRITE_BARRIER);
+  if (argument.is_null()) {
+    message_obj->set_argument(*the_hole_value(), SKIP_WRITE_BARRIER);
+  } else {
+    message_obj->set_argument(*argument, SKIP_WRITE_BARRIER);
+  }
   message_obj->set_start_position(start_position);
   message_obj->set_end_position(end_position);
   message_obj->set_script(*script, SKIP_WRITE_BARRIER);

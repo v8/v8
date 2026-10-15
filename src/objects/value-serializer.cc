@@ -1374,14 +1374,15 @@ Maybe<bool> ValueSerializer::ThrowIfOutOfMemory() {
 
 Maybe<bool> ValueSerializer::ThrowDataCloneError(
     MessageTemplate template_index) {
-  return ThrowDataCloneError(template_index,
-                             isolate_->factory()->empty_string());
+  return ThrowDataCloneError(template_index, {});
 }
 
 Maybe<bool> ValueSerializer::ThrowDataCloneError(MessageTemplate index,
                                                  DirectHandle<Object> arg0) {
-  DirectHandle<String> message =
-      MessageFormatter::Format(isolate_, index, base::VectorOf({arg0}));
+  DirectHandle<String> message = MessageFormatter::Format(
+      isolate_, index,
+      arg0.is_null() ? base::Vector<const DirectHandle<Object>>{}
+                     : base::VectorOf({arg0}));
   if (delegate_) {
     delegate_->ThrowDataCloneError(Utils::ToLocal(message));
   } else {

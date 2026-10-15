@@ -189,8 +189,10 @@ DirectHandle<String> MessageHandler::GetMessage(Isolate* isolate,
                                                 DirectHandle<Object> data) {
   DirectHandle<JSMessageObject> message = Cast<JSMessageObject>(data);
   DirectHandle<Object> arg{message->argument(), isolate};
-  return MessageFormatter::Format(isolate, message->type(),
-                                  base::VectorOf({arg}));
+  return MessageFormatter::Format(
+      isolate, message->type(),
+      IsTheHole(*arg) ? base::Vector<const DirectHandle<Object>>{}
+                      : base::VectorOf({arg}));
 }
 
 std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
@@ -454,19 +456,13 @@ MaybeHandle<String> MessageFormatter::TryFormat(
   // TODO(14386): Get this list empty.
   static constexpr MessageTemplate kTemplatesWithMismatchedArguments[] = {
       MessageTemplate::kConstAssign,
-      MessageTemplate::kConstructorNotReceiver,
-      MessageTemplate::kDataCloneErrorDetachedArrayBuffer,
-      MessageTemplate::kDataCloneErrorOutOfMemory,
       MessageTemplate::kIncompatibleMethodReceiver,
       MessageTemplate::kInvalidArgument,
       MessageTemplate::kInvalidArrayLength,
-      MessageTemplate::kInvalidAtomicAccessIndex,
       MessageTemplate::kInvalidDataViewLength,
-      MessageTemplate::kInvalidIndex,
       MessageTemplate::kInvalidPrivateBrandReinitialization,
       MessageTemplate::kInvalidPrivateFieldReinitialization,
       MessageTemplate::kInvalidPrivateMemberWrite,
-      MessageTemplate::kInvalidRegExpExecResult,
       MessageTemplate::kInvalidWeakMapKey,
       MessageTemplate::kInvalidWeakSetValue,
       MessageTemplate::kIteratorReduceNoInitial,
@@ -478,8 +474,6 @@ MaybeHandle<String> MessageFormatter::TryFormat(
       MessageTemplate::kProxyTrapReturnedFalsishFor,
       MessageTemplate::kReduceNoInitial,
       MessageTemplate::kSpreadIteratorSymbolNonCallable,
-      MessageTemplate::kSymbolIteratorInvalid,
-      MessageTemplate::kTopLevelAwaitStalled,
       MessageTemplate::kUndefinedOrNullToObject};
 
   base::Vector<const DirectHandle<String>> remaining_args = args;

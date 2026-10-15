@@ -1692,7 +1692,7 @@ SourceTextModule::GetStalledTopLevelAwaitMessages(Isolate* isolate) {
           DirectHandle<JSMessageObject> message =
               MessageHandler::MakeMessageObject(
                   isolate, MessageTemplate::kTopLevelAwaitStalled, &location,
-                  isolate->factory()->null_value());
+                  {});
           messages.push_back(message);
         });
   }
