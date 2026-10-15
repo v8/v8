@@ -369,6 +369,17 @@ Compiler::CompilationResult Compiler::Assemble(
     // the pattern never backtracks and drop the push (and the stack) entirely.
     macro_assembler_->PushBacktrack(&fail);
   }
+  const bool may_step_back =
+      !one_byte() && ShouldOptionallyStepBackToLeadSurrogate(flags());
+  NonAssertingLabel check_lead_surrogate(this);
+  Label not_in_surrogate_pair;
+  if (may_step_back) {
+    // Normalize the starting position before matching.
+    macro_assembler_->LoadCurrentCharacter(0, &not_in_surrogate_pair);
+    macro_assembler_->CheckCharacterInRange(
+        kTrailSurrogateStart, kTrailSurrogateEnd, &check_lead_surrogate);
+    macro_assembler_->Bind(&not_in_surrogate_pair);
+  }
   Trace new_trace;
   if (start->Emit(this, &new_trace).IsError()) {
     work_list_ = nullptr;
@@ -376,6 +387,14 @@ Compiler::CompilationResult Compiler::Assemble(
   }
   macro_assembler_->BindJumpTarget(&fail);
   macro_assembler_->Fail();
+  if (may_step_back) {
+    macro_assembler_->Bind(&check_lead_surrogate);
+    macro_assembler_->LoadCurrentCharacter(-1, &not_in_surrogate_pair);
+    macro_assembler_->CheckCharacterNotInRange(
+        kLeadSurrogateStart, kLeadSurrogateEnd, &not_in_surrogate_pair);
+    macro_assembler_->AdvanceCurrentPosition(-1);
+    macro_assembler_->GoTo(&not_in_surrogate_pair);
+  }
   while (!work_list.empty()) {
     WorkItem item = work_list.back();
     Node* node = item.node;
@@ -6447,35 +6466,6 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
   if (initial_offset == 0) set_bm_info(not_at_start, bm);
 }
 
-Node* Compiler::OptionallyStepBackToLeadSurrogate(Node* on_success) {
-  TRACE_COMPILER(this, "* Optionally step back to lead surrogate");
-  DCHECK(!read_backward());
-  ZoneList<CharacterRange>* lead_surrogates = CharacterRange::List(
-      zone(), CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd));
-  ZoneList<CharacterRange>* trail_surrogates = CharacterRange::List(
-      zone(), CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd));
-
-  ChoiceNode* optional_step_back = zone()->New<ChoiceNode>(2, flags(), zone());
-
-  int stack_register = UnicodeLookaroundStackRegister();
-  int position_register = UnicodeLookaroundPositionRegister();
-  Node* step_back = TextNode::CreateForCharacterRanges(
-      zone(), lead_surrogates, true, on_success, flags());
-  Lookaround::Builder builder(true, step_back, this, stack_register,
-                              position_register);
-  REGISTER_NODE(step_back);
-  Node* match_trail = TextNode::CreateForCharacterRanges(
-      zone(), trail_surrogates, false, builder.on_match_success(), flags());
-  REGISTER_NODE(match_trail);
-
-  optional_step_back->AddAlternative(
-      GuardedAlternative(builder.ForMatch(this, match_trail)));
-  optional_step_back->AddAlternative(GuardedAlternative(on_success));
-
-  REGISTER_NODE(optional_step_back);
-  return optional_step_back;
-}
-
 Node* Compiler::PreprocessRegExp(CompileData* data, bool is_one_byte) {
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
   TraceTreeScope trace_tree_scope(diagnostics());
@@ -6514,11 +6504,6 @@ Node* Compiler::PreprocessRegExp(CompileData* data, bool is_one_byte) {
       node = loop_node;
     }
   }
-  if (!is_one_byte && IsEitherUnicode(flags()) &&
-      (IsGlobal(flags()) || IsSticky(flags()))) {
-    node = OptionallyStepBackToLeadSurrogate(node);
-  }
-
   // We can run out of registers during preprocessing, or we can recurse too
   // deep during ToNode. Indicate an error in either case.
   if (reg_exp_too_big_) {

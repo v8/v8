@@ -640,12 +640,7 @@ class V8_EXPORT_PRIVATE Compiler {
   // - Wrapping the body of the regexp in capture 0.
   // - Inserting the implicit .* before/after the regexp if necessary.
   // - If the input is a one-byte string, filtering out nodes that can't match.
-  // - Fixing up regexp matches that start within a surrogate pair.
   Node* PreprocessRegExp(CompileData* data, bool is_one_byte);
-
-  // If the regexp matching starts within a surrogate pair, step back to the
-  // lead surrogate and start matching from there.
-  Node* OptionallyStepBackToLeadSurrogate(Node* on_success);
 
   struct WorkItem {
     Node* node;
