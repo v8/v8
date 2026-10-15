@@ -458,7 +458,7 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kFloat16:
       UNIMPLEMENTED();
     case MachineRepresentation::kProtectedPointer:  // Fall through.
-    case MachineRepresentation::kTrustedPointer:    // Fall through.
+    case MachineRepresentation::kIndirectPointer:   // Fall through.
     case MachineRepresentation::kSandboxedPointer:  // Fall through.
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.

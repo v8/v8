@@ -228,7 +228,7 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
                                              Tagged<HeapObject> heap_object,
                                              ReferenceDescriptor descr,
                                              WriteBarrierMode mode) {
-  if (descr.is_trusted_pointer) {
+  if (descr.is_indirect_pointer) {
     return slot_accessor.WriteTrustedPointerTo(heap_object, mode);
   } else {
     return slot_accessor.Write(heap_object, descr.type, 0, mode);
@@ -240,7 +240,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::WriteHeapPointer(
     SlotAccessor slot_accessor, DirectHandle<HeapObject> heap_object,
     ReferenceDescriptor descr, WriteBarrierMode mode) {
-  if (descr.is_trusted_pointer) {
+  if (descr.is_indirect_pointer) {
     return slot_accessor.WriteTrustedPointerTo(*heap_object, mode);
   } else if (descr.is_protected_pointer) {
     DCHECK(IsTrustedObject(*heap_object));
@@ -760,7 +760,7 @@ Deserializer<IsolateT>::GetAndResetNextReferenceDescriptor() {
   desc.type = next_reference_is_weak_ ? HeapObjectReferenceType::WEAK
                                       : HeapObjectReferenceType::STRONG;
   next_reference_is_weak_ = false;
-  desc.is_trusted_pointer = next_reference_is_trusted_pointer_;
+  desc.is_indirect_pointer = next_reference_is_trusted_pointer_;
   next_reference_is_trusted_pointer_ = false;
   desc.is_protected_pointer = next_reference_is_protected_pointer;
   next_reference_is_protected_pointer = false;

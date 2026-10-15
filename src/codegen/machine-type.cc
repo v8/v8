@@ -63,8 +63,8 @@ const char* MachineReprToString(MachineRepresentation rep) {
       return "kRepCompressed";
     case MachineRepresentation::kProtectedPointer:
       return "kRepProtectedPointer";
-    case MachineRepresentation::kTrustedPointer:
-      return "kRepTrustedPointer";
+    case MachineRepresentation::kIndirectPointer:
+      return "kRepIndirectPointer";
     case MachineRepresentation::kMapWord:
       return "kRepMapWord";
     case MachineRepresentation::kSandboxedPointer:

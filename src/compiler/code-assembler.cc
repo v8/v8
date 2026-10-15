@@ -1009,18 +1009,18 @@ void CodeAssembler::OptimizedStoreField(MachineRepresentation rep,
                                        WriteBarrierKind::kFullWriteBarrier);
 }
 
-void CodeAssembler::OptimizedStoreTrustedPointerField(TNode<HeapObject> object,
-                                                      int offset,
-                                                      TrustedPointerTag tag,
-                                                      Node* value) {
-  raw_assembler()->OptimizedStoreTrustedPointerField(
+void CodeAssembler::OptimizedStoreIndirectPointerField(TNode<HeapObject> object,
+                                                       int offset,
+                                                       TrustedPointerTag tag,
+                                                       Node* value) {
+  raw_assembler()->OptimizedStoreIndirectPointerField(
       object, offset, tag, value,
-      WriteBarrierKind::kTrustedPointerWriteBarrier);
+      WriteBarrierKind::kIndirectPointerWriteBarrier);
 }
 
-void CodeAssembler::OptimizedStoreTrustedPointerFieldNoWriteBarrier(
+void CodeAssembler::OptimizedStoreIndirectPointerFieldNoWriteBarrier(
     TNode<HeapObject> object, int offset, TrustedPointerTag tag, Node* value) {
-  raw_assembler()->OptimizedStoreTrustedPointerField(
+  raw_assembler()->OptimizedStoreIndirectPointerField(
       object, offset, tag, value, WriteBarrierKind::kNoWriteBarrier);
 }
 

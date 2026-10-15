@@ -297,7 +297,7 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kProtectedPointer:
-    case MachineRepresentation::kTrustedPointer:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }

@@ -792,7 +792,7 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
     case MemoryRepresentation::IndirectPointer():
-      return kLoong64StoreTrustedPointer;
+      return kLoong64StoreIndirectPointer;
     case MemoryRepresentation::SandboxedPointer():
       return kLoong64StoreEncodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
@@ -843,7 +843,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   // TODO(loong64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[4];
     size_t input_count = 0;
@@ -859,15 +859,15 @@ void InstructionSelector::VisitStore(OpIndex node) {
     }
     inputs[input_count++] = g.UseUniqueRegister(value);
     InstructionCode code;
-    if (rep == MachineRepresentation::kTrustedPointer) {
-      DCHECK(write_barrier_kind == kTrustedPointerWriteBarrier ||
+    if (rep == MachineRepresentation::kIndirectPointer) {
+      DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
              write_barrier_kind == kSkippedWriteBarrier);
       // In this case we need to add the TrustedPointerTag as additional input.
       code = write_barrier_kind == kSkippedWriteBarrier
-                 ? kArchStoreTrustedSkippedWriteBarrier
-                 : kArchStoreTrustedWithWriteBarrier;
-      code |=
-          RecordWriteModeField::encode(RecordWriteMode::kValueIsTrustedPointer);
+                 ? kArchStoreIndirectSkippedWriteBarrier
+                 : kArchStoreIndirectWithWriteBarrier;
+      code |= RecordWriteModeField::encode(
+          RecordWriteMode::kValueIsIndirectPointer);
       TrustedPointerTag tag = store_view.trusted_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {

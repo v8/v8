@@ -3369,7 +3369,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
       case MachineRepresentation::kProtectedPointer:
-      case MachineRepresentation::kTrustedPointer:
+      case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:

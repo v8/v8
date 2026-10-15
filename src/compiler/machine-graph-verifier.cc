@@ -163,7 +163,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kStore:
           case IrOpcode::kTrappingStore:
           case IrOpcode::kStoreTrapOnNull:
-          case IrOpcode::kStoreTrustedPointer:
+          case IrOpcode::kStoreIndirectPointer:
             representation_vector_[node->id()] = PromoteRepresentation(
                 StoreRepresentationOf(node->op()).representation());
             break;
@@ -560,7 +560,7 @@ class MachineRepresentationChecker {
                                             MachineRepresentation::kWord32);
             [[fallthrough]];
           case IrOpcode::kStore:
-          case IrOpcode::kStoreTrustedPointer:
+          case IrOpcode::kStoreIndirectPointer:
           case IrOpcode::kUnalignedStore:
           case IrOpcode::kWord32AtomicStore:
           case IrOpcode::kWord32AtomicExchange:
@@ -583,7 +583,7 @@ class MachineRepresentationChecker {
               case MachineRepresentation::kTagged:
               case MachineRepresentation::kTaggedPointer:
               case MachineRepresentation::kTaggedSigned:
-              case MachineRepresentation::kTrustedPointer:
+              case MachineRepresentation::kIndirectPointer:
                 if (COMPRESS_POINTERS_BOOL &&
                     ((node->opcode() == IrOpcode::kStore &&
                       IsAnyTagged(StoreRepresentationOf(node->op())
@@ -610,7 +610,7 @@ class MachineRepresentationChecker {
                 case MachineRepresentation::kTagged:
                 case MachineRepresentation::kTaggedPointer:
                 case MachineRepresentation::kTaggedSigned:
-                case MachineRepresentation::kTrustedPointer:
+                case MachineRepresentation::kIndirectPointer:
                   if (COMPRESS_POINTERS_BOOL) {
                     CheckValueInputIsCompressedOrTagged(node, input);
                   } else {
@@ -1041,7 +1041,7 @@ class MachineRepresentationChecker {
         return IsAnyTagged(actual);
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kProtectedPointer:
-      case MachineRepresentation::kTrustedPointer:
+      case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kFloat16RawBits:
       case MachineRepresentation::kFloat16:

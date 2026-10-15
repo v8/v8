@@ -208,7 +208,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
                            Node* value, WriteBarrierKind write_barrier) {
     DCHECK(!IsMapOffsetConstantMinusTag(offset));
-    DCHECK_NE(rep, MachineRepresentation::kTrustedPointer);
+    DCHECK_NE(rep, MachineRepresentation::kIndirectPointer);
     AddNode(simplified()->StoreField(
                 FieldAccess(BaseTaggedness::kTaggedBase, offset,
                             MaybeHandle<Name>(), OptionalMapRef(), Type::Any(),
@@ -216,16 +216,16 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                             write_barrier, "OptimizedStoreField")),
             object, value);
   }
-  void OptimizedStoreTrustedPointerField(Node* object, int offset,
-                                         TrustedPointerTag tag, Node* value,
-                                         WriteBarrierKind write_barrier) {
+  void OptimizedStoreIndirectPointerField(Node* object, int offset,
+                                          TrustedPointerTag tag, Node* value,
+                                          WriteBarrierKind write_barrier) {
     DCHECK(!IsMapOffsetConstantMinusTag(offset));
     DCHECK(write_barrier == WriteBarrierKind::kNoWriteBarrier ||
-           write_barrier == WriteBarrierKind::kTrustedPointerWriteBarrier);
+           write_barrier == WriteBarrierKind::kIndirectPointerWriteBarrier);
     FieldAccess access(BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
                        OptionalMapRef(), Type::Any(),
-                       MachineType::TrustedPointer(), write_barrier,
-                       "OptimizedStoreTrustedPointerField",
+                       MachineType::IndirectPointer(), write_barrier,
+                       "OptimizedStoreIndirectPointerField",
                        ConstFieldInfo::None(), false, kExternalPointerNullTag,
                        tag, false, false);
     AddNode(simplified()->StoreField(access), object, value);
