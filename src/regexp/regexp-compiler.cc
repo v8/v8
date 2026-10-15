@@ -389,10 +389,8 @@ Compiler::CompilationResult Compiler::Assemble(
       }
     }
   }
-  if (IsRegExpTooBig()) {
-    work_list_ = nullptr;
-    return ReportError();
-  }
+  // Emit must report every code generation error.
+  CHECK(!IsRegExpTooBig());
 
   DirectHandle<HeapObject> code = macro_assembler_->GetCode(re_data, flags_);
   work_list_ = nullptr;
@@ -1746,9 +1744,9 @@ Node::LimitResult Node::LimitVersions(Compiler* compiler, Trace* trace) {
   TRACE("* Limit Versions: Switch to generic version");
   bool was_limiting = compiler->limiting_recursion();
   compiler->set_limiting_recursion(true);
-  trace->Flush(compiler, this);
+  EmitResult result = trace->Flush(compiler, this);
   compiler->set_limiting_recursion(was_limiting);
-  return DONE;
+  return result.IsError() ? FAILED : DONE;
 }
 
 bool Node::KeepRecursing(Compiler* compiler) {
@@ -2794,6 +2792,7 @@ EmitResult TextNode::Emit(Compiler* compiler, Trace* trace) {
   TRACE_EMIT("TextNode");
   LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == DONE) return EmitResult::Success();
+  if (limit_result == FAILED) return EmitResult::Error();
   DCHECK(limit_result == CONTINUE);
 
   const int max_offset = read_backward() ? trace->cp_offset() - Length()
@@ -4223,6 +4222,7 @@ EmitResult ChoiceNode::Emit(Compiler* compiler, Trace* trace) {
 
   LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == DONE) return EmitResult::Success();
+  if (limit_result == FAILED) return EmitResult::Error();
   DCHECK(limit_result == CONTINUE);
 
   // For loop nodes we already flushed (see LoopChoiceNode::Emit), but for
@@ -5883,6 +5883,7 @@ EmitResult ActionNode::Emit(Compiler* compiler, Trace* trace) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == DONE) return EmitResult::Success();
+  if (limit_result == FAILED) return EmitResult::Error();
   DCHECK(limit_result == CONTINUE);
 
   RecursionCheck rc(compiler);
@@ -5911,7 +5912,7 @@ EmitResult ActionNode::Emit(Compiler* compiler, Trace* trace) {
         // Complex situation: Flush the trace state to the assembler and
         // generate a generic version of this action.  This call will
         // recurse back to the else clause here.
-        trace->Flush(compiler, this);
+        return trace->Flush(compiler, this);
       } else {
         assembler->WriteCurrentPositionToRegister(
             data_.u_submatch.current_position_register, 0);
@@ -5935,7 +5936,7 @@ EmitResult ActionNode::Emit(Compiler* compiler, Trace* trace) {
         // immediately.
         RETURN_IF_ERROR(on_success()->Emit(compiler, trace));
       } else if (!trace->is_trivial()) {
-        trace->Flush(compiler, this);
+        return trace->Flush(compiler, this);
       } else {
         Label skip_empty_check;
         // If we have a minimum number of repetitions we check the current
@@ -6024,6 +6025,7 @@ EmitResult BackReferenceNode::Emit(Compiler* compiler, Trace* trace) {
 
   LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == DONE) return EmitResult::Success();
+  if (limit_result == FAILED) return EmitResult::Error();
   DCHECK(limit_result == CONTINUE);
 
   RecursionCheck rc(compiler);
