@@ -318,7 +318,7 @@ std::string UnionType::GetGeneratedTNodeTypeNameImpl() const {
   std::stringstream result;
   result << "Union<";
   bool first = true;
-  for (std::string name : names) {
+  for (const std::string& name : names) {
     if (!first) {
       result << ", ";
     }
@@ -374,7 +374,7 @@ std::string UnionType::GetConstexprGeneratedTypeName() const {
   std::stringstream result;
   result << "Union<";
   bool first = true;
-  for (std::string name : names) {
+  for (const std::string& name : names) {
     if (!first) {
       result << ", ";
     }

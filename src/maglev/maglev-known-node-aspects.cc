@@ -805,7 +805,7 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
     } else {
       LoopInvariantPropertyFilter filter(loop_effects,
                                          loop_effects->objects_written, this);
-      for (auto loaded_key : other.loaded_properties_) {
+      for (const auto& loaded_key : other.loaded_properties_) {
         if (!filter.StartKey(loaded_key.first)) continue;
         auto& props_for_key =
             loaded_properties_.try_emplace(loaded_key.first, zone)

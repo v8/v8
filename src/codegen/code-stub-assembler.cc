@@ -20673,7 +20673,7 @@ void CodeStubAssembler::PrintErr(const char* s) {
 
 void CodeStubAssembler::PrintToStream(const char* s, int stream) {
   std::string formatted(s);
-  formatted += "\n";
+  formatted += '\n';
   CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
               StringConstant(formatted.c_str()), SmiConstant(stream));
 }

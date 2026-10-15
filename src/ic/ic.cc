@@ -188,7 +188,7 @@ void IC::TraceIC(const char* type, DirectHandle<Object> name, State old_state,
   ic_info.state += "->";
   ic_info.state += TransitionMarkFromState(new_state);
   ic_info.state += modifier;
-  ic_info.state += ")";
+  ic_info.state += ')';
   if (!map.is_null()) {
     ic_info.map = reinterpret_cast<void*>(map->ptr());
     ic_info.is_dictionary_map = map->is_dictionary_map();

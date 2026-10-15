@@ -2116,7 +2116,7 @@ std::string BestFitMatcher(Isolate* isolate,
                            const std::vector<std::string>& requested_locales) {
   UErrorCode status = U_ZERO_ERROR;
   std::vector<icu::Locale> locales;
-  for (std::string locale_str : requested_locales) {
+  for (const std::string& locale_str : requested_locales) {
     icu::Locale locale = icu::Locale::forLanguageTag(locale_str, status);
     if (U_SUCCESS(status)) {
       locales.push_back(locale);

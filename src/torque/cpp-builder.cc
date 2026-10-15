@@ -84,7 +84,7 @@ void Function::PrintBeginDefinition(std::ostream& stream,
     if (!class_template_parameters.empty()) {
       stream << std::string(indentation, ' ');
       stream << "template<";
-      scope += "<";
+      scope += '<';
       bool first = true;
       for (const auto& p : class_template_parameters) {
         if (!first) {
@@ -100,7 +100,7 @@ void Function::PrintBeginDefinition(std::ostream& stream,
         first = false;
       }
       stream << ">\n";
-      scope += ">";
+      scope += '>';
     }
     scope += "::";
   }

@@ -39,7 +39,7 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
   CodeKind kind = function->abstract_code(isolate)->kind();
   // Not adding "-interpreter" for tooling backwards compatibility.
   if (kind != CodeKind::INTERPRETED_FUNCTION) {
-    event_name += "-";
+    event_name += '-';
     event_name += CodeKindToString(kind);
   }
   LOG(isolate, FunctionEvent(

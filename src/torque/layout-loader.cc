@@ -528,7 +528,7 @@ std::string ExpressionKey(Expression* expr) {
 
 std::string IndexKey(const ClassFieldIndexInfo& index) {
   std::string result = ExpressionKey(index.expr);
-  if (index.optional) result += "?";
+  if (index.optional) result += '?';
   return result;
 }
 
