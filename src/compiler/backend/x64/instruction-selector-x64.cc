@@ -980,7 +980,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       break;
     case MachineRepresentation::kNone:     // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
-    case MachineRepresentation::kIndirectPointer:  // Fall through.
+    case MachineRepresentation::kTrustedPointer:  // Fall through.
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
@@ -1022,7 +1022,7 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
     case MemoryRepresentation::IndirectPointer():
-      return kX64MovqStoreIndirectPointer;
+      return kX64MovqStoreTrustedPointer;
     case MemoryRepresentation::SandboxedPointer():
       return kX64MovqEncodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
@@ -1486,8 +1486,7 @@ void VisitStoreCommon(InstructionSelector* selector,
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(
-        CanBeTaggedOrCompressedOrIndirectPointer(store_rep.representation()));
+    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(store_rep.representation()));
     // Uncompressed stores should not happen if we need a write barrier.
     CHECK((store.ts_stored_rep() !=
            MemoryRepresentation::AnyUncompressedTagged()) &&
@@ -1506,15 +1505,15 @@ void VisitStoreCommon(InstructionSelector* selector,
     inputs[input_count++] = g.UseUniqueRegister(value);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     InstructionCode code;
-    if (store_rep.representation() == MachineRepresentation::kIndirectPointer) {
-      DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
+    if (store_rep.representation() == MachineRepresentation::kTrustedPointer) {
+      DCHECK(write_barrier_kind == kTrustedPointerWriteBarrier ||
              write_barrier_kind == kSkippedWriteBarrier);
       // In this case we need to add the TrustedPointerTag as additional input.
       code = write_barrier_kind == kSkippedWriteBarrier
-                 ? kArchStoreIndirectSkippedWriteBarrier
-                 : kArchStoreIndirectWithWriteBarrier;
-      code |= RecordWriteModeField::encode(
-          RecordWriteMode::kValueIsIndirectPointer);
+                 ? kArchStoreTrustedSkippedWriteBarrier
+                 : kArchStoreTrustedWithWriteBarrier;
+      code |=
+          RecordWriteModeField::encode(RecordWriteMode::kValueIsTrustedPointer);
       TrustedPointerTag tag = store.trusted_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {

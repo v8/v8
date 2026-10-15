@@ -307,7 +307,7 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
         // Turboshaft does not support map packing.
         DCHECK(!V8_MAP_PACKING_BOOL);
         return RegisterRepresentation::Tagged();
-      case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kTrustedPointer:
       case MachineRepresentation::kSandboxedPointer:
         // TODO(saelo/jkummerow): This is suspicious: after resolving the
         // indirection, we have a Tagged pointer.
@@ -825,7 +825,7 @@ class MemoryRepresentation {
       case ProtectedPointer():
         return MachineType::ProtectedPointer();
       case IndirectPointer():
-        return MachineType::IndirectPointer();
+        return MachineType::TrustedPointer();
       case SandboxedPointer():
         return MachineType::SandboxedPointer();
       case TrustedPointer():
@@ -858,7 +858,7 @@ class MemoryRepresentation {
         return TaggedPointer();
       case MachineRepresentation::kProtectedPointer:
         return ProtectedPointer();
-      case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kTrustedPointer:
         return IndirectPointer();
       case MachineRepresentation::kTagged:
         return AnyTagged();
@@ -919,7 +919,7 @@ class MemoryRepresentation {
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
       case MachineRepresentation::kProtectedPointer:
-      case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kTrustedPointer:
       case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }

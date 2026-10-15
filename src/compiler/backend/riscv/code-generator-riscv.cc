@@ -234,7 +234,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     // When storing an indirect pointer, the value will always be a
     // full/decompressed pointer.
     if (COMPRESS_POINTERS_BOOL &&
-        mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+        mode_ != RecordWriteMode::kValueIsTrustedPointer) {
       __ DecompressTagged(value_, value_);
     }
 #endif
@@ -253,7 +253,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, offset_, save_fp_mode);
-    } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
+    } else if (mode_ == RecordWriteMode::kValueIsTrustedPointer) {
       DCHECK(IsValidTrustedPointerTag(trusted_pointer_tag_));
       __ CallTrustedPointerBarrier(object_, offset_, save_fp_mode,
                                    trusted_pointer_tag_);
@@ -1302,7 +1302,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStoreWithWriteBarrier: {
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
-      DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
+      DCHECK_NE(mode, RecordWriteMode::kValueIsTrustedPointer);
       Register object = i.InputRegister(0);
       Operand offset = i.InputOperand(1);
       Register value = i.InputRegister(2);
@@ -1310,7 +1310,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, value, mode, DetermineStubCallMode());
       __ StoreTaggedField(value, MemOperand(kScratchReg, 0), trapper);
-      if (mode > RecordWriteMode::kValueIsIndirectPointer) {
+      if (mode > RecordWriteMode::kValueIsTrustedPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
@@ -1350,7 +1350,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       MacroAssembler::BlockPoolsScope block_pools(masm());
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
-      DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
+      DCHECK_NE(mode, RecordWriteMode::kValueIsTrustedPointer);
       Register object = i.InputRegister(0);
       Operand offset = i.InputOperand(1);
       Register value = i.InputRegister(2);
@@ -1363,7 +1363,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // valid if the value isn't an indirect pointer. Otherwise the value will
       // be a pointer table index, which will always look like a Smi (but
       // actually reference a pointer in the pointer table).
-      if (mode > RecordWriteMode::kValueIsIndirectPointer) {
+      if (mode > RecordWriteMode::kValueIsTrustedPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
@@ -1395,10 +1395,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       UNREACHABLE();
 #endif
     }
-    case kArchStoreIndirectWithWriteBarrier: {
+    case kArchStoreTrustedWithWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
-      DCHECK_EQ(mode, RecordWriteMode::kValueIsIndirectPointer);
+      DCHECK_EQ(mode, RecordWriteMode::kValueIsTrustedPointer);
       TrustedPointerTag tag = static_cast<TrustedPointerTag>(i.InputInt64(3));
       DCHECK(IsValidTrustedPointerTag(tag));
       Register object = i.InputRegister(0);
@@ -1407,7 +1407,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AddWord(kScratchReg, object, offset);
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, value, mode, DetermineStubCallMode(), tag);
-      __ StoreIndirectPointerField(value, MemOperand(kScratchReg, 0), trapper);
+      __ StoreTrustedPointerField(value, MemOperand(kScratchReg, 0), trapper);
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
@@ -1416,7 +1416,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       UNREACHABLE();
 #endif
     }
-    case kArchStoreIndirectSkippedWriteBarrier: {
+    case kArchStoreTrustedSkippedWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
       Register object = i.InputRegister(0);
       Operand offset = i.InputOperand(1);
@@ -1428,7 +1428,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif  // DEBUG
 
       __ AddWord(kScratchReg, object, offset);
-      __ StoreIndirectPointerField(value, MemOperand(kScratchReg, 0), trapper);
+      __ StoreTrustedPointerField(value, MemOperand(kScratchReg, 0), trapper);
       break;
 #else
       UNREACHABLE();
@@ -2829,9 +2829,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ StoreSandboxedPointerField(i.InputOrZeroRegister(0), mem, trapper);
       break;
     }
-    case kRiscvStoreIndirectPointer: {
+    case kRiscvStoreTrustedPointer: {
       MemOperand mem = i.MemoryOperand(1);
-      __ StoreIndirectPointerField(i.InputOrZeroRegister(0), mem, trapper);
+      __ StoreTrustedPointerField(i.InputOrZeroRegister(0), mem, trapper);
       break;
     }
     case kRiscvAtomicLoadDecompressTaggedSigned: {

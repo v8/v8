@@ -7767,7 +7767,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTransform) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-// This list doesn't contain kIndirectPointerWriteBarrier because only indirect
+// This list doesn't contain kTrustedPointerWriteBarrier because only trusted
 // pointer fields can be stored to with that barrier kind.
 static const WriteBarrierKind kWriteBarrierKinds[] = {
     kMapWriteBarrier, kPointerWriteBarrier, kEphemeronKeyWriteBarrier,

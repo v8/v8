@@ -1014,10 +1014,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                      StoreToObjectWriteBarrier write_barrier);
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
                            int offset, Node* value);
-  void OptimizedStoreIndirectPointerField(TNode<HeapObject> object, int offset,
-                                          TrustedPointerTag tag, Node* value);
-  void OptimizedStoreIndirectPointerFieldNoWriteBarrier(
-      TNode<HeapObject> object, int offset, TrustedPointerTag tag, Node* value);
+  void OptimizedStoreTrustedPointerField(TNode<HeapObject> object, int offset,
+                                         TrustedPointerTag tag, Node* value);
+  void OptimizedStoreTrustedPointerFieldNoWriteBarrier(TNode<HeapObject> object,
+                                                       int offset,
+                                                       TrustedPointerTag tag,
+                                                       Node* value);
   void OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation rep,
                                                TNode<HeapObject> object,
                                                int offset, Node* value);

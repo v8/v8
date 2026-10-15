@@ -1270,8 +1270,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ StoreTaggedField(value, operand);
       break;
     }
-    case kArchStoreIndirectSkippedWriteBarrier:
-    case kArchStoreIndirectWithWriteBarrier: {
+    case kArchStoreTrustedSkippedWriteBarrier:
+    case kArchStoreTrustedWithWriteBarrier: {
       UNREACHABLE();
     }
     case kArchStackSlot: {

@@ -158,7 +158,7 @@ UseInfo TruncatingUseInfoFromRepresentation(
       return UseInfo::TaggedSigned();
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-    case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kMapWord:
       return UseInfo::AnyTagged();
     case MachineRepresentation::kFloat64:
@@ -1645,8 +1645,8 @@ class RepresentationSelector {
       BaseTaggedness base_taggedness,
       MachineRepresentation field_representation, Type field_type,
       MachineRepresentation value_representation, Node* value) {
-    if (CanBeIndirectPointer(field_representation)) {
-      return kIndirectPointerWriteBarrier;
+    if (CanBeTrustedPointer(field_representation)) {
+      return kTrustedPointerWriteBarrier;
     } else if (base_taggedness == kTaggedBase &&
                CanBeTaggedPointer(field_representation)) {
       Type value_type = NodeProperties::GetType(value);

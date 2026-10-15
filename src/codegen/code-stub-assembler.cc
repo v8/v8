@@ -4318,14 +4318,14 @@ void CodeStubAssembler::StoreIndirectPointerField(
     TNode<HeapObject> object, int offset, TrustedPointerTag tag,
     TNode<ExposedTrustedObject> value) {
   DCHECK(V8_ENABLE_SANDBOX_BOOL);
-  OptimizedStoreIndirectPointerField(object, offset, tag, value);
+  OptimizedStoreTrustedPointerField(object, offset, tag, value);
 }
 
 void CodeStubAssembler::StoreIndirectPointerFieldNoWriteBarrier(
     TNode<HeapObject> object, int offset, TrustedPointerTag tag,
     TNode<ExposedTrustedObject> value) {
   DCHECK(V8_ENABLE_SANDBOX_BOOL);
-  OptimizedStoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);
+  OptimizedStoreTrustedPointerFieldNoWriteBarrier(object, offset, tag, value);
 }
 
 void CodeStubAssembler::StoreTrustedPointerField(

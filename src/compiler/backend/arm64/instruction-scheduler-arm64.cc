@@ -71,7 +71,7 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
     case kArm64StrCompressTagged:
     case kArm64Word64AtomicStoreWord64:
     case kArm64StlrCompressTagged:
-    case kArm64StrIndirectPointer:
+    case kArm64StrTrustedPointer:
     case kArm64StrEncodeSandboxedPointer:
     case kArm64DmbIsh:
     case kArm64DsbIsb:
@@ -808,7 +808,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64StrPair:
     case kArm64StrCompressTagged:
     case kArm64StlrCompressTagged:
-    case kArm64StrIndirectPointer:
+    case kArm64StrTrustedPointer:
     case kArm64StrEncodeSandboxedPointer:
     case kArm64DmbIsh:
     case kArm64DsbIsb:

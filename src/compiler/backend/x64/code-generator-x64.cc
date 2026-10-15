@@ -411,13 +411,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     // When storing an indirect pointer, the value will always be a
     // full/decompressed pointer.
     if (COMPRESS_POINTERS_BOOL &&
-        mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+        mode_ != RecordWriteMode::kValueIsTrustedPointer) {
       __ DecompressTagged(value_, value_);
     }
 
     // No need to check value page flags with the indirect pointer write barrier
     // because the value is always an ExposedTrustedObject.
-    if (mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+    if (mode_ != RecordWriteMode::kValueIsTrustedPointer) {
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
       // TODO(333906585): Optimize this path.
       Label stub_call_with_decompressed_value;
@@ -433,7 +433,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
       __ bind(&stub_call_);
       if (COMPRESS_POINTERS_BOOL &&
-          mode_ != RecordWriteMode::kValueIsIndirectPointer) {
+          mode_ != RecordWriteMode::kValueIsTrustedPointer) {
         __ DecompressTagged(value_, value_);
       }
 
@@ -453,7 +453,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
-    } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
+    } else if (mode_ == RecordWriteMode::kValueIsTrustedPointer) {
       // We must have a valid trusted pointer tag here. Otherwise, we risk not
       // invoking the correct write barrier, which may lead to subtle issues.
       CHECK(IsValidTrustedPointerTag(trusted_pointer_tag_));
@@ -571,7 +571,7 @@ int EmitStore(MacroAssembler* masm, Operand operand, Register value,
       case MachineRepresentation::kSandboxedPointer:
         masm->StoreSandboxedPointerField(operand, value);
         break;
-      case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kTrustedPointer:
         masm->StoreIndirectPointerField(operand, value);
         break;
       default:
@@ -813,7 +813,7 @@ Register GetTSANValueRegister(MacroAssembler* masm, Register value,
     masm->movq(value_reg, value);
     masm->EncodeSandboxedPointer(value_reg);
     return value_reg;
-  } else if (rep == MachineRepresentation::kIndirectPointer) {
+  } else if (rep == MachineRepresentation::kTrustedPointer) {
     // Indirect pointer fields contain an index to a pointer table entry, which
     // is obtained from the referenced object.
     Register value_reg = i.TempRegister(1);
@@ -838,7 +838,7 @@ Register GetTSANValueRegister<std::memory_order_relaxed>(
   if (rep == MachineRepresentation::kSandboxedPointer) {
     // SandboxedPointers need to be encoded.
     masm->EncodeSandboxedPointer(value_reg);
-  } else if (rep == MachineRepresentation::kIndirectPointer) {
+  } else if (rep == MachineRepresentation::kTrustedPointer) {
     // Indirect pointer fields contain an index to a pointer table entry, which
     // is obtained from the referenced object.
     masm->movl(value_reg,
@@ -2103,7 +2103,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // here.
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
-      DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
+      DCHECK_NE(mode, RecordWriteMode::kValueIsTrustedPointer);
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -2179,9 +2179,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kArchStoreIndirectWithWriteBarrier: {
+    case kArchStoreTrustedWithWriteBarrier: {
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
-      DCHECK_EQ(mode, RecordWriteMode::kValueIsIndirectPointer);
+      DCHECK_EQ(mode, RecordWriteMode::kValueIsTrustedPointer);
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -2197,12 +2197,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           DetermineStubCallMode(), tag);
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
-          MachineRepresentation::kIndirectPointer, instr);
+          MachineRepresentation::kTrustedPointer, instr);
       __ JumpIfMarking(ool->entry());
       __ bind(ool->exit());
       break;
     }
-    case kArchStoreIndirectSkippedWriteBarrier: {
+    case kArchStoreTrustedSkippedWriteBarrier: {
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -2221,7 +2221,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
-          MachineRepresentation::kIndirectPointer, instr);
+          MachineRepresentation::kTrustedPointer, instr);
       break;
     }
     case kX64MFence:
@@ -3530,7 +3530,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                      DetermineStubCallMode(), kTaggedSize);
       break;
     }
-    case kX64MovqStoreIndirectPointer: {
+    case kX64MovqStoreTrustedPointer: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -3538,7 +3538,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value(i.InputRegister(index));
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
-          MachineRepresentation::kIndirectPointer, instr);
+          MachineRepresentation::kTrustedPointer, instr);
       break;
     }
     case kX64MovqDecodeSandboxedPointer: {
