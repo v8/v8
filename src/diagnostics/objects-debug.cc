@@ -3130,8 +3130,12 @@ void JSDeferredModuleNamespace::JSDeferredModuleNamespaceVerify(
 void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
   if (status() == kErrored) {
     CHECK(IsSharedFunctionInfo(code()));
-  } else if (status() == kEvaluating || status() == kEvaluatingAsync ||
-             status() == kEvaluated) {
+    CHECK_EQ(!IsTheHole(cycle_root()),
+             async_evaluation_ordinal() == kAsyncEvaluateDidFinish);
+  } else if (status() == kEvaluated) {
+    CHECK(IsJSGeneratorObject(code()));
+    CHECK(!HasAsyncEvaluationOrdinal());
+  } else if (status() == kEvaluating || status() == kEvaluatingAsync) {
     CHECK(IsJSGeneratorObject(code()));
   } else {
     if (status() == kLinked) {

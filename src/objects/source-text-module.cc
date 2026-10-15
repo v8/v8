@@ -1695,22 +1695,17 @@ SourceTextModule::GetStalledTopLevelAwaitMessages(Isolate* isolate) {
 
   messages.reserve(stalled_modules_size);
   for (DirectHandle<SourceTextModule> found : stalled_modules) {
-    MatchState(
-        found, [&](DirectHandle<
-                   InState<kLinked, kEvaluating, kEvaluatingAsync, kEvaluated>>
-                       stalled) {
-          DirectHandle<JSGeneratorObject> code(stalled->generator(), isolate);
-          Handle<SharedFunctionInfo> shared(stalled->GetSharedFunctionInfo(),
-                                            isolate);
-          Handle<Object> script(shared->script(), isolate);
-          MessageLocation location = MessageLocation(
-              Cast<Script>(script), shared, code->code_offset());
-          DirectHandle<JSMessageObject> message =
-              MessageHandler::MakeMessageObject(
-                  isolate, MessageTemplate::kTopLevelAwaitStalled, &location,
-                  {});
-          messages.push_back(message);
-        });
+    MatchState(found, [&](DirectHandle<InState<kEvaluatingAsync>> stalled) {
+      DirectHandle<JSGeneratorObject> code(stalled->generator(), isolate);
+      Handle<SharedFunctionInfo> shared(stalled->GetSharedFunctionInfo(),
+                                        isolate);
+      Handle<Object> script(shared->script(), isolate);
+      MessageLocation location =
+          MessageLocation(Cast<Script>(script), shared, code->code_offset());
+      DirectHandle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+          isolate, MessageTemplate::kTopLevelAwaitStalled, &location, {});
+      messages.push_back(message);
+    });
   }
   return {stalled_modules, messages};
 }
@@ -1719,10 +1714,13 @@ void SourceTextModule::InnerGetStalledTopLevelAwaitModule(
     Isolate* isolate, UnorderedModuleSet* visited,
     DirectHandleVector<SourceTextModule>* result) {
   DisallowGarbageCollection no_gc;
-  // If it's a module that is waiting for no other modules but itself,
-  // it's what we are looking for. Add it to the results.
-  if (!HasPendingAsyncDependencies() && HasAsyncEvaluationOrdinal()) {
-    result->push_back(direct_handle(Tagged<SourceTextModule>(this), isolate));
+  // A module that is async-evaluating but not waiting for any dependency is
+  // waiting on its own top-level await: it is what we are looking for.
+  if (status() == kEvaluatingAsync && !HasPendingAsyncDependencies()) {
+    DCHECK(HasAsyncEvaluationOrdinal());
+    if (Cast<JSGeneratorObject>(code())->is_suspended()) {
+      result->push_back(direct_handle(Tagged<SourceTextModule>(this), isolate));
+    }
     return;
   }
   // The module isn't what we are looking for, continue looking in the graph.
