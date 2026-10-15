@@ -7622,6 +7622,7 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
 
 bool MaglevGraphBuilder::IsFunctionCandidateForEagerInlining(
     compiler::SharedFunctionInfoRef shared, CallArguments& args) {
+  if (V8_UNLIKELY(shared.is_eager_inlining_disabled(broker()))) return false;
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
   if (bytecode.length() < flags_.max_eager_inlined_bytecode) {
     TRACE_INLINING(TraceInlineEager(shared)
@@ -7745,6 +7746,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   }
 
   if (!flags_.is_non_eager_inlining_enabled) {
+    if (V8_UNLIKELY(shared.is_eager_inlining_disabled(broker()))) {
+      TRACE_CANNOT_INLINE("eager inlining is disabled");
+      return {};
+    }
     if (graph()->total_inlined_bytecode_size() >=
         flags_.max_inlined_bytecode_size_cumulative) {
       compilation_unit_->info()->set_could_not_inline_all_candidates();

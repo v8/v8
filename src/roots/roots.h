@@ -453,6 +453,8 @@ class RootVisitor;
   V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)           \
   V(Object, functions_marked_for_manual_optimization,                       \
     FunctionsMarkedForManualOptimization)                                   \
+  V(Object, functions_marked_for_disabled_eager_inlining,                   \
+    FunctionsMarkedForDisabledEagerInlining)                                \
   V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)         \
   V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)                \
   /* EphemeronHashTable for debug scopes (local debug evaluate) */          \

@@ -310,6 +310,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
   ReadOnlyRoots roots(isolate);
   isolate->heap()->SetFunctionsMarkedForManualOptimization(
       roots.undefined_value());
+  isolate->heap()->SetFunctionsMarkedForDisabledEagerInlining(
+      roots.undefined_value());
 
 #if V8_ENABLE_WEBASSEMBLY
   {

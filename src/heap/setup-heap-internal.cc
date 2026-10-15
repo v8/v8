@@ -1490,6 +1490,7 @@ void Heap::CreateInitialMutableObjects() {
 
   set_feedback_vectors_for_profiling_tools(roots.undefined_value());
   set_functions_marked_for_manual_optimization(roots.undefined_value());
+  set_functions_marked_for_disabled_eager_inlining(roots.undefined_value());
   set_shared_wasm_memories(roots.empty_weak_array_list());
   set_locals_block_list_cache(roots.undefined_value());
 #ifdef V8_ENABLE_WEBASSEMBLY

@@ -140,6 +140,13 @@ void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
       hash_table.ptr();
 }
 
+void Heap::SetFunctionsMarkedForDisabledEagerInlining(
+    Tagged<Object> hash_table) {
+  DCHECK(IsObjectHashTable(hash_table) || IsUndefined(hash_table));
+  roots_table()[RootIndex::kFunctionsMarkedForDisabledEagerInlining] =
+      hash_table.ptr();
+}
+
 void Heap::SetSmiStringCache(Tagged<SmiStringCache> cache) {
   set_smi_string_cache(cache);
 }
