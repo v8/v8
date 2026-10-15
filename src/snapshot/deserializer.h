@@ -256,6 +256,10 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadProtectedPointerPrefix(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
+  int ReadTrustedExportRef(uint8_t data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
+  int ReadUntrustedRef(uint8_t data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
   int ReadRootArrayConstants(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadHotObject(uint8_t data, SlotAccessor slot_accessor);
@@ -336,6 +340,7 @@ class Deserializer : public SerializerDeserializer {
 
   const base::Vector<const uint8_t> trusted_payload_;
   std::vector<IndirectHandle<HeapObject>> untrusted_back_refs_;
+  std::vector<std::pair<uint32_t, UnresolvedForwardRef>> trusted_export_refs_;
 
   const bool deserializing_user_code_;
 

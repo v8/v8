@@ -3526,6 +3526,118 @@ TEST(CodeSerializerBitFlip) {
   isolate2->Dispose();
 }
 
+namespace {
+v8::Local<v8::UnboundScript> ConsumeCodeCache(
+    const char* js_source, v8::ScriptCompiler::CachedData* cache) {
+  v8::ScriptCompiler::Source source(v8_str(js_source), {v8_str("test")}, cache);
+  v8::Local<v8::UnboundScript> script =
+      v8::ScriptCompiler::CompileUnboundScript(
+          CcTest::isolate(), &source, v8::ScriptCompiler::kConsumeCodeCache)
+          .ToLocalChecked();
+  CHECK(!cache->rejected);
+  return script;
+}
+}  // namespace
+
+#ifdef V8_ENABLE_SANDBOX
+// Objects from the trusted section refer to the untrusted section, and the
+// SharedFunctionInfo and BytecodeWrapper share one export.
+TEST(CodeSerializerTrustedSectionRoundTrip) {
+  const char* js_source = "function f() { function g() {} }; 'abcdef'";
+  v8::ScriptCompiler::CachedData* cache = CompileRunAndProduceCache(js_source);
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(CcTest::isolate());
+  DirectHandle<SharedFunctionInfo> toplevel =
+      v8::Utils::OpenDirectHandle(*ConsumeCodeCache(js_source, cache));
+  Tagged<BytecodeArray> bytecode = toplevel->GetBytecodeArray(isolate);
+  CHECK(TrustedHeapLayout::InTrustedSpace(bytecode));
+  CHECK_EQ(bytecode->wrapper()->bytecode(isolate), bytecode);
+  SharedFunctionInfo::ScriptIterator it(isolate,
+                                        Cast<Script>(toplevel->script()));
+  CHECK_EQ(it.Next(), *toplevel);
+  Tagged<SharedFunctionInfo> f = it.Next();
+  CHECK(TrustedHeapLayout::InTrustedSpace(f->uncompiled_data(isolate)));
+  CHECK(IsPreparseData(
+      f->uncompiled_data_with_preparse_data(isolate)->preparse_data()));
+}
+#endif  // V8_ENABLE_SANDBOX
+
+// The job is written as null without modifying the live object.
+TEST(CodeSerializerUncompiledDataJob) {
+  constexpr Address kJob = 0x1230;
+  const char* js_source = "function f() {}; function g() { function h() {} }";
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->DisableScriptAndEval();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::ScriptCompiler::Source source(v8_str(js_source), {v8_str("test")});
+  v8::Local<v8::UnboundScript> script =
+      v8::ScriptCompiler::CompileUnboundScript(CcTest::isolate(), &source)
+          .ToLocalChecked();
+  DirectHandle<SharedFunctionInfo> toplevel =
+      v8::Utils::OpenDirectHandle(*script);
+  SharedFunctionInfo::ScriptIterator it(isolate,
+                                        Cast<Script>(toplevel->script()));
+  CHECK_EQ(it.Next(), *toplevel);
+  DirectHandle<SharedFunctionInfo> f(it.Next(), isolate);
+  DirectHandle<SharedFunctionInfo> g(it.Next(), isolate);
+  DirectHandle<UncompiledDataWithoutPreparseDataWithJob> f_data =
+      factory->NewUncompiledDataWithoutPreparseDataWithJob(
+          factory->empty_string(), f->StartPosition(), f->EndPosition());
+  DirectHandle<UncompiledDataWithPreparseDataAndJob> g_data =
+      factory->NewUncompiledDataWithPreparseDataAndJob(
+          factory->empty_string(), g->StartPosition(), g->EndPosition(),
+          direct_handle(
+              g->uncompiled_data_with_preparse_data(isolate)->preparse_data(),
+              isolate));
+  f_data->set_job(kJob);
+  g_data->set_job(kJob);
+  f->set_uncompiled_data(*f_data);
+  g->set_uncompiled_data(*g_data);
+
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cache(
+      v8::ScriptCompiler::CreateCodeCache(script));
+  CHECK_EQ(f_data->job(), kJob);
+  CHECK_EQ(g_data->job(), kJob);
+
+  toplevel = v8::Utils::OpenDirectHandle(
+      *ConsumeCodeCache(js_source, cache.release()));
+  SharedFunctionInfo::ScriptIterator copy_it(isolate,
+                                             Cast<Script>(toplevel->script()));
+  CHECK_EQ(copy_it.Next(), *toplevel);
+  CHECK_EQ(TrustedCast<UncompiledDataWithoutPreparseDataWithJob>(
+               copy_it.Next()->uncompiled_data(isolate))
+               ->job(),
+           kNullAddress);
+  CHECK_EQ(TrustedCast<UncompiledDataWithPreparseDataAndJob>(
+               copy_it.Next()->uncompiled_data(isolate))
+               ->job(),
+           kNullAddress);
+}
+
+// InterpreterData is serialized as its bytecode.
+TEST(CodeSerializerInterpreterData) {
+  v8_flags.interpreted_frames_native_stack = true;
+  const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
+  v8::ScriptCompiler::CachedData* cache =
+      CompileRunAndProduceCache(js_source, CodeCacheType::kEager);
+  LocalContext context;
+  CcTest::i_isolate()->compilation_cache()->DisableScriptAndEval();
+  v8::HandleScope scope(CcTest::isolate());
+  // Deserializing creates InterpreterData.
+  v8::Local<v8::UnboundScript> script = ConsumeCodeCache(js_source, cache);
+  CHECK(v8::Utils::OpenDirectHandle(*script)->HasInterpreterData(
+      CcTest::i_isolate()));
+  script =
+      ConsumeCodeCache(js_source, v8::ScriptCompiler::CreateCodeCache(script));
+  CHECK(script->BindToCurrentContext()
+            ->Run(context.local())
+            .ToLocalChecked()
+            ->StrictEquals(v8_str("abcdef")));
+}
+
 TEST(CodeSerializerWithHarmonyScoping) {
   const char* source1 = "'use strict'; let x = 'X'";
   const char* source2 = "'use strict'; let y = 'Y'";
