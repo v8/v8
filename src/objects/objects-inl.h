@@ -172,6 +172,7 @@ DEF_CAST_TRAITS(JSStringIterator)
 DEF_CAST_TRAITS(JSSynchronizationPrimitive)
 DEF_CAST_TRAITS(JSDetachedTypedArray)
 DEF_CAST_TRAITS(JSTypedArray)
+DEF_CAST_TRAITS(Uint8JSTypedArray)
 DEF_CAST_TRAITS(JSValidIteratorWrapper)
 DEF_CAST_TRAITS(JSWeakCollection)
 DEF_CAST_TRAITS(JSWeakRef)
@@ -517,6 +518,13 @@ DEF_HEAP_OBJECT_PREDICATE(IsSourceTextModuleInfo) {
 }
 
 DEF_HEAP_OBJECT_PREDICATE(IsTemplateLiteralObject) { return IsJSArray(obj); }
+
+DEF_HEAP_OBJECT_PREDICATE(IsUint8JSTypedArray) {
+  if (!IsJSTypedArray(obj)) return false;
+  ElementsKind elements_kind = obj->map()->elements_kind();
+  return elements_kind == UINT8_ELEMENTS ||
+         elements_kind == RAB_GSAB_UINT8_ELEMENTS;
+}
 
 #if V8_INTL_SUPPORT
 DEF_HEAP_OBJECT_PREDICATE(IsJSSegmentDataObject) { return IsJSObject(obj); }

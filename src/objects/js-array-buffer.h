@@ -619,6 +619,10 @@ V8_OBJECT class JSDetachedTypedArray : public JSTypedArray {
   DECL_VERIFIER(JSDetachedTypedArray)
 } V8_OBJECT_END;
 
+V8_OBJECT class Uint8JSTypedArray : public JSTypedArray {
+  V8_IT_NO_AUTO_CHECKER;
+} V8_OBJECT_END;
+
 V8_OBJECT class JSDataViewOrRabGsabDataView : public JSArrayBufferView {
   V8_IT_ABSTRACT;
 

@@ -642,9 +642,7 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
       isolate, uint8array,
       JSTypedArray::Validate(isolate, args.receiver(), method_name,
                              TypedArrayAccessMode::kWrite));
-  ElementsKind elements_kind = uint8array->GetElementsKind();
-  if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
-      elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
+  if (!IsUint8JSTypedArray(*uint8array)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
@@ -762,16 +760,7 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
 
   // 1. Let O be the this value.
   // 2. Perform ? ValidateUint8Array(O).
-  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
-  ElementsKind elements_kind = uint8array->GetElementsKind();
-  if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
-      elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                     isolate->factory()->NewStringFromAsciiChecked(method_name),
-                     uint8array));
-  }
+  CHECK_RECEIVER(Uint8JSTypedArray, uint8array, method_name);
 
   // 3. Let opts be ? GetOptionsObject(options).
   DirectHandle<Object> input_options = args.atOrUndefined(isolate, 1);
@@ -978,9 +967,7 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
       isolate, uint8array,
       JSTypedArray::Validate(isolate, args.receiver(), method_name,
                              TypedArrayAccessMode::kWrite));
-  ElementsKind elements_kind = uint8array->GetElementsKind();
-  if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
-      elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
+  if (!IsUint8JSTypedArray(*uint8array)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
@@ -1083,16 +1070,7 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
 
   //  1. Let O be the this value.
   //  2. Perform ? ValidateUint8Array(O).
-  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
-  ElementsKind elements_kind = uint8array->GetElementsKind();
-  if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
-      elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                     isolate->factory()->NewStringFromAsciiChecked(method_name),
-                     uint8array));
-  }
+  CHECK_RECEIVER(Uint8JSTypedArray, uint8array, method_name);
 
   //  3. Let toEncode be ? GetUint8ArrayBytes(O).
   bool out_of_bounds = false;

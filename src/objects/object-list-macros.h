@@ -495,6 +495,7 @@ namespace internal {
   V(JSSetIteratorPrototype)                  \
   V(JSStringIteratorPrototype)               \
   V(TypedArrayConstructor)                   \
+  V(Uint8JSTypedArray)                       \
   V(Uint8TypedArrayConstructor)              \
   V(Int8TypedArrayConstructor)               \
   V(Uint16TypedArrayConstructor)             \
