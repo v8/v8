@@ -631,9 +631,16 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
   }
 
   switch (builtin) {
+    case Builtin::kConstructFunction:
+      // Technically ConstructFunction belongs in the section below (helper
+      // builtin with JS calling convention never supposed to be called directly
+      // from user JS code).
+      // We classify it as (unconditionally) flag dependent just for testing.
+      // See test/mjsunit/sandbox/regress/regress-435630464-disabled.js
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(false);
+
     // Helper builtins with JS calling convention which are not supposed to be
     // called directly from user JS code.
-    case Builtin::kConstructFunction:
     case Builtin::kConstructBoundFunction:
     case Builtin::kConstructedNonConstructable:
     case Builtin::kConstructProxy:
