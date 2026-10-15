@@ -4473,16 +4473,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
   ValueNode* value = GetAccumulator();
   if (field_representation.IsSmi()) {
     RETURN_IF_ABORT(GetAccumulatorSmi(UseReprHintRecording::kDoNotRecord));
-  } else {
-    if (field_representation.IsHeapObject()) {
-      // Emit a map check for the field type, if needed, otherwise just a
-      // HeapObject check.
-      if (access_info.field_map().has_value()) {
-        RETURN_IF_ABORT(BuildCheckMaps(
-            value, base::VectorOf({access_info.field_map().value()})));
-      } else {
-        RETURN_IF_ABORT(BuildCheckHeapObject(value));
-      }
+  } else if (field_representation.IsDouble()) {
+    GET_VALUE_OR_ABORT(value, GetFloat64(value));
+  } else if (field_representation.IsHeapObject()) {
+    // Emit a map check for the field type, if needed, otherwise just a
+    // HeapObject check.
+    if (access_info.field_map().has_value()) {
+      RETURN_IF_ABORT(BuildCheckMaps(
+          value, base::VectorOf({access_info.field_map().value()})));
+    } else {
+      RETURN_IF_ABORT(BuildCheckHeapObject(value));
     }
   }
 

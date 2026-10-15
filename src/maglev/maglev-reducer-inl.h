@@ -5806,6 +5806,7 @@ ReduceResult MaglevReducer<BaseT>::GetSmiValue(
 
 template <typename BaseT>
 VirtualObject* MaglevReducer<BaseT>::CreateHeapNumber(ValueNode* value) {
+  DCHECK(value->is_float64());
   using Shape = VirtualHeapNumberShape;
   int slot_count = Shape::header_slot_count;
   SBXCHECK_EQ(slot_count, 2);
