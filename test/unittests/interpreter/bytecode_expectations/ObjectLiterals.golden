@@ -416,7 +416,7 @@ bytecodes: [
   /*   52 S> */ B(CloneObject), R(0), Flag8(0x29), FBV(1),
                 B(Star1),
                 B(LdaSmi), I8(2),
-  /*   70 E> */ B(DefineNamedOwnProperty), R(1), U8(1:"x"), FBV(3),
+  /*   70 E> */ B(DefineNamedOwnPropertyInLiteral), R(1), U8(1:"x"), FBV(3),
                 B(Ldar), R(1),
   /*   74 S> */ B(Return),
 ]

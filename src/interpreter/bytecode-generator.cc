@@ -4288,13 +4288,8 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           VisitForAccumulatorValue(property->value());
           if (key->IsStringLiteral()) {
             FeedbackSlot slot = feedback_spec()->AddDefineNamedOwnICSlot();
-            if (clone_object_spread) {
-              builder()->DefineNamedOwnProperty(
-                  literal, key->AsRawPropertyName(), feedback_index(slot));
-            } else {
-              builder()->DefineNamedOwnPropertyInLiteral(
-                  literal, key->AsRawPropertyName(), feedback_index(slot));
-            }
+            builder()->DefineNamedOwnPropertyInLiteral(
+                literal, key->AsRawPropertyName(), feedback_index(slot));
           } else {
             FeedbackSlot slot = feedback_spec()->AddDefineKeyedOwnICSlot();
             builder()->DefineKeyedOwnProperty(
