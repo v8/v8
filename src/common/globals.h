@@ -199,8 +199,19 @@ namespace internal {
 // even just 1 KB less than the default stack size would be enough (see
 // crbug.com/1486275); to be more robust towards future CF reports we'll
 // use an even lower limit.
+#if V8_OS_ANDROID
+#define V8_DEFAULT_STACK_SIZE_KB 928
+#else
 #define V8_DEFAULT_STACK_SIZE_KB 960
+#endif
 #define V8_STACK_LIMIT_MARGIN_KB 64
+#elif V8_OS_ANDROID
+// On 64-bit Android, Bionic's default pthread stack size
+// (PTHREAD_STACK_SIZE_DEFAULT) is 992 KB (1 MB minus 32 KB for
+// SIGNAL_STACK_SIZE_WITHOUT_GUARD). Leave the same 40 KB margin as on
+// 1 MB stack systems.
+#define V8_DEFAULT_STACK_SIZE_KB 952
+#define V8_STACK_LIMIT_MARGIN_KB 40
 #else
 // Slightly less than 1MB, since Windows' default stack size for
 // the main execution thread is 1MB.
