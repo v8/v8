@@ -1424,7 +1424,8 @@ WasmCode* NativeModule::PublishCode(UnpublishedWasmCode unpublished_code) {
               "wasm.PublishCode");
   base::RecursiveMutexGuard lock(&allocation_mutex_);
   return PublishCodeLocked(std::move(unpublished_code.code),
-                           unpublished_code.assumptions.get());
+                           unpublished_code.assumptions.get(),
+                           unpublished_code.for_deopt);
 }
 
 std::vector<WasmCode*> NativeModule::PublishCode(
@@ -1437,7 +1438,8 @@ std::vector<WasmCode*> NativeModule::PublishCode(
   // The published code is put into the top-most surrounding {WasmCodeRefScope}.
   for (auto& unpublished_code : unpublished_codes) {
     WasmCode* code = PublishCodeLocked(std::move(unpublished_code.code),
-                                       unpublished_code.assumptions.get());
+                                       unpublished_code.assumptions.get(),
+                                       unpublished_code.for_deopt);
     if (code == nullptr) {
       // There were invalid assumptions in the code.
       DCHECK_NOT_NULL(unpublished_code.assumptions);
@@ -1479,7 +1481,8 @@ WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
 }
 
 WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
-                                          AssumptionsJournal* assumptions) {
+                                          AssumptionsJournal* assumptions,
+                                          bool for_deopt) {
   allocation_mutex_.AssertHeld();
   DCHECK_LT(owned_code->index(), num_functions());
 
@@ -1536,7 +1539,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
       kForDebugging > kNotForDebugging && kWithBreakpoints > kForDebugging,
       "for_debugging is ordered");
 
-  if (should_update_code_table(code, prior_code)) {
+  if (should_update_code_table(code, prior_code, for_deopt)) {
     code_table_[slot_idx] = code;
     if (prior_code) {
       // Code in the code table is always live, so `AddRef` can be used instead
@@ -1560,7 +1563,9 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
 }
 
 bool NativeModule::should_update_code_table(WasmCode* new_code,
-                                            WasmCode* prior_code) const {
+                                            WasmCode* prior_code,
+                                            bool for_deopt) const {
+  DCHECK_IMPLIES(for_deopt, v8_flags.wasm_deopt && new_code->is_liftoff());
   if (new_code->for_debugging() == kForStepping) {
     // Never install stepping code.
     return false;
@@ -1577,14 +1582,10 @@ bool NativeModule::should_update_code_table(WasmCode* new_code,
   }
   // In kNoDebugging:
   // Install if the tier is higher than before or we replace debugging code with
-  // non-debugging code.
-  // Also allow installing a lower tier if deopt support is enabled and the
-  // prior code has deopt data. (The check for deopt_data is needed as with
-  // compilation hints, both baseline and top tier compilation run concurrently
-  // in the background and can finish in any order.)
+  // non-debugging code. Also allow installing a lower tier if we are
+  // deopting.
   if (prior_code && !prior_code->for_debugging() &&
-      prior_code->tier() > new_code->tier() &&
-      (!v8_flags.wasm_deopt || prior_code->deopt_data().empty())) {
+      prior_code->tier() > new_code->tier() && !for_deopt) {
     return false;
   }
   return true;

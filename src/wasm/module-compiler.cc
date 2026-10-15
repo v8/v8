@@ -3916,24 +3916,22 @@ void CompilationStateImpl::OnFinishedUnits(
       }
       // Allow another top tier compilation if deopts are enabled and the
       // currently installed code object is a Liftoff object.
-      // Ideally, this would be done only if the code->tier() ==
-      // ExecutionTier::Liftoff as the code object for which we run this
-      // function should be the same as the one installed on the native_module.
-      // This is unfortunately not the case as installing a code object on the
-      // native module and updating the compilation_progress_ and the
-      // CompilationUnitQueues::top_tier_compiled_ are not synchronized.
+      // Allow another top tier compilation if deopts are enabled and the
+      // currently installed code object is a Liftoff object. We check the code
+      // installed on {native_module_} rather than {code->tier()} because
+      // baseline compilation can finish after top-tier compilation (without
+      // replacing the top-tier code), and publishing code and updating
+      // {compilation_progress_} are not synchronized.
       // Note: GetCode() acquires the NativeModule::allocation_mutex_, so this
       // could cause deadlocks if any other place acquires
       // NativeModule::allocation_mutex_ first and then
       // CompilationStateImpl::callbacks_mutex_!
-      const bool is_liftoff = code->tier() == ExecutionTier::kLiftoff;
       auto published_code_is_liftoff = [this](int index) {
         WasmCode* code = native_module_->GetCode(index);
         if (code == nullptr) return false;
         return code->is_liftoff();
       };
-      if (v8_flags.wasm_deopt &&
-          (is_liftoff || published_code_is_liftoff(code->index()))) {
+      if (v8_flags.wasm_deopt && published_code_is_liftoff(code->index())) {
         // Setting the reached tier below the baseline tier would create an
         // inconsistent state and has actually led to crashes before (see
         // https://crbug.com/379086474).
@@ -4127,7 +4125,7 @@ void CompilationStateImpl::PublishCompilationResults(
 
 #if DEBUG
   // We don't compile import wrappers eagerly.
-  for (const auto& [code, assumptions] : unpublished_code) {
+  for (const auto& [code, assumptions, for_deopt] : unpublished_code) {
     int func_index = code->index();
     DCHECK_LE(native_module_->num_imported_functions(), func_index);
     DCHECK_LT(func_index, native_module_->num_functions());

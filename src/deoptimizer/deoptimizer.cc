@@ -1021,6 +1021,7 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
   // WasmCodeManager as a deopt was reached.
   wasm::UnpublishedWasmCode compiled_code =
       native_module->AddCompiledCode(result);
+  compiled_code.for_deopt = true;
   wasm::WasmCodeRefScope code_ref_scope;
   // TODO(mliedtke): This might unoptimize functions because they were inlined
   // into a function that now needs to deopt them while the optimized function

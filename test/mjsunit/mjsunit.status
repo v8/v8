@@ -2127,6 +2127,9 @@
   'wasm/deopt/deopt-dynamic-tierup': [SKIP],
   'wasm/deopt/deopt-metrics': [SKIP],
 
+  # These test cases assume a specific pattern of deopting and tiering-up.
+  'wasm/compilation-hints/hints-and-deopts': [SKIP],
+
   # The test explicitly deserializes a wasm module and expects the resulting
   # wasm module to match the serialized one. With multiple isolate the resulting
   # wasm module can however, come from the native module cache, and therefore
@@ -3169,6 +3172,7 @@
 ['arch in [mips64, ppc64, s390x]', {
   # --wasm-deopt implementation not ported to all  architectures, yet.
   'wasm/deopt/*': [SKIP],
+  'wasm/compilation-hints/hints-and-deopts': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
   'regress/wasm/regress-353582136': [SKIP],
   'regress/wasm/regress-353913485': [SKIP],

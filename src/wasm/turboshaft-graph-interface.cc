@@ -27,6 +27,7 @@
 #include "src/objects/object-list-macros.h"
 #include "src/strings/unicode.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -254,7 +255,8 @@ class TurboshaftGraphBuildingInterface
       std::unique_ptr<AssumptionsJournal>* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       const WireBytesStorage* wire_bytes, Validation validate_inlinees,
-      WasmFunctionCoverageData* coverage_data)
+      WasmFunctionCoverageData* coverage_data,
+      DelayedCounterUpdates* counter_updates)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(kRegular),
         block_phis_(zone),
@@ -268,7 +270,8 @@ class TurboshaftGraphBuildingInterface
         wire_bytes_(wire_bytes),
         validate_inlinees_(validate_inlinees),
         return_phis_(nullptr),
-        is_inlined_tail_call_(false) {
+        is_inlined_tail_call_(false),
+        counter_updates_(counter_updates) {
     DCHECK_NOT_NULL(env_);
     DCHECK_NOT_NULL(env_->module);
 
@@ -288,7 +291,8 @@ class TurboshaftGraphBuildingInterface
       const WireBytesStorage* wire_bytes, Validation validate_inlinees,
       base::Vector<OpIndex> real_parameters, TSBlock* return_block,
       BlockPhis* return_phis, TSBlock* catch_block, bool is_inlined_tail_call,
-      OptionalV<EagerFrameState> parent_frame_state)
+      OptionalV<EagerFrameState> parent_frame_state,
+      DelayedCounterUpdates* counter_updates)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(mode),
         block_phis_(zone),
@@ -305,7 +309,8 @@ class TurboshaftGraphBuildingInterface
         return_phis_(return_phis),
         return_catch_block_(catch_block),
         is_inlined_tail_call_(is_inlined_tail_call),
-        parent_frame_state_(parent_frame_state) {
+        parent_frame_state_(parent_frame_state),
+        counter_updates_(counter_updates) {
     DCHECK_NE(mode_, kRegular);
     DCHECK_EQ(return_block == nullptr, mode == kInlinedTailCall);
     DCHECK_EQ(catch_block != nullptr, mode == kInlinedWithCatch);
@@ -2911,6 +2916,10 @@ class TurboshaftGraphBuildingInterface
                       : "");
             }
             __ Goto(case_blocks[i + 1]);
+            // Do not use the deopt slowpath if we decided to not inline (at
+            // least) one call target.
+            // Otherwise, this could lead to a deopt loop.
+            use_deopt_slowpath = false;
             continue;
           }
 
@@ -2921,7 +2930,7 @@ class TurboshaftGraphBuildingInterface
           if (use_deopt_slowpath && is_last_feedback_case) {
             DeoptIfNot(decoder, __ Word32Equal(target, inlined_target),
                        frame_state);
-            } else {
+          } else {
             TSBlock* inline_block = __ NewBlock();
             BranchHint hint =
                 is_last_feedback_case ? BranchHint::kTrue : BranchHint::kNone;
@@ -3177,8 +3186,8 @@ class TurboshaftGraphBuildingInterface
             __ Goto(case_blocks[i + 1]);
             // Do not use the deopt slowpath if we decided to not inline (at
             // least) one call target. Otherwise, this could lead to a deopt
-            // loop. This however is ensured for kMap mode.
-            DCHECK(!use_deopt_slowpath);
+            // loop.
+            use_deopt_slowpath = false;
             continue;
           }
         }
@@ -3236,6 +3245,8 @@ class TurboshaftGraphBuildingInterface
         }
         InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
                        false, args, direct_returns.data());
+        // InlineWasmCall might have called disable_deopts().
+        use_deopt_slowpath = use_deopt_slowpath && deopts_enabled();
 
         if (__ current_block() != nullptr) {
           // Only add phi inputs and a Goto to {merge} if the current_block is
@@ -7077,11 +7088,26 @@ class TurboshaftGraphBuildingInterface
                          wasm_local_count - callee_sig->return_count();
     local_count += args != nullptr ? callee_sig->parameter_count() : 0;
     Zone* zone = Asm().data()->compilation_zone();
+    uint32_t liftoff_frame_size = GetLiftoffFrameSize(decoder);
+    if (liftoff_frame_size ==
+        FunctionTypeFeedback::kUninitializedLiftoffFrameSize) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF(
+            "[function %d%s: Disabling deoptimizations for speculative "
+            "inlining as Liftoff failed to compile (cannot compute its frame "
+            "size)]\n",
+            func_index_, mode_ == kRegular ? "" : " (inlined)");
+      }
+      // Disable deopts for the rest of the function, as liftoff compilation
+      // will fail again.
+      disable_deopts();
+      return OpIndex::Invalid();
+    }
     auto* function_info = zone->New<compiler::FrameStateFunctionInfo>(
         compiler::FrameStateType::kLiftoffFunction,
         static_cast<uint16_t>(param_count), 0, static_cast<int>(local_count),
         IndirectHandle<SharedFunctionInfo>(), kNullMaybeHandle,
-        GetLiftoffFrameSize(decoder), func_index_);
+        liftoff_frame_size, func_index_);
     auto* frame_state_info = zone->New<compiler::FrameStateInfo>(
         BytecodeOffset(decoder->pc_offset()),
         compiler::OutputFrameStateCombine::Ignore(), function_info);
@@ -7147,10 +7173,46 @@ class TurboshaftGraphBuildingInterface
       return liftoff_frame_size_;
     }
     const TypeFeedbackStorage& feedback = decoder->module_->type_feedback;
-    base::MutexGuard mutex_guard(&feedback.mutex);
-    auto function_feedback = feedback.feedback_for_function.find(func_index_);
-    CHECK_NE(function_feedback, feedback.feedback_for_function.end());
-    liftoff_frame_size_ = function_feedback->second.liftoff_frame_size;
+    std::optional<base::MutexGuard> mutex_guard(&feedback.mutex);
+    auto function_feedback_iter =
+        feedback.feedback_for_function.find(func_index_);
+    if (function_feedback_iter == feedback.feedback_for_function.end() ||
+        function_feedback_iter->second.liftoff_frame_size ==
+            FunctionTypeFeedback::kUninitializedLiftoffFrameSize) {
+      // This can happen if this function has not been compiled with Liftoff
+      // yet. I.e. we are compiling based on compilation hints. In this case we
+      // have to generate function_feedback now by compiling with Liftoff, to
+      // compute the Liftoff frame size.
+      // We would like to have some tracing output here, but there can be a
+      // Liftoff compilation in another thread racing this Turboshaft
+      // compilation. This would affect whether the output would be printed.
+      // TODO(manoskouk): Improve this.
+      // if (v8_flags.trace_wasm_inlining) {
+      //   PrintF("[function %d%s: Will invoke liftoff compilation]\n",
+      //          func_index_, mode_ == kRegular ? "" : " (inlined)");
+      // }
+      // Reset the mutex_guard so liftoff can update the module's function
+      // feedback.
+      mutex_guard.reset();
+      LiftoffOptions options{.func_index = func_index_,
+                             .for_debugging = v8_flags.wasm_code_coverage
+                                                  ? kForDebugging
+                                                  : kNotForDebugging,
+                             .counter_updates = counter_updates_,
+                             .detected_features = decoder->detected_};
+      WasmCompilationResult liftoff_result = ExecuteLiftoffCompilation(
+          env_,
+          FunctionBody(decoder->sig_, decoder->buffer_offset(),
+                       decoder->start(), decoder->end()),
+          options);
+      if (liftoff_result.failed()) {
+        return FunctionTypeFeedback::kUninitializedLiftoffFrameSize;
+      }
+      mutex_guard.emplace(&feedback.mutex);
+      function_feedback_iter = feedback.feedback_for_function.find(func_index_);
+    }
+    CHECK_NE(function_feedback_iter, feedback.feedback_for_function.end());
+    liftoff_frame_size_ = function_feedback_iter->second.liftoff_frame_size;
     // The liftoff frame size is strictly required. If it is not properly set,
     // calling the function embedding the deopt node will always fail on the
     // stack check.
@@ -9297,6 +9359,24 @@ class TurboshaftGraphBuildingInterface
       return;
     }
 
+    // When the root function inlines a tail call, InlineWasmCall sets
+    // frame_state = parent_frame_state_ without calling CreateFrameState on the
+    // root function. Therefore we have to ensure here that the top-level
+    // function is compilable with Liftoff. Otherwise, the following sequence
+    // may happen: When the inlinee's deopt triggers at runtime,
+    // `Deoptimizer::DoComputeOutputFramesWasmImpl` sees
+    // `translated_state_.frames()[0].wasm_function_index() !=
+    //  compiled_optimized_wasm_code_->index()` and calls
+    // `CompileWithLiftoffAndGetDeoptInfo` on the root function to invalidate
+    // its optimized code, which fails Liftoff compilation and crashes in
+    // `native_module->AddCompiledCode(result)`.
+    if (deopts_enabled() && mode_ == kRegular && is_tail_call) {
+      if (GetLiftoffFrameSize(decoder) ==
+          FunctionTypeFeedback::kUninitializedLiftoffFrameSize) {
+        disable_deopts();
+      }
+    }
+
     SmallZoneVector<OpIndex, 16> inlinee_args(
         inlinee.sig->parameter_count() + 1, decoder->zone_);
     inlinee_args[0] = instance_cache_.trusted_instance_data();
@@ -9385,7 +9465,8 @@ class TurboshaftGraphBuildingInterface
                         inlining_positions_, func_index, wire_bytes_,
                         validate_inlinees_, base::VectorOf(inlinee_args),
                         callee_return_block, inlinee_return_phis,
-                        callee_catch_block, is_tail_call, frame_state);
+                        callee_catch_block, is_tail_call, frame_state,
+                        counter_updates_);
     SourcePosition call_position =
         SourcePosition(decoder->position(), inlining_id_ == kNoInliningId
                                                 ? SourcePosition::kNotInlined
@@ -9580,14 +9661,6 @@ class TurboshaftGraphBuildingInterface
   void disable_deopts() { deopts_enabled_ = false; }
   bool deopts_enabled() {
     if (!deopts_enabled_.has_value()) {
-      if (inlining_decisions_ && InliningTargetsProvidedByCustomSection()) {
-        // We have to disable deopts in this case. Deopts need function feedback
-        // for GetLiftoffFrameSize.
-        // TODO(manoskouk): Find a way to enable deopts in the presence of
-        // compilation hints.
-        deopts_enabled_ = false;
-        return false;
-      }
       deopts_enabled_ = v8_flags.wasm_deopt;
       if (v8_flags.wasm_deopt) {
         const wasm::TypeFeedbackStorage& feedback = env_->module->type_feedback;
@@ -9685,6 +9758,8 @@ class TurboshaftGraphBuildingInterface
   // Manages code coverage instrumentation.
   std::unique_ptr<WasmCoverageInstrumentation<FullDecoder>>
       coverage_instrumentation_;
+
+  DelayedCounterUpdates* counter_updates_;
 };
 
 compiler::WriteBarrierKind ArrayIndexImmediateToWriteBarrier(
@@ -9706,14 +9781,16 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
     const WireBytesStorage* wire_bytes, Validation validate_callees,
     std::unique_ptr<AssumptionsJournal>* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
-    WasmFunctionCoverageData* coverage_data) {
+    WasmFunctionCoverageData* coverage_data,
+    DelayedCounterUpdates* counter_updates) {
   Zone zone(data->allocator(), ZONE_NAME);
   Assembler assembler(data, graph, graph, &zone);
   WasmFullDecoder<TurboshaftGraphBuildingInterface::ValidationTag,
                   TurboshaftGraphBuildingInterface>
       decoder(&zone, env->module, env->enabled_features, detected, func_body,
               &zone, env, assembler, assumptions, inlining_positions,
-              func_index, wire_bytes, validate_callees, coverage_data);
+              func_index, wire_bytes, validate_callees, coverage_data,
+              counter_updates);
   decoder.Decode();
   // The function was already validated, so graph building must always succeed.
   DCHECK(decoder.ok());

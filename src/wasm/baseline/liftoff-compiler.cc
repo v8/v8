@@ -2259,6 +2259,7 @@ class LiftoffCompiler {
     EmitLandingPad(decoder, pc_offset);
   }
 
+  // LINT.IfChange
   void ContNew(FullDecoder* decoder, const ContIndexImmediate& imm,
                const Value& func_ref, Value* result) {
     // Use UNIMPLEMENTED under --liftoff-only to avoid spurious fuzzer reports.
@@ -2270,6 +2271,7 @@ class LiftoffCompiler {
                   "unimplemented Liftoff instruction: cont.new");
     }
   }
+  // LINT.ThenChange(/test/mjsunit/wasm/compilation-hints/hints-and-deopts.js)
 
   void ContBind(FullDecoder* decoder, const ContIndexImmediate& orig_imm,
                 Value input_cont, const Value args[],

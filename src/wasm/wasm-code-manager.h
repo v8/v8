@@ -565,6 +565,7 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 struct UnpublishedWasmCode {
   std::unique_ptr<WasmCode> code;
   std::unique_ptr<AssumptionsJournal> assumptions;
+  bool for_deopt = false;
 
   static constexpr AssumptionsJournal* kNoAssumptions = nullptr;
 };
@@ -1035,12 +1036,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {NativeModule}. The {AssumptionsJournal} (if provided) will be checked
   // before publishing the code, but should only be deallocated by the caller
   // after releasing the lock, to keep the critical section small.
-  WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>, AssumptionsJournal*);
+  WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>, AssumptionsJournal*,
+                              bool for_deopt = false);
 
   // Transfer owned code from {new_owned_code_} to {owned_code_}.
   void TransferNewOwnedCodeLocked() const;
 
-  bool should_update_code_table(WasmCode* new_code, WasmCode* prior_code) const;
+  bool should_update_code_table(WasmCode* new_code, WasmCode* prior_code,
+                                bool for_deopt) const;
 
   // -- Fields of {NativeModule} start here.
 
