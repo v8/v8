@@ -302,6 +302,8 @@ V8_OBJECT class JSReceiver : public HeapObject {
   GetCreationContext() const;
   V8_EXPORT_PRIVATE inline MaybeDirectHandle<NativeContext> GetCreationContext(
       Isolate* isolate) const;
+  V8_EXPORT_PRIVATE static Tagged<NativeContext> GetCreationContext_Slow(
+      Tagged<Map> map);
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,

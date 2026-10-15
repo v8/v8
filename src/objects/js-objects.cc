@@ -84,7 +84,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
@@ -763,6 +763,17 @@ MaybeDirectHandle<JSFunction> JSReceiver::GetConstructor(
 DirectHandle<String> JSReceiver::GetConstructorName(
     Isolate* isolate, DirectHandle<JSReceiver> receiver) {
   return GetConstructorHelper(isolate, receiver).second;
+}
+
+// static
+Tagged<NativeContext> JSReceiver::GetCreationContext_Slow(Tagged<Map> map) {
+  // Currently only WasmCustomMaps use this slow path.
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(IsWasmCustomMap(map));
+  return Cast<WasmCustomMap>(map)->native_context_for_wrapper();
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 // static
