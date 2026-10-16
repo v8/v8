@@ -10,6 +10,7 @@
 #include "src/debug/debug.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/snapshot-data.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/version.h"
 #include "src/wasm/code-space-access.h"
@@ -131,7 +132,7 @@ class Reader {
 
 size_t MeasureHeader(const CompileTimeImports& compile_imports) {
   return 5 * kUInt32Size +  // magic number, version hash, cpu features, flags
-                            // hash, enabled features
+                            // hash, enabled features (incl. trap handler)
          sizeof(typename CompileTimeImportFlags::StorageType) +
          sizeof(uint32_t) +  // length of constants_module.
          compile_imports.constants_module().size();
@@ -144,7 +145,16 @@ void WriteHeader(Writer* writer, WasmEnabledFeatures enabled_features,
   writer->Write(Version::Hash());
   writer->Write(CpuFeatures::SupportedFeatures().ToIntegral());
   writer->Write(FlagList::Hash());
-  writer->Write(enabled_features.ToIntegral());
+  // Code compiled for the trap handler relies on it for bounds and null checks,
+  // and embedders enable the trap handler independently of the flags, so its
+  // state is stored in the most significant bit of the enabled features.
+  constexpr uint32_t kTrapHandlerBit = uint32_t{1} << 31;
+  static_assert(
+      (static_cast<uint32_t>(WasmEnabledFeatures::All().ToIntegral()) &
+       kTrapHandlerBit) == 0);
+  uint32_t features = static_cast<uint32_t>(enabled_features.ToIntegral());
+  if (trap_handler::IsTrapHandlerEnabled()) features |= kTrapHandlerBit;
+  writer->Write(features);
   writer->Write(compile_imports.flags().ToIntegral());
   const std::string& constants_module = compile_imports.constants_module();
   writer->Write(static_cast<uint32_t>(constants_module.size()));
@@ -464,9 +474,6 @@ size_t NativeModuleSerializer::Measure() {
 
 void NativeModuleSerializer::WriteHeader(Writer* writer,
                                          size_t total_code_size) {
-  // TODO(eholk): We need to properly preserve the flag whether the trap
-  // handler was used or not when serializing.
-
   // Serialize the set of detected features; this contains
   // - all features detected during module decoding,
   // - all features detected during function body decoding, and

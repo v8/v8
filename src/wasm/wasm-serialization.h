@@ -33,7 +33,8 @@ class V8_EXPORT_PRIVATE WasmSerializer {
   // [1] version hash (uint32_t)
   // [2] supported CPU features (uint32_t)
   // [3] flag hash (uint32_t)
-  // [4] enabled features (via flags and OT) (uint32_t)
+  // [4] enabled features (via flags and OT), with the trap handler state in the
+  //     most significant bit (uint32_t)
   // [5] compile time imports (variable size)
   static constexpr size_t kVersionHashOffset = kUInt32Size;
 

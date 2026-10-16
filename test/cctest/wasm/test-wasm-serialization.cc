@@ -13,6 +13,7 @@
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/code-serializer.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/utils/version.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-engine.h"
@@ -482,6 +483,43 @@ TEST(SerializationFailsOnChangedFlags) {
     CHECK(test.Deserialize().is_null());
 
     FlagScope<bool> bounds_checks(&v8_flags.wasm_bounds_checks, true);
+    CHECK(!test.Deserialize().is_null());
+  }
+}
+
+namespace {
+
+// {g_is_trap_handler_enabled} is not a {FlagValue}, so {FlagScope} does not
+// apply here.
+class V8_NODISCARD TrapHandlerScope {
+ public:
+  explicit TrapHandlerScope(bool enabled)
+      : previous_value_(trap_handler::g_is_trap_handler_enabled) {
+    trap_handler::g_is_trap_handler_enabled = enabled;
+  }
+  ~TrapHandlerScope() {
+    trap_handler::g_is_trap_handler_enabled = previous_value_;
+  }
+
+ private:
+  const bool previous_value_;
+};
+
+}  // namespace
+
+TEST(SerializationFailsOnChangedTrapHandler) {
+  // The trap handler can only be enabled once per process, and embedders
+  // decide whether to enable it independently of the flags. Emulate
+  // deserializing in a process that decided differently.
+  if (!V8_TRAP_HANDLER_SUPPORTED) return;
+  WasmSerializationTest test;
+  {
+    HandleScope scope(CcTest::i_isolate());
+
+    {
+      TrapHandlerScope flipped(!trap_handler::g_is_trap_handler_enabled);
+      CHECK(test.Deserialize().is_null());
+    }
     CHECK(!test.Deserialize().is_null());
   }
 }
