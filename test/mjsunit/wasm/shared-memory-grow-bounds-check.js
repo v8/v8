@@ -53,7 +53,9 @@ memory.grow(1);
 
 const i32_grown = new Int32Array(memory.buffer);
 // Write payload to byte offset 65536 (index 16384 in Int32Array)
-Atomics.store(i32_grown, 16384, 0x123456);
+const payload_conv = new DataView(new ArrayBuffer(4));
+payload_conv.setInt32(0, 0x123456, true);
+Atomics.store(i32_grown, 16384, new Int32Array(payload_conv.buffer)[0]);
 
 // Release worker by setting memory[0] = 2
 Atomics.store(i32_grown, 0, 2);
