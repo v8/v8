@@ -135,6 +135,42 @@ TEST_F(MacroAssemblerTest, CompareAndBranch) {
   }
 }
 
+TEST_F(MacroAssemblerTest, DispatchHandlePoolEntries) {
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
+                      buffer->CreateView());
+  const uint32_t kHandleA = 0x1200;
+  const uint32_t kHandleB = 0x3400;
+
+  {
+    AssemblerBufferWriteScope rw_scope(*buffer);
+
+    __ Mov(w0, Immediate(kHandleA, RelocInfo::JS_DISPATCH_HANDLE));
+    __ Mov(w1, Immediate(kHandleA, RelocInfo::JS_DISPATCH_HANDLE));
+    __ Mov(w2, Immediate(kHandleB, RelocInfo::JS_DISPATCH_HANDLE));
+
+    CodeDesc desc;
+    masm.GetCode(isolate(), &desc);
+  }
+
+  Instruction* load_a = reinterpret_cast<Instruction*>(buffer->start());
+  Instruction* load_a_again = load_a->following();
+  Instruction* load_b = load_a_again->following();
+  ASSERT_TRUE(load_a->IsLdrLiteralW());
+  ASSERT_TRUE(load_a_again->IsLdrLiteralW());
+  ASSERT_TRUE(load_b->IsLdrLiteralW());
+  EXPECT_EQ(load_a->ImmPCOffsetTarget(), load_a_again->ImmPCOffsetTarget());
+  EXPECT_EQ(kHandleA,
+            *reinterpret_cast<uint32_t*>(load_a->ImmPCOffsetTarget()));
+  EXPECT_EQ(kHandleB,
+            *reinterpret_cast<uint32_t*>(load_b->ImmPCOffsetTarget()));
+
+  // The pool holds the guard and one 4-byte entry per handle.
+  Instruction* marker = load_b->following();
+  ASSERT_TRUE(marker->IsLdrLiteralX());
+  EXPECT_EQ(3, marker->ImmLLiteral());
+}
+
 struct MoveObjectAndSlotTestCase {
   const char* comment;
   Register dst_object;

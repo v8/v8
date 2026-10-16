@@ -55,7 +55,7 @@ class ConstantPoolKey {
         (is_value32() ? (value32() != 0) : (value64() != 0));
     bool is_sharable_embedded_object = RelocInfo::IsEmbeddedObjectMode(rmode_);
     return RelocInfo::IsShareableRelocMode(rmode_) || is_sharable_code_target ||
-           is_sharable_embedded_object;
+           is_sharable_embedded_object || RelocInfo::IsJSDispatchHandle(rmode_);
   }
 
  private:

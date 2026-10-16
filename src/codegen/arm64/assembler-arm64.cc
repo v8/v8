@@ -4849,7 +4849,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
       Handle<HeapObject> handle(reinterpret_cast<Address*>(data));
       data = AddEmbeddedObject(handle);
     }
-    if (rmode == RelocInfo::COMPRESSED_EMBEDDED_OBJECT) {
+    if (rmode == RelocInfo::COMPRESSED_EMBEDDED_OBJECT ||
+        rmode == RelocInfo::JS_DISPATCH_HANDLE) {
       if (constpool_.RecordEntry(static_cast<uint32_t>(data), rmode) ==
           RelocInfoStatus::kMustOmitForDuplicate) {
         return;
