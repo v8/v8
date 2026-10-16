@@ -3802,8 +3802,14 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
       // TODO(v8:7700): Constant fold mod.
       return {};
     case Operation::kDivide:
-      // TODO(v8:7700): Constant fold division.
-      return {};
+      if (cst_right == 0) return {};
+      if (cst_left == kMinInt && cst_right == -1) return {};
+      if (cst_left == 0 && cst_right < 0) {
+        // Deopt since -0 is not representable as Int32.
+        return EmitUnconditionalDeopt(DeoptimizeReason::kMinusZero);
+      }
+      if (cst_left % cst_right != 0) return {};
+      return GetInt32Constant(cst_left / cst_right);
     case Operation::kBitwiseAnd:
       return GetInt32Constant(cst_left & cst_right);
     case Operation::kBitwiseOr:
