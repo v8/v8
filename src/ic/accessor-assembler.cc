@@ -3352,10 +3352,10 @@ void AccessorAssembler::TryProbeStubCacheTable(
   TNode<ExternalReference> key_base = ExternalConstant(
       ExternalReference::Create(stub_cache->key_reference(table)));
 
-  // Check that the key in the entry matches the name.
-  DCHECK_EQ(0, offsetof(StubCache::Entry, key));
-  TNode<HeapObject> cached_key =
-      CAST(Load(MachineType::TaggedPointer(), key_base, entry_offset));
+  // Check that the key in the entry matches the name. The key of an empty
+  // entry is Smi zero, which never equals a name.
+  static_assert(0 == offsetof(StubCache::Entry, key));
+  TNode<Object> cached_key = Load<Object>(key_base, entry_offset);
   GotoIf(TaggedNotEqual(name, cached_key), if_miss);
 
   // Check that the map in the entry matches.
