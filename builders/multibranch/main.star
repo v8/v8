@@ -154,13 +154,13 @@ in_category(
         name = "V8 Linux64 - PKU",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         first_branch_version = "13.8",
-        barrier = BARRIER.LKGR_TREE_CLOSER,
+        barrier = BARRIER.NONE,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - PKU - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         first_branch_version = "13.8",
-        barrier = BARRIER.LKGR_TREE_CLOSER,
+        barrier = BARRIER.NONE,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - dumpling - builder",
