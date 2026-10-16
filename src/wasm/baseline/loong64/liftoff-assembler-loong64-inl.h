@@ -1402,26 +1402,41 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
 void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
-  switch (value.type().kind()) {
-    case kI32: {
+  ValueKind kind = value.type().kind();
+  switch (kind) {
+    case kI32:
+    case kF32: {
+      int32_t bits32 =
+          kind == kF32 ? static_cast<int32_t>(value.to_f32_boxed().get_bits())
+                       : value.to_i32();
+      if (bits32 == 0) {
+        St_w(zero_reg, dst);
+        break;
+      }
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      MacroAssembler::li(scratch, Operand(value.to_i32()));
+      MacroAssembler::li(scratch, bits32);
       St_w(scratch, dst);
       break;
     }
     case kI64:
+    case kF64:
     case kRef:
     case kRefNull: {
+      int64_t bits64 =
+          kind == kF64 ? static_cast<int64_t>(value.to_f64_boxed().get_bits())
+                       : value.to_i64();
+      if (bits64 == 0) {
+        St_d(zero_reg, dst);
+        break;
+      }
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      MacroAssembler::li(scratch, value.to_i64());
+      MacroAssembler::li(scratch, bits64);
       St_d(scratch, dst);
       break;
     }
     default:
-      // kWasmF32 and kWasmF64 are unreachable, since those
-      // constants are not tracked.
       UNREACHABLE();
   }
 }
@@ -4495,8 +4510,12 @@ void LiftoffStackSlots::Construct(int param_slots) {
       }
       case LiftoffAssembler::VarState::kIntConst: {
         asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
-        asm_->li(kScratchReg, Operand(src.i32_const()));
-        asm_->Push(kScratchReg);
+        if (src.i32_const() == 0) {
+          asm_->Push(zero_reg);
+        } else {
+          asm_->li(kScratchReg, Operand(src.i32_const()));
+          asm_->Push(kScratchReg);
+        }
         break;
       }
     }
