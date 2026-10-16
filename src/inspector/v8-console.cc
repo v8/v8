@@ -178,16 +178,16 @@ class ConsoleHelper {
     return m_info[0]->BooleanValue(m_inspector->isolate());
   }
 
-  v8::Local<v8::String> firstArgToString() {
+  // Returns the first argument converted to a string, or "default" if the
+  // first argument is missing or undefined. Returns an empty MaybeLocal if
+  // the conversion throws an exception or terminates execution.
+  v8::MaybeLocal<v8::String> firstArgToString() {
     if (V8_LIKELY(m_info.Length() > 0)) {
       v8::Local<v8::Value> arg = m_info[0];
       if (V8_LIKELY(arg->IsString())) {
         return arg.As<v8::String>();
       }
-      v8::Local<v8::String> label;
-      if (!arg->IsUndefined() && arg->ToString(context()).ToLocal(&label)) {
-        return label;
-      }
+      if (!arg->IsUndefined()) return arg->ToString(context());
     }
     return toV8StringInternalized(isolate(), "default");
   }
@@ -348,8 +348,12 @@ void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                     "V8Console::Count");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 label =
-      toProtocolString(m_inspector->isolate(), helper.firstArgToString());
+  v8::Local<v8::String> v8Label;
+  if (!helper.firstArgToString().ToLocal(&v8Label)) {
+    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.inspector"));
+    return;
+  }
+  String16 label = toProtocolString(m_inspector->isolate(), v8Label);
   // Converting the label to a string above can run arbitrary JavaScript,
   // which might destroy the current context.
   int count = 0;
@@ -367,8 +371,12 @@ void V8Console::CountReset(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                     "V8Console::CountReset");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 label =
-      toProtocolString(m_inspector->isolate(), helper.firstArgToString());
+  v8::Local<v8::String> v8Label;
+  if (!helper.firstArgToString().ToLocal(&v8Label)) {
+    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.inspector"));
+    return;
+  }
+  String16 label = toProtocolString(m_inspector->isolate(), v8Label);
   // Converting the label to a string above can run arbitrary JavaScript,
   // which might destroy the current context.
   V8ConsoleMessageStorage* storage = helper.consoleMessageStorage();
@@ -403,8 +411,12 @@ void V8Console::Profile(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                     "V8Console::Profile");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title =
-      toProtocolString(m_inspector->isolate(), helper.firstArgToString());
+  v8::Local<v8::String> v8Title;
+  if (!helper.firstArgToString().ToLocal(&v8Title)) {
+    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.inspector"));
+    return;
+  }
+  String16 title = toProtocolString(m_inspector->isolate(), v8Title);
   helper.forEachSession([&title](V8InspectorSessionImpl* session) {
     if (session->profilerAgent()) {
       session->profilerAgent()->consoleProfile(title);
@@ -419,8 +431,12 @@ void V8Console::ProfileEnd(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
                     "V8Console::ProfileEnd");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title =
-      toProtocolString(m_inspector->isolate(), helper.firstArgToString());
+  v8::Local<v8::String> v8Title;
+  if (!helper.firstArgToString().ToLocal(&v8Title)) {
+    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.inspector"));
+    return;
+  }
+  String16 title = toProtocolString(m_inspector->isolate(), v8Title);
   helper.forEachSession([&title](V8InspectorSessionImpl* session) {
     if (session->profilerAgent()) {
       session->profilerAgent()->consoleProfileEnd(title);
@@ -434,7 +450,8 @@ void V8Console::Time(const v8::debug::ConsoleCallArguments& info,
                      const v8::debug::ConsoleContext& consoleContext) {
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::Time");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  v8::Local<v8::String> label = helper.firstArgToString();
+  v8::Local<v8::String> label;
+  if (!helper.firstArgToString().ToLocal(&label)) return;
   String16 protocolLabel = toProtocolString(m_inspector->isolate(), label);
   // Converting the label to a string above can run arbitrary JavaScript,
   // which might destroy the current context.
@@ -453,7 +470,8 @@ void V8Console::TimeLog(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeLog");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  v8::Local<v8::String> label = helper.firstArgToString();
+  v8::Local<v8::String> label;
+  if (!helper.firstArgToString().ToLocal(&label)) return;
   String16 protocolLabel = toProtocolString(m_inspector->isolate(), label);
   // Converting the label to a string above can run arbitrary JavaScript,
   // which might destroy the current context.
@@ -476,7 +494,8 @@ void V8Console::TimeEnd(const v8::debug::ConsoleCallArguments& info,
                         const v8::debug::ConsoleContext& consoleContext) {
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeEnd");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  v8::Local<v8::String> label = helper.firstArgToString();
+  v8::Local<v8::String> label;
+  if (!helper.firstArgToString().ToLocal(&label)) return;
   String16 protocolLabel = toProtocolString(m_inspector->isolate(), label);
   // Converting the label to a string above can run arbitrary JavaScript,
   // which might destroy the current context.
@@ -501,7 +520,8 @@ void V8Console::TimeStamp(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
               "V8Console::TimeStamp");
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  v8::Local<v8::String> label = helper.firstArgToString();
+  v8::Local<v8::String> label;
+  if (!helper.firstArgToString().ToLocal(&label)) return;
 
   v8::Isolate* isolate = m_inspector->isolate();
   v8::LocalVector<v8::Value> args(isolate);
