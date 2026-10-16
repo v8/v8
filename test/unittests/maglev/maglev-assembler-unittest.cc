@@ -32,7 +32,7 @@ class MaglevAssemblerTest : public MaglevTest {
 #endif
   }
 
-  void FinalizeAndRun(Label* pass, Label* fail) {
+  Handle<Code> FinalizeAndRun(Label* pass, Label* fail) {
     as.bind(pass);
     as.Ret();
     as.bind(fail);
@@ -44,6 +44,7 @@ class MaglevAssemblerTest : public MaglevTest {
     using Function = GeneratedCode<Address()>;
     auto fun = Function::FromAddress(isolate(), res->instruction_start());
     fun.Call();
+    return res;
   }
 
   MaglevCodeGenState codegen_state;
@@ -279,6 +280,40 @@ TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32InfNegative) {
   as.jmp(&can_convert);
   FinalizeAndRun(&cannot_convert, &can_convert);
 }
+
+#if V8_TARGET_ARCH_ARM64
+TEST_F(MaglevAssemblerTest, MapCompareEmbedsTaggedMaps) {
+  // MapCompare compares tagged map words, so it embeds maps at tagged size:
+  // compressed under pointer compression.
+  Handle<JSObject> object =
+      isolate()->factory()->NewJSObject(isolate()->object_function());
+  Handle<JSArray> array =
+      isolate()->factory()->NewJSArray(PACKED_SMI_ELEMENTS, 0, 0);
+  Handle<Map> map(object->map(), isolate());
+  Handle<Map> other_map(array->map(), isolate());
+  Label pass, fail;
+  as.CodeEntry();
+  {
+    MaglevAssembler::TemporaryRegisterScope temps(&as);
+    as.Move(kReturnRegister0, object);
+    MapCompare map_compare(&as, kReturnRegister0, 2);
+    map_compare.Generate(other_map, kEqual, &fail);
+    map_compare.Generate(map, kNotEqual, &fail);
+  }
+  as.Jump(&pass);
+  Handle<Code> code = FinalizeAndRun(&pass, &fail);
+  RelocInfo::Mode mode = COMPRESS_POINTERS_BOOL
+                             ? RelocInfo::COMPRESSED_EMBEDDED_OBJECT
+                             : RelocInfo::FULL_EMBEDDED_OBJECT;
+  int embedded_maps = 0;
+  for (RelocIterator it(*code, RelocInfo::ModeMask(mode)); !it.done();
+       it.next()) {
+    Tagged<HeapObject> target = it.rinfo()->target_object();
+    if (target == *map || target == *other_map) embedded_maps++;
+  }
+  EXPECT_EQ(2, embedded_maps);
+}
+#endif  // V8_TARGET_ARCH_ARM64
 
 #if V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV64
 TEST_F(MaglevAssemblerTest, SetSlotAddressForFixedArrayElementLargeIndex) {
