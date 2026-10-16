@@ -922,6 +922,7 @@ filegroup(
         "src/base/functional/bind-internal.h",
         "src/base/functional/function-ref.h",
         "src/base/free_deleter.h",
+        "src/base/growing-circular-queue.h",
         "src/base/hashing.h",
         "src/base/hashmap.h",
         "src/base/hashmap-entry.h",

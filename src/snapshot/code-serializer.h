@@ -257,7 +257,7 @@ class CodeSerializer : public Serializer {
 
     CodeSerializer* const untrusted_serializer_;
     ObjectCacheIndexMap exports_;
-    GlobalHandleVector<HeapObject> export_queue_;
+    GlobalHandleCircularQueue<HeapObject> export_queue_;
     std::vector<EncodedExternalReference> external_references_;
     SnapshotByteSink external_references_sink_;
   };

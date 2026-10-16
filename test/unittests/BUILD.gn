@@ -311,6 +311,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "base/fast-dtoa-unittest.cc",
     "base/fixed-dtoa-unittest.cc",
     "base/flags-unittest.cc",
+    "base/growing-circular-queue-unittest.cc",
     "base/hashing-unittest.cc",
     "base/hashmap-unittest.cc",
     "base/ieee754-unittest.cc",

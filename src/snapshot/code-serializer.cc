@@ -136,7 +136,7 @@ uint32_t CodeSerializer::TrustedSectionSerializer::Export(
     Tagged<HeapObject> obj) {
   SBXCHECK(OutsideSandbox(obj.address()));
   int index;
-  if (!exports_.LookupOrInsert(obj, &index)) export_queue_.Push(obj);
+  if (!exports_.LookupOrInsert(obj, &index)) export_queue_.Enqueue(obj);
   return base::checked_cast<uint32_t>(index);
 }
 
@@ -153,10 +153,9 @@ void CodeSerializer::TrustedSectionSerializer::SerializeExports() {
   // Serializing an export can add untrusted objects to the untrusted section,
   // and those can export more trusted objects. Export() appends them to the
   // queue, so keep going until it is drained.
-  size_t serialized = 0;
-  while (serialized < export_queue_.size()) {
+  while (!export_queue_.empty()) {
     HandleScope scope(isolate());
-    Handle<HeapObject> obj = handle(*export_queue_[serialized++], isolate());
+    Handle<HeapObject> obj = handle(export_queue_.Dequeue(), isolate());
     SerializeObject(obj, SlotType::kAnySlot);
   }
   DCHECK(deferred_objects_empty());
