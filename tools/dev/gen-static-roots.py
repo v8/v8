@@ -183,14 +183,14 @@ def update_v8_internal_h():
   content = internal_h_path.read_text()
 
   common_values = {}
-  hole_values = {}
 
   common_names_map = {
       'UndefinedValue': 'kUndefinedValue',
       'NullValue': 'kNullValue',
       'TrueValue': 'kTrueValue',
       'FalseValue': 'kFalseValue',
-      'EmptyString': 'kempty_string'
+      'EmptyString': 'kempty_string',
+      'TheHoleValue': 'kTheHoleValue',
   }
 
   for config in STATIC_ROOT_CONFIGURATIONS.keys():
@@ -220,42 +220,12 @@ def update_v8_internal_h():
       else:
         common_values[internal_name] = val
 
-    match = re.search(
-        f"static constexpr Tagged_t kTheHoleValue = (0x[0-9a-f]+);",
-        file_content)
-    if not match:
-      print(f"Error: Could not find kTheHoleValue in {file_path}")
-      return False
-    hole_values[config] = match.group(1)
-
   new_content = content
 
   for name, val in common_values.items():
     pattern = f"V\\({name}, 0x[0-9a-f]+\\)"
     replacement = f"V({name}, {val})"
     new_content = re.sub(pattern, replacement, new_content)
-
-  wasm_hole = hole_values['intl-wasm']
-  intl_hole = hole_values['intl-nowasm']
-  nointl_hole = hole_values['nointl-nowasm']
-
-  block_regex = re.compile(
-      r"""
-  (\#ifdef\ V8_ENABLE_WEBASSEMBLY\s+
-   static\ constexpr\ Tagged_t\ kBuildDependentTheHoleValue\ =\ )0x[0-9a-f]+(;\s+
-   \#else\s+
-   \#ifdef\ V8_INTL_SUPPORT\s+
-   static\ constexpr\ Tagged_t\ kBuildDependentTheHoleValue\ =\ )0x[0-9a-f]+(;\s+
-   \#else\s+
-   static\ constexpr\ Tagged_t\ kBuildDependentTheHoleValue\ =\ )0x[0-9a-f]+(;\s+
-   \#endif\s+
-   \#endif)
-  """, re.VERBOSE | re.MULTILINE)
-
-  def replace_block(m):
-    return f"{m.group(1)}{wasm_hole}{m.group(2)}{intl_hole}{m.group(3)}{nointl_hole}{m.group(4)}"
-
-  new_content = block_regex.sub(replace_block, new_content)
 
   if content != new_content:
     print(f"Updating {internal_h_path}")

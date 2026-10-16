@@ -1219,44 +1219,43 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kManyClosuresCell = kShadowRealmScopeInfo + 24;
   static constexpr Tagged_t kPreallocatedNumberStringTable =
       kManyClosuresCell + 16;
-  static constexpr Tagged_t kWasmNull = 0x10001;
-  static constexpr Tagged_t kTheHoleValue = 0x2fffd;
+  static constexpr Tagged_t kTheHoleValue = 0xfffd;
+  static constexpr Tagged_t kPropertyCellHoleValue = 0x2fffd;
   // -- End of page 0 --
-  static constexpr Tagged_t kPropertyCellHoleValue = 0x4fffd;
-  static constexpr Tagged_t kHashTableHoleValue = 0x6fffd;
+  static constexpr Tagged_t kHashTableHoleValue = 0x4fffd;
+  static constexpr Tagged_t kPromiseHoleValue = 0x6fffd;
   // -- End of page 1 --
-  static constexpr Tagged_t kPromiseHoleValue = 0x8fffd;
   // TODO(leszeks): Remove DisabledTdzHole when v8_enable_tdz_hole is removed.
 #ifdef V8_ENABLE_TDZ_HOLE
-  static constexpr Tagged_t kTdzHoleValue = 0xafffd;
+  static constexpr Tagged_t kTdzHoleValue = 0x8fffd;
 #else
-  static constexpr Tagged_t kDisabledTdzHoleValue = 0xafffd;
+  static constexpr Tagged_t kDisabledTdzHoleValue = 0x8fffd;
 #endif
+  static constexpr Tagged_t kUninitializedValue = 0xafffd;
   // -- End of page 2 --
-  static constexpr Tagged_t kUninitializedValue = 0xcfffd;
-  static constexpr Tagged_t kArgumentsMarker = 0xefffd;
+  static constexpr Tagged_t kArgumentsMarker = 0xcfffd;
+  static constexpr Tagged_t kTerminationException = 0xefffd;
   // -- End of page 3 --
-  static constexpr Tagged_t kTerminationException = 0x10fffd;
-  static constexpr Tagged_t kException = 0x12fffd;
+  static constexpr Tagged_t kException = 0x10fffd;
+  static constexpr Tagged_t kOptimizedOut = 0x12fffd;
   // -- End of page 4 --
-  static constexpr Tagged_t kOptimizedOut = 0x14fffd;
-  static constexpr Tagged_t kStaleRegister = 0x16fffd;
+  static constexpr Tagged_t kStaleRegister = 0x14fffd;
+  static constexpr Tagged_t kSelfReferenceMarker = 0x16fffd;
   // -- End of page 5 --
-  static constexpr Tagged_t kSelfReferenceMarker = 0x18fffd;
-  static constexpr Tagged_t kBasicBlockCountersMarker = 0x1afffd;
-  // -- End of page 6 --
-  static constexpr Tagged_t kJSMessageObjectMap = 0x1c0011;
-  static constexpr Tagged_t kExternalMap = 0x1c0039;
-  static constexpr Tagged_t kCppHeapExternalMap = 0x1c0061;
-  static constexpr Tagged_t kCppGCManagedBaseMap = 0x1c0089;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x1c00b1;
-  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1c00f5;
-  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1c011d;
-  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1c0145;
-  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1c0199;
+  static constexpr Tagged_t kBasicBlockCountersMarker = 0x18fffd;
+  static constexpr Tagged_t kWasmNull = 0x1a0001;
+  static constexpr Tagged_t kJSMessageObjectMap = 0x1b0001;
+  static constexpr Tagged_t kExternalMap = 0x1b0029;
+  static constexpr Tagged_t kCppHeapExternalMap = 0x1b0051;
+  static constexpr Tagged_t kCppGCManagedBaseMap = 0x1b0079;
+  static constexpr Tagged_t kJSSharedArrayMap = 0x1b00a1;
+  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1b00e5;
+  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1b010d;
+  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1b0135;
+  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1b0189;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x1c0199;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x1b0189;
 };
 
 static constexpr std::array<Tagged_t, 1043> StaticReadOnlyRootsPointerTable = {

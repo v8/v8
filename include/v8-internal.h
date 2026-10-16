@@ -1142,24 +1142,16 @@ class Internals {
 #if V8_STATIC_ROOTS_BOOL
 
 // These constants are copied from static-roots.h and guarded by static asserts.
-#define EXPORTED_STATIC_ROOTS_PTR_LIST(V)                            \
-  V(UndefinedValue, 0x11)                                            \
-  V(NullValue, 0x2d)                                                 \
-  V(TrueValue, 0x71)                                                 \
-  V(FalseValue, 0x55)                                                \
-  V(EmptyString, 0x49)                                               \
-  /* The Hole moves around depending on build flags, so define it */ \
-  /* separately inside StaticReadOnlyRoot using build macros */      \
-  V(TheHoleValue, kBuildDependentTheHoleValue)
+#define EXPORTED_STATIC_ROOTS_PTR_LIST(V) \
+  V(UndefinedValue, 0x11)                 \
+  V(NullValue, 0x2d)                      \
+  V(TrueValue, 0x71)                      \
+  V(FalseValue, 0x55)                     \
+  V(EmptyString, 0x49)                    \
+  V(TheHoleValue, 0xfffd)
 
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
-#ifdef V8_ENABLE_WEBASSEMBLY
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x2fffd;
-#else
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0xfffd;
-#endif
-
 #define DEF_ROOT(name, value) static constexpr Tagged_t k##name = value;
     EXPORTED_STATIC_ROOTS_PTR_LIST(DEF_ROOT)
 #undef DEF_ROOT

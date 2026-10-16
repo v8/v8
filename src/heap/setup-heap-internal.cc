@@ -1350,40 +1350,6 @@ bool Heap::CreateReadOnlyObjects() {
     set_preallocated_number_string_table(*preallocated_number_string_table);
   }
 
-  // Initialize the wasm null_value.
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-  // Allocate the wasm-null object. It is a regular V8 heap object contained in
-  // a V8 page.
-  // In static-roots builds, it is large enough so that it can be mprotected on
-  // OS page granularity, so we fill up the rest of the current OS page with
-  // a filler.
-  // In non-static-roots builds, it is a regular object of size {kTaggedSize}
-  // and does not need padding.
-#define V8_UNMAP_WASM_NULL_PAYLOAD \
-  (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL)
-
-#if V8_UNMAP_WASM_NULL_PAYLOAD
-  // Allocate an unmappable WasmNull.
-  {
-    Tagged<HeapObject> wasm_null_obj =
-        read_only_space_->AllocateRawUnmappableAllocation(0, WasmNull::kSize)
-            .ToObjectChecked();
-    set_wasm_null(UncheckedCast<WasmNull>(wasm_null_obj));
-  }
-#else
-  // Allocate the WasmNull.
-  {
-    Tagged<HeapObject> wasm_null_obj;
-    CHECK(AllocateRaw(WasmNull::kSize, AllocationType::kReadOnly)
-              .To(&wasm_null_obj));
-    wasm_null_obj->set_map_after_allocation(isolate(), roots.wasm_null_map(),
-                                            SKIP_WRITE_BARRIER);
-    set_wasm_null(Cast<WasmNull>(wasm_null_obj));
-  }
-#endif  // V8_UNMAP_WASM_NULL_PAYLOAD
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   auto make_hole = [this, roots, factory]() {
     USE(factory);
 
@@ -1422,6 +1388,40 @@ bool Heap::CreateReadOnlyObjects() {
   set_self_reference_marker(UncheckedCast<SelfReferenceMarker>(make_hole()));
   set_basic_block_counters_marker(
       UncheckedCast<BasicBlockCountersMarker>(make_hole()));
+
+  // Initialize the wasm null_value.
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+  // Allocate the wasm-null object. It is a regular V8 heap object contained in
+  // a V8 page.
+  // In static-roots builds, it is large enough so that it can be mprotected on
+  // OS page granularity, so we fill up the rest of the current OS page with
+  // a filler.
+  // In non-static-roots builds, it is a regular object of size {kTaggedSize}
+  // and does not need padding.
+#define V8_UNMAP_WASM_NULL_PAYLOAD \
+  (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL)
+
+#if V8_UNMAP_WASM_NULL_PAYLOAD
+  // Allocate an unmappable WasmNull.
+  {
+    Tagged<HeapObject> wasm_null_obj =
+        read_only_space_->AllocateRawUnmappableAllocation(0, WasmNull::kSize)
+            .ToObjectChecked();
+    set_wasm_null(UncheckedCast<WasmNull>(wasm_null_obj));
+  }
+#else
+  // Allocate the WasmNull.
+  {
+    Tagged<HeapObject> wasm_null_obj;
+    CHECK(AllocateRaw(WasmNull::kSize, AllocationType::kReadOnly)
+              .To(&wasm_null_obj));
+    wasm_null_obj->set_map_after_allocation(isolate(), roots.wasm_null_map(),
+                                            SKIP_WRITE_BARRIER);
+    set_wasm_null(Cast<WasmNull>(wasm_null_obj));
+  }
+#endif  // V8_UNMAP_WASM_NULL_PAYLOAD
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   return true;
 }
