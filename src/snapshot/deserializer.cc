@@ -836,19 +836,12 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
   DirectHandle<Map> map = Cast<Map>(ReadObject());
 
-  // Only read the instance size from the map if it resides in ReadOnlySpace.
-  // Mutable maps live inside the sandbox and could be concurrently corrupted
-  // while being read, causing a size mismatch between serialization and
-  // deserialization.
-  uint32_t size_in_tagged;
-  if (HeapLayout::InReadOnlySpace(*map)) {
-    const int instance_size_in_words = map->instance_size_in_words();
-    size_in_tagged = instance_size_in_words == kVariableSizeSentinel
-                         ? source_.GetUint30()
-                         : static_cast<uint32_t>(instance_size_in_words);
-  } else {
-    size_in_tagged = source_.GetUint30();
-  }
+  // Fixed-size objects don't serialize their size, see SerializePrologue.
+  const int instance_size_in_words = map->instance_size_in_words();
+  const uint32_t size_in_tagged =
+      instance_size_in_words == kVariableSizeSentinel
+          ? source_.GetUint30()
+          : static_cast<uint32_t>(instance_size_in_words);
   const uint32_t size_in_bytes = size_in_tagged * kTaggedSize;
 
   AllocationType allocation = SpaceToAllocation(space);

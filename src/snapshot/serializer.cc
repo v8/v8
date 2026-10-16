@@ -522,11 +522,8 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     // deferred.
     DCHECK(IsMap(map));
     serializer_->SerializeObject(handle(map, isolate()), SlotType::kMapSlot);
-    // Only omit the object size for fixed-size maps in ReadOnlySpace. Mutable
-    // maps live inside the sandbox and could be concurrently corrupted during
-    // deserialization, changing their instance size.
-    if (!HeapLayout::InReadOnlySpace(map) ||
-        map->instance_size_in_words() == kVariableSizeSentinel) {
+    // The deserializer reads the size of fixed-size objects from their map.
+    if (map->instance_size_in_words() == kVariableSizeSentinel) {
       sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
     }
     if (IsExtendedMap(*object_)) {
