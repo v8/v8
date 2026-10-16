@@ -35,21 +35,9 @@ class SerializerDeserializer : public RootVisitor {
 
   // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
-  /* Free range 0x26..0x2f */                                     \
-                                                  V(0x26) V(0x27) \
-  V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
-  /* Free range 0x30..0x3f */                                     \
-  V(0x30) V(0x31) V(0x32) V(0x33) V(0x34) V(0x35) V(0x36) V(0x37) \
-  V(0x38) V(0x39) V(0x3a) V(0x3b) V(0x3c) V(0x3d) V(0x3e) V(0x3f) \
-  /* Free range 0xd0..0xdf */                                     \
-  V(0xd0) V(0xd1) V(0xd2) V(0xd3) V(0xd4) V(0xd5) V(0xd6) V(0xd7) \
-  V(0xd8) V(0xd9) V(0xda) V(0xdb) V(0xdc) V(0xdd) V(0xde) V(0xdf) \
-  /* Free range 0xe0..0xef */                                     \
-  V(0xe0) V(0xe1) V(0xe2) V(0xe3) V(0xe4) V(0xe5) V(0xe6) V(0xe7) \
-  V(0xe8) V(0xe9) V(0xea) V(0xeb) V(0xec) V(0xed) V(0xee) V(0xef) \
-  /* Free range 0xf0..0xff */                                     \
-  V(0xf0) V(0xf1) V(0xf2) V(0xf3) V(0xf4) V(0xf5) V(0xf6) V(0xf7) \
-  V(0xf8) V(0xf9) V(0xfa) V(0xfb) V(0xfc) V(0xfd) V(0xfe) V(0xff)
+  /* Free range 0x27..0x2f */                                     \
+                                                          V(0x27) \
+  V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f)
   // clang-format on
 
   // The static assert below will trigger when the number of preallocated spaces
@@ -65,12 +53,12 @@ class SerializerDeserializer : public RootVisitor {
   // 16 repeats lengths.
   static const int kFixedRepeatRootCount = 0x10;
 
-  // First 64 back-referenced objects.
-  static const int kFixedBackrefCount = 0x40;
+  // Top 128 back-referenced objects.
+  static const int kFixedBackrefCount = 0x80;
 
   enum Bytecode : uint8_t {
     //
-    // ---------- byte code range 0x00..0x25 ----------
+    // ---------- byte code range 0x00..0x26 ----------
     //
 
     // 0x00..0x03  Allocate new object, in specified space.
@@ -166,10 +154,16 @@ class SerializerDeserializer : public RootVisitor {
     kUntrustedRef,
     // Reference to the n-th external reference in the trusted section.
     kTrustedExternalRef,
+    // Reference to previously allocated object, also registering it in the
+    // fixed backref table for subsequent 1-byte kFixedBackref references.
+    kRegisterFixedBackref,
 
     //
-    // ---------- byte code range 0x40..0x7f ----------
+    // ---------- byte code range 0x30..0x7f ----------
     //
+
+    // 0x30..0x3f
+    kFixedRepeatRoot = 0x30,
 
     // 0x40..0x5f
     kRootArrayConstants = 0x40,
@@ -178,14 +172,11 @@ class SerializerDeserializer : public RootVisitor {
     kFixedRawData = 0x60,
 
     //
-    // ---------- byte code range 0x80..0xcf ----------
+    // ---------- byte code range 0x80..0xff ----------
     //
 
-    // 0x80..0x8f
-    kFixedRepeatRoot = 0x80,
-
-    // 0x90..0xcf
-    kFixedBackref = 0x90,
+    // 0x80..0xff
+    kFixedBackref = 0x80,
   };
 
   // Bytecodes that could corrupt memory outside the sandbox, which the
@@ -229,6 +220,7 @@ class SerializerDeserializer : public RootVisitor {
       case kTrustedExportRef:
       case kUntrustedRef:
       case kTrustedExternalRef:
+      case kRegisterFixedBackref:
       case kRootArrayConstants:
       case kFixedRawData:
       case kFixedRepeatRoot:

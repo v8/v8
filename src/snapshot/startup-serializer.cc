@@ -173,6 +173,7 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   isolate()->heap()->IterateWeakRoots(
       this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
   SerializeDeferredObjects();
+  OptimizeBackReferences();
   Pad();
 }
 

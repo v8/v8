@@ -79,6 +79,7 @@ void ContextSerializer::Serialize(Tagged<Context>* o,
     sink_.Put(kSynchronize, "Finished with api wrapper fields data");
   }
 
+  OptimizeBackReferences();
   Pad();
 }
 

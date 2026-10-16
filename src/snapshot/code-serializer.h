@@ -240,6 +240,7 @@ class CodeSerializer : public Serializer {
       ExternalPointerTag tag) override;
   void FinishSection() {
     sink_.Put(kSynchronize, "EndOfUntrustedSection");
+    OptimizeBackReferences();
     Pad();
   }
 

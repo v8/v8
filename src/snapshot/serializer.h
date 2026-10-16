@@ -236,7 +236,7 @@ class Serializer : public SerializerDeserializer {
   void PutRoot(RootIndex root_index);
   void PutSmiRoot(FullObjectSlot slot);
   void PutBackReference(Tagged<HeapObject> object,
-                        SerializerReference* reference);
+                        SerializerReference reference);
   void PutAttachedReference(SerializerReference reference);
   void PutNextChunk(SnapshotSpace space);
   void PutRepeatRoot(int repeat_count, RootIndex root_index);
@@ -276,6 +276,8 @@ class Serializer : public SerializerDeserializer {
 
   bool SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
                                         SnapshotByteSink* sink);
+
+  void OptimizeBackReferences();
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
   // Use padding_offset to specify the space you want to use after padding.
@@ -344,6 +346,12 @@ class Serializer : public SerializerDeserializer {
  private:
   friend class TrustedSectionSerializer;
 
+  struct BackrefLocation {
+    uint32_t position;
+    uint32_t index;
+    uint8_t length;
+  };
+
   // Disallow GC during serialization.
   // TODO(leszeks, v8:10815): Remove this constraint.
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
@@ -357,7 +365,8 @@ class Serializer : public SerializerDeserializer {
   GlobalHandleVector<HeapObject>
       deferred_objects_;  // To handle stack overflow.
   int num_back_refs_ = 0;
-  int num_fixed_back_refs_ = 0;
+  std::vector<BackrefLocation> backref_locations_;
+  std::vector<uint32_t> backref_counts_;
 
   // Used to provide deterministic IDs to the serialized dispatch handles.
   std::unordered_map<JSDispatchHandle, uint32_t> dispatch_handle_map_;

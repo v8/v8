@@ -359,7 +359,6 @@ Deserializer<IsolateT>::Deserializer(
   backing_stores_.push_back({});
 
   back_refs_.reserve(2048);
-  fixed_back_refs_.reserve(kFixedBackrefCount);
   js_dispatch_entries_.reserve(512);
 
 #ifdef DEBUG
@@ -468,7 +467,7 @@ void Deserializer<IsolateT>::DeserializeTrustedSection() {
   source_.Reset(trusted_payload_);
   section_ = Section::kTrusted;
   untrusted_back_refs_ = std::exchange(back_refs_, {});
-  fixed_back_refs_.clear();
+  num_fixed_back_refs_ = 0;
   DirectHandleVector<HeapObject> trusted_exports(isolate());
   while (source_.Peek() != kSynchronize) {
     trusted_exports.push_back(ReadObject());
@@ -1036,6 +1035,7 @@ constexpr uint8_t VerifyBytecodeCount(uint8_t bytecode) {
 #define CASE_R16(byte_code) CASE_R8(byte_code) : case CASE_R8(byte_code + 8)
 #define CASE_R32(byte_code) CASE_R16(byte_code) : case CASE_R16(byte_code + 16)
 #define CASE_R64(byte_code) CASE_R32(byte_code) : case CASE_R32(byte_code + 32)
+#define CASE_R128(byte_code) CASE_R64(byte_code) : case CASE_R64(byte_code + 64)
 
 // This generates a case range for all the spaces.
 // clang-format off
@@ -1142,13 +1142,15 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadUntrustedRef(data, slot_accessor);
     case kTrustedExternalRef:
       return ReadTrustedExternalRef(data, slot_accessor);
+    case kRegisterFixedBackref:
+      return ReadRegisterFixedBackref(data, slot_accessor);
     case CASE_RANGE(kRootArrayConstants, 32):
       return ReadRootArrayConstants(data, slot_accessor);
     case CASE_RANGE(kFixedRawData, 32):
       return ReadFixedRawData(data, slot_accessor);
     case CASE_RANGE(kFixedRepeatRoot, 16):
       return ReadFixedRepeatRoot(data, slot_accessor);
-    case CASE_RANGE(kFixedBackref, 64):
+    case CASE_RANGE(kFixedBackref, 128):
       return ReadFixedBackref(data, slot_accessor);
 
 #ifdef DEBUG
@@ -1210,17 +1212,28 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadBackref(uint8_t data,
                                         SlotAccessor slot_accessor) {
   uint32_t index = source_.GetUint30();
-  Handle<HeapObject> heap_object = GetBackReferencedObject(index);
-  if (fixed_back_refs_.size() < kFixedBackrefCount &&
-      SerializerReference::CanBeFixedBackReference(index)) {
-    fixed_back_refs_.push_back(heap_object.location());
-  }
+  DirectHandle<HeapObject> heap_object = GetBackReferencedObject(index);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sBackref [%u]\n", depth_, "", index);
     // Don't print the backref object, since it might still be being
     // initialized.
     // TODO(leszeks): Have some sort of initialization marker on backrefs to
     // allow them to be printed when valid.
+  }
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor());
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadRegisterFixedBackref(
+    uint8_t data, SlotAccessor slot_accessor) {
+  uint32_t index = source_.GetUint30();
+  Handle<HeapObject> heap_object = GetBackReferencedObject(index);
+  SBXCHECK_LT(num_fixed_back_refs_, kFixedBackrefCount);
+  fixed_back_refs_[num_fixed_back_refs_++] = heap_object.location();
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sRegisterFixedBackref [%u]\n", depth_, "", index);
   }
   return WriteHeapPointer(slot_accessor, heap_object,
                           GetAndResetNextReferenceDescriptor());
@@ -1789,6 +1802,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadFixedBackref(uint8_t data,
                                              SlotAccessor slot_accessor) {
   uint32_t index = FixedBackref::Decode(data);
+  SBXCHECK_LT(index, num_fixed_back_refs_);
   Handle<HeapObject> heap_object(fixed_back_refs_[index]);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sFixedBackref [%u]\n", depth_, "", index);
@@ -1799,6 +1813,7 @@ int Deserializer<IsolateT>::ReadFixedBackref(uint8_t data,
 
 #undef CASE_RANGE_ALL_SPACES
 #undef CASE_RANGE
+#undef CASE_R128
 #undef CASE_R64
 #undef CASE_R32
 #undef CASE_R16

@@ -4,6 +4,9 @@
 
 #include "src/snapshot/serializer.h"
 
+#include <algorithm>
+#include <cstring>
+
 #include "include/v8-internal.h"
 #include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
@@ -228,7 +231,7 @@ bool Serializer::SerializeRoot(Tagged<HeapObject> obj) {
 
 bool Serializer::SerializeBackReference(Tagged<HeapObject> obj) {
   DisallowGarbageCollection no_gc;
-  SerializerReference* reference = reference_map_.LookupReference(obj);
+  const SerializerReference* reference = reference_map_.LookupReference(obj);
   if (reference == nullptr) return false;
   // Encode the location of an already deserialized object in order to write
   // its location into a later object.  We can encode the location as an
@@ -240,14 +243,6 @@ bool Serializer::SerializeBackReference(Tagged<HeapObject> obj) {
              reference->attached_reference_index());
     }
     PutAttachedReference(*reference);
-  } else if (reference->is_fixed_back_reference()) {
-    uint32_t fixed_index = reference->fixed_back_ref_index();
-    if (v8_flags.trace_serializer) {
-      PrintF(" Encoding fixed back reference %d to: ", fixed_index);
-      ShortPrint(obj);
-      PrintF("\n");
-    }
-    sink_.Put(FixedBackref::Encode(fixed_index), "FixedBackref");
   } else {
     DCHECK(reference->is_back_reference());
     if (v8_flags.trace_serializer) {
@@ -256,8 +251,7 @@ bool Serializer::SerializeBackReference(Tagged<HeapObject> obj) {
       PrintF("\n");
     }
 
-    sink_.Put(kBackref, "Backref");
-    PutBackReference(obj, reference);
+    PutBackReference(obj, *reference);
   }
   return true;
 }
@@ -324,14 +318,18 @@ void Serializer::PutSmiRoot(FullObjectSlot slot) {
 }
 
 void Serializer::PutBackReference(Tagged<HeapObject> object,
-                                  SerializerReference* reference) {
-  uint32_t index = reference->back_ref_index();
+                                  SerializerReference reference) {
+  uint32_t index = reference.back_ref_index();
   DCHECK_EQ(object, *back_refs_[index]);
+  uint32_t pos = static_cast<uint32_t>(sink_.Position());
+  sink_.Put(kBackref, "Backref");
   sink_.PutUint30(index, "BackRefIndex");
-  if (num_fixed_back_refs_ < kFixedBackrefCount &&
-      SerializerReference::CanBeFixedBackReference(index)) {
-    reference->set_fixed_back_ref_index(num_fixed_back_refs_++);
+  uint8_t len = static_cast<uint8_t>(sink_.Position() - pos);
+  backref_locations_.push_back({pos, index, len});
+  if (index >= backref_counts_.size()) {
+    backref_counts_.resize(num_back_refs_, 0);
   }
+  backref_counts_[index]++;
 }
 
 void Serializer::PutAttachedReference(SerializerReference reference) {
@@ -430,7 +428,74 @@ void Serializer::ResolvePendingObject(Tagged<HeapObject> obj) {
   }
 }
 
+void Serializer::OptimizeBackReferences() {
+  std::vector<uint32_t> candidates;
+  for (uint32_t i = 0; i < backref_counts_.size(); i++) {
+    if (backref_counts_[i] >= 2) {
+      candidates.push_back(i);
+    }
+  }
+  if (candidates.empty()) {
+    backref_locations_.clear();
+    backref_counts_.clear();
+    return;
+  }
+
+  if (candidates.size() > kFixedBackrefCount) {
+    std::partial_sort(candidates.begin(),
+                      candidates.begin() + kFixedBackrefCount, candidates.end(),
+                      [this](uint32_t a, uint32_t b) {
+                        if (backref_counts_[a] != backref_counts_[b]) {
+                          return backref_counts_[a] > backref_counts_[b];
+                        }
+                        return a > b;
+                      });
+    candidates.resize(kFixedBackrefCount);
+  }
+
+  // -1: not selected; -2: selected, awaiting 1st occurrence; >= 0: fixed slot.
+  std::vector<int16_t> fixed_slot(backref_counts_.size(), -1);
+  for (uint32_t index : candidates) {
+    fixed_slot[index] = -2;
+  }
+
+  uint8_t* data = sink_.MutableData();
+  size_t read_pos = 0;
+  size_t write_pos = 0;
+  int16_t next_slot = 0;
+
+  for (const BackrefLocation& loc : backref_locations_) {
+    int16_t slot = fixed_slot[loc.index];
+    if (slot == -1) continue;
+    if (slot == -2) {
+      DCHECK_EQ(data[loc.position], kBackref);
+      data[loc.position] = kRegisterFixedBackref;
+      fixed_slot[loc.index] = next_slot++;
+      continue;
+    }
+    size_t span = loc.position - read_pos;
+    if (write_pos != read_pos && span > 0) {
+      std::memmove(data + write_pos, data + read_pos, span);
+    }
+    write_pos += span;
+    data[write_pos++] = FixedBackref::Encode(slot);
+    read_pos = loc.position + loc.length;
+  }
+
+  if (write_pos != read_pos) {
+    size_t tail = sink_.Position() - read_pos;
+    if (tail > 0) {
+      std::memmove(data + write_pos, data + read_pos, tail);
+    }
+    write_pos += tail;
+    sink_.Resize(write_pos);
+  }
+  backref_locations_.clear();
+  backref_counts_.clear();
+}
+
 void Serializer::Pad(int padding_offset) {
+  DCHECK(backref_locations_.empty());
   // The non-branching GetInt will read up to 3 bytes too far, so we need
   // to pad the snapshot to make sure we don't read over the end.
   for (unsigned i = 0; i < sizeof(int32_t) - 1; i++) {

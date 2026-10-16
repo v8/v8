@@ -228,6 +228,8 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadTrustedExternalRef(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
+  int ReadRegisterFixedBackref(uint8_t data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
   int ReadRootArrayConstants(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadFixedRawData(uint8_t data, SlotAccessor slot_accessor);
@@ -284,7 +286,8 @@ class Deserializer : public SerializerDeserializer {
 
   // Vector of allocated objects that can be accessed by a backref, by index.
   std::vector<IndirectHandle<HeapObject>> back_refs_;
-  std::vector<Address*> fixed_back_refs_;
+  Address* fixed_back_refs_[kFixedBackrefCount];
+  uint32_t num_fixed_back_refs_ = 0;
 
   // Vector of already allocated JSDispatchTable entries.
   std::vector<JSDispatchHandle> js_dispatch_entries_;

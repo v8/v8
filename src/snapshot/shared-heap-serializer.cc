@@ -63,6 +63,7 @@ void SharedHeapSerializer::FinalizeSerialization() {
   // internalizable-in-place strings are in the shared heap.
   SerializeStringTable(isolate()->string_table());
   SerializeDeferredObjects();
+  OptimizeBackReferences();
   Pad();
 
 #ifdef DEBUG

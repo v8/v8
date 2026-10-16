@@ -59,6 +59,7 @@ void TrustedSectionSerializer::FinishSection() {
       reinterpret_cast<const uint8_t*>(external_references_.data()),
       external_references_.size() * sizeof(EncodedExternalReference),
       "ExternalReferences");
+  OptimizeBackReferences();
   Pad(base::checked_cast<int>(external_references_sink_.Position()));
 }
 
