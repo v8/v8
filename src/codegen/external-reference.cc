@@ -853,6 +853,10 @@ ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }
 
+ExternalReference ExternalReference::address_of_shared_string_table_flag() {
+  return ExternalReference(&v8_flags.shared_string_table);
+}
+
 ExternalReference
 ExternalReference::address_of_track_array_buffer_views_flag() {
   return ExternalReference(&v8_flags.track_array_buffer_views);

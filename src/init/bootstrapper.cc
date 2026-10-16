@@ -263,8 +263,6 @@ class Genesis {
 #undef IGNORE_FEATURE
   void InitializeGlobal_regexp_linear_flag();
   void InitializeGlobal_sharedarraybuffer();
-  // TODO(572988458): Remove harmony_struct initialization.
-  void InitializeGlobal_harmony_struct();
 #if V8_ENABLE_WEBASSEMBLY
   void InitializeWasmJSPI();
 #endif

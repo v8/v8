@@ -88,7 +88,7 @@ class WithDefaultPlatformMixin : public TMixin {
 template <typename TMixin>
 class WithJSSharedMemoryFeatureFlagsMixin : public TMixin {
  public:
-  WithJSSharedMemoryFeatureFlagsMixin() { i::v8_flags.shared_strings = true; }
+  WithJSSharedMemoryFeatureFlagsMixin() { i::v8_flags.harmony_struct = true; }
 };
 
 template <typename TMixin>
@@ -359,7 +359,7 @@ using TestWithContext =                    //
                     ::testing::Test>>>>;
 
 // Use v8::internal::TestJSSharedMemoryWithNativeContext if you are testing
-// internals, aka. directly work with Handles and require --shared-strings
+// internals, aka. directly work with Handles and require --harmony-struct
 // feature.
 //
 // Using this will FATAL when !V8_CAN_CREATE_SHARED_HEAP_BOOL

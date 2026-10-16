@@ -3109,7 +3109,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadRuntimeFlag(ExternalReference::address_of_js_pr_3883_flag());
   }
 
-  TNode<BoolT> HasSharedStringTableFlag() { return BoolConstant(false); }
+  TNode<BoolT> HasSharedStringTableFlag() {
+    return LoadRuntimeFlag(
+        ExternalReference::address_of_shared_string_table_flag());
+  }
 
   TNode<BoolT> IsAdditiveSafeIntegerFeedbackEnabled() {
     if (Is64()) {

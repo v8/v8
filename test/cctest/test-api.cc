@@ -13508,6 +13508,39 @@ static v8::Isolate::CreateParams CreateTestParams() {
   return create_params;
 }
 
+UNINITIALIZED_TEST(SharedObjectGetConstructorName) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+  // In multi-cage mode we create one cage per isolate
+  // and we don't share objects between cages.
+  if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) return;
+
+  i::v8_flags.shared_string_table = true;
+  i::v8_flags.harmony_struct = true;
+  i::FlagList::EnforceFlagImplications();
+
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext context(isolate);
+
+    v8_compile(
+        "var s = new (new SharedStructType(['foo']));"
+        "var a = new SharedArray(1);"
+        "var m = new Atomics.Mutex;"
+        "var c = new Atomics.Condition;")
+        ->Run(context.local())
+        .ToLocalChecked();
+
+    CheckGetConstructorNameOfVar(context, "s", "SharedStruct");
+    CheckGetConstructorNameOfVar(context, "a", "SharedArray");
+    CheckGetConstructorNameOfVar(context, "m", "Atomics.Mutex");
+    CheckGetConstructorNameOfVar(context, "c", "Atomics.Condition");
+  }
+  isolate->Dispose();
+}
+
 static void TestAllocateAndNewForTwoIsolateGroups(
     const v8::Isolate::CreateParams& create_params_1,
     const v8::Isolate::CreateParams& create_params_2,

@@ -378,6 +378,7 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "single_generation": [
         "--shared-strings",
         "--shared-heap",
+        "--harmony-struct",
         "--wasm-shared",
     ],
     "!slow_dchecks": ["--enable-slow-asserts"],
