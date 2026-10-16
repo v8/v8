@@ -10,12 +10,7 @@
 
 // Tests that should have access to private methods of {v8::internal::Heap}.
 // Those tests need to be defined using HEAP_TEST(Name) { ... }.
-#define HEAP_TEST_METHODS(V)                                \
-  V(CompactionFullAbortedPage)                              \
-  V(CompactionPartiallyAbortedPage)                         \
-  V(CompactionPartiallyAbortedPageIntraAbortedPointers)     \
-  V(CompactionPartiallyAbortedPageWithRememberedSetEntries) \
-  V(StressHandles)
+#define HEAP_TEST_METHODS(V) V(StressHandles)
 
 #define HEAP_TEST(Name)                                                   \
   CcTest register_test_##Name(v8::internal::heap::HeapTester::Test##Name, \

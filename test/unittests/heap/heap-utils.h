@@ -38,8 +38,9 @@ class HeapInternalsBase {
   void SetForceOOM(Heap* heap, bool value);
   void SetDelaySweeperTasksForTesting(Heap* heap, bool value);
   int MemoryReducerStateId(Heap* heap);
-  std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
-                                                AllocationType allocation);
+  std::vector<Handle<FixedArray>> CreatePadding(
+      Heap* heap, int padding_size, AllocationType allocation,
+      int object_size = kMaxRegularHeapObjectSize);
 };
 
 inline void InvokeMajorGC(Isolate* isolate) {
@@ -206,9 +207,11 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     return count;
   }
 
-  std::vector<Handle<FixedArray>> CreatePadding(int padding_size,
-                                                AllocationType allocation) {
-    return HeapInternalsBase::CreatePadding(heap(), padding_size, allocation);
+  std::vector<Handle<FixedArray>> CreatePadding(
+      int padding_size, AllocationType allocation,
+      int object_size = kMaxRegularHeapObjectSize) {
+    return HeapInternalsBase::CreatePadding(heap(), padding_size, allocation,
+                                            object_size);
   }
 };
 

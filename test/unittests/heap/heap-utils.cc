@@ -224,8 +224,9 @@ void HeapInternalsBase::SimulateFullSpace(PagedSpace* space) {
 
 namespace {
 
-std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
-                                              AllocationType allocation) {
+std::vector<Handle<FixedArray>> CreatePadding(
+    Heap* heap, int padding_size, AllocationType allocation,
+    int object_size = kMaxRegularHeapObjectSize) {
   std::vector<Handle<FixedArray>> handles;
   Isolate* isolate = heap->isolate();
   int allocate_memory;
@@ -240,8 +241,8 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
     CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
   }
   while (free_memory > 0) {
-    if (free_memory > kMaxRegularHeapObjectSize) {
-      allocate_memory = kMaxRegularHeapObjectSize;
+    if (free_memory > object_size) {
+      allocate_memory = object_size;
       length = FixedArrayLenFromSize(allocate_memory);
     } else {
       allocate_memory = free_memory;
@@ -312,8 +313,8 @@ void FillCurrentPagedSpacePage(NewSpace* space,
 }  // namespace
 
 std::vector<Handle<FixedArray>> HeapInternalsBase::CreatePadding(
-    Heap* heap, int padding_size, AllocationType allocation) {
-  return internal::CreatePadding(heap, padding_size, allocation);
+    Heap* heap, int padding_size, AllocationType allocation, int object_size) {
+  return internal::CreatePadding(heap, padding_size, allocation, object_size);
 }
 
 void HeapInternalsBase::FillCurrentPage(
