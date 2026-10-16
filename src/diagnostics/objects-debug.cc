@@ -1131,9 +1131,8 @@ void ScopeInfo::ScopeInfoVerify(Isolate* isolate) {
   CHECK(position_info_.start_.load().IsSmi());
   CHECK(position_info_.end_.load().IsSmi());
 
-  const uint32_t flags = Flags();
-  const bool is_module =
-      ScopeTypeBits::decode(flags) == ScopeType::MODULE_SCOPE;
+  const Flags flags = this->flags();
+  const bool is_module = flags.scope_type() == ScopeType::MODULE_SCOPE;
   const int local_count = context_local_count();
   const bool has_hashtable = local_count >= kScopeInfoMaxInlinedLocalNamesSize;
 
@@ -1158,23 +1157,23 @@ void ScopeInfo::ScopeInfoVerify(Isolate* isolate) {
     USE(context_local_infos(i));
   }
 
-  if (HasSavedClassVariableBit::decode(flags)) {
+  if (flags.has_saved_class_variable()) {
     Tagged<Union<Name, Smi>> v = saved_class_variable_info();
     CHECK(IsSmi(v) || IsName(v));
   }
 
-  if (FunctionVariableBits::decode(flags) != VariableAllocationInfo::NONE) {
+  if (flags.function_variable() != VariableAllocationInfo::NONE) {
     Tagged<Union<Smi, String>> name = function_variable_info_name();
     CHECK(IsString(name) || IsZero(name));
     USE(function_variable_info_context_or_stack_slot_index());
   }
 
-  if (HasInferredFunctionNameBit::decode(flags)) {
+  if (flags.has_inferred_function_name()) {
     Tagged<Union<String, Undefined>> n = inferred_function_name();
     CHECK(IsString(n) || IsUndefined(n));
   }
 
-  if (HasOuterScopeInfoBit::decode(flags)) {
+  if (flags.has_outer_scope_info()) {
     CHECK(IsScopeInfo(outer_scope_info()));
   }
 
@@ -1188,11 +1187,11 @@ void ScopeInfo::ScopeInfoVerify(Isolate* isolate) {
     }
   }
 
-  if (SloppyEvalCanExtendVarsBit::decode(flags)) {
+  if (flags.sloppy_eval_can_extend_vars()) {
     CHECK(IsDependentCode(dependent_code()));
   }
 
-  if (ScopeTypeBits::decode(flags) == ScopeType::FUNCTION_SCOPE) {
+  if (flags.scope_type() == ScopeType::FUNCTION_SCOPE) {
     USE(unused_parameter_bits());
   }
 }

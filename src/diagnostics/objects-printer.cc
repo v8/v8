@@ -4177,7 +4177,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
     os << "\n - empty\n";
     return;
   }
-  int flags = Flags();
+  const Flags flags = this->flags();
 
   os << "\n - parameters: " << ParameterCount();
   os << "\n - context locals : " << ContextLocalCount();
@@ -4196,7 +4196,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   os << "\n - language mode: " << language_mode();
   if (is_declaration_scope()) os << "\n - declaration scope";
   if (HasReceiver()) {
-    os << "\n - receiver: " << ReceiverVariableBits::decode(flags);
+    os << "\n - receiver: " << flags.receiver_variable();
   }
   if (ClassScopeHasPrivateBrand()) os << "\n - class scope has private brand";
   if (HasSavedClassVariable()) os << "\n - has saved class variable";
@@ -4204,7 +4204,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
     os << "\n - can only access fixed formal parameters";
   }
   if (HasFunctionName()) {
-    os << "\n - function name(" << FunctionVariableBits::decode(flags) << "): ";
+    os << "\n - function name(" << flags.function_variable() << "): ";
     ShortPrint(FunctionName(), os);
   }
   if (HasSimpleParameters()) os << "\n - simple parameters";

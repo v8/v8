@@ -806,15 +806,16 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
                 const int local_count =
                     i::PlatformSmiTagging::SmiToInt(context_local_count.value);
                 const bool is_module =
-                    i::ScopeInfo::ScopeTypeBits::decode(flags.value) ==
+                    i::ScopeInfo::Flags::ScopeTypeBits::decode(flags.value) ==
                     i::ScopeType::MODULE_SCOPE;
                 const bool has_hashtable =
                     local_count >= i::kScopeInfoMaxInlinedLocalNamesSize;
                 const bool has_saved_class_variable =
-                    i::ScopeInfo::HasSavedClassVariableBit::decode(flags.value);
+                    i::ScopeInfo::Flags::HasSavedClassVariableBit::decode(
+                        flags.value);
                 const bool has_function_variable =
-                    i::ScopeInfo::FunctionVariableBits::decode(flags.value) !=
-                    i::VariableAllocationInfo::NONE;
+                    i::ScopeInfo::Flags::FunctionVariableBits::decode(
+                        flags.value) != i::VariableAllocationInfo::NONE;
                 const int preceding_slots =
                     (is_module ? 1 : 0) + (has_hashtable ? 1 : local_count) +
                     local_count + (has_saved_class_variable ? 1 : 0);

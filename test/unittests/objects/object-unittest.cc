@@ -212,7 +212,7 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
   DirectHandle<ScopeInfo> empty_function_scope_info(
       isolate()->empty_function()->shared()->scope_info(), i_isolate());
 
-  EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
+  EXPECT_EQ(scope_info->flags(), empty_function_scope_info->flags());
   EXPECT_EQ(scope_info->ParameterCount(),
             empty_function_scope_info->ParameterCount());
   EXPECT_EQ(scope_info->ContextLocalCount(),
@@ -224,8 +224,9 @@ TEST_F(TestWithNativeContext, CanOnlyAccessFixedFormalParameters) {
     DirectHandle<JSFunction> function = RunJS<JSFunction>(f);
     DirectHandle<ScopeInfo> scope_info(function->shared()->scope_info(),
                                        i_isolate());
-    auto flags = scope_info->Flags();
-    EXPECT_EQ(allocates, ScopeInfo::AllocatesArgumentsBit::decode(flags));
+    auto flags = scope_info->flags();
+    EXPECT_EQ(allocates,
+              ScopeInfo::Flags::AllocatesArgumentsBit::decode(flags));
     EXPECT_EQ(only_fixed, scope_info->CanOnlyAccessFixedFormalParameters());
   };
   run("(function(){})", false, false);

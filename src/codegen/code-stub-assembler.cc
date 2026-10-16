@@ -3774,14 +3774,14 @@ TNode<BoolT> CodeStubAssembler::LoadScopeInfoHasExtensionField(
     TNode<ScopeInfo> scope_info) {
   TNode<Uint32T> value =
       LoadObjectField<Uint32T>(scope_info, offsetof(ScopeInfo, flags_));
-  return IsSetWord32<ScopeInfo::HasContextExtensionSlotBit>(value);
+  return IsSetWord32<ScopeInfo::Flags::HasContextExtensionSlotBit>(value);
 }
 
 TNode<BoolT> CodeStubAssembler::LoadScopeInfoClassScopeHasPrivateBrand(
     TNode<ScopeInfo> scope_info) {
   TNode<Uint32T> value =
       LoadObjectField<Uint32T>(scope_info, offsetof(ScopeInfo, flags_));
-  return IsSetWord32<ScopeInfo::ClassScopeHasPrivateBrandBit>(value);
+  return IsSetWord32<ScopeInfo::Flags::ClassScopeHasPrivateBrandBit>(value);
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadScopeInfoContextLocalCount(
@@ -3802,7 +3802,7 @@ TNode<IntPtrT> ScopeInfoContextLocalNamesOffset(CodeStubAssembler* csa,
   TNode<Uint32T> flags =
       csa->LoadObjectField<Uint32T>(scope_info, offsetof(ScopeInfo, flags_));
   TNode<BoolT> is_module = csa->Word32Equal(
-      csa->DecodeWord32<ScopeInfo::ScopeTypeBits>(flags),
+      csa->DecodeWord32<ScopeInfo::Flags::ScopeTypeBits>(flags),
       csa->Uint32Constant(static_cast<uint32_t>(ScopeType::MODULE_SCOPE)));
   return csa->Select<IntPtrT>(
       is_module,

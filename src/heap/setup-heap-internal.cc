@@ -1039,10 +1039,11 @@ bool Heap::CreateImportantReadOnlyObjects() {
     obj->set_map_after_allocation(isolate(), roots.scope_info_map(),
                                   SKIP_WRITE_BARRIER);
     int flags = 0;
-    DCHECK_EQ(ScopeInfo::LanguageModeBit::decode(flags), LanguageMode::kSloppy);
-    DCHECK_EQ(ScopeInfo::ReceiverVariableBits::decode(flags),
+    DCHECK_EQ(ScopeInfo::Flags::LanguageModeBit::decode(flags),
+              LanguageMode::kSloppy);
+    DCHECK_EQ(ScopeInfo::Flags::ReceiverVariableBits::decode(flags),
               VariableAllocationInfo::NONE);
-    DCHECK_EQ(ScopeInfo::FunctionVariableBits::decode(flags),
+    DCHECK_EQ(ScopeInfo::Flags::FunctionVariableBits::decode(flags),
               VariableAllocationInfo::NONE);
     Cast<ScopeInfo>(obj)->set_flags(flags, kRelaxedStore);
     Cast<ScopeInfo>(obj)->set_context_local_count(0);

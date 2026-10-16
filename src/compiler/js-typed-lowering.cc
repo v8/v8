@@ -1609,7 +1609,7 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
       UseInfo::TruncatingWord32());
   TNode<Word32T> flags_masked = gasm.Word32And(
       scope_info_flags,
-      gasm.Uint32Constant(ScopeInfo::HasContextExtensionSlotBit::kMask));
+      gasm.Uint32Constant(ScopeInfo::Flags::HasContextExtensionSlotBit::kMask));
   TNode<Word32T> no_extension =
       gasm.Word32Equal(flags_masked, gasm.Uint32Constant(0));
   TNode<Word32T> has_extension =

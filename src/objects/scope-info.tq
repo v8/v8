@@ -57,8 +57,8 @@ extern enum IsStaticFlag extends uint32 { kNotStatic, kStatic }
 extern enum MaybeAssignedFlag extends uint32 { kNotAssigned, kMaybeAssigned }
 
 // Properties of scopes.
-@cppScope('ScopeInfo')
-bitfield struct ScopeFlags extends uint32 {
+@cppScope('ScopeInfo::Flags')
+bitfield struct ScopeInfoFlags extends uint32 {
   scope_type: ScopeType: 4 bit;
   sloppy_eval_can_extend_vars: bool: 1 bit;
   language_mode: LanguageMode: 1 bit;
@@ -118,7 +118,7 @@ const kMaxInlinedLocalNamesSize:
 // CodeStubAssembler::IndexOfLocalName / GetFunctionContextSlotInitialValue.
 @cppObjectLayoutDefinition
 extern class ScopeInfo extends HeapObject {
-  @cppRelaxedLoad @cppRelaxedStore const flags: ScopeFlags;
+  @cppRelaxedLoad @cppRelaxedStore const flags: ScopeInfoFlags;
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 

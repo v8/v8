@@ -7,6 +7,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/dependent-code.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
@@ -66,33 +67,69 @@ struct ModuleVariableInfo {
 // routines.
 V8_OBJECT class ScopeInfo : public HeapObject {
  public:
-  // Bit positions in |flags|.
-  using ScopeTypeBits = base::BitField<ScopeType, 0, 4, uint32_t>;
-  using SloppyEvalCanExtendVarsBit = ScopeTypeBits::Next<bool, 1>;
-  using LanguageModeBit = SloppyEvalCanExtendVarsBit::Next<LanguageMode, 1>;
-  using DeclarationScopeBit = LanguageModeBit::Next<bool, 1>;
-  using ReceiverVariableBits =
-      DeclarationScopeBit::Next<VariableAllocationInfo, 2>;
-  using ClassScopeHasPrivateBrandBit = ReceiverVariableBits::Next<bool, 1>;
-  using HasSavedClassVariableBit = ClassScopeHasPrivateBrandBit::Next<bool, 1>;
-  using AllocatesArgumentsBit = HasSavedClassVariableBit::Next<bool, 1>;
-  using FunctionVariableBits =
-      AllocatesArgumentsBit::Next<VariableAllocationInfo, 2>;
-  using HasInferredFunctionNameBit = FunctionVariableBits::Next<bool, 1>;
-  using HasSimpleParametersBit = HasInferredFunctionNameBit::Next<bool, 1>;
-  using FunctionKindBits = HasSimpleParametersBit::Next<FunctionKind, 5>;
-  using HasOuterScopeInfoBit = FunctionKindBits::Next<bool, 1>;
-  using IsDebugEvaluateScopeBit = HasOuterScopeInfoBit::Next<bool, 1>;
-  using ForceContextAllocationBit = IsDebugEvaluateScopeBit::Next<bool, 1>;
-  using PrivateNameLookupSkipsOuterClassBit =
-      ForceContextAllocationBit::Next<bool, 1>;
-  using HasContextExtensionSlotBit =
-      PrivateNameLookupSkipsOuterClassBit::Next<bool, 1>;
-  using SomeContextHasExtensionBit = HasContextExtensionSlotBit::Next<bool, 1>;
-  using IsHiddenBit = SomeContextHasExtensionBit::Next<bool, 1>;
-  using IsWrappedFunctionBit = IsHiddenBit::Next<bool, 1>;
-  using HasContextCellsBit = IsWrappedFunctionBit::Next<bool, 1>;
-  using IsHoistedInContextBit = HasContextCellsBit::Next<bool, 1>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using ScopeTypeBits = base::BitField<ScopeType, 0, 4, uint32_t>;
+    using SloppyEvalCanExtendVarsBit = ScopeTypeBits::Next<bool, 1>;
+    using LanguageModeBit = SloppyEvalCanExtendVarsBit::Next<LanguageMode, 1>;
+    using DeclarationScopeBit = LanguageModeBit::Next<bool, 1>;
+    using ReceiverVariableBits =
+        DeclarationScopeBit::Next<VariableAllocationInfo, 2>;
+    using ClassScopeHasPrivateBrandBit = ReceiverVariableBits::Next<bool, 1>;
+    using HasSavedClassVariableBit =
+        ClassScopeHasPrivateBrandBit::Next<bool, 1>;
+    using AllocatesArgumentsBit = HasSavedClassVariableBit::Next<bool, 1>;
+    using FunctionVariableBits =
+        AllocatesArgumentsBit::Next<VariableAllocationInfo, 2>;
+    using HasInferredFunctionNameBit = FunctionVariableBits::Next<bool, 1>;
+    using HasSimpleParametersBit = HasInferredFunctionNameBit::Next<bool, 1>;
+    using FunctionKindBits = HasSimpleParametersBit::Next<FunctionKind, 5>;
+    using HasOuterScopeInfoBit = FunctionKindBits::Next<bool, 1>;
+    using IsDebugEvaluateScopeBit = HasOuterScopeInfoBit::Next<bool, 1>;
+    using ForceContextAllocationBit = IsDebugEvaluateScopeBit::Next<bool, 1>;
+    using PrivateNameLookupSkipsOuterClassBit =
+        ForceContextAllocationBit::Next<bool, 1>;
+    using HasContextExtensionSlotBit =
+        PrivateNameLookupSkipsOuterClassBit::Next<bool, 1>;
+    using SomeContextHasExtensionBit =
+        HasContextExtensionSlotBit::Next<bool, 1>;
+    using IsHiddenBit = SomeContextHasExtensionBit::Next<bool, 1>;
+    using IsWrappedFunctionBit = IsHiddenBit::Next<bool, 1>;
+    using HasContextCellsBit = IsWrappedFunctionBit::Next<bool, 1>;
+    using IsHoistedInContextBit = HasContextCellsBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(scope_type, ScopeTypeBits)
+    BIT_FIELD_GROUP_ACCESSORS(sloppy_eval_can_extend_vars,
+                              SloppyEvalCanExtendVarsBit)
+    BIT_FIELD_GROUP_ACCESSORS(language_mode, LanguageModeBit)
+    BIT_FIELD_GROUP_ACCESSORS(declaration_scope, DeclarationScopeBit)
+    BIT_FIELD_GROUP_ACCESSORS(receiver_variable, ReceiverVariableBits)
+    BIT_FIELD_GROUP_ACCESSORS(class_scope_has_private_brand,
+                              ClassScopeHasPrivateBrandBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_saved_class_variable,
+                              HasSavedClassVariableBit)
+    BIT_FIELD_GROUP_ACCESSORS(allocates_arguments, AllocatesArgumentsBit)
+    BIT_FIELD_GROUP_ACCESSORS(function_variable, FunctionVariableBits)
+    BIT_FIELD_GROUP_ACCESSORS(has_inferred_function_name,
+                              HasInferredFunctionNameBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_simple_parameters, HasSimpleParametersBit)
+    BIT_FIELD_GROUP_ACCESSORS(function_kind, FunctionKindBits)
+    BIT_FIELD_GROUP_ACCESSORS(has_outer_scope_info, HasOuterScopeInfoBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_debug_evaluate_scope, IsDebugEvaluateScopeBit)
+    BIT_FIELD_GROUP_ACCESSORS(force_context_allocation,
+                              ForceContextAllocationBit)
+    BIT_FIELD_GROUP_ACCESSORS(private_name_lookup_skips_outer_class,
+                              PrivateNameLookupSkipsOuterClassBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_context_extension_slot,
+                              HasContextExtensionSlotBit)
+    BIT_FIELD_GROUP_ACCESSORS(some_context_has_extension,
+                              SomeContextHasExtensionBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_hidden, IsHiddenBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_wrapped_function, IsWrappedFunctionBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_context_cells, HasContextCellsBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_hoisted_in_context, IsHoistedInContextBit)
+  };
 
   DECL_PRINTER(ScopeInfo)
   DECL_VERIFIER(ScopeInfo)
@@ -319,7 +356,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static Tagged<ScopeInfo> Empty(Isolate* isolate);
 
-  inline uint32_t Flags() const;
+  inline Flags flags() const;
   inline int ParameterCount() const;
   inline int ContextLocalCount() const;
 
@@ -336,12 +373,13 @@ V8_OBJECT class ScopeInfo : public HeapObject {
     kVariablePartStart
   };
 
-  static_assert(LanguageModeSize == 1 << LanguageModeBit::kSize);
-  static_assert(FunctionKindBits::is_valid(FunctionKind::kLastFunctionKind));
+  static_assert(LanguageModeSize == 1 << Flags::LanguageModeBit::kSize);
+  static_assert(
+      Flags::FunctionKindBits::is_valid(FunctionKind::kLastFunctionKind));
 
   // Named field accessors.
-  inline uint32_t flags(RelaxedLoadTag) const;
-  inline void set_flags(uint32_t value, RelaxedStoreTag);
+  inline Flags flags(RelaxedLoadTag) const;
+  inline void set_flags(Flags value, RelaxedStoreTag);
 
   inline int parameter_count() const;
   inline void set_parameter_count(int value);
@@ -552,8 +590,7 @@ V8_OBJECT class ScopeInfo : public HeapObject {
   friend class TorqueGeneratedBitFieldAsserts;
 
  public:
-  // Relaxed-atomic flags word (ScopeFlags bit layout).
-  V8_TQ_CONST V8_TQ_RELAXED std::atomic<uint32_t> flags_ V8_TQ_TYPE(ScopeFlags);
+  V8_TQ_CONST V8_TQ_RELAXED std::atomic<Flags> flags_;
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
