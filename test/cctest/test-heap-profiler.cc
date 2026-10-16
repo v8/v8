@@ -4636,6 +4636,133 @@ TEST(SamplingHeapProfilerSampleIsLive) {
   heap_profiler->StopSamplingHeapProfiler();
 }
 
+namespace {
+
+uintptr_t sample_context_calls = 0;
+
+void* CountingSampleContextExtractor(v8::Isolate*) {
+  return reinterpret_cast<void*>(++sample_context_calls << 1);
+}
+
+void* NullSampleContextExtractor(v8::Isolate*) {
+  ++sample_context_calls;
+  return nullptr;
+}
+
+// Checks that each sample's context is the one the counting extractor returned
+// for it, and returns the number of samples whose object was collected.
+size_t CheckCountingSampleContexts(
+    const std::vector<v8::AllocationProfile::Sample>& samples) {
+  CHECK(!samples.empty());
+  size_t dead_samples = 0;
+  for (const auto& sample : samples) {
+    // Sample ids and extractor calls both count from 1.
+    CHECK_EQ(reinterpret_cast<void*>(sample.sample_id << 1), sample.context);
+    if (!sample.is_live) ++dead_samples;
+  }
+  return dead_samples;
+}
+
+}  // namespace
+
+TEST(SamplingHeapProfilerSampleContext) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  sample_context_calls = 0;
+  CHECK(heap_profiler->StartSamplingHeapProfiler(
+      64, 16,
+      static_cast<v8::HeapProfiler::SamplingFlags>(
+          v8::HeapProfiler::kSamplingForceGC |
+          v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC |
+          v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMinorGC),
+      CountingSampleContextExtractor));
+
+  CompileRun(
+      "var retained = [];\n"
+      "for (var i = 0; i < 500; i++) retained.push(new Array(10));\n"
+      "for (var i = 0; i < 500; i++) new Array(10);\n");
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+  CHECK_GT(CheckCountingSampleContexts(profile->GetSamples()), 0);
+  CheckCountingSampleContexts(heap_profiler->GetSamplingHeapProfilerSamples());
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerSampleContextMinorGC) {
+  // The samples must be collected by a minor GC.
+  if (i::v8_flags.single_generation || i::v8_flags.gc_global ||
+      i::v8_flags.stress_compaction) {
+    return;
+  }
+  i::ManualGCScope manual_gc_scope;
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  sample_context_calls = 0;
+  CHECK(heap_profiler->StartSamplingHeapProfiler(
+      64, 16, v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMinorGC,
+      CountingSampleContextExtractor));
+
+  CompileRun("for (var i = 0; i < 500; i++) new Array(10);\n");
+  {
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
+    i::heap::InvokeMinorGC(CcTest::heap());
+  }
+  CHECK(i::Heap::IsYoungGenerationCollector(
+      CcTest::heap()->current_or_last_garbage_collector()));
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+  CHECK_GT(CheckCountingSampleContexts(profile->GetSamples()), 0);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerNullSampleContext) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  for (v8::SampleContextExtractor extractor :
+       {static_cast<v8::SampleContextExtractor>(nullptr),
+        NullSampleContextExtractor}) {
+    sample_context_calls = 0;
+    CHECK(heap_profiler->StartSamplingHeapProfiler(
+        64, 16, v8::HeapProfiler::kSamplingNoFlags, extractor));
+    CompileRun(
+        "var retained = [];\n"
+        "for (var i = 0; i < 100; i++) retained.push(new Array(10));\n");
+
+    std::unique_ptr<v8::AllocationProfile> profile(
+        heap_profiler->GetAllocationProfile());
+    CHECK(profile);
+    CHECK(!profile->GetSamples().empty());
+    for (const auto& sample : profile->GetSamples()) {
+      CHECK_NULL(sample.context);
+    }
+    CHECK_EQ(extractor == nullptr, sample_context_calls == 0);
+
+    heap_profiler->StopSamplingHeapProfiler();
+  }
+}
+
 TEST(HeapSnapshotPrototypeNotJSReceiver) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());

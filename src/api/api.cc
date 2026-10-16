@@ -12124,11 +12124,11 @@ SnapshotObjectId HeapProfiler::GetHeapStats(OutputStream* stream,
   return heap_profiler->PushHeapObjectsStats(stream, timestamp_us);
 }
 
-bool HeapProfiler::StartSamplingHeapProfiler(uint64_t sample_interval,
-                                             int stack_depth,
-                                             SamplingFlags flags) {
+bool HeapProfiler::StartSamplingHeapProfiler(
+    uint64_t sample_interval, int stack_depth, SamplingFlags flags,
+    SampleContextExtractor sample_context_extractor) {
   return reinterpret_cast<i::HeapProfiler*>(this)->StartSamplingHeapProfiler(
-      sample_interval, stack_depth, flags);
+      sample_interval, stack_depth, flags, sample_context_extractor);
 }
 
 void HeapProfiler::StopSamplingHeapProfiler() {

@@ -894,6 +894,14 @@ class V8_EXPORT AllocationProfile {
      * Sample interval in bytes used when this sample was selected.
      */
     uint64_t sample_interval;
+
+    /**
+     * Value returned for this sample by the SampleContextExtractor passed to
+     * HeapProfiler::StartSamplingHeapProfiler, or nullptr if none was
+     * installed. The embedder is responsible for any pointee lifetime required
+     * when using it; V8 never dereferences it.
+     */
+    void* context = nullptr;
   };
 
   /**
@@ -1304,11 +1312,19 @@ class V8_EXPORT HeapProfiler {
    * Objects allocated before the sampling is started will not be included in
    * the profile.
    *
+   * If |sample_context_extractor| is set, it is called on the isolate's thread
+   * for each sampled allocation, and its result is stored in
+   * AllocationProfile::Sample::context. Because it runs while the allocation is
+   * being sampled, it MUST NOT run JavaScript, allocate on a managed heap
+   * (including cppgc) or call into the HeapProfiler. It may create local
+   * handles.
+   *
    * Returns false if a sampling heap profiler is already running.
    */
-  bool StartSamplingHeapProfiler(uint64_t sample_interval = 512 * 1024,
-                                 int stack_depth = 16,
-                                 SamplingFlags flags = kSamplingNoFlags);
+  bool StartSamplingHeapProfiler(
+      uint64_t sample_interval = 512 * 1024, int stack_depth = 16,
+      SamplingFlags flags = kSamplingNoFlags,
+      SampleContextExtractor sample_context_extractor = nullptr);
 
   /**
    * Stops the sampling heap profile and discards the current profile.
