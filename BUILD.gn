@@ -5981,9 +5981,6 @@ v8_header_set("v8_internal_headers") {
   if (v8_enable_experimental_tq_to_tsa) {
     deps += [ ":run_torque_to_tsa" ]
   }
-  if (v8_use_metagen) {
-    deps += [ ":run_metagen" ]
-  }
 }
 
 v8_compiler_sources = [
