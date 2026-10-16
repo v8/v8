@@ -1713,7 +1713,6 @@ int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
   static_assert(kRootArrayConstantsCount <=
                 static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
 
-  DCHECK(!next_reference_is_weak_);
   DCHECK(!next_reference_is_trusted_pointer_);
   DCHECK(!next_reference_is_protected_pointer);
 
@@ -1724,8 +1723,11 @@ int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
     PrintF("%*sRootArrayConstants [%u] : %s\n", depth_, "",
            static_cast<int>(root_index), RootsTable::name(root_index));
   }
-  return slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG, 0,
-                             SKIP_WRITE_BARRIER);
+  HeapObjectReferenceType ref_type = next_reference_is_weak_
+                                         ? HeapObjectReferenceType::WEAK
+                                         : HeapObjectReferenceType::STRONG;
+  next_reference_is_weak_ = false;
+  return slot_accessor.Write(heap_object, ref_type, 0, SKIP_WRITE_BARRIER);
 }
 
 template <typename IsolateT>

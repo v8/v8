@@ -7545,5 +7545,65 @@ UNINITIALIZED_TEST(SnapshotCreatorScriptContextCellsMismatch) {
   delete[] blob.data;
 }
 
+UNINITIALIZED_TEST(SerializeWeakRootArrayConstantsLeak) {
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+  {
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      i::DirectHandle<i::WeakArrayList> list =
+          i_isolate->factory()->NewWeakArrayList(2);
+      list->Set(0, i::MakeWeak(i::Cast<i::HeapObject>(
+                       i_isolate->root(i::RootIndex::kHeapNumberMap))));
+      i::DirectHandle<i::JSObject> strong_obj =
+          i_isolate->factory()->NewJSObjectWithNullProto();
+      list->Set(1, *strong_obj);
+
+      i::DirectHandle<i::Context> i_context =
+          v8::Utils::OpenDirectHandle(*context);
+      i_context->native_context()->set_retained_maps(*list);
+
+      creator.SetDefaultContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  {
+    SnapshotCreatorParams testing_params(nullptr, &blob);
+    v8::Isolate* isolate = v8::Isolate::New(testing_params.create_params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      i::DirectHandle<i::Context> i_context =
+          v8::Utils::OpenDirectHandle(*context);
+      i::Tagged<i::WeakArrayList> list = i::Cast<i::WeakArrayList>(
+          i_context->native_context()->retained_maps());
+
+      i::Tagged<i::MaybeObject> elem0 = list->Get(0);
+      CHECK(elem0.IsWeak());
+      CHECK_EQ(elem0.GetHeapObjectAssumeWeak(),
+               i_isolate->root(i::RootIndex::kHeapNumberMap));
+
+      i::Tagged<i::MaybeObject> elem1 = list->Get(1);
+      CHECK(elem1.IsStrong());
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
+
 }  // namespace internal
 }  // namespace v8
