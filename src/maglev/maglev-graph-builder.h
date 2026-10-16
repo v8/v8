@@ -1164,14 +1164,20 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryBuildScriptContextStore(
       const compiler::GlobalAccessFeedback& global_access_feedback);
   MaybeReduceResult TryBuildPropertyCellStore(
-      const compiler::GlobalAccessFeedback& global_access_feedback);
+      compiler::PropertyCellRef property_cell,
+      base::FunctionRef<ReduceResult()> check_maps = []() {
+        return ReduceResult::Done();
+      });
   MaybeReduceResult TryBuildGlobalStore(
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
   MaybeReduceResult TryBuildScriptContextLoad(
       const compiler::GlobalAccessFeedback& global_access_feedback);
   MaybeReduceResult TryBuildPropertyCellLoad(
-      const compiler::GlobalAccessFeedback& global_access_feedback);
+      compiler::PropertyCellRef property_cell,
+      base::FunctionRef<ReduceResult()> check_maps = []() {
+        return ReduceResult::Done();
+      });
   MaybeReduceResult TryBuildGlobalLoad(
       const compiler::GlobalAccessFeedback& global_access_feedback);
 

@@ -3194,16 +3194,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildScriptContextStore(
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
-    const compiler::GlobalAccessFeedback& global_access_feedback) {
-  DCHECK(global_access_feedback.IsPropertyCell());
-
-  compiler::PropertyCellRef property_cell =
-      global_access_feedback.property_cell();
+    compiler::PropertyCellRef property_cell,
+    base::FunctionRef<ReduceResult()> check_maps) {
   if (!property_cell.Cache(broker())) return {};
 
   compiler::ObjectRef property_cell_value = property_cell.value(broker());
   if (property_cell_value.IsPropertyCellHole()) {
     // The property cell is no longer valid.
+    RETURN_IF_ABORT(check_maps());
     return reducer_.EmitUnconditionalDeopt(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
   }
@@ -3223,6 +3221,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
     case PropertyCellType::kUndefined:
       return {};
     case PropertyCellType::kConstant: {
+      RETURN_IF_ABORT(check_maps());
       // Record a code dependency on the cell, and just deoptimize if the new
       // value doesn't match the previous value stored inside the cell.
       broker()->dependencies()->DependOnGlobalProperty(property_cell);
@@ -3236,6 +3235,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
           !property_cell_value.AsHeapObject().map(broker()).is_stable()) {
         return {};
       }
+      RETURN_IF_ABORT(check_maps());
       // Record a code dependency on the cell, and just deoptimize if the new
       // value's type doesn't match the type of the previous value in the cell.
       broker()->dependencies()->DependOnGlobalProperty(property_cell);
@@ -3256,6 +3256,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
                                    StoreTaggedMode::kDefault);
     }
     case PropertyCellType::kMutable: {
+      RETURN_IF_ABORT(check_maps());
       // Record a code dependency on the cell, and just deoptimize if the
       // property ever becomes read-only.
       broker()->dependencies()->DependOnGlobalProperty(property_cell);
@@ -3284,15 +3285,13 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildScriptContextLoad(
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellLoad(
-    const compiler::GlobalAccessFeedback& global_access_feedback) {
+    compiler::PropertyCellRef property_cell,
+    base::FunctionRef<ReduceResult()> check_maps) {
   // TODO(leszeks): A bunch of this is copied from
   // js-native-context-specialization.cc -- I wonder if we can unify it
   // somehow.
-  DCHECK(global_access_feedback.IsPropertyCell());
-
-  compiler::PropertyCellRef property_cell =
-      global_access_feedback.property_cell();
   if (!property_cell.Cache(broker())) return {};
+  RETURN_IF_ABORT(check_maps());
 
   compiler::ObjectRef property_cell_value = property_cell.value(broker());
   if (property_cell_value.IsPropertyCellHole()) {
@@ -3349,7 +3348,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildGlobalStore(
   if (global_access_feedback.IsScriptContextSlot()) {
     return TryBuildScriptContextStore(global_access_feedback);
   } else if (global_access_feedback.IsPropertyCell()) {
-    return TryBuildPropertyCellStore(global_access_feedback);
+    return TryBuildPropertyCellStore(global_access_feedback.property_cell());
   } else {
     DCHECK(global_access_feedback.IsMegamorphic());
     return {};
@@ -3361,7 +3360,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildGlobalLoad(
   if (global_access_feedback.IsScriptContextSlot()) {
     return TryBuildScriptContextLoad(global_access_feedback);
   } else if (global_access_feedback.IsPropertyCell()) {
-    return TryBuildPropertyCellLoad(global_access_feedback);
+    return TryBuildPropertyCellLoad(global_access_feedback.property_cell());
   } else {
     DCHECK(global_access_feedback.IsMegamorphic());
     return {};
@@ -4789,6 +4788,39 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
 
   if (inferred_maps.is_empty()) {
     return reducer_.EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+  }
+
+  // Check if we have an access o.x or o.x=v where o is the target native
+  // contexts' global proxy, and turn that into a direct access to the
+  // corresponding global object instead.
+  if (inferred_maps.size() == 1) {
+    compiler::MapRef lookup_start_object_map = inferred_maps[0];
+    compiler::NativeContextRef native_context =
+        broker()->target_native_context();
+    if (lookup_start_object_map.equals(
+            native_context.global_proxy_object(broker()).map(broker()))) {
+      if (!native_context.GlobalIsDetached(broker())) {
+        compiler::OptionalPropertyCellRef cell =
+            native_context.global_object(broker()).GetPropertyCell(
+                broker(), feedback.name());
+        if (!cell.has_value()) return {};
+        // Note: The map check generated below ensures that we will deopt
+        // when/if GlobalIsDetached becomes true.
+        auto check_maps = [&]() {
+          return BuildCheckMaps(lookup_start_object,
+                                base::VectorOf({lookup_start_object_map}), {},
+                                has_deprecated_map_without_migration_target);
+        };
+        if (access_mode == compiler::AccessMode::kLoad) {
+          return TryBuildPropertyCellLoad(*cell, check_maps);
+        } else if (access_mode == compiler::AccessMode::kStore) {
+          DCHECK_EQ(receiver, lookup_start_object);
+          return TryBuildPropertyCellStore(*cell, check_maps);
+        } else {
+          return {};
+        }
+      }
+    }
   }
 
   ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());
