@@ -2090,7 +2090,7 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
   }
   if (!node->property_key().is_none()) {
     REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedProperty(
-        node->ValueInput().node(), node->property_key(), node->is_const()));
+        node->ValueInput().node(), node->property_key(), node->constness()));
   }
   return ProcessResult::kContinue;
 }

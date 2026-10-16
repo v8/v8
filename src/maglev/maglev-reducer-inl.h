@@ -575,8 +575,8 @@ std::optional<ValueNode*> MaglevReducer<BaseT>::TryGetConstantAlternative(
 
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildLoadTaggedField(
-    ValueNode* object, uint32_t offset, NodeType type, bool is_const,
-    PropertyKey key, IsArrayLength is_array_length,
+    ValueNode* object, uint32_t offset, NodeType type,
+    PropertyConstness constness, PropertyKey key, IsArrayLength is_array_length,
     compiler::OptionalMapRef stable_field_map) {
   if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
     if (std::optional<ValueNode*> val =
@@ -584,7 +584,7 @@ ReduceResult MaglevReducer<BaseT>::BuildLoadTaggedField(
       return *val;
     }
   }
-  return AddNewNode<LoadTaggedField>({object}, offset, type, is_const, key,
+  return AddNewNode<LoadTaggedField>({object}, offset, type, constness, key,
                                      is_array_length, stable_field_map);
 }
 
@@ -1114,11 +1114,12 @@ ReduceResult MaglevReducer<BaseT>::BuildLoadJSArrayLength(
 
   ValueNode* length;
   GET_VALUE_OR_ABORT(
-      length, BuildLoadTaggedField(
-                  js_array, offsetof(JSArray, length_), length_type, false,
-                  broker()->length_string(), IsArrayLength::kYes));
-  RecordKnownProperty(js_array, broker()->length_string(), length, false,
-                      compiler::AccessMode::kLoad);
+      length,
+      BuildLoadTaggedField(js_array, offsetof(JSArray, length_), length_type,
+                           PropertyConstness::kMutable,
+                           broker()->length_string(), IsArrayLength::kYes));
+  RecordKnownProperty(js_array, broker()->length_string(), length,
+                      PropertyConstness::kMutable, compiler::AccessMode::kLoad);
   return length;
 }
 
@@ -1324,13 +1325,13 @@ ReduceResult MaglevReducer<BaseT>::BuildLoadElements(
   }
 
   ValueNode* elements;
-  GET_VALUE_OR_ABORT(
-      elements,
-      BuildLoadTaggedField(object, offsetof(JSObject, elements_),
-                           NodeType::kAnyHeapObject,
-                           /*is_const=*/false, PropertyKey::Elements()));
-  RecordKnownProperty(object, PropertyKey::Elements(), elements, false,
-                      compiler::AccessMode::kLoad);
+  GET_VALUE_OR_ABORT(elements,
+                     BuildLoadTaggedField(object, offsetof(JSObject, elements_),
+                                          NodeType::kAnyHeapObject,
+                                          PropertyConstness::kMutable,
+                                          PropertyKey::Elements()));
+  RecordKnownProperty(object, PropertyKey::Elements(), elements,
+                      PropertyConstness::kMutable, compiler::AccessMode::kLoad);
   if (is_turbolev() && kind.has_value()) {
     // We record a map hint for Turbolev so that LateEscapeAnalysis knows that
     // we just loaded an elements array, which means that it can't alias with
@@ -2397,8 +2398,9 @@ MaglevReducer<BaseT>::TryBuildLoadFixedArrayElementConstantIndex(
   }
   int offset = FixedArray::OffsetOfElementAt(index);
   return AddNewNodeNoInputConversion<LoadTaggedField>(
-      {elements}, offset, NodeTypeFromLoadType(type), false,
-      PropertyKey::None(), IsArrayLength::kNo, compiler::OptionalMapRef{});
+      {elements}, offset, NodeTypeFromLoadType(type),
+      PropertyConstness::kMutable, PropertyKey::None(), IsArrayLength::kNo,
+      compiler::OptionalMapRef{});
 }
 
 template <typename BaseT>
@@ -5057,11 +5059,11 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReuseKnownPropertyLoad(
 template <typename BaseT>
 void MaglevReducer<BaseT>::RecordKnownProperty(
     ValueNode* lookup_start_object, PropertyKey key, ValueNode* value,
-    bool is_const, compiler::AccessMode access_mode) {
+    PropertyConstness constness, compiler::AccessMode access_mode) {
   DCHECK(!value->is_conversion());
   auto& props_for_key =
-      known_node_aspects().GetLoadedPropertiesForKey(zone(), is_const, key);
-  if (!is_const && IsAnyStore(access_mode)) {
+      known_node_aspects().GetLoadedPropertiesForKey(zone(), constness, key);
+  if (constness == PropertyConstness::kMutable && IsAnyStore(access_mode)) {
     if constexpr (ReducerBaseWithLoopEffectTracking<BaseT>) {
       if (base_->loop_effects()) {
         base_->loop_effects()->keys_cleared.insert(key);
@@ -5077,7 +5079,9 @@ void MaglevReducer<BaseT>::RecordKnownProperty(
     props_for_key.clear();
   }
 
-  TRACE("  * Recording " << (is_const ? "constant" : "non-constant")
+  TRACE("  * Recording " << (constness == PropertyConstness::kConst
+                                 ? "constant"
+                                 : "non-constant")
                          << " known property "
                          << PrintNodeLabel(lookup_start_object) << ": "
                          << PrintNode(lookup_start_object) << " [" << key
@@ -5085,7 +5089,8 @@ void MaglevReducer<BaseT>::RecordKnownProperty(
                          << PrintNode(value));
 
   if constexpr (ReducerBaseWithLoopEffectTracking<BaseT>) {
-    if (IsAnyStore(access_mode) && !is_const && base_->loop_effects()) {
+    if (IsAnyStore(access_mode) && constness == PropertyConstness::kMutable &&
+        base_->loop_effects()) {
       auto updated = props_for_key.emplace(lookup_start_object, value);
       if (updated.second) {
         base_->loop_effects()->objects_written.insert(lookup_start_object);
@@ -5102,11 +5107,13 @@ void MaglevReducer<BaseT>::RecordKnownProperty(
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildLoadJSDataViewByteLength(
     ValueNode* js_data_view) {
-  bool is_const = !v8_flags.track_array_buffer_views;
+  PropertyConstness constness = v8_flags.track_array_buffer_views
+                                    ? PropertyConstness::kMutable
+                                    : PropertyConstness::kConst;
   // Note: We can't use broker()->byte_length_string() here, because it could
   // conflict with redefinitions of the ArrayBufferView byteLength property.
   if (ValueNode* byte_length = known_node_aspects().TryFindLoadedProperty(
-          js_data_view, PropertyKey::ArrayBufferViewByteLength(), is_const)) {
+          js_data_view, PropertyKey::ArrayBufferViewByteLength(), constness)) {
     return byte_length;
   }
 
@@ -5114,16 +5121,18 @@ ReduceResult MaglevReducer<BaseT>::BuildLoadJSDataViewByteLength(
   GET_VALUE_OR_ABORT(result,
                      AddNewNode<LoadDataViewByteLength>({js_data_view}));
   RecordKnownProperty(js_data_view, PropertyKey::ArrayBufferViewByteLength(),
-                      result, is_const, compiler::AccessMode::kLoad);
+                      result, constness, compiler::AccessMode::kLoad);
   return result;
 }
 
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildLoadJSDataViewDataPointer(
     ValueNode* js_data_view) {
-  bool is_const = !v8_flags.track_array_buffer_views;
+  PropertyConstness constness = v8_flags.track_array_buffer_views
+                                    ? PropertyConstness::kMutable
+                                    : PropertyConstness::kConst;
   if (ValueNode* backing_store = known_node_aspects().TryFindLoadedProperty(
-          js_data_view, PropertyKey::ArrayBufferViewDataPointer(), is_const)) {
+          js_data_view, PropertyKey::ArrayBufferViewDataPointer(), constness)) {
     return backing_store;
   }
 
@@ -5131,7 +5140,7 @@ ReduceResult MaglevReducer<BaseT>::BuildLoadJSDataViewDataPointer(
   GET_VALUE_OR_ABORT(result,
                      AddNewNode<LoadDataViewDataPointer>({js_data_view}));
   RecordKnownProperty(js_data_view, PropertyKey::ArrayBufferViewDataPointer(),
-                      result, is_const, compiler::AccessMode::kLoad);
+                      result, constness, compiler::AccessMode::kLoad);
   return result;
 }
 
@@ -5223,8 +5232,8 @@ ReduceResult MaglevReducer<BaseT>::BuildLoadStringLength(ValueNode* string) {
   RETURN_IF_DONE(TryReduceStringLength(string));
   ValueNode* result;
   GET_VALUE_OR_ABORT(result, AddNewNode<StringLength>({string}));
-  RecordKnownProperty(string, PropertyKey::StringLength(), result, true,
-                      compiler::AccessMode::kLoad);
+  RecordKnownProperty(string, PropertyKey::StringLength(), result,
+                      PropertyConstness::kConst, compiler::AccessMode::kLoad);
   return result;
 }
 

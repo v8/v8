@@ -4254,10 +4254,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
 }
 
 namespace {
-bool AccessInfoGuaranteedConst(
+PropertyConstness AccessInfoGuaranteedConst(
     compiler::PropertyAccessInfo const& access_info) {
   if (!access_info.IsFastDataConstant() && !access_info.IsStringLength()) {
-    return false;
+    return PropertyConstness::kMutable;
   }
 
   // Even if we have a constant load, if the map is not stable, we cannot
@@ -4267,10 +4267,10 @@ bool AccessInfoGuaranteedConst(
   // dependency on the stable end-maps of the entire tree.
   for (auto& map : access_info.lookup_start_object_maps()) {
     if (!map.is_stable()) {
-      return false;
+      return PropertyConstness::kMutable;
     }
   }
-  return true;
+  return PropertyConstness::kConst;
 }
 
 }  // namespace
@@ -4326,11 +4326,12 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
   // Do the load.
   if (field_index.is_double()) {
     ValueNode* heap_number;
-    GET_VALUE_OR_ABORT(heap_number,
-                       AddNewNode<LoadTaggedField>(
-                           {load_source}, field_index.offset(),
-                           NodeType::kHeapNumber, false, PropertyKey::None(),
-                           IsArrayLength::kNo, compiler::OptionalMapRef{}));
+    GET_VALUE_OR_ABORT(
+        heap_number,
+        AddNewNode<LoadTaggedField>(
+            {load_source}, field_index.offset(), NodeType::kHeapNumber,
+            PropertyConstness::kMutable, PropertyKey::None(),
+            IsArrayLength::kNo, compiler::OptionalMapRef{}));
     return AddNewNode<LoadFloat64>(
         {heap_number}, static_cast<int>(offsetof(HeapNumber, value_)));
   }
@@ -4403,7 +4404,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
   // The feedback cell is only set when the JSFunction is allocated, or via
   // LiveEdit, but that doesn't concern optimized code, so treat it as const.
   return BuildLoadTaggedField(closure, offsetof(JSFunction, feedback_cell_),
-                              NodeType::kAnyHeapObject, true);
+                              NodeType::kAnyHeapObject,
+                              PropertyConstness::kConst);
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
@@ -4419,7 +4421,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
     return slow_closure->ContextInput().node();
   }
   return BuildLoadTaggedField(closure, offsetof(JSFunction, context_),
-                              NodeType::kContext);
+                              NodeType::kContext, PropertyConstness::kConst);
 }
 
 ReduceResult MaglevGraphBuilder::BuildExtendPropertiesBackingStore(
@@ -4517,11 +4519,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
                                     StoreMap::Kind::kTransitioning);
     } else {
       ValueNode* heap_number;
-      GET_VALUE_OR_ABORT(heap_number,
-                         AddNewNode<LoadTaggedField>(
-                             {store_target}, field_index.offset(),
-                             NodeType::kHeapNumber, false, PropertyKey::None(),
-                             IsArrayLength::kNo, compiler::OptionalMapRef{}));
+      GET_VALUE_OR_ABORT(
+          heap_number,
+          AddNewNode<LoadTaggedField>(
+              {store_target}, field_index.offset(), NodeType::kHeapNumber,
+              PropertyConstness::kMutable, PropertyKey::None(),
+              IsArrayLength::kNo, compiler::OptionalMapRef{}));
       RETURN_IF_ABORT(AddNewNode<StoreFloat64>(
           {heap_number, value},
           static_cast<int>(offsetof(HeapNumber, value_))));
@@ -5009,8 +5012,10 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
     ValueNode* object, ElementsKind elements_kind) {
   DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind));
   bool is_variable_length = IsRabGsabTypedArrayElementsKind(elements_kind);
-  bool is_const_length =
-      !is_variable_length && !v8_flags.track_array_buffer_views;
+  PropertyConstness constness =
+      (!is_variable_length && !v8_flags.track_array_buffer_views)
+          ? PropertyConstness::kConst
+          : PropertyConstness::kMutable;
 
   if (!is_variable_length) {
     if (auto const_object = TryGetConstant<JSTypedArray>(object)) {
@@ -5029,7 +5034,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
     // conflict with redefinitions of the TypedArray length property.
 
     if (ValueNode* length = known_node_aspects().TryFindLoadedProperty(
-            object, PropertyKey::TypedArrayLength(), is_const_length)) {
+            object, PropertyKey::TypedArrayLength(), constness)) {
       return length;
     }
   }
@@ -5039,7 +5044,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
                      AddNewNode<LoadTypedArrayLength>({object}, elements_kind));
   if (!is_variable_length) {
     reducer_.RecordKnownProperty(object, PropertyKey::TypedArrayLength(),
-                                 result, is_const_length,
+                                 result, constness,
                                  compiler::AccessMode::kLoad);
   }
   return result;
@@ -5535,7 +5540,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
         GET_VALUE_OR_ABORT(new_length, AddNewNode<UpdateJSArrayLength>(
                                            {length, object, index}));
         reducer_.RecordKnownProperty(object, broker()->length_string(),
-                                     new_length, false,
+                                     new_length, PropertyConstness::kMutable,
                                      compiler::AccessMode::kStore);
       }
     } else {
@@ -8166,9 +8171,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
     }
   }
   // Reset the cached loaded array length to the length var.
-  reducer_.RecordKnownProperty(receiver, broker()->length_string(),
-                               sub_builder.get(var_length), false,
-                               compiler::AccessMode::kLoad);
+  reducer_.RecordKnownProperty(
+      receiver, broker()->length_string(), sub_builder.get(var_length),
+      PropertyConstness::kMutable, compiler::AccessMode::kLoad);
 
   // ```
   // if (index_int32 < length_int32)
@@ -10361,7 +10366,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     sub_graph.Bind(&*do_return);
   }
   reducer_.RecordKnownProperty(receiver, broker()->length_string(),
-                               new_array_length, false,
+                               new_array_length, PropertyConstness::kMutable,
                                compiler::AccessMode::kStore);
   return new_array_length;
 }
@@ -10521,9 +10526,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   sub_graph.Goto(&*do_return);
 
   sub_graph.Bind(&*do_return);
-  reducer_.RecordKnownProperty(receiver, broker()->length_string(),
-                               sub_graph.get(var_new_array_length), false,
-                               compiler::AccessMode::kStore);
+  reducer_.RecordKnownProperty(
+      receiver, broker()->length_string(), sub_graph.get(var_new_array_length),
+      PropertyConstness::kMutable, compiler::AccessMode::kStore);
   return sub_graph.get(var_value);
 }
 

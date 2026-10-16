@@ -589,17 +589,22 @@ class KnownNodeAspects {
                                  lookup_start_object, name);
   }
   ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
-                                   PropertyKey name, bool is_const) {
-    if (is_const) {
-      return TryFindLoadedConstantProperty(lookup_start_object, name);
+                                   PropertyKey name,
+                                   PropertyConstness constness) {
+    switch (constness) {
+      case PropertyConstness::kConst:
+        return TryFindLoadedConstantProperty(lookup_start_object, name);
+      case PropertyConstness::kMutable:
+        return TryFindLoadedProperty(lookup_start_object, name);
     }
-    return TryFindLoadedProperty(lookup_start_object, name);
   }
 
-  PropertyObjectMap& GetLoadedPropertiesForKey(Zone* zone, bool is_const,
+  PropertyObjectMap& GetLoadedPropertiesForKey(Zone* zone,
+                                               PropertyConstness constness,
                                                PropertyKey key) {
-    LoadedPropertyMap& properties =
-        is_const ? loaded_constant_properties_ : loaded_properties_;
+    LoadedPropertyMap& properties = constness == PropertyConstness::kConst
+                                        ? loaded_constant_properties_
+                                        : loaded_properties_;
     // Try to get loaded_properties[key] if it already exists, otherwise
     // construct loaded_properties[key] = PropertyObjectMap{zone}.
     return properties.try_emplace(key, zone).first->second;

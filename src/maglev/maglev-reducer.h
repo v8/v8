@@ -1055,7 +1055,8 @@ class MaglevReducer {
 
   ReduceResult BuildLoadTaggedField(
       ValueNode* object, uint32_t offset, NodeType type = NodeType::kUnknown,
-      bool is_const = false, PropertyKey key = PropertyKey::None(),
+      PropertyConstness constness = PropertyConstness::kMutable,
+      PropertyKey key = PropertyKey::None(),
       IsArrayLength is_array_length = IsArrayLength::kNo,
       compiler::OptionalMapRef stable_field_map = {});
 
@@ -1389,7 +1390,7 @@ class MaglevReducer {
   MaybeReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                               compiler::NameRef name);
   void RecordKnownProperty(ValueNode* lookup_start_object, PropertyKey key,
-                           ValueNode* value, bool is_const,
+                           ValueNode* value, PropertyConstness constness,
                            compiler::AccessMode access_mode);
   ValueNode* GetValueOrUndefined(ValueNode* maybe_value) {
     if (maybe_value == nullptr) {

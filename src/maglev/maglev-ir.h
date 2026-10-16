@@ -8549,11 +8549,12 @@ enum class IsArrayLength { kNo, kYes };
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
  public:
   explicit LoadTaggedField(uint64_t bitfield, const int offset, NodeType type,
-                           bool is_const, PropertyKey property_key,
+                           PropertyConstness constness,
+                           PropertyKey property_key,
                            IsArrayLength is_array_length,
                            compiler::OptionalMapRef stable_field_map = {})
       : Base(
-            bitfield | IsConstantLoadField::encode(is_const) |
+            bitfield | ConstnessField::encode(constness) |
             IsArrayLengthField::encode(is_array_length == IsArrayLength::kYes)),
         offset_(offset),
         type_(type),
@@ -8565,7 +8566,10 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
 
   int offset() const { return offset_; }
   NodeType type() const { return type_; }
-  bool is_const() const { return IsConstantLoadField::decode(bitfield()); }
+  PropertyConstness constness() const {
+    return ConstnessField::decode(bitfield());
+  }
+  bool is_const() const { return constness() == PropertyConstness::kConst; }
   PropertyKey property_key() const { return property_key_; }
   compiler::OptionalMapRef stable_field_map() const {
     return stable_field_map_;
@@ -8588,7 +8592,7 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
 
   auto options() const {
     return std::tuple{offset(),          type(),
-                      is_const(),        property_key(),
+                      constness(),       property_key(),
                       is_array_length(), stable_field_map()};
   }
 
@@ -8597,8 +8601,8 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
   const NodeType type_;
   PropertyKey property_key_;
   compiler::OptionalMapRef stable_field_map_;
-  using IsConstantLoadField = NextBitField<bool, 1>;
-  using IsArrayLengthField = IsConstantLoadField::Next<bool, 1>;
+  using ConstnessField = NextBitField<PropertyConstness, 1>;
+  using IsArrayLengthField = ConstnessField::Next<bool, 1>;
 };
 
 class LoadContextSlotNoCells
