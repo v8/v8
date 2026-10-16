@@ -1091,6 +1091,17 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
   if (is_intersected) {
     TRACE("Partial overlap at #%d,%s!\n", node0.id(),
           GetSimdOpcodeName(op0).c_str());
+    // node0 already triggered intersection above, but node1 may
+    // independently belong to a PackNode that does not support
+    // intersecting (e.g. a DefaultPackNode). Reject that case instead of
+    // silently creating an IntersectPackNode that conflicts with it.
+    if (PackNode* pnode1 = GetPackNode(node1)) {
+      if (!pnode1->IsForcePackNode()) {
+        TRACE("Unsupported partial overlap at #%d,%s!\n", node1.id(),
+              GetSimdOpcodeName(op1).c_str());
+        return nullptr;
+      }
+    }
   } else {
     // Match overlapped PackNode on the second node.
     if (PackNode* pnode = GetPackNode(node1)) {
