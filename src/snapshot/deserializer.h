@@ -284,8 +284,7 @@ class Deserializer : public SerializerDeserializer {
 
   // Vector of allocated objects that can be accessed by a backref, by index.
   std::vector<IndirectHandle<HeapObject>> back_refs_;
-  Address* fixed_back_refs_[kFixedBackrefCount];
-  int num_fixed_back_refs_ = 0;
+  std::vector<Address*> fixed_back_refs_;
 
   // Vector of already allocated JSDispatchTable entries.
   std::vector<JSDispatchHandle> js_dispatch_entries_;

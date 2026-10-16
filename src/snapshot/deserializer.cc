@@ -359,6 +359,7 @@ Deserializer<IsolateT>::Deserializer(
   backing_stores_.push_back({});
 
   back_refs_.reserve(2048);
+  fixed_back_refs_.reserve(kFixedBackrefCount);
   js_dispatch_entries_.reserve(512);
 
 #ifdef DEBUG
@@ -467,7 +468,7 @@ void Deserializer<IsolateT>::DeserializeTrustedSection() {
   source_.Reset(trusted_payload_);
   section_ = Section::kTrusted;
   untrusted_back_refs_ = std::exchange(back_refs_, {});
-  num_fixed_back_refs_ = 0;
+  fixed_back_refs_.clear();
   DirectHandleVector<HeapObject> trusted_exports(isolate());
   while (source_.Peek() != kSynchronize) {
     trusted_exports.push_back(ReadObject());
@@ -1217,9 +1218,9 @@ int Deserializer<IsolateT>::ReadBackref(uint8_t data,
                                         SlotAccessor slot_accessor) {
   uint32_t index = source_.GetUint30();
   Handle<HeapObject> heap_object = GetBackReferencedObject(index);
-  if (num_fixed_back_refs_ < kFixedBackrefCount &&
+  if (fixed_back_refs_.size() < kFixedBackrefCount &&
       SerializerReference::CanBeFixedBackReference(index)) {
-    fixed_back_refs_[num_fixed_back_refs_++] = heap_object.location();
+    fixed_back_refs_.push_back(heap_object.location());
   }
   if (v8_flags.trace_deserialization) {
     PrintF("%*sBackref [%u]\n", depth_, "", index);
@@ -1792,8 +1793,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadFixedBackref(uint8_t data,
                                              SlotAccessor slot_accessor) {
-  int index = FixedBackref::Decode(data);
-  DCHECK_LT(index, num_fixed_back_refs_);
+  uint32_t index = FixedBackref::Decode(data);
   Handle<HeapObject> heap_object(fixed_back_refs_[index]);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sFixedBackref [%u]\n", depth_, "", index);
