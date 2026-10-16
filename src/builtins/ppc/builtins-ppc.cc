@@ -4455,8 +4455,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   static constexpr Register argc_input = r3;
   static constexpr Register target_fun = r15;  // C callee-saved
   static constexpr Register argv = r4;
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
   static constexpr Register argc_sav = r14;  // C callee-saved
 
   __ mr(target_fun, argv);
@@ -4553,9 +4551,12 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // should have returned the exception sentinel.
   if (v8_flags.debug_code) {
     Label okay;
+    UseScratchRegisterScope debug_temps(masm);
+    Register scratch = debug_temps.Acquire();
+    Register scratch2 = debug_temps.Acquire();
     __ LoadU64(scratch, __ AsMemOperand(IsolateFieldId::kException));
-    __ LoadRoot(r0, RootIndex::kTheHoleValue);
-    __ CompareTagged(r0, scratch);
+    __ LoadRoot(scratch2, RootIndex::kTheHoleValue);
+    __ CompareTagged(scratch2, scratch);
     // Cannot use check here as it attempts to generate call into runtime.
     __ beq(&okay);
     __ stop();
@@ -4601,6 +4602,9 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ beq(&skip);
   __ StoreU64(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ bind(&skip);
+
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
 
   // Clear c_entry_fp, like we do in `LeaveExitFrame`.
   __ mov(scratch, Operand::Zero());
