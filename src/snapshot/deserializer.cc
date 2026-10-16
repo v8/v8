@@ -9,6 +9,7 @@
 #include "src/base/logging.h"
 #include "src/base/strong-alias.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/external-reference-encoder.h"
 #include "src/codegen/reloc-info-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -33,6 +34,7 @@
 #include "src/objects/trusted-object-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/bytecode-verifier.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/references.h"
@@ -339,6 +341,10 @@ Deserializer<IsolateT>::Deserializer(
       new_scripts_(isolate),
       new_exposed_trusted_objects_(isolate),
       trusted_payload_(trusted_payload),
+      // Without the sandbox, trusted objects are part of the untrusted section.
+      section_(deserializing_user_code && V8_ENABLE_SANDBOX_BOOL
+                   ? Section::kUntrusted
+                   : Section::kCombined),
       deserializing_user_code_(deserializing_user_code),
       should_rehash_((v8_flags.rehash_snapshot && can_rehash) ||
                      deserializing_user_code),
@@ -428,6 +434,16 @@ void Deserializer<IsolateT>::DeserializeDeferredObjects() {
 
 template <typename IsolateT>
 DirectHandle<HeapObject> Deserializer<IsolateT>::DeserializeUntrustedSection() {
+  // The trusted section starts with the external references that the untrusted
+  // section refers to by index.
+  SnapshotByteSource table(trusted_payload_);
+  external_references_.resize(table.GetUint30());
+  if (!external_references_.empty()) {
+    table.CopyRaw(
+        external_references_.data(),
+        external_references_.size() * sizeof(EncodedExternalReference));
+  }
+  trusted_payload_ += table.position();
   DirectHandle<HeapObject> result = ReadObject();
   DeserializeDeferredObjects();
   while (source_.Peek() != kSynchronize) {
@@ -449,6 +465,7 @@ void Deserializer<IsolateT>::DeserializeTrustedSection() {
     PrintF("-- Trusted section\n");
   }
   source_.Reset(trusted_payload_);
+  section_ = Section::kTrusted;
   untrusted_back_refs_ = std::exchange(back_refs_, {});
   num_fixed_back_refs_ = 0;
   DirectHandleVector<HeapObject> trusted_exports(isolate());
@@ -1129,6 +1146,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadTrustedExportRef(data, slot_accessor);
     case kUntrustedRef:
       return ReadUntrustedRef(data, slot_accessor);
+    case kTrustedExternalRef:
+      return ReadTrustedExternalRef(data, slot_accessor);
     case CASE_RANGE(kRootArrayConstants, 32):
       return ReadRootArrayConstants(data, slot_accessor);
     case CASE_RANGE(kFixedRawData, 32):
@@ -1247,6 +1266,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
                                           SlotAccessor slot_accessor) {
   uint32_t id = source_.GetUint30();
+  SBXCHECK_LT(id, RootsTable::kEntriesCount);
   RootIndex root_index = static_cast<RootIndex>(id);
   DirectHandle<HeapObject> heap_object =
       Cast<HeapObject>(isolate()->root_handle(root_index));
@@ -1320,6 +1340,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadExternalReference(uint8_t data,
                                                   SlotAccessor slot_accessor) {
+  SBXCHECK(InTrustedSection());
   DCHECK_IMPLIES(data == kSandboxedExternalReference, V8_ENABLE_SANDBOX_BOOL);
   Address address = ReadExternalReferenceCase();
   ExternalPointerTag tag = kExternalPointerNullTag;
@@ -1339,6 +1360,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRawExternalReference(
     uint8_t data, SlotAccessor slot_accessor) {
+  SBXCHECK(InTrustedSection());
   DCHECK_IMPLIES(data == kSandboxedExternalReference, V8_ENABLE_SANDBOX_BOOL);
   Address address;
   source_.CopyRaw(&address, kSystemPointerSize);
@@ -1476,6 +1498,7 @@ int Deserializer<IsolateT>::ReadOffHeapBackingStore(
         initial_pages, max_pages, WasmMemoryFlag::kNotWasm, SharedFlag{false});
   }
   CHECK_NOT_NULL(backing_store);
+  SBXCHECK_LE(source_.position() + byte_length, source_.length());
   source_.CopyRaw(backing_store->buffer_start(), byte_length);
   backing_stores_.push_back(std::move(backing_store));
   return 0;
@@ -1485,17 +1508,9 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadApiReference(uint8_t data,
                                              SlotAccessor slot_accessor) {
+  SBXCHECK(InTrustedSection());
   DCHECK_IMPLIES(data == kSandboxedApiReference, V8_ENABLE_SANDBOX_BOOL);
-  uint32_t reference_id = static_cast<uint32_t>(source_.GetUint30());
-  Address address;
-  if (main_thread_isolate()->api_external_references()) {
-    DCHECK_WITH_MSG(reference_id < num_api_references_,
-                    "too few external references provided through the API");
-    address = static_cast<Address>(
-        main_thread_isolate()->api_external_references()[reference_id]);
-  } else {
-    address = reinterpret_cast<Address>(NoExternalReferencesCallback);
-  }
+  Address address = GetApiReferenceAddress(source_.GetUint30());
   ExternalPointerTag tag = kExternalPointerNullTag;
   if (data == kSandboxedApiReference) {
     tag = ReadExternalPointerTag();
@@ -1553,6 +1568,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadInitializeSelfTrustedPointer(
     uint8_t data, SlotAccessor slot_accessor) {
 #ifdef V8_ENABLE_SANDBOX
+  SBXCHECK(InTrustedSection());
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
   DCHECK(IsExposedTrustedObject(*slot_accessor.object()));
   DCHECK_EQ(slot_accessor.offset(),
@@ -1574,6 +1590,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
     uint8_t data, SlotAccessor slot_accessor) {
+  SBXCHECK(InTrustedSection());
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
   DirectHandle<HeapObject> host = slot_accessor.object();
 
@@ -1625,6 +1642,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadProtectedPointerPrefix(
     uint8_t data, SlotAccessor slot_accessor) {
+  SBXCHECK(InTrustedSection());
   // We shouldn't have two protected pointer prefixes in a row.
   DCHECK(!next_reference_is_protected_pointer);
   // We shouldn't have a protected pointer prefix without a current object.
@@ -1637,6 +1655,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadTrustedExportRef(uint8_t data,
                                                  SlotAccessor slot_accessor) {
+  DCHECK(InUntrustedSection());
   uint32_t index = source_.GetUint30();
   if (v8_flags.trace_deserialization) {
     PrintF("%*sTrustedExportRef [%u]\n", depth_, "", index);
@@ -1653,12 +1672,34 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadUntrustedRef(uint8_t data,
                                              SlotAccessor slot_accessor) {
+  DCHECK(InTrustedSection());
   uint32_t index = source_.GetUint30();
   if (v8_flags.trace_deserialization) {
     PrintF("%*sUntrustedRef [%u]\n", depth_, "", index);
   }
   return WriteHeapPointer(slot_accessor, *untrusted_back_refs_[index],
                           GetAndResetNextReferenceDescriptor());
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadTrustedExternalRef(uint8_t data,
+                                                   SlotAccessor slot_accessor) {
+  DCHECK(InUntrustedSection());
+  uint32_t index = source_.GetUint30();
+  EncodedExternalReference entry = external_references_[index];
+  Address address =
+      entry.reference.is_from_api()
+          ? GetApiReferenceAddress(entry.reference.index())
+          : main_thread_isolate()->external_reference_table()->address(
+                entry.reference.index());
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sTrustedExternalRef [%u] : %" PRIxPTR ", %i\n", depth_, "", index,
+           address, entry.tag);
+  }
+  return WriteExternalPointer(*slot_accessor.object(),
+                              slot_accessor.external_pointer_slot(entry.tag),
+                              address, entry.tag);
 }
 
 template <typename IsolateT>
@@ -1774,19 +1815,39 @@ int Deserializer<IsolateT>::ReadFixedBackref(uint8_t data,
 
 template <typename IsolateT>
 Address Deserializer<IsolateT>::ReadExternalReferenceCase() {
+  DCHECK(InTrustedSection());
   uint32_t reference_id = static_cast<uint32_t>(source_.GetUint30());
   return main_thread_isolate()->external_reference_table()->address(
       reference_id);
 }
 
 template <typename IsolateT>
+Address Deserializer<IsolateT>::GetApiReferenceAddress(uint32_t reference_id) {
+  if (main_thread_isolate()->api_external_references()) {
+    DCHECK_WITH_MSG(reference_id < num_api_references_,
+                    "too few external references provided through the API");
+    return static_cast<Address>(
+        main_thread_isolate()->api_external_references()[reference_id]);
+  }
+  return reinterpret_cast<Address>(NoExternalReferencesCallback);
+}
+
+template <typename IsolateT>
 ExternalPointerTag Deserializer<IsolateT>::ReadExternalPointerTag() {
+  DCHECK(InTrustedSection());
   return static_cast<ExternalPointerTag>(source_.GetUint30());
 }
 
 template <typename IsolateT>
 Tagged<HeapObject> Deserializer<IsolateT>::Allocate(
     AllocationType allocation, uint32_t size, AllocationAlignment alignment) {
+  // The untrusted section can only allocate inside the sandbox. Strings can be
+  // allocated in the shared heap, see ReadObject.
+  SBXCHECK_IMPLIES(InUntrustedSection(),
+                   allocation == AllocationType::kOld ||
+                       allocation == AllocationType::kSharedOld);
+  DCHECK_IMPLIES(section_ == Section::kTrusted,
+                 allocation == AllocationType::kTrusted);
 #ifdef DEBUG
   if (!previous_allocation_obj_.is_null()) {
     // Make sure that the previous object is initialized sufficiently to

@@ -12,6 +12,7 @@
 #include "src/codegen/script-details.h"
 #include "src/snapshot/serializer.h"
 #include "src/snapshot/snapshot-data.h"
+#include "src/snapshot/snapshot-source-sink.h"
 #include "src/utils/sha-256.h"
 
 namespace v8 {
@@ -146,8 +147,10 @@ class SerializedCodeData : public SerializedData {
       const ScriptDetails& script_details,
       SerializedCodeSanityCheckResult* rejection_result);
 
-  // Used when producing.
+  // Used when producing. The trusted section starts with the external
+  // references.
   SerializedCodeData(const std::vector<uint8_t>* untrusted_payload,
+                     const std::vector<uint8_t>* external_references_payload,
                      const std::vector<uint8_t>* trusted_payload,
                      const CodeSerializer* cs);
 
@@ -186,6 +189,10 @@ class SerializedCodeData : public SerializedData {
 class CodeSerializer : public Serializer {
  public:
   using SourceHash = SerializedCodeData::SourceHash;
+
+  // The external pointer tags that a code cache may contain.
+  static constexpr ExternalPointerTag kSerializableExternalPointerTags[] = {
+      kExternalStringResourceTag};
 
   CodeSerializer(const CodeSerializer&) = delete;
   CodeSerializer& operator=(const CodeSerializer&) = delete;
@@ -235,10 +242,12 @@ class CodeSerializer : public Serializer {
 
     // Returns the index of |obj| in the exports, adding it if it is new.
     uint32_t Export(Tagged<HeapObject> obj);
+    uint32_t AddExternalReference(ExternalReferenceEncoder::Value reference,
+                                  ExternalPointerTag tag);
     void SerializeExports();
-    void FinishSection() {
-      sink_.Put(kSynchronize, "EndOfTrustedSection");
-      Pad();
+    void FinishSection();
+    const std::vector<uint8_t>* ExternalReferencesPayload() const {
+      return external_references_sink_.data();
     }
 
    private:
@@ -249,10 +258,15 @@ class CodeSerializer : public Serializer {
     CodeSerializer* const untrusted_serializer_;
     ObjectCacheIndexMap exports_;
     GlobalHandleVector<HeapObject> export_queue_;
+    std::vector<EncodedExternalReference> external_references_;
+    SnapshotByteSink external_references_sink_;
   };
 
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
   bool SerializeTrustedExport(Tagged<HeapObject> obj);
+  bool SerializeTrustedExternalReference(
+      ExternalReferenceEncoder::Value reference,
+      ExternalPointerTag tag) override;
   void FinishSection() {
     sink_.Put(kSynchronize, "EndOfUntrustedSection");
     Pad();

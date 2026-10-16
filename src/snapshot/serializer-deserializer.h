@@ -5,6 +5,9 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 
+#include <type_traits>
+
+#include "src/codegen/external-reference-encoder.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/references.h"
 
@@ -32,8 +35,8 @@ class SerializerDeserializer : public RootVisitor {
 
   // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
-  /* Free range 0x25..0x2f */                                     \
-                                          V(0x25) V(0x26) V(0x27) \
+  /* Free range 0x26..0x2f */                                     \
+                                                  V(0x26) V(0x27) \
   V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
   /* Free range 0x30..0x3f */                                     \
   V(0x30) V(0x31) V(0x32) V(0x33) V(0x34) V(0x35) V(0x36) V(0x37) \
@@ -67,7 +70,7 @@ class SerializerDeserializer : public RootVisitor {
 
   enum Bytecode : uint8_t {
     //
-    // ---------- byte code range 0x00..0x24 ----------
+    // ---------- byte code range 0x00..0x25 ----------
     //
 
     // 0x00..0x03  Allocate new object, in specified space.
@@ -161,6 +164,8 @@ class SerializerDeserializer : public RootVisitor {
     kTrustedExportRef,
     // Back reference to an object in the untrusted section.
     kUntrustedRef,
+    // Reference to the n-th external reference in the trusted section.
+    kTrustedExternalRef,
 
     //
     // ---------- byte code range 0x40..0x7f ----------
@@ -182,6 +187,57 @@ class SerializerDeserializer : public RootVisitor {
     // 0x90..0xcf
     kFixedBackref = 0x90,
   };
+
+  // Bytecodes that could corrupt memory outside the sandbox, which the
+  // deserializer only accepts in trusted sections. There is no default case,
+  // so that every new bytecode has to be classified here.
+  static constexpr bool IsTrustedBytecode(Bytecode bytecode) {
+    switch (bytecode) {
+      case kApiReference:
+      case kExternalReference:
+      case kSandboxedApiReference:
+      case kSandboxedExternalReference:
+      case kSandboxedRawExternalReference:
+      case kInitializeSelfTrustedPointer:
+      case kAllocateJSDispatchEntry:
+      case kProtectedPointerPrefix:
+        return true;
+      case kNewObject:
+      case kBackref:
+      case kReadOnlyHeapRef:
+      case kStartupObjectCache:
+      case kRootArray:
+      case kAttachedReference:
+      case kSharedHeapObjectCache:
+      case kNop:
+      case kSynchronize:
+      case kVariableRepeatRoot:
+      case kOffHeapBackingStore:
+      case kOffHeapResizableBackingStore:
+      case kEmbedderFieldsData:
+      case kApiWrapperFieldsData:
+      case kVariableRawData:
+      case kClearedWeakReference:
+      case kWeakPrefix:
+      case kRegisterPendingForwardRef:
+      case kResolvePendingForwardRef:
+      case kNewContextlessMetaMap:
+      case kNewContextfulMetaMap:
+      case kExtendedMapBitFieldEx:
+      case kTrustedPointerPrefix:
+      case kJSDispatchEntry:
+      case kTrustedExportRef:
+      case kUntrustedRef:
+      case kTrustedExternalRef:
+      case kRootArrayConstants:
+      case kFixedRawData:
+      case kFixedRepeatRoot:
+      case kFixedBackref:
+        return false;
+    }
+    // The rest of a bytecode range, or an unused bytecode.
+    return false;
+  }
 
   // Helper class for encoding and decoding a value into and from a bytecode.
   //
@@ -278,6 +334,18 @@ class SerializerDeserializer : public RootVisitor {
   // Number of bits used to encode the aligned chunk offset in kReadOnlyHeapRef.
   static constexpr int kReadOnlyHeapRefOffsetBits =
       kPageSizeBits - kObjectAlignmentBits;
+
+  // An entry in the table of external references at the start of the trusted
+  // section of a code cache, see kTrustedExternalRef.
+  struct EncodedExternalReference {
+    ExternalReferenceEncoder::Value reference;
+    ExternalPointerTag tag;
+    // Explicit padding, so that code caches are deterministic.
+    uint16_t padding = 0;
+  };
+  static_assert(sizeof(EncodedExternalReference) == sizeof(uint64_t));
+  static_assert(
+      std::has_unique_object_representations_v<EncodedExternalReference>);
 };
 
 struct SerializeEmbedderFieldsCallback {

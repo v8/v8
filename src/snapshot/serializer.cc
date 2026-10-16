@@ -26,6 +26,7 @@
 #include "src/objects/smi.h"
 #include "src/sandbox/check.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
+#include "src/sandbox/sandbox.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/serializer-inl.h"
@@ -176,6 +177,7 @@ void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
       // For now just serialize the BytecodeArray instead of baseline code.
       // TODO(v8:11429,pthier): Handle Baseline code in cases we want to
       // serialize it.
+      SBXCHECK(OutsideSandbox(code.address()));
       obj = handle(code->bytecode_or_interpreter_data(), isolate());
     } else {
       CHECK(code->is_builtin());
@@ -1132,6 +1134,9 @@ void Serializer::ObjectSerializer::OutputExternalReference(
       sink_->PutRaw(reinterpret_cast<uint8_t*>(&target), target_size,
                     "raw pointer");
     }
+  } else if (sandboxify && serializer_->SerializeTrustedExternalReference(
+                               encoded_reference, tag)) {
+    return;
   } else if (encoded_reference.is_from_api()) {
     if (sandboxify) {
       sink_->Put(kSandboxedApiReference, "SandboxedApiRef");
@@ -1207,12 +1212,18 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
       // resource_data_ is initialized in PostProcessExternalString, and
       // extension_ in PostProcessNewJSReceiver. Serializing them as null also
       // keeps the snapshot deterministic, as both hold values that are only
-      // meaningful within the serializing isolate.
-      value = kNullAddress;
-      tag = kExternalPointerNullTag;
+      // meaningful within the serializing isolate. They are written as raw
+      // data, so that they need no external reference.
+      static_assert(kExternalPointerSlotSize % kTaggedSize == 0);
+      sink_->Put(FixedRawDataWithSize::Encode(kExternalPointerSlotSize >>
+                                              kTaggedSizeLog2),
+                 "FixedRawData");
+      sink_->PutRaw(reinterpret_cast<const uint8_t*>(&kNullExternalPointer),
+                    kExternalPointerSlotSize, "null external pointer");
+    } else {
+      const bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
+      OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
     }
-    const bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
-    OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
     bytes_processed_so_far_ += kExternalPointerSlotSize;
   } else {
     // Serialization of external references in other objects is handled
@@ -1275,6 +1286,7 @@ void Serializer::ObjectSerializer::VisitTrustedPointerTableEntry(
 
 void Serializer::ObjectSerializer::VisitProtectedPointer(
     Tagged<TrustedObject> host, ProtectedPointerSlot slot) {
+  SBXCHECK(OutsideSandbox(host.address()));
   Tagged<Object> content = slot.load(isolate());
 
   // Similar to the indirect pointer case, if the slot is empty (i.e. contains
@@ -1297,6 +1309,7 @@ void Serializer::ObjectSerializer::VisitProtectedPointer(
 
 void Serializer::ObjectSerializer::VisitProtectedPointer(
     Tagged<TrustedObject> host, ProtectedMaybeObjectSlot slot) {
+  SBXCHECK(OutsideSandbox(host.address()));
   Tagged<MaybeObject> maybe_content = slot.load();
   // Empty slots (Smi::zero()) and Smi slots can be skipped here.
   if (maybe_content.IsSmi()) return;

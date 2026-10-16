@@ -226,6 +226,8 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadUntrustedRef(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
+  int ReadTrustedExternalRef(uint8_t data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
   int ReadRootArrayConstants(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadFixedRawData(uint8_t data, SlotAccessor slot_accessor);
@@ -238,6 +240,7 @@ class Deserializer : public SerializerDeserializer {
 
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
+  Address GetApiReferenceAddress(uint32_t reference_id);
 
   // A helper function for reading external pointer tags.
   ExternalPointerTag ReadExternalPointerTag();
@@ -305,9 +308,27 @@ class Deserializer : public SerializerDeserializer {
   std::vector<UnresolvedForwardRef> unresolved_forward_refs_;
   int num_unresolved_forward_refs_ = 0;
 
-  const base::Vector<const uint8_t> trusted_payload_;
+  base::Vector<const uint8_t> trusted_payload_;
+  std::vector<EncodedExternalReference> external_references_;
   std::vector<IndirectHandle<HeapObject>> untrusted_back_refs_;
   std::vector<std::pair<uint32_t, UnresolvedForwardRef>> trusted_export_refs_;
+
+  // With the sandbox, a code cache has an untrusted and a trusted section.
+  // Snapshots and code caches without the sandbox have a single section that
+  // combines both and is trusted as a whole.
+  enum class Section : uint8_t {
+    kUntrusted = 1 << 0,
+    kTrusted = 1 << 1,
+    kCombined = kUntrusted | kTrusted,
+  };
+  // Bytecodes that could corrupt memory outside the sandbox are only allowed in
+  // the trusted and the combined section.
+  V8_INLINE bool InTrustedSection() const {
+    return static_cast<uint8_t>(section_) &
+           static_cast<uint8_t>(Section::kTrusted);
+  }
+  V8_INLINE bool InUntrustedSection() const { return !InTrustedSection(); }
+  Section section_;
 
   const bool deserializing_user_code_;
 

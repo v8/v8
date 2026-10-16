@@ -2953,6 +2953,62 @@ UNINITIALIZED_TEST(CodeSerializerExternalStringResourceDataRestored) {
   isolate->Dispose();
 }
 
+// The resource of an external string is restored from the code cache.
+UNINITIALIZED_TEST(CodeSerializerExternalStringRoundTrip) {
+  // Off-thread deserialization doesn't support external strings with API
+  // resources.
+  v8_flags.stress_background_compile = false;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.external_references = external_code_cache_references;
+
+  v8::ScriptCompiler::CachedData* cache;
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate1);
+    v8::HandleScope scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::String> name_string =
+        v8::String::NewExternalOneByte(isolate1,
+                                       &external_code_cache_name_resource)
+            .ToLocalChecked();
+    v8::ScriptCompiler::Source source(v8_str(kExternalCodeCacheSource),
+                                      {name_string});
+    v8::Local<v8::UnboundScript> script =
+        v8::ScriptCompiler::CompileUnboundScript(
+            isolate1, &source, v8::ScriptCompiler::kEagerCompile)
+            .ToLocalChecked();
+    cache = v8::ScriptCompiler::CreateCodeCache(script);
+  }
+  isolate1->Dispose();
+
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate2);
+    v8::HandleScope scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
+    v8::Context::Scope context_scope(context);
+
+    // Without an origin, the script name is taken from the code cache.
+    v8::ScriptCompiler::Source source(v8_str(kExternalCodeCacheSource), cache);
+    v8::Local<v8::UnboundScript> script =
+        v8::ScriptCompiler::CompileUnboundScript(
+            isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK(!source.GetCachedData()->rejected);
+    v8::Local<v8::Value> name = script->GetScriptName();
+    CHECK(name->IsString());
+    CHECK(name.As<v8::String>()->GetExternalOneByteStringResource() ==
+          &external_code_cache_name_resource);
+    v8::Local<v8::Value> result =
+        script->BindToCurrentContext()->Run(context).ToLocalChecked();
+    CHECK(result->StrictEquals(v8_str("abcdef")));
+  }
+  isolate2->Dispose();
+}
+
 TEST(CodeSerializerLargeExternalString) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();

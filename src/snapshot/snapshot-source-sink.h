@@ -131,7 +131,7 @@ class SnapshotByteSource final {
  *
  * Users must implement actual storage or i/o.
  */
-class SnapshotByteSink {
+class V8_EXPORT_PRIVATE SnapshotByteSink {
  public:
   SnapshotByteSink() = default;
   explicit SnapshotByteSink(int initial_size) : data_(initial_size) {}

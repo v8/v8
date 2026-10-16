@@ -267,6 +267,13 @@ class Serializer : public SerializerDeserializer {
     return external_reference_encoder_.TryEncode(addr);
   }
 
+  // Returns true if the sandboxed external reference was serialized as a
+  // reference into the trusted section.
+  virtual bool SerializeTrustedExternalReference(
+      ExternalReferenceEncoder::Value reference, ExternalPointerTag tag) {
+    return false;
+  }
+
   bool SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
                                         SnapshotByteSink* sink);
 

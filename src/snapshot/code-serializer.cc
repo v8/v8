@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "src/base/container-utils.h"
 #include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/numerics/safe_conversions.h"
@@ -27,6 +28,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/visitors.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/sandbox.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot-utils.h"
@@ -116,7 +118,9 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
   trusted_serializer_.FinishSection();
   FinishSection();
 
-  SerializedCodeData data(Payload(), trusted_serializer_.Payload(), this);
+  SerializedCodeData data(Payload(),
+                          trusted_serializer_.ExternalReferencesPayload(),
+                          trusted_serializer_.Payload(), this);
 
   return data.GetScriptData();
 }
@@ -130,9 +134,16 @@ CodeSerializer::TrustedSectionSerializer::TrustedSectionSerializer(
 
 uint32_t CodeSerializer::TrustedSectionSerializer::Export(
     Tagged<HeapObject> obj) {
+  SBXCHECK(OutsideSandbox(obj.address()));
   int index;
   if (!exports_.LookupOrInsert(obj, &index)) export_queue_.Push(obj);
   return base::checked_cast<uint32_t>(index);
+}
+
+uint32_t CodeSerializer::TrustedSectionSerializer::AddExternalReference(
+    ExternalReferenceEncoder::Value reference, ExternalPointerTag tag) {
+  external_references_.push_back({reference, tag});
+  return base::checked_cast<uint32_t>(external_references_.size() - 1);
 }
 
 void CodeSerializer::TrustedSectionSerializer::SerializeExports() {
@@ -149,6 +160,20 @@ void CodeSerializer::TrustedSectionSerializer::SerializeExports() {
     SerializeObject(obj, SlotType::kAnySlot);
   }
   DCHECK(deferred_objects_empty());
+}
+
+void CodeSerializer::TrustedSectionSerializer::FinishSection() {
+  sink_.Put(kSynchronize, "EndOfTrustedSection");
+  // The external references are read before the untrusted section, so they
+  // precede Payload() in the trusted section, which is padded as a whole.
+  external_references_sink_.PutUint30(
+      base::checked_cast<uint32_t>(external_references_.size()),
+      "ExternalReferenceCount");
+  external_references_sink_.PutRaw(
+      reinterpret_cast<const uint8_t*>(external_references_.data()),
+      external_references_.size() * sizeof(EncodedExternalReference),
+      "ExternalReferences");
+  Pad(base::checked_cast<int>(external_references_sink_.Position()));
 }
 
 bool CodeSerializer::TrustedSectionSerializer::SerializeUntrustedReference(
@@ -212,6 +237,19 @@ bool CodeSerializer::SerializeTrustedExport(Tagged<HeapObject> obj) {
   return true;
 }
 
+// The untrusted section must not contain external pointers or their tags, so
+// it refers to them by index into a table in the trusted section.
+bool CodeSerializer::SerializeTrustedExternalReference(
+    ExternalReferenceEncoder::Value reference, ExternalPointerTag tag) {
+  // The tag is read from the external pointer table entry that an in-sandbox
+  // object refers to, so it can be the tag of any entry.
+  SBXCHECK(base::contains(kSerializableExternalPointerTags, tag));
+  sink_.Put(kTrustedExternalRef, "TrustedExternalRef");
+  sink_.PutUint30(trusted_serializer_.AddExternalReference(reference, tag),
+                  "TrustedExternalRefIndex");
+  return true;
+}
+
 void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
                                          SlotType slot_type) {
   // NOTE(mmarchini): If we try to serialize an InterpreterData our process
@@ -221,6 +259,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // --interpreted-frames-native-stack is on. See v8:9122 for more context
   if (V8_UNLIKELY(isolate()->interpreted_frames_native_stack()) &&
       IsInterpreterData(*obj)) {
+    SBXCHECK(OutsideSandbox(obj->address()));
     obj =
         handle(TrustedCast<InterpreterData>(*obj)->bytecode_array(), isolate());
   }
@@ -813,10 +852,12 @@ CodeSerializer::FinishOffThreadDeserialize(
 
 SerializedCodeData::SerializedCodeData(
     const std::vector<uint8_t>* untrusted_payload,
+    const std::vector<uint8_t>* external_references_payload,
     const std::vector<uint8_t>* trusted_payload, const CodeSerializer* cs) {
   DisallowGarbageCollection no_gc;
 
-  size_t trusted_length = trusted_payload->size();
+  size_t trusted_length =
+      external_references_payload->size() + trusted_payload->size();
   size_t payload_length = trusted_length + untrusted_payload->size();
 
   // Calculate sizes.
@@ -850,7 +891,10 @@ SerializedCodeData::SerializedCodeData(
               0);
 
   // Copy serialized data.
-  CopyBytes(data_ + kHeaderSize, trusted_payload->data(), trusted_length);
+  CopyBytes(data_ + kHeaderSize, external_references_payload->data(),
+            external_references_payload->size());
+  CopyBytes(data_ + kHeaderSize + external_references_payload->size(),
+            trusted_payload->data(), trusted_payload->size());
   CopyBytes(data_ + kHeaderSize + trusted_length, untrusted_payload->data(),
             untrusted_payload->size());
   uint32_t checksum =
