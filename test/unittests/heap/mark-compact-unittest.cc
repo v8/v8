@@ -4,10 +4,13 @@
 
 #include "src/heap/mark-compact.h"
 
+#include <memory>
 #include <vector>
 
+#include "src/api/api-inl.h"
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/concurrent-marking.h"
 #include "src/heap/factory.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/live-object-range-inl.h"
@@ -26,6 +29,7 @@ namespace v8 {
 namespace internal {
 
 using MarkCompactTest = TestWithHeapInternalsAndContext;
+using MarkCompactPlatformTest = TestWithPlatformAndHeapInternals;
 
 TEST_F(MarkCompactTest, Promotion) {
   if (v8_flags.single_generation) return;
@@ -235,6 +239,59 @@ TEST_F(MarkCompactTest, IncrementalMarkingUsingTasks) {
         v8::platform::PumpMessageLoop(V8::GetCurrentPlatform(), v8_isolate()));
   }
   EXPECT_TRUE(marking->IsStopped());
+}
+
+TEST_F(MarkCompactTest, ConcurrentMarkingMarkedBytes) {
+  if (!v8_flags.incremental_marking || !v8_flags.concurrent_marking) return;
+  Isolate* isolate = i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope sc(isolate);
+  DirectHandle<FixedArray> root = isolate->factory()->NewFixedArray(1000000);
+  InvokeMajorGC();
+  if (!heap->incremental_marking()->IsStopped()) return;
+
+  // Store array in Global such that it is part of the root set when
+  // starting incremental marking.
+  v8::Global<Value> global_root(v8_isolate(),
+                                Utils::ToLocal(Cast<Object>(root)));
+
+  SimulateIncrementalMarking(false);
+  // Ensure that objects are published to the global marking worklist such that
+  // the concurrent markers can pick it up.
+  heap->mark_compact_collector()->local_marking_worklists()->Publish();
+  heap->concurrent_marking()->JoinJobForTesting();
+  EXPECT_GE(heap->concurrent_marking()->TotalMarkedBytes(),
+            static_cast<size_t>(root->Size()));
+}
+
+TEST_F(MarkCompactPlatformTest, ConcurrentMarkingStoppedOnTeardown) {
+  if (!v8_flags.incremental_marking || !v8_flags.concurrent_marking) return;
+
+  // Create and dispose a standalone Isolate directly because IsolateWrapper
+  // pumps the message loop before Dispose(), which would finish marking early.
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = allocator.get();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+    Factory* factory = i_isolate->factory();
+
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::New(isolate)->Enter();
+
+    for (int i = 0; i < 10000; i++) {
+      factory->NewJSWeakMap();
+    }
+
+    Heap* heap = i_isolate->heap();
+    SimulateIncrementalMarking(heap, false);
+  }
+
+  isolate->Dispose();
 }
 
 }  // namespace internal
