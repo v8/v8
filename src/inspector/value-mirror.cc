@@ -421,6 +421,25 @@ String16 descriptionForWasmValueObject(
 String16 descriptionForEntry(v8::Local<v8::Context> context,
                              v8::Local<v8::Object> object) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  // Inspector clients can modify the "key" and "value" of entry wrappers, so
+  // they might form a cycle, either directly or indirectly (e.g. via properties
+  // of other objects). To avoid unbounded recursion between
+  // descriptionForEntry() and ValueMirror::create(), break cycles by describing
+  // already-active entry wrappers like regular objects instead.
+  struct ActiveEntry {
+    v8::Local<v8::Object> object;
+    const ActiveEntry* previous;
+  };
+  static thread_local const ActiveEntry* activeEntries = nullptr;
+  for (const ActiveEntry* entry = activeEntries; entry != nullptr;
+       entry = entry->previous) {
+    if (entry->object->StrictEquals(object)) {
+      return descriptionForObject(isolate, object);
+    }
+  }
+  const ActiveEntry currentEntry = {object, activeEntries};
+  activeEntries = &currentEntry;
+
   String16 key;
   v8::Local<v8::Value> tmp;
   if (object->GetRealNamedProperty(context, toV8String(isolate, "key"))
@@ -456,6 +475,7 @@ String16 descriptionForEntry(v8::Local<v8::Context> context,
     }
   }
 
+  activeEntries = currentEntry.previous;
   return key.length() ? ("{" + key + " => " + value + "}") : value;
 }
 
