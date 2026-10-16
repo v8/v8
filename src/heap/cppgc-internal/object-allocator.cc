@@ -234,11 +234,17 @@ void* ObjectAllocator::OutOfLineAllocateImpl(
   }
 
   // The allocation must succeed, as we just refilled the LAB.
-  void* result =
-      (dynamic_alignment == kAllocationGranularity)
-          ? AllocateObjectOnSpace(space, size, gcinfo, may_contain_mixins)
-          : AllocateObjectOnSpace(space, size, alignment, gcinfo,
-                                  may_contain_mixins);
+  void* result = (dynamic_alignment == kAllocationGranularity)
+                     ? (may_contain_mixins == MayContainMixins::kYes
+                            ? AllocateObjectOnSpace<MayContainMixins::kYes>(
+                                  space, size, gcinfo)
+                            : AllocateObjectOnSpace<MayContainMixins::kNo>(
+                                  space, size, gcinfo))
+                     : (may_contain_mixins == MayContainMixins::kYes
+                            ? AllocateObjectOnSpace<MayContainMixins::kYes>(
+                                  space, size, alignment, gcinfo)
+                            : AllocateObjectOnSpace<MayContainMixins::kNo>(
+                                  space, size, alignment, gcinfo));
   CHECK(result);
   if (allocation_sampler_) {
     if (allocation_sampler_->OnAllocated(result, size)) {
