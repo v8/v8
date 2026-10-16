@@ -1938,7 +1938,7 @@ uint32_t String::ComputeAndSetRawHash(bool* out_one_byte_content) {
 // only used right below, so putting it here keeps headers leaner and still
 // allows the compiler to inline it.
 void Name::set_raw_hash_field_if_empty(uint32_t hash) {
-  uint32_t field_value = kEmptyHashField;
+  Hash field_value = kEmptyHashField;
   bool result = raw_hash_field_.compare_exchange_strong(field_value, hash);
   USE(result);
   // CAS can only fail if the string is shared or we use the forwarding table

@@ -724,6 +724,7 @@ class BitFieldGroupTest(unittest.TestCase):
           using IsFooBit = First<bool, 1>;
           using KindBits = IsFooBit::Next<Kind, 2>;
           using CountBits = KindBits::Next<int32_t, 5>;
+          using AlternativeBits = IsFooBit::Next<uint32_t, 31>;
         };
         Bits bits_;
       };
@@ -737,6 +738,7 @@ class BitFieldGroupTest(unittest.TestCase):
         ("IsFooBit", "bool", 0, 1),
         ("KindBits", "Kind", 1, 2),
         ("CountBits", "int32_t", 3, 5),
+        ("AlternativeBits", "uint32_t", 1, 31),
     ])
 
   def test_enclosing_classes_name_the_group(self):

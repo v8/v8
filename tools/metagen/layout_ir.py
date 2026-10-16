@@ -310,7 +310,7 @@ class StorageType:
   # C++ type name without namespaces; includes enclosing classes for bitfields.
   name: str | None = None
   # "bitfield" / "smi_bitfield": the group's fields, in declaration
-  # order, which is bit order.
+  # order. Fields may overlap.
   bits: tuple[BitFieldEntry, ...] = ()
 
   def __post_init__(self) -> None:
@@ -345,17 +345,11 @@ class StorageType:
         _check(self.width is None, "smi_bitfield storage with a width")
         capacity = 31
       _check(bool(self.bits), f"{self.kind} storage without fields")
-      # A base::BitField chain starts at bit 0 and has no holes; a gap
-      # means an alias is missing from the group.
-      next_bit = 0
       for bit in self.bits:
+        end = bit.offset + bit.num_bits
         _check(
-            bit.offset == next_bit,
-            f"bitfield {self.name}: {bit.cpp_name} starts at {bit.offset}, "
-            f"expected {next_bit}")
-        next_bit += bit.num_bits
-      _check(next_bit <= capacity,
-             f"bitfield {self.name}: {next_bit} bits exceed the storage")
+            end <= capacity, f"bitfield {self.name}: {bit.cpp_name}: "
+            f"{end} bits exceed the storage")
     else:
       _check(not self.bits, f"{self.kind} storage with bit fields")
     if self.pointer_width_alias is not None:

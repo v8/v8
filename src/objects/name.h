@@ -171,28 +171,6 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
     kEmpty = 0b11
   };
 
-  using HashFieldTypeBits = base::BitField<HashFieldType, 0, 2>;
-  using HashBits =
-      HashFieldTypeBits::Next<uint32_t, kBitsPerInt - HashFieldTypeBits::kSize>;
-
-  static constexpr int kHashNotComputedMask = 1;
-  // Value of empty hash field indicating that the hash is not computed.
-  static constexpr int kEmptyHashField =
-      HashFieldTypeBits::encode(HashFieldType::kEmpty);
-
-  // Empty hash and forwarding indices can not be used as hash.
-  static_assert((kEmptyHashField & kHashNotComputedMask) != 0);
-  static_assert((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
-                 kHashNotComputedMask) != 0);
-
-  using IsInternalizedForwardingIndexBit = HashFieldTypeBits::Next<bool, 1>;
-  using IsExternalForwardingIndexBit =
-      IsInternalizedForwardingIndexBit::Next<bool, 1>;
-  using ForwardingIndexValueBits = IsExternalForwardingIndexBit::Next<
-      unsigned int, kBitsPerInt - HashFieldTypeBits::kSize -
-                        IsInternalizedForwardingIndexBit::kSize -
-                        IsExternalForwardingIndexBit::kSize>;
-
   // Array index strings this short can keep their index in the hash field.
   static const int kMaxCachedArrayIndexLength = 7;
 
@@ -226,16 +204,63 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
                 "kArrayIndexHashShift must be at least half of "
                 "kArrayIndexValueBits");
 #endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+
+  struct Hash : BitFieldGroup<Hash, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using HashFieldTypeBits = First<HashFieldType, 2>;
+
+    // Hash code view (kHash).
+    using HashBits =
+        HashFieldTypeBits::Next<uint32_t,
+                                kBitsPerInt - HashFieldTypeBits::kSize>;
+
+    // Array index view (kIntegerIndex).
+    using ArrayIndexValueBits =
+        HashFieldTypeBits::Next<unsigned int, kArrayIndexValueBits>;
+    using ArrayIndexLengthBits =
+        ArrayIndexValueBits::Next<unsigned int, kBitsPerInt -
+                                                    kArrayIndexValueBits -
+                                                    HashFieldTypeBits::kSize>;
+
+    // String forwarding table view (kForwardingIndex).
+    using IsInternalizedForwardingIndexBit = HashFieldTypeBits::Next<bool, 1>;
+    using IsExternalForwardingIndexBit =
+        IsInternalizedForwardingIndexBit::Next<bool, 1>;
+    using ForwardingIndexValueBits = IsExternalForwardingIndexBit::Next<
+        unsigned int, kBitsPerInt - HashFieldTypeBits::kSize -
+                          IsInternalizedForwardingIndexBit::kSize -
+                          IsExternalForwardingIndexBit::kSize>;
+
+    BIT_FIELD_GROUP_ACCESSORS(hash_field_type, HashFieldTypeBits)
+    BIT_FIELD_GROUP_ACCESSORS(array_index_value, ArrayIndexValueBits)
+    BIT_FIELD_GROUP_ACCESSORS(array_index_length, ArrayIndexLengthBits)
+  };
+  // TODO(jgruber): Remove these aliases after migrating callers to Hash.
+  using HashFieldTypeBits = Hash::HashFieldTypeBits;
+  using HashBits = Hash::HashBits;
+  using IsInternalizedForwardingIndexBit =
+      Hash::IsInternalizedForwardingIndexBit;
+  using IsExternalForwardingIndexBit = Hash::IsExternalForwardingIndexBit;
+  using ForwardingIndexValueBits = Hash::ForwardingIndexValueBits;
+  using ArrayIndexValueBits = Hash::ArrayIndexValueBits;
+  using ArrayIndexLengthBits = Hash::ArrayIndexLengthBits;
+
+  static constexpr int kHashNotComputedMask = 1;
+  // Value of empty hash field indicating that the hash is not computed.
+  static constexpr int kEmptyHashField =
+      HashFieldTypeBits::encode(HashFieldType::kEmpty);
+
+  // Empty hash and forwarding indices can not be used as hash.
+  static_assert((kEmptyHashField & kHashNotComputedMask) != 0);
+  static_assert((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
+                 kHashNotComputedMask) != 0);
+
   static const int kArrayIndexLengthBits =
       kBitsPerInt - kArrayIndexValueBits - HashFieldTypeBits::kSize;
 
   static_assert(kArrayIndexLengthBits > 0);
   static_assert(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
-
-  using ArrayIndexValueBits =
-      HashFieldTypeBits::Next<unsigned int, kArrayIndexValueBits>;
-  using ArrayIndexLengthBits =
-      ArrayIndexValueBits::Next<unsigned int, kArrayIndexLengthBits>;
 
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to
@@ -305,7 +330,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
 
   inline uint32_t GetRawHashFromForwardingTable(uint32_t raw_hash) const;
 
-  std::atomic_uint32_t raw_hash_field_ V8_TQ_TYPE(NameHash);
+  std::atomic<Hash> raw_hash_field_;
 } V8_OBJECT_END;
 
 inline bool IsUniqueName(Tagged<Name> obj);

@@ -154,17 +154,19 @@ class StorageTypeTest(unittest.TestCase):
     with self.assertRaisesRegex(LayoutError, "without fields"):
       bitfield()
 
-  def test_bitfield_chain_must_be_gapless(self):
-    with self.assertRaisesRegex(LayoutError, "starts at 2, expected 1"):
-      bitfield(
-          BitFieldEntry("IsFooBit", "bool", 0, 1),
-          BitFieldEntry("KindBits", "Kind", 2, 3))
+  def test_bitfield_gaps_and_overlaps_roundtrip(self):
+    s = bitfield(
+        BitFieldEntry("KindBits", "Kind", 2, 3),
+        BitFieldEntry("PayloadBits", "uint8_t", 1, 7),
+        BitFieldEntry("IsFooBit", "bool", 0, 1))
+    self.assertEqual(StorageType.from_json(s.to_json()), s)
 
   def test_bitfield_chain_must_fit_the_storage(self):
     with self.assertRaisesRegex(LayoutError, "exceed the storage"):
       bitfield(
           BitFieldEntry("LowBits", "uint8_t", 0, 5),
-          BitFieldEntry("HighBits", "uint8_t", 5, 4))
+          BitFieldEntry("HighBits", "uint8_t", 5, 4),
+          BitFieldEntry("AlternativeBits", "uint8_t", 0, 8))
 
   def test_smi_bitfield_roundtrip(self):
     s = smi_bitfield(
@@ -177,7 +179,8 @@ class StorageTypeTest(unittest.TestCase):
     with self.assertRaisesRegex(LayoutError, "32 bits exceed the storage"):
       smi_bitfield(
           BitFieldEntry("IsFooBit", "bool", 0, 1),
-          BitFieldEntry("CountBits", "uint32_t", 1, 31))
+          BitFieldEntry("CountBits", "uint32_t", 1, 31),
+          BitFieldEntry("AlternativeBits", "uint32_t", 0, 31))
 
   def test_smi_bitfield_has_no_width(self):
     with self.assertRaisesRegex(LayoutError, "with a width"):

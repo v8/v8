@@ -917,6 +917,22 @@ TEST(Torque, CatchFirstHandler) {
           "catch handler always has to be first, before any label handler"));
 }
 
+TEST(Torque, OverlappingBitFieldInitializers) {
+  const std::string source = R"(
+    extern macro Unsigned(int32): uint32;
+    bitfield struct S extends uint32 {
+      a: uint32: 3 bit;
+      b: uint32: 3 bit at 2;
+    }
+    @export
+    macro Test(a: uint32, b: uint32): S {
+      return S{a: a, b: b};
+    }
+  )";
+  ExpectFailingCompilation(source,
+                           HasSubstr("Overlapping bitfield initializer: b"));
+}
+
 TEST(Torque, BitFieldLogicalAnd) {
   std::string prelude = R"(
     bitfield struct S extends uint32 {
@@ -1663,8 +1679,8 @@ TEST(TorqueLayoutLoader, ImporterRejectsMismatchedBitFieldStruct) {
           TestScalarClass("TestBitFields"),
       TestScalarJson(TestBitFieldStorage(), 1),
       /*use_cpp_layouts=*/true,
-      ".tq field \"bar: uint8: 2 bit\" differs from C++ field "
-      "\"bar: uint8: 3 bit\"");
+      ".tq field \"bar: uint8: 2 bit at 1\" differs from C++ field "
+      "\"bar: uint8: 3 bit at 1\"");
 }
 
 TEST(TorqueLayoutLoader, VerifierAcceptsMatchingBitFieldStruct) {
@@ -1814,10 +1830,8 @@ TEST(TorqueLayoutLoader, VerifierRejectsSmiBitFieldWithoutSmiTagged) {
       "a bit field group in a Smi in C++, Smi in Torque");
 }
 
-TEST(TorqueLayoutLoader, RejectsBitFieldGap) {
-  // Torque derives offsets from declaration order, so a hole in the record
-  // would shift every following field instead of being preserved.
-  ExpectFailingLayoutCompilation(
+TEST(TorqueLayoutLoader, AcceptsBitFieldGap) {
+  ExpectSuccessfulLayoutCompilation(
       TestScalarClass("TestBitFields"),
       TestScalarJson(
           TestBitFieldStorage(R"({"cpp_name": "IsFooBit", "type": "bool", )"
@@ -1825,7 +1839,7 @@ TEST(TorqueLayoutLoader, RejectsBitFieldGap) {
                               R"({"cpp_name": "BarBits", "type": "uint8_t", )"
                               R"("offset": 2, "num_bits": 3})"),
           1),
-      /*use_cpp_layouts=*/true, "starts at bit 2, expected 1");
+      /*use_cpp_layouts=*/true);
 }
 
 TEST(TorqueLayoutLoader, RejectsBitFieldNameThatDoesNotRoundTrip) {

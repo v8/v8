@@ -1283,9 +1283,12 @@ class LayoutImporter {
       return false;
     }
     bool equivalent = true;
+    int64_t offset = 0;
     for (size_t i = 0; i < built.size(); ++i) {
-      std::string a = BitFieldKey(decl.fields[i]);
-      std::string b = BitFieldKey(built[i]);
+      offset = decl.fields[i].offset ? *decl.fields[i].offset : offset;
+      std::string a = BitFieldKey(decl.fields[i], offset);
+      std::string b = BitFieldKey(built[i], *built[i].offset);
+      offset += decl.fields[i].num_bits;
       if (a != b) {
         Error("bitfield struct ", name, ": .tq field \"", a,
               "\" differs from C++ field \"", b, "\"")
@@ -1296,10 +1299,11 @@ class LayoutImporter {
     return equivalent;
   }
 
-  static std::string BitFieldKey(const BitFieldDeclaration& field) {
+  static std::string BitFieldKey(const BitFieldDeclaration& field,
+                                 int64_t offset) {
     return field.name_and_type.name->value + ": " +
            TypeExpressionKey(field.name_and_type.type) + ": " +
-           std::to_string(field.num_bits) + " bit";
+           std::to_string(field.num_bits) + " bit at " + std::to_string(offset);
   }
 
   // Groups stored as Smis use uint31; other groups use their storage width.
@@ -1322,7 +1326,6 @@ class LayoutImporter {
       ReportError("layout JSON: ", context, ": bitfield without fields");
     }
     std::vector<BitFieldDeclaration> fields;
-    size_t next_bit = 0;
     for (const JsonValue& bit : bits.ToArray()) {
       if (!bit.IsObject()) {
         ReportError("layout JSON: ", context, ": bit field is not an object");
@@ -1330,14 +1333,10 @@ class LayoutImporter {
       const JsonObject& b = bit.ToObject();
       const std::string& cpp_name = RequireString(b, "cpp_name", context);
       size_t num_bits = RequireSize(b, "num_bits", context);
-      // Torque derives each offset from declaration order; a gap there would
-      // silently shift every field after it.
       size_t offset = RequireSize(b, "offset", context);
-      if (offset != next_bit) {
-        ReportError("layout JSON: ", context, ": bit field \"", cpp_name,
-                    "\" starts at bit ", offset, ", expected ", next_bit);
+      if (offset > 64 || num_bits > 64) {
+        ReportError("layout JSON: ", context, ": bit field exceeds 64 bits");
       }
-      next_bit = offset + num_bits;
       CurrentSourcePosition::Scope position_scope(
           positions != nullptr ? positions->at(fields.size())
                                : CurrentSourcePosition::Get());
@@ -1346,7 +1345,7 @@ class LayoutImporter {
               MakeNode<Identifier>(
                   TorqueBitFieldName(cpp_name, num_bits, context)),
               NamedType(TorqueTypeName(RequireString(b, "type", context)))},
-          static_cast<int>(num_bits)});
+          static_cast<int>(num_bits), static_cast<int>(offset)});
     }
     return fields;
   }

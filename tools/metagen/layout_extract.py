@@ -333,7 +333,7 @@ class _Extractor:
                         group: cindex.Cursor,
                         base: cindex.Type,
                         smi: bool = False) -> StorageType:
-    """Read base::BitField aliases in bit order.
+    """Read direct base::BitField aliases in declaration order.
 
     Smi storage uses a tagged slot instead of the group's integer width.
     """

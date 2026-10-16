@@ -117,6 +117,12 @@ V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<bool>::id =
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<int32_t>::id =
     ParseResultTypeId::kInt32;
+
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::optional<int32_t>>::id =
+        ParseResultTypeId::kOptionalInt32;
+
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<double>::id =
     ParseResultTypeId::kDouble;
@@ -2269,7 +2275,8 @@ std::optional<ParseResult> MakeBitFieldDeclaration(
   auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<TypeExpression*>();
   auto num_bits = child_results->NextAs<int32_t>();
-  return ParseResult{BitFieldDeclaration{{name, type}, num_bits}};
+  auto offset = child_results->NextAs<std::optional<int32_t>>();
+  return ParseResult{BitFieldDeclaration{{name, type}, num_bits, offset}};
 }
 
 std::optional<ParseResult> ExtractAssignmentOperator(
@@ -2584,9 +2591,10 @@ struct TorqueGrammar : Grammar {
            MakeStructField)};
 
   // Result: BitFieldDeclaration
-  Symbol bitFieldDeclaration = {Rule({&name, Token(":"), &type, Token(":"),
-                                      &int32Literal, Token("bit"), Token(";")},
-                                     MakeBitFieldDeclaration)};
+  Symbol bitFieldDeclaration = {Rule(
+      {&name, Token(":"), &type, Token(":"), &int32Literal, Token("bit"),
+       Optional<int32_t>(Sequence({Token("at"), &int32Literal})), Token(";")},
+      MakeBitFieldDeclaration)};
 
   // Result: ParameterList
   Symbol parameterListNoVararg = {

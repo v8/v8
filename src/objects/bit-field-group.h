@@ -30,7 +30,7 @@ namespace v8::internal {
 // layout JSON, from which Torque derives (or verifies) the corresponding
 // bitfield struct. Naming and layout requirements:
 //  - Every type alias in the struct must be a base::BitField; they are read in
-//    declaration order, which must be bit order without gaps.
+//    declaration order. Fields may overlap, but must fit the storage.
 //  - The Torque field name is the alias name without its Bit/Bits suffix, in
 //    snake_case (IsCallableBit -> is_callable). The getter names follow the
 //    same convention.
