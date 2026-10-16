@@ -3100,6 +3100,7 @@ filegroup(
             "src/maglev/maglev-interpreter-frame-state.h",
             "src/maglev/maglev-ir-inl.h",
             "src/maglev/maglev-ir.h",
+            "src/maglev/maglev-kna-map.h",
             "src/maglev/maglev-kna-processor.h",
             "src/maglev/maglev-map-inference.h",
             "src/maglev/maglev-node-type.h",
