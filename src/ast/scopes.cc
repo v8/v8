@@ -458,17 +458,14 @@ Scope* Scope::DeserializeScopeChain(
       eval_scope->set_start_position(position);
       eval_scope->set_end_position(position);
       eval_scope->set_eval_position(position);
-      Tagged<MaybeObject> maybe_sfi =
-          script->infos()->get(kFunctionLiteralIdTopLevel);
-      Tagged<HeapObject> sfi;
-      if (maybe_sfi.GetHeapObjectIfWeak(&sfi)) {
-        eval_scope->set_private_name_lookup_skips_outer_class(
-            Cast<SharedFunctionInfo>(sfi)
-                ->private_name_lookup_skips_outer_class());
-      }
-
       if (current_scope != nullptr) {
+        eval_scope->set_private_name_lookup_skips_outer_class(
+            current_scope->private_name_lookup_skips_outer_class());
+        current_scope->set_private_name_lookup_skips_outer_class(false);
         eval_scope->AddInnerScope(current_scope);
+      } else if (parse_info != nullptr) {
+        eval_scope->set_private_name_lookup_skips_outer_class(
+            parse_info->flags().private_name_lookup_skips_outer_class());
       }
       current_scope = eval_scope;
       if (innermost_scope == nullptr) innermost_scope = current_scope;
@@ -1500,7 +1497,12 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   }
 
   // Don't allocate variables of preparsed scopes.
-  if (!was_lazily_parsed()) AllocateVariablesRecursively();
+  if (!was_lazily_parsed()) {
+    AllocateVariablesRecursively();
+    if (needs_private_name_context_chain_recalc()) {
+      RecalcPrivateNameContextChain();
+    }
+  }
 
   return true;
 }
@@ -2986,10 +2988,6 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
       outer_scope = outer->scope_info_;
       CHECK(!outer_scope.ToHandleChecked()->IsEmpty());
     }
-  }
-
-  if (scope->needs_private_name_context_chain_recalc()) {
-    scope->RecalcPrivateNameContextChain();
   }
 
   Tagged<WeakFixedArray> infos = script->infos();
