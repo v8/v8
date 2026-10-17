@@ -78,6 +78,7 @@ struct ParserFormalParameters : FormalParametersBase {
 
   void set_strict_parameter_error(const Scanner::Location& loc,
                                   MessageTemplate message) {
+    if (strict_error_loc.IsValid()) return;
     strict_error_loc = loc;
     strict_error_message = message;
   }
