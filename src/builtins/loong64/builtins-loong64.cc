@@ -1203,9 +1203,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     // Load frame size (word) from the BytecodeArray object.
     __ Ld_w(a5, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                                 offsetof(BytecodeArray, frame_size_)));
+    __ Ld_hu(a7, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                                 offsetof(BytecodeArray, max_arguments_)));
+    __ Alsl_d(a7, a7, a5, kSystemPointerSizeLog2);
 
     // Do a stack check to ensure we don't go over the limit.
-    __ Sub_d(a6, sp, Operand(a5));
+    __ Sub_d(a6, sp, Operand(a7));
     __ LoadStackLimit(a2, StackLimitKind::kRealStackLimit);
     __ Branch(&stack_overflow, lo, a6, Operand(a2));
 
