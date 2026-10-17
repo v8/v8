@@ -174,7 +174,7 @@ class ExpressionScope {
                                        MessageTemplate message) {
     ExpressionScope* scope = this;
     while (!scope->IsCertainlyParameterDeclaration()) {
-      if (!has_possible_parameter_in_scope_chain_) return;
+      if (!scope->has_possible_parameter_in_scope_chain_) return;
       if (scope->CanBeParameterDeclaration()) {
         scope->AsArrowHeadParsingScope()->RecordDeclarationError(loc, message);
       }
@@ -524,7 +524,10 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
                                        MessageTemplate message) {
     for (ExpressionScopeT* scope = this; scope != nullptr;
          scope = scope->parent()) {
-      if (!has_async_arrow_in_scope_chain_) break;
+      if (!scope->CanBeExpression() ||
+          !scope->AsExpressionParsingScope()->has_async_arrow_in_scope_chain_) {
+        break;
+      }
       if (scope->type_ ==
           ExpressionScopeT::kMaybeAsyncArrowParameterDeclaration) {
         scope->AsArrowHeadParsingScope()->RecordDeclarationError(loc, message);

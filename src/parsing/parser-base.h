@@ -3190,11 +3190,11 @@ void ParserBase<Impl>::ParseArguments(
       if (is_spread) {
         expression_scope()->RecordNonSimpleParameter();
         if (argument->IsAssignment()) {
-          expression_scope()->RecordAsyncArrowParametersError(
+          expression_scope()->RecordDeclarationError(
               scanner()->location(), MessageTemplate::kRestDefaultInitializer);
         }
         if (peek() == Token::kComma) {
-          expression_scope()->RecordAsyncArrowParametersError(
+          expression_scope()->RecordDeclarationError(
               scanner()->peek_location(), MessageTemplate::kParamAfterRest);
         }
       }
