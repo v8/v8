@@ -12123,6 +12123,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallWithSpreadForArgumentsObject(
 ReduceResult MaglevGraphBuilder::ReduceCall(
     ValueNode* target_node, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
+  if (broker()->StackHasOverflowed()) {
+    return BuildGenericCall(target_node, Call::TargetType::kAny, args,
+                            feedback_source);
+  }
   if (args.mode() == CallArguments::kWithArrayLike) {
     return ReduceCallWithArrayLike(target_node, args, feedback_source);
   }

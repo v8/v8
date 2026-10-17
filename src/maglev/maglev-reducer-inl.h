@@ -2281,6 +2281,11 @@ bool MaglevReducer<BaseT>::CanInlineCall(
     compiler::SharedFunctionInfoRef shared, float call_frequency,
     base::Vector<ValueNode*> arguments, UseRepresentationSet use_repr_hints) {
   auto tracer_ = tracer();
+  if (broker()->StackHasOverflowed()) {
+    graph()->compilation_info()->set_could_not_inline_all_candidates();
+    TRACE_CANNOT_INLINE("stack overflow");
+    return false;
+  }
   if (static_cast<int>(graph()->inlined_functions().size()) >=
       SourcePosition::MaxInliningId()) {
     graph()->compilation_info()->set_could_not_inline_all_candidates();
