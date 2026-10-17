@@ -310,6 +310,9 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
     DCHECK(IsClassConstructor(function_kind()));
     set_class_scope_has_private_brand(true);
   }
+  if (is_function_scope() && !scope_info->HasSimpleParameters()) {
+    SetHasNonSimpleParameters();
+  }
   if (V8_UNLIKELY(private_name_lookup_skips_outer_class())) {
     RecordNeedsPrivateNameContextChainRecalc();
   }
@@ -1412,10 +1415,19 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
           current->LookupInScopeOrScopeInfo(decl->var()->raw_name(), current);
       if (other_var != nullptr && !current->is_catch_scope()) {
         // If this is a VAR, then we know that it doesn't conflict with
-        // anything, so we can't conflict with anything either. The one
-        // exception is the binding variable in catch scopes, which is handled
-        // by the if above.
-        if (!IsLexicalVariableMode(other_var->mode())) break;
+        // anything, so we can't conflict with anything either. The two
+        // exceptions are:
+        // - the binding variable in catch scopes, which is handled by the if
+        //   above, and
+        // - the implicit 'arguments' binding in the parameter scope of a
+        //   function with non-simple parameters, which has kVar mode even
+        //   though var declarations in direct eval inside parameter
+        //   initializers conflict with it.
+        if (!IsLexicalVariableMode(other_var->mode()) &&
+            !(current->is_function_scope() &&
+              !current->AsDeclarationScope()->has_simple_parameters())) {
+          break;
+        }
         return decl;
       }
       current = current->outer_scope();
