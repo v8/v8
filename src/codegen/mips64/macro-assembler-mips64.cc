@@ -5316,16 +5316,18 @@ void MacroAssembler::InvokeFunctionCode(
   // call sites.
   LoadEntrypointFromJSDispatchTable(kJavaScriptCallCodeStartRegister,
                                     dispatch_handle, scratch);
+  Label done;
   switch (type) {
     case InvokeType::kCall:
       Call(kJavaScriptCallCodeStartRegister);
+      Branch(&done);
       break;
     case InvokeType::kJump:
+      // The tail jump does not return, so jumping to `done` here would be
+      // unreachable dead code.
       Jump(kJavaScriptCallCodeStartRegister);
       break;
   }
-  Label done;
-  Branch(&done);
 
   // Deferred debug hook.
   bind(&debug_hook);
