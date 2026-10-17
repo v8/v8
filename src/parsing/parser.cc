@@ -1266,6 +1266,9 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     }
 
     if (has_error()) return nullptr;
+    if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class())) {
+      result->scope()->RecordNeedsPrivateNameContextChainRecalc();
+    }
     result->set_requires_instance_members_initializer(
         flags().requires_instance_members_initializer());
     result->set_class_scope_has_private_brand(
