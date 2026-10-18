@@ -2086,7 +2086,7 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
   base::uc32 bits = 0;
 
   // SIMD constants for string scanning, hoisted out of the loop.
-  hw::FixedTag<Char, 16 / sizeof(Char)> tag;
+  hw::CappedTag<Char, 16 / sizeof(Char)> tag;
   const size_t stride = hw::Lanes(tag);
   const auto mask_0x20 = hw::Set(tag, 0x20);
   const auto mask_quote = hw::Set(tag, '"');

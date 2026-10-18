@@ -3508,7 +3508,7 @@ bool FastJsonStringifier<Char>::AppendStringSIMD(
   size_t uncopied_src_index = 0;  // Index of first char not copied yet.
   const SrcChar* block = chars;
   const SrcChar* end = chars + length;
-  hw::FixedTag<SrcChar, 16 / sizeof(SrcChar)> tag;
+  hw::CappedTag<SrcChar, 16 / sizeof(SrcChar)> tag;
   static const size_t stride = hw::Lanes(tag);
 
   const auto mask_0x20 = hw::Set(tag, 0x20);

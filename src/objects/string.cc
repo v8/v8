@@ -1185,7 +1185,7 @@ static void CalculateLineEndsImpl(String::LineEndsVector* line_ends,
     }
 
     const uint8_t* data = src.begin();
-    hw::FixedTag<uint8_t, 16> tag;
+    hw::CappedTag<uint8_t, 16> tag;
     const size_t stride = hw::Lanes(tag);
     const auto v_lf = hw::Set(tag, 0x0A);
     const auto v_cr = hw::Set(tag, 0x0D);
