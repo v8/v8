@@ -8475,9 +8475,11 @@ int Shell::Main(int argc, char* argv[]) {
 
     // Fuzzilli REPRL = read-eval-print-loop
     do {
-#ifdef V8_FUZZILLI
+#if defined(V8_FUZZILLI) || defined(V8_DUMPLING)
       v8::internal::Isolate* internal_isolate =
           reinterpret_cast<v8::internal::Isolate*>(isolate);
+#endif  // defined(V8_FUZZILLI) || defined(V8_DUMPLING)
+#ifdef V8_FUZZILLI
       internal_isolate->descriptor_lookup_cache()->Clear();
       internal_isolate->compilation_cache()->Clear();
       if (fuzzilli_reprl) {
@@ -8495,8 +8497,6 @@ int Shell::Main(int argc, char* argv[]) {
       }
 #endif  // V8_FUZZILLI
 #ifdef V8_DUMPLING
-      v8::internal::Isolate* internal_isolate =
-          reinterpret_cast<v8::internal::Isolate*>(isolate);
       // TODO(mdanylo): ideally this should be a part of fd-based protocol
       // between Fuzzilli and V8.
       if (internal_isolate->dumpling_manager()->IsDumpingEnabled()) {
