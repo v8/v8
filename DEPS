@@ -161,7 +161,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'feb218b485faa4dbcb88227e5a038734e0a54f12',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '41ad04d7db52f1902adf04f8039b36c112615b51',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '54989aa9486c639962bec871e62404cbe3ea1667',
   'buildtools/linux64': {
@@ -280,7 +280,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '889099791deff38466d471fa6590951c91a1d8ab',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd38909eb68d85b91259f4bf20fe5ebcd38461bc2',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -543,7 +543,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '9ec0f3001f8d689e57121e7bdddca35ba285a8c5',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '040bf5609075866ffaefdfa6cbd7c50a22a4a57a',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'd72db9e3040567a7589e00c0ad7ddf25c3b070bc',
   'third_party/rust':
@@ -660,7 +660,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '456ae730017b9b4bd3371927abc82627fd51feef',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '0f34e74266057cf959670d19120cbb83850c938f',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '84901f356ada2c840207e53fdee63a62fef9a66a',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'e9dbe1bf6a2a5d2d4973725874259eed587cf18d',
   'third_party/abseil-cpp': {
