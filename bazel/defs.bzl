@@ -334,40 +334,16 @@ def v8_library(
             **kwargs
         )
 
-def _v8_target_cpu_transition_impl(settings,
-                                   attr, # @unused
-                                  ):
-    # Check for an existing v8_target_cpu flag.
-    if "@v8//bazel/config:v8_target_cpu" in settings:
-        if settings["@v8//bazel/config:v8_target_cpu"] != "none":
-            return {}
+def _mksnapshot_transition_impl(settings, attr):
+    if settings["@v8//bazel/config:v8_target_cpu"] != "none":
+        return {}
+    if attr.default_target_cpu == "none":
+        fail("No supported CPU matches the snapshot target platform; set v8_target_cpu explicitly")
+    return {"@v8//bazel/config:v8_target_cpu": attr.default_target_cpu}
 
-    # Auto-detect target architecture based on the --cpu flag.
-    mapping = {
-        "haswell": "x64",
-        "k8": "x64",
-        "x86_64": "x64",
-        "darwin": "x64",
-        "darwin_x86_64": "x64",
-        "x64_windows": "x64",
-        "x86": "ia32",
-        "aarch64": "arm64",
-        "arm64-v8a": "arm64",
-        "arm": "arm64",
-        "darwin_arm64": "arm64",
-        "armeabi-v7a": "arm32",
-        "s390x": "s390x",
-        "riscv64": "riscv64",
-        "ppc": "ppc64le",
-    }
-    v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
-    return {"@v8//bazel/config:v8_target_cpu": v8_target_cpu}
-
-# Set the v8_target_cpu to be the correct architecture given the cpu specified
-# on the command line.
-v8_target_cpu_transition = transition(
-    implementation = _v8_target_cpu_transition_impl,
-    inputs = ["@v8//bazel/config:v8_target_cpu", "//command_line_option:cpu"],
+_mksnapshot_transition = transition(
+    implementation = _mksnapshot_transition_impl,
+    inputs = ["@v8//bazel/config:v8_target_cpu"],
     outputs = ["@v8//bazel/config:v8_target_cpu"],
 )
 
@@ -406,20 +382,32 @@ _v8_mksnapshot = rule(
             executable = True,
             cfg = "exec",
         ),
+        "default_target_cpu": attr.string(mandatory = True),
         "target_os": attr.string(mandatory = True),
         "prefix": attr.string(mandatory = True),
         "suffix": attr.string(mandatory = True),
     },
-    cfg = v8_target_cpu_transition,
+    cfg = _mksnapshot_transition,
 )
 
 def v8_mksnapshot(name, args, suffix = ""):
+    default_target_cpu = select({
+        "@v8//bazel/config:is_x64": "x64",
+        "@v8//bazel/config:is_ia32": "ia32",
+        "@v8//bazel/config:is_arm64": "arm64",
+        "@v8//bazel/config:is_arm": "arm",
+        "@v8//bazel/config:is_s390x": "s390x",
+        "@v8//bazel/config:is_riscv64": "riscv64",
+        "@v8//bazel/config:is_ppc64le": "ppc64le",
+        "//conditions:default": "none",
+    })
     _v8_mksnapshot(
         name = "noicu/" + name,
         args = args,
         prefix = "noicu",
         tool = ":noicu/mksnapshot" + suffix,
         suffix = suffix,
+        default_target_cpu = default_target_cpu,
         target_os = select({
             "@v8//bazel/config:is_macos": "mac",
             "@v8//bazel/config:is_windows": "win",
@@ -432,6 +420,7 @@ def v8_mksnapshot(name, args, suffix = ""):
         prefix = "icu",
         tool = ":icu/mksnapshot" + suffix,
         suffix = suffix,
+        default_target_cpu = default_target_cpu,
         target_os = select({
             "@v8//bazel/config:is_macos": "mac",
             "@v8//bazel/config:is_windows": "win",
