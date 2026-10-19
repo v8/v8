@@ -168,9 +168,10 @@ class ConstantPool {
   void StartBlock();
   void EndBlock();
 
-  void EmitEntries();
+  void EmitEntries(Alignment require_alignment);
   void EmitPrologue(Alignment require_alignment);
   int PrologueSize(Jump require_jump) const;
+  size_t Entry32CountAfter64(Alignment require_alignment) const;
   RelocInfoStatus RecordKey(ConstantPoolKey key, int offset);
   RelocInfoStatus GetRelocInfoStatusFor(const ConstantPoolKey& key);
   void Emit(const ConstantPoolKey& key);
