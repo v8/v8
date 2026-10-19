@@ -7631,9 +7631,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         auto [array_obj, index] =
             Pop(ValueType::RefNull(imm.heap_type()), kWasmI32);
         Value* value = Push(element_type.Unpacked());
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayGet, array_obj, imm, index,
-                                           opcode == kExprArrayAtomicGetS,
-                                           value);
+        const bool is_signed = opcode == kExprArrayAtomicGetS;
+        if (array_obj.type.is_shared()) {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayAtomicGet, array_obj, imm,
+                                             index, is_signed,
+                                             memory_order.order, value);
+        } else {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayGet, array_obj, imm, index,
+                                             is_signed, value);
+        }
         return opcode_length + memory_order.length + imm.length;
       }
       case kExprArrayAtomicSet: {
