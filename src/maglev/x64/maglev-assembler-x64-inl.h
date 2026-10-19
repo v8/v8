@@ -1168,8 +1168,7 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 }
 
 void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
-  Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-  Subsd(value, kScratchDoubleReg);
+  CanonicalizeNaN(value);
 }
 
 void MaglevAssembler::Float64ExtractHighWord32(Register dst,

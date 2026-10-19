@@ -3328,8 +3328,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat64SilenceNaN:
-      __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
+      __ CanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kX64Movsxbl:
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());

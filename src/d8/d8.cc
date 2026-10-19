@@ -43,7 +43,6 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/base/cpu/cpu.h"
-#include "src/base/fpu.h"
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -3335,27 +3334,6 @@ void Shell::InstallConditionalFeatures(
   isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
 }
 
-void Shell::SetFlushDenormals(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  Isolate* isolate = info.GetIsolate();
-  if (i::v8_flags.correctness_fuzzer_suppressions || i::v8_flags.fuzzing) {
-    // Setting denormals flushing in the middle of code is almost certain to
-    // cause correctness issues or crashes, in a way that isn't interesting to
-    // us. Make this a no-op instead.
-    return;
-  }
-  // Check if the argument is a valid function.
-  if (info.Length() != 1) {
-    ThrowError(isolate, "Expected single boolean argument.");
-    return;
-  }
-  Local<Value> arg = info[0];
-  if (!arg->IsBoolean()) {
-    ThrowError(isolate, "Expected single boolean argument.");
-    return;
-  }
-  base::FPU::SetFlushDenormals(arg.As<Boolean>()->BooleanValue(isolate));
-}
-
 // async_hooks.createHook() registers functions to be called for different
 // lifetime events of each async operation.
 void Shell::AsyncHooksCreateHook(
@@ -4150,20 +4128,6 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // early-out from the instance calls.
   info.This()->SetInternalField(0, v8::Integer::New(isolate, 0));
 
-  // By default, propagate flush denormals state.
-  bool flush_denormals = base::FPU::GetFlushDenormals();
-  if (info.Length() > 1 && info[1]->IsObject()) {
-    Local<Value> value;
-    if (!TryGetValue(isolate, isolate->GetCurrentContext(),
-                     info[1].As<Object>(), "flushDenormals")
-             .ToLocal(&value)) {
-      return;
-    }
-    if (!value->IsUndefined()) {
-      flush_denormals = value->BooleanValue(isolate);
-    }
-  }
-
   {
     // Don't allow workers to create more workers if the main thread
     // is waiting for existing running workers to terminate.
@@ -4181,7 +4145,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
     // The C++ worker object's lifetime is shared between the
     // CppGCManaged<Worker> object on the heap, which the JavaScript object
     // points to, and an internal std::shared_ptr in the worker thread itself.
-    auto worker = std::make_shared<Worker>(isolate, *script, flush_denormals);
+    auto worker = std::make_shared<Worker>(isolate, *script);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     const size_t kWorkerSizeEstimate = 4 * 1024 * 1024;  // stack + heap.
     i::DirectHandle<i::Object> managed =
@@ -5106,10 +5070,6 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     test_template->Set(
         isolate, "installConditionalFeatures",
         FunctionTemplate::New(isolate, Shell::InstallConditionalFeatures));
-
-    test_template->Set(
-        isolate, "setFlushDenormals",
-        FunctionTemplate::New(isolate, Shell::SetFlushDenormals));
 
     test_template->Set(
         isolate, "createInterceptorObject",
@@ -6489,8 +6449,6 @@ SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
     : base::Thread(GetThreadOptions("IsolateThread")), group_(group) {}
 
 void SourceGroup::ExecuteInThread() {
-  base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
-
   Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
   Isolate* isolate = Isolate::New(create_params);
 
@@ -6588,10 +6546,8 @@ void SerializationDataQueue::Clear() {
   data_.clear();
 }
 
-Worker::Worker(Isolate* parent_isolate, const char* script,
-               bool flush_denormals)
+Worker::Worker(Isolate* parent_isolate, const char* script)
     : script_(i::StrDup(script)),
-      flush_denormals_(flush_denormals),
       parent_isolate_(parent_isolate),
       parent_task_runner_(g_platform->GetForegroundTaskRunner(parent_isolate)) {
   state_.store(State::kReady);
@@ -6819,8 +6775,6 @@ constexpr v8::ExternalPointerTypeTag kWorkerTag = 8;
 Worker* Worker::GetCurrentWorker() { return current_worker_; }
 
 void Worker::ExecuteInThread() {
-  base::FlushDenormalsScope denormals_scope(flush_denormals_);
-
   Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
   isolate_ = Isolate::New(create_params);
 
@@ -7380,8 +7334,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else if (FlagMatches("--expose-fast-api", &argv[i])) {
       options.expose_fast_api = true;
-    } else if (FlagMatches("--flush-denormals", &argv[i])) {
-      options.flush_denormals = true;
     } else {
 #ifdef V8_TARGET_OS_WIN
       Shell::PreProcessUnicodeFilenameArg(argv, i);
@@ -8239,8 +8191,6 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 
   if (!i::v8_flags.fuzzing) d8_install_sigterm_handler();
-
-  base::FlushDenormalsScope denormals_scope(options.flush_denormals);
 
   if (!v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file)) {
     fprintf(stderr, "%s: Failed to initialize ICU\n", argv[0]);

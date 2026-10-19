@@ -4625,6 +4625,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ PushReturnAddressFrom(rcx);
   }
   __ EnterSandbox();
+  __ AssertFPCRState();
   __ ret(0);
 
   // Handling of exception.

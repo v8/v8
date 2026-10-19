@@ -19,7 +19,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "src/base/fpu.h"
 #include "src/base/hashing.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
@@ -613,9 +612,6 @@ uint32_t ComputeFlagListHash() {
   if (DEBUG_BOOL) modified_args_as_string << "debug";
   if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
     modified_args_as_string << "x64-stack-16";
-  }
-  if (base::FPU::GetFlushDenormals()) {
-    modified_args_as_string << "flush-denormals";
   }
 
 #ifdef DEBUG

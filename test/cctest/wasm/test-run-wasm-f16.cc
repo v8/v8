@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/fpu.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
@@ -247,23 +246,18 @@ WASM_COMPILED_EXEC_TEST(F16x8AddRaw) {
     }
   };
   auto check = [&]() {
-    // Native FP16 arithmetic must preserve half subnormals in either mode.
-    for (bool flush_denormals : {false, true}) {
-      base::FlushDenormalsScope denormals_scope(flush_denormals);
-      CHECK_EQ(1, r.Call());
-      for (int lane = 0; lane < kLanes; ++lane) {
-        uint16_t a = r.builder().ReadMemory(&memory[lane]);
-        uint16_t b = r.builder().ReadMemory(&memory[kLanes + lane]);
-        uint16_t expected_sum = AddF16(a, b);
-        uint16_t actual_sum =
-            r.builder().ReadMemory(&memory[2 * kLanes + lane]);
-        check_lane(a, b, expected_sum, actual_sum);
-        check_lane(a, a, AddF16(a, a),
-                   r.builder().ReadMemory(&memory[3 * kLanes + lane]));
-        // Use the already-checked intermediate's actual NaN class.
-        check_lane(actual_sum, a, AddF16(expected_sum, a),
-                   r.builder().ReadMemory(&memory[4 * kLanes + lane]));
-      }
+    CHECK_EQ(1, r.Call());
+    for (int lane = 0; lane < kLanes; ++lane) {
+      uint16_t a = r.builder().ReadMemory(&memory[lane]);
+      uint16_t b = r.builder().ReadMemory(&memory[kLanes + lane]);
+      uint16_t expected_sum = AddF16(a, b);
+      uint16_t actual_sum = r.builder().ReadMemory(&memory[2 * kLanes + lane]);
+      check_lane(a, b, expected_sum, actual_sum);
+      check_lane(a, a, AddF16(a, a),
+                 r.builder().ReadMemory(&memory[3 * kLanes + lane]));
+      // Use the already-checked intermediate's actual NaN class.
+      check_lane(actual_sum, a, AddF16(expected_sum, a),
+                 r.builder().ReadMemory(&memory[4 * kLanes + lane]));
     }
   };
 

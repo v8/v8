@@ -373,6 +373,7 @@ TEST_F(DisasmX64Test, DisasmX64) {
   __ mfence();
   __ lfence();
   __ pause();
+  __ stmxcsr(Operand(rsp, 0));
   __ ret(0);
 
   CodeDesc desc;
@@ -793,6 +794,7 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("dfbc8b10270000       fistp_d [rbx+rcx*4+0x2710]",
           fistp_d(Operand(rbx, rcx, times_4, 10000)));
   COMPARE("dfe0                 fnstsw_ax", fnstsw_ax());
+  COMPARE("0fae1c24             stmxcsr [rsp]", stmxcsr(Operand(rsp, 0)));
   COMPARE("dcc3                 fadd st3", fadd(3));
   COMPARE("dceb                 fsub st3", fsub(3));
   COMPARE("dccb                 fmul st3", fmul(3));

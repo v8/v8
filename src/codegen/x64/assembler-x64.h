@@ -2915,6 +2915,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void mfence();
   void lfence();
   void pause();
+  void stmxcsr(Operand dst);
 
   // Pkey support.
   // Registers rcx and rdx must be zero, rax is the input/output value.

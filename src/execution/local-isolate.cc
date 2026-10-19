@@ -4,7 +4,6 @@
 
 #include "src/execution/local-isolate.h"
 
-#include "src/base/fpu.h"
 #include "src/bigint/bigint.h"
 #include "src/execution/isolate.h"
 #include "src/execution/thread-id.h"
@@ -29,9 +28,6 @@ LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
       default_locale_(isolate->DefaultLocale())
 #endif
 {
-  // LocalIsolate owning threads need to make sure to match the isolate's FPU
-  // state.
-  DCHECK_EQ(base::FPU::GetFlushDenormals(), isolate->flush_denormals());
 #ifdef V8_RUNTIME_CALL_STATS
   if (kind == ThreadKind::kMain) {
     runtime_call_stats_ = isolate->counters()->runtime_call_stats();

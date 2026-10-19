@@ -731,6 +731,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // by default.
   void AssertSpAlignedForCall() NOOP_UNLESS_DEBUG_CODE;
 
+  void AssertFPCRState() NOOP_UNLESS_DEBUG_CODE;
+  void CanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
+  void CanonicalizeNaN(const DoubleRegister reg) { CanonicalizeNaN(reg, reg); }
+
   void AlignStackPointer();
 
   // Activation support.

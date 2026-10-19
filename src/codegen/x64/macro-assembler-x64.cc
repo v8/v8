@@ -4248,12 +4248,40 @@ Immediate MacroAssembler::ClearedValue() const {
   return Immediate(static_cast<int32_t>(i::kClearedWeakValue.ptr()));
 }
 
+void MacroAssembler::CanonicalizeNaN(const DoubleRegister dst,
+                                     const DoubleRegister src) {
+  AssertFPCRState();
+
+  // Subtracting 0.0 preserves all inputs except for signalling NaNs, which
+  // become quiet NaNs. We use subsd rather than addsd because subsd preserves
+  // -0.0 inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
+  Xorpd(kScratchDoubleReg, kScratchDoubleReg);
+  Subsd(dst, src, kScratchDoubleReg);
+}
+
 #ifdef V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::AssertSpAlignedForCall() {
   if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL && v8_flags.debug_code) {
     CheckStackAlignment();
   }
+}
+
+void MacroAssembler::AssertFPCRState() {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  // Settings left to their default values:
+  //   - Bit 6 (0x0040): DAZ (denormals-are-zeros) must not be set.
+  //   - Bits 13-14 (0x6000): RC (rounding control) must be 0
+  //     (round-to-nearest-even).
+  //   - Bit 15 (0x8000): FTZ (flush-to-zero) must not be set.
+  constexpr uint32_t kExpectedZeroMask = (1 << 6) | (3 << 13) | (1 << 15);
+  subq(rsp, Immediate(kSystemPointerSize));
+  stmxcsr(Operand(rsp, 0));
+  testl(Operand(rsp, 0), Immediate(kExpectedZeroMask));
+  // Restore rsp without modifying flags.
+  leaq(rsp, Operand(rsp, kSystemPointerSize));
+  Check(zero, AbortReason::kUnexpectedFPCRMode);
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {

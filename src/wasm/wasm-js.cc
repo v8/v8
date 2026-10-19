@@ -14,7 +14,6 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
-#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/unique-array.h"
 #include "src/execution/execution.h"
@@ -3603,11 +3602,6 @@ CompileTimeImports CompileTimeImportsFromOptions(
     result.constants_module() = options.imported_string_constants_module;
     result.Add(CompileTimeImport::kStringConstants);
   }
-  // Mirror the JS `WebAssembly.Module` constructor, which disables denormal
-  // floats at compile time when the host FPU flushes them.
-  if (base::FPU::GetFlushDenormals()) {
-    result.Add(CompileTimeImport::kDisableDenormalFloats);
-  }
   return result;
 }
 }  // namespace wasm
@@ -3617,9 +3611,6 @@ CompileTimeImports WasmJs::CompileTimeImportsFromArgument(
     DirectHandle<Object> arg, Isolate* isolate,
     WasmEnabledFeatures enabled_features) {
   CompileTimeImports result;
-  if (base::FPU::GetFlushDenormals()) {
-    result.Add(CompileTimeImport::kDisableDenormalFloats);
-  }
   if (!IsJSReceiver(*arg)) return result;
   DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(arg);
 

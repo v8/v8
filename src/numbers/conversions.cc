@@ -12,7 +12,6 @@
 #include <optional>
 
 #include "include/v8config.h"
-#include "src/base/fpu.h"
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
 #include "src/base/unique-array.h"
@@ -1453,20 +1452,9 @@ std::string_view DoubleToRadixStringView(double value, int radix,
   double fraction = value - integer;
   // We only compute fractional digits up to the input double's precision.
   double delta = 0.5 * (base::Double(value).NextDouble() - value);
-  bool delta_is_positive = true;
-  // If the delta rounded down to zero, use the minimum (denormal) delta
-  // value. Be careful around denormal flushing when doing so.
-  if (delta <= 0) {
-    if (base::FPU::GetFlushDenormals()) {
-      // We're flushing the delta value to zero, so the loop below won't
-      // make progress. Skip it instead.
-      delta_is_positive = false;
-    } else {
-      static_assert(base::Double(0.0).NextDouble() > 0);
-      delta = base::Double(0.0).NextDouble();
-    }
-  }
-  if (delta_is_positive && fraction >= delta) {
+  delta = std::max(base::Double(0.0).NextDouble(), delta);
+  DCHECK_GT(delta, 0.0);
+  if (fraction >= delta) {
     // Insert decimal point.
     buffer[fraction_cursor++] = '.';
     do {

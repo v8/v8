@@ -1035,25 +1035,10 @@ DirectHandle<Script> CreateWasmScript(
 }
 }  // namespace
 
-MaybeDirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
+DirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module,
     base::Vector<const char> source_url) {
   NativeModule* native_module = shared_native_module.get();
-  CompileTimeImports target_imports = native_module->compile_imports();
-  if (isolate->flush_denormals()) {
-    target_imports.Add(CompileTimeImport::kDisableDenormalFloats);
-  } else {
-    target_imports.Remove(CompileTimeImport::kDisableDenormalFloats);
-  }
-
-  // On denormals mismatch, we recompile the module with the correct
-  // flags. SyncCompile will check the cache first to avoid redundant work.
-  if (target_imports != native_module->compile_imports()) {
-    ErrorThrower thrower(isolate, "WasmEngine::ImportNativeModule");
-    return SyncCompile(
-        isolate, native_module->enabled_features(), target_imports, &thrower,
-        base::UniqueCopyOf(native_module->wire_bytes()), source_url);
-  }
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   DirectHandle<Script> script =
       GetOrCreateScript(isolate, shared_native_module, source_url);

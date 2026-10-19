@@ -1426,6 +1426,14 @@ void Assembler::lfence() {
   emit(0xE8);
 }
 
+void Assembler::stmxcsr(Operand dst) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst);
+  emit(0x0F);
+  emit(0xAE);
+  emit_operand(3, dst);
+}
+
 void Assembler::rdpkru() {
   EnsureSpace ensure_space(this);
   emit(0x0F);

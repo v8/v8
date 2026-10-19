@@ -917,8 +917,6 @@ filegroup(
         "src/base/file-utils.h",
         "src/base/flags.h",
         "src/base/float16.h",
-        "src/base/fpu.cc",
-        "src/base/fpu.h",
         "src/base/functional/bind-internal.h",
         "src/base/functional/function-ref.h",
         "src/base/free_deleter.h",

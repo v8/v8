@@ -2474,6 +2474,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(uint8_t* data) {
   } else if (opcode == 0xAE && (data[2] & 0xF8) == 0xE8) {
     AppendToBuffer("lfence");
     current = data + 3;
+  } else if (opcode == 0xAE && regop == 3 && mod != 3) {
+    AppendToBuffer("stmxcsr ");
+    current += PrintRightOperand(current);
     // clang-format off
 #define SSE_DISASM_CASE(instruction, unused, code) \
   } else if (opcode == 0x##code) {                 \

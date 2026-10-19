@@ -2230,8 +2230,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
   bool allow_atomics_wait() { return allow_atomics_wait_; }
 
-  bool flush_denormals() const { return flush_denormals_; }
-
   // Register a finalizer to be called at isolate teardown.
   void RegisterManagedPtrDestructor(ManagedPtrDestructor* finalizer);
 
@@ -2955,7 +2953,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       abort_on_uncaught_exception_callback_ = nullptr;
 
   bool allow_atomics_wait_ = true;
-  bool flush_denormals_ = false;
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;

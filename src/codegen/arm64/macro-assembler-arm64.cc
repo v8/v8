@@ -1552,10 +1552,7 @@ void MacroAssembler::AssertSpAligned() {
 }
 
 void MacroAssembler::AssertFPCRState(Register fpcr) {
-  // TODO(olivf, 382005099) This check is currently behind `slow_debug_code` as
-  // a temporary hack to not have it enabled on dcheck enabled canaries. The
-  // reason is that this check is violated by callbacks from webaudio.
-  if (!v8_flags.slow_debug_code) return;
+  if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   Label unexpected_mode, done;
   UseScratchRegisterScope temps(this);
@@ -1566,8 +1563,7 @@ void MacroAssembler::AssertFPCRState(Register fpcr) {
 
   // Settings left to their default values:
   //   - Assert that flush-to-zero is not set.
-  // TODO(leszeks): Reenable check based on isolate flag.
-  // Tbnz(fpcr, FZ_offset, &unexpected_mode);
+  Tbnz(fpcr, FZ_offset, &unexpected_mode);
   //   - Assert that the rounding mode is nearest-with-ties-to-even.
   static_assert(FPTieEven == 0);
   Tst(fpcr, RMode_mask);

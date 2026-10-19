@@ -10,7 +10,6 @@
 #include "include/v8-script.h"
 #include "src/api/api-inl.h"
 #include "src/ast/scopes.h"
-#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/time.h"
 #include "src/base/strong-alias.h"
@@ -1938,9 +1937,6 @@ bool BackgroundCompileTask::is_streaming_compilation() const {
 }
 
 void BackgroundCompileTask::Run() {
-  base::FlushDenormalsScope flush_denormals_scope(
-      isolate_for_local_isolate_->flush_denormals());
-
   DCHECK_NE(ThreadId::Current(), isolate_for_local_isolate_->thread_id());
   LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&isolate);
@@ -2866,9 +2862,6 @@ BackgroundDeserializeTask::BackgroundDeserializeTask(
 }
 
 void BackgroundDeserializeTask::Run() {
-  base::FlushDenormalsScope flush_denormals_scope(
-      isolate_for_local_isolate_->flush_denormals());
-
   TimedHistogramScope timer(timer_, nullptr, &background_time_in_microseconds_);
   LazyTimedHistogramScope script_type_timer;
   LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
@@ -2917,9 +2910,6 @@ bool BackgroundDeserializeTask::ShouldMergeWithExistingScript() const {
 
 void BackgroundDeserializeTask::MergeWithExistingScript() {
   DCHECK(ShouldMergeWithExistingScript());
-
-  base::FlushDenormalsScope flush_denormals_scope(
-      isolate_for_local_isolate_->flush_denormals());
 
   LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&isolate);

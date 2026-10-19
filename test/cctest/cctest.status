@@ -409,9 +409,6 @@
   # The uint32 values are sign-extended on MIPS64.
   'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
   'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
-
-  # Flush to zero is not supported yet.
-  'test-wasm-shared-engine/RunImportedWithDenormalsMismatchAndSourceUrl': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -457,9 +454,6 @@
 
   # Some Wasm functionality is not implemented yet.
   'test-run-wasm-f16/*': [SKIP],
-
-  # Flush to zero is not supported yet.
-  'test-wasm-shared-engine/RunImportedWithDenormalsMismatchAndSourceUrl': [SKIP],
 }],  # 'arch == riscv64 or (arch == riscv32)'
 
 ['arch == riscv32', {
@@ -485,8 +479,6 @@
   # The uint32 values are sign-extended on loong64.
   'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
   'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
-  # Flush to zero is not supported yet.
-  'test-wasm-shared-engine/RunImportedWithDenormalsMismatchAndSourceUrl': [SKIP],
 }],  # 'arch == loong64'
 
 ##############################################################################
@@ -551,9 +543,6 @@
   'test-jump-table-assembler/*': [SKIP],
 
   'test-wasm-breakpoints/*' : [SKIP],
-
-  # Flush to zero is not supported yet.
-  'test-wasm-shared-engine/RunImportedWithDenormalsMismatchAndSourceUrl': [SKIP]
 
 }],  # 'arch == ppc64 or arch == s390x'
 

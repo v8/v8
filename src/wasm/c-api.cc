@@ -1372,9 +1372,6 @@ WASM_EXPORT auto Module::deserialize(Store* store_abs,
     // The C-API does not allow passing compile imports.
     // We thus use an empty `CompileTimeImports` object, analogous to module
     // creation.
-    // Note that in contrast to the JS API, this does not handle different
-    // denormals flushing modes (see base::FPU::GetFlushDenormals /
-    // `CompileTimeImport::kDisableDenormalFloats`).
     i::wasm::CompileTimeImports compile_imports;
     i::wasm::WasmEnabledFeatures features =
         i::wasm::WasmEnabledFeatures::FromIsolate(isolate);

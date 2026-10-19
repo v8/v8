@@ -28,7 +28,6 @@
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
-#include "src/base/fpu.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
@@ -6210,8 +6209,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   CHECK_IMPLIES(is_shared_space_isolate(), V8_CAN_CREATE_SHARED_HEAP_BOOL);
 
   force_slow_path_ = v8_flags.force_slow_path;
-
-  flush_denormals_ = base::FPU::GetFlushDenormals();
 
   has_fatal_error_ = false;
 

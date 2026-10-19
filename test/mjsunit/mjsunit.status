@@ -1032,7 +1032,6 @@
   'regress/wasm/regress-366350772': [SKIP],
   'regress/wasm/regress-397043084': [SKIP],
   'regress/wasm/regress-523591366': [SKIP],
-  'wasm/denormals': [SKIP],
   'wasm/deopt/*': [SKIP],
   'wasm/enter-debug-state': [SKIP],
   'wasm/liftoff-trap-handler': [SKIP],
@@ -1862,12 +1861,6 @@
 
   # MIPS64 port doesn't support maglev yet.
   'turbolev/*': [SKIP],
-
-  # Flush to zero is not supported yet.
-  'd8/flush-denormals-flag': [SKIP],
-  'd8/flush-denormals-helper': [SKIP],
-  'd8/flush-denormals-worker': [SKIP],
-  'wasm/denormals': [SKIP]
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -1876,12 +1869,6 @@
   # This test fail because when convert sNaN to qNaN, loong64 use a different
   # qNaN encoding with x86 architectures
   'wasm/float-constant-folding': [SKIP],
-
-  # Flush to zero is not supported yet.
-  'd8/flush-denormals-flag': [SKIP],
-  'd8/flush-denormals-helper': [SKIP],
-  'd8/flush-denormals-worker': [SKIP],
-  'wasm/denormals': [SKIP]
 }],  # 'arch == loong64'
 
 ##############################################################################
@@ -1928,12 +1915,6 @@
 
   # This often fails in debug mode because it is too slow.
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
-
-  # Flush to zero is not supported yet.
-  'd8/flush-denormals-flag': [SKIP],
-  'd8/flush-denormals-helper': [SKIP],
-  'd8/flush-denormals-worker': [SKIP],
-  'wasm/denormals': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 
@@ -2371,12 +2352,6 @@
   'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
   'regress/wasm/regress-368086282': [SKIP],
   'regress/wasm/regress-438770394': [SKIP],
-
-  # Flush to zero is not supported yet.
-  'd8/flush-denormals-flag': [SKIP],
-  'd8/flush-denormals-helper': [SKIP],
-  'd8/flush-denormals-worker': [SKIP],
-  'wasm/denormals': [SKIP],
 
   # Wasm code coverage is not supported yet.
   'regress/wasm/regress-488943662': [SKIP],
