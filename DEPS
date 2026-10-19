@@ -106,7 +106,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:b521b230cb7c56c821235e498285cf8e548a73ee',
+  'siso_version': 'git_revision:7ab4814901b3c7afc2dddf2ed1a6ff238a0d85c5',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -161,7 +161,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2dd9151c997c4571aa017ac86f68620f056eb0c9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '78db0371fa87cd001dd309022664f86d8e27a7b0',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '54989aa9486c639962bec871e62404cbe3ea1667',
   'buildtools/linux64': {
@@ -280,7 +280,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd38909eb68d85b91259f4bf20fe5ebcd38461bc2',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd577332cf25a37dee72e27bc6e469e044a924c98',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
