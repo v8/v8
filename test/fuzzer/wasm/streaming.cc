@@ -124,6 +124,10 @@ CompilationResult CompileStreaming(v8_fuzzer::FuzzerSupport* support,
   // cache, but we have to be careful not to break other internal assumptions
   // then (because we have several identical modules / scripts).
   while (weak_native_module.lock()) {
+    // We need to invoke GC without stack, otherwise the native module may
+    // survive.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate->heap());
     isolate->RequestGarbageCollectionForTesting(
         v8::Isolate::kFullGarbageCollection);
   }

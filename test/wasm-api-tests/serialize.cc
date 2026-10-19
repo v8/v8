@@ -45,6 +45,9 @@ TEST_F(WasmCapiTest, Serialize) {
     // Ensure cage bases are initialized so that the V8 heap can be accessed.
     i::PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
     Heap* heap = isolate->heap();
+    // We need to invoke GC without stack, otherwise the native module may
+    // survive.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap->PreciseCollectAllGarbage(GCFlag::kForced,
                                    GarbageCollectionReason::kTesting);
     heap->PreciseCollectAllGarbage(GCFlag::kForced,

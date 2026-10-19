@@ -115,6 +115,9 @@ class WasmSerializationTest {
   void CollectGarbage() {
     // Try hard to collect all garbage and will therefore also invoke all weak
     // callbacks of actually unreachable persistent handles.
+    // We need to invoke GC without stack, otherwise some objects may survive.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        CcTest::heap());
     heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
 
@@ -450,9 +453,6 @@ TEST(SerializeTieringBudget) {
     // the module gets deserialized and not just loaded from the module cache.
     native_module->tiering_budget_array()[0]++;
   }
-  // We need to invoke GC without stack, otherwise some objects may survive.
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      isolate->heap());
   test.CollectGarbage();
   HandleScope scope(isolate);
   DirectHandle<WasmModuleObject> module_object;
