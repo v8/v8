@@ -466,7 +466,8 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         Handle<JSReceiver> extension(Cast<JSReceiver>(ext), isolate);
         LookupIterator it(isolate, extension, name, extension);
         Maybe<bool> found = JSReceiver::HasProperty(&it);
-        if (found.FromMaybe(false)) {
+        if (found.IsNothing()) return Handle<Object>();
+        if (found.FromJust()) {
           *attributes = NONE;
           return extension;
         }
@@ -480,6 +481,16 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
             Context::Lookup(wrapped_context, name, DONT_FOLLOW_CHAINS, index,
                             attributes, init_flag, variable_mode);
         if (!result.is_null()) return result;
+        // The lookup in the wrapped context can throw, e.g. when the subject
+        // of a with statement is a proxy or a deferred module namespace. Stop
+        // walking the context chain instead of continuing with an exception
+        // pending.
+        if (isolate->has_exception()) {
+          if (v8_flags.trace_contexts) {
+            PrintF(" - name lookup causes exception. Aborting.\n");
+          }
+          return Handle<Object>();
+        }
       }
     }
 
