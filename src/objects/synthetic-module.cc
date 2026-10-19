@@ -144,6 +144,9 @@ MaybeDirectHandle<JSPromise> SyntheticModule::Evaluate(
   DirectHandle<Object> result_from_callback = Utils::OpenDirectHandle(*result);
   CHECK(IsJSPromise(*result_from_callback));
   DirectHandle<JSPromise> capability = Cast<JSPromise>(result_from_callback);
+  // The API contract is that the evaluation steps return a resolved promise on
+  // success; the module's capability must settle with its status.
+  DCHECK_EQ(capability->status(), Promise::kFulfilled);
   DirectHandle<InState<kEvaluated>> evaluated =
       TransitionStatus<kEvaluated>(evaluating);
   evaluated->set_top_level_capability(*capability);

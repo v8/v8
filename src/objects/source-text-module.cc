@@ -1507,8 +1507,9 @@ bool SourceTextModule::InnerModuleEvaluation(
             // 1. If module is not a Cyclic Module Record, then
             //    a. Perform ? EvaluateModuleSync(module).
             // (Out of order because InnerModuleEvaluation is type-driven.)
-            RETURN_ON_EXCEPTION_VALUE(
-                isolate, Module::Evaluate(isolate, requested_module), false);
+            if (!Module::EvaluateModuleSync(isolate, requested_module)) {
+              return false;
+            }
           }
         }
 
@@ -1620,7 +1621,15 @@ bool SourceTextModule::ReadyForSyncExecution(Isolate* isolate,
   }
 
   if (!IsSourceTextModule(*module)) {
-    return true;
+    return MatchState(
+        module,
+        [](DirectHandle<
+            Module::InState<Module, kLinked, kEvaluated, kErrored>>) {
+          return true;
+        },
+        [](DirectHandle<Module::InState<Module, kEvaluating>>) {
+          return false;
+        });
   }
 
   Handle<SourceTextModule> source_text_module = Cast<SourceTextModule>(module);
@@ -1628,33 +1637,36 @@ bool SourceTextModule::ReadyForSyncExecution(Isolate* isolate,
     return true;
   }
 
-  if (source_text_module->status() == kEvaluating ||
-      source_text_module->status() == kEvaluatingAsync) {
-    return false;
-  }
+  return MatchState(
+      source_text_module,
+      [](DirectHandle<InState<kEvaluating, kEvaluatingAsync>>) {
+        return false;
+      },
+      [&](DirectHandle<InState<kLinked, kEvaluated>> m) {
+        if (m->has_toplevel_await()) {
+          return false;
+        }
 
-  if (source_text_module->has_toplevel_await()) {
-    return false;
-  }
-
-  DirectHandle<FixedArray> module_requests(
-      source_text_module->info()->module_requests(), isolate);
-  DirectHandle<FixedArray> requested_modules(
-      source_text_module->requested_modules(), isolate);
-  const uint32_t requested_modules_len = requested_modules->ulength().value();
-  for (uint32_t i = 0; i < requested_modules_len; ++i) {
-    DirectHandle<ModuleRequest> module_request(
-        Cast<ModuleRequest>(module_requests->get(i)), isolate);
-    if (module_request->phase() == ModuleImportPhase::kSource) {
-      continue;
-    }
-    Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
-                                    isolate);
-    if (!ReadyForSyncExecution(isolate, requested_module, seen)) {
-      return false;
-    }
-  }
-  return true;
+        DirectHandle<FixedArray> module_requests(m->info()->module_requests(),
+                                                 isolate);
+        DirectHandle<FixedArray> requested_modules(m->requested_modules(),
+                                                   isolate);
+        const uint32_t requested_modules_len =
+            requested_modules->ulength().value();
+        for (uint32_t i = 0; i < requested_modules_len; ++i) {
+          DirectHandle<ModuleRequest> module_request(
+              Cast<ModuleRequest>(module_requests->get(i)), isolate);
+          if (module_request->phase() == ModuleImportPhase::kSource) {
+            continue;
+          }
+          Handle<Module> requested_module(
+              Cast<Module>(requested_modules->get(i)), isolate);
+          if (!ReadyForSyncExecution(isolate, requested_module, seen)) {
+            return false;
+          }
+        }
+        return true;
+      });
 }
 
 void SourceTextModule::Reset(

@@ -416,6 +416,53 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
       });
 }
 
+// https://tc39.es/proposal-defer-import-eval/#sec-EvaluateModuleSync
+bool Module::EvaluateModuleSync(Isolate* isolate, Handle<Module> module) {
+  // 2. If ReadyForSyncExecution(module) is false, throw a TypeError exception.
+  {
+    Zone zone(isolate->allocator(), ZONE_NAME);
+    UnorderedModuleSet seen_modules(&zone);
+    if (!SourceTextModule::ReadyForSyncExecution(isolate, module,
+                                                 &seen_modules)) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kNotReadyForSyncExec));
+      return false;
+    }
+  }
+
+  // A side-effect-free debug-evaluate must not start the evaluation.
+  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+    isolate->debug()->FailSideEffectCheckForDeferredModuleEvaluation();
+    return false;
+  }
+
+  // 3. Let promise be module.Evaluate().
+  DirectHandle<JSPromise> promise;
+  if (!Module::Evaluate(isolate, module).ToHandle(&promise)) {
+    DCHECK(isolate->has_exception());
+    return false;
+  }
+
+  // 4. Assert: promise.[[PromiseState]] is either FULFILLED or REJECTED.
+  // 5. If promise.[[PromiseState]] is REJECTED, then
+  if (promise->status() == Promise::kRejected) {
+    // a. If promise.[[PromiseIsHandled]] is false, perform
+    //    HostPromiseRejectionTracker(promise, "handle").
+    if (!promise->has_handler()) {
+      isolate->ReportPromiseReject(promise, DirectHandle<Object>(),
+                                   v8::kPromiseHandlerAddedAfterReject);
+    }
+    // b. Set promise.[[PromiseIsHandled]] to true.
+    promise->set_has_handler(true);
+    // c. Throw promise.[[PromiseResult]].
+    isolate->Throw(promise->result());
+    return false;
+  }
+  DCHECK_EQ(promise->status(), Promise::kFulfilled);
+  // 6. Return UNUSED.
+  return true;
+}
+
 Handle<Cell> Module::GetModuleNamespaceCell(Isolate* isolate,
                                             Handle<Module> module,
                                             ModuleImportPhase phase) {
@@ -615,46 +662,11 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
   }
 }
 
-// https://tc39.es/proposal-defer-import-eval/#sec-EvaluateModuleSync
+// https://tc39.es/proposal-defer-import-eval/#sec-GetModuleExportsList
 void JSDeferredModuleNamespace::EvaluateModuleSync(
     Isolate* isolate, DirectHandle<JSDeferredModuleNamespace> holder) {
-  Handle<Module> module = handle(holder->module(), isolate);
-
-  // https://tc39.es/proposal-defer-import-eval/#sec-GetModuleExportsList
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  UnorderedModuleSet seenModules(&zone);
-  if (!SourceTextModule::ReadyForSyncExecution(isolate, module, &seenModules)) {
-    isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kNotReadyForSyncExec));
-    return;
-  }
-
-  // A side-effect-free debug-evaluate must not start the evaluation.
-  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
-    isolate->debug()->FailSideEffectCheckForDeferredModuleEvaluation();
-    return;
-  }
-
-  MaybeDirectHandle<JSPromise> maybe_result = Module::Evaluate(isolate, module);
-  DirectHandle<JSPromise> promise;
-  if (!maybe_result.ToHandle(&promise)) {
-    return;
-  }
-
-  // The result is always the module's top-level capability promise.
-  // 5. If promise.[[PromiseState]] is rejected, then
-  if (promise->status() == Promise::kRejected) {
-    // a. If promise.[[PromiseIsHandled]] is false, perform
-    // HostPromiseRejectionTracker(promise, "handle").
-    if (!promise->has_handler()) {
-      isolate->ReportPromiseReject(promise, DirectHandle<Object>(),
-                                   v8::kPromiseHandlerAddedAfterReject);
-    }
-    promise->set_has_handler(true);
-    isolate->Throw(promise->result());
-    return;
-  }
-  DCHECK_EQ(promise->status(), Promise::kFulfilled);
+  // Callers check isolate->has_exception().
+  USE(Module::EvaluateModuleSync(isolate, handle(holder->module(), isolate)));
 }
 
 bool JSDeferredModuleNamespace::TriggersEvaluation(LookupIterator* it) {

@@ -160,6 +160,12 @@ V8_OBJECT class Module : public HeapObject {
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSPromise> Evaluate(
       Isolate* isolate, Handle<Module> module);
 
+  // Implementation of spec abstract operation EvaluateModuleSync. Throws and
+  // returns false if the module is not ready for synchronous execution or if
+  // evaluation rejects.
+  static V8_WARN_UNUSED_RESULT bool EvaluateModuleSync(Isolate* isolate,
+                                                       Handle<Module> module);
+
   // Get the namespace object for [module].  If it doesn't exist yet, it is
   // created.
   static Handle<Cell> GetModuleNamespaceCell(
