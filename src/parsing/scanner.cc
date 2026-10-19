@@ -1048,17 +1048,16 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped,
     base::Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
     Token::Value token =
         KeywordOrIdentifierToken(chars.begin(), chars.length());
-    if (base::IsInRange(token, Token::kIdentifier, Token::kYield)) return token;
-
-    if (token == Token::kFutureStrictReservedWord) {
-      if (escaped) return Token::kEscapedStrictReservedWord;
-      return token;
-    }
-
     if (!escaped) return token;
 
+    if (base::IsInRange(token, Token::kIdentifier, Token::kAsync)) {
+      return Token::kIdentifier;
+    }
+    if (base::IsInRange(token, Token::kAwait, Token::kYield)) return token;
+
     static_assert(Token::kLet + 1 == Token::kStatic);
-    if (base::IsInRange(token, Token::kLet, Token::kStatic)) {
+    static_assert(Token::kStatic + 1 == Token::kFutureStrictReservedWord);
+    if (base::IsInRange(token, Token::kLet, Token::kFutureStrictReservedWord)) {
       return Token::kEscapedStrictReservedWord;
     }
     return Token::kEscapedKeyword;

@@ -1017,21 +1017,9 @@ class ParserBase {
            scanner()->NextSymbol(ast_value_factory()) == name;
   }
 
-  bool PeekContextualKeyword(Token::Value token) {
-    return peek() == token && !scanner()->next_literal_contains_escapes();
-  }
-
   bool CheckContextualKeyword(const AstRawString* name) {
     if (PeekContextualKeyword(name)) {
       Consume(Token::kIdentifier);
-      return true;
-    }
-    return false;
-  }
-
-  bool CheckContextualKeyword(Token::Value token) {
-    if (PeekContextualKeyword(token)) {
-      Consume(token);
       return true;
     }
     return false;
@@ -1054,32 +1042,18 @@ class ParserBase {
     }
   }
 
-  void ExpectContextualKeyword(Token::Value token) {
-    // Token Should be in range of Token::kIdentifier + 1 to Token::kAsync
-    DCHECK(base::IsInRange(token, Token::kGet, Token::kAsync));
-    Token::Value next = Next();
-    if (V8_UNLIKELY(next != token)) {
-      ReportUnexpectedToken(next);
-    }
-    if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
-      impl()->ReportUnexpectedToken(Token::kEscapedKeyword);
-    }
-  }
-
   bool CheckInOrOf(ForEachStatement::VisitMode* visit_mode) {
     if (Check(Token::kIn)) {
       *visit_mode = ForEachStatement::ENUMERATE;
       return true;
-    } else if (CheckContextualKeyword(Token::kOf)) {
+    } else if (Check(Token::kOf)) {
       *visit_mode = ForEachStatement::ITERATE;
       return true;
     }
     return false;
   }
 
-  bool PeekInOrOf() {
-    return peek() == Token::kIn || PeekContextualKeyword(Token::kOf);
-  }
+  bool PeekInOrOf() { return peek() == Token::kIn || peek() == Token::kOf; }
 
   // Checks whether an octal literal was last seen between beg_pos and end_pos.
   // Only called for strict mode strings.
@@ -2176,8 +2150,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
     FunctionKind kind = FunctionKind::kArrowFunction;
 
     if (V8_UNLIKELY(token == Token::kAsync &&
-                    !scanner()->HasLineTerminatorBeforeNext() &&
-                    !scanner()->literal_contains_escapes())) {
+                    !scanner()->HasLineTerminatorBeforeNext())) {
       // async function ...
       if (peek() == Token::kFunction) return ParseAsyncFunctionLiteral();
 
@@ -2513,9 +2486,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
       impl()->PushLiteralName(prop_info->name);
       return factory()->NewStringLiteral(prop_info->name, position());
     }
-    if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
-      impl()->ReportUnexpectedToken(Token::kEscapedKeyword);
-    }
     prop_info->function_flags = ParseFunctionFlag::kIsAsync;
     prop_info->kind = ParsePropertyKind::kMethod;
   }
@@ -2528,8 +2498,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
   if (prop_info->kind == ParsePropertyKind::kNotSet &&
       base::IsInRange(peek(), Token::kGet, Token::kSet)) {
     Token::Value token = Next();
-    if (prop_info->ParsePropertyKindFromToken(peek()) ||
-        V8_UNLIKELY(scanner()->literal_contains_escapes())) {
+    if (prop_info->ParsePropertyKindFromToken(peek())) {
       prop_info->name = impl()->GetIdentifier();
       impl()->PushLiteralName(prop_info->name);
       return factory()->NewStringLiteral(prop_info->name, position());
@@ -3925,8 +3894,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
 
   if (V8_UNLIKELY(peek() == Token::kLeftParen && impl()->IsIdentifier(result) &&
                   scanner()->current_token() == Token::kAsync &&
-                  !scanner()->HasLineTerminatorBeforeNext() &&
-                  !scanner()->literal_contains_escapes())) {
+                  !scanner()->HasLineTerminatorBeforeNext())) {
     DCHECK(impl()->IsAsync(impl()->AsIdentifier(result)));
     int pos = position();
     ExpressionListT args(pointer_buffer());
@@ -4543,6 +4511,9 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       // CoverAwaitExpressionAndAwaitUsingDeclarationHead[?Yield] [no
       // LineTerminator here] BindingList[?In, ?Yield, +Await, ~Pattern];
       Consume(Token::kAwait);
+      if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
+        impl()->ReportUnexpectedToken(Token::kEscapedKeyword);
+      }
       DCHECK_NE(var_context, kStatement);
       DCHECK(is_using_allowed());
       DCHECK(is_await_allowed());
@@ -4876,9 +4847,6 @@ ParserBase<Impl>::ParseAsyncFunctionDeclaration(
   //   async [no LineTerminator here] function BindingIdentifier[Await]
   //       ( FormalParameters[Await] ) { AsyncFunctionBody }
   DCHECK_EQ(scanner()->current_token(), Token::kAsync);
-  if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
-    impl()->ReportUnexpectedToken(Token::kEscapedKeyword);
-  }
   int pos = position();
   DCHECK(!scanner()->HasLineTerminatorBeforeNext());
   Consume(Token::kFunction);
@@ -5488,9 +5456,6 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral() {
   //   async [no LineTerminator here] function BindingIdentifier[Await]
   //       ( FormalParameters[Await] ) { AsyncFunctionBody }
   DCHECK_EQ(scanner()->current_token(), Token::kAsync);
-  if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
-    impl()->ReportUnexpectedToken(Token::kEscapedKeyword);
-  }
   int pos = position();
   Consume(Token::kFunction);
   IdentifierT name = impl()->NullIdentifier();
@@ -6748,8 +6713,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
       // `for (async of` is disallowed but `for (async.x of` is allowed, so
       // check if the token is kAsync after parsing the expression.
       bool expression_is_async = impl()->IsIdentifier(expression) &&
-                                 scanner()->current_token() == Token::kAsync &&
-                                 !scanner()->literal_contains_escapes();
+                                 scanner()->current_token() == Token::kAsync;
       // Initializer is reference followed by in/of.
       lhs_end_pos = end_position();
       is_for_each = CheckInOrOf(&for_info.mode);
@@ -7027,6 +6991,10 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   BlockState for_state(zone(), &scope_);
   Expect(Token::kFor);
   Expect(Token::kAwait);
+  if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
+    impl()->ReportUnexpectedToken(Token::kEscapedKeyword);
+    return impl()->NullStatement();
+  }
   Expect(Token::kLeftParen);
   scope()->set_start_position(position());
   scope()->set_is_hidden();
@@ -7100,7 +7068,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     }
   }
 
-  ExpectContextualKeyword(Token::kOf);
+  Expect(Token::kOf);
 
   ExpressionT iterable = impl()->NullExpression();
   Scope* iterable_block_scope = NewScope(BLOCK_SCOPE);

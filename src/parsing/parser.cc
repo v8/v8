@@ -1695,7 +1695,7 @@ void Parser::ParseImportDeclaration() {
   if (tok != Token::kMul && tok != Token::kLeftBrace) {
     if (v8_flags.js_source_phase_imports &&
         PeekContextualKeyword(ast_value_factory()->source_string()) &&
-        PeekAhead() == Token::kIdentifier &&
+        Token::IsAnyIdentifier(PeekAhead()) &&
         PeekAheadAhead() == Token::kIdentifier) {
       Consume(Token::kIdentifier);
       import_phase = ModuleImportPhase::kSource;
