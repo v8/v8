@@ -683,6 +683,81 @@ TEST(EmptyMemoryEmptyDataSegment) {
   Cleanup();
 }
 
+void TestFailedInstantiation(base::Vector<const uint8_t> module_bytes,
+                             const char* scenario) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  ErrorThrower thrower(isolate, scenario);
+  DirectHandle<WasmModuleObject> module_object =
+      testing::CompileForTesting(isolate, &thrower, module_bytes)
+          .ToHandleChecked();
+  DirectHandle<WasmMemoryObject> memory_object =
+      WasmMemoryObject::New(isolate, 1, WasmMemoryObject::kNoMaximum,
+                            SharedFlag{false}, AddressType::kI32)
+          .ToHandleChecked();
+  DirectHandle<JSObject> ffi =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  DirectHandle<JSObject> mod =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  DirectHandle<String> m = isolate->factory()->InternalizeUtf8String("m");
+  JSObject::AddProperty(isolate, mod, m, memory_object, NONE);
+  JSObject::AddProperty(isolate, ffi, m, mod, NONE);
+
+  MaybeDirectHandle<WasmInstanceObject> maybe_instance =
+      GetWasmEngine()->SyncInstantiate(isolate, &thrower, module_object, ffi);
+  CHECK(maybe_instance.is_null());
+  CHECK(thrower.error());
+
+  // Failed instantiation in Build_Phase1 must not register the instance in
+  // any lists.
+  CHECK_EQ(
+      0u, module_object->script()->wasm_weak_instance_list()->length().value());
+  CHECK_EQ(0u, memory_object->instances()->length().value());
+}
+
+TEST(FailedInitGlobalsAndTablesUnpublishesInstance) {
+  CcTest::InitIsolateOnce();
+
+  // 1. Trapping constant expression in InitGlobals() (global 0 traps with
+  // kWasmTrapArrayTooLarge, leaving global 1 uninitialized).
+  const uint8_t data1[] = {
+      WASM_MODULE_HEADER,
+      SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI64Code, true)),
+      SECTION(Import, ENTRY_COUNT(1), ADD_COUNT('m'), ADD_COUNT('m'),
+              kExternalMemory, kNoMaximum, 1),
+      SECTION(Global, ENTRY_COUNT(2),
+              // global 0: (ref 0), traps with array.new_default -1
+              kRefCode, 0, 0, kExprI32Const, 0x7f,
+              WASM_GC_OP(kExprArrayNewDefault), 0, kExprEnd,
+              // global 1: (ref 0), left uninitialized in tagged_globals_buffer
+              kRefCode, 0, 0, kExprI32Const, 0,
+              WASM_GC_OP(kExprArrayNewDefault), 0, kExprEnd),
+  };
+  TestFailedInstantiation(base::VectorOf(data1), "FailedInitGlobals");
+
+  // 2. Trapping constant expression in SetTableInitialValues() (table 0 traps
+  // with kWasmTrapArrayTooLarge, leaving non-nullable table 1 uninitialized).
+  const uint8_t data2[] = {
+      WASM_MODULE_HEADER,
+      SECTION(Type, ENTRY_COUNT(2), SIG_ENTRY_v_v,
+              WASM_ARRAY_DEF(kI64Code, true)),
+      SECTION(Import, ENTRY_COUNT(1), ADD_COUNT('m'), ADD_COUNT('m'),
+              kExternalMemory, kNoMaximum, 1),
+      SECTION(Function, ENTRY_COUNT(1), 0),
+      SECTION(Table, ENTRY_COUNT(2),
+              // table 0: (ref 1) with trapping initializer
+              0x40, 0x00, kRefCode, 1, kNoMaximum, 1, kExprI32Const, 0x7f,
+              WASM_GC_OP(kExprArrayNewDefault), 1, kExprEnd,
+              // table 1: non-nullable function table (ref 0)
+              0x40, 0x00, kRefCode, 0, kNoMaximum, 1, kExprRefFunc, 0,
+              kExprEnd),
+      SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, kExprEnd)),
+  };
+  TestFailedInstantiation(base::VectorOf(data2), "FailedSetTableInitialValues");
+
+  Cleanup();
+}
+
 #undef EMIT_CODE_WITH_END
 
 }  // namespace test_run_wasm_module

@@ -1270,11 +1270,13 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   // Process the initialization for the module's globals.
   //--------------------------------------------------------------------------
   InitGlobals();
+  if (thrower_->error()) return {};
 
   //--------------------------------------------------------------------------
   // Initialize non-defaultable tables.
   //--------------------------------------------------------------------------
   SetTableInitialValues();
+  if (thrower_->error()) return {};
 
   //--------------------------------------------------------------------------
   // Initialize the tags table.
