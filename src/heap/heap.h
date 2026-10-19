@@ -1203,8 +1203,6 @@ class Heap final {
   V8_EXPORT_PRIVATE ::heap::base::Stack& stack();
   V8_EXPORT_PRIVATE const ::heap::base::Stack& stack() const;
 
-  bool ShouldCheckForTLSOnStack() const;
-
   // ===========================================================================
   // Embedder roots optimizations. =============================================
   // ===========================================================================

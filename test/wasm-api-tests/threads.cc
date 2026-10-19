@@ -28,7 +28,6 @@ own<Trap> Callback(void* env, const vec<Val>& args, vec<Val>& results) {
 }
 
 void Main(Engine* engine, Shared<Module>* shared, std::mutex* mutex, int id) {
-  v8::StackStartScope stack_start_scope;
   own<Store> store = Store::make(engine);
 
   // The physical stack size for std::thread on macOS is 512KB.

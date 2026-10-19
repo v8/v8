@@ -15,10 +15,9 @@
 namespace v8 {
 namespace internal {
 
-LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind,
-                           v8::base::Stack::StackSlot stack_start)
+LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
     : HiddenLocalFactory(isolate),
-      heap_(isolate->heap(), kind, nullptr, stack_start),
+      heap_(isolate->heap(), kind),
       isolate_(isolate),
       logger_(new LocalLogger(isolate)),
       thread_id_(ThreadId::Current()),
