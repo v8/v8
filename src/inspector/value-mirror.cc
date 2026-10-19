@@ -39,19 +39,37 @@ static const int kMaxProtocolDepth = 900;
 static const int kMaxProtocolDepth = 1000;
 #endif
 
-Response toProtocolValue(v8::Local<v8::Context> context,
-                         v8::Local<v8::Value> value, int maxDepth,
-                         std::unique_ptr<protocol::Value>* result);
+namespace {
 
-Response arrayToProtocolValue(v8::Local<v8::Context> context,
-                              v8::Local<v8::Array> array, int maxDepth,
-                              std::unique_ptr<protocol::ListValue>* result) {
+// The maximum total number of array elements and object properties that a
+// single toProtocolValue() call serializes. Values reachable via multiple
+// references (i.e. shared but not cyclic) are serialized once per reference,
+// so without a total limit, a small object graph could expand to an
+// exponential number of values.
+constexpr uint32_t kMaxProtocolValueCount = kMaxArrayLength;
+
+Response toProtocolValueImpl(v8::Local<v8::Context> context,
+                             v8::Local<v8::Value> value, int maxDepth,
+                             uint32_t* budget,
+                             std::unique_ptr<protocol::Value>* result);
+
+Response objectTooLargeError() {
+  return Response::ServerError("Object is too large to be returned by value");
+}
+
+Response arrayToProtocolValueImpl(
+    v8::Local<v8::Context> context, v8::Local<v8::Array> array, int maxDepth,
+    uint32_t* budget, std::unique_ptr<protocol::ListValue>* result) {
   std::unique_ptr<protocol::ListValue> inspectorArray =
       protocol::ListValue::create();
   uint32_t length = array->Length();
   if (length > kMaxArrayLength) {
     return Response::ServerError("Array length exceeds maximum limit");
   }
+  // Take all the elements from the budget upfront, so that we fail early
+  // (before serializing any of the elements) if they don't fit.
+  if (length > *budget) return objectTooLargeError();
+  *budget -= length;
   inspectorArray->reserve(length);
   for (uint32_t i = 0; i < length; i++) {
     v8::Local<v8::Value> value;
@@ -59,7 +77,8 @@ Response arrayToProtocolValue(v8::Local<v8::Context> context,
       return Response::InternalError();
     }
     std::unique_ptr<protocol::Value> element;
-    Response response = toProtocolValue(context, value, maxDepth - 1, &element);
+    Response response =
+        toProtocolValueImpl(context, value, maxDepth - 1, budget, &element);
     if (!response.IsSuccess()) return response;
     inspectorArray->pushValue(std::move(element));
   }
@@ -67,9 +86,9 @@ Response arrayToProtocolValue(v8::Local<v8::Context> context,
   return Response::Success();
 }
 
-Response objectToProtocolValue(
+Response objectToProtocolValueImpl(
     v8::Local<v8::Context> context, v8::Local<v8::Object> object, int maxDepth,
-    std::unique_ptr<protocol::DictionaryValue>* result) {
+    uint32_t* budget, std::unique_ptr<protocol::DictionaryValue>* result) {
   std::unique_ptr<protocol::DictionaryValue> jsonObject =
       protocol::DictionaryValue::create();
   v8::Local<v8::Array> propertyNames;
@@ -102,9 +121,11 @@ Response objectToProtocolValue(
       return Response::InternalError();
     }
     if (property->IsUndefined()) continue;
+    if (*budget == 0) return objectTooLargeError();
+    --*budget;
     std::unique_ptr<protocol::Value> propertyValue;
-    Response response =
-        toProtocolValue(context, property, maxDepth - 1, &propertyValue);
+    Response response = toProtocolValueImpl(context, property, maxDepth - 1,
+                                            budget, &propertyValue);
     if (!response.IsSuccess()) return response;
     jsonObject->setValue(
         toProtocolString(v8::Isolate::GetCurrent(), propertyName),
@@ -113,6 +134,8 @@ Response objectToProtocolValue(
   *result = std::move(jsonObject);
   return Response::Success();
 }
+
+}  // namespace
 
 std::unique_ptr<protocol::FundamentalValue> toProtocolValue(
     double doubleValue) {
@@ -128,9 +151,12 @@ std::unique_ptr<protocol::FundamentalValue> toProtocolValue(
   return protocol::FundamentalValue::create(doubleValue);
 }
 
-Response toProtocolValue(v8::Local<v8::Context> context,
-                         v8::Local<v8::Value> value, int maxDepth,
-                         std::unique_ptr<protocol::Value>* result) {
+namespace {
+
+Response toProtocolValueImpl(v8::Local<v8::Context> context,
+                             v8::Local<v8::Value> value, int maxDepth,
+                             uint32_t* budget,
+                             std::unique_ptr<protocol::Value>* result) {
   if (maxDepth <= 0) {
     return Response::ServerError("Object reference chain is too long");
   }
@@ -157,21 +183,44 @@ Response toProtocolValue(v8::Local<v8::Context> context,
   if (value->IsArray()) {
     v8::Local<v8::Array> array = value.As<v8::Array>();
     std::unique_ptr<protocol::ListValue> list_result;
-    auto response =
-        arrayToProtocolValue(context, array, maxDepth, &list_result);
+    auto response = arrayToProtocolValueImpl(context, array, maxDepth, budget,
+                                             &list_result);
     *result = std::move(list_result);
     return response;
   }
   if (value->IsObject()) {
     v8::Local<v8::Object> object = value.As<v8::Object>();
     std::unique_ptr<protocol::DictionaryValue> dict_result;
-    auto response =
-        objectToProtocolValue(context, object, maxDepth, &dict_result);
+    auto response = objectToProtocolValueImpl(context, object, maxDepth, budget,
+                                              &dict_result);
     *result = std::move(dict_result);
     return response;
   }
 
   return Response::ServerError("Object couldn't be returned by value");
+}
+
+}  // namespace
+
+Response arrayToProtocolValue(v8::Local<v8::Context> context,
+                              v8::Local<v8::Array> array, int maxDepth,
+                              std::unique_ptr<protocol::ListValue>* result) {
+  uint32_t budget = kMaxProtocolValueCount;
+  return arrayToProtocolValueImpl(context, array, maxDepth, &budget, result);
+}
+
+Response objectToProtocolValue(
+    v8::Local<v8::Context> context, v8::Local<v8::Object> object, int maxDepth,
+    std::unique_ptr<protocol::DictionaryValue>* result) {
+  uint32_t budget = kMaxProtocolValueCount;
+  return objectToProtocolValueImpl(context, object, maxDepth, &budget, result);
+}
+
+Response toProtocolValue(v8::Local<v8::Context> context,
+                         v8::Local<v8::Value> value, int maxDepth,
+                         std::unique_ptr<protocol::Value>* result) {
+  uint32_t budget = kMaxProtocolValueCount;
+  return toProtocolValueImpl(context, value, maxDepth, &budget, result);
 }
 
 Response toProtocolValue(v8::Local<v8::Context> context,
