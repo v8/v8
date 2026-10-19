@@ -2922,7 +2922,8 @@ WasmInterpreterRuntime::ArrayNewUninitialized(uint32_t length,
       needs_write_barrier};
 }
 
-WasmRef WasmInterpreterRuntime::WasmArrayNewSegment(uint32_t array_index,
+WasmRef WasmInterpreterRuntime::WasmArrayNewSegment(bool is_element,
+                                                    uint32_t array_index,
                                                     uint32_t segment_index,
                                                     uint32_t offset,
                                                     uint32_t length) {
@@ -2935,11 +2936,15 @@ WasmRef WasmInterpreterRuntime::WasmArrayNewSegment(uint32_t array_index,
   //                      |      length      |
   //                      |      offset      |
   //                      |  segment_index   |
+  //                      |    is_element    |
   //    first_arg_addr -> | trusted_instance |
   //
-  constexpr size_t kArgsLength = 5;
-  Address args[kArgsLength] = {rtt->ptr(), IntToSmi(length), IntToSmi(offset),
+  constexpr size_t kArgsLength = 6;
+  Address args[kArgsLength] = {rtt->ptr(),
+                               IntToSmi(length),
+                               IntToSmi(offset),
                                IntToSmi(segment_index),
+                               IntToSmi(is_element ? 1 : 0),
                                wasm_trusted_instance_data()->ptr()};
   Address* first_arg_addr = &args[kArgsLength - 1];
 
@@ -2954,11 +2959,9 @@ WasmRef WasmInterpreterRuntime::WasmArrayNewSegment(uint32_t array_index,
   return direct_handle(Tagged<Object>(result), isolate_);
 }
 
-bool WasmInterpreterRuntime::WasmArrayInitSegment(uint32_t segment_index,
-                                                  WasmRef wasm_array,
-                                                  uint32_t array_offset,
-                                                  uint32_t segment_offset,
-                                                  uint32_t length) {
+bool WasmInterpreterRuntime::WasmArrayInitSegment(
+    bool is_element, uint32_t segment_index, WasmRef wasm_array,
+    uint32_t array_offset, uint32_t segment_offset, uint32_t length) {
   // Call runtime function Runtime_WasmArrayInitSegment. Store the arguments in
   // reverse order and pass a pointer to the first argument, which is the last
   // on the stack.
@@ -2968,13 +2971,17 @@ bool WasmInterpreterRuntime::WasmArrayInitSegment(uint32_t segment_index,
   //                      |   array_offset    |
   //                      |    wasm_array     |
   //                      |   segment_index   |
+  //                      |    is_element     |
   //    first_arg_addr -> | trusted_instance  |
   //
-  constexpr size_t kArgsLength = 6;
-  Address args[kArgsLength] = {
-      IntToSmi(length),        IntToSmi(segment_offset),
-      IntToSmi(array_offset),  (*wasm_array).ptr(),
-      IntToSmi(segment_index), wasm_trusted_instance_data()->ptr()};
+  constexpr size_t kArgsLength = 7;
+  Address args[kArgsLength] = {IntToSmi(length),
+                               IntToSmi(segment_offset),
+                               IntToSmi(array_offset),
+                               (*wasm_array).ptr(),
+                               IntToSmi(segment_index),
+                               IntToSmi(is_element ? 1 : 0),
+                               wasm_trusted_instance_data()->ptr()};
   Address* first_arg_addr = &args[kArgsLength - 1];
 
   // A runtime function can throw, therefore we need to make sure that the

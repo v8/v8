@@ -908,6 +908,7 @@
 ##############################################################################
 ['not has_wasm_interpreter or variant != jitless', {
   # Tests to run only with the Wasm interpreter.
+  'regress/wasm/regress-drumbrake-array-segment-args': [SKIP],
   'regress/wasm/regress-drumbrake-cast-nofunc': [SKIP],
   'regress/wasm/regress-drumbrake-exception-null': [SKIP],
   'regress/wasm/regress-drumbrake-exnref': [SKIP],

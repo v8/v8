@@ -6522,8 +6522,10 @@ class Handlers : public HandlersBase {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
 
-    WasmRef result = wasm_runtime->WasmArrayNewSegment(array_index, data_index,
-                                                       offset, length);
+    constexpr bool is_element =
+        OutOfBoundsError == MessageTemplate::kWasmTrapElementSegmentOutOfBounds;
+    WasmRef result = wasm_runtime->WasmArrayNewSegment(
+        is_element, array_index, data_index, offset, length);
     if (V8_UNLIKELY(result.is_null())) {
       MessageTemplate reason = WasmInterpreterThread::GetRuntimeLastWasmError(
           wasm_runtime->GetIsolate());
@@ -6580,8 +6582,8 @@ class Handlers : public HandlersBase {
       TRAP(MessageTemplate::kWasmTrapNullDereference)
     }
 
-    bool ok = wasm_runtime->WasmArrayInitSegment(data_index, array, dest_offset,
-                                                 src_offset, size);
+    bool ok = wasm_runtime->WasmArrayInitSegment(!init_data, data_index, array,
+                                                 dest_offset, src_offset, size);
     if (V8_UNLIKELY(!ok)) {
       MessageTemplate reason = WasmInterpreterThread::GetRuntimeLastWasmError(
           wasm_runtime->GetIsolate());

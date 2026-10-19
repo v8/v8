@@ -228,11 +228,12 @@ class WasmInterpreterRuntime {
   ArrayNewResult ArrayNewUninitialized(uint32_t length,
                                        uint32_t array_index) const;
 
-  WasmRef WasmArrayNewSegment(uint32_t array_index, uint32_t segment_index,
-                              uint32_t offset, uint32_t length);
-  bool WasmArrayInitSegment(uint32_t segment_index, WasmRef wasm_array,
-                            uint32_t array_offset, uint32_t segment_offset,
-                            uint32_t length);
+  WasmRef WasmArrayNewSegment(bool is_element, uint32_t array_index,
+                              uint32_t segment_index, uint32_t offset,
+                              uint32_t length);
+  bool WasmArrayInitSegment(bool is_element, uint32_t segment_index,
+                            WasmRef wasm_array, uint32_t array_offset,
+                            uint32_t segment_offset, uint32_t length);
   bool WasmArrayCopy(WasmRef dest_wasm_array, uint32_t dest_index,
                      WasmRef src_wasm_array, uint32_t src_index,
                      uint32_t length);
