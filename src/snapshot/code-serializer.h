@@ -13,6 +13,7 @@
 #include "src/snapshot/serializer.h"
 #include "src/snapshot/snapshot-data.h"
 #include "src/snapshot/snapshot-source-sink.h"
+#include "src/snapshot/trusted-section-serializer.h"
 #include "src/utils/sha-256.h"
 
 namespace v8 {
@@ -232,36 +233,6 @@ class CodeSerializer : public Serializer {
   void SerializeGeneric(Handle<HeapObject> heap_object, SlotType slot_type);
 
  private:
-  class TrustedSectionSerializer final : public Serializer {
-   public:
-    TrustedSectionSerializer(Isolate* isolate,
-                             CodeSerializer* untrusted_serializer);
-    ~TrustedSectionSerializer() override {
-      OutputStatistics("TrustedSectionSerializer");
-    }
-
-    // Returns the index of |obj| in the exports, adding it if it is new.
-    uint32_t Export(Tagged<HeapObject> obj);
-    uint32_t AddExternalReference(ExternalReferenceEncoder::Value reference,
-                                  ExternalPointerTag tag);
-    void SerializeExports();
-    void FinishSection();
-    const std::vector<uint8_t>* ExternalReferencesPayload() const {
-      return external_references_sink_.data();
-    }
-
-   private:
-    void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
-    // Puts in-sandbox objects into the untrusted section and refers to them.
-    bool SerializeUntrustedReference(Handle<HeapObject> obj);
-
-    CodeSerializer* const untrusted_serializer_;
-    ObjectCacheIndexMap exports_;
-    GlobalHandleCircularQueue<HeapObject> export_queue_;
-    std::vector<EncodedExternalReference> external_references_;
-    SnapshotByteSink external_references_sink_;
-  };
-
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
   bool SerializeTrustedExport(Tagged<HeapObject> obj);
   bool SerializeTrustedExternalReference(

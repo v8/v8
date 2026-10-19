@@ -2743,6 +2743,8 @@ filegroup(
         "src/snapshot/startup-deserializer.h",
         "src/snapshot/startup-serializer.cc",
         "src/snapshot/startup-serializer.h",
+        "src/snapshot/trusted-section-serializer.cc",
+        "src/snapshot/trusted-section-serializer.h",
         "src/strings/char-predicates.h",
         "src/strings/char-predicates-inl.h",
         "src/strings/owning-external-string-resource.h",

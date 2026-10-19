@@ -342,6 +342,8 @@ class Serializer : public SerializerDeserializer {
   }
 
  private:
+  friend class TrustedSectionSerializer;
+
   // Disallow GC during serialization.
   // TODO(leszeks, v8:10815): Remove this constraint.
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
