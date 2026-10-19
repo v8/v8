@@ -294,9 +294,110 @@ struct Resolver {
     return nullptr;
   }
 
+  template <typename T>
+  T* ResolveCanonical(const char* n) {
+    T* decl = Resolve<T>(n);
+    return decl ? decl->getCanonicalDecl() : nullptr;
+  }
+
+  clang::CXXRecordDecl* ResolveDefinition(const char* n) {
+    clang::CXXRecordDecl* decl = Resolve<clang::CXXRecordDecl>(n);
+    return decl ? decl->getDefinition() : nullptr;
+  }
+
  private:
   clang::ASTContext& ctx_;
   clang::DeclContext* decl_ctx_;
+};
+
+struct KnownDecls {
+  clang::CXXRecordDecl* heap_object = nullptr;
+  clang::CXXRecordDecl* smi = nullptr;
+  clang::CXXRecordDecl* tagged_index = nullptr;
+  clang::CXXRecordDecl* cleared_weak_value = nullptr;
+  clang::ClassTemplateDecl* tagged = nullptr;
+  clang::CXXRecordDecl* js_dispatch_handle = nullptr;
+  clang::TypedefNameDecl* external_pointer_handle = nullptr;
+  clang::TypedefNameDecl* cpp_heap_pointer_handle = nullptr;
+  clang::TypedefNameDecl* trusted_pointer_handle = nullptr;
+  clang::CXXRecordDecl* js_dispatch_handle_member = nullptr;
+  clang::ClassTemplateDecl* external_pointer_member = nullptr;
+  clang::ClassTemplateDecl* trusted_pointer_member = nullptr;
+  clang::CXXRecordDecl* cpp_heap_pointer_member = nullptr;
+  clang::CXXRecordDecl* external_pointer_slot = nullptr;
+  clang::CXXRecordDecl* cpp_heap_pointer_slot = nullptr;
+  clang::CXXRecordDecl* trusted_pointer_slot = nullptr;
+  clang::ClassTemplateDecl* tagged_member = nullptr;
+  clang::ClassTemplateDecl* unaligned_value_member = nullptr;
+  clang::CXXRecordDecl* unaligned_double_member = nullptr;
+  clang::CXXRecordDecl* no_gc_mole = nullptr;
+  clang::CXXRecordDecl* conservative_pinning_scope = nullptr;
+
+  static KnownDecls Resolve(clang::ASTContext& ctx) {
+    Resolver v8_internal =
+        Resolver(ctx).ResolveNamespace("v8").ResolveNamespace("internal");
+    KnownDecls decls;
+    // It is a valid situation that no_gc_mole == nullptr when DisableGCMole is
+    // not included and can't be resolved. This is gracefully handled in the
+    // FunctionAnalyzer later.
+    decls.no_gc_mole =
+        v8_internal.Resolve<clang::CXXRecordDecl>("DisableGCMole");
+    decls.conservative_pinning_scope =
+        v8_internal.Resolve<clang::CXXRecordDecl>("ConservativePinningScope");
+    decls.heap_object = v8_internal.ResolveDefinition("HeapObject");
+    decls.smi = v8_internal.ResolveDefinition("Smi");
+    decls.tagged_index = v8_internal.ResolveDefinition("TaggedIndex");
+    decls.cleared_weak_value =
+        v8_internal.Resolve<clang::CXXRecordDecl>("ClearedWeakValue");
+    decls.tagged =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>("Tagged");
+    decls.js_dispatch_handle =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>("JSDispatchHandle");
+    decls.external_pointer_handle =
+        v8_internal.ResolveCanonical<clang::TypedefNameDecl>(
+            "ExternalPointerHandle");
+    decls.cpp_heap_pointer_handle =
+        v8_internal.ResolveCanonical<clang::TypedefNameDecl>(
+            "CppHeapPointerHandle");
+    decls.trusted_pointer_handle =
+        v8_internal.ResolveCanonical<clang::TypedefNameDecl>(
+            "TrustedPointerHandle");
+    decls.js_dispatch_handle_member =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "JSDispatchHandleMember");
+    decls.external_pointer_member =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>(
+            "ExternalPointerMember");
+    decls.trusted_pointer_member =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>(
+            "TrustedPointerMember");
+    decls.cpp_heap_pointer_member =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "CppHeapPointerMember");
+    decls.external_pointer_slot =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "ExternalPointerSlot");
+    decls.cpp_heap_pointer_slot =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "CppHeapPointerSlot");
+    decls.trusted_pointer_slot =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "TrustedPointerSlot");
+    decls.tagged_member =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>("TaggedMember");
+    decls.unaligned_value_member =
+        v8_internal.ResolveCanonical<clang::ClassTemplateDecl>(
+            "UnalignedValueMember");
+    decls.unaligned_double_member =
+        v8_internal.ResolveCanonical<clang::CXXRecordDecl>(
+            "UnalignedDoubleMember");
+    return decls;
+  }
+
+  bool HasRequiredDecls() const {
+    return heap_object != nullptr && smi != nullptr &&
+           tagged_index != nullptr && tagged != nullptr;
+  }
 };
 
 class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
@@ -1063,54 +1164,9 @@ static std::string THIS("this");
 
 class FunctionAnalyzer {
  public:
-  FunctionAnalyzer(clang::MangleContext* ctx,
-                   clang::CXXRecordDecl* heap_object_decl,
-                   clang::CXXRecordDecl* smi_decl,
-                   clang::CXXRecordDecl* tagged_index_decl,
-                   clang::CXXRecordDecl* cleared_weak_value_decl,
-                   clang::ClassTemplateDecl* tagged_decl,
-                   clang::CXXRecordDecl* js_dispatch_handle_decl,
-                   clang::TypedefNameDecl* external_pointer_handle_decl,
-                   clang::TypedefNameDecl* cpp_heap_pointer_handle_decl,
-                   clang::TypedefNameDecl* trusted_pointer_handle_decl,
-                   clang::CXXRecordDecl* js_dispatch_handle_member_decl,
-                   clang::ClassTemplateDecl* external_pointer_member_decl,
-                   clang::ClassTemplateDecl* trusted_pointer_member_decl,
-                   clang::CXXRecordDecl* cpp_heap_pointer_member_decl,
-                   clang::CXXRecordDecl* external_pointer_slot_decl,
-                   clang::CXXRecordDecl* cpp_heap_pointer_slot_decl,
-                   clang::CXXRecordDecl* trusted_pointer_slot_decl,
-                   clang::ClassTemplateDecl* tagged_member_decl,
-                   clang::ClassTemplateDecl* unaligned_value_member_decl,
-                   clang::CXXRecordDecl* unaligned_double_member_decl,
-                   clang::CXXRecordDecl* no_gc_mole_decl,
-                   clang::CXXRecordDecl* conservative_pinning_scope_decl,
+  FunctionAnalyzer(clang::MangleContext* ctx, const KnownDecls& decls,
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
-      : ctx_(ctx),
-        heap_object_decl_(heap_object_decl),
-        smi_decl_(smi_decl),
-        tagged_index_decl_(tagged_index_decl),
-        cleared_weak_value_decl_(cleared_weak_value_decl),
-        tagged_decl_(tagged_decl),
-        js_dispatch_handle_decl_(js_dispatch_handle_decl),
-        external_pointer_handle_decl_(external_pointer_handle_decl),
-        cpp_heap_pointer_handle_decl_(cpp_heap_pointer_handle_decl),
-        trusted_pointer_handle_decl_(trusted_pointer_handle_decl),
-        js_dispatch_handle_member_decl_(js_dispatch_handle_member_decl),
-        external_pointer_member_decl_(external_pointer_member_decl),
-        trusted_pointer_member_decl_(trusted_pointer_member_decl),
-        cpp_heap_pointer_member_decl_(cpp_heap_pointer_member_decl),
-        external_pointer_slot_decl_(external_pointer_slot_decl),
-        cpp_heap_pointer_slot_decl_(cpp_heap_pointer_slot_decl),
-        trusted_pointer_slot_decl_(trusted_pointer_slot_decl),
-        tagged_member_decl_(tagged_member_decl),
-        unaligned_value_member_decl_(unaligned_value_member_decl),
-        unaligned_double_member_decl_(unaligned_double_member_decl),
-        no_gc_mole_decl_(no_gc_mole_decl),
-        conservative_pinning_scope_decl_(conservative_pinning_scope_decl),
-        d_(d),
-        sm_(sm),
-        block_(nullptr) {}
+      : ctx_(ctx), decls_(decls), d_(d), sm_(sm), block_(nullptr) {}
 
   ~FunctionAnalyzer() { delete ctx_; }
 
@@ -1822,7 +1878,7 @@ class FunctionAnalyzer {
     if (specialization) {
       auto* template_decl =
           specialization->getSpecializedTemplate()->getCanonicalDecl();
-      if (template_decl == tagged_decl_) {
+      if (template_decl == decls_.tagged) {
         auto& template_args = specialization->getTemplateArgs();
         if (template_args.size() != 1) {
           llvm::errs() << "v8::internal::Tagged<T> should have exactly one "
@@ -1839,9 +1895,9 @@ class FunctionAnalyzer {
 
         auto* tagged_type_record =
             template_args[0].getAsType()->getAsCXXRecordDecl();
-        return tagged_type_record != smi_decl_ &&
-               tagged_type_record != tagged_index_decl_ &&
-               tagged_type_record != cleared_weak_value_decl_;
+        return tagged_type_record != decls_.smi &&
+               tagged_type_record != decls_.tagged_index &&
+               tagged_type_record != decls_.cleared_weak_value;
       }
     }
     return false;
@@ -1850,20 +1906,20 @@ class FunctionAnalyzer {
   bool IsTableHandleType(clang::QualType qtype) {
     if (qtype.isNull()) return false;
     const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-    if (record && js_dispatch_handle_decl_ &&
-        record->getCanonicalDecl() == js_dispatch_handle_decl_) {
+    if (record && decls_.js_dispatch_handle &&
+        record->getCanonicalDecl() == decls_.js_dispatch_handle) {
       return true;
     }
     clang::QualType current = qtype;
     while (const auto* td_type = current->getAs<clang::TypedefType>()) {
       const clang::TypedefNameDecl* decl =
           td_type->getDecl()->getCanonicalDecl();
-      if ((external_pointer_handle_decl_ &&
-           decl == external_pointer_handle_decl_) ||
-          (cpp_heap_pointer_handle_decl_ &&
-           decl == cpp_heap_pointer_handle_decl_) ||
-          (trusted_pointer_handle_decl_ &&
-           decl == trusted_pointer_handle_decl_)) {
+      if ((decls_.external_pointer_handle &&
+           decl == decls_.external_pointer_handle) ||
+          (decls_.cpp_heap_pointer_handle &&
+           decl == decls_.cpp_heap_pointer_handle) ||
+          (decls_.trusted_pointer_handle &&
+           decl == decls_.trusted_pointer_handle)) {
         return true;
       }
       current = decl->getUnderlyingType();
@@ -1875,18 +1931,18 @@ class FunctionAnalyzer {
     if (record == nullptr) return false;
 
     const clang::CXXRecordDecl* canonical = record->getCanonicalDecl();
-    if ((js_dispatch_handle_member_decl_ &&
-         canonical == js_dispatch_handle_member_decl_) ||
-        (cpp_heap_pointer_member_decl_ &&
-         canonical == cpp_heap_pointer_member_decl_) ||
-        (external_pointer_slot_decl_ &&
-         canonical == external_pointer_slot_decl_) ||
-        (cpp_heap_pointer_slot_decl_ &&
-         canonical == cpp_heap_pointer_slot_decl_) ||
-        (trusted_pointer_slot_decl_ &&
-         canonical == trusted_pointer_slot_decl_) ||
-        (unaligned_double_member_decl_ &&
-         canonical == unaligned_double_member_decl_)) {
+    if ((decls_.js_dispatch_handle_member &&
+         canonical == decls_.js_dispatch_handle_member) ||
+        (decls_.cpp_heap_pointer_member &&
+         canonical == decls_.cpp_heap_pointer_member) ||
+        (decls_.external_pointer_slot &&
+         canonical == decls_.external_pointer_slot) ||
+        (decls_.cpp_heap_pointer_slot &&
+         canonical == decls_.cpp_heap_pointer_slot) ||
+        (decls_.trusted_pointer_slot &&
+         canonical == decls_.trusted_pointer_slot) ||
+        (decls_.unaligned_double_member &&
+         canonical == decls_.unaligned_double_member)) {
       return true;
     }
 
@@ -1895,13 +1951,13 @@ class FunctionAnalyzer {
     if (specialization) {
       auto* template_decl =
           specialization->getSpecializedTemplate()->getCanonicalDecl();
-      if ((tagged_member_decl_ && template_decl == tagged_member_decl_) ||
-          (external_pointer_member_decl_ &&
-           template_decl == external_pointer_member_decl_) ||
-          (trusted_pointer_member_decl_ &&
-           template_decl == trusted_pointer_member_decl_) ||
-          (unaligned_value_member_decl_ &&
-           template_decl == unaligned_value_member_decl_)) {
+      if ((decls_.tagged_member && template_decl == decls_.tagged_member) ||
+          (decls_.external_pointer_member &&
+           template_decl == decls_.external_pointer_member) ||
+          (decls_.trusted_pointer_member &&
+           template_decl == decls_.trusted_pointer_member) ||
+          (decls_.unaligned_value_member &&
+           template_decl == decls_.unaligned_value_member)) {
         return true;
       }
     }
@@ -1909,7 +1965,7 @@ class FunctionAnalyzer {
     if (!InV8Namespace(record)) return false;
     const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
     if (!definition) return false;
-    if (IsDerivedFrom(record, heap_object_decl_)) {
+    if (IsDerivedFrom(record, decls_.heap_object)) {
       return true;
     }
     return false;
@@ -1955,11 +2011,11 @@ class FunctionAnalyzer {
   }
 
   bool IsGCGuard(clang::QualType qtype) {
-    return IsSameType(qtype, no_gc_mole_decl_);
+    return IsSameType(qtype, decls_.no_gc_mole);
   }
 
   bool IsConservativePinningScope(clang::QualType qtype) {
-    return IsSameType(qtype, conservative_pinning_scope_decl_);
+    return IsSameType(qtype, decls_.conservative_pinning_scope);
   }
 
   Environment VisitDecl(clang::Decl* decl, Environment& env) {
@@ -2166,27 +2222,7 @@ class FunctionAnalyzer {
   }
 
   clang::MangleContext* ctx_;
-  clang::CXXRecordDecl* heap_object_decl_;
-  clang::CXXRecordDecl* smi_decl_;
-  clang::CXXRecordDecl* tagged_index_decl_;
-  clang::CXXRecordDecl* cleared_weak_value_decl_;
-  clang::ClassTemplateDecl* tagged_decl_;
-  clang::CXXRecordDecl* js_dispatch_handle_decl_;
-  clang::TypedefNameDecl* external_pointer_handle_decl_;
-  clang::TypedefNameDecl* cpp_heap_pointer_handle_decl_;
-  clang::TypedefNameDecl* trusted_pointer_handle_decl_;
-  clang::CXXRecordDecl* js_dispatch_handle_member_decl_;
-  clang::ClassTemplateDecl* external_pointer_member_decl_;
-  clang::ClassTemplateDecl* trusted_pointer_member_decl_;
-  clang::CXXRecordDecl* cpp_heap_pointer_member_decl_;
-  clang::CXXRecordDecl* external_pointer_slot_decl_;
-  clang::CXXRecordDecl* cpp_heap_pointer_slot_decl_;
-  clang::CXXRecordDecl* trusted_pointer_slot_decl_;
-  clang::ClassTemplateDecl* tagged_member_decl_;
-  clang::ClassTemplateDecl* unaligned_value_member_decl_;
-  clang::CXXRecordDecl* unaligned_double_member_decl_;
-  clang::CXXRecordDecl* no_gc_mole_decl_;
-  clang::CXXRecordDecl* conservative_pinning_scope_decl_;
+  KnownDecls decls_;
 
   clang::DiagnosticsEngine& d_;
   clang::SourceManager& sm_;
@@ -2310,183 +2346,22 @@ class ProblemsFinder : public clang::ASTConsumer,
   void HandleTranslationUnit(clang::ASTContext& ctx) override {
     if (TranslationUnitIgnored()) return;
 
-    Resolver r(ctx);
-
-    // It is a valid situation that no_gc_mole_decl == nullptr when
-    // DisableGCMole is not included and can't be resolved. This is gracefully
-    // handled in the FunctionAnalyzer later.
-    auto v8_internal = r.ResolveNamespace("v8").ResolveNamespace("internal");
-    clang::CXXRecordDecl* no_gc_mole_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("DisableGCMole");
-
-    clang::CXXRecordDecl* conservative_pinning_scope_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("ConservativePinningScope");
-
-    clang::CXXRecordDecl* heap_object_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("HeapObject");
-
-    clang::CXXRecordDecl* smi_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("Smi");
-
-    clang::CXXRecordDecl* tagged_index_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("TaggedIndex");
-
-    clang::CXXRecordDecl* cleared_weak_value_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("ClearedWeakValue");
-
-    clang::ClassTemplateDecl* tagged_decl =
-        v8_internal.Resolve<clang::ClassTemplateDecl>("Tagged");
-
-    clang::CXXRecordDecl* js_dispatch_handle_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("JSDispatchHandle");
-
-    clang::TypedefNameDecl* external_pointer_handle_decl =
-        v8_internal.Resolve<clang::TypedefNameDecl>("ExternalPointerHandle");
-
-    clang::TypedefNameDecl* cpp_heap_pointer_handle_decl =
-        v8_internal.Resolve<clang::TypedefNameDecl>("CppHeapPointerHandle");
-
-    clang::TypedefNameDecl* trusted_pointer_handle_decl =
-        v8_internal.Resolve<clang::TypedefNameDecl>("TrustedPointerHandle");
-
-    clang::CXXRecordDecl* js_dispatch_handle_member_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("JSDispatchHandleMember");
-
-    clang::ClassTemplateDecl* external_pointer_member_decl =
-        v8_internal.Resolve<clang::ClassTemplateDecl>("ExternalPointerMember");
-
-    clang::ClassTemplateDecl* trusted_pointer_member_decl =
-        v8_internal.Resolve<clang::ClassTemplateDecl>("TrustedPointerMember");
-
-    clang::CXXRecordDecl* cpp_heap_pointer_member_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("CppHeapPointerMember");
-
-    clang::CXXRecordDecl* external_pointer_slot_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("ExternalPointerSlot");
-
-    clang::CXXRecordDecl* cpp_heap_pointer_slot_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("CppHeapPointerSlot");
-
-    clang::CXXRecordDecl* trusted_pointer_slot_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("TrustedPointerSlot");
-
-    clang::ClassTemplateDecl* tagged_member_decl =
-        v8_internal.Resolve<clang::ClassTemplateDecl>("TaggedMember");
-
-    clang::ClassTemplateDecl* unaligned_value_member_decl =
-        v8_internal.Resolve<clang::ClassTemplateDecl>("UnalignedValueMember");
-
-    clang::CXXRecordDecl* unaligned_double_member_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("UnalignedDoubleMember");
-
-    if (heap_object_decl != nullptr) {
-      heap_object_decl = heap_object_decl->getDefinition();
-    }
-
-    if (smi_decl != nullptr) {
-      smi_decl = smi_decl->getDefinition();
-    }
-
-    if (tagged_index_decl != nullptr) {
-      tagged_index_decl = tagged_index_decl->getDefinition();
-    }
-
-    if (tagged_decl != nullptr) {
-      tagged_decl = tagged_decl->getCanonicalDecl();
-    }
-
-    if (js_dispatch_handle_decl != nullptr) {
-      js_dispatch_handle_decl = js_dispatch_handle_decl->getCanonicalDecl();
-    }
-
-    if (external_pointer_handle_decl != nullptr) {
-      external_pointer_handle_decl =
-          external_pointer_handle_decl->getCanonicalDecl();
-    }
-
-    if (cpp_heap_pointer_handle_decl != nullptr) {
-      cpp_heap_pointer_handle_decl =
-          cpp_heap_pointer_handle_decl->getCanonicalDecl();
-    }
-
-    if (trusted_pointer_handle_decl != nullptr) {
-      trusted_pointer_handle_decl =
-          trusted_pointer_handle_decl->getCanonicalDecl();
-    }
-
-    if (js_dispatch_handle_member_decl != nullptr) {
-      js_dispatch_handle_member_decl =
-          js_dispatch_handle_member_decl->getCanonicalDecl();
-    }
-
-    if (external_pointer_member_decl != nullptr) {
-      external_pointer_member_decl =
-          external_pointer_member_decl->getCanonicalDecl();
-    }
-
-    if (trusted_pointer_member_decl != nullptr) {
-      trusted_pointer_member_decl =
-          trusted_pointer_member_decl->getCanonicalDecl();
-    }
-
-    if (cpp_heap_pointer_member_decl != nullptr) {
-      cpp_heap_pointer_member_decl =
-          cpp_heap_pointer_member_decl->getCanonicalDecl();
-    }
-
-    if (external_pointer_slot_decl != nullptr) {
-      external_pointer_slot_decl =
-          external_pointer_slot_decl->getCanonicalDecl();
-    }
-
-    if (cpp_heap_pointer_slot_decl != nullptr) {
-      cpp_heap_pointer_slot_decl =
-          cpp_heap_pointer_slot_decl->getCanonicalDecl();
-    }
-
-    if (trusted_pointer_slot_decl != nullptr) {
-      trusted_pointer_slot_decl = trusted_pointer_slot_decl->getCanonicalDecl();
-    }
-
-    if (tagged_member_decl != nullptr) {
-      tagged_member_decl = tagged_member_decl->getCanonicalDecl();
-    }
-
-    if (unaligned_value_member_decl != nullptr) {
-      unaligned_value_member_decl =
-          unaligned_value_member_decl->getCanonicalDecl();
-    }
-
-    if (unaligned_double_member_decl != nullptr) {
-      unaligned_double_member_decl =
-          unaligned_double_member_decl->getCanonicalDecl();
-    }
-
-    if (heap_object_decl != nullptr && smi_decl != nullptr &&
-        tagged_index_decl != nullptr && tagged_decl != nullptr) {
+    KnownDecls decls = KnownDecls::Resolve(ctx);
+    if (decls.HasRequiredDecls()) {
       function_analyzer_ = new FunctionAnalyzer(
-          clang::ItaniumMangleContext::create(ctx, d_), heap_object_decl,
-          smi_decl, tagged_index_decl, cleared_weak_value_decl, tagged_decl,
-          js_dispatch_handle_decl, external_pointer_handle_decl,
-          cpp_heap_pointer_handle_decl, trusted_pointer_handle_decl,
-          js_dispatch_handle_member_decl, external_pointer_member_decl,
-          trusted_pointer_member_decl, cpp_heap_pointer_member_decl,
-          external_pointer_slot_decl, cpp_heap_pointer_slot_decl,
-          trusted_pointer_slot_decl, tagged_member_decl,
-          unaligned_value_member_decl, unaligned_double_member_decl,
-          no_gc_mole_decl, conservative_pinning_scope_decl, d_, sm_);
+          clang::ItaniumMangleContext::create(ctx, d_), decls, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else if (g_verbose) {
-      if (heap_object_decl == nullptr) {
+      if (decls.heap_object == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::HeapObject\n";
       }
-      if (smi_decl == nullptr) {
+      if (decls.smi == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::Smi\n";
       }
-      if (tagged_index_decl == nullptr) {
+      if (decls.tagged_index == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::TaggedIndex\n";
       }
-      if (tagged_decl == nullptr) {
+      if (decls.tagged == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::Tagged<T>\n";
       }
     }
