@@ -155,7 +155,7 @@ decltype(auto) Module::MatchState(Holder<ModuleT> module,
     DISPATCH_STATE(kEvaluating)
     DISPATCH_STATE(kEvaluatingAsync)
     DISPATCH_STATE(kEvaluated)
-    DISPATCH_STATE(kErrored)
+    DISPATCH_STATE(kEvaluatedError)
   }
 #undef DISPATCH_STATE
   FatalUnexpectedStatus(status, kHandledMask);
@@ -175,7 +175,7 @@ template <typename ModuleT, Module::Status... kStates>
 void Module::InState<ModuleT, kStates...>::set_star_exports(
     Tagged<ObjectHashTable> value, WriteBarrierMode mode)
   requires(IsAllowed<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
-                     kEvaluated, kErrored>())
+                     kEvaluated, kEvaluatedError>())
 {
   DCHECK(IsStateIn<kStates...>(this->status()));
   Module::set_exports(value, mode);
@@ -184,7 +184,7 @@ void Module::InState<ModuleT, kStates...>::set_star_exports(
 template <typename ModuleT, Module::Status... kStates>
 bool Module::InState<ModuleT, kStates...>::ExportsFinalized() const
   requires(IsModuleAllowed<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
-                           kEvaluated, kErrored>())
+                           kEvaluated, kEvaluatedError>())
 {
   DCHECK(IsStateIn<kStates...>(this->status()));
   return Module::ExportsFinalized();
@@ -210,7 +210,7 @@ Handle<SourceTextModule> Module::InState<ModuleT, kStates...>::GetCycleRoot(
 template <typename ModuleT, Module::Status... kStates>
 MaybeHandle<SourceTextModule>
 Module::InState<ModuleT, kStates...>::TryGetCycleRoot(Isolate* isolate) const
-  requires(IsAllowed<kErrored>())
+  requires(IsAllowed<kEvaluatedError>())
 {
   DCHECK(IsStateIn<kStates...>(this->status()));
   Tagged<UnionOf<SourceTextModule, TheHole>> root = this->cycle_root();

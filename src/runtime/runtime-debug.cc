@@ -378,7 +378,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(
       case Module::kEvaluated:
         status = "evaluated";
         break;
-      case Module::kErrored:
+      case Module::kEvaluatedError:
         status = "errored";
         break;
     }

@@ -85,8 +85,8 @@ const char* Module::StatusString(Module::Status status) {
       return "EvaluatingAsync";
     case Module::kEvaluated:
       return "Evaluated";
-    case Module::kErrored:
-      return "Errored";
+    case Module::kEvaluatedError:
+      return "EvaluatedError";
   }
   // Reached only with a corrupted status; this function is used to report
   // exactly that, so it must not crash itself.
@@ -98,7 +98,7 @@ void Module::FatalUnexpectedStatus(Status status, uint32_t status_mask) {
   std::stringstream expected;
   for (int s = kFirst; s <= kLast; ++s) {
     if ((status_mask & (uint32_t{1} << s)) == 0) continue;
-    if (expected.str().empty()) {
+    if (!expected.str().empty()) {
       expected << ", ";
     }
     expected << StatusString(static_cast<Status>(s));
@@ -130,7 +130,7 @@ void Module::RecordErrorInternal(Isolate* isolate, Tagged<Object> error) {
     // evaluating.
     self->set_code(self->GetSharedFunctionInfo());
   }
-  SetStatusInternal(Module::kErrored);
+  SetStatusInternal(Module::kEvaluatedError);
   if (isolate->is_catchable_by_javascript(error)) {
     set_exception(error);
   } else {
@@ -143,7 +143,7 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
   MatchState(
       module,
       [](DirectHandle<InState<Module, kUnlinked, kLinked, kEvaluatingAsync,
-                              kEvaluated, kErrored>>
+                              kEvaluated, kEvaluatedError>>
              m) {
 #ifdef DEBUG
         if (Tagged<SourceTextModule> stm; TryCast(*m, &stm)) {
@@ -205,7 +205,7 @@ void Module::Reset(
 
 Tagged<Object> Module::GetException() {
   DisallowGarbageCollection no_gc;
-  DCHECK_EQ(status(), Module::kErrored);
+  DCHECK_EQ(status(), Module::kEvaluatedError);
   DCHECK(!IsTheHole(exception()));
   return exception();
 }
@@ -219,13 +219,15 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
     return SourceTextModule::ResolveExport(
         isolate,
         CheckedCast<InState<SourceTextModule, kPreLinking, kLinking, kLinked,
-                            kEvaluatingAsync, kEvaluated, kErrored>>(stm),
+                            kEvaluatingAsync, kEvaluated, kEvaluatedError>>(
+            stm),
         module_specifier, export_name, loc, must_resolve, resolve_set);
   } else {
     return SyntheticModule::ResolveExport(
         isolate,
         CheckedCast<InState<SyntheticModule, kPreLinking, kLinking, kLinked,
-                            kEvaluatingAsync, kEvaluated, kErrored>>(module),
+                            kEvaluatingAsync, kEvaluated, kEvaluatedError>>(
+            module),
         module_specifier, export_name, loc, must_resolve);
   }
 }
@@ -265,7 +267,7 @@ bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
   return MatchState(
       module,
       [](DirectHandle<InState<Module, kPreLinking, kLinked, kEvaluatingAsync,
-                              kEvaluated, kErrored>>) { return true; },
+                              kEvaluated, kEvaluatedError>>) { return true; },
       [&](Handle<InState<Module, kUnlinked>> unlinked) {
         Handle<InState<Module, kPreLinking>> pre_linking =
             TransitionStatus<kPreLinking>(unlinked);
@@ -290,7 +292,7 @@ bool Module::FinishInstantiate(
   return MatchState(
       module,
       [](DirectHandle<InState<Module, kLinking, kLinked, kEvaluatingAsync,
-                              kEvaluated, kErrored>>) { return true; },
+                              kEvaluated, kEvaluatedError>>) { return true; },
       [&](Handle<InState<Module, kPreLinking>> pre_linking) {
         STACK_CHECK(isolate, false);
         if (Handle<InState<SourceTextModule, kPreLinking>> stm;
@@ -314,12 +316,10 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
 
   // 2. Assert: module.[[Status]] is one of LINKED, EVALUATING-ASYNC, or
   //    EVALUATED.
+  DCHECK(module->status() == kLinked || module->status() == kEvaluatingAsync ||
+         module->status() == kEvaluated || module->status() == kEvaluatedError);
+
   // 3. If module.[[Status]] is either EVALUATING-ASYNC or EVALUATED, then
-  //    a. If module.[[CycleRoot]] is not EMPTY, then
-  //       i. Set module to module.[[CycleRoot]].
-  //    b. Else,
-  //       i. Assert: module.[[Status]] is EVALUATED and
-  //          module.[[EvaluationError]] is a throw completion.
   // A synthetic module has no dependencies, so it is its own cycle root.
   if (Handle<SourceTextModule> stm; TryCast(module, &stm)) {
     module = MatchState(
@@ -330,12 +330,24 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
         },
         [&](DirectHandle<
             InState<SourceTextModule, kEvaluatingAsync, kEvaluated>>
-                m) -> Handle<Module> { return m->GetCycleRoot(isolate); },
-        [&](Handle<InState<SourceTextModule, kErrored>> m) -> Handle<Module> {
+                m) -> Handle<Module> {
+          // a. If module.[[CycleRoot]] is not EMPTY, then
+          //   i. Set module to module.[[CycleRoot]].
+          return m->GetCycleRoot(isolate);
+        },
+        [&](Handle<InState<SourceTextModule, kEvaluatedError>> m)
+            -> Handle<Module> {
+          // a. If module.[[CycleRoot]] is not EMPTY, then
+          //   i. Set module to module.[[CycleRoot]].
           if (Handle<SourceTextModule> cycle_root;
               m->TryGetCycleRoot(isolate).ToHandle(&cycle_root)) {
             return cycle_root;
           }
+          // b. Else,
+          //   i. Assert: module.[[Status]] is EVALUATED and
+          //      module.[[EvaluationError]] is a throw completion.
+          DCHECK_EQ(m->status(), kEvaluatedError);
+          DCHECK(!IsTheHole(m->exception()));
           return m;
         });
   }
@@ -345,7 +357,7 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
   if (IsJSPromise(module->top_level_capability())) {
     DirectHandle<JSPromise> capability(
         Cast<JSPromise>(module->top_level_capability()), isolate);
-    DCHECK_IMPLIES(module->status() == kErrored,
+    DCHECK_IMPLIES(module->status() == kEvaluatedError,
                    capability->status() == Promise::kRejected &&
                        capability->result() == module->exception());
     return capability;
@@ -390,7 +402,7 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
         // 11. Return capability.[[Promise]].
         return capability;
       },
-      [&](DirectHandle<InState<Module, kErrored>> m)
+      [&](DirectHandle<InState<Module, kEvaluatedError>> m)
           -> MaybeDirectHandle<JSPromise> {
         // 6. Let capability be ! NewPromiseCapability(%Promise%).
         DirectHandle<JSPromise> capability = isolate->factory()->NewJSPromise();
@@ -444,6 +456,8 @@ bool Module::EvaluateModuleSync(Isolate* isolate, Handle<Module> module) {
   }
 
   // 4. Assert: promise.[[PromiseState]] is either FULFILLED or REJECTED.
+  DCHECK(promise->status() == Promise::kFulfilled ||
+         promise->status() == Promise::kRejected);
   // 5. If promise.[[PromiseState]] is REJECTED, then
   if (promise->status() == Promise::kRejected) {
     // a. If promise.[[PromiseIsHandled]] is false, perform
@@ -506,7 +520,8 @@ DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
     SourceTextModule::FetchStarExports(
         isolate,
         CheckedCast<InState<SourceTextModule, kLinking, kLinked, kEvaluating,
-                            kEvaluatingAsync, kEvaluated, kErrored>>(stm),
+                            kEvaluatingAsync, kEvaluated, kEvaluatedError>>(
+            stm),
         &zone, &visited);
   }
 

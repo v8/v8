@@ -176,7 +176,7 @@ void SourceTextModule::set_flags(uint32_t value) {
 
 template <typename ModuleT, Module::Status... kStates>
 Tagged<SharedFunctionInfo> Module::InState<ModuleT, kStates...>::sfi() const
-  requires(IsAllowed<kUnlinked, kPreLinking, kErrored>())
+  requires(IsAllowed<kUnlinked, kPreLinking, kEvaluatedError>())
 {
   DCHECK(IsStateIn<kStates...>(this->status()));
   return CheckedCast<SharedFunctionInfo>(this->code());

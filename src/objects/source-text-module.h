@@ -233,14 +233,14 @@ V8_OBJECT class SourceTextModule : public Module {
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExport(
       Isolate* isolate,
       Handle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync,
-                     kEvaluated, kErrored>>
+                     kEvaluated, kEvaluatedError>>
           module,
       DirectHandle<String> module_specifier, Handle<String> export_name,
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveImport(
       Isolate* isolate,
       DirectHandle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync,
-                           kEvaluated, kErrored>>
+                           kEvaluated, kEvaluatedError>>
           module,
       MaybeHandle<String> name, int module_request_index, MessageLocation loc,
       bool must_resolve, ResolveSet* resolve_set);
@@ -248,7 +248,7 @@ V8_OBJECT class SourceTextModule : public Module {
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
       Isolate* isolate,
       DirectHandle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync,
-                           kEvaluated, kErrored>>
+                           kEvaluated, kEvaluatedError>>
           module,
       DirectHandle<String> module_specifier, Handle<String> export_name,
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
@@ -268,7 +268,7 @@ V8_OBJECT class SourceTextModule : public Module {
   static void FetchStarExports(
       Isolate* isolate,
       Handle<InState<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
-                     kEvaluated, kErrored>>
+                     kEvaluated, kEvaluatedError>>
           module,
       Zone* zone, UnorderedModuleSet* visited);
 

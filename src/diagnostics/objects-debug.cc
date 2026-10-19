@@ -3076,7 +3076,7 @@ void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryVerify(
 }
 
 void Module::ModuleVerify(Isolate* isolate) {
-  CHECK_EQ(status() == Module::kErrored, !IsTheHole(exception()));
+  CHECK_EQ(status() == Module::kEvaluatedError, !IsTheHole(exception()));
 
   CHECK(IsUndefined(module_namespace()) || IsCell(module_namespace()));
   if (IsCell(module_namespace())) {
@@ -3090,7 +3090,7 @@ void Module::ModuleVerify(Isolate* isolate) {
     }
   }
 
-  if (!(status() == kErrored || status() == kEvaluating ||
+  if (!(status() == kEvaluatedError || status() == kEvaluating ||
         status() == kEvaluatingAsync || status() == kEvaluated)) {
     CHECK(IsUndefined(top_level_capability()));
   }
@@ -3128,7 +3128,7 @@ void JSDeferredModuleNamespace::JSDeferredModuleNamespaceVerify(
 }
 
 void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
-  if (status() == kErrored) {
+  if (status() == kEvaluatedError) {
     CHECK(IsSharedFunctionInfo(code()));
     CHECK_EQ(!IsTheHole(cycle_root()),
              async_evaluation_ordinal() == kAsyncEvaluateDidFinish);

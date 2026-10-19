@@ -2298,7 +2298,7 @@ Module::Status Module::GetStatus() const {
       // TODO(syg): Expose kEvaluatingAsync in API as well.
     case i::Module::kEvaluated:
       return kEvaluated;
-    case i::Module::kErrored:
+    case i::Module::kEvaluatedError:
       return kErrored;
   }
   UNREACHABLE();

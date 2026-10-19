@@ -65,7 +65,7 @@ V8_OBJECT class SyntheticModule : public Module {
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExport(
       Isolate* isolate,
       DirectHandle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync,
-                           kEvaluated, kErrored>>
+                           kEvaluated, kEvaluatedError>>
           module,
       DirectHandle<String> module_specifier, DirectHandle<String> export_name,
       MessageLocation loc, bool must_resolve);
