@@ -14,6 +14,8 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/backend/simd-shuffle.h"
+#include "src/compiler/wasm-compiler-definitions.h"
+#include "src/wasm/value-type.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8::internal::compiler::turboshaft {
@@ -3199,6 +3201,20 @@ TEST_F(TurboshaftInstructionSelectorTest, S256SelectAVX10_1) {
 
 #endif  // V8_ENABLE_SIMD256
 #endif  // V8_ENABLE_AVX10_1
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       WasmIsolateFieldUsesRootRelativeAddressing) {
+  wasm::ValueType kTypes[] = {wasm::kWasmI64};
+  wasm::FunctionSig sig(1, 0, kTypes);
+  StreamBuilder m(this, GetWasmCallDescriptor(zone(), &sig));
+  V<WordPtr> top_addr = m.IsolateField(IsolateFieldId::kNewAllocationInfoTop);
+  m.Return(m.LoadOffHeap(top_addr, MemoryRepresentation::UintPtr()));
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64Movq, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_Root, s[0]->addressing_mode());
+}
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 

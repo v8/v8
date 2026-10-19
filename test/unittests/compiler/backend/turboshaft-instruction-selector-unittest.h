@@ -177,6 +177,15 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
   class StreamBuilder final : public BaseAssembler {
    public:
     StreamBuilder(TurboshaftInstructionSelectorTest* test,
+                  CallDescriptor* call_descriptor)
+        : BaseAssembler(test->data(), test->graph(), test->graph(),
+                        test->zone()),
+          test_(test),
+          call_descriptor_(call_descriptor) {
+      Init();
+    }
+
+    StreamBuilder(TurboshaftInstructionSelectorTest* test,
                   MachineType return_type)
         : BaseAssembler(test->data(), test->graph(), test->graph(),
                         test->zone()),

@@ -3793,7 +3793,7 @@ void VisitWordCompare(InstructionSelector* selector, OpIndex node,
 
 void VisitWord64EqualImpl(InstructionSelector* selector, OpIndex node,
                           FlagsContinuation* cont) {
-  if (selector->CanUseRootsRegister()) {
+  if (selector->CanUseRootsRegister() && selector->isolate() != nullptr) {
     X64OperandGenerator g(selector);
     const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;

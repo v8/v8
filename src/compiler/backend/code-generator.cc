@@ -639,7 +639,8 @@ bool CodeGenerator::IsMaterializableFromRoot(Handle<HeapObject> object,
                                              RootIndex* index_return) {
   const CallDescriptor* incoming_descriptor =
       linkage()->GetIncomingDescriptor();
-  if (incoming_descriptor->flags() & CallDescriptor::kCanUseRoots) {
+  if ((incoming_descriptor->flags() & CallDescriptor::kCanUseRoots) &&
+      isolate() != nullptr) {
     return isolate()->roots_table().IsRootHandle(object, index_return) &&
            RootsTable::IsImmortalImmovable(*index_return);
   }
