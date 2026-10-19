@@ -82,8 +82,9 @@ security vulnerability report.
 
 When executing a triage task, delegate tactical steps to subagents:
 
-- **Researcher**: Fetching report details, identifying experts
-  (`find_experts_for_file`), and locating Buganizer components.
+- **Researcher**: Fetching report details, searching for duplicate issues,
+  identifying experts (`find_experts_for_file`), and locating Buganizer
+  components.
 - **Builder**: Setting up the environment (`git checkout`) and building specific
   variants (Release, ASan, non-ASan).
 - **Tester**: Baseline reproduction across multiple configurations and security
@@ -110,9 +111,9 @@ Buganizer.
 
 - **Orchestrator Instruction**: "Retrieve the `INVOKER_INFO_SESSION_ID` from the
   environment. Invoke the Researcher to render Buganizer issue `<id>`, extract
-  the POC and d8 flags, find top experts for affected files, and identify the
-  correct component. Instruct the subagent to return only a concise technical
-  summary."
+  the POC and d8 flags, search for duplicate or related issues, find top experts
+  for affected files, and identify the correct component. Instruct the subagent
+  to return only a concise technical summary."
 - **Conversation ID Persistence**: The Orchestrator MUST store the
   `INVOKER_INFO_SESSION_ID` in its current context immediately to ensure the
   mandatory first sentence in Phase 5 uses the correct, verified ID.
@@ -146,6 +147,19 @@ Buganizer.
   if a ClusterFuzz report link remains inaccessible.
 - **Mapping**: Include identified experts and the specific Buganizer component
   (e.g., `Blink > JavaScript > Maglev`).
+- **Duplicate Check**: Search Buganizer across both open and closed issues (via
+  `issues readonly search` using the crash state, assertion expression, and
+  affected file or function name, plus `lookup_similar_issues` and
+  `lookup-recommendations`) for existing reports of the same root cause. Record
+  any matching issue IDs, their current status, assignee, and prior triage
+  decisions:
+  - If an **open** canonical issue already has a working minimal reproducer and
+    triage decision, surface it to the user and ask whether to fast-path
+    directly to deduplication.
+  - If a matching ClusterFuzz issue was **auto-closed** (`VERIFIED` or
+    `NOT_REPRODUCIBLE`) when an older testcase stopped reproducing, proceed with
+    reproduction and minimization so the canonical issue can be reopened with a
+    clean reproducer.
 
 ### 2. Phase: Exhaustive Reproduction (Delegation)
 
@@ -223,8 +237,10 @@ Draft a short, precise synthesis based on verified subagent findings.
   by double line breaks within the same nested list.
 - **Content**:
   - **Classification** (1 line): `Vulnerability` / `Bug` /
-    `Not a Bug (Intended Behavior)` / `Failed to Reproduce`. **MANDATORY**: Only
-    classify as "Vulnerability" if local reproduction was successful.
+    `Not a Bug (Intended Behavior)` / `Failed to Reproduce` (append
+    `(Duplicate of issue <id>)` if a canonical duplicate was identified).
+    **MANDATORY**: Only classify as "Vulnerability" if local reproduction was
+    successful.
 
   - **Security Impact** (1 line): Classify as "**None**" (experimental,
     disabled, or V8 Sandbox bypass with `Security_Impact-None` and `v8-sandbox`
@@ -335,6 +351,11 @@ the draft.
     custom field `1223086` (`set_issue_custom_field` with
     `customFieldId: "1223086"` and `customFieldValue: ""`) so release automation
     does not re-promote the issue.
+  - **Deduplication**: When the user approves deduplicating into an existing
+    canonical issue, mark the duplicate issue(s) via `mark_issue_as_duplicate`
+    (`issues mutate update duplicate --issue_id <dup_id> --target_id <canonical_id>`).
+    If the canonical issue was prematurely auto-closed (e.g., by ClusterFuzz),
+    reopen it to `ASSIGNED` and attach the minimized POC.
 
 ### 7. Phase: Cleanup & Preservation
 
@@ -351,6 +372,8 @@ Finalize the session by securing artifacts and cleaning up the environment.
 
 ## Technical Quality Checklist
 
+- [ ] **Duplicate Check**: Did the Researcher search Buganizer (open and closed
+  issues) for existing reports with the same crash signature or root cause?
 - [ ] **Classification Accuracy**: Does the result match the criteria in
   `docs/security/triaging.md`? (e.g., `nullptr` is a Bug, safe termination is
   Intended Behavior).
