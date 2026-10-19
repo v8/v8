@@ -2571,8 +2571,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   if (!v8_flags.incremental_marking) return;
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  const char* filter_flag = "--turbo-filter=NOTHING";
-  FlagList::SetFlagsFromString(filter_flag, strlen(filter_flag));
+  v8_flags.turbo_filter.Set("NOTHING");
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
 

@@ -457,6 +457,13 @@ TEST(FlagInternalsTest, LookupAllFlagsByName) {
   }
 }
 
+TEST(FlagInternalsTest, LookupAllFlagsByPointer) {
+  for (const Flag& flag : Flags()) {
+    if (flag.IsReadOnly()) continue;
+    CHECK_EQ(&flag, FindFlagByPointer(flag.valptr_));
+  }
+}
+
 TEST(FlagInternalsTest, LookupAllImplicationFlagsByName) {
   for (const Flag& flag : Flags()) {
     CHECK_EQ(&flag, FindImplicationFlagByName(flag.name()));
@@ -466,13 +473,25 @@ TEST(FlagInternalsTest, LookupAllImplicationFlagsByName) {
 }
 
 TEST(FlagInternalsTest, ImplicationOrderShouldNotMatter) {
-  static constexpr char kTestingBoolFlagC[] = "--testing-bool-flag-C";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(kTestingBoolFlagC,
-                                           strlen(kTestingBoolFlagC)));
+  v8_flags.testing_bool_flag_C.Set(true);
   FlagList::EnforceFlagImplications();
   CHECK(v8_flags.testing_bool_flag_C);
   CHECK(!v8_flags.testing_bool_flag_B);
   CHECK(!v8_flags.testing_bool_flag_A);
+}
+
+TEST_F(FlagDefinitionsTest, FlagValueSetChecksContradictions) {
+  SaveFlags save_flags;
+  v8_flags.flag_processing_mode.Set("abort-on-error");
+  v8_flags.testing_bool_flag.Set(true);
+  // Setting the same boolean value again is allowed.
+  v8_flags.testing_bool_flag.Set(true);
+  // Setting a contradictory boolean value fails.
+  ASSERT_DEATH_IF_SUPPORTED(
+      v8_flags.testing_bool_flag.Set(false),
+      "Command-line provided flag --testing-bool-flag specified as both true "
+      "and false");
+  FindFlagByName("flag_processing_mode")->Reset();
 }
 
 TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
@@ -483,8 +502,7 @@ TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
   }
   {
     SaveFlags save_flags;
-    const char* str = "--expose-trigger-failure";
-    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    v8_flags.expose_trigger_failure.Set(true);
     FlagList::EnforceFlagImplications();
     CHECK(v8_flags.expose_trigger_failure);
     CHECK(v8_flags.test_only_unsafe);
@@ -492,8 +510,7 @@ TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
 #if V8_ENABLE_WEBASSEMBLY
   {
     SaveFlags save_flags;
-    const char* str = "--no-wasm-bounds-checks";
-    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    v8_flags.wasm_bounds_checks.Set(false);
     FlagList::EnforceFlagImplications();
     CHECK(!v8_flags.wasm_bounds_checks);
     CHECK(v8_flags.test_only_unsafe);
@@ -501,8 +518,7 @@ TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   {
     SaveFlags save_flags;
-    const char* str = "--gc-fake-mmap=/tmp/foo";
-    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    v8_flags.gc_fake_mmap.Set("/tmp/foo");
     FlagList::EnforceFlagImplications();
     CHECK_EQ(0, strcmp(v8_flags.gc_fake_mmap, "/tmp/foo"));
     CHECK(v8_flags.test_only_unsafe);
@@ -512,16 +528,14 @@ TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
     // Test conditional DISALLOW_UNSAFE_FLAG_IF: a non-default valid stack size
     // should not imply --test-only-unsafe, but an invalid one should.
     SaveFlags save_flags;
-    const char* str = "--stack-size=100";
-    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    v8_flags.stack_size.Set(100);
     FlagList::EnforceFlagImplications();
     CHECK_EQ(100, v8_flags.stack_size);
     CHECK(!v8_flags.test_only_unsafe);
   }
   {
     SaveFlags save_flags;
-    const char* str = "--stack-size=40";
-    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    v8_flags.stack_size.Set(40);
     FlagList::EnforceFlagImplications();
     CHECK_EQ(40, v8_flags.stack_size);
     CHECK(v8_flags.test_only_unsafe);
@@ -532,8 +546,7 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
   {
     // Setting --disallow-unsafe-flags alone should not imply --fuzzing.
     SaveFlags save_flags;
-    const char* str = "--disallow-unsafe-flags";
-    CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+    v8_flags.disallow_unsafe_flags.Set(true);
     FlagList::EnforceFlagImplications();
     CHECK(v8_flags.disallow_unsafe_flags);
     CHECK(!v8_flags.fuzzing);
@@ -571,8 +584,7 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
 
 TEST_F(FlagDefinitionsTest, CorrectnessFuzzerSuppressionsIsDeveloperOnly) {
   SaveFlags save_flags;
-  const char* str = "--correctness-fuzzer-suppressions";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+  v8_flags.correctness_fuzzer_suppressions.Set(true);
   FlagList::EnforceFlagImplications();
   CHECK(v8_flags.correctness_fuzzer_suppressions);
   CHECK(v8_flags.developer_only_features);

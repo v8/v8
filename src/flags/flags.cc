@@ -163,6 +163,7 @@ struct FlagError : public std::ostringstream {
 
 bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
                            const char* implied_by) {
+  CHECK_NE(SetBy::kDefault, new_set_by);
   if (new_set_by == SetBy::kWeakImplication &&
       (set_by_ == SetBy::kImplication || set_by_ == SetBy::kCommandLine)) {
     return false;
@@ -284,34 +285,45 @@ bool Flag::IsDefault() const {
 
 void Flag::ReleaseDynamicAllocations() {
   if (type_ != TYPE_STRING) return;
-  if (owns_ptr_) DeleteArray(string_value());
+  if (owns_ptr_) {
+    DeleteArray(string_value());
+    owns_ptr_ = false;
+  }
 }
 
 void Flag::Reset() {
+  set_by_ = SetBy::kDefault;
+  implied_by_ = nullptr;
+#ifdef DEBUG
+  implied_by_ptr_ = nullptr;
+#endif
+  if (IsReadOnly()) return;
   switch (type_) {
     case TYPE_BOOL:
-      set_bool_variable(bool_default(), SetBy::kDefault);
+      *reinterpret_cast<FlagValue<bool>*>(valptr_) = bool_default();
       break;
     case TYPE_MAYBE_BOOL:
-      set_maybe_bool_variable(std::nullopt, SetBy::kDefault);
+      *reinterpret_cast<FlagValue<std::optional<bool>>*>(valptr_) =
+          std::nullopt;
       break;
     case TYPE_INT:
-      set_int_variable(int_default(), SetBy::kDefault);
+      *reinterpret_cast<FlagValue<int>*>(valptr_) = int_default();
       break;
     case TYPE_UINT:
-      set_uint_variable(uint_default(), SetBy::kDefault);
+      *reinterpret_cast<FlagValue<unsigned int>*>(valptr_) = uint_default();
       break;
     case TYPE_UINT64:
-      set_uint64_variable(uint64_default(), SetBy::kDefault);
+      *reinterpret_cast<FlagValue<uint64_t>*>(valptr_) = uint64_default();
       break;
     case TYPE_FLOAT:
-      set_float_variable(float_default(), SetBy::kDefault);
+      *reinterpret_cast<FlagValue<double>*>(valptr_) = float_default();
       break;
     case TYPE_SIZE_T:
-      set_size_t_variable(size_t_default(), SetBy::kDefault);
+      *reinterpret_cast<FlagValue<size_t>*>(valptr_) = size_t_default();
       break;
     case TYPE_STRING:
-      set_string_value(string_default(), false, SetBy::kDefault);
+      ReleaseDynamicAllocations();
+      *reinterpret_cast<FlagValue<const char*>*>(valptr_) = string_default();
       break;
   }
 }
@@ -475,6 +487,51 @@ Flag* FindImplicationFlagByName(const char* name) {
 // This can be used to look up flags that might not exist (e.g. invalid command
 // line flags).
 Flag* FindFlagByName(const char* name) { return GetFlagByName(name, false); }
+
+// Optimized look-up of flags by pointer using binary search. The mutable
+// entries in 'flags' are in the exact declaration order of 'FlagValues'
+// ('v8_flags'), so their 'valptr_' addresses are strictly increasing.
+Flag* FindFlagByPointer(const void* ptr) {
+  DCHECK_LE(&v8_flags, ptr);
+  DCHECK_LT(ptr, &v8_flags + 1);
+  Flag* flag = std::lower_bound(std::begin(flags), std::end(flags), ptr,
+                                [](const Flag& flag, const void* ptr) {
+                                  // Read-only flags have a null 'valptr_'; scan
+                                  // back to the preceding mutable flag to
+                                  // preserve the monotonic pointer order.
+                                  const Flag* f = &flag;
+                                  while (f->IsReadOnly()) {
+                                    if (f == std::begin(flags)) return true;
+                                    --f;
+                                  }
+                                  return f->valptr_ < ptr;
+                                });
+  DCHECK_NE(flag, std::end(flags));
+  DCHECK(flag->PointsTo(ptr));
+  return flag;
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+void FlagValue<bool>::Set(bool new_value) {
+  FindFlagByPointer(this)->set_bool_variable(new_value,
+                                             Flag::SetBy::kCommandLine);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+void FlagValue<int>::Set(int new_value) {
+  FindFlagByPointer(this)->set_int_variable(new_value,
+                                            Flag::SetBy::kCommandLine);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+void FlagValue<const char*>::Set(const char* new_value) {
+  FindFlagByPointer(this)->set_string_value(
+      new_value ? StrDup(new_value) : nullptr, new_value != nullptr,
+      Flag::SetBy::kCommandLine);
+}
 
 static const char* Type2String(Flag::FlagType type) {
   switch (type) {

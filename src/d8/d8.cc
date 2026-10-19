@@ -7166,10 +7166,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // establish this link here.
       disallow_unsafe_flags = true;
       disallow_developer_only_features = true;
-      static constexpr char kFlagProcessingMode[] =
-          "--flag-processing-mode=exit-on-error";
-      i::FlagList::SetFlagsFromString(kFlagProcessingMode,
-                                      strlen(kFlagProcessingMode));
+      i::v8_flags.flag_processing_mode.Set("exit-on-error");
       // We require `--run-as-security-poc`or `--run-as-sandbox-security-poc` as
       // first parameter to set the flag processing modes properly. The
       // configuration then consistently bails out with exit(-1) for flag
@@ -7409,7 +7406,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         flag.Reset();
       }
     } else {
-      i::v8_flags.test_only_unsafe = true;
+      i::v8_flags.test_only_unsafe.Set(true);
     }
   };
   // The flags below represent known unsafe configurations. They are blocked by
@@ -7447,7 +7444,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         flag.Reset();
       }
     } else {
-      i::v8_flags.developer_only_features = true;
+      i::v8_flags.developer_only_features.Set(true);
     }
   };
   // Handle d8-only developer-only flags.
@@ -7494,9 +7491,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       "  -C        set the current working directory before executing "
       "subsequent files\n";
   using HelpOptions = i::FlagList::HelpOptions;
-  static constexpr char kStandaloneD8ShellFlag[] = "--is_standalone_d8_shell";
-  i::FlagList::SetFlagsFromString(kStandaloneD8ShellFlag,
-                                  strlen(kStandaloneD8ShellFlag));
+  i::v8_flags.is_standalone_d8_shell.Set(true);
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
                                        HelpOptions(HelpOptions::kExit, usage));
   i::FlagList::ResolveContradictionsWhenFuzzing();
