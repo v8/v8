@@ -232,12 +232,15 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
   Exactness exactness = Exactness::kAnySubtype;
   uint32_t type_index;
   if (heap_index < 0) {
-    int64_t min_1_byte_leb128 = -64;
-    if (!VALIDATE(heap_index >= min_1_byte_leb128)) {
+    // Concrete type indices (heap_index >= 0) are encoded as multi-byte s33
+    // LEB128, whereas abstract heap types and type prefixes ('shared', 'exact')
+    // are encoded as single bytes.
+    if (!VALIDATE(length == 1)) {
       DecodeError<ValidationTag>(decoder, pc, "Unknown heap type %" PRId64,
                                  heap_index);
       return {kWasmBottom, length};
     }
+    DCHECK_GE(heap_index, -64);
     uint8_t uint_7_mask = 0x7F;
     uint8_t code = static_cast<ValueTypeCode>(heap_index) & uint_7_mask;
     SharedFlag is_shared = SharedFlag{false};
@@ -248,8 +251,10 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
             kSharedFlagCode);
         return {kWasmBottom, length};
       }
-      code = decoder->read_u8<ValidationTag>(pc + length, "heap type");
-      length++;
+      // 'shared' can only be followed by an abstract heap type, which is
+      // encoded as a single byte.
+      code = decoder->read_u8<ValidationTag>(pc + 1, "heap type");
+      length = 2;
       is_shared = SharedFlag{true};
     }
     switch (code) {
@@ -350,6 +355,16 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
                                      "--wasm-custom-descriptors");
           return {kWasmBottom, 0};
         }
+        if (!VALIDATE(!is_shared)) {
+          DecodeError<ValidationTag>(
+              decoder, pc,
+              "invalid heap type 'shared exact', 'shared' is only allowed on "
+              "abstract heap types");
+          return {kWasmBottom, 0};
+        }
+        // 'exact' is a single-byte prefix followed by a concrete type index
+        // encoded as a (potentially multi-byte) u32v.
+        DCHECK_EQ(1, length);
         auto [nested_index, index_length] =
             decoder->read_u32v<ValidationTag>(pc + 1, "type index");
         type_index = nested_index;
@@ -363,6 +378,7 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
         return {kWasmBottom, length};
     }
   } else {
+    // Concrete type indices are encoded as non-negative s33 LEB128 values.
     type_index = static_cast<uint32_t>(heap_index);
   }
   if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
@@ -776,7 +792,7 @@ struct SelectTypeImmediate {
   SelectTypeImmediate(WasmEnabledFeatures enabled,
                       WasmDetectedFeatures* detected, Decoder* decoder,
                       const uint8_t* pc, ValidationTag = {}) {
-    uint8_t num_types;
+    uint32_t num_types;
     std::tie(num_types, length) =
         decoder->read_u32v<ValidationTag>(pc, "number of select types");
     if (!VALIDATE(num_types == 1)) {

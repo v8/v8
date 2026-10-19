@@ -2880,6 +2880,12 @@ TEST_F(FunctionBodyDecoderTest, SelectWithType_fail) {
                 {WASM_SELECT_L(WASM_F64(0.0), WASM_F64(0.0), WASM_ZERO)});
   ExpectFailure(sigs.l_l(),
                 {WASM_SELECT_I(WASM_I64V_1(0), WASM_I64V_1(0), WASM_ZERO)});
+  // Select with type count > 255 whose low byte is 1 (e.g. 257 = 0x81, 0x02).
+  ExpectFailure(sigs.i_i(),
+                {WASM_LOCAL_GET(0), WASM_LOCAL_GET(0), WASM_ZERO,
+                 kExprSelectWithType, U32V_2(257), kI32Code},
+                kAppendEnd,
+                "Invalid number of types. Select accepts exactly one type");
 }
 
 TEST_F(FunctionBodyDecoderTest, Throw) {
@@ -3901,6 +3907,35 @@ TEST_F(FunctionBodyDecoderTest, RefNull) {
   // It fails for undeclared types.
   ExpectFailure(sigs.v_v(), {WASM_REF_NULL(42), kExprDrop}, kAppendEnd,
                 "Type index 42 is out of bounds");
+}
+
+TEST_F(FunctionBodyDecoderTest, ExactHeapTypeEncoding) {
+  WASM_FEATURE_SCOPE(custom_descriptors);
+  WASM_FEATURE_SCOPE(shared);
+  HeapType struct_heap_type = builder.AddStruct({F(kWasmI32, true)});
+  uint8_t struct_index = struct_heap_type.ref_index().index;
+  const ValueType exact_type = ValueType::RefNull(struct_heap_type.AsExact());
+  const FunctionSig sig(1, 0, &exact_type);
+
+  // 1-byte kExactCode followed by 1-byte or multi-byte u32v type index.
+  ExpectValidates(&sig, {kExprRefNull, kExactCode, struct_index});
+  ExpectValidates(&sig, {kExprRefNull, kExactCode, U32V_2(struct_index)});
+
+  // Multi-byte encodings of kExactCode (0x62 = -30) are invalid.
+  ExpectFailure(
+      sigs.v_v(),
+      {kExprRefNull, kExactCode | 0x80, 0x7f, struct_index, kExprDrop},
+      kAppendEnd, "Unknown heap type -30");
+  ExpectFailure(sigs.v_v(),
+                {kExprRefNull, kExactCode | 0x80, 0xff, 0xff, 0xff, 0x7f,
+                 struct_index, kExprDrop},
+                kAppendEnd, "Unknown heap type -30");
+
+  // 'shared' prefix before 'exact' is invalid.
+  ExpectFailure(
+      sigs.v_v(),
+      {kExprRefNull, kSharedFlagCode, kExactCode, struct_index, kExprDrop},
+      kAppendEnd, "invalid heap type 'shared exact'");
 }
 
 TEST_F(FunctionBodyDecoderTest, RefIsNull) {
@@ -5456,32 +5491,53 @@ class TypeReaderTest : public TestWithZone {
 TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
   HeapType heap_func = kWasmFuncRef;
   HeapType heap_bottom = kWasmBottom;
+  HeapType heap_index_0 =
+      HeapType::Index(ModuleTypeIndex{0}, SharedFlag{false},
+                      RefTypeKind::kOther, Exactness::kAnySubtype);
 
-  // 1- to 5-byte representation of kFuncRefCode.
+  // Abstract heap types must be encoded as a single byte; multi-byte s33
+  // encodings of kFuncRefCode are invalid.
   {
     const uint8_t data[] = {kFuncRefCode};
     HeapType result = DecodeHeapType(data, data + sizeof(data));
-    EXPECT_TRUE(result == heap_func);
+    EXPECT_EQ(result, heap_func);
   }
   {
     const uint8_t data[] = {kFuncRefCode | 0x80, 0x7F};
     HeapType result = DecodeHeapType(data, data + sizeof(data));
-    EXPECT_EQ(result, heap_func);
+    EXPECT_EQ(result, heap_bottom);
   }
   {
     const uint8_t data[] = {kFuncRefCode | 0x80, 0xFF, 0x7F};
     HeapType result = DecodeHeapType(data, data + sizeof(data));
-    EXPECT_EQ(result, heap_func);
+    EXPECT_EQ(result, heap_bottom);
   }
   {
     const uint8_t data[] = {kFuncRefCode | 0x80, 0xFF, 0xFF, 0x7F};
     HeapType result = DecodeHeapType(data, data + sizeof(data));
-    EXPECT_EQ(result, heap_func);
+    EXPECT_EQ(result, heap_bottom);
   }
   {
     const uint8_t data[] = {kFuncRefCode | 0x80, 0xFF, 0xFF, 0xFF, 0x7F};
     HeapType result = DecodeHeapType(data, data + sizeof(data));
-    EXPECT_EQ(result, heap_func);
+    EXPECT_EQ(result, heap_bottom);
+  }
+
+  // Concrete type indices (non-negative s33) can use 1- to 5-byte LEB128.
+  {
+    const uint8_t data[] = {0x00};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_index_0);
+  }
+  {
+    const uint8_t data[] = {0x80, 0x00};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_index_0);
+  }
+  {
+    const uint8_t data[] = {0x80, 0x80, 0x80, 0x80, 0x00};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_index_0);
   }
 
   {
