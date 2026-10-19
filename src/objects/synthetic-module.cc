@@ -53,7 +53,10 @@ void SyntheticModule::SetExportStrict(Isolate* isolate,
 // Implements Synthetic Module Record's ResolveExport concrete method:
 // https://heycam.github.io/webidl/#smr-resolveexport
 MaybeHandle<Cell> SyntheticModule::ResolveExport(
-    Isolate* isolate, DirectHandle<SyntheticModule> module,
+    Isolate* isolate,
+    DirectHandle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync,
+                         kEvaluated, kErrored>>
+        module,
     DirectHandle<String> module_specifier, DirectHandle<String> export_name,
     MessageLocation loc, bool must_resolve) {
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);

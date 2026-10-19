@@ -208,7 +208,10 @@ void SourceTextModule::StoreVariable(DirectHandle<SourceTextModule> module,
 }
 
 MaybeHandle<Cell> SourceTextModule::ResolveExport(
-    Isolate* isolate, Handle<SourceTextModule> module,
+    Isolate* isolate,
+    Handle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync, kEvaluated,
+                   kErrored>>
+        module,
     DirectHandle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
   DCHECK(!export_name.is_null());
@@ -248,6 +251,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
         resolve_set);
   }
 
+  auto linking_module = CheckedCast<InState<kPreLinking, kLinking>>(module);
   DCHECK(IsSourceTextModuleInfoEntry(*object));
   // Not yet resolved indirect export.
   auto entry = Cast<SourceTextModuleInfoEntry>(object);
@@ -256,28 +260,32 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
           ? MaybeHandle<String>()
           : handle(Cast<String>(entry->import_name()), isolate);
 
-  Handle<Script> script(module->GetScript(), isolate);
+  Handle<Script> script(linking_module->GetScript(), isolate);
   MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
   Handle<Cell> cell;
-  if (!ResolveImport(isolate, module, import_name, entry->module_request(),
-                     new_loc, must_resolve, resolve_set)
+  if (!ResolveImport(isolate, linking_module, import_name,
+                     entry->module_request(), new_loc, must_resolve,
+                     resolve_set)
            .ToHandle(&cell)) {
     return MaybeHandle<Cell>();
   }
 
   // The export table may have changed but the entry in question should be
   // unchanged.
-  Handle<ObjectHashTable> exports(module->exports(), isolate);
+  Handle<ObjectHashTable> exports(linking_module->exports(), isolate);
   DCHECK(IsSourceTextModuleInfoEntry(exports->Lookup(export_name)));
 
   exports = ObjectHashTable::Put(isolate, exports, export_name, cell);
-  module->set_exports(*exports);
+  linking_module->set_exports(*exports);
   return cell;
 }
 
 MaybeHandle<Cell> SourceTextModule::ResolveImport(
-    Isolate* isolate, DirectHandle<SourceTextModule> module,
+    Isolate* isolate,
+    DirectHandle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync,
+                         kEvaluated, kErrored>>
+        module,
     MaybeHandle<String> maybe_name, int module_request_index,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
   DirectHandle<ModuleRequest> module_request(
@@ -329,7 +337,10 @@ MaybeHandle<Cell> SourceTextModule::ResolveImport(
 }
 
 MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
-    Isolate* isolate, DirectHandle<SourceTextModule> module,
+    Isolate* isolate,
+    DirectHandle<InState<kPreLinking, kLinking, kLinked, kEvaluatingAsync,
+                         kEvaluated, kErrored>>
+        module,
     DirectHandle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
   if (!export_name->Equals(ReadOnlyRoots(isolate).default_string())) {
@@ -369,13 +380,13 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
 
     if (!unique_cell.is_null()) {
       // Found a unique star export for this name.
-      if (module->status() <= kLinking) {
-        DCHECK(!module->ExportsFinalized());
-        Handle<ObjectHashTable> exports(module->exports(), isolate);
+      if (DirectHandle<InState<kPreLinking, kLinking>> linking_module;
+          TryCast(module, &linking_module)) {
+        Handle<ObjectHashTable> exports(linking_module->exports(), isolate);
         DCHECK(IsTheHole(exports->Lookup(export_name)));
         exports =
             ObjectHashTable::Put(isolate, exports, export_name, unique_cell);
-        module->set_exports(*exports);
+        linking_module->set_exports(*exports);
       }
       return unique_cell;
     }
@@ -751,7 +762,6 @@ bool SourceTextModule::FinishInstantiate(
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
     DirectHandle<Cell> cell;
-    DCHECK_EQ(module->status(), Module::kLinking);
     if (!ResolveImport(isolate, module, name, entry->module_request(), loc,
                        true, &resolve_set)
              .ToHandle(&cell)) {
@@ -781,12 +791,12 @@ bool SourceTextModule::FinishInstantiate(
   return TransitionComponentToLinked(isolate, module, stack);
 }
 
-void SourceTextModule::FetchStarExports(Isolate* isolate,
-                                        Handle<SourceTextModule> module,
-                                        Zone* zone,
-                                        UnorderedModuleSet* visited) {
-  DCHECK_GE(module->status(), Module::kLinking);
-
+void SourceTextModule::FetchStarExports(
+    Isolate* isolate,
+    Handle<InState<kLinking, kLinked, kEvaluating, kEvaluatingAsync, kEvaluated,
+                   kErrored>>
+        module,
+    Zone* zone, UnorderedModuleSet* visited) {
   // Shortcut.
   if (module->ExportsFinalized()) {
     return;
@@ -825,9 +835,13 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
         isolate);
 
     // Recurse.
-    if (IsSourceTextModule(*requested_module)) {
-      FetchStarExports(isolate, Cast<SourceTextModule>(requested_module), zone,
-                       visited);
+    if (Handle<SourceTextModule> requested_stm;
+        TryCast(requested_module, &requested_stm)) {
+      FetchStarExports(
+          isolate,
+          CheckedCast<InState<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
+                              kEvaluated, kErrored>>(requested_stm),
+          zone, visited);
     }
 
     // Collect all of [requested_module]'s exports that must be added to
@@ -868,7 +882,7 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
     DCHECK(IsCell(*elem.second));
     exports = ObjectHashTable::Put(isolate, exports, elem.first, elem.second);
   }
-  module->set_exports(*exports);
+  module->set_star_exports(*exports);
 }
 
 void SourceTextModule::GatherAvailableAncestors(

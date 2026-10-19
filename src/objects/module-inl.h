@@ -162,6 +162,35 @@ decltype(auto) Module::MatchState(Holder<ModuleT> module,
 }
 
 template <typename ModuleT, Module::Status... kStates>
+void Module::InState<ModuleT, kStates...>::set_exports(
+    Tagged<ObjectHashTable> value, WriteBarrierMode mode)
+  requires(IsModuleAllowed<kPreLinking, kLinking>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  DCHECK(!Module::ExportsFinalized());
+  Module::set_exports(value, mode);
+}
+
+template <typename ModuleT, Module::Status... kStates>
+void Module::InState<ModuleT, kStates...>::set_star_exports(
+    Tagged<ObjectHashTable> value, WriteBarrierMode mode)
+  requires(IsAllowed<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
+                     kEvaluated, kErrored>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  Module::set_exports(value, mode);
+}
+
+template <typename ModuleT, Module::Status... kStates>
+bool Module::InState<ModuleT, kStates...>::ExportsFinalized() const
+  requires(IsModuleAllowed<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
+                           kEvaluated, kErrored>())
+{
+  DCHECK(IsStateIn<kStates...>(this->status()));
+  return Module::ExportsFinalized();
+}
+
+template <typename ModuleT, Module::Status... kStates>
 Tagged<SourceTextModule> Module::InState<ModuleT, kStates...>::GetCycleRoot()
     const
   requires(IsAllowed<kEvaluatingAsync, kEvaluated>())

@@ -215,17 +215,18 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
                                         Handle<String> export_name,
                                         MessageLocation loc, bool must_resolve,
                                         Module::ResolveSet* resolve_set) {
-  DCHECK_GE(module->status(), kPreLinking);
-  DCHECK_NE(module->status(), kEvaluating);
-
   if (Handle<SourceTextModule> stm; TryCast(module, &stm)) {
-    return SourceTextModule::ResolveExport(isolate, stm, module_specifier,
-                                           export_name, loc, must_resolve,
-                                           resolve_set);
+    return SourceTextModule::ResolveExport(
+        isolate,
+        CheckedCast<InState<SourceTextModule, kPreLinking, kLinking, kLinked,
+                            kEvaluatingAsync, kEvaluated, kErrored>>(stm),
+        module_specifier, export_name, loc, must_resolve, resolve_set);
   } else {
     return SyntheticModule::ResolveExport(
-        isolate, CheckedCast<SyntheticModule>(module), module_specifier,
-        export_name, loc, must_resolve);
+        isolate,
+        CheckedCast<InState<SyntheticModule, kPreLinking, kLinking, kLinked,
+                            kEvaluatingAsync, kEvaluated, kErrored>>(module),
+        module_specifier, export_name, loc, must_resolve);
   }
 }
 
@@ -454,9 +455,12 @@ DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
   Zone zone(isolate->allocator(), ZONE_NAME);
   UnorderedModuleSet visited(&zone);
 
-  if (IsSourceTextModule(*module)) {
-    SourceTextModule::FetchStarExports(isolate, Cast<SourceTextModule>(module),
-                                       &zone, &visited);
+  if (Handle<SourceTextModule> stm; TryCast(module, &stm)) {
+    SourceTextModule::FetchStarExports(
+        isolate,
+        CheckedCast<InState<SourceTextModule, kLinking, kLinked, kEvaluating,
+                            kEvaluatingAsync, kEvaluated, kErrored>>(stm),
+        &zone, &visited);
   }
 
   DirectHandle<ObjectHashTable> exports(module->exports(), isolate);

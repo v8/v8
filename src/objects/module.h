@@ -170,8 +170,6 @@ V8_OBJECT class Module : public HeapObject {
       ModuleImportPhase phase = ModuleImportPhase::kEvaluation);
 
   inline Tagged<ObjectHashTable> exports() const;
-  inline void set_exports(Tagged<ObjectHashTable> value,
-                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int hash() const;
   inline void set_hash(int value);
@@ -187,11 +185,6 @@ V8_OBJECT class Module : public HeapObject {
   inline void set_deferred_module_namespace(
       Tagged<UnionOf<Cell, Undefined>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  // Once a module namespace (normal or deferred) has been created in
-  // GetModuleNamespace, all star exports have been fetched and {exports} is
-  // finalized (must not be mutated or rehashed as ICs index into it).
-  inline bool ExportsFinalized() const;
 
   inline Tagged<UnionOf<JSPromise, Undefined>> top_level_capability() const;
 
@@ -279,6 +272,12 @@ V8_OBJECT class Module : public HeapObject {
   static void ResetGraph(Isolate* isolate, Handle<Module> module);
 
  private:
+  inline void set_exports(Tagged<ObjectHashTable> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  // Once a module namespace (normal or deferred) has been created in
+  // GetModuleNamespace, all star exports have been fetched and {exports} is
+  // finalized (must not be mutated or rehashed as ICs index into it).
+  inline bool ExportsFinalized() const;
   inline void set_status(int value);
   inline void set_exception(Tagged<Object> value,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -354,10 +353,26 @@ class Module::InState : public ModuleT {
   static_assert(std::is_base_of_v<Module, ModuleT>);
 
   template <Status... kAllowed>
+  static consteval bool IsModuleAllowed() {
+    return (IsStateIn<kAllowed...>(kStates) && ...);
+  }
+
+  template <Status... kAllowed>
   static consteval bool IsAllowed() {
     return std::is_same_v<ModuleT, SourceTextModule> &&
-           (IsStateIn<kAllowed...>(kStates) && ...);
+           IsModuleAllowed<kAllowed...>();
   }
+
+  inline void set_exports(Tagged<ObjectHashTable> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER)
+    requires(IsModuleAllowed<kPreLinking, kLinking>());
+  inline void set_star_exports(Tagged<ObjectHashTable> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER)
+    requires(IsAllowed<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
+                       kEvaluated, kErrored>());
+  inline bool ExportsFinalized() const
+    requires(IsModuleAllowed<kLinking, kLinked, kEvaluating, kEvaluatingAsync,
+                             kEvaluated, kErrored>());
 
   inline Tagged<SharedFunctionInfo> sfi() const
     requires(IsAllowed<kUnlinked, kPreLinking, kErrored>());
@@ -399,12 +414,11 @@ class Module::InState : public ModuleT {
 
 template <typename ModuleT, Module::Status... kStates>
 struct CastTraits<Module::InState<ModuleT, kStates...>> {
-  template <typename FromModuleT, Module::Status... kFromStates>
-    requires((Module::IsStateIn<kStates...>(kFromStates) && ...))
-  static inline bool AllowFrom(
-      Tagged<Module::InState<FromModuleT, kFromStates...>> value) {
-    DCHECK(Module::IsStateIn<kStates...>(value->status()));
-    if constexpr (std::is_base_of_v<ModuleT, FromModuleT>) {
+  template <typename From>
+    requires(std::is_base_of_v<Module, From>)
+  static inline bool AllowFrom(Tagged<From> value) {
+    if (!Module::IsStateIn<kStates...>(value->status())) return false;
+    if constexpr (std::is_base_of_v<ModuleT, From>) {
       return true;
     } else {
       return Is<ModuleT>(value);
