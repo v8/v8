@@ -132,7 +132,7 @@ ValueNode* Value(ValueNode* node) { return node; }
     } else if (IsDoneWithAbort(res)) {      \
       return ProcessResult::kTruncateBlock; \
     }                                       \
-    DCHECK(IsFail(result));                 \
+    DCHECK(IsFail(res));                    \
   } while (false)
 
 #define REMOVE_AND_RETURN_IF_DONE(result)   \
