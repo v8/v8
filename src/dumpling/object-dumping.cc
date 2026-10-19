@@ -514,6 +514,19 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       os << "<FeedbackVector[" << Cast<FeedbackVector>(obj)->length() << "]>";
       break;
     }
+    case UNINITIALIZED_HEAP_NUMBER_TYPE:
+      // Optimized code materializes the same uninitialized field as the
+      // uninitialized_value hole, so print it the same way.
+      os << "<uninitialized_value>";
+      break;
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_STRUCT_TYPE:
+      os << "<WasmStruct>";
+      break;
+    case WASM_ARRAY_TYPE:
+      os << "<WasmArray>";
+      break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       // TODO(mdanylo): add more cases after a test run with Fuzzilli
       FATAL("Unexpected value in switch: %s\n",
