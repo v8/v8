@@ -121,6 +121,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   bool HasPersistentHandles() { return !!persistent_handles_; }
   bool ContainsPersistentHandle(Address* location);
   bool ContainsLocalHandle(Address* location);
+  bool ContainsStrongRoot(FullObjectSlot slot);
   bool IsHandleDereferenceAllowed();
 #endif
 

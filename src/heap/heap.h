@@ -182,6 +182,9 @@ class StrongRootsEntry final {
 
   // Label that identifies the roots in tooling.
   const char* label;
+#ifdef DEBUG
+  LocalHeap* local_heap;
+#endif
   FullObjectSlot start;
   FullObjectSlot end;
   StrongRootsEntry* prev;
@@ -920,6 +923,9 @@ class Heap final {
   void UnregisterStrongRoots(StrongRootsEntry* entry);
   void UpdateStrongRoots(StrongRootsEntry* entry, FullObjectSlot start,
                          FullObjectSlot end);
+#ifdef DEBUG
+  bool ContainsStrongRoot(LocalHeap* local_heap, FullObjectSlot slot);
+#endif
 
   void SetBuiltinsConstantsTable(Tagged<FixedArray> cache);
   void SetDetachedContexts(Tagged<WeakArrayList> detached_contexts);

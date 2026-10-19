@@ -473,12 +473,9 @@ void Deserializer<IsolateT>::DeserializeTrustedSection() {
   }
   DCHECK_EQ(kSynchronize, source_.Get());
   for (const auto& [index, ref] : trusted_export_refs_) {
-    // TODO(573671140): With CSS off-thread direct handles can only be
-    // dereferenced on the stack.
-    DirectHandle<HeapObject> target = trusted_exports[index];
     WriteHeapPointer(
         SlotAccessorForHeapObject::ForSlotOffset(ref.object, ref.offset),
-        *target, ref.descr);
+        *trusted_exports[index], ref.descr);
   }
 }
 

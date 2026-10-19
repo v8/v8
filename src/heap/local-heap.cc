@@ -221,6 +221,10 @@ bool LocalHeap::ContainsLocalHandle(Address* location) {
   return handles_ ? handles_->Contains(location) : false;
 }
 
+bool LocalHeap::ContainsStrongRoot(FullObjectSlot slot) {
+  return heap_->ContainsStrongRoot(this, slot);
+}
+
 bool LocalHeap::IsHandleDereferenceAllowed() {
   VerifyCurrent();
   return IsRunning();

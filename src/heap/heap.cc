@@ -6990,6 +6990,9 @@ StrongRootsEntry* Heap::RegisterStrongRoots(const char* label,
   base::MutexGuard guard(&strong_roots_mutex_);
 
   StrongRootsEntry* entry = new StrongRootsEntry(label);
+#ifdef DEBUG
+  entry->local_heap = LocalHeap::Current();
+#endif
   entry->start = start;
   entry->end = end;
   entry->prev = nullptr;
@@ -7030,6 +7033,20 @@ void Heap::UnregisterStrongRoots(StrongRootsEntry* entry) {
 
   delete entry;
 }
+
+#ifdef DEBUG
+bool Heap::ContainsStrongRoot(LocalHeap* local_heap, FullObjectSlot slot) {
+  base::MutexGuard guard(&strong_roots_mutex_);
+  for (StrongRootsEntry* current = strong_roots_head_; current;
+       current = current->next) {
+    if (current->local_heap == local_heap && current->start <= slot &&
+        slot < current->end) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
 
 void Heap::SetBuiltinsConstantsTable(Tagged<FixedArray> cache) {
   set_builtins_constants_table(cache);

@@ -150,8 +150,10 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
 
   // We are pretty strict with handle dereferences on background threads: A
   // background local heap is only allowed to dereference its own local handles.
-  if (!local_heap->is_main_thread())
-    return ::heap::base::Stack::IsOnStack(this);
+  if (!local_heap->is_main_thread()) {
+    return ::heap::base::Stack::IsOnStack(this) ||
+           local_heap->ContainsStrongRoot(FullObjectSlot(&obj_));
+  }
 
   // If LocalHeap::Current() is null, we're on the main thread -- if we were to
   // check main thread HandleScopes here, we should additionally check the
