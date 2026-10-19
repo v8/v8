@@ -158,10 +158,12 @@ HeapBase::HeapBase(
       sweeping_support_(sweeping_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
+  const bool check_for_tls = ShouldCheckForTLSOnStack();
   if (stack_start_marker) {
-    stack_->SetStackStart(stack_start_marker->stack_start());
+    stack_->SetStackStart(stack_start_marker->stack_start(), check_for_tls);
   } else {
-    stack_->SetStackStart(v8::base::Stack::GetStackStart());
+    stack_->SetStackStart(v8::base::Stack::GetEffectiveStackStart(),
+                          check_for_tls);
   }
   if (allocation_sampler_) {
     RegisterMoveListener(this);
@@ -431,6 +433,19 @@ bool HeapBase::CurrentThreadIsHeapThread() const {
 
 std::optional<cppgc::StackStartMarker> HeapBase::stack_start_marker() {
   return stack_start_marker_;
+}
+
+bool HeapBase::ShouldCheckForTLSOnStack() const {
+  // TODO(540324230):
+  // 1. Remove `!stack_start_marker_` once embedders migrate to
+  //    StackStartScope.
+  // 2. Remove this method entirely and always check for TLS, once Blink
+  //    correctly sets the stack start for all non-main threads.
+  if (!stack_start_marker_ &&
+      !v8::base::Stack::HasCustomCurrentThreadStackStart()) {
+    return false;
+  }
+  return true;
 }
 
 ClassNameAsHeapObjectNameScope::ClassNameAsHeapObjectNameScope(HeapBase& heap)

@@ -104,10 +104,12 @@ class MinorGCHeapGrowing
 // static
 std::unique_ptr<CppHeap> CppHeap::Create(v8::Platform* platform,
                                          const CppHeapCreateParams& params) {
+  START_ALLOW_USE_DEPRECATED()
   return std::make_unique<internal::CppHeap>(
       platform, params.custom_spaces, params.marking_support,
       params.sweeping_support, params.stack_start_marker,
       params.allocation_sampler);
+  END_ALLOW_USE_DEPRECATED()
 }
 
 cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {

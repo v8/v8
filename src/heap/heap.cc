@@ -6220,7 +6220,8 @@ void Heap::SetStackStart() {
   // deserialization process), we don't need to set the stack start.
   if (main_thread_local_heap_ == nullptr) return;
 
-  void* actual_stack_start = v8::base::Stack::GetStackStart();
+  void* actual_stack_start = v8::base::Stack::GetEffectiveStackStart();
+  const bool check_for_tls = ShouldCheckForTLSOnStack();
 
   // Because of v8::Locker an isolate might be migrated between threads. In such
   // situations the provided stack start marker should only be used on the right
@@ -6228,9 +6229,9 @@ void Heap::SetStackStart() {
   if (stack_start_marker_ && actual_stack_start >= stack_start_marker_ &&
       reinterpret_cast<uintptr_t>(stack_start_marker_) >=
           static_cast<uintptr_t>(GetCurrentStackPosition())) {
-    stack().SetStackStart(stack_start_marker_);
+    stack().SetStackStart(stack_start_marker_, check_for_tls);
   } else {
-    stack().SetStackStart(actual_stack_start);
+    stack().SetStackStart(actual_stack_start, check_for_tls);
   }
 }
 
@@ -6242,6 +6243,16 @@ void Heap::SetStackStart() {
 const ::heap::base::Stack& Heap::stack() const {
   CHECK_NOT_NULL(main_thread_local_heap_);
   return main_thread_local_heap_->stack_;
+}
+
+bool Heap::ShouldCheckForTLSOnStack() const {
+#ifdef VERIFY_HEAP
+  if (v8_flags.verify_heap) return true;
+#endif  // VERIFY_HEAP
+  if (const auto* cpp_heap = CppHeap::From(cpp_heap_)) {
+    return cpp_heap->ShouldCheckForTLSOnStack();
+  }
+  return true;
 }
 
 void Heap::StartTearDown() {
@@ -7836,10 +7847,9 @@ ConservativePinningScope::ConservativePinningScope(Heap* heap) : heap_(heap) {
   // frame layouts). In such cases, we scan the stack either from the last
   // c_entry_fp or the whole stack.
   const Address c_entry_fp = *heap_->isolate()->c_entry_fp_address();
-  const void* frame_address =
-      (c_entry_fp == kNullAddress)
-          ? static_cast<void*>(v8::base::Stack::GetStackStart())
-          : reinterpret_cast<const void*>(c_entry_fp);
+  const void* frame_address = (c_entry_fp == kNullAddress)
+                                  ? heap_->stack().stack_start()
+                                  : reinterpret_cast<const void*>(c_entry_fp);
   // The stack segment covered by this scope should include the scope itself.
   DCHECK_NOT_NULL(frame_address);
   DCHECK_LE(this, frame_address);

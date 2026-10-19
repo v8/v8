@@ -207,6 +207,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle,
 
   std::optional<cppgc::StackStartMarker> stack_start_marker();
 
+  bool ShouldCheckForTLSOnStack() const;
+
   // Termination drops all roots (clears them out) and runs garbage collections
   // in a bounded fixed point loop  until no new objects are created in
   // destructors. Exceeding the loop bound results in a crash.

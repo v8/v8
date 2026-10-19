@@ -46,7 +46,11 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
  public:
   using HandleScopeType = LocalHandleScope;
 
-  explicit LocalIsolate(Isolate* isolate, ThreadKind kind);
+  // The parameter `stack_start` is only used for stack-allocated instances,
+  // where `kind == ThreadKind::kBackground`.
+  explicit LocalIsolate(Isolate* isolate, ThreadKind kind,
+                        v8::base::Stack::StackSlot stack_start =
+                            v8::base::Stack::GetCurrentFrameAddress());
   ~LocalIsolate();
 
   // Kinda sketchy.
