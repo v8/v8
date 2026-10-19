@@ -473,8 +473,12 @@ String16 descriptionForEntry(v8::Local<v8::Context> context,
     }
   }
 
+  // Describing the key can terminate execution (e.g. when a side-effect check
+  // fails). Don't call into V8 again in that case, since the next V8 API call
+  // would clear the pending termination exception.
   String16 value;
-  if (object->GetRealNamedProperty(context, toV8String(isolate, "value"))
+  if (!isolate->IsExecutionTerminating() &&
+      object->GetRealNamedProperty(context, toV8String(isolate, "value"))
           .ToLocal(&tmp)) {
     auto wrapper = ValueMirror::create(context, tmp);
     if (wrapper) {
@@ -2050,8 +2054,13 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
         descriptionForPrivateMethodList(array));
   }
   if (internalType == V8InternalValueType::kEntry) {
+    String16 description = descriptionForEntry(context, object);
+    if (isolate->IsExecutionTerminating() &&
+        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+      return nullptr;
+    }
     return std::make_unique<ObjectMirror>(object, "internal#entry",
-                                          descriptionForEntry(context, object));
+                                          description);
   }
   if (internalType == V8InternalValueType::kScope) {
     return std::make_unique<ObjectMirror>(object, "internal#scope",
