@@ -809,10 +809,6 @@
 
   # GC stress sets --concurrent-recompilation-delay itself.
   'compiler/regress-542923494': [SKIP],
-
-  # --stress-compaction and --predictable-gc-schedule imply different
-  # --max-semi-space-size values.
-  'regress/regress-memory-pool-release-task': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################

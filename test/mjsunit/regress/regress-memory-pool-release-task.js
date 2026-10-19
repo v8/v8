@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --trace-gc-nvp --memory-pool-timeout=1 --predictable-gc-schedule
-// Flags: --expose-gc
+// Flags: --trace-gc-nvp --memory-pool-timeout=1 --expose-gc
 
 // The memory pool release task runs on a worker thread, where
 // IsolateGroup::current() may not be set. Make sure tracing from it works.
