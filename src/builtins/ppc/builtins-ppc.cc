@@ -1995,8 +1995,12 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadU64(r5, MemOperand(r5));
 
   __ bind(&trampoline_loaded);
-  __ addi(r0, r5, Operand(interpreter_entry_return_pc_offset.value()));
-  __ mtlr(r0);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ addi(scratch, r5, Operand(interpreter_entry_return_pc_offset.value()));
+    __ mtlr(scratch);
+  }
 
   // Initialize the dispatch table register.
   __ Move(
