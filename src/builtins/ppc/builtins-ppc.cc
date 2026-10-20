@@ -3083,8 +3083,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
     // Increment the total invocation count of the function.
     __ LoadTaggedField(
         scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
-    __ Move(r0, Smi::FromInt(1));
-    __ AddS64(scratch, scratch, r0);
+    Register smi_val = inner_temps.Acquire();
+    __ Move(smi_val, Smi::FromInt(1));
+    __ AddS64(scratch, scratch, smi_val);
     __ StoreTaggedField(
         scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   }
