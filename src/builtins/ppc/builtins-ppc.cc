@@ -1874,7 +1874,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ mov(scratch, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
-    __ and_(r0, r5, scratch, SetRC);
+    __ and_(scratch, r5, scratch, SetRC);
   }
   __ bne(&builtin_call, cr0);
 
