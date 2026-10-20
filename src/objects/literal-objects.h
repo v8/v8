@@ -21,6 +21,7 @@ namespace internal {
 
 class ClassLiteral;
 class StructBodyDescriptor;
+class SandboxTesting;
 
 V8_OBJECT class PrototypeSharedClosureInfo : public Struct {
  public:
@@ -234,6 +235,7 @@ V8_OBJECT class ClassBoilerplate : public Struct {
  private:
   friend class Factory;
   friend class TorqueGeneratedClassBoilerplateAsserts;
+  friend class SandboxTesting;
 
   const TaggedMember<Smi> arguments_count_;
   const TaggedMember<Object> static_properties_template_;

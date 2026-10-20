@@ -29,6 +29,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/literal-objects.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/templates.h"
 #include "src/sandbox/sandbox.h"
@@ -1587,6 +1588,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
         WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE;
     types["NATIVE_CONTEXT_TYPE"] = NATIVE_CONTEXT_TYPE;
     types["MAP_TYPE"] = MAP_TYPE;
+    types["CLASS_BOILERPLATE_TYPE"] = CLASS_BOILERPLATE_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
     types["WASM_FUNC_REF_TYPE"] = WASM_FUNC_REF_TYPE;
     types["WASM_GLOBAL_OBJECT_TYPE"] = WASM_GLOBAL_OBJECT_TYPE;
@@ -1688,6 +1690,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(WeakFixedArray, length_);
     fields[NATIVE_CONTEXT_TYPE]["microtask_queue"] =
         NativeContext::kMicrotaskQueueOffset;
+    fields[CLASS_BOILERPLATE_TYPE]["instance_properties_template"] =
+        offsetof(ClassBoilerplate, instance_properties_template_);
 #ifdef V8_INTL_SUPPORT
     fields[JS_SEGMENTS_TYPE]["icu_iterator_with_text"] =
         offsetof(JSSegments, icu_iterator_with_text_);

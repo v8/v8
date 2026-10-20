@@ -52,7 +52,7 @@ class BuiltinArguments : public JavaScriptArguments {
   // Note: this should return the address after the receiver,
   // even when length() == 1.
   inline Address* address_of_first_argument() const {
-    return address_of_arg_at(kFirstArgsIndex);
+    return address_of_arg_at_or_end(kFirstArgsIndex);
   }
 
   static constexpr int kNewTargetIndex = 0;
