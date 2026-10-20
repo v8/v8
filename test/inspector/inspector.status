@@ -32,7 +32,8 @@
   'runtime/regress-520052954-2': [PASS, ['not asan', SKIP]],
   'runtime/regress-520052954-3': [PASS, ['not asan', SKIP]],
 
-  # Sandbox regression test requiring the memory corruption API.
+  # Sandbox regression tests requiring the memory corruption API.
+  'regress/regress-502337304': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-crbug-568986689': [PASS, ['not memory_corruption_api', SKIP]],
 }],  # ALWAYS
 
