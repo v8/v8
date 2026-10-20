@@ -2669,8 +2669,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       {
         __ subi(r8, r8, Operand(1));
         __ ShiftLeftU64(scratch, r8, Operand(kSystemPointerSizeLog2));
-        __ LoadU64(r0, MemOperand(r7, scratch));
-        __ StoreU64(r0, MemOperand(r5, scratch));
+        __ LoadU64(scratch2, MemOperand(r7, scratch));
+        __ StoreU64(scratch2, MemOperand(r5, scratch));
         __ cmpi(r8, Operand::Zero());
         __ bne(&loop);
       }
