@@ -1672,8 +1672,9 @@ class MachineOptimizationReducer : public Next {
     if (left == right &&
         !(rep == any_of(RegisterRepresentation::Float32(),
                         RegisterRepresentation::Float64())) &&
-        kind == any_of(Kind::kSignedLessThanOrEqual,
-                       Kind::kUnsignedLessThanOrEqual)) {
+        kind == any_of(Kind::kUnsignedLessThanOrEqual,
+                       Kind::kSignedLessThanOrEqual, Kind::kUnsignedLessThan,
+                       Kind::kSignedLessThan)) {
       switch (kind) {
         case Kind::kEqual:
           UNREACHABLE();

@@ -431,4 +431,132 @@ TEST_F(MachineOptimizationReducerTest, ReduceNestedWord64Add128ToWord64Add3) {
 }
 #endif
 
+TEST_F(MachineOptimizationReducerTest, SelfComparisonLessThanOrEqual) {
+  {
+    // Word32
+    const RegisterRepresentation rep32 = RegisterRepresentation::Word32();
+    base::SmallVector<RegisterRepresentation, 1> reps = {rep32};
+    for (ComparisonOp::Kind kind :
+         {ComparisonOp::Kind::kSignedLessThanOrEqual,
+          ComparisonOp::Kind::kUnsignedLessThanOrEqual}) {
+      auto test = CreateFromGraph(base::VectorOf(reps), [kind](auto& t) {
+        auto x = t.template GetParameter<Word32>(0);
+        auto cmp =
+            t.Asm().Comparison(x, x, kind, RegisterRepresentation::Word32());
+        t.Asm().Return(cmp);
+      });
+
+      test.Run<MachineOptimizationReducer>();
+
+      const ReturnOp* ret = test.graph()
+                                .Get(test.graph().LastOperation())
+                                .template TryCast<ReturnOp>();
+      ASSERT_NE(ret, nullptr);
+      ASSERT_EQ(ret->return_values().size(), 1u);
+
+      const ConstantOp* constant = test.graph()
+                                       .Get(ret->return_values()[0])
+                                       .template TryCast<ConstantOp>();
+      ASSERT_NE(constant, nullptr);
+      EXPECT_EQ(constant->kind, ConstantOp::Kind::kWord32);
+      EXPECT_EQ(constant->word32(), 1u);
+      EXPECT_EQ(test.CountOp(Opcode::kComparison), 0u);
+    }
+  }
+  {
+    // Word64
+    const RegisterRepresentation rep64 = RegisterRepresentation::Word64();
+    base::SmallVector<RegisterRepresentation, 1> reps = {rep64};
+    for (ComparisonOp::Kind kind :
+         {ComparisonOp::Kind::kSignedLessThanOrEqual,
+          ComparisonOp::Kind::kUnsignedLessThanOrEqual}) {
+      auto test = CreateFromGraph(base::VectorOf(reps), [kind](auto& t) {
+        auto x = t.template GetParameter<Word64>(0);
+        auto cmp =
+            t.Asm().Comparison(x, x, kind, RegisterRepresentation::Word64());
+        t.Asm().Return(cmp);
+      });
+
+      test.Run<MachineOptimizationReducer>();
+
+      const ReturnOp* ret = test.graph()
+                                .Get(test.graph().LastOperation())
+                                .template TryCast<ReturnOp>();
+      ASSERT_NE(ret, nullptr);
+      ASSERT_EQ(ret->return_values().size(), 1u);
+
+      const ConstantOp* constant = test.graph()
+                                       .Get(ret->return_values()[0])
+                                       .template TryCast<ConstantOp>();
+      ASSERT_NE(constant, nullptr);
+      EXPECT_EQ(constant->kind, ConstantOp::Kind::kWord32);
+      EXPECT_EQ(constant->word32(), 1u);
+      EXPECT_EQ(test.CountOp(Opcode::kComparison), 0u);
+    }
+  }
+}
+
+TEST_F(MachineOptimizationReducerTest, SelfComparisonLessThan) {
+  {
+    // Word32
+    const RegisterRepresentation rep32 = RegisterRepresentation::Word32();
+    base::SmallVector<RegisterRepresentation, 1> reps = {rep32};
+    for (ComparisonOp::Kind kind : {ComparisonOp::Kind::kSignedLessThan,
+                                    ComparisonOp::Kind::kUnsignedLessThan}) {
+      auto test = CreateFromGraph(base::VectorOf(reps), [kind](auto& t) {
+        auto x = t.template GetParameter<Word32>(0);
+        auto cmp =
+            t.Asm().Comparison(x, x, kind, RegisterRepresentation::Word32());
+        t.Asm().Return(cmp);
+      });
+
+      test.Run<MachineOptimizationReducer>();
+
+      const ReturnOp* ret = test.graph()
+                                .Get(test.graph().LastOperation())
+                                .template TryCast<ReturnOp>();
+      ASSERT_NE(ret, nullptr);
+      ASSERT_EQ(ret->return_values().size(), 1u);
+
+      const ConstantOp* constant = test.graph()
+                                       .Get(ret->return_values()[0])
+                                       .template TryCast<ConstantOp>();
+      ASSERT_NE(constant, nullptr);
+      EXPECT_EQ(constant->kind, ConstantOp::Kind::kWord32);
+      EXPECT_EQ(constant->word32(), 0u);
+      EXPECT_EQ(test.CountOp(Opcode::kComparison), 0u);
+    }
+  }
+  {
+    // Word64
+    const RegisterRepresentation rep64 = RegisterRepresentation::Word64();
+    base::SmallVector<RegisterRepresentation, 1> reps = {rep64};
+    for (ComparisonOp::Kind kind : {ComparisonOp::Kind::kSignedLessThan,
+                                    ComparisonOp::Kind::kUnsignedLessThan}) {
+      auto test = CreateFromGraph(base::VectorOf(reps), [kind](auto& t) {
+        auto x = t.template GetParameter<Word64>(0);
+        auto cmp =
+            t.Asm().Comparison(x, x, kind, RegisterRepresentation::Word64());
+        t.Asm().Return(cmp);
+      });
+
+      test.Run<MachineOptimizationReducer>();
+
+      const ReturnOp* ret = test.graph()
+                                .Get(test.graph().LastOperation())
+                                .template TryCast<ReturnOp>();
+      ASSERT_NE(ret, nullptr);
+      ASSERT_EQ(ret->return_values().size(), 1u);
+
+      const ConstantOp* constant = test.graph()
+                                       .Get(ret->return_values()[0])
+                                       .template TryCast<ConstantOp>();
+      ASSERT_NE(constant, nullptr);
+      EXPECT_EQ(constant->kind, ConstantOp::Kind::kWord32);
+      EXPECT_EQ(constant->word32(), 0u);
+      EXPECT_EQ(test.CountOp(Opcode::kComparison), 0u);
+    }
+  }
+}
+
 }  // namespace v8::internal::compiler::turboshaft
