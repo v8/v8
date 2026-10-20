@@ -133,6 +133,7 @@ def _default_args():
                 "-Wno-bitwise-instead-of-logical",
                 "-Wno-builtin-assume-aligned-alignment",
                 "-Wno-unused-parameter",
+                "-Wno-unused-variable",
                 "-Wno-implicit-int-float-conversion",
                 "-Wno-deprecated-copy",
                 "-Wno-non-virtual-dtor",
