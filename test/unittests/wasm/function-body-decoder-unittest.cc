@@ -813,11 +813,33 @@ TEST_F(FunctionBodyDecoderTest, BlockBrBinop) {
 }
 
 TEST_F(FunctionBodyDecoderTest, VoidBlockTypeVariants) {
-  // Valid kVoidCode encoded in 2 bytes.
-  ExpectValidates(sigs.v_v(), {kExprBlock, kVoidCode | 0x80, 0x7F, kExprEnd});
+  // Single-byte kVoidCode is valid.
+  ExpectValidates(sigs.v_v(), {kExprBlock, kVoidCode, kExprEnd});
+  // Multi-byte s33 encodings of kVoidCode (-64) are invalid.
+  ExpectFailure(sigs.v_v(), {kExprBlock, kVoidCode | 0x80, 0x7F, kExprEnd},
+                kAppendEnd, "invalid block type -64");
+  ExpectFailure(sigs.v_v(),
+                {kExprBlock, kVoidCode | 0x80, 0xFF, 0x7F, kExprEnd},
+                kAppendEnd, "invalid block type -64");
+  ExpectFailure(
+      sigs.v_v(),
+      {kExprBlock, kVoidCode | 0x80, 0xFF, 0xFF, 0xFF, 0x7F, kExprEnd},
+      kAppendEnd, "invalid block type -64");
+  // Multi-byte s33 encodings of value type opcodes (e.g. kI32Code = -1) are
+  // invalid.
+  ExpectFailure(sigs.i_v(),
+                {kExprBlock, kI32Code | 0x80, 0x7F, WASM_ZERO, kExprEnd},
+                kAppendEnd, "invalid block type -1");
   // Invalid code, whose last 7 bits coincide with kVoidCode.
   ExpectFailure(sigs.v_v(), {kExprBlock, kVoidCode | 0x80, 0x45, kExprEnd},
                 kAppendEnd, "invalid block type");
+  // Concrete signature indices (non-negative s33) can use 1- to 5-byte LEB128.
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.v_v());
+  ASSERT_EQ(0u, sig_index.index);
+  ExpectValidates(sigs.v_v(), {kExprBlock, 0x00, kExprEnd});
+  ExpectValidates(sigs.v_v(), {kExprBlock, 0x80, 0x00, kExprEnd});
+  ExpectValidates(sigs.v_v(),
+                  {kExprBlock, 0x80, 0x80, 0x80, 0x80, 0x00, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_empty1) {

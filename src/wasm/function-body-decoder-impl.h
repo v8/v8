@@ -833,14 +833,15 @@ struct BlockTypeImmediate {
     std::tie(block_type, length) =
         decoder->read_i33v<ValidationTag>(pc, "block type");
     if (block_type < 0) {
-      // All valid negative types are 1 byte in length, so we check against the
-      // minimum 1-byte LEB128 value.
-      constexpr int64_t min_1_byte_leb128 = -64;
-      if (!VALIDATE(block_type >= min_1_byte_leb128)) {
+      // Concrete type indices (block_type >= 0) are encoded as multi-byte s33
+      // LEB128, whereas kVoidCode (0x40) and value type opcodes are single
+      // bytes.
+      if (!VALIDATE(length == 1)) {
         DecodeError<ValidationTag>(decoder, pc, "invalid block type %" PRId64,
                                    block_type);
         return;
       }
+      DCHECK_GE(block_type, -64);
       if (static_cast<ValueTypeCode>(block_type & 0x7F) != kVoidCode) {
         sig = FunctionSig{1, 0, single_return_sig_storage};
         std::tie(single_return_sig_storage[0], length) =

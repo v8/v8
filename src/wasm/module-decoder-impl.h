@@ -600,10 +600,13 @@ class ModuleDecoderImpl : public Decoder {
           return {};
         }
 
+        // TODO(clemensb): Clarify whether cont types take a heaptype (s33) or a
+        // typeidx (u32v); see
+        // https://github.com/WebAssembly/stack-switching/issues/157.
         const uint8_t* pos = pc();
         HeapType hp = consume_heap_type();
 
-        if (V8_UNLIKELY(!hp.has_index())) {
+        if (V8_UNLIKELY(!hp.has_index() || hp.is_exact())) {
           error(pos, "cont type must refer to a signature index");
           return {};
         }
