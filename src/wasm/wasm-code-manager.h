@@ -471,8 +471,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
     DCHECK_LE(jump_table_info_offset, unpadded_binary_size);
   }
 
-  void TryLoadSourceMap(Isolate* isolate) const;
-
   std::unique_ptr<const uint8_t[]> ConcatenateBytes(
       std::initializer_list<base::Vector<const uint8_t>>);
 
@@ -769,7 +767,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Log all owned code in the given isolate, using the given script as the
   // containing script. Use this after transferring the module to a new isolate
   // or when enabling a component that needs all code to be logged (profiler).
-  void LogWasmCodes(Isolate*, Tagged<Script>);
+  void LogWasmCodes(Isolate*, DirectHandle<Script>);
 
   CompilationState* compilation_state() const V8_LIFETIME_BOUND {
     return compilation_state_.get();
@@ -980,6 +978,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
                CompileTimeImports compile_imports, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<NativeModule>* shared_this);
+
+  void TryLoadSourceMap(Isolate* isolate);
 
   std::unique_ptr<WasmCode> AddCodeWithCodeSpace(
       int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,

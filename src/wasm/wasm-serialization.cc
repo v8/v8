@@ -1262,7 +1262,7 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
   isolate->debug()->OnAfterCompile(script);
 
   // Log the code within the generated module for profiling.
-  shared_native_module->LogWasmCodes(isolate, *script);
+  shared_native_module->LogWasmCodes(isolate, script);
 
   return module_object;
 }

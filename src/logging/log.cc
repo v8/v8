@@ -2727,15 +2727,20 @@ void ExistingCodeLogger::LogCompiledFunctions(
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  HeapObjectIterator iterator(heap);
-  DisallowGarbageCollection no_gc;
+  DirectHandleVector<WasmModuleObject> module_objects(isolate_);
+  {
+    HeapObjectIterator iterator(heap);
+    DisallowGarbageCollection no_gc;
 
-  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    if (!IsWasmModuleObject(obj)) continue;
-    auto module_object = Cast<WasmModuleObject>(obj);
-    module_object->native_module()->LogWasmCodes(isolate_,
-                                                 module_object->script());
+    for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
+      if (!IsWasmModuleObject(obj)) continue;
+      module_objects.emplace_back(Cast<WasmModuleObject>(obj), isolate_);
+    }
+  }
+  for (DirectHandle<WasmModuleObject> module_object : module_objects) {
+    module_object->native_module()->LogWasmCodes(
+        isolate_, direct_handle(module_object->script(), isolate_));
   }
   wasm::GetWasmImportWrapperCache()->LogForIsolate(isolate_);
   wasm::GetWasmStackEntryWrapperCache()->LogForIsolate(isolate_);

@@ -704,7 +704,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   DirectHandle<Script> script =
       GetOrCreateScript(isolate, native_module, source_url);
 
-  native_module->LogWasmCodes(isolate, *script);
+  native_module->LogWasmCodes(isolate, script);
 
   // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
@@ -1042,7 +1042,7 @@ DirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   DirectHandle<Script> script =
       GetOrCreateScript(isolate, shared_native_module, source_url);
-  native_module->LogWasmCodes(isolate, *script);
+  native_module->LogWasmCodes(isolate, script);
   DirectHandle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate, script);
   {

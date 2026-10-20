@@ -2659,7 +2659,7 @@ void AsyncCompileJob::FinishCompile(
 
   // Finally, log all generated code (it does not matter if this happens
   // repeatedly in case the script is shared).
-  native_module->LogWasmCodes(isolate, *script);
+  native_module->LogWasmCodes(isolate, script);
 
   {
     TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),

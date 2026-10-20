@@ -303,10 +303,6 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
   std::string fn_name = DebugName();
   WasmName name = base::VectorOf(fn_name);
 
-  if (native_module_) {
-    TryLoadSourceMap(isolate);
-  }
-
   // Record source positions before adding code, otherwise when code is added,
   // there are no source positions to associate with the added code.
   if (!source_positions().empty()) {
@@ -413,31 +409,6 @@ void WasmCode::Validate() const {
     }
   }
 #endif
-}
-
-void WasmCode::TryLoadSourceMap(Isolate* isolate) const {
-  auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
-  if (!load_wasm_source_map) return;
-
-  if (native_module_->GetWasmSourceMap()) return;
-
-  const WasmModule* module = native_module_->module();
-  const WasmDebugSymbols& symbol =
-      module->debug_symbols[WasmDebugSymbols::Type::SourceMap];
-  if (symbol.type != WasmDebugSymbols::Type::SourceMap) return;
-  if (symbol.external_url.is_empty()) return;
-
-  ModuleWireBytes wire_bytes(native_module_->wire_bytes());
-  WasmName external_url = wire_bytes.GetNameOrNull(symbol.external_url);
-  std::string external_url_string(external_url.data(), external_url.size());
-  HandleScope scope(isolate);
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  Local<v8::String> source_map_str =
-      load_wasm_source_map(v8_isolate, external_url_string.c_str());
-  if (source_map_str.IsEmpty()) return;
-
-  native_module_->SetWasmSourceMapIfUnset(
-      std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
 }
 
 void WasmCode::MaybePrint() const {
@@ -1099,13 +1070,39 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
   }
 }
 
-void NativeModule::LogWasmCodes(Isolate* isolate, Tagged<Script> script) {
-  DisallowGarbageCollection no_gc;
+void NativeModule::TryLoadSourceMap(Isolate* isolate) {
+  auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
+  if (!load_wasm_source_map) return;
+
+  if (GetWasmSourceMap()) return;
+
+  const WasmDebugSymbols& symbol =
+      module_->debug_symbols[WasmDebugSymbols::Type::SourceMap];
+  if (symbol.type != WasmDebugSymbols::Type::SourceMap) return;
+  if (symbol.external_url.is_empty()) return;
+
+  ModuleWireBytes wire_bytes(this->wire_bytes());
+  WasmName external_url = wire_bytes.GetNameOrNull(symbol.external_url);
+  std::string external_url_string(external_url.data(), external_url.size());
+  HandleScope scope(isolate);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  Local<v8::String> source_map_str =
+      load_wasm_source_map(v8_isolate, external_url_string.c_str());
+  if (source_map_str.IsEmpty()) return;
+
+  SetWasmSourceMapIfUnset(
+      std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
+}
+
+void NativeModule::LogWasmCodes(Isolate* isolate, DirectHandle<Script> script) {
   if (!WasmCode::ShouldBeLogged(isolate)) return;
 
   TRACE_EVENT("v8.wasm", "wasm.LogWasmCodes", "functions",
               module_->num_declared_functions);
 
+  TryLoadSourceMap(isolate);
+
+  DisallowGarbageCollection no_gc;
   Tagged<Object> url_obj = script->name();
   DCHECK(IsString(url_obj) || IsUndefined(url_obj));
   std::unique_ptr<char[]> source_url =
