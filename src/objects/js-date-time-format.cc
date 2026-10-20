@@ -23,8 +23,13 @@
 #include "src/objects/js-date-time-format-inl.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#if __has_include("temporal/AnyCalendarKind.hpp")
+#include "temporal/AnyCalendarKind.hpp"
+#include "temporal/Instant.hpp"
+#else
 #include "temporal_rs/AnyCalendarKind.hpp"
 #include "temporal_rs/Instant.hpp"
+#endif
 #endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/managed-inl.h"
 #include "src/objects/object-conversions-inl.h"
