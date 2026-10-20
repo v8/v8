@@ -21,6 +21,7 @@
 #include "src/codegen/compiler.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
@@ -857,11 +858,16 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
 
   if (decoder.utf16_length() == 0) return isolate->factory()->empty_string();
 
+  SYNCHRONIZATION_POINT("NewStringFromBytes");
   if (decoder.is_one_byte()) {
     if (decoder.utf16_length() == 1) {
-      uint8_t codepoint;
-      decoder.Decode(&codepoint, peek_bytes());
-      return isolate->factory()->LookupSingleCharacterStringFromCode(codepoint);
+      // A worker with in-sandbox corruption could be modifying the input
+      // data concurrently, causing {Decode()} below to write two bytes now.
+      // Appease sanitizers by allocating enough stack space.
+      uint8_t codepoint[4];
+      decoder.Decode(codepoint, peek_bytes());
+      return isolate->factory()->LookupSingleCharacterStringFromCode(
+          codepoint[0]);
     }
     // Allocate string.
     Handle<SeqOneByteString> result;
