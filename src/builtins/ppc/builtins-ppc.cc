@@ -2475,13 +2475,15 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
   Register dest = pointer_to_new_space_out;
   __ addi(dest, sp, Operand(-kSystemPointerSize));
   Label loop, skip;
-  __ mr(r0, argc_in_out);
-  __ cmpi(r0, Operand::Zero());
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ mr(scratch, argc_in_out);
+  __ cmpi(scratch, Operand::Zero());
   __ ble(&skip);
-  __ mtctr(r0);
+  __ mtctr(scratch);
   __ bind(&loop);
-  __ LoadU64WithUpdate(r0, MemOperand(old_sp, kSystemPointerSize));
-  __ StoreU64WithUpdate(r0, MemOperand(dest, kSystemPointerSize));
+  __ LoadU64WithUpdate(scratch, MemOperand(old_sp, kSystemPointerSize));
+  __ StoreU64WithUpdate(scratch, MemOperand(dest, kSystemPointerSize));
   __ bdnz(&loop);
 
   __ bind(&skip);
