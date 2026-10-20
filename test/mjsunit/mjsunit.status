@@ -273,6 +273,7 @@
   'regress/regress-558568713': [PASS, SLOW, NO_VARIANTS],
   'regress/regress-rab-proto-oob': [PASS, SLOW, ['tsan', SKIP]],
   'regress/regress-crbug-503557995-b': [PASS, ['mode != release or simulator_run', SKIP]],
+  'regress/regress-crbug-540324230': [PASS, SLOW],
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
@@ -737,6 +738,7 @@
   'whitespaces': [SKIP],
   'baseline/*': [SKIP],
   'regress/regress-chromium-1194026': [SKIP],
+  'regress/regress-crbug-540324230': [SKIP],
 
   # Unsuitable for GC stress because coverage information is lost on GC.
   'code-coverage-ad-hoc': [SKIP],
@@ -2832,6 +2834,7 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'harmony/sharedarraybuffer-worker-gc-stress': [PASS, ['gc_stress', SKIP]],
+  'regress/regress-crbug-540324230': [SKIP],
   'regress/regress-crbug-820312': [PASS, SLOW],
   'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
 }],  # variant == stress_incremental_marking
