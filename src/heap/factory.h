@@ -1244,10 +1244,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<JSSharedArray> NewJSSharedArray(
       DirectHandle<JSFunction> constructor, int length);
 
-  Handle<JSAtomicsMutex> NewJSAtomicsMutex();
-
-  Handle<JSAtomicsCondition> NewJSAtomicsCondition();
-
   DirectHandle<FunctionTemplateInfo> NewFunctionTemplateInfo(int length,
                                                              bool do_not_cache);
 

@@ -142,7 +142,6 @@ class MaybeObjectSize final {
   V(JSGlobalProxy)                          \
   V(JSObject)                               \
   V(JSRegExp)                               \
-  V(JSSynchronizationPrimitive)             \
   V(JSTypedArray)                           \
   V(JSWeakCollection)                       \
   V(JSWeakRef)                              \

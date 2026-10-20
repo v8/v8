@@ -205,17 +205,5 @@ BUILTIN(SharedStructTypeIsSharedStruct) {
       IsJSSharedStruct(*args.atOrUndefined(isolate, 1)));
 }
 
-BUILTIN(AtomicsMutexIsMutex) {
-  HandleScope scope(isolate);
-  return isolate->heap()->ToBoolean(
-      IsJSAtomicsMutex(*args.atOrUndefined(isolate, 1)));
-}
-
-BUILTIN(AtomicsConditionIsCondition) {
-  HandleScope scope(isolate);
-  return isolate->heap()->ToBoolean(
-      IsJSAtomicsCondition(*args.atOrUndefined(isolate, 1)));
-}
-
 }  // namespace internal
 }  // namespace v8

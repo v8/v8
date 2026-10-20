@@ -48,8 +48,6 @@ namespace internal {
   T(AwaitNotInDebugEvaluate,                                                   \
     "await can not be used when evaluating code "                              \
     "while paused in the debugger")                                            \
-  T(AtomicsMutexNotOwnedByCurrentThread,                                       \
-    "Atomics.Mutex is not owned by the current agent")                         \
   T(AtomicsOperationNotAllowed, "% cannot be called in this context")          \
   T(BadRoundingType, "RoundingType is not fractionDigits")                     \
   T(BadSortComparisonFunction,                                                 \

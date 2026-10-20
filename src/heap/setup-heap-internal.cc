@@ -30,7 +30,6 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/instance-type-inl.h"
-#include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-shared-array.h"
 #include "src/objects/js-weak-refs.h"
@@ -875,19 +874,6 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
 }
 
 bool Heap::CreateLateReadOnlyJSReceiverMaps() {
-#define ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(instance_type, size, \
-                                                  field_name)          \
-  {                                                                    \
-    Tagged<Map> map;                                                   \
-    if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size, \
-                     DICTIONARY_ELEMENTS)                              \
-             .To(&map)) {                                              \
-      return false;                                                    \
-    }                                                                  \
-    AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(map);  \
-    set_##field_name##_map(map);                                       \
-  }
-
   HandleScope late_jsreceiver_maps_handle_scope(isolate());
   Factory* factory = isolate()->factory();
   ReadOnlyRoots roots(this);
@@ -936,13 +922,6 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
     set_js_shared_array_map(shared_array_map);
   }
 
-  ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(
-      JS_ATOMICS_MUTEX_TYPE, JSAtomicsMutex::kHeaderSize, js_atomics_mutex)
-  ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(JS_ATOMICS_CONDITION_TYPE,
-                                            JSAtomicsCondition::kHeaderSize,
-                                            js_atomics_condition)
-
-#undef ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP
 #undef ALLOCATE_PRIMITIVE_MAP
 #undef ALLOCATE_VARSIZE_MAP
 #undef ALLOCATE_MAP

@@ -39,7 +39,6 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-disposable-stack.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
@@ -843,8 +842,7 @@ void Map::MapVerify(Isolate* isolate) {
                  JSObject::GetEmbedderFieldCount(this) * kEmbedderDataSlotSize,
              inobject_fields_start_offset);
 
-    if (IsJSSharedStructMap(this) || IsJSSharedArrayMap(this) ||
-        Is<JSAtomicsMutex>(this) || Is<JSAtomicsCondition>(this)) {
+    if (IsJSSharedStructMap(this) || IsJSSharedArrayMap(this)) {
       if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
         // TODO(v8:14089): Verify what should be checked in this configuration
         // and again merge with the else-branch below.
@@ -2343,18 +2341,6 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
       VerifyElementIsShared(RawFastPropertyAt(field_index));
     }
   }
-}
-
-void JSAtomicsMutex::JSAtomicsMutexVerify(Isolate* isolate) {
-  CHECK(Is<JSAtomicsMutex>(this));
-  CHECK(HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this)));
-  JSObjectVerify(isolate);
-}
-
-void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
-  CHECK(Is<JSAtomicsCondition>(this));
-  CHECK(HeapLayout::InAnySharedSpace(Tagged<HeapObject>(this)));
-  JSObjectVerify(isolate);
 }
 
 void JSDisposableStackBase::JSDisposableStackBaseVerify(Isolate* isolate) {

@@ -446,7 +446,6 @@ v8_cluster_source_set("v8_unittests_sources") {
     "interpreter/source-position-matcher.cc",
     "interpreter/source-position-matcher.h",
     "interpreter/source-positions-unittest.cc",
-    "js-atomics/js-atomics-synchronization-primitive-unittest.cc",
     "libplatform/default-job-unittest.cc",
     "libplatform/default-platform-unittest.cc",
     "libplatform/default-worker-threads-task-runner-unittest.cc",

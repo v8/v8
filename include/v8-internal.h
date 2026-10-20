@@ -702,8 +702,7 @@ enum ExternalPointerTag : uint16_t {
   // be accessed from multiple threads at the same time. The objects referenced
   // in this way must therefore always be thread-safe.
   kFirstSharedExternalPointerTag,
-  kWaiterQueueNodeTag = kFirstSharedExternalPointerTag,
-  kExternalStringResourceTag,
+  kExternalStringResourceTag = kFirstSharedExternalPointerTag,
   kExternalStringResourceDataTag,
   kLastSharedExternalPointerTag = kExternalStringResourceDataTag,
 

@@ -45,7 +45,6 @@
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/smi.h"
@@ -2343,15 +2342,6 @@ RUNTIME_FUNCTION(Runtime_SharedGC) {
   isolate->heap()->CollectGarbageShared(isolate->main_thread_local_heap(),
                                         GarbageCollectionReason::kTesting);
   return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
-  HandleScope scope(isolate);
-  CHECK_UNLESS_FUZZING(args.length() == 1);
-  CHECK_UNLESS_FUZZING(IsJSSynchronizationPrimitive(*args.at(0)));
-  DirectHandle<JSSynchronizationPrimitive> primitive =
-      args.at<JSSynchronizationPrimitive>(0);
-  return primitive->NumWaitersForTesting(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {

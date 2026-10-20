@@ -837,15 +837,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kSharedStructTypeIsSharedStruct:
     case Builtin::kSharedArrayConstructor:
     case Builtin::kSharedArrayIsSharedArray:
-    case Builtin::kAtomicsMutexConstructor:
-    case Builtin::kAtomicsMutexLock:
-    case Builtin::kAtomicsMutexLockWithTimeout:
-    case Builtin::kAtomicsMutexTryLock:
-    case Builtin::kAtomicsMutexIsMutex:
-    case Builtin::kAtomicsConditionConstructor:
-    case Builtin::kAtomicsConditionWait:
-    case Builtin::kAtomicsConditionNotify:
-    case Builtin::kAtomicsConditionIsCondition:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.harmony_struct);
     case Builtin::kSharedStructConstructor:
       RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);

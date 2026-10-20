@@ -347,8 +347,7 @@ class ExternalPointerSlot
   // TODO(wingo): Remove if we switch to use the EPT for all external pointers
   // when pointer compression is enabled.
   bool HasExternalPointerHandle() const {
-    return V8_ENABLE_SANDBOX_BOOL || tag_range() == kArrayBufferExtensionTag ||
-           tag_range() == kWaiterQueueNodeTag;
+    return V8_ENABLE_SANDBOX_BOOL || tag_range() == kArrayBufferExtensionTag;
   }
   inline ExternalPointerHandle Relaxed_LoadHandle() const;
   inline void Relaxed_StoreHandle(ExternalPointerHandle handle) const;

@@ -704,9 +704,6 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
       return WriteJSSharedArray(Cast<JSSharedArray>(receiver));
     case JS_SHARED_STRUCT_TYPE:
       return WriteJSSharedStruct(Cast<JSSharedStruct>(receiver));
-    case JS_ATOMICS_MUTEX_TYPE:
-    case JS_ATOMICS_CONDITION_TYPE:
-      return WriteSharedObject(receiver);
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_MODULE_OBJECT_TYPE:
       return WriteWasmModule(Cast<WasmModuleObject>(receiver));

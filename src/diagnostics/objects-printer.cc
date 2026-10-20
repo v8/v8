@@ -2414,25 +2414,6 @@ void JSSharedStruct::JSSharedStructPrint(std::ostream& os) {
   JSObjectPrintBody(os, this);
 }
 
-void JSAtomicsMutex::JSAtomicsMutexPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, this, "JSAtomicsMutex");
-  if (HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this))) {
-    os << " (shared)";
-  }
-  os << "\n - state: " << this->state();
-  os << "\n - owner_thread_id: " << this->owner_thread_id();
-  JSObjectPrintBody(os, this);
-}
-
-void JSAtomicsCondition::JSAtomicsConditionPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, this, "JSAtomicsCondition");
-  if (HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this))) {
-    os << " (shared)";
-  }
-  os << "\n - state: " << this->state();
-  JSObjectPrintBody(os, this);
-}
-
 std::ostream& operator<<(std::ostream& os, DisposableStackState state) {
   switch (state) {
     case DisposableStackState::kPending:

@@ -46,7 +46,6 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-disposable-stack.h"
 #include "src/objects/js-iterator-helpers.h"
 #ifdef V8_INTL_SUPPORT
@@ -5799,11 +5798,8 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
 void Genesis::InitializeGlobal_harmony_struct() {
   if (!v8_flags.harmony_struct) return;
 
-  ReadOnlyRoots roots(isolate());
   DirectHandle<JSGlobalObject> global(native_context()->global_object(),
                                       isolate());
-  DirectHandle<JSObject> atomics_object = Cast<JSObject>(
-      JSReceiver::GetProperty(isolate(), global, "Atomics").ToHandleChecked());
 
   {
     // Install shared objects @@hasInstance in the native context.
@@ -5843,43 +5839,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
 
     SimpleInstallFunction(isolate(), shared_array_fun, "isSharedArray",
                           Builtin::kSharedArrayIsSharedArray, 1, kAdapt);
-  }
-
-  {  // Atomics.Mutex
-    DirectHandle<String> mutex_str =
-        isolate()->factory()->InternalizeUtf8String("Mutex");
-    DirectHandle<JSFunction> mutex_fun = CreateSharedObjectConstructor(
-        isolate(), mutex_str, isolate()->factory()->js_atomics_mutex_map(),
-        Builtin::kAtomicsMutexConstructor, 0, kAdapt);
-    JSObject::AddProperty(isolate(), atomics_object, mutex_str, mutex_fun,
-                          DONT_ENUM);
-
-    SimpleInstallFunction(isolate(), mutex_fun, "lock",
-                          Builtin::kAtomicsMutexLock, 2, kAdapt);
-    SimpleInstallFunction(isolate(), mutex_fun, "lockWithTimeout",
-                          Builtin::kAtomicsMutexLockWithTimeout, 3, kAdapt);
-    SimpleInstallFunction(isolate(), mutex_fun, "tryLock",
-                          Builtin::kAtomicsMutexTryLock, 2, kAdapt);
-    SimpleInstallFunction(isolate(), mutex_fun, "isMutex",
-                          Builtin::kAtomicsMutexIsMutex, 1, kAdapt);
-  }
-
-  {  // Atomics.Condition
-    DirectHandle<String> condition_str =
-        isolate()->factory()->InternalizeUtf8String("Condition");
-    DirectHandle<JSFunction> condition_fun = CreateSharedObjectConstructor(
-        isolate(), condition_str,
-        isolate()->factory()->js_atomics_condition_map(),
-        Builtin::kAtomicsConditionConstructor, 0, kAdapt);
-    JSObject::AddProperty(isolate(), atomics_object, condition_str,
-                          condition_fun, DONT_ENUM);
-
-    SimpleInstallFunction(isolate(), condition_fun, "wait",
-                          Builtin::kAtomicsConditionWait, 2, kDontAdapt);
-    SimpleInstallFunction(isolate(), condition_fun, "notify",
-                          Builtin::kAtomicsConditionNotify, 2, kDontAdapt);
-    SimpleInstallFunction(isolate(), condition_fun, "isCondition",
-                          Builtin::kAtomicsConditionIsCondition, 1, kAdapt);
   }
 }
 

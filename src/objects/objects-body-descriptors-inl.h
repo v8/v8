@@ -33,7 +33,6 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer.h"
-#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-proxy.h"
@@ -1249,26 +1248,6 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
     IterateJSObjectBodyImpl(map, obj,
                             offsetof(JSWeakCollection, properties_or_hash_),
                             object_size, v);
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return map->instance_size();
-  }
-};
-
-class JSSynchronizationPrimitive::BodyDescriptor final
-    : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    IteratePointers(obj,
-                    offsetof(JSSynchronizationPrimitive, properties_or_hash_),
-                    kEndOfTaggedFieldsOffset, v);
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(
-                 offsetof(JSSynchronizationPrimitive, waiter_queue_head_),
-                 kWaiterQueueNodeTag));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

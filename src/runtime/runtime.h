@@ -74,8 +74,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(AtomicsLoadSharedStructOrArray, 2, 1)              \
   F(AtomicsStoreSharedStructOrArray, 3, 1)             \
   F(AtomicsExchangeSharedStructOrArray, 3, 1)          \
-  F(AtomicsCompareExchangeSharedStructOrArray, 4, 1)   \
-  F(AtomicsSynchronizationPrimitiveNumWaitersForTesting, 1, 1)
+  F(AtomicsCompareExchangeSharedStructOrArray, 4, 1)
 
 #define FOR_EACH_INTRINSIC_BIGINT(F, I)                               \
   F(BigIntCompareToNumber, 3, 1)                                      \

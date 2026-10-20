@@ -784,10 +784,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kas_string = kArrayIterator_string + 28;
   static constexpr Tagged_t kassert_string = kas_string + 16;
   static constexpr Tagged_t kasync_string = kassert_string + 20;
-  static constexpr Tagged_t kAtomicsCondition_string = kasync_string + 20;
-  static constexpr Tagged_t kAtomicsMutex_string =
-      kAtomicsCondition_string + 32;
-  static constexpr Tagged_t kauto_string = kAtomicsMutex_string + 28;
+  static constexpr Tagged_t kauto_string = kasync_string + 20;
   static constexpr Tagged_t kBigInt64Array_string = kauto_string + 16;
   static constexpr Tagged_t kBigInt_string = kBigInt64Array_string + 28;
   static constexpr Tagged_t kbigint_string = kBigInt_string + 20;
@@ -1249,16 +1246,14 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kCppHeapExternalMap = 0x1b0051;
   static constexpr Tagged_t kCppGCManagedBaseMap = 0x1b0079;
   static constexpr Tagged_t kJSSharedArrayMap = 0x1b00a1;
-  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1b00e5;
-  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1b010d;
-  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1b0135;
-  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1b0189;
+  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1b00e5;
+  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1b0139;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x1b0189;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x1b0139;
 };
 
-static constexpr std::array<Tagged_t, 1043> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1418,8 +1413,6 @@ static constexpr std::array<Tagged_t, 1043> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kBooleanMap,
     StaticReadOnlyRoot::kHoleMap,
     StaticReadOnlyRoot::kJSSharedArrayMap,
-    StaticReadOnlyRoot::kJSAtomicsMutexMap,
-    StaticReadOnlyRoot::kJSAtomicsConditionMap,
     StaticReadOnlyRoot::kDescriptorArrayMap,
     StaticReadOnlyRoot::kOnHeapBasicBlockProfilerDataMap,
     StaticReadOnlyRoot::kTurbofanBitsetTypeMap,
@@ -1890,8 +1883,6 @@ static constexpr std::array<Tagged_t, 1043> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kas_string,
     StaticReadOnlyRoot::kassert_string,
     StaticReadOnlyRoot::kasync_string,
-    StaticReadOnlyRoot::kAtomicsCondition_string,
-    StaticReadOnlyRoot::kAtomicsMutex_string,
     StaticReadOnlyRoot::kauto_string,
     StaticReadOnlyRoot::kBigInt64Array_string,
     StaticReadOnlyRoot::kBigInt_string,

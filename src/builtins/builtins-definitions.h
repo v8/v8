@@ -1553,15 +1553,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(SharedStructConstructor, JSParameterCount(0))                            \
   CPP(SharedArrayConstructor, JSParameterCount(0))                             \
   CPP(SharedArrayIsSharedArray, JSParameterCount(1))                           \
-  CPP(AtomicsMutexConstructor, JSParameterCount(0))                            \
-  CPP(AtomicsMutexIsMutex, JSParameterCount(1))                                \
-  CPP(AtomicsMutexLock, JSParameterCount(2))                                   \
-  CPP(AtomicsMutexLockWithTimeout, JSParameterCount(3))                        \
-  CPP(AtomicsMutexTryLock, JSParameterCount(2))                                \
-  CPP(AtomicsConditionConstructor, JSParameterCount(0))                        \
-  CPP(AtomicsConditionIsCondition, JSParameterCount(1))                        \
-  CPP(AtomicsConditionWait, kDontAdaptArgumentsSentinel)                       \
-  CPP(AtomicsConditionNotify, kDontAdaptArgumentsSentinel)                     \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \

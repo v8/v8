@@ -42,7 +42,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-disposable-stack.h"
 #include "src/objects/js-generator-inl.h"
@@ -643,8 +642,6 @@ Tagged<String> JSReceiver::class_name() {
   if (IsShared(this)) {
     if (Is<JSSharedStruct>(this)) return roots.SharedStruct_string();
     if (Is<JSSharedArray>(this)) return roots.SharedArray_string();
-    if (Is<JSAtomicsMutex>(this)) return roots.AtomicsMutex_string();
-    if (Is<JSAtomicsCondition>(this)) return roots.AtomicsCondition_string();
 #if V8_ENABLE_WEBASSEMBLY
     if (Is<WasmObject>(this)) return roots.Object_string();
 #endif
@@ -2750,10 +2747,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSSharedArray::kHeaderSize;
     case JS_SHARED_STRUCT_TYPE:
       return JSSharedStruct::kHeaderSize;
-    case JS_ATOMICS_MUTEX_TYPE:
-      return JSAtomicsMutex::kHeaderSize;
-    case JS_ATOMICS_CONDITION_TYPE:
-      return JSAtomicsCondition::kHeaderSize;
 #ifdef V8_TEMPORAL_SUPPORT
     case JS_TEMPORAL_DURATION_TYPE:
       return sizeof(JSTemporalDuration);
@@ -3094,12 +3087,6 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       break;
     case JS_SHARED_STRUCT_TYPE:
       accumulator->Add("<JSSharedStruct>");
-      break;
-    case JS_ATOMICS_MUTEX_TYPE:
-      accumulator->Add("<JSAtomicsMutex>");
-      break;
-    case JS_ATOMICS_CONDITION_TYPE:
-      accumulator->Add("<JSAtomicsCondition>");
       break;
     case JS_MESSAGE_OBJECT_TYPE:
       accumulator->Add("<JSMessageObject>");

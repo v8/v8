@@ -424,10 +424,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_FINALIZATION_REGISTRY_TYPE:
       return kVisitJSFinalizationRegistry;
 
-    case JS_ATOMICS_MUTEX_TYPE:
-    case JS_ATOMICS_CONDITION_TYPE:
-      return kVisitJSSynchronizationPrimitive;
-
     case HEAP_NUMBER_TYPE:
       return kVisitHeapNumber;
 

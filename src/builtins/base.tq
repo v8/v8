@@ -13,7 +13,6 @@
 #include 'src/objects/elements-kind.h'
 #include 'src/objects/free-space.h'
 #include 'src/objects/hash-seed-wrapper.h'
-#include 'src/objects/js-atomics-synchronization.h'
 #include 'src/objects/js-disposable-stack.h'
 #include 'src/objects/js-function.h'
 #include 'src/objects/js-generator.h'

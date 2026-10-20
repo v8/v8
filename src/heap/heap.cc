@@ -123,6 +123,7 @@
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"

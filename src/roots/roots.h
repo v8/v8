@@ -236,8 +236,6 @@ class RootVisitor;
   V(Map, hole_map, HoleMap)                                                    \
   /* Shared space object maps */                                               \
   V(Map, js_shared_array_map, JSSharedArrayMap)                                \
-  V(Map, js_atomics_mutex_map, JSAtomicsMutexMap)                              \
-  V(Map, js_atomics_condition_map, JSAtomicsConditionMap)                      \
   V(Map, descriptor_array_map, DescriptorArrayMap)                             \
   V(Map, on_heap_basic_block_profiler_data_map,                                \
     OnHeapBasicBlockProfilerDataMap)                                           \
