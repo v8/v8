@@ -707,7 +707,10 @@ class ArrayBufferViewAccessBuilder {
 
       return a
           .MachineSelectIf<UintPtrT>(
-              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+              a.Word32And(a.UintPtrLessThanOrEqual(
+                              byte_length,
+                              a.UintPtrConstant(JSArrayBuffer::kMaxByteLength)),
+                          a.UintPtrLessThanOrEqual(byte_offset, byte_length)))
           .Then([&]() {
             // length = floor((byte_length - byte_offset) / element_size)
             return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
@@ -732,7 +735,10 @@ class ArrayBufferViewAccessBuilder {
 
       return a
           .MachineSelectIf<UintPtrT>(
-              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+              a.Word32And(a.UintPtrLessThanOrEqual(
+                              byte_length,
+                              a.UintPtrConstant(JSArrayBuffer::kMaxByteLength)),
+                          a.UintPtrLessThanOrEqual(byte_offset, byte_length)))
           .Then([&]() {
             // length = floor((byte_length - byte_offset) / element_size)
             return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
@@ -838,7 +844,10 @@ class ArrayBufferViewAccessBuilder {
 
       return a
           .MachineSelectIf<UintPtrT>(
-              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+              a.Word32And(a.UintPtrLessThanOrEqual(
+                              byte_length,
+                              a.UintPtrConstant(JSArrayBuffer::kMaxByteLength)),
+                          a.UintPtrLessThanOrEqual(byte_offset, byte_length)))
           .Then([&]() {
             return RoundDownToElementSize(
                 a.UintPtrSub(byte_length, byte_offset));
@@ -862,7 +871,10 @@ class ArrayBufferViewAccessBuilder {
 
       return a
           .MachineSelectIf<UintPtrT>(
-              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+              a.Word32And(a.UintPtrLessThanOrEqual(
+                              byte_length,
+                              a.UintPtrConstant(JSArrayBuffer::kMaxByteLength)),
+                          a.UintPtrLessThanOrEqual(byte_offset, byte_length)))
           .Then([&]() {
             return RoundDownToElementSize(
                 a.UintPtrSub(byte_length, byte_offset));
