@@ -5360,7 +5360,7 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
 Maybe<bool> Object::SetNativeDataProperty(
     v8::Local<v8::Context> context, v8::Local<Name> name,
     AccessorNameGetterCallback getter, AccessorNameSetterCallbackV2 setter,
-    v8::Local<Value> data, PropertyAttribute attributes,
+    v8::Local<Data> data, PropertyAttribute attributes,
     SideEffectType getter_side_effect_type,
     SideEffectType setter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter, setter, data,

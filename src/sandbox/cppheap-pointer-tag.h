@@ -22,7 +22,8 @@ namespace v8::internal {
   V(kCppGCManagedTag)                                  \
   V(kEmbedderDataSlotTag)                              \
   V(kInspectorV8ConsoleTag)                            \
-  V(kInspectorCommandLineAPIDataTag)
+  V(kInspectorCommandLineAPIDataTag)                   \
+  V(kInspectorCommandLineAPIScopeDataTag)
 
 enum class WrappableCppHeapPointerTag : uint16_t {
   kFirst =

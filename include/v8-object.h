@@ -426,7 +426,7 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, Local<Name> name,
       AccessorNameGetterCallback getter,
       AccessorNameSetterCallbackV2 setter = nullptr,
-      Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
+      Local<Data> data = Local<Data>(), PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 

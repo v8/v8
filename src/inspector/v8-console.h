@@ -7,12 +7,14 @@
 
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/member.h"
+#include "include/cppgc/persistent.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-container.h"
 #include "include/v8-cpp-heap-external.h"
 #include "include/v8-external.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-object.h"
+#include "include/v8-primitive.h"
 #include "include/v8-traced-handle.h"
 #include "src/base/macros.h"
 #include "src/debug/interface-types.h"
@@ -57,9 +59,35 @@ class V8Console final : public cppgc::GarbageCollected<V8Console>,
     CommandLineAPIScope& operator=(const CommandLineAPIScope&) = delete;
 
    private:
-    constexpr static uint32_t kCommandLineAPIIndex = 0;
-    constexpr static uint32_t kFirstInstalledMethodIndex = 1;
-    constexpr static uint32_t kHeaderLength = kFirstInstalledMethodIndex;
+    class Data : public cppgc::GarbageCollected<Data> {
+     public:
+      static constexpr v8::CppHeapPointerTag kPointerTag =
+          v8::internal::kInspectorCommandLineAPIScopeDataTag;
+
+      Data(v8::Isolate* isolate, v8::Local<v8::Object> commandLineAPI)
+          : m_commandLineAPI(isolate, commandLineAPI) {}
+
+      void Trace(cppgc::Visitor* visitor) const;
+
+      v8::Local<v8::Object> commandLineAPI(v8::Isolate* isolate) const {
+        return m_commandLineAPI.Get(isolate);
+      }
+      void clearCommandLineAPI() { m_commandLineAPI.Reset(); }
+
+      v8::Local<v8::PrimitiveArray> installedMethods(
+          v8::Isolate* isolate) const {
+        return m_installedMethods.Get(isolate);
+      }
+      void setInstalledMethods(
+          v8::Isolate* isolate,
+          v8::Local<v8::PrimitiveArray> installedMethods) {
+        m_installedMethods.Reset(isolate, installedMethods);
+      }
+
+     private:
+      v8::TracedReference<v8::Object> m_commandLineAPI;
+      v8::TracedReference<v8::PrimitiveArray> m_installedMethods;
+    };
 
     static void accessorGetterCallback(
         v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>&);
@@ -69,13 +97,12 @@ class V8Console final : public cppgc::GarbageCollected<V8Console>,
 
     v8::Isolate* isolate() const { return m_isolate; }
     v8::Local<v8::Context> context() const { return m_context.Get(isolate()); }
-    v8::Local<v8::Array> data() const { return m_data.Get(isolate()); }
     v8::Local<v8::Object> global() const { return m_global.Get(isolate()); }
 
     v8::Isolate* m_isolate;
     v8::Global<v8::Context> m_context;
-    v8::Global<v8::Array> m_data;
     v8::Global<v8::Object> m_global;
+    cppgc::Persistent<Data> m_data;
   };
 
   explicit V8Console(V8InspectorImpl* inspector);

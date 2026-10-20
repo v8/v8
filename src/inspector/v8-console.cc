@@ -1016,17 +1016,24 @@ static bool isCommandLineAPIGetter(const String16& name) {
          ((name[1] >= '0' && name[1] <= '4') || name[1] == '_');
 }
 
+void V8Console::CommandLineAPIScope::Data::Trace(
+    cppgc::Visitor* visitor) const {
+  visitor->Trace(m_commandLineAPI);
+  visitor->Trace(m_installedMethods);
+}
+
 void V8Console::CommandLineAPIScope::accessorGetterCallback(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  v8::Local<v8::Array> data = info.DataV2().As<v8::Value>().As<v8::Array>();
-  v8::Local<v8::Value> data0;
-  if (!data->Get(context, kCommandLineAPIIndex).ToLocal(&data0) ||
-      !data0->IsObject()) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  Data* data = info.DataV2().As<v8::CppHeapExternal>()->Value<Data>(
+      isolate, {Data::kPointerTag, Data::kPointerTag});
+  CHECK_NOT_NULL(data);
+  v8::Local<v8::Object> commandLineAPI = data->commandLineAPI(isolate);
+  if (commandLineAPI.IsEmpty()) {
     USE(info.Holder()->Delete(context, name).FromMaybe(false));
     return;
   }
-  v8::Local<v8::Object> commandLineAPI = data0.As<v8::Object>();
 
   v8::Local<v8::Value> value;
   if (!commandLineAPI->Get(context, name).ToLocal(&value)) return;
@@ -1048,13 +1055,12 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
 void V8Console::CommandLineAPIScope::accessorSetterCallback(
     v8::Local<v8::Name> name, v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  v8::Local<v8::Array> data = info.DataV2().As<v8::Value>().As<v8::Array>();
-  v8::Local<v8::Value> data0;
-  if (!data->Get(context, kCommandLineAPIIndex).ToLocal(&data0) ||
-      !data0->IsObject()) {
-    return;
-  }
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  Data* data = info.DataV2().As<v8::CppHeapExternal>()->Value<Data>(
+      isolate, {Data::kPointerTag, Data::kPointerTag});
+  CHECK_NOT_NULL(data);
+  if (data->commandLineAPI(isolate).IsEmpty()) return;
 
   if (!info.Holder()->Delete(context, name).FromMaybe(false)) return;
   if (!info.Holder()
@@ -1063,11 +1069,11 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
     return;
   }
 
-  for (uint32_t i = kFirstInstalledMethodIndex; i < data->Length(); ++i) {
-    v8::Local<v8::Value> methodName;
-    if (!data->Get(context, i).ToLocal(&methodName)) continue;
+  v8::Local<v8::PrimitiveArray> methods = data->installedMethods(isolate);
+  for (int i = 0; i < methods->Length(); ++i) {
+    v8::Local<v8::Primitive> methodName = methods->Get(isolate, i);
     if (!name->StrictEquals(methodName)) continue;
-    data->Set(context, i, v8::Undefined(info.GetIsolate())).Check();
+    methods->Set(isolate, i, v8::Undefined(isolate));
     break;
   }
 }
@@ -1113,15 +1119,19 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     v8::Local<v8::Object> global)
     : m_isolate(v8::Isolate::GetCurrent()),
       m_context(m_isolate, context),
-      m_data(m_isolate, v8::Array::New(isolate(), kHeaderLength)),
-      m_global(m_isolate, global) {
+      m_global(m_isolate, global),
+      m_data(cppgc::MakeGarbageCollected<Data>(
+          m_isolate->GetCppHeap()->GetAllocationHandle(), m_isolate,
+          commandLineAPI)) {
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> names;
   if (!commandLineAPI->GetOwnPropertyNames(context).ToLocal(&names)) return;
-  data()
-      ->CreateDataProperty(context, kCommandLineAPIIndex, commandLineAPI)
-      .Check();
+  v8::Local<v8::PrimitiveArray> installedMethods =
+      v8::PrimitiveArray::New(m_isolate, names->Length());
+  m_data->setInstalledMethods(m_isolate, installedMethods);
+  v8::Local<v8::Data> externalData = v8::CppHeapExternal::New<Data>(
+      m_isolate, m_data.Get(), Data::kPointerTag);
 
   for (uint32_t i = 0; i < names->Length(); ++i) {
     v8::Local<v8::Value> name;
@@ -1140,12 +1150,12 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
              ->SetNativeDataProperty(
                  context, name.As<v8::Name>(),
                  CommandLineAPIScope::accessorGetterCallback,
-                 CommandLineAPIScope::accessorSetterCallback, data(),
+                 CommandLineAPIScope::accessorSetterCallback, externalData,
                  v8::DontEnum, get_accessor_side_effect_type)
              .FromMaybe(false)) {
       continue;
     }
-    data()->CreateDataProperty(context, data()->Length(), name).Check();
+    installedMethods->Set(m_isolate, i, name.As<v8::Name>());
   }
 }
 
@@ -1153,17 +1163,17 @@ V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
   if (m_isolate->IsExecutionTerminating()) return;
   v8::MicrotasksScope microtasksScope(context(),
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
-  data()
-      ->CreateDataProperty(context(), kCommandLineAPIIndex, v8::Null(isolate()))
-      .Check();
-  for (uint32_t i = kFirstInstalledMethodIndex; i < data()->Length(); ++i) {
-    v8::Local<v8::Value> name;
-    if (data()->Get(context(), i).ToLocal(&name) && name->IsString()) {
+  m_data->clearCommandLineAPI();
+  v8::Local<v8::PrimitiveArray> names = m_data->installedMethods(m_isolate);
+  if (names.IsEmpty()) return;
+  for (int i = 0; i < names->Length(); ++i) {
+    v8::Local<v8::Primitive> name = names->Get(m_isolate, i);
+    if (name->IsName()) {
       v8::Local<v8::Value> descriptor;
-      bool success =
-          global()
-              ->GetOwnPropertyDescriptor(context(), name.As<v8::String>())
-              .ToLocal(&descriptor);
+      bool success = global()
+                         ->GetOwnPropertyDescriptor(context(),
+                                                    name.As<v8::Name>())
+                         .ToLocal(&descriptor);
       USE(success);
     }
   }
