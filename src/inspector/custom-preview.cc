@@ -27,6 +27,9 @@ namespace {
 void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
   DCHECK(tryCatch.HasCaught());
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  // Reporting the error calls into V8, which would clear a pending termination
+  // exception, so don't report anything when execution is terminating.
+  if (isolate->IsExecutionTerminating()) return;
   V8InspectorImpl* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   int contextId = InspectedContext::contextId(context);
@@ -58,6 +61,7 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
 void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch,
                  const String16& message) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  if (isolate->IsExecutionTerminating()) return;
   isolate->ThrowException(toV8String(isolate, message));
   reportError(context, tryCatch);
 }
@@ -265,6 +269,10 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
     protocol::Response response = injectedScript->wrapObject(
         originValue, groupName, WrapOptions({WrapMode::kIdOnly}), configValue,
         maxDepth - 1, &wrapper);
+    // Wrapping the object runs the (nested) custom formatters, which might
+    // terminate execution. Don't call into V8 anymore in that case, since the
+    // next V8 API call would clear the pending termination exception.
+    if (isolate->IsExecutionTerminating()) return false;
     if (!response.IsSuccess() || !wrapper) {
       reportError(context, tryCatch, "cannot wrap value");
       return false;

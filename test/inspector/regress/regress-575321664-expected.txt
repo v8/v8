@@ -1,0 +1,6 @@
+Checks that custom preview generation stops after execution termination.
+log: 
+{
+    code : -32000
+    message : Execution was terminated
+}

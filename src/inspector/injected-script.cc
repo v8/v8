@@ -676,6 +676,12 @@ Response InjectedScript::wrapObjectMirror(
     generateCustomPreview(m_context->isolate(), sessionId, groupName,
                           value.As<v8::Object>(), customPreviewConfig,
                           maxCustomPreviewDepth, &customPreview);
+    // Custom formatters might terminate execution. Don't call into V8 anymore
+    // in that case, since the next V8 API call would clear the pending
+    // termination exception.
+    if (m_context->isolate()->IsExecutionTerminating()) {
+      return Response::InternalError();
+    }
     if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
   }
   if (wrapOptions.mode == WrapMode::kDeep) {
