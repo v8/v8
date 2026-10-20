@@ -1142,6 +1142,9 @@ void InjectedScript::Scope::cleanup() {
 }
 
 InjectedScript::Scope::~Scope() {
+  if (m_tryCatch.HasTerminated()) {
+    m_inspector->debugger()->reportTermination();
+  }
   if (m_ignoreExceptionsAndMuteConsole) {
     setPauseOnExceptionsState(m_previousPauseOnExceptionsState);
     m_inspector->client()->unmuteMetrics(m_contextGroupId);

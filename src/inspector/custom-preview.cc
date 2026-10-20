@@ -508,6 +508,7 @@ void generateCustomPreview(v8::Isolate* isolate, int sessionId,
 
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::Isolate::SuppressMicrotaskExecutionScope suppress(isolate);
   v8::TryCatch tryCatch(isolate);
 
   v8::Local<v8::Value> configValue;
