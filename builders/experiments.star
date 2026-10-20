@@ -113,6 +113,11 @@ in_category(
 
 in_category(
     "FYI",
+    experiment_builder_pair(
+        name = "Linux64 - icu4x - debug",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    ),
     experiment_builder(
         name = "V8 Linux64 - debug - fyi",
         parent_builder = "V8 Linux64 - debug builder",
