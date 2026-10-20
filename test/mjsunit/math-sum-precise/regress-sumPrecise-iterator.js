@@ -90,5 +90,5 @@
   // TypeError (crbug.com/566973695).
   let it = new Set([1, 2, 3]).entries();
   assertThrows(() => Math.sumPrecise(it), TypeError);
-  assertEquals({ value: undefined, done: true }, it.next());
+  assertEquals({ value: [2, 2], done: false }, it.next());
 }
