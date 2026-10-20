@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --enable-inspector --sandbox-testing
+// Flags: --sandbox-testing
 
-globalThis.receive = function(message) {
-  print(message);
-};
+const {session, contextGroup, Protocol} =
+    InspectorTest.start('Regression test for crbug.com/513048538');
 
 const expression = String.raw`
 const print = (...args) => console.log(...args);
@@ -147,11 +146,10 @@ if (!foundData) {
 }
 `;
 
-send(JSON.stringify({
-  id: 1,
-  method: 'Runtime.evaluate',
-  params: {
+(async () => {
+  InspectorTest.logMessage(await Protocol.Runtime.evaluate({
     includeCommandLineAPI: true,
     expression,
-  },
-}));
+  }));
+  InspectorTest.completeTest();
+})();
