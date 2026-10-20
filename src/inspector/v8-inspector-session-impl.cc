@@ -330,10 +330,15 @@ V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
                      &inspectedContext);
   if (!injectedScript) return nullptr;
   std::unique_ptr<protocol::Runtime::RemoteObject> result;
-  injectedScript->wrapObject(value, groupName,
-                             generatePreview ? WrapOptions({WrapMode::kPreview})
-                                             : WrapOptions({WrapMode::kIdOnly}),
-                             &result);
+  Response response = injectedScript->wrapObject(
+      value, groupName,
+      generatePreview ? WrapOptions({WrapMode::kPreview})
+                      : WrapOptions({WrapMode::kIdOnly}),
+      &result);
+  // Wrapping can fail after the remote object was partially built, e.g. when a
+  // custom formatter terminated execution. Don't return the partial result in
+  // that case, so that callers don't continue to call into V8.
+  if (!response.IsSuccess()) return nullptr;
   return result;
 }
 
