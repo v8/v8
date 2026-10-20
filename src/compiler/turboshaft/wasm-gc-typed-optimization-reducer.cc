@@ -329,7 +329,9 @@ void WasmGCTypeAnalyzer::ProcessStructGet(const StructGetOp& struct_get) {
     if (type.is_none_or_bottom()) {
       // Subsumption dictates that get_desc(none) <: get_desc(exact $s).
       exactness = wasm::kExact;
-    } else if (type.has_index() && type.ref_index() != struct_get.type_index) {
+    } else if (type.has_index() &&
+               !wasm::EquivalentIndices(type.ref_index(), struct_get.type_index,
+                                        module_)) {
       exactness = wasm::kAnySubtype;
     }
     new_type = wasm::ValueType::Ref(module_->heap_type(type_def.descriptor))

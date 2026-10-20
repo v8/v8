@@ -6353,8 +6353,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           // All other generic types would have failed validation above.
           DCHECK(ref.type.has_index());
           // Exactness is only propagated if the actual type on the stack
-          // exactly matched the type immediate.
-          if (ref.type.ref_index() != imm.index) {
+          // is equivalent to the type immediate.
+          if (!EquivalentIndices(ref.type.ref_index(), imm.index,
+                                 this->module_)) {
             result_exactness = kAnySubtype;
           }
         }
