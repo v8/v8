@@ -29,13 +29,16 @@ commands in V8.
     changes.
   - Ensure the `Change-Id` footer is preserved in the commit message.
   - **Bug Lines**:
+    - When a CL fixes a bug, write `Fixed: <bug_id>` (e.g., `Fixed: 509339491`).
+      Write `Bug:` when the CL is related to a bug without fully resolving it.
     - For **public bugs** (e.g., `issues.chromium.org`), use the plain numerical
-      bug ID ONLY (e.g., `Bug: 509339491`) without any prefix.
+      bug ID ONLY (e.g., `Fixed: 509339491` or `Bug: 509339491`) without any
+      prefix.
     - For **internal bugs** (e.g., Google-internal Buganizer), use the `b:`
-      prefix (e.g., `Bug: b:349680002`).
+      prefix (e.g., `Fixed: b:349680002` or `Bug: b:349680002`).
     - When listing multiple bugs, limit bug listings to a maximum of 4 or 5 per
       line (Gerrit stops rendering them as links). If you have more, add a
-      second `Bug:` line.
+      second `Fixed:` or `Bug:` line.
 
 ## Git Command Usage & Avoiding Interactive Hangs
 
