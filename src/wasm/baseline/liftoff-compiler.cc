@@ -4826,7 +4826,8 @@ class LiftoffCompiler {
       LoadType load_type =
           kSystemPointerSize == 8 ? LoadType::kI64Load : LoadType::kI32Load;
       __ AtomicLoad(mem_size, mem_size.gp(), no_reg, 0, load_type, nullptr,
-                    AtomicMemoryOrder::kSeqCst, pinned, false);
+                    AtomicMemoryOrder::kSeqCst, pinned, false,
+                    LiftoffAssembler::kNative);
     }
     // Convert bytes to pages.
     __ emit_ptrsize_shri(mem_size.gp(), mem_size.gp(), kWasmPageSizeLog2);
