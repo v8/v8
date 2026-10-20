@@ -107,7 +107,6 @@ v8_cluster_source_set("cctest_sources") {
     "heap/heap-tester.h",
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
-    "heap/test-alloc.cc",
     "heap/test-array-buffer-sweeper.cc",
     "heap/test-concurrent-allocation.cc",
     "heap/test-external-string-tracker.cc",

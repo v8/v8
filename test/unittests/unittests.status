@@ -305,6 +305,8 @@
   'HeapTest.CodeObjectRegistry': [SKIP],
   'HeapTest.FindCodeForInnerPointer': [SKIP],
   'HeapTest.Regress10900': [SKIP],
+  'HeapTest.StressHandles': [SKIP],
+  'HeapTest.StressJS': [SKIP],
   'MacroAssemblerX64Test.EmbeddedObj': [SKIP],
   'RegExpTest.AssertionMergingToNode': [SKIP],
   'RegExpTest.MacroAssemblernativeAtStart': [SKIP],

@@ -680,8 +680,6 @@
 
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
   'test-heap-profiler/WeakReference': [SKIP],
-  'test-alloc/StressJS': [SKIP],
-  'test-alloc/StressHandles': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
   'test-field-type-tracking/*': [SKIP],

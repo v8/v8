@@ -442,6 +442,12 @@ void ForceEvacuationCandidate(NormalPage* page) {
   page->owner()->heap()->FreeLinearAllocationAreas();
 }
 
+AllocationResult HeapInternalsBase::AllocateRawForTest(
+    Heap* heap, int size_in_bytes, AllocationType type,
+    AllocationOrigin origin) {
+  return heap->AllocateRaw(size_in_bytes, type, origin);
+}
+
 // This is the same as Factory::NewByteArray, except it doesn't retry on
 // allocation failure.
 AllocationResult HeapInternalsBase::AllocateByteArrayForTest(

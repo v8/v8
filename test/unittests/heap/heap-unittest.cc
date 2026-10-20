@@ -29,6 +29,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/strings.h"
+#include "src/builtins/accessors.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
@@ -67,6 +68,7 @@
 #include "src/heap/trusted-range.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/api-callbacks.h"
 #include "src/objects/bytecode-array-inl.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/elements.h"
@@ -84,6 +86,7 @@
 #include "src/objects/number-string-cache-inl.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/property.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/slots.h"
@@ -7525,6 +7528,136 @@ TEST_F(HeapTest, LongTaskStatsYoung) {
   EXPECT_EQ(
       0u,
       v8::metrics::LongTaskStats::Get(isolate).gc_young_wall_clock_duration_us);
+}
+
+namespace {
+
+DirectHandle<Object> TestAllocateAfterFailures(Isolate* isolate) {
+  // Similar to what the factory's retrying logic does in the last-resort case,
+  // we wrap the allocator function in an AlwaysAllocateScope.  Test that
+  // all allocations succeed immediately without any retry.
+  Heap* heap = isolate->heap();
+  InvokeMemoryReducingMajorGCs(isolate);
+  AlwaysAllocateScopeForTesting scope(heap);
+  int size = FixedArray::SizeFor(100);
+  // Young generation.
+  Tagged<HeapObject> obj =
+      HeapTest::AllocateRawForTest(heap, size, AllocationType::kYoung)
+          .ToObjectChecked();
+  // In order to pass heap verification on Isolate teardown, mark the
+  // allocated area as a filler.
+  heap->CreateFillerObjectAt(obj.address(), size);
+
+  // Old generation.
+  HeapTest::SimulateFullSpace(heap->old_space());
+  obj = HeapTest::AllocateRawForTest(heap, size, AllocationType::kOld)
+            .ToObjectChecked();
+  heap->CreateFillerObjectAt(obj.address(), size);
+
+  // Large object space.
+  static const size_t kLargeObjectSpaceFillerLength =
+      3 * (NormalPage::kPageSize / 10);
+  static const size_t kLargeObjectSpaceFillerSize =
+      FixedArray::SizeFor(kLargeObjectSpaceFillerLength);
+  CHECK_GT(kLargeObjectSpaceFillerSize,
+           static_cast<size_t>(heap->old_space()->AreaSize()));
+  while (HeapTest::OldGenerationSpaceAvailable(heap) >
+         kLargeObjectSpaceFillerSize) {
+    obj = HeapTest::AllocateRawForTest(
+              heap, static_cast<int>(kLargeObjectSpaceFillerSize),
+              AllocationType::kOld)
+              .ToObjectChecked();
+    heap->CreateFillerObjectAt(obj.address(), size);
+  }
+  obj = HeapTest::AllocateRawForTest(
+            heap, static_cast<int>(kLargeObjectSpaceFillerSize),
+            AllocationType::kOld)
+            .ToObjectChecked();
+  heap->CreateFillerObjectAt(obj.address(), size);
+
+  // Map space.
+  HeapTest::SimulateFullSpace(heap->old_space());
+  obj = HeapTest::AllocateRawForTest(heap, Map::kSize, AllocationType::kMap)
+            .ToObjectChecked();
+  heap->CreateFillerObjectAt(obj.address(), Map::kSize);
+
+  // Code space.
+  HeapTest::SimulateFullSpace(heap->code_space());
+  size = isolate->builtins()->code(Builtin::kIllegal)->Size();
+  obj = HeapTest::AllocateRawForTest(heap, size, AllocationType::kCode,
+                                     AllocationOrigin::kRuntime)
+            .ToObjectChecked();
+  heap->CreateFillerObjectAt(obj.address(), size);
+  return isolate->factory()->true_value();
+}
+
+void TestGetter(v8::Local<v8::Name> name,
+                const v8::PropertyCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  info.GetReturnValue().Set(
+      v8::Utils::ToLocal(TestAllocateAfterFailures(isolate)));
+}
+
+void TestSetter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
+                const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  UNREACHABLE();
+}
+
+DirectHandle<AccessorInfo> TestAccessorInfo(Isolate* isolate) {
+  DirectHandle<String> name =
+      isolate->factory()->NewStringFromStaticChars("get");
+  return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter);
+}
+
+}  // namespace
+
+TEST_F(HeapTest, StressHandles) {
+  // For TestAllocateAfterFailures.
+  v8_flags.stress_concurrent_allocation = false;
+  v8::HandleScope scope(v8_isolate());
+  DirectHandle<Object> o = TestAllocateAfterFailures(i_isolate());
+  CHECK(IsTrue(*o));
+}
+
+TEST_F(HeapTest, StressJS) {
+  // For TestAllocateAfterFailures in TestGetter.
+  v8_flags.stress_concurrent_allocation = false;
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(v8_isolate());
+
+  DirectHandle<NativeContext> context(isolate->native_context());
+  DirectHandle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(
+          factory->function_string(), Builtin::kEmptyFunction, 0, kDontAdapt);
+  info->set_language_mode(LanguageMode::kStrict);
+  DirectHandle<JSFunction> function =
+      Factory::JSFunctionBuilder{isolate, info, context}.Build();
+  CHECK(!function->shared()->construct_as_builtin());
+
+  // Force the creation of an initial map.
+  factory->NewJSObject(function);
+
+  // Patch the map to have an accessor for "get".
+  DirectHandle<Map> map(function->initial_map(), isolate);
+  DirectHandle<DescriptorArray> instance_descriptors(
+      map->instance_descriptors(), isolate);
+  CHECK_EQ(0, instance_descriptors->number_of_descriptors());
+
+  PropertyAttributes attrs = NONE;
+  DirectHandle<AccessorInfo> foreign = TestAccessorInfo(isolate);
+  Map::EnsureDescriptorSlack(isolate, map, 1);
+
+  Descriptor d = Descriptor::AccessorConstant(
+      DirectHandle<Name>(Cast<Name>(foreign->name()), isolate), foreign, attrs);
+  map->AppendDescriptor(isolate, &d);
+
+  // Add the Foo constructor to the global object.
+  SetGlobalProperty("Foo", v8::Utils::CallableToLocal(function));
+  // Call the accessor through JavaScript.
+  v8::Local<v8::Value> result = TryRunJS("(new Foo).get").ToLocalChecked();
+  CHECK_EQ(true, result->BooleanValue(v8_isolate()));
 }
 
 }  // namespace internal

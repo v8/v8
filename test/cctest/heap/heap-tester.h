@@ -10,7 +10,7 @@
 
 // Tests that should have access to private methods of {v8::internal::Heap}.
 // Those tests need to be defined using HEAP_TEST(Name) { ... }.
-#define HEAP_TEST_METHODS(V) V(StressHandles)
+#define HEAP_TEST_METHODS(V)
 
 #define HEAP_TEST(Name)                                                   \
   CcTest register_test_##Name(v8::internal::heap::HeapTester::Test##Name, \
@@ -27,9 +27,6 @@ class HeapTester {
 
   HEAP_TEST_METHODS(DECLARE_STATIC)
 #undef HEAP_TEST_METHODS
-
-  // test-alloc.cc
-  static DirectHandle<Object> TestAllocateAfterFailures();
 
   // test-api.cc
   static void ResetWeakHandle(bool global_gc);

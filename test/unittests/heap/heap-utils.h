@@ -20,16 +20,19 @@ class SemiSpaceNewSpace;
 
 class HeapInternalsBase {
  protected:
-  size_t OldGenerationSpaceAvailable(Heap* heap);
+  static size_t OldGenerationSpaceAvailable(Heap* heap);
   void SimulateIncrementalMarking(Heap* heap, bool force_completion = true);
   void SimulateFullSpace(
       NewSpace* space, std::vector<Handle<FixedArray>>* out_handles = nullptr);
-  void SimulateFullSpace(PagedSpace* space);
+  static void SimulateFullSpace(PagedSpace* space);
   void FillCurrentPage(NewSpace* space,
                        std::vector<Handle<FixedArray>>* out_handles = nullptr);
   void FillCurrentPageButNBytes(
       SemiSpaceNewSpace* space, int extra_bytes,
       std::vector<Handle<FixedArray>>* out_handles = nullptr);
+  static AllocationResult AllocateRawForTest(
+      Heap* heap, int size_in_bytes, AllocationType type,
+      AllocationOrigin origin = AllocationOrigin::kRuntime);
   AllocationResult AllocateByteArrayForTest(Heap* heap, uint32_t length,
                                             AllocationType allocation_type);
   AllocationResult AllocateFixedArrayForTest(Heap* heap, uint32_t length,
@@ -116,6 +119,7 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
 
   Heap* heap() const { return this->i_isolate()->heap(); }
 
+  using HeapInternalsBase::OldGenerationSpaceAvailable;
   size_t OldGenerationSpaceAvailable() {
     return HeapInternalsBase::OldGenerationSpaceAvailable(heap());
   }
@@ -130,7 +134,7 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
       NewSpace* space, std::vector<Handle<FixedArray>>* out_handles = nullptr) {
     return HeapInternalsBase::SimulateFullSpace(space, out_handles);
   }
-  void SimulateFullSpace(PagedSpace* space) {
+  static void SimulateFullSpace(PagedSpace* space) {
     return HeapInternalsBase::SimulateFullSpace(space);
   }
 
@@ -146,6 +150,13 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
                                                        out_handles);
   }
 
+  using HeapInternalsBase::AllocateRawForTest;
+  AllocationResult AllocateRawForTest(
+      int size_in_bytes, AllocationType type,
+      AllocationOrigin origin = AllocationOrigin::kRuntime) {
+    return HeapInternalsBase::AllocateRawForTest(heap(), size_in_bytes, type,
+                                                 origin);
+  }
   AllocationResult AllocateByteArrayForTest(Heap* heap, uint32_t length,
                                             AllocationType allocation_type) {
     return HeapInternalsBase::AllocateByteArrayForTest(heap, length,
