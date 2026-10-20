@@ -34,6 +34,7 @@
 
   # Sandbox regression tests requiring the memory corruption API.
   'regress/regress-502337304': [PASS, ['not memory_corruption_api', SKIP]],
+  'regress/regress-507490539': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-568338771': [PASS, ['not memory_corruption_api', SKIP]],
   'regress/regress-crbug-568986689': [PASS, ['not memory_corruption_api', SKIP]],
 }],  # ALWAYS

