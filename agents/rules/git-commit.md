@@ -12,7 +12,7 @@ commands in V8.
 
 - **Title**: Must follow the format `[component] Title`.
   - Keep the title short, concise, and punchy: aim for ~50 characters, and at
-    most 64 characters (including the `[component]` prefix). Prefer high-level
+    most 72 characters (including the `[component]` prefix). Prefer high-level
     intent over verbose implementation details.
   - Use `[agents] title` ONLY for changes to the agent automation suite itself.
 - **Description**: Keep the body concise (aim for at most 10 lines) and include
@@ -53,7 +53,8 @@ commands in V8.
   changes and ask how they want to proceed (e.g., create new branch, discard, or
   hold) before uploading.
 - **Base on Clean Upstream**: Base new branches on a clean upstream (e.g.,
-  `origin/main`). When creating a new worktree or branch (e.g.,
-  `git worktree add -b branch_name path origin/main`), **always explicitly
-  specify `origin/main`** as the base commit to ensure isolation from unrelated
-  local commits.
+  `origin/main`, or the parent branch for stacked CLs). When creating a new
+  worktree or branch (e.g., via
+  `agents/scripts/create_worktree.sh <task_id> [base_branch]`), **always
+  explicitly specify the base branch** (defaulting to `origin/main`) to ensure
+  isolation from unrelated local commits.

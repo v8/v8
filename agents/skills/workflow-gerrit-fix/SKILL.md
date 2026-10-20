@@ -58,13 +58,11 @@ Gerrit Change List (CL).
 
 - **Local Build/Test**: Instruct the subagent to verify that the fix compiles
   locally and the reproduced failure is now resolved.
-- **Upload**: Once verified locally, upload the new patchset using
-  `agents/scripts/upload_cl.sh cur check "<what you changed>"` (which preserves
-  the CL's current WIP or Ready-for-Review status on Gerrit). If the CL is still
-  in WIP and ready for review, run
-  `agents/scripts/upload_cl.sh cur check "<what you changed>" --ready` as a
-  background task (after user confirmation) to run a CQ dry-run and switch the
-  CL to ready once the dry-run passes.
+- **Upload**: Once verified locally, follow `agents/rules/git-cl.md` and the
+  `git-cl-helper` skill to upload the new patchset
+  (`SKIP_GCE_AUTH_FOR_GIT=1 GIT_EDITOR=true git cl upload -t "<what you changed>"`),
+  preserving the CL's current WIP or Ready-for-Review status on Gerrit. Only
+  mark a WIP CL Ready for Review when the user explicitly asks to do so.
 
 ## Example: Fixing Errors
 
