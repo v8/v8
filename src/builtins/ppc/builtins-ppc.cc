@@ -2799,12 +2799,16 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label done;
       __ ShiftLeftU64(r10, r7, Operand(kSystemPointerSizeLog2));
-      __ sub(r0, sp, r10);
-      // Check the stack for overflow. We are not trying to catch interruptions
-      // (i.e. debug break and preemption) here, so check the "real stack
-      // limit".
-      __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
-      __ CmpU64(r0, scratch);
+      {
+        UseScratchRegisterScope temps(masm);
+        Register new_sp = temps.Acquire();
+        __ sub(new_sp, sp, r10);
+        // Check the stack for overflow. We are not trying to catch
+        // interruptions (i.e. debug break and preemption) here, so check the
+        // "real stack limit".
+        __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
+        __ CmpU64(new_sp, scratch);
+      }
       __ bgt(&done);  // Signed comparison.
       {
         FrameScope scope(masm, StackFrame::MANUAL);
