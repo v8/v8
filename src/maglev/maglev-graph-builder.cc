@@ -11408,7 +11408,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
       return reducer_.EmitUnconditionalDeopt(reason);
     }
 
-    if (NodeTypeIs(GetType(node), NodeType::kAnyHeapObject)) {
+    if (!NodeTypeCanBe(GetType(node), NodeType::kSmi)) {
       return reducer_.EmitUnconditionalDeopt(reason);
     }
     RETURN_IF_ABORT(
@@ -11432,7 +11432,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
       return reducer_.EmitUnconditionalDeopt(reason);
     }
 
-    if (!NodeTypeIs(NodeType::kNumber, GetType(node))) {
+    if (!NodeTypeCanBe(GetType(node), NodeType::kHeapNumber)) {
       return reducer_.EmitUnconditionalDeopt(reason);
     }
     RETURN_IF_ABORT(

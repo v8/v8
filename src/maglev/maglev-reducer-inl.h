@@ -2182,11 +2182,11 @@ std::optional<Float64> MaglevReducer<BaseT>::TryGetFloatConstantImpl(
     case Opcode::kRootConstant: {
       Tagged<Object> root_object =
           broker()->local_isolate()->root(value->Cast<RootConstant>()->index());
-      if (NodeTypeIs(NodeType::kBoolean, assumed_input_type) &&
+      if (NodeTypeCanBe(assumed_input_type, NodeType::kBoolean) &&
           IsBoolean(root_object)) {
         return Float64{Cast<Oddball>(root_object)->to_number_raw()};
       }
-      if (NodeTypeIs(NodeType::kUndefined, assumed_input_type) &&
+      if (NodeTypeCanBe(assumed_input_type, NodeType::kUndefined) &&
           IsUndefined(root_object)) {
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
         // We use the undefined nan and silence it to produce the same result
@@ -2201,7 +2201,7 @@ std::optional<Float64> MaglevReducer<BaseT>::TryGetFloatConstantImpl(
             Cast<Oddball>(root_object)->to_number_raw()));
 #endif
       }
-      if (NodeTypeIs(NodeType::kNull, assumed_input_type) &&
+      if (NodeTypeCanBe(assumed_input_type, NodeType::kNull) &&
           IsNull(root_object)) {
         return Float64::FromBits(base::double_to_uint64(
             Cast<Oddball>(root_object)->to_number_raw()));
@@ -2483,7 +2483,7 @@ void MaglevReducer<BaseT>::SetKnownValue(ValueNode* node,
     DCHECK(IsInstanceOfNodeType(ref.AsHeapObject().map(broker()),
                                 known_info->type(), broker()));
   } else {
-    DCHECK(!NodeTypeIs(known_info->type(), NodeType::kAnyHeapObject));
+    DCHECK(NodeTypeCanBe(known_info->type(), NodeType::kSmi));
   }
   known_info->IntersectType(new_node_type);
   known_info->alternative().set_checked_value(GetConstant(ref));
