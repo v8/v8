@@ -1768,11 +1768,12 @@ void Builtins::Generate_ConstructForwardAllArgsImpl(
   // Copy arguments on the stack. r8 is a scratch register.
   Register argc_without_receiver = scratch;
   __ subi(argc_without_receiver, r3, Operand(kJSArgcReceiverSlots));
-  __ PushArray(r7, argc_without_receiver, r8, r0);
+  Register scratch2 = temps.Acquire();
+  __ PushArray(r7, argc_without_receiver, r8, scratch2);
 
   // Push a slot for the receiver to be constructed.
-  __ li(r0, Operand::Zero());
-  __ push(r0);
+  __ li(scratch, Operand::Zero());
+  __ push(scratch);
 
   // Call the constructor with r3, r4, and r6 unmodified.
   __ TailCallBuiltin(Builtin::kConstruct);
