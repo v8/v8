@@ -12,6 +12,7 @@
 #include <utility>  // For move
 
 #include "src/ast/ast-source-ranges.h"
+#include "src/base/bits.h"
 #include "src/base/strong-alias.h"
 #include "src/base/unique-array.h"
 #include "src/builtins/accessors.h"
@@ -1220,9 +1221,35 @@ MaybeDirectHandle<String> Factory::NewStringFromTwoByteLittleEndian(
                             NonSharedStringPolicy>(
       isolate(), peek_bytes, AllocationType::kYoung, MessageTemplate::kNone);
 #elif defined(V8_TARGET_BIG_ENDIAN)
-  // TODO(12868): Duplicate the guts of NewStringFromTwoByte, so that
-  // copying and transcoding the data can be done in a single pass.
-  UNIMPLEMENTED();
+  if (str.size() > String::kMaxLength) {
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
+  }
+  base::UniqueArray<uint16_t> private_copy =
+      base::UniqueArray<uint16_t>::NewForOverwrite(str.size());
+  if (config.source_shared()) {
+    const base::Atomic16* src =
+        reinterpret_cast<const base::Atomic16*>(str.data());
+    for (size_t i = 0; i < str.size(); i++) {
+      private_copy[i] = base::bits::ByteReverse16(
+          static_cast<uint16_t>(base::Relaxed_Load(src + i)));
+    }
+  } else {
+    for (size_t i = 0; i < str.size(); i++) {
+      private_copy[i] = base::bits::ByteReverse16(str[i]);
+    }
+  }
+  auto peek_bytes = [&]() -> base::Vector<const uint16_t> {
+    return private_copy.as_span();
+  };
+  if (config.dest_shared()) {
+    return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
+                              SharedStringPolicy>(isolate(), peek_bytes,
+                                                  AllocationType::kSharedOld,
+                                                  MessageTemplate::kNone);
+  }
+  return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
+                            NonSharedStringPolicy>(
+      isolate(), peek_bytes, AllocationType::kYoung, MessageTemplate::kNone);
 #else
 #error Unknown endianness
 #endif
