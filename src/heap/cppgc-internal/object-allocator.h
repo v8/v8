@@ -54,17 +54,16 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
                   cppgc::AllocationSampler* = nullptr);
 
   template <MayContainMixins>
-  V8_INLINE void* AllocateObject(size_t size, GCInfoIndex gcinfo);
+  inline void* AllocateObject(size_t size, GCInfoIndex gcinfo);
   template <MayContainMixins>
-  V8_INLINE void* AllocateObject(size_t size, AlignVal alignment,
-                                 GCInfoIndex gcinfo);
+  inline void* AllocateObject(size_t size, AlignVal alignment,
+                              GCInfoIndex gcinfo);
   template <MayContainMixins>
-  V8_INLINE void* AllocateObject(size_t size, GCInfoIndex gcinfo,
-                                 CustomSpaceIndex space_index);
+  inline void* AllocateObject(size_t size, GCInfoIndex gcinfo,
+                              CustomSpaceIndex space_index);
   template <MayContainMixins>
-  V8_INLINE void* AllocateObject(size_t size, AlignVal alignment,
-                                 GCInfoIndex gcinfo,
-                                 CustomSpaceIndex space_index);
+  inline void* AllocateObject(size_t size, AlignVal alignment,
+                              GCInfoIndex gcinfo, CustomSpaceIndex space_index);
 
   void ResetLinearAllocationBuffers();
   void MarkAllPagesAsYoung();
@@ -81,16 +80,16 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
 
   // Returns the initially tried SpaceType to allocate an object of |size| bytes
   // on. Returns the largest regular object size bucket for large objects.
-  V8_INLINE static RawHeap::RegularSpaceType GetInitialSpaceIndexForSize(
+  inline static RawHeap::RegularSpaceType GetInitialSpaceIndexForSize(
       size_t size);
 
   template <MayContainMixins>
-  V8_INLINE void* AllocateObjectOnSpace(NormalPageSpace&, size_t, GCInfoIndex);
+  inline void* AllocateObjectOnSpace(NormalPageSpace&, size_t, GCInfoIndex);
   template <MayContainMixins>
-  V8_INLINE void* AllocateObjectOnSpace(NormalPageSpace&, size_t, AlignVal,
-                                        GCInfoIndex);
-  V8_INLINE void* OutOfLineAllocate(NormalPageSpace&, size_t, AlignVal,
-                                    GCInfoIndex, MayContainMixins);
+  inline void* AllocateObjectOnSpace(NormalPageSpace&, size_t, AlignVal,
+                                     GCInfoIndex);
+  inline void* OutOfLineAllocate(NormalPageSpace&, size_t, AlignVal,
+                                 GCInfoIndex, MayContainMixins);
 
   // Called from the fast path LAB allocation when the LAB capacity cannot fit
   // the allocation or a large object is requested. Use out parameter as

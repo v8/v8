@@ -40,21 +40,21 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
     return kReservedForBitmap * kBitsPerCell;
   }
 
-  V8_INLINE ObjectStartBitmap();
+  inline ObjectStartBitmap();
 
   // Finds an object header based on an
   // address_maybe_pointing_to_the_middle_of_object. Will search for an object
   // start in decreasing address order.
   template <AccessMode = AccessMode::kNonAtomic>
-  V8_INLINE HeapObjectHeader* FindHeader(
+  inline HeapObjectHeader* FindHeader(
       ConstAddress address_maybe_pointing_to_the_middle_of_object) const;
 
   template <AccessMode = AccessMode::kNonAtomic>
-  V8_INLINE void SetBit(ConstAddress);
+  inline void SetBit(ConstAddress);
   template <AccessMode = AccessMode::kNonAtomic>
-  V8_INLINE void ClearBit(ConstAddress);
+  inline void ClearBit(ConstAddress);
   template <AccessMode = AccessMode::kNonAtomic>
-  V8_INLINE bool CheckBit(ConstAddress) const;
+  inline bool CheckBit(ConstAddress) const;
 
   // Iterates all object starts recorded in the bitmap.
   //
@@ -74,9 +74,9 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
 
  private:
   template <AccessMode = AccessMode::kNonAtomic>
-  V8_INLINE void store(size_t cell_index, uint8_t value);
+  inline void store(size_t cell_index, uint8_t value);
   template <AccessMode = AccessMode::kNonAtomic>
-  V8_INLINE uint8_t load(size_t cell_index) const;
+  inline uint8_t load(size_t cell_index) const;
 
   static constexpr size_t kBitsPerCell = sizeof(uint8_t) * CHAR_BIT;
   static constexpr size_t kCellMask = kBitsPerCell - 1;
@@ -86,7 +86,7 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
   static constexpr size_t kReservedForBitmap =
       ((kBitmapSize + kAllocationMask) & ~kAllocationMask);
 
-  V8_INLINE void ObjectStartIndexAndBit(ConstAddress, size_t*, size_t*) const;
+  inline void ObjectStartIndexAndBit(ConstAddress, size_t*, size_t*) const;
 
   // `fully_populated_` is used to denote that the bitmap is populated with all
   // currently allocated objects on the page and is in a consistent state. It is
