@@ -2131,8 +2131,9 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
         BuiltinContinuationFrameConstants::kFixedSlotCount -
         kJSArgcReceiverSlots;
     __ addi(r3, r3, Operand(return_value_offset));
-    __ ShiftLeftU64(r0, r3, Operand(kSystemPointerSizeLog2));
-    __ StoreU64(scratch, MemOperand(sp, r0));
+    Register offset_scratch = temps.Acquire();
+    __ ShiftLeftU64(offset_scratch, r3, Operand(kSystemPointerSizeLog2));
+    __ StoreU64(scratch, MemOperand(sp, offset_scratch));
     // Recover arguments count.
     __ subi(r3, r3, Operand(return_value_offset));
   }
@@ -2145,8 +2146,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   __ Pop(builtin);
   __ addi(sp, sp,
           Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
-  __ Pop(r0);
-  __ mtlr(r0);
+  __ PopLR();
   __ LoadEntryFromBuiltinIndex(builtin, builtin);
   __ Jump(builtin);
 }
