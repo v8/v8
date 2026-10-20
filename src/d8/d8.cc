@@ -453,7 +453,9 @@ class PAInSandboxAllocator final : public v8::Allocator {
     // out-of-line metadata.
     partition_alloc::internal::PartitionAddressSpace::Init();
     partition_alloc::internal::PartitionAddressSpace::InitConfigurablePool(
-        pool_base, pool_size);
+        pool_base, pool_size,
+        sandbox->address_space()->ActiveMemoryProtectionKey().value_or(
+            partition_alloc::internal::kInvalidPkey));
 
     partition_alloc::PartitionOptions opts;
     opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
