@@ -624,6 +624,7 @@ WasmEngine::~WasmEngine() {
   DCHECK(async_compile_jobs_.empty());
   // All Isolates have been deregistered.
   DCHECK(isolates_.empty());
+  DCHECK_EQ(0, num_isolates_with_code_logging_.load(std::memory_order_relaxed));
   // All NativeModules did die.
   DCHECK(native_modules_.empty());
   // Native module cache does not leak.
@@ -1052,9 +1053,7 @@ DirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
     isolate_info->native_modules.insert(native_module);
     DCHECK(native_modules_.contains(native_module));
     native_modules_[native_module]->isolates.insert(isolate);
-    if (isolate_info->log_codes && !native_module->log_code()) {
-      EnableCodeLogging(native_module);
-    }
+    if (isolate_info->log_codes) native_module->EnableCodeLogging();
   }
 
   // Finish the Wasm script now and make it public to the debugger.
@@ -1224,6 +1223,9 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     base::MutexGuard guard(&mutex_);
     DCHECK(!isolates_.contains(isolate));
     isolates_.emplace(isolate, std::move(isolate_info));
+    if (log_code) {
+      num_isolates_with_code_logging_.fetch_add(1, std::memory_order_relaxed);
+    }
   }
 
   // Record memory protection key support.
@@ -1321,7 +1323,7 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
     DCHECK(native_module_info->isolates.contains(isolate));
     native_module_info->isolates.erase(isolate);
     if (native_module->log_code() && !has_isolate_with_code_logging()) {
-      DisableCodeLogging(native_module);
+      native_module->DisableCodeLogging();
     }
 
     // Remove any debug code and other info for this isolate.
@@ -1352,6 +1354,11 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   isolate_info->code_to_log.clear();
 
   // Finally remove the {IsolateInfo} for this isolate.
+  if (isolate_info->log_codes) {
+    DCHECK_LT(0,
+              num_isolates_with_code_logging_.load(std::memory_order_relaxed));
+    num_isolates_with_code_logging_.fetch_sub(1, std::memory_order_relaxed);
+  }
   isolates_.erase(isolates_it);
 }
 
@@ -1416,7 +1423,7 @@ bool WasmEngine::LogWrapperCode(WasmCode* code) {
   // Wrappers don't belong to any particular NativeModule.
   DCHECK_NULL(code->native_module());
   // Fast path:
-  if (!num_modules_with_code_logging_.load(std::memory_order_relaxed)) {
+  if (!num_isolates_with_code_logging_.load(std::memory_order_relaxed)) {
     return false;
   }
 
@@ -1449,7 +1456,7 @@ bool WasmEngine::LogWrapperCode(WasmCode* code) {
       // that manages updating the refcount for the WasmCode it holds.
       code->IncRef();
     }
-    DCHECK_EQ(did_trigger_code_logging, num_modules_with_code_logging_.load(
+    DCHECK_EQ(did_trigger_code_logging, num_isolates_with_code_logging_.load(
                                             std::memory_order_relaxed) > 0);
   }
   for (auto& [runner, task] : to_schedule) {
@@ -1466,41 +1473,12 @@ void WasmEngine::EnableCodeLogging(Isolate* isolate) {
   IsolateInfo* info = it->second.get();
   if (info->log_codes) return;
   info->log_codes = true;
+  num_isolates_with_code_logging_.fetch_add(1, std::memory_order_relaxed);
   // Also set {NativeModule::log_code_} for all native modules currently used by
   // this isolate.
   for (NativeModule* native_module : info->native_modules) {
-    if (!native_module->log_code()) EnableCodeLogging(native_module);
+    native_module->EnableCodeLogging();
   }
-}
-
-void WasmEngine::EnableCodeLogging(NativeModule* native_module) {
-  // The caller should hold the mutex.
-  mutex_.AssertHeld();
-  DCHECK(!native_module->log_code());
-  native_module->EnableCodeLogging();
-  num_modules_with_code_logging_.fetch_add(1, std::memory_order_relaxed);
-  // Check the accuracy of {num_modules_with_code_logging_}.
-  DCHECK_EQ(
-      num_modules_with_code_logging_.load(std::memory_order_relaxed),
-      std::count_if(
-          native_modules_.begin(), native_modules_.end(),
-          [](std::pair<NativeModule* const, std::unique_ptr<NativeModuleInfo>>&
-                 pair) { return pair.first->log_code(); }));
-}
-
-void WasmEngine::DisableCodeLogging(NativeModule* native_module) {
-  // The caller should hold the mutex.
-  mutex_.AssertHeld();
-  DCHECK(native_module->log_code());
-  native_module->DisableCodeLogging();
-  num_modules_with_code_logging_.fetch_sub(1, std::memory_order_relaxed);
-  // Check the accuracy of {num_modules_with_code_logging_}.
-  DCHECK_EQ(
-      num_modules_with_code_logging_.load(std::memory_order_relaxed),
-      std::count_if(
-          native_modules_.begin(), native_modules_.end(),
-          [](std::pair<NativeModule* const, std::unique_ptr<NativeModuleInfo>>&
-                 pair) { return pair.first->log_code(); }));
 }
 
 void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
@@ -1615,8 +1593,8 @@ void WasmEngine::UseNativeModuleInIsolate(NativeModule* native_module,
         remove_all_code = true;
         native_module->SetDebugState(kDebugging);
       }
-      if (isolate_info->log_codes && !native_module->log_code()) {
-        EnableCodeLogging(native_module);
+      if (isolate_info->log_codes) {
+        native_module->EnableCodeLogging();
       }
       isolate->counters()->wasm_modules_per_isolate()->AddSample(
           static_cast<int>(isolate_info->native_modules.size()));
@@ -1735,8 +1713,6 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
   // If any code objects are currently tracked as dead or near-dead, remove
   // references belonging to the NativeModule that's being deleted.
   std::erase_if(potentially_dead_code_, part_of_native_module);
-
-  if (native_module->log_code()) DisableCodeLogging(native_module);
 
   native_module_cache_.Erase(native_module);
   native_modules_.erase(module);
