@@ -267,6 +267,11 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
   if (!inspectedContext) return nullptr;
 
   v8::Isolate* isolate = inspectedContext->isolate();
+  // Wrapping the arguments can run JavaScript (i.e. getters while building
+  // previews or custom formatters), which might terminate execution. Don't
+  // call into V8 anymore in that case, since the next V8 API call would clear
+  // the pending termination exception.
+  if (isolate->IsExecutionTerminating()) return nullptr;
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = inspectedContext->context();
 

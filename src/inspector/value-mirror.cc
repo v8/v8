@@ -1132,6 +1132,7 @@ struct EntryMirror {
   static bool getEntries(v8::Local<v8::Context> context,
                          v8::Local<v8::Object> object, size_t limit,
                          bool* overflow, std::vector<EntryMirror>* mirrors) {
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     bool isKeyValue = false;
     v8::Local<v8::Array> entries;
     if (!object->PreviewEntries(&isKeyValue).ToLocal(&entries)) return false;
@@ -1141,13 +1142,17 @@ struct EntryMirror {
       std::unique_ptr<ValueMirror> keyMirror;
       if (isKeyValue && entries->Get(context, i).ToLocal(&tmp)) {
         keyMirror = ValueMirror::create(context, tmp);
+        // Creating the mirror can run JavaScript, which might terminate
+        // execution. Don't call into V8 anymore in that case, since the next
+        // V8 API call would clear the pending termination exception.
+        if (isolate->IsExecutionTerminating()) return false;
       }
       std::unique_ptr<ValueMirror> valueMirror;
       if (entries->Get(context, isKeyValue ? i + 1 : i).ToLocal(&tmp)) {
         valueMirror = ValueMirror::create(context, tmp);
-      } else {
-        continue;
+        if (isolate->IsExecutionTerminating()) return false;
       }
+      if (!valueMirror) continue;
       if (mirrors->size() == limit) {
         *overflow = true;
         return true;
@@ -1444,11 +1449,17 @@ class ObjectMirror final : public ValueMirrorBase {
       v8::Local<v8::Context> context, bool forEntry,
       bool generatePreviewForTable, int* nameLimit, int* indexLimit,
       std::unique_ptr<ObjectPreview>* result) const {
+    // Building the preview can run JavaScript (e.g. getters on Error objects),
+    // which might terminate execution. Don't call into V8 anymore in that case,
+    // since the next V8 API call would clear the pending termination exception.
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    if (isolate->IsExecutionTerminating()) return;
+
     auto properties = std::make_unique<protocol::Array<PropertyPreview>>();
     std::unique_ptr<protocol::Array<EntryPreview>> entriesPreview;
     bool overflow = false;
 
-    v8::Local<v8::Value> value = v8Value(v8::Isolate::GetCurrent());
+    v8::Local<v8::Value> value = v8Value(isolate);
     while (value->IsProxy()) value = value.As<v8::Proxy>()->GetTarget();
 
     if (value->IsObject() && !value->IsProxy()) {
@@ -1456,6 +1467,7 @@ class ObjectMirror final : public ValueMirrorBase {
       std::vector<InternalPropertyMirror> internalProperties;
       getInternalPropertiesForPreview(context, objectForPreview, nameLimit,
                                       &overflow, &internalProperties);
+      if (isolate->IsExecutionTerminating()) return;
       for (size_t i = 0; i < internalProperties.size(); ++i) {
         std::unique_ptr<PropertyPreview> propertyPreview;
         internalProperties[i].value->buildPropertyPreview(
@@ -1467,6 +1479,7 @@ class ObjectMirror final : public ValueMirrorBase {
 
       getPrivatePropertiesForPreview(context, objectForPreview, nameLimit,
                                      &overflow, properties.get());
+      if (isolate->IsExecutionTerminating()) return;
 
       std::vector<PropertyMirror> mirrors;
       if (getPropertiesForPreview(context, objectForPreview, nameLimit,
@@ -1494,6 +1507,7 @@ class ObjectMirror final : public ValueMirrorBase {
           properties->emplace_back(std::move(preview));
         }
       }
+      if (isolate->IsExecutionTerminating()) return;
 
       std::vector<EntryMirror> entries;
       if (EntryMirror::getEntries(context, objectForPreview, 5, &overflow,
@@ -1522,6 +1536,7 @@ class ObjectMirror final : public ValueMirrorBase {
           }
         }
       }
+      if (isolate->IsExecutionTerminating()) return;
     }
     *result = ObjectPreview::create()
                   .setType(RemoteObject::TypeEnum::Object)
@@ -1659,6 +1674,10 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
                                 bool nonIndexedPropertiesOnly,
                                 PropertyAccumulator* accumulator) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  // Don't call into V8 when execution is terminating, since that would clear
+  // the pending termination exception (and PropertyIterator::Create() would
+  // fail without throwing).
+  if (isolate->IsExecutionTerminating()) return false;
   v8::TryCatch tryCatch(isolate);
   v8::Local<v8::Set> set = v8::Set::New(isolate);
 
@@ -1783,6 +1802,10 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
         }
       }
     }
+    // Creating the mirrors can run JavaScript, which might terminate
+    // execution. Don't call into V8 anymore in that case, since the next V8
+    // API call would clear the pending termination exception.
+    if (isolate->IsExecutionTerminating()) return false;
     if (accessorPropertiesOnly && !isAccessorProperty) continue;
     auto mirror = PropertyMirror{name,
                                  writable,
@@ -1851,6 +1874,10 @@ void ValueMirror::getInternalProperties(
         continue;
       }
       auto wrapper = ValueMirror::create(context, value);
+      // Creating the mirror can run JavaScript, which might terminate
+      // execution. Don't call into V8 anymore in that case, since the next V8
+      // API call would clear the pending termination exception.
+      if (isolate->IsExecutionTerminating()) return;
       if (wrapper) {
         mirrors->emplace_back(InternalPropertyMirror{
             toProtocolStringWithTypeCheck(v8::Isolate::GetCurrent(), name),
@@ -1904,6 +1931,11 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
     } else {
       valueMirror = ValueMirror::create(context, value);
     }
+
+    // Creating the mirrors can run JavaScript, which might terminate
+    // execution. Don't call into V8 anymore in that case, since the next V8
+    // API call would clear the pending termination exception.
+    if (isolate->IsExecutionTerminating()) return {};
 
     mirrors.emplace_back(PrivatePropertyMirror{
         toProtocolStringWithTypeCheck(v8::Isolate::GetCurrent(), name),
@@ -2131,13 +2163,22 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
                                           description);
   }
   if (internalType == V8InternalValueType::kScope) {
+    String16 description = descriptionForScope(context, object);
+    if (isolate->IsExecutionTerminating() &&
+        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+      return nullptr;
+    }
     return std::make_unique<ObjectMirror>(object, "internal#scope",
-                                          descriptionForScope(context, object));
+                                          description);
   }
   if (internalType == V8InternalValueType::kPrivateMethod) {
-    return std::make_unique<ObjectMirror>(
-        object, "internal#privateMethod",
-        descriptionForPrivateMethod(context, object));
+    String16 description = descriptionForPrivateMethod(context, object);
+    if (isolate->IsExecutionTerminating() &&
+        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+      return nullptr;
+    }
+    return std::make_unique<ObjectMirror>(object, "internal#privateMethod",
+                                          description);
   }
   size_t length = 0;
   if (isArrayLike(context, object, &length)) {

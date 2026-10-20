@@ -662,6 +662,12 @@ Response InjectedScript::wrapObjectMirror(
   v8::Context::Scope contextScope(context);
   Response response = mirror.buildRemoteObject(context, wrapOptions, result);
   if (!response.IsSuccess()) return response;
+  // Building the remote object (i.e. the preview) can run JavaScript, which
+  // might terminate execution. Don't call into V8 anymore in that case, since
+  // the next V8 API call would clear the pending termination exception.
+  if (m_context->isolate()->IsExecutionTerminating()) {
+    return Response::InternalError();
+  }
   v8::Local<v8::Value> value = mirror.v8Value(v8::Isolate::GetCurrent());
   response = bindRemoteObjectIfNeeded(sessionId, context, value, groupName,
                                       result->get());
