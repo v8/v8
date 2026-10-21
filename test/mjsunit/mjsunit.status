@@ -1285,7 +1285,6 @@
 
   # d8.exe --no-wasm-trap-handler.
   'regress/wasm/regress-842501': [SKIP],
-  'regress/wasm/regress-513413942': [SKIP],
   'regress/wasm/regress-534275413': [SKIP],
 
   # TODO(paolosev): Support Wasm to JS calls to JSApiObjects.
