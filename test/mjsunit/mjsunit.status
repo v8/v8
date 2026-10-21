@@ -1394,11 +1394,6 @@
   # Wasm-to-JS type incompatibility in jitless mode with shadow realms.
   'harmony/regress/regress-511329274': [SKIP],
 
-  # Test runs with --no-wasm-trap-handler, but the interpreter's no-bounds-check
-  # memory builtins require the trap handler
-  # (CHECK(trap_handler::IsTrapHandlerEnabled()) in wasm-interpreter.cc).
-  'regress/wasm/regress-529880019': [SKIP],
-
  }],  # has_wasm_interpreter and variant == jitless
 
 ['has_wasm_interpreter and variant == jitless and arch == arm64', {
