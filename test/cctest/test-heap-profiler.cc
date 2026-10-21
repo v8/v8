@@ -1097,6 +1097,139 @@ TEST(HeapSnapshotCollection) {
   CHECK_EQ(s->GetId(), map_s->GetId());
 }
 
+namespace {
+v8::Global<v8::Module> deferred_module_dependency;
+
+v8::MaybeLocal<v8::Module> DeferredModuleResolveCallback(
+    v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
+    v8::Local<v8::FixedArray> import_attributes,
+    v8::Local<v8::Module> referrer) {
+  return deferred_module_dependency.Get(CcTest::isolate());
+}
+
+v8::Local<v8::Module> CompileModuleForSnapshot(v8::Isolate* isolate,
+                                               const char* name,
+                                               const char* source) {
+  v8::ScriptOrigin origin(v8_str(name), 0, 0, false, -1, v8::Local<v8::Value>(),
+                          false, false, true);
+  v8::ScriptCompiler::Source compiler_source(v8_str(source), origin);
+  return v8::ScriptCompiler::CompileModule(isolate, &compiler_source)
+      .ToLocalChecked();
+}
+
+// Evaluates a module whose imports all resolve to deferred_module_dependency.
+void EvaluateModuleForSnapshot(v8::Local<v8::Context> context, const char* name,
+                               const char* source) {
+  v8::Local<v8::Module> module =
+      CompileModuleForSnapshot(CcTest::isolate(), name, source);
+  CHECK(module->InstantiateModule(context, DeferredModuleResolveCallback)
+            .ToChecked());
+  module->Evaluate(context).ToLocalChecked();
+}
+
+// Returns whether |to| can be reached from |from| by following at most |depth|
+// edges.
+bool IsReachable(const v8::HeapGraphNode* from, const v8::HeapGraphNode* to,
+                 int depth) {
+  if (from->GetId() == to->GetId()) return true;
+  if (depth == 0) return false;
+  for (int i = 0, count = from->GetChildrenCount(); i < count; ++i) {
+    if (IsReachable(from->GetChild(i)->GetToNode(), to, depth - 1)) {
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+
+// A deferred module namespace must reference its module in heap snapshots,
+// and the module must reference both its namespaces and, once evaluated, its
+// exports. Taking a snapshot must not evaluate the deferred module.
+TEST(HeapSnapshotDeferredModuleNamespace) {
+  i::v8_flags.js_defer_import_eval = true;
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = env.local();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  deferred_module_dependency.Reset(
+      isolate, CompileModuleForSnapshot(isolate, "dependency",
+                                        "globalThis.evaluated = true;\n"
+                                        "export const foo = {};\n"
+                                        "globalThis.foo = foo;"));
+  EvaluateModuleForSnapshot(context, "deferred-importer",
+                            "import defer * as ns from 'dependency';\n"
+                            "globalThis.ns = ns;");
+
+  const v8::HeapSnapshot* snapshot;
+  {
+    // Evaluating the deferred module while taking the snapshot would be fatal.
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    snapshot = heap_profiler->TakeHeapSnapshot();
+  }
+  CHECK(ValidateSnapshot(snapshot));
+  CHECK(env->Global()
+            ->Get(context, v8_str("evaluated"))
+            .ToLocalChecked()
+            ->IsUndefined());
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* ns =
+      GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "ns");
+  CHECK_NOT_NULL(ns);
+  CHECK_EQ(v8::HeapGraphNode::kObject, ns->GetType());
+  CHECK_EQ(std::string_view{"Deferred Module"}, std::string_view{GetName(ns)});
+  const v8::HeapGraphNode* module =
+      GetChildByName(ns, "system / SourceTextModule");
+  CHECK_NOT_NULL(module);
+  // The module holds the namespace through a Cell.
+  CHECK(IsReachable(module, ns, 2));
+
+  // Evaluate the module, and import it eagerly as well.
+  CompileRun("ns.foo");
+  EvaluateModuleForSnapshot(context, "eager-importer",
+                            "import * as eager from 'dependency';\n"
+                            "globalThis.eager = eager;");
+  CHECK(env->Global()
+            ->Get(context, v8_str("evaluated"))
+            .ToLocalChecked()
+            ->IsTrue());
+
+  snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  global = GetGlobalObject(snapshot);
+  ns = GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "ns");
+  CHECK_NOT_NULL(ns);
+  CHECK_EQ(std::string_view{"Deferred Module"}, std::string_view{GetName(ns)});
+  const v8::HeapGraphNode* eager =
+      GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "eager");
+  CHECK_NOT_NULL(eager);
+  CHECK_EQ(v8::HeapGraphNode::kObject, eager->GetType());
+  CHECK_EQ(std::string_view{"Module"}, std::string_view{GetName(eager)});
+  CHECK_NE(ns->GetId(), eager->GetId());
+
+  // Both namespaces reference the same module, which references both of them.
+  module = GetChildByName(ns, "system / SourceTextModule");
+  CHECK_NOT_NULL(module);
+  const v8::HeapGraphNode* eager_module =
+      GetChildByName(eager, "system / SourceTextModule");
+  CHECK_NOT_NULL(eager_module);
+  CHECK_EQ(module->GetId(), eager_module->GetId());
+  CHECK(IsReachable(module, ns, 2));
+  CHECK(IsReachable(module, eager, 2));
+
+  // The module references the value of its export through the export's Cell.
+  const v8::HeapGraphNode* foo =
+      GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "foo");
+  CHECK_NOT_NULL(foo);
+  CHECK(IsReachable(module, foo, 3));
+
+  deferred_module_dependency.Reset();
+}
+
 TEST(HeapSnapshotMap) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
