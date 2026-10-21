@@ -1321,7 +1321,6 @@
   'regress/wasm/regress-511772679': [SKIP],
   'regress/wasm/regress-518697709': [SKIP],
   'regress/wasm/regress-524792614': [SKIP],
-  'regress/wasm/regress-530658019': [SKIP],
   'regress/wasm/regress-535659723': [SKIP],
   'regress/wasm/regress-538378084': [SKIP],
   'regress/wasm/regress-540446645': [SKIP],
