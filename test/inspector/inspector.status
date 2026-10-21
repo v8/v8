@@ -85,6 +85,7 @@
   'regress/regress-513413942': [SKIP],
   'regress/regress-519715438': [SKIP],
   'regress/regress-521715545': [SKIP],
+  'regress/regress-526163463': [SKIP],
   'regress/regress-534579660': [SKIP],
   'regress/regress-537219980': [SKIP],
   'regress/regress-crbug-349248170': [SKIP],
@@ -133,6 +134,7 @@
   'cpu-profiler/console-profile-wasm': [SKIP],
   # Wasm code coverage is not supported yet.
   'regress/regress-521715545': [SKIP],
+  'regress/regress-526163463': [SKIP],
 }],  # 'arch == s390x or arch == ppc64'
 
 ##############################################################################
@@ -269,5 +271,12 @@
   # Stack switching is only supported on x64/arm64/ia32/arm.
   'debugger/wasm-jspi-async-stack': [SKIP],
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != ppc64 and arch != s390x)
+
+##############################################################################
+['sandbox_hardware_support', {
+  # Wasm code coverage is not currently supported.
+  'regress/regress-521715545': [SKIP],
+  'regress/regress-526163463': [SKIP],
+}],  # sandbox_hardware_support
 
 ]
