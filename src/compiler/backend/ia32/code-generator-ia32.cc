@@ -1616,9 +1616,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kFloat32Div: {
       __ Divss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputOperand(1));
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a (v)mulss depending on the result.
-      __ movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     }
     case kFloat64Add: {
@@ -1639,9 +1636,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kFloat64Div: {
       __ Divsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputOperand(1));
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a (v)mulsd depending on the result.
-      __ movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     }
     case kFloat32Abs: {
