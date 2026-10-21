@@ -338,11 +338,10 @@ Node* JSGraphAssembler::StoreField(FieldAccess const& access, Node* object,
 }
 
 Node* JSGraphAssembler::ClearPendingMessage() {
-  ExternalReference const ref =
-      ExternalReference::address_of_pending_message(isolate());
-  return AddNode(graph()->NewNode(
-      simplified()->StoreMessage(), jsgraph()->ExternalConstant(ref),
-      jsgraph()->TheHoleConstant(), effect(), control()));
+  Node* const pending_message = IsolateField(IsolateFieldId::kPendingMessage);
+  return AddNode(graph()->NewNode(simplified()->StoreMessage(), pending_message,
+                                  jsgraph()->TheHoleConstant(), effect(),
+                                  control()));
 }
 
 #ifdef V8_MAP_PACKING

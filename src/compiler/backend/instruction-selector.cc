@@ -562,28 +562,19 @@ void InstructionSelector::SetEffectLevel(OpIndex node, int effect_level) {
 
 bool InstructionSelector::CanAddressRelativeToRootsRegister(
     const ExternalReference& reference) const {
-  // There are three things to consider here:
-  // 1. CanUseRootsRegister: Is kRootRegister initialized?
-  const bool root_register_is_available_and_initialized = CanUseRootsRegister();
-  if (!root_register_is_available_and_initialized) return false;
-
-  // 2. enable_roots_relative_addressing_: Can we address everything on the heap
+  // There are two things to consider here:
+  // 1. enable_roots_relative_addressing_: Can we address everything on the heap
   //    through the root register, i.e. are root-relative addresses to arbitrary
   //    addresses guaranteed not to change between code generation and
   //    execution?
   if (enable_roots_relative_addressing_) return true;
 
-  // 3. IsAddressableThroughRootRegister: Is the target address guaranteed to
-  //    have a fixed root-relative offset? If so, we can ignore 2.
+  // 2. IsAddressableThroughRootRegister: Is the target address guaranteed to
+  //    have a fixed root-relative offset? If so, we can ignore 1.
   const bool this_root_relative_offset_is_constant =
       MacroAssemblerBase::IsAddressableThroughRootRegister(isolate(),
                                                            reference);
   return this_root_relative_offset_is_constant;
-}
-
-bool InstructionSelector::CanUseRootsRegister() const {
-  return linkage()->GetIncomingDescriptor()->flags() &
-         CallDescriptor::kCanUseRoots;
 }
 
 void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
@@ -2058,11 +2049,9 @@ LinkageLocation ExceptionLocation() {
 
 constexpr InstructionCode EncodeCallDescriptorFlags(
     InstructionCode opcode, CallDescriptor::Flags flags) {
-  // Note: Not all bits of `flags` are preserved.
-  static_assert(CallDescriptor::kFlagsBitsEncodedInInstructionCode ==
-                MiscField::kSize);
+  static_assert(MiscField::is_valid(CallDescriptor::kNoFunctionDescriptor));
   DCHECK(Instruction::IsCallWithDescriptorFlags(opcode));
-  return opcode | MiscField::encode(flags & MiscField::kMax);
+  return opcode | MiscField::encode(flags);
 }
 
 }  // namespace

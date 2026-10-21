@@ -441,9 +441,9 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
   auto [old_sp, old_limit] = this->BuildSwitchToTheCentralStackIfNeeded();
   OpIndex suspender = OpIndex::Invalid();
   if (suspend == wasm::kSuspend) {
-    suspender = __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(),
-                        MemoryRepresentation::AnyUncompressedTagged(),
-                        IsolateData::active_suspender_offset());
+    suspender = __ Load(__ IsolateField(IsolateFieldId::kActiveSuspender),
+                        LoadOp::Kind::RawAligned(),
+                        MemoryRepresentation::AnyUncompressedTagged());
 
     if (v8_flags.stress_wasm_stack_switching) {
       V<Word32> for_stress_testing = __ TaggedEqual(
@@ -484,9 +484,10 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
   }
 
   // Check that the central stack has enough space for the outgoing parameters.
-  V<WordPtr> stack_limit = __ Load(
-      __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
-      MemoryRepresentation::UintPtr(), IsolateData::real_jslimit_offset());
+  V<WordPtr> stack_limit =
+      __ Load(__ IsolateField(IsolateFieldId::kRealJsLimit),
+              LoadOp::Kind::RawAligned().NotLoadEliminable(),
+              MemoryRepresentation::UintPtr());
   IF_NOT (LIKELY(
               __ StackPointerGreaterThan(stack_limit, StackCheckKind::kWasm))) {
     __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowStackOverflow, {},
@@ -732,11 +733,10 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
   V<Object> host_data_foreign = __ LoadTaggedField(
       function_data, offsetof(WasmCapiFunctionData, embedder_data_));
 
-  OpIndex isolate_root = __ LoadRootRegister();
+  V<WordPtr> c_entry_fp = __ IsolateField(IsolateFieldId::kCEntryFP);
   OpIndex fp_value = __ FramePointer();
-  __ Store(isolate_root, fp_value, StoreOp::Kind::RawAligned(),
-           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
-           Isolate::c_entry_fp_offset());
+  __ Store(c_entry_fp, fp_value, StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier);
 
   V<WordPtr> call_target =
       BuildLoadCallTargetFromExportedFunctionData(function_data);
@@ -872,9 +872,10 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildJSFastApiCallWrapper(
   V<NativeContext> native_context = __ template LoadTaggedField<NativeContext>(
       import_data, offsetof(WasmImportData, native_context_));
 
-  __ StoreOffHeap(__ LoadRootRegister(),
+  V<WordPtr> context_address = __ IsolateField(IsolateFieldId::kContext);
+  __ StoreOffHeap(context_address,
                   __ BitcastHeapObjectToWordPtr(native_context),
-                  MemoryRepresentation::UintPtr(), Isolate::context_offset());
+                  MemoryRepresentation::UintPtr());
 
   Tagged<JSFunction> target;
   V<JSFunction> target_node;

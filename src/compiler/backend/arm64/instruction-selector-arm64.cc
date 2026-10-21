@@ -1625,7 +1625,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
     if (is_int32(delta)) {
       input_count = 2;
       InstructionOperand inputs[2];
-      inputs[0] = g.UseRegister(store_view.value());
+      inputs[0] = g.UseRegisterOrImmediateZero(store_view.value());
       inputs[1] = g.UseImmediate(static_cast<int32_t>(delta));
       opcode |= AddressingModeField::encode(kMode_Root);
       Emit(opcode, 0, nullptr, input_count, inputs);

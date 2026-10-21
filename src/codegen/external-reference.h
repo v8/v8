@@ -66,22 +66,7 @@ enum class IsolateFieldId : uint8_t;
     "regexp::Stack::thread_local_address()")                                   \
   V(address_of_regexp_static_result_offsets_vector,                            \
     "Isolate::address_of_regexp_static_result_offsets_vector")                 \
-  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)                              \
   EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)
-
-#ifdef V8_ENABLE_SANDBOX
-#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)         \
-  V(external_pointer_table_address,                             \
-    "Isolate::external_pointer_table_address()")                \
-  V(shared_external_pointer_table_address_address,              \
-    "Isolate::shared_external_pointer_table_address_address()") \
-  V(trusted_pointer_table_base_address,                         \
-    "Isolate::trusted_pointer_table_base_address()")            \
-  V(shared_trusted_pointer_table_base_address,                  \
-    "Isolate::shared_trusted_pointer_table_base_address()")
-#else
-#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
-#endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
 #define EXTERNAL_REFERENCE_LIST_REGEXP_DIAGNOSTICS(V)             \

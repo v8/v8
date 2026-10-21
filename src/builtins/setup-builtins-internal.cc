@@ -280,7 +280,7 @@ V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerJS(
           isolate, builtin, generator,
           [argc](Zone* zone) {
             return compiler::Linkage::GetJSCallDescriptor(
-                zone, false, argc, compiler::CallDescriptor::kCanUseRoots);
+                zone, false, argc, compiler::CallDescriptor::kNoFlags);
           },
           name, BuiltinAssemblerOptions(isolate, builtin));
   return *code;

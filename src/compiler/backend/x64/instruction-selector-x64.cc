@@ -3787,7 +3787,7 @@ void VisitWordCompare(InstructionSelector* selector, OpIndex node,
 
 void VisitWord64EqualImpl(InstructionSelector* selector, OpIndex node,
                           FlagsContinuation* cont) {
-  if (selector->CanUseRootsRegister() && selector->isolate() != nullptr) {
+  if (selector->isolate() != nullptr) {
     X64OperandGenerator g(selector);
     const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;
@@ -3844,16 +3844,13 @@ void VisitWord32EqualImpl(InstructionSelector* selector, OpIndex node,
                   root_index, selector->isolate())),
               cont);
         }
-        if (selector->CanUseRootsRegister()) {
-          InstructionCode opcode =
-              kX64Cmp32 | AddressingModeField::encode(kMode_Root);
-          return VisitCompare(
-              selector, opcode,
-              g.TempImmediate(
-                  MacroAssemblerBase::RootRegisterOffsetForRootIndex(
-                      root_index)),
-              g.UseRegister(left), cont);
-        }
+        InstructionCode opcode =
+            kX64Cmp32 | AddressingModeField::encode(kMode_Root);
+        return VisitCompare(
+            selector, opcode,
+            g.TempImmediate(
+                MacroAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
+            g.UseRegister(left), cont);
       }
     }
   }

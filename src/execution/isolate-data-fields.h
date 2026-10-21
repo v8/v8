@@ -142,6 +142,8 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
     offsetof(ThreadLocalTop, last_entered_context_))                           \
   V(Exception, exception, thread_local_top,                                    \
     offsetof(ThreadLocalTop, exception_))                                      \
+  V(PendingMessage, pending_message, thread_local_top,                         \
+    offsetof(ThreadLocalTop, pending_message_))                                \
   V(TopmostScriptHavingContext, topmost_script_having_context,                 \
     thread_local_top,                                                          \
     offsetof(ThreadLocalTop, topmost_script_having_context_))                  \
@@ -166,6 +168,10 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
     offsetof(ThreadLocalTop, num_frames_above_pending_handler_))               \
   V(IsOnCentralStackFlag, is_on_central_stack_flag, thread_local_top,          \
     offsetof(ThreadLocalTop, is_on_central_stack_flag_))                       \
+  V(CentralStackSP, central_stack_sp, thread_local_top,                        \
+    offsetof(ThreadLocalTop, central_stack_sp_))                               \
+  V(CentralStackLimit, central_stack_limit, thread_local_top,                  \
+    offsetof(ThreadLocalTop, central_stack_limit_))                            \
   V(JSEntrySP, js_entry_sp, thread_local_top,                                  \
     offsetof(ThreadLocalTop, js_entry_sp_))                                    \
                                                                                \

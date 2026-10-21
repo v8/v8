@@ -2956,11 +2956,12 @@ class AssemblerOpInterface : public Next {
                                TrustedPointerTagRange tag_range, int offset) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
+    V<WordPtr> table_address =
+        IsolateField(IsolateFieldId::kTrustedPointerTable);
     V<WordPtr> table =
-        Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
+        Load(table_address, LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
-             IsolateData::trusted_pointer_table_offset() +
-                 Internals::kExternalEntityTableBasePointerOffset);
+             Internals::kExternalEntityTableBasePointerOffset);
     return LoadTrustedPointer(base, table, kind, tag_range, offset);
 #else
     return Load(base, kind, MemoryRepresentation::TaggedPointer(), offset);
@@ -5171,6 +5172,11 @@ class AssemblerOpInterface : public Next {
 
   V<HeapObject> RootConstant(RootIndex index) {
     return ReduceIfReachableRootConstant(index);
+  }
+
+  template <RootIndex index>
+  V<root_type_t<index>> RootConstant() {
+    return V<root_type_t<index>>::Cast(RootConstant(index));
   }
 
   V<Word32> IsRootConstant(V<Object> input, RootIndex index) {

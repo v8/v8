@@ -169,10 +169,9 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
       UNREACHABLE();  // Already handled.
   }
 
-  CallDescriptor::Flags flags = CallDescriptor::kCanUseRoots;
-  if (need_frame_state) {
-    flags |= CallDescriptor::kNeedsFrameState;
-  }
+  CallDescriptor::Flags flags = need_frame_state
+                                    ? CallDescriptor::kNeedsFrameState
+                                    : CallDescriptor::kNoFlags;
   return zone->New<CallDescriptor>(       // --
       descriptor_kind,                    // kind
       kWasmEntrypointTag,                 // tag

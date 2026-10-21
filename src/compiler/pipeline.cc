@@ -2505,7 +2505,7 @@ Pipeline::NewJSLinkageCodeStubBuiltinCompilationJob(
     int finalize_order) {
   auto get_call_descriptor = [argc](Zone* zone) {
     return Linkage::GetJSCallDescriptor(zone, false, argc,
-                                        CallDescriptor::kCanUseRoots);
+                                        CallDescriptor::kNoFlags);
   };
   return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
       isolate, builtin, generator, installer, assembler_options,

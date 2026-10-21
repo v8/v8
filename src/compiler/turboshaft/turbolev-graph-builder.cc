@@ -1608,8 +1608,7 @@ class GraphBuildingNodeProcessor {
           graph_zone(), false,
           std::max<int>(actual_parameter_count,
                         node->expected_parameter_count()),
-          node->expected_parameter_count(),
-          CallDescriptor::kNeedsFrameState | CallDescriptor::kCanUseRoots);
+          node->expected_parameter_count(), CallDescriptor::kNeedsFrameState);
 
       LazyDeoptOnThrow lazy_deopt_on_throw = ShouldLazyDeoptOnThrow(node);
 
@@ -5711,8 +5710,8 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::SetPendingMessage* node,
                                 const maglev::ProcessingState& state) {
-    V<WordPtr> message_address = __ ExternalConstant(
-        ExternalReference::address_of_pending_message(isolate_));
+    V<WordPtr> message_address =
+        __ IsolateField(IsolateFieldId::kPendingMessage);
     V<Object> old_message = __ LoadMessage(message_address);
     __ StoreMessage(message_address, Map(node->ValueInput()));
     SetMap(node, old_message);

@@ -1729,10 +1729,11 @@ class TurboshaftGraphBuildingInterface
 #endif
 
   void SetDataViewOpForErrorMessage(DataViewOp op_type) {
-    OpIndex isolate_root = __ LoadRootRegister();
-    __ Store(isolate_root, __ Word32Constant(op_type),
+    V<WordPtr> error_message_param =
+        __ IsolateField(IsolateFieldId::kErrorMessageParam);
+    __ Store(error_message_param, __ Word32Constant(op_type),
              StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
-             compiler::kNoWriteBarrier, Isolate::error_message_param_offset());
+             compiler::kNoWriteBarrier);
   }
 
   void ThrowDataViewTypeError(FullDecoder* decoder, V<Object> dataview,
@@ -2161,10 +2162,10 @@ class TurboshaftGraphBuildingInterface
 
     V<Context> native_context = instance_cache_.native_context();
 
-    __ Store(__ LoadRootRegister(),
-             __ BitcastHeapObjectToWordPtr(native_context),
+    V<WordPtr> context_address = __ IsolateField(IsolateFieldId::kContext);
+    __ Store(context_address, __ BitcastHeapObjectToWordPtr(native_context),
              StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-             compiler::kNoWriteBarrier, Isolate::context_offset());
+             compiler::kNoWriteBarrier);
     auto [old_sp, old_limit] = BuildSwitchToTheCentralStackIfNeeded();
     OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
                               base::VectorOf(inputs), ts_call_descriptor);
@@ -2173,17 +2174,16 @@ class TurboshaftGraphBuildingInterface
 #if DEBUG
     // Reset the context again after the call, to make sure nobody is using the
     // leftover context in the isolate.
-    __ Store(__ LoadRootRegister(), __ WordPtrConstant(Context::kNoContext),
+    __ Store(context_address, __ WordPtrConstant(Context::kNoContext),
              StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-             compiler::kNoWriteBarrier, Isolate::context_offset());
+             compiler::kNoWriteBarrier);
 #endif
 
     V<Object> exception = __ Load(
-        __ LoadRootRegister(), LoadOp::Kind::RawAligned(),
-        MemoryRepresentation::UintPtr(), IsolateData::exception_offset());
+        __ IsolateField(IsolateFieldId::kException), LoadOp::Kind::RawAligned(),
+        MemoryRepresentation::AnyUncompressedTagged());
 
-    IF_NOT (LIKELY(__ TaggedEqual(exception,
-                                  __ LoadRoot<RootIndex::kTheHoleValue>()))) {
+    IF_NOT (LIKELY(__ IsRootConstant(exception, RootIndex::kTheHoleValue))) {
       CallBuiltinThroughJumptable<
           BuiltinCallDescriptor::WasmPropagateException>(decoder, {},
                                                          check_for_exception);
@@ -2507,7 +2507,7 @@ class TurboshaftGraphBuildingInterface
           Label<String> search_done_label(&asm_);
           GOTO_IF_NOT(__ IsNull(search, args[1].type), search_done_label,
                       search);
-          GOTO(search_done_label, __ LoadRoot<RootIndex::knull_string>());
+          GOTO(search_done_label, __ RootConstant<RootIndex::knull_string>());
           BIND(search_done_label, search_value);
           search = search_value;
         }
@@ -3869,10 +3869,11 @@ class TurboshaftGraphBuildingInterface
 
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
+    V<Symbol> tag_symbol =
+        __ RootConstant<RootIndex::kwasm_exception_tag_symbol>();
     V<WasmExceptionTag> caught_tag = V<WasmExceptionTag>::Cast(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
-            decoder, {block->exception,
-                      __ LoadRoot<RootIndex::kwasm_exception_tag_symbol>()}));
+            decoder, {block->exception, tag_symbol}));
     // TODO(14616): Support shared tags.
     V<TrustedFixedArray> instance_tags =
         LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
@@ -3897,7 +3898,7 @@ class TurboshaftGraphBuildingInterface
       // the JSTag signature, i.e. a single externref or (ref extern), otherwise
       // we know statically that it cannot be the JSTag.
       V<Word32> caught_tag_undefined =
-          __ TaggedEqual(caught_tag, __ LoadRoot<RootIndex::kUndefinedValue>());
+          __ IsRootConstant(caught_tag, RootIndex::kUndefinedValue);
       Label<Object> if_catch(&asm_);
       Label<> no_catch_merge(&asm_);
 
@@ -4004,10 +4005,11 @@ class TurboshaftGraphBuildingInterface
       BrOrRet(decoder, catch_case.br_imm.depth);
       return;
     }
+    V<Symbol> tag_symbol =
+        __ RootConstant<RootIndex::kwasm_exception_tag_symbol>();
     V<WasmExceptionTag> caught_tag = V<WasmExceptionTag>::Cast(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
-            decoder, {block->exception,
-                      __ LoadRoot<RootIndex::kwasm_exception_tag_symbol>()}));
+            decoder, {block->exception, tag_symbol}));
     // TODO(14616): Support shared tags.
     V<TrustedFixedArray> instance_tags =
         LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
@@ -4033,7 +4035,7 @@ class TurboshaftGraphBuildingInterface
       // the JSTag signature, i.e. a single externref, otherwise
       // we know statically that it cannot be the JSTag.
       V<Word32> caught_tag_undefined =
-          __ TaggedEqual(caught_tag, __ LoadRoot<RootIndex::kUndefinedValue>());
+          __ IsRootConstant(caught_tag, RootIndex::kUndefinedValue);
       Label<Object> if_catch(&asm_);
       Label<> no_catch_merge(&asm_);
 
@@ -4180,7 +4182,7 @@ class TurboshaftGraphBuildingInterface
         __ Load(input_cont.op, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::TaggedPointer(),
                 offsetof(WasmContinuationObject, stack_obj_));
-    V<Map> map = __ LoadRoot<RootIndex::kWasmContinuationObjectMap>();
+    V<Map> map = __ RootConstant<RootIndex::kWasmContinuationObjectMap>();
     __ InitializeField(uninitialized_cont,
                        AccessBuilder::ForMap(compiler::kNoWriteBarrier), map);
     compiler::FieldAccess access = {
@@ -4219,10 +4221,11 @@ class TurboshaftGraphBuildingInterface
                 const Value& cont_ref, const ContIndexImmediate& imm) {
     V<WordPtr> stack = CheckContAndGetStack(cont_ref, imm);
 
-    V<WordPtr> root = __ LoadRootRegister();
-    V<WordPtr> active_stack = __ Load(root, LoadOp::Kind::RawAligned(),
-                                      MemoryRepresentation::UintPtr(),
-                                      IsolateData::active_stack_offset());
+    V<WordPtr> active_stack_address =
+        __ IsolateField(IsolateFieldId::kActiveStack);
+    V<WordPtr> active_stack =
+        __ Load(active_stack_address, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::UintPtr());
     V<WordPtr> wasm_code = __ RelocatableWasmCodePointer();
 #if V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
     // We don't have write access to the stack metadata from generated code, so
@@ -4394,10 +4397,11 @@ class TurboshaftGraphBuildingInterface
   void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
               const ContIndexImmediate& con_imm, const Value& cont_ref,
               const Value args[], Value returns[]) {
-    V<WordPtr> root = __ LoadRootRegister();
+    V<WordPtr> is_on_central_stack_flag_address =
+        __ IsolateField(IsolateFieldId::kIsOnCentralStackFlag);
     V<Word32> is_on_central_stack =
-        __ Load(root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
-                IsolateData::is_on_central_stack_flag_offset());
+        __ Load(is_on_central_stack_flag_address, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::Uint8());
     V<Context> native_context = instance_cache_.native_context();
 
     __ TrapIf(is_on_central_stack, TrapId::kTrapSuspend);
@@ -4478,7 +4482,7 @@ class TurboshaftGraphBuildingInterface
         uninitialized_cont = __ template Allocate<WasmContinuationObject>(
             __ WordPtrConstant(WasmContinuationObject::kSize),
             AllocationType::kYoung, AllocationAlignment::kTaggedAligned);
-    V<Map> map = __ LoadRoot<RootIndex::kWasmContinuationObjectMap>();
+    V<Map> map = __ RootConstant<RootIndex::kWasmContinuationObjectMap>();
     __ InitializeField(uninitialized_cont,
                        AccessBuilder::ForMap(compiler::kNoWriteBarrier), map);
     // The {stack_obj_} field is initialized properly in the
@@ -4487,16 +4491,17 @@ class TurboshaftGraphBuildingInterface
                        AccessBuilder::ForJSObjectOffset(
                            offsetof(WasmContinuationObject, stack_obj_),
                            compiler::kNoWriteBarrier),
-                       __ LoadRoot<RootIndex::kUndefinedValue>());
+                       __ RootConstant(RootIndex::kUndefinedValue));
     return __ FinishInitialization(std::move(uninitialized_cont));
   }
 
   void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
                const Value args[], Value returns[]) {
-    V<WordPtr> root = __ LoadRootRegister();
+    V<WordPtr> is_on_central_stack_flag_address =
+        __ IsolateField(IsolateFieldId::kIsOnCentralStackFlag);
     V<Word32> is_on_central_stack =
-        __ Load(root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
-                IsolateData::is_on_central_stack_flag_offset());
+        __ Load(is_on_central_stack_flag_address, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::Uint8());
     V<Context> native_context = instance_cache_.native_context();
 
     __ TrapIf(is_on_central_stack, TrapId::kTrapSuspend);
@@ -5301,8 +5306,8 @@ class TurboshaftGraphBuildingInterface
     V<FixedArray> elem_segments = LOAD_IMMUTABLE_INSTANCE_FIELD(
         instance_cache_.trusted_instance_data(), ElementSegments,
         MemoryRepresentation::TaggedPointer());
-    __ StoreFixedArrayElement(elem_segments, imm.index,
-                              __ LoadRoot<RootIndex::kEmptyFixedArray>(),
+    V<FixedArray> empty_array = __ RootConstant<RootIndex::kEmptyFixedArray>();
+    __ StoreFixedArrayElement(elem_segments, imm.index, empty_array,
                               compiler::kFullWriteBarrier);
   }
 
@@ -8968,11 +8973,11 @@ class TurboshaftGraphBuildingInterface
 
   void UnpackWasmException(FullDecoder* decoder, V<Object> exception,
                            base::Vector<Value> values) {
+    V<Symbol> values_symbol =
+        __ RootConstant<RootIndex::kwasm_exception_values_symbol>();
     V<FixedArray> exception_values_array = V<FixedArray>::Cast(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
-            decoder,
-            {exception,
-             __ LoadRoot<RootIndex::kwasm_exception_values_symbol>()}));
+            decoder, {exception, values_symbol}));
 
     int index = 0;
     for (Value& value : values) {

@@ -612,8 +612,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // to the roots register.
   bool CanAddressRelativeToRootsRegister(
       const ExternalReference& reference) const;
-  // Check if we can use the roots register to access GC roots.
-  bool CanUseRootsRegister() const;
 
   Isolate* isolate() const { return sequence()->isolate(); }
 

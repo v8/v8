@@ -937,6 +937,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Type> Load(Node* base, TNode<WordT> offset) {
     return UncheckedCast<Type>(Load(MachineTypeOf<Type>::value, base, offset));
   }
+  Node* LoadImmutable(MachineType type, Node* base);
+  Node* LoadImmutable(MachineType type, Node* base, Node* offset);
+  template <class Type>
+  TNode<Type> LoadImmutable(Node* base) {
+    return UncheckedCast<Type>(LoadImmutable(MachineTypeOf<Type>::value, base));
+  }
+  template <class Type>
+  TNode<Type> LoadImmutable(Node* base, TNode<WordT> offset) {
+    return UncheckedCast<Type>(
+        LoadImmutable(MachineTypeOf<Type>::value, base, offset));
+  }
   template <class Type>
   TNode<Type> AtomicLoad(AtomicMemoryOrder order, TNode<RawPtrT> base,
                          TNode<WordT> offset) {

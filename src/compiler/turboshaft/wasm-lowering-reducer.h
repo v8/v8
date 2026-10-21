@@ -40,6 +40,7 @@ class WasmLoweringReducer : public Next {
   }
 
   OpIndex REDUCE(RootConstant)(RootIndex index) {
+    DCHECK(RootsTable::IsImmortalImmovable(index));
     return __ Load(__ LoadRootRegister(),
                    LoadOp::Kind::RawAligned().Immutable(),
                    MemoryRepresentation::AnyUncompressedTagged(),
@@ -574,7 +575,7 @@ class WasmLoweringReducer : public Next {
             is_shared /* not used for stores */),
         rtt);
     __ InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                       __ template LoadRoot<RootIndex::kEmptyFixedArray>());
+                       __ RootConstant(RootIndex::kEmptyFixedArray));
     __ InitializeField(a, AccessBuilder::ForWasmArrayLength(), length);
 
     // Note: Only the array header initialization is finished here, the elements
@@ -602,7 +603,7 @@ class WasmLoweringReducer : public Next {
                            struct_type->is_shared() /* not used for stores */),
                        rtt);
     __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                       __ template LoadRoot<RootIndex::kEmptyFixedArray>());
+                       __ RootConstant(RootIndex::kEmptyFixedArray));
     // Note: Struct initialization isn't finished here, the user defined fields
     // still need to be initialized by other operations.
     V<WasmStruct> struct_value = __ FinishInitialization(std::move(s));

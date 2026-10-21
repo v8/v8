@@ -299,7 +299,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
           Operator::kNoProperties,       // properties
           kCalleeSaveRegisters,          // callee-saved registers
           kCalleeSaveFPRegisters,        // callee-saved fp regs
-          CallDescriptor::kCanUseRoots,  // flags
+          CallDescriptor::kNoFlags,      // flags
           "iselect-test-call");
     }
 

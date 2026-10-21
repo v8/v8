@@ -308,33 +308,6 @@ ExternalReference ExternalReference::empty_backing_store_buffer() {
       Sandbox::current()->constants().empty_backing_store_buffer_address());
 }
 
-ExternalReference ExternalReference::external_pointer_table_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->external_pointer_table_address());
-}
-
-ExternalReference
-ExternalReference::shared_external_pointer_table_address_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->shared_external_pointer_table_address_address());
-}
-
-ExternalReference ExternalReference::trusted_pointer_table_base_address(
-    Isolate* isolate) {
-  // TODO(saelo): maybe the external pointer table external references should
-  // also directly return the table base address?
-  return ExternalReference(isolate->trusted_pointer_table_base_address());
-}
-
-ExternalReference ExternalReference::shared_trusted_pointer_table_base_address(
-    Isolate* isolate) {
-  // TODO(saelo): maybe the external pointer table external references should
-  // also directly return the table base address?
-  return ExternalReference(
-      isolate->shared_trusted_pointer_table_base_address());
-}
-
 ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
   return ExternalReference(
       reinterpret_cast<Address>(MemoryChunk::MetadataTableAddress()));

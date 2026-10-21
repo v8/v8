@@ -45,9 +45,9 @@ class GrowableStacksReducer : public Next {
     }
     // Loads of the stack limit should not be load-eliminated as it can be
     // modified by another thread.
-    V<WordPtr> limit = __ Load(
-        __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
-        MemoryRepresentation::UintPtr(), IsolateData::jslimit_offset());
+    V<WordPtr> limit = __ Load(__ IsolateField(IsolateFieldId::kJsLimit),
+                               LoadOp::Kind::RawAligned().NotLoadEliminable(),
+                               MemoryRepresentation::UintPtr());
 
     IF_NOT (LIKELY(__ StackPointerGreaterThan(limit, StackCheckKind::kWasm))) {
       const int stack_parameter_count = 0;

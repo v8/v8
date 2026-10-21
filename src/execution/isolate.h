@@ -900,12 +900,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline Address* c_entry_fp_address() {
     return &thread_local_top()->c_entry_fp_;
   }
-  static uint32_t c_entry_fp_offset() {
-    return static_cast<uint32_t>(OFFSET_OF(Isolate, isolate_data_) +
-                                 OFFSET_OF(IsolateData, thread_local_top_) +
-                                 OFFSET_OF(ThreadLocalTop, c_entry_fp_) -
-                                 isolate_root_bias());
-  }
   inline Address* handler_address() { return &thread_local_top()->handler_; }
   inline Address* c_function_address() {
     return &thread_local_top()->c_function_;
@@ -1393,34 +1387,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   ThreadLocalTop const* thread_local_top() const {
     return &isolate_data_.thread_local_top_;
-  }
-
-  constexpr static uint32_t context_offset() {
-    return static_cast<uint32_t>(
-        OFFSET_OF(Isolate, isolate_data_) +
-        OFFSET_OF(IsolateData, thread_local_top_) +
-        OFFSET_OF(ThreadLocalTop, context_) -
-        isolate_root_bias());
-  }
-
-  constexpr static uint32_t central_stack_sp_offset() {
-    return static_cast<uintptr_t>(OFFSET_OF(Isolate, isolate_data_) +
-                                  OFFSET_OF(IsolateData, thread_local_top_) +
-                                  OFFSET_OF(ThreadLocalTop, central_stack_sp_) -
-                                  isolate_root_bias());
-  }
-
-  constexpr static uint32_t central_stack_limit_offset() {
-    return static_cast<uintptr_t>(
-        OFFSET_OF(Isolate, isolate_data_) +
-        OFFSET_OF(IsolateData, thread_local_top_) +
-        OFFSET_OF(ThreadLocalTop, central_stack_limit_) - isolate_root_bias());
-  }
-
-  static uint32_t error_message_param_offset() {
-    return static_cast<uint32_t>(OFFSET_OF(Isolate, isolate_data_) +
-                                 OFFSET_OF(IsolateData, error_message_param_) -
-                                 isolate_root_bias());
   }
 
   uint8_t error_message_param() { return isolate_data_.error_message_param_; }
@@ -2297,10 +2263,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_data_.external_pointer_table_;
   }
 
-  Address external_pointer_table_address() {
-    return reinterpret_cast<Address>(&isolate_data_.external_pointer_table_);
-  }
-
   ExternalPointerTable& shared_external_pointer_table() {
     return *isolate_data_.shared_external_pointer_table_;
   }
@@ -2337,10 +2299,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_data_.trusted_pointer_table_;
   }
 
-  Address trusted_pointer_table_base_address() const {
-    return isolate_data_.trusted_pointer_table_.base_address();
-  }
-
   TrustedPointerTable& shared_trusted_pointer_table() {
     return *isolate_data_.shared_trusted_pointer_table_;
   }
@@ -2355,11 +2313,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   TrustedPointerTable::Space* shared_trusted_pointer_space() {
     return shared_trusted_pointer_space_;
-  }
-
-  Address shared_trusted_pointer_table_base_address() {
-    return reinterpret_cast<Address>(
-        &isolate_data_.shared_trusted_pointer_table_);
   }
 
   TrustedPointerPublishingScope* trusted_pointer_publishing_scope() const {

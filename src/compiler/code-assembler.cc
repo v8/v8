@@ -886,6 +886,14 @@ Node* CodeAssembler::Load(MachineType type, Node* base, Node* offset) {
   return raw_assembler()->Load(type, base, offset);
 }
 
+Node* CodeAssembler::LoadImmutable(MachineType type, Node* base) {
+  return raw_assembler()->LoadImmutable(type, base);
+}
+
+Node* CodeAssembler::LoadImmutable(MachineType type, Node* base, Node* offset) {
+  return raw_assembler()->LoadImmutable(type, base, offset);
+}
+
 TNode<Object> CodeAssembler::LoadFullTagged(Node* base) {
   return BitcastWordToTagged(Load<RawPtrT>(base));
 }
@@ -958,14 +966,11 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
     }
   }
 
-  // TODO(jgruber): In theory we could generate better code for this by
-  // letting the macro assembler decide how to load from the roots list. In most
-  // cases, it would boil down to loading from a fixed kRootRegister offset.
-  TNode<ExternalReference> isolate_root =
-      ExternalConstant(ExternalReference::isolate_root(isolate()));
-  int offset = IsolateData::root_slot_offset(root_index);
+  TNode<ExternalReference> roots_table =
+      IsolateField(IsolateFieldId::kRootsTable);
+  int offset = RootsTable::offset_of(root_index);
   return UncheckedCast<Object>(
-      LoadFullTagged(isolate_root, IntPtrConstant(offset)));
+      LoadFullTagged(roots_table, IntPtrConstant(offset)));
 }
 
 Node* CodeAssembler::UnalignedLoad(MachineType type, TNode<RawPtrT> base,
@@ -1198,10 +1203,10 @@ void CodeAssembler::MemoryBarrier(AtomicMemoryOrder order) {
 
 void CodeAssembler::StoreRoot(RootIndex root_index, TNode<Object> value) {
   DCHECK(!RootsTable::IsImmortalImmovable(root_index));
-  TNode<ExternalReference> isolate_root =
-      ExternalConstant(ExternalReference::isolate_root(isolate()));
-  int offset = IsolateData::root_slot_offset(root_index);
-  StoreFullTaggedNoWriteBarrier(isolate_root, IntPtrConstant(offset), value);
+  TNode<ExternalReference> roots_table =
+      IsolateField(IsolateFieldId::kRootsTable);
+  int offset = RootsTable::offset_of(root_index);
+  StoreFullTaggedNoWriteBarrier(roots_table, IntPtrConstant(offset), value);
 }
 
 void CodeAssembler::Retain(TNode<Object> value) {

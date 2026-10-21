@@ -216,6 +216,9 @@ void CodeGenerator::MaybeEmitOutOfLineConstantPool() {
 void CodeGenerator::AssembleCode() {
   OptimizedCompilationInfo* info = this->info();
   auto call_descriptor = linkage()->GetIncomingDescriptor();
+  DCHECK_IMPLIES(call_descriptor->IsCFunctionCall() &&
+                     info->code_kind() != CodeKind::BYTECODE_HANDLER,
+                 call_descriptor->InitializeRootRegister());
 
   // Compute incoming parameter count for code using JS linkage. This will
   // ultimately set the parameter count on the resulting Code object.
@@ -637,10 +640,7 @@ void CodeGenerator::RecordSafepointWithoutTaggedSlots() {
 
 bool CodeGenerator::IsMaterializableFromRoot(Handle<HeapObject> object,
                                              RootIndex* index_return) {
-  const CallDescriptor* incoming_descriptor =
-      linkage()->GetIncomingDescriptor();
-  if ((incoming_descriptor->flags() & CallDescriptor::kCanUseRoots) &&
-      isolate() != nullptr) {
+  if (isolate() != nullptr) {
     return isolate()->roots_table().IsRootHandle(object, index_return) &&
            RootsTable::IsImmortalImmovable(*index_return);
   }

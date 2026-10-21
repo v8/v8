@@ -60,28 +60,24 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallBuiltinPointer,     // target is a builtin pointer
   };
 
-  // NOTE: The lowest 9 bits of the Flags field are encoded in InstructionCode
-  // (for use in the code generator). All higher bits are lost.
-  static constexpr int kFlagsBitsEncodedInInstructionCode = 9;
   enum Flag {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
     kHasExceptionHandler = 1u << 1,
-    kCanUseRoots = 1u << 2,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 3,
+    kInitializeRootRegister = 1u << 2,
     // Does not ever try to allocate space on our heap.
-    kNoAllocate = 1u << 4,
+    kNoAllocate = 1u << 3,
     // Repurpose this bit during instruction selection. Signal the presence of
     // an effect handler to code generation.
     kHasEffectHandler = kNoAllocate,
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
-    kFixedTargetRegister = 1u << 5,
-    kCallerSavedRegisters = 1u << 6,
+    kFixedTargetRegister = 1u << 4,
+    kCallerSavedRegisters = 1u << 5,
     // The kCallerSavedFPRegisters only matters (and set) when the more general
     // flag for kCallerSavedRegisters above is also set.
-    kCallerSavedFPRegisters = 1u << 7,
+    kCallerSavedFPRegisters = 1u << 6,
     // Tail calls for tier up are special (in fact they are different enough
     // from normal tail calls to warrant a dedicated opcode; but they also have
     // enough similar aspects that reusing the TailCall opcode is pragmatic).
@@ -97,15 +93,11 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     //
     // In other words, behavior is identical to a jmp instruction prior caller
     // frame construction.
-    kIsTailCallForTierUp = 1u << 8,
-
-    // Flags past here are *not* encoded in InstructionCode and are thus not
-    // accessible from the code generator. See also
-    // kFlagsBitsEncodedInInstructionCode.
+    kIsTailCallForTierUp = 1u << 7,
 
     // AIX has a function descriptor by default but it can be disabled for a
     // certain CFunction call (only used for Kind::kCallAddress).
-    kNoFunctionDescriptor = 1u << 9,
+    kNoFunctionDescriptor = 1u << 8,
   };
   using Flags = base::Flags<Flag>;
 

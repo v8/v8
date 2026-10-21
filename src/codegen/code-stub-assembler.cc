@@ -1736,8 +1736,8 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
     CSA_DCHECK(this, IsMarked(result.value()));
   }
   if (v8_flags.verify_write_barriers) {
-    TNode<ExternalReference> last_young_allocation_address = ExternalConstant(
-        ExternalReference::last_young_allocation_address(isolate()));
+    TNode<ExternalReference> last_young_allocation_address =
+        IsolateField(IsolateFieldId::kLastYoungAllocation);
 
     if (flags & AllocationFlag::kPretenured) {
       StoreNoWriteBarrier(MachineType::PointerRepresentation(),
@@ -2010,14 +2010,12 @@ void CodeStubAssembler::StoreBoundedSizeToObject(TNode<HeapObject> object,
 TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
     ExternalPointerTagRange tag_range) {
   if (IsSharedExternalPointerType(tag_range)) {
-    TNode<ExternalReference> table_address_address = ExternalConstant(
-        ExternalReference::shared_external_pointer_table_address_address(
-            isolate()));
+    TNode<ExternalReference> table_address_address =
+        IsolateField(IsolateFieldId::kSharedExternalPointerTable);
     return UncheckedCast<RawPtrT>(
         Load(MachineType::Pointer(), table_address_address));
   }
-  return ExternalConstant(
-      ExternalReference::external_pointer_table_address(isolate()));
+  return IsolateField(IsolateFieldId::kExternalPointerTable);
 }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -2303,8 +2301,11 @@ TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
 
 TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
     TNode<TrustedPointerHandleT> handle, TrustedPointerTagRange tag_range) {
-  TNode<RawPtrT> table = ExternalConstant(
-      ExternalReference::trusted_pointer_table_base_address(isolate()));
+  TNode<ExternalReference> trusted_pointer_table_address =
+      IsolateField(IsolateFieldId::kTrustedPointerTable);
+  TNode<RawPtrT> table = LoadImmutable<RawPtrT>(
+      trusted_pointer_table_address,
+      UintPtrConstant(Internals::kExternalEntityTableBasePointerOffset));
   TNode<Uint32T> index =
       Word32Shr(handle, Uint32Constant(kTrustedPointerHandleShift));
   // We're using a 32-bit shift here to reduce code size, but for that we need
@@ -8388,8 +8389,8 @@ void CodeStubAssembler::TerminateExecution(TNode<Context> context) {
 }
 
 TNode<Union<TheHole, JSMessageObject>> CodeStubAssembler::GetPendingMessage() {
-  TNode<ExternalReference> pending_message = ExternalConstant(
-      ExternalReference::address_of_pending_message(isolate()));
+  TNode<ExternalReference> pending_message =
+      IsolateField(IsolateFieldId::kPendingMessage);
   return UncheckedCast<Union<TheHole, JSMessageObject>>(
       LoadFullTagged(pending_message));
 }
@@ -8398,8 +8399,8 @@ void CodeStubAssembler::SetPendingMessage(
   CSA_DCHECK(this, Word32Or(IsTheHole(message),
                             InstanceTypeEqual(LoadInstanceType(message),
                                               JS_MESSAGE_OBJECT_TYPE)));
-  TNode<ExternalReference> pending_message = ExternalConstant(
-      ExternalReference::address_of_pending_message(isolate()));
+  TNode<ExternalReference> pending_message =
+      IsolateField(IsolateFieldId::kPendingMessage);
   StoreFullTaggedNoWriteBarrier(pending_message, message);
 }
 
@@ -20936,8 +20937,7 @@ void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {
   Label ok(this), stack_check_interrupt(this, Label::kDeferred);
 
   TNode<UintPtrT> stack_limit = UncheckedCast<UintPtrT>(
-      Load(MachineType::Pointer(),
-           ExternalConstant(ExternalReference::address_of_jslimit(isolate()))));
+      Load(MachineType::Pointer(), IsolateField(IsolateFieldId::kJsLimit)));
   TNode<BoolT> sp_within_limit = StackPointerGreaterThan(stack_limit);
 
   Branch(sp_within_limit, &ok, &stack_check_interrupt);
