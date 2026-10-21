@@ -470,11 +470,18 @@ std::optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
     } else if (!isolate->heap()->InSpaceSlow(pc, CODE_SPACE)) {
       return false;
     }
-    if (!ThreadIsolation::CanLookupStartOfJitAllocationAt(pc)) {
+    std::optional<Address> istream_address =
+        ThreadIsolation::TryLookupStartOfJitAllocationAt(pc);
+    if (!istream_address.has_value()) {
       return {};
     }
-    Tagged<Code> interpreter_entry_trampoline =
-        isolate->heap()->FindCodeForInnerPointer(pc);
+    Tagged<InstructionStream> istream = UncheckedCast<InstructionStream>(
+        HeapObject::FromAddress(*istream_address));
+    Tagged<Code> interpreter_entry_trampoline;
+    if (!istream->TryGetCodeUnchecked(&interpreter_entry_trampoline,
+                                      kAcquireLoad)) {
+      return {};
+    }
     return interpreter_entry_trampoline->is_interpreter_trampoline_builtin();
   } else {
     return false;
