@@ -2801,22 +2801,14 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     //  -- r7 : the number of [[BoundArguments]]
     // -----------------------------------
 
-    Register scratch = r9;
-    // Reserve stack space for the [[BoundArguments]].
+    // Check the stack for overflow.
     {
+      Label stack_overflow;
+      __ StackOverflowCheck(r7, &stack_overflow);
       Label done;
-      __ ShiftLeftU64(r10, r7, Operand(kSystemPointerSizeLog2));
-      {
-        UseScratchRegisterScope temps(masm);
-        Register new_sp = temps.Acquire();
-        __ sub(new_sp, sp, r10);
-        // Check the stack for overflow. We are not trying to catch
-        // interruptions (i.e. debug break and preemption) here, so check the
-        // "real stack limit".
-        __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
-        __ CmpU64(new_sp, scratch);
-      }
-      __ bgt(&done);  // Signed comparison.
+      __ b(&done);
+
+      __ bind(&stack_overflow);
       {
         FrameScope scope(masm, StackFrame::MANUAL);
         __ EnterFrame(StackFrame::INTERNAL);
@@ -2831,6 +2823,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Push [[BoundArguments]].
     {
       Label loop, done;
+      Register scratch = r9;
       __ add(r3, r3, r7);  // Adjust effective number of arguments.
       __ addi(r5, r5,
               Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
