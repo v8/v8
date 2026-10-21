@@ -572,6 +572,12 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
       ArrayNoArgumentConstructor)                                              \
   TFC(ArrayNoArgumentConstructor_HoleySmi_DontOverride,                        \
       ArrayNoArgumentConstructor)                                              \
+  TFC(ArrayNoArgumentConstructor_Packed_DontOverride,                          \
+      ArrayNoArgumentConstructor)                                              \
+  TFC(ArrayNoArgumentConstructor_PackedDouble_DontOverride,                    \
+      ArrayNoArgumentConstructor)                                              \
+  TFC(ArrayNoArgumentConstructor_HoleyDouble_DontOverride,                     \
+      ArrayNoArgumentConstructor)                                              \
   TFC(ArrayNoArgumentConstructor_PackedSmi_DisableAllocationSites,             \
       ArrayNoArgumentConstructor)                                              \
   TFC(ArrayNoArgumentConstructor_HoleySmi_DisableAllocationSites,              \
@@ -587,6 +593,12 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(ArraySingleArgumentConstructor_PackedSmi_DontOverride,                   \
       ArraySingleArgumentConstructor)                                          \
   TFC(ArraySingleArgumentConstructor_HoleySmi_DontOverride,                    \
+      ArraySingleArgumentConstructor)                                          \
+  TFC(ArraySingleArgumentConstructor_Packed_DontOverride,                      \
+      ArraySingleArgumentConstructor)                                          \
+  TFC(ArraySingleArgumentConstructor_PackedDouble_DontOverride,                \
+      ArraySingleArgumentConstructor)                                          \
+  TFC(ArraySingleArgumentConstructor_HoleyDouble_DontOverride,                 \
       ArraySingleArgumentConstructor)                                          \
   TFC(ArraySingleArgumentConstructor_PackedSmi_DisableAllocationSites,         \
       ArraySingleArgumentConstructor)                                          \

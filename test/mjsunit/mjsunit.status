@@ -722,6 +722,7 @@
   # Skip tests not suitable for GC stress.
   'allocation-site-info': [SKIP],
   'array-constructor-feedback': [SKIP],
+  'array-literal-transitions-no-pretenuring': [SKIP],
   'd8/d8-performance-now': [SKIP],
   'opt-elements-kind': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
@@ -2200,6 +2201,7 @@
 
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
+  'array-literal-transitions-no-pretenuring': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/serializer-apply': [SKIP],
   'compiler/serializer-call': [SKIP],
@@ -3002,6 +3004,7 @@
 ['single_generation', {
   # These tests rely on allocation site tracking which only works in the young generation.
   'array-constructor-feedback': [SKIP],
+  'array-literal-transitions-no-pretenuring': [SKIP],
   'wasm/generic-wrapper': [SKIP],
   'wasm/gc-casts-invalid': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
