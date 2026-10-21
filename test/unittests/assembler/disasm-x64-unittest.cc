@@ -1943,6 +1943,51 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10FP16) {
                 vaddph(ymm3, ymm2, Operand(&ymm_label)));
 }
 
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10Vsubph) {
+  DisassemblerTester t;
+  std::string actual;
+  CpuFeatureScope fscope(&t.assm_, AVX10_1,
+                         CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE_INSTR("vsubph xmm3,xmm2,xmm1", vsubph(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vsubph ymm3,ymm2,ymm1", vsubph(ymm3, ymm2, ymm1));
+  COMPARE_INSTR("vsubph xmm19,xmm18,xmm17", vsubph(xmm19, xmm18, xmm17));
+  COMPARE_INSTR("vsubph ymm31,ymm30,ymm29", vsubph(ymm31, ymm30, ymm29));
+  COMPARE_INSTR("vsubph xmm3,xmm3,xmm1", vsubph(xmm3, xmm3, xmm1));
+  COMPARE_INSTR("vsubph xmm3,xmm2,xmm3", vsubph(xmm3, xmm2, xmm3));
+  COMPARE_INSTR("vsubph xmm3,xmm3,xmm3", vsubph(xmm3, xmm3, xmm3));
+  COMPARE_INSTR("vsubph ymm3,ymm3,ymm1", vsubph(ymm3, ymm3, ymm1));
+  COMPARE_INSTR("vsubph ymm3,ymm2,ymm3", vsubph(ymm3, ymm2, ymm3));
+  COMPARE_INSTR("vsubph ymm3,ymm3,ymm3", vsubph(ymm3, ymm3, ymm3));
+  COMPARE_INSTR("vsubph xmm3,xmm2,[rbx+0x7f0]",
+                vsubph(xmm3, xmm2, Operand(rbx, 2032)));
+  COMPARE_INSTR("vsubph ymm3,ymm2,[rbx+0xfe0]",
+                vsubph(ymm3, ymm2, Operand(rbx, 4064)));
+  COMPARE_INSTR("vsubph xmm3,xmm2,[rbx-0x800]",
+                vsubph(xmm3, xmm2, Operand(rbx, -2048)));
+  COMPARE_INSTR("vsubph ymm3,ymm2,[rbx-0x1000]",
+                vsubph(ymm3, ymm2, Operand(rbx, -4096)));
+  COMPARE_INSTR("vsubph xmm3,xmm2,[rbx+0x14]",
+                vsubph(xmm3, xmm2, Operand(rbx, 20)));
+  COMPARE_INSTR("vsubph ymm3,ymm2,[rbx+0x24]",
+                vsubph(ymm3, ymm2, Operand(rbx, 36)));
+  COMPARE_INSTR("vsubph xmm3,xmm2,[rbx+0x800]",
+                vsubph(xmm3, xmm2, Operand(rbx, 2048)));
+  COMPARE_INSTR("vsubph ymm3,ymm2,[rbx+0x1000]",
+                vsubph(ymm3, ymm2, Operand(rbx, 4096)));
+  COMPARE_INSTR("vsubph xmm19,xmm18,[r12+r13*2+0x40]",
+                vsubph(xmm19, xmm18, Operand(r12, r13, times_2, 64)));
+  COMPARE_INSTR("vsubph ymm19,ymm18,[r12+r13*2+0x80]",
+                vsubph(ymm19, ymm18, Operand(r12, r13, times_2, 128)));
+  Label xmm_label, ymm_label;
+  t.assm_.bind(&xmm_label);
+  COMPARE_INSTR("vsubph xmm3,xmm2,[rip+0xfffffff6]",
+                vsubph(xmm3, xmm2, Operand(&xmm_label)));
+  t.assm_.bind(&ymm_label);
+  COMPARE_INSTR("vsubph ymm3,ymm2,[rip+0xfffffff6]",
+                vsubph(ymm3, ymm2, Operand(&ymm_label)));
+}
+
 TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10FmaPh) {
   DisassemblerTester t;
   std::string actual;

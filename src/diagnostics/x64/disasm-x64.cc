@@ -1084,8 +1084,9 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
     // Decode only the unmasked, non-broadcast XMM/YMM FP16 forms we emit.
     // Require EVEX.z, L', b and aaa to be zero; L and V' may be set.
     const char* mnemonic = nullptr;
-    if (evex_map5() && evex_pp_none() && opcode == 0x58) {
-      mnemonic = "vaddph";
+    if (evex_map5() && evex_pp_none()) {
+      if (opcode == 0x58) mnemonic = "vaddph";
+      if (opcode == 0x5c) mnemonic = "vsubph";
     } else if (evex_map6() && evex_pp_66()) {
       if (opcode == 0xa8) mnemonic = "vfmadd213ph";
       if (opcode == 0xac) mnemonic = "vfnmadd213ph";
