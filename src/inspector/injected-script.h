@@ -52,6 +52,7 @@ class RemoteObjectId;
 class V8InspectorImpl;
 class V8InspectorSessionImpl;
 class ValueMirror;
+struct CustomPreviewBudget;
 
 using protocol::Response;
 
@@ -110,12 +111,13 @@ class InjectedScript final {
   Response wrapObject(v8::Local<v8::Value>, const String16& groupName,
                       const WrapOptions& wrapOptions,
                       v8::MaybeLocal<v8::Value> customPreviewConfig,
-                      int maxCustomPreviewDepth,
+                      int maxCustomPreviewDepth, CustomPreviewBudget* budget,
                       std::unique_ptr<protocol::Runtime::RemoteObject>* result);
   Response wrapObjectMirror(
       const ValueMirror& mirror, const String16& groupName,
       const WrapOptions& wrapOptions,
       v8::MaybeLocal<v8::Value> customPreviewConfig, int maxCustomPreviewDepth,
+      CustomPreviewBudget* budget,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result);
   std::unique_ptr<protocol::Runtime::RemoteObject> wrapTable(
       v8::Local<v8::Object> table, v8::MaybeLocal<v8::Array> columns);

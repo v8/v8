@@ -18,8 +18,8 @@ contextGroup.addScript(`
         case 'huge-header':
           return hugeSparseArray('div', 0xFFFFFFFF);
         case 'nested-header': {
-          const a = hugeSparseArray('div', 6e6);
-          a[1] = hugeSparseArray('span', 6e6);
+          const a = hugeSparseArray('div', 6e4);
+          a[1] = hugeSparseArray('span', 6e4);
           return a;
         }
         default:
