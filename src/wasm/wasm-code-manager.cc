@@ -2926,9 +2926,6 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   size_t wire_bytes_size = wire_bytes ? wire_bytes->size() : 0;
   result += wire_bytes_size;
 
-  if (source_map_) {
-    result += source_map_->EstimateCurrentMemoryConsumption();
-  }
   result += compilation_state_->EstimateCurrentMemoryConsumption();
   // For {tiering_budgets_}.
   result += module_->num_declared_functions * sizeof(uint32_t);
@@ -2958,6 +2955,9 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
     result += module_->num_declared_functions * sizeof(void*);
     result += ContentSize(code_space_data_);
     debug_info = debug_info_.get();
+    if (source_map_) {
+      result += source_map_->EstimateCurrentMemoryConsumption();
+    }
     if (names_provider_) {
       result += names_provider_->EstimateCurrentMemoryConsumption();
     }
