@@ -1160,10 +1160,10 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
 }
 
 V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
+  m_data->clearCommandLineAPI();
   if (m_isolate->IsExecutionTerminating()) return;
   v8::MicrotasksScope microtasksScope(context(),
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
-  m_data->clearCommandLineAPI();
   v8::Local<v8::PrimitiveArray> names = m_data->installedMethods(m_isolate);
   if (names.IsEmpty()) return;
   for (int i = 0; i < names->Length(); ++i) {
