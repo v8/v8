@@ -184,14 +184,14 @@ class WasmSerializationTest {
               ->SyncInstantiate(serialization_isolate, &thrower, module_object,
                                 {})
               .ToHandleChecked();
-      CHECK_EQ(0, data_.size);
-      while (data_.size == 0) {
+      CHECK(data_.empty());
+      while (data_.empty()) {
         testing::CallWasmFunctionForTesting(serialization_isolate, instance,
                                             kFunctionName, {});
         ScopedVersionEmbedderString embedder(embedder_string);
         data_ = compiled_module.Serialize();
       }
-      CHECK_LT(0, data_.size);
+      CHECK(!data_.empty());
     }
     // Dispose of serialization isolate to destroy the reference to the
     // NativeModule, which removes it from the module cache in the wasm engine
@@ -204,7 +204,7 @@ class WasmSerializationTest {
     while (weak_native_module.lock()) {
     }
 
-    serialized_bytes_ = {data_.buffer.get(), data_.size};
+    serialized_bytes_ = data_.as_span();
 
     v8::HandleScope new_scope(CcTest::isolate());
     v8::Local<v8::Context> deserialization_context =
@@ -460,12 +460,10 @@ TEST(SerializeTieringBudget) {
   CompileTimeImports compile_imports = test.MakeCompileTimeImports();
   base::UniqueArray<const uint8_t> wire_bytes_copy =
       base::UniqueCopyOf(test.wire_bytes());
-  CHECK(
-      DeserializeNativeModule(
-          isolate, WasmEnabledFeatures::FromIsolate(isolate),
-          base::VectorOf(serialized_bytes.buffer.get(), serialized_bytes.size),
-          wire_bytes_copy, compile_imports, {})
-          .ToHandle(&module_object));
+  CHECK(DeserializeNativeModule(
+            isolate, WasmEnabledFeatures::FromIsolate(isolate),
+            serialized_bytes.as_span(), wire_bytes_copy, compile_imports, {})
+            .ToHandle(&module_object));
 
   CppGCManaged<wasm::NativeModule>::Ptr native_module =
       module_object->native_module();
@@ -636,7 +634,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
       serialized_module = v8_module_object->GetCompiledModule().Serialize();
     }
 
-    CHECK_LT(0, serialized_module.size);
+    CHECK(!serialized_module.empty());
 
     // Run GC until the NativeModule died. Add a manual timeout of 60 seconds to
     // get a better error message than just a test timeout if this fails.
@@ -687,11 +685,10 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     base::UniqueArray<const uint8_t> wire_bytes_copy =
         base::UniqueCopyOf(zone_buffer);
     DirectHandle<WasmModuleObject> module_object =
-        DeserializeNativeModule(
-            i_isolate, WasmEnabledFeatures::FromIsolate(i_isolate),
-            base::VectorOf(serialized_module.buffer.get(),
-                           serialized_module.size),
-            wire_bytes_copy, CompileTimeImports{}, kNoSourceUrl)
+        DeserializeNativeModule(i_isolate,
+                                WasmEnabledFeatures::FromIsolate(i_isolate),
+                                serialized_module.as_span(), wire_bytes_copy,
+                                CompileTimeImports{}, kNoSourceUrl)
             .ToHandleChecked();
 
     // Check that the signature ID got canonicalized to index 1.
@@ -807,7 +804,7 @@ TEST(SerializeDetectedFeatures) {
             testing::CallWasmFunctionForTesting(i_isolate, instance, "a", {});
         CHECK_EQ(11, result);
         serialized_module = v8_module_object->GetCompiledModule().Serialize();
-        if (serialized_module.size != 0) break;
+        if (!serialized_module.empty()) break;
         v8_isolate->RequestGarbageCollectionForTesting(
             v8::Isolate::kFullGarbageCollection);
         if (std::chrono::steady_clock::now() > end_time) {
@@ -816,7 +813,7 @@ TEST(SerializeDetectedFeatures) {
       }
     }
 
-    CHECK_LT(0, serialized_module.size);
+    CHECK(!serialized_module.empty());
 
     // Run GC until the NativeModule died. Add a manual timeout of 60 seconds to
     // get a better error message than just a test timeout if this fails.
@@ -845,11 +842,10 @@ TEST(SerializeDetectedFeatures) {
     base::UniqueArray<const uint8_t> wire_bytes_copy =
         base::UniqueCopyOf(buffer);
     DirectHandle<WasmModuleObject> module_object =
-        DeserializeNativeModule(
-            i_isolate, WasmEnabledFeatures::FromIsolate(i_isolate),
-            base::VectorOf(serialized_module.buffer.get(),
-                           serialized_module.size),
-            wire_bytes_copy, CompileTimeImports{}, kNoSourceUrl)
+        DeserializeNativeModule(i_isolate,
+                                WasmEnabledFeatures::FromIsolate(i_isolate),
+                                serialized_module.as_span(), wire_bytes_copy,
+                                CompileTimeImports{}, kNoSourceUrl)
             .ToHandleChecked();
 
     CHECK_EQ(WasmDetectedFeatures{{WasmDetectedFeature::return_call}},

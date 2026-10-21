@@ -9053,11 +9053,14 @@ OwnedBuffer CompiledWasmModule::Serialize() {
   TRACE_EVENT0("v8.wasm", "wasm.SerializeModule");
   i::wasm::WasmSerializer wasm_serializer(native_module_.get());
   size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
-  std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
-  if (!wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size})) {
+  base::UniqueArray<uint8_t> buffer =
+      base::UniqueArray<uint8_t>::NewForOverwrite(buffer_size);
+  if (!wasm_serializer.SerializeNativeModule(buffer.as_span())) {
     return {};
   }
-  return {std::move(buffer), buffer_size};
+  START_ALLOW_USE_DEPRECATED()
+  return {buffer.ReleaseData(), buffer_size};
+  END_ALLOW_USE_DEPRECATED()
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY

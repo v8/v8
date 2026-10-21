@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <memory>
 #include <thread>  // NOLINT(build/c++11)
 
@@ -700,6 +701,45 @@ TEST_F(ApiWasmTest, WasmMemoryObjectGetBuffer) {
   EXPECT_TRUE(unshared_memory->Buffer()->IsArrayBuffer());
   EXPECT_TRUE(shared_memory->Buffer()->IsSharedArrayBuffer());
   END_ALLOW_USE_DEPRECATED();
+}
+
+TEST_F(ApiWasmTest, OwnedBufferSpanAndMoveSemantics) {
+  OwnedBuffer empty_buffer;
+  EXPECT_TRUE(empty_buffer.empty());
+  EXPECT_TRUE(empty_buffer.as_span().empty());
+  EXPECT_EQ(nullptr, empty_buffer.as_span().data());
+
+  constexpr uint8_t kPayload[] = {10, 20, 30, 40};
+  std::unique_ptr<uint8_t[]> backing =
+      std::make_unique<uint8_t[]>(sizeof(kPayload));
+  std::copy(std::begin(kPayload), std::end(kPayload), backing.get());
+  const uint8_t* raw_ptr = backing.get();
+
+  START_ALLOW_USE_DEPRECATED()
+  OwnedBuffer owned(std::move(backing), sizeof(kPayload));
+  END_ALLOW_USE_DEPRECATED()
+
+  EXPECT_FALSE(owned.empty());
+  EXPECT_EQ(raw_ptr, owned.as_span().data());
+  EXPECT_EQ(sizeof(kPayload), owned.as_span().size());
+  EXPECT_TRUE(std::ranges::equal(kPayload, owned.as_span()));
+
+  // Move construction transfers ownership and leaves the source empty.
+  OwnedBuffer move_constructed(std::move(owned));
+  EXPECT_TRUE(owned.empty());
+  EXPECT_TRUE(owned.as_span().empty());
+  EXPECT_EQ(nullptr, owned.as_span().data());
+  EXPECT_EQ(raw_ptr, move_constructed.as_span().data());
+  EXPECT_EQ(sizeof(kPayload), move_constructed.as_span().size());
+
+  // Move assignment also leaves the source empty.
+  OwnedBuffer move_assigned;
+  move_assigned = std::move(move_constructed);
+  EXPECT_TRUE(move_constructed.empty());
+  EXPECT_TRUE(move_constructed.as_span().empty());
+  EXPECT_EQ(nullptr, move_constructed.as_span().data());
+  EXPECT_EQ(raw_ptr, move_assigned.as_span().data());
+  EXPECT_EQ(sizeof(kPayload), move_assigned.as_span().size());
 }
 
 }  // namespace v8
