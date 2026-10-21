@@ -524,6 +524,7 @@ void StoreImpl::SetHostInfo(i::DirectHandle<i::Object> object, void* info,
 void* StoreImpl::GetHostInfo(i::DirectHandle<i::Object> key,
                              const i::DisallowGarbageCollection& no_gc
                                  V8_LIFETIME_BOUND) {
+  v8::Isolate::Scope isolate_scope(isolate());
   PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate());
   i::Tagged<i::Object> raw =
       i::Cast<i::EphemeronHashTable>(host_info_map_->table())->Lookup(key);
@@ -1272,6 +1273,9 @@ WASM_EXPORT auto Module::make(Store* store_abs, const vec<byte_t>& binary)
 }
 
 WASM_EXPORT auto Module::imports() const -> ownvec<ImportType> {
+  i::Isolate* isolate = impl(this)->isolate();
+  v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   i::CppGCManaged<i::wasm::NativeModule>::Ptr native_module =
       impl(this)->v8_object()->native_module();
   const i::wasm::WasmModule* module = native_module->module();
@@ -2326,7 +2330,9 @@ WASM_EXPORT auto Memory::make(Store* store_abs, const MemoryType* type)
 }
 
 WASM_EXPORT auto Memory::type() const -> own<MemoryType> {
-  PtrComprCageAccessScope ptr_compr_cage_access_scope(impl(this)->isolate());
+  i::Isolate* isolate = impl(this)->isolate();
+  v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   i::DirectHandle<i::WasmMemoryObject> memory = impl(this)->v8_object();
   uint32_t min = static_cast<uint32_t>(memory->backing_store()->byte_length() /
                                        i::wasm::kWasmPageSize);
