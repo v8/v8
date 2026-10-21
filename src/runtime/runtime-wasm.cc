@@ -4,6 +4,7 @@
 
 #include <optional>
 
+#include "src/base/bits.h"
 #include "src/base/unique-array.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/data-view-ops.h"
@@ -2772,21 +2773,16 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapUnalignedAccess);
   }
 
-#if defined(V8_TARGET_LITTLE_ENDIAN)
   uint16_t* dst = reinterpret_cast<uint16_t*>(
       trusted_instance_data->memory_base(memory) + offset);
   String::WriteToFlat(string, dst, start, length);
+#if defined(V8_TARGET_BIG_ENDIAN)
+  for (uint32_t i = 0; i < length; i++) {
+    dst[i] = base::bits::ByteReverse16(dst[i]);
+  }
+#endif
 
   return Smi::zero();  // Unused.
-#elif defined(V8_TARGET_BIG_ENDIAN)
-  // TODO(12868): The host is big-endian but we need to write the string
-  // contents as little-endian.
-  USE(string);
-  USE(start);
-  UNIMPLEMENTED();
-#else
-#error Unknown endianness
-#endif
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
