@@ -76,6 +76,7 @@ inline MaybeDirectHandle<JSReceiver> IteratorStep(
 // https://tc39.es/ecma262/#sec-iteratorclose
 inline void IteratorClose(Isolate* isolate, DirectHandle<JSReceiver> iterator) {
   DirectHandle<Object> completion_exception;
+  DirectHandle<Object> completion_message;
 
   bool has_completion_exception = isolate->has_exception();
   if (has_completion_exception) {
@@ -84,59 +85,40 @@ inline void IteratorClose(Isolate* isolate, DirectHandle<JSReceiver> iterator) {
       return;
     }
     completion_exception = handle(isolate->exception(), isolate);
+    completion_message = handle(isolate->pending_message(), isolate);
     isolate->clear_exception();
+    isolate->clear_pending_message();
   }
 
   // 3. Let innerResult be GetMethod(iterator, "return").
   DirectHandle<Object> return_method;
-  DirectHandle<Object> inner_exception;
-  bool has_inner_exception = false;
-
-  if (!Object::GetProperty(isolate, iterator,
-                           isolate->factory()->return_string())
-           .ToHandle(&return_method)) {
-    if (isolate->is_execution_terminating()) {
-      // Don't swallow the termination exception.
-      return;
-    }
-    has_inner_exception = true;
-    inner_exception = handle(isolate->exception(), isolate);
-    isolate->clear_exception();
-  } else if (!IsNullOrUndefined(*return_method)) {
+  if (Object::GetProperty(isolate, iterator,
+                          isolate->factory()->return_string())
+          .ToHandle(&return_method) &&
+      !IsNullOrUndefined(*return_method)) {
     // 4. If innerResult.[[Type]] is normal, then
     //   a. Let return be innerResult.[[Value]].
     //   b. If return is undefined, return Completion(completion).
     //   c. Set innerResult to Call(return, iterator).
     DirectHandle<Object> inner_result;
-    if (!Execution::Call(isolate, return_method, iterator,
-                         base::Vector<const DirectHandle<Object>>())
-             .ToHandle(&inner_result)) {
-      if (isolate->is_execution_terminating()) {
-        // Don't swallow the termination exception.
-        return;
-      }
-
-      has_inner_exception = true;
-      inner_exception = handle(isolate->exception(), isolate);
-      isolate->clear_exception();
-    } else {
+    if (Execution::Call(isolate, return_method, iterator,
+                        base::Vector<const DirectHandle<Object>>())
+            .ToHandle(&inner_result)) {
       // 7. If innerResult.[[Value]] is not an Object, throw a TypeError
       // exception.
       if (!has_completion_exception && !IsJSReceiver(*inner_result)) {
-        has_inner_exception = true;
-        inner_exception = isolate->factory()->NewTypeError(
+        isolate->Throw(*isolate->factory()->NewTypeError(
             MessageTemplate::kCalledOnNonObject,
-            isolate->factory()->return_string());
+            isolate->factory()->return_string()));
       }
     }
   }
 
   // 5. If completion is a throw completion, return ? completion.
-  if (has_completion_exception) {
+  // 6. If innerResult is a throw completion, return ? innerResult.
+  if (has_completion_exception && !isolate->is_execution_terminating()) {
     isolate->set_exception(*completion_exception);
-  } else if (has_inner_exception) {
-    // 6. If innerResult is a throw completion, return ? innerResult.
-    isolate->set_exception(*inner_exception);
+    isolate->set_pending_message(*completion_message);
   }
 }
 
