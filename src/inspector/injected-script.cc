@@ -752,7 +752,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
   int limit = 1000;
   mirror->buildObjectPreview(context, true /* generatePreviewForTable */,
                              &limit, &limit, &preview);
-  if (!preview) return nullptr;
+  if (!preview || isolate->IsExecutionTerminating()) return nullptr;
 
   std::vector<String16> selectedColumns;
   std::unordered_set<String16> columnSet;
@@ -767,6 +767,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
           selectedColumns.push_back(name);
         }
       }
+      if (isolate->IsExecutionTerminating()) return nullptr;
     }
   }
   if (!selectedColumns.empty()) {

@@ -125,6 +125,7 @@ class V8ValueStringBuilder {
       if (object->ObjectProtoToString(m_context).ToLocal(&stringValue)) {
         return append(stringValue);
       }
+      if (m_tryCatch.HasTerminated()) return false;
     }
     v8::Local<v8::String> stringValue;
     if (!value->ToString(m_context).ToLocal(&stringValue)) return false;
@@ -145,8 +146,15 @@ class V8ValueStringBuilder {
     for (uint32_t i = 0; i < length; ++i) {
       if (i) m_builder.append(',');
       v8::Local<v8::Value> value;
-      if (!array->Get(m_context, i).ToLocal(&value)) continue;
-      if (!append(value, IgnoreNull | IgnoreUndefined)) {
+      if (!array->Get(m_context, i).ToLocal(&value)) {
+        if (m_tryCatch.HasTerminated()) {
+          result = false;
+          break;
+        }
+        continue;
+      }
+      if (!append(value, IgnoreNull | IgnoreUndefined) ||
+          m_tryCatch.HasTerminated()) {
         result = false;
         break;
       }
@@ -292,6 +300,7 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
         if (array->Set(context, 0, secondArgument).IsJust()) {
           columns = array;
         }
+        if (tryCatch.HasTerminated()) return nullptr;
       }
     }
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapped =
@@ -485,6 +494,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
   }
   bool sep = false;
   for (v8::Local<v8::Value> arg : arguments) {
+    if (isolate->IsExecutionTerminating()) break;
     if (sep) {
       message->m_message += String16(" ");
     } else {
