@@ -1267,9 +1267,27 @@ void BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral() {
   using Feedback = BinaryOperationFeedback;                                 \
   auto feedback_index_offset =                                              \
       iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);  \
+  auto feedback_type =                                                      \
+      Feedback::DecodeTypeIndex(static_cast<Feedback::TypeIndex>(           \
+          EmbeddedFeedback(kEmbeddedFeedbackOperandIndex)));                \
+  /* Use a lambda to discard the helper call for non-Smi operators. */      \
+  if ([&](auto lhs, auto rhs) {                                             \
+        if constexpr (std::is_same_v<decltype(rhs), Tagged<Smi>> &&         \
+                      (IsInlineSmiArithmeticBinaryOperationSupported(       \
+                           Operation::k##Name) ||                           \
+                       IsInlineSmiBitwiseBinaryOperationSupported(          \
+                           Operation::k##Name))) {                          \
+          return TryEmitInlineSmiBinaryOperation<                           \
+              Operation::k##Name, Builtin::k##Name##_SignedSmall_Baseline,  \
+              Builtin::k##GenericName##_Generic_Baseline>(                  \
+              feedback_type, feedback_index_offset, lhs, rhs);              \
+        }                                                                   \
+        return false;                                                       \
+      }(Lhs, Rhs)) {                                                        \
+    return;                                                                 \
+  }                                                                         \
   if (allow_sparkplug_plus_) {                                              \
-    switch (Feedback::DecodeTypeIndex(static_cast<Feedback::TypeIndex>(     \
-        EmbeddedFeedback(kEmbeddedFeedbackOperandIndex)))) {                \
+    switch (feedback_type) {                                                \
       TypedStubList(TYPED_BINOP_CASE, Name, Lhs, Rhs) default               \
           : CallBuiltin<Builtin::k##GenericName##_Generic_Baseline>(        \
                 Lhs, Rhs, feedback_index_offset);                           \
@@ -1476,6 +1494,43 @@ void BaselineCompiler::VisitShiftRightLogicalSmi() {
 #undef VISIT_TYPED_BINARY_OPERATION
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
+template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
+bool BaselineCompiler::TryEmitInlineSmiBinaryOperation(
+    BinaryOperationFeedback::Type feedback_type, int feedback_index_offset,
+    Register lhs, Tagged<Smi> rhs) {
+  if constexpr (!IsInlineSmiArithmeticBinaryOperationSupported(kOperation) &&
+                !IsInlineSmiBitwiseBinaryOperationSupported(kOperation)) {
+    return false;
+  }
+  if (!v8_flags.sparkplug_inline_smi ||
+      feedback_type != BinaryOperationFeedback::Type::kSignedSmall) {
+    return false;
+  }
+
+  DCHECK_EQ(lhs, kInterpreterAccumulatorRegister);
+  ASM_CODE_COMMENT_STRING(&masm_, "inlined Smi binary immediate fast path");
+  Label slow, done;
+  __ JumpIfNotSmi(lhs, &slow, Label::kNear);
+  if constexpr (IsInlineSmiArithmeticBinaryOperationSupported(kOperation)) {
+    __ SmiAddSubAndJumpIfOverflow(kInterpreterAccumulatorRegister, lhs, rhs,
+                                  kOperation, &slow, Label::kNear);
+  } else if constexpr (IsInlineSmiBitwiseBinaryOperationSupported(kOperation)) {
+    __ SmiBitwiseOp(lhs, rhs, kOperation);
+  } else {
+    UNREACHABLE();
+  }
+  __ Jump(&done, Label::kNear);
+
+  __ Bind(&slow);
+  if (allow_sparkplug_plus_) {
+    CallBuiltin<kSmiBuiltin>(lhs, rhs, feedback_index_offset);
+  } else {
+    CallBuiltin<kGenericBuiltin>(lhs, rhs, feedback_index_offset);
+  }
+  __ Bind(&done);
+  return true;
+}
+
 template <Operation kOperation, Builtin kSmiBuiltin, Builtin kGenericBuiltin>
 bool BaselineCompiler::TryEmitInlineSmiUnary(
     BinaryOperationFeedback::Type feedback_type, int feedback_index_offset) {
