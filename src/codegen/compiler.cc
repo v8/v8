@@ -3361,9 +3361,36 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     DCHECK_EQ(eval_position, kNoSourcePosition);
     eval_cache_position = -parameters_end_pos;
   }
+
+  Script::CompilationKind compilation_kind;
+  bool allow_eval_cache = true;
+  if (eval_position == kNoSourcePosition) {
+    compilation_kind = restriction == ONLY_SINGLE_FUNCTION_LITERAL
+                           ? Script::CompilationKind::kFunctionConstructor
+                           : Script::CompilationKind::kIndirectEval;
+    // If the position is missing, attempt to get the code offset by
+    // walking the stack. Do not translate the code offset into source
+    // position, but store it as negative value for lazy translation.
+    DebuggableStackFrameIterator it(isolate);
+    if (!it.done() && it.is_javascript()) {
+      FrameSummary summary = it.GetTopValidFrame();
+      outer_info =
+          direct_handle(summary.AsJavaScript().function()->shared(), isolate);
+      eval_position = -summary.code_offset();
+    } else {
+      eval_position = 0;
+      allow_eval_cache = false;
+    }
+  } else {
+    compilation_kind = Script::CompilationKind::kDirectEval;
+  }
+
   CompilationCache* compilation_cache = isolate->compilation_cache();
-  InfoCellPair eval_result = compilation_cache->LookupEval(
-      source, outer_info, context, language_mode, eval_cache_position);
+  InfoCellPair eval_result;
+  if (allow_eval_cache) {
+    eval_result = compilation_cache->LookupEval(
+        source, outer_info, context, language_mode, eval_cache_position);
+  }
   if (eval_result.has_js_function()) {
     DirectHandle<JSFunction> result =
         direct_handle(eval_result.js_function(), isolate);
@@ -3382,7 +3409,6 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
   DirectHandle<SharedFunctionInfo> shared_info;
   Handle<Script> script;
   IsCompiledScope is_compiled_scope;
-  bool allow_eval_cache;
   if (eval_result.has_shared()) {
     // Make sure that the scope_info of the context we're eval-ing in matches
     // the scope_info we compiled the code for.
@@ -3393,7 +3419,6 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
         DirectHandle<SharedFunctionInfo>(eval_result.shared(), isolate);
     script = Handle<Script>(Cast<Script>(shared_info->script()), isolate);
     is_compiled_scope = shared_info->is_compiled_scope(isolate);
-    allow_eval_cache = true;
   } else {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForToplevelCompile(
         isolate, true, language_mode, REPLMode::kNo, ScriptType::kClassic,
@@ -3418,31 +3443,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
         isolate, source, kNullMaybeHandle,
         OriginOptionsForEval(outer_info->script(), parsing_while_debugging));
     script->set_outer_language_mode(language_mode);
-    if (eval_position == kNoSourcePosition) {
-      script->set_compilation_kind(
-          restriction == ONLY_SINGLE_FUNCTION_LITERAL
-              ? Script::CompilationKind::kFunctionConstructor
-              : Script::CompilationKind::kIndirectEval);
-    } else {
-      script->set_compilation_kind(Script::CompilationKind::kDirectEval);
-    }
+    script->set_compilation_kind(compilation_kind);
     script->set_eval_from_shared(*outer_info);
-    if (eval_position == kNoSourcePosition) {
-      // If the position is missing, attempt to get the code offset by
-      // walking the stack. Do not translate the code offset into source
-      // position, but store it as negative value for lazy translation.
-      DebuggableStackFrameIterator it(isolate);
-      if (!it.done() && it.is_javascript()) {
-        FrameSummary summary = it.GetTopValidFrame();
-        script->set_eval_from_shared(
-            summary.AsJavaScript().function()->shared());
-        script->set_origin_options(
-            OriginOptionsForEval(*summary.script(), parsing_while_debugging));
-        eval_position = -summary.code_offset();
-      } else {
-        eval_position = 0;
-      }
-    }
     script->set_eval_from_position(eval_position);
     if (!maybe_outer_scope_info.is_null()) {
       script->set_eval_from_scope_info(
@@ -3455,7 +3457,9 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
              .ToHandle(&shared_info)) {
       return MaybeDirectHandle<JSFunction>();
     }
-    allow_eval_cache = parse_info.allow_eval_cache();
+    if (!parse_info.allow_eval_cache()) {
+      allow_eval_cache = false;
+    }
   }
 
   // If caller is strict mode, the result must be in strict mode as well.

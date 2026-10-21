@@ -1668,8 +1668,16 @@ TEST(CurrentScriptData_DynamicScriptCompiledFromEmbedder_Eval) {
   // When eval is called from a normal JS script with a JS caller on the stack,
   // DynamicScriptCompiledFromEmbedderCallback should not be called.
   dynamicScriptCompiledEvents.clear();
-  CompileRun("eval('CaptureStack();');");
+  CompileRun("(0, eval)('CaptureStack()');");
   CHECK(dynamicScriptCompiledEvents.empty());
+
+  // A subsequent embedder call with the same source string must not hit the
+  // compilation cache and must trigger the callback with a fresh script ID.
+  eval_fn->Call(context.local(), context->Global(), 1, &arg).ToLocalChecked();
+  CHECK_EQ(dynamicScriptCompiledEvents.size(), 1);
+  CHECK_NE(dynamicScriptCompiledEvents[0].script_id, script_id);
+  CHECK_EQ(capturedFramesScriptData[0].id,
+           dynamicScriptCompiledEvents[0].script_id);
 }
 
 TEST(CurrentScriptData_DynamicScriptCompiledFromEmbedder_FunctionConstructor) {
@@ -1712,8 +1720,21 @@ TEST(CurrentScriptData_DynamicScriptCompiledFromEmbedder_FunctionConstructor) {
   // caller on the stack, DynamicScriptCompiledFromEmbedderCallback should not
   // be called.
   dynamicScriptCompiledEvents.clear();
-  CompileRun("new Function('CaptureStack();')();");
+  CompileRun("new Function('CaptureStack()')();");
   CHECK(dynamicScriptCompiledEvents.empty());
+
+  // A subsequent embedder call with the same source string must not hit the
+  // compilation cache and must trigger the callback with a fresh script ID.
+  v8::Local<v8::Function> created_fn2 =
+      func_ctor->CallAsConstructor(context.local(), 1, &arg)
+          .ToLocalChecked()
+          .As<v8::Function>();
+  CHECK_EQ(dynamicScriptCompiledEvents.size(), 1);
+  CHECK_NE(dynamicScriptCompiledEvents[0].script_id, script_id);
+  created_fn2->Call(context.local(), context->Global(), 0, nullptr)
+      .ToLocalChecked();
+  CHECK_EQ(capturedFramesScriptData[0].id,
+           dynamicScriptCompiledEvents[0].script_id);
 }
 
 void AnalyzeStackOfInlineScriptWithSourceURL(
