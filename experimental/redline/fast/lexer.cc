@@ -194,6 +194,11 @@ uint32_t DecodeUtf8(std::string_view text, size_t pos, size_t* length) {
     }
     c = (c << 6) | (b & 0x3F);
   }
+  uint32_t min_code = extra == 1 ? 0x80u : extra == 2 ? 0x800u : 0x10000u;
+  if (c < min_code || c > 0x10FFFFu) {
+    *length = 1;
+    return 0xFFFD;
+  }
   *length = static_cast<size_t>(extra) + 1;
   return c;
 }
@@ -702,6 +707,17 @@ void Lexer::ScanNumber(uint32_t first) {
     return any;
   };
 
+  auto check_no_trailing_id_or_digit = [&]() -> bool {
+    size_t len;
+    uint32_t next = Peek(&len);
+    if (IsIdStart(next) || (next >= '0' && next <= '9')) {
+      SetError("Invalid or unexpected token", pos_);
+      Finish(Tok::kIllegal);
+      return false;
+    }
+    return true;
+  };
+
   bool is_bigint_allowed = true;
   if (first == '0' && pos_ + 1 < source_.size()) {
     char p = source_[pos_ + 1];
@@ -730,15 +746,25 @@ void Lexer::ScanNumber(uint32_t first) {
       }
       if (pos_ < source_.size() && source_[pos_] == 'n') {
         pos_++;
+        if (!check_no_trailing_id_or_digit()) {
+          return;
+        }
         token_.value = digits;
         return Finish(Tok::kBigInt);
+      }
+      if (!check_no_trailing_id_or_digit()) {
+        return;
       }
       // The const char* overload is the exported one (component builds).
       token_.number_value = v8::internal::StringToDouble(
           digits.c_str(), v8::internal::ALLOW_NON_DECIMAL_PREFIX);
       return Finish(Tok::kNumber);
     }
-    if (is_digit(static_cast<uint8_t>(p)) || p == '_') {
+    if (p == '_') {
+      SetError("Numeric separator can not be used after leading 0", pos_ + 1);
+      return Finish(Tok::kIllegal);
+    }
+    if (is_digit(static_cast<uint8_t>(p))) {
       // Legacy octal (017) or legacy decimal with leading zero (089).
       pos_++;
       bool octal = true;
@@ -751,9 +777,16 @@ void Lexer::ScanNumber(uint32_t first) {
         legacy.push_back(source_[pos_]);
         pos_++;
       }
+      if (pos_ < source_.size() && source_[pos_] == '_') {
+        SetError("Numeric separator can not be used after leading 0", pos_);
+        return Finish(Tok::kIllegal);
+      }
       token_.legacy_octal = true;
       is_bigint_allowed = false;
       if (octal) {
+        if (!check_no_trailing_id_or_digit()) {
+          return;
+        }
         double value = 0;
         for (char d : legacy) {
           value = value * 8 + (d - '0');
@@ -797,6 +830,9 @@ void Lexer::ScanNumber(uint32_t first) {
   if (integer_only && is_bigint_allowed && pos_ < source_.size() &&
       source_[pos_] == 'n') {
     pos_++;
+    if (!check_no_trailing_id_or_digit()) {
+      return;
+    }
     token_.value = digits;
     return Finish(Tok::kBigInt);
   }
@@ -804,13 +840,8 @@ void Lexer::ScanNumber(uint32_t first) {
     SetError("Invalid or unexpected token", start);
     return Finish(Tok::kIllegal);
   }
-  {
-    size_t len;
-    uint32_t next = Peek(&len);
-    if (IsIdStart(next) || (next >= '0' && next <= '9')) {
-      SetError("Invalid or unexpected token", pos_);
-      return Finish(Tok::kIllegal);
-    }
+  if (!check_no_trailing_id_or_digit()) {
+    return;
   }
   // The const char* overload is the exported one (component builds).
   token_.number_value = v8::internal::StringToDouble(

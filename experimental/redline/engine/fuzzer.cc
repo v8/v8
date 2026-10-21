@@ -544,14 +544,20 @@ class Worker {
         LogMutant(*mutator, detail, ancestor->id, "noop", nullptr, 0);
         continue;
       }
-      if (mutator->runtime_assisted() &&
-          !CompleteRuntimeAssisted(*mutator, tree.get(), probes, &detail)) {
-        stats().noop++;
-        mutate_stage.time_us += stage_time.ElapsedUs();
-        Capture(Stage::kMutate, CaptureTrigger::kNoop, mutator->name(),
-                parent.get(), "", JsonObject());
-        LogMutant(*mutator, detail, ancestor->id, "noop", nullptr, 0);
-        continue;
+      if (mutator->runtime_assisted()) {
+        bool crashed = false;
+        if (!CompleteRuntimeAssisted(*mutator, tree.get(), probes, &detail,
+                                     &crashed)) {
+          mutate_stage.time_us += stage_time.ElapsedUs();
+          if (crashed) {
+            return;
+          }
+          stats().noop++;
+          Capture(Stage::kMutate, CaptureTrigger::kNoop, mutator->name(),
+                  parent.get(), "", JsonObject());
+          LogMutant(*mutator, detail, ancestor->id, "noop", nullptr, 0);
+          continue;
+        }
       }
       std::string source = fast::Print(tree->root());
       std::string message;
@@ -716,7 +722,8 @@ class Worker {
   // nothing came of it (the caller treats the mutation as a no-op).
   bool CompleteRuntimeAssisted(Mutator& base, fast::Tree* tree,
                                const std::vector<ExploreProbe>& probes,
-                               std::string* detail) {
+                               std::string* detail, bool* crashed) {
+    *crashed = false;
     if (probes.empty()) {
       return false;
     }
@@ -738,6 +745,10 @@ class Worker {
     if (execution.crashed()) {
       // Crashes of the instrumented program count like any other crash; the
       // saved program includes the runtime so that it reproduces.
+      *crashed = true;
+      Account(mutator.stats(), execution);
+      AccountFuzzExecution(execution);
+      ReportToSelector(mutator, execution);
       Lineage lineage;
       lineage.origin = mutator.name();
       lineage.detail = "instrumented program";
@@ -1659,11 +1670,7 @@ Fuzzer::CrashDecision Fuzzer::RegisterCrash(uint64_t source_hash,
   }
   info.count++;
   decision.signature_count = info.count;
-  decision.new_source = std::find(crash_hashes_.begin(), crash_hashes_.end(),
-                                  source_hash) == crash_hashes_.end();
-  if (decision.new_source) {
-    crash_hashes_.push_back(source_hash);
-  }
+  decision.new_source = crash_hashes_.insert(source_hash).second;
   decision.save =
       decision.new_source && info.saved < config_.max_crashes_per_signature;
   decision.minimize =

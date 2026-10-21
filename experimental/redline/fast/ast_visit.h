@@ -18,14 +18,16 @@ namespace detail {
 template <typename T, typename F>
 inline void VisitSlot(T*& slot, F& f) {
   static_assert(std::is_base_of_v<Node, T>);
-  f(reinterpret_cast<Node**>(&slot));
+  Node* child = slot;
+  f(&child);
+  slot = static_cast<T*>(child);
 }
 
 template <typename T, typename F>
 inline void VisitList(std::vector<T*>& list, F& f) {
   static_assert(std::is_base_of_v<Node, T>);
   for (T*& element : list) {
-    f(reinterpret_cast<Node**>(&element));
+    VisitSlot(element, f);
   }
 }
 

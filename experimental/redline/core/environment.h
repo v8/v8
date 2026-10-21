@@ -18,16 +18,16 @@ namespace redline {
 // A method or function: name, arity range and result type guess.
 struct BuiltinFunction {
   std::string_view name;
-  int min_args;
-  int max_args;
-  JsType result;
+  int min_args = 0;
+  int max_args = 0;
+  JsType result = JsType::kUnknown;
   // Argument type hints (kUnknown = anything), at most 3 used.
   JsType args[3] = {JsType::kUnknown, JsType::kUnknown, JsType::kUnknown};
 };
 
 // Methods and properties available on values of a given coarse type.
 struct BuiltinType {
-  JsType type;
+  JsType type = JsType::kUnknown;
   std::vector<BuiltinFunction> methods;
   std::vector<std::string_view> properties;
 };
@@ -36,11 +36,11 @@ struct BuiltinType {
 // or function (parseInt).
 struct BuiltinGlobal {
   std::string_view name;
-  JsType type;           // type of the global itself
-  bool constructible;    // `new Name(...)` makes sense
-  JsType instance_type;  // type of `new Name()` / `Name()`
-  int min_args;
-  int max_args;
+  JsType type = JsType::kUnknown;           // type of the global itself
+  bool constructible = false;               // `new Name(...)` makes sense
+  JsType instance_type = JsType::kUnknown;  // type of `new Name()` / `Name()`
+  int min_args = 0;
+  int max_args = 0;
   std::vector<BuiltinFunction> static_methods;
   std::vector<std::string_view> static_properties;
 };
@@ -48,15 +48,16 @@ struct BuiltinGlobal {
 // V8 runtime functions usable with --allow-natives-syntax --fuzzing.
 struct NativeFunction {
   std::string_view name;
-  int args;         // number of arguments
-  JsType arg_type;  // type of the (first) argument, kFunction for most
+  int args = 0;  // number of arguments
+  JsType arg_type =
+      JsType::kUnknown;  // type of the (first) argument, kFunction for most
 };
 
 // A callable member discovered on the target: a static method, a prototype
 // method or a getter (arity -1).
 struct DiscoveredMember {
   std::string_view name;
-  int arity;  // Function.length; -1 for getters/plain properties
+  int arity = 0;  // Function.length; -1 for getters/plain properties
 };
 
 // A global (or dotted path such as "Intl.NumberFormat" or "d8.test") the
@@ -64,7 +65,7 @@ struct DiscoveredMember {
 struct DiscoveredApi {
   enum class Kind { kFunction, kConstructor, kNamespace };
   std::string_view path;
-  Kind kind;
+  Kind kind = Kind::kNamespace;
   int arity = 0;                          // for functions/constructors
   std::vector<DiscoveredMember> statics;  // own function-valued properties
   std::vector<DiscoveredMember> methods;  // prototype methods (constructors)

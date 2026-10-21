@@ -171,6 +171,12 @@ class FlagsStrategy final : public AmplifyStrategy {
       }
       s->rules.clear();
       for (const JsonValue& rule : rules.as_array()) {
+        if (!rule.is_object() || !rule.Get("frames").is_array()) {
+          *error =
+              "every amplify rule needs \"frames\" (non-empty strings) and "
+              "\"args\"";
+          return false;
+        }
         Rule r;
         r.args = rule.GetString("args", "");
         for (const JsonValue& frame : rule.Get("frames").as_array()) {

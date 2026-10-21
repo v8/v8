@@ -45,6 +45,43 @@ std::string Errno(const char* what) {
   return StringPrintf("%s: %s", what, strerror(errno));
 }
 
+bool ReadExact(int fd, void* dst, size_t len) {
+  uint8_t* p = static_cast<uint8_t*>(dst);
+  size_t remaining = len;
+  while (remaining > 0) {
+    ssize_t n = read(fd, p, remaining);
+    if (n < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      return false;
+    }
+    if (n == 0) {
+      return false;
+    }
+    p += n;
+    remaining -= static_cast<size_t>(n);
+  }
+  return true;
+}
+
+bool WriteExact(int fd, const void* src, size_t len) {
+  const uint8_t* p = static_cast<const uint8_t*>(src);
+  size_t remaining = len;
+  while (remaining > 0) {
+    ssize_t n = write(fd, p, remaining);
+    if (n < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      return false;
+    }
+    p += n;
+    remaining -= static_cast<size_t>(n);
+  }
+  return true;
+}
+
 // Reserves the well-known fds once per process so that no other descriptor
 // of ours can collide with them (which would break the dup2 dance during
 // spawning), and ignores SIGPIPE since we may write to a pipe whose child
@@ -56,7 +93,7 @@ void InitializeProcessOnce() {
     if (devnull >= 0) {
       for (int fd :
            {kChildCtrlIn, kChildCtrlOut, kChildDataIn, kChildDataOut}) {
-        dup2(devnull, fd);
+        dup3(devnull, fd, O_CLOEXEC);
       }
       close(devnull);
     }
@@ -75,13 +112,20 @@ class DataChannel {
  public:
   static std::unique_ptr<DataChannel> Create(const char* name,
                                              std::string* error) {
-    int fd = memfd_create(name, MFD_CLOEXEC);
+    int fd = memfd_create(name, MFD_CLOEXEC | MFD_ALLOW_SEALING);
     if (fd < 0) {
       *error = Errno("memfd_create");
       return nullptr;
     }
     if (ftruncate(fd, static_cast<off_t>(kMaxDataSize)) != 0) {
       *error = Errno("ftruncate");
+      close(fd);
+      return nullptr;
+    }
+    // Seal against shrinking so a child cannot truncate the backing file and
+    // fault our mapping with SIGBUS.
+    if (fcntl(fd, F_ADD_SEALS, F_SEAL_SHRINK) != 0) {
+      *error = Errno("fcntl(F_SEAL_SHRINK)");
       close(fd);
       return nullptr;
     }
@@ -104,7 +148,12 @@ class DataChannel {
   int fd() const { return fd_; }
   char* mapping() { return mapping_; }
 
-  void Rewind() { lseek(fd_, 0, SEEK_SET); }
+  void Rewind() {
+    if (lseek(fd_, 0, SEEK_CUR) > static_cast<off_t>(kMaxDataSize)) {
+      Truncate();
+    }
+    lseek(fd_, 0, SEEK_SET);
+  }
 
   // Keeps the backing file from growing beyond the mapping if the child
   // wrote more than kMaxDataSize.
@@ -213,6 +262,7 @@ void ReprlChild::Kill() {
   if (pid_ == 0) {
     return;
   }
+  kill(-pid_, SIGKILL);
   kill(pid_, SIGKILL);
   int status;
   while (waitpid(pid_, &status, 0) < 0 && errno == EINTR) {
@@ -283,8 +333,10 @@ bool ReprlChild::Spawn(std::string* error) {
   sigemptyset(&default_set);
   sigaddset(&default_set, SIGPIPE);
   posix_spawnattr_setsigdefault(&attr, &default_set);
-  posix_spawnattr_setflags(&attr,
-                           POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF);
+  posix_spawnattr_setpgroup(&attr, 0);
+  posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSIGMASK |
+                                      POSIX_SPAWN_SETSIGDEF |
+                                      POSIX_SPAWN_SETPGROUP);
 
   pid_t pid = 0;
   int rc =
@@ -316,12 +368,24 @@ bool ReprlChild::Spawn(std::string* error) {
   }
 
   // HELO handshake.
-  struct pollfd pfd = {ctrl_in_, POLLIN, 0};
-  int startup_timeout_ms = static_cast<int>(
-      std::min<uint64_t>(options_.startup_timeout_us / 1000, INT32_MAX));
-  int res = poll(&pfd, 1, startup_timeout_ms);
+  uint64_t startup_deadline = MonotonicNowUs() + options_.startup_timeout_us;
+  int res = 0;
+  while (true) {
+    uint64_t now = MonotonicNowUs();
+    int remaining_ms =
+        now >= startup_deadline
+            ? 0
+            : static_cast<int>(std::min<uint64_t>(
+                  (startup_deadline - now + 999) / 1000, INT32_MAX));
+    struct pollfd pfd = {ctrl_in_, POLLIN, 0};
+    res = poll(&pfd, 1, remaining_ms);
+    if (res < 0 && errno == EINTR) {
+      continue;
+    }
+    break;
+  }
   char helo[4] = {0, 0, 0, 0};
-  if (res != 1 || read(ctrl_in_, helo, 4) != 4) {
+  if (res != 1 || !ReadExact(ctrl_in_, helo, 4)) {
     std::string output;
     if (stderr_channel_) {
       output = std::string(stderr_channel_->Content());
@@ -338,7 +402,7 @@ bool ReprlChild::Spawn(std::string* error) {
     *error = "Received invalid HELO message from target";
     return false;
   }
-  if (write(ctrl_out_, "HELO", 4) != 4) {
+  if (!WriteExact(ctrl_out_, "HELO", 4)) {
     Kill();
     *error = Errno("Failed to send HELO reply");
     return false;
@@ -398,8 +462,8 @@ bool ReprlChild::Execute(std::string_view script, uint64_t timeout_us,
 
   memcpy(script_channel_->mapping(), script.data(), script.size());
   uint64_t script_size = script.size();
-  if (write(ctrl_out_, "exec", 4) != 4 ||
-      write(ctrl_out_, &script_size, 8) != 8) {
+  if (!WriteExact(ctrl_out_, "exec", 4) ||
+      !WriteExact(ctrl_out_, &script_size, 8)) {
     // The child may have died between executions.
     int status = 0;
     if (waitpid(pid_, &status, WNOHANG) == pid_) {
@@ -457,7 +521,10 @@ bool ReprlChild::Execute(std::string_view script, uint64_t timeout_us,
   }
 
   int status = 0;
-  ssize_t rv = read(ctrl_in_, &status, 4);
+  ssize_t rv = 0;
+  do {
+    rv = read(ctrl_in_, &status, 4);
+  } while (rv < 0 && errno == EINTR);
   if (rv < 0) {
     std::string message = Errno("Failed to read from control pipe");
     Kill();

@@ -825,14 +825,16 @@ REDLINE_TUNABLE(kIifeMaxStatements, "generators.Iife.max_statements", 4, 1, 64,
 GEN(Iife) {
   Random& r = ctx.rng();
   bool is_async = r.Chance(kIifeAsyncChance());
-  GenContext nested = ctx.Nested(true, r.Coin(), is_async, false);
+  bool is_arrow = r.Coin();
+  GenContext nested = ctx.Nested(true, is_arrow, is_async, false);
   CodeGen inner(nested);
   Statements body =
       inner.Body(nested, 1 + r.SmallCount(kIifeMaxStatements.AsInt() - 1));
-  Expression* fn = r.Coin() ? static_cast<Expression*>(mk::Function(
-                                  T(ctx), "", {}, std::move(body), is_async))
-                            : static_cast<Expression*>(mk::Arrow(
-                                  T(ctx), {}, std::move(body), is_async));
+  Expression* fn = is_arrow
+                       ? static_cast<Expression*>(
+                             mk::Arrow(T(ctx), {}, std::move(body), is_async))
+                       : static_cast<Expression*>(mk::Function(
+                             T(ctx), "", {}, std::move(body), is_async, false));
   Push(out, cg.Stmt(mk::Call(T(ctx), fn, {})));
   return true;
 }
@@ -4713,6 +4715,7 @@ void RegisterBuiltinSelectors<Generator>(
 int GeneratorSet::Generate(GenContext& ctx, int count,
                            std::vector<fast::Statement*>* out) const {
   int produced = 0;
+  std::vector<fast::Statement*>* saved_out = ctx.out;
   for (int i = 0; i < count; i++) {
     Generator* g = Pick(ctx);
     if (g == nullptr) {
@@ -4728,6 +4731,7 @@ int GeneratorSet::Generate(GenContext& ctx, int count,
       out->resize(before);
     }
   }
+  ctx.out = saved_out;
   return produced;
 }
 

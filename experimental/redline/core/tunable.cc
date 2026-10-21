@@ -5,6 +5,7 @@
 #include "experimental/redline/core/tunable.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -56,7 +57,7 @@ bool TunableRegistry::Set(std::string_view name, double value,
     if (t->name() != name) {
       continue;
     }
-    if (value < t->min() || value > t->max()) {
+    if (!std::isfinite(value) || value < t->min() || value > t->max()) {
       *error = StringPrintf("tunable '%.*s': %g is outside its range [%g, %g]",
                             static_cast<int>(name.size()), name.data(), value,
                             t->min(), t->max());

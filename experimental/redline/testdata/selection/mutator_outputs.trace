@@ -1,5 +1,5 @@
 CodeGen	0	2c4bca1e80b60432	inserted ArrayDecl	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CodeGen	1	d63b42848b2253e2	inserted CrossContextPrivateStore	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CodeGen	1	c48efdb32d0575f9	inserted CrossContextPrivateStore	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 CodeGen	2	4ca6a681e79a15c7	inserted Update	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 CodeGen	3	dbbfb2e7f10f803e	inserted WhileLoop+SymbolDecl	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 CodeGen	4	a1e0f51725fadf5a	inserted PrototypeMethodCall+NativeCall	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
@@ -13,11 +13,11 @@ Probing	1	278ead283dba57af	probing r C	let n = 42; let s = "text"; let a = [1, 2
 Probing	2	cf920d9572ee7281	probing f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Probing	3	6a1c72a883a17202	probing a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Probing	4	30aa747d96df02e3	probing f t a	let n = 42; let s = "text"; try {   __redline_probe("p74410", f); } ca
-Prefix	0	20dc321fd1bf80da	inserted StringDecl+RegExpDecl+ArrayDecl+RegExpDecl+IntegerDecl+IntegerDecl+StringDecl+TemplateDecl+RegExpDecl+RegExpDecl+IntegerDecl+BooleanDecl	let s0 = "iynbof"; let re0 = /(?i:\x7f(?s:[^a-z]{2})$)(?m:(?<g1>b*?.?)
+Prefix	0	cb32254c76ccedc6	inserted StringDecl+RegExpDecl+ArrayDecl+RegExpDecl+IntegerDecl+IntegerDecl+StringDecl+TemplateDecl+RegExpDecl+RegExpDecl+IntegerDecl+BooleanDecl	let s0 = "iynbof"; let re0 = /(?i:\x7f(?s:[^a-z]{2})$)(?m:(?<g1>b*?.?)
 Prefix	1	639981f9d881c5cd	inserted IntegerDecl+ArrayDecl+IntegerDecl+ArrowDecl+ArrayDecl+ArrowDecl+ArrowDecl+RegExpDecl+TemplateDecl+ArrayDecl	let v0 = 24096; let arr0 = [f]; let v1 = (-2147483649); let f0 = async
 Prefix	2	ea22d2cad28ef9c6	inserted ObjectDecl+ObjectDecl+ArrayDecl+FloatDecl+IntegerDecl+ArrayDecl+ArrayDecl+FloatDecl+ObjectDecl+ArrayDecl	let obj0 = {}; var obj1 = {name: obj0}; let arr0 = []; let v0 = (-0); 
 Prefix	3	88eb560515060234	inserted StringDecl+FloatDecl+FloatDecl+FloatDecl+StringDecl+ArrayDecl+IntegerDecl+StringDecl+IntegerDecl+BooleanDecl+BooleanDecl+RegExpDecl	let s0 = "x"; let v0 = 2.2250738585072014e-308; var v1 = 0.1; const v2
-Prefix	4	60a7db2efeb7c652	inserted ArrayDecl+ArrowDecl+ObjectDecl+BigIntDecl+BigIntDecl+TemplateDecl+IntegerDecl+ArrayDecl+TemplateDecl+ArrayDecl+IntegerDecl	let arr0 = [,]; var f0 = function(a0, a1) {   let v0 = a0.toString(); 
+Prefix	4	5346e412f6559e57	inserted ArrayDecl+ArrowDecl+ObjectDecl+BigIntDecl+BigIntDecl+TemplateDecl+IntegerDecl+ArrayDecl+TemplateDecl+ArrayDecl+IntegerDecl	let arr0 = [,]; var f0 = function(a0, a1) {   let v0 = a0.toString(); 
 Splice	0	301f03ee3f8915e5	spliced VariableDeclaration (10 nodes; 1 renamed, 1 rewired, 0 declared)	let n = 42; let s = "text"; let q0 = [f(1), f(2)]; let a = [1, 2, 3]; 
 Splice	1	e6d6dbd8ae131135	spliced VariableDeclaration (9 nodes; 0 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Splice	2	2dd1ce2e1198085b	spliced VariableDeclaration (9 nodes; 0 renamed, 0 rewired, 0 declared)	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"

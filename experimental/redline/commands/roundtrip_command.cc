@@ -21,8 +21,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <random>
@@ -458,7 +460,7 @@ class Harness {
                    const std::string& printed, const FileResult& result,
                    const RunSummary* a, const RunSummary* b);
 
-  const Options& options_;
+  Options options_;
   std::vector<std::string> files_;
   std::vector<FileResult> results_;
   std::atomic<size_t> next_{0};
@@ -475,10 +477,20 @@ bool Harness::Run() {
     return false;
   }
   std::string error;
-  if ((options_.run || !options_.out_dir.empty()) &&
-      !MakeDirectories(options_.work_dir, &error)) {
-    REDLINE_ERROR(kLog, "%s", error.c_str());
-    return false;
+  bool clean_work_dir = false;
+  if (options_.run) {
+    if (options_.work_dir.empty()) {
+      char tmpl[] = "/tmp/redline-roundtrip.XXXXXX";
+      if (mkdtemp(tmpl) == nullptr) {
+        REDLINE_ERROR(kLog, "mkdtemp failed: %s", strerror(errno));
+        return false;
+      }
+      options_.work_dir = std::string(tmpl);
+      clean_work_dir = true;
+    } else if (!MakeDirectories(options_.work_dir, &error)) {
+      REDLINE_ERROR(kLog, "%s", error.c_str());
+      return false;
+    }
   }
   if (!options_.out_dir.empty() && !MakeDirectories(options_.out_dir, &error)) {
     REDLINE_ERROR(kLog, "%s", error.c_str());
@@ -501,6 +513,15 @@ bool Harness::Run() {
   }
   for (std::thread& thread : threads) {
     thread.join();
+  }
+  if (clean_work_dir) {
+    for (int i = 0; i < jobs; i++) {
+      std::remove(
+          StringPrintf("%s/%d.a.js", options_.work_dir.c_str(), i).c_str());
+      std::remove(
+          StringPrintf("%s/%d.b.js", options_.work_dir.c_str(), i).c_str());
+    }
+    rmdir(options_.work_dir.c_str());
   }
   events_.Flush();
   return true;
@@ -695,7 +716,7 @@ FileResult Harness::ProcessFile(size_t index, SyntaxChecker* checker,
       StringPrintf("%s/%d.a.js", options_.work_dir.c_str(), worker_id);
   std::string path_b =
       StringPrintf("%s/%d.b.js", options_.work_dir.c_str(), worker_id);
-  if (!WriteStringToFile(path_a, source, &error) ||
+  if (!WriteStringToFile(path_a, effective_source, &error) ||
       !WriteStringToFile(path_b, printed, &error)) {
     result.verdict = Verdict::kEnvError;
     result.detail = error;
@@ -713,9 +734,11 @@ FileResult Harness::ProcessFile(size_t index, SyntaxChecker* checker,
     argv.push_back(preload);
   }
   for (const std::string& file : meta.files) {
-    argv.push_back(file.empty() || file[0] == '/'
-                       ? file
-                       : options_.files_base + "/" + file);
+    if (file.empty() || file[0] == '/' || FileExists(file)) {
+      argv.push_back(file);
+    } else {
+      argv.push_back(options_.files_base + "/" + file);
+    }
   }
   argv.push_back(path_a);
   RunSummary a = RunD8(argv, path_a, path_b, &result.run_ms);
@@ -879,10 +902,10 @@ bool ParseOptions(const Flags& flags, Options* options) {
   options->d8 = flags.GetString("d8");
   if (options->d8.empty()) {
     const char* env = getenv("REDLINE_D8");
-    if (FileExists("out/x64.release/d8")) {
-      options->d8 = "out/x64.release/d8";
-    } else if (env != nullptr) {
+    if (env != nullptr && env[0] != '\0') {
       options->d8 = env;
+    } else if (FileExists("out/x64.release/d8")) {
+      options->d8 = "out/x64.release/d8";
     }
   }
   options->d8_args =
@@ -891,10 +914,6 @@ bool ParseOptions(const Flags& flags, Options* options) {
   options->files_base = flags.GetString("files-base");
   options->timeout_ms = flags.GetInt("timeout-ms", 10000);
   options->work_dir = flags.GetString("work-dir");
-  if (options->work_dir.empty()) {
-    options->work_dir =
-        StringPrintf("/tmp/redline-roundtrip.%d", static_cast<int>(getpid()));
-  }
   options->jobs = static_cast<int>(flags.GetInt("jobs", 8));
   options->events_path = flags.GetString("events");
   options->out_dir = flags.GetString("out-dir");

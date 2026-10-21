@@ -460,33 +460,33 @@ class WasmBuilder {
             if (arg_type == WasmType::kI32) {
               code.push_back(0x41);
               EncodeI32(code, 1);
-              code.push_back(0x6A);
-              code.push_back(0x6D);
+              code.push_back(0x72);  // i32.or 1 (never 0)
+              code.push_back(0x6E);  // i32.div_u
             } else if (arg_type == WasmType::kI64) {
               code.push_back(0x42);
               EncodeI64(code, 1);
-              code.push_back(0x7C);
-              code.push_back(0x7F);
+              code.push_back(0x84);  // i64.or 1 (never 0)
+              code.push_back(0x80);  // i64.div_u
             } else if (arg_type == WasmType::kF32) {
               code.push_back(0x43);
               EncodeF32(code, 1.0f);
               code.push_back(0x92);
-              code.push_back(0x94);
+              code.push_back(0x95);  // f32.div
             } else {
               code.push_back(0x44);
               EncodeF64(code, 1.0);
               code.push_back(0xA0);
-              code.push_back(0xA2);
+              code.push_back(0xA3);  // f64.div
             }
           } else {
             if (arg_type == WasmType::kI32) {
-              code.push_back(0x6D);
+              code.push_back(0x6D);  // i32.div_s
             } else if (arg_type == WasmType::kI64) {
-              code.push_back(0x7F);
+              code.push_back(0x7F);  // i64.div_s
             } else if (arg_type == WasmType::kF32) {
-              code.push_back(0x94);
+              code.push_back(0x95);  // f32.div
             } else {
-              code.push_back(0xA2);
+              code.push_back(0xA3);  // f64.div
             }
           }
         } else {
@@ -600,7 +600,7 @@ class WasmBuilder {
                     block_stack, m);
           if (!r_.Chance(kWasmTrapMemoryProb())) {
             code.push_back(0x41);
-            EncodeI32(code, static_cast<int32_t>((mem_pages_ * 65536) - 1));
+            EncodeI32(code, static_cast<int32_t>((mem_pages_ * 65536) - 8));
             code.push_back(0x71);
           }
           if (res == WasmType::kI32) {

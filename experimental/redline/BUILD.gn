@@ -22,11 +22,15 @@ config("redline_warnings") {
     "-Wshadow",
     "-Wunused",
     "-Werror",
-    "--system-header-prefix=include/",
-    "--system-header-prefix=src/",
-    "--system-header-prefix=third_party/",
-    "--system-header-prefix=absl/",
   ]
+  if (is_clang) {
+    cflags += [
+      "--system-header-prefix=include/",
+      "--system-header-prefix=src/",
+      "--system-header-prefix=third_party/",
+      "--system-header-prefix=absl/",
+    ]
+  }
   cflags_cc = [
     "-Wnon-virtual-dtor",
     "-Wold-style-cast",

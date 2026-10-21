@@ -423,7 +423,7 @@ bool Parser::IsLetDeclarationStart() {
   return false;
 }
 
-bool Parser::IsUsingDeclarationStart(bool after_await) {
+bool Parser::IsUsingDeclarationStart() {
   // Current token is the name `using`; a declaration if followed on the
   // same line by a binding identifier that is not `in`/`of`.
   Token next = PeekNext();
@@ -433,11 +433,14 @@ bool Parser::IsUsingDeclarationStart(bool after_await) {
   if (next.type != Tok::kName) {
     return false;
   }
-  if (next.value == "of" && !after_await) {
+  if (next.value == "of" && !next.has_escape) {
     // `for (using of x)` iterates with the identifier `using`, but V8 (and
     // the spec) accept `using of = 1` as a declaration of `of` in C-style
-    // for loops and plain statements.
-    return PeekNext2().type == Tok::kAssign;
+    // for loops and plain statements, and `for (using of of x)` declares `of`.
+    Token next2 = PeekNext2();
+    return next2.type == Tok::kAssign ||
+           (next2.type == Tok::kName && !next2.has_escape &&
+            next2.value == "of");
   }
   return true;
 }
@@ -666,17 +669,15 @@ Statement* Parser::ParseStatement(bool single_statement) {
           return ParseFunctionDeclaration(start, true);
         }
       }
-      if (name == "using" && !single_statement &&
-          IsUsingDeclarationStart(false)) {
+      if (name == "using" && !single_statement && IsUsingDeclarationStart()) {
         return ParseVariableStatement(VariableKind::kUsing, start);
       }
       if (name == "await" && !single_statement && function_state_.is_async) {
         Token next = PeekNext();
-        if (next.type == Tok::kName && next.value == "using" &&
-            !next.newline_before) {
+        if (next.type == Tok::kName && !next.has_escape &&
+            next.value == "using" && !next.newline_before) {
           Token next2 = PeekNext2();
-          if (next2.type == Tok::kName && !next2.newline_before &&
-              next2.value != "in" && next2.value != "of") {
+          if (next2.type == Tok::kName && !next2.newline_before) {
             Advance();  // await
             return ParseVariableStatement(VariableKind::kAwaitUsing, start);
           }
@@ -806,16 +807,19 @@ Statement* Parser::ParseForStatement() {
   } else if (CheckName("let") && IsLetDeclarationStart()) {
     is_declaration = true;
     kind = VariableKind::kLet;
-  } else if (CheckName("using") && IsUsingDeclarationStart(false)) {
+  } else if (CheckName("using") && IsUsingDeclarationStart()) {
     is_declaration = true;
     kind = VariableKind::kUsing;
   } else if (CheckName("await") && function_state_.is_async) {
     Token next = PeekNext();
-    if (next.type == Tok::kName && next.value == "using" &&
+    if (next.type == Tok::kName && !next.has_escape && next.value == "using" &&
         !next.newline_before) {
-      Advance();
-      is_declaration = true;
-      kind = VariableKind::kAwaitUsing;
+      Token next2 = PeekNext2();
+      if (next2.type == Tok::kName && !next2.newline_before) {
+        Advance();
+        is_declaration = true;
+        kind = VariableKind::kAwaitUsing;
+      }
     }
   }
 
@@ -1765,6 +1769,7 @@ Expression* Parser::ParseBinary(int min_precedence, bool no_in) {
       return left;
     }
   }
+  int chain_depth = 0;
   while (true) {
     BinaryOp bin_op = BinaryOp::kAdd;
     LogicalOp log_op = LogicalOp::kAnd;
@@ -1773,6 +1778,10 @@ Expression* Parser::ParseBinary(int min_precedence, bool no_in) {
                                              &log_op, &is_logical);
     if (precedence == 0 || precedence <= min_precedence) {
       break;
+    }
+    if (depth_ + ++chain_depth > kMaxDepth) {
+      Fail("Maximum nesting depth exceeded", start_pos());
+      return nullptr;
     }
     Advance();
     // `**` is right-associative.
@@ -1915,6 +1924,7 @@ Expression* Parser::ParseSubscripts(Expression* base, int32_t start,
         id->name == "async" && !cur().newline_before && base->end == prev_end();
   }
   bool optional_chained = false;
+  int chain_depth = 0;
   while (true) {
     if (has_error()) {
       return nullptr;
@@ -2026,6 +2036,10 @@ Expression* Parser::ParseSubscripts(Expression* base, int32_t start,
     } else {
       break;
     }
+    if (depth_ + ++chain_depth > kMaxDepth) {
+      Fail("Maximum nesting depth exceeded", start_pos());
+      return nullptr;
+    }
     maybe_async_arrow = false;
   }
   if (optional_chained) {
@@ -2070,6 +2084,11 @@ Expression* Parser::ParseSpreadOrAssignment() {
 }
 
 Expression* Parser::ParseNewExpression() {
+  DepthGuard guard(&depth_);
+  if (depth_ > kMaxDepth) {
+    Fail("Maximum nesting depth exceeded", start_pos());
+    return nullptr;
+  }
   int32_t start = start_pos();
   Advance();  // new
   if (Eat(Tok::kPeriod)) {
@@ -2305,6 +2324,11 @@ Identifier* Parser::ParseBindingIdentifier() {
 }
 
 Expression* Parser::ParseBindingPattern() {
+  DepthGuard guard(&depth_);
+  if (depth_ > kMaxDepth) {
+    Fail("Maximum nesting depth exceeded", start_pos());
+    return nullptr;
+  }
   int32_t start = start_pos();
   if (Check(Tok::kLeftBracket)) {
     ArrayPattern* pattern = New<ArrayPattern>(start);
@@ -2742,6 +2766,11 @@ bool Parser::IsValidSimpleAssignmentTarget(Expression* expression) const {
 }
 
 Expression* Parser::ToPattern(Expression* expression, bool binding) {
+  DepthGuard guard(&depth_);
+  if (depth_ > kMaxDepth) {
+    Fail("Maximum nesting depth exceeded", expression->start);
+    return nullptr;
+  }
   switch (expression->kind) {
     case NodeKind::kIdentifier:
       return expression;

@@ -64,8 +64,11 @@ class Random {
     if (hi <= lo) {
       return lo;
     }
-    return lo +
-           static_cast<int64_t>(Uniform(static_cast<uint64_t>(hi - lo) + 1));
+    const uint64_t span = static_cast<uint64_t>(hi) - static_cast<uint64_t>(lo);
+    if (span == UINT64_MAX) {
+      return static_cast<int64_t>(Next());
+    }
+    return static_cast<int64_t>(static_cast<uint64_t>(lo) + Uniform(span + 1));
   }
   // Uniform in [0, 1).
   double Double() { return static_cast<double>(Next() >> 11) * 0x1.0p-53; }
@@ -87,8 +90,12 @@ class Random {
   // Index drawn with the given (non-negative) weights.
   size_t Weighted(const std::vector<double>& weights) {
     double total = 0;
-    for (double w : weights) {
-      total += w;
+    size_t last_positive = 0;
+    for (size_t i = 0; i < weights.size(); i++) {
+      total += weights[i];
+      if (weights[i] > 0) {
+        last_positive = i;
+      }
     }
     if (total <= 0) {
       return Index(weights.size());
@@ -100,7 +107,7 @@ class Random {
       }
       r -= weights[i];
     }
-    return weights.size() - 1;
+    return last_positive;
   }
   // Geometric-ish small count: 0 with probability 1-p, else 1 + ...
   int SmallCount(int max, double continue_probability = 0.5) {

@@ -309,7 +309,6 @@ class RarityState {
     // back to the program's new edges.
     std::vector<uint32_t> edges =
         program.hit_edges.empty() ? program.edges : program.hit_edges;
-    std::vector<uint32_t>().swap(program.hit_edges);
     for (uint32_t edge : program.edges) {
       edges.push_back(edge);
     }
@@ -490,6 +489,8 @@ class RarityPartners final : public ProgramSelector {
     // No RTTI in V8 builds: the name identifies the class.
     if (seeds != nullptr && seeds->name() == "rarity") {
       shared_ = static_cast<RaritySeeds*>(seeds)->state();
+    } else if (seeds != nullptr && seeds->name() == "rarity-partner") {
+      shared_ = static_cast<RarityPartners*>(seeds)->own_;
     }
   }
   void OnAdded(const Candidates& candidates, size_t index) override {
@@ -634,6 +635,7 @@ ProgramPtr Corpus::Add(std::shared_ptr<Program> program) {
   candidates_.push_back(published.get());
   seeds_->OnAdded(candidates_, candidates_.size() - 1);
   partners_->OnAdded(candidates_, candidates_.size() - 1);
+  std::vector<uint32_t>().swap(published->hit_edges);
   return published;
 }
 

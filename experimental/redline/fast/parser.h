@@ -123,7 +123,7 @@ class Parser {
   bool IsReservedWordInContext(std::string_view name) const;
   static bool TokenCanStartPropertyName(Tok type);
   bool IsLetDeclarationStart();
-  bool IsUsingDeclarationStart(bool after_await);
+  bool IsUsingDeclarationStart();
   bool TokenStartsExpression() const;
 
   // --- program & statements ---

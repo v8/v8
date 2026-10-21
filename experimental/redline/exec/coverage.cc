@@ -36,9 +36,10 @@ inline void ClearBit(uint8_t* bits, uint32_t index) {
 // static
 std::unique_ptr<CoverageMap> CoverageMap::Create(int id, std::string* error) {
   std::string name =
-      StringPrintf("shm_id_%d_%d", static_cast<int>(getpid()), id);
-  int fd =
-      shm_open(name.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR);
+      StringPrintf("/shm_id_%d_%d", static_cast<int>(getpid()), id);
+  shm_unlink(name.c_str());
+  int fd = shm_open(name.c_str(), O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC,
+                    S_IRUSR | S_IWUSR);
   if (fd < 0) {
     *error =
         StringPrintf("shm_open(%s) failed: %s", name.c_str(), strerror(errno));
@@ -83,7 +84,7 @@ bool CoverageMap::FinishInitialization(std::string* error) {
     return false;
   }
   // Index 0 is unused; the bitmap must hold indices 0..num_edges.
-  if (num_edges + 1 > kMaxEdges) {
+  if (num_edges > kMaxEdges) {
     *error = StringPrintf("Too many edges (%u) for the shared memory region",
                           num_edges);
     return false;
@@ -106,9 +107,7 @@ bool CoverageMap::FinishInitialization(std::string* error) {
   bitmap_size_ = bitmap_size;
   virgin_bits_.assign(bitmap_size_, 0xff);
   crash_bits_.assign(bitmap_size_, 0xff);
-  ClearBit(virgin_bits_.data(), 0);
-  ClearBit(crash_bits_.data(), 0);
-  found_edges_ = 0;
+  ResetState();
   return true;
 }
 
@@ -171,7 +170,7 @@ bool CoverageMap::EvaluateCrash() {
 
 bool CoverageMap::AllEdgesSet(const std::vector<uint32_t>& edges) const {
   for (uint32_t index : edges) {
-    if (!GetBit(shm_edges(), index)) {
+    if (index == 0 || index > num_edges_ || !GetBit(shm_edges(), index)) {
       return false;
     }
   }
@@ -182,7 +181,7 @@ std::vector<uint32_t> CoverageMap::MissingEdges(
     const std::vector<uint32_t>& edges) const {
   std::vector<uint32_t> missing;
   for (uint32_t index : edges) {
-    if (!GetBit(shm_edges(), index)) {
+    if (index == 0 || index > num_edges_ || !GetBit(shm_edges(), index)) {
       missing.push_back(index);
     }
   }
@@ -198,7 +197,7 @@ std::vector<uint32_t> CoverageMap::CurrentEdges() const {
     while (current != 0) {
       uint32_t bit = static_cast<uint32_t>(__builtin_ctzll(current));
       uint32_t index = offset * 8 + bit;
-      if (index != 0) {
+      if (index != 0 && index <= num_edges_) {
         result.push_back(index);
       }
       current &= current - 1;
@@ -253,6 +252,10 @@ void CoverageMap::ResetState() {
   std::fill(crash_bits_.begin(), crash_bits_.end(), 0xff);
   ClearBit(virgin_bits_.data(), 0);
   ClearBit(crash_bits_.data(), 0);
+  for (uint32_t index = num_edges_ + 1; index < bitmap_size_ * 8; index++) {
+    ClearBit(virgin_bits_.data(), index);
+    ClearBit(crash_bits_.data(), index);
+  }
   found_edges_ = 0;
 }
 

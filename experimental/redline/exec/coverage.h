@@ -30,7 +30,11 @@ class CoverageMap {
   // Must match SHM_SIZE in src/fuzzilli/cov.cc: the target maps this many
   // bytes, so a smaller region would make it fault.
   static constexpr size_t kShmSize = 0x200000;
-  static constexpr uint32_t kMaxEdges = (kShmSize - 4) * 8;
+  // The 4-byte num_edges header leaves kShmSize - 4 bytes for the bitmap,
+  // and scans read 8-byte words, so the usable bitmap is the largest multiple
+  // of 8 bytes that fits after the header.
+  static constexpr uint32_t kMaxEdges = static_cast<uint32_t>(
+      ((kShmSize - sizeof(uint32_t)) & ~size_t{7}) * 8 - 1);
 
   // Creates the shared memory object; `id` must be unique within this
   // process (one per target child).

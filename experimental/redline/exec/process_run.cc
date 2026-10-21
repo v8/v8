@@ -8,6 +8,7 @@
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -62,17 +63,34 @@ ProcessResult RunProcess(
   posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null",
                                    O_WRONLY, 0);
   posix_spawn_file_actions_adddup2(&actions, err_pipe[1], STDERR_FILENO);
+
+  posix_spawnattr_t attr;
+  posix_spawnattr_init(&attr);
+  sigset_t empty_set;
+  sigemptyset(&empty_set);
+  posix_spawnattr_setsigmask(&attr, &empty_set);
+  sigset_t default_set;
+  sigfillset(&default_set);
+  posix_spawnattr_setsigdefault(&attr, &default_set);
+  posix_spawnattr_setpgroup(&attr, 0);
+  posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSIGMASK |
+                                      POSIX_SPAWN_SETSIGDEF |
+                                      POSIX_SPAWN_SETPGROUP);
+
   pid_t pid = 0;
   const Stopwatch clock;
-  const int rc = posix_spawn(&pid, executable.c_str(), &actions, nullptr,
+  const int rc = posix_spawn(&pid, executable.c_str(), &actions, &attr,
                              argv.data(), envp.data());
   posix_spawn_file_actions_destroy(&actions);
+  posix_spawnattr_destroy(&attr);
   close(err_pipe[1]);
   if (rc != 0) {
     close(err_pipe[0]);
     result.error = std::string("posix_spawn: ") + strerror(rc);
     return result;
   }
+  struct rlimit no_core = {0, 0};
+  prlimit(pid, RLIMIT_CORE, &no_core, nullptr);
   result.started = true;
 
   // Read stderr until EOF or the timeout; keep at most max_stderr bytes.
@@ -82,6 +100,7 @@ ProcessResult RunProcess(
     const uint64_t elapsed = clock.ElapsedUs();
     if (elapsed >= timeout_us) {
       result.timed_out = true;
+      kill(-pid, SIGKILL);
       kill(pid, SIGKILL);
       break;
     }

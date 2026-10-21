@@ -67,8 +67,15 @@ SubprocessResult RunSubprocess(const std::vector<std::string>& argv,
   }
 
   int out_pipe[2], err_pipe[2];
-  if (pipe2(out_pipe, O_CLOEXEC) != 0 || pipe2(err_pipe, O_CLOEXEC) != 0) {
+  if (pipe2(out_pipe, O_CLOEXEC) != 0) {
     result.error = StringPrintf("pipe failed: %s", strerror(errno));
+    return result;
+  }
+  if (pipe2(err_pipe, O_CLOEXEC) != 0) {
+    int saved_errno = errno;
+    close(out_pipe[0]);
+    close(out_pipe[1]);
+    result.error = StringPrintf("pipe failed: %s", strerror(saved_errno));
     return result;
   }
 
@@ -109,20 +116,10 @@ SubprocessResult RunSubprocess(const std::vector<std::string>& argv,
                                       POSIX_SPAWN_SETSIGDEF |
                                       POSIX_SPAWN_SETPGROUP);
 
-  // No core dumps from children (they may crash on purpose).
-  struct rlimit saved_core;
-  bool have_saved_core = getrlimit(RLIMIT_CORE, &saved_core) == 0;
-  struct rlimit no_core = {0, 0};
-  setrlimit(RLIMIT_CORE, &no_core);
-
   pid_t pid = -1;
   Stopwatch stopwatch;
   int rc = posix_spawn(&pid, c_argv[0], &actions, &attr, c_argv.data(),
                        c_env.data());
-
-  if (have_saved_core) {
-    setrlimit(RLIMIT_CORE, &saved_core);
-  }
   posix_spawn_file_actions_destroy(&actions);
   posix_spawnattr_destroy(&attr);
   close(out_pipe[1]);
@@ -135,6 +132,11 @@ SubprocessResult RunSubprocess(const std::vector<std::string>& argv,
                                 strerror(rc));
     return result;
   }
+  // No core dumps from children (they may crash on purpose). Setting this on
+  // the child pid avoids racing with other threads or suppressing core dumps
+  // for redline itself.
+  struct rlimit no_core = {0, 0};
+  prlimit(pid, RLIMIT_CORE, &no_core, nullptr);
   result.started = true;
   SetNonBlocking(out_pipe[0]);
   SetNonBlocking(err_pipe[0]);

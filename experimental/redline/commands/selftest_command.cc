@@ -50,8 +50,15 @@ bool RunOrFail(Checker* checker, ScriptRunner* runner, const char* name,
 }
 
 // experimental/redline/testdata, found from the location of the binary, or
-// empty.
-std::string DefaultTestdataDir() { return RedlineDataDir("testdata"); }
+// empty. Look for testdata/selection so we do not pick up unrelated
+// out/<dir>/testdata directories created by other build targets.
+std::string DefaultTestdataDir() {
+  std::string selection = RedlineDataDir("testdata/selection");
+  if (!selection.empty()) {
+    return selection.substr(0, selection.rfind('/'));
+  }
+  return RedlineDataDir("testdata");
+}
 
 // Offline: crash signatures. A recursion that overflows the stack must get
 // the same signature wherever the stack ran out; other crashes keep their

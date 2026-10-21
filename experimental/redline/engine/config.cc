@@ -8,6 +8,7 @@
 
 #include <cctype>
 #include <cerrno>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -325,12 +326,21 @@ bool ParseWeightList(const std::vector<std::string>& items,
                      std::string* error) {
   for (const std::string& item : items) {
     size_t eq = item.find('=');
-    if (eq == std::string::npos) {
+    if (eq == std::string::npos || eq == 0 || eq + 1 >= item.size()) {
       *error = StringPrintf("expected NAME=WEIGHT, got '%s'", item.c_str());
       return false;
     }
-    out->emplace_back(item.substr(0, eq),
-                      strtod(item.c_str() + eq + 1, nullptr));
+    const char* start = item.c_str() + eq + 1;
+    char* end = nullptr;
+    double weight = strtod(start, &end);
+    if (end == start || *end != '\0' || !std::isfinite(weight) ||
+        weight < 0.0) {
+      *error =
+          StringPrintf("weight of '%s' must be a non-negative number, got '%s'",
+                       item.substr(0, eq).c_str(), start);
+      return false;
+    }
+    out->emplace_back(item.substr(0, eq), weight);
   }
   return true;
 }
@@ -665,6 +675,7 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error) {
   ReadMinimizerOptions(json.Get("crash_minimizer"), &c->crash_minimizer);
   const JsonValue& imports = json.Get("imports");
   if (imports.is_array()) {
+    c->imports.clear();
     for (const JsonValue& path : imports.as_array()) {
       if (path.is_string()) {
         c->imports.push_back(path.as_string());
@@ -674,10 +685,19 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error) {
   if (json.Has("prelude")) {
     c->prelude_source = json.GetString("prelude", "default");
   }
+  // When both "imports" and "init" are present (such as in a full config dump
+  // where "imports" is edited in place), keep explicit "imports" if "init"
+  // only carries the default "generate" strategy.
+  std::vector<std::string> explicit_imports = c->imports;
   if (!ReadInitConfig(json.Get("init"), c, error) ||
       !ReadAcceptConfig(json.Get("accept"), c, error) ||
       !ReadAmplifyConfig(json.Get("amplify"), c, error)) {
     return false;
+  }
+  if (c->imports.empty() && !explicit_imports.empty() &&
+      json.Get("init").GetString("strategy", "") == "generate" &&
+      imports.is_array() && !imports.as_array().empty()) {
+    c->imports = std::move(explicit_imports);
   }
   const JsonValue& selection = json.Get("selection");
   if (!selection.is_null() && !selection.is_object()) {
@@ -732,6 +752,7 @@ bool ApplyJson(const JsonValue& json, FuzzConfig* c, std::string* error) {
 // static
 bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
                       bool for_run) {
+  TunableRegistry::Instance().Reset();
   c->target.args = TargetOptions::DefaultArgs();
   // Fuzzing favours a short timeout: a mutant that runs longer than that is
   // almost always an endless loop, and it would eat the time of ten others.
@@ -804,7 +825,7 @@ bool FuzzConfig::Load(const Flags& flags, FuzzConfig* c, std::string* error,
           "$REDLINE_D8";
       return false;
     }
-    if (!d8.empty() && access(d8.c_str(), X_OK) != 0) {
+    if (for_run && !d8.empty() && access(d8.c_str(), X_OK) != 0) {
       *error = StringPrintf("--d8=%s is not an executable file: %s", d8.c_str(),
                             strerror(errno));
       return false;

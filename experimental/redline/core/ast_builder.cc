@@ -9,6 +9,8 @@
 namespace redline {
 namespace mk {
 
+using namespace fast;  // NOLINT(build/namespaces)
+
 Identifier* Id(Tree* t, std::string_view name) {
   Identifier* id = t->New<Identifier>();
   id->name = t->Intern(name);

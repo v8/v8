@@ -8,8 +8,10 @@
 
 #include <unistd.h>
 
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 #include "experimental/redline/base/file_util.h"
 #include "experimental/redline/base/flags.h"
@@ -104,8 +106,29 @@ int RunAmplify(const Flags& flags) {
   request.target = target;
   request.program = program;
   request.prelude = prelude;
-  request.script_path = flags.GetString(
-      "work-file", "/tmp/redline_amplify_" + std::to_string(getpid()) + ".js");
+  bool remove_script_on_exit = false;
+  if (flags.Has("work-file")) {
+    request.script_path = flags.GetString("work-file");
+  } else {
+    char tmpl[] = "/tmp/redline_amplify_XXXXXX.js";
+    int fd = mkstemps(tmpl, 3);
+    if (fd < 0) {
+      REDLINE_ERROR(kLog, "mkstemps failed: %s", strerror(errno));
+      return kExitFailure;
+    }
+    close(fd);
+    request.script_path = tmpl;
+    remove_script_on_exit = true;
+  }
+  struct ScriptFileGuard {
+    std::string path;
+    bool active = false;
+    ~ScriptFileGuard() {
+      if (active && !path.empty()) {
+        std::remove(path.c_str());
+      }
+    }
+  } script_guard{request.script_path, remove_script_on_exit};
   if (!WriteStringToFile(request.script_path,
                          prelude.empty() ? program : prelude + "\n" + program,
                          &error)) {
@@ -163,7 +186,6 @@ int RunAmplify(const Flags& flags) {
   Random rng(static_cast<uint64_t>(
       flags.GetInt("seed", static_cast<int64_t>(WallClockNowMs()))));
   const AmplifyResult result = strategy->Amplify(request, rng);
-  std::remove(request.script_path.c_str());
   printf(
       "amplified: %s\n%s: %s\namplified_rate: %d/%d\namplify_processes: "
       "%d\namplify_time_sec: %.0f\n"

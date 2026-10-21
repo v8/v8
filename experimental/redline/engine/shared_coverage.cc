@@ -38,6 +38,12 @@ bool SharedCoverage::Initialize(uint32_t num_edges, uint32_t bitmap_size,
   // Edge 0 is never reported; bits beyond num_edges never get set.
   virgin_[0].fetch_and(~uint64_t{1}, std::memory_order_relaxed);
   crash_virgin_[0].fetch_and(~uint64_t{1}, std::memory_order_relaxed);
+  uint32_t tail_bits = (num_edges + 1) % 64;
+  if (tail_bits != 0) {
+    uint64_t tail_mask = (uint64_t{1} << tail_bits) - 1;
+    virgin_[words - 1].fetch_and(tail_mask, std::memory_order_relaxed);
+    crash_virgin_[words - 1].fetch_and(tail_mask, std::memory_order_relaxed);
+  }
   words_ = words;  // publishes the state (last)
   return true;
 }

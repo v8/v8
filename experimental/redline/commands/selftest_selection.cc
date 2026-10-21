@@ -5,7 +5,10 @@
 #include "experimental/redline/commands/selftest_selection.h"
 
 #include <algorithm>
+#include <climits>
+#include <cmath>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -878,6 +881,94 @@ std::vector<bool> GeneratedKinds() {
   return seen;
 }
 
+void CheckEdgeCases(Checker* checker) {
+  // Lexer & Parser edge cases: invalid UTF-8, invalid numeric literals,
+  // `for (await using of ...)` disambiguation, and deep expression chains.
+  {
+    fast::ParseOptions opts;
+    fast::ParseError err;
+    bool rejected_overlong =
+        fast::Parser::ParseScript("let \xc0\xaf = 1;", opts, &err) == nullptr &&
+        fast::Parser::ParseScript("let \xf4\x90\x80\x80 = 1;", opts, &err) ==
+            nullptr;
+    checker->Check(
+        "lexer: overlong and out-of-range UTF-8 sequences are rejected",
+        rejected_overlong, err.message);
+
+    const char* bad_numbers[] = {
+        "let x = 0_1;",  "let x = 07_7;", "let x = 0x1g;", "let x = 0b12;",
+        "let x = 0o78;", "let x = 1n2;",  "let x = 08a;"};
+    bool all_bad_rejected = true;
+    for (const char* src : bad_numbers) {
+      if (fast::Parser::ParseScript(src, opts, &err) != nullptr) {
+        all_bad_rejected = false;
+        break;
+      }
+    }
+    checker->Check(
+        "lexer: invalid numeric separators and trailing identifier chars are "
+        "rejected",
+        all_bad_rejected, err.message);
+
+    bool for_await_using_ok =
+        fast::Parser::ParseScript(
+            "async function f(x) { for await (using of x) {} }", opts, &err) !=
+            nullptr &&
+        fast::Parser::ParseScript(
+            "async function f(x) { for (await using y of x) {} }", opts,
+            &err) != nullptr &&
+        fast::Parser::ParseScript(
+            "async function f(x) { for (await using of of x) {} }", opts,
+            &err) != nullptr &&
+        fast::Parser::ParseScript("for (using \\u006ff of []) {}", opts,
+                                  &err) != nullptr;
+    checker->Check("parser: for-await with 'using' identifier vs declaration",
+                   for_await_using_ok, err.message);
+
+    std::string deep = "let x = 0";
+    for (int i = 0; i < 1300; i++) {
+      deep += " + 1";
+    }
+    deep += ";";
+    bool deep_rejected =
+        fast::Parser::ParseScript(deep, opts, &err) == nullptr &&
+        err.message.find("nesting") != std::string::npos;
+    checker->Check("parser: excessive binary expression nesting is rejected",
+                   deep_rejected, err.message);
+  }
+  // JSON and Random edge cases.
+  {
+    JsonValue val;
+    std::string err;
+    bool surrogate_not_swallowed =
+        JsonValue::Parse("\"\\uD800\\u0041\"", &val, &err) &&
+        val.as_string().size() == 4 && val.as_string().back() == 'A';
+    JsonValue pos_huge, neg_huge;
+    bool clamp_ok = JsonValue::Parse("1e100", &pos_huge, &err) &&
+                    pos_huge.as_int() == std::numeric_limits<int64_t>::max() &&
+                    JsonValue::Parse("-1e100", &neg_huge, &err) &&
+                    neg_huge.as_int() == std::numeric_limits<int64_t>::min();
+    checker->Check(
+        "json: non-surrogate \\u after high surrogate and out-of-range "
+        "as_int()",
+        surrogate_not_swallowed && clamp_ok, err);
+
+    Random rng(42);
+    int64_t r = rng.Range(INT64_MIN, INT64_MAX);
+    (void)r;
+    std::vector<double> weights = {1.0, 0.0};
+    bool weighted_ok = true;
+    for (int i = 0; i < 32; i++) {
+      if (rng.Weighted(weights) != 0) {
+        weighted_ok = false;
+      }
+    }
+    checker->Check(
+        "random: full int64 Range and trailing zero weight in Weighted",
+        weighted_ok);
+  }
+}
+
 }  // namespace
 
 void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
@@ -931,6 +1022,7 @@ void RunSelectionChecks(Checker* checker, const std::string& testdata_dir,
   CheckAdaptiveWindow(checker);
   CheckAmplifyConfig(checker);
   CheckWrapInTry(checker);
+  CheckEdgeCases(checker);
 }
 
 void RunNodeKindChecks(Checker* checker) {
@@ -971,10 +1063,9 @@ void RunNodeKindChecks(Checker* checker) {
 
 void RunPresetChecks(Checker* checker) {
   const std::string dir = RedlineDataDir("presets");
+  checker->Check("presets: locate experimental/redline/presets", !dir.empty(),
+                 dir);
   if (dir.empty()) {
-    checker->Info(
-        "presets",
-        "experimental/redline/presets not found next to the binary, skipped");
     return;
   }
   std::vector<std::string> files = ListFiles(dir, ".json");

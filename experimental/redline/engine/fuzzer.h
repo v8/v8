@@ -11,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "experimental/redline/base/json.h"
@@ -188,7 +189,7 @@ class Fuzzer {
   // Rewrites DIR/crashes/signatures.txt.
   void WriteSignatureSummary();
   std::mutex crash_mutex_;
-  std::vector<uint64_t> crash_hashes_;
+  std::unordered_set<uint64_t> crash_hashes_;
   std::map<uint64_t, SignatureInfo> crash_signatures_;
   std::unique_ptr<AmplifyStrategy> amplifier_;  // the amplify step (5.8)
 

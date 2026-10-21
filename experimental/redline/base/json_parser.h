@@ -5,7 +5,9 @@
 #ifndef V8_EXPERIMENTAL_REDLINE_BASE_JSON_PARSER_H_
 #define V8_EXPERIMENTAL_REDLINE_BASE_JSON_PARSER_H_
 
+#include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -33,7 +35,18 @@ class JsonValue {
 
   bool as_bool() const { return bool_; }
   double as_number() const { return number_; }
-  int64_t as_int() const { return static_cast<int64_t>(number_); }
+  int64_t as_int() const {
+    if (!std::isfinite(number_)) {
+      return 0;
+    }
+    if (number_ >= static_cast<double>(std::numeric_limits<int64_t>::max())) {
+      return std::numeric_limits<int64_t>::max();
+    }
+    if (number_ <= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+      return std::numeric_limits<int64_t>::min();
+    }
+    return static_cast<int64_t>(number_);
+  }
   const std::string& as_string() const { return string_; }
   const std::vector<JsonValue>& as_array() const { return array_; }
   const std::vector<std::pair<std::string, JsonValue>>& as_object() const {

@@ -23,9 +23,9 @@ struct PrintOptions {
 
 // Output byte range of a printed node.
 struct NodeSpan {
-  uint32_t node_id;
-  int32_t start;
-  int32_t end;
+  uint32_t node_id = 0;
+  int32_t start = 0;
+  int32_t end = 0;
 };
 
 // Prints a FAST subtree as JavaScript source. The output re-parses to a tree

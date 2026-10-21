@@ -169,8 +169,9 @@ Environment::Environment() {
       {T::kArrayBuffer,
        {F("slice", 0, 2, T::kArrayBuffer, T::kNumber, T::kNumber),
         F("resize", 1, 1, T::kNullish, T::kNumber),
-        F("transfer", 0, 1, T::kArrayBuffer, T::kNumber)},
-       {"byteLength", "maxByteLength", "resizable", "detached"}},
+        F("transfer", 0, 1, T::kArrayBuffer, T::kNumber),
+        F("grow", 1, 1, T::kNullish, T::kNumber)},
+       {"byteLength", "maxByteLength", "resizable", "detached", "growable"}},
       {T::kDate,
        {F("getTime", 0, 0, T::kNumber), F("getFullYear", 0, 0, T::kNumber),
         F("toISOString", 0, 0, T::kString),
@@ -328,25 +329,6 @@ Environment::Environment() {
        0,
        1,
        {F("groupBy", 2, 2, T::kMap, T::kArray, T::kFunction)},
-       {}},
-
-      {"SharedArrayBuffer",
-       T::kClass,
-       true,
-       T::kObject,
-       0,
-       1,
-       {F("slice", 1, 2, T::kObject, T::kNumber, T::kNumber)},
-       {"byteLength", "maxByteLength"}},
-      {"WeakSet",
-       T::kClass,
-       true,
-       T::kObject,
-       0,
-       0,
-       {F("add", 1, 1, T::kObject, T::kObject),
-        F("delete", 1, 1, T::kBoolean, T::kObject),
-        F("has", 1, 1, T::kBoolean, T::kObject)},
        {}},
       {"Set", T::kClass, true, T::kSet, 0, 1, {}, {}},
       {"WeakMap", T::kClass, true, T::kMap, 0, 1, {}, {}},
@@ -618,7 +600,7 @@ Environment::Environment() {
               {"^$", "m"},  {"[a-z]+", "gi"}, {"(?<x>a)\\k<x>", ""},
               {".", "s"},   {"a*?", "y"},     {"\\p{L}", "v"},
               {"(?:)", "d"}};
-}
+}  // NOLINT(readability/fn_size)
 
 const BuiltinType* Environment::ForType(JsType type) const {
   for (const BuiltinType& t : types_) {

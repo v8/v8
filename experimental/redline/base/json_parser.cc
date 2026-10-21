@@ -279,13 +279,18 @@ class JsonParser {
           if (code_point >= 0xD800 && code_point < 0xDC00 &&
               pos_ + 6 <= text_.size() && text_[pos_] == '\\' &&
               text_[pos_ + 1] == 'u') {
+            size_t saved_pos = pos_;
             pos_ += 2;
             uint32_t low;
             if (!ParseHex4(&low)) {
               return false;
             }
-            code_point =
-                0x10000 + ((code_point - 0xD800) << 10) + (low - 0xDC00);
+            if (low >= 0xDC00 && low <= 0xDFFF) {
+              code_point =
+                  0x10000 + ((code_point - 0xD800) << 10) + (low - 0xDC00);
+            } else {
+              pos_ = saved_pos;
+            }
           }
           AppendUtf8(out, code_point);
           break;
