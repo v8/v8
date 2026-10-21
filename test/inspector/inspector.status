@@ -83,6 +83,7 @@
   'runtime/get-properties': [SKIP],
   'regress/regress-502287689': [SKIP],
   'regress/regress-513413942': [SKIP],
+  'regress/regress-519715438': [SKIP],
   'regress/regress-521715545': [SKIP],
   'regress/regress-534579660': [SKIP],
   'regress/regress-537219980': [SKIP],
