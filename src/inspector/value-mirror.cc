@@ -1663,7 +1663,10 @@ bool doesAttributeHaveObservableSideEffectOnGet(v8::Local<v8::Context> context,
       return true;
     }
   }
-  if (tryCatch.HasCaught()) tryCatch.Reset();
+  if (tryCatch.HasCaught()) {
+    if (tryCatch.HasTerminated()) return true;
+    tryCatch.Reset();
+  }
 
   v8::Local<v8::Value> response;
   if (context->Global()
@@ -1675,7 +1678,7 @@ bool doesAttributeHaveObservableSideEffectOnGet(v8::Local<v8::Context> context,
       return true;
     }
   }
-  return false;
+  return tryCatch.HasTerminated();
 }
 
 }  // anonymous namespace
