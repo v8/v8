@@ -81,6 +81,7 @@
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'runtime/get-properties': [SKIP],
+  'regress/regress-502287689': [SKIP],
   'regress/regress-521715545': [SKIP],
   'regress/regress-534579660': [SKIP],
   'regress/regress-537219980': [SKIP],
