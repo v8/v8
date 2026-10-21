@@ -8750,6 +8750,12 @@ group("gn_all") {
     "tools:gn_all",
   ]
 
+  # Redline, an experimental coverage-guided JavaScript fuzzer, uses POSIX
+  # APIs.
+  if (is_linux) {
+    deps += [ "experimental/redline" ]
+  }
+
   if (v8_custom_deps != "") {
     # Custom dependency from directory under v8/custom_deps.
     deps += [ v8_custom_deps ]
