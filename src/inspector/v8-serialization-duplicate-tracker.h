@@ -25,9 +25,21 @@ class V8SerializationDuplicateTracker {
   V8_EXPORT explicit V8SerializationDuplicateTracker(
       v8::Local<v8::Context> context);
 
+  // Takes the characters of the `string` from the character budget, before the
+  // `string` is copied into the serialized result.
+  bool takeCharacters(v8::Local<v8::String> string) {
+    uint32_t length = static_cast<uint32_t>(string->Length());
+    if (length > m_characters) return false;
+    m_characters -= length;
+    return true;
+  }
+
  private:
   v8::Local<v8::Context> m_context;
   int m_counter;
+  // The remaining number of characters in strings and property names. The
+  // serialized result has to fit into a single string anyway.
+  uint32_t m_characters = static_cast<uint32_t>(v8::String::kMaxLength);
   // Maps v8 value to the index of the corresponding serialized value in
   // `m_serializedValues`. The map lives in sandbox-corruptible memory, so it
   // must never hold raw (out-of-sandbox) pointers. Instead it holds indices

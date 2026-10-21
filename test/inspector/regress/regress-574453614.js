@@ -19,12 +19,12 @@ InspectorTest.runAsyncTestSuite([
 
   async function testExponentialSharedArrays() {
     // Each level references the previous level twice, so the serialized
-    // value would have 2^3 * 4e6 elements, although the object graph is small.
+    // value would have 2^3 * 4e4 elements, although the object graph is small.
     await evaluate(`
       let x = 0;
       for (let i = 0; i < 3; ++i) {
         const a = [];
-        a[4e6 - 1] = 0;
+        a[4e4 - 1] = 0;
         a[0] = a[1] = x;
         x = a;
       }
@@ -33,6 +33,6 @@ InspectorTest.runAsyncTestSuite([
 
   async function testNestedLargeArrays() {
     await evaluate(
-        'const a = [], b = []; a[6e6 - 1] = b[6e6 - 1] = 0; a[0] = b; a');
+        'const a = [], b = []; a[6e4 - 1] = b[6e4 - 1] = 0; a[0] = b; a');
   },
 ]);
