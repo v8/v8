@@ -1248,7 +1248,6 @@ int FixedArrayLenFromSize(int size) {
 
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
                            SemiSpaceNewSpace* space) {
-  DCHECK(!v8_flags.single_generation);
   heap->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(heap);
   while (space->GetSpaceRemainingOnCurrentPageForTesting() > 0) {
@@ -1270,6 +1269,12 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
+  if (v8_flags.single_generation) {
+    PrintF(
+        "Warning: %%SimulateNewspaceFull does nothing in single-generation "
+        "mode\n");
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   heap->FreeMainThreadLinearAllocationAreas();
