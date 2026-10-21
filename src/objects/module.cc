@@ -413,6 +413,11 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
         //                     « result.[[Value]] »).
         JSPromise::Reject(capability,
                           direct_handle(m->GetException(), isolate));
+        if (isolate->debug()->IsRestartFrameScheduled()) {
+          m->set_top_level_capability(ReadOnlyRoots(isolate).undefined_value());
+          isolate->TerminateExecution();
+          return {};
+        }
         // 11. Return capability.[[Promise]].
         return capability;
       },

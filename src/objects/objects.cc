@@ -4748,7 +4748,12 @@ Handle<Object> JSPromise::Reject(DirectHandle<JSPromise> promise,
 
   MoveMessageToPromise(isolate, promise);
 
-  if (debug_event) isolate->debug()->OnPromiseReject(promise, reason);
+  if (debug_event) {
+    isolate->debug()->OnPromiseReject(promise, reason);
+    if (isolate->debug()->IsRestartFrameScheduled()) {
+      return isolate->factory()->undefined_value();
+    }
+  }
   isolate->RunAllPromiseHooks(PromiseHookType::kResolve, promise,
                               isolate->factory()->undefined_value());
 

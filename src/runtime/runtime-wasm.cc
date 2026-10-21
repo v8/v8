@@ -1034,6 +1034,7 @@ bool ExecuteWasmDebugBreaks(
     DCHECK(!trusted_instance_data->break_on_entry());
     if (!maybe_on_entry_breakpoints.is_null()) {
       isolate->debug()->OnInstrumentationBreak();
+      if (isolate->debug()->IsRestartFrameScheduled()) return true;
       paused_on_instrumentation = true;
     }
   }
@@ -1083,6 +1084,10 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
     // function).
     auto* debug_info = trusted_data->native_module()->GetDebugInfo();
     debug_info->ClearStepping(frame);
+  }
+
+  if (isolate->debug()->IsRestartFrameScheduled()) {
+    return isolate->TerminateExecution();
   }
 
   // Execute a stack check before leaving this function. This is to handle any

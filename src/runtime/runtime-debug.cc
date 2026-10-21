@@ -170,6 +170,9 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   if (!it.done() &&
       it.frame()->fp() < isolate->thread_local_top()->last_api_entry_) {
     isolate->debug()->Break(it.frame(), function);
+    if (isolate->debug()->IsRestartFrameScheduled()) {
+      return isolate->TerminateExecution();
+    }
   }
 
   return function->shared()->GetCode(isolate);

@@ -1069,6 +1069,12 @@ MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
     // d. Perform ! Call(capability.[[Reject]], undefined,
     //                   «result.[[Value]]»).
     JSPromise::Reject(capability, exception);
+    if (isolate->debug()->IsRestartFrameScheduled()) {
+      errored_module->set_top_level_capability(
+          ReadOnlyRoots(isolate).undefined_value());
+      isolate->TerminateExecution();
+      return {};
+    }
   } else {  // 10. Else,
     // a. Assert: module.[[Status]] is either EVALUATING-ASYNC or EVALUATED.
     DCHECK(module->status() == kEvaluatingAsync ||
@@ -1222,6 +1228,11 @@ void SourceTextModule::AsyncModuleExecutionRejected(
                 Cast<JSPromise>(errored_module->top_level_capability()),
                 isolate);
             JSPromise::Reject(capability, exception);
+            if (isolate->debug()->IsRestartFrameScheduled()) {
+              errored_module->set_top_level_capability(
+                  ReadOnlyRoots(isolate).undefined_value());
+              isolate->TerminateExecution();
+            }
           } else {
             errored_module->set_top_level_capability(
                 ReadOnlyRoots(isolate).undefined_value());

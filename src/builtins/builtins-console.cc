@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -169,6 +170,9 @@ void ConsoleCall(
   (isolate->console_delegate()->*func)(
       debug::ConsoleCallArguments(isolate, args),
       v8::debug::ConsoleContext(context_id, Utils::ToLocal(context_name)));
+  if (isolate->debug()->IsRestartFrameScheduled()) {
+    isolate->TerminateExecution();
+  }
 }
 
 void LogTimerEvent(Isolate* isolate, BuiltinArguments args,

@@ -683,7 +683,7 @@ void Debug::Break(JavaScriptFrame* frame,
                   DirectHandle<JSFunction> break_target) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Just continue if breaks are disabled or debugger cannot be loaded.
-  if (break_disabled()) return;
+  if (break_disabled() || IsRestartFrameScheduled()) return;
 
   // Enter the debugger.
   DebugScope debug_scope(this);
@@ -704,6 +704,7 @@ void Debug::Break(JavaScriptFrame* frame,
   if (hitInstrumentationBreak) {
     debug::DebugDelegate::ActionAfterInstrumentation action =
         OnInstrumentationBreak();
+    if (IsRestartFrameScheduled()) return;
     switch (action) {
       case debug::DebugDelegate::ActionAfterInstrumentation::kPause:
         shouldPauseAfterInstrumentation = true;
@@ -2575,14 +2576,17 @@ std::optional<Tagged<Object>> Debug::OnThrow(DirectHandle<Object> exception,
                     : v8::debug::kException,
                 is_stack_overflow);
   }
-  PrepareStepOnThrow();
-  // If the OnException handler requested termination, then indicated this to
-  // our caller Isolate::Throw so it can deal with it immediately instead of
-  // throwing the original exception.
+  // If the OnException handler requested frame restart or termination, then
+  // indicate this to our caller Isolate::Throw so it can deal with it
+  // immediately instead of throwing the original exception.
+  if (IsRestartFrameScheduled()) {
+    return isolate_->TerminateExecution();
+  }
   if (isolate_->stack_guard()->CheckTerminateExecution()) {
     isolate_->stack_guard()->ClearTerminateExecution();
     return isolate_->TerminateExecution();
   }
+  PrepareStepOnThrow();
   return {};
 }
 
@@ -2974,7 +2978,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
   // Ignore debug break during bootstrapping.
   if (isolate_->bootstrapper()->IsActive()) return;
   // Just continue if breaks are disabled.
-  if (break_disabled()) return;
+  if (break_disabled() || IsRestartFrameScheduled()) return;
   // Ignore debug break if debugger is not active.
   if (!is_active()) return;
 
