@@ -5450,6 +5450,13 @@ VISIT_SIMD_QFMOP(F32x8Qfms)
     X64OperandGenerator g(this);                                              \
     const Operation& op = Get(node);                                          \
     DCHECK_EQ(op.input_count, 3);                                             \
+    if (UseAvx10_1()) {                                                       \
+      /* The 213 form reads and overwrites the first multiplicand. */         \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
+           g.UseRegister(op.input(0)), g.UseRegister(op.input(1)),            \
+           g.UseAny(op.input(2)));                                            \
+      return;                                                                 \
+    }                                                                         \
     InstructionOperand temps[] = {g.TempSimd256Register(),                    \
                                   g.TempSimd256Register()};                   \
     Emit(kX64##Opcode, g.UseRegister(node), g.UseUniqueRegister(op.input(0)), \

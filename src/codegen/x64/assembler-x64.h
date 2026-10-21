@@ -757,7 +757,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     k0F = 0x1,
     k0F38 = 0x2,
     k0F3A = 0x3,
-    kMap5 = 0x5  // EVEX only (FP16).
+    kMap5 = 0x5,  // EVEX only (FP16).
+    kMap6 = 0x6   // EVEX only (FP16).
   };
   enum OpMask { k0 = 0x0, k1 = 0x1, k2 = 0x2 };
   enum MaskingType { kMerging = 0x0, kZeroing = 0x80 };
@@ -2668,6 +2669,33 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vaddph(YMMRegister dst, YMMRegister src1, Operand src2) {
     vinstr_evex(0x58, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
+  // Packed FP16 FMA, without masking, broadcast, or embedded rounding.
+  // The destination is also the first multiplicand: (+/- dst * src1) + src2.
+  void vfmadd213ph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0xa8, dst, src1, src2, k66, kMap6, kW0);
+  }
+  void vfmadd213ph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0xa8, dst, src1, src2, k66, kMap6, kW0, kFull);
+  }
+  void vfmadd213ph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0xa8, dst, src1, src2, k66, kMap6, kW0);
+  }
+  void vfmadd213ph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0xa8, dst, src1, src2, k66, kMap6, kW0, kFull);
+  }
+  void vfnmadd213ph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0xac, dst, src1, src2, k66, kMap6, kW0);
+  }
+  void vfnmadd213ph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0xac, dst, src1, src2, k66, kMap6, kW0, kFull);
+  }
+  void vfnmadd213ph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0xac, dst, src1, src2, k66, kMap6, kW0);
+  }
+  void vfnmadd213ph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0xac, dst, src1, src2, k66, kMap6, kW0, kFull);
   }
 
   void vpmullq(XMMRegister dst, XMMRegister src1, XMMRegister src2) {

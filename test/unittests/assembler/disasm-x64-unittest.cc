@@ -1943,6 +1943,92 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10FP16) {
                 vaddph(ymm3, ymm2, Operand(&ymm_label)));
 }
 
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10FmaPh) {
+  DisassemblerTester t;
+  std::string actual;
+  CpuFeatureScope fscope(&t.assm_, AVX10_1,
+                         CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE_INSTR("vfmadd213ph xmm3,xmm2,xmm1", vfmadd213ph(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vfmadd213ph ymm3,ymm2,ymm1", vfmadd213ph(ymm3, ymm2, ymm1));
+  COMPARE_INSTR("vfmadd213ph xmm19,xmm18,xmm17",
+                vfmadd213ph(xmm19, xmm18, xmm17));
+  COMPARE_INSTR("vfmadd213ph ymm31,ymm30,ymm29",
+                vfmadd213ph(ymm31, ymm30, ymm29));
+  COMPARE_INSTR("vfmadd213ph xmm3,xmm3,xmm1", vfmadd213ph(xmm3, xmm3, xmm1));
+  COMPARE_INSTR("vfmadd213ph xmm3,xmm2,xmm3", vfmadd213ph(xmm3, xmm2, xmm3));
+  COMPARE_INSTR("vfmadd213ph xmm3,xmm3,xmm3", vfmadd213ph(xmm3, xmm3, xmm3));
+  COMPARE_INSTR("vfmadd213ph ymm3,ymm3,ymm1", vfmadd213ph(ymm3, ymm3, ymm1));
+  COMPARE_INSTR("vfmadd213ph ymm3,ymm2,ymm3", vfmadd213ph(ymm3, ymm2, ymm3));
+  COMPARE_INSTR("vfmadd213ph ymm3,ymm3,ymm3", vfmadd213ph(ymm3, ymm3, ymm3));
+  COMPARE_INSTR("vfmadd213ph xmm3,xmm2,[rbx+0x7f0]",
+                vfmadd213ph(xmm3, xmm2, Operand(rbx, 2032)));
+  COMPARE_INSTR("vfmadd213ph ymm3,ymm2,[rbx+0xfe0]",
+                vfmadd213ph(ymm3, ymm2, Operand(rbx, 4064)));
+  COMPARE_INSTR("vfmadd213ph xmm3,xmm2,[rbx-0x800]",
+                vfmadd213ph(xmm3, xmm2, Operand(rbx, -2048)));
+  COMPARE_INSTR("vfmadd213ph ymm3,ymm2,[rbx-0x1000]",
+                vfmadd213ph(ymm3, ymm2, Operand(rbx, -4096)));
+  COMPARE_INSTR("vfmadd213ph xmm3,xmm2,[rbx+0x14]",
+                vfmadd213ph(xmm3, xmm2, Operand(rbx, 20)));
+  COMPARE_INSTR("vfmadd213ph ymm3,ymm2,[rbx+0x24]",
+                vfmadd213ph(ymm3, ymm2, Operand(rbx, 36)));
+  COMPARE_INSTR("vfmadd213ph xmm3,xmm2,[rbx+0x800]",
+                vfmadd213ph(xmm3, xmm2, Operand(rbx, 2048)));
+  COMPARE_INSTR("vfmadd213ph ymm3,ymm2,[rbx+0x1000]",
+                vfmadd213ph(ymm3, ymm2, Operand(rbx, 4096)));
+  COMPARE_INSTR("vfmadd213ph xmm19,xmm18,[r12+r13*2+0x40]",
+                vfmadd213ph(xmm19, xmm18, Operand(r12, r13, times_2, 64)));
+  COMPARE_INSTR("vfmadd213ph ymm19,ymm18,[r12+r13*2+0x80]",
+                vfmadd213ph(ymm19, ymm18, Operand(r12, r13, times_2, 128)));
+  Label add_xmm, add_ymm, nadd_xmm, nadd_ymm;
+  t.assm_.bind(&add_xmm);
+  COMPARE_INSTR("vfmadd213ph xmm3,xmm2,[rip+0xfffffff6]",
+                vfmadd213ph(xmm3, xmm2, Operand(&add_xmm)));
+  t.assm_.bind(&add_ymm);
+  COMPARE_INSTR("vfmadd213ph ymm3,ymm2,[rip+0xfffffff6]",
+                vfmadd213ph(ymm3, ymm2, Operand(&add_ymm)));
+
+  COMPARE_INSTR("vfnmadd213ph xmm3,xmm2,xmm1", vfnmadd213ph(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vfnmadd213ph ymm3,ymm2,ymm1", vfnmadd213ph(ymm3, ymm2, ymm1));
+  COMPARE_INSTR("vfnmadd213ph xmm19,xmm18,xmm17",
+                vfnmadd213ph(xmm19, xmm18, xmm17));
+  COMPARE_INSTR("vfnmadd213ph ymm31,ymm30,ymm29",
+                vfnmadd213ph(ymm31, ymm30, ymm29));
+  COMPARE_INSTR("vfnmadd213ph xmm3,xmm3,xmm1", vfnmadd213ph(xmm3, xmm3, xmm1));
+  COMPARE_INSTR("vfnmadd213ph xmm3,xmm2,xmm3", vfnmadd213ph(xmm3, xmm2, xmm3));
+  COMPARE_INSTR("vfnmadd213ph xmm3,xmm3,xmm3", vfnmadd213ph(xmm3, xmm3, xmm3));
+  COMPARE_INSTR("vfnmadd213ph ymm3,ymm3,ymm1", vfnmadd213ph(ymm3, ymm3, ymm1));
+  COMPARE_INSTR("vfnmadd213ph ymm3,ymm2,ymm3", vfnmadd213ph(ymm3, ymm2, ymm3));
+  COMPARE_INSTR("vfnmadd213ph ymm3,ymm3,ymm3", vfnmadd213ph(ymm3, ymm3, ymm3));
+  COMPARE_INSTR("vfnmadd213ph xmm3,xmm2,[rbx+0x7f0]",
+                vfnmadd213ph(xmm3, xmm2, Operand(rbx, 2032)));
+  COMPARE_INSTR("vfnmadd213ph ymm3,ymm2,[rbx+0xfe0]",
+                vfnmadd213ph(ymm3, ymm2, Operand(rbx, 4064)));
+  COMPARE_INSTR("vfnmadd213ph xmm3,xmm2,[rbx-0x800]",
+                vfnmadd213ph(xmm3, xmm2, Operand(rbx, -2048)));
+  COMPARE_INSTR("vfnmadd213ph ymm3,ymm2,[rbx-0x1000]",
+                vfnmadd213ph(ymm3, ymm2, Operand(rbx, -4096)));
+  COMPARE_INSTR("vfnmadd213ph xmm3,xmm2,[rbx+0x14]",
+                vfnmadd213ph(xmm3, xmm2, Operand(rbx, 20)));
+  COMPARE_INSTR("vfnmadd213ph ymm3,ymm2,[rbx+0x24]",
+                vfnmadd213ph(ymm3, ymm2, Operand(rbx, 36)));
+  COMPARE_INSTR("vfnmadd213ph xmm3,xmm2,[rbx+0x800]",
+                vfnmadd213ph(xmm3, xmm2, Operand(rbx, 2048)));
+  COMPARE_INSTR("vfnmadd213ph ymm3,ymm2,[rbx+0x1000]",
+                vfnmadd213ph(ymm3, ymm2, Operand(rbx, 4096)));
+  COMPARE_INSTR("vfnmadd213ph xmm19,xmm18,[r12+r13*2+0x40]",
+                vfnmadd213ph(xmm19, xmm18, Operand(r12, r13, times_2, 64)));
+  COMPARE_INSTR("vfnmadd213ph ymm19,ymm18,[r12+r13*2+0x80]",
+                vfnmadd213ph(ymm19, ymm18, Operand(r12, r13, times_2, 128)));
+  t.assm_.bind(&nadd_xmm);
+  COMPARE_INSTR("vfnmadd213ph xmm3,xmm2,[rip+0xfffffff6]",
+                vfnmadd213ph(xmm3, xmm2, Operand(&nadd_xmm)));
+  t.assm_.bind(&nadd_ymm);
+  COMPARE_INSTR("vfnmadd213ph ymm3,ymm2,[rip+0xfffffff6]",
+                vfnmadd213ph(ymm3, ymm2, Operand(&nadd_ymm)));
+}
+
 TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10) {
   DisassemblerTester t;
   std::string actual;

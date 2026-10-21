@@ -4665,6 +4665,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F16x8Qfma: {
+      if (UseAvx10_1()) {
+        CpuFeatureScope avx10_scope(masm(), AVX10_1);
+        DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+        if (instr->InputAt(2)->IsSimd128Register()) {
+          __ vfmadd213ph(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                         i.InputSimd128Register(2));
+        } else {
+          __ vfmadd213ph(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                         i.InputOperand(2));
+        }
+        break;
+      }
       YMMRegister ydst =
           YMMRegister::from_code(i.OutputSimd128Register().code());
       __ F16x8Qfma(ydst, i.InputSimd128Register(0), i.InputSimd128Register(1),
@@ -4673,6 +4685,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F16x8Qfms: {
+      if (UseAvx10_1()) {
+        CpuFeatureScope avx10_scope(masm(), AVX10_1);
+        DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+        if (instr->InputAt(2)->IsSimd128Register()) {
+          __ vfnmadd213ph(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                          i.InputSimd128Register(2));
+        } else {
+          __ vfnmadd213ph(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                          i.InputOperand(2));
+        }
+        break;
+      }
       YMMRegister ydst =
           YMMRegister::from_code(i.OutputSimd128Register().code());
       __ F16x8Qfms(ydst, i.InputSimd128Register(0), i.InputSimd128Register(1),

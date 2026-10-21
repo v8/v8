@@ -438,6 +438,216 @@ WASM_EXEC_TEST(F32x4PromoteLowF16x8) {
   }
 }
 
+// A binary16 product has at most 22 significant bits. Binary64 retains the
+// product and any addend capable of affecting binary16 rounding, including
+// perturbations of a halfway product. Convert directly to half: going through
+// float can erase those perturbations and introduce double rounding.
+uint16_t FmaF16(uint16_t a, uint16_t b, uint16_t c, bool negate,
+                bool through_float = false) {
+  double lhs = fp16_ieee_to_fp32_value(a);
+  double rhs = fp16_ieee_to_fp32_value(b);
+  double acc = fp16_ieee_to_fp32_value(c);
+  if (negate) lhs = -lhs;
+  if (through_float) {
+    return fp16_ieee_from_fp32_value(std::fma(static_cast<float>(lhs),
+                                              static_cast<float>(rhs),
+                                              static_cast<float>(acc)));
+  }
+  return DoubleToFloat16(std::fma(lhs, rhs, acc));
+}
+
+TEST(F16x8FmaReference) {
+  for (bool negate : {false, true}) {
+    uint16_t sign = negate ? 0x8000 : 0;
+    // A tiny addend changes which side of a half-way product is rounded.
+    CHECK_EQ(0x3e01, FmaF16(0x3e00 ^ sign, 0x3c01, 0x8001, negate));
+    CHECK_EQ(0x3e02, FmaF16(0x3e00 ^ sign, 0x3c01, 0x8001, negate, true));
+    CHECK_EQ(0x3e05, FmaF16(0x3e00 ^ sign, 0x3c03, 0x0001, negate));
+    CHECK_EQ(0x3e04, FmaF16(0x3e00 ^ sign, 0x3c03, 0x0001, negate, true));
+    // (1 + 2^-10) * (1 - 2^-10) - 1 = -2^-20, not zero.
+    CHECK_EQ(0x8010, FmaF16(0x3c01 ^ sign, 0x3bfe, 0xbc00, negate));
+    CHECK_EQ(0x0000, FmaF16(0x3c00 ^ sign, 0x3c00, 0xbc00, negate));
+    CHECK_EQ(0x8000, FmaF16(0x8000 ^ sign, 0x3c00, 0x8000, negate));
+    CHECK_EQ(0x0000, FmaF16(0x0001 ^ sign, 0x3800, 0x0000, negate));
+    CHECK_EQ(0x0002, FmaF16(0x0003 ^ sign, 0x3800, 0x0000, negate));
+  }
+}
+
+void RunF16x8FmaRaw(TestExecutionTier execution_tier, bool negate) {
+  i::v8_flags.wasm_fp16 = true;
+  WasmRunner<int32_t> r(execution_tier);
+  constexpr int kLanes = 8;
+  // Three inputs, thirteen FMA results, and three copies of the live inputs.
+  uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(19 * kLanes);
+  uint8_t a = r.AllocateLocal(kWasmS128);
+  uint8_t b = r.AllocateLocal(kWasmS128);
+  uint8_t c = r.AllocateLocal(kWasmS128);
+  uint8_t result = r.AllocateLocal(kWasmS128);
+  WasmOpcode opcode = negate ? kExprF16x8Qfms : kExprF16x8Qfma;
+  r.Build(
+      {WASM_LOCAL_SET(a, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+       WASM_LOCAL_SET(b, WASM_SIMD_LOAD_MEM(WASM_I32V(16))),
+       WASM_LOCAL_SET(c, WASM_SIMD_LOAD_MEM(WASM_I32V(32))),
+       WASM_LOCAL_SET(result,
+                      WASM_SIMD_TERNOP(opcode, WASM_LOCAL_GET(a),
+                                       WASM_LOCAL_GET(b), WASM_LOCAL_GET(c))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(48), WASM_LOCAL_GET(result)),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(64),
+           WASM_SIMD_TERNOP(opcode, WASM_LOCAL_GET(a), WASM_LOCAL_GET(a),
+                            WASM_LOCAL_GET(c))),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(80),
+           WASM_SIMD_TERNOP(opcode, WASM_LOCAL_GET(a), WASM_LOCAL_GET(b),
+                            WASM_LOCAL_GET(a))),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(96),
+           WASM_SIMD_TERNOP(opcode, WASM_LOCAL_GET(a), WASM_LOCAL_GET(b),
+                            WASM_LOCAL_GET(b))),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(112),
+           WASM_SIMD_TERNOP(opcode, WASM_LOCAL_GET(a), WASM_LOCAL_GET(a),
+                            WASM_LOCAL_GET(a))),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(128),
+           WASM_SIMD_TERNOP(opcode, WASM_LOCAL_GET(a), WASM_LOCAL_GET(b),
+                            WASM_LOCAL_GET(result))),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(192),
+           WASM_SIMD_TERNOP(opcode, WASM_SIMD_LOAD_MEM(WASM_ZERO),
+                            WASM_LOCAL_GET(b), WASM_LOCAL_GET(c))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(208),
+                           WASM_SIMD_TERNOP(opcode, WASM_LOCAL_GET(a),
+                                            WASM_SIMD_LOAD_MEM(WASM_I32V(16)),
+                                            WASM_LOCAL_GET(c))),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(224),
+           WASM_SIMD_TERNOP(opcode, WASM_LOCAL_GET(a), WASM_LOCAL_GET(b),
+                            WASM_SIMD_LOAD_MEM(WASM_I32V(32)))),
+       WASM_SIMD_STORE_MEM(WASM_I32V(144), WASM_LOCAL_GET(a)),
+       WASM_SIMD_STORE_MEM(WASM_I32V(160), WASM_LOCAL_GET(b)),
+       WASM_SIMD_STORE_MEM(WASM_I32V(176), WASM_LOCAL_GET(c)),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(240),
+           WASM_SIMD_OPN(opcode, WASM_LOCAL_GET(a), WASM_LOCAL_GET(a),
+                         WASM_LOCAL_GET(a),
+                         WASM_LOCAL_SET(a, WASM_SIMD_I32x4_SPLAT(WASM_ZERO)))),
+       WASM_LOCAL_SET(a, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(256),
+           WASM_SIMD_OPN(opcode, WASM_LOCAL_GET(a), WASM_LOCAL_GET(a),
+                         WASM_LOCAL_GET(b),
+                         WASM_LOCAL_SET(a, WASM_SIMD_I32x4_SPLAT(WASM_ZERO)))),
+       WASM_LOCAL_SET(a, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(272),
+           WASM_SIMD_OPN(opcode, WASM_LOCAL_GET(a), WASM_LOCAL_GET(b),
+                         WASM_LOCAL_GET(a),
+                         WASM_LOCAL_SET(a, WASM_SIMD_I32x4_SPLAT(WASM_ZERO)))),
+       WASM_LOCAL_SET(a, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+       WASM_SIMD_STORE_MEM(
+           WASM_I32V(288),
+           WASM_SIMD_OPN(opcode, WASM_LOCAL_GET(a), WASM_LOCAL_GET(b),
+                         WASM_LOCAL_GET(b),
+                         WASM_LOCAL_SET(b, WASM_SIMD_I32x4_SPLAT(WASM_ZERO)))),
+       WASM_ONE});
+
+  auto check_lane = [=](uint16_t lhs, uint16_t rhs, uint16_t acc,
+                        uint16_t actual) {
+    uint16_t fused = FmaF16(lhs, rhs, acc, negate);
+    uint16_t widened = FmaF16(lhs, rhs, acc, negate, true);
+    if (!isnan(fused)) {
+      // The proposal's native-half and FP32-widened lowerings can differ.
+      // Keep both references separate; neither is an oracle for the other.
+#if V8_TARGET_ARCH_X64
+      bool native =
+          UseAvx10_1() && (execution_tier == TestExecutionTier::kLiftoff ||
+                           CpuFeatures::IsSupported(F16C));
+      CHECK_EQ(native ? fused : widened, actual);
+#else
+      CHECK(actual == fused || actual == widened);
+#endif
+      return;
+    }
+    CHECK_EQ(0x7e00, actual & 0x7e00);
+    if ((!isnan(lhs) || IsCanonical(lhs)) &&
+        (!isnan(rhs) || IsCanonical(rhs)) &&
+        (!isnan(acc) || IsCanonical(acc))) {
+      CHECK(IsCanonical(actual));
+    }
+  };
+  auto check = [&]() {
+    CHECK_EQ(1, r.Call());
+    for (int lane = 0; lane < kLanes; ++lane) {
+      auto read = [&](int slot) {
+        return r.builder().ReadMemory(&memory[slot * kLanes + lane]);
+      };
+      uint16_t lhs = read(0), rhs = read(1), acc = read(2);
+      check_lane(lhs, rhs, acc, read(3));
+      check_lane(lhs, lhs, acc, read(4));
+      check_lane(lhs, rhs, lhs, read(5));
+      check_lane(lhs, rhs, rhs, read(6));
+      check_lane(lhs, lhs, lhs, read(7));
+      // Use the checked intermediate, including its actual NaN class.
+      check_lane(lhs, rhs, read(3), read(8));
+      CHECK_EQ(lhs, read(9));
+      CHECK_EQ(rhs, read(10));
+      CHECK_EQ(acc, read(11));
+      check_lane(lhs, rhs, acc, read(12));
+      check_lane(lhs, rhs, acc, read(13));
+      check_lane(lhs, rhs, acc, read(14));
+      check_lane(lhs, lhs, lhs, read(15));
+      check_lane(lhs, lhs, rhs, read(16));
+      check_lane(lhs, rhs, lhs, read(17));
+      check_lane(lhs, rhs, rhs, read(18));
+    }
+  };
+
+  constexpr uint16_t rounding[][3] = {
+      {0x3e00, 0x3c01, 0x8001}, {0x3e00, 0x3c03, 0x0001},
+      {0x3c01, 0x3bfe, 0xbc00}, {0x7bff, 0x4000, 0xfbff},
+      {0x0001, 0x3800, 0x0000}, {0x0003, 0x3800, 0x0000},
+      {0x8000, 0x3c00, 0x8000}, {0x3c00, 0x3c00, 0xbc00}};
+  for (int lane = 0; lane < kLanes; ++lane) {
+    for (int input = 0; input < 3; ++input) {
+      uint16_t bits = rounding[lane][input];
+      if (negate && input == 0) bits ^= 0x8000;
+      r.builder().WriteMemory(&memory[input * kLanes + lane], bits);
+    }
+  }
+  check();
+
+  constexpr uint16_t edges[] = {0x0000, 0x8000, 0x0001, 0x8001, 0x03ff, 0x83ff,
+                                0x0400, 0x8400, 0x3800, 0xb800, 0x3bff, 0x3c00,
+                                0xbc00, 0x3c01, 0x4000, 0xc000, 0x7bff, 0xfbff,
+                                0x7c00, 0xfc00, 0x7c01, 0xfc01, 0x7dff, 0xfdff,
+                                0x7e00, 0xfe00, 0x7e55, 0xfe55, 0x7fff, 0xffff};
+  for (uint16_t lhs : edges) {
+    for (uint16_t rhs : edges) {
+      for (size_t acc = 0; acc < arraysize(edges); acc += kLanes) {
+        for (int lane = 0; lane < kLanes; ++lane) {
+          r.builder().WriteMemory(&memory[lane], lhs);
+          r.builder().WriteMemory(&memory[kLanes + lane], rhs);
+          r.builder().WriteMemory(&memory[2 * kLanes + lane],
+                                  edges[(acc + lane) % arraysize(edges)]);
+        }
+        check();
+      }
+    }
+  }
+  base::RandomNumberGenerator rng(0xf16f00);
+  for (int trial = 0; trial < 1024; ++trial) {
+    for (int lane = 0; lane < 3 * kLanes; ++lane) {
+      r.builder().WriteMemory(&memory[lane],
+                              static_cast<uint16_t>(rng.NextInt(65536)));
+    }
+    check();
+  }
+}
+
+WASM_COMPILED_EXEC_TEST(F16x8QfmaRaw) { RunF16x8FmaRaw(execution_tier, false); }
+WASM_COMPILED_EXEC_TEST(F16x8QfmsRaw) { RunF16x8FmaRaw(execution_tier, true); }
+
 struct FMOperation {
   const float a;
   const float b;

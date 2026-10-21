@@ -5000,10 +5000,31 @@ bool LiftoffAssembler::emit_f32x4_promote_low_f16x8(LiftoffRegister dst,
   return true;
 }
 
+template <void (Assembler::*avx10_op)(XMMRegister, XMMRegister, XMMRegister)>
+void F16x8FmaNative(LiftoffAssembler* assm, LiftoffRegister dst,
+                    LiftoffRegister src1, LiftoffRegister src2,
+                    LiftoffRegister src3) {
+  CpuFeatureScope avx10_scope(assm, AVX10_1);
+  if (dst == src1) {
+    (assm->*avx10_op)(dst.fp(), src2.fp(), src3.fp());
+  } else if (dst == src2) {
+    (assm->*avx10_op)(dst.fp(), src1.fp(), src3.fp());
+  } else {
+    XMMRegister result = dst == src3 ? kScratchDoubleReg : dst.fp();
+    assm->Movdqa(result, src1.fp());
+    (assm->*avx10_op)(result, src2.fp(), src3.fp());
+    if (result != dst.fp()) assm->Movdqa(dst.fp(), result);
+  }
+}
+
 bool LiftoffAssembler::emit_f16x8_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
+  if (UseAvx10_1()) {
+    F16x8FmaNative<&Assembler::vfmadd213ph>(this, dst, src1, src2, src3);
+    return true;
+  }
   if (!CpuFeatures::IsSupported(F16C)) return false;
 
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
@@ -5017,6 +5038,10 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
+  if (UseAvx10_1()) {
+    F16x8FmaNative<&Assembler::vfnmadd213ph>(this, dst, src1, src2, src3);
+    return true;
+  }
   if (!CpuFeatures::IsSupported(F16C)) return false;
 
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
