@@ -14461,10 +14461,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateClosure() {
         {GetContext()}, shared_function_info, feedback_cell,
         compilation_unit_->specialization_context(), GetCurrentScopeInfo()));
   } else {
-    bool pretenured =
-        interpreter::CreateClosureFlags::PretenuredBit::decode(flags);
     return SetAccumulator(AddNewNode<CreateClosure>(
-        {GetContext()}, shared_function_info, feedback_cell, pretenured,
+        {GetContext()}, shared_function_info, feedback_cell,
         compilation_unit_->specialization_context(), GetCurrentScopeInfo()));
   }
 }

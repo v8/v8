@@ -284,7 +284,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadLookupGlobalSlot(name, TypeofMode::kInside, 1, 0);
 
   // Emit closure operations.
-  builder.CreateClosure(0, 1, static_cast<int>(AllocationType::kYoung));
+  builder.CreateClosure(0, 1, CreateClosureFlags::Encode(false));
 
   // Emit create context operation.
   builder.CreateBlockContext(&scope);
@@ -520,7 +520,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                        LookupHoistingMode::kNormal);
 
   // CreateClosureWide
-  builder.CreateClosure(1000, 321, static_cast<int>(AllocationType::kYoung));
+  builder.CreateClosure(1000, 321, CreateClosureFlags::Encode(false));
 
   // Emit wide variant of literal creation operations.
   builder

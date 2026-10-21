@@ -399,18 +399,6 @@ struct runtime : CallDescriptorBuilder {
     static constexpr Operator::Properties kProperties = Operator::kNoThrow;
   };
 
-  struct NewClosure_Tenured : public Descriptor<NewClosure_Tenured> {
-    static constexpr auto kFunction = Runtime::kNewClosure_Tenured;
-    struct Arguments : ArgumentsBase {
-      ARG(V<SharedFunctionInfo>, shared_function_info)
-      ARG(V<FeedbackCell>, feedback_cell)
-    };
-    using returns_t = V<JSFunction>;
-
-    static constexpr bool kCanTriggerLazyDeopt = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoThrow;
-  };
-
   struct HasInPrototypeChain : public Descriptor<HasInPrototypeChain> {
     static constexpr auto kFunction = Runtime::kHasInPrototypeChain;
     struct Arguments : ArgumentsBase {

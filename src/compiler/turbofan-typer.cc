@@ -1529,8 +1529,7 @@ Type Typer::Visitor::TypeJSCreateGeneratorObject(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSCreateClosure(Node* node) {
-  SharedFunctionInfoRef shared =
-      JSCreateClosureNode{node}.Parameters().shared_info();
+  SharedFunctionInfoRef shared = JSCreateClosureNode{node}.shared_info();
   if (IsClassConstructor(shared.kind())) {
     return Type::ClassConstructor();
   } else {

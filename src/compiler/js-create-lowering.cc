@@ -946,8 +946,7 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   JSCreateClosureNode n(node);
-  CreateClosureParameters const& p = n.Parameters();
-  SharedFunctionInfoRef shared = p.shared_info();
+  SharedFunctionInfoRef shared = n.shared_info();
   FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
   Effect effect = n.effect();
   Control control = n.control();
@@ -991,21 +990,10 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
         feedback_cell_node, effect, control);
   }
 
-  // TODO(turbofan): We should use the pretenure flag from {p} here,
-  // but currently the heuristic in the parser works against us, as
-  // it marks closures like
-  //
-  //   args[l] = function(...) { ... }
-  //
-  // for old-space allocation, which doesn't always make sense. For
-  // example in case of the bluebird-parallel benchmark, where this
-  // is a core part of the *promisify* logic (see crbug.com/810132).
-  AllocationType allocation = AllocationType::kYoung;
-
   // Emit code to allocate the JSFunction instance.
   static_assert(JSFunctionWithoutPrototype::kHeaderSize == 7 * kTaggedSize);
   AllocationBuilder a(jsgraph(), broker(), effect, control);
-  a.Allocate(function_map.instance_size(), allocation,
+  a.Allocate(function_map.instance_size(), AllocationType::kYoung,
              Type::CallableFunction());
   a.Store(AccessBuilder::ForMap(), function_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),

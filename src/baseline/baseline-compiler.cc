@@ -2569,11 +2569,8 @@ void BaselineCompiler::VisitCreateClosure() {
     CallBuiltin<Builtin::kFastNewClosureBaseline>(
         Constant<SharedFunctionInfo>(0), feedback_cell);
   } else {
-    Runtime::FunctionId function_id =
-        interpreter::CreateClosureFlags::PretenuredBit::decode(flags)
-            ? Runtime::kNewClosure_Tenured
-            : Runtime::kNewClosure;
-    CallRuntime(function_id, Constant<SharedFunctionInfo>(0), feedback_cell);
+    CallRuntime(Runtime::kNewClosure, Constant<SharedFunctionInfo>(0),
+                feedback_cell);
   }
 }
 

@@ -397,7 +397,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kGrowableSharedArrayBufferByteLength:
     case Runtime::kIncBlockCounter:
     case Runtime::kNewClosure:
-    case Runtime::kNewClosure_Tenured:
     case Runtime::kNewFunctionContext:
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:

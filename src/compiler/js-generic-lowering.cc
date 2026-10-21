@@ -673,19 +673,13 @@ void JSGenericLowering::LowerJSRegExpTest(Node* node) {
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   JSCreateClosureNode n(node);
-  CreateClosureParameters const& p = n.Parameters();
-  SharedFunctionInfoRef shared_info = p.shared_info();
+  SharedFunctionInfoRef shared_info = n.shared_info();
   static_assert(n.FeedbackCellIndex() == 0);
   node->InsertInput(zone(), 0,
                     jsgraph()->ConstantNoHole(shared_info, broker()));
   node->RemoveInput(4);  // control
 
-  // Use the FastNewClosure builtin only for functions allocated in new space.
-  if (p.allocation() == AllocationType::kYoung) {
-    ReplaceWithBuiltinCall(node, Builtin::kFastNewClosure);
-  } else {
-    ReplaceWithRuntimeCall(node, Runtime::kNewClosure_Tenured);
-  }
+  ReplaceWithBuiltinCall(node, Builtin::kFastNewClosure);
 }
 
 void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {

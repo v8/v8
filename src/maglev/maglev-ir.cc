@@ -4987,10 +4987,7 @@ void AllocationBlock::GenerateCode(MaglevAssembler* masm,
 }
 
 int CreateClosure::MaxCallStackArgs() const {
-  DCHECK_EQ(Runtime::FunctionForId(pretenured() ? Runtime::kNewClosure_Tenured
-                                                : Runtime::kNewClosure)
-                ->nargs,
-            2);
+  DCHECK_EQ(Runtime::FunctionForId(Runtime::kNewClosure)->nargs, 2);
   return 2;
 }
 void CreateClosure::SetValueLocationConstraints() {
@@ -4999,10 +4996,8 @@ void CreateClosure::SetValueLocationConstraints() {
 }
 void CreateClosure::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
-  Runtime::FunctionId function_id =
-      pretenured() ? Runtime::kNewClosure_Tenured : Runtime::kNewClosure;
   __ Push(shared_function_info().object(), feedback_cell().object());
-  __ CallRuntime(function_id);
+  __ CallRuntime(Runtime::kNewClosure);
 }
 
 int FastCreateClosure::MaxCallStackArgs() const {
@@ -9111,11 +9106,7 @@ void FastCreateClosure::PrintParams(std::ostream& os) const {
 
 void CreateClosure::PrintParams(std::ostream& os) const {
   os << "(" << *shared_function_info().object() << ", "
-     << feedback_cell().object();
-  if (pretenured()) {
-    os << " [pretenured]";
-  }
-  os << ")";
+     << feedback_cell().object() << ")";
 }
 
 void AllocationBlock::PrintParams(std::ostream& os) const {

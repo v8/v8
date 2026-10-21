@@ -2011,16 +2011,9 @@ class GraphBuildingNodeProcessor {
     V<FeedbackCell> feedback_cell =
         __ HeapConstant(node->feedback_cell().object());
 
-    V<JSFunction> closure;
-    if (node->pretenured()) {
-      closure = __ template CallRuntime<runtime::NewClosure_Tenured>(
-          context, {.shared_function_info = shared_function_info,
-                    .feedback_cell = feedback_cell});
-    } else {
-      closure = __ template CallRuntime<runtime::NewClosure>(
-          context, {.shared_function_info = shared_function_info,
-                    .feedback_cell = feedback_cell});
-    }
+    V<JSFunction> closure = __ template CallRuntime<runtime::NewClosure>(
+        context, {.shared_function_info = shared_function_info,
+                  .feedback_cell = feedback_cell});
 
     SetMap(node, closure);
 

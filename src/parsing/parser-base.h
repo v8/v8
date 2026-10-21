@@ -3391,8 +3391,6 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
 
   // Anonymous function name inference applies to =, ||=, &&=, and ??=.
   if (op == Token::kAssign || Token::IsLogicalAssignmentOp(op)) {
-    impl()->CheckAssigningFunctionLiteralToProperty(expression, right);
-
     // Check if the right hand side is a call to avoid inferring a
     // name if we're dealing with "a = function(){...}();"-like
     // expression.

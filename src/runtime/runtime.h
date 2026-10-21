@@ -494,7 +494,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(LoadLookupSlotForCall_Baseline, 2, 1)          \
                                                    \
   F(NewClosure, 2, 1)                              \
-  F(NewClosure_Tenured, 2, 1)                      \
   F(NewFunctionContext, 1, 1)                      \
   F(NewRestParameter, 1, 1)                        \
   F(NewSloppyArguments, 1, 1)                      \

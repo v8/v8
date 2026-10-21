@@ -720,20 +720,6 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
               .Build();
 }
 
-RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  DirectHandle<SharedFunctionInfo> shared = args.at<SharedFunctionInfo>(0);
-  DirectHandle<FeedbackCell> feedback_cell = args.at<FeedbackCell>(1);
-  DirectHandle<Context> context(isolate->context(), isolate);
-  // The caller ensures that we pretenure closures that are assigned
-  // directly to properties.
-  return *Factory::JSFunctionBuilder{isolate, shared, context}
-              .set_feedback_cell(feedback_cell)
-              .set_allocation_type(AllocationType::kOld)
-              .Build();
-}
-
 RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

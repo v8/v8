@@ -6878,13 +6878,11 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   explicit CreateClosure(uint64_t bitfield,
                          compiler::SharedFunctionInfoRef shared_function_info,
                          compiler::FeedbackCellRef feedback_cell,
-                         bool pretenured,
                          compiler::OptionalContextRef specialization_context,
                          ContextScopeInfo context_scope_info)
       : Base(bitfield),
         shared_function_info_(shared_function_info),
         feedback_cell_(feedback_cell),
-        pretenured_(pretenured),
         specialization_context_(specialization_context),
         context_scope_info_(context_scope_info) {}
 
@@ -6892,7 +6890,6 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
     return shared_function_info_;
   }
   compiler::FeedbackCellRef feedback_cell() const { return feedback_cell_; }
-  bool pretenured() const { return pretenured_; }
   compiler::OptionalContextRef specialization_context() const {
     return specialization_context_;
   }
@@ -6915,7 +6912,6 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
  private:
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackCellRef feedback_cell_;
-  const bool pretenured_;
   const compiler::OptionalContextRef specialization_context_;
   const ContextScopeInfo context_scope_info_;
 };
