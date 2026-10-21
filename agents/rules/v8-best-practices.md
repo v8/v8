@@ -40,7 +40,12 @@ When proposing a fix, ensure the code adheres to V8 standards:
   owning class rather than duplicating low-level steps across callers.
 - **Mandatory Reproducer Rule**: Unless explicitly specified otherwise by the
   user, **every single bug fix in V8 MUST be uploaded with a working reproducer
-  (regression test)**. Uploading just the fix alone is NEVER acceptable.
+  (regression test)**. Uploading just the fix alone is NEVER acceptable. Always
+  verify that every regression test (and every test case within it) a) actually
+  exercises the specific code path/fix being tested and b) fails without the fix
+  (for `%OptimizeFunctionOnNextCall` tests targeting Maglev, omit
+  `--optimize-on-next-call-optimizes-to-maglev` from `// Flags:` in the test
+  file and verify failure under `--variants=stress_maglev`).
 
 ## Technical Guardrails & Guidelines
 
