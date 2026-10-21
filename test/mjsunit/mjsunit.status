@@ -945,11 +945,6 @@
   # Skip tests that require Wasm experimental features not supported by the
   # Wasm interpreter, or that explicitly require compilation.
 
-  # Wasm debugging that runs GC while paused at a trap safepoint is not
-  # supported by the Wasm interpreter; it crashes (BUS_ADRALN) in the DrumBrake
-  # safepoint path in jitless mode. Passes in JIT variants.
-  'wasm/regress-534579660': [SKIP],
-
   # --wasm-inlining
   'regress/wasm/regress-crbug-1510626': [SKIP],
 
