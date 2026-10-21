@@ -81,6 +81,7 @@
   'debugger/wasm-*': [SKIP],
   'cpu-profiler/console-profile-wasm': [SKIP],
   'runtime/get-properties': [SKIP],
+  'regress/regress-521715545': [SKIP],
   'regress/regress-534579660': [SKIP],
   'regress/regress-537219980': [SKIP],
   'regress/regress-crbug-349248170': [SKIP],
@@ -127,6 +128,8 @@
   'debugger/wasm-stepping-with-source-map': [SKIP],
   # Generic wasm-to-js wrapper must be enabled.
   'cpu-profiler/console-profile-wasm': [SKIP],
+  # Wasm code coverage is not supported yet.
+  'regress/regress-521715545': [SKIP],
 }],  # 'arch == s390x or arch == ppc64'
 
 ##############################################################################
