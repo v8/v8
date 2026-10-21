@@ -230,6 +230,11 @@ def init_deps_cache(main_repo: Path, deps_worktree: Path,
 
 
 def should_skip_worktree_deps(worktree_dir: Path) -> bool:
+  # If {build} is not a symlink, then we're probably in a btrfs CoW snapshot
+  # rather than a normal git worktree.
+  build = worktree_dir / "build"
+  if build.is_dir() and not build.is_symlink():
+    return True
   try:
     # Check if v8.skip-worktree-deps is set to true in git config
     res = subprocess.check_output(
