@@ -86,6 +86,7 @@
   'regress/regress-519715438': [SKIP],
   'regress/regress-521715545': [SKIP],
   'regress/regress-526163463': [SKIP],
+  'regress/regress-527985808': [SKIP],
   'regress/regress-534579660': [SKIP],
   'regress/regress-537219980': [SKIP],
   'regress/regress-crbug-349248170': [SKIP],

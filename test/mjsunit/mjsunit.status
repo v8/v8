@@ -1396,7 +1396,6 @@
   # Test runs with --no-wasm-trap-handler, but the interpreter's no-bounds-check
   # memory builtins require the trap handler
   # (CHECK(trap_handler::IsTrapHandlerEnabled()) in wasm-interpreter.cc).
-  'regress/wasm/regress-527985808': [SKIP],
   'regress/wasm/regress-529880019': [SKIP],
 
  }],  # has_wasm_interpreter and variant == jitless
