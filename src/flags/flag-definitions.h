@@ -3247,6 +3247,15 @@ DEFINE_NEG_IMPLICATION(fuzzing, hard_abort)
 DEFINE_NEG_IMPLICATION(hole_fuzzing, hard_abort)
 DEFINE_NEG_IMPLICATION(sandbox_fuzzing, hard_abort)
 
+// fuzzilli
+#if defined(V8_FUZZILLI)
+DEFINE_BOOL(fuzzilli_enable_optimized_code_coverage, false,
+            "enable optimized code coverage for fuzzilli")
+#else
+DEFINE_BOOL_READONLY(fuzzilli_enable_optimized_code_coverage, false,
+                     "enable optimized code coverage for fuzzilli")
+#endif
+
 // disassembler
 DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
             "When logging, try to use coloured output.")

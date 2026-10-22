@@ -19,6 +19,7 @@
 #include <iterator>
 
 #include "src/base/platform/memory.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/sandbox/hardware-support.h"
 
@@ -518,4 +519,57 @@ bool cov_has_builtins_edges() {
 
 void cov_set_builtin_edge(uint32_t block_index) {
   cov_set_edge(shmem->edges, builtins_start + block_index);
+}
+
+uint32_t optimized_code_start = 0;
+uint32_t optimized_code_edge_count = 0;
+
+struct PendingOptimizedCodeCoverage {
+  v8::base::Mutex mutex;
+  std::vector<uint32_t> edges;
+};
+
+PendingOptimizedCodeCoverage& GetPendingOptimizedCodeCoverage() {
+  static PendingOptimizedCodeCoverage* pending =
+      new PendingOptimizedCodeCoverage();
+  return *pending;
+}
+
+void cov_init_optimized_code_edges(uint32_t num_edges) {
+  if (!shmem) {
+    initialize_shmem();
+  }
+
+  CHECK_EQ(optimized_code_edge_count, 0);
+  if (num_edges + shmem->num_edges > MAX_EDGES) {
+    fprintf(stderr,
+            "[COV] Error: Insufficient amount of edges left for optimized code "
+            "coverage.\n");
+    exit(-1);
+  }
+  optimized_code_edge_count = num_edges;
+  optimized_code_start = 1 + shmem->num_edges;
+  shmem->num_edges += optimized_code_edge_count;
+  fprintf(stderr, "[COV] Additional %d edges for optimized code initialized.\n",
+          num_edges);
+}
+
+void cov_add_optimized_code_coverage_edges(const std::set<uint32_t>& hashes) {
+  if (optimized_code_edge_count == 0) return;
+  auto& pending = GetPendingOptimizedCodeCoverage();
+  v8::base::MutexGuard lock(&pending.mutex);
+  pending.edges.insert(pending.edges.end(), hashes.begin(), hashes.end());
+}
+
+size_t cov_update_and_reset_optimized_code_coverage() {
+  if (optimized_code_edge_count == 0) return 0;
+  auto& pending = GetPendingOptimizedCodeCoverage();
+  v8::base::MutexGuard lock(&pending.mutex);
+  for (uint32_t hash : pending.edges) {
+    cov_set_edge(shmem->edges,
+                 (hash % optimized_code_edge_count) + optimized_code_start);
+  }
+  size_t count = pending.edges.size();
+  pending.edges.clear();
+  return count;
 }

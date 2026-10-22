@@ -8439,6 +8439,10 @@ int Shell::Main(int argc, char* argv[]) {
     }
   }
 
+  if (i::v8_flags.fuzzilli_enable_optimized_code_coverage) {
+    cov_init_optimized_code_edges(kFuzzilliNumOptimizedCodeEdges);
+  }
+
   // Let the parent process (Fuzzilli) know we are ready.
   char helo[] = "HELO";
   if (write(REPRL_CWFD, helo, 4) != 4 || read(REPRL_CRFD, helo, 4) != 4) {
@@ -8634,6 +8638,13 @@ int Shell::Main(int argc, char* argv[]) {
       // Send result to parent (fuzzilli) and reset edge guards.
       if (fuzzilli_reprl) {
         int status = result << 8;
+
+        size_t num_optimized_code_edges = 0;
+        if (i::v8_flags.fuzzilli_enable_optimized_code_coverage) {
+          num_optimized_code_edges =
+              cov_update_and_reset_optimized_code_coverage();
+        }
+
         // With inline-bool-flag coverage, the edges are only written to the
         // shared memory bitmap here (or when crashing), so this must happen
         // before the bitmap is read, i.e. before the coverage statistics are
@@ -8651,7 +8662,8 @@ int Shell::Main(int argc, char* argv[]) {
           std::ofstream covlog("covlog.txt", std::ios::app);
           covlog << iteration_counter << "\t" << tot << "\t"
                  << sanitizer_cov_count_discovered_edges() << "\t"
-                 << bitmap.size() << std::endl;
+                 << bitmap.size() << "\t" << num_optimized_code_edges
+                 << std::endl;
           iteration_counter++;
         }
         // This is run once per REPRL loop. In case of crash the coverage of
