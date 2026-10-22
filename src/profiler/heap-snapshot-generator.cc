@@ -1902,6 +1902,7 @@ void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
     Tagged<SlicedString> ss = Cast<SlicedString>(string);
     SetInternalReference(entry, "parent", ss->parent(),
                          offsetof(SlicedString, parent_));
+    AddIntEdge(entry, HeapGraphEdge::kInternal, "offset", ss->offset());
   } else if (IsThinString(string)) {
     Tagged<ThinString> ts = Cast<ThinString>(string);
     SetInternalReference(entry, "actual", ts->actual(),

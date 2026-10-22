@@ -441,6 +441,27 @@ TEST_F(HeapSnapshotTest, StringProperties) {
   EXPECT_TRUE(HasNamedEdge(*sliced, "parent"));
 }
 
+TEST_F(HeapSnapshotTest, SlicedStringOffset) {
+  if (!v8_flags.string_slices) return;
+  Factory* factory = i_isolate()->factory();
+  HandleScope scope(i_isolate());
+
+  Handle<String> parent =
+      factory->NewStringFromAsciiChecked("abcdefghijklmnopqrstuvwxyz");
+  Handle<String> sliced = factory->NewProperSubString(parent, 5, 20);
+
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  // The value of a sliced string can be reconstructed from its parent, offset
+  // and length.
+  const HeapEntry* entry = GetEntryFor(i_isolate(), snapshot, *sliced);
+  ASSERT_NE(nullptr, entry);
+  EXPECT_EQ(HeapEntry::kSlicedString, entry->type());
+  EXPECT_TRUE(HasNamedEdge(*entry, "parent"));
+  EXPECT_EQ(5, GetIntEdge(entry, "offset"));
+  EXPECT_EQ(15, GetIntEdge(entry, "length"));
+}
+
 TEST_F(HeapSnapshotTest, ScriptName) {
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Context> context = v8_context();
