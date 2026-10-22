@@ -1044,9 +1044,11 @@ std::vector<std::unique_ptr<Reducer>> Minimizer::CreateDefaultReducers() {
 
 // static
 const std::vector<std::string_view>& Minimizer::DefaultOrder() {
-  static const std::vector<std::string_view> kOrder = {"statements", "unwrap",
-                                                       "lists", "expressions"};
-  return kOrder;
+  // Never deleted: no destructor runs when the process exits.
+  static const std::vector<std::string_view>* const kOrder =
+      new std::vector<std::string_view>{"statements", "unwrap", "lists",
+                                        "expressions"};
+  return *kOrder;
 }
 
 Reducer* Minimizer::Find(std::string_view name) const {
