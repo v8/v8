@@ -127,8 +127,6 @@
       'V8 Linux64 - sticky mark bits - debug builder': 'debug_x64_sticky_mark_bits',
       'V8 Linux64 - undefined double - debug builder': 'debug_x64_undefined_double',
       'V8 Linux64 css - debug builder': 'debug_x64_conservative_stack_scanning',
-      'V8 Linux64 - jammy - gcc - builder': 'release_x64_gcc',
-      'V8 Linux64 - jammy - gcc - debug builder': 'debug_x64_gcc',
       'V8 Fuchsia - builder': 'release_x64_fuchsia',
       'V8 Fuchsia - debug builder': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi - builder': 'release_x64_cfi',
@@ -299,11 +297,6 @@
       'v8_linux64_fuzzilli_imports_compile_rel': 'release_x64',
       'v8_linux64_gc_stress_custom_snapshot_compile_dbg': 'debug_x64_trybot_custom',
       'v8_linux64_gc_stress_compile_dbg': 'debug_x64_trybot',
-      'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
-      'v8_linux64_jammy_gcc_compile_dbg': 'debug_x64_gcc',
-      'v8_linux64_gcc_light_compile_dbg': 'debug_x64_gcc',
-      'v8_linux64_gcc_compile_rel': 'release_x64_gcc',
-      'v8_linux64_jammy_gcc_compile_rel': 'release_x64_gcc',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_fyi_compile_rel': 'release_x64_test_features_trybot',
       'v8_linux64_icu4x_compile_dbg': 'debug_x64_icu4x',
@@ -668,8 +661,6 @@
       'release_bot', 'x64', 'fuchsia'],
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
-    'release_x64_gcc': [
-      'release_bot_no_remoteexec', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'release_x64_ios_simulator': [
       'release_bot', 'x64', 'ios_simulator'],
     'release_x64_internal': [
@@ -748,8 +739,6 @@
       'debug_bot', 'x64', 'v8_enable_drumbrake'],
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
-    'debug_x64_gcc': [
-      'debug_bot_no_remoteexec', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_icu4x': [
@@ -932,12 +921,6 @@
         'v8_optimized_debug', 'v8_enable_google_benchmark'],
     },
 
-    'debug_bot_no_remoteexec': {
-      'mixins': [
-        'debug', 'shared', 'no_remoteexec', 'v8_enable_slow_dchecks',
-        'v8_optimized_debug'],
-    },
-
     'debug_trybot': {
       'mixins': ['debug_bot', 'minimal_symbols'],
     },
@@ -976,10 +959,6 @@
                  'target_environment="simulator" use_blink=true',
     },
 
-    'lld': {
-      'gn_args': 'use_lld=true',
-    },
-
     'lsan': {
       'mixins': ['v8_enable_test_features'],
       'gn_args': 'is_lsan=true',
@@ -997,14 +976,6 @@
     'msan_no_origins': {
       'mixins': ['v8_enable_test_features'],
       'gn_args': 'is_msan=true msan_track_origins=0 instrumented_libraries_release="resolute"',
-    },
-
-    'no_custom_libcxx': {
-      'gn_args': 'use_custom_libcxx=false',
-    },
-
-    'no_remoteexec': {
-      'gn_args': 'use_remoteexec=false',
     },
 
     'no_sandbox': {
@@ -1037,10 +1008,6 @@
 
     'release_bot': {
       'mixins': ['release', 'static', 'remoteexec', 'v8_enable_google_benchmark'],
-    },
-
-    'release_bot_no_remoteexec': {
-      'mixins': ['release', 'static', 'no_remoteexec'],
     },
 
     'release_bot_remoteexec': {
