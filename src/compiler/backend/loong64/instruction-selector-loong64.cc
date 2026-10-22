@@ -211,15 +211,6 @@ static void VisitSimdShift(InstructionSelector* selector, ArchOpcode opcode,
   }
 }
 
-static void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode,
-                      OpIndex node) {
-  Loong64OperandGenerator g(selector);
-  const turboshaft::Simd128ReplaceLaneOp& op =
-      selector->Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>();
-  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
-                 g.UseImmediate(op.lane), g.UseUniqueRegister(op.input(1)));
-}
-
 static void VisitUniqueRRR(InstructionSelector* selector, ArchOpcode opcode,
                            OpIndex node) {
   Loong64OperandGenerator g(selector);
@@ -3673,7 +3664,12 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 
 #define SIMD_VISIT_REPLACE_LANE(Type)                                \
   void InstructionSelector::Visit##Type##ReplaceLane(OpIndex node) { \
-    VisitRRIR(this, kLoong64##Type##ReplaceLane, node);              \
+    Loong64OperandGenerator g(this);                                 \
+    const turboshaft::Simd128ReplaceLaneOp& op =                     \
+        Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>(); \
+    Emit(kLoong64##Type##ReplaceLane, g.DefineSameAsFirst(node),     \
+         g.UseRegister(op.input(0)), g.UseImmediate(op.lane),        \
+         g.UseRegister(op.input(1)));                                \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE

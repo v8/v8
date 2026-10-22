@@ -3026,30 +3026,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kLoong64F64x2Splat: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      UseScratchRegisterScope temps(masm());
-      Register TmpReg = temps.Acquire();
-      __ Move(TmpReg, i.InputDoubleRegister(0));
-      __ vreplgr2vr_d(i.OutputSimd128Register(), TmpReg);
+      FPURegister input0 = i.InputDoubleRegister(0);
+      __ vreplve_d(i.OutputSimd128Register(), input0.toV(), zero_reg);
       break;
     }
     case kLoong64F64x2ExtractLane: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      UseScratchRegisterScope temps(masm());
-      Register TmpReg = temps.Acquire();
-      __ vpickve2gr_d(TmpReg, i.InputSimd128Register(0), i.InputInt8(1));
-      __ Move(i.OutputDoubleRegister(), TmpReg);
+      FPURegister output = i.OutputDoubleRegister();
+      __ vreplvei_d(output.toV(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
     case kLoong64F64x2ReplaceLane: {
       CpuFeatureScope lsx_scope(masm(), LSX);
       UseScratchRegisterScope temps(masm());
       Register TmpReg = temps.Acquire();
-      Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
       __ Move(TmpReg, i.InputDoubleRegister(2));
-      if (dst != src) {
-        __ vaddi_du(dst, src, 0);
-      }
       __ vinsgr2vr_d(dst, TmpReg, i.InputInt8(1));
       break;
     }
@@ -3255,30 +3248,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kLoong64F32x4Splat: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      UseScratchRegisterScope temps(masm());
-      Register TmpReg = temps.Acquire();
-      __ FmoveLow(TmpReg, i.InputSingleRegister(0));
-      __ vreplgr2vr_w(i.OutputSimd128Register(), TmpReg);
+      FPURegister input0 = i.InputSingleRegister(0);
+      __ vreplve_w(i.OutputSimd128Register(), input0.toV(), zero_reg);
       break;
     }
     case kLoong64F32x4ExtractLane: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      UseScratchRegisterScope temps(masm());
-      Register TmpReg = temps.Acquire();
-      __ vpickve2gr_wu(TmpReg, i.InputSimd128Register(0), i.InputInt8(1));
-      __ FmoveLow(i.OutputSingleRegister(), TmpReg);
+      FPURegister output = i.OutputSingleRegister();
+      __ vreplvei_w(output.toV(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
     case kLoong64F32x4ReplaceLane: {
       CpuFeatureScope lsx_scope(masm(), LSX);
+      Simd128Register dst = i.OutputSimd128Register();
       UseScratchRegisterScope temps(masm());
       Register TmpReg = temps.Acquire();
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ FmoveLow(TmpReg, i.InputSingleRegister(2));
-      if (dst != src) {
-        __ vaddi_wu(dst, src, 0);
-      }
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ movfr2gr_s(TmpReg, i.InputSingleRegister(2));
       __ vinsgr2vr_w(dst, TmpReg, i.InputInt8(1));
       break;
     }
@@ -3401,11 +3387,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kLoong64I64x2ReplaceLane: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
-      if (src != dst) {
-        __ vaddi_du(dst, src, 0);
-      }
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
       __ vinsgr2vr_d(dst, i.InputRegister(2), i.InputInt8(1));
       break;
     }
@@ -3574,11 +3557,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kLoong64I32x4ReplaceLane: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
-      if (src != dst) {
-        __ vaddi_wu(dst, src, 0);
-      }
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
       __ vinsgr2vr_w(dst, i.InputRegister(2), i.InputInt8(1));
       break;
     }
@@ -3819,11 +3799,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kLoong64I16x8ReplaceLane: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
-      if (src != dst) {
-        __ vaddi_hu(dst, src, 0);
-      }
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
       __ vinsgr2vr_h(dst, i.InputRegister(2), i.InputInt8(1));
       break;
     }
@@ -4050,11 +4027,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kLoong64I8x16ReplaceLane: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
-      if (src != dst) {
-        __ vaddi_bu(dst, src, 0);
-      }
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
       __ vinsgr2vr_b(dst, i.InputRegister(2), i.InputInt8(1));
       break;
     }
