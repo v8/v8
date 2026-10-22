@@ -232,9 +232,13 @@ class ObjectPostProcessor final {
   V8_INLINE void PostProcessIfNeeded(Tagged<HeapObject> o,
                                      InstanceType instance_type) {
     DCHECK_EQ(o->map()->instance_type(), instance_type);
-#define V(TYPE)                                       \
-  if (InstanceTypeChecker::Is##TYPE(instance_type)) { \
-    return PostProcess##TYPE(TrustedCast<TYPE>(o));   \
+#define V(TYPE)                                        \
+  if (InstanceTypeChecker::Is##TYPE(instance_type)) {  \
+    if constexpr (is_subtype_v<TYPE, TrustedObject>) { \
+      return PostProcess##TYPE(TrustedCast<TYPE>(o));  \
+    } else {                                           \
+      return PostProcess##TYPE(Cast<TYPE>(o));         \
+    }                                                  \
   }
     POST_PROCESS_TYPE_LIST(V)
 #undef V

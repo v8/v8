@@ -227,11 +227,15 @@ class Committee final {
                                                     Isolate* isolate,
                                                     Tagged<HeapObject> o) {
     const InstanceType itype = o->map()->instance_type();
-#define V(TYPE)                                                \
-  if (InstanceTypeChecker::Is##TYPE(itype)) {                  \
-    return GetPromoRecommendation##TYPE(committee, isolate,    \
-                                        TrustedCast<TYPE>(o)); \
-    /* NOLINTNEXTLINE(readability/braces) */                   \
+#define V(TYPE)                                                               \
+  if (InstanceTypeChecker::Is##TYPE(itype)) {                                 \
+    if constexpr (is_subtype_v<TYPE, TrustedObject>) {                        \
+      return GetPromoRecommendation##TYPE(committee, isolate,                 \
+                                          TrustedCast<TYPE>(o));              \
+    } else {                                                                  \
+      return GetPromoRecommendation##TYPE(committee, isolate, Cast<TYPE>(o)); \
+    }                                                                         \
+    /* NOLINTNEXTLINE(readability/braces) */                                  \
   } else
     PROMO_CANDIDATE_TYPE_LIST(V)
     /* if { ... } else */ {

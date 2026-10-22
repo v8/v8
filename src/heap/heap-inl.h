@@ -74,10 +74,12 @@ uint64_t Heap::external_memory() const {
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                     \
-  Tagged<Type> Heap::name() {                                    \
-    return TrustedCast<Type>(                                    \
-        Tagged<Object>(roots_table()[RootIndex::k##CamelName])); \
+#define ROOT_ACCESSOR(Type, name, CamelName)                    \
+  Tagged<Type> Heap::name() {                                   \
+    Tagged<Object> obj =                                        \
+        Tagged<Object>(roots_table()[RootIndex::k##CamelName]); \
+    DCHECK_WITH_SANDBOX_ACCESS(NullOrIs<Type>(obj));            \
+    return UncheckedCast<Type>(obj);                            \
   }
 
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)

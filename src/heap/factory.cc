@@ -3082,7 +3082,12 @@ Handle<T> Factory::CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
   DisallowGarbageCollection no_gc;
   new_object->set_map_after_allocation(isolate(), src->map(),
                                        SKIP_WRITE_BARRIER);
-  Tagged<T> result = TrustedCast<T>(new_object);
+  Tagged<T> result;
+  if constexpr (is_subtype_v<T, TrustedObject>) {
+    result = TrustedCast<T>(new_object);
+  } else {
+    result = Cast<T>(new_object);
+  }
   initialize_length(result, new_len);
   // Copy the content.
   WriteBarrierModeScope mode = result->GetWriteBarrierMode(no_gc);

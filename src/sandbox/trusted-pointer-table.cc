@@ -55,7 +55,7 @@ void TrustedPointerTable::Verify(Isolate* isolate, Space* space) {
     // 2. The object must be a valid HeapObject.
     Tagged<Object> obj_ptr(pointer);
     CHECK(Is<HeapObject>(obj_ptr));
-    Tagged<HeapObject> obj = TrustedCast<HeapObject>(obj_ptr);
+    Tagged<HeapObject> obj = Cast<HeapObject>(obj_ptr);
 #ifdef VERIFY_HEAP
     Object::ObjectVerify(obj, isolate);
 #endif

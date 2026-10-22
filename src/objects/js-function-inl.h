@@ -584,7 +584,7 @@ bool JSFunction::is_compiled(IsolateForSandbox isolate) const {
 bool JSFunction::NeedsResetDueToFlushedBytecode(Isolate* isolate) {
   // The function is only used sequentially. Concurrent cases need to take care
   // of loading the fields themselves.
-  Tagged<SharedFunctionInfo> sfi = TrustedCast<SharedFunctionInfo>(shared());
+  Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(shared());
   Tagged<Code> code = TrustedCast<Code>(raw_code(isolate));
   return NeedsResetDueToFlushedBytecode(isolate, sfi, code);
 }

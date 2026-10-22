@@ -24,7 +24,11 @@ struct LoopEffects;
 class KnownNodeAspects;
 class TraceLogger;
 
-enum class EnsureTypeResult { kAlreadyHadType, kTypeUpdated, kContradiction };
+enum class V8_NODISCARD EnsureTypeResult {
+  kAlreadyHadType,
+  kTypeUpdated,
+  kContradiction
+};
 using UpdateTypeOnContradiction =
     base::StrongAlias<struct UpdateTypeOnContradictionTag, bool>;
 
@@ -493,8 +497,8 @@ class KnownNodeAspects {
     return {};
   }
 
-  bool CheckType(compiler::JSHeapBroker* broker, ValueNode* node, NodeType type,
-                 NodeType* current_type = nullptr) {
+  V8_NODISCARD bool CheckType(compiler::JSHeapBroker* broker, ValueNode* node,
+                              NodeType type, NodeType* current_type = nullptr) {
     NodeType static_type = node->GetStaticType(broker);
     if (current_type) *current_type = static_type;
     if (NodeTypeIs(static_type, type)) return true;
@@ -505,8 +509,9 @@ class KnownNodeAspects {
     return NodeTypeIs(node_info->type(), type);
   }
 
-  NodeType CheckTypes(compiler::JSHeapBroker* broker, ValueNode* node,
-                      std::initializer_list<NodeType> types) {
+  V8_NODISCARD NodeType CheckTypes(compiler::JSHeapBroker* broker,
+                                   ValueNode* node,
+                                   std::initializer_list<NodeType> types) {
     const NodeInfo* node_info = TryGetInfoFor(node);
     for (NodeType type : types) {
       if (node->StaticTypeIs(broker, type)) return type;

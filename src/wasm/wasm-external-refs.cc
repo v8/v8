@@ -1167,7 +1167,7 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
                                              Address& target_pc,
                                              CanonicalTypeIndex* sig) {
   Tagged<Object> tag_obj(wanted_tag_raw);
-  auto wanted_tag = TrustedCast<WasmExceptionTag>(tag_obj);
+  auto wanted_tag = Cast<WasmExceptionTag>(tag_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   wasm::StackMemory* to = from->jmpbuf()->parent;
   // Search the innermost effect handler with a matching tag.

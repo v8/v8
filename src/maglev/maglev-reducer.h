@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-enum class EnsureTypeResult;
+enum class V8_NODISCARD EnsureTypeResult;
 struct MaglevCallSiteInfo;
 class MaglevGraphBuilder;
 template <typename BaseT>
@@ -1655,10 +1655,12 @@ class MaglevReducer {
   MaybeReduceResult TryFoldTestTypeOf(
       ValueNode* input, interpreter::TestTypeOfFlags::LiteralFlag literal);
 
-  bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
+  V8_NODISCARD bool CheckType(ValueNode* node, NodeType type,
+                              NodeType* old = nullptr) {
     return known_node_aspects().CheckType(broker(), node, type, old);
   }
-  NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types) {
+  V8_NODISCARD NodeType CheckTypes(ValueNode* node,
+                                   std::initializer_list<NodeType> types) {
     return known_node_aspects().CheckTypes(broker(), node, types);
   }
 

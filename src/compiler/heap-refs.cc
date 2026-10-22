@@ -1232,13 +1232,13 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(IndirectHandle<Object> object,
   ObjectData* object_data;
   InstanceType instance_type = heap_object->map()->instance_type();
 
-#define CREATE_DATA(Name)                                              \
-  if (i::InstanceTypeChecker::Is##Name(instance_type)) {               \
-    entry = refs_->InsertNew(object.address());                        \
-    object_data = zone()->New<ref_traits<Name>::data_type>(            \
-        this, &entry->value, instance_type, TrustedCast<Name>(object), \
-        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind));  \
-    /* NOLINTNEXTLINE(readability/braces) */                           \
+#define CREATE_DATA(Name)                                                \
+  if (i::InstanceTypeChecker::Is##Name(instance_type)) {                 \
+    entry = refs_->InsertNew(object.address());                          \
+    object_data = zone()->New<ref_traits<Name>::data_type>(              \
+        this, &entry->value, instance_type, UncheckedCast<Name>(object), \
+        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind));    \
+    /* NOLINTNEXTLINE(readability/braces) */                             \
   } else
   HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
 #undef CREATE_DATA

@@ -333,8 +333,13 @@ Handle<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::New(
   base::internal::CheckedNumeric<uint32_t> checked_byte_length = length;
   checked_byte_length *= sizeof(T);
   CHECK(checked_byte_length.AssignIfValid(&byte_length));
-  return TrustedCast<FixedIntegerArrayBase<T, Base>>(
-      Base::New(isolate, byte_length, std::forward<MoreArgs>(more_args)...));
+  if constexpr (is_subtype_v<Base, TrustedObject>) {
+    return TrustedCast<FixedIntegerArrayBase<T, Base>>(
+        Base::New(isolate, byte_length, std::forward<MoreArgs>(more_args)...));
+  } else {
+    return Cast<FixedIntegerArrayBase<T, Base>>(
+        Base::New(isolate, byte_length, std::forward<MoreArgs>(more_args)...));
+  }
 }
 
 template <typename T, typename Base>

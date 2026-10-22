@@ -681,7 +681,7 @@ class RootsTable {
   IndirectHandle<HeapNumber> FindHeapNumber(double value);
 
 #define ROOT_ACCESSOR(Type, name, CamelName) \
-  V8_INLINE IndirectHandle<ReadOnly<Type>> name();
+  V8_NODISCARD V8_INLINE IndirectHandle<ReadOnly<Type>> name();
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #ifndef V8_ENABLE_TDZ_HOLE
   ROOT_ACCESSOR(TdzHole, tdz_hole_value, TdzHoleValue)
@@ -689,7 +689,7 @@ class RootsTable {
 #undef ROOT_ACCESSOR
 
 #define ROOT_ACCESSOR(Type, name, CamelName) \
-  V8_INLINE IndirectHandle<Type> name();
+  V8_NODISCARD V8_INLINE IndirectHandle<Type> name();
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
@@ -849,9 +849,10 @@ class ReadOnlyRoots {
   // map-word instead of a tagged heap pointer.
   MapWord one_pointer_filler_map_word();
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                 \
-  V8_RO_CONST V8_INLINE Tagged<ReadOnly<Type>> name() const; \
-  V8_RO_CONST V8_INLINE Tagged<ReadOnly<Type>> unchecked_##name() const;
+#define ROOT_ACCESSOR(Type, name, CamelName)                                   \
+  V8_NODISCARD V8_RO_CONST V8_INLINE Tagged<ReadOnly<Type>> name() const;      \
+  V8_NODISCARD V8_RO_CONST V8_INLINE Tagged<ReadOnly<Type>> unchecked_##name() \
+      const;
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #ifndef V8_ENABLE_TDZ_HOLE

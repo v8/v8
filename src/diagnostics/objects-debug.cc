@@ -329,9 +329,13 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       Cast<HashSeedWrapper>(this)->HashSeedWrapperVerify(isolate);
       break;
 
-#define MAKE_VERIFY_CASE(Name, TYPE)                \
-  case TYPE:                                        \
-    TrustedCast<Name>(this)->Name##Verify(isolate); \
+#define MAKE_VERIFY_CASE(Name, TYPE)                   \
+  case TYPE:                                           \
+    if constexpr (is_subtype_v<Name, TrustedObject>) { \
+      TrustedCast<Name>(this)->Name##Verify(isolate);  \
+    } else {                                           \
+      Cast<Name>(this)->Name##Verify(isolate);         \
+    }                                                  \
     break;
       HEAP_OBJECT_DIAGNOSTIC_DISPATCH_LIST(MAKE_VERIFY_CASE)
 #undef MAKE_VERIFY_CASE
@@ -3338,7 +3342,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataVerify(Isolate* isolate) {
     CHECK_EQ(size_or_address,
              reinterpret_cast<Address>(
                  TrustedCast<TrustedManaged<BackingStore>>(backing_store_obj)
-                     ->raw()
+                     ->raw(DisallowGarbageCollection{})
                      ->byte_length_address()));
   }
 }

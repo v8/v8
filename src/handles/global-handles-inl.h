@@ -20,7 +20,11 @@ IndirectHandle<T> GlobalHandles::Create(Tagged<T> value) {
   static_assert(is_subtype_v<T, Object>, "static type violation");
   // The compiler should only pick this method if T is not Object.
   static_assert(!std::is_same_v<Object, T>, "compiler error");
-  return TrustedCast<T>(Create(Tagged<Object>(value)));
+  if constexpr (is_subtype_v<T, TrustedObject>) {
+    return TrustedCast<T>(Create(Tagged<Object>(value)));
+  } else {
+    return Cast<T>(Create(Tagged<Object>(value)));
+  }
 }
 
 template <typename T>

@@ -438,7 +438,7 @@ size_t WasmTrustedInstanceData::memory_size(uint32_t memory_index) const {
 }
 
 wasm::NativeModule* WasmTrustedInstanceData::native_module() const {
-  return managed_native_module()->raw();
+  return managed_native_module()->get().get();
 }
 
 Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {

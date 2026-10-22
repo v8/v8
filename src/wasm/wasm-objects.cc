@@ -1400,7 +1400,7 @@ Tagged<Object> ImportedFunctionEntry::maybe_callable() {
 }
 
 Tagged<JSReceiver> ImportedFunctionEntry::callable() {
-  return TrustedCast<JSReceiver>(
+  return Cast<JSReceiver>(
       TrustedCast<WasmImportData>(implicit_arg())->callable());
 }
 
@@ -1451,7 +1451,7 @@ void WasmTrustedInstanceData::SetRawMemory(uint32_t memory_index,
     CHECK_EQ(size_or_address,
              reinterpret_cast<Address>(
                  TrustedCast<TrustedManaged<BackingStore>>(backing_store_obj)
-                     ->raw()
+                     ->raw(DisallowGarbageCollection{})
                      ->byte_length_address()));
   }
   // All memory bases and sizes (or addresses of atomic sizes for shared

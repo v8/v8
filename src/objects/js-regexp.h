@@ -81,10 +81,10 @@ V8_OBJECT class JSRegExp : public JSObject {
     return static_cast<Flag>(f);
   }
   static constexpr Flags AsJSRegExpFlags(regexp::Flags f) {
-    return Flags{static_cast<int>(f)};
+    return Flags{static_cast<Flags::mask_type>(f)};
   }
   static constexpr regexp::Flags AsRegExpFlags(Flags f) {
-    return regexp::Flags{static_cast<int>(f)};
+    return regexp::Flags{static_cast<regexp::Flags::mask_type>(f)};
   }
 
   static std::optional<regexp::Flag> FlagFromChar(char c) {

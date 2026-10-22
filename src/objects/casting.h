@@ -384,6 +384,9 @@ template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> TrustedCast(
     Holder<From> value, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
+  static_assert(is_subtype_v<To, TrustedObject> ||
+                is_subtype_v<To, ExposedTrustedObject> ||
+                is_subtype_v<To, Union<Smi, TrustedObject>>);
   // Casting pointers to in-sandbox objects is allowed even with an active
   // DisallowSandboxAccess scope (as casting itself doesn't access any memory).
   // However, in debug builds the DCHECK below will need to access the Map of
@@ -486,7 +489,9 @@ inline Holder<To> Cast(Holder<From> value,
       "      Tagged<Trusted> t = "
       "TrustedCast<Trusted>(TrustedPointerField::ReadTrustedPointerField<"
       "kTrustedTag>(obj, ...));\n");
-  return TrustedCast<To>(value, loc);
+  DCHECK_WITH_SANDBOX_ACCESS_AND_MSG_AND_LOC(
+      NullOrIs<To>(value), V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  return UncheckedCast<To>(value);
 }
 
 // TODO(leszeks): Figure out a way to make these cast to actual pointers rather
