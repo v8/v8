@@ -552,6 +552,11 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
   DECL_GETTER(HasBaselineCode, bool)
   DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Tagged<Code>)
   inline void FlushBaselineCode();
+  struct BytecodeArrays {
+    Tagged<BytecodeArray> original;
+    Tagged<BytecodeArray> active;
+  };
+  inline BytecodeArrays GetBytecodeArrays(Isolate* isolate) const;
   inline Tagged<BytecodeArray> GetActiveBytecodeArray(Isolate* isolate) const;
   inline void SetActiveBytecodeArray(Tagged<BytecodeArray> bytecode,
                                      IsolateForSandbox isolate);

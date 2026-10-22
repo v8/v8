@@ -37,6 +37,7 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/slots.h"
+#include "src/sandbox/check.h"
 #include "src/snapshot/embedded/embedded-data.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3485,7 +3486,13 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
 
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
   Tagged<SharedFunctionInfo> shared = frame->function()->shared();
-  Tagged<BytecodeArray> bytecode_array = shared->GetBytecodeArray(isolate_);
+  std::optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(shared);
+  SBXCHECK(debug_info.has_value() &&
+           debug_info.value()->HasInstrumentedBytecodeArray());
+  SBXCHECK_EQ(debug_info.value()->DebugBytecodeArray(isolate_),
+              frame->GetBytecodeArray());
+  Tagged<BytecodeArray> bytecode_array =
+      debug_info.value()->OriginalBytecodeArray(isolate_);
   int offset = frame->GetBytecodeOffset();
   interpreter::BytecodeArrayIterator bytecode_iterator(
       handle(bytecode_array, isolate_), offset);

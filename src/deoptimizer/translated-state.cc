@@ -1010,6 +1010,13 @@ void TranslatedFrame::Handlify(Isolate* isolate) {
   handle_state_ = kHandles;
 }
 
+Tagged<BytecodeArray> TranslatedFrame::GetActiveBytecodeArray(
+    Isolate* isolate) const {
+  auto bytecodes = raw_shared_info()->GetBytecodeArrays(isolate);
+  SBXCHECK_EQ(bytecodes.original, raw_bytecode_array());
+  return bytecodes.active;
+}
+
 DeoptimizationLiteralProvider::DeoptimizationLiteralProvider(
     Tagged<DeoptimizationLiteralArray> literal_array)
     : literals_on_heap_(literal_array) {}

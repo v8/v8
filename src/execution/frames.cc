@@ -33,6 +33,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/check.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/strings/string-stream.h"
 
@@ -3584,6 +3585,12 @@ void InterpretedFrame::PatchBytecodeArray(
             InterpreterFrameConstants::kExpressionsOffset -
                 index * kSystemPointerSize);
   SetExpression(index, bytecode_array);
+}
+
+Tagged<BytecodeArray> InterpretedFrame::GetOriginalBytecodeArray() const {
+  auto bytecodes = function()->shared()->GetBytecodeArrays(isolate());
+  SBXCHECK_EQ(bytecodes.active, GetBytecodeArray());
+  return bytecodes.original;
 }
 
 int BaselineFrame::GetBytecodeOffset() const {

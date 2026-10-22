@@ -277,6 +277,11 @@ class TranslatedFrame {
     return raw_bytecode_array_;
   }
 
+  // Returns the active (potentially debug) BytecodeArray associated with this
+  // frame's SharedFunctionInfo after verifying that the frame's original
+  // BytecodeArray is consistent with it.
+  Tagged<BytecodeArray> GetActiveBytecodeArray(Isolate* isolate) const;
+
   using ValuesContainer = base::SmallVector<TranslatedValue, 8>;
 
   class V8_GSL_POINTER iterator {

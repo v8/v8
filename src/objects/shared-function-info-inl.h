@@ -960,17 +960,24 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArrayForGC(
   return GetBytecodeArrayInternal(isolate);
 }
 
-Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArrayInternal(
+SharedFunctionInfo::BytecodeArrays SharedFunctionInfo::GetBytecodeArrays(
     Isolate* isolate) const {
   DCHECK(HasBytecodeArray());
 
   std::optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(isolate);
   if (debug_info.has_value() &&
       debug_info.value()->HasInstrumentedBytecodeArray()) {
-    return debug_info.value()->OriginalBytecodeArray(isolate);
+    return {debug_info.value()->OriginalBytecodeArray(isolate),
+            debug_info.value()->DebugBytecodeArray(isolate)};
   }
 
-  return GetActiveBytecodeArray(isolate);
+  Tagged<BytecodeArray> active = GetActiveBytecodeArray(isolate);
+  return {active, active};
+}
+
+Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArrayInternal(
+    Isolate* isolate) const {
+  return GetBytecodeArrays(isolate).original;
 }
 
 Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(

@@ -1269,6 +1269,11 @@ class InterpretedFrame : public UnoptimizedJSFrame {
   // debugger to swap execution onto a BytecodeArray patched with breakpoints.
   void PatchBytecodeArray(Tagged<BytecodeArray> bytecode_array);
 
+  // Returns the original (non-debug) BytecodeArray associated with this frame's
+  // SharedFunctionInfo after verifying that the frame's current BytecodeArray
+  // is consistent with it.
+  Tagged<BytecodeArray> GetOriginalBytecodeArray() const;
+
   static InterpretedFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_interpreted());
     return static_cast<InterpretedFrame*>(frame);
