@@ -279,7 +279,6 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
   if (maybe_extension) {
     ArrayBufferExtension* extension =
         reinterpret_cast<ArrayBufferExtension*>(maybe_extension);
-    extension->InitializationBarrier();
 #ifdef V8_COMPRESS_POINTERS
     SBXCHECK_EQ(space == heap_->young_external_pointer_space()
                     ? ArrayBufferExtension::Age::kYoung

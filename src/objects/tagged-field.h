@@ -180,7 +180,7 @@ class JSDispatchHandleMember {
   inline void Relaxed_Clear();
 
   // Stores a new handle and emits the JSDispatchHandle write barrier.
-  inline void Relaxed_Store(HeapObject* host, JSDispatchHandle handle,
+  inline void Release_Store(HeapObject* host, JSDispatchHandle handle,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
  private:

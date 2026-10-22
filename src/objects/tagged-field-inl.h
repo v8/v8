@@ -515,10 +515,10 @@ void JSDispatchHandleMember::Relaxed_Clear() {
   storage_.store(0, std::memory_order_relaxed);
 }
 
-void JSDispatchHandleMember::Relaxed_Store(HeapObject* host,
+void JSDispatchHandleMember::Release_Store(HeapObject* host,
                                            JSDispatchHandle handle,
                                            WriteBarrierMode mode) {
-  storage_.store(handle.value(), std::memory_order_relaxed);
+  storage_.store(handle.value(), std::memory_order_release);
   WriteBarrier::ForJSDispatchHandle(host, handle, mode);
 }
 

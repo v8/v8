@@ -545,7 +545,6 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
             : nullptr;
 #endif  // !V8_COMPRESS_POINTERS
     if (array_buffer_extension) {
-      array_buffer_extension->InitializationBarrier();
       if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
         array_buffer_extension->YoungMark();
       } else {

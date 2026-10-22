@@ -96,7 +96,6 @@ size_t JSArrayBuffer::GetByteLength() const {
     if (ext == nullptr) {
       return 0;
     }
-    ext->InitializationBarrier();
     SBXCHECK(ext->is_shared() && ext->is_resizable_by_js());
     return ext->backing_store()->byte_length(std::memory_order_seq_cst);
   }
@@ -131,7 +130,7 @@ ArrayBufferExtension* JSArrayBuffer::extension() const {
   return reinterpret_cast<ArrayBufferExtension*>(
       isolate->external_pointer_table().Get(handle, kArrayBufferExtensionTag));
 #else
-  return base::AsAtomicPointer::Relaxed_Load(extension_location());
+  return base::AsAtomicPointer::Acquire_Load(extension_location());
 #endif  // V8_COMPRESS_POINTERS
 }
 
@@ -156,7 +155,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
     table.Set(current_handle, value, tag);
   }
 #else
-  base::AsAtomicPointer::Relaxed_Store(extension_location(), extension);
+  base::AsAtomicPointer::Release_Store(extension_location(), extension);
 #endif  // V8_COMPRESS_POINTERS
   WriteBarrier::ForArrayBufferExtension(this, extension);
 }

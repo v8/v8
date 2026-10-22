@@ -308,18 +308,7 @@ class ArrayBufferExtension final
                               backing_store_->PerIsolateAccountingLength())) |
                           AgeField::encode(static_cast<uint8_t>(age))),
         is_shared_(is_shared),
-        is_resizable_by_js_(is_resizable_by_js) {
-    initialized_for_gc_.store(true, std::memory_order_release);
-  }
-
-  // Barrier used for publishing the object. This barrier must be used whenever
-  // the extension is accessed off the main thread.
-  //
-  // The constructor sets a value with release that is read with acquire in this
-  // varrier.
-  void InitializationBarrier() const {
-    std::ignore = initialized_for_gc_.load(std::memory_order_acquire);
-  }
+        is_resizable_by_js_(is_resizable_by_js) {}
 
   void Mark() { marked_.store(true, std::memory_order_relaxed); }
   void Unmark() { marked_.store(false, std::memory_order_relaxed); }
@@ -420,7 +409,6 @@ class ArrayBufferExtension final
   std::shared_ptr<BackingStore> backing_store_;
   ArrayBufferExtension* next_ = nullptr;
   std::atomic<uint64_t> accounting_state_;
-  std::atomic<bool> initialized_for_gc_{false};
   std::atomic<bool> marked_{false};
   std::atomic<GcState> young_gc_state_{GcState::Dead};
 

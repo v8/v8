@@ -214,7 +214,7 @@ JSDispatchHandle JSFunction::AllocateDispatchHandle(
 void JSFunction::clear_dispatch_handle() { dispatch_handle_.Relaxed_Clear(); }
 void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
                                      WriteBarrierMode mode) {
-  dispatch_handle_.Relaxed_Store(this, handle, mode);
+  dispatch_handle_.Release_Store(this, handle, mode);
 }
 void JSFunction::UpdateDispatchEntry(Isolate* isolate, Tagged<Code> new_code,
                                      WriteBarrierMode mode) {

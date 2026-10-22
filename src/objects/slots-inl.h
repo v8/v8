@@ -239,6 +239,9 @@ Address ExternalPointerSlot::load(IsolateForSandbox isolate) {
       isolate.GetExternalPointerTableFor(tag_range_);
   ExternalPointerHandle handle = Relaxed_LoadHandle();
   return table.Get(handle, tag_range_);
+#elif !defined(V8_COMPRESS_POINTERS)
+  return static_cast<Address>(base::AsAtomicPointer::Acquire_Load(
+      reinterpret_cast<Address*>(address())));
 #else
   return ReadMaybeUnalignedValue<Address>(address());
 #endif  // V8_ENABLE_SANDBOX
@@ -329,11 +332,11 @@ void CppHeapPointerSlot::Relaxed_StoreHandle(
 #else
 
 void CppHeapPointerSlot::store(Address value) const {
-  base::AsAtomicPointer::Relaxed_Store(location(), value);
+  base::AsAtomicPointer::Release_Store(location(), value);
 }
 
 Address CppHeapPointerSlot::load() const {
-  return static_cast<Address>(base::AsAtomicPointer::Relaxed_Load(location()));
+  return static_cast<Address>(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
 #endif  // V8_COMPRESS_POINTERS
@@ -374,7 +377,7 @@ Tagged<Object> TrustedPointerSlot::load(IsolateForSandbox isolate) const {
 }
 
 void TrustedPointerSlot::store(Tagged<ExposedTrustedObject> value) const {
-  return Relaxed_Store(value);
+  return Release_Store(value);
 }
 
 Tagged<Object> TrustedPointerSlot::Relaxed_Load(
@@ -412,6 +415,7 @@ void TrustedPointerSlot::Release_Store(
 #ifdef V8_ENABLE_SANDBOX
   TrustedPointerHandle handle = value->ReadField<TrustedPointerHandle>(
       offsetof(ExposedTrustedObject, self_trusted_pointer_));
+  DCHECK_NE(handle, kNullTrustedPointerHandle);
   Release_StoreHandle(handle);
 #else
   UNREACHABLE();

@@ -2728,7 +2728,7 @@ void TranslatedState::InitializeJSObjectAt(
       }
       object_storage
           ->RawTrustedPointerField(offset, kRegExpDataTrustedPointerTag)
-          .Relaxed_Store(value);
+          .Release_Store(value);
       TRUSTED_POINTER_WRITE_BARRIER(*object_storage, offset,
                                     kRegExpDataTrustedPointerTag, value);
       continue;

@@ -61,7 +61,7 @@ JSDispatchHandle FeedbackCell::dispatch_handle() const {
 
 void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
   DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
-  dispatch_handle_.Relaxed_Store(this, new_handle);
+  dispatch_handle_.Release_Store(this, new_handle);
 }
 
 void FeedbackCell::reset_feedback_vector(
