@@ -109,7 +109,6 @@ v8_cluster_source_set("cctest_sources") {
     "heap/heap-utils.h",
     "heap/test-array-buffer-sweeper.cc",
     "heap/test-concurrent-allocation.cc",
-    "heap/test-limit-based-memory-reducer.cc",
     "jsonstream-helper.h",
     "manually-externalized-buffer.h",
     "print-extension.cc",
