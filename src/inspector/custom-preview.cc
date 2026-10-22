@@ -77,15 +77,18 @@ bool takeValues(CustomPreviewBudget* budget, uint32_t count) {
   return true;
 }
 
-bool takeCharacters(CustomPreviewBudget* budget, v8::Local<v8::String> string) {
-  uint32_t length = static_cast<uint32_t>(string->Length());
-  if (length > budget->characters) {
+bool takeCharacters(CustomPreviewBudget* budget, size_t count) {
+  if (count > budget->characters) {
     budget->characters = 0;
     budget->exhausted = true;
     return false;
   }
-  budget->characters -= length;
+  budget->characters -= static_cast<uint32_t>(count);
   return true;
+}
+
+bool takeCharacters(CustomPreviewBudget* budget, v8::Local<v8::String> string) {
+  return takeCharacters(budget, static_cast<size_t>(string->Length()));
 }
 
 bool substituteObjectTags(int sessionId, const String16& groupName,
@@ -290,6 +293,12 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
       return false;
     }
 
+    if (originValue->IsString() &&
+        !takeCharacters(budget, originValue.As<v8::String>())) {
+      reportError(context, tryCatch, "JSONML is too large");
+      return false;
+    }
+
     v8::Local<v8::Value> configValue;
     if (!attributes->Get(context, toV8String(isolate, "config"))
              .ToLocal(&configValue)) {
@@ -322,6 +331,15 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
     if (!response.IsSuccess() || !wrapper) {
       reportError(context, tryCatch, "cannot wrap value");
       return false;
+    }
+    if (!originValue->IsString()) {
+      size_t wrapperChars =
+          wrapper->getDescription(String16()).length() +
+          wrapper->getUnserializableValue(String16()).length();
+      if (!takeCharacters(budget, wrapperChars)) {
+        reportError(context, tryCatch, "JSONML is too large");
+        return false;
+      }
     }
     std::vector<uint8_t> cbor = wrapper->Serialize();
     std::unique_ptr<protocol::Value> protocolWrapper =
@@ -474,6 +492,7 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Array> jsonML = formattedValue.As<v8::Array>();
   std::unique_ptr<protocol::ListValue> protocolJsonML;
   CustomPreviewBudget budget;
+  uint32_t budgetBefore = budget.characters;
   if (!substituteObjectTags(
           sessionIdValue.As<v8::Int32>()->Value(),
           toProtocolString(isolate, groupNameValue.As<v8::String>()), context,
@@ -483,6 +502,12 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   std::vector<uint8_t> json;
   v8_crdtp::json::ConvertCBORToJSON(
       v8_crdtp::SpanFrom(protocolJsonML->Serialize()), &json);
+  uint32_t charged = budgetBefore - budget.characters;
+  if (json.size() > charged &&
+      !takeCharacters(&budget, json.size() - charged)) {
+    reportError(context, tryCatch, "JSONML is too large");
+    return;
+  }
   v8::Local<v8::Value> detachedJsonML;
   v8_inspector::StringView serialized(json.data(), json.size());
   if (serialized.length() >= v8::String::kMaxLength ||
@@ -578,6 +603,7 @@ void generateCustomPreview(v8::Isolate* isolate, int sessionId,
     std::unique_ptr<protocol::ListValue> protocolJsonML;
     CustomPreviewBudget defaultBudget;
     if (!budget) budget = &defaultBudget;
+    uint32_t budgetBefore = budget->characters;
     if (!substituteObjectTags(sessionId, groupName, context, jsonML, maxDepth,
                               budget, &protocolJsonML)) {
       return;
@@ -586,8 +612,15 @@ void generateCustomPreview(v8::Isolate* isolate, int sessionId,
     std::vector<uint8_t> json;
     v8_crdtp::json::ConvertCBORToJSON(
         v8_crdtp::SpanFrom(protocolJsonML->Serialize()), &json);
+    uint32_t charged = budgetBefore - budget->characters;
+    if (json.size() > charged &&
+        !takeCharacters(budget, json.size() - charged)) {
+      reportError(context, tryCatch, "JSONML is too large");
+      return;
+    }
     v8_inspector::StringView serialized(json.data(), json.size());
     if (serialized.length() >= v8::String::kMaxLength) {
+      budget->exhausted = true;
       reportError(context, tryCatch, "cannot serialize header");
       return;
     }
