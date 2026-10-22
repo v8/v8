@@ -2884,7 +2884,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ SubWord(tag, tag, static_cast<int32_t>(tag_range.first));
           Label done;
           __ Branch(
-              &done, le, tag,
+              &done, ule, tag,
               Operand(static_cast<int32_t>(tag_range.last - tag_range.first)));
           __ li(destination, 0);
           __ bind(&done);
