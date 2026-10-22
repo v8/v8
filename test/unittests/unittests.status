@@ -30,6 +30,7 @@
   'ParsingTest.ParserSync': [PASS, NO_VARIANTS],
 
   # Slow tests.
+  'ConcurrentAllocationUninitializedTest.ConcurrentAllocationInLargeSpace': [PASS, SLOW],
   'Mutex.SharedMutexThreadsFuzz': [PASS, SLOW],
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
   'SignalAndMutexTest.SignalsPlusSharedMutexes': [PASS, SLOW],
@@ -61,6 +62,8 @@
 ['mode == debug', {
   'PersistentHandlesTest.NewPersistentHandleFailsWhenParked': [FAIL],
   'PersistentHandlesTest.NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
+
+  'ConcurrentAllocationUninitializedTest.ConcurrentAllocationWhileMainThreadParksAndUnparks': [PASS, SLOW],
 }],
 
 ##############################################################################
@@ -103,6 +106,9 @@
   # Apple silicon. See:
   # https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html
   'AssemblerArm64Test.printf_no_preserve': [SKIP],
+
+  # https://crbug.com/42204313
+  'ConcurrentAllocationUninitializedTest.ConcurrentAllocationInOldSpace': [PASS, ['mode == debug', SKIP]],
 }],  # arch == arm64 and system == macos and not simulator_run
 
 ##############################################################################
@@ -300,6 +306,7 @@
   'Assembler*': [SKIP],
   'SyncPrimitivesArmTest*': [SKIP],
   'CodePagesTest.*': [SKIP],
+  'ConcurrentAllocationUninitializedTest.*': [SKIP],
   'HeapTest.CodeLargeObjectSpace': [SKIP],
   'TestWithPlatform.CodeLargeObjectSpace64k': [SKIP],
   'HeapTest.CodeObjectRegistry': [SKIP],
@@ -426,6 +433,7 @@
 
 ['clang_coverage and mode == debug', {
   # Too slow tests.
+  'ConcurrentAllocationUninitializedTest.ConcurrentAllocationInLargeSpace': [SKIP],
   'LogAllTest.LogAll': [SKIP],
   'HeapTest.Regress8014': [SKIP],
   'TestWithHeapInternals.TestInternalWeakLists': [SKIP],
@@ -466,6 +474,7 @@
 ##############################################################################
 ['full_debug', {
   # Tests too slow in non-optimized debug mode.
+  'ConcurrentAllocationUninitializedTest.ConcurrentAllocationInLargeSpace': [SKIP],
   'LogAllTest.LogAll': [SKIP],
   'HeapTest.Regress8014': [SKIP],
   'TestWithHeapInternals.TestInternalWeakLists': [SKIP],

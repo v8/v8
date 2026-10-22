@@ -89,7 +89,6 @@
 
   # Slow tests.
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
-  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [PASS, SLOW],
   'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
@@ -187,9 +186,6 @@
 ['mode == debug', {
   # BUG(v8:10996): Flaky on Linux64 - debug
   'test-cpu-profiler/StartProfilingAfterOsr': [SKIP],
-
-  'test-concurrent-allocation/ConcurrentAllocationWhileMainThreadParksAndUnparks': [PASS, SLOW],
-  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [PASS, SLOW],
 }],
 
 ##############################################################################
@@ -238,11 +234,6 @@
   'test-api/Threading*': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
 }],  # 'arch == arm64 and simulator_run'
-
-['arch == arm64 and system == macos and not simulator_run', {
-  # https://crbug.com/42204313
-  'test-concurrent-allocation/ConcurrentAllocationInOldSpace': [PASS, ['mode == debug', SKIP]],
-}],  # arch == arm64 and system == macos and not simulator_run
 
 ##############################################################################
 ['arch == arm and not simulator_run', {
@@ -334,7 +325,6 @@
   'test-api/FastApiCalls': [SKIP],
   'test-api/InternalFieldsSubclassing': [SKIP],
   'test-api/Threading8': [SKIP],
-  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
   'test-serialize/ContextSerializerContext': [SKIP],
   'test-serialize/ContextSerializerCustomContext': [SKIP],
   'test-serialize/SharedStrings': [SKIP],
@@ -671,7 +661,6 @@
   'test-torque/*': [SKIP],
   'test-verify-type/*': [SKIP],
   'test-concurrent-shared-function-info/*': [SKIP],
-  'test-concurrent-allocation/*': [SKIP],
   'test-sync-primitives-arm64/*': [SKIP],
   'turboshaft-test-branch-combine/*': [SKIP],
   'turboshaft-test-compare-combine/*': [SKIP],
@@ -800,7 +789,6 @@
 ['clang_coverage and mode == debug', {
   # Too slow tests.
   'test-api/Threading8': [SKIP],
-  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
   'test-serialize/ContextSerializerContext': [SKIP],
   'test-serialize/ContextSerializerCustomContext': [SKIP],
   'test-serialize/SharedStrings': [SKIP],
