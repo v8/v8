@@ -1008,8 +1008,11 @@ SourceTextModule::TransitionAsyncToEvaluated(
 
 // https://tc39.es/ecma262/#sec-moduleevaluation
 MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
-    Isolate* isolate, Handle<InState<kLinked>> module) {
+    Isolate* isolate, Handle<InState<kLinked>> module, bool debug_event,
+    bool* body_threw) {
   DCHECK(IsUndefined(module->top_level_capability()));
+  bool unused_body_threw = false;
+  if (body_threw == nullptr) body_threw = &unused_body_threw;
 
   // 5. Let stack be a new empty List.
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -1027,7 +1030,7 @@ MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   try_catch.SetVerbose(false);
   try_catch.SetCaptureMessage(false);
-  if (!InnerModuleEvaluation(isolate, module, &stack, &dfs_index)) {
+  if (!InnerModuleEvaluation(isolate, module, &stack, &dfs_index, body_threw)) {
     DirectHandle<Object> exception(isolate->exception(), isolate);
     // a. For each Cyclic Module Record m in stack, do
     DirectHandle<InState<kEvaluatedError>> errored_module;
@@ -1068,7 +1071,7 @@ MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
     isolate->clear_internal_exception();
     // d. Perform ! Call(capability.[[Reject]], undefined,
     //                   «result.[[Value]]»).
-    JSPromise::Reject(capability, exception);
+    JSPromise::Reject(capability, exception, debug_event);
     if (isolate->debug()->IsRestartFrameScheduled()) {
       errored_module->set_top_level_capability(
           ReadOnlyRoots(isolate).undefined_value());
@@ -1367,7 +1370,8 @@ bool SourceTextModule::ExecuteModule(
 
 bool SourceTextModule::InnerModuleEvaluation(
     Isolate* isolate, Handle<SourceTextModule> module,
-    ZoneForwardList<Handle<InState<kEvaluating>>>* stack, unsigned* dfs_index) {
+    ZoneForwardList<Handle<InState<kEvaluating>>>* stack, unsigned* dfs_index,
+    bool* body_threw) {
   // InnerModuleEvaluation(module, stack, index)
   // The spec returns the module index for proper numbering of dependencies;
   // we pass it by pointer instead and return a bool for success/failure.
@@ -1456,7 +1460,7 @@ bool SourceTextModule::InnerModuleEvaluation(
             //                                         index).
             // (Out of order because InnerModuleEvaluation is type-driven.)
             if (!InnerModuleEvaluation(isolate, required_source_module, stack,
-                                       dfs_index)) {
+                                       dfs_index, body_threw)) {
               return false;
             }
 
@@ -1574,6 +1578,7 @@ bool SourceTextModule::InnerModuleEvaluation(
           MaybeDirectHandle<Object> exception;
           if (!ExecuteModule(isolate, evaluating_module, &exception)) {
             if (!isolate->is_execution_terminating()) {
+              *body_threw = true;
               isolate->Throw(*exception.ToHandleChecked());
             }
             return false;

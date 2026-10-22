@@ -285,13 +285,15 @@ V8_OBJECT class SourceTextModule : public Module {
 
   // Implementation of spec concrete method Evaluate.
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSPromise> Evaluate(
-      Isolate* isolate, Handle<InState<kLinked>> module);
+      Isolate* isolate, Handle<InState<kLinked>> module, bool debug_event,
+      bool* body_threw);
 
-  // Implementation of spec abstract operation InnerModuleEvaluation.
+  // Implementation of spec abstract operation InnerModuleEvaluation. Sets
+  // |body_threw| to true if a module body threw.
   static V8_WARN_UNUSED_RESULT bool InnerModuleEvaluation(
       Isolate* isolate, Handle<SourceTextModule> module,
-      ZoneForwardList<Handle<InState<kEvaluating>>>* stack,
-      unsigned* dfs_index);
+      ZoneForwardList<Handle<InState<kEvaluating>>>* stack, unsigned* dfs_index,
+      bool* body_threw);
 
   // Implementation of spec ExecuteModule is broken up into
   // InnerExecuteAsyncModule for asynchronous modules and ExecuteModule

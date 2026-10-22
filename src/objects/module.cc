@@ -6,6 +6,7 @@
 
 #include <array>
 #include <istream>
+#include <optional>
 #include <sstream>
 #include <strstream>
 #include <unordered_map>
@@ -309,7 +310,9 @@ bool Module::FinishInstantiate(
 
 // https://tc39.es/ecma262/#sec-moduleevaluation
 MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
-                                              Handle<Module> module) {
+                                              Handle<Module> module,
+                                              bool debug_event,
+                                              bool* body_threw) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Evaluating module ");
 #endif  // DEBUG
@@ -411,8 +414,8 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
         // 8. InnerModuleEvaluation step 2.b returns module.[[EvaluationError]].
         // 9.d. Perform ! Call(capability.[[Reject]], undefined,
         //                     « result.[[Value]] »).
-        JSPromise::Reject(capability,
-                          direct_handle(m->GetException(), isolate));
+        JSPromise::Reject(capability, direct_handle(m->GetException(), isolate),
+                          debug_event);
         if (isolate->debug()->IsRestartFrameScheduled()) {
           m->set_top_level_capability(ReadOnlyRoots(isolate).undefined_value());
           isolate->TerminateExecution();
@@ -425,7 +428,8 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
           -> MaybeDirectHandle<JSPromise> {
         if (Handle<InState<SourceTextModule, kLinked>> stm;
             TryCast(linked, &stm)) {
-          return SourceTextModule::Evaluate(isolate, stm);
+          return SourceTextModule::Evaluate(isolate, stm, debug_event,
+                                            body_threw);
         } else {
           return SyntheticModule::Evaluate(
               isolate, Cast<InState<SyntheticModule, kLinked>>(linked));
@@ -454,8 +458,12 @@ bool Module::EvaluateModuleSync(Isolate* isolate, Handle<Module> module) {
   }
 
   // 3. Let promise be module.Evaluate().
+  // The capability is internal and its result is thrown again below, so
+  // rejecting it is not a debug event.
   DirectHandle<JSPromise> promise;
-  if (!Module::Evaluate(isolate, module).ToHandle(&promise)) {
+  bool body_threw = false;
+  if (!Module::Evaluate(isolate, module, /* debug_event */ false, &body_threw)
+           .ToHandle(&promise)) {
     DCHECK(isolate->has_exception());
     return false;
   }
@@ -474,6 +482,10 @@ bool Module::EvaluateModuleSync(Isolate* isolate, Handle<Module> module) {
     // b. Set promise.[[PromiseIsHandled]] to true.
     promise->set_has_handler(true);
     // c. Throw promise.[[PromiseResult]].
+    // If a module body threw during this evaluation, the debugger already
+    // reported the exception at its original throw site.
+    std::optional<SuppressDebug> suppress_debug;
+    if (body_threw) suppress_debug.emplace(isolate->debug());
     isolate->Throw(promise->result());
     return false;
   }

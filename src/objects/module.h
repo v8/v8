@@ -158,9 +158,13 @@ V8_OBJECT class Module : public HeapObject {
   // Implementation of spec operation ModuleEvaluation. Returns the module's
   // top-level capability promise, or an empty handle with the exception
   // pending if evaluation was aborted by a termination exception or a
-  // synthetic module's evaluation steps threw.
+  // synthetic module's evaluation steps threw. If |debug_event| is false,
+  // rejecting the capability is not reported to the debugger. If |body_threw|
+  // is given, it is set to true when a module body threw during this
+  // evaluation.
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSPromise> Evaluate(
-      Isolate* isolate, Handle<Module> module);
+      Isolate* isolate, Handle<Module> module, bool debug_event = true,
+      bool* body_threw = nullptr);
 
   // Implementation of spec abstract operation EvaluateModuleSync. Throws and
   // returns false if the module is not ready for synchronous execution or if
