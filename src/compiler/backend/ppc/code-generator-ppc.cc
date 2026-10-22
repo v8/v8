@@ -650,11 +650,12 @@ static inline bool is_wasm_on_be(bool IsWasm) {
   do {                                                                    \
     UseScratchRegisterScope temps(masm());                                \
     Register scratch = temps.Acquire();                                   \
+    Register scratch2 = temps.Acquire();                                  \
     Register expected_val = i.InputRegister(2);                           \
     Register new_val = i.InputRegister(3);                                \
     Register dst = i.OutputRegister();                                    \
     MAYBE_REVERSE_IF_WASM(scratch, expected_val, reverse_op, true);       \
-    MAYBE_REVERSE_IF_WASM(r0, new_val, reverse_op, true);                 \
+    MAYBE_REVERSE_IF_WASM(scratch2, new_val, reverse_op, true);           \
     __ AtomicCompareExchange<_type>(                                      \
         MemOperand(i.InputRegister(0), i.InputRegister(1)), expected_val, \
         new_val, dst);                                                    \
