@@ -137,14 +137,6 @@ try_builder(
 )
 
 try_builder(
-    name = "v8_linux64_jammy_gcc_compile_dbg",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"host_class": "default", "os": "Ubuntu-22.04", "cpu": "x86-64"},
-    execution_timeout = 10800,
-    use_siso = SISO.NONE,
-)
-
-try_builder(
     name = "v8_linux64_header_includes_dbg",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.OPTIONAL,
