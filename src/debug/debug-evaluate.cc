@@ -332,9 +332,11 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
       for (uint32_t i = 0; i < keys_len; i++) {
         DCHECK(IsString(keys->get(i)));
         Handle<String> key(Cast<String>(keys->get(i)), isolate_);
-        DirectHandle<Object> value = JSReceiver::GetDataProperty(
-            isolate_, element.materialized_object, key);
-        scope_iterator_.SetVariableValue(key, value);
+        LookupIterator it(isolate_, element.materialized_object,
+                          PropertyKey(isolate_, key),
+                          LookupIterator::OWN_SKIP_INTERCEPTOR);
+        if (it.state() != LookupIterator::DATA) continue;
+        scope_iterator_.SetVariableValue(key, it.GetDataValue());
       }
     }
     scope_iterator_.Next();
