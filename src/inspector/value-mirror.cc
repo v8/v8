@@ -2075,8 +2075,7 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   }
   if (object->IsNativeError()) {
     String16 description = descriptionForError(context, object);
-    if (isolate->IsExecutionTerminating() &&
-        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+    if (isolate->IsExecutionTerminating()) {
       return nullptr;
     }
     return std::make_unique<ObjectMirror>(
@@ -2173,8 +2172,7 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   }
   if (internalType == V8InternalValueType::kEntry) {
     String16 description = descriptionForEntry(context, object);
-    if (isolate->IsExecutionTerminating() &&
-        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+    if (isolate->IsExecutionTerminating()) {
       return nullptr;
     }
     return std::make_unique<ObjectMirror>(object, "internal#entry",
@@ -2182,8 +2180,7 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   }
   if (internalType == V8InternalValueType::kScope) {
     String16 description = descriptionForScope(context, object);
-    if (isolate->IsExecutionTerminating() &&
-        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+    if (isolate->IsExecutionTerminating()) {
       return nullptr;
     }
     return std::make_unique<ObjectMirror>(object, "internal#scope",
@@ -2191,8 +2188,7 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   }
   if (internalType == V8InternalValueType::kPrivateMethod) {
     String16 description = descriptionForPrivateMethod(context, object);
-    if (isolate->IsExecutionTerminating() &&
-        v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+    if (isolate->IsExecutionTerminating()) {
       return nullptr;
     }
     return std::make_unique<ObjectMirror>(object, "internal#privateMethod",
@@ -2204,8 +2200,7 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
         object, RemoteObject::SubtypeEnum::Array,
         descriptionForCollection(isolate, object, length));
   }
-  if (isolate->IsExecutionTerminating() &&
-      v8::debug::SideEffectCheckScope::IsActive(isolate)) {
+  if (isolate->IsExecutionTerminating()) {
     return nullptr;
   }
   return std::make_unique<ObjectMirror>(object,

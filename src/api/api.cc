@@ -3106,12 +3106,13 @@ i::Tagged<i::Object> ToObject(void* object) {
 }
 
 // A v8::TryCatch must propagate (not swallow or clear) a termination exception
-// when execution is still nested inside an outer V8 API call
-// (!CallDepthIsZero()). It must also propagate termination when
-// should_check_side_effects() is active: v8::debug::SideEffectCheckScope may
-// span multiple sequential top-level V8 API calls where CallDepthIsZero() is
-// true between calls, and the side-effect termination exception must remain
-// pending until Debug::StopSideEffectCheckMode() converts it into an EvalError.
+// when there is an outer v8::TryCatch handler (next_ != nullptr) or when
+// execution is still nested inside an outer V8 API call (!CallDepthIsZero()).
+// It must also propagate termination when should_check_side_effects() is
+// active: v8::debug::SideEffectCheckScope may span multiple sequential
+// top-level V8 API calls where CallDepthIsZero() is true between calls, and the
+// side-effect termination exception must remain pending until
+// Debug::StopSideEffectCheckMode() converts it into an EvalError.
 bool MustPropagateTerminationException(i::Isolate* isolate) {
   return !isolate->thread_local_top()->CallDepthIsZero() ||
          isolate->should_check_side_effects();
@@ -3121,8 +3122,9 @@ bool MustPropagateTerminationException(i::Isolate* isolate) {
 
 v8::TryCatch::~TryCatch() {
   if (HasCaught()) {
-    if (rethrow() || (V8_UNLIKELY(HasTerminated()) &&
-                      MustPropagateTerminationException(i_isolate_))) {
+    if (rethrow() ||
+        (V8_UNLIKELY(HasTerminated()) &&
+         (next_ != nullptr || MustPropagateTerminationException(i_isolate_)))) {
       if (capture_message()) {
         // If an exception was caught and rethrow_ is indicated, the saved
         // message, script, and location need to be restored to Isolate TLS

@@ -621,6 +621,78 @@ TEST_F(InspectorTest, WrapObjectWithCustomPreviewNoPreview) {
 
 namespace {
 
+void TerminateExecutionCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetIsolate()->TerminateExecution();
+}
+
+}  // namespace
+
+// Regression test for the dangling termination exception left behind by
+// generateCustomPreview() when it runs at call depth zero without an outer
+// v8::TryCatch (e.g. an embedder calling V8InspectorSession::wrapObject with
+// generatePreview=true from C++).
+TEST_F(InspectorTest, TerminationInCustomPreviewAtCallDepthZero) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  NoopChannel channel;
+  std::unique_ptr<V8InspectorSession> session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+  session->dispatchProtocolMessage(toStringView(R"({
+    "id": 1,
+    "method": "Runtime.enable"
+  })"));
+  session->dispatchProtocolMessage(toStringView(R"({
+    "id": 2,
+    "method": "Runtime.setCustomObjectFormatterEnabled",
+    "params": {"enabled": true}
+  })"));
+
+  v8::Local<v8::Function> terminate =
+      v8::Function::New(v8_context(), &TerminateExecutionCallback)
+          .ToLocalChecked();
+  CHECK(v8_context()
+            ->Global()
+            ->Set(v8_context(), NewString("terminate"), terminate)
+            .FromJust());
+
+  // The custom formatter terminates execution while generateCustomPreview()
+  // calls into it.
+  TryRunJS(R"(
+    this.devtoolsFormatters = [{
+      header: (x) => { terminate(); return ['span', 'header']; },
+      hasBody: (x) => false,
+    }];
+    this.obj = {a: 1};
+  )");
+  CHECK(!isolate->IsExecutionTerminating());
+
+  v8::Local<v8::Value> obj = v8_context()
+                                 ->Global()
+                                 ->Get(v8_context(), NewString("obj"))
+                                 .ToLocalChecked();
+
+  // No enclosing v8::TryCatch and no JavaScript on the stack: call depth is
+  // zero here.
+  session->wrapObject(v8_context(), obj, toStringView("testGroup"),
+                      /*generatePreview=*/true);
+
+  // The termination must not be left pending on the isolate after the API
+  // call returned at call depth zero: the next V8 API call would hit
+  // DCHECK(!is_execution_terminating()) in EnterV8InternalScope.
+  CHECK(!isolate->IsExecutionTerminating());
+}
+
+namespace {
+
 // Calls into JavaScript for every Debugger.paused and Debugger.resumed
 // notification, like an embedder that exposes an in-process session to JS.
 class JSCallbackChannel : public V8Inspector::Channel {

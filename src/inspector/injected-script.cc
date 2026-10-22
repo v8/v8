@@ -305,8 +305,7 @@ class InjectedScript::ProtocolPromiseHandler {
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
     {
       std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
-      if (m_throwOnSideEffect && (m_wrapOptions->mode == WrapMode::kJson ||
-                                  m_wrapOptions->mode == WrapMode::kDeep)) {
+      if (m_throwOnSideEffect) {
         sideEffectCheckScope.emplace(m_inspector->isolate());
       }
       response = scope.injectedScript()->wrapObject(
@@ -646,10 +645,23 @@ Response InjectedScript::wrapObject(
     std::unique_ptr<protocol::Runtime::RemoteObject>* result) {
   v8::Local<v8::Context> context = m_context->context();
   v8::Context::Scope contextScope(context);
-  std::unique_ptr<ValueMirror> mirror = ValueMirror::create(context, value);
-  if (!mirror) return Response::InternalError();
-  return wrapObjectMirror(*mirror, groupName, wrapOptions, customPreviewConfig,
-                          maxCustomPreviewDepth, budget, result);
+  v8::Isolate* isolate = m_context->isolate();
+  bool terminated = false;
+  Response response = Response::InternalError();
+  {
+    v8::TryCatch tryCatch(isolate);
+    std::unique_ptr<ValueMirror> mirror = ValueMirror::create(context, value);
+    if (mirror) {
+      response =
+          wrapObjectMirror(*mirror, groupName, wrapOptions, customPreviewConfig,
+                           maxCustomPreviewDepth, budget, result);
+    }
+    terminated = tryCatch.HasTerminated();
+  }
+  if (terminated && !isolate->IsExecutionTerminating()) {
+    m_context->inspector()->debugger()->reportTermination();
+  }
+  return response;
 }
 
 Response InjectedScript::wrapObjectMirror(
@@ -1011,8 +1023,7 @@ Response InjectedScript::wrapEvaluateResult(
     Response response = Response::Success();
     {
       std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
-      if (throwOnSideEffect && (wrapOptions.mode == WrapMode::kJson ||
-                                wrapOptions.mode == WrapMode::kDeep)) {
+      if (throwOnSideEffect) {
         sideEffectCheckScope.emplace(m_context->isolate());
       }
       response = wrapObject(resultValue, objectGroup, wrapOptions, result);
@@ -1024,7 +1035,10 @@ Response InjectedScript::wrapEvaluateResult(
       }
       return Response::Success();
     }
-    if (!throwOnSideEffect || !tryCatch.HasCaught()) return response;
+    if (!tryCatch.HasTerminated() &&
+        (!throwOnSideEffect || !tryCatch.HasCaught())) {
+      return response;
+    }
   }
   if (tryCatch.HasTerminated() || !tryCatch.CanContinue()) {
     return Response::ServerError("Execution was terminated");
