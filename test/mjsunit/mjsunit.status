@@ -2828,6 +2828,9 @@
 
 ##############################################################################
 ['variant == stress_concurrent_allocation', {
+  # Concurrent allocations trigger GCs that clear AllocationMementos before
+  # elements kind transitions occur.
+  'array-literal-transitions-no-pretenuring': [SKIP],
   # This test manually forces pretenuring of allocation sites.
   # stress-concurrent-allocation reverts the pretenuring decision due to low
   # survival rate in old generation.
