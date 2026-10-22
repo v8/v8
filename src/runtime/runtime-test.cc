@@ -278,6 +278,10 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   if (!it.done()) function = direct_handle(it.frame()->function(), isolate);
   CHECK_UNLESS_FUZZING(!function.is_null());
 
+  if (it.frame()->is_optimized()) {
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
+                                    it.frame()->LookupCode());
+  }
   if (function->HasAttachedOptimizedCode(isolate)) {
     Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting,
                                     function->code(isolate));
