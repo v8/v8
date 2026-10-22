@@ -372,6 +372,7 @@ class MemoryReducerMockPlatform final : public v8::platform::DefaultPlatform {
     // before the test bodies are run. So, we choose which MemoryReducer we use
     // here.
     v8_flags.memory_reducer_limit_based = true;
+    v8_flags.stress_incremental_marking = false;
     EnsureBackgroundTaskRunnerInitialized();
     V8::SetPlatformForTesting(this);
   }
