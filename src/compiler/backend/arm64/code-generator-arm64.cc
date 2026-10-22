@@ -2711,7 +2711,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicLoadInt8:
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb, Register32);
-      __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      __ Sxtb(i.OutputRegister32(0), i.OutputRegister32(0));
       break;
     case kAtomicLoadUint8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb, Register32);
@@ -2719,7 +2719,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicLoadInt16:
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarh, Register32);
-      __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
+      __ Sxth(i.OutputRegister32(0), i.OutputRegister32(0));
       break;
     case kAtomicLoadUint16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarh, Register32);
@@ -2744,14 +2744,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(b, Register32);
-      __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      __ Sxtb(i.OutputRegister32(0), i.OutputRegister32(0));
       break;
     case kAtomicExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(b, Register32);
       break;
     case kAtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(h, Register32);
-      __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
+      __ Sxth(i.OutputRegister32(0), i.OutputRegister32(0));
       break;
     case kAtomicExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(h, Register32);
@@ -2786,14 +2786,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kAtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(b, UXTB, Register32);
-      __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      __ Sxtb(i.OutputRegister32(0), i.OutputRegister32(0));
       break;
     case kAtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(b, UXTB, Register32);
       break;
     case kAtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(h, UXTH, Register32);
-      __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
+      __ Sxth(i.OutputRegister32(0), i.OutputRegister32(0));
       break;
     case kAtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(h, UXTH, Register32);
@@ -2868,14 +2868,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kAtomicSubInt8:
       ASSEMBLE_ATOMIC_SUB(b, Register32);
-      __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      __ Sxtb(i.OutputRegister32(0), i.OutputRegister32(0));
       break;
     case kAtomicSubUint8:
       ASSEMBLE_ATOMIC_SUB(b, Register32);
       break;
     case kAtomicSubInt16:
       ASSEMBLE_ATOMIC_SUB(h, Register32);
-      __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
+      __ Sxth(i.OutputRegister32(0), i.OutputRegister32(0));
       break;
     case kAtomicSubUint16:
       ASSEMBLE_ATOMIC_SUB(h, Register32);
@@ -2888,14 +2888,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicAndInt8:
       ASSEMBLE_ATOMIC_AND(b, Register32);
-      __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      __ Sxtb(i.OutputRegister32(0), i.OutputRegister32(0));
       break;
     case kAtomicAndUint8:
       ASSEMBLE_ATOMIC_AND(b, Register32);
       break;
     case kAtomicAndInt16:
       ASSEMBLE_ATOMIC_AND(h, Register32);
-      __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
+      __ Sxth(i.OutputRegister32(0), i.OutputRegister32(0));
       break;
     case kAtomicAndUint16:
       ASSEMBLE_ATOMIC_AND(h, Register32);
@@ -2909,14 +2909,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #define ATOMIC_BINOP_CASE(op, inst, lse_instr)             \
   case kAtomic##op##Int8:                                  \
     ASSEMBLE_ATOMIC_BINOP(b, inst, lse_instr, Register32); \
-    __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));     \
+    __ Sxtb(i.OutputRegister32(0), i.OutputRegister32(0)); \
     break;                                                 \
   case kAtomic##op##Uint8:                                 \
     ASSEMBLE_ATOMIC_BINOP(b, inst, lse_instr, Register32); \
     break;                                                 \
   case kAtomic##op##Int16:                                 \
     ASSEMBLE_ATOMIC_BINOP(h, inst, lse_instr, Register32); \
-    __ Sxth(i.OutputRegister(0), i.OutputRegister(0));     \
+    __ Sxth(i.OutputRegister32(0), i.OutputRegister32(0)); \
     break;                                                 \
   case kAtomic##op##Uint16:                                \
     ASSEMBLE_ATOMIC_BINOP(h, inst, lse_instr, Register32); \
