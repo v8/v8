@@ -3375,6 +3375,7 @@
   'regress/wasm/regress-406043349': [SKIP],
   'regress/wasm/regress-413963387': [SKIP],
   'regress/wasm/regress-562455563': [SKIP],
+  'regress/wasm/regress-573446890': [SKIP],
   'regress/wasm/regress-574704749': [SKIP],
   'wasm/interrupt-worker-with-perf': [SKIP],
   'wasm/liftoff-trap-handler': [SKIP],
