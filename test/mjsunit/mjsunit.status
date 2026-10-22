@@ -3356,9 +3356,6 @@
   # Negative tests are not supported, because we pass --no-fail.
   'bugs/*': [SKIP],
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
-
-  # Hangs when --enable-inspector is reset by --fuzzing.
-  'regress/wasm/regress-570538338': [SKIP],
 }],  # variant in [jit_fuzzing, jit_fuzzing_maglev]
 
 ##############################################################################
