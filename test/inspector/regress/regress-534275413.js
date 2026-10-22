@@ -2,37 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --enable-inspector --no-wasm-trap-handler --stress-wasm-memory-moving
+// Flags: --no-wasm-trap-handler --stress-wasm-memory-moving
 // Liftoff does not emit loop stack checks (relies on dynamic tiering instead),
 // hence this test would fail under Liftoff.
 // Flags: --no-liftoff
 
-d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
+const {session, contextGroup, Protocol} =
+    InspectorTest.start('Regression test for crbug.com/534275413.');
 
-let debugCommandId = 0;
-function sendDebugCommand(cmd) {
-  send(JSON.stringify({
-    id: ++debugCommandId,
-    method: cmd,
-  }));
-}
+contextGroup.addScript(utils.read('test/mjsunit/wasm/wasm-module-builder.js'));
 
-globalThis.handleInspectorMessage = function() {
-  // Growing memory 2 should fail because it cannot grow in place (because of
-  // --stress-wasm-memory-moving).
-  assertThrows(
-      () => instance.exports.mem2.grow(1), RangeError, /Unable to grow/);
-  // Growing memory 1 should also fail even when it must grow in place (via
-  // toResizableBuffer()).
-  instance.exports.mem1.toResizableBuffer();
-  assertThrows(
-      () => instance.exports.mem1.grow(1), RangeError, /Unable to grow/);
-  sendDebugCommand('Debugger.resume');
-};
-
+contextGroup.addScript(`
 function setup() {
-  sendDebugCommand('Debugger.enable');
-  sendDebugCommand('Debugger.pause');
+  console.log('setup');
+  inspector.runNestedMessageLoop();
 }
 
 const builder = new WasmModuleBuilder();
@@ -63,7 +46,7 @@ builder.addFunction('main', kSig_i_v)
         kExprI32Sub,
         kExprLocalTee, 0,
         // Loop stack check happens here. It will process the pending interrupt
-        // from setup() on the 1st iteration, triggering handleInspectorMessage.
+        // from setup() on the 1st iteration, triggering Debugger.paused.
         // Load from Memory 2 inside the loop.
         kExprI32Const, 0,
         kExprI32LoadMem, 0x40, 2, 0,
@@ -82,7 +65,45 @@ const instance = builder.instantiate({ env: {setup} });
 
 // Write 42 to Memory 2 before growth.
 new DataView(instance.exports.mem2.buffer).setInt32(0, 42, true);
+`);
 
-let result = instance.exports.main();
-assertEquals(42, result);
-assertEquals(42, new DataView(instance.exports.mem2.buffer).getInt32(0, true));
+Protocol.Debugger.onPaused(async () => {
+  // Growing memory 2 should fail because it cannot grow in place (because of
+  // --stress-wasm-memory-moving).
+  let {result: {result: res2}} = await Protocol.Runtime.evaluate({
+    expression: 'instance.exports.mem2.grow(1)',
+  });
+  InspectorTest.log(res2.description.split('\n')[0]);
+  // Growing memory 1 should also fail even when it must grow in place (via
+  // toResizableBuffer()).
+  let {result: {result: res1}} = await Protocol.Runtime.evaluate({
+    expression: `
+      instance.exports.mem1.toResizableBuffer();
+      instance.exports.mem1.grow(1);
+    `,
+  });
+  InspectorTest.log(res1.description.split('\n')[0]);
+  await Protocol.Debugger.resume();
+});
+
+(async () => {
+  await Protocol.Runtime.enable();
+
+  const consolePromise = Protocol.Runtime.onceConsoleAPICalled();
+  const evalPromise = Protocol.Runtime.evaluate({
+    expression: `
+      const result = instance.exports.main();
+      [result, new DataView(instance.exports.mem2.buffer).getInt32(0, true)];
+    `,
+    returnByValue: true,
+  });
+
+  await consolePromise;
+  await Protocol.Debugger.enable();
+  Protocol.Debugger.pause();
+  await Protocol.Runtime.runIfWaitingForDebugger();
+
+  const {result: {result}} = await evalPromise;
+  InspectorTest.logObject(result.value);
+  InspectorTest.completeTest();
+})();
