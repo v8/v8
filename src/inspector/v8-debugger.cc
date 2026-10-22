@@ -297,6 +297,7 @@ void V8Debugger::continueProgram(int targetContextGroupId,
 void V8Debugger::breakProgramOnAssert(int targetContextGroupId) {
   if (!enabled()) return;
   if (m_pauseOnExceptionsState == v8::debug::NoBreakOnException) return;
+  if (m_isolate->IsExecutionTerminating()) return;
   // Don't allow nested breaks.
   if (isPaused()) return;
   if (!canBreakProgram()) return;

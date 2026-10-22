@@ -758,6 +758,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
   std::unordered_set<String16> columnSet;
   v8::Local<v8::Array> v8Columns;
   if (maybeColumns.ToLocal(&v8Columns)) {
+    v8::TryCatch tryCatch(isolate);
     for (uint32_t i = 0; i < v8Columns->Length(); ++i) {
       v8::Local<v8::Value> column;
       if (v8Columns->Get(context, i).ToLocal(&column) && column->IsString()) {
