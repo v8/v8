@@ -6124,18 +6124,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
         }
         break;
       case MaybeReduceResult::kFail:
+        CHECK(!continuation);
         if (!generic_access.has_value()) {
           // Conservatively assume that all remaining branches can go into the
           // generic path, as we have to initialize the predecessors upfront.
           // TODO(pthier): Find a better way to do that.
-          if (continuation) {
-            int future_bind_offset = iterator_.current_offset();
-            generic_access.emplace(
-                MaglevSubGraphBuilder::LabelForTrackingInterpreterFrameState(
-                    &sub_graph, access_info_count - i, future_bind_offset));
-          } else {
-            generic_access.emplace(&sub_graph, access_info_count - i);
-          }
+          generic_access.emplace(&sub_graph, access_info_count - i);
         }
         sub_graph.Goto(&*generic_access);
         break;
@@ -6155,6 +6149,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
   }
 
   if (generic_access.has_value()) {
+    CHECK(!continuation);
     iterator_.SetOffset(start_offset);
     source_position_iterator_.RestoreState(
         start_source_position_iterator_state);
@@ -6169,27 +6164,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     DCHECK(generic_result.IsDone());
     DCHECK_EQ(generic_result.IsDoneWithValue(), !is_any_store);
 
-    if (continuation) {
-      DCHECK(!is_any_store);
-      SetAccumulator(generic_result.value());
-      ReduceResult continuation_result =
-          BuildContinuationForPolymorphicPropertyLoad(*continuation);
-      if (!done.has_value()) {
-        return current_interpreter_frame_.get(
-            interpreter::Register::virtual_accumulator());
-      }
-      if (!continuation_result.IsDoneWithAbort()) {
-        sub_graph.set(*ret_val,
-                      current_interpreter_frame_.get(
-                          interpreter::Register::virtual_accumulator()));
-      }
-    } else {
-      if (!done.has_value()) {
-        return is_any_store ? ReduceResult::Done() : generic_result.value();
-      }
-      if (!is_any_store) {
-        sub_graph.set(*ret_val, generic_result.value());
-      }
+    if (!done.has_value()) {
+      return is_any_store ? ReduceResult::Done() : generic_result.value();
+    }
+    if (!is_any_store) {
+      sub_graph.set(*ret_val, generic_result.value());
     }
     sub_graph.Goto(&*done);
   }
