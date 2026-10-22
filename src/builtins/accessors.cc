@@ -426,17 +426,6 @@ Handle<JSObject> ArgumentsFromDeoptInfo(JavaScriptFrame* frame,
   return arguments;
 }
 
-int FindFunctionInFrame(JavaScriptFrame* frame,
-                        DirectHandle<JSFunction> function) {
-  FrameSummaries summaries = frame->Summarize();
-  for (int i = summaries.size(); i != 0; i--) {
-    if (*summaries.frames[i - 1].AsJavaScript().function() == *function) {
-      return static_cast<int>(i) - 1;
-    }
-  }
-  return -1;
-}
-
 Handle<JSObject> GetFrameArguments(Isolate* isolate,
                                    JavaScriptStackFrameIterator* it,
                                    int function_index) {
@@ -506,33 +495,42 @@ Handle<JSObject> Accessors::FunctionGetArguments(JavaScriptFrame* frame,
   UNREACHABLE();  // Requested frame not found.
 }
 
-// static
-DirectHandle<Object> Accessors::GetLegacyFunctionArguments(
-    Isolate* isolate, DirectHandle<JSFunction> function) {
-  DirectHandle<Object> result = isolate->factory()->null_value();
-  if (!function->shared()->native()) {
-    // Find the top invocation of the function by traversing frames.
-    for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
-      JavaScriptFrame* frame = it.frame();
-      int function_index = FindFunctionInFrame(frame, function);
-      if (function_index >= 0) {
-        result = GetFrameArguments(isolate, &it, function_index);
-        break;
-      }
-    }
-  }
-  return result;
-}
-
-//
-// Accessors::FunctionCaller
-//
-
 static inline bool AllowAccessToFunction(Tagged<Context> current_context,
                                          Tagged<JSFunction> function) {
   return current_context->native_context()->HasSameSecurityTokenAs(
       function->context()->native_context());
 }
+
+// static
+DirectHandle<Object> Accessors::GetLegacyFunctionArguments(
+    Isolate* isolate, DirectHandle<JSFunction> function) {
+  DirectHandle<Object> null_value = isolate->factory()->null_value();
+  // Don't return arguments from another security context.
+  if (!AllowAccessToFunction(isolate->context(), *function)) return null_value;
+  if (!function->shared()->native()) {
+    // Find the top invocation of the function by traversing frames.
+    for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
+      JavaScriptFrame* frame = it.frame();
+      FrameSummaries summaries = frame->Summarize();
+      for (int i = summaries.size() - 1; i >= 0; i--) {
+        DirectHandle<JSFunction> frame_function =
+            summaries.frames[i].AsJavaScript().function();
+        // Don't cross origins boundary we are not allowed to access.
+        if (!AllowAccessToFunction(isolate->context(), *frame_function)) {
+          return null_value;
+        }
+        if (*frame_function == *function) {
+          return GetFrameArguments(isolate, &it, i);
+        }
+      }
+    }
+  }
+  return null_value;
+}
+
+//
+// Accessors::FunctionCaller
+//
 
 class FrameFunctionIterator {
  public:
@@ -605,8 +603,10 @@ class FrameFunctionIterator {
       --inlined_frame_index_;
       DirectHandle<JSFunction> next_function =
           summaries_.frames[inlined_frame_index_].AsJavaScript().function();
-      // Skip functions from other origins.
-      if (!AllowAccessToFunction(isolate_->context(), *next_function)) continue;
+      // Don't cross origins boundary we are not allowed to access.
+      if (!AllowAccessToFunction(isolate_->context(), *next_function)) {
+        return {};
+      }
       return next_function;
     }
   }
@@ -665,7 +665,7 @@ MaybeDirectHandle<JSFunction> FindCaller(Isolate* isolate,
   if (is_strict(caller->shared()->language_mode())) {
     return {};
   }
-  // Don't return caller from another security context.
+  // Don't cross origins boundary we are not allowed to access.
   if (!AllowAccessToFunction(isolate->context(), *caller)) {
     return {};
   }
