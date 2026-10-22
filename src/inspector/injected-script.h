@@ -247,6 +247,7 @@ class InjectedScript final {
   friend class PromiseHandlerTracker;
 
   v8::Local<v8::Object> commandLineAPI();
+  uint64_t isolateId() const;
   void unbindObject(int id);
 
   static Response bindRemoteObjectIfNeeded(

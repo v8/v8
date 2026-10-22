@@ -1577,6 +1577,11 @@ Response V8DebuggerAgentImpl::pause() {
 
 Response V8DebuggerAgentImpl::resume(std::optional<bool> terminateOnResume) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+  if (terminateOnResume.value_or(false) &&
+      m_session->clientTrustLevel() != V8Inspector::kFullyTrusted) {
+    return Response::ServerError(
+        "`terminateOnResume` is not allowed for untrusted clients");
+  }
   m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
 
@@ -1921,7 +1926,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
                                     &inspectedContext);
     }
     String16 callFrameId = RemoteCallFrameId::serialize(
-        m_inspector->isolateId(), contextId, frameOrdinal);
+        m_session->isolateId(), contextId, frameOrdinal);
 
     v8::debug::Location loc = iterator->GetSourceLocation();
 

@@ -887,7 +887,7 @@ Response InjectedScript::resolveCallArgument(
         RemoteObjectId::parse(callArgument->getObjectId(""), &remoteObjectId);
     if (!response.IsSuccess()) return response;
     if (remoteObjectId->contextId() != m_context->contextId() ||
-        remoteObjectId->isolateId() != m_context->inspector()->isolateId()) {
+        remoteObjectId->isolateId() != isolateId()) {
       return Response::ServerError(
           "Argument should belong to the same JavaScript world as target "
           "object");
@@ -1206,6 +1206,12 @@ Response InjectedScript::CallFrameScope::findInjectedScript(
                                      &m_inspectedContext);
 }
 
+uint64_t InjectedScript::isolateId() const {
+  V8InspectorSessionImpl* session = m_context->inspector()->sessionById(
+      m_context->contextGroupId(), m_sessionId);
+  return session ? session->isolateId() : 0;
+}
+
 String16 InjectedScript::bindObject(v8::Local<v8::Value> value,
                                     const String16& groupName) {
   if (m_lastBoundObjectId <= 0) m_lastBoundObjectId = 1;
@@ -1216,8 +1222,7 @@ String16 InjectedScript::bindObject(v8::Local<v8::Value> value,
     m_idToObjectGroupName[id] = groupName;
     m_nameToObjectGroup[groupName].push_back(id);
   }
-  return RemoteObjectId::serialize(m_context->inspector()->isolateId(),
-                                   m_context->contextId(), id);
+  return RemoteObjectId::serialize(isolateId(), m_context->contextId(), id);
 }
 
 // static

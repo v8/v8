@@ -244,11 +244,17 @@ Response V8InspectorSessionImpl::findInjectedScript(
   return Response::Success();
 }
 
+uint64_t V8InspectorSessionImpl::isolateId() const {
+  return m_clientTrustLevel == V8Inspector::kFullyTrusted
+             ? m_inspector->isolateId()
+             : 0;
+}
+
 Response V8InspectorSessionImpl::findInjectedScript(
     RemoteObjectIdBase* objectId,
     std::shared_ptr<InjectedScript>& injectedScript,
     std::shared_ptr<InspectedContext>* inspectedContext) {
-  if (objectId->isolateId() != m_inspector->isolateId()) {
+  if (objectId->isolateId() != isolateId()) {
     return Response::ServerError("Cannot find context with specified id");
   }
   return findInjectedScript(objectId->contextId(), injectedScript,
