@@ -198,6 +198,11 @@ Instructions for every subagent:
   or relies on a pre-existing bug, or misses a bug variant in adjacent code,
   flag it anchored on the relevant modified line; if an issue exists in moved
   code, note that it is pre-existing).
+- Treat each test case (`TEST`, `UNINITIALIZED_TEST`, `TEST_F`, `TEST_P`) in
+  `test/cctest/`, `test/unittests/`, and `test/mjsunit/` as running in its own
+  isolated OS process (`tools/run-tests.py` runs one test per process/fork);
+  only flag static, global, or `v8_flags` state issues in those suites if they
+  cause a bug within a single test execution.
 - Send ONLY a JSON array (`[]` if clean):
   `[{"file": "src/...", "line": 123, "type": "security|bug|design|question|nit", "comment": "Issue, impact, and suggested fix.", "suggestion": "..."}]`
 
