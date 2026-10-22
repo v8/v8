@@ -1325,6 +1325,13 @@ Expression* Parser::ParseArrowFromParams(std::vector<Expression*> params,
 
 bool Parser::ParseClass(ClassData* cls, int32_t /*start*/,
                         bool /*is_expression*/) {
+  // A class expression in the heritage clause recurses into ParseClass
+  // through ParseLeftHandSide and ParsePrimary, which have no guard.
+  DepthGuard guard(&depth_);
+  if (depth_ > kMaxDepth) {
+    Fail("Maximum nesting depth exceeded", start_pos());
+    return false;
+  }
   Advance();  // class
   bool saved_strict = function_state_.strict;
   function_state_.strict = true;
@@ -1747,6 +1754,13 @@ Expression* Parser::ParseConditional(bool no_in) {
 }
 
 Expression* Parser::ParseBinary(int min_precedence, bool no_in) {
+  // The right operand of a right-associative operator (`**`) recurses into
+  // ParseBinary, so this frame counts toward the nesting depth.
+  DepthGuard guard(&depth_);
+  if (depth_ > kMaxDepth) {
+    Fail("Maximum nesting depth exceeded", start_pos());
+    return nullptr;
+  }
   int32_t start = start_pos();
   Expression* left;
   if (Check(Tok::kPrivateName)) {
