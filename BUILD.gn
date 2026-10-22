@@ -8751,8 +8751,8 @@ group("gn_all") {
   ]
 
   # Redline, an experimental coverage-guided JavaScript fuzzer, uses POSIX
-  # APIs.
-  if (is_linux) {
+  # APIs. Only standalone V8 builds it: Chromium does not need it.
+  if (is_linux && !build_with_chromium) {
     deps += [ "experimental/redline" ]
   }
 

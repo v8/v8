@@ -4757,13 +4757,20 @@ GenContext MakeGenContext(Builder& builder, const Builder::Slot& slot,
 }  // namespace redline
 
 namespace redline {
-thread_local std::vector<Generator*> g_used_generators;
-void BeginGeneratorUsage() { g_used_generators.clear(); }
+namespace {
+// One list for each thread. The list is never deleted, so that the thread has
+// no destructor to run when it exits.
+std::vector<Generator*>& UsedGenerators() {
+  thread_local std::vector<Generator*>* used = new std::vector<Generator*>();
+  return *used;
+}
+}  // namespace
+void BeginGeneratorUsage() { UsedGenerators().clear(); }
 void NoteGeneratorUsed(Generator* g) {
-  if (std::find(g_used_generators.begin(), g_used_generators.end(), g) ==
-      g_used_generators.end()) {
-    g_used_generators.push_back(g);
+  std::vector<Generator*>& used = UsedGenerators();
+  if (std::find(used.begin(), used.end(), g) == used.end()) {
+    used.push_back(g);
   }
 }
-std::vector<Generator*> GeneratorsUsed() { return g_used_generators; }
+std::vector<Generator*> GeneratorsUsed() { return UsedGenerators(); }
 }  // namespace redline

@@ -11,6 +11,8 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
+#include <string_view>
 
 #include "experimental/redline/base/file_util.h"
 #include "experimental/redline/base/flags.h"
@@ -398,6 +400,11 @@ bool ReadStageOptions(Stage stage, const JsonValue& object, StageOptions* out,
   return true;
 }
 
+// The names of a constant list of keys, for an error message.
+std::string JoinKeys(std::initializer_list<std::string_view> keys) {
+  return JoinNames(std::vector<std::string>(keys.begin(), keys.end()));
+}
+
 // The "stages" block: every stage with its own parameters (which are the
 // policy fields of FuzzConfig) plus log/capture/stats.
 bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
@@ -411,8 +418,9 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
   }
   // Known parameter keys per stage; "log", "capture" and "stats" are
   // common to all.
-  static const std::vector<std::string> kCommon = {"log", "capture", "stats"};
-  static const std::vector<std::string> kKeys[kNumStages] = {
+  static constexpr std::initializer_list<std::string_view> kCommon = {
+      "log", "capture", "stats"};
+  static constexpr std::initializer_list<std::string_view> kKeys[kNumStages] = {
       {},                                         // pick
       {"enabled", "min_values", "extra_values"},  // prefix
       {"consecutive", "rounds"},                  // mutate
@@ -434,7 +442,8 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
       *error = "config: stages." + stage_name + " must be an object";
       return false;
     }
-    const std::vector<std::string>& keys = kKeys[static_cast<int>(stage)];
+    const std::initializer_list<std::string_view>& keys =
+        kKeys[static_cast<int>(stage)];
     for (const auto& [key, value] : object.as_object()) {
       bool known =
           std::find(kCommon.begin(), kCommon.end(), key) != kCommon.end() ||
@@ -445,9 +454,9 @@ bool ReadStages(const JsonValue& json, FuzzConfig* c, std::string* error) {
         *error += "\" in stages.";
         *error += stage_name;
         *error += " (known: ";
-        *error += JoinNames(keys);
-        *error += keys.empty() ? "" : ", ";
-        *error += JoinNames(kCommon);
+        *error += JoinKeys(keys);
+        *error += keys.size() == 0 ? "" : ", ";
+        *error += JoinKeys(kCommon);
         *error += ')';
         return false;
       }

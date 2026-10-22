@@ -25,7 +25,8 @@ namespace {
 
 constexpr const char* kLog = "v8";
 
-std::unique_ptr<v8::Platform> g_platform;
+// V8 uses the platform until the process exits, so it is never deleted.
+v8::Platform* g_platform = nullptr;
 bool g_initialized = false;
 std::mutex g_init_mutex;
 
@@ -68,9 +69,11 @@ bool InitializeV8(const std::string& flags, std::string* error) {
   // The oracle only parses; cached compiled scripts would just retain memory
   // (one isolate per worker, all in the same pointer-compression cage).
   v8::V8::SetFlagsFromString("--no-compilation-cache");
-  g_platform = v8::platform::NewDefaultPlatform(
-      /*thread_pool_size=*/2, v8::platform::IdleTaskSupport::kDisabled);
-  v8::V8::InitializePlatform(g_platform.get());
+  g_platform =
+      v8::platform::NewDefaultPlatform(
+          /*thread_pool_size=*/2, v8::platform::IdleTaskSupport::kDisabled)
+          .release();
+  v8::V8::InitializePlatform(g_platform);
   if (!v8::V8::Initialize()) {
     *error = "v8::V8::Initialize() failed";
     return false;
