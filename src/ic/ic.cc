@@ -1843,7 +1843,13 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     Tagged<Map> tmap = old_map->FindElementsKindTransitionedMap(
         isolate(), old_maps_and_handlers->maps(),
         ConcurrencyMode::kSynchronous);
-    if (!tmap.is_null()) {
+    // Do not transition on load for simple map-change transitions (such as
+    // PACKED_ELEMENTS -> HOLEY_ELEMENTS or SMI -> OBJECT), as they share the
+    // same backing store representation and optimized code
+    // (ConsolidateElementLoad) consolidates them without transitioning.
+    if (!tmap.is_null() &&
+        !IsSimpleMapChangeTransition(old_map->elements_kind(),
+                                     tmap->elements_kind())) {
       // Mark all stable receiver maps that have elements kind transition map
       // among receiver_maps as unstable because the ICs and the optimizing
       // compilers may perform an elements kind transition for this kind of
