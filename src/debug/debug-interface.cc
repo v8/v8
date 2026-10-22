@@ -433,6 +433,9 @@ void BreakRightNow(Isolate* v8_isolate,
   EnterV8BasicScope api_scope(isolate);
   isolate->debug()->HandleDebugBreak(i::kIgnoreIfAllFramesBlackboxed,
                                      break_reasons);
+  if (isolate->debug()->IsRestartFrameScheduled()) {
+    isolate->TerminateExecution();
+  }
 }
 
 void SetTerminateOnResume(Isolate* v8_isolate) {
