@@ -56,9 +56,13 @@ Response SerializeRegexp(v8::Local<v8::RegExp> value,
   std::unique_ptr<protocol::DictionaryValue> resultValue =
       protocol::DictionaryValue::create();
 
+  v8::Local<v8::String> source = value->GetSource();
+  if (!duplicateTracker.takeCharacters(source)) {
+    return Response::ServerError("Object is too large to be returned by value");
+  }
   resultValue->setValue(protocol::String("pattern"),
                         protocol::StringValue::create(toProtocolString(
-                            v8::Isolate::GetCurrent(), value->GetSource())));
+                            v8::Isolate::GetCurrent(), source)));
 
   String16 flags = DescriptionForRegExpFlags(value);
   if (!flags.isEmpty()) {

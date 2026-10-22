@@ -235,6 +235,86 @@ class TestChannel : public V8Inspector::Channel {
   v8_inspector::String16 expected_response_matcher_;
 };
 
+class DeepSerializeEmbedderClient : public v8_inspector::V8InspectorClient {
+ public:
+  std::unique_ptr<v8_inspector::DeepSerializationResult> deepSerialize(
+      v8::Local<v8::Value> v8Value, int maxDepth,
+      v8::Local<v8::Object> additionalParameters) override {
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    if (v8Value->IsObject()) {
+      v8::Local<v8::Object> obj = v8Value.As<v8::Object>();
+      v8::Local<v8::Value> marker;
+      if (obj->Get(context,
+                   v8::String::NewFromUtf8Literal(isolate, "embedder_marker"))
+              .ToLocal(&marker) &&
+          marker->IsTrue()) {
+        // Return an array of 60,000 items. If the budget (100,000) is shared
+        // across embedder-serialized objects in a single deep-serialization
+        // request, two such objects will exceed the budget and fail.
+        v8::Local<v8::Array> arr = v8::Array::New(isolate, 60000);
+        for (int i = 0; i < 60000; i++) {
+          arr->Set(context, i, v8::Integer::New(isolate, i)).Check();
+        }
+        auto deep_val = std::make_unique<v8_inspector::DeepSerializedValue>(
+            v8_inspector::StringBuffer::create(toStringView("embedder_node")),
+            arr);
+        return std::make_unique<v8_inspector::DeepSerializationResult>(
+            std::move(deep_val));
+      }
+    }
+    return nullptr;
+  }
+};
+
+class OOMTestChannel : public v8_inspector::V8Inspector::Channel {
+ public:
+  ~OOMTestChannel() override = default;
+  void sendResponse(
+      int callId,
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    response_ = v8_inspector::toString16(message->string());
+  }
+  void sendNotification(
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {}
+  void flushProtocolNotifications() override {}
+
+  v8_inspector::String16 response_;
+};
+
+TEST_F(InspectorTest, RegressDeepSerializeBudget) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  DeepSerializeEmbedderClient client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  OOMTestChannel channel;
+  std::unique_ptr<V8InspectorSession> session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+
+  const char kCommand[] = R"({
+    "id": 1,
+    "method": "Runtime.evaluate",
+    "params": {
+      "expression": "const arr = []; for(let i=0; i<2; i++) arr.push({embedder_marker: true}); arr;",
+      "contextId": 1,
+      "generatePreview": false,
+      "serializationOptions": {"serialization": "deep"}
+    }
+  })";
+
+  session->dispatchProtocolMessage(toStringView(kCommand));
+
+  CHECK_NE(
+      channel.response_.find(toString16(toStringView("Object is too large"))),
+      String16::kNotFound);
+}
+
 TEST_F(InspectorTest, NoConsoleAPIForUntrustedClient) {
   v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
