@@ -112,20 +112,15 @@ class DataChannel {
  public:
   static std::unique_ptr<DataChannel> Create(const char* name,
                                              std::string* error) {
-    int fd = memfd_create(name, MFD_CLOEXEC | MFD_ALLOW_SEALING);
+    // Do not seal the file against shrinking: Truncate() must shrink it after
+    // the child wrote more than kMaxDataSize. The child does not truncate it.
+    int fd = memfd_create(name, MFD_CLOEXEC);
     if (fd < 0) {
       *error = Errno("memfd_create");
       return nullptr;
     }
     if (ftruncate(fd, static_cast<off_t>(kMaxDataSize)) != 0) {
       *error = Errno("ftruncate");
-      close(fd);
-      return nullptr;
-    }
-    // Seal against shrinking so a child cannot truncate the backing file and
-    // fault our mapping with SIGBUS.
-    if (fcntl(fd, F_ADD_SEALS, F_SEAL_SHRINK) != 0) {
-      *error = Errno("fcntl(F_SEAL_SHRINK)");
       close(fd);
       return nullptr;
     }

@@ -148,3 +148,5 @@ out/redline/redline roundtrip --dir=test/mjsunit --no-run
   FAST and V8 must accept each printed program, and a second print must give the same text.
 
 [CONTRIBUTE.md](CONTRIBUTE.md) has the full checklist for a change.
+The [redline-presubmit](skills/redline-presubmit/SKILL.md) skill turns this
+checklist into commands and a report.

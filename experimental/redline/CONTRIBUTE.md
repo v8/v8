@@ -954,6 +954,9 @@ This short run shows no effect of `NegateCondition`. It does not show that the m
 
 ## 11. Checklist for a CL
 
+The [redline-presubmit](skills/redline-presubmit/SKILL.md) skill turns this
+checklist into commands and a report.
+
 - [ ] `autoninja -C out/redline redline` builds without a warning.
 - [ ] `git cl format` reports nothing for your files, and `clang-tidy` reports no new findings in them.
 - [ ] Every new number is a tunable with a name, a range and a description.
