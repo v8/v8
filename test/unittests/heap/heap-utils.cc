@@ -299,14 +299,16 @@ void FillCurrentSemiSpacePage(SemiSpaceNewSpace* space,
   FillCurrentSemiSpacePageButNBytes(space, 0, out_handles);
 }
 
-void FillCurrentPagedSpacePage(NewSpace* space,
+void FillCurrentPagedSpacePage(NewSpace* space, Address top,
                                std::vector<Handle<FixedArray>>* out_handles) {
-  const Address top = space->heap()->NewSpaceTop();
   if (top == kNullAddress) return;
   NormalPage* page = NormalPage::FromAllocationAreaAddress(top);
   space->heap()->EnsureSweepingCompleted(
       Heap::SweepingForcedFinalizationMode::kV8Only,
       CompleteSweepingReason::kTesting);
+  ManualGCScope manual_gc_scope(space->heap()->isolate());
+  SafepointScope safepoint_scope(space->heap()->isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   FillPageInPagedSpace(page, out_handles);
 }
 
@@ -319,10 +321,11 @@ std::vector<Handle<FixedArray>> HeapInternalsBase::CreatePadding(
 
 void HeapInternalsBase::FillCurrentPage(
     NewSpace* space, std::vector<Handle<FixedArray>>* out_handles) {
+  const Address top = space->heap()->NewSpaceTop();
   space->heap()->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(space->heap());
   if (v8_flags.minor_ms) {
-    FillCurrentPagedSpacePage(space, out_handles);
+    FillCurrentPagedSpacePage(space, top, out_handles);
   } else {
     FillCurrentSemiSpacePage(SemiSpaceNewSpace::From(space), out_handles);
   }
