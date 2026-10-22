@@ -218,6 +218,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     // Memory reduction flag set.
     bool reduce_memory = false;
 
+    // Whether the GC had to consider stacks (main thread or background).
+    bool gc_with_stack = false;
+
     // Currently in loading state.
     bool is_loading = false;
 
