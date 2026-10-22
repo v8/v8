@@ -3117,9 +3117,18 @@ void MacroAssembler::Ctz_w(Register rd, Register rj) { ctz_w(rd, rj); }
 
 void MacroAssembler::Ctz_d(Register rd, Register rj) { ctz_d(rd, rj); }
 
-// TODO(LOONG_dev): Optimize like arm64, use simd instruction
 void MacroAssembler::Popcnt_w(Register rd, Register rj) {
   ASM_CODE_COMMENT(this);
+
+  if (CpuFeatures::SupportsSimd128()) {
+    UseScratchRegisterScope temps(this);
+    DoubleRegister scratch = temps.AcquireFp();
+    vreplgr2vr_w(scratch.toV(), rj);
+    vpcnt_w(scratch.toV(), scratch.toV());
+    movfr2gr_s(rd, scratch);
+    return;
+  }
+
   // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
   //
   // A generalization of the best bit counting method to integers of
@@ -3164,6 +3173,16 @@ void MacroAssembler::Popcnt_w(Register rd, Register rj) {
 
 void MacroAssembler::Popcnt_d(Register rd, Register rj) {
   ASM_CODE_COMMENT(this);
+
+  if (CpuFeatures::SupportsSimd128()) {
+    UseScratchRegisterScope temps(this);
+    DoubleRegister scratch = temps.AcquireFp();
+    vreplgr2vr_d(scratch.toV(), rj);
+    vpcnt_d(scratch.toV(), scratch.toV());
+    movfr2gr_d(rd, scratch);
+    return;
+  }
+
   int64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
   int64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
   int64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
