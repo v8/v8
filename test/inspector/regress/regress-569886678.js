@@ -2,11 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --enable-inspector --wasm-custom-descriptors --wasm-js-interop
+// Flags: --wasm-custom-descriptors --wasm-js-interop
 
-d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
-d8.file.execute('test/mjsunit/wasm/prototype-setup-builder.js');
+const {session, contextGroup, Protocol} =
+    InspectorTest.start('Regression test for crbug.com/569886678.');
 
+contextGroup.addScript(utils.read('test/mjsunit/wasm/wasm-module-builder.js'));
+contextGroup.addScript(
+    utils.read('test/mjsunit/wasm/prototype-setup-builder.js'));
+
+contextGroup.addScript(`
 let builder = new WasmModuleBuilder();
 let proto_config = new WasmPrototypeSetupBuilder(builder);
 
@@ -23,34 +28,23 @@ const constructors = {};
 const proto = {};
 builder.instantiate({ c: { constructors }, p: { proto } }, { builtins: ['js-prototypes'] });
 
-let exception_paused = false;
-
-function receive(message) {
-  let msg = JSON.parse(message);
-  if (msg.error) {
-    throw new Error('Inspector error: ' + JSON.stringify(msg.error));
-  }
-  if (msg.id === 1) {
-    send(JSON.stringify({
-      id: 2,
-      method: 'Debugger.setPauseOnExceptions',
-      params: {state: 'caught'}
-    }));
-  } else if (msg.id === 2) {
-    runTrigger();
-  } else if (msg.method === 'Debugger.paused') {
-    exception_paused = true;
-    send(JSON.stringify({id: 3, method: 'Debugger.resume'}));
-  }
-}
-
 function runTrigger() {
   try {
     proto.myMethod.call(Symbol("sym"));
   } catch(e) {
   }
 }
+`);
 
-send(JSON.stringify({id: 1, method: 'Debugger.enable'}));
+Protocol.Debugger.onPaused(message => {
+  InspectorTest.log(
+      `Paused on ${message.params.reason}: ${message.params.data.description.split('\n')[0]}`);
+  Protocol.Debugger.resume();
+});
 
-assertTrue(exception_paused);
+(async () => {
+  await Protocol.Debugger.enable();
+  await Protocol.Debugger.setPauseOnExceptions({state: 'caught'});
+  await Protocol.Runtime.evaluate({expression: 'runTrigger()'});
+  InspectorTest.completeTest();
+})();

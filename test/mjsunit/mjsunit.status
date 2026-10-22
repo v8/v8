@@ -1227,7 +1227,6 @@
   'regress/wasm/regress-561662099': [SKIP],
   'regress/wasm/regress-563427048*': [SKIP],
   'regress/wasm/regress-567171844': [SKIP],
-  'regress/wasm/regress-569886678': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
   'wasm/wasm-gc-js-roundtrip': [SKIP],
