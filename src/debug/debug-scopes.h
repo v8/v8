@@ -172,7 +172,6 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     return frame_inspector_->javascript_frame();
   }
 
-  bool AdvanceOneScope();
   void AdvanceOneContext();
   void AdvanceScope();
   void AdvanceContext();

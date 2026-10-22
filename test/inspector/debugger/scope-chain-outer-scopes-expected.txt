@@ -240,3 +240,30 @@ Paused in setInner:
   setVariableValue(1, blockVar): ok
   setVariableValue(2, outerVar): ok
 Result: "new outerVar new blockVar"
+
+Running test: testDirectEvalInForLetInitializer
+Paused in :
+[0] block name=directEvalInForLetInitializer 76:7-78:3
+    x : 42
+    y : <value_unavailable>
+[1] closure name=directEvalInForLetInitializer 75:38-79:1
+    arguments : Arguments(0)
+[2] global
+  scopeNumber 0: x = 42
+  scopeNumber 0: y = ReferenceError: y is not defined
+  scopeNumber 1: x = ReferenceError: x is not defined
+  scopeNumber 1: y = ReferenceError: y is not defined
+  scopeNumber 2: x = ReferenceError: x is not defined
+  scopeNumber 2: y = ReferenceError: y is not defined
+Result: 43
+
+Running test: testDirectEvalInForLetBody
+Paused in :
+[0] block name=directEvalInForLetBody 82:16-84:3
+    x : 7
+[1] closure name=directEvalInForLetBody 81:31-85:1
+    arguments : Arguments(0)
+[2] global
+  scopeNumber 0: x = 7
+  scopeNumber 1: x = ReferenceError: x is not defined
+  scopeNumber 2: x = ReferenceError: x is not defined

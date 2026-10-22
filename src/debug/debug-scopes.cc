@@ -357,31 +357,6 @@ bool ScopeIterator::NeedsContext() const {
   return needs_context;
 }
 
-bool ScopeIterator::AdvanceOneScope() {
-  if (!HasScope()) return false;
-  if (std::optional<DebugScriptScope> parent = current_scope().parent()) {
-    current_scope_index_ = parent->scope_index();
-    return true;
-  }
-  if (std::optional<DebugScriptScope> outer =
-          FindEvalOuterScope(isolate_, script_)) {
-    // The root scope of the paused script is either the closure scope itself
-    // or one of its ancestors, so we have left the paused function by now.
-    // Reset `function_` right away: `closure_scope_index_` indexes into the
-    // paused script's scope tree, so comparing it with `current_scope_index_`
-    // in the caller's script tree is meaningless (e.g. both are 0 when pausing
-    // in the top-level code of a direct eval called from another eval's
-    // top-level code).
-    function_ = Handle<JSFunction>();
-    script_ =
-        handle(Cast<Script>(script_->eval_from_shared()->script()), isolate_);
-    debug_scope_info_ = handle(*outer->info(), isolate_);
-    current_scope_index_ = outer->scope_index();
-    return true;
-  }
-  return false;
-}
-
 void ScopeIterator::AdvanceOneContext() {
   DCHECK(!IsNativeContext(*context_));
   DCHECK(!context_->previous().is_null());
@@ -398,13 +373,36 @@ void ScopeIterator::AdvanceScope() {
       AdvanceOneContext();
     }
 
-    if (!AdvanceOneScope()) {
+    if (std::optional<DebugScriptScope> parent = current_scope().parent()) {
+      current_scope_index_ = parent->scope_index();
+      continue;
+    }
+
+    if (std::optional<DebugScriptScope> outer =
+            FindEvalOuterScope(isolate_, script_)) {
+      // The root scope of the paused script is either the closure scope itself
+      // or one of its ancestors, so we have left the paused function by now.
+      // Reset `function_` right away: `closure_scope_index_` indexes into the
+      // paused script's scope tree, so comparing it with `current_scope_index_`
+      // in the caller's script tree is meaningless (e.g. both are 0 when
+      // pausing in the top-level code of a direct eval called from another
+      // eval's top-level code).
+      // Do not skip `outer` if `outer->is_hidden()` is true: like
+      // `TryParseAndRetrieveScopes()`, `FindEvalOuterScope()` lands on the
+      // innermost scope at the eval call site (such as the outer block scope
+      // of a `for (let ...)` loop when eval is called in the initializer).
+      function_ = Handle<JSFunction>();
+      script_ =
+          handle(Cast<Script>(script_->eval_from_shared()->script()), isolate_);
+      debug_scope_info_ = handle(*outer->info(), isolate_);
+      current_scope_index_ = outer->scope_index();
+    } else {
       // We left the root of the outermost scope tree we can reach (e.g. the
       // root of an indirect eval, a `new Function` or a wrapped function).
       // Continue with the runtime context chain.
       current_scope_index_ = -1;
-      break;
     }
+    break;
   } while (current_scope().is_hidden());
 }
 

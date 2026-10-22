@@ -79,6 +79,18 @@ function setVariableInCaller() {
     return outerVar + ' ' + blockVar;
   }
 }
+
+function directEvalInForLetInitializer() {
+  for (let x = 42, y = eval('debugger; x + 1'); ; ) {
+    return y;
+  }
+}
+
+function directEvalInForLetBody() {
+  for (let x = 7; x < 8; x++) {
+    eval('debugger;');
+  }
+}
 //# sourceURL=test.js`);
 
 // Scripts other than test.js are labelled in the order in which they appear
@@ -252,5 +264,15 @@ InspectorTest.runAsyncTestSuite([
           }
         });
     InspectorTest.log(`Result: ${describe(result)}`);
+  },
+
+  async function testDirectEvalInForLetInitializer() {
+    const result =
+        await pauseAndLogScopes('directEvalInForLetInitializer()', ['x', 'y']);
+    InspectorTest.log(`Result: ${describe(result)}`);
+  },
+
+  async function testDirectEvalInForLetBody() {
+    await pauseAndLogScopes('directEvalInForLetBody()', ['x']);
   },
 ]);
