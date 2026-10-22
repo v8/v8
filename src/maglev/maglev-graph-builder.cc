@@ -6399,6 +6399,7 @@ void MaglevGraphBuilder::AdvanceThroughContinuationForPolymorphicPropertyLoad(
   while (iterator_.current_offset() < continuation.last_continuation) {
     iterator_.Advance();
     UpdateSourceAndBytecodePosition(iterator_.current_offset());
+    PrewalkBytecode();
   }
 }
 
