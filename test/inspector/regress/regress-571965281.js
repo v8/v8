@@ -2,17 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --enable-inspector
+const {session, contextGroup, Protocol} =
+    InspectorTest.start('Regression test for crbug.com/571965281.');
 
-d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
+contextGroup.addScript(utils.read('test/mjsunit/wasm/wasm-module-builder.js'));
 
-send(JSON.stringify({id: 1, method: 'Debugger.enable'}));
-send(JSON.stringify({
-  id: 2,
-  method: 'Debugger.setPauseOnExceptions',
-  params: {state: 'all'},
-}));
+Protocol.Debugger.onPaused(message => {
+  InspectorTest.log(
+      `Paused on ${message.params.reason}: ${message.params.data.description.split('\n')[0]}`);
+  Protocol.Debugger.resume();
+});
 
+(async () => {
+  await Protocol.Debugger.enable();
+  await Protocol.Debugger.setPauseOnExceptions({state: 'all'});
+
+  contextGroup.addScript(`
 const builder = new WasmModuleBuilder();
 const array = builder.addArray(kWasmI32);
 const segment = builder.addPassiveDataSegment([]);
@@ -55,7 +60,19 @@ builder.addFunction('throw_ref', kSig_v_v)
     .exportFunc();
 
 const instance = builder.instantiate();
-assertTraps(kTrapDataSegmentOutOfBounds, instance.exports.array_new_data);
-assertTraps(kTrapNullDereference, instance.exports.array_init_data);
-assertTraps(kTrapNullDereference, instance.exports.array_copy);
-assertTraps(kTrapRethrowNull, instance.exports.throw_ref);
+`);
+
+  await Protocol.Runtime.evaluate({
+    expression: 'instance.exports.array_new_data()',
+  });
+  await Protocol.Runtime.evaluate({
+    expression: 'instance.exports.array_init_data()',
+  });
+  await Protocol.Runtime.evaluate({
+    expression: 'instance.exports.array_copy()',
+  });
+  await Protocol.Runtime.evaluate({
+    expression: 'instance.exports.throw_ref()',
+  });
+  InspectorTest.completeTest();
+})();

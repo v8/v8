@@ -94,6 +94,7 @@
   'regress/regress-537219980': [SKIP],
   'regress/regress-569886678': [SKIP],
   'regress/regress-570538338': [SKIP],
+  'regress/regress-571965281': [SKIP],
   'regress/regress-crbug-349248170': [SKIP],
   'regress/regress-nested-stack-switch-catch': [SKIP],
 }],  # not has_webassembly or variant == jitless
