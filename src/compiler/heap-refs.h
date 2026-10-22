@@ -1285,7 +1285,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   }
 };
 
-class StringRef : public NameRef {
+class V8_EXPORT_PRIVATE StringRef : public NameRef {
  public:
   DEFINE_REF_CONSTRUCTOR(String, NameRef)
 
@@ -1308,11 +1308,11 @@ class StringRef : public NameRef {
   std::optional<double> ToNumber(JSHeapBroker* broker);
   std::optional<double> ToInt(JSHeapBroker* broker, int radix);
 
-  V8_EXPORT_PRIVATE bool IsSeqString() const;
+  bool IsSeqString() const;
   bool IsExternalString() const;
 
   bool IsContentAccessible() const;
-  V8_EXPORT_PRIVATE bool IsOneByteRepresentation() const;
+  bool IsOneByteRepresentation() const;
 
  private:
   // With concurrent inlining on, we currently support reading directly

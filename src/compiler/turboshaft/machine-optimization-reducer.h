@@ -2357,6 +2357,22 @@ class MachineOptimizationReducer : public Next {
             }
           }
         }
+        if (offset == offsetof(String, length_) &&
+            loaded_rep == MemoryRepresentation::Uint32()) {
+          TurboshaftPipelineKind pkind = __ data() -> pipeline_kind();
+          USE(pkind);
+          DCHECK_IMPLIES(pkind != TurboshaftPipelineKind::kCSA &&
+                             pkind != TurboshaftPipelineKind::kTSABuiltin,
+                         broker != nullptr);
+          if (broker != nullptr) {
+            UnparkedScopeIfNeeded scope(broker);
+            AllowHandleDereference allow_handle_dereference;
+            OptionalHeapObjectRef ref = TryMakeRef(broker, base.handle());
+            if (ref.has_value() && ref->IsString()) {
+              return __ Word32Constant(ref->AsString().length());
+            }
+          }
+        }
         // TODO(dmercadier): consider constant-folding other accesses, in
         // particular for constant objects (ie, if
         // base.handle()->InReadOnlySpace() is true). We have to be a bit
