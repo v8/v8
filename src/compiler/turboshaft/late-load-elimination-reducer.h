@@ -185,7 +185,7 @@ inline MapMaskAndOr CombineMinMax(MapMaskAndOr a, MapMaskAndOr b) {
 }
 // Returns true if {a} and {b} could have a map in common.
 inline bool CouldHaveSameMap(MapMaskAndOr a, MapMaskAndOr b) {
-  return ((a.and_ & b.or_) == a.and_) || ((b.and_ & a.or_) == b.and_);
+  return ((a.and_ & b.or_) == a.and_) && ((b.and_ & a.or_) == b.and_);
 }
 
 struct MemoryAddress {
