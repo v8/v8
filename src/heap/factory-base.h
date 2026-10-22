@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_FACTORY_BASE_H_
 #define V8_HEAP_FACTORY_BASE_H_
 
+#include <algorithm>
 #include <string_view>
 
 #include "src/base/export-template.h"
@@ -309,6 +310,14 @@ class FactoryBase {
       base::Vector<const uint8_t> string, bool convert_encoding = false);
   Handle<InternalizedString> InternalizeString(
       base::Vector<const uint16_t> string, bool convert_encoding = false);
+  Handle<InternalizedString> InternalizeString(std::string_view str,
+                                               bool convert_encoding = false) {
+    DCHECK(std::all_of(str.begin(), str.end(), [](char c) {
+      return static_cast<unsigned char>(c) <= 0x7f;
+    }));
+    return InternalizeString(base::OneByteVector(str.data(), str.size()),
+                             convert_encoding);
+  }
 
   template <class StringTableKey>
   Handle<InternalizedString> InternalizeStringWithKey(StringTableKey* key);

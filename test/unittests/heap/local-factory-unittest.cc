@@ -69,9 +69,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
 
     // Normally this would be an external string or whatever, we don't have to
     // worry about it for now.
-    source_string_ = factory()
-                         ->NewStringFromUtf8(base::CStrVector(source))
-                         .ToHandleChecked();
+    source_string_ = factory()->NewStringFromUtf8(source).ToHandleChecked();
 
     script_ = parse_info_.CreateScript(local_isolate(),
                                        local_factory()->empty_string(),

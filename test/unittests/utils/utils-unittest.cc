@@ -138,9 +138,9 @@ TEST(UtilsTest, PassesFilterTest) {
   // which are hidden when the string literal is embedded into the binary
   // and hence always null-terminated.
   base::UniqueArray<const char> name =
-      base::UniqueCopyOf(base::CStrVector("abcdefgh"));
+      base::UniqueCopyOf(std::string_view("abcdefgh"));
   base::UniqueArray<const char> filter =
-      base::UniqueCopyOf(base::CStrVector("abcdefgh*"));
+      base::UniqueCopyOf(std::string_view("abcdefgh*"));
   EXPECT_TRUE(PassesFilter({name.begin(), name.size()},
                            {filter.begin(), filter.size()}));
 }

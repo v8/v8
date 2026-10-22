@@ -315,7 +315,7 @@ ZoneBuffer GetValidModuleBytes(Zone* zone) {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
     f->EmitCode({kExprLocalGet, i, kExprEnd});
     CHECK_GE(3, ++i);
-    builder.AddExport(base::CStrVector(export_name), f);
+    builder.AddExport(export_name, f);
   }
   builder.WriteTo(&buffer);
   return buffer;
@@ -1212,7 +1212,7 @@ STREAM_TEST(TestModuleWithImportedFunction) {
   ZoneBuffer buffer(tester.zone());
   TestSignatures sigs;
   WasmModuleBuilder builder(tester.zone());
-  builder.AddImport(base::ArrayVector("Test"), sigs.i_iii());
+  builder.AddImport("Test", sigs.i_iii());
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
     f->EmitCode({kExprLocalGet, 0, kExprEnd});
@@ -1246,8 +1246,7 @@ STREAM_TEST(TestIncrementalCaching) {
   WasmModuleBuilder builder(tester.zone());
   builder.AddMemory(1);
 
-  base::Vector<const char> function_names[] = {
-      base::CStrVector("f0"), base::CStrVector("f1"), base::CStrVector("f2")};
+  std::string_view function_names[] = {"f0", "f1", "f2"};
   for (int i = 0; i < 3; ++i) {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
 
@@ -1274,7 +1273,7 @@ STREAM_TEST(TestIncrementalCaching) {
   tester.RunCompilerTasks();
   CHECK(tester.IsPromiseFulfilled());
   tester.native_module();
-  constexpr base::Vector<const char> kNoSourceUrl{"", 0};
+  constexpr std::string_view kNoSourceUrl{"", 0};
   Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   IndirectHandle<WasmInstanceObject> instance;
   {
@@ -1963,7 +1962,7 @@ STREAM_TEST(TestProfilingMidStreaming) {
     WasmModuleBuilder builder(zone);
     WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
     f->EmitCode({kExprEnd});
-    builder.AddExport(base::VectorOf("foo", 3), f);
+    builder.AddExport("foo", f);
     builder.WriteTo(&buffer);
   }
 

@@ -216,25 +216,9 @@ V8_INLINE size_t hash_value(base::Vector<T> v) {
   return hash_range(v.begin(), v.end());
 }
 
-// The vectors returned by {StaticCharVector}, {CStrVector}, or {OneByteVector}
-// do not contain a null-termination byte. If you want the null byte, use
+// The vectors returned by {OneByteVector} or {StaticOneByteVector} do not
+// contain a null-termination byte. If you want the null byte, use
 // {ArrayVector}.
-
-// Known length, constexpr.
-template <size_t N>
-constexpr Vector<const char> StaticCharVector(
-    const char (&array V8_LIFETIME_BOUND)[N]) {
-  return {array, N - 1};
-}
-
-// Unknown length, not constexpr.
-inline Vector<const char> CStrVector(const char* data V8_LIFETIME_BOUND) {
-  return {data, strlen(data)};
-}
-
-inline Vector<const char> StrVector(std::string_view str V8_LIFETIME_BOUND) {
-  return {str.data(), str.size()};
-}
 
 // OneByteVector is never constexpr because the data pointer is
 // {reinterpret_cast}ed.
@@ -255,7 +239,6 @@ Vector<const uint8_t> StaticOneByteVector(
 
 // For string literals, ArrayVector("foo") returns a vector ['f', 'o', 'o', \0]
 // with length 4 and null-termination.
-// If you want ['f', 'o', 'o'], use CStrVector("foo").
 template <typename T, size_t N>
 inline constexpr Vector<T> ArrayVector(T (&arr V8_LIFETIME_BOUND)[N]) {
   return {arr, N};

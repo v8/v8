@@ -110,7 +110,7 @@ class WasmStreaming::WasmStreamingImpl {
     streaming_decoder_->SetHasCompiledModuleBytes();
   }
 
-  void SetUrl(base::Vector<const char> url) { streaming_decoder_->SetUrl(url); }
+  void SetUrl(std::string_view url) { streaming_decoder_->SetUrl(url); }
 
  private:
   i::Isolate* const i_isolate_;
@@ -160,7 +160,7 @@ void WasmStreaming::SetMoreFunctionsCanBeSerializedCallback(
 void WasmStreaming::SetUrl(const char* url, size_t length) {
   DCHECK_EQ('\0', url[length]);  // {url} is null-terminated.
   TRACE_EVENT("v8.wasm", "wasm.SetUrl", "url", url);
-  impl_->SetUrl(base::VectorOf(url, length));
+  impl_->SetUrl(std::string_view(url, length));
 }
 
 // static
@@ -213,7 +213,7 @@ class WasmModuleCompilation::Impl {
     streaming_decoder_->SetHasCompiledModuleBytes();
   }
 
-  void SetUrl(base::Vector<const char> url) { streaming_decoder_->SetUrl(url); }
+  void SetUrl(std::string_view url) { streaming_decoder_->SetUrl(url); }
 
  private:
   class Resolver final : public i::wasm::CompilationResultResolver {
@@ -246,8 +246,7 @@ WasmModuleCompilation::WasmModuleCompilation(const CompileOptions& options)
           i::wasm::CompileTimeImportsFromOptions(options))) {
   TRACE_EVENT("v8.wasm", "wasm.ModuleCompilation");
   if (!options.source_url.empty()) {
-    impl_->SetUrl(
-        base::VectorOf(options.source_url.data(), options.source_url.size()));
+    impl_->SetUrl(options.source_url);
   }
 }
 
@@ -283,7 +282,7 @@ void WasmModuleCompilation::SetMoreFunctionsCanBeSerializedCallback(
 void WasmModuleCompilation::SetUrl(const char* url, size_t length) {
   DCHECK_EQ('\0', url[length]);  // {url} is null-terminated.
   TRACE_EVENT("v8.wasm", "wasm.SetUrl", "url", url);
-  impl_->SetUrl(base::VectorOf(url, length));
+  impl_->SetUrl(std::string_view(url, length));
 }
 
 namespace {

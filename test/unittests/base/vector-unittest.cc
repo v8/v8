@@ -12,28 +12,32 @@ namespace v8 {
 namespace base {
 
 TEST(VectorTest, Factories) {
-  auto vec = base::CStrVector("foo");
+  auto vec = base::OneByteVector("foo");
   EXPECT_EQ(3u, vec.size());
   EXPECT_EQ(0, memcmp(vec.begin(), "foo", 3));
 
-  vec = base::ArrayVector("foo");
-  EXPECT_EQ(4u, vec.size());
-  EXPECT_EQ(0, memcmp(vec.begin(), "foo\0", 4));
+  auto char_vec = base::ArrayVector("foo");
+  EXPECT_EQ(4u, char_vec.size());
+  EXPECT_EQ(0, memcmp(char_vec.begin(), "foo\0", 4));
 
-  vec = base::CStrVector("foo\0\0");
+  vec = base::OneByteVector("foo\0\0");
   EXPECT_EQ(3u, vec.size());
   EXPECT_EQ(0, memcmp(vec.begin(), "foo", 3));
 
-  vec = base::CStrVector("");
+  vec = base::OneByteVector("");
   EXPECT_EQ(0u, vec.size());
 
-  vec = base::CStrVector("\0");
+  vec = base::OneByteVector("\0");
   EXPECT_EQ(0u, vec.size());
+
+  vec = base::StaticOneByteVector("foo\0\0");
+  EXPECT_EQ(5u, vec.size());
+  EXPECT_EQ(0, memcmp(vec.begin(), "foo\0\0", 5));
 }
 
 // Test operator== and operator!= on different Vector types.
 TEST(VectorTest, Equals) {
-  auto foo1 = base::CStrVector("foo");
+  auto foo1 = base::VectorOf("foo", 3);
   auto foo2 = base::ArrayVector("ffoo") + 1;
   EXPECT_EQ(4u, foo2.size());  // Includes trailing '\0'.
   foo2.Truncate(foo2.size() - 1);
@@ -70,11 +74,6 @@ TEST(VectorTest, ConstexprFactories) {
   static constexpr auto kVec2 = base::VectorOf(kInit1, 2);
   static_assert(kVec2.size() == 2);
   EXPECT_THAT(kVec2, testing::ElementsAre(4, 11));
-
-  static constexpr const char kInit3[] = "foobar";
-  static constexpr auto kVec3 = base::StaticCharVector(kInit3);
-  static_assert(kVec3.size() == 6);
-  EXPECT_THAT(kVec3, testing::ElementsAreArray(kInit3, kInit3 + 6));
 }
 
 TEST(VectorTest, SpanConversion) {

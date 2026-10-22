@@ -216,7 +216,7 @@ Handle<String> ExtractUtf8StringFromModuleBytes(
   base::Vector<const uint8_t> name_vec =
       wire_bytes.SubVector(ref.offset(), ref.end_offset());
   return isolate->factory()->InternalizeUtf8String(
-      base::Vector<const char>::cast(name_vec));
+      {reinterpret_cast<const char*>(name_vec.begin()), name_vec.size()});
 }
 
 Handle<JSObject> CreateImportObjectInternal(

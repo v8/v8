@@ -389,8 +389,7 @@ TNode<HeapObject> CodeAssembler::UntypedHeapConstantHole(
 }
 
 TNode<String> CodeAssembler::StringConstant(const char* str) {
-  Handle<String> internalized_string =
-      factory()->InternalizeString(base::OneByteVector(str));
+  Handle<String> internalized_string = factory()->InternalizeString(str);
   CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
   return UncheckedCast<String>(HeapConstantNoHole(internalized_string));
 }

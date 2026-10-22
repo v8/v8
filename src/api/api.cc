@@ -7724,7 +7724,7 @@ inline int StringLength(const uint16_t* string) {
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            NewStringType type,
-                                           base::Vector<const char> string) {
+                                           std::string_view string) {
   if (type == NewStringType::kInternalized) {
     return factory->InternalizeUtf8String(string);
   }
@@ -7772,7 +7772,7 @@ static_assert(v8::String::kMaxLength == i::String::kMaxLength);
     if (length < 0) length = StringLength(data);                              \
     i::DirectHandle<i::String> handle_result =                                \
         NewString(i_isolate->factory(), type,                                 \
-                  base::Vector<const Char>(data, length))                     \
+                  {data, static_cast<size_t>(length)})                        \
             .ToHandleChecked();                                               \
     result = Utils::ToLocal(handle_result);                                   \
   }
@@ -7787,7 +7787,7 @@ Local<String> String::NewFromUtf8Literal(Isolate* v8_isolate,
                                      RCCId::kAPI_String_NewFromUtf8Literal);
   i::DirectHandle<i::String> handle_result =
       NewString(i_isolate->factory(), type,
-                base::Vector<const char>(literal, length))
+                {literal, static_cast<size_t>(length)})
           .ToHandleChecked();
   return Utils::ToLocal(handle_result);
 }
@@ -8206,7 +8206,7 @@ v8::Local<v8::String> v8::Date::ToISOString() const {
                       i::ToDateStringMode::kISODateAndTime);
   i::DirectHandle<i::String> str =
       i_isolate->factory()
-          ->NewStringFromUtf8(base::VectorOf(buffer))
+          ->NewStringFromUtf8({buffer.data(), buffer.size()})
           .ToHandleChecked();
   return Utils::ToLocal(str);
 }
@@ -8220,7 +8220,7 @@ v8::Local<v8::String> v8::Date::ToUTCString() const {
                       i::ToDateStringMode::kUTCDateAndTime);
   i::DirectHandle<i::String> str =
       i_isolate->factory()
-          ->NewStringFromUtf8(base::VectorOf(buffer))
+          ->NewStringFromUtf8({buffer.data(), buffer.size()})
           .ToHandleChecked();
   return Utils::ToLocal(str);
 }
@@ -9112,7 +9112,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
   i::DirectHandle<i::WasmModuleObject> module_object =
       i::wasm::GetWasmEngine()->ImportNativeModule(
           i_isolate, compiled_module.native_module_,
-          base::VectorOf(compiled_module.source_url()));
+          compiled_module.source_url());
   return Utils::ToLocal(module_object);
 #else
   UNREACHABLE();
@@ -9142,9 +9142,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
         i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
     maybe_compiled = i::wasm::GetWasmEngine()->SyncCompile(
         i_isolate, enabled_features, std::move(compile_imports), &thrower,
-        std::move(bytes),
-        base::Vector<const char>(options.source_url.data(),
-                                 options.source_url.size()));
+        std::move(bytes), options.source_url);
   }
   CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_exception());
   if (maybe_compiled.is_null()) return {};

@@ -331,7 +331,7 @@ Handle<String> SharedFunctionInfo::DebugName(
 #if V8_ENABLE_WEBASSEMBLY
   if (shared->HasWasmExportedFunctionData(isolate) && allow_allocation) {
     return isolate->factory()
-        ->NewStringFromUtf8(base::CStrVector(shared->DebugNameCStr().get()))
+        ->NewStringFromUtf8(shared->DebugNameCStr().get())
         .ToHandleChecked();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

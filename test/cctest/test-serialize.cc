@@ -223,19 +223,15 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
           WritePayload(shared_space_snapshot.RawData())};
 }
 
-base::UniqueArray<const char> ConstructSource(base::Vector<const char> head,
-                                              base::Vector<const char> body,
-                                              base::Vector<const char> tail,
-                                              int repeats) {
-  size_t source_length = head.size() + body.size() * repeats + tail.size();
-  auto source = base::UniqueArray<char>::NewForOverwrite(source_length);
-  CopyChars(source.begin(), head.begin(), head.length());
+std::string ConstructSource(std::string_view head, std::string_view body,
+                            std::string_view tail, int repeats) {
+  std::string source;
+  source.reserve(head.size() + body.size() * repeats + tail.size());
+  source.append(head);
   for (int i = 0; i < repeats; i++) {
-    CopyChars(source.begin() + head.length() + i * body.length(), body.begin(),
-              body.length());
+    source.append(body);
   }
-  CopyChars(source.begin() + head.length() + repeats * body.length(),
-            tail.begin(), tail.length());
+  source.append(tail);
   return source;
 }
 
@@ -253,7 +249,7 @@ void SanityCheck(v8::Isolate* v8_isolate) {
 #endif
   CHECK(IsJSObject(*isolate->global_object()));
   CHECK(IsContext(*isolate->native_context()));
-  isolate->factory()->InternalizeString(base::StaticCharVector("Empty"));
+  isolate->factory()->InternalizeString("Empty");
 }
 
 void TestStartupSerializerOnceImpl() {
@@ -550,12 +546,11 @@ static void SerializeCustomContext(
           "var p = 0;"
           "(async ()=>{ p = await 42; })();");
 
-      base::UniqueArray<const char> source = ConstructSource(
-          base::StaticCharVector("function g() { return [,"),
-          base::StaticCharVector("1,"),
-          base::StaticCharVector("];} a = g(); b = g(); b.push(1);"), 100000);
+      std::string source =
+          ConstructSource("function g() { return [,", "1,",
+                          "];} a = g(); b = g(); b.push(1);", 100000);
       v8::MaybeLocal<v8::String> source_str = v8::String::NewFromUtf8(
-          isolate, source.begin(), v8::NewStringType::kNormal,
+          isolate, source.data(), v8::NewStringType::kNormal,
           static_cast<int>(source.size()));
       CompileRun(source_str.ToLocalChecked());
     }
@@ -1818,13 +1813,11 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   // Flood the startup snapshot with shared function infos. If they are
   // serialized before the immortal immovable root, the root will no longer end
   // up on the first page.
-  base::UniqueArray<const char> source =
-      ConstructSource(base::StaticCharVector("var a = [];"),
-                      base::StaticCharVector("a.push(function() {return 7});"),
-                      base::StaticCharVector("\0"), 10000);
+  std::string source = ConstructSource(
+      "var a = [];", "a.push(function() {return 7});", "", 10000);
 
   DisableEmbeddedBlobRefcounting();
-  v8::StartupData data = CreateSnapshotDataBlob(source.begin());
+  v8::StartupData data = CreateSnapshotDataBlob(source.c_str());
 
   v8::Isolate::CreateParams params;
   params.snapshot_blob = &data;
@@ -1920,12 +1913,10 @@ TEST(CodeSerializerWithProfiler) {
 
   const char* source = "1 + 1";
 
-  Handle<String> orig_source = isolate->factory()
-                                   ->NewStringFromUtf8(base::CStrVector(source))
-                                   .ToHandleChecked();
-  Handle<String> copy_source = isolate->factory()
-                                   ->NewStringFromUtf8(base::CStrVector(source))
-                                   .ToHandleChecked();
+  Handle<String> orig_source =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
+  Handle<String> copy_source =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
   CHECK(!orig_source.is_identical_to(copy_source));
   CHECK(orig_source->Equals(*copy_source));
 
@@ -1963,12 +1954,10 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
 
   const char* source = "1 + 1";
 
-  Handle<String> orig_source = isolate->factory()
-                                   ->NewStringFromUtf8(base::CStrVector(source))
-                                   .ToHandleChecked();
-  Handle<String> copy_source = isolate->factory()
-                                   ->NewStringFromUtf8(base::CStrVector(source))
-                                   .ToHandleChecked();
+  Handle<String> orig_source =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
+  Handle<String> copy_source =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
   CHECK(!orig_source.is_identical_to(copy_source));
   CHECK(orig_source->Equals(*copy_source));
 
@@ -2460,12 +2449,10 @@ TEST(CodeSerializerInternalizedString) {
 
   const char* source = "'string1'";
 
-  Handle<String> orig_source = isolate->factory()
-                                   ->NewStringFromUtf8(base::CStrVector(source))
-                                   .ToHandleChecked();
-  Handle<String> copy_source = isolate->factory()
-                                   ->NewStringFromUtf8(base::CStrVector(source))
-                                   .ToHandleChecked();
+  Handle<String> orig_source =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
+  Handle<String> copy_source =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
   CHECK(!orig_source.is_identical_to(copy_source));
   CHECK(orig_source->Equals(*copy_source));
 
@@ -2522,13 +2509,12 @@ TEST(CodeSerializerLargeCodeObject) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::UniqueArray<const char> source = ConstructSource(
-      base::StaticCharVector("var j=1; if (j == 0) {"),
-      base::StaticCharVector(
-          "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);"),
-      base::StaticCharVector("} j=7; j"), 2000);
+  std::string source = ConstructSource(
+      "var j=1; if (j == 0) {",
+      "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);",
+      "} j=7; j", 2000);
   Handle<String> source_str =
-      isolate->factory()->NewStringFromUtf8(source.as_span()).ToHandleChecked();
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
@@ -2583,12 +2569,11 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::UniqueArray<const char> source = ConstructSource(
-      base::StaticCharVector("var j=1; if (j == 0) {"),
-      base::StaticCharVector("for (var i = 0; i < Object.prototype; i++);"),
-      base::StaticCharVector("} j=7; var s = 'happy_hippo'; j"), 20000);
+  std::string source = ConstructSource(
+      "var j=1; if (j == 0) {", "for (var i = 0; i < Object.prototype; i++);",
+      "} j=7; var s = 'happy_hippo'; j", 20000);
   Handle<String> source_str =
-      isolate->factory()->NewStringFromUtf8(source.as_span()).ToHandleChecked();
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
   // Create a string on an evacuation candidate in old space.
   DirectHandle<String> moving_object;
@@ -2659,16 +2644,13 @@ TEST(CodeSerializerLargeStrings) {
 
   v8::HandleScope scope(CcTest::isolate());
 
-  base::UniqueArray<const char> source_s = ConstructSource(
-      base::StaticCharVector("var s = \""), base::StaticCharVector("abcdef"),
-      base::StaticCharVector("\";"), 1000000);
-  base::UniqueArray<const char> source_t = ConstructSource(
-      base::StaticCharVector("var t = \""), base::StaticCharVector("uvwxyz"),
-      base::StaticCharVector("\"; s + t"), 999999);
+  std::string source_s =
+      ConstructSource("var s = \"", "abcdef", "\";", 1000000);
+  std::string source_t =
+      ConstructSource("var t = \"", "uvwxyz", "\"; s + t", 999999);
   Handle<String> source_str =
-      f->NewConsString(
-           f->NewStringFromUtf8(source_s.as_span()).ToHandleChecked(),
-           f->NewStringFromUtf8(source_t.as_span()).ToHandleChecked())
+      f->NewConsString(f->NewStringFromUtf8(source_s).ToHandleChecked(),
+                       f->NewStringFromUtf8(source_t).ToHandleChecked())
           .ToHandleChecked();
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -2726,23 +2708,17 @@ TEST(CodeSerializerThreeBigStrings) {
   const int32_t length_of_b = kMaxRegularHeapObjectSize / 2;
   const int32_t length_of_c = kMaxRegularHeapObjectSize / 2;
 
-  base::UniqueArray<const char> source_a = ConstructSource(
-      base::StaticCharVector("var a = \""), base::StaticCharVector("a"),
-      base::StaticCharVector("\";"), length_of_a);
+  std::string source_a = ConstructSource("var a = \"", "a", "\";", length_of_a);
   Handle<String> source_a_str =
-      f->NewStringFromUtf8(source_a.as_span()).ToHandleChecked();
+      f->NewStringFromUtf8(source_a).ToHandleChecked();
 
-  base::UniqueArray<const char> source_b = ConstructSource(
-      base::StaticCharVector("var b = \""), base::StaticCharVector("b"),
-      base::StaticCharVector("\";"), length_of_b);
+  std::string source_b = ConstructSource("var b = \"", "b", "\";", length_of_b);
   Handle<String> source_b_str =
-      f->NewStringFromUtf8(source_b.as_span()).ToHandleChecked();
+      f->NewStringFromUtf8(source_b).ToHandleChecked();
 
-  base::UniqueArray<const char> source_c = ConstructSource(
-      base::StaticCharVector("var c = \""), base::StaticCharVector("c"),
-      base::StaticCharVector("\";"), length_of_c);
+  std::string source_c = ConstructSource("var c = \"", "c", "\";", length_of_c);
   Handle<String> source_c_str =
-      f->NewStringFromUtf8(source_c.as_span()).ToHandleChecked();
+      f->NewStringFromUtf8(source_c).ToHandleChecked();
 
   Handle<String> source_str =
       f->NewConsString(
@@ -2867,9 +2843,7 @@ TEST(CodeSerializerExternalString) {
       "o.two_byte = 8;          \n"
       "o.one_byte + o.two_byte; \n";
   Handle<String> source_string =
-      isolate->factory()
-          ->NewStringFromUtf8(base::CStrVector(source))
-          .ToHandleChecked();
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
@@ -3047,13 +3021,9 @@ TEST(CodeSerializerLargeExternalString) {
   v8::HandleScope scope(CcTest::isolate());
 
   // Create a huge external internalized string to use as variable name.
-  base::UniqueArray<const char> string = ConstructSource(
-      base::StaticCharVector(""), base::StaticCharVector("abcdef"),
-      base::StaticCharVector(""), 999999);
-  Handle<String> name =
-      f->NewStringFromUtf8(string.as_span()).ToHandleChecked();
-  SerializerOneByteResource one_byte_resource(
-      reinterpret_cast<const char*>(string.begin()), string.size());
+  std::string string = ConstructSource("", "abcdef", "", 999999);
+  Handle<String> name = f->NewStringFromUtf8(string).ToHandleChecked();
+  SerializerOneByteResource one_byte_resource(string.data(), string.size());
   name = f->InternalizeString(name);
   name->MakeExternal(isolate, &one_byte_resource);
   CHECK(IsExternalOneByteString(*name));
@@ -3114,8 +3084,7 @@ TEST(CodeSerializerExternalScriptName) {
       "var a = [1, 2, 3, 4];"
       "a.reduce(function(x, y) { return x + y }, 0)";
 
-  Handle<String> source_string =
-      f->NewStringFromUtf8(base::CStrVector(source)).ToHandleChecked();
+  Handle<String> source_string = f->NewStringFromUtf8(source).ToHandleChecked();
 
   const SerializerOneByteResource one_byte_resource("one_byte", 8);
   Handle<String> name =
@@ -6553,9 +6522,8 @@ TEST(WeakArraySerializationInCodeCache) {
 
   const char* source = "function foo() { }";
 
-  Handle<String> src = isolate->factory()
-                           ->NewStringFromUtf8(base::CStrVector(source))
-                           .ToHandleChecked();
+  Handle<String> src =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
   AlignedCachedData* cache = nullptr;
 
   ScriptDetails script_details(src);

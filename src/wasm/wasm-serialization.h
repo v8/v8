@@ -9,6 +9,8 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <string_view>
+
 #include "src/base/unique-array.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -53,8 +55,7 @@ class V8_EXPORT_PRIVATE WasmSerializer {
 V8_EXPORT_PRIVATE MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate*, WasmEnabledFeatures, base::Vector<const uint8_t> data,
     base::UniqueArray<const uint8_t>& wire_bytes,
-    const CompileTimeImports& compile_imports,
-    base::Vector<const char> source_url);
+    const CompileTimeImports& compile_imports, std::string_view source_url);
 
 }  // namespace v8::internal::wasm
 

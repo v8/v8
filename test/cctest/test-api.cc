@@ -16318,8 +16318,8 @@ TEST(ErrorLevelWarning) {
                                             v8::Isolate::kMessageAll);
   for (size_t i = 0; i < arraysize(levels); i++) {
     i::MessageLocation location(script, 0, 0);
-    i::DirectHandle<i::String> msg(i_isolate->factory()->InternalizeString(
-        v8::base::StaticCharVector("test")));
+    i::DirectHandle<i::String> msg(
+        i_isolate->factory()->InternalizeString("test"));
     i::DirectHandle<i::JSMessageObject> message =
         i::MessageHandler::MakeMessageObject(
             i_isolate, i::MessageTemplate::kDataCloneError, &location, msg);

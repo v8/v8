@@ -4414,8 +4414,8 @@ class AssemblerOpInterface : public Next {
     DCHECK_NOT_NULL(isolate);
     DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
     const std::string str = stream.str();
-    Handle<String> internalized_string = isolate->factory()->InternalizeString(
-        base::OneByteVector(str.c_str(), str.length()));
+    Handle<String> internalized_string =
+        isolate->factory()->InternalizeString(str);
     CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
     V<String> string_constant = __ HeapConstantNoHole(internalized_string);
 
@@ -4658,8 +4658,7 @@ class AssemblerOpInterface : public Next {
       if (broker) {
         UnparkedScopeIfNeeded scope(broker);
         LocalIsolate* isolate = broker->local_isolate_or_isolate();
-        internalized_string = isolate->factory()->InternalizeString(
-            base::OneByteVector(label.c_str(), label.length()));
+        internalized_string = isolate->factory()->InternalizeString(label);
         internalized_string =
             broker->CanonicalPersistentHandle(internalized_string);
       } else {
@@ -4667,8 +4666,7 @@ class AssemblerOpInterface : public Next {
         // If we don't have a broker, we can only allocate the string on the
         // main thread.
         DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-        internalized_string = isolate->factory()->InternalizeString(
-            base::OneByteVector(label.c_str(), label.length()));
+        internalized_string = isolate->factory()->InternalizeString(label);
         CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
       }
       label_string = __ HeapConstantNoHole(internalized_string);
@@ -4686,8 +4684,7 @@ class AssemblerOpInterface : public Next {
     if (broker) {
       UnparkedScopeIfNeeded scope(broker);
       LocalIsolate* isolate = broker->local_isolate_or_isolate();
-      internalized_string = isolate->factory()->InternalizeString(
-          base::OneByteVector(str.c_str(), str.length()));
+      internalized_string = isolate->factory()->InternalizeString(str);
       internalized_string =
           broker->CanonicalPersistentHandle(internalized_string);
     } else {
@@ -4695,8 +4692,7 @@ class AssemblerOpInterface : public Next {
       // If we don't have a broker, we can only allocate the string on the main
       // thread.
       DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-      internalized_string = isolate->factory()->InternalizeString(
-          base::OneByteVector(str.c_str(), str.length()));
+      internalized_string = isolate->factory()->InternalizeString(str);
       CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
     }
     V<String> string_constant = __ HeapConstantNoHole(internalized_string);

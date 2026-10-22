@@ -140,7 +140,8 @@ DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
   DCHECK_IMPLIES(shared, !internalize);
   return internalize
              ? factory->InternalizeUtf8String(
-                   base::Vector<const char>::cast(name_vec))
+                   {reinterpret_cast<const char*>(name_vec.begin()),
+                    name_vec.size()})
              : factory
                    ->NewStringFromUtf8(
                        name_vec, UnicodeConfig(unibrow::Utf8Variant::kLossyUtf8,

@@ -291,9 +291,9 @@ class WeakScriptHandle {
     return source_url_;
   }
 
-  bool MatchesSourceUrl(base::Vector<const char> source_url) const {
+  bool MatchesSourceUrl(std::string_view source_url) const {
     if (source_url.empty()) return is_default_url_;
-    return base::CStrVector(source_url_.get()) == source_url;
+    return source_url_.get() == source_url;
   }
 
  private:
@@ -650,8 +650,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
 MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
-    base::UniqueArray<const uint8_t> bytes,
-    base::Vector<const char> source_url) {
+    base::UniqueArray<const uint8_t> bytes, std::string_view source_url) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -927,7 +926,7 @@ void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
 namespace {
 DirectHandle<Script> CreateWasmScript(
     Isolate* isolate, std::shared_ptr<NativeModule> native_module,
-    base::Vector<const char> source_url) {
+    std::string_view source_url) {
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
 
   // The source URL of the script is
@@ -950,7 +949,7 @@ DirectHandle<Script> CreateWasmScript(
       DCHECK(url_len >= 0 && static_cast<size_t>(url_len) < buffer.size());
       url_str =
           isolate->factory()
-              ->NewStringFromUtf8(base::VectorOf(buffer).SubVector(0, url_len),
+              ->NewStringFromUtf8({buffer.data(), static_cast<size_t>(url_len)},
                                   AllocationType::kOld)
               .ToHandleChecked();
     } else {
@@ -964,7 +963,8 @@ DirectHandle<Script> CreateWasmScript(
               isolate, wire_bytes, module->name, kNoInternalize);
       DirectHandle<String> hash_str =
           isolate->factory()
-              ->NewStringFromUtf8(base::VectorOf(buffer).SubVector(0, hash_len))
+              ->NewStringFromUtf8(
+                  {buffer.data(), static_cast<size_t>(hash_len)})
               .ToHandleChecked();
       // Concatenate the three parts.
       url_str = isolate->factory()
@@ -985,8 +985,8 @@ DirectHandle<Script> CreateWasmScript(
         ModuleWireBytes(wire_bytes)
             .GetNameOrNull(source_map_symbols.external_url);
     MaybeDirectHandle<String> src_map_str =
-        isolate->factory()->NewStringFromUtf8(external_url,
-                                              AllocationType::kOld);
+        isolate->factory()->NewStringFromUtf8(
+            {external_url.data(), external_url.size()}, AllocationType::kOld);
     source_map_url = src_map_str.ToHandleChecked();
   }
 
@@ -1038,7 +1038,7 @@ DirectHandle<Script> CreateWasmScript(
 
 DirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module,
-    base::Vector<const char> source_url) {
+    std::string_view source_url) {
   NativeModule* native_module = shared_native_module.get();
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   DirectHandle<Script> script =
@@ -1894,7 +1894,7 @@ void WasmEngine::FreeDeadCodeLocked(
 
 DirectHandle<Script> WasmEngine::GetOrCreateScript(
     Isolate* isolate, const std::shared_ptr<NativeModule>& native_module,
-    base::Vector<const char> source_url) {
+    std::string_view source_url) {
   {
     base::MutexGuard guard(&mutex_);
     DCHECK(isolates_.contains(isolate));

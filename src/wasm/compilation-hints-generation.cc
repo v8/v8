@@ -31,7 +31,7 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
     buffer.write_u8(kUnknownSectionCode);
     size_t section_size_offset = buffer.reserve_u32v();
     size_t section_body_begin = buffer.offset();
-    buffer.write_string(base::StaticCharVector(kCompilationPriorityString));
+    buffer.write_string(kCompilationPriorityString);
     uint32_t num_functions = 0;
     size_t num_functions_offset = buffer.reserve_u32v();
     for (uint32_t func_index = module->num_imported_functions;
@@ -76,7 +76,7 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
     buffer.write_u8(kUnknownSectionCode);
     size_t section_size_offset = buffer.reserve_u32v();
     size_t section_body_begin = buffer.offset();
-    buffer.write_string(base::StaticCharVector(kInstructionFrequenciesString));
+    buffer.write_string(kInstructionFrequenciesString);
 
     uint32_t num_functions = 0;
     size_t num_functions_offset = buffer.reserve_u32v();
@@ -135,7 +135,7 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
     buffer.write_u8(kUnknownSectionCode);
     size_t section_size_offset = buffer.reserve_u32v();
     size_t section_body_begin = buffer.offset();
-    buffer.write_string(base::StaticCharVector(kCallTargetsString));
+    buffer.write_string(kCallTargetsString);
 
     uint32_t num_functions = 0;
     size_t num_functions_offset = buffer.reserve_u32v();

@@ -759,9 +759,9 @@ Factory::CreateCanonicalEmptySwissNameDictionary() {
 }
 
 // Internalized strings are created in the old generation (data space).
-Handle<String> Factory::InternalizeUtf8String(base::Vector<const char> string) {
+Handle<String> Factory::InternalizeUtf8String(std::string_view str) {
   base::Vector<const uint8_t> utf8_data =
-      base::Vector<const uint8_t>::cast(string);
+      base::OneByteVector(str.data(), str.size());
   Utf8Decoder decoder(utf8_data);
   if (decoder.is_ascii()) return InternalizeString(utf8_data);
   if (decoder.is_one_byte()) {
@@ -989,11 +989,10 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
                                   StringBuilder{}, allocation);
 }
 
-MaybeHandle<String> Factory::NewStringFromUtf8(base::Vector<const char> string,
+MaybeHandle<String> Factory::NewStringFromUtf8(std::string_view str,
                                                AllocationType allocation) {
-  return NewStringFromUtf8(base::Vector<const uint8_t>::cast(string),
-                           UnicodeConfig(unibrow::Utf8Variant::kLossyUtf8),
-                           allocation);
+  return NewStringFromUtf8(base::OneByteVector(str.data(), str.size()),
+                           unibrow::Utf8Variant::kLossyUtf8, allocation);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

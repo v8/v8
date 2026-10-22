@@ -1755,11 +1755,10 @@ class PrototypesSetup : public wasm::Decoder {
     if (HasMorePrototypes()) error("unconsumed prototypes");
     if (more()) error("unconsumed data");
     if (!ok()) {
-      DirectHandle<String> message =
-          isolate()
-              ->factory()
-              ->NewStringFromUtf8(base::VectorOf(error().message()))
-              .ToHandleChecked();
+      DirectHandle<String> message = isolate()
+                                         ->factory()
+                                         ->NewStringFromUtf8(error().message())
+                                         .ToHandleChecked();
       DirectHandle<JSObject> error = isolate()->factory()->NewError(
           isolate()->wasm_runtime_error_function(), message);
       return isolate()->Throw(*error);

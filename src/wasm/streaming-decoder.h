@@ -10,6 +10,7 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include "include/v8-wasm.h"  // For WasmStreaming::ModuleCachingInterface.
@@ -125,7 +126,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   const std::string& url() const { return *url_; }
   std::shared_ptr<const std::string> shared_url() const { return url_; }
 
-  void SetUrl(base::Vector<const char> url) {
+  void SetUrl(std::string_view url) {
     // We shouldn't modify {url_} while it is being read. The API contract
     // hence states that {SetUrl()} must be called early.
     // Enforcing this with a CHECK is possibly racy when an attacker with an
@@ -133,7 +134,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
     // becomes a problem, we can add a lock. As an attack mitigation, a CHECK
     // that fails most of the time is probably good enough.
     SBXCHECK_EQ(stream_state_, kReceivingBytes);
-    url_->assign(url.begin(), url.size());
+    url_->assign(url);
     // Safely crash if a race did happen:
     SBXCHECK_EQ(stream_state_, kReceivingBytes);
   }

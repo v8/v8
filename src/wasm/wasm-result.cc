@@ -128,9 +128,7 @@ DirectHandle<JSObject> ErrorThrower::Reify() {
       break;
   }
   DirectHandle<String> message =
-      isolate_->factory()
-          ->NewStringFromUtf8(base::VectorOf(error_msg_))
-          .ToHandleChecked();
+      isolate_->factory()->NewStringFromUtf8(error_msg_).ToHandleChecked();
   Reset();
   return isolate_->factory()->NewError(constructor, message);
 }

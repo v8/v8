@@ -54,7 +54,7 @@ class WasmSerializationTest {
       f = builder->AddFunction(sigs.i_i());
       f->EmitCode({WASM_LOCAL_GET(0), kExprI32Const, 1, kExprI32Add, kExprEnd});
     }
-    builder->AddExport(base::CStrVector(kFunctionName), f);
+    builder->AddExport(kFunctionName, f);
 
     builder->WriteTo(buffer);
   }
@@ -73,7 +73,7 @@ class WasmSerializationTest {
   }
 
   MaybeDirectHandle<WasmModuleObject> Deserialize(
-      base::Vector<const char> source_url = {}) {
+      std::string_view source_url = {}) {
     // Create a separate copy because some tests want to deserialize multiple
     // times.
     base::UniqueArray<const uint8_t> wire_bytes_copy =
@@ -238,7 +238,7 @@ TEST(DeserializeWithSourceUrl) {
     HandleScope scope(CcTest::i_isolate());
     const std::string url = "http://example.com/example.wasm";
     DirectHandle<WasmModuleObject> module_object;
-    CHECK(test.Deserialize(base::VectorOf(url)).ToHandle(&module_object));
+    CHECK(test.Deserialize(url).ToHandle(&module_object));
     Tagged<String> url_str = Cast<String>(module_object->script()->name());
     CHECK_EQ(url, url_str->ToCString().get());
   }
@@ -576,7 +576,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
                      // if_false:
                      WASM_I32V_1(42)),
                  WASM_END});
-    builder.AddExport(base::CStrVector("call_indirect"), f);
+    builder.AddExport("call_indirect", f);
     // Add a function table.
     uint32_t table_id = builder.AddTable(kWasmFuncRef, 1);
     builder.SetIndirectFunction(table_id, 0, f->func_index());
@@ -681,7 +681,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
         v8::Context::New(CcTest::isolate());
     deserialization_context->Enter();
     ErrorThrower thrower(i_isolate, "");
-    base::Vector<const char> kNoSourceUrl;
+    std::string_view kNoSourceUrl;
     base::UniqueArray<const uint8_t> wire_bytes_copy =
         base::UniqueCopyOf(zone_buffer);
     DirectHandle<WasmModuleObject> module_object =
@@ -750,11 +750,11 @@ TEST(SerializeDetectedFeatures) {
     ModuleTypeIndex sig_i_v = builder.AddSignature(TestSignatures::i_v(), true);
     WasmFunctionBuilder* a = builder.AddFunction(sig_i_v);
     a->EmitCode({WASM_I32V_1(11), WASM_END});
-    builder.AddExport(base::CStrVector("a"), a);
+    builder.AddExport("a", a);
     // Add the function which tail-calls the first one.
     WasmFunctionBuilder* b = builder.AddFunction(sig_i_v);
     b->EmitCode({WASM_RETURN_CALL_FUNCTION0(a->func_index()), WASM_END});
-    builder.AddExport(base::CStrVector("b"), b);
+    builder.AddExport("b", b);
     // Write the final module into {buffer}.
     builder.WriteTo(&buffer);
   }
@@ -838,7 +838,7 @@ TEST(SerializeDetectedFeatures) {
         v8::Context::New(CcTest::isolate());
     deserialization_context->Enter();
     ErrorThrower thrower(i_isolate, "");
-    base::Vector<const char> kNoSourceUrl;
+    std::string_view kNoSourceUrl;
     base::UniqueArray<const uint8_t> wire_bytes_copy =
         base::UniqueCopyOf(buffer);
     DirectHandle<WasmModuleObject> module_object =

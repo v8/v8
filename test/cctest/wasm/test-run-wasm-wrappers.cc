@@ -116,7 +116,7 @@ TEST(WrapperBudget) {
     // Define the Wasm function.
     TestSignatures sigs;
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_ii());
-    f->builder()->AddExport(base::CStrVector("main"), f);
+    f->builder()->AddExport("main", f);
     f->EmitCode({WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), WASM_END});
 
     // Compile the module.
@@ -164,7 +164,7 @@ TEST(WrapperReplacement) {
     // Define the Wasm function.
     TestSignatures sigs;
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
-    f->builder()->AddExport(base::CStrVector("main"), f);
+    f->builder()->AddExport("main", f);
     f->EmitCode({WASM_LOCAL_GET(0), WASM_END});
 
     // Compile the module.
@@ -240,15 +240,15 @@ TEST(EagerWrapperReplacement) {
     // while the other one (id) won't.
     TestSignatures sigs;
     WasmFunctionBuilder* add = builder->AddFunction(sigs.i_ii());
-    add->builder()->AddExport(base::CStrVector("add"), add);
+    add->builder()->AddExport("add", add);
     add->EmitCode(
         {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), WASM_END});
     WasmFunctionBuilder* mult = builder->AddFunction(sigs.i_ii());
-    mult->builder()->AddExport(base::CStrVector("mult"), mult);
+    mult->builder()->AddExport("mult", mult);
     mult->EmitCode(
         {WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), WASM_END});
     WasmFunctionBuilder* id = builder->AddFunction(sigs.i_i());
-    id->builder()->AddExport(base::CStrVector("id"), id);
+    id->builder()->AddExport("id", id);
     id->EmitCode({WASM_LOCAL_GET(0), WASM_END});
 
     // Compile the module.
@@ -354,7 +354,7 @@ TEST(WrapperReplacement_IndirectExport) {
     const uint32_t table_size = 2;
     const uint32_t table_index =
         builder->AddTable(kWasmFuncRef, table_size, table_size);
-    builder->AddExport(base::CStrVector("exported_table"), kExternalTable, 0);
+    builder->AddExport("exported_table", kExternalTable, 0);
 
     // Point from the exported table to the Wasm function.
     builder->SetIndirectFunction(table_index, 0, function_index);
@@ -415,7 +415,7 @@ TEST(JSToWasmWrapperGarbageCollection) {
     // Define an exported Wasm function.
     TestSignatures sigs;
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_v());
-    builder.AddExport(base::CStrVector("main"), f);
+    builder.AddExport("main", f);
     f->EmitCode({WASM_ONE, WASM_END});
 
     // Before compilation there should be no compiled wrappers.

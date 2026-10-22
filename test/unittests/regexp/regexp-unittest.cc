@@ -595,13 +595,9 @@ static regexp::Node* Compile(const char* input, bool multiline, bool unicode,
     return nullptr;
   }
   DirectHandle<String> pattern =
-      isolate->factory()
-          ->NewStringFromUtf8(base::CStrVector(input))
-          .ToHandleChecked();
+      isolate->factory()->NewStringFromUtf8(input).ToHandleChecked();
   DirectHandle<String> sample_subject =
-      isolate->factory()
-          ->NewStringFromUtf8(base::CStrVector(""))
-          .ToHandleChecked();
+      isolate->factory()->NewStringFromUtf8("").ToHandleChecked();
   DirectHandle<IrRegExpData> re_data =
       TrustedCast<IrRegExpData>(isolate->factory()->NewIrRegExpData(
           pattern, pattern, JSRegExp::AsJSRegExpFlags(flags),

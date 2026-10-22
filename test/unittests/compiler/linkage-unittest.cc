@@ -50,10 +50,8 @@ static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
 
 // So we can get a real JS function.
 static Handle<JSFunction> Compile(Isolate* isolate, std::string_view source) {
-  Handle<String> source_code = isolate->factory()
-                                   ->NewStringFromUtf8(base::Vector<const char>(
-                                       source.data(), source.length()))
-                                   .ToHandleChecked();
+  Handle<String> source_code =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
   ScriptCompiler::CompilationDetails compilation_details;
   DirectHandle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(

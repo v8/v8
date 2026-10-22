@@ -107,7 +107,7 @@ bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
 #endif
 
 struct ConstantStringInit {
-  base::Vector<const char> contents;
+  std::string_view contents;
   RootIndex index;
 };
 
@@ -970,7 +970,8 @@ bool Heap::CreateImportantReadOnlyObjects() {
       // the initial section.
       isolate()->string_table()->InsertEmptyStringForBootstrapping(isolate());
     } else {
-      DirectHandle<String> str = factory->InternalizeString(entry.contents);
+      DirectHandle<String> str = factory->InternalizeString(
+          base::OneByteVector(entry.contents.data(), entry.contents.size()));
       roots_table()[entry.index] = str->ptr();
     }
   }
@@ -1149,7 +1150,8 @@ bool Heap::CreateReadOnlyObjects() {
       Context::BIGINT_FUNCTION_INDEX);
 
   for (const ConstantStringInit& entry : kNotImportantConstantStringTable) {
-    DirectHandle<String> str = factory->InternalizeString(entry.contents);
+    DirectHandle<String> str = factory->InternalizeString(
+        base::OneByteVector(entry.contents.data(), entry.contents.size()));
     roots_table()[entry.index] = str->ptr();
   }
 
@@ -1321,8 +1323,7 @@ bool Heap::CreateReadOnlyObjects() {
     // This code duplicates FactoryBase::SmiToNumber.
     for (uint32_t i = 10; i < kPreallocatedNumberStringTableSize; ++i) {
       std::string_view string = IntToStringView(i, buffer);
-      Handle<String> str = factory->InternalizeString(
-          base::OneByteVector(string.data(), string.length()));
+      Handle<String> str = factory->InternalizeString(string);
 
       DCHECK(ReadOnlyHeap::Contains(*str));
       preallocated_number_string_table->set(i, *str);

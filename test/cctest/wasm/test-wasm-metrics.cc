@@ -281,7 +281,7 @@ COMPILE_TEST(TestEventMetrics) {
 
   WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
-  f->builder()->AddExport(base::CStrVector("main"), f);
+  f->builder()->AddExport("main", f);
   f->EmitCode({WASM_I32V_2(0), WASM_END});
   ZoneBuffer buffer(&zone);
   builder->WriteTo(&buffer);

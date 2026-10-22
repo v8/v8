@@ -1845,7 +1845,7 @@ MaybeDirectHandle<String> ValueDeserializer::ReadUtf8String(
   base::Vector<const uint8_t> utf8_bytes;
   if (!ReadRawBytes(utf8_length).To(&utf8_bytes)) return {};
   return isolate_->factory()->NewStringFromUtf8(
-      base::Vector<const char>::cast(utf8_bytes), allocation);
+      utf8_bytes, unibrow::Utf8Variant::kLossyUtf8, allocation);
 }
 
 MaybeDirectHandle<String> ValueDeserializer::ReadOneByteString(

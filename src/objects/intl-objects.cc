@@ -2179,8 +2179,7 @@ MaybeDirectHandle<JSArray> CreateArrayFromList(
     // a. Let status be CreateDataProperty(array, ! ToString(n), e).
     const std::string& part = elements[i];
     DirectHandle<String> value =
-        factory->NewStringFromUtf8(base::CStrVector(part.c_str()))
-            .ToHandleChecked();
+        factory->NewStringFromUtf8(part).ToHandleChecked();
     MAYBE_RETURN(JSObject::AddDataElement(isolate, array, i, value, attr), {});
   }
   // 5. Return array.

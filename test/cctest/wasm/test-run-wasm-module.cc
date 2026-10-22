@@ -66,7 +66,7 @@ void TestModuleException(Zone* zone, WasmModuleBuilder* builder) {
 }
 
 void ExportAsMain(WasmFunctionBuilder* f) {
-  f->builder()->AddExport(base::CStrVector("main"), f);
+  f->builder()->AddExport("main", f);
 }
 
 #define EMIT_CODE_WITH_END(f, code)  \

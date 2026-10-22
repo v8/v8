@@ -1716,20 +1716,20 @@ TEST(InvalidExternalString) {
   }
 }
 
-#define INVALID_STRING_TEST(FUN, TYPE)                                  \
-  TEST(StringOOM##FUN) {                                                \
-    CcTest::InitializeVM();                                             \
-    LocalContext context;                                               \
-    Isolate* isolate = CcTest::i_isolate();                             \
-    static_assert(String::kMaxLength < kMaxInt);                        \
-    static const int invalid = String::kMaxLength + 1;                  \
-    HandleScope scope(isolate);                                         \
-    auto dummy = v8::base::UniqueArray<TYPE>::NewForOverwrite(invalid); \
-    memset(dummy.begin(), 0x0, dummy.size() * sizeof(TYPE));            \
-    CHECK(isolate->factory()->FUN(dummy.as_span()).is_null());          \
-    memset(dummy.begin(), 0x20, dummy.size() * sizeof(TYPE));           \
-    CHECK(isolate->has_exception());                                    \
-    isolate->clear_exception();                                         \
+#define INVALID_STRING_TEST(FUN, TYPE)                                       \
+  TEST(StringOOM##FUN) {                                                     \
+    CcTest::InitializeVM();                                                  \
+    LocalContext context;                                                    \
+    Isolate* isolate = CcTest::i_isolate();                                  \
+    static_assert(String::kMaxLength < kMaxInt);                             \
+    static const int invalid = String::kMaxLength + 1;                       \
+    HandleScope scope(isolate);                                              \
+    auto dummy = v8::base::UniqueArray<TYPE>::NewForOverwrite(invalid);      \
+    memset(dummy.begin(), 0x0, dummy.size() * sizeof(TYPE));                 \
+    CHECK(isolate->factory()->FUN({dummy.begin(), dummy.size()}).is_null()); \
+    memset(dummy.begin(), 0x20, dummy.size() * sizeof(TYPE));                \
+    CHECK(isolate->has_exception());                                         \
+    isolate->clear_exception();                                              \
   }
 
 INVALID_STRING_TEST(NewStringFromUtf8, char)

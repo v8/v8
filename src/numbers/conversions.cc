@@ -943,7 +943,7 @@ double InternalStringToDouble(const Char* current, const Char* end,
 
 double StringToDouble(const char* str, ConversionFlag flags,
                       double empty_string_val) {
-  // We use {base::OneByteVector} instead of {base::CStrVector} to avoid
+  // We use {base::OneByteVector} instead of {std::string_view} to avoid
   // instantiating the InternalStringToDouble() template for {const char*} as
   // well.
   return StringToDouble(base::OneByteVector(str), flags, empty_string_val);

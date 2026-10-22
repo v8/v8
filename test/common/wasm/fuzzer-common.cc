@@ -494,7 +494,7 @@ MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
   }
 
   // Create the module object.
-  constexpr base::Vector<const char> kNoSourceUrl;
+  constexpr std::string_view kNoSourceUrl;
   DirectHandle<Script> script =
       GetWasmEngine()->GetOrCreateScript(isolate, native_module, kNoSourceUrl);
   TypeCanonicalizer::PrepareForCanonicalTypeId(
@@ -684,12 +684,12 @@ static std::optional<ExecutionResult> ExecuteNonReferenceRun(
 
 int FindExportedMainFunction(const WasmModule* module,
                              base::Vector<const uint8_t> wire_bytes) {
-  constexpr base::Vector<const char> kMainName = base::StaticCharVector("main");
   for (const WasmExport& exp : module->export_table) {
     if (exp.kind != ImportExportKindCode::kExternalFunction) continue;
-    base::Vector<const uint8_t> name =
-        wire_bytes.SubVector(exp.name.offset(), exp.name.end_offset());
-    if (base::Vector<const char>::cast(name) != kMainName) continue;
+    std::string_view name(
+        reinterpret_cast<const char*>(wire_bytes.begin() + exp.name.offset()),
+        exp.name.length());
+    if (name != "main") continue;
     return exp.index;
   }
   return -1;

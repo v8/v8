@@ -24,10 +24,9 @@ own<Trap> Callback(const vec<Val>& args, vec<Val>& results) {
 
 TEST_F(WasmCapiTest, Serialize) {
   FunctionSig sig(0, 0, nullptr);
-  uint32_t callback_index =
-      builder()->AddImport(base::CStrVector("callback"), &sig);
+  uint32_t callback_index = builder()->AddImport("callback", &sig);
   uint8_t code[] = {WASM_CALL_FUNCTION0(callback_index)};
-  AddExportedFunction(base::CStrVector("run"), code, sizeof(code), &sig);
+  AddExportedFunction("run", code, sizeof(code), &sig);
   Compile();
 
   vec<byte_t> serialized = module()->serialize();

@@ -13,6 +13,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -197,7 +198,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
       base::UniqueArray<const uint8_t> bytes,
       // Optional source URL; needed when recompiling on flags mismatch
       // to preserve the original URL.
-      base::Vector<const char> source_url = {});
+      std::string_view source_url = {});
 
   // Synchronously instantiate the given Wasm module with the given imports.
   MaybeDirectHandle<WasmInstanceObject> SyncInstantiate(
@@ -238,7 +239,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // recreating a full module object in the given Isolate.
   DirectHandle<WasmModuleObject> ImportNativeModule(
       Isolate* isolate, std::shared_ptr<NativeModule> shared_module,
-      base::Vector<const char> source_url);
+      std::string_view source_url);
 
   // Flushes all Liftoff code in all NativeModules.
   void FlushLiftoffCode();
@@ -402,7 +403,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   DirectHandle<Script> GetOrCreateScript(Isolate*,
                                          const std::shared_ptr<NativeModule>&,
-                                         base::Vector<const char> source_url);
+                                         std::string_view source_url);
 
   // Returns a barrier allowing background compile operations if valid and
   // preventing this object from being destroyed.

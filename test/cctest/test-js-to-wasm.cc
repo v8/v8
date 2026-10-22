@@ -298,8 +298,7 @@ class FastJSWasmCallTester {
 
   void DeclareCallback(const char* name, FunctionSig* signature,
                        const char* module) {
-    builder_->AddImport(base::CStrVector(name), signature,
-                        base::CStrVector(module));
+    builder_->AddImport(name, signature, module);
   }
 
   void AddExportedFunction(const ExportedFunction& exported_func) {
@@ -308,8 +307,8 @@ class FastJSWasmCallTester {
     func->EmitCode(exported_func.code.data(),
                    static_cast<uint32_t>(exported_func.code.size()));
     func->Emit(kExprEnd);
-    builder_->AddExport(base::CStrVector(exported_func.name.c_str()),
-                        kExternalFunction, func->func_index());
+    builder_->AddExport(exported_func.name, kExternalFunction,
+                        func->func_index());
 
     // JS-to-Wasm inlining is disabled when targeting 32 bits if the Wasm
     // function signature contains an I64.

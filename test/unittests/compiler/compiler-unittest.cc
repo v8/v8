@@ -51,9 +51,8 @@ static void SetGlobalProperty(const char* name, Tagged<Object> value) {
 
 static DirectHandle<JSFunction> Compile(const char* source) {
   Isolate* isolate = reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent());
-  Handle<String> source_code = isolate->factory()
-                                   ->NewStringFromUtf8(base::CStrVector(source))
-                                   .ToHandleChecked();
+  Handle<String> source_code =
+      isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
   ScriptCompiler::CompilationDetails compilation_details;
   DirectHandle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
@@ -242,7 +241,7 @@ TEST_F(CompilerTestWithPrintExtension, C2JSFrames) {
   EXPECT_TRUE(IsJSFunction(*fun1));
 
   DirectHandle<Object> args[] = {
-      isolate->factory()->InternalizeString(base::StaticCharVector("hello"))};
+      isolate->factory()->InternalizeString("hello")};
   Execution::Call(isolate, Cast<JSFunction>(fun1), global, base::VectorOf(args))
       .Check();
 }
@@ -956,10 +955,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
       "  }"
       "})";
   IndirectHandle<String> source_string =
-      isolate()
-          ->factory()
-          ->NewStringFromUtf8(base::CStrVector(source))
-          .ToHandleChecked();
+      isolate()->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
   const int kTopLevelId = 0;
   const int kFId = 1;
@@ -1162,10 +1158,7 @@ TEST_F(BackgroundMergeTest, MergeWithEval) {
       "  return eval('1');"
       "};";
   IndirectHandle<String> source_string =
-      isolate()
-          ->factory()
-          ->NewStringFromUtf8(base::CStrVector(source))
-          .ToHandleChecked();
+      isolate()->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
   ScriptCompiler::CompilationDetails compilation_details;
   DirectHandle<SharedFunctionInfo> top_level_sfi =

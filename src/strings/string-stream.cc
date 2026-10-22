@@ -88,14 +88,13 @@ static bool IsControlChar(char c) {
   }
 }
 
-void StringStream::Add(base::Vector<const char> format,
-                       base::Vector<FmtElm> elms) {
+void StringStream::Add(std::string_view format, std::span<const FmtElm> elms) {
   // If we already ran out of space then return immediately.
   if (full()) return;
-  int offset = 0;
-  int elm = 0;
+  size_t offset = 0;
+  size_t elm = 0;
   while (offset < format.length()) {
-    if (format[offset] != '%' || elm == elms.length()) {
+    if (format[offset] != '%' || elm == elms.size()) {
       Put(format[offset]);
       offset++;
       continue;
@@ -157,7 +156,7 @@ void StringStream::Add(base::Vector<const char> format,
         int value = current.data_.u_int_;
         std::array<char, 24> formatted;
         int length = base::SNPrintF(formatted, temp.data(), value);
-        Add(base::Vector<const char>(formatted.data(), length));
+        Add(std::string_view(formatted.data(), length));
         break;
       }
       case 'f':
@@ -251,7 +250,7 @@ void StringStream::OutputToFile(FILE* out) {
 
 DirectHandle<String> StringStream::ToString(Isolate* isolate) {
   return isolate->factory()
-      ->NewStringFromUtf8(base::Vector<const char>(buffer_, length_))
+      ->NewStringFromUtf8(std::string_view(buffer_, length_))
       .ToHandleChecked();
 }
 

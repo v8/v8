@@ -67,12 +67,12 @@ TEST_F(StringTableTest, InternalizeUtf8String) {
       const char* string = *ptr;
       HandleScope scope(isolate());
       DirectHandle<String> a =
-          factory()->InternalizeUtf8String(base::CStrVector(string));
+          factory()->InternalizeUtf8String(std::string_view(string));
       EXPECT_TRUE(IsInternalizedString(*a));
       DirectHandle<String> b = factory()->InternalizeUtf8String(string);
       EXPECT_EQ(*b, *a);
       EXPECT_TRUE(b->IsOneByteEqualTo(string));
-      b = factory()->InternalizeUtf8String(base::CStrVector(string));
+      b = factory()->InternalizeUtf8String(std::string_view(string));
       EXPECT_EQ(*b, *a);
       EXPECT_TRUE(b->IsOneByteEqualTo(string));
     }

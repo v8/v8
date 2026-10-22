@@ -1043,8 +1043,7 @@ class BuiltinsReducer : public Next {
   }
 
   V<String> StringConstant(const char* str) {
-    Handle<String> internalized_string =
-        factory()->InternalizeString(base::OneByteVector(str));
+    Handle<String> internalized_string = factory()->InternalizeString(str);
     __ CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
     return V<String>::Cast(__ HeapConstantNoHole(internalized_string));
   }

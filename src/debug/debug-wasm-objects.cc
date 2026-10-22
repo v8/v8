@@ -33,7 +33,7 @@ namespace {
 using StringBuilder = wasm::StringBuilder;
 DirectHandle<String> ToInternalString(StringBuilder& sb, Isolate* isolate) {
   return isolate->factory()->InternalizeString(
-      base::VectorOf(sb.start(), sb.length()));
+      {sb.start(), static_cast<size_t>(sb.length())});
 }
 
 Address GetDebugBreakFp(WasmFrame* frame) {
@@ -901,18 +901,15 @@ DirectHandle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
     map->SetConstructor(*isolate->object_function());
     {  // type
       Descriptor d = Descriptor::DataField(
-          isolate,
-          isolate->factory()->InternalizeString(base::StaticCharVector("type")),
+          isolate, isolate->factory()->InternalizeString("type"),
           WasmValueObject::kTypeOffset, FROZEN, Representation::Tagged(), true);
       map->AppendDescriptor(isolate, &d);
     }
     {  // value
-      Descriptor d =
-          Descriptor::DataField(isolate,
-                                isolate->factory()->InternalizeString(
-                                    base::StaticCharVector("value")),
-                                WasmValueObject::kValueOffset, FROZEN,
-                                Representation::Tagged(), true);
+      Descriptor d = Descriptor::DataField(
+          isolate, isolate->factory()->InternalizeString("value"),
+          WasmValueObject::kValueOffset, FROZEN, Representation::Tagged(),
+          true);
       map->AppendDescriptor(isolate, &d);
     }
     map->set_is_extensible(false);
@@ -1011,46 +1008,46 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
     case wasm::kI8: {
       // This can't be reached for most "top-level" things, only via nested
       // calls for struct/array fields.
-      t = isolate->factory()->InternalizeString(base::StaticCharVector("i8"));
+      t = isolate->factory()->InternalizeString("i8");
       v = isolate->factory()->NewNumber(value.to_i8_unchecked());
       break;
     }
     case wasm::kI16: {
       // This can't be reached for most "top-level" things, only via nested
       // calls for struct/array fields.
-      t = isolate->factory()->InternalizeString(base::StaticCharVector("i16"));
+      t = isolate->factory()->InternalizeString("i16");
       v = isolate->factory()->NewNumber(value.to_i16_unchecked());
       break;
     }
     case wasm::kI32: {
-      t = isolate->factory()->InternalizeString(base::StaticCharVector("i32"));
+      t = isolate->factory()->InternalizeString("i32");
       v = isolate->factory()->NewNumberFromInt(value.to_i32_unchecked());
       break;
     }
     case wasm::kI64: {
-      t = isolate->factory()->InternalizeString(base::StaticCharVector("i64"));
+      t = isolate->factory()->InternalizeString("i64");
       v = BigInt::FromInt64(isolate, value.to_i64_unchecked());
       break;
     }
     case wasm::kF16: {
       // This can't be reached for most "top-level" things, only via nested
       // calls for struct/array fields.
-      t = isolate->factory()->InternalizeString(base::StaticCharVector("f16"));
+      t = isolate->factory()->InternalizeString("f16");
       v = isolate->factory()->NewNumber(value.to_f16_unchecked());
       break;
     }
     case wasm::kF32: {
-      t = isolate->factory()->InternalizeString(base::StaticCharVector("f32"));
+      t = isolate->factory()->InternalizeString("f32");
       v = isolate->factory()->NewNumber(value.to_f32_unchecked());
       break;
     }
     case wasm::kF64: {
-      t = isolate->factory()->InternalizeString(base::StaticCharVector("f64"));
+      t = isolate->factory()->InternalizeString("f64");
       v = isolate->factory()->NewNumber(value.to_f64_unchecked());
       break;
     }
     case wasm::kS128: {
-      t = isolate->factory()->InternalizeString(base::StaticCharVector("v128"));
+      t = isolate->factory()->InternalizeString("v128");
       v = WasmSimd128ToString(isolate, value.to_s128_unchecked());
       break;
     }
@@ -1064,8 +1061,7 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
       }
 #endif
       if (value.type().is_reference_to(wasm::GenericKind::kExn)) {
-        t = isolate->factory()->InternalizeString(
-            base::StaticCharVector("exnref"));
+        t = isolate->factory()->InternalizeString("exnref");
         v = ref;
       } else if (IsWasmNull(*ref)) {
         v = isolate->factory()->null_value();
@@ -1104,7 +1100,7 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
                            Cast<HeapObject>(*ref)->map()->instance_type());
         t = GetRefTypeName(isolate, value.type());
         v = isolate->factory()->InternalizeString(
-            base::VectorOf(error).SubVector(0, len));
+            {error.data(), static_cast<size_t>(len)});
       }
       break;
     }

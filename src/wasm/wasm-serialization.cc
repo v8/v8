@@ -1208,8 +1208,7 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     base::Vector<const uint8_t> data,
     base::UniqueArray<const uint8_t>& wire_bytes_vec,
-    const CompileTimeImports& compile_imports,
-    base::Vector<const char> source_url) {
+    const CompileTimeImports& compile_imports, std::string_view source_url) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!HeaderMatches(data, enabled_features, compile_imports)) return {};
 

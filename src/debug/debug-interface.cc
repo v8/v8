@@ -141,7 +141,7 @@ Local<String> GetDateDescription(Local<Date> date) {
   auto buffer = i::ToDateString(jsdate->value(), i_isolate->date_cache(),
                                 i::ToDateStringMode::kLocalDateAndTime);
   return Utils::ToLocal(i_isolate->factory()
-                            ->NewStringFromUtf8(base::VectorOf(buffer))
+                            ->NewStringFromUtf8({buffer.data(), buffer.size()})
                             .ToHandleChecked());
 }
 

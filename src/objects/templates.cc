@@ -204,8 +204,7 @@ DirectHandle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
   uint32_t unused_array_index;
   for (const std::string_view& name : names) {
     DirectHandle<String> internalized_name =
-        isolate->factory()->InternalizeString(
-            base::Vector<const char>(name.data(), name.length()));
+        isolate->factory()->InternalizeString(name);
     // Check that property name cannot be used as index.
     CHECK(!internalized_name->AsArrayIndex(&unused_array_index));
     property_names->set(index, *internalized_name);

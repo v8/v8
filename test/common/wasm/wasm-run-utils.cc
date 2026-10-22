@@ -269,8 +269,7 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
   DCHECK_EQ(module_->functions.size(),
             module_->num_imported_functions + module_->num_declared_functions);
   if (name) {
-    base::Vector<const uint8_t> name_vec =
-        base::Vector<const uint8_t>::cast(base::CStrVector(name));
+    base::Vector<const uint8_t> name_vec = base::OneByteVector(name);
     module_->lazily_generated_names.AddForTesting(
         index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.size())});
   }
@@ -494,7 +493,7 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   module_->num_declared_functions = 0;
   native_module->SetWireBytes(base::UniqueArray<const uint8_t>());
   native_module->compilation_state()->set_compilation_id(0);
-  constexpr base::Vector<const char> kNoSourceUrl{"", 0};
+  constexpr std::string_view kNoSourceUrl{"", 0};
   DirectHandle<Script> script =
       GetWasmEngine()->GetOrCreateScript(isolate_, native_module, kNoSourceUrl);
 

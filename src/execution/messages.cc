@@ -422,8 +422,7 @@ DirectHandle<String> MessageFormatter::Format(
   Handle<String> result_string;
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_exception());
-    return isolate->factory()->InternalizeString(
-        base::StaticCharVector("<error>"));
+    return isolate->factory()->InternalizeString("<error>");
   }
   // A string that has been obtained from JS code in this way is
   // likely to be a complicated ConsString of some sort.  We flatten it

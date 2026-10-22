@@ -595,7 +595,7 @@ WASM_COMPILED_EXEC_TEST(WasmBreakpointMultipleScripts) {
   std::shared_ptr<NativeModule> native_module =
       module_object->managed_native_module()->get();
   DirectHandle<Script> script2 = GetWasmEngine()->GetOrCreateScript(
-      isolate, native_module, base::CStrVector("custom://other-url.wasm"));
+      isolate, native_module, "custom://other-url.wasm");
   CHECK_NE(*script1, *script2);
 
   int func_offset =

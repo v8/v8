@@ -190,8 +190,7 @@ class ParsingTest : public TestWithContextAndZone {
     full_source += "; }";
 
     i::DirectHandle<i::String> source_code =
-        factory->NewStringFromUtf8(base::CStrVector(full_source.c_str()))
-            .ToHandleChecked();
+        factory->NewStringFromUtf8(full_source).ToHandleChecked();
 
     i::Handle<i::Script> script = factory->NewScript(source_code);
 
@@ -348,11 +347,8 @@ class ParsingTest : public TestWithContextAndZone {
                       size_t always_false_flags_length = 0,
                       bool is_module = false, bool test_preparser = true,
                       bool ignore_error_msg = false) {
-    i::Handle<i::String> str = i_isolate()
-                                   ->factory()
-                                   ->NewStringFromUtf8(base::Vector<const char>(
-                                       source, strlen(source)))
-                                   .ToHandleChecked();
+    i::Handle<i::String> str =
+        i_isolate()->factory()->NewStringFromUtf8(source).ToHandleChecked();
     for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
       base::EnumSet<ParserFlag> flags;
       for (size_t flag_index = 0; flag_index < varying_flags_length;
@@ -1425,8 +1421,7 @@ TEST_F(ParsingTest, ScopeUsesArgumentsSuperThis) {
       base::SNPrintF(program.as_span(), "%s%s%s", surroundings[j].prefix,
                      source_data[i].body, surroundings[j].suffix);
       i::DirectHandle<i::String> source =
-          factory->NewStringFromUtf8(base::CStrVector(program.begin()))
-              .ToHandleChecked();
+          factory->NewStringFromUtf8(program.begin()).ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileState compile_state;
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
@@ -1758,8 +1753,7 @@ TEST_F(ParsingTest, ScopePositions) {
 
     // Parse program source.
     i::DirectHandle<i::String> source =
-        factory->NewStringFromUtf8(base::CStrVector(program.begin()))
-            .ToHandleChecked();
+        factory->NewStringFromUtf8(program.begin()).ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
 
@@ -1808,7 +1802,7 @@ TEST_F(ParsingTest, DiscardFunctionBody) {
   for (int i = 0; discard_sources[i]; i++) {
     const char* source = discard_sources[i];
     i::DirectHandle<i::String> source_code =
-        factory->NewStringFromUtf8(base::CStrVector(source)).ToHandleChecked();
+        factory->NewStringFromUtf8(source).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
     i::UnoptimizedCompileState compile_state;
     i::ReusableUnoptimizedCompileState reusable_state(isolate);
@@ -12974,7 +12968,7 @@ TEST_F(ParsingTest, LexicalLoopVariable) {
   auto TestProgram = [isolate](const char* program, TestCB test) {
     i::Factory* const factory = isolate->factory();
     i::DirectHandle<i::String> source =
-        factory->NewStringFromUtf8(base::CStrVector(program)).ToHandleChecked();
+        factory->NewStringFromUtf8(program).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
     i::ReusableUnoptimizedCompileState reusable_state(isolate);

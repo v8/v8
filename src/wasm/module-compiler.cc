@@ -2564,8 +2564,8 @@ void AsyncCompileJob::FinishCompile(
   bool is_after_deserialization = !deserialized_module_object.is_null();
   if (!is_after_deserialization) {
     // Prepare runtime objects.
-    auto source_url =
-        stream_ ? base::VectorOf(stream_->url()) : base::Vector<const char>();
+    std::string_view source_url =
+        stream_ ? std::string_view(stream_->url()) : std::string_view();
     auto script =
         GetWasmEngine()->GetOrCreateScript(isolate, native_module, source_url);
     module_object = WasmModuleObject::New(isolate, script);
@@ -2628,10 +2628,11 @@ void AsyncCompileJob::FinishCompile(
   if (sourcemap_symbol.type != WasmDebugSymbols::Type::None &&
       !sourcemap_symbol.external_url.is_empty()) {
     ModuleWireBytes wire_bytes(native_module->wire_bytes());
+    WasmName external_url =
+        wire_bytes.GetNameOrNull(sourcemap_symbol.external_url);
     MaybeDirectHandle<String> src_map_str =
         isolate->factory()->NewStringFromUtf8(
-            wire_bytes.GetNameOrNull(sourcemap_symbol.external_url),
-            AllocationType::kOld);
+            {external_url.data(), external_url.size()}, AllocationType::kOld);
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
   {
@@ -3390,7 +3391,7 @@ bool AsyncStreamingProcessor::Deserialize(
   DirectHandle<WasmModuleObject> module_object;
   if (!DeserializeNativeModule(isolate, job_->enabled_features_, module_bytes,
                                wire_bytes, job_->compile_imports_,
-                               base::VectorOf(job_->stream_->url()))
+                               job_->stream_->url())
            .ToHandle(&module_object)) {
     return false;
   }

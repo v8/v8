@@ -69,7 +69,7 @@ class WasmGCTester {
                               std::initializer_list<const uint8_t> code) {
     WasmFunctionBuilder* fun = builder_.AddFunction(sig);
     fun->EmitCode(code);
-    builder_.AddExport(base::CStrVector(name), fun);
+    builder_.AddExport(name, fun);
   }
 
   MaybeDirectHandle<Object> CallExportedFunction(
