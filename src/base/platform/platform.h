@@ -529,6 +529,10 @@ class V8_BASE_EXPORT AddressSpaceReservation {
   V8_WARN_UNUSED_RESULT static bool FreeSubReservation(
       AddressSpaceReservation reservation);
 
+#if V8_OS_FUCHSIA
+  zx_handle_t vmar() const { return vmar_; }
+#endif  // V8_OS_FUCHSIA
+
 #if V8_OS_WIN
   // On Windows, the placeholder mappings backing address space reservations
   // need to be split and merged as page allocations can only replace an entire
