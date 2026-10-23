@@ -2219,6 +2219,22 @@ void ExtractStringsFromUnicodeSet(const icu::UnicodeSet& set,
   }
 }
 
+// Appends the ranges of |set| to |result_ranges|. In /vi mode, the set is
+// closed over simple case folding first; this must precede the complement.
+void AddUnicodeSetRanges(icu::UnicodeSet* set, bool negate, Flags flags,
+                         ZoneList<CharacterRange>* result_ranges, Zone* zone) {
+  DCHECK_NOT_NULL(result_ranges);
+  const bool needs_case_folding = IsUnicodeSets(flags) && IsIgnoreCase(flags);
+  if (needs_case_folding) set->closeOver(USET_SIMPLE_CASE_INSENSITIVE);
+  set->removeAllStrings();
+  if (negate) set->complement();
+  for (int i = 0; i < set->getRangeCount(); i++) {
+    result_ranges->Add(
+        CharacterRange::Range(set->getRangeStart(i), set->getRangeEnd(i)),
+        zone);
+  }
+}
+
 template <ParseMode mode>
 ClassSetResult<mode> LookupPropertyValueName(
     UProperty property, const char* property_value_name, bool negate,
@@ -2258,15 +2274,7 @@ ClassSetResult<mode> LookupPropertyValueName(
   if (contains_strings) {
     ExtractStringsFromUnicodeSet(set, result_strings, flags, zone);
   }
-  const bool needs_case_folding = IsUnicodeSets(flags) && IsIgnoreCase(flags);
-  if (needs_case_folding) set.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
-  set.removeAllStrings();
-  if (negate) set.complement();
-  DCHECK_NOT_NULL(result_ranges);
-  for (int i = 0; i < set.getRangeCount(); i++) {
-    result_ranges->Add(
-        CharacterRange::Range(set.getRangeStart(i), set.getRangeEnd(i)), zone);
-  }
+  AddUnicodeSetRanges(&set, negate, flags, result_ranges, zone);
   return ClassSetResult<mode>(nullptr, contains_strings);
 }
 
@@ -2290,9 +2298,8 @@ bool LookupSpecialPropertyValueName(const char* name,
     }
   } else if (NameEquals(name, "ASCII")) {
     if constexpr (mode == ParseMode::kBuildAST) {
-      result->Add(negate ? CharacterRange::Range(0x80, String::kMaxCodePoint)
-                         : CharacterRange::Range(0x0, 0x7F),
-                  zone);
+      icu::UnicodeSet set(0x0, 0x7F);
+      AddUnicodeSetRanges(&set, negate, flags, result, zone);
     }
   } else if (NameEquals(name, "Assigned")) {
     return LookupPropertyValueName<mode>(UCHAR_GENERAL_CATEGORY, "Unassigned",

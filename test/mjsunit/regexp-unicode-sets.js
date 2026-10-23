@@ -292,3 +292,16 @@ assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/\p{Lowercase_Letter}/giv, 'X'));
 assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/[^\P{Lowercase_Letter}]/giv, 'X'));
 assertFalse(/\P{ASCII}/iv.test('K'));
 assertFalse(/^\P{Lowercase}/iv.test('A'));
+
+// \p{ASCII} must be closed over simple case folding in /vi mode, adding
+// U+017F (LATIN SMALL LETTER LONG S, folds to 's') and U+212A (KELVIN SIGN,
+// folds to 'k').
+assertTrue(/\p{ASCII}/vi.test('\u017f'));
+assertTrue(/\p{ASCII}/vi.test('\u212a'));
+assertFalse(/\P{ASCII}/vi.test('\u017f'));
+assertFalse(/\P{ASCII}/vi.test('\u212a'));
+assertTrue(/[\p{ASCII}&&\p{Lowercase}]/vi.test('\u212a'));
+assertFalse(/[\p{Any}--\p{ASCII}]/vi.test('\u017f'));
+// Without /i there is no case-fold closure.
+assertFalse(/\p{ASCII}/v.test('\u017f'));
+assertTrue(/\P{ASCII}/v.test('\u212a'));
