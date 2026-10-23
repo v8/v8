@@ -129,7 +129,7 @@ WasmInterpretationResult FastInterpretWasmModule(
       CHECK(!IsNull(*arg.to_ref()));
     }
   }
-  bool success = handle->raw()->Execute(
+  bool success = handle->get()->Execute(
       thread, 0, static_cast<uint32_t>(function_index), args, rets);
 
   // Returned values should not be the hole value.

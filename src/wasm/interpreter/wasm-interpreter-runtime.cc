@@ -130,7 +130,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       wasm::GetOrCreateInterpreterHandle(isolate, trusted_data);
 
   if (wasm::WasmBytecode::ContainsSimd(sig)) {
-    interpreter_handle->raw()->SetTrapFunctionIndex(func_index);
+    interpreter_handle->raw(DisallowGarbageCollection{})
+        ->SetTrapFunctionIndex(func_index);
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kWasmTrapJSTypeError));
     return ReadOnlyRoots(isolate).exception();
@@ -183,7 +184,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
     }
 
       if (isolate->has_exception()) {
-        interpreter_handle->raw()->SetTrapFunctionIndex(func_index);
+        interpreter_handle->raw(DisallowGarbageCollection{})
+            ->SetTrapFunctionIndex(func_index);
         return ReadOnlyRoots(isolate).exception();
       }
 
@@ -426,7 +428,7 @@ void WasmInterpreterRuntime::UpdateMemoryAddress(
   DirectHandle<TrustedManaged<InterpreterHandle>> handle =
       GetOrCreateInterpreterHandle(isolate, trusted_data);
   WasmInterpreterRuntime* wasm_runtime =
-      handle->raw()->interpreter()->GetWasmRuntime();
+      handle->raw(DisallowGarbageCollection{})->interpreter()->GetWasmRuntime();
   DCHECK_LT(memory_index, wasm_runtime->module_->memories.size());
 
   // Publish the trusted data for the duration of this call.
@@ -459,7 +461,7 @@ bool WasmInterpreterRuntime::TableGet(const uint8_t*& current_code,
   // This function assumes that it is executed in a HandleScope.
 
   auto table = direct_handle(
-      TrustedCast<WasmTableObject>(
+      Cast<WasmTableObject>(
           wasm_trusted_instance_data()->tables()->get(table_index)),
       isolate_);
   uint32_t table_size = table->current_length();
@@ -479,7 +481,7 @@ void WasmInterpreterRuntime::TableSet(const uint8_t*& current_code,
   // This function assumes that it is executed in a HandleScope.
 
   auto table = direct_handle(
-      TrustedCast<WasmTableObject>(
+      Cast<WasmTableObject>(
           wasm_trusted_instance_data()->tables()->get(table_index)),
       isolate_);
   uint32_t table_size = table->current_length();
@@ -502,7 +504,7 @@ void WasmInterpreterRuntime::TableInit(const uint8_t*& current_code,
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       wasm_trusted_instance_data();
   auto table = direct_handle(
-      TrustedCast<WasmTableObject>(trusted_data->tables()->get(table_index)),
+      Cast<WasmTableObject>(trusted_data->tables()->get(table_index)),
       isolate_);
   if (IsSubtypeOf(table->type(module_), kWasmFuncRef, module_)) {
     PurgeIndirectCallCache(table_index);
@@ -529,10 +531,9 @@ void WasmInterpreterRuntime::TableCopy(const uint8_t*& current_code,
 
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       wasm_trusted_instance_data();
-  auto table_dst =
-      direct_handle(TrustedCast<WasmTableObject>(
-                        trusted_data->tables()->get(dst_table_index)),
-                    isolate_);
+  auto table_dst = direct_handle(
+      Cast<WasmTableObject>(trusted_data->tables()->get(dst_table_index)),
+      isolate_);
   if (IsSubtypeOf(table_dst->type(module_), kWasmFuncRef, module_)) {
     PurgeIndirectCallCache(dst_table_index);
   }
@@ -549,7 +550,7 @@ uint32_t WasmInterpreterRuntime::TableGrow(uint32_t table_index, uint32_t delta,
   // This function assumes that it is executed in a HandleScope.
 
   auto table = direct_handle(
-      TrustedCast<WasmTableObject>(
+      Cast<WasmTableObject>(
           wasm_trusted_instance_data()->tables()->get(table_index)),
       isolate_);
   DirectHandle<WasmDispatchTable> dispatch_table(
@@ -560,7 +561,7 @@ uint32_t WasmInterpreterRuntime::TableGrow(uint32_t table_index, uint32_t delta,
 uint32_t WasmInterpreterRuntime::TableSize(uint32_t table_index) {
   HandleScope handle_scope(isolate_);  // Avoid leaking handles.
   auto table = direct_handle(
-      TrustedCast<WasmTableObject>(
+      Cast<WasmTableObject>(
           wasm_trusted_instance_data()->tables()->get(table_index)),
       isolate_);
   return table->current_length();
@@ -573,7 +574,7 @@ void WasmInterpreterRuntime::TableFill(const uint8_t*& current_code,
   // This function assumes that it is executed in a HandleScope.
 
   auto table = direct_handle(
-      TrustedCast<WasmTableObject>(
+      Cast<WasmTableObject>(
           wasm_trusted_instance_data()->tables()->get(table_index)),
       isolate_);
   uint32_t table_size = table->current_length();
@@ -651,7 +652,7 @@ void WasmInterpreterRuntime::UnpackException(
     uint32_t* sp, const WasmTag& tag, DirectHandle<Object> exception_object,
     uint32_t first_param_slot_index, uint32_t first_param_ref_stack_index) {
   DirectHandle<FixedArray> encoded_values = GetExceptionValuesField(
-      isolate_, TrustedCast<WasmExceptionPackage>(exception_object));
+      isolate_, Cast<WasmExceptionPackage>(exception_object));
   SBXCHECK_LE(WasmExceptionPackage::GetEncodedSize(module_, &tag),
               static_cast<uint32_t>(encoded_values->length()));
   // Decode the exception values from the given exception package and push
@@ -759,7 +760,7 @@ WasmInterpreterRuntime::CreateWasmExceptionPackage(uint32_t tag_index) const {
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       wasm_trusted_instance_data();
   DirectHandle<WasmExceptionTag> exception_tag(
-      TrustedCast<WasmExceptionTag>(trusted_data->tags_table()->get(tag_index)),
+      Cast<WasmExceptionTag>(trusted_data->tags_table()->get(tag_index)),
       isolate_);
   const WasmTag& tag = GetWasmTag(tag_index);
   uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(module_, &tag);
@@ -861,7 +862,7 @@ WasmInterpreterRuntime::HandleException(uint32_t* sp,
           // The exception was thrown by Wasm code and it's wrapped in a
           // WasmExceptionPackage.
           DirectHandle<Object> caught_tag = GetExceptionTagField(
-              isolate_, TrustedCast<WasmExceptionPackage>(exception));
+              isolate_, Cast<WasmExceptionPackage>(exception));
           DirectHandle<Object> expected_tag(
               trusted_data->tags_table()->get(catch_handler.tag_index),
               isolate_);
@@ -905,7 +906,7 @@ WasmInterpreterRuntime::HandleException(uint32_t* sp,
           DirectHandle<JSObject> js_tag_object(
               isolate_->native_context()->wasm_js_tag(), isolate_);
           DirectHandle<WasmTagObject> wasm_tag_object(
-              TrustedCast<WasmTagObject>(*js_tag_object), isolate_);
+              Cast<WasmTagObject>(*js_tag_object), isolate_);
           DirectHandle<Object> caught_tag(wasm_tag_object->tag(), isolate_);
           DirectHandle<Object> expected_tag(
               trusted_data->tags_table()->get(catch_handler.tag_index),
@@ -1955,7 +1956,7 @@ void WasmInterpreterRuntime::ClearIndirectCallCacheEntry(
   DirectHandle<TrustedManaged<InterpreterHandle>> handle =
       GetOrCreateInterpreterHandle(isolate, trusted_data);
   WasmInterpreterRuntime* wasm_runtime =
-      handle->raw()->interpreter()->GetWasmRuntime();
+      handle->raw(DisallowGarbageCollection{})->interpreter()->GetWasmRuntime();
   // SANDBOX SAFETY: `indirect_call_tables_` is an out-of-cage std::vector.
   // Bounds-check unconditionally (see PurgeIndirectCallCache) so a mismatched
   // {table_index}/{entry_index} can never drive an out-of-cage OOB write.
@@ -1972,7 +1973,7 @@ void WasmInterpreterRuntime::UpdateIndirectCallTable(
   DirectHandle<TrustedManaged<InterpreterHandle>> handle =
       GetOrCreateInterpreterHandle(isolate, trusted_data);
   WasmInterpreterRuntime* wasm_runtime =
-      handle->raw()->interpreter()->GetWasmRuntime();
+      handle->raw(DisallowGarbageCollection{})->interpreter()->GetWasmRuntime();
 
   // Publish the trusted data for the duration of this call.
   InstanceScope instance_scope(wasm_runtime, trusted_data);
@@ -2875,7 +2876,7 @@ DirectHandle<Map> WasmInterpreterRuntime::RttCanon(uint32_t type_index) const {
   // {managed_object_maps} holds the canonical RTTs for all (shared and
   // non-shared) types on the single trusted instance data.
   DirectHandle<Map> rtt{
-      TrustedCast<Map>(
+      Cast<Map>(
           wasm_trusted_instance_data()->managed_object_maps()->get(type_index)),
       isolate_};
   return rtt;
@@ -3490,7 +3491,8 @@ DirectHandle<WasmInstanceObject> InterpreterHandle::GetInstanceObject() {
   // Check that this is indeed the instance which is connected to this
   // interpreter.
   DCHECK_EQ(this,
-            instance_obj->trusted_data(isolate_)->interpreter_handle()->raw());
+            instance_obj->trusted_data(isolate_)->interpreter_handle()->raw(
+                DisallowGarbageCollection{}));
   return instance_obj;
 }
 
