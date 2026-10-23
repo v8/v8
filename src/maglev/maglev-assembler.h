@@ -123,7 +123,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   // Whether the architecture has a register that always reads as zero, which
   // can be stored instead of materializing a zero constant.
   static constexpr bool HasZeroRegister() {
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_LOONG64)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_RISCV64)
     return true;
 #else
     return false;
@@ -133,7 +134,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   static Register ZeroRegister() {
 #if defined(V8_TARGET_ARCH_ARM64)
     return xzr;
-#elif defined(V8_TARGET_ARCH_LOONG64)
+#elif defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_RISCV64)
     return zero_reg;
 #else
     UNREACHABLE();
