@@ -56,13 +56,9 @@ Response SerializeRegexp(v8::Local<v8::RegExp> value,
   std::unique_ptr<protocol::DictionaryValue> resultValue =
       protocol::DictionaryValue::create();
 
-  v8::Local<v8::String> source = value->GetSource();
-  if (!duplicateTracker.takeCharacters(source)) {
-    return Response::ServerError("Object is too large to be returned by value");
-  }
   resultValue->setValue(protocol::String("pattern"),
                         protocol::StringValue::create(toProtocolString(
-                            v8::Isolate::GetCurrent(), source)));
+                            v8::Isolate::GetCurrent(), value->GetSource())));
 
   String16 flags = DescriptionForRegExpFlags(value);
   if (!flags.isEmpty()) {
@@ -169,13 +165,8 @@ Response SerializeMap(v8::Local<v8::Map> value, v8::Local<v8::Context> context,
       }
 
       if (keyV8Value->IsString()) {
-        v8::Local<v8::String> keyString = keyV8Value.As<v8::String>();
-        if (!duplicateTracker.takeCharacters(keyString)) {
-          return Response::ServerError(
-              "Object is too large to be returned by value");
-        }
-        keyProtocolValue = protocol::StringValue::create(
-            toProtocolString(v8::Isolate::GetCurrent(), keyString));
+        keyProtocolValue = protocol::StringValue::create(toProtocolString(
+            v8::Isolate::GetCurrent(), keyV8Value.As<v8::String>()));
       } else {
         std::unique_ptr<protocol::DictionaryValue> keyDictionaryProtocolValue;
         std::unique_ptr<ValueMirror> keyMirror =
@@ -266,9 +257,8 @@ Response SerializeObjectValue(v8::Local<v8::Object> value,
       continue;
     }
 
-    v8::Local<v8::String> keyString = keyV8Value.As<v8::String>();
     v8::Maybe<bool> hasRealNamedProperty =
-        value->HasRealNamedProperty(context, keyString);
+        value->HasRealNamedProperty(context, keyV8Value.As<v8::String>());
     if (hasRealNamedProperty.IsNothing()) {
       return Response::ServerError("exception during deep serialization");
     }
@@ -276,12 +266,8 @@ Response SerializeObjectValue(v8::Local<v8::Object> value,
     if (!hasRealNamedProperty.FromJust()) {
       continue;
     }
-    if (!duplicateTracker.takeCharacters(keyString)) {
-      return Response::ServerError(
-          "Object is too large to be returned by value");
-    }
-    keyProtocolValue = protocol::StringValue::create(
-        toProtocolString(v8::Isolate::GetCurrent(), keyString));
+    keyProtocolValue = protocol::StringValue::create(toProtocolString(
+        v8::Isolate::GetCurrent(), keyV8Value.As<v8::String>()));
 
     if (!value->Get(context, keyV8Value).ToLocal(&propertyV8Value)) {
       return Response::ServerError("exception during deep serialization");

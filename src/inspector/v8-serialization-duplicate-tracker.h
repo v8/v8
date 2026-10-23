@@ -14,32 +14,6 @@
 
 namespace v8_inspector {
 
-// Limits the total size of a serialized protocol value. Values reachable via
-// multiple references (i.e. shared but not cyclic) are serialized once per
-// reference, so without such limits, a small object graph could expand to an
-// exponential number of values, or a single large string could be copied many
-// times.
-struct ProtocolValueBudget {
-  // The remaining number of array elements and object properties.
-  uint32_t values = 100'000;
-  // The remaining number of characters in strings and property names. The
-  // serialized result has to fit into a single string anyway.
-  uint32_t characters = static_cast<uint32_t>(v8::String::kMaxLength);
-
-  bool takeValues(uint32_t count) {
-    if (count > values) return false;
-    values -= count;
-    return true;
-  }
-
-  bool takeCharacters(v8::Local<v8::String> string) {
-    uint32_t length = static_cast<uint32_t>(string->Length());
-    if (length > characters) return false;
-    characters -= length;
-    return true;
-  }
-};
-
 class V8SerializationDuplicateTracker {
  public:
   // Returns a `protocol::DictionaryValue` value either empty if the V8 value
@@ -51,18 +25,9 @@ class V8SerializationDuplicateTracker {
   V8_EXPORT explicit V8SerializationDuplicateTracker(
       v8::Local<v8::Context> context);
 
-  // Takes the characters of the `string` from the character budget, before the
-  // `string` is copied into the serialized result.
-  bool takeCharacters(v8::Local<v8::String> string) {
-    return m_budget.takeCharacters(string);
-  }
-
-  ProtocolValueBudget* budget() { return &m_budget; }
-
  private:
   v8::Local<v8::Context> m_context;
   int m_counter;
-  ProtocolValueBudget m_budget;
   // Maps v8 value to the index of the corresponding serialized value in
   // `m_serializedValues`. The map lives in sandbox-corruptible memory, so it
   // must never hold raw (out-of-sandbox) pointers. Instead it holds indices

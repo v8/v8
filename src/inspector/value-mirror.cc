@@ -41,6 +41,19 @@ static const int kMaxProtocolDepth = 1000;
 
 namespace {
 
+// Limits the total size of the result of a single toProtocolValue() call.
+// Values reachable via multiple references (i.e. shared but not cyclic) are
+// serialized once per reference, so without such limits, a small object graph
+// could expand to an exponential number of values, or a single large string
+// could be copied many times.
+struct ProtocolValueBudget {
+  // The remaining number of array elements and object properties.
+  uint32_t values = kMaxArrayLength;
+  // The remaining number of characters in strings and property names. The
+  // serialized result has to fit into a single string anyway.
+  uint32_t characters = static_cast<uint32_t>(v8::String::kMaxLength);
+};
+
 Response toProtocolValueImpl(v8::Local<v8::Context> context,
                              v8::Local<v8::Value> value, int maxDepth,
                              ProtocolValueBudget* budget,
@@ -50,11 +63,18 @@ Response objectTooLargeError() {
   return Response::ServerError("Object is too large to be returned by value");
 }
 
+// Takes the characters of the `string` from the `budget`, before the `string`
+// is copied into the result.
+bool takeCharacters(ProtocolValueBudget* budget, v8::Local<v8::String> string) {
+  uint32_t length = static_cast<uint32_t>(string->Length());
+  if (length > budget->characters) return false;
+  budget->characters -= length;
+  return true;
+}
+
 Response arrayToProtocolValueImpl(
     v8::Local<v8::Context> context, v8::Local<v8::Array> array, int maxDepth,
     ProtocolValueBudget* budget, std::unique_ptr<protocol::ListValue>* result) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope handles(isolate);
   std::unique_ptr<protocol::ListValue> inspectorArray =
       protocol::ListValue::create();
   uint32_t length = array->Length();
@@ -63,10 +83,10 @@ Response arrayToProtocolValueImpl(
   }
   // Take all the elements from the budget upfront, so that we fail early
   // (before serializing any of the elements) if they don't fit.
-  if (!budget->takeValues(length)) return objectTooLargeError();
+  if (length > budget->values) return objectTooLargeError();
+  budget->values -= length;
   inspectorArray->reserve(length);
   for (uint32_t i = 0; i < length; i++) {
-    v8::HandleScope loopHandles(isolate);
     v8::Local<v8::Value> value;
     if (!array->Get(context, i).ToLocal(&value)) {
       return Response::InternalError();
@@ -85,8 +105,6 @@ Response objectToProtocolValueImpl(
     v8::Local<v8::Context> context, v8::Local<v8::Object> object, int maxDepth,
     ProtocolValueBudget* budget,
     std::unique_ptr<protocol::DictionaryValue>* result) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope handles(isolate);
   std::unique_ptr<protocol::DictionaryValue> jsonObject =
       protocol::DictionaryValue::create();
   v8::Local<v8::Array> propertyNames;
@@ -94,12 +112,7 @@ Response objectToProtocolValueImpl(
     return Response::InternalError();
   }
   uint32_t length = propertyNames->Length();
-  // Take all the own properties from the budget upfront, since we have to
-  // look up and inspect each of them even if their value turns out to be
-  // undefined.
-  if (!budget->takeValues(length)) return objectTooLargeError();
   for (uint32_t i = 0; i < length; i++) {
-    v8::HandleScope loopHandles(isolate);
     v8::Local<v8::Value> name;
     if (!propertyNames->Get(context, i).ToLocal(&name)) {
       return Response::InternalError();
@@ -124,13 +137,16 @@ Response objectToProtocolValueImpl(
       return Response::InternalError();
     }
     if (property->IsUndefined()) continue;
-    if (!budget->takeCharacters(propertyName)) return objectTooLargeError();
+    if (budget->values == 0) return objectTooLargeError();
+    --budget->values;
+    if (!takeCharacters(budget, propertyName)) return objectTooLargeError();
     std::unique_ptr<protocol::Value> propertyValue;
     Response response = toProtocolValueImpl(context, property, maxDepth - 1,
                                             budget, &propertyValue);
     if (!response.IsSuccess()) return response;
-    jsonObject->setValue(toProtocolString(isolate, propertyName),
-                         std::move(propertyValue));
+    jsonObject->setValue(
+        toProtocolString(v8::Isolate::GetCurrent(), propertyName),
+        std::move(propertyValue));
   }
   *result = std::move(jsonObject);
   return Response::Success();
@@ -178,7 +194,7 @@ Response toProtocolValueImpl(v8::Local<v8::Context> context,
   }
   if (value->IsString()) {
     v8::Local<v8::String> string = value.As<v8::String>();
-    if (!budget->takeCharacters(string)) return objectTooLargeError();
+    if (!takeCharacters(budget, string)) return objectTooLargeError();
     *result = protocol::StringValue::create(
         toProtocolString(v8::Isolate::GetCurrent(), string));
     return Response::Success();
@@ -670,15 +686,11 @@ class PrimitiveValueMirror final : public ValueMirrorBase {
       return Response::Success();
     }
     if (value->IsString()) {
-      v8::Local<v8::String> stringValue = value.As<v8::String>();
-      if (!duplicateTracker.takeCharacters(stringValue)) {
-        return objectTooLargeError();
-      }
       *result = protocol::DictionaryValue::create();
       (*result)->setString(
           "type", protocol::Runtime::DeepSerializedValue::TypeEnum::String);
-      (*result)->setString(
-          "value", toProtocolString(v8::Isolate::GetCurrent(), stringValue));
+      (*result)->setString("value", toProtocolString(v8::Isolate::GetCurrent(),
+                                                     value.As<v8::String>()));
       return Response::Success();
     }
     if (value->IsBoolean()) {
@@ -841,9 +853,6 @@ class BigIntMirror final : public ValueMirrorBase {
         v8Value(v8::Isolate::GetCurrent()).As<v8::BigInt>();
     v8::Local<v8::String> stringValue =
         v8::debug::GetBigIntStringValue(v8::Isolate::GetCurrent(), value);
-    if (!duplicateTracker.takeCharacters(stringValue)) {
-      return objectTooLargeError();
-    }
 
     *result = protocol::DictionaryValue::create();
     (*result)->setString(
@@ -1422,12 +1431,8 @@ class ObjectMirror final : public ValueMirrorBase {
               &v8Value)) {
         // Embedder-implemented serialization has value.
         std::unique_ptr<protocol::Value> protocolValue;
-        if (!v8Value->IsUndefined()) {
-          Response response =
-              toProtocolValueImpl(context, v8Value, kMaxProtocolDepth,
-                                  duplicateTracker.budget(), &protocolValue);
-          if (!response.IsSuccess()) return response;
-        }
+        Response response = toProtocolValue(context, v8Value, &protocolValue);
+        if (!response.IsSuccess()) return response;
         (*result)->setValue("value", std::move(protocolValue));
       }
       return Response::Success();
