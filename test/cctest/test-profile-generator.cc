@@ -390,10 +390,12 @@ namespace {
 class TestSetup {
  public:
   TestSetup() : old_flag_prof_browser_mode_(i::v8_flags.prof_browser_mode) {
-    i::v8_flags.prof_browser_mode = false;
+    i::v8_flags.prof_browser_mode.Set(false);
   }
 
-  ~TestSetup() { i::v8_flags.prof_browser_mode = old_flag_prof_browser_mode_; }
+  ~TestSetup() {
+    i::v8_flags.prof_browser_mode.Set(old_flag_prof_browser_mode_);
+  }
 
  private:
   bool old_flag_prof_browser_mode_;
@@ -754,7 +756,7 @@ static const ProfileNode* PickChild(const ProfileNode* parent,
 TEST(RecordStackTraceAtStartProfiling) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
-  i::v8_flags.turbo_inlining = false;
+  i::v8_flags.turbo_inlining.Set(false);
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -830,7 +832,7 @@ static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
 TEST(ProfileNodeScriptId) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
-  i::v8_flags.turbo_inlining = false;
+  i::v8_flags.turbo_inlining.Set(false);
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -930,8 +932,8 @@ TEST(LineNumber) {
 
 TEST(BailoutReason) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-  i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.turbofan = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
+  i::v8_flags.turbofan.Set(true);
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);

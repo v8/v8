@@ -252,7 +252,7 @@ TEST_F(ThreadTerminationTest, TerminateBigIntMultiplication) {
 }
 
 TEST_F(ThreadTerminationTest, TerminateOptimizedBigIntMultiplication) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   TestTerminatingFromCurrentThread(
       "function foo(a, b) { return a * b; }"
       "%PrepareFunctionForOptimization(foo);"
@@ -277,7 +277,7 @@ TEST_F(ThreadTerminationTest, TerminateBigIntDivision) {
 }
 
 TEST_F(ThreadTerminationTest, TerminateOptimizedBigIntDivision) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   TestTerminatingFromCurrentThread(
       "function foo(a, b) { return a / b; }"
       "%PrepareFunctionForOptimization(foo);"
@@ -585,7 +585,7 @@ TEST_F(ThreadTerminationTest, TerminationInInnerTryCall) {
 }
 
 TEST_F(ThreadTerminationTest, TerminateAndTryCall) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   HandleScope scope(isolate());
   Local<ObjectTemplate> global = CreateGlobalTemplate(
       isolate(), TerminateCurrentThread, DoLoopCancelTerminate);
@@ -632,7 +632,7 @@ class ConsoleImpl : public cppgc::GarbageCollected<ConsoleImpl>,
 };
 
 TEST_F(ThreadTerminationTest, TerminateConsole) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   ConsoleImpl* console_impl = cppgc::MakeGarbageCollected<ConsoleImpl>(
       isolate()->GetCppHeap()->GetAllocationHandle());
   debug::SetConsoleDelegate(isolate(), console_impl);
@@ -660,7 +660,7 @@ TEST_F(ThreadTerminationTest, TerminateConsole) {
 }
 
 TEST_F(ThreadTerminationTest, TerminationClearArrayJoinStack) {
-  internal::v8_flags.allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax.Set(true);
   HandleScope scope(isolate());
   Local<ObjectTemplate> global_template =
       CreateGlobalTemplate(isolate(), TerminateCurrentThread, DoLoopNoCall);
@@ -746,12 +746,13 @@ class TerminatorSleeperThread : public base::Thread {
 };
 
 TEST_F(ThreadTerminationTest, TerminateRegExp) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   // We want to be stuck regexp execution, so no fallback to linear-time
   // engine.
   // TODO(mbid,v8:10765): Find a way to test interrupt support of the
   // experimental engine.
-  i::v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks = false;
+  i::v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks.Set(
+      false);
 
   HandleScope scope(isolate());
   Local<ObjectTemplate> global = CreateGlobalTemplate(

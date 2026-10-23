@@ -30,6 +30,7 @@
 #include "src/flags/flags-impl.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/fuzztest.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -223,7 +224,7 @@ TEST_F(FlagDefinitionsTest, FlagsDisableOptimizingCompilersImplications) {
 TEST_F(FlagDefinitionsTest, FreezeFlags) {
   // Before freezing, we can arbitrarily change values.
   CHECK_EQ(13, v8_flags.testing_int_flag);  // Initial (default) value.
-  v8_flags.testing_int_flag = 27;
+  v8_flags.testing_int_flag.Set(27);
   CHECK_EQ(27, v8_flags.testing_int_flag);
 
   // Get a direct pointer to the flag storage.
@@ -238,7 +239,9 @@ TEST_F(FlagDefinitionsTest, FreezeFlags) {
   // both crash.
   FlagList::FreezeFlags();
   // Accessing via the API fails with a CHECK.
-  ASSERT_DEATH_IF_SUPPORTED(v8_flags.testing_int_flag = 41,
+  ASSERT_DEATH_IF_SUPPORTED(v8_flags.testing_int_flag.Set(41),
+                            "Check failed: !IsFrozen\\(\\)");
+  ASSERT_DEATH_IF_SUPPORTED(v8_flags.testing_int_flag.Overwrite(41),
                             "Check failed: !IsFrozen\\(\\)");
   // Writing to the memory directly results in a segfault.
   ASSERT_DEATH_IF_SUPPORTED(*direct_testing_int_ptr = 41, "");
@@ -483,15 +486,30 @@ TEST(FlagInternalsTest, ImplicationOrderShouldNotMatter) {
 TEST_F(FlagDefinitionsTest, FlagValueSetChecksContradictions) {
   SaveFlags save_flags;
   v8_flags.flag_processing_mode.Set("abort-on-error");
-  v8_flags.testing_bool_flag.Set(true);
-  // Setting the same boolean value again is allowed.
-  v8_flags.testing_bool_flag.Set(true);
-  // Setting a contradictory boolean value fails.
-  ASSERT_DEATH_IF_SUPPORTED(
-      v8_flags.testing_bool_flag.Set(false),
-      "Command-line provided flag --testing-bool-flag specified as both true "
-      "and false");
-  FindFlagByName("flag_processing_mode")->Reset();
+  {
+    SaveFlags inner_save;
+    v8_flags.testing_bool_flag.Set(true);
+    // Setting the same boolean value again is allowed.
+    v8_flags.testing_bool_flag.Set(true);
+    // Setting a contradictory boolean value fails.
+    ASSERT_DEATH_IF_SUPPORTED(
+        v8_flags.testing_bool_flag.Set(false),
+        "Command-line provided flag --testing-bool-flag specified as both true "
+        "and false");
+    // Overwriting bypasses contradiction checks.
+    v8_flags.testing_bool_flag.Overwrite(false);
+    CHECK(!v8_flags.testing_bool_flag);
+  }
+  // {SaveFlags} and {FlagScope} restore flag metadata, so setting the flag to
+  // different values across sequential scopes succeeds.
+  {
+    FlagScope<bool> scope(&v8_flags.testing_bool_flag, false);
+    CHECK(!v8_flags.testing_bool_flag);
+  }
+  {
+    FlagScope<bool> scope(&v8_flags.testing_bool_flag, true);
+    CHECK(v8_flags.testing_bool_flag);
+  }
 }
 
 TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
@@ -522,7 +540,6 @@ TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
     FlagList::EnforceFlagImplications();
     CHECK_EQ(0, strcmp(v8_flags.gc_fake_mmap, "/tmp/foo"));
     CHECK(v8_flags.test_only_unsafe);
-    FindFlagByName("gc_fake_mmap")->Reset();
   }
   {
     // Test conditional DISALLOW_UNSAFE_FLAG_IF: a non-default valid stack size

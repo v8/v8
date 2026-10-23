@@ -24,7 +24,7 @@ class MaglevGraphProcessorTest : public TestWithNativeContextAndZone {
  public:
   template <typename Function>
   void RunSubgraphTest(Function&& body) {
-    i::v8_flags.allow_natives_syntax = true;
+    i::v8_flags.allow_natives_syntax.Set(true);
     HandleScope scope(isolate());
     const char* script = R"(
       function f(a) { return a; }
@@ -126,7 +126,7 @@ class SecondBackwardProcessor {
 }  // namespace
 
 TEST_F(MaglevGraphProcessorTest, GraphBackwardMultiProcessorOrder) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   HandleScope scope(isolate());
   const char* script = R"(
     function f(a, b) { return a + b; }

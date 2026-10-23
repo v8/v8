@@ -2136,7 +2136,7 @@ TEST_F(AssemblerRISCV64Test, RISCVZicfiss_popchk) {
   if (!CpuFeatures::IsSupported(ZICFISS)) {
     return;
   }
-  i::v8_flags.sim_abort_on_shadowstack_mismatch = false;
+  i::v8_flags.sim_abort_on_shadowstack_mismatch.Set(false);
 
   Isolate* isolate = i_isolate();
   {
@@ -2157,7 +2157,7 @@ TEST_F(AssemblerRISCV64Test, RISCVZicfiss_popchk2) {
   if (!CpuFeatures::IsSupported(ZICFISS)) {
     return;
   }
-  i::v8_flags.sim_abort_on_shadowstack_mismatch = false;
+  i::v8_flags.sim_abort_on_shadowstack_mismatch.Set(false);
 
   Isolate* isolate = i_isolate();
   {

@@ -20,30 +20,30 @@ namespace {
 
 void CheckValidationSucceeds(Isolate* i_isolate, MacroAssembler& masm) {
   // Delay validation until we're ready to call it explicitly.
-  v8_flags.validate_generated_code = false;
+  v8_flags.validate_generated_code.Set(false);
   CodeDesc desc;
   masm.GetCode(i_isolate, &desc);
   DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
 
   // This should not crash.
-  v8_flags.validate_generated_code = true;
-  v8_flags.validate_generated_code_non_fatal = false;
+  v8_flags.validate_generated_code.Set(true);
+  v8_flags.validate_generated_code_non_fatal.Set(false);
   GeneratedCodeValidator::Validate(i_isolate, *code);
 }
 
 void CheckValidationFails(Isolate* i_isolate, MacroAssembler& masm,
                           std::string expected_error) {
   // Delay validation until we're ready to call it explicitly.
-  v8_flags.validate_generated_code = false;
+  v8_flags.validate_generated_code.Set(false);
   CodeDesc desc;
   masm.GetCode(i_isolate, &desc);
   DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
 
   // This should not crash.
-  v8_flags.validate_generated_code = true;
-  v8_flags.validate_generated_code_non_fatal = false;
+  v8_flags.validate_generated_code.Set(true);
+  v8_flags.validate_generated_code_non_fatal.Set(false);
   ASSERT_DEATH_IF_SUPPORTED(GeneratedCodeValidator::Validate(i_isolate, *code),
                             expected_error);
 }
@@ -54,7 +54,7 @@ void CheckValidationFails(Isolate* i_isolate, MacroAssembler& masm,
 
 TEST_F(GeneratedCodeValidatorTest, DisassembleValidCode) {
   // This validation until we're ready to call it explicitly.
-  v8_flags.validate_generated_code = false;
+  v8_flags.validate_generated_code.Set(false);
   Isolate* i_isolate = this->i_isolate();
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler masm(i_isolate, CodeObjectRequired{false},

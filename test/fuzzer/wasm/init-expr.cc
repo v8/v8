@@ -77,7 +77,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   // Disable the optimizing compiler. The init expressions can be huge and might
   // produce long compilation times. The function is only used as a reference
   // and only run once, so use liftoff only as it allows much faster fuzzing.
-  v8_flags.liftoff_only = true;
+  v8_flags.liftoff_only.Set(true);
 
   // We explicitly enable staged WebAssembly features here to increase fuzzer
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables

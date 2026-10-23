@@ -282,7 +282,7 @@ class AssemblerArm64Test : public i::TestWithIsolate {
  public:
   AssemblerArm64Test() {
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
-    v8_flags.validate_generated_code = false;
+    v8_flags.validate_generated_code.Set(false);
 #endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
   }
 
@@ -11955,7 +11955,7 @@ TEST_F(AssemblerArm64Test, system_msr) {
 }
 
 TEST_F(AssemblerArm64Test, system_pauth_b) {
-  i::v8_flags.sim_abort_on_bad_auth = false;
+  i::v8_flags.sim_abort_on_bad_auth.Set(false);
   SETUP();
   START();
 
@@ -16499,7 +16499,7 @@ TEST_F(AssemblerArm64Test, cssc_smax) {
 TEST_F(AssemblerArm64Test, sve_bit_permute) {
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
   // TODO(523128533): Disarm doesn't support sve.
-  v8_flags.validate_generated_code = false;
+  v8_flags.validate_generated_code.Set(false);
 #endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
 
   SETUP();

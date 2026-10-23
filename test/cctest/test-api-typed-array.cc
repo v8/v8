@@ -277,7 +277,7 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
   }
 
   bool old_natives_flag_sentry = i::v8_flags.allow_natives_syntax;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 
   // Test complex assignments
   result = CompileRun(
@@ -315,7 +315,7 @@ void ObjectWithExternalArrayTestHelper(v8::Isolate* v8_isolate,
       "sum;");
   CHECK_EQ(4800, result->Int32Value(context).FromJust());
 
-  i::v8_flags.allow_natives_syntax = old_natives_flag_sentry;
+  i::v8_flags.allow_natives_syntax.Set(old_natives_flag_sentry);
 
   result = CompileRun(
       "ext_array[3] = 33;"

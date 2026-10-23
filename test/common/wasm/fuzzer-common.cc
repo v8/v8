@@ -994,8 +994,8 @@ int ExecuteAgainstReference(Isolate* isolate,
 
 #if V8_ENABLE_DRUMBRAKE
   if (is_wasm_jitless) {
-    v8::internal::v8_flags.jitless = true;
-    v8::internal::v8_flags.wasm_jitless = true;
+    v8::internal::v8_flags.jitless.Set(true);
+    v8::internal::v8_flags.wasm_jitless.Set(true);
 
     FlagList::EnforceFlagImplications();
     v8::internal::wasm::WasmInterpreterThread::Initialize();
@@ -1248,7 +1248,7 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
         : isolate(isolate) {
       // Enable all staged features.
 #define ENABLE_PRE_STAGED_AND_STAGED_FEATURES(feat, ...) \
-  v8_flags.wasm_##feat = true;
+  v8_flags.wasm_##feat.Set(true);
       FOREACH_PRE_STAGED_FEATURE_FLAG(IGNORE_NON_WASM_FEATURE,
                                       ENABLE_PRE_STAGED_AND_STAGED_FEATURES,
                                       IGNORE_NON_WASM_FEATURE)
@@ -1268,17 +1268,17 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
 
       // The "pure Wasm" part of this proposal is considered ready for
       // fuzzing, the JS-related part (prototypes etc) not yet.
-      v8_flags.wasm_custom_descriptors = true;
+      v8_flags.wasm_custom_descriptors.Set(true);
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
       // Fuzz revectorization, which is otherwise still considered experimental.
-      v8_flags.wasm_revectorize = true;
+      v8_flags.wasm_revectorize.Set(true);
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #if V8_TARGET_ARCH_ARM64
       // Fuzz the Wasm SIMD optimizations in Turboshaft for aarch64.
-      v8_flags.future_wasm_simd_opt = true;
-      v8_flags.wasm_deinterleave_loads = true;
+      v8_flags.future_wasm_simd_opt.Set(true);
+      v8_flags.wasm_deinterleave_loads.Set(true);
 #endif  // V8_TARGET_ARCH_ARM64
 
       // Enforce implications from enabling features.
@@ -1344,7 +1344,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // Allow mixed old and new EH instructions in the same module for fuzzing, to
   // help us test the interaction between the two EH proposals without requiring
   // multiple modules.
-  v8_flags.wasm_allow_mixed_eh_for_testing = true;
+  v8_flags.wasm_allow_mixed_eh_for_testing.Set(true);
 
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);

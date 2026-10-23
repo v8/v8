@@ -543,7 +543,7 @@ TEST(BreakPointConstructCallWithGC) {
 
 
 TEST(BreakPointBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -575,7 +575,7 @@ TEST(BreakPointBuiltin) {
 }
 
 TEST(BreakPointApiIntrinsics) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -679,7 +679,7 @@ TEST(BreakPointApiIntrinsics) {
 }
 
 TEST(BreakPointJSBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -711,7 +711,7 @@ TEST(BreakPointJSBuiltin) {
 }
 
 TEST(BreakPointBoundBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -745,7 +745,7 @@ TEST(BreakPointBoundBuiltin) {
 }
 
 TEST(BreakPointConstructorBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -808,8 +808,8 @@ TEST(BreakPointConstructorBuiltin) {
 }
 
 TEST(BreakPointInlinedBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -853,8 +853,8 @@ TEST(BreakPointInlinedBuiltin) {
 }
 
 TEST(BreakPointInlineBoundBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -902,8 +902,8 @@ TEST(BreakPointInlineBoundBuiltin) {
 }
 
 TEST(BreakPointInlinedConstructorBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -947,8 +947,8 @@ TEST(BreakPointInlinedConstructorBuiltin) {
 }
 
 TEST(BreakPointBuiltinConcurrentOpt) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -989,8 +989,8 @@ TEST(BreakPointBuiltinConcurrentOpt) {
 }
 
 TEST(BreakPointBuiltinTFOperator) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1034,7 +1034,7 @@ TEST(BreakPointBuiltinTFOperator) {
 }
 
 TEST(BreakPointBuiltinNewContext) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1483,7 +1483,7 @@ TEST(BreakPointOnLazyAccessorInNewContexts) {
 }
 
 TEST(BreakPointInlineApiFunction) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1529,8 +1529,8 @@ TEST(BreakPointInlineApiFunction) {
 
 // Test that a break point can be set at a return store location.
 TEST(BreakPointConditionBuiltin) {
-  i::v8_flags.verify_get_js_builtin_state = false;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1659,7 +1659,7 @@ TEST(BreakPointConditionBuiltin) {
 }
 
 TEST(BreakPointInlining) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -3094,9 +3094,9 @@ TEST(PauseInScript) {
 int message_callback_count = 0;
 
 TEST(DebugBreak) {
-  i::v8_flags.stress_compaction = false;
+  i::v8_flags.stress_compaction.Set(false);
 #ifdef VERIFY_HEAP
-  i::v8_flags.verify_heap = true;
+  i::v8_flags.verify_heap.Set(true);
 #endif
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -3184,9 +3184,9 @@ class DebugScopingListener : public v8::debug::DebugDelegate {
 };
 
 TEST(DebugBreakInWrappedScript) {
-  i::v8_flags.stress_compaction = false;
+  i::v8_flags.stress_compaction.Set(false);
 #ifdef VERIFY_HEAP
-  i::v8_flags.verify_heap = true;
+  i::v8_flags.verify_heap.Set(true);
 #endif
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -3301,9 +3301,9 @@ TEST(DebugScopeIteratorWithFunctionTemplate) {
 }
 
 TEST(DebugBreakWithoutJS) {
-  i::v8_flags.stress_compaction = false;
+  i::v8_flags.stress_compaction.Set(false);
 #ifdef VERIFY_HEAP
-  i::v8_flags.verify_heap = true;
+  i::v8_flags.verify_heap.Set(true);
 #endif
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -3796,8 +3796,8 @@ class ExceptionEventCounter : public v8::debug::DebugDelegate {
 
 UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
   // We must set v8_flags.stack_size before initializing the isolate.
-  i::v8_flags.stack_size = 100;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.stack_size.Set(100);
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -3825,8 +3825,8 @@ UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
 
 UNINITIALIZED_TEST(NoBreakOnStackOverflowMaglev) {
   // We must set v8_flags.stack_size before initializing the isolate.
-  i::v8_flags.stack_size = 100;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.stack_size.Set(100);
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -3860,8 +3860,8 @@ UNINITIALIZED_TEST(NoBreakOnStackOverflowMaglev) {
 
 UNINITIALIZED_TEST(NoBreakOnStackOverflowTurbofan) {
   // We must set v8_flags.stack_size before initializing the isolate.
-  i::v8_flags.stack_size = 100;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.stack_size.Set(100);
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -4168,7 +4168,7 @@ class DebugBreakInlineListener : public v8::debug::DebugDelegate {
 };
 
 TEST(DebugBreakInline) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   v8::Local<v8::Context> context = env.local();
@@ -4750,7 +4750,7 @@ class DebugStepOverFunctionWithCaughtExceptionListener
 };
 
 TEST(DebugStepOverFunctionWithCaughtException) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -4778,7 +4778,7 @@ size_t NearHeapLimitCallback(void* data, size_t current_heap_limit,
 }
 
 UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
-  i::v8_flags.stress_concurrent_allocation = false;
+  i::v8_flags.stress_concurrent_allocation.Set(false);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.constraints.set_max_old_generation_size_in_bytes(10 * i::MB);
@@ -5135,7 +5135,7 @@ i::MaybeHandle<i::Script> FindScript(
 }  // anonymous namespace
 
 UNINITIALIZED_TEST(LoadedAtStartupScripts) {
-  i::v8_flags.expose_gc = true;
+  i::v8_flags.expose_gc.Set(true);
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -5832,7 +5832,7 @@ TEST(GetPrivateStaticAndInstanceMethodsAndAccessors) {
 }
 
 TEST(GetPrivateAutoAccessors) {
-  i::v8_flags.js_decorators = true;
+  i::v8_flags.js_decorators.Set(true);
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
@@ -6050,7 +6050,7 @@ v8::Local<v8::Object> SetUpDeferredModuleNamespace(
 // execution is disallowed, so collecting them from a deferred module namespace
 // must not evaluate the module. See crbug.com/451791624.
 TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
-  i::v8_flags.js_defer_import_eval = true;
+  i::v8_flags.js_defer_import_eval.Set(true);
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
@@ -6090,7 +6090,7 @@ TEST(GetPrivateMembersDoesNotEvaluateDeferredModule) {
 // listing one would either evaluate the module or throw for an export still in
 // TDZ. The [[ModuleStatus]] internal property describes such an object instead.
 TEST(PropertyIteratorDoesNotEvaluateDeferredModule) {
-  i::v8_flags.js_defer_import_eval = true;
+  i::v8_flags.js_defer_import_eval.Set(true);
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
@@ -6345,7 +6345,7 @@ TEST(TerminateOnResumeAtException) {
 }
 
 TEST(TerminateOnResumeAtBreakOnEntry) {
-  i::v8_flags.verify_get_js_builtin_state = false;
+  i::v8_flags.verify_get_js_builtin_state.Set(false);
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   SetTerminateOnResumeDelegate delegate;
@@ -6998,7 +6998,7 @@ class ExceptionCatchPredictionChecker : public v8::debug::DebugDelegate {
 };
 
 void RunExceptionCatchPredictionTest(bool predict_uncaught, const char* code) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
@@ -7054,7 +7054,7 @@ void RunAndIgnore(v8::Local<v8::Script> script,
 }
 
 void RunExceptionBlackboxCheckTest(int functions_checked, const char* code) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);

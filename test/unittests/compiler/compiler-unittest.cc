@@ -216,7 +216,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
 //   |      JS       |
 //   |   C-to-JS     |
 TEST_F(CompilerTestWithPrintExtension, C2JSFrames) {
-  v8_flags.expose_gc = true;
+  v8_flags.expose_gc.Set(true);
   v8::HandleScope scope(isolate());
   const char* extension_names[2] = {"v8/gc", PrintExtension::kName};
   v8::ExtensionConfiguration config(2, extension_names);
@@ -284,7 +284,7 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
 
 TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
   if (!i::v8_flags.turbofan) return;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   if (!i_isolate()->use_optimizer()) return;
   v8::HandleScope scope(isolate());
 
@@ -363,8 +363,8 @@ TEST_F(CompilerTest, FeedbackVectorUnaffectedByScopeChanges) {
 
 // Test that optimized code for different closures is actually shared.
 TEST_F(CompilerTest, OptimizedCodeSharing1) {
-  v8_flags.stress_compaction = false;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.stress_compaction.Set(false);
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(isolate());
   for (int i = 0; i < 3; i++) {
     context()
@@ -733,7 +733,7 @@ TEST_F(CompilerTest, CompileFunctionFunctionToString) {
 
 TEST_F(CompilerTest, InvocationCount) {
   if (v8_flags.lite_mode) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(isolate());
 
   RunJS(
@@ -939,7 +939,7 @@ using BackgroundMergeTest = TestWithNativeContext;
 
 // Tests that a GC during merge doesn't break the merge.
 TEST_F(BackgroundMergeTest, GCDuringMerge) {
-  v8_flags.verify_code_merge = true;
+  v8_flags.verify_code_merge.Set(true);
 
   HandleScope handle_scope(isolate());
   const char* source =
@@ -1149,7 +1149,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
 }
 
 TEST_F(BackgroundMergeTest, MergeWithEval) {
-  v8_flags.verify_code_merge = true;
+  v8_flags.verify_code_merge.Set(true);
 
   HandleScope handle_scope(isolate());
   const char* source =

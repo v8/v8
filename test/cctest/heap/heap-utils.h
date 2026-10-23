@@ -56,11 +56,11 @@ class ManualEvacuationCandidatesSelectionScope {
   // race with reading the page flag during concurrent marking.
   explicit ManualEvacuationCandidatesSelectionScope(ManualGCScope&) {
     DCHECK(!v8_flags.manual_evacuation_candidates_selection);
-    v8_flags.manual_evacuation_candidates_selection = true;
+    v8_flags.manual_evacuation_candidates_selection.Set(true);
   }
   ~ManualEvacuationCandidatesSelectionScope() {
     DCHECK(v8_flags.manual_evacuation_candidates_selection);
-    v8_flags.manual_evacuation_candidates_selection = false;
+    v8_flags.manual_evacuation_candidates_selection.Set(false);
   }
 
  private:

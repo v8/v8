@@ -506,8 +506,8 @@ TEST_F(HeapTest, GrowAndShrinkNewSpace) {
     ManualGCScope manual_gc_scope(i_isolate());
     // Avoid shrinking new space in GC epilogue. This can happen if allocation
     // throughput samples have been taken while executing the benchmark.
-    v8_flags.predictable = true;
-    v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+    v8_flags.predictable.Set(true);
+    v8_flags.stress_concurrent_allocation.Set(false);  // For SimulateFullSpace.
   }
   NewSpace* new_space = heap()->new_space();
 
@@ -567,7 +567,7 @@ TEST_F(HeapTest, GrowAndShrinkNewSpace) {
 
 TEST_F(HeapTest, CollectingAllAvailableGarbageShrinksNewSpace) {
   if (v8_flags.single_generation) return;
-  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SimulateFullSpace.
   if (heap()->MaxSemiSpaceSize() == heap()->InitialSemiSpaceSize()) {
     return;
   }
@@ -587,8 +587,8 @@ TEST_F(HeapTest, CollectingAllAvailableGarbageShrinksNewSpace) {
 // Test that HAllocateObject will always return an object in new-space.
 TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
   if (v8_flags.single_generation) return;
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SimulateFullSpace.
   if (!isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking) {
@@ -646,8 +646,8 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
       v8_flags.scavenger_chaos_mode) {
     return;
   }
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SealCurrentObjects.
+  v8_flags.scavenger_precise_object_pinning.Set(false);
   ManualGCScope manual_gc_scope(isolate());
   Factory* factory = isolate()->factory();
   Heap* heap = isolate()->heap();
@@ -787,9 +787,9 @@ namespace {
 struct RandomGCIntervalTestSetter {
   RandomGCIntervalTestSetter() {
     static constexpr int kInterval = 87;
-    v8_flags.random_gc_interval = kInterval;
+    v8_flags.random_gc_interval.Set(kInterval);
   }
-  ~RandomGCIntervalTestSetter() { v8_flags.random_gc_interval = 0; }
+  ~RandomGCIntervalTestSetter() { v8_flags.random_gc_interval.Set(0); }
 };
 
 struct HeapTestWithRandomGCInterval : RandomGCIntervalTestSetter, HeapTest {};
@@ -823,11 +823,11 @@ TEST_F(HeapTestWithRandomGCInterval, AllocationTimeout) {
 namespace {
 struct CompactionDisabler {
   CompactionDisabler() : was_enabled_(v8_flags.compact) {
-    v8_flags.compact = false;
+    v8_flags.compact.Set(false);
   }
   ~CompactionDisabler() {
     if (was_enabled_) {
-      v8_flags.compact = true;
+      v8_flags.compact.Set(true);
     }
   }
   const bool was_enabled_;
@@ -965,9 +965,9 @@ TEST_F(
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   if (v8_flags.scavenger_chaos_mode) return;
-  v8_flags.scavenger_conservative_object_pinning = true;
-  v8_flags.scavenger_precise_object_pinning = false;
-  v8_flags.scavenger_promote_quarantined_pages = false;
+  v8_flags.scavenger_conservative_object_pinning.Set(true);
+  v8_flags.scavenger_precise_object_pinning.Set(false);
+  v8_flags.scavenger_promote_quarantined_pages.Set(false);
   ManualGCScope manual_gc_scope(isolate());
 
   IndirectHandle<HeapObject> number =
@@ -1000,9 +1000,9 @@ TEST_F(HeapTest,
        ConservativePinningScavengerDoesntMoveObjectReachableFromStack) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.scavenger_conservative_object_pinning = true;
-  v8_flags.scavenger_precise_object_pinning = false;
-  v8_flags.scavenger_promote_quarantined_pages = true;
+  v8_flags.scavenger_conservative_object_pinning.Set(true);
+  v8_flags.scavenger_precise_object_pinning.Set(false);
+  v8_flags.scavenger_promote_quarantined_pages.Set(true);
   ManualGCScope manual_gc_scope(isolate());
 
   IndirectHandle<HeapObject> number =
@@ -1028,7 +1028,7 @@ TEST_F(HeapTest,
 TEST_F(HeapTest, ConservativePinningScavengerObjectWithSelfReference) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.scavenger_conservative_object_pinning = true;
+  v8_flags.scavenger_conservative_object_pinning.Set(true);
   ManualGCScope manual_gc_scope(isolate());
 
   static constexpr int kArraySize = 10;
@@ -1047,9 +1047,9 @@ TEST_F(HeapTest,
        PrecisePinningScavengerDoesntMoveObjectReachableFromHandlesNoPromotion) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.scavenger_precise_object_pinning = true;
-  v8_flags.scavenger_conservative_object_pinning = false;
-  v8_flags.scavenger_promote_quarantined_pages = false;
+  v8_flags.scavenger_precise_object_pinning.Set(true);
+  v8_flags.scavenger_conservative_object_pinning.Set(false);
+  v8_flags.scavenger_promote_quarantined_pages.Set(false);
   ManualGCScope manual_gc_scope(isolate());
 
   v8::HandleScope handle_scope(v8_isolate());
@@ -1070,9 +1070,9 @@ TEST_F(HeapTest,
 TEST_F(HeapTest, PrecisePinningScavengerDoesntMoveObjectReachableFromHandles) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.scavenger_precise_object_pinning = true;
-  v8_flags.scavenger_conservative_object_pinning = false;
-  v8_flags.scavenger_promote_quarantined_pages = true;
+  v8_flags.scavenger_precise_object_pinning.Set(true);
+  v8_flags.scavenger_conservative_object_pinning.Set(false);
+  v8_flags.scavenger_promote_quarantined_pages.Set(true);
   ManualGCScope manual_gc_scope(isolate());
 
   v8::HandleScope handle_scope(v8_isolate());
@@ -1097,7 +1097,7 @@ TEST_F(HeapTest, PrecisePinningScavengerDoesntMoveObjectReachableFromHandles) {
 TEST_F(HeapTest,
        PrecisePinningFullGCDoesntMoveYoungObjectReachableFromHandles) {
   if (v8_flags.single_generation) return;
-  v8_flags.precise_object_pinning = true;
+  v8_flags.precise_object_pinning.Set(true);
   FlagList::EnforceFlagImplications();
   ManualGCScope manual_gc_scope(isolate());
 
@@ -1115,7 +1115,7 @@ TEST_F(HeapTest,
 }
 
 TEST_F(HeapTest, PrecisePinningFullGCDoesntMoveOldObjectReachableFromHandles) {
-  v8_flags.precise_object_pinning = true;
+  v8_flags.precise_object_pinning.Set(true);
   FlagList::EnforceFlagImplications();
   ManualGCScope manual_gc_scope(isolate());
   ManualEvacuationCandidatesSelectionScope
@@ -1144,9 +1144,9 @@ TEST_F(
     ConservativePinningScopeScavengeDoesntMoveObjectReachableFromStackNoPromotion) {  // NOLINT(whitespace/line_length)
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.scavenger_conservative_object_pinning = false;
-  v8_flags.scavenger_precise_object_pinning = false;
-  v8_flags.scavenger_promote_quarantined_pages = false;
+  v8_flags.scavenger_conservative_object_pinning.Set(false);
+  v8_flags.scavenger_precise_object_pinning.Set(false);
+  v8_flags.scavenger_promote_quarantined_pages.Set(false);
   ManualGCScope manual_gc_scope(isolate());
 
   ConservativePinningScope conservative_pinning_scope(isolate()->heap());
@@ -1171,9 +1171,9 @@ TEST_F(HeapTest,
        ConservativePinningScopeScavengeDoesntMoveObjectReachableFromStack) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.scavenger_conservative_object_pinning = false;
-  v8_flags.scavenger_precise_object_pinning = false;
-  v8_flags.scavenger_promote_quarantined_pages = true;
+  v8_flags.scavenger_conservative_object_pinning.Set(false);
+  v8_flags.scavenger_precise_object_pinning.Set(false);
+  v8_flags.scavenger_promote_quarantined_pages.Set(true);
   ManualGCScope manual_gc_scope(isolate());
 
   ConservativePinningScope conservative_pinning_scope(isolate()->heap());
@@ -1200,7 +1200,7 @@ TEST_F(HeapTest,
 
 TEST_F(HeapTest,
        ConservativePinningScopeMarkCompactDoesntMoveObjectReachableFromStack) {
-  v8_flags.compact_with_stack = true;
+  v8_flags.compact_with_stack.Set(true);
   ManualGCScope manual_gc_scope(isolate());
   ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
@@ -1227,8 +1227,8 @@ TEST_F(HeapTest,
 TEST_F(HeapTest, ScavengerDoesntStrongifyWeakGlobals) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.scavenger_conservative_object_pinning = false;
-  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.scavenger_conservative_object_pinning.Set(false);
+  v8_flags.scavenger_precise_object_pinning.Set(false);
   ManualGCScope manual_gc_scope(isolate());
   Factory* factory = isolate()->factory();
   v8::Isolate* iso = v8_isolate();
@@ -1252,9 +1252,9 @@ namespace {
 template <typename GCCallback>
 void ConservativePinningScopeScavengeRetainsObjectReachableFromStack(
     HeapTest* test, AllocationType allocation_type, GCCallback gc_callback) {
-  v8_flags.scavenger_conservative_object_pinning = false;
-  v8_flags.scavenger_precise_object_pinning = false;
-  v8_flags.scavenger_promote_quarantined_pages = false;
+  v8_flags.scavenger_conservative_object_pinning.Set(false);
+  v8_flags.scavenger_precise_object_pinning.Set(false);
+  v8_flags.scavenger_promote_quarantined_pages.Set(false);
   ManualGCScope manual_gc_scope(test->isolate());
   Factory* factory = test->isolate()->factory();
   v8::Isolate* iso = test->v8_isolate();
@@ -1618,14 +1618,14 @@ TEST_F(HeapTest, BytecodeArray) {
 
 TEST_F(HeapTest, BytecodeFlushing) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-  v8_flags.turbofan = false;
-  v8_flags.optimize_for_size = false;
+  v8_flags.turbofan.Set(false);
+  v8_flags.optimize_for_size.Set(false);
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #ifdef V8_ENABLE_SPARKPLUG
-  v8_flags.always_sparkplug = false;
+  v8_flags.always_sparkplug.Set(false);
 #endif  // V8_ENABLE_SPARKPLUG
-  v8_flags.flush_bytecode = true;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.flush_bytecode.Set(true);
+  v8_flags.allow_natives_syntax.Set(true);
 
   ManualGCScope manual_gc_scope(i_isolate());
   v8::HandleScope scope(v8_isolate());
@@ -1674,17 +1674,17 @@ namespace {
 void RunMultiReferencedBytecodeFlushingTest(HeapTest* test,
                                             bool sparkplug_compile) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-  v8_flags.turbofan = false;
-  v8_flags.optimize_for_size = false;
+  v8_flags.turbofan.Set(false);
+  v8_flags.optimize_for_size.Set(false);
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #ifdef V8_ENABLE_SPARKPLUG
-  v8_flags.always_sparkplug = false;
-  v8_flags.flush_baseline_code = true;
+  v8_flags.always_sparkplug.Set(false);
+  v8_flags.flush_baseline_code.Set(true);
 #else
   if (sparkplug_compile) return;
 #endif  // V8_ENABLE_SPARKPLUG
-  v8_flags.flush_bytecode = true;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.flush_bytecode.Set(true);
+  v8_flags.allow_natives_syntax.Set(true);
 
   ManualGCScope manual_gc_scope(test->i_isolate());
   v8::HandleScope scope(test->v8_isolate());
@@ -1918,13 +1918,13 @@ TEST_F(HeapTest, OptimizeAfterBytecodeFlushingCandidate) {
   if (v8_flags.jitless) return;
   if (v8_flags.single_generation) return;
   if (!v8_flags.incremental_marking) return;
-  v8_flags.turbofan = true;
+  v8_flags.turbofan.Set(true);
 #ifdef V8_ENABLE_SPARKPLUG
-  v8_flags.always_sparkplug = false;
+  v8_flags.always_sparkplug.Set(false);
 #endif  // V8_ENABLE_SPARKPLUG
-  v8_flags.optimize_for_size = false;
-  v8_flags.flush_bytecode = true;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.optimize_for_size.Set(false);
+  v8_flags.flush_bytecode.Set(true);
+  v8_flags.allow_natives_syntax.Set(true);
   ManualGCScope manual_gc_scope(i_isolate());
 
   v8::HandleScope outer_scope(v8_isolate());
@@ -1995,15 +1995,15 @@ TEST_F(HeapTest, OptimizeAfterBytecodeFlushingCandidate) {
 
 TEST_F(HeapTest, MultiReferencedBytecodeFlushingBothOld) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-  v8_flags.turbofan = false;
-  v8_flags.optimize_for_size = false;
+  v8_flags.turbofan.Set(false);
+  v8_flags.optimize_for_size.Set(false);
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #ifdef V8_ENABLE_SPARKPLUG
-  v8_flags.always_sparkplug = false;
-  v8_flags.flush_baseline_code = true;
+  v8_flags.always_sparkplug.Set(false);
+  v8_flags.flush_baseline_code.Set(true);
 #endif  // V8_ENABLE_SPARKPLUG
-  v8_flags.flush_bytecode = true;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.flush_bytecode.Set(true);
+  v8_flags.allow_natives_syntax.Set(true);
 
   ManualGCScope manual_gc_scope(i_isolate());
   v8::HandleScope scope(v8_isolate());
@@ -2049,10 +2049,10 @@ TEST_F(HeapTest, MultiReferencedBytecodeFlushingBothOld) {
 }
 
 TEST_F(TestWithPlatform, Regress10843) {
-  v8_flags.max_semi_space_size = 2;
-  v8_flags.min_semi_space_size = 2;
-  v8_flags.max_old_space_size = 8;
-  v8_flags.compact_on_every_full_gc = true;
+  v8_flags.max_semi_space_size.Set(2);
+  v8_flags.min_semi_space_size.Set(2);
+  v8_flags.max_old_space_size.Set(8);
+  v8_flags.compact_on_every_full_gc.Set(true);
   v8::Isolate::CreateParams create_params;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
@@ -2095,16 +2095,16 @@ TEST_F(TestWithPlatform, Regress10843) {
 }
 
 TEST_F(HeapTest, Regress10560) {
-  v8_flags.flush_bytecode = true;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.flush_bytecode.Set(true);
+  v8_flags.allow_natives_syntax.Set(true);
   // Disable flags that allocate a feedback vector eagerly.
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-  v8_flags.turbofan = false;
+  v8_flags.turbofan.Set(false);
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 #ifdef V8_ENABLE_SPARKPLUG
-  v8_flags.always_sparkplug = false;
+  v8_flags.always_sparkplug.Set(false);
 #endif  // V8_ENABLE_SPARKPLUG
-  v8_flags.lazy_feedback_allocation = true;
+  v8_flags.lazy_feedback_allocation.Set(true);
 
   ManualGCScope manual_gc_scope(i_isolate());
   v8::HandleScope scope(v8_isolate());
@@ -2144,7 +2144,7 @@ TEST_F(HeapTest, Regress10560) {
 }
 
 TEST_F(TestWithHeapInternals, LeakNativeContextViaMapKeyed) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate* isolate = v8_isolate();
   Heap* heap_instance = heap();
   v8::HandleScope outer_scope(isolate);
@@ -2268,7 +2268,7 @@ TEST_F(TestWithPlatform, Regress12777) {
 }
 
 TEST_F(TestWithHeapInternals, LeakNativeContextViaMap) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate* isolate = v8_isolate();
   Heap* heap_instance = heap();
   v8::HandleScope outer_scope(isolate);
@@ -2336,7 +2336,7 @@ TEST_F(TestWithHeapInternals, LeakNativeContextViaMap) {
 }
 
 TEST_F(TestWithHeapInternals, LeakNativeContextViaMapProto) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate* isolate = v8_isolate();
   Heap* heap_instance = heap();
   v8::HandleScope outer_scope(isolate);
@@ -2409,7 +2409,7 @@ TEST_F(TestWithHeapInternals, LeakNativeContextViaMapProto) {
 
 TEST_F(HeapTest, IncrementalMarkingPreservesMonomorphicConstructor) {
   if (!v8_flags.incremental_marking) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Context> ctx = v8_isolate()->GetCurrentContext();
   // Prepare function f that contains a monomorphic IC for object
@@ -2701,9 +2701,9 @@ void CheckWeakness(HeapTest* test, const char* source) {
   // runs) may already have active marking retaining the object, preventing the
   // weak reference from being cleared.
   ManualGCScope manual_gc_scope(test->isolate());
-  v8_flags.stress_compaction = false;
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.stress_compaction.Set(false);
+  v8_flags.stress_incremental_marking.Set(false);
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::Global<v8::Object> garbage;
   {
@@ -2728,9 +2728,9 @@ TEST_F(HeapTest, WeakFunctionInConstructor) {
   // disable concurrent/stress marking so that the weak reference can be
   // cleared.
   ManualGCScope manual_gc_scope(isolate());
-  v8_flags.stress_compaction = false;
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.stress_compaction.Set(false);
+  v8_flags.stress_incremental_marking.Set(false);
+  v8_flags.allow_natives_syntax.Set(true);
 
   RunJS(
       "function createObj(obj) {"
@@ -2926,7 +2926,7 @@ TEST_F(HeapTest, WeakMapInPolymorphicKeyedStoreIC) {
 }
 
 TEST_F(HeapTest, WeakMapInMonomorphicCompareNilIC) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   CheckWeakness(this,
                 "function compareNilIC(obj) {"
                 "  return obj == null;"
@@ -2944,7 +2944,7 @@ TEST_F(HeapTest, WeakMapInMonomorphicCompareNilIC) {
 
 TEST_F(HeapTest, TestSizeOfRegExpCode) {
   if (!v8_flags.regexp_optimization) return;
-  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.stress_concurrent_allocation.Set(false);
 
   v8::HandleScope scope(v8_isolate());
 
@@ -3005,7 +3005,7 @@ TEST_F(HeapTest, TestSizeOfRegExpCode) {
 }
 
 TEST_F(HeapTest, TestSizeOfObjects) {
-  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.stress_concurrent_allocation.Set(false);
 
   // Disable LAB, such that calculations with SizeOfObjects() and object size
   // are correct.
@@ -3207,10 +3207,10 @@ TEST_F(HeapTest, TestAlignedOverAllocation) {
 
 #ifdef DEBUG
 TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToZero) {
-  v8_flags.retain_maps_for_n_gc = 0;
-  v8_flags.stress_compaction = false;
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.retain_maps_for_n_gc.Set(0);
+  v8_flags.stress_compaction.Set(false);
+  v8_flags.stress_incremental_marking.Set(false);
+  v8_flags.allow_natives_syntax.Set(true);
 
   static const int transitions_count = 10;
   RunJS("function F() { }");
@@ -3239,7 +3239,7 @@ TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToZero) {
   DirectHandle<String> prop_name = factory()->InternalizeUtf8String("funny");
   DirectHandle<Smi> twenty_three(Smi::FromInt(23), i_isolate());
   HeapAllocator::SetAllocationGcInterval(2);
-  v8_flags.gc_global = true;
+  v8_flags.gc_global.Set(true);
   heap()->set_allocation_timeout(2);
   Object::SetProperty(i_isolate(), root, prop_name, twenty_three).Check();
   {
@@ -3258,10 +3258,10 @@ TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToZero) {
 }
 
 TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToOne) {
-  v8_flags.retain_maps_for_n_gc = 0;
-  v8_flags.stress_compaction = false;
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.retain_maps_for_n_gc.Set(0);
+  v8_flags.stress_compaction.Set(false);
+  v8_flags.stress_incremental_marking.Set(false);
+  v8_flags.allow_natives_syntax.Set(true);
 
   static const int transitions_count = 10;
   RunJS("function F() {}");
@@ -3285,7 +3285,7 @@ TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToOne) {
   DirectHandle<String> prop_name = factory()->InternalizeUtf8String("funny");
   DirectHandle<Smi> twenty_three(Smi::FromInt(23), i_isolate());
   HeapAllocator::SetAllocationGcInterval(2);
-  v8_flags.gc_global = true;
+  v8_flags.gc_global.Set(true);
   heap()->set_allocation_timeout(2);
   Object::SetProperty(i_isolate(), root, prop_name, twenty_three).Check();
   {
@@ -3304,10 +3304,10 @@ TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToOne) {
 }
 
 TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToOnePropertyFound) {
-  v8_flags.retain_maps_for_n_gc = 0;
-  v8_flags.stress_compaction = false;
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.retain_maps_for_n_gc.Set(0);
+  v8_flags.stress_compaction.Set(false);
+  v8_flags.stress_incremental_marking.Set(false);
+  v8_flags.allow_natives_syntax.Set(true);
 
   static const int transitions_count = 10;
   RunJS("function F() {}");
@@ -3331,7 +3331,7 @@ TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToOnePropertyFound) {
   DirectHandle<String> prop_name = factory()->InternalizeUtf8String("prop9");
   DirectHandle<Smi> twenty_three(Smi::FromInt(23), i_isolate());
   HeapAllocator::SetAllocationGcInterval(0);
-  v8_flags.gc_global = true;
+  v8_flags.gc_global.Set(true);
   heap()->set_allocation_timeout(0);
   Object::SetProperty(i_isolate(), root, prop_name, twenty_three).Check();
   InvokeMajorGC();
@@ -3347,10 +3347,10 @@ TEST_F(HeapTest, TransitionArrayShrinksDuringAllocToOnePropertyFound) {
 
 TEST_F(HeapTest, ReleaseOverReservedPages) {
   if (!v8_flags.compact) return;
-  v8_flags.trace_gc = true;
+  v8_flags.trace_gc.Set(true);
   // The optimizer can allocate stuff, messing up the test.
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-  v8_flags.turbofan = false;
+  v8_flags.turbofan.Set(false);
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   // - Parallel compaction increases fragmentation, depending on how existing
   //   memory is distributed. Since this is non-deterministic because of
@@ -3360,8 +3360,8 @@ TEST_F(HeapTest, ReleaseOverReservedPages) {
   // - Fast evacuation of pages may result in a different page count in old
   //   space.
   ManualGCScope manual_gc_scope(i_isolate());
-  v8_flags.page_promotion = false;
-  v8_flags.parallel_compaction = false;
+  v8_flags.page_promotion.Set(false);
+  v8_flags.parallel_compaction.Set(false);
   // If there's snapshot available, we don't know whether 20 small arrays will
   // fit on the initial pages.
   if (!i_isolate()->snapshot_available()) return;
@@ -3432,7 +3432,7 @@ TEST_F(HeapTest, ReleaseOverReservedPages) {
 
 TEST_F(HeapTest, RememberedSet_InsertOnWriteBarrier) {
   if (v8_flags.single_generation) return;
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SealCurrentObjects.
   ManualGCScope manual_gc_scope(isolate());
   SealCurrentObjects();
   HandleScope scope(isolate());
@@ -3458,7 +3458,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnWriteBarrier) {
 
 TEST_F(HeapTest, RememberedSet_InsertInLargePage) {
   if (v8_flags.single_generation) return;
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SealCurrentObjects.
   ManualGCScope manual_gc_scope(isolate());
   Factory* factory = isolate()->factory();
   Heap* heap = isolate()->heap();
@@ -3485,7 +3485,7 @@ TEST_F(HeapTest, RememberedSet_InsertInLargePage) {
 
 TEST_F(HeapTest, RememberedSet_RemoveStaleOnScavenge) {
   if (v8_flags.single_generation || v8_flags.stress_incremental_marking) return;
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SealCurrentObjects.
   ManualGCScope manual_gc_scope(isolate());
   Factory* factory = isolate()->factory();
   Heap* heap = isolate()->heap();
@@ -3523,7 +3523,7 @@ TEST_F(HeapTest, RememberedSet_RemoveStaleOnScavenge) {
 // that compaction has happened and otherwise relies on code's self-validation.
 TEST_F(HeapTest, RememberedSet_OldToOld) {
   if (v8_flags.stress_incremental_marking) return;
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SealCurrentObjects.
   ManualGCScope manual_gc_scope(isolate());
   ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
@@ -3744,11 +3744,11 @@ TEST_F(HeapTest, MarkCompactEpochCounter) {
 
 TEST_F(TestWithPlatform, ReinitializeStringHashSeed) {
   // Enable rehashing and create an isolate and context.
-  v8_flags.rehash_snapshot = true;
+  v8_flags.rehash_snapshot.Set(true);
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
   for (int i = 1; i < 3; i++) {
-    v8_flags.hash_seed = 1337 * i;
+    v8_flags.hash_seed.Set(1337 * i);
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = allocator.get();
     v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -3766,9 +3766,9 @@ TEST_F(TestWithPlatform, ReinitializeStringHashSeed) {
 }
 
 TEST_F(HeapTest, Regress169928) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-  v8_flags.turbofan = false;
+  v8_flags.turbofan.Set(false);
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
   // Some flags turn Scavenge collections into Mark-sweep collections
@@ -4014,7 +4014,7 @@ TEST_F(HeapTest, IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
 }
 
 TEST_F(HeapTest, DisableInlineAllocation) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   RunJS(
       "function test() {"
       "  var x = [];"
@@ -4170,7 +4170,7 @@ TEST_F(HeapTest, EnsureAllocationSiteDependentCodesProcessed) {
   if (!V8_ALLOCATION_SITE_TRACKING_BOOL) {
     return;
   }
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   Isolate* isolate = i_isolate();
   Heap* heap = this->heap();
   GlobalHandles* global_handles = isolate->global_handles();
@@ -4274,7 +4274,7 @@ int CountNativeContexts(Heap* heap) {
 }  // namespace
 
 TEST_F(TestWithHeapInternals, TestInternalWeakLists) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   // Some flags turn Scavenge collections into Mark-sweep collections
   // and hence are incompatible with this test case.
@@ -4283,7 +4283,7 @@ TEST_F(TestWithHeapInternals, TestInternalWeakLists) {
       v8_flags.stress_concurrent_allocation) {
     return;
   }
-  v8_flags.retain_maps_for_n_gc = 0;
+  v8_flags.retain_maps_for_n_gc.Set(0);
 
   static const int kNumTestContexts = 10;
 
@@ -4386,7 +4386,7 @@ TEST_F(TestWithHeapInternals, TestInternalWeakLists) {
 }
 
 TEST_F(TestWithHeapInternals, CountForcedGC) {
-  v8_flags.expose_gc = true;
+  v8_flags.expose_gc.Set(true);
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Context> new_context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(new_context);
@@ -4431,7 +4431,7 @@ TEST_F(HeapTest, PrintSharedFunctionInfo) {
 TEST_F(HeapTest, IncrementalMarkingPreservesMonomorphicCallIC) {
   if (!v8_flags.use_ic) return;
   if (!v8_flags.incremental_marking) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Value> fun1, fun2;
   {
@@ -4489,7 +4489,7 @@ void CheckIC(Isolate* isolate, DirectHandle<JSFunction> f, int slot_index,
 TEST_F(HeapTest, IncrementalMarkingPreservesMonomorphicIC) {
   if (!v8_flags.use_ic) return;
   if (!v8_flags.incremental_marking) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(v8_isolate());
   // Prepare function f that contains a monomorphic IC for object
   // originating from the same native context.
@@ -4512,7 +4512,7 @@ TEST_F(HeapTest, IncrementalMarkingPreservesMonomorphicIC) {
 TEST_F(HeapTest, IncrementalMarkingPreservesPolymorphicIC) {
   if (!v8_flags.use_ic) return;
   if (!v8_flags.incremental_marking) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Value> obj1, obj2;
 
@@ -4560,7 +4560,7 @@ TEST_F(HeapTest, IncrementalMarkingPreservesPolymorphicIC) {
 TEST_F(HeapTest, ContextDisposeDoesntClearPolymorphicIC) {
   if (!v8_flags.use_ic) return;
   if (!v8_flags.incremental_marking) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Value> obj1, obj2;
 
@@ -4677,9 +4677,9 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
 TEST_F(TestWithPlatform, ReleaseStackTraceData) {
 #ifndef V8_LITE_MODE
   // ICs retain objects.
-  v8_flags.use_ic = false;
+  v8_flags.use_ic.Set(false);
 #endif  // V8_LITE_MODE
-  v8_flags.concurrent_recompilation = false;
+  v8_flags.concurrent_recompilation.Set(false);
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
   v8::Isolate::CreateParams create_params;
@@ -4720,7 +4720,7 @@ TEST_F(TestWithPlatform, ReleaseStackTraceData) {
 TEST_F(HeapTest, AllocationSiteCreation) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   // Array literals.
   CheckNumberOfAllocations(this,
@@ -4802,7 +4802,7 @@ TEST_F(HeapTest, AllocationSiteCreation) {
 }
 
 TEST_F(HeapTest, CellsInOptimizedCodeAreWeak) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   if (!i_isolate()->use_optimizer()) return;
   HandleScope outer_scope(i_isolate());
   IndirectHandle<Code> code;
@@ -4850,7 +4850,7 @@ TEST_F(HeapTest, CellsInOptimizedCodeAreWeak) {
 }
 
 TEST_F(HeapTest, ObjectsInOptimizedCodeAreWeak) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   if (!i_isolate()->use_optimizer()) return;
   HandleScope outer_scope(i_isolate());
   IndirectHandle<Code> code;
@@ -4897,7 +4897,7 @@ TEST_F(HeapTest, ObjectsInOptimizedCodeAreWeak) {
 
 TEST_F(HeapTest, NewSpaceObjectsInOptimizedCode) {
   if (v8_flags.single_generation) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   ManualGCScope manual_gc_scope(i_isolate());
   if (!i_isolate()->use_optimizer()) return;
   HandleScope outer_scope(i_isolate());
@@ -4964,7 +4964,7 @@ TEST_F(HeapTest, NewSpaceObjectsInOptimizedCode) {
 }
 
 TEST_F(HeapTest, ObjectsInEagerlyDeoptimizedCodeAreWeak) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   if (!i_isolate()->use_optimizer()) return;
   HandleScope outer_scope(i_isolate());
   IndirectHandle<Code> code;
@@ -5016,7 +5016,7 @@ TEST_F(HeapTest, MonomorphicStaysMonomorphicAfterGC) {
   if (!v8_flags.use_ic) return;
   ManualGCScope manual_gc_scope(i_isolate());
   v8::HandleScope scope(v8_isolate());
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   RunJS(
       "function loadIC(obj) {"
       "  return obj.name;"
@@ -5048,7 +5048,7 @@ TEST_F(HeapTest, PolymorphicStaysPolymorphicAfterGC) {
   if (!v8_flags.use_ic) return;
   ManualGCScope manual_gc_scope(i_isolate());
   v8::HandleScope scope(v8_isolate());
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   RunJS(
       "function loadIC(obj) {"
       "  return obj.name;"
@@ -5081,9 +5081,9 @@ TEST_F(HeapTest, PolymorphicStaysPolymorphicAfterGC) {
 
 #ifdef DEBUG
 TEST_F(TestWithPlatform, AddInstructionChangesNewSpacePromotion) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  v8_flags.stress_compaction = true;
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.expose_gc.Set(true);
+  v8_flags.stress_compaction.Set(true);
   FlagList::EnforceFlagImplications();
   HeapAllocator::SetAllocationGcInterval(1000);
   v8::Isolate::CreateParams create_params;
@@ -5398,7 +5398,7 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
 }
 
 void CheckMapRetainingFor(HeapTest* test, int n) {
-  v8_flags.retain_maps_for_n_gc = n;
+  v8_flags.retain_maps_for_n_gc.Set(n);
   IndirectHandle<NativeContext> native_context;
   // This global is used to visit the object's constructor alive when starting
   // incremental marking. The native context keeps the constructor alive. The
@@ -5621,7 +5621,7 @@ TEST_F(HeapTest, MessageObjectLeak) {
     }
   };
 
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
@@ -5734,7 +5734,7 @@ TEST_F(HeapTest, Regress587004) {
   if (v8_flags.single_generation) return;
   ManualGCScope manual_gc_scope(i_isolate());
 #ifdef VERIFY_HEAP
-  v8_flags.verify_heap = false;
+  v8_flags.verify_heap.Set(false);
 #endif
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -6107,7 +6107,7 @@ TEST_F(HeapTest, Regress631969) {
   ManualGCScope manual_gc_scope(i_isolate());
   ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
-  v8_flags.parallel_compaction = false;
+  v8_flags.parallel_compaction.Set(false);
   v8::HandleScope scope(v8_isolate());
   Heap* heap = this->heap();
   // Get the heap in clean state.
@@ -6423,7 +6423,7 @@ Isolate* OOMCallbackTracker::oom_isolate = nullptr;
 // argument separators.
 
 void RunOutOfMemory() {
-  v8_flags.max_old_space_size = OOMCallbackTracker::kHeapLimit / MB;
+  v8_flags.max_old_space_size.Set(OOMCallbackTracker::kHeapLimit / MB);
   v8::Isolate::CreateParams create_params;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
@@ -6442,10 +6442,10 @@ void RunOutOfMemory() {
 }
 
 void RunOutOfMemoryIneffectiveGC() {
-  v8_flags.max_old_space_size = OOMCallbackTracker::kHeapLimit / MB;
+  v8_flags.max_old_space_size.Set(OOMCallbackTracker::kHeapLimit / MB);
   // The test timeouts on some platforms with the default 95% heap size
   // threshold.
-  v8_flags.ineffective_gc_size_threshold = 0.8;
+  v8_flags.ineffective_gc_size_threshold.Set(0.8);
   v8::Isolate::CreateParams create_params;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
@@ -6497,7 +6497,7 @@ void RunOutOfMemoryIneffectiveGC() {
 }
 
 void RunOutOfMemoryIneffectiveGCRunningJS() {
-  v8_flags.max_old_space_size = 10;
+  v8_flags.max_old_space_size.Set(10);
   v8::Isolate::CreateParams create_params;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
@@ -6920,7 +6920,7 @@ DirectHandle<InstructionStream> DummyOptimizedCode(
 
 TEST_F(HeapTest, CodeObjectRegistry) {
   // We turn off compaction to ensure that code is not moving.
-  v8_flags.compact = false;
+  v8_flags.compact.Set(false);
 
   Isolate* isolate = i_isolate();
 
@@ -7206,7 +7206,7 @@ TEST_F(HeapTest, IsPendingAllocationLOSpace) {
 }
 
 TEST_F(HeapTest, Regress10900) {
-  v8_flags.compact_on_every_full_gc = true;
+  v8_flags.compact_on_every_full_gc.Set(true);
   Isolate* isolate = i_isolate();
   HandleScope handle_scope(isolate);
   for (int i = 0; i < 100; i++) {
@@ -7228,7 +7228,7 @@ v8::Local<v8::Value> GenerateGarbage(HeapTest* test) {
 }  // namespace
 
 TEST_F(HeapTest, Regress11181) {
-  v8_flags.compact_on_every_full_gc = true;
+  v8_flags.compact_on_every_full_gc.Set(true);
   unsigned int prev_runtime_stats = TracingFlags::runtime_stats.exchange(
       v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE,
       std::memory_order_relaxed);
@@ -7383,7 +7383,7 @@ DirectHandle<AccessorInfo> TestAccessorInfo(Isolate* isolate) {
 
 TEST_F(HeapTest, StressHandles) {
   // For TestAllocateAfterFailures.
-  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.stress_concurrent_allocation.Set(false);
   v8::HandleScope scope(v8_isolate());
   DirectHandle<Object> o = TestAllocateAfterFailures(i_isolate());
   CHECK(IsTrue(*o));
@@ -7391,7 +7391,7 @@ TEST_F(HeapTest, StressHandles) {
 
 TEST_F(HeapTest, StressJS) {
   // For TestAllocateAfterFailures in TestGetter.
-  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.stress_concurrent_allocation.Set(false);
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(v8_isolate());

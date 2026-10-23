@@ -277,13 +277,13 @@ template <typename TMixin>
 class WithSmallHeapFlagsMixin : public TMixin {
  public:
   WithSmallHeapFlagsMixin() {
-    v8_flags.max_heap_size = 20;
+    v8_flags.max_heap_size.Set(20);
     // These tests use their own old/large object space, which confuses the
     // incremental marker.
-    v8_flags.incremental_marking = false;
+    v8_flags.incremental_marking.Set(false);
     // These tests don't expect GCs caused by concurrent allocations in the
     // background thread.
-    v8_flags.stress_concurrent_allocation = false;
+    v8_flags.stress_concurrent_allocation.Set(false);
   }
 
  private:
@@ -992,7 +992,7 @@ TEST_F(SpacesTest, SizeOfInitialHeap) {
 
 TEST_F(SpacesTest, Regress777177) {
   SaveFlags save_flags;
-  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SimulateFullSpace.
   v8::Context::Scope context_scope(v8::Context::New(v8_isolate()));
   Heap* heap = i_isolate()->heap();
   OldSpace* old_space = heap->old_space();
@@ -1533,14 +1533,14 @@ class PoolTest : public                                     //
     CHECK_EQ(old_page_allocator_,
              SetPlatformPageAllocatorForTesting(tracking_page_allocator_));
     old_sweeping_flag_ = i::v8_flags.concurrent_sweeping;
-    i::v8_flags.concurrent_sweeping = false;
+    i::v8_flags.concurrent_sweeping.Set(false);
     IsolateGroup::ReleaseDefault();
     IsolateGroup::InitializeOncePerProcess();
   }
 
   static void DoMixinTearDown() {
     IsolateGroup::ReleaseDefault();
-    i::v8_flags.concurrent_sweeping = old_sweeping_flag_;
+    i::v8_flags.concurrent_sweeping.Set(old_sweeping_flag_);
     CHECK(tracking_page_allocator_->IsEmpty());
 
     // Restore the original v8::PageAllocator and delete the tracking one.

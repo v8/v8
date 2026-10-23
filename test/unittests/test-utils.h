@@ -70,7 +70,7 @@ class WithDefaultPlatformMixin : public TMixin {
     // Allow changing flags in unit tests.
     // TODO(12887): Fix tests to avoid changing flag values after
     // initialization.
-    i::v8_flags.freeze_flags_after_init = false;
+    i::v8_flags.freeze_flags_after_init.Set(false);
     v8::V8::Initialize();
   }
 
@@ -89,14 +89,16 @@ class WithDefaultPlatformMixin : public TMixin {
 template <typename TMixin>
 class WithJSSharedMemoryFeatureFlagsMixin : public TMixin {
  public:
-  WithJSSharedMemoryFeatureFlagsMixin() { i::v8_flags.shared_strings = true; }
+  WithJSSharedMemoryFeatureFlagsMixin() {
+    i::v8_flags.shared_strings.Set(true);
+  }
 };
 
 template <typename TMixin>
 class WithShadowRealmFeatureFlagsMixin : public TMixin {
  public:
   WithShadowRealmFeatureFlagsMixin() {
-    i::v8_flags.harmony_shadow_realm = true;
+    i::v8_flags.harmony_shadow_realm.Set(true);
   }
 };
 

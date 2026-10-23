@@ -1696,7 +1696,7 @@ TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
   std::vector<uint8_t> regexp_encoding = {0xFF, 0x09, 0x3F, 0x00, 0x52,
                                           0x03, 0x66, 0x6F, 0x6F, 0x6D};
 
-  i::v8_flags.enable_experimental_regexp_engine = true;
+  i::v8_flags.enable_experimental_regexp_engine.Set(true);
   // DecodeTestUpToVersion will overwrite the version number in the data but
   // it's fine.
   DecodeTestUpToVersion(
@@ -1706,10 +1706,10 @@ TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
         ExpectScriptTrue("result.toString() === '/foo/glmsy'");
       });
 
-  i::v8_flags.enable_experimental_regexp_engine = false;
+  i::v8_flags.enable_experimental_regexp_engine.Set(false);
   InvalidDecodeTest(regexp_encoding);
 
-  i::v8_flags.enable_experimental_regexp_engine = flag_was_enabled;
+  i::v8_flags.enable_experimental_regexp_engine.Set(flag_was_enabled);
 }
 
 TEST_F(ValueSerializerTest, DecodeHasIndicesRegExp) {

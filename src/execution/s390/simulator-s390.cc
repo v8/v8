@@ -196,7 +196,7 @@ void S390Debugger::Debug() {
   UndoBreakpoint();
   // Disable tracing while simulating
   bool trace = v8_flags.trace_sim;
-  v8_flags.trace_sim = false;
+  v8_flags.trace_sim.Overwrite(false);
 
   while (!done && !sim_->has_bad_pc()) {
     if (last_pc != sim_->get_pc()) {
@@ -641,7 +641,7 @@ void S390Debugger::Debug() {
   // hit.
   RedoBreakpoint();
   // Restore tracing
-  v8_flags.trace_sim = trace;
+  v8_flags.trace_sim.Overwrite(trace);
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE

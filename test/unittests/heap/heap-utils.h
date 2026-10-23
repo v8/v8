@@ -188,8 +188,8 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
 
   void SealCurrentObjects() {
     // If you see this check failing, disable the flag at the start of your
-    // test: v8_flags.stress_concurrent_allocation = false; Background thread
-    // allocating concurrently interferes with this function.
+    // test: v8_flags.stress_concurrent_allocation.Set(false); Background
+    // thread allocating concurrently interferes with this function.
     CHECK(!v8_flags.stress_concurrent_allocation);
     InvokeMajorGC();
     InvokeMajorGC();
@@ -294,11 +294,11 @@ class V8_NODISCARD ManualEvacuationCandidatesSelectionScope final {
  public:
   explicit ManualEvacuationCandidatesSelectionScope(ManualGCScope&) {
     DCHECK(!v8_flags.manual_evacuation_candidates_selection);
-    v8_flags.manual_evacuation_candidates_selection = true;
+    v8_flags.manual_evacuation_candidates_selection.Set(true);
   }
   ~ManualEvacuationCandidatesSelectionScope() {
     DCHECK(v8_flags.manual_evacuation_candidates_selection);
-    v8_flags.manual_evacuation_candidates_selection = false;
+    v8_flags.manual_evacuation_candidates_selection.Set(false);
   }
 };
 

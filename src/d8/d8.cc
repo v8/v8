@@ -7070,7 +7070,7 @@ void ReportFlagWarning(const char* format, ...) {
 }  // namespace
 
 bool Shell::SetOptions(int argc, char* argv[]) {
-  i::v8_flags.flag_processing_mode = "abort-on-error";
+  i::v8_flags.flag_processing_mode.Overwrite("abort-on-error");
   options.d8_path = argv[0];
   bool disallow_unsafe_flags = false;
   bool disallow_developer_only_features = false;
@@ -7114,7 +7114,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // implications are only processed later in V8::Initialize(), so we need
       // to manually mirror those implications (including --fuzzing implying
       // --disallow-unsafe-flags) here for d8 option processing.
-      i::v8_flags.fuzzing = true;
+      i::v8_flags.fuzzing.Set(true);
       disallow_unsafe_flags = true;
       if (!flag_processing_mode_explicitly_set) {
         check_d8_flag_contradictions = false;
@@ -7265,7 +7265,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         options.trace_memory_corruption_via_watchpoints = true;
       }
       // Imply --expose-memory-corruption-api.
-      i::v8_flags.expose_memory_corruption_api = true;
+      i::v8_flags.expose_memory_corruption_api.Set(true);
 #endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
     } else if (FlagMatches("--disable-in-process-stack-traces", &argv[i])) {
       options.disable_in_process_stack_traces = true;
@@ -7328,7 +7328,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagMatches("--enable-etw-stack-walking", &argv[i])) {
       options.enable_etw_stack_walking = true;
       // This needs to be manually triggered for JIT ETW events to work.
-      i::v8_flags.enable_etw_stack_walking = true;
+      i::v8_flags.enable_etw_stack_walking.Set(true);
 #if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
     } else if (FlagMatches("--enable-system-instrumentation", &argv[i])) {
       options.enable_system_instrumentation = true;
@@ -7337,7 +7337,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #if defined(V8_OS_WIN)
       // Guard this bc the flag has a lot of overhead and is not currently used
       // by macos
-      i::v8_flags.interpreted_frames_native_stack = true;
+      i::v8_flags.interpreted_frames_native_stack.Set(true);
 #endif
 #endif
 #if V8_ENABLE_WEBASSEMBLY
@@ -8195,7 +8195,7 @@ int Shell::Main(int argc, char* argv[]) {
 #if defined(V8_ENABLE_PARTITION_ALLOC)
 #if PA_BUILDFLAG(ENABLE_USER_SPACE_ZERO_SEGMENT) && !defined(V8_OS_ANDROID) && \
     !defined(V8_OS_WIN)
-  i::v8_flags.sandbox_prohibit_insecure_mode = true;
+  i::v8_flags.sandbox_prohibit_insecure_mode.Set(true);
 #endif  // PA_BUILDFLAG(ENABLE_USER_SPACE_ZERO_SEGMENT) &&
         // !defined(V8_OS_ANDROID) && !defined(V8_OS_WIN)
 #endif  // defined(V8_ENABLE_PARTITION_ALLOC)
@@ -8326,7 +8326,7 @@ int Shell::Main(int argc, char* argv[]) {
   // Disable flag freezing if we are producing a code cache, because for that we
   // modify v8_flags.hash_seed (below).
   if (options.code_cache_options != ShellOptions::kNoProduceCache) {
-    i::v8_flags.freeze_flags_after_init = false;
+    i::v8_flags.freeze_flags_after_init.Set(false);
   }
 
 #ifdef V8_FUZZILLI
@@ -8569,10 +8569,10 @@ int Shell::Main(int argc, char* argv[]) {
               Isolate::CreateParams create_params2 =
                   GetDefaultIsolateCreateParams();
               // Use a different hash seed.
-              i::v8_flags.hash_seed = i::v8_flags.hash_seed ^ 1337;
+              i::v8_flags.hash_seed.Overwrite(i::v8_flags.hash_seed ^ 1337);
               Isolate* isolate2 = Isolate::New(create_params2);
               // Restore old hash seed.
-              i::v8_flags.hash_seed = i::v8_flags.hash_seed ^ 1337;
+              i::v8_flags.hash_seed.Overwrite(i::v8_flags.hash_seed ^ 1337);
               {
                 Isolate::Scope isolate_scope(isolate2);
                 D8Console* console2 = cppgc::MakeGarbageCollected<D8Console>(

@@ -726,8 +726,8 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                           ScriptObjectFlag aged_after_background_merge,
                           bool lazy_should_be_compiled = false,
                           bool eager_should_be_compiled = true) {
-    i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-        true;
+    i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+        true);
     std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
     IsolateAndContextScope scope(this);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
@@ -981,8 +981,8 @@ TEST_F(MergeDeserializedCodeTest, Regress1360024) {
 }
 
 TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
@@ -1065,8 +1065,8 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
 }
 
 TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
@@ -1166,9 +1166,9 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
 
 TEST_F(MergeDeserializedCodeTest,
        MergeThatCompilesLazyFunctionWithOuterScopeInfo) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
-  i::v8_flags.verify_code_merge = true;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
+  i::v8_flags.verify_code_merge.Set(true);
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
@@ -1299,9 +1299,9 @@ TEST_F(MergeDeserializedCodeTest,
 // before the SFI's field stores are visible.
 TEST_F(MergeDeserializedCodeTest,
        DISABLED_ConcurrentLazyCompileDuringBackgroundMerge) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
-  i::v8_flags.lazy_compile_dispatcher = false;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
+  i::v8_flags.lazy_compile_dispatcher.Set(false);
 
   // Source layout (literal-id order):
   //   [0]                toplevel
@@ -1450,8 +1450,8 @@ TEST_F(MergeDeserializedCodeTest,
 }
 
 TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
   constexpr int kSimultaneousScripts = 10;
   std::vector<std::unique_ptr<v8::ScriptCompiler::CachedData>> cached_data;
   IsolateAndContextScope scope(this);
@@ -1544,8 +1544,8 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
 }
 
 TEST_F(MergeDeserializedCodeTest, ModuleCacheClassicScriptMismatch) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());

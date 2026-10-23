@@ -148,7 +148,7 @@ static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
 // walking.
 TEST(CFromJSStackTrace) {
   // BUG(1303) Inlining of JSFuncDoTrace() in JSTrace below breaks this test.
-  i::v8_flags.turbo_inlining = false;
+  i::v8_flags.turbo_inlining.Set(false);
 
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);
@@ -198,7 +198,7 @@ TEST(CFromJSStackTrace) {
 TEST(PureJSStackTrace) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
-  i::v8_flags.turbo_inlining = false;
+  i::v8_flags.turbo_inlining.Set(false);
 
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);

@@ -744,13 +744,13 @@ class TestEnvironment : public HandleAndZoneScope {
       // runtime assertions enabled they get so big that memory during register
       // allocation becomes a problem. Temporarily disable such assertions.
       bool old_enable_slow_asserts = v8_flags.enable_slow_asserts;
-      v8_flags.enable_slow_asserts = false;
+      v8_flags.enable_slow_asserts.Set(false);
 #endif
       DirectHandle<Code> setup = BuildSetupFunction(
           main_isolate(), test_descriptor_, TeardownCallDescriptor(),
           setup_layout_, TeardownLayout());
 #ifdef ENABLE_SLOW_DCHECKS
-      v8_flags.enable_slow_asserts = old_enable_slow_asserts;
+      v8_flags.enable_slow_asserts.Set(old_enable_slow_asserts);
 #endif
       // FunctionTester maintains its own HandleScope which means that its
       // return value will be freed along with it. Copy the result into

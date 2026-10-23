@@ -22,7 +22,7 @@ using RunWasmF16Test = WasmExecutionTestBase;
 #define WASM_EXEC_TEST_SUITE RunWasmF16Test
 
 WASM_EXEC_TEST(F16Load) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<float> r(execution_tier);
   uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(4);
   r.Build({WASM_F16_LOAD_MEM(WASM_I32V_1(4))});
@@ -31,7 +31,7 @@ WASM_EXEC_TEST(F16Load) {
 }
 
 WASM_EXEC_TEST(F16Store) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t> r(execution_tier);
   uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(4);
   r.Build({WASM_F16_STORE_MEM(WASM_I32V_1(4), WASM_F32(2.75)), WASM_ZERO});
@@ -40,7 +40,7 @@ WASM_EXEC_TEST(F16Store) {
 }
 
 WASM_EXEC_TEST(F16x8Splat) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t, float> r(execution_tier);
   // Set up a global to hold output vector.
   const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
@@ -64,7 +64,7 @@ WASM_EXEC_TEST(F16x8Splat) {
 }
 
 WASM_EXEC_TEST(F16x8ReplaceLane) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t> r(execution_tier);
   // Set up a global to hold output vector.
   const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
@@ -107,7 +107,7 @@ WASM_EXEC_TEST(F16x8ReplaceLane) {
 }
 
 WASM_EXEC_TEST(F16x8ExtractLane) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t> r(execution_tier);
   const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   const WasmGlobal* globals[8];
@@ -150,7 +150,7 @@ WASM_EXEC_TEST(F16x8ExtractLane) {
     return fp16_ieee_from_fp32_value(COp(fp16_ieee_to_fp32_value(a)));     \
   }                                                                        \
   WASM_EXEC_TEST(F16x8##WasmName) {                                        \
-    i::v8_flags.wasm_fp16 = true;                                          \
+    i::v8_flags.wasm_fp16.Set(true);                                       \
     RunF16x8UnOpTest(execution_tier, kExprF16x8##WasmName, WasmName##F16); \
   }
 
@@ -172,7 +172,7 @@ UN_OP_LIST(TEST_UN_OP)
     return fp16_ieee_to_fp32_value(a) COp fp16_ieee_to_fp32_value(b) ? -1 : 0; \
   }                                                                            \
   WASM_EXEC_TEST(F16x8##WasmName) {                                            \
-    i::v8_flags.wasm_fp16 = true;                                              \
+    i::v8_flags.wasm_fp16.Set(true);                                           \
     RunF16x8CompareOpTest(execution_tier, kExprF16x8##WasmName, WasmName);     \
   }
 
@@ -201,7 +201,7 @@ float Mul(float a, float b) { return a * b; }
         COp(fp16_ieee_to_fp32_value(a), fp16_ieee_to_fp32_value(b)));       \
   }                                                                         \
   WASM_EXEC_TEST(F16x8##WasmName) {                                         \
-    i::v8_flags.wasm_fp16 = true;                                           \
+    i::v8_flags.wasm_fp16.Set(true);                                        \
     RunF16x8BinOpTest(execution_tier, kExprF16x8##WasmName, WasmName##F16); \
   }
 
@@ -211,7 +211,7 @@ BIN_OP_LIST(TEST_BIN_OP)
 #undef BIN_OP_LIST
 
 WASM_COMPILED_EXEC_TEST(F16x8AddRaw) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t> r(execution_tier);
   constexpr int kLanes = 8;
   // Two inputs and three outputs: a+b, a+a, and (a+b)+a.
@@ -297,7 +297,7 @@ WASM_COMPILED_EXEC_TEST(F16x8AddRaw) {
 }
 
 WASM_COMPILED_EXEC_TEST(F16x8SubRaw) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t> runner(execution_tier);
   constexpr int kLanes = 8;
   uint16_t* memory = runner.builder().AddMemoryElems<uint16_t>(10 * kLanes);
@@ -398,7 +398,7 @@ WASM_COMPILED_EXEC_TEST(F16x8SubRaw) {
 }
 
 WASM_COMPILED_EXEC_TEST(F16x8MulRaw) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t> runner(execution_tier);
   constexpr int kLanes = 8;
   uint16_t* memory = runner.builder().AddMemoryElems<uint16_t>(9 * kLanes);
@@ -515,7 +515,7 @@ WASM_COMPILED_EXEC_TEST(F16x8MulRaw) {
 }
 
 WASM_EXEC_TEST(F16x8ConvertI16x8) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // Create two output vectors to hold signed and unsigned results.
   const WasmGlobal* g0 = r.builder().AddGlobal(kWasmS128);
@@ -560,7 +560,7 @@ int16_t ConvertToInt(uint16_t f16, bool unsigned_result) {
 
 // Tests both signed and unsigned conversion.
 WASM_EXEC_TEST(I16x8ConvertF16x8) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t, float> r(execution_tier);
   // Create two output vectors to hold signed and unsigned results.
   const WasmGlobal* g0 = r.builder().AddGlobal(kWasmS128);
@@ -591,7 +591,7 @@ WASM_EXEC_TEST(I16x8ConvertF16x8) {
 }
 
 WASM_EXEC_TEST(F16x8DemoteF32x4Zero) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t, float> r(execution_tier);
   const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   r.Build({WASM_GLOBAL_SET(
@@ -615,7 +615,7 @@ WASM_EXEC_TEST(F16x8DemoteF32x4Zero) {
 }
 
 WASM_EXEC_TEST(F16x8DemoteF64x2Zero) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t, double> r(execution_tier);
   const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   r.Build({WASM_GLOBAL_SET(
@@ -639,7 +639,7 @@ WASM_EXEC_TEST(F16x8DemoteF64x2Zero) {
 }
 
 WASM_EXEC_TEST(F32x4PromoteLowF16x8) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t, float> r(execution_tier);
   const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   r.Build({WASM_GLOBAL_SET(
@@ -694,7 +694,7 @@ TEST_F(RunWasmF16Test, F16x8FmaReference) {
 }
 
 void RunF16x8FmaRaw(TestExecutionTier execution_tier, bool negate) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t> r(execution_tier);
   constexpr int kLanes = 8;
   // Three inputs, thirteen FMA results, and three copies of the live inputs.
@@ -916,7 +916,7 @@ base::Vector<const FMOperation> qfms_vector() {
 }
 
 WASM_EXEC_TEST(F16x8Qfma) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold output.
   const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
@@ -940,7 +940,7 @@ WASM_EXEC_TEST(F16x8Qfma) {
 }
 
 WASM_EXEC_TEST(F16x8Qfms) {
-  i::v8_flags.wasm_fp16 = true;
+  i::v8_flags.wasm_fp16.Set(true);
   WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold output.
   const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);

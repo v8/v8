@@ -20,8 +20,8 @@ void CompileRunWithNodeObserver(const std::string& js_code,
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.turbo_optimize_apply = true;
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.turbo_optimize_apply.Set(true);
 
   // Note: Make sure to not capture stack locations (e.g. `this`) here since
   // these lambdas are executed on another thread.
@@ -147,8 +147,8 @@ TEST(ReduceCAPICallWithArrayLike) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.turbo_optimize_apply = true;
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.turbo_optimize_apply.Set(true);
 
   Local<v8::FunctionTemplate> sum = v8::FunctionTemplate::New(isolate, SumF);
   CHECK(env->Global()

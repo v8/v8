@@ -88,9 +88,9 @@ v8::LocalVector<Context> SetupCrossContextTest(
     Isolate* isolate, IncumbentTestExpectations* expected) {
   const int n = 4;  // Ignition, Sparkplug, Maglev, TurboFan.
 
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 #if V8_ENABLE_SPARKPLUG
-  i::v8_flags.baseline_batch_compilation = false;
+  i::v8_flags.baseline_batch_compilation.Set(false);
 #endif
 
   v8::LocalVector<Context> contexts(isolate);

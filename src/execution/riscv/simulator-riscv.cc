@@ -2174,7 +2174,7 @@ void RiscvDebugger::Debug() {
         PrintF("regaining control from gdb\n");
       } else if (strcmp(cmd, "trace") == 0) {
         PrintF("enable trace sim\n");
-        v8_flags.trace_sim = true;
+        v8_flags.trace_sim.Overwrite(true);
       } else if (strcmp(cmd, "break") == 0 || strcmp(cmd, "b") == 0 ||
                  strcmp(cmd, "tbreak") == 0) {
         bool is_tbreak = strcmp(cmd, "tbreak") == 0;
@@ -3789,7 +3789,7 @@ void Simulator::SoftwareInterrupt() {
         switch (code & kDebuggerTracingDirectivesMask) {
           case TRACE_ENABLE:
             if (code & LOG_TRACE) {
-              v8_flags.trace_sim = true;
+              v8_flags.trace_sim.Overwrite(true);
             }
             if (code & LOG_REGS) {
               RiscvDebugger dbg(this);
@@ -3798,7 +3798,7 @@ void Simulator::SoftwareInterrupt() {
             break;
           case TRACE_DISABLE:
             if (code & LOG_TRACE) {
-              v8_flags.trace_sim = false;
+              v8_flags.trace_sim.Overwrite(false);
             }
             break;
           default:

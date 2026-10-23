@@ -1891,7 +1891,7 @@ STREAM_TEST(RegressCachingTimeoutStuckAfterHardThreshold) {
 
   // Set the hard threshold to 2x a single function's code size, so that a
   // single function stays below it while two or more functions reach it.
-  v8_flags.wasm_caching_hard_threshold = static_cast<int>(2 * one_func_size);
+  v8_flags.wasm_caching_hard_threshold.Set(static_cast<int>(2 * one_func_size));
 
   // Step 2: Before the timeout expires, tier up more functions such that the
   // hard threshold is reached. This triggers caching immediately and resets

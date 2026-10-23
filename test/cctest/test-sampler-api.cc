@@ -204,7 +204,7 @@ TEST(BuiltinsInSamples) {
 //                              ^      ^       ^
 // sample.stack indices         2      1       0
 TEST(StackFramesConsistent) {
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   const char* test_script =
       "function test_sampler_api_inner() {"
       "  CollectSample();"

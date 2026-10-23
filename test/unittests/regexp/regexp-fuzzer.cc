@@ -20,7 +20,7 @@ class RegExpTest : public fuzztest::PerFuzzTestFixtureAdapter<TestWithContext> {
         isolate_(isolate()),
         i_isolate_(reinterpret_cast<i::Isolate*>(isolate_)),
         factory_(i_isolate_->factory()) {
-    internal::v8_flags.expose_gc = true;
+    internal::v8_flags.expose_gc.Set(true);
   }
   ~RegExpTest() override = default;
 

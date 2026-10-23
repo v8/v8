@@ -866,7 +866,7 @@ TEST_F(ScannerStreamsTest, TestOverlongAndInvalidSequences) {
 TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
   // This test relies on the invariant that GC will move objects.
   if (i::v8_flags.single_generation) return;
-  i::v8_flags.manual_evacuation_candidates_selection = true;
+  i::v8_flags.manual_evacuation_candidates_selection.Set(true);
   v8::internal::ManualGCScope manual_gc_scope(i_isolate());
 
   const char* string = "abcd";
@@ -926,7 +926,7 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
 TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
   // This test relies on the invariant that GC will move objects.
   if (i::v8_flags.single_generation) return;
-  i::v8_flags.manual_evacuation_candidates_selection = true;
+  i::v8_flags.manual_evacuation_candidates_selection.Set(true);
   v8::internal::ManualGCScope manual_gc_scope(i_isolate());
 
   const char16_t* string = u"abc\u2603";

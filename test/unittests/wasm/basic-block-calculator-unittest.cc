@@ -114,7 +114,7 @@ class WasmBasicBlockCalculatorTest : public TestWithIsolateAndZone {
 };
 
 TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
-  v8_flags.wasm_allow_mixed_eh_for_testing = true;
+  v8_flags.wasm_allow_mixed_eh_for_testing.Set(true);
   TestSignatures sigs;
 
   // Test with simple Wasm code.

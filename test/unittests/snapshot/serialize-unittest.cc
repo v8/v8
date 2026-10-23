@@ -7436,10 +7436,10 @@ class V8_NODISCARD DisableLazySourcePositionScope {
  public:
   DisableLazySourcePositionScope()
       : backup_value_(v8_flags.enable_lazy_source_positions) {
-    v8_flags.enable_lazy_source_positions = false;
+    v8_flags.enable_lazy_source_positions.Set(false);
   }
   ~DisableLazySourcePositionScope() {
-    v8_flags.enable_lazy_source_positions = backup_value_;
+    v8_flags.enable_lazy_source_positions.Set(backup_value_);
   }
 
  private:

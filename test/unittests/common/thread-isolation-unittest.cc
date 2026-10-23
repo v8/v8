@@ -11,7 +11,7 @@ namespace internal {
 void InitializeThreadIsolation() {
   // We don't provide a pkey allocator for the tests in this file, so we need to
   // disable the force_memory_protection_keys flag.
-  v8_flags.force_memory_protection_keys = false;
+  v8_flags.force_memory_protection_keys.Set(false);
   ThreadIsolation::Initialize(nullptr);
 }
 

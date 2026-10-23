@@ -282,18 +282,18 @@ class FastJSWasmCallTester {
         builder_(zone_.New<WasmModuleBuilder>(&zone_)),
         old_budget_(i::v8_flags.invocation_count_for_turbofan) {
     builder_->AddMemory(16);
-    i::v8_flags.allow_natives_syntax = true;
-    i::v8_flags.turbo_inline_js_wasm_calls = true;
-    i::v8_flags.stress_background_compile = false;
-    i::v8_flags.concurrent_osr = false;  // Seems to mess with %ObserveNode.
-    i::v8_flags.invocation_count_for_turbofan = 20;
+    i::v8_flags.allow_natives_syntax.Set(true);
+    i::v8_flags.turbo_inline_js_wasm_calls.Set(true);
+    i::v8_flags.stress_background_compile.Set(false);
+    i::v8_flags.concurrent_osr.Set(false);  // Seems to mess with %ObserveNode.
+    i::v8_flags.invocation_count_for_turbofan.Set(20);
 #ifdef V8_ENABLE_MAGLEV
-    i::v8_flags.maglev = false;
+    i::v8_flags.maglev.Set(false);
 #endif  // V8_ENABLE_MAGLEV
   }
 
   ~FastJSWasmCallTester() {
-    i::v8_flags.invocation_count_for_turbofan = old_budget_;
+    i::v8_flags.invocation_count_for_turbofan.Set(old_budget_);
   }
 
   void DeclareCallback(const char* name, FunctionSig* signature,

@@ -92,7 +92,7 @@ void Flag::set_string_value(const char* new_value, bool owns_new_value,
   if (change_flag) {
     DCHECK(!IsReadOnly());
     if (owns_ptr_) DeleteArray(old_value);
-    *reinterpret_cast<FlagValue<const char*>*>(valptr_) = new_value;
+    reinterpret_cast<FlagValue<const char*>*>(valptr_)->Overwrite(new_value);
     owns_ptr_ = owns_new_value;
   } else {
     if (owns_new_value) DeleteArray(new_value);
@@ -122,7 +122,7 @@ FlagProcessingMode FlagList::GetFlagProcessingMode() {
     } else {
       base::FatalNoSecurityImpact(
           "Invalid value for --flag-processing-mode: %s\n",
-          v8_flags.flag_processing_mode);
+          v8_flags.flag_processing_mode.value());
     }
   }
 
@@ -299,30 +299,34 @@ void Flag::Reset() {
   if (IsReadOnly()) return;
   switch (type_) {
     case TYPE_BOOL:
-      *reinterpret_cast<FlagValue<bool>*>(valptr_) = bool_default();
+      reinterpret_cast<FlagValue<bool>*>(valptr_)->Overwrite(bool_default());
       break;
     case TYPE_MAYBE_BOOL:
-      *reinterpret_cast<FlagValue<std::optional<bool>>*>(valptr_) =
-          std::nullopt;
+      reinterpret_cast<FlagValue<std::optional<bool>>*>(valptr_)->Overwrite(
+          std::nullopt);
       break;
     case TYPE_INT:
-      *reinterpret_cast<FlagValue<int>*>(valptr_) = int_default();
+      reinterpret_cast<FlagValue<int>*>(valptr_)->Overwrite(int_default());
       break;
     case TYPE_UINT:
-      *reinterpret_cast<FlagValue<unsigned int>*>(valptr_) = uint_default();
+      reinterpret_cast<FlagValue<unsigned int>*>(valptr_)->Overwrite(
+          uint_default());
       break;
     case TYPE_UINT64:
-      *reinterpret_cast<FlagValue<uint64_t>*>(valptr_) = uint64_default();
+      reinterpret_cast<FlagValue<uint64_t>*>(valptr_)->Overwrite(
+          uint64_default());
       break;
     case TYPE_FLOAT:
-      *reinterpret_cast<FlagValue<double>*>(valptr_) = float_default();
+      reinterpret_cast<FlagValue<double>*>(valptr_)->Overwrite(float_default());
       break;
     case TYPE_SIZE_T:
-      *reinterpret_cast<FlagValue<size_t>*>(valptr_) = size_t_default();
+      reinterpret_cast<FlagValue<size_t>*>(valptr_)->Overwrite(
+          size_t_default());
       break;
     case TYPE_STRING:
       ReleaseDynamicAllocations();
-      *reinterpret_cast<FlagValue<const char*>*>(valptr_) = string_default();
+      reinterpret_cast<FlagValue<const char*>*>(valptr_)->Overwrite(
+          string_default());
       break;
   }
 }
@@ -510,27 +514,49 @@ Flag* FindFlagByPointer(const void* ptr) {
   return flag;
 }
 
-template <>
-EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-void FlagValue<bool>::Set(bool new_value) {
-  FindFlagByPointer(this)->set_bool_variable(new_value,
-                                             Flag::SetBy::kCommandLine);
+template <typename T>
+void FlagValue<T>::Set(T new_value) {
+  Flag* flag = FindFlagByPointer(this);
+  // {size_t} may alias {unsigned int} or {uint64_t} depending on the platform,
+  // so check the runtime {Flag::FlagType} first.
+  if constexpr (std::is_same_v<T, size_t>) {
+    if (flag->type() == Flag::TYPE_SIZE_T) {
+      flag->set_size_t_variable(new_value, Flag::SetBy::kCommandLine);
+      return;
+    }
+  }
+  if constexpr (std::is_same_v<T, bool>) {
+    flag->set_bool_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, std::optional<bool>>) {
+    flag->set_maybe_bool_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, int>) {
+    flag->set_int_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, unsigned int>) {
+    flag->set_uint_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, uint64_t>) {
+    flag->set_uint64_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, double>) {
+    flag->set_float_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, const char*>) {
+    flag->set_string_value(new_value ? StrDup(new_value) : nullptr,
+                           new_value != nullptr, Flag::SetBy::kCommandLine);
+  } else {
+    UNREACHABLE();
+  }
 }
 
-template <>
-EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-void FlagValue<int>::Set(int new_value) {
-  FindFlagByPointer(this)->set_int_variable(new_value,
-                                            Flag::SetBy::kCommandLine);
-}
-
-template <>
-EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-void FlagValue<const char*>::Set(const char* new_value) {
-  FindFlagByPointer(this)->set_string_value(
-      new_value ? StrDup(new_value) : nullptr, new_value != nullptr,
-      Flag::SetBy::kCommandLine);
-}
+#define INSTANTIATE_FLAG_VALUE_SET(type) \
+  template EXPORT_TEMPLATE_DEFINE(       \
+      V8_EXPORT_PRIVATE) void FlagValue<type>::Set(type);
+INSTANTIATE_FLAG_VALUE_SET(bool)
+INSTANTIATE_FLAG_VALUE_SET(std::optional<bool>)
+INSTANTIATE_FLAG_VALUE_SET(int)
+INSTANTIATE_FLAG_VALUE_SET(unsigned int)
+INSTANTIATE_FLAG_VALUE_SET(unsigned long)       // NOLINT(runtime/int)
+INSTANTIATE_FLAG_VALUE_SET(unsigned long long)  // NOLINT(runtime/int)
+INSTANTIATE_FLAG_VALUE_SET(double)
+INSTANTIATE_FLAG_VALUE_SET(const char*)
+#undef INSTANTIATE_FLAG_VALUE_SET
 
 static const char* Type2String(Flag::FlagType type) {
   switch (type) {
@@ -1291,7 +1317,7 @@ class ImplicationProcessor {
           conclusion_flag->owns_ptr_ = false;
         }
       }
-      *conclusion_value = value;
+      conclusion_value->Overwrite(value);
       // Any implications by the conclusion flag are now invalid. Reset the
       // flags previously implied by the conclusion flag. If they were also
       // implied by some other flag, they will be reimplied in the next
@@ -1517,7 +1543,8 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
                 << kDefaultMaxWasmCodeSpaceSizeMb
                 << ", larger values are unsupported";
     }
-    v8_flags.wasm_max_code_space_size_mb = kDefaultMaxWasmCodeSpaceSizeMb;
+    v8_flags.wasm_max_code_space_size_mb.Overwrite(
+        kDefaultMaxWasmCodeSpaceSizeMb);
   }
 #endif
 

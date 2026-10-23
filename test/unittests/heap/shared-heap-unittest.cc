@@ -463,7 +463,7 @@ void AllocateInSharedHeap(int iterations = 100) {
 }
 
 TEST_F(SharedHeapTest, SharedCollectionWithOneClient) {
-  v8_flags.max_old_space_size = 8;
+  v8_flags.max_old_space_size.Set(8);
   i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       []() { AllocateInSharedHeap(); });
 }
@@ -480,7 +480,7 @@ class SharedFixedArrayAllocationThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(SharedHeapTest, SharedCollectionWithMultipleClients) {
-  v8_flags.max_old_space_size = 8;
+  v8_flags.max_old_space_size.Set(8);
 
   i_isolate()->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
       [](const ParkedScope& parked) {
@@ -1044,7 +1044,7 @@ TEST_F(SharedHeapTest, SharedCanonicalTypesMutexIsSafepointAware) {
 template <typename TMixin>
 class WithEmptySharedHeapFlagsMixin : public TMixin {
  public:
-  WithEmptySharedHeapFlagsMixin() { i::v8_flags.empty_shared_heap = true; }
+  WithEmptySharedHeapFlagsMixin() { i::v8_flags.empty_shared_heap.Set(true); }
 };
 
 using SharedHeapEmptyTestPlatform =

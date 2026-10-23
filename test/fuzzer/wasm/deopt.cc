@@ -207,24 +207,24 @@ void ConfigureFlags(v8::Isolate* isolate) {
       // libfuzzer's "-runs=x" argument) should repeatedly test deoptimizations.
       // When caching the optimized code, only the first run will execute any
       // deopts.
-      v8_flags.wasm_native_module_cache = false;
+      v8_flags.wasm_native_module_cache.Set(false);
       // We switch it to synchronous mode to avoid the nondeterminism of
       // background jobs finishing at random times.
-      v8_flags.wasm_sync_tier_up = true;
+      v8_flags.wasm_sync_tier_up.Set(true);
       // Enable the experimental features we want to fuzz. (Note that
       // EnableExperimentalWasmFeatures only enables pre-staged and staged
       // features.)
-      v8_flags.wasm_deopt = true;
-      v8_flags.wasm_inlining_call_indirect = true;
+      v8_flags.wasm_deopt.Set(true);
+      v8_flags.wasm_inlining_call_indirect.Set(true);
       // Make inlining more aggressive.
-      v8_flags.wasm_inlining_ignore_call_counts = true;
-      v8_flags.wasm_inlining_budget = v8_flags.wasm_inlining_budget * 5;
-      v8_flags.wasm_inlining_max_size = v8_flags.wasm_inlining_max_size * 5;
-      v8_flags.wasm_inlining_factor = v8_flags.wasm_inlining_factor * 5;
+      v8_flags.wasm_inlining_ignore_call_counts.Set(true);
+      v8_flags.wasm_inlining_budget.Set(v8_flags.wasm_inlining_budget * 5);
+      v8_flags.wasm_inlining_max_size.Set(v8_flags.wasm_inlining_max_size * 5);
+      v8_flags.wasm_inlining_factor.Set(v8_flags.wasm_inlining_factor * 5);
       // Allow mixed old and new EH instructions in the same module for fuzzing,
       // to help us test the interaction between the two EH proposals without
       // requiring multiple modules.
-      v8_flags.wasm_allow_mixed_eh_for_testing = true;
+      v8_flags.wasm_allow_mixed_eh_for_testing.Set(true);
       // Enable other staged or experimental features and enforce flag
       // implications.
       EnableExperimentalWasmFeatures(isolate);
@@ -422,9 +422,9 @@ int FuzzIt(base::Vector<const uint8_t> data) {
 V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
   // shared_heap and shared_strings are needed for
   // shared-everything-threads fuzzing.
-  i::v8_flags.shared_heap = true;
-  i::v8_flags.shared_strings = true;
-  i::v8_flags.wasm_shared = true;
+  i::v8_flags.shared_heap.Set(true);
+  i::v8_flags.shared_strings.Set(true);
+  i::v8_flags.wasm_shared.Set(true);
 
   v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
   return 0;

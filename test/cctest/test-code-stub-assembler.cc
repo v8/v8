@@ -4093,7 +4093,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   // incorrectly moved pure operations in between an ArchSaveCallerRegisters and
   // an ArchRestoreCallerRegisters instruction.
   bool old_turbo_instruction_scheduling = v8_flags.turbo_instruction_scheduling;
-  v8_flags.turbo_instruction_scheduling = true;
+  v8_flags.turbo_instruction_scheduling.Set(true);
 
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
@@ -4122,7 +4122,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   CHECK(IsSmi(*result.ToHandleChecked()));
   CHECK_EQ(Object::NumberValue(*result.ToHandleChecked()), 13);
 
-  v8_flags.turbo_instruction_scheduling = old_turbo_instruction_scheduling;
+  v8_flags.turbo_instruction_scheduling.Set(old_turbo_instruction_scheduling);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

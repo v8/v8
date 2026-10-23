@@ -33,7 +33,7 @@ struct PointerTableTraits<ExternalPointerTable> {
 
 class PointerTableTest : public TestWithContext {
  public:
-  PointerTableTest() { v8_flags.stress_compaction = true; }
+  PointerTableTest() { v8_flags.stress_compaction.Set(true); }
 
   template <typename Table>
   class SpaceScope {

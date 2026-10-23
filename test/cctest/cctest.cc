@@ -138,7 +138,7 @@ void CcTest::Run(const char* snapshot_directory) {
                                custom_v8_flags_.length());
   }
   // TODO(12887): Fix tests to avoid changing flag values after initialization.
-  i::v8_flags.freeze_flags_after_init = false;
+  i::v8_flags.freeze_flags_after_init.Set(false);
 
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(snapshot_directory);

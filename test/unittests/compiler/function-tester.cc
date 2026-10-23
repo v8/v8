@@ -36,7 +36,7 @@ v8::Local<v8::Value> CompileRun(Isolate* isolate, const char* source) {
 FunctionTester::FunctionTester(Isolate* isolate, const char* source,
                                uint32_t flags)
     : isolate(isolate),
-      function((v8_flags.allow_natives_syntax = true, NewFunction(source))),
+      function((v8_flags.allow_natives_syntax.Set(true), NewFunction(source))),
       flags_(flags) {
   Compile(function);
   const uint32_t supported_flags = OptimizedCompilationInfo::kInlining;
@@ -54,7 +54,7 @@ FunctionTester::FunctionTester(Isolate* isolate, TFGraph* graph,
 FunctionTester::FunctionTester(Isolate* isolate, DirectHandle<Code> code,
                                int param_count)
     : isolate(isolate),
-      function((v8_flags.allow_natives_syntax = true,
+      function((v8_flags.allow_natives_syntax.Set(true),
                 NewFunction(BuildFunction(param_count).c_str()))),
       flags_(0) {
   CHECK_LE(0, param_count);

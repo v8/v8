@@ -120,7 +120,7 @@ TestingModuleBuilder::TestingModuleBuilder(
   // constructor, therefore does not have slots for functions that get added
   // later. By disabling dynamic tiering, the tiering budget does not get
   // accessed by generated code.
-  v8_flags.wasm_dynamic_tiering = false;
+  v8_flags.wasm_dynamic_tiering.Set(false);
 
   WasmJs::Install(isolate_);
   module_->untagged_globals_buffer_size = kMaxGlobalsSize;
