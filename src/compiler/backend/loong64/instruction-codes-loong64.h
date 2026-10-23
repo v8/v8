@@ -104,6 +104,8 @@ namespace compiler {
   V(Loong64ByteSwap32)                               \
   V(Loong64Clz_d)                                    \
   V(Loong64Clz_w)                                    \
+  V(Loong64Popcnt_d)                                 \
+  V(Loong64Popcnt_w)                                 \
   V(Loong64Mov)                                      \
   V(Loong64Tst)                                      \
   V(Loong64Cmp32)                                    \

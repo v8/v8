@@ -1374,9 +1374,13 @@ void InstructionSelector::VisitWord32Ctz(OpIndex node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord64Ctz(OpIndex node) { UNREACHABLE(); }
 
-void InstructionSelector::VisitWord32Popcnt(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Popcnt(OpIndex node) {
+  VisitRR(this, kLoong64Popcnt_w, node);
+}
 
-void InstructionSelector::VisitWord64Popcnt(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64Popcnt(OpIndex node) {
+  VisitRR(this, kLoong64Popcnt_d, node);
+}
 
 void InstructionSelector::VisitInt32Add(OpIndex node) {
   Loong64OperandGenerator g(this);
@@ -4026,6 +4030,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kFloat32RoundTiesEven |
+         MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kWord64Popcnt |
          MachineOperatorBuilder::kWord64Select;
 }
 
