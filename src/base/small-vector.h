@@ -20,8 +20,11 @@ namespace base {
 
 // Minimal SmallVector implementation. Uses inline storage first, switches to
 // dynamic storage when it overflows.
+// The alignment is necessary for 32-bit MSVC: When passing SmallVector by
+// value, it ends up being 4-byte aligned only (and so does `inline_storage`),
+// unless we specify alignment here.
 template <typename T, size_t kSize, typename Allocator = std::allocator<T>>
-class SmallVector {
+class alignas(std::max(alignof(T), alignof(T*))) SmallVector {
   // TODO(mliedtke): Remove kHasTrivialElement and replace usages with the
   // proper conditions.
   static constexpr bool kHasTrivialElement =
