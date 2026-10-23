@@ -21,9 +21,9 @@
 #include "src/base/virtual-address-space-page-allocator.h"
 #include "src/base/virtual-address-space.h"
 #include "src/flags/flags.h"
-#include "src/objects/js-objects.h"
 #include "src/sandbox/code-entrypoint-tag.h"
 #include "src/sandbox/hardware-support.h"
+#include "src/sandbox/sandbox-zero-segment.h"
 #include "src/sandbox/sandboxed-pointer.h"
 #include "src/sandbox/testing.h"
 #include "src/utils/allocation.h"
@@ -418,7 +418,7 @@ void Sandbox::Initialize(v8::Platform* platform, v8::VirtualAddressSpace* vas) {
   CHECK(IsTaggingMaskCompatible(kCodeEntrypointTagMask));
 
   if (v8_flags.sandbox_prohibit_insecure_mode) {
-    if (is_partially_reserved() || !smi_address_range_is_inaccessible()) {
+    if (is_partially_reserved() || !has_zero_segment()) {
       V8::FatalProcessOutOfMemory(
           nullptr,
           "Failed to initialize sandbox in a secure mode which is required by "
@@ -586,15 +586,10 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::Platform* platform,
 }
 
 void Sandbox::FinishInitialization(v8::Platform* platform) {
-  // Check whether the first 4GB of the process' address space are reserved.
-  // This mitigates Smi<->HeapObject confusion bugs in which we end up treating
-  // a Smi value as a pointer.
-  // Make the guard region extend a little past the first 4GB to also catch
-  // accesses to in-object properties which are bounded by the JSObject
-  // instance size.
-  static_assert(kSmiAddressRangePadding > JSObject::kMaxInstanceSize);
-  constexpr Address kRangeEnd = kSmiAddressRange + kSmiAddressRangePadding;
-  smi_address_range_reserved_ = platform->GetZeroSegmentSize() >= kRangeEnd;
+  // Check whether the first 4GB of the process' address space (plus padding for
+  // JS/Wasm object field accesses) are reserved. This mitigates Smi/i31ref
+  // confusion bugs in which we end up treating a 32-bit value as a pointer.
+  has_zero_segment_ = platform->GetZeroSegmentSize() >= kMinZeroSegmentSize;
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
   // We do this even for the case of partially-reserved sandbox because, while
   // being an unsafe setup, tests and fuzzers shouldn't report crashes in this
@@ -653,7 +648,7 @@ void Sandbox::TearDown() {
     reservation_base_ = kNullAddress;
     reservation_size_ = 0;
     initialized_ = false;
-    smi_address_range_reserved_ = false;
+    has_zero_segment_ = false;
     constants_.Reset();
   }
 }

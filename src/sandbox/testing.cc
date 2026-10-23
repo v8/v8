@@ -32,6 +32,7 @@
 #include "src/objects/literal-objects.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/templates.h"
+#include "src/sandbox/sandbox-zero-segment.h"
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
 
@@ -1258,8 +1259,7 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
             "Caught harmless memory access violation (nullptr dereference).");
       }
 
-      if (faultaddr <
-          (Sandbox::kSmiAddressRange + Sandbox::kSmiAddressRangePadding)) {
+      if (faultaddr < kMinZeroSegmentSize) {
         // Currently we also ignore access violations in the first 4GB of the
         // virtual address space. See crbug.com/1470641 for more details.
         // We need to add some "padding" to the 4GB since we might access a

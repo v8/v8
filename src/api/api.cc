@@ -6750,7 +6750,7 @@ v8::V8::SandboxMode v8::V8::GetSandboxMode() {
   Utils::ApiCheck(sandbox->is_initialized(), "v8::V8::GetSandboxMode",
                   "The sandbox must be initialized first");
   const bool partial = sandbox->is_partially_reserved();
-  const bool smi_inaccessible = sandbox->smi_address_range_is_inaccessible();
+  const bool smi_inaccessible = sandbox->has_zero_segment();
 
   if (!partial && smi_inaccessible) {
     return SandboxMode::kSecure;

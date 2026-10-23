@@ -1294,13 +1294,10 @@ void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Tagged<Map> map) {
   // map so that the GC can read it without relying on any other objects
   // still being around. To solve this problem, we store the instance size
   // in two other fields that are otherwise unused for WasmStructs.
-  static_assert(0xFFFF > ((kHeaderSize + wasm::kMaxValueTypeSize *
-                                             wasm::kV8MaxWasmStructFields) >>
-                          kObjectAlignmentBits));
   static_assert(0xFFFF >
-                ((WasmCustomMap::kHeaderSize +
-                  wasm::kMaxValueTypeSize * wasm::kV8MaxWasmStructFields) >>
-                 kObjectAlignmentBits));
+                (WasmStruct::kMaxInstanceSize >> kObjectAlignmentBits));
+  static_assert(0xFFFF >
+                (WasmCustomMap::kMaxInstanceSize >> kObjectAlignmentBits));
   map->SetWasmByte1((instance_size >> kObjectAlignmentBits) & 0xff);
   map->SetWasmByte2(instance_size >> (8 + kObjectAlignmentBits));
 }

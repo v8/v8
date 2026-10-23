@@ -2678,6 +2678,7 @@ filegroup(
         "src/sandbox/sandboxable-thread.cc",
         "src/sandbox/sandboxable-thread.h",
         "src/sandbox/sandbox-malloc.h",
+        "src/sandbox/sandbox-zero-segment.h",
         "src/sandbox/sandboxed-pointer.h",
         "src/sandbox/sandboxed-pointer-inl.h",
         "src/sandbox/segmented-table.cc",

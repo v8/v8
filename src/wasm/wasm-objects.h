@@ -1792,9 +1792,13 @@ V8_OBJECT class WasmStruct : public WasmObject {
   class BodyDescriptor;
 
   static const int kHeaderSize;
+  static const int kMaxInstanceSize;
 } V8_OBJECT_END;
 
 inline constexpr int WasmStruct::kHeaderSize = sizeof(WasmStruct);
+inline constexpr int WasmStruct::kMaxInstanceSize =
+    WasmStruct::kHeaderSize +
+    wasm::kMaxValueTypeSize * wasm::kV8MaxWasmStructFields;
 
 int WasmStruct::Size(const wasm::StructType* type) {
   // Object size must fit into a Smi (because of runtime functions), and its
@@ -1853,6 +1857,7 @@ V8_OBJECT class WasmCustomMap : public Map {
   class BodyDescriptor;
 
   static const int kHeaderSize;
+  static const int kMaxInstanceSize;
 
   TaggedMember<Union<WasmCustomMapWrapper, Null>> js_wrapper_;
   // To save memory, we could store the NativeContext in the {js_wrapper} field
@@ -1864,6 +1869,9 @@ V8_OBJECT class WasmCustomMap : public Map {
 } V8_OBJECT_END;
 
 inline constexpr int WasmCustomMap::kHeaderSize = sizeof(WasmCustomMap);
+inline constexpr int WasmCustomMap::kMaxInstanceSize =
+    WasmCustomMap::kHeaderSize +
+    wasm::kMaxValueTypeSize * wasm::kV8MaxWasmStructFields;
 
 int WasmStruct::FieldOffset(const wasm::StructType* type, int field_index) {
   int header_size = type->is_descriptor() && v8_flags.wasm_merged_descriptors
