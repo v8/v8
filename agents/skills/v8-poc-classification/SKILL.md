@@ -1,6 +1,6 @@
 ---
 name: v8-poc-classification
-description: Checks if a POC provided by some JS and d8 flags is a vulnerability or just a regular bug.
+description: Reproduces, heals (e.g., converting browser/HTML POCs to d8), minimizes, and classifies whether a V8 POC is a security vulnerability or a regular bug.
 ---
 
 # Skill: V8 POC Classification
@@ -36,6 +36,12 @@ Confirm the bug exists as reported.
 - **Action**: Run `d8 <provided-flags> <poc.js>`.
 - **Escalation**: If it doesn't reproduce, try multiple revisions (Reporter's
   commit and Main) and build configurations (Debug, ASan, Release).
+- **Browser Web Worker Translation**: When converting a browser `Worker` POC
+  (e.g., from `poc.html`) to `d8`, note that `d8` uses
+  `new Worker(fn, {type: 'function'})`, passes messages directly to
+  `onmessage = function(msg) { ... }` (not wrapped in `{data: msg}` like DOM
+  `MessageEvent`), and receives messages on the main thread via
+  `worker.getMessage()`.
 - **Deep Dive**: Capture the initial backtrace and faulting instruction in GDB.
 - **Check for Explicit Aborts:** Look for evidence that execution was
   intentionally terminated by V8 (e.g., via `SBXCHECK`, `FATAL`, or traps). If

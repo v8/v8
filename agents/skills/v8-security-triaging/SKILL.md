@@ -170,8 +170,9 @@ the issue. You MUST confirm the bug exists before proceeding.
   revision.
 - **Escalation**: If initial attempt fails, task **Builder** and **Tester** to
   verify across Release, Debug, and ASan variants at HEAD.
-- **Healing (Initial)**: If still failing, task **Generalist** to analyze and
-  "heal" the POC for environmental dependencies.
+- **Healing (Initial)**: If still failing (or if the POC is a browser/HTML
+  reproducer like `poc.html`), task **Generalist** to analyze and "heal" the POC
+  for `d8` and environmental dependencies following `v8-poc-classification`.
 - **Summary**: Review the subagent's reproduction command and result. Stop if
   reproduction fails after exhaustive attempts.
 
