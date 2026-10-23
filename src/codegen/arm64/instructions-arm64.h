@@ -219,6 +219,8 @@ class Instruction {
 
   bool IsBrk() const { return Mask(ExceptionMask) == BRK; }
 
+  bool IsUdf() const { return Mask(ReservedMask) == UDF; }
+
   bool IsUnresolvedInternalReference() const {
     // Unresolved internal references are encoded as two consecutive brk
     // instructions.

@@ -357,8 +357,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   static bool IsConstantPoolAt(Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
-  // See Assembler::CheckConstPool for more info.
-  void EmitPoolGuard();
 
   // Prevent veneer pool emission until EndBlockVeneerPool is called.
   // Call to this function can be nested but must be followed by an equal
@@ -2946,6 +2944,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline static Instr ImmLSPair(int imm7, unsigned size);
   inline static Instr ImmShiftLS(unsigned shift_amount);
   inline static Instr ImmException(int imm16);
+  inline static Instr ImmUdf(int imm16);
   inline static Instr ImmSystemRegister(int imm15);
   inline static Instr ImmHint(int imm7);
   inline static Instr ImmBarrierDomain(int imm2);
@@ -3200,7 +3199,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // over the code.
   void EmitVeneers(bool force_emit, bool need_protection,
                    size_t margin = kVeneerDistanceMargin);
-  void EmitVeneersGuard() { EmitPoolGuard(); }
+  // Emits 'blr xzr', which traps if execution runs into the veneer pool.
+  void EmitVeneersGuard();
   // Checks whether veneers need to be emitted at this point.
   // If force_emit is set, a veneer is generated for *all* unresolved branches.
   void CheckVeneerPool(bool force_emit, bool require_jump,

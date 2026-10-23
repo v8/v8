@@ -3890,7 +3890,11 @@ void DisassemblingDecoder::VisitUnimplemented(Instruction* instr) {
 }
 
 void DisassemblingDecoder::VisitUnallocated(Instruction* instr) {
-  Format(instr, "unallocated", "(Unallocated)");
+  if (instr->IsUdf()) {
+    Format(instr, "udf", "'IUdf");
+  } else {
+    Format(instr, "unallocated", "(Unallocated)");
+  }
 }
 
 void DisassemblingDecoder::ProcessOutput(Instruction* /*instr*/) {
@@ -4294,6 +4298,10 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
     case 'D': {  // IDebug - HLT and BRK instructions.
       AppendToOutput("#0x%x", instr->ImmException());
       return 6;
+    }
+    case 'U': {  // IUdf - UDF instruction.
+      AppendToOutput("#0x%x", instr->ImmUdf());
+      return 4;
     }
     case 'V': {  // Immediate Vector.
       switch (format[2]) {

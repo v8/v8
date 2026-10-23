@@ -519,6 +519,19 @@ TEST_F(GeneratedCodeValidatorTest, ValidateControlFlowLoop) {
 
 #if V8_TARGET_ARCH_ARM64
 
+TEST_F(GeneratedCodeValidatorTest, ValidateConstantPool) {
+  Isolate* i_isolate = this->i_isolate();
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                      buffer->CreateView());
+
+  // The constant pool after the return is data, which validation skips.
+  __ Ldr(x0, i_isolate->factory()->undefined_value());
+  __ ret();
+
+  CheckValidationSucceeds(i_isolate, masm);
+}
+
 TEST_F(GeneratedCodeValidatorTest, ValidateCageBaseWritebackFails) {
   static_assert(kPtrComprCageBaseRegister != no_reg);
   Isolate* i_isolate = this->i_isolate();

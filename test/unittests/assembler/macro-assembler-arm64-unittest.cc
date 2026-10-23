@@ -165,10 +165,10 @@ TEST_F(MacroAssemblerTest, DispatchHandlePoolEntries) {
   EXPECT_EQ(kHandleB,
             *reinterpret_cast<uint32_t*>(load_b->ImmPCOffsetTarget()));
 
-  // The pool holds the guard and one 4-byte entry per handle.
+  // The pool holds one 4-byte entry per handle.
   Instruction* marker = load_b->following();
-  ASSERT_TRUE(marker->IsLdrLiteralX());
-  EXPECT_EQ(3, marker->ImmLLiteral());
+  ASSERT_TRUE(marker->IsUdf());
+  EXPECT_EQ(2, marker->ImmUdf());
 }
 
 struct MoveObjectAndSlotTestCase {
@@ -313,8 +313,6 @@ TEST_F(MacroAssemblerTest, ConstantPoolAlignmentGap) {
 
     __ Mov(x0, Operand(object));
     __ Mov(w1, Operand(object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
-    // Start the pool's entries at an offset that is not 8-byte aligned.
-    __ Nop();
 
     CodeDesc desc;
     masm.GetCode(isolate(), &desc);
@@ -322,16 +320,16 @@ TEST_F(MacroAssemblerTest, ConstantPoolAlignmentGap) {
 
   Instruction* load64 = reinterpret_cast<Instruction*>(buffer->start());
   Instruction* load32 = load64->following();
-  Instruction* marker = load32->following()->following();
+  Instruction* marker = load32->following();
   ASSERT_TRUE(load64->IsLdrLiteralX());
   ASSERT_TRUE(load32->IsLdrLiteralW());
-  ASSERT_TRUE(marker->IsLdrLiteralX());
+  ASSERT_TRUE(marker->IsUdf());
 
-  // The 32-bit entry fills the alignment gap after the guard.
-  Instruction* gap = marker->following()->following();
+  // The 32-bit entry fills the alignment gap after the marker.
+  Instruction* gap = marker->following();
   EXPECT_EQ(gap, load32->ImmPCOffsetTarget());
   EXPECT_EQ(gap->following(), load64->ImmPCOffsetTarget());
-  EXPECT_EQ(4, marker->ImmLLiteral());
+  EXPECT_EQ(3, marker->ImmUdf());
 }
 #endif  // V8_COMPRESS_POINTERS
 

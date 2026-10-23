@@ -892,17 +892,9 @@ void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
 }
 
 bool Assembler::IsConstantPoolAt(Instruction* instr) {
-  // The constant pool marker is made of two instructions. These instructions
-  // will never be emitted by the JIT, so checking for the first one is enough:
-  // 0: ldr xzr, #<size of pool>
-  bool result = instr->IsLdrLiteralX() && (instr->Rt() == kZeroRegCode);
-
-  // It is still worth asserting the marker is complete.
-  // 4: blr xzr
-  DCHECK(!result || (instr->following()->IsBranchAndLinkToRegister() &&
-                     instr->following()->Rn() == kZeroRegCode));
-
-  return result;
+  // The constant pool marker is "udf #<size of pool>", which the JIT emits
+  // nowhere else.
+  return instr->IsUdf();
 }
 
 int Assembler::ConstantPoolSizeAt(Instruction* instr) {
@@ -924,13 +916,13 @@ int Assembler::ConstantPoolSizeAt(Instruction* instr) {
   }
 #endif
   if (IsConstantPoolAt(instr)) {
-    return instr->ImmLLiteral();
+    return instr->ImmUdf();
   } else {
     return -1;
   }
 }
 
-void Assembler::EmitPoolGuard() {
+void Assembler::EmitVeneersGuard() {
   // We must generate only one instruction as this is used in scopes that
   // control the size of the code generated.
   Emit(BLR | Rn(xzr));
@@ -954,7 +946,7 @@ void Assembler::br(const Register& xn) {
 void Assembler::blr(const Register& xn) {
   DCHECK(xn.Is64Bits());
   // The pattern 'blr xzr' is used as a guard to detect when execution falls
-  // through the constant pool. It should not be emitted.
+  // through the veneer pool. It should not be emitted.
   DCHECK_NE(xn, xzr);
   Emit(BLR | Rn(xn));
 }
@@ -1570,9 +1562,6 @@ void Assembler::ldrsw(const Register& rt, const MemOperand& src) {
 }
 
 void Assembler::ldr_pcrel(const CPURegister& rt, int imm19) {
-  // The pattern 'ldr xzr, #offset' is used to indicate the beginning of a
-  // constant pool. It should not be emitted.
-  DCHECK(!rt.IsZero());
   Emit(LoadLiteralOpFor(rt) | ImmLLiteral(imm19) | Rt(rt));
 }
 
@@ -4904,23 +4893,21 @@ void Assembler::near_call(HeapNumberRequest request) {
 
 void ConstantPool::EmitPrologue(Alignment require_alignment) {
   // Recorded constant pool size is expressed in number of 32-bits words,
-  // and includes prologue and alignment, but not the jump around the pool
-  // and the size of the marker itself.
+  // and includes alignment, but not the jump around the pool and the size of
+  // the marker itself. The marker is permanently undefined, so it also traps
+  // if execution runs into the pool.
   const int marker_size = 1;
   int word_count =
       ComputeSize(Jump::kOmitted, require_alignment) / kInt32Size - marker_size;
-  assm_->Emit(LDR_x_lit | Assembler::ImmLLiteral(word_count) |
-              Assembler::Rt(xzr));
-  assm_->EmitPoolGuard();
+  assm_->Emit(UDF | Assembler::ImmUdf(word_count));
 }
 
 int ConstantPool::PrologueSize(Jump require_jump) const {
   // Prologue is:
   //   b   over  ;; if require_jump
-  //   ldr xzr, #pool_size
-  //   blr xzr
+  //   udf #pool_size
   int prologue_size = require_jump == Jump::kRequired ? kInstrSize : 0;
-  prologue_size += 2 * kInstrSize;
+  prologue_size += kInstrSize;
   return prologue_size;
 }
 

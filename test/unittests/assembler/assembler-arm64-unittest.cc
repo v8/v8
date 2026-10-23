@@ -6875,8 +6875,8 @@ void AssemblerArm64Test::LdrLiteralRangeHelper(
 
   // Emit prepadding to influence alignment of the pool.
   bool currently_aligned = IsAligned(__ pc_offset(), kInt64Size);
-  if ((unaligned_emission == EmitAtUnaligned && currently_aligned) ||
-      (unaligned_emission == EmitAtAligned && !currently_aligned)) {
+  if ((unaligned_emission == EmitAtUnaligned && !currently_aligned) ||
+      (unaligned_emission == EmitAtAligned && currently_aligned)) {
     __ Nop();
   }
 
@@ -6890,7 +6890,7 @@ void AssemblerArm64Test::LdrLiteralRangeHelper(
   auto PoolSizeAt = [&](int pc_offset) {
     // To determine padding, consider the size of the prologue of the pool,
     // and the jump around the pool, which we always need.
-    size_t prologue_size = 2 * kInstrSize + kInstrSize;
+    size_t prologue_size = kInstrSize + kInstrSize;
     size_t pc = pc_offset + prologue_size;
     const size_t padding = IsAligned(pc, kInt64Size) ? 0 : kInt32Size;
     CHECK_EQ(padding == 0, unaligned_emission == EmitAtAligned);
@@ -6947,13 +6947,11 @@ void AssemblerArm64Test::LdrLiteralRangeHelper(
     CHECK_EQ(expected_pool_size, branch->ImmPCOffset());
     Instruction* marker =
         reinterpret_cast<Instruction*>(pool_start + kInstrSize);
-    CHECK(marker->IsLdrLiteralX());
-    size_t pool_data_start_offset = pc_offset_before_emission + kInstrSize;
+    CHECK(marker->IsUdf());
+    size_t pool_data_start_offset = pc_offset_before_emission + 2 * kInstrSize;
     size_t padding =
         IsAligned(pool_data_start_offset, kInt64Size) ? 0 : kInt32Size;
-    size_t marker_size = kInstrSize;
-    CHECK_EQ((first_pool_size_bytes + marker_size + padding) / kInt32Size,
-             marker->ImmLLiteral());
+    CHECK_EQ((first_pool_size_bytes + padding) / kInt32Size, marker->ImmUdf());
   }
 
   RUN();
