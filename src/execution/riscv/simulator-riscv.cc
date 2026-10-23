@@ -299,7 +299,7 @@ struct type_sew_t<128> {
 
 #define VX_SLIDE1DOWN_PARAMS(x, off)                                          \
   auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);              \
-  if ((i + off) == rvv_vlmax()) {                                             \
+  if ((i + off) == rvv_vl()) {                                                \
     type_sew_t<x>::type src = (type_sew_t<x>::type)(get_register(rs1_reg())); \
     vd = src;                                                                 \
   } else {                                                                    \
@@ -319,7 +319,7 @@ struct type_sew_t<128> {
 
 #define VF_SLIDE1DOWN_PARAMS(x, offset)                                \
   auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);       \
-  if ((i + offset) == rvv_vlmax()) {                                   \
+  if ((i + offset) == rvv_vl()) {                                      \
     auto src = base::bit_cast<type_sew_t<x>::type>(                    \
         get_fpu_register_Float##x(rs1_reg()).get_bits());              \
     vd = src;                                                          \
