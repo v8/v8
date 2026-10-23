@@ -292,6 +292,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
     page_allocator_ = std::move(page_allocator);
   }
 #endif
+  std::shared_ptr<v8::PageAllocator> get_page_allocator() const;
 
   void* buffer_start_ = nullptr;
   std::atomic<size_t> byte_length_;
