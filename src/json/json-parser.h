@@ -599,10 +599,14 @@ class JsonParser final {
   // callable.
   MaybeHandle<Object> parsed_val_node_;
 
-  SmallVector<Handle<Object>> element_stack_;
-  SmallVector<JsonProperty> property_stack_;
-  SmallVector<double> double_elements_;
-  SmallVector<int> smi_elements_;
+  // Inline capacities sized to avoid heap reallocations on medium-sized JSON
+  // arrays and objects (~100 elements) while keeping the stack-allocated
+  // JsonParser modest (~2.5 KiB of inline buffers; JsonParser is not
+  // instantiated recursively).
+  base::SmallVector<Handle<Object>, 128> element_stack_;
+  base::SmallVector<JsonProperty, 32> property_stack_;
+  base::SmallVector<double, 64> double_elements_;
+  base::SmallVector<int, 64> smi_elements_;
 
   // Cached pointer to the raw chars in source. In case source is on-heap, we
   // register an UpdatePointers callback. For this reason, chars_, cursor_ and
