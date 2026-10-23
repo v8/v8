@@ -621,45 +621,6 @@ class CommonWasmRunner : public WasmRunnerBase {
   void SetMaxSteps(int n) { builder_.set_max_steps(n); }
 };
 
-// A macro to define tests that run in different engine configurations.
-#if V8_ENABLE_DRUMBRAKE
-#define TEST_IF_DRUMBRAKE(name)                      \
-  TEST(RunWasmInterpreter_##name) {                  \
-    FLAG_SCOPE(wasm_jitless);                        \
-    WasmInterpreterThread::Initialize();             \
-    RunWasm_##name(TestExecutionTier::kInterpreter); \
-    WasmInterpreterThread::Terminate();              \
-  }
-#else
-#define TEST_IF_DRUMBRAKE(name)
-#endif  // V8_ENABLE_DRUMBRAKE
-#define WASM_EXEC_TEST(name)                                                   \
-  void RunWasm_##name(TestExecutionTier execution_tier);                       \
-  TEST(RunWasmTurbofan_##name) {                                               \
-    RunWasm_##name(TestExecutionTier::kTurbofan);                              \
-  }                                                                            \
-  TEST(RunWasmLiftoff_##name) { RunWasm_##name(TestExecutionTier::kLiftoff); } \
-  TEST_IF_DRUMBRAKE(name)                                                      \
-  void RunWasm_##name(TestExecutionTier execution_tier)
-
-#define UNINITIALIZED_WASM_EXEC_TEST(name)               \
-  void RunWasm_##name(TestExecutionTier execution_tier); \
-  UNINITIALIZED_TEST(RunWasmTurbofan_##name) {           \
-    RunWasm_##name(TestExecutionTier::kTurbofan);        \
-  }                                                      \
-  UNINITIALIZED_TEST(RunWasmLiftoff_##name) {            \
-    RunWasm_##name(TestExecutionTier::kLiftoff);         \
-  }                                                      \
-  void RunWasm_##name(TestExecutionTier execution_tier)
-
-#define WASM_COMPILED_EXEC_TEST(name)                                          \
-  void RunWasm_##name(TestExecutionTier execution_tier);                       \
-  TEST(RunWasmTurbofan_##name) {                                               \
-    RunWasm_##name(TestExecutionTier::kTurbofan);                              \
-  }                                                                            \
-  TEST(RunWasmLiftoff_##name) { RunWasm_##name(TestExecutionTier::kLiftoff); } \
-  void RunWasm_##name(TestExecutionTier execution_tier)
-
 }  // namespace v8::internal::wasm
 
 #endif  // TEST_COMMON_WASM_WASM_RUN_UTILS_H

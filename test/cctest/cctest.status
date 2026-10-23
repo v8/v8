@@ -102,7 +102,6 @@
   'test-allocation/AccountingAllocatorOOM': [PASS, HEAVY],
   'test-allocation/MallocedOperatorNewOOM': [PASS, HEAVY],
   'test-api/NewStringRangeError': [PASS, HEAVY],
-  'test-jump-table-assembler/JumpTablePatchingStress': [PASS, HEAVY],
   'test-lockers/LockerUnlocker': [PASS, HEAVY],
   'test-lockers/LockTwiceAndUnlock': [PASS, HEAVY],
   'test-lockers/SeparateIsolatesLocksNonexclusive': [PASS, HEAVY],
@@ -194,15 +193,6 @@
   # into the handler after the stack has drifted from the context on the
   # signal.
   'test-cpu-profiler/*': [SKIP],
-
-  'test-run-wasm/RunWasmTurbofan_Float32Add_Consts': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_Float32Sub_Consts': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_Float32Mul_Consts': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_Float32Div_Consts': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Float32Add_Consts': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Float32Sub_Consts': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Float32Mul_Consts': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Float32Div_Consts': [SKIP],
 }],
 
 ##############################################################################
@@ -236,12 +226,6 @@
 }],  # 'arch == arm64 and simulator_run'
 
 ##############################################################################
-['arch == arm and not simulator_run', {
-  # Fails on ODROID: https://crbug.com/v8/11634
-  'test-wasm-metrics/*': [SKIP],
-}],  # arch == arm and not simulator_run
-
-##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'test-cpu-profiler/MultipleIsolates': [SKIP],
@@ -249,16 +233,6 @@
 
 ##############################################################################
 ['variant == nooptimization', {
-  # Wasm serialization relies on TurboFan to be available, hence does not work
-  # in the 'nooptimization' variant.
-  'test-wasm-serialization/*': [SKIP],
-  'test-streaming-compilation/SingleThreadedTestDeserializationBypassesCompilation': [SKIP],
-  'test-streaming-compilation/SingleThreadedTestDeserializationFails': [SKIP],
-  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
-  'test-streaming-compilation/AsyncTestDeserializationFails': [SKIP],
-  'test-streaming-compilation/AsyncTestDeserializationBypassesCompilation': [SKIP],
-  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
-
   # %ObserveNode tests rely on TurboFan.
   'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-js-to-wasm/*': [SKIP],
@@ -280,19 +254,6 @@
 ['asan or tsan', {
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'regress/regress-crbug-9161': [PASS, HEAVY],
-  'test-run-wasm/RunWasmLiftoff_I32Binop_Add': [PASS, HEAVY],
-  'test-run-wasm/RunWasmLiftoff_I32Binop_DivS': [PASS, HEAVY],
-  'test-run-wasm/RunWasmLiftoff_I32Binop_DivU': [PASS, HEAVY],
-  'test-run-wasm/RunWasmLiftoff_I32Binop_Eq': [PASS, HEAVY],
-  'test-run-wasm/RunWasmLiftoff_I32Binop_GeS': [PASS, HEAVY],
-  'test-run-wasm/RunWasmLiftoff_I32Binop_GeU': [PASS, HEAVY],
-  'test-run-wasm/RunWasmLiftoff_I32Binop_GtS': [PASS, HEAVY],
-  'test-run-wasm/RunWasmLiftoff_I32Binop_Ior': [PASS, HEAVY],
-  'test-run-wasm/RunWasmLiftoff_I32Binop_LeU': [PASS, HEAVY],
-  'test-run-wasm/RunWasmLiftoff_I32Binop_LtU': [PASS, HEAVY],
-
-  # Slow tests.
-  'test-run-wasm/RunWasmTurbofan_Float32*': [PASS, SLOW],
 }],  # 'asan or tsan'
 
 ##############################################################################
@@ -312,12 +273,6 @@
   # Too slow for tsan in debug mode:
   'test-serialize/StaticRootsPredictableSnapshot': [PASS, ['mode == debug', SKIP]],
 }],  # 'tsan == True'
-
-##############################################################################
-['ubsan', {
-  # https://crbug.com/v8/14309
-  'test-run-wasm-simd/RunWasm*': [SKIP],
-}],  # 'ubsan'
 
 ##############################################################################
 ['full_debug', {
@@ -384,11 +339,6 @@
 }],  # 'arch == arm'
 
 ##############################################################################
-['arch == mips64', {
-  # TODO(mips-team): Currently fails on mips64 board.
-  'test-run-wasm/RunWasmLiftoff_I32Binop*': [SKIP],
-}],  # 'arch == mips64'
-##############################################################################
 ['arch == mips64el or arch == mips64', {
   # BUG(1075): Unresolved crashes on MIPS also.
   'test-serialize/StartupSerializerOnce': [SKIP],
@@ -400,23 +350,6 @@
   'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
   'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
-
-##############################################################################
-['(arch == mips64el or arch == mips64) and not simd_mips', {
-  # Skip tests that fail on MIPS architectures which don't support SIMD,
-  # because lowering mechanism doesn't work properly
-  'test-run-wasm-simd/RunWasm_ReductionTest4_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_ReductionTest8_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_ReductionTest16_compiled': [SKIP],
-  'test-run-wasm-simd-liftoff/*': [SKIP],
-}],  # '(arch == mips64el or arch == mips64) and not simd_mips'
-
-['(arch == mips64el or arch == mips64) and not simd_mips', {
-  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
-  'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
-}],  # '(arch == mips64el or arch == mips64) and not simd_mips'
 
 ##############################################################################
 ['mips_arch_variant == r6', {
@@ -436,20 +369,7 @@
 
   # Skipped for unknown reasons.
   'test-serialize/StaticRootsPredictableSnapshot': ['pointer_compression', SKIP],
-
-  # According to riscv's NaN generation and propagation scheme, the payload
-  # is not guaranteed. So the test fails when src bits has payload.
-  'test-run-wasm/RunWasmLiftoff_F32ReinterpretI32': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_F32ReinterpretI32': [SKIP],
-
-  # Some Wasm functionality is not implemented yet.
-  'test-run-wasm-f16/*': [SKIP],
 }],  # 'arch == riscv64 or (arch == riscv32)'
-
-['arch == riscv32', {
-  # Some Wasm functionality is not implemented yet.
-  'test-run-wasm-64/*': [SKIP],
-}],  # 'arch == riscv32'
 
 ##############################################################################
 ['((arch == riscv64) or (arch == riscv32)) and simulator_run', {
@@ -500,9 +420,6 @@
 
   # TODO(ppc): Fix for platforms with function desciptors.
   'test-run-machops/RunComputedCodeObject' : [SKIP],
-  'test-run-wasm-module/Run_WasmModule_Return114' : [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CallAdd' : [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CallMain_recursive' : [SKIP],
   # slow in PASE emulator
   'test-cpu-profiler/Inlining2': [PASS, SLOW],
   'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [PASS, SLOW],
@@ -527,27 +444,8 @@
 }],  # 'arch == ppc64 and simulator_run'
 
 ##############################################################################
-['arch == ppc64 or arch == s390x', {
-
-  # TODO(ppc/s390): support concurrent patching of jump table
-  'test-jump-table-assembler/*': [SKIP],
-
-  'test-wasm-breakpoints/*' : [SKIP],
-
-}],  # 'arch == ppc64 or arch == s390x'
-
-##############################################################################
 ['variant == stress_incremental_marking', {
   'test-heap-profiler/SamplingHeapProfiler': [SKIP],
-  # Tests time out in stress_incremental_marking.
-  'test-run-wasm/RunWasmTurbofan_Float32Add_Consts': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_Float32Sub_Consts': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_Float32Mul_Consts': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_Float32Div_Consts': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Float32Add_Consts': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Float32Sub_Consts': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Float32Mul_Consts': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Float32Div_Consts': [SKIP],
 
   # BUG(https://crbug.com/v8/12999): Very slow test.
   'test-api/InternalFieldsSubclassing': [PASS, ['mode == debug and arch == ia32', SKIP]],
@@ -591,46 +489,10 @@
   'test-api-array-buffer/ArrayBuffer_NonDetachableWasDetached': [SKIP],
   'test-api/TurboAsmDisablesDetach': [SKIP],
   'test-api/Wasm*': [SKIP],
-  'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
-  'test-compilation-cache/*': [SKIP],
-  'test-c-wasm-entry/*': [SKIP],
-  'test-fuzzer-steps/*': [SKIP],
-  'test-gc/*': [SKIP],
-  'test-grow-memory/*': [SKIP],
   'test-heap-profiler/HeapSnapshotWithWasmInstance': [SKIP],
   'test-js-to-wasm/*': [SKIP],
-  'test-jump-table-assembler/*': [SKIP],
-  'test-liftoff-for-fuzzing/*': [SKIP],
-  'test-liftoff-inspection/*': [SKIP],
-  'test-run-wasm*': [SKIP],
-  'test-streaming-compilation/*': [SKIP],
-  'test-wasm-breakpoints/*': [SKIP],
-  'test-wasm-codegen/*': [SKIP],
-  'test-wasm-import-wrapper-cache/*': [SKIP],
-  'test-wasm-metrics/*': [SKIP],
-  'test-wasm-serialization/*': [SKIP],
-  'test-wasm-shared-engine/*': [SKIP],
-  'test-wasm-stack/*': [SKIP],
-  'test-wasm-trap-position/*': [SKIP],
   'wasm-run-utils/*': [SKIP],
 }],  # not has_webassembly or variant == jitless
-
-##############################################################################
-['has_wasm_interpreter', {
-  # Skip tests that require Wasm experimental features not supported by the
-  # Wasm interpreter.
-
-  # --wasm-memory64
-  'test-run-wasm-memory64/*': [SKIP],
-
-  # --wasm-fp16
-  'test-run-wasm-f16/*': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_Float32*': [SKIP],
-
-  # --wasm-wide-arithmetic
-  'test-run-wasm-64/RunWasmInterpreter_I64MulWideS': [SKIP],
-  'test-run-wasm-64/RunWasmInterpreter_I64MulWideU': [SKIP],
-}],  # has_wasm_interpreter
 
 ##############################################################################
 ['lite_mode or variant == jitless', {
@@ -701,16 +563,6 @@
   # https://crbug.com/v8/7777
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-js-to-wasm/*': [SKIP],
-  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallDirect': [SKIP],
-  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallExternal': [SKIP],
-  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallIndirect': [SKIP],
-  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchThrow': [SKIP],
-  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchTrapTypeError': [SKIP],
-  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallDirect': [SKIP],
-  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallExternal': [SKIP],
-  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallIndirect': [SKIP],
-  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchThrow': [SKIP],
-  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchTrapTypeError': [SKIP],
   'test-verify-type/*': [SKIP],
 
   # --interpreted-frames-native-stack tests
@@ -726,24 +578,6 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
-
-##############################################################################
-['no_simd_hardware == True', {
-  'test-run-wasm-relaxed-simd/*': [SKIP],
-  'test-run-wasm-simd-liftoff/*': [SKIP],
-  'test-run-wasm-simd/*': [SKIP],
-  'test-run-wasm-f16/*': [SKIP],
-  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
-  'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
-  'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
-  'test-gc/RunWasmTurbofan_RefTrivialCastsStatic': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4AllNaN': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4OneNaN': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2AllNaN': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2OneNaN': [SKIP],
-}],  # no_simd_hardware == True
 
 ################################################################################
 ['variant == stress_concurrent_inlining', {
@@ -763,15 +597,6 @@
 ################################################################################
 ['variant == no_lfa', {
   'test-calls-with-arraylike-or-spread/*': [SKIP],
-}],
-
-################################################################################
-['variant == stress or variant == wasm_assert_types or variant == instruction_scheduling or variant == stress_instruction_scheduling or variant == turbofan_random_rescheduling', {
-  # The 'stress' variant (and the other listed variants) sets the '--no-liftoff'
-  # flag, which means that Wasm compiles directly to TurboFan. This makes the
-  # cache no longer incremental, and these tests don't make sense.
-  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
-  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
 }],
 
 ##############################################################################
@@ -799,33 +624,21 @@
 ##############################################################################
 
 ['variant == conservative_stack_scanning', {
-  'test-run-wasm-64/RunWasmLiftoff_I64WasmRunner': [SLOW],
-  'test-run-wasm-64/RunWasmTurbofan_I64WasmRunner': [SLOW],
   'test-strings/Traverse': [SLOW],
 }],  # variant == conservative_stack_scanning
 
 ##############################################################################
 ['sandbox_hardware_support', {
-  # The liftoff-for-fuzzing configuration is currently incompatible with
-  # sandbox hardware support. See https://crbug.com/431949927.
-  'test-liftoff-for-fuzzing/*': [SKIP],
-
   # Tests that require the sampler/profiler, which doesn't work on older kernel
   # versions if hardware sandboxing is active. See https://crbug.com/429173713.
   'test-cpu-profiler/*': [SKIP],
   'test-profile-generator/*': [SKIP],
-  'test-streaming-compilation/*': [SKIP],
   'test-api/SimpleCallbackWithProfiler': [SKIP],
   'test-api/FastReturnValuesWithProfiler': [SKIP],
   'test-api/FunctionTemplateWithProfiler': [SKIP],
   'test-api/CallICFastApi_TrivialSignatureWithProfiler': [SKIP],
   'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
   'test-api/InterceptorCallICFastApi_TrivialSignatureWithProfiler': [SKIP],
-
-  # Tests that rely on Wasm trap handling, which is similarly not supported on
-  # older kernel versions. See again https://crbug.com/429173713.
-  'test-run-wasm-simd/*': [SKIP],
-  'test-run-wasm-relaxed-simd/*': [SKIP],
 }] # sandbox_hardware_support
 
 ]
