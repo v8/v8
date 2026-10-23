@@ -1145,6 +1145,14 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
   WasmCodeRefScope code_ref_scope;
   WasmCode* code =
       native_module->PublishCode(native_module->AddCompiledCode(result));
+  if (code == nullptr) {
+    // Publishing only fails when well-known import assumptions in TurboFan code
+    // were invalidated concurrently. Simply return; jumping to the jump table
+    // slot will retry lazy compilation (unless another thread compiled the
+    // function in the meantime).
+    DCHECK_EQ(ExecutionTier::kTurbofan, result.result_tier);
+    return;
+  }
   DCHECK_EQ(func_index, code->index());
 
   if (V8_UNLIKELY(native_module->log_code())) {
