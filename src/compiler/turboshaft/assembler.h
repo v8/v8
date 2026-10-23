@@ -4356,19 +4356,19 @@ class AssemblerOpInterface : public Next {
     ReduceIfReachableCheckMaglevType(input, type);
   }
 
+#ifdef DEBUG
   // This is currently only usable during graph building on the main thread.
-  void Dcheck(V<Word32> condition, const char* message, const char* file,
+  template <typename Condition>
+  void Dcheck(Condition condition, const char* message, const char* file,
               int line, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
     Isolate* isolate = Asm().data()->isolate();
-    USE(isolate);
     DCHECK_NOT_NULL(isolate);
     DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-#ifdef DEBUG
     if (v8_flags.debug_code) {
-      Check(condition, message, file, line, loc);
+      Check(condition(), message, file, line, loc);
     }
-#endif
   }
+#endif
 
   // This is currently only usable during graph building on the main thread.
   void Check(V<Word32> condition, const char* message, const char* file,

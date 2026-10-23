@@ -59,13 +59,11 @@ class StringBuiltinsReducer : public Next {
                         character_count);
     FOREACH(src_char, dst_offset,
             Zip(src_view, Sequence(dst_begin_offset, dst_stride))) {
-#if DEBUG
       // Copying two-byte characters to one-byte is okay if callers have
       // checked that this loses no information.
-      if (v8_flags.debug_code && !src_one_byte && dst_one_byte) {
+      if (!src_one_byte && dst_one_byte) {
         TSA_DCHECK(this, __ Uint32LessThanOrEqual(src_char, 0xFF));
       }
-#endif
       __ Store(dst_offset, src_char, StoreOp::Kind::RawAligned(), dst_rep,
                compiler::kNoWriteBarrier);
     }
