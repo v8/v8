@@ -56,6 +56,12 @@ class MockPlatform final : public TestPlatform {
     task_runner_->PostTask(std::move(task));
   }
 
+  void PostDelayedTaskOnWorkerThreadImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
+      double delay_in_seconds, const v8::SourceLocation& location) override {
+    task_runner_->PostDelayedTask(std::move(task), delay_in_seconds);
+  }
+
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
   void ExecuteTasks() { task_runner_->ExecuteTasks(); }
@@ -163,6 +169,8 @@ class MockPlatform final : public TestPlatform {
     MockPlatform* platform_;
   };
 
+  FlagScope<bool> no_stress_concurrent_allocation_{
+      &v8_flags.stress_concurrent_allocation, false};
   std::shared_ptr<MockTaskRunner> task_runner_;
   std::unordered_set<MockJobHandle*> job_handles_;
 };
