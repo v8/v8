@@ -13,8 +13,9 @@ development environment in V8.
 Before starting any feature or bug fix, you MUST decide on a strategy:
 
 - **Isolated Strategy (Recommended)**: Create a dedicated git worktree and
-  branch. This prevents cross-contamination between tasks. Use
-  `create_worktree.sh`.
+  branch (`task-<id>`) to prevent cross-contamination between tasks. Run
+  `agents/scripts/create_worktree.sh <id> [base_branch]` and use the worktree
+  path printed to stdout (`worktrees/task-<id>`).
 
 - **Reuse Strategy**: Work in the current directory and branch.
 
