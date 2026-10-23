@@ -198,14 +198,13 @@ class V8_EXPORT_PRIVATE WasmEngine {
       base::UniqueArray<const uint8_t> bytes,
       // Optional source URL; needed when recompiling on flags mismatch
       // to preserve the original URL.
-      std::string_view source_url = {}, MaybeDirectHandle<Map> maybe_map = {});
+      std::string_view source_url = {});
 
   // Synchronously instantiate the given Wasm module with the given imports.
   MaybeDirectHandle<WasmInstanceObject> SyncInstantiate(
       Isolate* isolate, ErrorThrower* thrower,
       DirectHandle<WasmModuleObject> module_object,
-      MaybeDirectHandle<JSReceiver> imports,
-      MaybeDirectHandle<Map> maybe_instance_map = {});
+      MaybeDirectHandle<JSReceiver> imports);
 
   // Begin an asynchronous compilation of the given bytes that represent an
   // encoded Wasm module.

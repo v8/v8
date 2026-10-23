@@ -110,20 +110,6 @@ void CopyEntry(Tagged<ProtectedWeakFixedArray> dst, int dst_index,
   dst->set(dst_index + 1, src->get(src_index + 1));
 }
 
-// Allocates a Wasm JS wrapper object using `maybe_map` (e.g. a derived map
-// when constructed via `new` in JS), or falls back to `default_constructor`'s
-// initial map for internal allocations.
-DirectHandle<JSObject> NewWasmJSObject(
-    Isolate* isolate, MaybeDirectHandle<Map> maybe_map,
-    DirectHandle<JSFunction> default_constructor,
-    AllocationType allocation = AllocationType::kYoung) {
-  DirectHandle<Map> map;
-  if (!maybe_map.ToHandle(&map)) {
-    map = direct_handle(default_constructor->initial_map(), isolate);
-  }
-  return isolate->factory()->NewJSObjectFromMap(map, allocation);
-}
-
 }  // namespace
 
 // Import a few often used types from the wasm namespace.
@@ -132,11 +118,10 @@ using WasmModule = wasm::WasmModule;
 
 // static
 DirectHandle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, DirectHandle<Script> script,
-    MaybeDirectHandle<Map> maybe_map) {
+    Isolate* isolate, DirectHandle<Script> script) {
   DCHECK_EQ(script->type(), Script::Type::kWasm);
   DirectHandle<WasmModuleObject> module_object = Cast<WasmModuleObject>(
-      NewWasmJSObject(isolate, maybe_map, isolate->wasm_module_constructor()));
+      isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
   module_object->set_managed_native_module(
       Cast<CppGCManaged<wasm::NativeModule>>(
           script->wasm_managed_native_module()));
@@ -243,8 +228,7 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
     wasm::ValueType type, wasm::CanonicalValueType canonical_type,
     uint32_t initial, bool has_maximum, uint64_t maximum,
     DirectHandle<Object> initial_value, wasm::AddressType address_type,
-    DirectHandle<WasmDispatchTable>* out_dispatch_table,
-    MaybeDirectHandle<Map> maybe_map) {
+    DirectHandle<WasmDispatchTable>* out_dispatch_table) {
   CHECK(type.is_ref());
 
   DCHECK_LE(initial, wasm::max_table_size());
@@ -283,8 +267,8 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
 
   DirectHandle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor(), isolate);
-  DirectHandle<WasmTableObject> table_obj =
-      Cast<WasmTableObject>(NewWasmJSObject(isolate, maybe_map, table_ctor));
+  auto table_obj =
+      Cast<WasmTableObject>(isolate->factory()->NewJSObject(table_ctor));
   DisallowGarbageCollection no_gc;
 
   if (!trusted_data.is_null()) {
@@ -745,13 +729,11 @@ void WasmTableObject::SetFunctionTablePlaceholder(
 }
 
 DirectHandle<WasmSuspendingObject> WasmSuspendingObject::New(
-    Isolate* isolate, DirectHandle<JSReceiver> callable,
-    MaybeDirectHandle<Map> maybe_map) {
+    Isolate* isolate, DirectHandle<JSReceiver> callable) {
   DirectHandle<JSFunction> suspending_ctor(
       isolate->native_context()->wasm_suspending_constructor(), isolate);
-  DirectHandle<WasmSuspendingObject> suspending_obj =
-      Cast<WasmSuspendingObject>(
-          NewWasmJSObject(isolate, maybe_map, suspending_ctor));
+  auto suspending_obj = Cast<WasmSuspendingObject>(
+      isolate->factory()->NewJSObject(suspending_ctor));
   suspending_obj->set_callable(*callable);
   return suspending_obj;
 }
@@ -814,7 +796,7 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
 DirectHandle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, MaybeDirectHandle<JSArrayBuffer> maybe_buffer,
     std::shared_ptr<BackingStore> backing_store, int maximum,
-    wasm::AddressType address_type, MaybeDirectHandle<Map> maybe_map) {
+    wasm::AddressType address_type) {
   DCHECK(maximum == kNoMaximum || maximum >= 0);
   static_assert(wasm::kSpecMaxMemory32Pages <= kMaxInt);
   static_assert(wasm::kSpecMaxMemory64Pages <= kMaxInt);
@@ -834,7 +816,7 @@ DirectHandle<WasmMemoryObject> WasmMemoryObject::New(
   DirectHandle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
   DirectHandle<WasmMemoryObject> memory_object = Cast<WasmMemoryObject>(
-      NewWasmJSObject(isolate, maybe_map, memory_ctor, AllocationType::kOld));
+      isolate->factory()->NewJSObject(memory_ctor, AllocationType::kOld));
   memory_object->set_array_buffer(ReadOnlyRoots{isolate}.undefined_value());
   memory_object->set_managed_backing_store(*managed_backing_store);
   memory_object->set_maximum_pages(maximum);
@@ -862,7 +844,7 @@ DirectHandle<WasmMemoryObject> WasmMemoryObject::New(
 
 MaybeDirectHandle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, int initial, int maximum, SharedFlag shared,
-    wasm::AddressType address_type, MaybeDirectHandle<Map> maybe_map) {
+    wasm::AddressType address_type) {
   bool has_maximum = maximum != kNoMaximum;
 
   int engine_maximum = address_type == wasm::AddressType::kI64
@@ -912,8 +894,7 @@ MaybeDirectHandle<WasmMemoryObject> WasmMemoryObject::New(
 
   if (!backing_store) return {};
 
-  return New(isolate, {}, std::move(backing_store), maximum, address_type,
-             maybe_map);
+  return New(isolate, {}, std::move(backing_store), maximum, address_type);
 }
 
 void WasmMemoryObject::UseInInstance(
@@ -1278,8 +1259,7 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::ChangeArrayBufferResizability(
 MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
     MaybeDirectHandle<WasmGlobalObject::BufferType> maybe_buffer,
-    wasm::ValueType type, int32_t offset, bool is_mutable,
-    MaybeDirectHandle<Map> maybe_map) {
+    wasm::ValueType type, int32_t offset, bool is_mutable) {
   DirectHandle<JSFunction> global_ctor(
       isolate->native_context()->wasm_global_constructor(), isolate);
 
@@ -1311,7 +1291,7 @@ MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(
   DCHECK_LE(offset + type.value_kind_size(), buffer->Size() - kHeapObjectTag);
 
   DirectHandle<WasmGlobalObject> global_obj =
-      Cast<WasmGlobalObject>(NewWasmJSObject(isolate, maybe_map, global_ctor));
+      Cast<WasmGlobalObject>(isolate->factory()->NewJSObject(global_ctor));
   {
     // Disallow GC until all fields have acceptable types.
     DisallowGarbageCollection no_gc;
@@ -1492,8 +1472,7 @@ void WasmTrustedInstanceData::SetRawMemory(uint32_t memory_index,
 
 DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
-    std::shared_ptr<wasm::NativeModule> native_module,
-    MaybeDirectHandle<Map> maybe_instance_map) {
+    std::shared_ptr<wasm::NativeModule> native_module) {
   // We don't read the NativeModule from the WasmModuleObject here to guard
   // against swapping attacks.
   DCHECK_EQ(native_module.get(), module_object->native_module().raw());
@@ -1629,9 +1608,8 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   // Allocate the WasmInstanceObject (JS wrapper).
   DirectHandle<JSFunction> instance_cons(
       isolate->native_context()->wasm_instance_constructor(), isolate);
-  DirectHandle<WasmInstanceObject> instance_object =
-      Cast<WasmInstanceObject>(NewWasmJSObject(
-          isolate, maybe_instance_map, instance_cons, AllocationType::kOld));
+  DirectHandle<WasmInstanceObject> instance_object = Cast<WasmInstanceObject>(
+      isolate->factory()->NewJSObject(instance_cons, AllocationType::kOld));
   instance_object->set_trusted_data(*trusted_data);
   instance_object->set_module_object(*module_object);
   trusted_data->set_instance_object(*instance_object);
@@ -2230,12 +2208,11 @@ void WasmArray::SetTaggedElement(uint32_t index, DirectHandle<Object> value,
 DirectHandle<WasmTagObject> WasmTagObject::New(
     Isolate* isolate, const wasm::FunctionSig* sig,
     wasm::CanonicalTypeIndex type_index, DirectHandle<HeapObject> tag,
-    DirectHandle<WasmTrustedInstanceData> trusted_data,
-    MaybeDirectHandle<Map> maybe_map) {
+    DirectHandle<WasmTrustedInstanceData> trusted_data) {
   DirectHandle<JSFunction> tag_cons(
       isolate->native_context()->wasm_tag_constructor(), isolate);
   DirectHandle<JSObject> tag_object =
-      NewWasmJSObject(isolate, maybe_map, tag_cons, AllocationType::kOld);
+      isolate->factory()->NewJSObject(tag_cons, AllocationType::kOld);
   DirectHandle<WasmTagObject> tag_wrapper = Cast<WasmTagObject>(tag_object);
   tag_wrapper->set_canonical_type_index(type_index.index);
   tag_wrapper->set_tag(*tag);
@@ -2705,19 +2682,18 @@ bool WasmCapiFunction::MatchesSignature(
 
 // static
 DirectHandle<WasmExceptionPackage> WasmExceptionPackage::New(
-    Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag, int size,
-    MaybeDirectHandle<Map> maybe_map) {
+    Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag, int size) {
   DirectHandle<FixedArray> values = isolate->factory()->NewFixedArray(size);
-  return New(isolate, exception_tag, values, maybe_map);
+  return New(isolate, exception_tag, values);
 }
 
 DirectHandle<WasmExceptionPackage> WasmExceptionPackage::New(
     Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
-    DirectHandle<FixedArray> values, MaybeDirectHandle<Map> maybe_map) {
+    DirectHandle<FixedArray> values) {
   DirectHandle<JSFunction> exception_cons(
       isolate->native_context()->wasm_exception_constructor(), isolate);
   DirectHandle<JSObject> exception =
-      NewWasmJSObject(isolate, maybe_map, exception_cons);
+      isolate->factory()->NewJSObject(exception_cons);
   exception->InObjectPropertyPutAtIndex(kTagIndex, *exception_tag);
   exception->InObjectPropertyPutAtIndex(kValuesIndex, *values);
   return Cast<WasmExceptionPackage>(exception);

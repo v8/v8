@@ -650,8 +650,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
 MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
-    base::UniqueArray<const uint8_t> bytes, std::string_view source_url,
-    MaybeDirectHandle<Map> maybe_map) {
+    base::UniqueArray<const uint8_t> bytes, std::string_view source_url) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -712,7 +711,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, script, maybe_map);
+      WasmModuleObject::New(isolate, script);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
@@ -722,11 +721,9 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
 MaybeDirectHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
     Isolate* isolate, ErrorThrower* thrower,
     DirectHandle<WasmModuleObject> module_object,
-    MaybeDirectHandle<JSReceiver> imports,
-    MaybeDirectHandle<Map> maybe_instance_map) {
+    MaybeDirectHandle<JSReceiver> imports) {
   TRACE_EVENT("v8.wasm", "wasm.SyncInstantiate");
-  return InstantiateToInstanceObject(isolate, thrower, module_object, imports,
-                                     maybe_instance_map);
+  return InstantiateToInstanceObject(isolate, thrower, module_object, imports);
 }
 
 void WasmEngine::AsyncInstantiate(

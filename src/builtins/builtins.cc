@@ -786,8 +786,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kWebAssemblyStringCompare:
     case Builtin::kWebAssemblyConfigureAllPrototypes:
       return JSBuiltinStateFlag::kCoreJSLazy;
-    case Builtin::kWebAssemblySuspending:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(!v8_flags.wasm_jitless);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT

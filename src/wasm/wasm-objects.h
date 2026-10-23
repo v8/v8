@@ -169,8 +169,7 @@ V8_OBJECT class WasmModuleObject : public JSObject {
 
   // Creates a new {WasmModuleObject} for an existing {Script} of type {kWasm}.
   V8_EXPORT_PRIVATE static DirectHandle<WasmModuleObject> New(
-      Isolate* isolate, DirectHandle<Script> script,
-      MaybeDirectHandle<Map> maybe_map = {});
+      Isolate* isolate, DirectHandle<Script> script);
 
   // Get the module name, if set. Returns an empty handle otherwise.
   static MaybeDirectHandle<String> GetModuleNameOrNull(
@@ -275,8 +274,7 @@ V8_OBJECT class WasmTableObject : public JSObject {
       wasm::ValueType type, wasm::CanonicalValueType canonical_type,
       uint32_t initial, bool has_maximum, uint64_t maximum,
       DirectHandle<Object> initial_value, wasm::AddressType address_type,
-      DirectHandle<WasmDispatchTable>* out_dispatch_table = nullptr,
-      MaybeDirectHandle<Map> maybe_map = {});
+      DirectHandle<WasmDispatchTable>* out_dispatch_table = nullptr);
 
   inline bool is_in_bounds(uint32_t entry_index);
 
@@ -418,11 +416,11 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
   V8_EXPORT_PRIVATE static DirectHandle<WasmMemoryObject> New(
       Isolate* isolate, MaybeDirectHandle<JSArrayBuffer> maybe_buffer,
       std::shared_ptr<BackingStore> backing_store, int maximum,
-      wasm::AddressType address_type, MaybeDirectHandle<Map> maybe_map = {});
+      wasm::AddressType address_type);
 
   V8_EXPORT_PRIVATE static MaybeDirectHandle<WasmMemoryObject> New(
       Isolate* isolate, int initial, int maximum, SharedFlag shared,
-      wasm::AddressType address_type, MaybeDirectHandle<Map> maybe_map = {});
+      wasm::AddressType address_type);
 
   // Assign a new (grown) buffer to this memory, also updating the shortcut
   // fields of all instances that use this memory.
@@ -531,7 +529,7 @@ V8_OBJECT class WasmGlobalObject : public JSObject {
   V8_EXPORT_PRIVATE static MaybeDirectHandle<WasmGlobalObject> New(
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_object,
       MaybeDirectHandle<BufferType> maybe_buffer, wasm::ValueType type,
-      int32_t offset, bool is_mutable, MaybeDirectHandle<Map> maybe_map = {});
+      int32_t offset, bool is_mutable);
 
   inline int32_t GetI32() const;
   inline int64_t GetI64() const;
@@ -793,8 +791,7 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
 
   static DirectHandle<WasmTrustedInstanceData> New(
       Isolate*, DirectHandle<WasmModuleObject>,
-      std::shared_ptr<wasm::NativeModule>,
-      MaybeDirectHandle<Map> maybe_instance_map = {});
+      std::shared_ptr<wasm::NativeModule>);
 
   WasmCodePointer GetCallTarget(uint32_t func_index);
 
@@ -914,8 +911,7 @@ V8_OBJECT class WasmTagObject : public JSObject {
   static DirectHandle<WasmTagObject> New(
       Isolate* isolate, const wasm::FunctionSig* sig,
       wasm::CanonicalTypeIndex type_index, DirectHandle<HeapObject> tag,
-      DirectHandle<WasmTrustedInstanceData> instance,
-      MaybeDirectHandle<Map> maybe_map = {});
+      DirectHandle<WasmTrustedInstanceData> instance);
 
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
 
@@ -1195,11 +1191,11 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
  public:
   static DirectHandle<WasmExceptionPackage> New(
       Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
-      int encoded_size, MaybeDirectHandle<Map> maybe_map = {});
+      int encoded_size);
 
   static DirectHandle<WasmExceptionPackage> New(
       Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
-      DirectHandle<FixedArray> values, MaybeDirectHandle<Map> maybe_map = {});
+      DirectHandle<FixedArray> values);
 
   // The below getters return {undefined} in case the given exception package
   // does not carry the requested values (i.e. is of a different type).
@@ -2050,8 +2046,7 @@ V8_OBJECT class WasmSuspendingObject : public JSObject {
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   V8_EXPORT_PRIVATE static DirectHandle<WasmSuspendingObject> New(
-      Isolate* isolate, DirectHandle<JSReceiver> callable,
-      MaybeDirectHandle<Map> maybe_map = {});
+      Isolate* isolate, DirectHandle<JSReceiver> callable);
   DECL_PRINTER(WasmSuspendingObject)
   DECL_VERIFIER(WasmSuspendingObject)
 
