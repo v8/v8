@@ -3183,13 +3183,15 @@ void CodeGenerator::AssembleConstructFrame() {
     if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else {
-      __ mflr(r0);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ mflr(scratch);
       if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
-        __ Push(r0, fp, kConstantPoolRegister);
+        __ Push(scratch, fp, kConstantPoolRegister);
         // Adjust FP to point to saved FP.
         __ SubS64(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
       } else {
-        __ Push(r0, fp);
+        __ Push(scratch, fp);
         __ mr(fp, sp);
       }
     }
