@@ -116,7 +116,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '0ad36ea8042f50b82eaae3f16a7ba82529e88c4d',
+  'partition_alloc_version': '9b01c14e4298a6234633ef2646d697c1c2d03b1c',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -161,7 +161,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3542f634b0c0ed13a347218e666d5d779a767de8',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0e54922a5015791a02a297b434a950251f4b72b9',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2f41b66d4857c8efbfcb2a350f159944f71dbf7e',
   'buildtools/linux64': {
@@ -280,7 +280,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4be4e4628e093c4ad50210db5dcfa05a88280bda',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'dbc99f8b5b88e43a2b907d8ddd93c269d24c287e',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -533,9 +533,9 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'd8f3a40fe7e73a4ae0f6e8d8f06d26f3cae4867e',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'a39834aa20faca91179990afaff9c8551f6305a3',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '9b77a8d1047240aba4a0dc95e362e024bfda6fad',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '11b91b7d1a7cb96bb449c9085f338624d1825458',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '2da0056814cf180480a19f5cf811e7e1c054bf6d',
   'third_party/requests': {
