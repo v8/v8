@@ -2818,6 +2818,9 @@
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
+  # Incremental marking GCs can clear young-generation AllocationMementos
+  # before elements kind transitions occur.
+  'array-literal-transitions-no-pretenuring': [SKIP],
   'harmony/sharedarraybuffer-worker-gc-stress': [PASS, ['gc_stress', SKIP]],
   'regress/regress-crbug-540324230': [SKIP],
   'regress/regress-crbug-820312': [PASS, SLOW],
