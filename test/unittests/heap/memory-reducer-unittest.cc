@@ -8,8 +8,10 @@
 #include <memory>
 #include <utility>
 
+#include "include/cppgc/heap-state.h"
 #include "include/v8-platform.h"
 #include "src/flags/flags.h"
+#include "src/heap/cppgc-internal/heap-base.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -446,13 +448,15 @@ TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerTriggersGC) {
 
   SimulateFullSpace(heap->old_space());
   i_isolate->factory()->NewFixedArray(
-      V8HeapTrait::kMinimumAllocationLimitGrowingStep, AllocationType::kOld);
+      V8HeapTrait::kMinimumAllocationLimitGrowingStep / kTaggedSize,
+      AllocationType::kOld);
 
   // Run the MemoryReducer task.
   platform.PerformTask();
 
   // Check that we do a GC here, and reschedule memory reducer.
   CHECK(!marking->IsStopped());
+  CHECK(heap->ShouldReduceMemory());
   CHECK(platform.PendingTask());
   CHECK(!memory_reducer->is_scheduled());
 
@@ -461,6 +465,9 @@ TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerTriggersGC) {
     platform.PerformTask();
   }
   CHECK(marking->IsStopped());
+  CHECK_EQ(cppgc::EmbedderStackState::kNoHeapPointers,
+           cppgc::internal::HeapBase::From(heap->cpp_heap()->GetHeapHandle())
+               .stack_state_of_prev_gc());
 
   // We did a GC, so memory reducer should be rescheduled.
   CHECK(platform.PendingTask());

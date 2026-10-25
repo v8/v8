@@ -1923,22 +1923,19 @@ void Heap::StartIncrementalMarkingOnInterrupt() {
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     LocalHeap* local_heap, GCFlags gc_flags,
-    const GCCallbackFlags gc_callback_flags,
-    std::optional<GarbageCollectionReason> gc_reason) {
+    const GCCallbackFlags gc_callback_flags) {
   if (incremental_marking()->IsStopped() &&
       incremental_marking()->CanAndShouldBeStarted()) {
     auto [limit, reason] = IncrementalMarkingLimitReached();
     switch (limit) {
       case IncrementalMarkingLimit::kHardLimit:
         if (local_heap->is_main_thread_for(this)) {
-          if (!gc_reason) {
-            gc_reason =
-                OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
-                    ? GarbageCollectionReason::kAllocationLimit
-                    : GarbageCollectionReason::kGlobalAllocationLimit;
-          }
-          StartIncrementalMarking(gc_flags, *gc_reason, gc_callback_flags,
-                                  GarbageCollector::MARK_COMPACTOR, reason);
+          StartIncrementalMarking(
+              gc_flags,
+              OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
+                  ? GarbageCollectionReason::kAllocationLimit
+                  : GarbageCollectionReason::kGlobalAllocationLimit,
+              gc_callback_flags, GarbageCollector::MARK_COMPACTOR, reason);
         } else {
           ExecutionAccess access(isolate());
           isolate()->stack_guard()->RequestStartIncrementalMarking();

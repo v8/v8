@@ -1103,8 +1103,7 @@ class Heap final {
 
   V8_EXPORT_PRIVATE void StartIncrementalMarkingIfAllocationLimitIsReached(
       LocalHeap* local_heap, GCFlags gc_flags,
-      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags,
-      std::optional<GarbageCollectionReason> gc_reason = std::nullopt);
+      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
 
   // Synchronously finalizes incremental marking.
   V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomically(
@@ -2455,6 +2454,7 @@ class Heap final {
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
+  friend class LimitBasedMemoryReducer;
   friend class LocalHeap;
   friend class MarkingBarrier;
   friend class OldLargeObjectSpace;
