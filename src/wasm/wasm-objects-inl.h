@@ -438,7 +438,7 @@ size_t WasmTrustedInstanceData::memory_size(uint32_t memory_index) const {
 }
 
 wasm::NativeModule* WasmTrustedInstanceData::native_module() const {
-  return managed_native_module()->get().get();
+  return managed_native_module()->unsafe_raw();
 }
 
 Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {
@@ -574,11 +574,11 @@ void WasmDispatchTableForImports::clear_protected_offheap_data() {
 
 WasmDispatchTableData* WasmDispatchTable::offheap_data() const {
   if (!has_protected_offheap_data()) return nullptr;
-  return protected_offheap_data()->get().get();
+  return protected_offheap_data()->unsafe_raw();
 }
 WasmDispatchTableData* WasmDispatchTableForImports::offheap_data() const {
   if (!has_protected_offheap_data()) return nullptr;
-  return protected_offheap_data()->get().get();
+  return protected_offheap_data()->unsafe_raw();
 }
 
 Tagged<ProtectedWeakFixedArray> WasmDispatchTable::protected_uses() const {
