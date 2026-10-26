@@ -166,7 +166,6 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
         handle(TrustedCast<InterpreterData>(*obj)->bytecode_array(), isolate());
   }
 
-  ReadOnlyRoots roots(isolate());
   InstanceType instance_type;
   {
     DisallowGarbageCollection no_gc;
@@ -181,12 +180,34 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     CHECK(!InstanceTypeChecker::IsInstructionStream(instance_type));
   }
 
+  // Past this point we should not see any (context-specific) maps anymore.
+  CHECK(!InstanceTypeChecker::IsMap(instance_type));
+  // There should be no references to the global object embedded.
+  CHECK(!InstanceTypeChecker::IsJSGlobalProxy(instance_type) &&
+        !InstanceTypeChecker::IsJSGlobalObject(instance_type));
+  // Embedded FixedArrays that need rehashing must support rehashing.
+  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
+  // We expect no instantiated function objects or contexts.
+  CHECK(!InstanceTypeChecker::IsJSFunction(instance_type) &&
+        !InstanceTypeChecker::IsContext(instance_type));
+
+  SerializeGeneric(obj, slot_type);
+}
+
+void CodeSerializer::SerializeDeferredObject(Handle<HeapObject> obj) {
+  SerializeGeneric(obj, SlotType::kAnySlot);
+}
+
+void CodeSerializer::SerializeGeneric(Handle<HeapObject> heap_object,
+                                      SlotType slot_type) {
+  ReadOnlyRoots roots(isolate());
+  InstanceType instance_type = heap_object->map()->instance_type();
   if (InstanceTypeChecker::IsScript(instance_type)) {
     DirectHandle<FixedArray> host_options;
     DirectHandle<UnionOf<Smi, Symbol, Undefined>> context_data;
     {
       DisallowGarbageCollection no_gc;
-      Tagged<Script> script_obj = Cast<Script>(*obj);
+      Tagged<Script> script_obj = Cast<Script>(*heap_object);
       DCHECK(!script_obj->has_eval_origin());
       // We want to differentiate between undefined and uninitialized_symbol for
       // context_data for now. It is hack to allow debugging for scripts that
@@ -205,10 +226,13 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
           direct_handle(script_obj->host_defined_options(), isolate());
       script_obj->set_host_defined_options(roots.empty_fixed_array());
     }
-    SerializeGeneric(obj, slot_type);
+    {
+      ObjectSerializer serializer(this, heap_object, &sink_);
+      serializer.Serialize(slot_type);
+    }
     {
       DisallowGarbageCollection no_gc;
-      Tagged<Script> script_obj = Cast<Script>(*obj);
+      Tagged<Script> script_obj = Cast<Script>(*heap_object);
       script_obj->set_host_defined_options(*host_options);
       script_obj->set_context_data(*context_data);
     }
@@ -219,7 +243,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     bool restore_bytecode = false;
     {
       DisallowGarbageCollection no_gc;
-      Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(*obj);
+      Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(*heap_object);
       DCHECK(!sfi->IsApiFunction());
 
       if (auto maybe_debug_info = sfi->TryGetDebugInfo(isolate())) {
@@ -239,9 +263,12 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
         }
       }
     }
-    SerializeGeneric(obj, slot_type);
+    {
+      ObjectSerializer serializer(this, heap_object, &sink_);
+      serializer.Serialize(slot_type);
+    }
     DisallowGarbageCollection no_gc;
-    Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(*obj);
+    Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(*heap_object);
     if (restore_bytecode) {
       sfi->SetActiveBytecodeArray(debug_info->debug_bytecode_array(),
                                   isolate());
@@ -256,7 +283,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     // serialize DependentCode objects as an empty_dependent_code instead
     // of customizing ScopeInfo serialization.
     static_assert(DEPENDENT_CODE_TYPE == WEAK_ARRAY_LIST_TYPE);
-    Handle<ScopeInfo> scope_info = Cast<ScopeInfo>(obj);
+    Handle<ScopeInfo> scope_info = Cast<ScopeInfo>(heap_object);
     DirectHandle<DependentCode> dependent_code;
     bool restore_dependent_code = false;
     if (scope_info->SloppyEvalCanExtendVars()) {
@@ -271,29 +298,16 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
         scope_info->set_dependent_code(empty_dependent_code);
       }
     }
-    SerializeGeneric(scope_info, slot_type);
+    {
+      ObjectSerializer serializer(this, scope_info, &sink_);
+      serializer.Serialize(slot_type);
+    }
     if (restore_dependent_code) {
       scope_info->set_dependent_code(*dependent_code);
     }
     return;
   }
 
-  // Past this point we should not see any (context-specific) maps anymore.
-  CHECK(!InstanceTypeChecker::IsMap(instance_type));
-  // There should be no references to the global object embedded.
-  CHECK(!InstanceTypeChecker::IsJSGlobalProxy(instance_type) &&
-        !InstanceTypeChecker::IsJSGlobalObject(instance_type));
-  // Embedded FixedArrays that need rehashing must support rehashing.
-  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
-  // We expect no instantiated function objects or contexts.
-  CHECK(!InstanceTypeChecker::IsJSFunction(instance_type) &&
-        !InstanceTypeChecker::IsContext(instance_type));
-
-  SerializeGeneric(obj, slot_type);
-}
-
-void CodeSerializer::SerializeGeneric(Handle<HeapObject> heap_object,
-                                      SlotType slot_type) {
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, heap_object, &sink_);
   serializer.Serialize(slot_type);

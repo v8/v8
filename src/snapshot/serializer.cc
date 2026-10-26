@@ -156,10 +156,28 @@ void Serializer::SerializeDeferredObjects() {
   WHILE_WITH_HANDLE_SCOPE(isolate(), !deferred_objects_.empty()) {
     Handle<HeapObject> obj = handle(deferred_objects_.Pop(), isolate());
 
-    ObjectSerializer obj_serializer(this, obj, &sink_);
-    obj_serializer.SerializeDeferred();
+    const SerializerReference* back_reference =
+        reference_map()->LookupReference(obj);
+    if (back_reference != nullptr) {
+      if (v8_flags.trace_serializer) {
+        PrintF(" Deferred heap object ");
+        ShortPrint(*obj);
+        PrintF(" was already serialized\n");
+      }
+      continue;
+    }
+
+    if (v8_flags.trace_serializer) {
+      PrintF(" Encoding deferred heap object\n");
+    }
+    SerializeDeferredObject(obj);
   }
   sink_.Put(kSynchronize, "Finished with deferred objects");
+}
+
+void Serializer::SerializeDeferredObject(Handle<HeapObject> obj) {
+  ObjectSerializer obj_serializer(this, obj, &sink_);
+  obj_serializer.Serialize(SlotType::kAnySlot);
 }
 
 void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
@@ -1031,25 +1049,6 @@ void Serializer::ObjectSerializer::SerializeObject() {
   bytes_processed_so_far_ = kTaggedSize;
 
   SerializeContent(map, size);
-}
-
-void Serializer::ObjectSerializer::SerializeDeferred() {
-  const SerializerReference* back_reference =
-      serializer_->reference_map()->LookupReference(object_);
-
-  if (back_reference != nullptr) {
-    if (v8_flags.trace_serializer) {
-      PrintF(" Deferred heap object ");
-      ShortPrint(*object_);
-      PrintF(" was already serialized\n");
-    }
-    return;
-  }
-
-  if (v8_flags.trace_serializer) {
-    PrintF(" Encoding deferred heap object\n");
-  }
-  Serialize(SlotType::kAnySlot);
 }
 
 void Serializer::ObjectSerializer::SerializeContent(Tagged<Map> map, int size) {

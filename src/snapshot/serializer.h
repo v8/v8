@@ -223,6 +223,7 @@ class Serializer : public SerializerDeserializer {
   V8_INLINE bool IsNotMappedSymbol(Tagged<HeapObject> obj) const;
 
   void SerializeDeferredObjects();
+  virtual void SerializeDeferredObject(Handle<HeapObject> obj);
   void SerializeObject(Handle<HeapObject> o, SlotType slot_type);
   virtual void SerializeObjectImpl(Handle<HeapObject> o,
                                    SlotType slot_type) = 0;
@@ -440,7 +441,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   }
   void Serialize(SlotType slot_type);
   void SerializeObject();
-  void SerializeDeferred();
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override;
   void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,

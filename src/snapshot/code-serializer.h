@@ -234,6 +234,7 @@ class CodeSerializer : public Serializer {
 
  private:
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
+  void SerializeDeferredObject(Handle<HeapObject> obj) override;
   bool SerializeTrustedExport(Tagged<HeapObject> obj);
   bool SerializeTrustedExternalReference(
       ExternalReferenceEncoder::Value reference,
