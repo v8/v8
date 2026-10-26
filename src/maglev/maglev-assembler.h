@@ -1076,12 +1076,12 @@ class SaveRegisterStateForCall {
       }
       pushed_reg_index++;
     }
-#ifdef V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_ARCH_ARM64) || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
     pushed_reg_index = RoundUp<2>(pushed_reg_index);
 #endif
     int num_double_slots = snapshot_.live_double_registers.Count() *
                            (kDoubleSize / kSystemPointerSize);
-#ifdef V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_ARCH_ARM64) || V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
     num_double_slots = RoundUp<2>(num_double_slots);
 #endif
     safepoint.SetNumExtraSpillSlots(pushed_reg_index + num_double_slots);

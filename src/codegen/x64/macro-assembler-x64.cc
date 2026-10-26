@@ -1499,11 +1499,19 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion) const {
   int bytes = 0;
   RegList saved_regs = kCallerSaved - exclusion;
-  bytes += kSystemPointerSize * saved_regs.Count();
+  int count = saved_regs.Count();
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    count = RoundUp<2>(count);
+  }
+  bytes += kSystemPointerSize * count;
 
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == SaveFPRegsMode::kSave) {
-    bytes += kStackSavedSavedFPSize * kAllocatableDoubleRegisters.Count();
+    int fp_bytes = kStackSavedSavedFPSize * kAllocatableDoubleRegisters.Count();
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      fp_bytes = RoundUp<2 * kSystemPointerSize>(fp_bytes);
+    }
+    bytes += fp_bytes;
   }
 
   return bytes;
@@ -1538,11 +1546,23 @@ int MacroAssembler::PushAll(RegList registers) {
     pushq(reg);
     bytes += kSystemPointerSize;
   }
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (registers.Count() % 2 != 0) {
+      pushq(Immediate(0));
+      bytes += kSystemPointerSize;
+    }
+  }
   return bytes;
 }
 
 int MacroAssembler::PopAll(RegList registers) {
   int bytes = 0;
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (registers.Count() % 2 != 0) {
+      leaq(rsp, Operand(rsp, kSystemPointerSize));
+      bytes += kSystemPointerSize;
+    }
+  }
   for (Register reg : base::Reversed(registers)) {
     popq(reg);
     bytes += kSystemPointerSize;
@@ -1552,7 +1572,10 @@ int MacroAssembler::PopAll(RegList registers) {
 
 int MacroAssembler::PushAll(DoubleRegList registers, int stack_slot_size) {
   if (registers.is_empty()) return 0;
-  const int delta = stack_slot_size * registers.Count();
+  int delta = stack_slot_size * registers.Count();
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    delta = RoundUp<2 * kSystemPointerSize>(delta);
+  }
   AllocateStackSpace(delta);
   int slot = 0;
   for (XMMRegister reg : registers) {
@@ -1564,7 +1587,7 @@ int MacroAssembler::PushAll(DoubleRegList registers, int stack_slot_size) {
     }
     slot += stack_slot_size;
   }
-  DCHECK_EQ(slot, delta);
+  DCHECK_EQ(slot, stack_slot_size * registers.Count());
   return delta;
 }
 
@@ -1581,8 +1604,12 @@ int MacroAssembler::PopAll(DoubleRegList registers, int stack_slot_size) {
     slot += stack_slot_size;
   }
   DCHECK_EQ(slot, stack_slot_size * registers.Count());
-  addq(rsp, Immediate(slot));
-  return slot;
+  int delta = slot;
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    delta = RoundUp<2 * kSystemPointerSize>(delta);
+  }
+  addq(rsp, Immediate(delta));
+  return delta;
 }
 
 void MacroAssembler::Movq(XMMRegister dst, Register src) {
