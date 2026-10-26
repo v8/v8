@@ -2749,8 +2749,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_I64x2Mul: {
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
+      Register scratch2 = temps.Acquire();
       __ I64x2Mul(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), scratch, r0,
+                  i.InputSimd128Register(1), scratch, scratch2,
                   i.ToRegister(instr->TempAt(0)), kScratchSimd128Reg);
       break;
     }
