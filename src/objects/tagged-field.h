@@ -99,6 +99,8 @@ class SmiBitFieldMember : private TaggedMember<Smi> {
   static_assert(std::is_base_of_v<BitFieldGroup<Group, uint32_t>, Group>);
 
   constexpr SmiBitFieldMember() = default;
+  inline explicit SmiBitFieldMember(Group value);
+  inline SmiBitFieldMember(Group value, RelaxedStoreTag);
 
   inline Group load() const;
   inline void store(Group value);

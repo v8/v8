@@ -7742,7 +7742,7 @@ int Heap::NextScriptId() {
 
 int Heap::NextDebuggingId() {
   int last_id = last_debugging_id().value();
-  if (last_id == DebugInfo::DebuggingIdBits::kMax) {
+  if (last_id == DebugInfo::DebuggerHints::DebuggingIdBits::kMax) {
     last_id = DebugInfo::kNoDebuggingId;
   }
   last_id++;

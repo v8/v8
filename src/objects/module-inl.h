@@ -39,17 +39,15 @@ void ScriptOrModule::set_host_defined_options(Tagged<FixedArray> value,
   host_defined_options_.store(this, value, mode);
 }
 
-BOOL_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
-               HasToplevelAwaitBit::kShift)
+BIT_FIELD_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
+                    SourceTextModule::Flags::HasToplevelAwaitBit)
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluation_ordinal,
-                    SourceTextModule::AsyncEvaluationOrdinalBits)
+                    SourceTextModule::Flags::AsyncEvaluationOrdinalBits)
 
-inline unsigned ModuleRequest::position() const {
-  return PositionBits::decode(flags());
-}
+inline unsigned ModuleRequest::position() const { return flags().position(); }
 
 inline ModuleImportPhase ModuleRequest::phase() const {
-  ModuleImportPhase value = PhaseBits::decode(flags());
+  ModuleImportPhase value = flags().phase();
   DCHECK(value == ModuleImportPhase::kDefer ||
          value == ModuleImportPhase::kEvaluation ||
          value == ModuleImportPhase::kSource);

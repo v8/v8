@@ -2211,19 +2211,19 @@ void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
   CHECK(IsForeign(icu_simple_date_format_.load()));
   CHECK(IsForeign(icu_date_interval_format_.load()));
   CHECK(IsUndefined(bound_format()) || IsJSFunction(bound_format()));
-  CHECK(IsSmi(flags_.load()));
+  CHECK(flags_.IsSmi());
 }
 
 void JSDisplayNames::JSDisplayNamesVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsCppGCManagedBase(internal_.load()));
-  CHECK(IsSmi(flags_.load()));
+  CHECK(flags_.IsSmi());
 }
 
 void JSDurationFormat::JSDurationFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsSmi(style_flags_.load()));
-  CHECK(IsSmi(display_flags_.load()));
+  CHECK(style_flags_.IsSmi());
+  CHECK(display_flags_.IsSmi());
   CHECK(IsForeign(icu_locale_.load()));
   CHECK(IsForeign(icu_number_formatter_.load()));
 }
@@ -2232,7 +2232,7 @@ void JSListFormat::JSListFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
   CHECK(IsForeign(icu_formatter_.load()));
-  CHECK(IsSmi(flags_.load()));
+  CHECK(flags_.IsSmi());
 }
 
 void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
@@ -2245,7 +2245,7 @@ void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
 void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
-  CHECK(IsSmi(flags_.load()));
+  CHECK(flags_.IsSmi());
   CHECK(IsCppGCManagedBase(internal_.load()));
 }
 
@@ -2254,28 +2254,28 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
   CHECK(IsString(locale()));
   CHECK(IsString(numberingSystem()));
   CHECK(IsForeign(icu_formatter_.load()));
-  CHECK(IsSmi(flags_.load()));
+  CHECK(flags_.IsSmi());
 }
 
 void JSSegmenter::JSSegmenterVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsString(locale()));
   CHECK(IsForeign(icu_break_iterator_.load()));
-  CHECK(IsSmi(flags_.load()));
+  CHECK(flags_.IsSmi());
 }
 
 void JSSegments::JSSegmentsVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsCppGCManagedBase(icu_iterator_with_text_.load()));
   CHECK(IsString(raw_string()));
-  CHECK(IsSmi(flags_.load()));
+  CHECK(flags_.IsSmi());
 }
 
 void JSSegmentIterator::JSSegmentIteratorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsCppGCManagedBase(icu_iterator_with_text_.load()));
   CHECK(IsString(raw_string()));
-  CHECK(IsSmi(flags_.load()));
+  CHECK(flags_.IsSmi());
 }
 
 void JSSegmentDataObject::JSSegmentDataObjectVerify(Isolate* isolate) {
@@ -2522,7 +2522,7 @@ void JSRegExpStringIterator::JSRegExpStringIteratorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsJSReceiver(iterating_reg_exp()));
   CHECK(IsString(iterated_string()));
-  CHECK(flags_.load().IsSmi());
+  CHECK(flags_.IsSmi());
 }
 
 void JSPrimitiveWrapper::JSPrimitiveWrapperVerify(Isolate* isolate) {
@@ -2856,7 +2856,7 @@ void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
       CHECK_EQ(max_register_count(), JSRegExp::kUninitializedValue);
       CHECK_EQ(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
       CHECK_EQ(backtrack_limit(), JSRegExp::kUninitializedValue);
-      CHECK_EQ(bit_field(), 0);
+      CHECK_EQ(bit_field().value(), 0u);
 
       break;
     }
@@ -3255,7 +3255,7 @@ void ClassBoilerplate::ClassBoilerplateVerify(Isolate* isolate) {
 
 void PropertyDescriptorObject::PropertyDescriptorObjectVerify(
     Isolate* isolate) {
-  CHECK(IsSmi(flags_.load()));
+  CHECK(flags_.IsSmi());
   Object::VerifyPointer(isolate, value_.load());
   Object::VerifyPointer(isolate, get_.load());
   Object::VerifyPointer(isolate, set_.load());
@@ -3795,7 +3795,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoVerify(Isolate* isolate) {
 void ObjectTemplateInfo::ObjectTemplateInfoVerify(Isolate* isolate) {
   CHECK(Is<ObjectTemplateInfo>(this));
   Object::VerifyPointer(isolate, constructor_.load());
-  CHECK(IsSmi(Tagged<Object>(data_.load())));
+  CHECK(data_.IsSmi());
 }
 
 void DictionaryTemplateInfo::DictionaryTemplateInfoVerify(Isolate* isolate) {
@@ -3950,7 +3950,7 @@ void UncompiledDataWithPreparseDataAndJob::
 }
 
 void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
-  CHECK(IsSmi(flags_.load()));
+  CHECK(flags_.IsSmi());
   CHECK(IsSmi(code_offset_or_source_position_.load()));
   Object::VerifyPointer(isolate, receiver_or_instance_.load());
   Object::VerifyPointer(isolate, function_.load());
@@ -3972,7 +3972,7 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   CHECK(Is<StackFrameInfo>(this));
   Object::VerifyPointer(isolate, shared_or_script_.load());
   Object::VerifyPointer(isolate, function_name_.load());
-  CHECK(IsSmi(Tagged<Object>(flags_.load())));
+  CHECK(flags_.IsSmi());
   CHECK(IsSmi(Tagged<Object>(bytecode_offset_or_source_position_.load())));
 }
 

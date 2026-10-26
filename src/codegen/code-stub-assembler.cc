@@ -13119,17 +13119,18 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
     TNode<Uint32T> details, Label* if_bailout) {
   Label if_data_property(this), if_accessor_property(this),
       test_configurable(this), test_property_type(this), done(this);
-  TVARIABLE(Smi, flags,
-            SmiConstant(PropertyDescriptorObject::HasEnumerableBit::kMask |
-                        PropertyDescriptorObject::HasConfigurableBit::kMask));
+  TVARIABLE(
+      Smi, flags,
+      SmiConstant(PropertyDescriptorObject::Flags::HasEnumerableBit::kMask |
+                  PropertyDescriptorObject::Flags::HasConfigurableBit::kMask));
 
   {  // test enumerable
     TNode<Uint32T> dont_enum =
         Uint32Constant(DONT_ENUM << PropertyDetails::AttributesField::kShift);
     GotoIf(Word32And(details, dont_enum), &test_configurable);
-    flags =
-        SmiOr(flags.value(),
-              SmiConstant(PropertyDescriptorObject::IsEnumerableBit::kMask));
+    flags = SmiOr(
+        flags.value(),
+        SmiConstant(PropertyDescriptorObject::Flags::IsEnumerableBit::kMask));
     Goto(&test_configurable);
   }
 
@@ -13138,9 +13139,9 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
     TNode<Uint32T> dont_delete =
         Uint32Constant(DONT_DELETE << PropertyDetails::AttributesField::kShift);
     GotoIf(Word32And(details, dont_delete), &test_property_type);
-    flags =
-        SmiOr(flags.value(),
-              SmiConstant(PropertyDescriptorObject::IsConfigurableBit::kMask));
+    flags = SmiOr(
+        flags.value(),
+        SmiConstant(PropertyDescriptorObject::Flags::IsConfigurableBit::kMask));
     Goto(&test_property_type);
   }
 
@@ -13177,9 +13178,10 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
     setter = BailoutIfTemplateInfo(setter);
 
     Label bind_undefined(this, Label::kDeferred), return_result(this);
-    flags = SmiOr(flags.value(),
-                  SmiConstant(PropertyDescriptorObject::HasGetBit::kMask |
-                              PropertyDescriptorObject::HasSetBit::kMask));
+    flags =
+        SmiOr(flags.value(),
+              SmiConstant(PropertyDescriptorObject::Flags::HasGetBit::kMask |
+                          PropertyDescriptorObject::Flags::HasSetBit::kMask));
     StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, flags_),
                      flags.value());
     StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, value_),
@@ -13194,14 +13196,16 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
   BIND(&if_data_property);
   {
     Label store_fields(this);
-    flags = SmiOr(flags.value(),
-                  SmiConstant(PropertyDescriptorObject::HasValueBit::kMask |
-                              PropertyDescriptorObject::HasWritableBit::kMask));
+    flags = SmiOr(
+        flags.value(),
+        SmiConstant(PropertyDescriptorObject::Flags::HasValueBit::kMask |
+                    PropertyDescriptorObject::Flags::HasWritableBit::kMask));
     TNode<Uint32T> read_only =
         Uint32Constant(READ_ONLY << PropertyDetails::AttributesField::kShift);
     GotoIf(Word32And(details, read_only), &store_fields);
-    flags = SmiOr(flags.value(),
-                  SmiConstant(PropertyDescriptorObject::IsWritableBit::kMask));
+    flags = SmiOr(
+        flags.value(),
+        SmiConstant(PropertyDescriptorObject::Flags::IsWritableBit::kMask));
     Goto(&store_fields);
 
     BIND(&store_fields);

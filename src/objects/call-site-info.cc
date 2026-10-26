@@ -618,7 +618,8 @@ DirectHandle<Object> CallSiteInfo::GetWasmModuleName(
 
 // static
 int CallSiteInfo::GetSourcePosition(DirectHandle<CallSiteInfo> info) {
-  if (info->flags() & kIsSourcePositionComputed) {
+  Flags flags = info->flags();
+  if (flags.is_source_position_computed()) {
     return info->code_offset_or_source_position();
   }
   DCHECK(!info->IsPromiseAll());
@@ -627,7 +628,7 @@ int CallSiteInfo::GetSourcePosition(DirectHandle<CallSiteInfo> info) {
   int source_position =
       ComputeSourcePosition(info, info->code_offset_or_source_position());
   info->set_code_offset_or_source_position(source_position);
-  info->set_flags(info->flags() | kIsSourcePositionComputed);
+  info->set_flags(flags.with_is_source_position_computed(true));
   return source_position;
 }
 
@@ -652,7 +653,7 @@ bool CallSiteInfo::ComputeLocation(DirectHandle<CallSiteInfo> info,
   if (!shared->IsSubjectToDebugging()) return false;
   Handle<Script> script(Cast<Script>(shared->script()), isolate);
   if (IsUndefined(script->source())) return false;
-  if (info->flags() & kIsSourcePositionComputed ||
+  if (info->flags().is_source_position_computed() ||
       (shared->HasBytecodeArray() &&
        shared->GetBytecodeArray(isolate)->HasSourcePositionTable())) {
     int pos = GetSourcePosition(info);

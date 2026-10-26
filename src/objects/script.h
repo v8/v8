@@ -13,6 +13,7 @@
 #include "src/heap/factory-base.h"
 #include "src/heap/factory.h"
 #include "src/heap/local-factory.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
@@ -206,11 +207,34 @@ V8_OBJECT class Script : public Struct {
   inline void set_break_on_entry(bool value);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using CompilationKindBits = First<Script::CompilationKind, 3>;
+    using CompilationStateBit =
+        CompilationKindBits::Next<Script::CompilationState, 1>;
+    using IsReplModeBit = CompilationStateBit::Next<bool, 1>;
+    using OriginOptionsBits = IsReplModeBit::Next<int32_t, 4>;
+    using BreakOnEntryBit = OriginOptionsBits::Next<bool, 1>;
+    using ProduceCompileHintsBit = BreakOnEntryBit::Next<bool, 1>;
+    using DeserializedBit = ProduceCompileHintsBit::Next<bool, 1>;
+    using OuterLanguageModeBit = DeserializedBit::Next<LanguageMode, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(compilation_kind, CompilationKindBits)
+    BIT_FIELD_GROUP_ACCESSORS(compilation_state, CompilationStateBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_repl_mode, IsReplModeBit)
+    BIT_FIELD_GROUP_ACCESSORS(origin_options, OriginOptionsBits)
+    BIT_FIELD_GROUP_ACCESSORS(break_on_entry, BreakOnEntryBit)
+    BIT_FIELD_GROUP_ACCESSORS(produce_compile_hints, ProduceCompileHintsBit)
+    BIT_FIELD_GROUP_ACCESSORS(deserialized, DeserializedBit)
+    BIT_FIELD_GROUP_ACCESSORS(outer_language_mode, OuterLanguageModeBit)
+  };
+
   // Read/write the raw 'flags' field. This uses relaxed atomic loads/stores
   // because the flags are read by background compile threads and updated by the
   // main thread.
-  inline uint32_t flags() const;
-  inline void set_flags(uint32_t new_flags);
+  inline Flags flags() const;
+  inline void set_flags(Flags new_flags);
 
   inline bool produce_compile_hints() const;
   inline void set_produce_compile_hints(bool produce_compile_hints);
@@ -405,7 +429,7 @@ V8_OBJECT class Script : public Struct {
   TaggedMember<UnionOf<ScopeInfo, Undefined>> eval_from_scope_info_;
   TaggedMember<UnionOf<WeakFixedArray, WeakArrayList>> infos_;
   TaggedMember<UnionOf<ArrayList, Undefined>> compiled_lazy_function_positions_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<ScriptFlags>);
+  SmiBitFieldMember<Flags> flags_;
   TaggedMember<UnionOf<String, Undefined>> source_url_;
   TaggedMember<Object> source_mapping_url_;
   TaggedMember<UnionOf<String, Undefined>> debug_id_;
@@ -424,19 +448,6 @@ V8_OBJECT class Script : public Struct {
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;
-  friend class TorqueGeneratedBitFieldAsserts;
-
-  // Bit positions in the flags field.
-  using CompilationKindBits =
-      base::BitField<Script::CompilationKind, 0, 3, uint32_t>;
-  using CompilationStateBit =
-      CompilationKindBits::Next<Script::CompilationState, 1>;
-  using IsReplModeBit = CompilationStateBit::Next<bool, 1>;
-  using OriginOptionsBits = IsReplModeBit::Next<int32_t, 4>;
-  using BreakOnEntryBit = OriginOptionsBits::Next<bool, 1>;
-  using ProduceCompileHintsBit = BreakOnEntryBit::Next<bool, 1>;
-  using DeserializedBit = ProduceCompileHintsBit::Next<bool, 1>;
-  using OuterLanguageModeBit = DeserializedBit::Next<LanguageMode, 1>;
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

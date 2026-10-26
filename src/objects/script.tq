@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-type CompilationState extends int32 constexpr 'Script::CompilationState';
-type CompilationKind extends int32 constexpr 'Script::CompilationKind';
+type ScriptCompilationState extends int32
+    constexpr 'Script::CompilationState';
+type ScriptCompilationKind extends int32 constexpr 'Script::CompilationKind';
 
-@cppScope('Script')
+@cppScope('Script::Flags')
 bitfield struct ScriptFlags extends uint31 {
-  compilation_kind: CompilationKind: 3 bit;
-  compilation_state: CompilationState: 1 bit;
+  compilation_kind: ScriptCompilationKind: 3 bit;
+  compilation_state: ScriptCompilationState: 1 bit;
   is_repl_mode: bool: 1 bit;
   origin_options: int32: 4 bit;
   // Whether an instrumentation breakpoint is set for this script (wasm only).

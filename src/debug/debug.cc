@@ -1906,7 +1906,7 @@ void Debug::PrepareFunctionForDebugExecution(
   DCHECK(shared->is_compiled());
   DirectHandle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(),
                                      isolate_);
-  if (debug_info->flags(kRelaxedLoad) & DebugInfo::kPreparedForDebugExecution) {
+  if (debug_info->flags(kRelaxedLoad).prepared_for_debug_execution()) {
     return;
   }
 
@@ -1936,7 +1936,7 @@ void Debug::PrepareFunctionForDebugExecution(
   }
 
   debug_info->set_flags(
-      debug_info->flags(kRelaxedLoad) | DebugInfo::kPreparedForDebugExecution,
+      debug_info->flags(kRelaxedLoad).with_prepared_for_debug_execution(true),
       kRelaxedStore);
 }
 
@@ -2419,9 +2419,11 @@ bool Debug::CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared) {
   DirectHandle<FixedArray> break_points(
       factory->NewFixedArray(DebugInfo::kEstimatedNofBreakPointsInFunction));
 
-  DebugInfo::Flags flags = debug_info->flags(kRelaxedLoad);
-  flags |= DebugInfo::kHasBreakInfo;
-  if (CanBreakAtEntry(shared)) flags |= DebugInfo::kCanBreakAtEntry;
+  DebugInfo::Flags flags =
+      debug_info->flags(kRelaxedLoad).with_has_break_info(true);
+  if (CanBreakAtEntry(shared)) {
+    flags = flags.with_can_break_at_entry(true);
+  }
   debug_info->set_flags(flags, kRelaxedStore);
   debug_info->set_break_points(*break_points);
 
@@ -2451,7 +2453,7 @@ void Debug::InstallCoverageInfo(DirectHandle<SharedFunctionInfo> shared,
   DCHECK(!debug_info->HasCoverageInfo());
 
   debug_info->set_flags(
-      debug_info->flags(kRelaxedLoad) | DebugInfo::kHasCoverageInfo,
+      debug_info->flags(kRelaxedLoad).with_has_coverage_info(true),
       kRelaxedStore);
   debug_info->set_coverage_info(*coverage_info);
 }

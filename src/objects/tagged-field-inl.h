@@ -235,6 +235,16 @@ void TaggedMember<T, CompressionScheme>::WriteBarrier(HeapObject* host,
 }
 
 template <typename Group>
+SmiBitFieldMember<Group>::SmiBitFieldMember(Group value) {
+  store(value);
+}
+
+template <typename Group>
+SmiBitFieldMember<Group>::SmiBitFieldMember(Group value, RelaxedStoreTag) {
+  Relaxed_Store(value);
+}
+
+template <typename Group>
 Group SmiBitFieldMember<Group>::load() const {
   return Group(Smi::To31BitPattern(TaggedMember<Smi>::load()));
 }
