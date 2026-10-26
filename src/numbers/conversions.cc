@@ -1077,11 +1077,14 @@ class StringToBigIntHelper : public StringToIntHelper {
       digit_storage = sandbox_storage.get();
     }
     bigint::RWDigits digits(digit_storage, num_digits);
-    processor->FromString(digits, &accumulator_);
+    bigint::Status status = processor->FromString(digits, &accumulator_);
+    DCHECK_EQ(status, bigint::Status::kOk);
     uint32_t num_chars = bigint::ToStringResultLength(digits, 10, false);
     SandboxChars out(SandboxAllocArray<uint8_t>(num_chars));
     char* chars = reinterpret_cast<char*>(out.get());
-    processor->ToString(chars, &num_chars, digits, 10, false);
+    status = processor->ToString(chars, &num_chars, digits, 10, false);
+    DCHECK_EQ(status, bigint::Status::kOk);
+    USE(status);
     return {std::move(out), num_chars};
   }
   IsolateT* isolate() { return isolate_; }
@@ -1125,6 +1128,7 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate,
 
 template <typename IsolateT>
 MaybeHandle<BigInt> BigIntLiteral(IsolateT* isolate, const char* string) {
+  isolate->bigint_processor()->ResetInterruptCheckBudget();
   StringToBigIntHelper<IsolateT> helper(
       isolate, reinterpret_cast<const uint8_t*>(string), strlen(string));
   return helper.GetResult();

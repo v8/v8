@@ -1748,12 +1748,12 @@ Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
       // Otherwise return the BigInt
       MaybeHandle<BigInt> maybe_bigint = StringToBigInt(isolate, string);
       // If the parsing of BigInt fail, return nan
-      if (maybe_bigint.is_null()) {
-        isolate->clear_exception();
+      if (!maybe_bigint.ToHandle(&result.value_)) {
+        if (isolate->has_exception()) {
+          return Nothing<IntlMathematicalValue>();
+        }
         result.value_ = factory->nan_value();
-        return Just(result);
       }
-      result.value_ = maybe_bigint.ToHandleChecked();
       return Just(result);
     }
   }
