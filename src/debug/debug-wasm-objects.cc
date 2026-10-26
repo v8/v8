@@ -32,7 +32,7 @@ namespace {
 
 using StringBuilder = wasm::StringBuilder;
 DirectHandle<String> ToInternalString(StringBuilder& sb, Isolate* isolate) {
-  return isolate->factory()->InternalizeString(
+  return isolate->factory()->InternalizeUtf8String(
       {sb.start(), static_cast<size_t>(sb.length())});
 }
 
