@@ -77,6 +77,8 @@ void PrintGraph(Graph* graph, bool condition, MaglevPhase phase) {
 
 void VerifyGraph(Graph* graph, MaglevPhase phase) {
 #ifdef DEBUG
+  compiler::UnparkedScopeIfNeeded unparked_scope(
+      graph->broker()->local_isolate());
   GraphProcessor<MaglevGraphVerifier> verifier(graph->compilation_info(),
                                                phase);
   verifier.ProcessGraph(graph);

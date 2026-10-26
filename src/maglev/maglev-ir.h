@@ -9942,6 +9942,12 @@ class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
     }
     return cur;
   }
+
+  std::optional<uint32_t> cached_min_length() const {
+    uint32_t cur = MinLengthField::decode(bitfield());
+    if (cur == kNoMinLength) return {};
+    return cur;
+  }
 };
 
 /*

@@ -1785,9 +1785,13 @@ bool IsConsString(ValueNode* string) {
 }
 }  // namespace
 
-uint32_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
-                                                          int max_depth) {
-  if (auto maybe_constant = TryGetConstant<String>(string)) {
+uint32_t MaglevGraphBuilder::StringLengthStaticLowerBound(
+    compiler::JSHeapBroker* broker, ValueNode* string, int max_depth) {
+  string = string->UnwrapIdentities();
+  // Only use static constant nodes, not path-sensitive KnownNodeAspects
+  // `checked_value` alternatives (`TryGetConstant<String>`), as the bound is
+  // cached on `StringConcat` nodes across control-flow merges.
+  if (auto maybe_constant = string->TryGetConstant(broker)) {
     if (maybe_constant->IsString()) {
       return maybe_constant->AsString().length();
     }
@@ -1797,13 +1801,16 @@ uint32_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
   }
   switch (string->opcode()) {
     case Opcode::kNumberToString:
+    case Opcode::kInt32ToString:
+    case Opcode::kFloat64ToString:
+    case Opcode::kSmiToString:
       return 1;
     case Opcode::kStringConcat:
       if (max_depth == 0) return 0;
       return string->Cast<StringConcat>()->MinLength([&]() {
-        return StringLengthStaticLowerBound(string->input(0).node(),
+        return StringLengthStaticLowerBound(broker, string->input(0).node(),
                                             max_depth - 1) +
-               StringLengthStaticLowerBound(string->input(1).node(),
+               StringLengthStaticLowerBound(broker, string->input(1).node(),
                                             max_depth - 1);
       });
     case Opcode::kPhi: {
@@ -1817,11 +1824,11 @@ uint32_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
           (phi->is_loop_phi() && phi->is_unmerged_loop_phi())) {
         return 0;
       }
-      auto overall_min_length =
-          StringLengthStaticLowerBound(phi->input(0).node(), max_depth - 1);
+      auto overall_min_length = StringLengthStaticLowerBound(
+          broker, phi->input(0).node(), max_depth - 1);
       for (int i = 1; i < phi->input_count(); ++i) {
-        auto min =
-            StringLengthStaticLowerBound(phi->input(i).node(), max_depth - 1);
+        auto min = StringLengthStaticLowerBound(broker, phi->input(i).node(),
+                                                max_depth - 1);
         if (min < overall_min_length) {
           overall_min_length = min;
         }
@@ -1843,8 +1850,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
   DCHECK(NodeTypeIs(GetType(left), NodeType::kString));
   DCHECK(NodeTypeIs(GetType(right), NodeType::kString));
 
-  size_t left_min_length = StringLengthStaticLowerBound(left);
-  size_t right_min_length = StringLengthStaticLowerBound(right);
+  size_t left_min_length = StringLengthStaticLowerBound(broker(), left);
+  size_t right_min_length = StringLengthStaticLowerBound(broker(), right);
 
   // If the right hand side is a ConsString, then we can create a ConsString.
   // This doesn't work with the left hand side, since the right hand side of a
