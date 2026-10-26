@@ -165,7 +165,7 @@ MaybeDirectHandle<Object> RegExp::ThrowRegExpException(
     regexp::Error error) {
   if (V8_UNLIKELY(v8_flags.correctness_fuzzer_suppressions &&
                   regexp::ErrorIsStackOverflow(error))) {
-    FATAL("Aborting on stack overflow");
+    base::FatalNoSecurityImpact("Aborting on stack overflow");
   }
   DirectHandle<String> error_text =
       isolate->factory()->NewStringFromAsciiChecked(regexp::ErrorString(error));

@@ -508,7 +508,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
     // Abort range errors in correctness fuzzing, as their causes differ
     // across correctness-fuzzing scenarios.
     if (target.is_identical_to(isolate->range_error_function())) {
-      FATAL("Aborting on range error");
+      base::FatalNoSecurityImpact("Aborting on range error");
     }
     // Ignore error messages in correctness fuzzing, because the spec leaves
     // room for undefined behavior.

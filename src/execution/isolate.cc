@@ -2529,7 +2529,7 @@ Tagged<Object> Isolate::StackOverflow() {
 #endif
 
   if (v8_flags.correctness_fuzzer_suppressions) {
-    FATAL("Aborting on stack overflow");
+    base::FatalNoSecurityImpact("Aborting on stack overflow");
   }
 
 #if USE_SIMULATOR

@@ -506,7 +506,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
     case kS128Code: {
       if (!VALIDATE(CheckHardwareSupportsSimd())) {
         if (v8_flags.correctness_fuzzer_suppressions) {
-          FATAL("Aborting on missing Wasm SIMD support");
+          base::FatalNoSecurityImpact("Aborting on missing Wasm SIMD support");
         }
         DecodeError<ValidationTag>(decoder, pc, "Wasm SIMD unsupported");
         return {kWasmBottom, 0};
@@ -5120,7 +5120,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     this->detected_->add_simd();
     if (!CheckHardwareSupportsSimd()) {
       if (v8_flags.correctness_fuzzer_suppressions) {
-        FATAL("Aborting on missing Wasm SIMD support");
+        base::FatalNoSecurityImpact("Aborting on missing Wasm SIMD support");
       }
       this->DecodeError("Wasm SIMD unsupported");
       return 0;

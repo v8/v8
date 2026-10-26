@@ -3282,7 +3282,7 @@ DirectHandle<JSObject> Factory::ShadowRealmNewTypeErrorCopy(
 
 DirectHandle<Object> Factory::NewInvalidStringLengthError() {
   if (v8_flags.correctness_fuzzer_suppressions) {
-    FATAL("Aborting on invalid string length");
+    base::FatalNoSecurityImpact("Aborting on invalid string length");
   }
   // Invalidate the "string length" protector.
   if (Protectors::IsStringLengthOverflowLookupChainIntact(isolate())) {

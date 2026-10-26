@@ -1109,7 +1109,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     // There are different limits per platform, thus crash if the correctness
     // fuzzer is running.
     if (v8_flags.correctness_fuzzer_suppressions) {
-      FATAL("could not grow wasm memory");
+      base::FatalNoSecurityImpact("could not grow wasm memory");
     }
     return -1;
   }
@@ -1183,7 +1183,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (!new_backing_store) {
     // Crash on out-of-memory if the correctness fuzzer is running.
     if (v8_flags.correctness_fuzzer_suppressions) {
-      FATAL("could not grow wasm memory");
+      base::FatalNoSecurityImpact("could not grow wasm memory");
     }
     // Set the non-determinism flag in the WasmEngine.
     wasm::WasmEngine::set_had_nondeterminism();

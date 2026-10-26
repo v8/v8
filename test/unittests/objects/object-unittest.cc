@@ -1031,5 +1031,15 @@ TEST_F(ObjectTest, JSObjectCopy) {
   EXPECT_EQ(*value1, *value2);
 }
 
+TEST_F(ObjectTest, CorrectnessFuzzerSuppressionsFatalNoSecurityImpact) {
+  v8::HandleScope scope(isolate());
+  SaveFlags save_flags;
+  v8_flags.correctness_fuzzer_suppressions = true;
+  EXPECT_DEATH_IF_SUPPORTED(
+      RunJS("1n << (1n << 30n)"),
+      "Fatal error with no security impact:\n# Aborting on invalid BigInt "
+      "length");
+}
+
 }  // namespace internal
 }  // namespace v8

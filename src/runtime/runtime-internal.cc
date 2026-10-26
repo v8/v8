@@ -194,7 +194,7 @@ RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
     // this difference, we crash the program.
     if (MessageTemplateFromInt(message_id_smi) ==
         MessageTemplate::kBigIntTooBig) {
-      FATAL("Aborting on invalid BigInt length");
+      base::FatalNoSecurityImpact("Aborting on invalid BigInt length");
     }
   }
 
