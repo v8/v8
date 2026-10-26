@@ -9232,7 +9232,7 @@ class StoreDoubleDataViewElement
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   DECLARE_INPUTS(Object, DataPointer, Index, Value, IsLittleEndian)
-  DECLARE_INPUT_TYPES(Tagged, RawPtr, Int32, HoleyFloat64, Tagged)
+  DECLARE_INPUT_TYPES(Tagged, RawPtr, Int32, Float64, Tagged)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
