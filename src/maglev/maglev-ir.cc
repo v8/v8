@@ -5754,6 +5754,11 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
   }
 }
 
+bool GeneratorStore::store_context() const {
+  const RootConstant* constant = ContextInput().node()->TryCast<RootConstant>();
+  return constant == nullptr || constant->index() != RootIndex::kOptimizedOut;
+}
+
 int GeneratorStore::MaxCallStackArgs() const {
   return WriteBarrierDescriptor::GetStackParameterCount();
 }
@@ -5813,18 +5818,20 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
                             offsetof(JSGeneratorObject, input_or_debug_pos_),
                             Smi::FromInt(bytecode_offset()));
 
-  // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
-  // register, see comment above. At this point we no longer need to preserve
-  // the array or generator registers, so use the original register snapshot.
-  Register context = __ FromAnyToRegister(
-      ContextInput(), WriteBarrierDescriptor::SlotAddressRegister());
-  __ StoreTaggedFieldWithWriteBarrier(
-      generator, offsetof(JSGeneratorObject, context_), context,
-      register_snapshot(),
-      ContextInput().node()->decompresses_tagged_result()
-          ? MaglevAssembler::kValueIsDecompressed
-          : MaglevAssembler::kValueIsCompressed,
-      MaglevAssembler::kValueCannotBeSmi);
+  if (store_context()) {
+    // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
+    // register, see comment above. At this point we no longer need to preserve
+    // the array or generator registers, so use the original register snapshot.
+    Register context = __ FromAnyToRegister(
+        ContextInput(), WriteBarrierDescriptor::SlotAddressRegister());
+    __ StoreTaggedFieldWithWriteBarrier(
+        generator, offsetof(JSGeneratorObject, context_), context,
+        register_snapshot(),
+        ContextInput().node()->decompresses_tagged_result()
+            ? MaglevAssembler::kValueIsDecompressed
+            : MaglevAssembler::kValueIsCompressed,
+        MaglevAssembler::kValueCannotBeSmi);
+  }
 }
 
 int GetKeyedGeneric::MaxCallStackArgs() const {

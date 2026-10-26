@@ -2032,6 +2032,9 @@ class MaglevGraphBuilder {
   ZoneMap<int, ContextScopeInfo> dead_scope_infos_;
 
   bool is_resumable_function_ = false;
+  // True if a resumable function may change its current context.
+  bool resumable_context_may_change_ = true;
+  void AnalyzeResumableFunction();
 
   // When set, inline only small functions.
   bool only_inline_small_ = false;

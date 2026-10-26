@@ -709,6 +709,9 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       dead_scope_infos_(zone()),
       is_resumable_function_(IsResumableFunction(
           compilation_unit_->shared_function_info().kind())) {
+  if (is_resumable_function_) {
+    AnalyzeResumableFunction();
+  }
   if (V8_UNLIKELY(v8_flags.print_turbolev_inline_functions)) {
     current_inlining_tree_debug_info_ = zone()->New<InliningTreeDebugInfo>(
         zone(), compilation_unit->shared_function_info(), caller_details);
@@ -15809,7 +15812,11 @@ ReduceResult MaglevGraphBuilder::VisitSuspendGenerator() {
   // SuspendGenerator <generator> <first input register> <register count>
   // <suspend_id>
   ValueNode* generator = LoadRegister(0);
-  ValueNode* context = GetContext();
+  // An unchanged context is already in the generator object, so pass optimized
+  // out instead to skip the store and avoid keeping the context alive.
+  ValueNode* context = resumable_context_may_change_
+                           ? GetContext()
+                           : GetRootConstant(RootIndex::kOptimizedOut);
 
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   uint32_t suspend_id = iterator_.GetUnsignedImmediateOperand(3);
@@ -15869,16 +15876,34 @@ ReduceResult MaglevGraphBuilder::VisitSuspendGenerator() {
              : ReduceResult::DoneWithAbort();
 }
 
+// Analyzes the bytecode of a resumable function (generator or async function)
+// to discover optimization opportunities for suspend and resume.
+//
+// Context invariance (resumable_context_may_change_): if the function never
+// pushes an inner context (block, catch, with or function context), its current
+// context is always JSFunction::context_. That is the value stored into
+// JSGeneratorObject::context_ when the generator object is created, and the
+// value the resume trampoline puts into the context register. Storing the
+// context on suspend and loading it on resume can then both be skipped.
+void MaglevGraphBuilder::AnalyzeResumableFunction() {
+  resumable_context_may_change_ = bytecode_analysis_.has_push_context();
+  DCHECK_IMPLIES(compilation_unit_->shared_function_info()
+                     .scope_info(broker())
+                     .SloppyEvalCanExtendVars(),
+                 resumable_context_may_change_);
+}
+
 ReduceResult MaglevGraphBuilder::VisitResumeGenerator() {
   // ResumeGenerator <generator> <first output register> <register count>
   ValueNode* generator = LoadRegister(0);
-  ValueNode* context;
-  GET_VALUE_OR_ABORT(
-      context,
-      BuildLoadTaggedField(generator, offsetof(JSGeneratorObject, context_),
-                           NodeType::kContext));
-
-  SetContext(context);
+  if (resumable_context_may_change_) {
+    ValueNode* context;
+    GET_VALUE_OR_ABORT(
+        context,
+        BuildLoadTaggedField(generator, offsetof(JSGeneratorObject, context_),
+                             NodeType::kContext));
+    SetContext(context);
+  }
   ValueNode* array;
   GET_VALUE_OR_ABORT(
       array,

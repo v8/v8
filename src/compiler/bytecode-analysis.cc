@@ -545,6 +545,10 @@ void BytecodeAnalysis::BytecodeAnalysisImpl::Analyze() {
     Bytecode bytecode = iterator_.current_bytecode();
     int current_offset = iterator_.current_offset();
 
+    if (bytecode == Bytecode::kPushContext) {
+      res_.has_push_context_ = true;
+    }
+
     if (bytecode == Bytecode::kJumpLoop) {
       // Every byte up to and including the last byte within the backwards jump
       // instruction is considered part of the loop, set loop end accordingly.

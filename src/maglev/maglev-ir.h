@@ -5008,6 +5008,9 @@ class GeneratorStore : public VarargsNodeT<2, GeneratorStore> {
 
   int suspend_id() const { return suspend_id_; }
   int bytecode_offset() const { return bytecode_offset_; }
+  // False if the context input is optimized out, which means the context is
+  // known to already be in the generator's context_ field.
+  bool store_context() const;
 
   int num_parameters_and_registers() const { return num_args(); }
   Input parameters_and_registers(int i) { return arg(i); }

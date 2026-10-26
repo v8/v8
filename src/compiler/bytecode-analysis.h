@@ -176,6 +176,9 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   // opposed to the number of bytes in the bytecode).
   int bytecode_count() const { return bytecode_count_; }
 
+  // Return whether the bytecode contains a PushContext.
+  bool has_push_context() const { return has_push_context_; }
+
  private:
   BytecodeLivenessMap& liveness_map() {
     DCHECK(analyze_liveness_);
@@ -195,6 +198,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   int osr_entry_point_;
   std::optional<BytecodeLivenessMap> liveness_map_;
   int bytecode_count_ = -1;
+  bool has_push_context_ = false;
 
   class BytecodeAnalysisImpl;
   friend class BytecodeAnalysisImpl;

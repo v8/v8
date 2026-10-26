@@ -476,10 +476,14 @@ class TurbolevEarlyLoweringReducer : public Next {
              WriteBarrierKind::kNoWriteBarrier,
              offsetof(JSGeneratorObject, input_or_debug_pos_));
 
-    __ Store(generator, context, StoreOp::Kind::TaggedBase(),
-             MemoryRepresentation::TaggedPointer(),
-             WriteBarrierKind::kPointerWriteBarrier,
-             offsetof(JSGeneratorObject, context_));
+    // An optimized out context is known to already be in the generator.
+    if (!__ matcher().MatchRootConstant(context, RootIndex::kOptimizedOut,
+                                        isolate_)) {
+      __ Store(generator, context, StoreOp::Kind::TaggedBase(),
+               MemoryRepresentation::TaggedPointer(),
+               WriteBarrierKind::kPointerWriteBarrier,
+               offsetof(JSGeneratorObject, context_));
+    }
   }
 
   V<Boolean> ObjectIsArray(V<Object> value, V<LazyFrameState> frame_state,
