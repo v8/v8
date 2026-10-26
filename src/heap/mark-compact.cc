@@ -4065,13 +4065,13 @@ void RightTrimDescriptorArray(Heap* heap, Tagged<DescriptorArray> array,
       array->GetDescriptorSlot(old_nof_all_descriptors).address();
   MutablePage* chunk = MutablePage::FromHeapObject(heap->isolate(), array);
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
-                                         SlotSet::FREE_EMPTY_BUCKETS);
+                                         SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
-      chunk, start, end, SlotSet::FREE_EMPTY_BUCKETS);
+      chunk, start, end, SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_SHARED>::RemoveRange(chunk, start, end,
-                                            SlotSet::FREE_EMPTY_BUCKETS);
+                                            SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(chunk, start, end,
-                                         SlotSet::FREE_EMPTY_BUCKETS);
+                                         SlotSet::KEEP_EMPTY_BUCKETS);
   const Address aligned_start = ALIGN_TO_ALLOCATION_ALIGNMENT(start);
   const Address aligned_end = ALIGN_TO_ALLOCATION_ALIGNMENT(end);
   if (aligned_start < aligned_end) {
