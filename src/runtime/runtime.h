@@ -755,7 +755,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmExternConvertAny, 1, 1)                                  \
   F(WasmCompileLazy, 2, 1)                                       \
   F(WasmAllocateFeedbackVector, 3, 1)                            \
-  F(WasmLiftoffDeoptFinish, 1, 1)                                \
+  F(WasmLiftoffDeoptFinish, 0, 1)                                \
   F(TierUpJSToWasmWrapper, 1, 1)                                 \
   F(IsWasmExternalFunction, 1, 1)                                \
   F(TierUpWasmToJSWrapper, 1, 1)                                 \

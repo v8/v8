@@ -433,9 +433,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
 
 RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
-      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
+  DCHECK_EQ(0, args.length());
   // Destroy the Deoptimizer object stored on the isolate.
   size_t deopt_frame_count = Deoptimizer::DeleteForWasm(isolate);
   size_t i = 0;
@@ -447,8 +445,11 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
     if (frame->is_wasm() && WasmFrame::cast(frame)->wasm_code()->is_liftoff()) {
+      WasmFrame* wasm_frame = WasmFrame::cast(frame);
+      DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
+          wasm_frame->trusted_instance_data(), isolate);
       Address vector_address =
-          frame->fp() - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
+          wasm_frame->fp() - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
       Tagged<Object> feedback_slot_value(Memory<intptr_t>(vector_address));
       CHECK(feedback_slot_value.IsSmi());
       int declared_func_index = Cast<Smi>(feedback_slot_value).value();

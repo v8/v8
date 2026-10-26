@@ -94,8 +94,7 @@ extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
 extern runtime WasmSubstringShared(Context, String, Smi, Smi): String;
 extern runtime WasmStringAdd_NoMapCheck_Shared(Context, String, String): String;
-extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
-    Undefined;
+extern runtime WasmLiftoffDeoptFinish(NoContext): Undefined;
 extern runtime WasmExternConvertAny(Context, HeapObject): JSAny;
 
 extern runtime PropagateException(NoContext): JSAny;
@@ -446,8 +445,7 @@ builtin WasmAllocateFixedArray(size: intptr): FixedArray {
 }
 
 builtin WasmLiftoffDeoptFinish(): Undefined {
-  const trustedData = LoadInstanceDataFromFrame();
-  tail runtime::WasmLiftoffDeoptFinish(kNoContext, trustedData);
+  tail runtime::WasmLiftoffDeoptFinish(kNoContext);
 }
 
 builtin WasmThrow(

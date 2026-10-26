@@ -613,10 +613,6 @@ Address Deoptimizer::EnsureValidReturnAddress(Isolate* isolate,
 
 void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
-  // TODO(mliedtke,415707239): Ideally we'd only reset this when destroying this
-  // object, however when calling the WasmLiftoffDeoptFinish builtin, we read
-  // from the heap (probably in DEBUG-only code).
-  deoptimizer->disallow_sandbox_access_.reset();
 }
 
 const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
@@ -801,6 +797,7 @@ Deoptimizer::~Deoptimizer() {
   DCHECK_NULL(shadow_stack_);
 #endif
   DCHECK_NULL(disallow_garbage_collection_);
+  DCHECK(!disallow_sandbox_access_.has_value());
   delete trace_scope_;
 }
 
@@ -824,6 +821,7 @@ void Deoptimizer::DeleteFrameDescriptions() {
   delete disallow_garbage_collection_;
   disallow_garbage_collection_ = nullptr;
 #endif  // DEBUG
+  disallow_sandbox_access_.reset();
 }
 
 Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
