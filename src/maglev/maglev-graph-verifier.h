@@ -6,7 +6,6 @@
 #define V8_MAGLEV_MAGLEV_GRAPH_VERIFIER_H_
 
 #include "src/maglev/maglev-compilation-info.h"
-#include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
@@ -24,8 +23,7 @@ class MaglevGraphVerifier {
  public:
   explicit MaglevGraphVerifier(MaglevCompilationInfo* compilation_info,
                                MaglevPhase phase)
-      : compilation_info_(compilation_info),
-        seen_(compilation_info->zone()),
+      : seen_(compilation_info->zone()),
         defined_(compilation_info->zone()),
         def_block_(compilation_info->zone()),
         idom_(compilation_info->zone()),
@@ -78,16 +76,6 @@ class MaglevGraphVerifier {
       CHECK_LE(op, kLastOpcode);
     }
     node->VerifyInputs();
-    if constexpr (std::is_same_v<NodeT, StringConcat>) {
-      if (std::optional<uint32_t> cached = node->cached_min_length()) {
-        uint32_t expected =
-            MaglevGraphBuilder::StringLengthStaticLowerBound(
-                compilation_info_->broker(), node->input(0).node(), 1) +
-            MaglevGraphBuilder::StringLengthStaticLowerBound(
-                compilation_info_->broker(), node->input(1).node(), 1);
-        CHECK_LE(*cached, std::min(expected, StringConcat::kNoMinLength - 1));
-      }
-    }
     if (v8_flags.maglev_verify_dominance) {
       VerifyInputDominance(node);
       VerifyEagerDeoptFrameDominance(node);
@@ -269,7 +257,6 @@ class MaglevGraphVerifier {
     }
   }
 
-  MaglevCompilationInfo* compilation_info_ = nullptr;
   MaglevGraphLabeller* graph_labeller_ = nullptr;
   ZoneVector<bool> seen_;
   ZoneUnorderedSet<ValueNode*> defined_;
