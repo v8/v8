@@ -2889,8 +2889,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_I8x16BitMask: {
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
+      Register scratch2 = temps.Acquire();
       __ I8x16BitMask(i.OutputRegister(), i.InputSimd128Register(0), scratch,
-                      r0, kScratchSimd128Reg);
+                      scratch2, kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4DotI8x16AddS: {
