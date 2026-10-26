@@ -76,4 +76,11 @@
   'wasm-in-js-inlining-turboshaft-opt': [SKIP],
 }],
 
+['verify_predictable', {
+  # These tests exit early (--version or sandbox-testing crash handler) without
+  # printing the allocation hash required by predictable_wrapper.py.
+  'd8-version': [SKIP],
+  'wasm/regress-509312806': [SKIP],
+}],  # 'verify_predictable'
+
 ]

@@ -2333,6 +2333,7 @@
   'shared-memory/*': [SKIP],
   'wasm/shared-everything/post-message': [SKIP],
   'wasm/shared-everything/spin-lock': [SKIP],
+  'wasm/shared-everything/wait-queue': [SKIP],
 
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
@@ -2346,6 +2347,9 @@
   'wasm/atomics-memory64': [SKIP],
   'wasm/futex': [SKIP],
   'wasm/grow-shared-memory': [SKIP],
+  'wasm/regress-576453351': [SKIP],
+  'wasm/shared-memory-size-atomic': [SKIP],
+  'wasm/shared-memory-worker-stress': [SKIP],
   'wasm/wasm-interpreter': [SKIP],
   'regress/regress-1205290': [SKIP],
   'regress/regress-1212404': [SKIP],
@@ -2355,6 +2359,9 @@
   'regress/regress-crbug-1237153': [SKIP],
   'regress/wasm/regress-1067621': [SKIP],
   'regress/wasm/regress-377942344': [SKIP],
+  'regress/wasm/regress-461547336': [SKIP],
+  'regress/wasm/regress-476461881': [SKIP],
+  'regress/wasm/regress-568806936': [SKIP],
   'regress/wasm/regress-575514140': [SKIP],
 
   # BUG(v8:9975).

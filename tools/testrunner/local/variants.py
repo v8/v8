@@ -390,7 +390,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "verify_predictable": [
         "--parallel-compile-tasks-for-eager-toplevel",
         "--parallel-compile-tasks-for-lazy", "--concurrent-recompilation",
-        "--stress-concurrent-allocation", "--stress-concurrent-inlining"
+        "--stress-concurrent-allocation", "--stress-concurrent-inlining",
+        "--wasm-test-streaming"
     ],
     "dict_property_const_tracking": ["--stress-concurrent-inlining"],
 }
