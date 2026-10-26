@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "benchmark/benchmark.h"
 #include "src/base/macros.h"
 #include "src/base/numbers/fast-dtoa.h"
-#include "third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h"
 
 using v8::base::FAST_DTOA_PRECISION;
 using v8::base::FAST_DTOA_SHORTEST;

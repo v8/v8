@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "benchmark/benchmark.h"
 #include "include/v8-context.h"
 #include "include/v8-fast-api-calls.h"
 #include "include/v8-internal.h"
@@ -10,7 +11,6 @@
 #include "include/v8-template.h"
 #include "src/base/macros.h"
 #include "test/benchmarks/cpp/benchmark-utils.h"
-#include "third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h"
 
 namespace {
 
