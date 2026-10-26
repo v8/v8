@@ -1734,6 +1734,60 @@ TEST(TorqueLayoutLoader, VerifierRejectsBitFieldStructNameMismatch) {
       "the C++ bit field group is Test::BitFields, Torque uses OtherBits");
 }
 
+// The class-scoped enum TestScalar::Mode, named in Torque by dropping the
+// "::".
+std::string TestModeEnum(const std::string& name = "TestScalarMode") {
+  return "extern enum " + name +
+         " extends uint8 constexpr 'TestScalar::Mode' { kA, kB }\n";
+}
+
+// TestBitFieldStorage() with a bit of type TestScalar::Mode in place of bar.
+std::string TestModeBitFieldStorage() {
+  return TestBitFieldStorage(
+      R"({"cpp_name": "IsFooBit", "type": "bool", )"
+      R"("offset": 0, "num_bits": 1}, )"
+      R"({"cpp_name": "ModeBit", "type": "TestScalar::Mode", )"
+      R"("offset": 1, "num_bits": 1})");
+}
+
+TEST(TorqueLayoutLoader, ImporterDerivesClassScopedEnumBitFieldType) {
+  ExpectSuccessfulLayoutCompilation(
+      TestModeEnum() + TestScalarClass("TestBitFields"),
+      TestScalarJson(TestModeBitFieldStorage(), 1),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterReplacesBitFieldStructWithClassScopedEnum) {
+  ExpectSuccessfulLayoutCompilation(
+      TestModeEnum() + TestBitFieldStruct("mode: TestScalarMode: 1 bit;") +
+          TestScalarClass("TestBitFields"),
+      TestScalarJson(TestModeBitFieldStorage(), 1),
+      /*use_cpp_layouts=*/true);
+}
+
+TEST(TorqueLayoutLoader, ImporterRejectsEnumNotNamedAfterCppType) {
+  ExpectFailingLayoutCompilation(
+      TestModeEnum("TestMode") + TestScalarClass("TestBitFields"),
+      TestScalarJson(TestModeBitFieldStorage(), 1),
+      /*use_cpp_layouts=*/true, "cannot find \"TestScalarMode\"");
+}
+
+TEST(TorqueLayoutLoader, AcceptsBitFieldNamedType) {
+  for (bool use_cpp_layouts : {true, false}) {
+    ExpectSuccessfulLayoutCompilation(
+        TestBitFieldStruct("type: uint8: 3 bit;") +
+            TestScalarClass("TestBitFields"),
+        TestScalarJson(
+            TestBitFieldStorage(R"({"cpp_name": "IsFooBit", "type": "bool", )"
+                                R"("offset": 0, "num_bits": 1}, )"
+                                R"({"cpp_name": "TypeBits", )"
+                                R"("type": "uint8_t", )"
+                                R"("offset": 1, "num_bits": 3})"),
+            1),
+        use_cpp_layouts);
+  }
+}
+
 TEST(TorqueLayoutLoader, ImporterDeclaresBitFieldStructFromCppOnlyBase) {
   // TestBase has no Torque declaration. Import its fields into TestScalar,
   // including the bitfield struct used by value_.

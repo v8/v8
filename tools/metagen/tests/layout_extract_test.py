@@ -776,6 +776,23 @@ class BitFieldGroupTest(unittest.TestCase):
     """)["Foo"].fields
     self.assertEqual(field.storage.name, "Foo::Holder::Bits")
 
+  def test_class_scoped_enum_bit_field_type_is_qualified(self):
+    (field,) = self._layouts("""
+      namespace v8::internal {
+      class Foo : public HeapObject {
+       public:
+        enum class Mode : uint8_t { kA, kB };
+        struct Bits : BitFieldGroup<Bits, uint32_t> {
+          using ModeBits = First<Mode, 1>;
+          using KindBits = ModeBits::Next<Kind, 2>;
+        };
+        Bits bits_;
+      };
+      }
+    """)["Foo"].fields
+    self.assertEqual([(b.cpp_name, b.type) for b in field.storage.bits],
+                     [("ModeBits", "Foo::Mode"), ("KindBits", "Kind")])
+
   def test_smi_member_records_the_group_as_a_tagged_slot(self):
     (field,) = self._layouts("""
       class Foo : public HeapObject {

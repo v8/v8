@@ -10,7 +10,7 @@ extern class Name extends PrimitiveHeapObject {
 
 @cppScope('Name::Hash')
 bitfield struct NameHash extends uint32 {
-  hash_field_type: HashFieldType: 2 bit;
+  hash_field_type: NameHashFieldType: 2 bit;
 
   // hash_field_type: kHash
   hash: uint32: 30 bit at 2;
@@ -64,7 +64,7 @@ const kArrayIndexValueBits: constexpr int31
 const kDoesNotContainCachedArrayIndexMask: constexpr uint32
     generates 'Name::kDoesNotContainCachedArrayIndexMask';
 const kNameEmptyHashField: NameHash =
-NameHash{hash_field_type: HashFieldType::kEmpty};
+NameHash{hash_field_type: NameHashFieldType::kEmpty};
 
 macro ContainsCachedArrayIndex(hash: uint32): bool {
   return (hash & kDoesNotContainCachedArrayIndexMask) == 0;
@@ -89,7 +89,7 @@ macro TenToThe(exponent: uint32): uint32 {
 }
 
 macro IsIntegerIndex(hash: NameHash): bool {
-  return hash.hash_field_type == HashFieldType::kIntegerIndex;
+  return hash.hash_field_type == NameHashFieldType::kIntegerIndex;
 }
 
 // This is in sync with the private StringHasher::MakeArrayIndexHash without

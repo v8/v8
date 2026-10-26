@@ -72,6 +72,12 @@ def _check_identifier(s: str, what: str) -> None:
       f"{what}: not an identifier: {s!r}")
 
 
+def _check_class_scoped_name(s: str, what: str) -> None:
+  _check(isinstance(s, str), f"{what} must be a string")
+  for part in s.split("::"):
+    _check_identifier(part, what)
+
+
 @dataclasses.dataclass(frozen=True)
 class Config:
   """The build configuration the layouts were extracted under.
@@ -268,7 +274,7 @@ class BitFieldEntry:
 
   def __post_init__(self) -> None:
     _check_identifier(self.cpp_name, "bit field name")
-    _check_identifier(self.type, "bit field type")
+    _check_class_scoped_name(self.type, "bit field type")
     _check(self.num_bits > 0, f"bit field {self.cpp_name}: no bits")
     _check(self.offset >= 0, f"bit field {self.cpp_name}: negative offset")
 
@@ -333,11 +339,7 @@ class StorageType:
       _check(self.width is not None and self.width > 0,
              "struct storage needs a size")
     if self.kind in ("bitfield", "smi_bitfield"):
-      _check(
-          isinstance(self.name, str),
-          f"{self.kind} storage name must be a string")
-      for part in (self.name or "").split("::"):
-        _check_identifier(part, f"{self.kind} storage name")
+      _check_class_scoped_name(self.name, f"{self.kind} storage name")
       if self.kind == "bitfield":
         _check(self.width in (1, 2, 4, 8), "bitfield storage width invalid")
         capacity = self.width * 8

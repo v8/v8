@@ -85,14 +85,18 @@ std::string TorqueClassNameFromCppName(const std::string& cpp_name,
   return cpp_name.substr(separator + 2);
 }
 
-std::string TorqueBitFieldStructName(const JsonObject& storage,
-                                     const std::string& context) {
-  std::string name = RequireString(storage, "name", context);
+// Torque has no nested types: the C++ type Foo::Bar is FooBar in Torque.
+std::string TorqueNameFromClassScopedName(std::string name) {
   size_t pos;
   while ((pos = name.find("::")) != std::string::npos) {
     name.erase(pos, 2);
   }
   return name;
+}
+
+std::string TorqueBitFieldStructName(const JsonObject& storage,
+                                     const std::string& context) {
+  return TorqueNameFromClassScopedName(RequireString(storage, "name", context));
 }
 
 // Map primitive C++ types to their Torque representation. Torque already knows
@@ -1344,7 +1348,8 @@ class LayoutImporter {
           NameAndTypeExpression{
               MakeNode<Identifier>(
                   TorqueBitFieldName(cpp_name, num_bits, context)),
-              NamedType(TorqueTypeName(RequireString(b, "type", context)))},
+              NamedType(TorqueTypeName(TorqueNameFromClassScopedName(
+                  RequireString(b, "type", context))))},
           static_cast<int>(num_bits), static_cast<int>(offset)});
     }
     return fields;

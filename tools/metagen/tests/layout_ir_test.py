@@ -150,6 +150,15 @@ class StorageTypeTest(unittest.TestCase):
             width=1,
             bits=(BitFieldEntry("IsFooBit", "bool", 0, 1),))
 
+  def test_bitfield_type_may_be_class_scoped(self):
+    s = bitfield(BitFieldEntry("ModeBits", "Foo::Mode", 0, 2))
+    self.assertEqual(StorageType.from_json(s.to_json()), s)
+
+  def test_bitfield_rejects_invalid_qualified_types(self):
+    for type_name in (None, 42, "::Mode", "Foo::", "Foo::::Mode", "Foo:Mode"):
+      with self.subTest(type_name=type_name), self.assertRaises(LayoutError):
+        BitFieldEntry("ModeBits", type_name, 0, 2)
+
   def test_bitfield_needs_fields(self):
     with self.assertRaisesRegex(LayoutError, "without fields"):
       bitfield()

@@ -2439,7 +2439,8 @@ struct TorqueGrammar : Grammar {
 
   // Result: std::string
   Symbol identifier = {Rule({Pattern(MatchIdentifier)}, YieldMatchedInput),
-                       Rule({Token("runtime")}, YieldMatchedInput)};
+                       Rule({Token("runtime")}, YieldMatchedInput),
+                       Rule({Token("type")}, YieldMatchedInput)};
 
   // Result: Identifier*
   Symbol name = {Rule({&identifier}, MakeIdentifier)};

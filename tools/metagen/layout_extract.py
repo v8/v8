@@ -148,12 +148,13 @@ def _bit_field_group_base(decl: cindex.Cursor) -> cindex.Type | None:
   return None
 
 
-def _cpp_bit_field_struct_name(decl: cindex.Cursor) -> str:
-  """The C++ name of a BitFieldGroup, including enclosing classes."""
+def _cpp_class_scoped_name(decl: cindex.Cursor) -> str:
+  """The C++ name of `decl`, qualified by its enclosing classes."""
   parts = []
   while decl is not None and decl.kind in (cindex.CursorKind.CLASS_DECL,
                                            cindex.CursorKind.STRUCT_DECL,
-                                           cindex.CursorKind.CLASS_TEMPLATE):
+                                           cindex.CursorKind.CLASS_TEMPLATE,
+                                           cindex.CursorKind.ENUM_DECL):
     parts.append(decl.spelling)
     decl = decl.semantic_parent
   return "::".join(reversed(parts))
@@ -375,7 +376,7 @@ class _Extractor:
     if canonical.kind == cindex.TypeKind.ENUM:
       decl = canonical.get_declaration()
       mark_visited(self.parsed, decl)
-      return decl.spelling
+      return _cpp_class_scoped_name(decl)
     if canonical.kind == cindex.TypeKind.RECORD:
       decl = _decl_of(canonical)
       if decl is not None and decl.spelling == "StrongAlias":
@@ -481,8 +482,8 @@ class _Extractor:
       base = _bit_field_group_base(decl)
       if base is not None:
         mark_visited(self.parsed, decl)
-        return self._bitfield_storage(field, _cpp_bit_field_struct_name(decl),
-                                      decl, base)
+        return self._bitfield_storage(field, _cpp_class_scoped_name(decl), decl,
+                                      base)
 
     if decl is not None and decl.kind in (cindex.CursorKind.CLASS_DECL,
                                           cindex.CursorKind.STRUCT_DECL):
@@ -520,7 +521,7 @@ class _Extractor:
                             f"is not a BitFieldGroup")
         mark_visited(self.parsed, group)
         return self._bitfield_storage(
-            field, _cpp_bit_field_struct_name(group), group, base, smi=True)
+            field, _cpp_class_scoped_name(group), group, base, smi=True)
       if name == "TrustedPointerMember":
         args = _template_args(elem_type) or _template_args(canonical)
         if not args:
