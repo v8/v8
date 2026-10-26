@@ -3132,6 +3132,7 @@
   'regress/regress-425583995': [SKIP],
   'regress/regress-490446682': [SKIP],
   'regress/regress-506499280-extended': [SKIP],
+  'regress/regress-571944332': [SKIP],
   # These tests fail because of a different ArrayBufferAllocator is used in
   # google3.
   'huge-typedarrays-*': [SKIP],
