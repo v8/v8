@@ -1284,6 +1284,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(Uint8ArrayPrototypeToHex, kDontAdaptArgumentsSentinel)                   \
                                                                                \
   /* Wasm */                                                                   \
+  IF_WASM(CPP, WebAssemblyException, kDontAdaptArgumentsSentinel)              \
+  IF_WASM(CPP, WebAssemblyGlobal, kDontAdaptArgumentsSentinel)                 \
+  IF_WASM(CPP, WebAssemblyInstance, kDontAdaptArgumentsSentinel)               \
+  IF_WASM(CPP, WebAssemblyMemory, kDontAdaptArgumentsSentinel)                 \
+  IF_WASM(CPP, WebAssemblyModule, kDontAdaptArgumentsSentinel)                 \
+  IF_WASM(CPP, WebAssemblySuspending, kDontAdaptArgumentsSentinel)             \
+  IF_WASM(CPP, WebAssemblyTable, kDontAdaptArgumentsSentinel)                  \
+  IF_WASM(CPP, WebAssemblyTag, kDontAdaptArgumentsSentinel)                    \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterEntry, WasmDummy)                      \
   IF_WASM_DRUMBRAKE(ASM, JSToWasmInterpreterWrapperAsm, WasmJSToWasmWrapper)   \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterCWasmEntry, WasmDummy)                 \

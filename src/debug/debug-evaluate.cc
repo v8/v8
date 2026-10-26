@@ -940,6 +940,16 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
 #if V8_ENABLE_WEBASSEMBLY
     case Builtin::kWasmAllocateInYoungGeneration:
     case Builtin::kWasmAllocateInOldGeneration:
+    case Builtin::kWebAssemblyException:
+    case Builtin::kWebAssemblyGlobal:
+    // TODO(crbug.com/573914678): Instantiating a Wasm module can have side
+    // effects via active segments or a Wasm start function.
+    case Builtin::kWebAssemblyInstance:
+    case Builtin::kWebAssemblyMemory:
+    case Builtin::kWebAssemblyModule:
+    case Builtin::kWebAssemblySuspending:
+    case Builtin::kWebAssemblyTable:
+    case Builtin::kWebAssemblyTag:
 #endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     case Builtin::kGetContinuationPreservedEmbedderData:
