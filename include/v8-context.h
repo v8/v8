@@ -290,7 +290,7 @@ class V8_EXPORT Context : public Data {
    * needed. Note that index 0 currently has a special meaning for Chrome's
    * debugger.
    */
-  V8_DEPRECATE_SOON("Use SetEmbedderDataV3 instead")
+  V8_DEPRECATED("Use SetEmbedderDataV3 instead")
   void SetEmbedderDataV2(int index, Local<Data> value);
 
   /**
@@ -319,7 +319,7 @@ class V8_EXPORT Context : public Data {
    * needed. Note that index 0 currently has a special meaning for Chrome's
    * debugger.
    */
-  V8_DEPRECATE_SOON("Use SetEmbedderDataV3 instead")
+  V8_DEPRECATED("Use SetEmbedderDataV3 instead")
   void SetEmbedderData(int index, Local<Value> value);
 
   /**
@@ -337,13 +337,13 @@ class V8_EXPORT Context : public Data {
   V8_INLINE T* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
                                                  CppHeapPointerTag tag);
 
-  V8_DEPRECATE_SOON("Use SetAlignedPointerInEmbedderDataV2 instead")
+  V8_DEPRECATED("Use SetAlignedPointerInEmbedderDataV2 instead")
   void SetAlignedPointerInEmbedderData(int index, void* value,
                                        EmbedderDataTypeTag tag);
 
   template <typename T>
     requires(!std::is_void_v<T>) && cppgc::IsGarbageCollectedTypeV<T>
-  V8_DEPRECATE_SOON("Use SetAlignedPointerInEmbedderDataV2 instead")
+  V8_DEPRECATED("Use SetAlignedPointerInEmbedderDataV2 instead")
   void SetAlignedPointerInEmbedderData(int index, T* value,
                                        CppHeapPointerTag tag) {
     SetAlignedPointerInEmbedderDataInternal(index, static_cast<void*>(value),
