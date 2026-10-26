@@ -97,6 +97,7 @@
   'regress/regress-570538338': [SKIP],
   'regress/regress-571965281': [SKIP],
   'regress/regress-572276045': [SKIP],
+  'regress/regress-572403047': [SKIP],
   'regress/regress-572834323': [SKIP],
   'regress/regress-crbug-349248170': [SKIP],
   'regress/regress-nested-stack-switch-catch': [SKIP],
