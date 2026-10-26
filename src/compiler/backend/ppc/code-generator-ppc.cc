@@ -3140,9 +3140,10 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ bge(GetLabel(i.InputRpo(1)));
   UseScratchRegisterScope temps(masm());
   Register scratch = temps.Acquire();
+  Register offset = temps.Acquire();
   __ GetLabelAddress(scratch, table);
-  __ ShiftLeftU64(r0, input, Operand(kSystemPointerSizeLog2));
-  __ LoadU64(scratch, MemOperand(scratch, r0));
+  __ ShiftLeftU64(offset, input, Operand(kSystemPointerSizeLog2));
+  __ LoadU64(scratch, MemOperand(scratch, offset));
   __ Jump(scratch);
 }
 
