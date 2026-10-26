@@ -3490,8 +3490,10 @@ AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
   int slot_id = frame_access_state()->GetSPSlotCount() - 1 + new_slots;
   AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
   if (source->IsFloatStackSlot() || source->IsDoubleStackSlot()) {
-    __ LoadU64(r0, g.ToMemOperand(source));
-    __ Push(r0);
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    __ LoadU64(scratch, g.ToMemOperand(source));
+    __ Push(scratch);
     frame_access_state()->IncreaseSPDelta(new_slots);
   } else {
     // Bump the stack pointer and assemble the move.
