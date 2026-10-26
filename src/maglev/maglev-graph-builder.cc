@@ -679,8 +679,12 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       flags_(compilation_unit->info()->flags()),
       graph_(graph),
       tracer_(graph->compilation_info()),
-      bytecode_analysis_(bytecode().object(), zone(),
-                         compilation_unit->osr_offset(), true),
+      bytecode_analysis_(
+          bytecode().object(), zone(), compilation_unit->osr_offset(),
+          /*analyze_liveness=*/true,
+          /*analyze_function_assignments=*/caller_details == nullptr &&
+              IsGeneratorFunction(
+                  compilation_unit->shared_function_info().kind())),
       iterator_(bytecode().object()),
       source_position_iterator_(bytecode().SourcePositionTable(broker())),
       allow_loop_peeling_(v8_flags.maglev_loop_peeling),
@@ -15842,36 +15846,52 @@ ReduceResult MaglevGraphBuilder::VisitSuspendGenerator() {
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   uint32_t suspend_id = iterator_.GetUnsignedImmediateOperand(3);
 
-  int input_count = parameter_count_without_receiver() + args.register_count() +
-                    GeneratorStore::kFixedInputCount;
+  const int param_count = parameter_count_without_receiver();
+  const int slot_count = param_count + args.register_count();
+  const int input_count = slot_count + GeneratorStore::kFixedInputCount;
   if (input_count > Node::kMaxInputs) {
     should_abort_compilation_ = true;
     return reducer_.BuildAbort(AbortReason::kUnreachable);
   }
+
   int debug_pos_offset = iterator_.current_offset() +
                          (BytecodeArray::kHeaderSize - kHeapObjectTag);
+
+  // Slot layout is all parameters followed by all registers. Unassigned
+  // parameters and dead registers already hold the right value in the
+  // generator object, so they are passed as optimized out.
+  const compiler::BytecodeLivenessState* liveness = GetOutLiveness();
+  // The initial yield must store all parameters, later suspends rely on it.
+  const bool skip_unassigned_params =
+      suspend_id != 0 && can_skip_unassigned_param_stores_;
+  auto slot_value = [&](int slot) -> ReduceResult {
+    if (slot < param_count) {
+      // Argument index 0 is the receiver, which is never stored.
+      int arg_index = slot + 1;
+      if (skip_unassigned_params &&
+          !bytecode_analysis_.function_assignments().ContainsParameter(
+              arg_index)) {
+        return GetRootConstant(RootIndex::kOptimizedOut);
+      }
+      return GetTaggedValue(GetArgument(arg_index));
+    }
+    interpreter::Register reg = args[slot - param_count];
+    if (!liveness->RegisterIsLive(reg.index())) {
+      return GetRootConstant(RootIndex::kOptimizedOut);
+    }
+    return GetTaggedValue(reg);
+  };
+
   RETURN_IF_ABORT(AddNewNode<GeneratorStore>(
       input_count,
-      [&](GeneratorStore* node) {
-        int arg_index = 0;
-        for (int i = 1 /* skip receiver */; i < parameter_count(); ++i) {
-          ValueNode* tagged_arg;
-          GET_VALUE_OR_ABORT(tagged_arg, GetTaggedValue(GetArgument(i)));
-          node->set_parameters_and_registers(arg_index++, tagged_arg);
-        }
-        const compiler::BytecodeLivenessState* liveness = GetOutLiveness();
-        for (int i = 0; i < args.register_count(); ++i) {
+      [&](GeneratorStore* node) -> ReduceResult {
+        for (int slot = 0; slot < slot_count; ++slot) {
           ValueNode* value;
-          if (liveness->RegisterIsLive(args[i].index())) {
-            GET_VALUE_OR_ABORT(value, GetTaggedValue(args[i]));
-          } else {
-            value = GetRootConstant(RootIndex::kOptimizedOut);
-          }
-          node->set_parameters_and_registers(arg_index++, value);
+          GET_VALUE_OR_ABORT(value, slot_value(slot));
+          node->set_parameters_and_registers(slot, value);
         }
         return ReduceResult::Done();
       },
-
       context, generator, suspend_id, debug_pos_offset));
 
   if (is_inline()) {
@@ -15906,12 +15926,28 @@ ReduceResult MaglevGraphBuilder::VisitSuspendGenerator() {
 // JSGeneratorObject::context_ when the generator object is created, and the
 // value the resume trampoline puts into the context register. Storing the
 // context on suspend and loading it on resume can then both be skipped.
+//
+// Unassigned parameters (can_skip_unassigned_param_stores_): formal parameters
+// that no bytecode ever writes to. Generators (function* and async function*)
+// store all parameters at their initial yield (suspend_id 0), which runs
+// synchronously when the generator object is created, and resuming never
+// clears them. Later suspends can then skip storing unassigned parameters.
+// Plain async functions also get here but have no initial yield, so any of
+// their suspends can be the first one executed. Inlined generators only run up
+// to their initial yield, which stores everything anyway. OSR code is entered
+// from an interpreted frame whose parameters the debugger may have changed
+// without updating the generator object.
 void MaglevGraphBuilder::AnalyzeResumableFunction() {
+  compiler::SharedFunctionInfoRef shared =
+      compilation_unit_->shared_function_info();
+  auto scope_info = shared.scope_info(broker());
   resumable_context_may_change_ = bytecode_analysis_.has_push_context();
-  DCHECK_IMPLIES(compilation_unit_->shared_function_info()
-                     .scope_info(broker())
-                     .SloppyEvalCanExtendVars(),
+  DCHECK_IMPLIES(scope_info.SloppyEvalCanExtendVars(),
                  resumable_context_may_change_);
+  can_skip_unassigned_param_stores_ =
+      IsGeneratorFunction(shared.kind()) && !is_inline() &&
+      !compilation_unit_->is_osr() && !scope_info.SloppyEvalCanExtendVars() &&
+      !scope_info.HasContextExtensionSlot();
 }
 
 ReduceResult MaglevGraphBuilder::VisitResumeGenerator() {

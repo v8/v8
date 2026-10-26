@@ -2045,6 +2045,9 @@ class MaglevGraphBuilder {
   bool is_resumable_function_ = false;
   // True if a resumable function may change its current context.
   bool resumable_context_may_change_ = true;
+  // True if suspends after the initial yield of a generator may skip storing
+  // parameters that are never assigned.
+  bool can_skip_unassigned_param_stores_ = false;
   void AnalyzeResumableFunction();
 
   // When set, inline only small functions.

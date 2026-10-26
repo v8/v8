@@ -33,6 +33,9 @@ BytecodeLoopAssignments::BytecodeLoopAssignments(int parameter_count,
 
 void BytecodeLoopAssignments::Add(interpreter::Register r) {
   if (r.is_parameter()) {
+    // Special registers also have negative indices but are never bytecode
+    // outputs; make sure they never index out of bounds.
+    CHECK_GE(r.ToParameterIndex(), 0);
     bit_vector_->Add(r.ToParameterIndex());
   } else {
     bit_vector_->Add(parameter_count_ + r.index());
@@ -547,6 +550,9 @@ void BytecodeAnalysis::BytecodeAnalysisImpl::Analyze() {
 
     if (bytecode == Bytecode::kPushContext) {
       res_.has_push_context_ = true;
+    }
+    if (res_.function_assignments_) {
+      UpdateAssignments(bytecode, &*res_.function_assignments_, iterator_);
     }
 
     if (bytecode == Bytecode::kJumpLoop) {
@@ -1167,12 +1173,17 @@ bool BytecodeAnalysis::BytecodeAnalysisImpl::LivenessIsValid() {
 
 BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
                                    Zone* zone, BytecodeOffset osr_bailout_id,
-                                   bool analyze_liveness)
+                                   bool analyze_liveness,
+                                   bool analyze_function_assignments)
     : osr_bailout_id_(osr_bailout_id),
       analyze_liveness_(analyze_liveness),
       resume_jump_targets_(zone),
       end_to_header_(zone),
       osr_entry_point_(-1) {
+  if (analyze_function_assignments) {
+    function_assignments_.emplace(bytecode_array->parameter_count(),
+                                  bytecode_array->register_count(), zone);
+  }
   BytecodeAnalysisImpl analysis(*this, bytecode_array, zone);
   analysis.Analyze();
   DCHECK_IMPLIES(analyze_liveness_, liveness_map_.has_value());
