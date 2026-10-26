@@ -2202,12 +2202,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_ByteRev32: {
       Register input = i.InputRegister(0);
       Register output = i.OutputRegister();
-      Register temp1 = r0;
       if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
         __ brw(output, input);
         __ extsw(output, output);
         break;
       }
+      UseScratchRegisterScope temps(masm());
+      Register temp1 = temps.Acquire();
       __ rotlwi(temp1, input, 8);
       __ rlwimi(temp1, input, 24, 0, 7);
       __ rlwimi(temp1, input, 24, 16, 23);
