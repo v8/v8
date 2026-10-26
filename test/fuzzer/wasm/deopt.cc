@@ -334,9 +334,11 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   std::vector<ExecutionResult> reference_results = PerformReferenceRun(
       callees, wire_bytes, enabled_features, valid, i_isolate);
 
-  if (reference_results.empty()) {
-    // If the first run already included non-determinism, there isn't any value
-    // in even compiling it (as this fuzzer focuses on executing deopts).
+  if (reference_results.size() < 2) {
+    // If the first run already included non-determinism or aborted before
+    // executing at least 2 callees (e.g. due to reaching max steps or stack
+    // overflow), there isn't any value in compiling it as we need at least 2
+    // callees to trigger a deopt.
     // Return -1 to not add this case to the corpus.
     return -1;
   }

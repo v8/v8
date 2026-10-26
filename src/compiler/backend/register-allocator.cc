@@ -289,12 +289,9 @@ bool LiveRange::RegisterFromFirstHint(int* register_index) {
     current_hint_position_index_ =
         std::distance(positions_span_.begin(), pos_it);
   }
-#ifdef DEBUG
-  UsePosition** pos_check_it =
-      std::find_if(positions_span_.begin(), positions_span_.end(),
-                   [](UsePosition* pos) { return pos->HasHint(); });
-  CHECK_EQ(pos_it, pos_check_it);
-#endif
+  SLOW_DCHECK(pos_it ==
+              std::find_if(positions_span_.begin(), positions_span_.end(),
+                           [](UsePosition* pos) { return pos->HasHint(); }));
   return pos_it != positions_span_.end();
 }
 
@@ -459,9 +456,11 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
   current_interval_ = intervals_.begin();
   result->current_interval_ = result->intervals_.begin();
 
-#ifdef DEBUG
-  VerifyChildStructure();
-  result->VerifyChildStructure();
+#ifdef ENABLE_SLOW_DCHECKS
+  if (v8_flags.enable_slow_asserts) {
+    VerifyChildStructure();
+    result->VerifyChildStructure();
+  }
 #endif
 
   result->top_level_ = TopLevel();
@@ -766,14 +765,19 @@ AllocatedOperand TopLevelLiveRange::GetSpillRangeOperand() const {
 }
 
 LiveRange* TopLevelLiveRange::GetChildCovers(LifetimePosition pos) {
-#ifdef DEBUG
-  // Make sure the cache contains the correct, actual children.
-  LiveRange* child = this;
-  for (LiveRange* cached_child : children_) {
-    DCHECK_EQ(cached_child, child);
-    child = child->next();
+  DCHECK(!children_.empty());
+  DCHECK_EQ(children_.front(), this);
+  DCHECK_NULL(children_.back()->next());
+#ifdef ENABLE_SLOW_DCHECKS
+  if (v8_flags.enable_slow_asserts) {
+    // Make sure the cache contains the correct, actual children.
+    LiveRange* child = this;
+    for (LiveRange* cached_child : children_) {
+      DCHECK_EQ(cached_child, child);
+      child = child->next();
+    }
+    DCHECK_NULL(child);
   }
-  DCHECK_NULL(child);
 #endif
 
   auto child_it =
@@ -789,7 +793,7 @@ LiveRange* TopLevelLiveRange::GetChildCovers(LifetimePosition pos) {
 void TopLevelLiveRange::Verify() const {
   VerifyChildrenInOrder();
   for (const LiveRange* child = this; child != nullptr; child = child->next()) {
-    VerifyChildStructure();
+    child->VerifyChildStructure();
   }
 }
 
