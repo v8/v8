@@ -8,11 +8,33 @@
 #include <vector>
 
 #include "include/v8-container.h"
+#include "include/v8-primitive.h"
 #include "src/base/vector.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/protocol/Runtime.h"
 
 namespace v8_inspector {
+
+struct ProtocolValueBudget {
+  // The remaining number of array elements and object properties.
+  uint32_t values = 10'000'000;
+  // The remaining number of characters in strings and property names. The
+  // serialized result has to fit into a single string anyway.
+  uint32_t characters = static_cast<uint32_t>(v8::String::kMaxLength);
+
+  bool takeValues(uint32_t count) {
+    if (count > values) return false;
+    values -= count;
+    return true;
+  }
+
+  bool takeCharacters(v8::Local<v8::String> string) {
+    uint32_t length = static_cast<uint32_t>(string->Length());
+    if (length > characters) return false;
+    characters -= length;
+    return true;
+  }
+};
 
 class V8SerializationDuplicateTracker {
  public:
@@ -25,7 +47,13 @@ class V8SerializationDuplicateTracker {
   V8_EXPORT explicit V8SerializationDuplicateTracker(
       v8::Local<v8::Context> context);
 
+  bool takeCharacters(v8::Local<v8::String> string) {
+    return m_budget.takeCharacters(string);
+  }
+  ProtocolValueBudget* budget() { return &m_budget; }
+
  private:
+  ProtocolValueBudget m_budget;
   v8::Local<v8::Context> m_context;
   int m_counter;
   // Maps v8 value to the index of the corresponding serialized value in
