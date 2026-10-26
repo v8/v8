@@ -517,7 +517,8 @@ std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(
 // Returns the previous number of pages on success.
 std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
                                                           size_t delta_pages,
-                                                          size_t max_pages) {
+                                                          size_t max_pages,
+                                                          GrowMode mode) {
   // This function grows wasm memory by
   // * changing the permissions of additional {delta_pages} pages to kReadWrite;
   // * increment {byte_length_};
@@ -545,12 +546,6 @@ std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
   DCHECK(is_wasm_memory());
   max_pages = std::min(max_pages, byte_capacity_ / wasm::kWasmPageSize);
 
-  if (delta_pages == 0) {
-    return {byte_length_.load(std::memory_order_seq_cst) /
-            wasm::kWasmPageSize};  // degenerate grow.
-  }
-  if (delta_pages > max_pages) return {};  // would never work.
-
   std::optional<base::MutexGuard> mutex_guard;
   if (is_shared()) {
     mutex_guard.emplace(&get_shared_wasm_memory_data()->grow_mutex_);
@@ -558,11 +553,18 @@ std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
 
   size_t old_length = byte_length_.load(std::memory_order_seq_cst);
   size_t current_pages = old_length / wasm::kWasmPageSize;
+  DCHECK_LE(current_pages, max_pages);
 
   // Check if we have exceeded the supplied maximum.
-  if (current_pages > (max_pages - delta_pages)) return {};
+  if (mode == GrowMode::kGrowBy && delta_pages > max_pages - current_pages) {
+    return {};
+  }
+  size_t new_pages =
+      mode == GrowMode::kGrowTo ? delta_pages : current_pages + delta_pages;
+  if (new_pages <= current_pages) return {current_pages};
+  if (new_pages > max_pages) return {};
 
-  size_t new_length = (current_pages + delta_pages) * wasm::kWasmPageSize;
+  size_t new_length = new_pages * wasm::kWasmPageSize;
 
   // Try to adjust the permissions on the memory.
   if (!i::SetPermissions(GetPlatformPageAllocator(), buffer_start_, new_length,

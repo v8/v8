@@ -461,7 +461,8 @@ V8_OBJECT class WasmMemoryObject : public JSObject {
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
                                         DirectHandle<WasmMemoryObject>,
-                                        uint32_t pages);
+                                        uint32_t pages,
+                                        GrowMode mode = GrowMode::kGrowBy);
 
   // Returns the current JSArrayBuffer bound to this memory object. If there is
   // none yet it will be allocated and stored in the `array_buffer` field.

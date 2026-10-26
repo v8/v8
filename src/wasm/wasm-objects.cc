@@ -1053,7 +1053,7 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshBuffer(
 // static
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                DirectHandle<WasmMemoryObject> memory_object,
-                               uint32_t pages) {
+                               uint32_t pages, GrowMode mode) {
   TRACE_EVENT("v8.wasm", "wasm.GrowMemory");
 
   CppGCManaged<BackingStore>::Ptr backing_store =
@@ -1083,7 +1083,10 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                          static_cast<size_t>(memory_object->maximum_pages()));
   }
   DCHECK_GE(max_pages, old_pages);
-  if (pages > max_pages - old_pages) return -1;
+  if (mode == GrowMode::kGrowTo ? pages > max_pages
+                                : pages > max_pages - old_pages) {
+    return -1;
+  }
 
   const bool must_grow_in_place =
       backing_store->is_shared() || backing_store->has_guard_regions() ||
@@ -1095,16 +1098,16 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // of unshared memories would invalidate cached memory sizes in compiled loop
   // code.
   if (isolate->is_executing_api_interrupt() && !backing_store->is_shared() &&
-      pages != 0) {
+      (mode == GrowMode::kGrowTo ? pages > old_pages : pages != 0)) {
     return -1;
   }
   const bool try_grow_in_place =
       must_grow_in_place || !v8_flags.stress_wasm_memory_moving;
 
   std::optional<size_t> result_inplace =
-      try_grow_in_place
-          ? backing_store->GrowWasmMemoryInPlace(isolate, pages, max_pages)
-          : std::nullopt;
+      try_grow_in_place ? backing_store->GrowWasmMemoryInPlace(isolate, pages,
+                                                               max_pages, mode)
+                        : std::nullopt;
   if (must_grow_in_place && !result_inplace.has_value()) {
     // There are different limits per platform, thus crash if the correctness
     // fuzzer is running.
@@ -1112,6 +1115,13 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       base::FatalNoSecurityImpact("could not grow wasm memory");
     }
     return -1;
+  }
+
+  if (mode == GrowMode::kGrowTo) {
+    DCHECK(result_inplace.has_value());
+    old_pages = result_inplace.value();
+    if (old_pages > pages) return static_cast<int32_t>(old_pages);
+    pages -= static_cast<uint32_t>(old_pages);
   }
 
   // Handle shared memory first.
