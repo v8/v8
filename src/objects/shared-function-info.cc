@@ -523,7 +523,7 @@ void SharedFunctionInfo::DisableOptimization(Isolate* isolate,
                                              BailoutReason reason) {
   DCHECK_NE(reason, BailoutReason::kNoReason);
 
-  set_flags(DisabledOptimizationReasonBits::update(flags(kRelaxedLoad), reason),
+  set_flags(flags(kRelaxedLoad).with_disabled_optimization_reason(reason),
             kRelaxedStore);
   // Code should be the lazy compilation stub or else interpreted.
   if constexpr (DEBUG_BOOL) {
@@ -794,12 +794,12 @@ int SharedFunctionInfo::EndPosition() const {
 }
 
 CachedTieringDecision SharedFunctionInfo::cached_tiering_decision() {
-  return CachedTieringDecisionBits::decode(flags2());
+  return flags2().cached_tiering_decision();
 }
 
 void SharedFunctionInfo::set_cached_tiering_decision(
     CachedTieringDecision decision) {
-  set_flags2(CachedTieringDecisionBits::update(flags2(), decision));
+  set_flags2(flags2().with_cached_tiering_decision(decision));
 }
 
 // static

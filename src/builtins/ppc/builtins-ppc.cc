@@ -518,7 +518,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LoadTaggedField(
       r7, FieldMemOperand(r4, offsetof(JSFunction, shared_function_info_)));
   __ lwz(r7, FieldMemOperand(r7, offsetof(SharedFunctionInfo, flags_)));
-  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r7);
+  __ DecodeField<SharedFunctionInfo::Flags::FunctionKindBits>(r7);
   __ JumpIfIsInRange(
       r7, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
@@ -1873,14 +1873,15 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
-    __ mov(scratch, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+    __ mov(scratch,
+           Operand(SharedFunctionInfo::Flags::ConstructAsBuiltinBit::kMask));
     __ and_(scratch, r5, scratch, SetRC);
   }
   __ bne(&builtin_call, cr0);
 
   // Check if we need to create an implicit receiver.
   Label not_create_implicit_receiver;
-  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r5);
+  __ DecodeField<SharedFunctionInfo::Flags::FunctionKindBits>(r5);
   __ JumpIfIsInRange(
       r5, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
@@ -2707,8 +2708,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ andi(scratch, r6,
-            Operand(SharedFunctionInfo::IsStrictBit::kMask |
-                    SharedFunctionInfo::IsNativeBit::kMask));
+            Operand(SharedFunctionInfo::Flags::IsStrictBit::kMask |
+                    SharedFunctionInfo::Flags::IsNativeBit::kMask));
   }
   __ bne(&done_convert, cr0);
   {
@@ -2901,7 +2902,8 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   __ LoadTaggedField(
       r7, FieldMemOperand(r4, offsetof(JSFunction, shared_function_info_)));
   __ lwz(r7, FieldMemOperand(r7, offsetof(SharedFunctionInfo, flags_)));
-  __ mov(scratch, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+  __ mov(scratch,
+         Operand(SharedFunctionInfo::Flags::ConstructAsBuiltinBit::kMask));
   __ and_(r7, r7, scratch, SetRC);
   __ beq(&call_generic_stub, cr0);
 

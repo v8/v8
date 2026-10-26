@@ -3019,7 +3019,7 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
   TNode<Uint32T> flags = LoadObjectField<Uint32T>(
       shared_info, offsetof(SharedFunctionInfo, flags_));
   TNode<BoolT> has_duplicate_parameters =
-      IsSetWord32<SharedFunctionInfo::HasDuplicateParametersBit>(flags);
+      IsSetWord32<SharedFunctionInfo::Flags::HasDuplicateParametersBit>(flags);
   Branch(has_duplicate_parameters, &if_duplicate_parameters,
          &if_not_duplicate_parameters);
 

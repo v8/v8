@@ -223,7 +223,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LoadTaggedField(
       x4, FieldMemOperand(x1, offsetof(JSFunction, shared_function_info_)));
   __ Ldr(w4, FieldMemOperand(x4, offsetof(SharedFunctionInfo, flags_)));
-  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(w4);
+  __ DecodeField<SharedFunctionInfo::Flags::FunctionKindBits>(w4);
   __ JumpIfIsInRange(
       w4, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
@@ -1860,12 +1860,13 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ LoadTaggedField(
       x2, FieldMemOperand(x1, offsetof(JSFunction, shared_function_info_)));
   __ Ldr(w2, FieldMemOperand(x2, offsetof(SharedFunctionInfo, flags_)));
-  __ TestAndBranchIfAnySet(w2, SharedFunctionInfo::ConstructAsBuiltinBit::kMask,
-                           &builtin_call);
+  __ TestAndBranchIfAnySet(
+      w2, SharedFunctionInfo::Flags::ConstructAsBuiltinBit::kMask,
+      &builtin_call);
 
   // Check if we need to create an implicit receiver.
   Label not_create_implicit_receiver;
-  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(w2);
+  __ DecodeField<SharedFunctionInfo::Flags::FunctionKindBits>(w2);
   __ JumpIfIsInRange(
       w2, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
@@ -2960,8 +2961,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   Label done_convert;
   __ Ldr(w3, FieldMemOperand(x2, offsetof(SharedFunctionInfo, flags_)));
   __ TestAndBranchIfAnySet(w3,
-                           SharedFunctionInfo::IsNativeBit::kMask |
-                               SharedFunctionInfo::IsStrictBit::kMask,
+                           SharedFunctionInfo::Flags::IsNativeBit::kMask |
+                               SharedFunctionInfo::Flags::IsStrictBit::kMask,
                            &done_convert);
   {
     // ----------- S t a t e -------------
@@ -3207,7 +3208,8 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
       x4, FieldMemOperand(x1, offsetof(JSFunction, shared_function_info_)));
   __ Ldr(w4, FieldMemOperand(x4, offsetof(SharedFunctionInfo, flags_)));
   __ TestAndBranchIfAllClear(
-      w4, SharedFunctionInfo::ConstructAsBuiltinBit::kMask, &call_generic_stub);
+      w4, SharedFunctionInfo::Flags::ConstructAsBuiltinBit::kMask,
+      &call_generic_stub);
 
   __ TailCallBuiltin(Builtin::kJSBuiltinsConstructStub);
 

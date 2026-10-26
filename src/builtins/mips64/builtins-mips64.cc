@@ -166,7 +166,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   __ Ld(t2, FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
   __ lwu(t2, FieldMemOperand(t2, offsetof(SharedFunctionInfo, flags_)));
-  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(t2);
+  __ DecodeField<SharedFunctionInfo::Flags::FunctionKindBits>(t2);
   __ JumpIfIsInRange(
       t2, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
@@ -1569,12 +1569,13 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   Label builtin_call;
   __ Ld(a2, FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
   __ Lwu(a2, FieldMemOperand(a2, offsetof(SharedFunctionInfo, flags_)));
-  __ And(a5, a2, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+  __ And(a5, a2,
+         Operand(SharedFunctionInfo::Flags::ConstructAsBuiltinBit::kMask));
   __ Branch(&builtin_call, ne, a5, Operand(zero_reg));
 
   // Check if we need to create an implicit receiver.
   Label not_create_implicit_receiver;
-  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(a2);
+  __ DecodeField<SharedFunctionInfo::Flags::FunctionKindBits>(a2);
   __ JumpIfIsInRange(
       a2, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
@@ -2498,8 +2499,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   Label done_convert;
   __ Lwu(a3, FieldMemOperand(a2, offsetof(SharedFunctionInfo, flags_)));
   __ And(kScratchReg, a3,
-         Operand(SharedFunctionInfo::IsNativeBit::kMask |
-                 SharedFunctionInfo::IsStrictBit::kMask));
+         Operand(SharedFunctionInfo::Flags::IsNativeBit::kMask |
+                 SharedFunctionInfo::Flags::IsStrictBit::kMask));
   __ Branch(&done_convert, ne, kScratchReg, Operand(zero_reg));
   {
     // ----------- S t a t e -------------
@@ -2663,7 +2664,8 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
   __ Ld(a4, FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
   __ lwu(a4, FieldMemOperand(a4, offsetof(SharedFunctionInfo, flags_)));
-  __ And(a4, a4, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+  __ And(a4, a4,
+         Operand(SharedFunctionInfo::Flags::ConstructAsBuiltinBit::kMask));
   __ Branch(&call_generic_stub, eq, a4, Operand(zero_reg));
 
   __ TailCallBuiltin(Builtin::kJSBuiltinsConstructStub);

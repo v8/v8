@@ -4000,7 +4000,7 @@ TNode<Uint32T> CodeStubAssembler::LoadFunctionKind(TNode<JSFunction> function) {
           function, offsetof(JSFunction, shared_function_info_));
 
   const TNode<Uint32T> function_kind =
-      DecodeWord32<SharedFunctionInfo::FunctionKindBits>(
+      DecodeWord32<SharedFunctionInfo::Flags::FunctionKindBits>(
           LoadObjectField<Uint32T>(shared_function_info,
                                    offsetof(SharedFunctionInfo, flags_)));
   return function_kind;
@@ -18847,10 +18847,10 @@ void CodeStubAssembler::FindNonDefaultConstructor(
         LoadObjectField<SharedFunctionInfo>(
             CAST(constructor.value()),
             offsetof(JSFunction, shared_function_info_));
-    const TNode<Uint32T> has_class_fields =
-        DecodeWord32<SharedFunctionInfo::RequiresInstanceMembersInitializerBit>(
-            LoadObjectField<Uint32T>(shared_function_info,
-                                     offsetof(SharedFunctionInfo, flags_)));
+    const TNode<Uint32T> has_class_fields = DecodeWord32<
+        SharedFunctionInfo::Flags::RequiresInstanceMembersInitializerBit>(
+        LoadObjectField<Uint32T>(shared_function_info,
+                                 offsetof(SharedFunctionInfo, flags_)));
 
     GotoIf(Word32NotEqual(has_class_fields, Int32Constant(0)),
            found_something_else);

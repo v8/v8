@@ -48,6 +48,7 @@ class BitFieldGroup {
  public:
   static_assert(std::is_unsigned_v<U>);
 
+  using GroupType = Derived;
   using UnderlyingType = U;
 
   template <typename T, int size>

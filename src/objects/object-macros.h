@@ -868,11 +868,11 @@
   }
 
 // Defines accessors for one bit field of a BitFieldGroup.
-#define BIT_FIELD_GROUP_ACCESSORS(name, Bit)                             \
-  constexpr typename Bit::FieldType name() const { return get<Bit>(); }  \
-  V8_NODISCARD constexpr auto with_##name(typename Bit::FieldType value) \
-      const {                                                            \
-    return with<Bit>(value);                                             \
+#define BIT_FIELD_GROUP_ACCESSORS(name, Bit)                                  \
+  constexpr typename Bit::FieldType name() const { return get<Bit>(); }       \
+  V8_NODISCARD constexpr GroupType with_##name(typename Bit::FieldType value) \
+      const {                                                                 \
+    return with<Bit>(value);                                                  \
   }
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \

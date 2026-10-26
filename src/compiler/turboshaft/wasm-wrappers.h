@@ -924,8 +924,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
                             MemoryRepresentation::Int32(),
                             offsetof(SharedFunctionInfo, flags_));
     OpIndex strict_check = __ Word32BitwiseAnd(
-        flags, __ Word32Constant(SharedFunctionInfo::IsNativeBit::kMask |
-                                 SharedFunctionInfo::IsStrictBit::kMask));
+        flags,
+        __ Word32Constant(SharedFunctionInfo::Flags::IsNativeBit::kMask |
+                          SharedFunctionInfo::Flags::IsStrictBit::kMask));
 
     // Load global receiver if sloppy else use undefined.
     ScopedVar<Object> strict_d(this, OpIndex::Invalid());

@@ -175,7 +175,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   __ mov(eax, FieldOperand(edi, offsetof(JSFunction, shared_function_info_)));
   __ mov(eax, FieldOperand(eax, offsetof(SharedFunctionInfo, flags_)));
-  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(eax);
+  __ DecodeField<SharedFunctionInfo::Flags::FunctionKindBits>(eax);
   __ JumpIfIsInRange(
       eax, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor), ecx,
@@ -1601,13 +1601,13 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   Label builtin_call;
   __ mov(ecx, FieldOperand(edi, offsetof(JSFunction, shared_function_info_)));
   __ test(FieldOperand(ecx, offsetof(SharedFunctionInfo, flags_)),
-          Immediate(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+          Immediate(SharedFunctionInfo::Flags::ConstructAsBuiltinBit::kMask));
   __ j(not_zero, &builtin_call);
 
   // Check if we need to create an implicit receiver.
   Label not_create_implicit_receiver;
   __ mov(ecx, FieldOperand(ecx, offsetof(SharedFunctionInfo, flags_)));
-  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(ecx);
+  __ DecodeField<SharedFunctionInfo::Flags::FunctionKindBits>(ecx);
   __ JumpIfIsInRange(
       ecx, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
       static_cast<uint32_t>(FunctionKind::kDerivedConstructor), ecx,
@@ -2656,8 +2656,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
   __ test(FieldOperand(edx, offsetof(SharedFunctionInfo, flags_)),
-          Immediate(SharedFunctionInfo::IsNativeBit::kMask |
-                    SharedFunctionInfo::IsStrictBit::kMask));
+          Immediate(SharedFunctionInfo::Flags::IsNativeBit::kMask |
+                    SharedFunctionInfo::Flags::IsStrictBit::kMask));
   __ j(not_zero, &done_convert);
   {
     // ----------- S t a t e -------------
@@ -2861,7 +2861,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
   __ mov(ecx, FieldOperand(edi, offsetof(JSFunction, shared_function_info_)));
   __ test(FieldOperand(ecx, offsetof(SharedFunctionInfo, flags_)),
-          Immediate(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+          Immediate(SharedFunctionInfo::Flags::ConstructAsBuiltinBit::kMask));
   __ j(zero, &call_generic_stub, Label::kNear);
 
   // Calling convention for function specific ConstructStubs require

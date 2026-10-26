@@ -248,7 +248,8 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   TNode<Uint32T> flags = LoadObjectField<Uint32T>(
       shared_function_info, offsetof(SharedFunctionInfo, flags_));
   const TNode<IntPtrT> function_map_index = Signed(IntPtrAdd(
-      DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(flags),
+      DecodeWordFromWord32<SharedFunctionInfo::Flags::FunctionMapIndexBits>(
+          flags),
       IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX)));
   CSA_DCHECK(this, UintPtrLessThanOrEqual(
                        function_map_index,
