@@ -1664,15 +1664,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_CmpDouble:
       ASSEMBLE_FLOAT_COMPARE(fcmpu);
       break;
-    case kPPC_Tst32:
+    case kPPC_Tst32: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       if (HasRegisterInput(instr, 1)) {
-        __ and_(r0, i.InputRegister(0), i.InputRegister(1), i.OutputRCBit());
+        __ and_(scratch, i.InputRegister(0), i.InputRegister(1),
+                i.OutputRCBit());
       } else {
-        __ andi(r0, i.InputRegister(0), i.InputImmediate(1));
+        __ andi(scratch, i.InputRegister(0), i.InputImmediate(1));
       }
-      __ extsw(r0, r0, i.OutputRCBit());
+      __ extsw(scratch, scratch, i.OutputRCBit());
       DCHECK_EQ(SetRC, i.OutputRCBit());
       break;
+    }
     case kPPC_Tst64:
       if (HasRegisterInput(instr, 1)) {
         __ and_(r0, i.InputRegister(0), i.InputRegister(1), i.OutputRCBit());
