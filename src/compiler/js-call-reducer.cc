@@ -8688,6 +8688,15 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
   TNode<Number> length = a.ArrayBufferViewByteLength(
       typed_array, instance_type, std::move(elements_kinds), a.ContextInput());
 
+  if (!depended_on_detaching_protector) {
+    length =
+        a.MachineSelectIf<Number>(a.ArrayBufferViewDetachedBit(typed_array))
+            .Then([&]() { return a.NumberConstant(0); })
+            .Else([&]() { return length; })
+            .ExpectFalse()
+            .Value();
+  }
+
   return ReplaceWithSubgraph(&a, length);
 }
 
