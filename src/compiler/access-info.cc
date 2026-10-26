@@ -556,9 +556,11 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         if (!maybe_handler->IsJSObject()) return {};
         JSObjectRef handler = maybe_handler.value().AsJSObject();
         MapRef handler_map = handler.map(broker());
-        // We could implement support for dictionary-mode handlers, but it's
-        // probably not worth it.
-        if (handler_map.is_dictionary_map()) return {};
+        // We could implement support for dictionary-mode or unstable handlers,
+        // but it's probably not worth it.
+        if (handler_map.is_dictionary_map() || !handler_map.is_stable()) {
+          return {};
+        }
         NameRef trap_name = access_mode == AccessMode::kLoad
                                 ? broker()->get_string()
                                 : broker()->set_string();
@@ -567,7 +569,10 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         if (!trap_info.IsFastDataConstant()) return {};
         Representation repr = trap_info.field_representation();
         if (!repr.IsHeapObject() && !repr.IsTagged()) return {};
-        OptionalObjectRef trap = handler.GetOwnFastConstantDataProperty(
+        OptionalJSObjectRef trap_holder = trap_info.holder();
+        JSObjectRef trap_holder_ref =
+            trap_holder.has_value() ? trap_holder.value() : handler;
+        OptionalObjectRef trap = trap_holder_ref.GetOwnFastConstantDataProperty(
             broker(), repr, trap_info.field_index(), dependencies());
         if (!trap.has_value()) return {};
         ObjectRef trap_value = trap.value();
@@ -607,6 +612,14 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         }
 
         // Finally: all good!
+        trap_info.RecordDependencies(dependencies());
+        if (trap_holder.has_value()) {
+          dependencies()->DependOnStablePrototypeChains(
+              trap_info.lookup_start_object_maps(), kStartAtReceiver,
+              trap_holder.value());
+        } else {
+          dependencies()->DependOnStableMap(handler_map);
+        }
         bool string_keys = key_type == wasm::kWasmExternRef;
         return ElementAccessInfo(map, trap_value, target, string_keys, zone());
       }
