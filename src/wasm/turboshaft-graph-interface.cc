@@ -428,7 +428,7 @@ class TurboshaftGraphBuildingInterface
 
     if (mode_ == kRegular) {
       StackCheck(WasmStackCheckOp::Kind::kFunctionEntry);
-      instance_cache_.Initialize(trusted_instance_data);
+      instance_cache_.Initialize(trusted_instance_data, decoder->module_);
     }
 
     if (v8_flags.trace_wasm) {
@@ -6716,7 +6716,8 @@ class TurboshaftGraphBuildingInterface
    public:
     explicit InstanceCache(Assembler& assembler) : asm_(assembler) {}
 
-    void Initialize(V<WasmTrustedInstanceData> trusted_instance_data) {
+    void Initialize(V<WasmTrustedInstanceData> trusted_instance_data,
+                    const WasmModule* module) {
       DCHECK(!trusted_data_.valid());  // Only call {Initialize()} once.
       trusted_data_ = trusted_instance_data;
       managed_object_maps_ =
@@ -6727,11 +6728,38 @@ class TurboshaftGraphBuildingInterface
           __ Load(trusted_instance_data, LoadOp::Kind::TaggedBase().Immutable(),
                   MemoryRepresentation::TaggedPointer(),
                   WasmTrustedInstanceData::kNativeContextOffset);
+      if (!module->memories.empty()) {
+        const WasmMemory& mem0 = module->memories[0];
+        if (!mem0.can_move()) {
+          memory0_start_ = __ Load(
+              trusted_instance_data, LoadOp::Kind::TaggedBase().Immutable(),
+              MemoryRepresentation::UintPtr(),
+              WasmTrustedInstanceData::kMemory0StartOffset);
+        }
+        if (!mem0.can_grow()) {
+          if (mem0.is_shared) {
+            V<WordPtr> size_addr = __ Load(
+                trusted_instance_data, LoadOp::Kind::TaggedBase().Immutable(),
+                MemoryRepresentation::UintPtr(),
+                WasmTrustedInstanceData::kMemory0SizeOrAddressOffset);
+            memory0_size_ =
+                __ Load(size_addr, LoadOp::Kind::RawAligned().Immutable(),
+                        MemoryRepresentation::UintPtr(), 0);
+          } else {
+            memory0_size_ = __ Load(
+                trusted_instance_data, LoadOp::Kind::TaggedBase().Immutable(),
+                MemoryRepresentation::UintPtr(),
+                WasmTrustedInstanceData::kMemory0SizeOrAddressOffset);
+          }
+        }
+      }
     }
 
     V<WasmTrustedInstanceData> trusted_instance_data() { return trusted_data_; }
     V<FixedArray> managed_object_maps() { return managed_object_maps_; }
     V<NativeContext> native_context() { return native_context_; }
+    OptionalV<WordPtr> immutable_memory0_start() { return memory0_start_; }
+    OptionalV<WordPtr> immutable_memory0_size() { return memory0_size_; }
 
    private:
     // For compatibility with `__` macro.
@@ -6741,6 +6769,8 @@ class TurboshaftGraphBuildingInterface
     V<WasmTrustedInstanceData> trusted_data_;
     V<FixedArray> managed_object_maps_;
     V<NativeContext> native_context_;
+    OptionalV<WordPtr> memory0_start_;
+    OptionalV<WordPtr> memory0_size_;
 
     // Other fields for internal usage.
     Assembler& asm_;
@@ -8267,6 +8297,9 @@ class TurboshaftGraphBuildingInterface
   }
 
   V<WordPtr> MemStart(uint32_t index) {
+    if (index == 0 && instance_cache_.immutable_memory0_start().has_value()) {
+      return instance_cache_.immutable_memory0_start().value();
+    }
     const WasmMemory& mem = env_->module->memories[index];
     LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
     if (!mem.can_move()) kind = kind.Immutable();
@@ -8274,6 +8307,7 @@ class TurboshaftGraphBuildingInterface
         instance_cache_.trusted_instance_data();
 
     if (index == 0) {
+      DCHECK(mem.can_move());
       return __ Load(trusted_data, kind, MemoryRepresentation::UintPtr(),
                      WasmTrustedInstanceData::kMemory0StartOffset);
     }
@@ -8311,8 +8345,12 @@ class TurboshaftGraphBuildingInterface
   }
 
   V<WordPtr> MemSize(uint32_t index) {
+    if (index == 0 && instance_cache_.immutable_memory0_size().has_value()) {
+      return instance_cache_.immutable_memory0_size().value();
+    }
     const WasmMemory& mem = env_->module->memories[index];
     if (mem.is_shared) {
+      DCHECK(index != 0 || mem.can_grow());
       V<WordPtr> size_address = MemSizeAddress(index);
       // A relaxed (non-atomic) aligned word load is sufficient for bounds
       // checks; `memory.size` uses an explicit atomic load.
@@ -8329,6 +8367,7 @@ class TurboshaftGraphBuildingInterface
         instance_cache_.trusted_instance_data();
 
     if (index == 0) {
+      DCHECK(mem.can_grow());
       return __ Load(trusted_data, kind, MemoryRepresentation::UintPtr(),
                      WasmTrustedInstanceData::kMemory0SizeOrAddressOffset);
     }
