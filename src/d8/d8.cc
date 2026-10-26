@@ -8183,11 +8183,14 @@ int Shell::Main(int argc, char* argv[]) {
   ConfigurePartitionAllocIfEnabled();
   v8::base::EnsureConsoleOutput();
 
-  // TODO(40925855): Enable this more broadly outside of d8.
+  // TODO(40925855): Enable this more broadly outside of d8. Android is
+  // disabled for now as test bots run OS versions <17 that do not support the
+  // user space zero segment.
 #if defined(V8_ENABLE_PARTITION_ALLOC)
-#if PA_BUILDFLAG(ENABLE_USER_SPACE_ZERO_SEGMENT)
+#if PA_BUILDFLAG(ENABLE_USER_SPACE_ZERO_SEGMENT) && !defined(V8_OS_ANDROID)
   i::v8_flags.sandbox_prohibit_insecure_mode = true;
-#endif  // PA_BUILDFLAG(ENABLE_USER_SPACE_ZERO_SEGMENT)
+#endif  // PA_BUILDFLAG(ENABLE_USER_SPACE_ZERO_SEGMENT) &&
+        // !defined(V8_OS_ANDROID)
 #endif  // defined(V8_ENABLE_PARTITION_ALLOC)
 
   if (!v8::Shell::SetOptions(argc, argv)) return 1;
