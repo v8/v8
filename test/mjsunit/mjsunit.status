@@ -318,6 +318,7 @@
   'regress/regress-1034322': [PASS, HEAVY, NO_VARIANTS, ['mode != release', SKIP]],
   'regress/regress-1320641': [PASS, HEAVY],
   'regress/regress-1447343': [PASS, HEAVY],
+  'regress/regress-571944332': [PASS, HEAVY],
   'regress/wasm/regress-523591366': [PASS, HEAVY],
   'wasm/grow-huge-memory': [PASS, HEAVY],
   'wasm/grow-huge-memory-resizable-buffer': [PASS, HEAVY],
@@ -2120,6 +2121,10 @@
   'compiler/regress-519664497': [SKIP],
   'turboshaft/regress-539984773': [SKIP],
 
+  # Exhausts 32-bit virtual address space across concurrent isolates, causing
+  # Worker thread creation to fail (https://crbug.com/577898450).
+  'regress/regress-571944332': [SKIP],
+
 }],  # 'isolates'
 
 ##############################################################################
@@ -2321,6 +2326,7 @@
   'd8/d8-worker-shutdown-gc': [SKIP],
   'd8/d8-worker-onmessage-ping-pong': [SKIP],
   'harmony/futex': [SKIP],
+  'regress/regress-571944332': [SKIP],
   'typedarray-growablesharedarraybuffer-atomics': [SKIP],
 
   # Tests using a shared heap are inherently non-deterministic.
