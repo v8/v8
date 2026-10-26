@@ -1434,8 +1434,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ sub(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
                  SetOE);
         } else {
-          __ mov(r0, i.InputImmediate(1));
-          __ sub(i.OutputRegister(), i.InputRegister(0), r0, SetOE);
+          UseScratchRegisterScope temps(masm());
+          Register scratch = temps.Acquire();
+          __ mov(scratch, i.InputImmediate(1));
+          __ sub(i.OutputRegister(), i.InputRegister(0), scratch, SetOE);
         }
         __ MoveToCrFromXer(cr0);
       } else {
