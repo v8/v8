@@ -1086,6 +1086,7 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
     const char* mnemonic = nullptr;
     if (evex_map5() && evex_pp_none()) {
       if (opcode == 0x58) mnemonic = "vaddph";
+      if (opcode == 0x59) mnemonic = "vmulph";
       if (opcode == 0x5c) mnemonic = "vsubph";
     } else if (evex_map6() && evex_pp_66()) {
       if (opcode == 0xa8) mnemonic = "vfmadd213ph";

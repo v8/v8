@@ -3062,6 +3062,34 @@ TEST_F(TurboshaftInstructionSelectorTest, F16x8SubFallback) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, F16x8MulFallback) {
+#ifdef V8_ENABLE_AVX10_1
+  FlagScope<bool> disable_avx10(&v8_flags.enable_avx10_1, false);
+#endif
+  StreamBuilder builder(this, MachineType::Simd128(), MachineType::Simd128(),
+                        MachineType::Simd128());
+  V<Simd128> lhs = builder.Parameter<Simd128>(0);
+  V<Simd128> rhs = builder.Parameter<Simd128>(1);
+  builder.Return(builder.F16x8Mul(lhs, rhs));
+  Stream stream = builder.Build();
+
+  ASSERT_EQ(1U, stream.size());
+  EXPECT_EQ(kX64FMul, stream[0]->arch_opcode());
+  EXPECT_EQ(LaneSize::kL16, LaneSizeField::decode(stream[0]->opcode()));
+  EXPECT_EQ(VectorLength::kV128,
+            VectorLengthField::decode(stream[0]->opcode()));
+  ASSERT_EQ(2U, stream[0]->InputCount());
+  EXPECT_EQ(1U, stream[0]->OutputCount());
+  EXPECT_EQ(2U, stream[0]->TempCount());
+  EXPECT_EQ(stream.ToVreg(lhs), stream.ToVreg(stream[0]->InputAt(0)));
+  EXPECT_EQ(stream.ToVreg(rhs), stream.ToVreg(stream[0]->InputAt(1)));
+  for (size_t index = 0; index < 2; ++index) {
+    const auto* input = UnallocatedOperand::cast(stream[0]->InputAt(index));
+    EXPECT_TRUE(input->HasRegisterPolicy());
+    EXPECT_FALSE(input->IsUsedAtStart());
+  }
+}
+
 #ifdef V8_ENABLE_AVX10_1
 TEST_F(TurboshaftInstructionSelectorTest, F16x8SubAVX10_1) {
   if (!UseAvx10_1()) GTEST_SKIP() << "AVX10.1 must be supported and enabled";
@@ -3104,6 +3132,67 @@ TEST_F(TurboshaftInstructionSelectorTest, F16x8SubRepeatedInputAVX10_1) {
   ASSERT_EQ(2U, stream.size());
   for (size_t index = 0; index < stream.size(); ++index) {
     EXPECT_EQ(kX64FSub, stream[index]->arch_opcode());
+    EXPECT_EQ(LaneSize::kL16, LaneSizeField::decode(stream[index]->opcode()));
+    EXPECT_EQ(VectorLength::kV128,
+              VectorLengthField::decode(stream[index]->opcode()));
+    ASSERT_EQ(2U, stream[index]->InputCount());
+    EXPECT_EQ(1U, stream[index]->OutputCount());
+    EXPECT_EQ(0U, stream[index]->TempCount());
+    EXPECT_TRUE(
+        UnallocatedOperand::cast(stream[index]->Output())->HasRegisterPolicy());
+    EXPECT_TRUE(
+        UnallocatedOperand::cast(stream[index]->InputAt(0))->IsUsedAtStart());
+    EXPECT_TRUE(
+        UnallocatedOperand::cast(stream[index]->InputAt(1))->IsUsedAtStart());
+  }
+  EXPECT_EQ(stream.ToVreg(input), stream.ToVreg(stream[0]->InputAt(0)));
+  EXPECT_EQ(stream.ToVreg(input), stream.ToVreg(stream[0]->InputAt(1)));
+  EXPECT_EQ(stream.ToVreg(input), stream.ToVreg(stream[1]->InputAt(0)));
+  EXPECT_EQ(stream.ToVreg(stream[0]->Output()),
+            stream.ToVreg(stream[1]->InputAt(1)));
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, F16x8MulAVX10_1) {
+  if (!UseAvx10_1()) GTEST_SKIP() << "AVX10.1 must be supported and enabled";
+
+  StreamBuilder builder(this, MachineType::Simd128(), MachineType::Simd128(),
+                        MachineType::Simd128());
+  V<Simd128> lhs = builder.Parameter<Simd128>(0);
+  V<Simd128> rhs = builder.Parameter<Simd128>(1);
+  builder.Return(builder.F16x8Mul(lhs, rhs));
+  Stream stream = builder.Build();
+
+  ASSERT_EQ(1U, stream.size());
+  EXPECT_EQ(kX64FMul, stream[0]->arch_opcode());
+  EXPECT_EQ(LaneSize::kL16, LaneSizeField::decode(stream[0]->opcode()));
+  EXPECT_EQ(VectorLength::kV128,
+            VectorLengthField::decode(stream[0]->opcode()));
+  ASSERT_EQ(2U, stream[0]->InputCount());
+  EXPECT_EQ(1U, stream[0]->OutputCount());
+  EXPECT_EQ(0U, stream[0]->TempCount());
+  EXPECT_TRUE(
+      UnallocatedOperand::cast(stream[0]->Output())->HasRegisterPolicy());
+  EXPECT_EQ(stream.ToVreg(lhs), stream.ToVreg(stream[0]->InputAt(0)));
+  EXPECT_EQ(stream.ToVreg(rhs), stream.ToVreg(stream[0]->InputAt(1)));
+  for (size_t index = 0; index < 2; ++index) {
+    const auto* input = UnallocatedOperand::cast(stream[0]->InputAt(index));
+    EXPECT_TRUE(input->HasRegisterPolicy());
+    EXPECT_TRUE(input->IsUsedAtStart());
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, F16x8MulRepeatedInputAVX10_1) {
+  if (!UseAvx10_1()) GTEST_SKIP() << "AVX10.1 must be supported and enabled";
+
+  StreamBuilder builder(this, MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> input = builder.Parameter<Simd128>(0);
+  V<Simd128> product = builder.F16x8Mul(input, input);
+  builder.Return(builder.F16x8Mul(input, product));
+  Stream stream = builder.Build();
+
+  ASSERT_EQ(2U, stream.size());
+  for (size_t index = 0; index < stream.size(); ++index) {
+    EXPECT_EQ(kX64FMul, stream[index]->arch_opcode());
     EXPECT_EQ(LaneSize::kL16, LaneSizeField::decode(stream[index]->opcode()));
     EXPECT_EQ(VectorLength::kV128,
               VectorLengthField::decode(stream[index]->opcode()));
