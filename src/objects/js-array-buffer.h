@@ -316,13 +316,23 @@ class ArrayBufferExtension final
 
   void YoungMark() {
     SBXCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
-    set_young_gc_state(GcState::Copied);
+    GcState old_state = set_young_gc_state(GcState::Copied);
+    if (v8_flags.minor_ms) {
+      SBXCHECK_NE(old_state, GcState::Promoted);
+    } else {
+      SBXCHECK_EQ(old_state, GcState::Dead);
+    }
   }
   void YoungMarkPromoted() {
     // When iterating promoted pages the extension object is already set as
     // being promoted which happens before the page iteration. This may even run
     // racefully between AB sweeping and page iteration.
-    set_young_gc_state(GcState::Promoted);
+    GcState old_state = set_young_gc_state(GcState::Promoted);
+    if (v8_flags.minor_ms) {
+      SBXCHECK_NE(old_state, GcState::Promoted);
+    } else {
+      SBXCHECK_EQ(old_state, GcState::Dead);
+    }
   }
   void YoungUnmark() {
     DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
@@ -402,8 +412,8 @@ class ArrayBufferExtension final
     return young_gc_state_.load(std::memory_order_relaxed);
   }
 
-  void set_young_gc_state(GcState value) {
-    young_gc_state_.store(value, std::memory_order_relaxed);
+  GcState set_young_gc_state(GcState value) {
+    return young_gc_state_.exchange(value, std::memory_order_relaxed);
   }
 
   std::shared_ptr<BackingStore> backing_store_;
