@@ -229,7 +229,8 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
       header_size = WasmStruct::kHeaderSize;
     }
   } else {
-    // Pretenure, because we expect values in globals to be long-lived.
+    // Allocate in old space, because we expect values in globals to be
+    // long-lived.
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kOld);
@@ -346,7 +347,8 @@ void ConstantExpressionInterface::StructNewDefault(
       header_size = WasmStruct::kHeaderSize;
     }
   } else {
-    // Pretenure, because we expect values in globals to be long-lived.
+    // Allocate in old space, because we expect values in globals to be
+    // long-lived.
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kOld);

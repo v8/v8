@@ -125,7 +125,7 @@ class FactoryBase {
 #endif
 #undef ROOT_ACCESSOR
 
-  // Numbers (e.g. literals) are pretenured by the parser.
+  // Numbers (e.g. literals) are allocated in old space by the parser.
   // The return value may be a smi or a heap number.
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<Number> NewNumber(double value);
@@ -148,7 +148,7 @@ class FactoryBase {
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<UninitializedHeapNumber> NewUninitializedHeapNumber();
 
-  // Create a pre-tenured empty AccessorPair.
+  // Create an empty AccessorPair in old space.
   Handle<AccessorPair> NewAccessorPair();
 
   // Allocates a fixed array initialized with undefined values.
@@ -358,7 +358,7 @@ class FactoryBase {
 
   // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
-  // only, where they are pretenured.
+  // only, where they are allocated in old space.
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
       uint32_t length, AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());

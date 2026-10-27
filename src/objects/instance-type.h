@@ -304,6 +304,7 @@ V8_EXPORT_PRIVATE std::string ToString(InstanceType instance_type);
   V(_, AccessorInfoMap, accessor_info_map, AccessorInfo)                       \
   V(_, AccessorPairMap, accessor_pair_map, AccessorPair)                       \
   V(_, AllocationMementoMap, allocation_memento_map, AllocationMemento)        \
+  V(_, AllocationSiteMap, allocation_site_map, AllocationSite)                 \
   V(_, ArrayBoilerplateDescriptionMap, array_boilerplate_description_map,      \
     ArrayBoilerplateDescription)                                               \
   V(_, BreakPointMap, break_point_map, BreakPoint)                             \

@@ -624,16 +624,6 @@ ReduceResult MaglevReducer<BaseT>::BuildStoreTaggedField(
     return AddNewNode<StoreTaggedFieldNoWriteBarrier>(
         {object, value}, offset, store_mode, property_key, maybe_assigned);
   } else {
-    // Detect stores that would create old-to-new references and pretenure the
-    // value.
-    if (v8_flags.maglev_pretenure_store_values) {
-      if (auto alloc = object->template TryCast<InlinedAllocation>()) {
-        if (alloc->allocation_block()->allocation_type() ==
-            AllocationType::kOld) {
-          alloc->allocation_block()->TryPretenure(value);
-        }
-      }
-    }
     bool value_can_be_smi =
         GetCheckType(GetType(value)) == CheckType::kCheckHeapObject;
     return AddNewNode<StoreTaggedFieldWithWriteBarrier>(
@@ -844,8 +834,8 @@ ReduceResult MaglevReducer<BaseT>::BuildStoreMap(ValueNode* object,
 }
 
 template <typename BaseT>
-ReduceResult MaglevReducer<BaseT>::ConvertForField(
-    ValueNode* value, const vobj::Field& desc, AllocationType allocation_type) {
+ReduceResult MaglevReducer<BaseT>::ConvertForField(ValueNode* value,
+                                                   const vobj::Field& desc) {
   switch (desc.type) {
     case vobj::FieldType::kTagged: {
       // Subtle: we don't use `NodeTypeIs(...)` since the predicate must NOT
@@ -873,7 +863,7 @@ ReduceResult MaglevReducer<BaseT>::ConvertForField(
         // share instances. However, we could specify such mutable fields
         // through vobj::Field; and then only allocate a new object here
         // if needed.
-        return BuildInlinedAllocation(CreateHeapNumber(value), allocation_type);
+        return BuildInlinedAllocation(CreateHeapNumber(value));
       }
       return GetTaggedValue(value);
     }
@@ -900,9 +890,8 @@ ReduceResult MaglevReducer<BaseT>::ConvertForField(
 
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildInitializeStore_Tagged(
-    vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
-    ValueNode* value, StoreTaggedMode store_mode,
-    MaybeAssignedFlag maybe_assigned) {
+    vobj::Field desc, InlinedAllocation* object, ValueNode* value,
+    StoreTaggedMode store_mode, MaybeAssignedFlag maybe_assigned) {
   DCHECK_EQ(desc.type, vobj::FieldType::kTagged);
 
   // Intercept stores of constant map objects here.
@@ -932,8 +921,7 @@ ReduceResult MaglevReducer<BaseT>::BuildInitializeStore_Tagged(
 
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildInitializeStore_TrustedPointer(
-    vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
-    ValueNode* value) {
+    vobj::Field desc, InlinedAllocation* object, ValueNode* value) {
   DCHECK_EQ(desc.type, vobj::FieldType::kTrustedPointer);
   DCHECK(value->Is<TrustedConstant>());
   DCHECK(value->is_tagged());
@@ -945,19 +933,17 @@ ReduceResult MaglevReducer<BaseT>::BuildInitializeStore_TrustedPointer(
 
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildInitializeStore(
-    vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
-    ValueNode* value, StoreTaggedMode store_mode,
-    MaybeAssignedFlag maybe_assigned) {
+    vobj::Field desc, InlinedAllocation* object, ValueNode* value,
+    StoreTaggedMode store_mode, MaybeAssignedFlag maybe_assigned) {
   DCHECK_EQ(value->Is<TrustedConstant>(),
             desc.type == vobj::FieldType::kTrustedPointer);
 
   switch (desc.type) {
     case vobj::FieldType::kTagged:
-      return BuildInitializeStore_Tagged(desc, object, allocation_type, value,
-                                         store_mode, maybe_assigned);
+      return BuildInitializeStore_Tagged(desc, object, value, store_mode,
+                                         maybe_assigned);
     case vobj::FieldType::kTrustedPointer:
-      return BuildInitializeStore_TrustedPointer(desc, object, allocation_type,
-                                                 value);
+      return BuildInitializeStore_TrustedPointer(desc, object, value);
     case vobj::FieldType::kInt32:
       return AddNewNodeNoInputConversion<StoreInt32>({object, value},
                                                      desc.offset);
@@ -972,19 +958,18 @@ ReduceResult MaglevReducer<BaseT>::BuildInitializeStore(
 template <typename BaseT>
 InlinedAllocation*
 MaglevReducer<BaseT>::ExtendOrReallocateCurrentAllocationBlock(
-    AllocationType allocation_type, VirtualObject* vobject) {
+    VirtualObject* vobject) {
   DCHECK_LE(vobject->size(), kMaxRegularHeapObjectSize);
   if (!current_allocation_block_ || v8_flags.maglev_allocation_folding == 0 ||
-      current_allocation_block_->allocation_type() != allocation_type ||
       !v8_flags.inline_new || is_turbolev()) {
     current_allocation_block_ =
-        AddNewNodeNoInputConversion<AllocationBlock>({}, allocation_type);
+        AddNewNodeNoInputConversion<AllocationBlock>({});
   }
 
   int current_size = current_allocation_block_->size();
   if (current_size + vobject->size() > kMaxRegularHeapObjectSize) {
     current_allocation_block_ =
-        AddNewNodeNoInputConversion<AllocationBlock>({}, allocation_type);
+        AddNewNodeNoInputConversion<AllocationBlock>({});
   }
 
   DCHECK_GE(current_size, 0);
@@ -1011,14 +996,14 @@ void MaglevReducer<BaseT>::AddNonEscapingUses(InlinedAllocation* allocation,
 
 template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
-    VirtualObject* vobject, AllocationType allocation_type) {
+    VirtualObject* vobject) {
   SmallZoneVector<std::pair<ValueNode*, vobj::Field>, 8> values(zone());
   bool result =
       vobject->ForEachSlot([&](ValueNode* node, vobj::Field desc) -> bool {
         CHECK_NE(node, VirtualObject::kUninitializedSlotValue);
         if (node->Is<VirtualObject>()) {
           VirtualObject* nested = node->Cast<VirtualObject>();
-          ReduceResult result = BuildInlinedAllocation(nested, allocation_type);
+          ReduceResult result = BuildInlinedAllocation(nested);
           if (result.IsDoneWithAbort()) {
             return false;
           }
@@ -1026,7 +1011,7 @@ ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
           // Update the vobject's slot value.
           vobject->set(desc.offset, node);
         }
-        ReduceResult result = ConvertForField(node, desc, allocation_type);
+        ReduceResult result = ConvertForField(node, desc);
         if (result.IsDoneWithAbort()) {
           return false;
         }
@@ -1038,7 +1023,7 @@ ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
     return ReduceResult::DoneWithAbort();
   }
   InlinedAllocation* allocation =
-      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
+      ExtendOrReallocateCurrentAllocationBlock(vobject);
   StoreTaggedMode store_mode = StoreTaggedMode::kInitializing;
   compiler::OptionalScopeInfoRef scope_info;
   if (vobject->has_static_map() && vobject->map()->IsContextMap()) {
@@ -1060,8 +1045,8 @@ ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
       maybe_assigned =
           GetContextMaybeAssigned(scope_info.value(), index, &mode);
     }
-    RETURN_IF_ABORT(BuildInitializeStore(desc, allocation, allocation_type,
-                                         value, store_mode, maybe_assigned));
+    RETURN_IF_ABORT(BuildInitializeStore(desc, allocation, value, store_mode,
+                                         maybe_assigned));
     AddNonEscapingUses(allocation, 1);
   }
   if constexpr (ReducerBaseWithLoopEffectTracking<BaseT>) {
@@ -1083,7 +1068,7 @@ ReduceResult MaglevReducer<BaseT>::BuildAndAllocateJSArrayIterator(
   compiler::MapRef map =
       broker()->target_native_context().initial_array_iterator_map(broker());
   VirtualObject* iterator = CreateJSArrayIterator(map, array, iteration_kind);
-  return BuildInlinedAllocation(iterator, AllocationType::kYoung);
+  return BuildInlinedAllocation(iterator);
 }
 
 inline bool CanInlineArrayIteratingBuiltin(compiler::JSHeapBroker* broker,
@@ -6427,8 +6412,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReducePromiseThenImpl(
 
   VirtualObject* result_vobj = CreateJSPromiseObject();
   ValueNode* result_promise;
-  GET_VALUE_OR_ABORT(result_promise, BuildInlinedAllocation(
-                                         result_vobj, AllocationType::kYoung));
+  GET_VALUE_OR_ABORT(result_promise, BuildInlinedAllocation(result_vobj));
 
   ValueNode* native_context = GetConstant(broker()->target_native_context());
   return BuildCallBuiltin<Builtin::kPerformPromiseThen>(
@@ -6677,7 +6661,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReducePromiseResolveTrampoline(
   promise->set(offsetof(JSPromise, reactions_or_result_), value->Unwrap());
   promise->set(offsetof(JSPromise, flags_),
                GetSmiConstant(v8::Promise::kFulfilled));
-  return BuildInlinedAllocation(promise, AllocationType::kYoung);
+  return BuildInlinedAllocation(promise);
 }
 
 template <typename BaseT>
@@ -6739,7 +6723,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMapIteratorCreation(
                  ? nc.map_key_iterator_map(broker())
                  : nc.map_value_iterator_map(broker()));
   VirtualObject* iterator = CreateJSMapIterator(iterator_map, table);
-  return BuildInlinedAllocation(iterator, AllocationType::kYoung);
+  return BuildInlinedAllocation(iterator);
 }
 
 template <typename BaseT>
@@ -7059,7 +7043,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringPrototypeIterator(
   compiler::MapRef map =
       broker()->target_native_context().initial_string_iterator_map(broker());
   VirtualObject* string_iterator = CreateJSStringIterator(map, receiver);
-  return BuildInlinedAllocation(string_iterator, AllocationType::kYoung);
+  return BuildInlinedAllocation(string_iterator);
 }
 
 template <typename BaseT>

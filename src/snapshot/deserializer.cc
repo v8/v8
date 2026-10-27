@@ -333,7 +333,6 @@ Deserializer<IsolateT>::Deserializer(
       source_(untrusted_payload),
       magic_number_(magic_number),
       new_maps_(isolate),
-      new_allocation_sites_(isolate),
       new_instruction_stream_objects_(isolate),
       accessor_infos_(isolate),
       interceptor_infos_(isolate),
@@ -700,12 +699,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
         return;
       } else if (InstanceTypeChecker::IsScript(instance_type)) {
         new_scripts_.push_back(Cast<Script>(obj));
-      } else if (InstanceTypeChecker::IsAllocationSite(instance_type)) {
-        // We should link new allocation sites, but we can't do this immediately
-        // because |AllocationSite::HasWeakNext()| internally accesses
-        // |Heap::roots_| that may not have been initialized yet. So defer this
-        // to |ObjectDeserializer::CommitPostProcessedObjects()|.
-        new_allocation_sites_.push_back(Cast<AllocationSite>(obj));
       } else {
         // We dont defer ByteArray because JSTypedArray needs the base_pointer
         // ByteArray immediately if it's on heap.

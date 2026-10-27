@@ -27,6 +27,8 @@ constexpr std::optional<RootIndex> Map::TryGetMapRootIdxFor(InstanceType type) {
     return RootIndex::k##Name##Map;
     STRUCT_LIST(MAKE_CASE)
 #undef MAKE_CASE
+    case ALLOCATION_SITE_TYPE:
+      return RootIndex::kAllocationSiteMap;
     case DESCRIPTOR_ARRAY_TYPE:
       return RootIndex::kDescriptorArrayMap;
     case ON_HEAP_BASIC_BLOCK_PROFILER_DATA_TYPE:
@@ -122,12 +124,9 @@ using InstanceTypeRange = std::pair<InstanceType, InstanceType>;
 using TaggedAddressRange = std::pair<Tagged_t, Tagged_t>;
 
 #if V8_STATIC_ROOTS_BOOL
-constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 9>
+constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 8>
     kUniqueMapRangeOfInstanceTypeRangeList = {
-        {{{ALLOCATION_SITE_TYPE, ALLOCATION_SITE_TYPE},
-          {StaticReadOnlyRoot::kAllocationSiteWithWeakNextMap,
-           StaticReadOnlyRoot::kAllocationSiteWithoutWeakNextMap}},
-         {{FIRST_STRING_TYPE, LAST_STRING_TYPE},
+        {{{FIRST_STRING_TYPE, LAST_STRING_TYPE},
           {InstanceTypeChecker::kStringMapLowerBound,
            InstanceTypeChecker::kStringMapUpperBound}},
          {{FIRST_NAME_TYPE, LAST_NAME_TYPE},

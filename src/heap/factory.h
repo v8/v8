@@ -331,13 +331,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   //     encoded.  If the characters are all Latin1 characters, the result
   //     will be converted to Latin1, otherwise it will be left as two-byte.
   //
-  // One-byte strings are pretenured when used as keys in the SourceCodeCache.
+  // One-byte strings are allocated in old space when used as keys in the
+  // SourceCodeCache.
   template <size_t N>
   inline Handle<String> NewStringFromStaticChars(
       const char (&str)[N], AllocationType allocation = AllocationType::kYoung);
 
-  // UTF8 strings are pretenured when used for regexp literal patterns and
-  // flags in the parser.
+  // UTF8 strings are allocated in old space when used for regexp literal
+  // patterns and flags in the parser.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       std::string_view str, AllocationType allocation = AllocationType::kYoung);
 
@@ -566,7 +567,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<JSReceiver> thenable, DirectHandle<JSReceiver> then,
       DirectHandle<Context> context);
 
-  // Foreign objects are pretenured when allocated by the bootstrapper.
+  // Foreign objects are allocated in old space when allocated by the
+  // bootstrapper.
   template <ExternalPointerTag tag>
   Handle<Foreign> NewForeign(
       Address addr, AllocationType allocation_type = AllocationType::kYoung);
@@ -592,7 +594,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       uint32_t number_of_transitions, uint32_t slack = 0);
 
   // Allocate a tenured AllocationSite. Its payload is null.
-  Handle<AllocationSite> NewAllocationSite(bool with_weak_next);
+  Handle<AllocationSite> NewAllocationSite();
 
   // Allocates and initializes a new Map.
   Handle<Map> NewMap(DirectHandle<HeapObject> meta_map_holder, int map_size,
@@ -738,8 +740,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates and initializes a new JavaScript object based on a
   // constructor.
-  // JS objects are pretenured when allocated by the bootstrapper and
-  // runtime.
+  // JS objects are allocated in old space when allocated by the bootstrapper
+  // and runtime.
   Handle<JSObject> NewJSObject(
       DirectHandle<JSFunction> constructor,
       AllocationType allocation = AllocationType::kYoung,
@@ -749,15 +751,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // JSObject without a prototype, in dictionary mode.
   Handle<JSObject> NewSlowJSObjectWithNullProto();
 
-  // Global objects are pretenured and initialized based on a constructor.
+  // Global objects are allocated in old space and initialized based on a
+  // constructor.
   Handle<JSGlobalObject> NewJSGlobalObject(
       DirectHandle<JSFunction> constructor);
 
   // Allocates and initializes a new JavaScript object based on a map.
   // Passing an allocation site means that a memento will be created that
   // points to the site.
-  // JS objects are pretenured when allocated by the bootstrapper and
-  // runtime.
+  // JS objects are allocated in old space when allocated by the bootstrapper
+  // and runtime.
   Handle<JSObject> NewJSObjectFromMap(
       DirectHandle<Map> map, AllocationType allocation = AllocationType::kYoung,
       MaybeDirectHandle<AllocationSite> allocation_site = kNullMaybeHandle,
@@ -786,8 +789,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<JSObject> NewSlowJSObjectWithPropertiesAndElements(
       DirectHandle<JSPrototype> prototype, DirectHandle<HeapObject> properties,
       DirectHandle<FixedArrayBase> elements);
-
-  // JS arrays are pretenured when allocated by the parser.
 
   // Create a JSArray with a specified length and elements initialized
   // according to the specified mode.

@@ -205,24 +205,6 @@ namespace internal {
 #define STRUCT_MAPS_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
 
 //
-// The following macros define list of allocation size objects and list of
-// their maps.
-//
-#define ALLOCATION_SITE_LIST(V, _)                                          \
-  V(_, ALLOCATION_SITE_TYPE, AllocationSite, WithWeakNext, allocation_site) \
-  V(_, ALLOCATION_SITE_TYPE, AllocationSite, WithoutWeakNext,               \
-    allocation_site_without_weaknext)
-
-// Adapts one ALLOCATION_SITE_LIST entry to the ALLOCATION_SITE_MAPS_LIST entry
-#define ALLOCATION_SITE_MAPS_LIST_ADAPTER(V, TYPE, Name, Size, name_size) \
-  V(Map, name_size##_map, Name##Size##Map)
-
-// Produces (Map, allocation_site_name_map, AllocationSiteNameMap)
-// entries
-#define ALLOCATION_SITE_MAPS_LIST(V) \
-  ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAPS_LIST_ADAPTER, V)
-
-//
 // The following macros define list of data handler objects and list of their
 // maps.
 //

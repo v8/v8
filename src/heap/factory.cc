@@ -320,6 +320,8 @@ Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(
           ? std::pair{SKIP_WRITE_BARRIER, !allocation_site.is_null()}
           : std::pair{UPDATE_WRITE_BARRIER, false};
   DCHECK_IMPLIES(should_allocate_memento, V8_ALLOCATION_SITE_TRACKING_BOOL);
+  DCHECK_IMPLIES(should_allocate_memento,
+                 AllocationSite::CanTrack(map->instance_type()));
   const int instance_size = map->instance_size();
   const int allocation_size =
       should_allocate_memento
@@ -346,9 +348,6 @@ void Factory::InitializeAllocationMemento(
   memento->set_map_after_allocation(isolate(), *allocation_memento_map(),
                                     SKIP_WRITE_BARRIER);
   memento->set_allocation_site(allocation_site, SKIP_WRITE_BARRIER);
-  if (v8_flags.allocation_site_pretenuring) {
-    allocation_site->IncrementMementoCreateCount();
-  }
 }
 
 Tagged<HeapObject> Factory::New(DirectHandle<Map> map,
@@ -2113,9 +2112,9 @@ Factory::NewWasmDispatchTableForImports(int length) {
 DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
     DirectHandle<Map> opt_parent, int num_supertypes, SharedFlag shared) {
-  // We pretenure WasmTypeInfo objects for two reasons:
+  // We allocate WasmTypeInfo objects in old space for two reasons:
   // (1) They are referenced by Maps, which are assumed to be long-lived,
-  //     so pretenuring the WTI is a bit more efficient.
+  //     so allocating the WTI in old space is a bit more efficient.
   // (2) The object visitors need to read the WasmTypeInfo to find tagged
   //     fields in Wasm structs; in the middle of a GC cycle that's only
   //     safe to do if the WTI is in old space.
@@ -2653,22 +2652,11 @@ DirectHandle<TransitionArray> Factory::NewTransitionArray(
   return array;
 }
 
-Handle<AllocationSite> Factory::NewAllocationSite(bool with_weak_next) {
-  DirectHandle<Map> map = with_weak_next
-                              ? allocation_site_map()
-                              : allocation_site_without_weaknext_map();
+Handle<AllocationSite> Factory::NewAllocationSite() {
   Handle<AllocationSite> site(
-      Cast<AllocationSite>(New(map, AllocationType::kOld)), isolate());
+      Cast<AllocationSite>(New(allocation_site_map(), AllocationType::kOld)),
+      isolate());
   site->Initialize();
-
-  if (with_weak_next) {
-    // Link the site
-    Cast<AllocationSiteWithWeakNext>(site)->set_weak_next(
-        Cast<UnionOf<Undefined, AllocationSiteWithWeakNext>>(
-            isolate()->heap()->allocation_sites_list()));
-    isolate()->heap()->set_allocation_sites_list(
-        *Cast<AllocationSiteWithWeakNext>(site));
-  }
   return site;
 }
 

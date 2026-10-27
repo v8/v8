@@ -683,7 +683,6 @@ class JSObjectRef : public JSReceiverRef {
   // background-serialized) elements.
   OptionalFixedArrayBaseRef elements(JSHeapBroker* broker,
                                      RelaxedLoadTag) const;
-  bool IsElementsTenured(FixedArrayBaseRef elements);
 
   OptionalMapRef GetObjectCreateMap(JSHeapBroker* broker) const;
 
@@ -960,7 +959,6 @@ class AllocationSiteRef : public HeapObjectRef {
   IndirectHandle<AllocationSite> object() const;
 
   bool PointsToLiteral() const;
-  AllocationType GetAllocationType() const;
   ObjectRef nested_site(JSHeapBroker* broker) const;
 
   OptionalJSObjectRef boilerplate(JSHeapBroker* broker) const;

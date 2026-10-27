@@ -710,11 +710,6 @@ ExternalReference ExternalReference::isolate_root(Isolate* isolate) {
   return ExternalReference(isolate->isolate_root());
 }
 
-ExternalReference ExternalReference::allocation_sites_list_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->allocation_sites_list_address());
-}
-
 ExternalReference ExternalReference::address_of_jslimit(Isolate* isolate) {
   Address address = isolate->stack_guard()->address_of_jslimit();
   // For efficient generated code, this should be root-register-addressable.

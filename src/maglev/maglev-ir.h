@@ -6638,8 +6638,7 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
 
 class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
  public:
-  explicit AllocationBlock(uint64_t bitfield, AllocationType allocation_type)
-      : Base(bitfield), allocation_type_(allocation_type) {}
+  explicit AllocationBlock(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
                                               OpProperties::DeferredCall() |
@@ -6648,9 +6647,7 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
 
-  AllocationType allocation_type() const { return allocation_type_; }
   int size() const { return size_; }
   void set_size(int size) { size_ = size; }
 
@@ -6661,20 +6658,8 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
     size_ += alloc->size();
   }
 
-  void TryPretenure(ValueNode* input);
-
-  bool elided_write_barriers_depend_on_type() const {
-    return elided_write_barriers_depend_on_type_;
-  }
-  void set_elided_write_barriers_depend_on_type() {
-    elided_write_barriers_depend_on_type_ = true;
-  }
-
  private:
-  void TryPretenure();
-  AllocationType allocation_type_;
   int size_ = 0;
-  bool elided_write_barriers_depend_on_type_ = false;
   InlinedAllocation::List allocation_list_;
 };
 
@@ -6743,11 +6728,8 @@ class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
 class AllocateElementsArray
     : public FixedInputValueNodeT<1, AllocateElementsArray> {
  public:
-  explicit AllocateElementsArray(uint64_t bitfield, ElementsKind elements_kind,
-                                 AllocationType allocation_type)
-      : Base(bitfield),
-        elements_kind_(elements_kind),
-        allocation_type_(allocation_type) {}
+  explicit AllocateElementsArray(uint64_t bitfield, ElementsKind elements_kind)
+      : Base(bitfield), elements_kind_(elements_kind) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::EagerDeopt() |
@@ -6761,11 +6743,9 @@ class AllocateElementsArray
   void PrintParams(std::ostream&) const;
 
   ElementsKind elements_kind() const { return elements_kind_; }
-  AllocationType allocation_type() const { return allocation_type_; }
 
  private:
   const ElementsKind elements_kind_;
-  const AllocationType allocation_type_;
 };
 
 class CreateFunctionContext
@@ -8146,11 +8126,7 @@ class ProcessWasmArgument
 class CreateFastArrayElements
     : public FixedInputValueNodeT<1, CreateFastArrayElements> {
  public:
-  explicit CreateFastArrayElements(uint64_t bitfield,
-                                   AllocationType allocation_type)
-      : Base(bitfield), allocation_type_(allocation_type) {}
-
-  AllocationType allocation_type() const { return allocation_type_; }
+  explicit CreateFastArrayElements(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::NotIdempotent();
@@ -8159,9 +8135,6 @@ class CreateFastArrayElements
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-
- private:
-  const AllocationType allocation_type_;
 };
 
 class NewConsString : public FixedInputValueNodeT<3, NewConsString> {

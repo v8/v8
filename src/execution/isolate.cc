@@ -6644,8 +6644,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // it was set up. One created from scratch only has its holes now.
   if (create_heap_objects) read_only_heap()->DecommitGuardRegions(this);
 
-  // Isolate initialization allocates long living objects that should be
-  // pretenured to old space.
+  // Isolate initialization allocates long-lived objects directly in old space.
   DCHECK_IMPLIES(heap()->new_space(), heap()->new_space()->Size() == 0);
   DCHECK_IMPLIES(heap()->new_lo_space(), heap()->new_lo_space()->Size() == 0);
   DCHECK_EQ(heap()->gc_count(), kInitialGCEpoch);

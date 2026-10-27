@@ -1082,8 +1082,7 @@ class MaglevReducer {
   ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
                              StoreMap::Kind kind);
 
-  ReduceResult BuildInlinedAllocation(VirtualObject* object,
-                                      AllocationType allocation);
+  ReduceResult BuildInlinedAllocation(VirtualObject* object);
   ReduceResult BuildAndAllocateJSArrayIterator(ValueNode* array,
                                                IterationKind iteration_kind);
   void ClearCurrentAllocationBlock();
@@ -1825,23 +1824,20 @@ class MaglevReducer {
   std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
-      AllocationType allocation_type, VirtualObject* value);
-  ReduceResult ConvertForField(ValueNode* value, const vobj::Field& desc,
-                               AllocationType allocation_type);
+      VirtualObject* value);
+  ReduceResult ConvertForField(ValueNode* value, const vobj::Field& desc);
   ReduceResult BuildInitializeStore(
-      vobj::Field desc, InlinedAllocation* alloc,
-      AllocationType allocation_type, ValueNode* value,
+      vobj::Field desc, InlinedAllocation* alloc, ValueNode* value,
       StoreTaggedMode store_mode,
       MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
   ReduceResult BuildInitializeStore_Tagged(vobj::Field desc,
                                            InlinedAllocation* alloc,
-                                           AllocationType allocation_type,
                                            ValueNode* value,
                                            StoreTaggedMode store_mode,
                                            MaybeAssignedFlag maybe_assigned);
-  ReduceResult BuildInitializeStore_TrustedPointer(
-      vobj::Field desc, InlinedAllocation* alloc,
-      AllocationType allocation_type, ValueNode* value);
+  ReduceResult BuildInitializeStore_TrustedPointer(vobj::Field desc,
+                                                   InlinedAllocation* alloc,
+                                                   ValueNode* value);
 
   template <typename T>
   friend class MapInference;

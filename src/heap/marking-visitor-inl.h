@@ -17,7 +17,6 @@
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking.h"
-#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/casting.h"
 #include "src/objects/compressed-slots.h"

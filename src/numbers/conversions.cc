@@ -1105,7 +1105,7 @@ class StringToBigIntHelper : public StringToIntHelper {
   }
 
   AllocationType allocation_type() {
-    // For literals, we pretenure the allocated BigInt, since it's about
+    // For literals, we allocate the BigInt in old space, since it's about
     // to be stored in the interpreter's constants array.
     return behavior_ == Behavior::kLiteral ? AllocationType::kOld
                                            : AllocationType::kYoung;

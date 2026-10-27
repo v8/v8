@@ -3188,10 +3188,6 @@ bool V8HeapExplorer::IsEssentialObject(Tagged<Object> object) {
 
 bool V8HeapExplorer::IsEssentialHiddenReference(Tagged<Object> parent,
                                                 int field_offset) {
-  if (IsAllocationSite(parent) &&
-      field_offset == offsetof(AllocationSiteWithWeakNext, weak_next_)) {
-    return false;
-  }
   if (IsContext(parent) &&
       field_offset == Context::OffsetOfElementAt(Context::NEXT_CONTEXT_LINK)) {
     return false;

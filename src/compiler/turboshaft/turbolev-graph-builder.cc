@@ -2635,7 +2635,7 @@ class GraphBuildingNodeProcessor {
     V<Word32> length = Map(node->LengthInput());
     SetMap(node,
            __ NewArray(__ ChangeInt32ToIntPtr(length),
-                       NewArrayOp::Kind::kObject, node->allocation_type()));
+                       NewArrayOp::Kind::kObject, AllocationType::kYoung));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -3077,7 +3077,7 @@ class GraphBuildingNodeProcessor {
     DCHECK_NE(size, 0);
     node->set_size(size);
     SetMap(node, __ FinishInitialization(__ Allocate<HeapObject>(
-                     size, node->allocation_type(), kTaggedAligned)));
+                     size, AllocationType::kYoung, kTaggedAligned)));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::InlinedAllocation* node,
@@ -3188,7 +3188,7 @@ class GraphBuildingNodeProcessor {
                                 ? NewArrayOp::Kind::kDouble
                                 : NewArrayOp::Kind::kObject;
     SetMap(node, __ NewArray(__ ChangeUint32ToUintPtr(length), kind,
-                             node->allocation_type()));
+                             AllocationType::kYoung));
     return maglev::ProcessResult::kContinue;
   }
 

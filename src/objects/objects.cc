@@ -4601,50 +4601,9 @@ bool JSArray::SetLengthWouldNormalize(uint32_t new_length) {
                                      &new_capacity);
 }
 
-void AllocationSite::ResetPretenureDecision() {
-  set_pretenure_decision(kUndecided);
-  set_memento_found_count(0);
-  set_memento_create_count(0);
-}
-
-AllocationType AllocationSite::GetAllocationType() const {
-  PretenureDecision mode = pretenure_decision();
-  // Zombie objects "decide" to be untenured.
-  return mode == kTenure ? AllocationType::kOld : AllocationType::kYoung;
-}
-
-bool AllocationSite::IsNested() {
-  DCHECK(v8_flags.trace_track_allocation_sites);
-  Tagged<Object> current = Isolate::Current()->heap()->allocation_sites_list();
-  while (IsAllocationSite(current)) {
-    Tagged<AllocationSiteWithWeakNext> current_site =
-        Cast<AllocationSiteWithWeakNext>(current);
-    if (current_site->nested_site() == this) {
-      return true;
-    }
-    current = current_site->weak_next();
-  }
-  return false;
-}
-
 bool AllocationSite::ShouldTrack(ElementsKind from, ElementsKind to) {
   if (!V8_ALLOCATION_SITE_TRACKING_BOOL) return false;
   return IsMoreGeneralElementsKindTransition(from, to);
-}
-
-const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
-  switch (decision) {
-    case kUndecided:
-      return "undecided";
-    case kDontTenure:
-      return "don't tenure";
-    case kMaybeTenure:
-      return "maybe tenure";
-    case kTenure:
-      return "tenure";
-    default:
-      UNREACHABLE();
-  }
 }
 
 bool JSArray::WouldChangeReadOnlyLength(DirectHandle<JSArray> array,
@@ -5311,12 +5270,12 @@ HandleType<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   int capacity = table->Capacity();
   int new_nof = table->NumberOfElements() + n;
 
-  bool should_pretenure = allocation == AllocationType::kOld ||
-                          ((capacity > kMinCapacityForPretenure) &&
-                           !HeapLayout::InYoungGeneration(*table));
+  bool use_old_space = allocation == AllocationType::kOld ||
+                       ((capacity > kMinCapacityForOldGrowth) &&
+                        !HeapLayout::InYoungGeneration(*table));
   HandleType<Derived> new_table = HashTable::New(
       isolate, new_nof,
-      should_pretenure ? AllocationType::kOld : AllocationType::kYoung);
+      use_old_space ? AllocationType::kOld : AllocationType::kYoung);
 
   table->Rehash(*new_table);
   return new_table;
@@ -5334,13 +5293,13 @@ HashTable<Derived, Shape>::TryEnsureCapacity(IsolateT* isolate,
   int capacity = table->Capacity();
   int new_nof = table->NumberOfElements() + n;
 
-  bool should_pretenure = allocation == AllocationType::kOld ||
-                          ((capacity > kMinCapacityForPretenure) &&
-                           !HeapLayout::InYoungGeneration(*table));
+  bool use_old_space = allocation == AllocationType::kOld ||
+                       ((capacity > kMinCapacityForOldGrowth) &&
+                        !HeapLayout::InYoungGeneration(*table));
   HandleType<Derived> new_table;
   if (!HashTable::TryNew(
            isolate, new_nof,
-           should_pretenure ? AllocationType::kOld : AllocationType::kYoung)
+           use_old_space ? AllocationType::kOld : AllocationType::kYoung)
            .To(&new_table)) {
     return {};
   }
@@ -5401,12 +5360,12 @@ HandleType<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
   if (new_capacity == table->Capacity()) return table;
   DCHECK_GE(new_capacity, Derived::kMinShrinkCapacity);
 
-  bool pretenure = (new_capacity > kMinCapacityForPretenure) &&
-                   !HeapLayout::InYoungGeneration(*table);
-  HandleType<Derived> new_table =
-      HashTable::New(isolate, new_capacity,
-                     pretenure ? AllocationType::kOld : AllocationType::kYoung,
-                     USE_CUSTOM_MINIMUM_CAPACITY);
+  bool use_old_space = (new_capacity > kMinCapacityForOldGrowth) &&
+                       !HeapLayout::InYoungGeneration(*table);
+  HandleType<Derived> new_table = HashTable::New(
+      isolate, new_capacity,
+      use_old_space ? AllocationType::kOld : AllocationType::kYoung,
+      USE_CUSTOM_MINIMUM_CAPACITY);
 
   table->Rehash(*new_table);
   return new_table;

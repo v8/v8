@@ -1868,10 +1868,10 @@ OpIndex GraphBuilder::Process(
                               Map(node->InputAt(2)));
     case IrOpcode::kNewDoubleElements:
       return __ NewArray(Map(node->InputAt(0)), NewArrayOp::Kind::kDouble,
-                         AllocationTypeOf(node->op()));
+                         AllocationType::kYoung);
     case IrOpcode::kNewSmiOrObjectElements:
       return __ NewArray(Map(node->InputAt(0)), NewArrayOp::Kind::kObject,
-                         AllocationTypeOf(node->op()));
+                         AllocationType::kYoung);
 
     case IrOpcode::kDoubleArrayMin:
       return __ DoubleArrayMinMax(Map(node->InputAt(0)),

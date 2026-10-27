@@ -160,19 +160,16 @@ constexpr int StructSize() {
   return sizeof(StructType);
 }
 
-using AllocationSiteWithoutWeakNext = AllocationSite;
 constexpr std::initializer_list<StructInit> kStructTable{
 #define STRUCT_TABLE_ELEMENT(TYPE, Name, name) \
   {TYPE, StructSize<Name>(), RootIndex::k##Name##Map},
     STRUCT_LIST(STRUCT_TABLE_ELEMENT)
 #undef STRUCT_TABLE_ELEMENT
-#define ALLOCATION_SITE_ELEMENT(_, TYPE, Name, Size, name) \
-  {TYPE, sizeof(Name##Size), RootIndex::k##Name##Size##Map},
-        ALLOCATION_SITE_LIST(ALLOCATION_SITE_ELEMENT, /* not used */)
-#undef ALLOCATION_SITE_ELEMENT
+        {ALLOCATION_SITE_TYPE, sizeof(AllocationSite),
+         RootIndex::kAllocationSiteMap},
 #define DATA_HANDLER_ELEMENT(_, TYPE, Name, Size, name) \
   {TYPE, Name::SizeFor(Size), RootIndex::k##Name##Size##Map},
-            DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT, /* not used */)
+    DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT, /* not used */)
 #undef DATA_HANDLER_ELEMENT
 };
 
@@ -245,7 +242,6 @@ bool Heap::CreateMutableHeapObjects() {
   CHECK_EQ(kInitialGCEpoch, gc_count_);
 
   set_native_contexts_list(roots.undefined_value());
-  set_allocation_sites_list(roots.undefined_value());
   set_dirty_js_finalization_registries_list(roots.undefined_value());
   set_dirty_js_finalization_registries_list_tail(roots.undefined_value());
 

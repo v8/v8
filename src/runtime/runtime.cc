@@ -230,7 +230,6 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       case Runtime::kOptimizeMaglevOnNextCall:
       case Runtime::kOptimizeOsr:
       case Runtime::kPrepareFunctionForOptimization:
-      case Runtime::kPretenureAllocationSite:
       case Runtime::kSetAllocationTimeout:
       case Runtime::kSetDispatchTableGCInterval:
       case Runtime::kSetForceSlowPath:

@@ -191,7 +191,6 @@ void Code::SetMarkedForDeoptimization(Isolate* isolate,
         // dependencies we create in the compilers to require less of these
         // quick re-compilations.
         switch (reason) {
-          case LazyDeoptimizeReason::kAllocationSiteTenuringChange:
           case LazyDeoptimizeReason::kAllocationSiteTransitionChange:
           case LazyDeoptimizeReason::kEmptyContextExtensionChange:
           case LazyDeoptimizeReason::kFrameValueMaterialized:

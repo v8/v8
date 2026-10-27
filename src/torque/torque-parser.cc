@@ -452,14 +452,13 @@ std::optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
 
 std::optional<ParseResult> MakeNewExpression(
     ParseResultIterator* child_results) {
-  bool pretenured = child_results->NextAs<bool>();
   bool clear_padding = child_results->NextAs<bool>();
 
   auto type = child_results->NextAs<TypeExpression*>();
   auto initializers = child_results->NextAs<std::vector<NameAndExpression>>();
 
-  Expression* result = MakeNode<NewExpression>(type, std::move(initializers),
-                                               pretenured, clear_padding);
+  Expression* result =
+      MakeNode<NewExpression>(type, std::move(initializers), clear_padding);
   return ParseResult{result};
 }
 
@@ -2676,7 +2675,6 @@ struct TorqueGrammar : Grammar {
   // Result: Expression*
   Symbol newExpression = {
       Rule({Token("new"),
-            CheckIf(Sequence({Token("("), Token("Pretenured"), Token(")")})),
             CheckIf(Sequence({Token("("), Token("ClearPadding"), Token(")")})),
             &simpleType, &initializerList},
            MakeNewExpression)};

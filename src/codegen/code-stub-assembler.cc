@@ -1686,7 +1686,7 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
   {
     TNode<Smi> runtime_flags = SmiConstant(
         Smi::FromInt(needs_double_alignment ? kDoubleAligned : kTaggedAligned));
-    if (flags & AllocationFlag::kPretenured) {
+    if (flags & AllocationFlag::kOld) {
       result =
           CallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
                       SmiTag(size_in_bytes), runtime_flags);
@@ -1732,14 +1732,14 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
   }
 
   BIND(&out);
-  if (v8_flags.sticky_mark_bits && (flags & AllocationFlag::kPretenured)) {
+  if (v8_flags.sticky_mark_bits && (flags & AllocationFlag::kOld)) {
     CSA_DCHECK(this, IsMarked(result.value()));
   }
   if (v8_flags.verify_write_barriers) {
     TNode<ExternalReference> last_young_allocation_address =
         IsolateField(IsolateFieldId::kLastYoungAllocation);
 
-    if (flags & AllocationFlag::kPretenured) {
+    if (flags & AllocationFlag::kOld) {
       StoreNoWriteBarrier(MachineType::PointerRepresentation(),
                           last_young_allocation_address, IntPtrConstant(0));
     } else {
@@ -1791,8 +1791,8 @@ TNode<HeapObject> CodeStubAssembler::AllocateInNewSpace(
 TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
                                               AllocationFlags flags) {
   Comment("Allocate");
-  if (v8_flags.single_generation) flags |= AllocationFlag::kPretenured;
-  bool const new_space = !(flags & AllocationFlag::kPretenured);
+  if (v8_flags.single_generation) flags |= AllocationFlag::kOld;
+  bool const new_space = !(flags & AllocationFlag::kOld);
   if (!(flags & AllocationFlag::kDoubleAlignment)) {
     TNode<HeapObject> heap_object =
         OptimizedAllocate(size_in_bytes, new_space ? AllocationType::kYoung
@@ -6017,9 +6017,28 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
   TNode<Map> array_map =
       LoadJSArrayElementsMap(var_elements_kind.value(), native_context);
 
-  TNode<JSArray> result = AllocateJSArray(array_map, var_new_elements.value(),
-                                          CAST(length), allocation_site);
-  return result;
+  if (allocation_site) {
+    TVARIABLE(JSArray, var_result);
+    Label with_memento(this), without_memento(this), done(this);
+    Branch(ElementsKindEqual(var_elements_kind.value(),
+                             Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
+           &without_memento, &with_memento);
+
+    BIND(&with_memento);
+    var_result = AllocateJSArray(array_map, var_new_elements.value(),
+                                 CAST(length), allocation_site);
+    Goto(&done);
+
+    BIND(&without_memento);
+    var_result = AllocateJSArray(array_map, var_new_elements.value(),
+                                 CAST(length), std::nullopt);
+    Goto(&done);
+
+    BIND(&done);
+    return var_result.value();
+  }
+  return AllocateJSArray(array_map, var_new_elements.value(), CAST(length),
+                         std::nullopt);
 }
 
 template <typename TIndex>
@@ -7257,15 +7276,6 @@ void CodeStubAssembler::InitializeAllocationMemento(
   StoreMapNoWriteBarrier(memento, RootIndex::kAllocationMementoMap);
   StoreObjectFieldNoWriteBarrier(
       memento, offsetof(AllocationMemento, allocation_site_), allocation_site);
-  if (v8_flags.allocation_site_pretenuring) {
-    TNode<Int32T> count = LoadObjectField<Int32T>(
-        allocation_site, offsetof(AllocationSite, pretenure_create_count_));
-
-    TNode<Int32T> incremented_count = Int32Add(count, Int32Constant(1));
-    StoreObjectFieldNoWriteBarrier(
-        allocation_site, offsetof(AllocationSite, pretenure_create_count_),
-        incremented_count);
-  }
   Comment("]");
 }
 
@@ -15422,9 +15432,9 @@ TNode<IntPtrT> CodeStubAssembler::BasePageFromAddress(TNode<IntPtrT> address) {
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
     TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot) {
-  TNode<IntPtrT> size = IntPtrConstant(sizeof(AllocationSiteWithWeakNext));
-  TNode<HeapObject> site = Allocate(size, AllocationFlag::kPretenured);
-  StoreMapNoWriteBarrier(site, RootIndex::kAllocationSiteWithWeakNextMap);
+  TNode<IntPtrT> size = IntPtrConstant(sizeof(AllocationSite));
+  TNode<HeapObject> site = Allocate(size, AllocationFlag::kOld);
+  StoreMapNoWriteBarrier(site, RootIndex::kAllocationSiteMap);
   // Should match AllocationSite::Initialize.
   TNode<WordT> field = UpdateWord<AllocationSite::ElementsKindBits>(
       IntPtrConstant(0), UintPtrConstant(GetInitialFastElementsKind()));
@@ -15437,33 +15447,9 @@ TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
   StoreObjectFieldNoWriteBarrier(site, offsetof(AllocationSite, nested_site_),
                                  zero);
 
-  // Pretenuring calculation field.
-  StoreObjectFieldNoWriteBarrier(
-      site, offsetof(AllocationSite, pretenure_data_), Int32Constant(0));
-
-  // Pretenuring memento creation count field.
-  StoreObjectFieldNoWriteBarrier(
-      site, offsetof(AllocationSite, pretenure_create_count_),
-      Int32Constant(0));
-
   // Store an empty fixed array for the code dependency.
   StoreObjectFieldRoot(site, offsetof(AllocationSite, dependent_code_),
                        DependentCode::kEmptyDependentCode);
-
-  // Link the object to the allocation site list
-  TNode<ExternalReference> site_list = ExternalConstant(
-      ExternalReference::allocation_sites_list_address(isolate()));
-  TNode<Object> next_site =
-      LoadBufferObject(ReinterpretCast<RawPtrT>(site_list), 0);
-
-  // TODO(mvstanton): This is a store to a weak pointer, which we may want to
-  // mark as such in order to skip the write barrier, once we have a unified
-  // system for weakness. For now we decided to keep it like this because having
-  // an initial write barrier backed store makes this pointer strong until the
-  // next GC, and allocation sites are designed to survive several GCs anyway.
-  StoreObjectField(site, offsetof(AllocationSiteWithWeakNext, weak_next_),
-                   next_site);
-  StoreFullTaggedNoWriteBarrier(site_list, site);
 
   StoreFeedbackVectorSlot(feedback_vector, slot, site);
   return CAST(site);

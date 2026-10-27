@@ -1221,8 +1221,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ArgumentsLength();
   const Operator* RestLength(int formal_parameter_count);
 
-  const Operator* NewDoubleElements(AllocationType);
-  const Operator* NewSmiOrObjectElements(AllocationType);
+  const Operator* NewDoubleElements();
+  const Operator* NewSmiOrObjectElements();
 
   // new-arguments-elements arguments-length
   const Operator* NewArgumentsElements(CreateArgumentsType type,

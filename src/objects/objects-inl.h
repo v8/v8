@@ -335,14 +335,6 @@ struct CastTraits<JSAny> {
     return IsPrimitive(value) || IsJSReceiver(value);
   }
 };
-template <>
-struct CastTraits<AllocationSiteWithWeakNext> {
-  template <typename From>
-  static inline bool AllowFrom(Tagged<From> value) {
-    Tagged<AllocationSite> site;
-    return TryCast<AllocationSite>(value, &site) && site->HasWeakNext();
-  }
-};
 
 template <>
 struct CastTraits<FieldType> {

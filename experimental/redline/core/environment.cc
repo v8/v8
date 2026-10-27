@@ -464,7 +464,6 @@ Environment::Environment() {
       {"ConstructSlicedString", 2, T::kString},
       {"FlattenString", 1, T::kString},
       {"IsBeingInterpreted", 0, T::kUnknown},
-      {"PretenureAllocationSite", 1, T::kObject},
       {"SetAllocationTimeout", 2, T::kNumber},
   };
 

@@ -8172,7 +8172,7 @@ class LiftoffCompiler {
       }
       // Skipping the write barrier is safe as long as:
       // {obj} is freshly allocated, and
-      // {obj} is in new-space (not pretenured).
+      // {obj} is in new-space.
       // OR
       // {!initial_values_on_stack}, i.e., only RO-space objects as fields.
       // There currently is no shared new-space, and descriptors are allocated
@@ -8341,7 +8341,7 @@ class LiftoffCompiler {
     // Initialize the array's elements.
     // Skipping the write barrier is safe as long as:
     // {obj} is freshly allocated, and
-    // {obj} is in new-space (not pretenured).
+    // {obj} is in new-space.
     // OR
     // {value} is read-only.
     bool in_old_space = is_shared || v8_flags.single_generation;
@@ -8598,7 +8598,7 @@ class LiftoffCompiler {
                    (i << value_kind_size_log2(elem_kind));
       // Skipping the write barrier is safe as long as:
       // (1) {array} is freshly allocated, and
-      // (2) {array} is in new-space (not pretenured).
+      // (2) {array} is in new-space.
       StoreObjectField(decoder, array.gp(), no_reg, offset - kHeapObjectTag,
                        element, false, pinned, elem_kind, write_barrier);
     }

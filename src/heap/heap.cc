@@ -92,12 +92,12 @@
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-inl.h"
 #include "src/heap/new-spaces.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/pending-allocations.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -298,7 +298,6 @@ Heap::Heap()
                                        : AllocationType::kOld),
       marking_state_(isolate_),
       non_atomic_marking_state_(isolate_),
-      pretenuring_handler_(this),
       tracing_track_(perfetto::NamedTrack::FromPointer(
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
                          .disable_sibling_merge()),
@@ -1024,20 +1023,6 @@ void Heap::RemoveAllocationObserversFromAllSpaces(
 
 void Heap::PublishMainThreadPendingAllocations() {
   allocator()->PublishPendingAllocations();
-}
-
-void Heap::DeoptMarkedAllocationSites() {
-  ForeachAllocationSite(
-      allocation_sites_list(), [this](Tagged<AllocationSite> site) {
-        if (site->deopt_dependent_code()) {
-          DependentCode::MarkCodeForDeoptimization(
-              isolate_, site,
-              DependentCode::kAllocationSiteTenuringChangedGroup);
-          site->set_deopt_dependent_code(false);
-        }
-      });
-
-  Deoptimizer::DeoptimizeMarkedCode(isolate_);
 }
 
 static GCType GetGCTypeFromGarbageCollector(GarbageCollector collector) {
@@ -2285,8 +2270,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   // capacity is set in the epilogue.
   PauseAllocationObserversScope pause_observers(this);
 
-  const size_t new_space_capacity_before_gc = NewSpaceTargetCapacity();
-
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     MarkCompact();
   } else if (collector == GarbageCollector::MINOR_MARK_SWEEPER) {
@@ -2294,14 +2277,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   } else {
     DCHECK_EQ(GarbageCollector::SCAVENGER, collector);
     Scavenge();
-  }
-
-  if (IsYoungGenerationCollector(collector)) {
-    // We don't want growing or shrinking of the current cycle to affect
-    // pretenuring decisions. The numbers collected in the GC will be for the
-    // capacity that was set before the GC.
-    pretenuring_handler_.ProcessPretenuringFeedback(
-        new_space_capacity_before_gc);
   }
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
@@ -2555,7 +2530,6 @@ void Heap::MarkCompact() {
   PROFILE(isolate_, CodeMovingGCEvent());
 
   UpdateOldGenerationAllocationCounter();
-  uint64_t size_of_objects_before_gc = SizeOfObjects();
   uint64_t external_memory_before_gc =
       AllocatedExternalMemorySinceMarkCompact();
 
@@ -2570,9 +2544,6 @@ void Heap::MarkCompact() {
 
   MarkCompactEpilogue();
 
-  if (v8_flags.allocation_site_pretenuring) {
-    EvaluateOldSpaceLocalPretenuring(size_of_objects_before_gc);
-  }
   // This should be updated before PostGarbageCollectionProcessing, which
   // can cause another GC. Take into account the objects promoted during
   // GC.
@@ -2678,7 +2649,6 @@ void Heap::ExternalStringTable::UpdateReferences(
 
 void Heap::ProcessAllWeakReferences(WeakObjectRetainer* retainer) {
   ProcessNativeContexts(retainer);
-  ProcessAllocationSites(retainer);
   ProcessDirtyJSFinalizationRegistries(retainer);
 }
 
@@ -2689,13 +2659,60 @@ void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
   set_native_contexts_list(head);
 }
 
-void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer) {
-  Tagged<Object> allocation_site_obj =
-      VisitWeakList<AllocationSiteWithWeakNext>(this, allocation_sites_list(),
-                                                retainer);
-  set_allocation_sites_list(
-      Cast<UnionOf<Undefined, AllocationSiteWithWeakNext>>(
-          allocation_site_obj));
+Tagged<AllocationMemento> Heap::FindAllocationMemento(Tagged<JSArray> object) {
+  DCHECK(LocalHeap::Current()->is_main_thread());
+  if (!HeapLayout::InYoungGeneration(object) ||
+      HeapLayout::InAnyLargeSpace(object)) {
+    return {};
+  }
+
+  Address object_address = object.address();
+  int object_size = object->map()->instance_size();
+  Address memento_address =
+      object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+  Address last_memento_word_address =
+      memento_address + sizeof(AllocationMemento) - kTaggedSize;
+  // NormalPage::OnSamePage and SbxCast<NormalPage> run before reading any
+  // memory past `object`, acting as an out-of-sandbox guard against large pages
+  // even if in-sandbox chunk flags are corrupted.
+  if (!NormalPage::OnSamePage(object_address, last_memento_word_address)) {
+    return {};
+  }
+
+  // SweepingDone() and IsAddressBelowAgeMark() guard against concurrent
+  // sweeping (MinorMS / sticky mark bits) and pinned/quarantined pages
+  // (semi-space) where memory following `object` may be swept or overwritten.
+  MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
+  NormalPage* object_page = SbxCast<NormalPage>(object_chunk->Metadata());
+  if (!object_page->SweepingDone()) {
+    return {};
+  }
+
+  if (!v8_flags.minor_ms &&
+      semi_space_new_space()->IsAddressBelowAgeMark(object_address)) {
+    return {};
+  }
+
+  // If the candidate falls within the current new space LAB, it must lie
+  // entirely below NewSpaceTop(); otherwise it is in unallocated LAB memory
+  // (or straddling NewSpaceTop()). Checking this before reading the candidate
+  // map word also avoids reading uninitialized LAB memory under MSan.
+  Address top = NewSpaceTop();
+  if (memento_address < NewSpaceLimit() &&
+      memento_address +
+              ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento)) >
+          top) {
+    DCHECK_EQ(memento_address, top);
+    return {};
+  }
+
+  Tagged<HeapObject> candidate = HeapObject::FromAddress(memento_address);
+  ObjectSlot candidate_map_slot = candidate->map_slot();
+  if (!candidate_map_slot.Relaxed_ContainsMapValue(
+          ReadOnlyRoots(this).allocation_memento_map().ptr())) {
+    return {};
+  }
+  return Cast<AllocationMemento>(candidate);
 }
 
 void Heap::ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer) {
@@ -2711,9 +2728,6 @@ void Heap::ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer) {
 
 void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
   set_native_contexts_list(retainer->RetainAs(native_contexts_list()));
-  set_allocation_sites_list(
-      Cast<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>>(
-          retainer->RetainAs(allocation_sites_list())));
   set_dirty_js_finalization_registries_list(
       retainer->RetainAs(dirty_js_finalization_registries_list()));
   set_dirty_js_finalization_registries_list_tail(
@@ -2737,85 +2751,6 @@ void Heap::AddToWeakNativeContextList(Tagged<Context> context) {
   context->SetNoCell(Context::NEXT_CONTEXT_LINK, native_contexts_list(),
                      UPDATE_WRITE_BARRIER);
   set_native_contexts_list(context);
-}
-
-void Heap::ForeachAllocationSite(
-    Tagged<Object> list,
-    const std::function<void(Tagged<AllocationSite>)>& visitor) {
-  DisallowGarbageCollection no_gc;
-  Tagged<Object> current = list;
-  while (IsAllocationSite(current)) {
-    Tagged<AllocationSiteWithWeakNext> site =
-        Cast<AllocationSiteWithWeakNext>(current);
-    visitor(site);
-    Tagged<Object> current_nested = site->nested_site();
-    while (IsAllocationSite(current_nested)) {
-      Tagged<AllocationSite> nested_site = Cast<AllocationSite>(current_nested);
-      visitor(nested_site);
-      current_nested = nested_site->nested_site();
-    }
-    current = site->weak_next();
-  }
-}
-
-void Heap::ResetAllAllocationSitesDependentCode(AllocationType allocation) {
-  DisallowGarbageCollection no_gc_scope;
-  bool marked = false;
-
-  ForeachAllocationSite(
-      allocation_sites_list(),
-      [&marked, allocation, this](Tagged<AllocationSite> site) {
-        if (site->GetAllocationType() == allocation) {
-          site->ResetPretenureDecision();
-          site->set_deopt_dependent_code(true);
-          marked = true;
-          pretenuring_handler_.RemoveAllocationSitePretenuringFeedback(site);
-          return;
-        }
-      });
-  if (marked) isolate_->stack_guard()->RequestDeoptMarkedAllocationSites();
-}
-
-void Heap::EvaluateOldSpaceLocalPretenuring(
-    uint64_t size_of_objects_before_gc) {
-  uint64_t size_of_objects_after_gc = SizeOfObjects();
-  double old_generation_survival_rate =
-      (static_cast<double>(size_of_objects_after_gc) * 100) /
-      static_cast<double>(size_of_objects_before_gc);
-
-  const bool reset_allocation_sites =
-      old_generation_survival_rate < kOldSurvivalRateLowThreshold;
-
-  if (reset_allocation_sites) {
-    // Too many objects died in the old generation, pretenuring of wrong
-    // allocation sites may be the cause for that. We have to deopt all
-    // dependent code registered in the allocation sites to re-evaluate
-    // our pretenuring decisions.
-    ResetAllAllocationSitesDependentCode(AllocationType::kOld);
-    if (V8_UNLIKELY(v8_flags.trace_pretenuring)) {
-      PrintF(
-          "Deopt all allocation sites dependent code due to low survival "
-          "rate in the old generation %f\n",
-          old_generation_survival_rate);
-    }
-  }
-
-  if (is_gc_tracing_category_enabled()) {
-    TRACE_EVENT_INSTANT(
-        TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-        "V8.GCEvaluateOldSpaceLocalPretenuring", "value",
-        [reset_allocation_sites, old_generation_survival_rate,
-         size_of_objects_before_gc, size_of_objects_after_gc,
-         threshold = kOldSurvivalRateLowThreshold](perfetto::TracedValue ctx) {
-          auto dict = std::move(ctx).WriteDictionary();
-          dict.Add("reset_allocation_sites", reset_allocation_sites);
-          dict.Add("old_generation_survival_rate",
-                   old_generation_survival_rate);
-          dict.Add("size_of_objects_before_gc", size_of_objects_before_gc);
-          dict.Add("size_of_objects_after_gc", size_of_objects_after_gc);
-          dict.Add("threshold", threshold);
-        });
-  }
 }
 
 static_assert(IsAligned(OFFSET_OF_DATA_START(FixedDoubleArray),
@@ -6383,8 +6318,6 @@ void Heap::TearDown() {
   embedder_roots_handler_ = nullptr;
 
   tracer_.reset();
-
-  pretenuring_handler_.reset();
 
   for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
     space_[i].reset();

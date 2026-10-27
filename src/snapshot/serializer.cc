@@ -894,32 +894,6 @@ void Serializer::ObjectSerializer::SerializeStringAsSequentialString(
   }
 }
 
-// Clear and later restore the next link in the weak cell or allocation site.
-// TODO(all): replace this with proper iteration of weak slots in serializer.
-class V8_NODISCARD UnlinkWeakNextScope {
- public:
-  explicit UnlinkWeakNextScope(Heap* heap, Tagged<HeapObject> object) {
-    Isolate* isolate = heap->isolate();
-    if (TryCast<AllocationSiteWithWeakNext>(object, &object_)) {
-      next_ = object_->weak_next();
-      object_->set_weak_next(ReadOnlyRoots(isolate).undefined_value());
-    }
-  }
-
-  ~UnlinkWeakNextScope() {
-    if (next_ == Smi::zero()) return;
-    object_->set_weak_next(
-        Cast<UnionOf<Undefined, AllocationSiteWithWeakNext>>(next_),
-        UPDATE_WRITE_BARRIER);
-  }
-
- private:
-  Tagged<AllocationSiteWithWeakNext> object_;
-  Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>> next_ =
-      Smi::zero();
-  DISALLOW_GARBAGE_COLLECTION(no_gc_)
-};
-
 void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
   RecursionScope recursion(serializer_);
 
@@ -1053,7 +1027,6 @@ void Serializer::ObjectSerializer::SerializeObject() {
 
 void Serializer::ObjectSerializer::SerializeContent(Tagged<Map> map, int size) {
   Tagged<HeapObject> raw = *object_;
-  UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), raw);
   // Iterate references first.
   VisitObjectBody(isolate(), map, raw, this);
   // Then output data payload, if any.

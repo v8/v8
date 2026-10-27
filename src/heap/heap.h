@@ -41,7 +41,6 @@
 #include "src/heap/marking-state.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/minor-gc-job.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/sweeper.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
@@ -525,15 +524,6 @@ class Heap final {
 
   V8_EXPORT_PRIVATE void AddToWeakNativeContextList(Tagged<Context> context);
 
-  void set_allocation_sites_list(
-      Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>> object) {
-    allocation_sites_list_ = object;
-  }
-  Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>>
-  allocation_sites_list() {
-    return allocation_sites_list_;
-  }
-
   void set_dirty_js_finalization_registries_list(Tagged<Object> object) {
     dirty_js_finalization_registries_list_ = object;
   }
@@ -547,16 +537,10 @@ class Heap final {
     return dirty_js_finalization_registries_list_tail_;
   }
 
-  // Used in CreateAllocationSiteStub and the (de)serializer.
-  Address allocation_sites_list_address() {
-    return reinterpret_cast<Address>(&allocation_sites_list_);
-  }
-
-  // Traverse all the allocation_sites [nested_site and weak_next] in the list
-  // and foreach call the visitor
-  void ForeachAllocationSite(
-      Tagged<Object> list,
-      const std::function<void(Tagged<AllocationSite>)>& visitor);
+  // Returns the AllocationMemento following a young JSArray if a valid one is
+  // present, or a null Tagged<AllocationMemento> otherwise.
+  V8_EXPORT_PRIVATE Tagged<AllocationMemento> FindAllocationMemento(
+      Tagged<JSArray> object);
 
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }
@@ -1186,8 +1170,6 @@ class Heap final {
   void SetDeoptPCOffsetAfterAdaptShadowStack(int pc_offset);
   void SetInterpreterEntryReturnPCOffset(int pc_offset);
 
-  void DeoptMarkedAllocationSites();
-
   // ===========================================================================
   // Unified heap (C++) support. ===============================================
   // ===========================================================================
@@ -1705,8 +1687,6 @@ class Heap final {
     return &non_atomic_marking_state_;
   }
 
-  PretenuringHandler* pretenuring_handler() { return &pretenuring_handler_; }
-
   bool IsInlineAllocationEnabled() const { return inline_allocation_enabled_; }
 
   // Returns the amount of external memory registered since last global gc.
@@ -1788,7 +1768,6 @@ class Heap final {
 
   static const int kYoungSurvivalRateHighThreshold = 90;
   static const int kYoungSurvivalRateAllowedDeviation = 15;
-  static const int kOldSurvivalRateLowThreshold = 10;
 
   static const int kMaxMarkCompactsInIdleRound = 7;
 
@@ -1861,15 +1840,6 @@ class Heap final {
                                ClearFreedMemoryMode clear_memory_mode,
                                ClearRecordedSlots clear_slots_mode,
                                VerifyNoSlotsRecorded verify_no_slots_recorded);
-
-  // Deopts all code that contains allocation instruction which are tenured or
-  // not tenured. Moreover it clears the pretenuring allocation site statistics.
-  void ResetAllAllocationSitesDependentCode(AllocationType allocation);
-
-  // Evaluates local pretenuring for the old space and calls
-  // ResetAllTenuredAllocationSitesDependentCode if too many objects died in
-  // the old space.
-  void EvaluateOldSpaceLocalPretenuring(uint64_t size_of_objects_before_gc);
 
   // Record statistics after garbage collection.
   void ReportStatisticsAfterGC();
@@ -1950,7 +1920,6 @@ class Heap final {
 
   void ProcessAllWeakReferences(WeakObjectRetainer* retainer);
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
-  void ProcessAllocationSites(WeakObjectRetainer* retainer);
   void ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer);
   void ProcessWeakListRoots(WeakObjectRetainer* retainer);
 
@@ -2243,8 +2212,6 @@ class Heap final {
   // {native_contexts_list_} is an Address instead of an Object to allow the use
   // of atomic accessors.
   std::atomic<Address> native_contexts_list_;
-  Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>>
-      allocation_sites_list_ = Smi::zero();
   Tagged<Object> dirty_js_finalization_registries_list_ = Smi::zero();
   // Weak list tails.
   Tagged<Object> dirty_js_finalization_registries_list_tail_ = Smi::zero();
@@ -2411,8 +2378,6 @@ class Heap final {
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
-  PretenuringHandler pretenuring_handler_;
-
   // This field is used only when not running with MinorMS.
   ResizeNewSpaceMode resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
 
@@ -2510,7 +2475,6 @@ class Heap final {
   friend class PagedSpaceBase;
   friend class PagedSpaceForNewSpace;
   friend class PauseAllocationObserversScope;
-  friend class PretenuringHandler;
   friend class ReadOnlyRoots;
   friend class DisableConservativeStackScanningScopeForTesting;
   friend class Scavenger;

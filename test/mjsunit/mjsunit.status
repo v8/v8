@@ -434,7 +434,6 @@
   'compiler/function-apply-constant-slow-array': [SKIP],
 
   # Various missing lowerings/specializations in Maglev.
-  'compiler/deopt-pretenure': [SKIP, SLOW],
   'compiler/opt-higher-order-functions': [SKIP],
   'compiler/constant-fold-cow-array': [SKIP],
   'compiler/promise-resolve-stable-maps': [SKIP],
@@ -2833,10 +2832,6 @@
   # Concurrent allocations trigger GCs that clear AllocationMementos before
   # elements kind transitions occur.
   'array-literal-transitions-no-pretenuring': [SKIP],
-  # This test manually forces pretenuring of allocation sites.
-  # stress-concurrent-allocation reverts the pretenuring decision due to low
-  # survival rate in old generation.
-  'compiler/deopt-pretenure': [SKIP],
   # BUG(v8:9506): slow tests.
   'wasm/shared-memory-worker-gc-stress': [SKIP],
   # BUG(v8:12607): flaky test.
@@ -3007,7 +3002,6 @@
   'regress/regress-4121': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/test-literal-map-migration': [SKIP],
-  'compiler/deopt-pretenure': [SKIP],
   'compiler/fast-api-sequences-x64': [SKIP],
 
   # TODO(v8:12031): Reimplement elements kinds transitions when concurrent
@@ -3165,7 +3159,6 @@
 
   # TODO(b/201757247):
   'array-constructor-feedback': [FAIL],
-  'compiler/deopt-pretenure': [FAIL],
 
   # TODO(v8:14581): Re-enable this once turboshaft frontend is done.
   'turbolev/*': [SKIP],

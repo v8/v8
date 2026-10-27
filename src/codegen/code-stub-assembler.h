@@ -82,7 +82,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   enum class AllocationFlag : uint8_t {
     kNone = 0,
     kDoubleAlignment = 1,
-    kPretenured = 1 << 1
+    kOld = 1 << 1
   };
 
   enum SlackTrackingMode {

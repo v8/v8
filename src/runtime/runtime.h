@@ -663,7 +663,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(OptimizeFunctionOnNextCall, -1, 1)                                   \
   F(OptimizeOsr, -1, 1)                                                  \
   F(PrepareFunctionForOptimization, -1, 1)                               \
-  F(PretenureAllocationSite, 1, 1)                                       \
   F(PrintWithNameForAssert, 2, 1, RuntimeCallProperty::kCannotTriggerGC) \
   F(PromiseSpeciesProtector, 0, 1)                                       \
   F(RegExpSpeciesProtector, 0, 1)                                        \

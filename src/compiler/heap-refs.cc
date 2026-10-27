@@ -1520,10 +1520,6 @@ OptionalObjectRef JSObjectRef::RawInobjectPropertyAt(JSHeapBroker* broker,
   return TryMakeRef(broker, value);
 }
 
-bool JSObjectRef::IsElementsTenured(FixedArrayBaseRef elements) {
-  return !HeapLayout::InYoungGeneration(*elements.object());
-}
-
 FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   FieldIndex result = FieldIndex::ForDescriptor(*object(), descriptor_index);
@@ -1754,7 +1750,6 @@ ObjectRef AllocationSiteRef::nested_site(JSHeapBroker* broker) const {
 HEAP_ACCESSOR_C(AllocationSite, bool, IsSpeculationDisabled)
 HEAP_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
 HEAP_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
-HEAP_ACCESSOR_C(AllocationSite, AllocationType, GetAllocationType)
 
 BIMODAL_ACCESSOR_C(BigInt, uint64_t, AsUint64)
 int64_t BigIntRef::AsInt64(bool* lossless) const {

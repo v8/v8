@@ -2407,304 +2407,6 @@ TEST_F(TestWithHeapInternals, LeakNativeContextViaMapProto) {
   EXPECT_EQ(0, NumberOfGlobalObjects());
 }
 
-TEST_F(HeapTest, OptimizedPretenuringNestedDoubleLiterals) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  if (!i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(v8_isolate());
-  const char* extension_names[] = {"v8/gc"};
-  v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate(), &extensions);
-  v8::Context::Scope context_scope(ctx);
-  ManualGCScope manual_gc_scope(i_isolate());
-  GrowNewSpaceToMaximumCapacity();
-
-  static const int kPretenureCreationCount =
-      PretenuringHandler::GetMinMementoCountForTesting() + 1;
-
-  std::array<char, 1024> source;
-  base::SNPrintF(source,
-                 "var number_elements = %d;"
-                 "var elements = new Array(number_elements);"
-                 "function f() {"
-                 "  for (var i = 0; i < number_elements; i++) {"
-                 "    elements[i] = [[1.1, 1.2, 1.3],[2.1, 2.2, 2.3]];"
-                 "  }"
-                 "  return elements[number_elements - 1];"
-                 "};"
-                 "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc({type: 'minor'});"
-                 "f(); f();"
-                 "%%OptimizeFunctionOnNextCall(f);"
-                 "f();",
-                 kPretenureCreationCount);
-
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
-
-  DirectHandle<JSObject> double_array_handle_1 = Cast<JSObject>(
-      JSReceiver::GetElement(i_isolate(), o, 0).ToHandleChecked());
-  DirectHandle<JSObject> double_array_handle_2 = Cast<JSObject>(
-      JSReceiver::GetElement(i_isolate(), o, 1).ToHandleChecked());
-
-  EXPECT_TRUE(heap()->InOldSpace(*o));
-  EXPECT_TRUE(heap()->InOldSpace(*double_array_handle_1));
-  EXPECT_TRUE(heap()->InOldSpace(double_array_handle_1->elements()));
-  EXPECT_TRUE(heap()->InOldSpace(*double_array_handle_2));
-  EXPECT_TRUE(heap()->InOldSpace(double_array_handle_2->elements()));
-}
-TEST_F(HeapTest, OptimizedPretenuringNestedInObjectProperties) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  if (!i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(v8_isolate());
-  const char* extension_names[] = {"v8/gc"};
-  v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate(), &extensions);
-  v8::Context::Scope context_scope(ctx);
-  ManualGCScope manual_gc_scope(i_isolate());
-  GrowNewSpaceToMaximumCapacity();
-
-  static const int kPretenureCreationCount =
-      PretenuringHandler::GetMinMementoCountForTesting() + 1;
-
-  std::array<char, 1024> source;
-  base::SNPrintF(
-      source,
-      "let number_elements = %d;"
-      "let elements = new Array(number_elements);"
-      "function f() {"
-      "  for (let i = 0; i < number_elements; i++) {"
-      "     let l =  {a: {b: {c: {d: {e: 2.2}, e: 3.3}, g: {h: 1.1}}}}; "
-      "    elements[i] = l.a.b.c.d;"
-      "  }"
-      "  return elements[number_elements-1];"
-      "};"
-      "%%PrepareFunctionForOptimization(f);"
-      "f(); gc({type: 'minor'}); gc({type: 'minor'});"
-      "f(); f();"
-      "%%OptimizeFunctionOnNextCall(f);"
-      "f();",
-      kPretenureCreationCount);
-
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
-
-  EXPECT_TRUE(HeapLayout::InYoungGeneration(*o));
-}
-TEST_F(HeapTest, OptimizedPretenuringNestedObjectLiterals) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  if (!i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(v8_isolate());
-  const char* extension_names[] = {"v8/gc"};
-  v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate(), &extensions);
-  v8::Context::Scope context_scope(ctx);
-  ManualGCScope manual_gc_scope(i_isolate());
-  GrowNewSpaceToMaximumCapacity();
-
-  static const int kPretenureCreationCount =
-      PretenuringHandler::GetMinMementoCountForTesting() + 1;
-
-  std::array<char, 1024> source;
-  base::SNPrintF(source,
-                 "var number_elements = %d;"
-                 "var elements = new Array(number_elements);"
-                 "function f() {"
-                 "  for (var i = 0; i < number_elements; i++) {"
-                 "    elements[i] = [[{}, {}, {}],[{}, {}, {}]];"
-                 "  }"
-                 "  return elements[number_elements - 1];"
-                 "};"
-                 "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc({type: 'minor'});"
-                 "f(); f();"
-                 "%%OptimizeFunctionOnNextCall(f);"
-                 "f();",
-                 kPretenureCreationCount);
-
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
-
-  DirectHandle<JSObject> int_array_handle_1 = Cast<JSObject>(
-      JSReceiver::GetElement(i_isolate(), o, 0).ToHandleChecked());
-  DirectHandle<JSObject> int_array_handle_2 = Cast<JSObject>(
-      JSReceiver::GetElement(i_isolate(), o, 1).ToHandleChecked());
-
-  EXPECT_TRUE(heap()->InOldSpace(*o));
-  EXPECT_TRUE(heap()->InOldSpace(*int_array_handle_1));
-  EXPECT_TRUE(heap()->InOldSpace(int_array_handle_1->elements()));
-  EXPECT_TRUE(heap()->InOldSpace(*int_array_handle_2));
-  EXPECT_TRUE(heap()->InOldSpace(int_array_handle_2->elements()));
-}
-TEST_F(HeapTest, OptimizedPretenuringMixedInObjectProperties) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  if (!i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(v8_isolate());
-  const char* extension_names[] = {"v8/gc"};
-  v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate(), &extensions);
-  v8::Context::Scope context_scope(ctx);
-  ManualGCScope manual_gc_scope(i_isolate());
-  GrowNewSpaceToMaximumCapacity();
-
-  static const int kPretenureCreationCount =
-      PretenuringHandler::GetMinMementoCountForTesting() + 1;
-
-  std::array<char, 1024> source;
-  base::SNPrintF(source,
-                 "var number_elements = %d;"
-                 "var elements = new Array(number_elements);"
-                 "function f() {"
-                 "  for (var i = 0; i < number_elements; i++) {"
-                 "    elements[i] = {a: {c: 2.2, d: {}}, b: 1.1};"
-                 "  }"
-                 "  return elements[number_elements - 1];"
-                 "};"
-                 "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc({type: 'minor'});"
-                 "f(); f();"
-                 "%%OptimizeFunctionOnNextCall(f);"
-                 "f();",
-                 kPretenureCreationCount);
-
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
-
-  EXPECT_TRUE(heap()->InOldSpace(*o));
-  FieldIndex idx1 = FieldIndex::ForPropertyIndex(o->map(), 0);
-  FieldIndex idx2 = FieldIndex::ForPropertyIndex(o->map(), 1);
-  EXPECT_TRUE(heap()->InOldSpace(o->RawFastPropertyAt(idx1)));
-  EXPECT_TRUE(heap()->InOldSpace(o->RawFastPropertyAt(idx2)));
-
-  Tagged<JSObject> inner_object = Cast<JSObject>(o->RawFastPropertyAt(idx1));
-  EXPECT_TRUE(heap()->InOldSpace(inner_object));
-  EXPECT_TRUE(heap()->InOldSpace(inner_object->RawFastPropertyAt(idx1)));
-  EXPECT_TRUE(heap()->InOldSpace(inner_object->RawFastPropertyAt(idx2)));
-}
-
-TEST_F(HeapTest, OptimizedPretenuringDoubleArrayLiterals) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  if (!i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(v8_isolate());
-  const char* extension_names[] = {"v8/gc"};
-  v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate(), &extensions);
-  v8::Context::Scope context_scope(ctx);
-  ManualGCScope manual_gc_scope(i_isolate());
-  GrowNewSpaceToMaximumCapacity();
-
-  static const int kPretenureCreationCount =
-      PretenuringHandler::GetMinMementoCountForTesting() + 1;
-
-  std::array<char, 1024> source;
-  base::SNPrintF(source,
-                 "var number_elements = %d;"
-                 "var elements = new Array(number_elements);"
-                 "function f() {"
-                 "  for (var i = 0; i < number_elements; i++) {"
-                 "    elements[i] = [1.1, 2.2, 3.3];"
-                 "  }"
-                 "  return elements[number_elements - 1];"
-                 "};"
-                 "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc({type: 'minor'});"
-                 "f(); f();"
-                 "%%OptimizeFunctionOnNextCall(f);"
-                 "f();",
-                 kPretenureCreationCount);
-
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
-
-  EXPECT_TRUE(heap()->InOldSpace(o->elements()));
-  EXPECT_TRUE(heap()->InOldSpace(*o));
-}
-
-TEST_F(HeapTest, OptimizedPretenuringNestedMixedArrayLiterals) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.expose_gc = true;
-  if (!i_isolate()->use_optimizer()) return;
-  if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-  v8::HandleScope scope(v8_isolate());
-  const char* extension_names[] = {"v8/gc"};
-  v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Local<v8::Context> ctx = v8::Context::New(v8_isolate(), &extensions);
-  v8::Context::Scope context_scope(ctx);
-  ManualGCScope manual_gc_scope(i_isolate());
-  GrowNewSpaceToMaximumCapacity();
-
-  static const int kPretenureCreationCount =
-      PretenuringHandler::GetMinMementoCountForTesting() + 1;
-
-  std::array<char, 1024> source;
-  base::SNPrintF(source,
-                 "var number_elements = %d;"
-                 "var elements = new Array(number_elements);"
-                 "function f() {"
-                 "  for (var i = 0; i < number_elements; i++) {"
-                 "    elements[i] = [[{}, {}, {}], [1.1, 2.2, 3.3]];"
-                 "  }"
-                 "  return elements[number_elements - 1];"
-                 "};"
-                 "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc({type: 'minor'});"
-                 "f(); f();"
-                 "%%OptimizeFunctionOnNextCall(f);"
-                 "f();",
-                 kPretenureCreationCount);
-
-  Handle<JSObject> o = Cast<JSObject>(RunJS(ctx, source.data()));
-
-  v8::Local<v8::Value> int_array = v8::Utils::ToLocal(o)
-                                       ->ToObject(ctx)
-                                       .ToLocalChecked()
-                                       ->Get(ctx, NewString("0"))
-                                       .ToLocalChecked();
-  DirectHandle<JSObject> int_array_handle = Cast<JSObject>(
-      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(int_array)));
-  v8::Local<v8::Value> double_array = v8::Utils::ToLocal(o)
-                                          ->ToObject(ctx)
-                                          .ToLocalChecked()
-                                          ->Get(ctx, NewString("1"))
-                                          .ToLocalChecked();
-  DirectHandle<JSObject> double_array_handle = Cast<JSObject>(
-      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(double_array)));
-
-  EXPECT_TRUE(heap()->InOldSpace(*o));
-  EXPECT_TRUE(heap()->InOldSpace(*int_array_handle));
-  EXPECT_TRUE(heap()->InOldSpace(int_array_handle->elements()));
-  EXPECT_TRUE(heap()->InOldSpace(*double_array_handle));
-  EXPECT_TRUE(heap()->InOldSpace(double_array_handle->elements()));
-}
-
 TEST_F(HeapTest, IncrementalMarkingPreservesMonomorphicConstructor) {
   if (!v8_flags.incremental_marking) return;
   v8_flags.allow_natives_syntax = true;
@@ -4340,54 +4042,129 @@ TEST_F(HeapTest, DisableInlineAllocation) {
 }
 
 namespace {
-int AllocationSitesCount(Heap* heap) {
-  int count = 0;
-  for (Tagged<Object> site = heap->allocation_sites_list();
-       IsAllocationSite(site);) {
-    Tagged<AllocationSiteWithWeakNext> cur =
-        Cast<AllocationSiteWithWeakNext>(site);
-    EXPECT_TRUE(cur->HasWeakNext());
-    site = cur->weak_next();
-    count++;
+void CountAllocationSites(Heap* heap, int* top_level_count, int* nested_count) {
+  int total = 0;
+  int nested = 0;
+  HeapObjectIterator iterator(heap);
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    Tagged<AllocationSite> site;
+    if (TryCast(obj, &site)) {
+      total++;
+      if (IsAllocationSite(site->nested_site())) {
+        nested++;
+      }
+    }
   }
-  return count;
+  *top_level_count = total - nested;
+  *nested_count = nested;
 }
 
-int SlimAllocationSiteCount(Heap* heap) {
-  int count = 0;
-  for (Tagged<Object> weak_list = heap->allocation_sites_list();
-       IsAllocationSite(weak_list);) {
-    Tagged<AllocationSiteWithWeakNext> weak_cur =
-        Cast<AllocationSiteWithWeakNext>(weak_list);
-    for (Tagged<Object> site = weak_cur->nested_site();
-         IsAllocationSite(site);) {
-      Tagged<AllocationSite> cur = Cast<AllocationSite>(site);
-      EXPECT_FALSE(cur->HasWeakNext());
-      site = cur->nested_site();
-      count++;
-    }
-    weak_list = weak_cur->weak_next();
-  }
-  return count;
+int AllocationSitesCount(Heap* heap) {
+  int top_level_count = 0;
+  int nested_count = 0;
+  CountAllocationSites(heap, &top_level_count, &nested_count);
+  return top_level_count;
+}
+
+int NestedAllocationSiteCount(Heap* heap) {
+  int top_level_count = 0;
+  int nested_count = 0;
+  CountAllocationSites(heap, &top_level_count, &nested_count);
+  return nested_count;
 }
 
 void CheckNumberOfAllocations(HeapTest* test, const char* source,
                               int expected_full_alloc,
-                              int expected_slim_alloc) {
+                              int expected_nested_alloc) {
   int prev_fat_alloc_count = AllocationSitesCount(test->heap());
-  int prev_slim_alloc_count = SlimAllocationSiteCount(test->heap());
+  int prev_nested_alloc_count = NestedAllocationSiteCount(test->heap());
 
   test->RunJS(source);
 
   int fat_alloc_sites =
       AllocationSitesCount(test->heap()) - prev_fat_alloc_count;
-  int slim_alloc_sites =
-      SlimAllocationSiteCount(test->heap()) - prev_slim_alloc_count;
+  int nested_alloc_sites =
+      NestedAllocationSiteCount(test->heap()) - prev_nested_alloc_count;
 
   EXPECT_EQ(expected_full_alloc, fat_alloc_sites);
-  EXPECT_EQ(expected_slim_alloc, slim_alloc_sites);
+  EXPECT_EQ(expected_nested_alloc, nested_alloc_sites);
 }
 }  // namespace
+
+TEST_F(HeapTest, FindAllocationMementoForTrackedArray) {
+  if (!V8_ALLOCATION_SITE_TRACKING_BOOL || v8_flags.single_generation) {
+    GTEST_SKIP();
+  }
+  ManualGCScope manual_gc_scope(i_isolate());
+  Isolate* isolate = i_isolate();
+  Heap* heap = this->heap();
+  HandleScope scope(isolate);
+
+  // Positive case: a young JSArray allocated with a valid AllocationSite has
+  // its trailing AllocationMemento folded immediately behind the JSArray.
+  DirectHandle<AllocationSite> site = isolate->factory()->NewAllocationSite();
+  DirectHandle<Map> array_map(
+      isolate->raw_native_context()->GetInitialJSArrayMap(PACKED_SMI_ELEMENTS),
+      isolate);
+  DirectHandle<JSArray> tracked_array =
+      Cast<JSArray>(isolate->factory()->NewJSObjectFromMap(
+          array_map, AllocationType::kYoung, site));
+  tracked_array->set_length(Smi::zero());
+  ASSERT_TRUE(HeapLayout::InYoungGeneration(*tracked_array));
+  Tagged<AllocationMemento> found_memento =
+      heap->FindAllocationMemento(*tracked_array);
+  ASSERT_FALSE(found_memento.is_null());
+  EXPECT_EQ(found_memento->GetAllocationSite(), *site);
+
+  // Negative case in old space: once promoted to old space,
+  // FindAllocationMemento returns null.
+  InvokeMajorGC();
+  ASSERT_FALSE(HeapLayout::InYoungGeneration(*tracked_array));
+  EXPECT_TRUE(heap->FindAllocationMemento(*tracked_array).is_null());
+}
+
+TEST_F(HeapTest, PoisonedAllocationMementoAtNewSpaceTop) {
+  if (!V8_ALLOCATION_SITE_TRACKING_BOOL || v8_flags.single_generation ||
+      v8_flags.sticky_mark_bits || !heap()->IsInlineAllocationEnabled()) {
+    GTEST_SKIP();
+  }
+  ManualGCScope manual_gc_scope(i_isolate());
+  Isolate* isolate = i_isolate();
+  Heap* heap = this->heap();
+  HandleScope scope(isolate);
+
+  // Free existing LABs so the next young allocation opens a fresh full-page
+  // LAB.
+  InvokeMajorGC();
+
+  // Negative case at NewSpaceTop(): a young JSArray immediately followed by a
+  // fake AllocationMemento map and poisoned AllocationSite word in unallocated
+  // LAB memory at NewSpaceTop() must return null without dereferencing it.
+  DirectHandle<JSArray> array = isolate->factory()->NewJSArray(
+      PACKED_SMI_ELEMENTS, 0, 0,
+      ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS,
+      AllocationType::kYoung);
+  ASSERT_TRUE(HeapLayout::InYoungGeneration(*array));
+
+  Address array_end =
+      array->address() + ALIGN_TO_ALLOCATION_ALIGNMENT(array->Size());
+  ASSERT_EQ(heap->NewSpaceTop(), array_end);
+  ASSERT_LE(heap->NewSpaceTop() + sizeof(AllocationMemento),
+            heap->NewSpaceLimit());
+
+  Address top = heap->NewSpaceTop();
+  Tagged<AllocationMemento> memento =
+      UncheckedCast<AllocationMemento>(HeapObject::FromAddress(top));
+  memento->set_map_after_allocation(
+      isolate, ReadOnlyRoots(heap).allocation_memento_map(),
+      SKIP_WRITE_BARRIER);
+  // Write a poisoned tagged value into the AllocationMemento::allocation_site_
+  // slot immediately following the map word.
+  *reinterpret_cast<Tagged_t*>(top + kTaggedSize) = kHeapObjectTag;
+
+  EXPECT_TRUE(heap->FindAllocationMemento(*array).is_null());
+}
 
 TEST_F(HeapTest, EnsureAllocationSiteDependentCodesProcessed) {
   if (!V8_ALLOCATION_SITE_TRACKING_BOOL) {
@@ -4400,7 +4177,6 @@ TEST_F(HeapTest, EnsureAllocationSiteDependentCodesProcessed) {
 
   if (!isolate->use_optimizer()) return;
 
-  // The allocation site at the head of the list is ours.
   IndirectHandle<AllocationSite> site;
   {
     v8::HandleScope scope(v8_isolate());
@@ -4418,8 +4194,6 @@ TEST_F(HeapTest, EnsureAllocationSiteDependentCodesProcessed) {
     // One allocation site should have been created.
     int new_count = AllocationSitesCount(heap);
     EXPECT_EQ(new_count, count + 1);
-    site = Cast<AllocationSite>(global_handles->Create(
-        Cast<AllocationSite>(heap->allocation_sites_list())));
 
     RunJS(context, "%OptimizeFunctionOnNextCall(bar); bar();");
 
@@ -4428,8 +4202,20 @@ TEST_F(HeapTest, EnsureAllocationSiteDependentCodesProcessed) {
             *v8::Local<v8::Function>::Cast(context->Global()
                                                ->Get(context, NewString("bar"))
                                                .ToLocalChecked())));
+    Tagged<FeedbackVector> vector = bar_handle->feedback_vector();
+    FeedbackMetadataIterator iter(handle(vector->metadata(), isolate));
+    while (iter.HasNext()) {
+      FeedbackSlot slot = iter.Next();
+      Tagged<MaybeObject> obj = vector->Get(slot);
+      if (Tagged<HeapObject> heap_obj;
+          obj.GetHeapObjectIfStrong(&heap_obj) && IsAllocationSite(heap_obj)) {
+        site = Cast<AllocationSite>(global_handles->Create(heap_obj));
+        break;
+      }
+    }
+    ASSERT_FALSE(site.is_null());
 
-    // Expect a dependent code object for transitioning and pretenuring.
+    // Expect a dependent code object for transitioning.
     Tagged<DependentCode> dependency = site->dependent_code();
     EXPECT_NE(dependency,
               DependentCode::empty_dependent_code(ReadOnlyRoots(isolate)));
@@ -4443,8 +4229,8 @@ TEST_F(HeapTest, EnsureAllocationSiteDependentCodesProcessed) {
     Tagged<Smi> groups =
         dependency->Get(0 + DependentCode::kGroupsSlotOffset).ToSmi();
     EXPECT_EQ(static_cast<DependentCode::DependencyGroups>(groups.value()),
-              DependentCode::kAllocationSiteTransitionChangedGroup |
-                  DependentCode::kAllocationSiteTenuringChangedGroup);
+              DependentCode::DependencyGroups(
+                  DependentCode::kAllocationSiteTransitionChangedGroup));
   }
 
   // Now make sure that a gc should get rid of the function, even though we
@@ -5300,10 +5086,6 @@ TEST_F(TestWithPlatform, AddInstructionChangesNewSpacePromotion) {
   v8_flags.stress_compaction = true;
   FlagList::EnforceFlagImplications();
   HeapAllocator::SetAllocationGcInterval(1000);
-  if (!v8_flags.allocation_site_pretenuring) {
-    HeapAllocator::SetAllocationGcInterval(-1);
-    return;
-  }
   v8::Isolate::CreateParams create_params;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());

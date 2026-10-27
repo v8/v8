@@ -84,10 +84,6 @@ class Deserializer : public SerializerDeserializer {
 
   SnapshotByteSource* source() { return &source_; }
 
-  base::Vector<const DirectHandle<AllocationSite>> new_allocation_sites()
-      const {
-    return {new_allocation_sites_.data(), new_allocation_sites_.size()};
-  }
   base::Vector<const DirectHandle<InstructionStream>>
   new_instruction_stream_objects() const {
     return {new_instruction_stream_objects_.data(),
@@ -275,7 +271,6 @@ class Deserializer : public SerializerDeserializer {
   uint32_t magic_number_;
 
   DirectHandleVector<Map> new_maps_;
-  DirectHandleVector<AllocationSite> new_allocation_sites_;
   DirectHandleVector<InstructionStream> new_instruction_stream_objects_;
   DirectHandleVector<AccessorInfo> accessor_infos_;
   DirectHandleVector<InterceptorInfo> interceptor_infos_;

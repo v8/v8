@@ -32,7 +32,6 @@
 #include "src/flags/flags.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/pretenuring-handler-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/bytecode-array.h"
@@ -103,15 +102,6 @@ V8_WARN_UNUSED_RESULT bool CheckMarkedForManualOptimization(
     return false;
   }
   return true;
-}
-
-// Returns |value| unless correctness-fuzzer-supressions is enabled,
-// otherwise returns undefined_value.
-V8_WARN_UNUSED_RESULT Tagged<Object> ReturnFuzzSafe(Tagged<Object> value,
-                                                    Isolate* isolate) {
-  return v8_flags.correctness_fuzzer_suppressions
-             ? ReadOnlyRoots(isolate).undefined_value()
-             : value;
 }
 
 // Assert that the given argument is a number within the Int32 range
@@ -232,7 +222,7 @@ RUNTIME_FUNCTION(Runtime_ConstructThinString) {
     string = isolate->factory()->NewConsString(
         isolate->factory()->empty_string(), string, string->length(),
         string->IsOneByteRepresentation(),
-        // Pretenure to ensure it stays thin.
+        // Allocate in old space to ensure it stays thin.
         AllocationType::kOld);
   }
   CHECK(IsConsString(*string));
@@ -1814,32 +1804,6 @@ RUNTIME_FUNCTION(Runtime_InYoungGeneration) {
   CHECK_UNLESS_FUZZING(args.length() == 1);
   Tagged<Object> obj = args[0];
   return isolate->heap()->ToBoolean(HeapLayout::InYoungGeneration(obj));
-}
-
-// Force pretenuring for the allocation site the passed object belongs to.
-RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
-  DisallowGarbageCollection no_gc;
-
-  CHECK_UNLESS_FUZZING(args.length() == 1);
-  Tagged<Object> arg = args[0];
-  CHECK_UNLESS_FUZZING(IsJSObject(arg));
-  Tagged<JSObject> object = Cast<JSObject>(arg);
-
-  if (!v8_flags.sticky_mark_bits && !HeapLayout::InYoungGeneration(object)) {
-    // Object is not in new space, thus there is no memento and nothing to do.
-    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
-  }
-
-  Heap* heap = isolate->heap();
-  PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
-  Tagged<AllocationMemento> memento = PretenuringHandler::FindAllocationMemento<
-      PretenuringHandler::kForRuntime>(heap, object->map(), object);
-  if (memento.is_null()) {
-    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
-  }
-  Tagged<AllocationSite> site = memento->GetAllocationSite();
-  pretenuring_handler->PretenureAllocationSiteOnNextCollection(site);
-  return ReturnFuzzSafe(ReadOnlyRoots(isolate).true_value(), isolate);
 }
 
 namespace {

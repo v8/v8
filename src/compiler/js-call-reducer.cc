@@ -5961,9 +5961,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     OptionalHeapObjectRef feedback_target = feedback.AsCall().target();
     if (feedback_target.has_value() && feedback_target->IsAllocationSite()) {
       // The feedback is an AllocationSite, which means we have called the
-      // Array function and collected transition (and pretenuring) feedback
-      // for the resulting arrays.  This has to be kept in sync with the
-      // implementation in Ignition.
+      // Array function and collected transition feedback for the resulting
+      // arrays.  This has to be kept in sync with the implementation in
+      // Ignition.
 
       Node* array_function = jsgraph()->ConstantNoHole(
           native_context().array_function(broker()), broker());

@@ -652,9 +652,6 @@ DEFINE_BOOL(maglev_inline_api_calls, false,
             "Inline CallApiCallback builtin into generated code")
 DEFINE_BOOL(maglev_cons_string_elision, true,
             "Native support for cons strings and their elision in maglev.")
-DEFINE_BOOL(maglev_pretenure_store_values, true,
-            "Recursively pretenure values which are stored into pretenured "
-            "allocation sites.")
 DEFINE_BOOL(maglev_poly_calls, true, "Support (inlining) polymorphic calls")
 DEFINE_BOOL(maglev_truncation, true, "Enable Maglev truncation pass")
 DEFINE_DEVELOPER_FLAG(trace_maglev_truncation, "trace maglev truncation pass")
@@ -1056,12 +1053,8 @@ DEFINE_BOOL(unmap_holes, true, "unmap the page containing the holes.")
 
 DEFINE_BOOL_READONLY(allocation_site_tracking, V8_ALLOCATION_SITE_TRACKING_BOOL,
                      "Enable allocation site tracking")
-DEFINE_NEG_NEG_IMPLICATION(allocation_site_tracking,
-                           allocation_site_pretenuring)
 
 // Flags for experimental implementation features.
-DEFINE_BOOL(allocation_site_pretenuring, true,
-            "pretenure with allocation sites")
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
 DEFINE_INT(page_promotion_threshold, 70,
            "min percentage of live bytes on a page to enable fast evacuation "
@@ -1076,10 +1069,6 @@ DEFINE_UINT(minor_ms_max_page_age, 4,
             "max age for a page after which it is force promoted to old space")
 
 DEFINE_DEVELOPER_FLAG(trace_page_promotions, "trace page promotion decisions")
-DEFINE_DEVELOPER_FLAG(trace_pretenuring,
-                      "trace pretenuring decisions of HAllocate instructions")
-DEFINE_DEVELOPER_FLAG(trace_pretenuring_statistics,
-                      "trace allocation site pretenuring statistics")
 DEFINE_DEVELOPER_FLAG(trace_resize_large_object,
                       "trace resizing of large objects")
 DEFINE_BOOL(track_field_types, true, "track field types")

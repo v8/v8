@@ -964,7 +964,7 @@ assert(!v8_enable_cet_shadow_stack ||
        "CET shadow stack is supported only on x64 Windows")
 
 if (v8_enable_sticky_mark_bits) {
-  # To support sticky mark bits, pretenured allocations must be allocated from
+  # To support sticky mark bits, old-space allocations must be allocated from
   # a separate free-list and the atomic pause (or the sweeper) must fix up the
   # mark bits.
   assert(!v8_enable_black_allocated_pages,
@@ -4485,7 +4485,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/opmasks.h",
     "src/compiler/turboshaft/phase.h",
     "src/compiler/turboshaft/pipelines.h",
-    "src/compiler/turboshaft/pretenuring-propagation-reducer.h",
     "src/compiler/turboshaft/random-rescheduling-phase.h",
     "src/compiler/turboshaft/reducer-traits.h",
     "src/compiler/turboshaft/register-allocation-phase.h",
@@ -4731,8 +4730,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/parked-scope-inl.h",
     "src/heap/parked-scope.h",
     "src/heap/pending-allocations.h",
-    "src/heap/pretenuring-handler-inl.h",
-    "src/heap/pretenuring-handler.h",
     "src/heap/read-only-heap-inl.h",
     "src/heap/read-only-heap.h",
     "src/heap/read-only-promotion.h",
@@ -6120,7 +6117,6 @@ v8_compiler_sources = [
   "src/compiler/turboshaft/operations.cc",
   "src/compiler/turboshaft/phase.cc",
   "src/compiler/turboshaft/pipelines.cc",
-  "src/compiler/turboshaft/pretenuring-propagation-reducer.cc",
   "src/compiler/turboshaft/random-rescheduling-phase.cc",
   "src/compiler/turboshaft/representations.cc",
   "src/compiler/turboshaft/sidetable.cc",
@@ -6640,7 +6636,6 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/heap/object-stats.cc",
     "src/heap/paged-spaces.cc",
     "src/heap/pending-allocations.cc",
-    "src/heap/pretenuring-handler.cc",
     "src/heap/read-only-heap.cc",
     "src/heap/read-only-promotion.cc",
     "src/heap/read-only-spaces.cc",

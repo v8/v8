@@ -1699,7 +1699,7 @@ GEN(NativeCall) {
 GEN(Gc) {
   Random& r = ctx.rng();
   Tree* t = T(ctx);
-  switch (r.Index(6)) {
+  switch (r.Index(5)) {
     case 0:
       Push(out, cg.Stmt(mk::Call(t, mk::Id(t, "gc"), {})));
       break;
@@ -1712,21 +1712,6 @@ GEN(Gc) {
     case 2:
       Push(out, cg.Stmt(mk::Native(t, "SimulateNewspaceFull", {})));
       break;
-    case 3: {
-      // %PretenureAllocationSite(o); gc(): objects allocated at o's site
-      // go to old space from now on, so later stores into them take the
-      // write-barrier paths that young objects skip.
-      Expression* object = cg.Variable(JsType::kObject);
-      if (object == nullptr) {
-        object = cg.Variable(JsType::kArray);
-      }
-      if (object == nullptr) {
-        object = cg.ObjectLiteral(1);
-      }
-      Push(out, cg.Stmt(mk::Native(t, "PretenureAllocationSite", {object})));
-      Push(out, cg.Stmt(mk::Call(t, mk::Id(t, "gc"), {})));
-      break;
-    }
     default:
       Push(out,
            cg.Stmt(mk::Call(t, mk::Id(t, "gc"),

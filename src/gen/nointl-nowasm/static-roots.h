@@ -234,11 +234,8 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kTemplateObjectDescriptionMap =
       kStackTraceInfoMap + 40;
   static constexpr Tagged_t kTuple2Map = kTemplateObjectDescriptionMap + 40;
-  static constexpr Tagged_t kAllocationSiteWithWeakNextMap = kTuple2Map + 40;
-  static constexpr Tagged_t kAllocationSiteWithoutWeakNextMap =
-      kAllocationSiteWithWeakNextMap + 40;
-  static constexpr Tagged_t kLoadHandler1Map =
-      kAllocationSiteWithoutWeakNextMap + 40;
+  static constexpr Tagged_t kAllocationSiteMap = kTuple2Map + 40;
+  static constexpr Tagged_t kLoadHandler1Map = kAllocationSiteMap + 40;
   static constexpr Tagged_t kLoadHandler2Map = kLoadHandler1Map + 40;
   static constexpr Tagged_t kLoadHandler3Map = kLoadHandler2Map + 40;
   static constexpr Tagged_t kLoadHandler4Map = kLoadHandler3Map + 40;
@@ -1071,7 +1068,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x1a0139;
 };
 
-static constexpr std::array<Tagged_t, 879> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 878> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1929,8 +1926,7 @@ static constexpr std::array<Tagged_t, 879> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kStackTraceInfoMap,
     StaticReadOnlyRoot::kTemplateObjectDescriptionMap,
     StaticReadOnlyRoot::kTuple2Map,
-    StaticReadOnlyRoot::kAllocationSiteWithWeakNextMap,
-    StaticReadOnlyRoot::kAllocationSiteWithoutWeakNextMap,
+    StaticReadOnlyRoot::kAllocationSiteMap,
     StaticReadOnlyRoot::kconstructor_string,
     StaticReadOnlyRoot::knext_string,
     StaticReadOnlyRoot::kresolve_string,

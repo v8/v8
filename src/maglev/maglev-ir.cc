@@ -1083,46 +1083,6 @@ const AllocationBlock* InlinedAllocation::allocation_block() const {
   return AllocationBlockInput().node()->Cast<AllocationBlock>();
 }
 
-void AllocationBlock::TryPretenure() {
-  if (allocation_type_ == AllocationType::kOld) {
-    return;
-  }
-  if (elided_write_barriers_depend_on_type()) {
-    return;
-  }
-  allocation_type_ = AllocationType::kOld;
-  for (auto alloc : allocation_list_) {
-    alloc->object()->ForEachSlot(
-        [&](ValueNode* value, vobj::Field desc) -> bool {
-          TryPretenure(value);
-          return true;
-        });
-  }
-}
-
-void AllocationBlock::TryPretenure(ValueNode* value) {
-  DCHECK(v8_flags.maglev_pretenure_store_values);
-  DCHECK_EQ(allocation_type_, AllocationType::kOld);
-
-  if (elided_write_barriers_depend_on_type()) {
-    return;
-  }
-
-  if (IsConstantNode(value->opcode())) return;
-  if (auto next_alloc = value->TryCast<InlinedAllocation>()) {
-    next_alloc->allocation_block()->TryPretenure();
-  } else if (auto phi = value->TryCast<Phi>()) {
-    if (!phi->is_loop_phi() || !phi->is_unmerged_loop_phi()) {
-      for (int i = 0; i < phi->input_count(); ++i) {
-        auto phi_input = phi->input(i).node();
-        if (auto phi_alloc = phi_input->TryCast<InlinedAllocation>()) {
-          phi_alloc->allocation_block()->TryPretenure();
-        }
-      }
-    }
-  }
-}
-
 StoreMap::StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind)
     : Base(bitfield | KindField::encode(kind) |
            MapInReadOnlySpaceField::encode(
@@ -1131,12 +1091,7 @@ StoreMap::StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind)
 
 bool StoreMap::NoWriteBarrier() const {
   if (MapInReadOnlySpaceField::decode(bitfield())) return true;
-  return kind() == Kind::kInlinedAllocation &&
-         ValueInput()
-                 .node()
-                 ->Cast<InlinedAllocation>()
-                 ->allocation_block()
-                 ->allocation_type() == AllocationType::kYoung;
+  return kind() == Kind::kInlinedAllocation;
 }
 
 // ---
@@ -1595,7 +1550,7 @@ void AllocateElementsArray::GenerateCode(MaglevAssembler* masm,
     __ Move(size_in_bytes, length);
     __ ShiftLeft(size_in_bytes, element_size_log2);
     __ AddInt32(size_in_bytes, kDataStartOffset);
-    __ Allocate(snapshot, elements, size_in_bytes, allocation_type_);
+    __ Allocate(snapshot, elements, size_in_bytes, AllocationType::kYoung);
     __ SetMapAsRoot(elements, map_index);
   }
   {
@@ -4983,7 +4938,7 @@ void AllocationBlock::SetValueLocationConstraints() { DefineAsRegister(this); }
 void AllocationBlock::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
   __ Allocate(register_snapshot(), ToRegister(result()), size(),
-              allocation_type());
+              AllocationType::kYoung);
 }
 
 int CreateClosure::MaxCallStackArgs() const {
@@ -9109,10 +9064,6 @@ void CreateClosure::PrintParams(std::ostream& os) const {
      << feedback_cell().object() << ")";
 }
 
-void AllocationBlock::PrintParams(std::ostream& os) const {
-  os << "(" << allocation_type() << ")";
-}
-
 void InlinedAllocation::PrintParams(std::ostream& os) const {
   os << "(object";
   if (object()->has_static_map()) {
@@ -9577,7 +9528,7 @@ void ExtendPropertiesBackingStore::PrintParams(std::ostream& os) const {
 }
 
 void AllocateElementsArray::PrintParams(std::ostream& os) const {
-  os << "(" << elements_kind_ << ", " << allocation_type_ << ")";
+  os << "(" << elements_kind_ << ")";
 }
 
 std::optional<int32_t> NodeBase::TryGetInt32ConstantInput(int index) {

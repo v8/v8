@@ -413,7 +413,7 @@ extern enum AllocationFlag extends int32
     constexpr 'CodeStubAssembler::AllocationFlag' {
   kNone,
   kDoubleAlignment,
-  kPretenured
+  kOld
 }
 
 extern enum SlackTrackingMode

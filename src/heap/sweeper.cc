@@ -33,7 +33,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/normal-page-inl.h"
 #include "src/heap/paged-spaces.h"
-#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/zapping.h"

@@ -48,7 +48,6 @@
 #include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
@@ -4619,84 +4618,6 @@ TEST(SamplingHeapProfilerLeftTrimming) {
   // Should not crash.
 
   heap_profiler->StopSamplingHeapProfiler();
-}
-
-TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
-  i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.expose_gc = true;
-
-  CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer()) return;
-  if (i::v8_flags.gc_global || i::v8_flags.stress_compaction ||
-      i::v8_flags.stress_incremental_marking ||
-      i::v8_flags.stress_concurrent_allocation ||
-      i::v8_flags.single_generation || i::v8_flags.scavenger_chaos_mode) {
-    return;
-  }
-
-  v8::HandleScope scope(CcTest::isolate());
-  LocalContext env;
-  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
-
-  // Suppress randomness to avoid flakiness in tests.
-  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
-
-  // Disable loop unrolling to have a more predictable number of allocations
-  // (loop unrolling could cause allocation folding).
-  i::v8_flags.turboshaft_loop_unrolling = false;
-
-  GrowNewSpaceToMaximumCapacity(CcTest::heap());
-
-  std::array<char, 1024> source;
-  v8::base::SNPrintF(source,
-                     "var number_elements = %d;"
-                     "var elements = new Array(number_elements);"
-                     "function f() {"
-                     "  for (var i = 0; i < number_elements; i++) {"
-                     "    elements[i] = [{}, {}, {}];"
-                     "  }"
-                     "  return elements[number_elements - 1];"
-                     "};"
-                     "%%PrepareFunctionForOptimization(f);"
-                     "f(); gc({type: 'minor'});"
-                     "f(); f();"
-                     "%%OptimizeFunctionOnNextCall(f);"
-                     "f();"
-                     "f;",
-                     i::PretenuringHandler::GetMinMementoCountForTesting() + 1);
-
-  v8::Local<v8::Function> f =
-      v8::Local<v8::Function>::Cast(CompileRun(source.data()));
-
-  // Make sure the function is producing pre-tenured objects.
-  auto res = f->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
-  i::DirectHandle<i::JSObject> o = i::Cast<i::JSObject>(
-      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res)));
-  CHECK(CcTest::heap()->InOldSpace(o->elements()));
-  CHECK(CcTest::heap()->InOldSpace(*o));
-
-  // Call the function and profile it.
-  heap_profiler->StartSamplingHeapProfiler(64);
-  for (int i = 0; i < 80; ++i) {
-    f->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
-  }
-
-  std::unique_ptr<v8::AllocationProfile> profile(
-      heap_profiler->GetAllocationProfile());
-  CHECK(profile);
-  heap_profiler->StopSamplingHeapProfiler();
-
-  const char* names[] = {"f"};
-  auto node_f = FindAllocationProfileNode(env.isolate(), profile.get(),
-                                          v8::base::ArrayVector(names));
-  CHECK(node_f);
-
-  int count = 0;
-  for (auto allocation : node_f->allocations) {
-    count += allocation.count;
-  }
-
-  CHECK_GE(count, 8000);
 }
 
 TEST(SamplingHeapProfilerLargeInterval) {

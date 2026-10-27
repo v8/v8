@@ -36,7 +36,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/normal-page.h"
 #include "src/heap/parallel-work-item.h"
-#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/sweeper.h"
@@ -444,7 +443,6 @@ class Scavenger {
   EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
   ScavengerWeakObjectsProcessor::JSWeakRefsList::Local local_js_weak_refs_list_;
   ScavengerWeakObjectsProcessor::WeakCellsList::Local local_weak_cells_list_;
-  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   EphemeronRememberedSet::TableMap local_ephemeron_remembered_set_;
   SurvivingNewLargeObjectsMap local_surviving_new_large_objects_;
   size_t copied_size_{0};
@@ -1912,7 +1910,6 @@ Scavenger::Scavenger(
       local_ephemeron_table_list_(*ephemeron_table_list),
       local_js_weak_refs_list_(*js_weak_refs_list),
       local_weak_cells_list_(*weak_cells_list),
-      local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
       allocator_(heap, CompactionSpaceKind::kCompactionSpaceForScavenge),
       is_logging_(is_logging),
       shared_string_table_(v8_flags.shared_string_table &&
@@ -2014,10 +2011,7 @@ bool Scavenger::SemiSpaceCopyObject(Tagged<Map> map, THeapObjectSlot slot,
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
   return TryMigrateObject(
       map, slot, object, object_size, NEW_SPACE,
-      [this, map, object_fields, object,
-       object_size](Tagged<HeapObject> target) {
-        PretenuringHandler::UpdateAllocationSite(
-            heap_, map, object, object_size, &local_pretenuring_feedback_);
+      [this, map, object_fields, object_size](Tagged<HeapObject> target) {
         copied_size_ += object_size.value();
         if (object_fields == ObjectFields::kMaybePointers) {
           local_copied_list_.Push({target, map, object_size});
@@ -2568,8 +2562,6 @@ void Scavenger::Process(JobDelegate* delegate) {
 
 void Scavenger::Finalize(
     std::vector<SurvivingNewLargeObjectsMap>& surviving_new_large_objects) {
-  heap()->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
-      local_pretenuring_feedback_);
   for (const auto& it : local_ephemeron_remembered_set_) {
     // The ephemeron objects in the remembered set should be either large
     // objects, promoted to old space, or pinned objects on quarantined pages
@@ -2648,8 +2640,6 @@ void Scavenger::PinAndPushObject(MutablePage* metadata,
   DCHECK_EQ(map_word, object->map_word(kRelaxedLoad));
   Tagged<Map> map = map_word.ToMap();
   const auto object_size = object->SafeSizeFromMap(map);
-  PretenuringHandler::UpdateAllocationSite(heap_, map, object, object_size,
-                                           &local_pretenuring_feedback_);
   object->set_map_word_forwarded(object, kRelaxedStore);
   DCHECK(object->map_word(kRelaxedLoad).IsForwardingAddress());
   DCHECK(HeapLayout::IsSelfForwarded(object));

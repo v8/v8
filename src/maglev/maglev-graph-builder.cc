@@ -1841,8 +1841,8 @@ uint32_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
   return 0;
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
-    ValueNode* left, ValueNode* right, AllocationType allocation_type) {
+MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(ValueNode* left,
+                                                            ValueNode* right) {
   if (!v8_flags.maglev_cons_string_elision) {
     return ReduceResult::Fail();
   }
@@ -1908,7 +1908,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     GET_VALUE_OR_ABORT(new_map, BuildNewConsStringMap(left, right));
     VirtualObject* cons_string =
         reducer_.CreateConsString(new_map, new_length, left, right);
-    return reducer_.BuildInlinedAllocation(cons_string, allocation_type);
+    return reducer_.BuildInlinedAllocation(cons_string);
   };
 
   if (unconditionally) {
@@ -4016,14 +4016,11 @@ bool MaglevGraphBuilder::TryElideWriteBarrierForAllocation(ValueNode* object,
   };
   // No need for a write barrier if both object and value are part of the same
   // folded young allocation.
-  // Turbolev will do this optimization later after allocation folding. Doing it
-  // here could interfere with turboshaft pretenuring.
+  // Turbolev will do this optimization later after allocation folding.
   AllocationBlock* allocation = get_allocation(object);
   if (!is_turbolev() && allocation != nullptr &&
       reducer_.current_allocation_block() == allocation &&
-      allocation->allocation_type() == AllocationType::kYoung &&
       allocation == get_allocation(value)) {
-    allocation->set_elided_write_barriers_depend_on_type();
     return true;
   }
   return false;
@@ -4514,9 +4511,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
     if (access_info.HasTransitionMap()) {
       // Allocate the mutable double box owned by the field.
       ValueNode* heapnumber_value;
-      GET_VALUE_OR_ABORT(heapnumber_value, reducer_.BuildInlinedAllocation(
-                                               reducer_.CreateHeapNumber(value),
-                                               AllocationType::kYoung));
+      GET_VALUE_OR_ABORT(
+          heapnumber_value,
+          reducer_.BuildInlinedAllocation(reducer_.CreateHeapNumber(value)));
       RETURN_IF_ABORT(BuildStoreTaggedField(
           store_target, heapnumber_value, field_index.offset(),
           StoreTaggedMode::kTransitioning, name));
@@ -7474,8 +7471,7 @@ MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
           GET_VALUE(
               object,
               reducer_.BuildInlinedAllocation(
-                  reducer_.CreateJSConstructor(new_target_function.value()),
-                  AllocationType::kYoung));
+                  reducer_.CreateJSConstructor(new_target_function.value())));
         } else {
           // We've already stored "true" into result.first, so a deopt here just
           // has to store result.second.
@@ -8010,15 +8006,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
   auto initial_callback = [this, &result_array,
                            holey_smi_map](ValueNode* length_smi) {
     ValueNode* elements;
-    GET_VALUE_OR_ABORT(elements, AddNewNode<CreateFastArrayElements>(
-                                     {length_smi}, AllocationType::kYoung));
+    GET_VALUE_OR_ABORT(elements,
+                       AddNewNode<CreateFastArrayElements>({length_smi}));
     VirtualObject* array;
     GET_VALUE_OR_ABORT(
         array, reducer_.CreateJSArray(
                    holey_smi_map, holey_smi_map.instance_size(), length_smi));
     array->set(offsetof(JSObject, elements_), elements);
-    GET_VALUE_OR_ABORT(result_array, reducer_.BuildInlinedAllocation(
-                                         array, AllocationType::kYoung));
+    GET_VALUE_OR_ABORT(result_array, reducer_.BuildInlinedAllocation(array));
     return ReduceResult::Done();
   };
 
@@ -8554,8 +8549,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
     VirtualObject* iter_result = reducer_.CreateJSIteratorResult(
         map, yielded_value, GetBooleanConstant(false));
     ValueNode* alloc_result;
-    GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(
-                                iter_result, AllocationType::kYoung));
+    GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(iter_result));
     subgraph.set(ret_value, alloc_result);
     subgraph.Goto(&done);
 
@@ -8577,8 +8571,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
         map, GetRootConstant(RootIndex::kUndefinedValue),
         GetBooleanConstant(true));
     ValueNode* alloc_result;
-    GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(
-                                iter_result, AllocationType::kYoung));
+    GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(iter_result));
     subgraph.set(ret_value, alloc_result);
     subgraph.Goto(&done);
   }
@@ -8601,8 +8594,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGeneratorPrototypeNext(
     VirtualObject* iter_result =
         reducer_.CreateJSIteratorResult(map, result, GetBooleanConstant(true));
     ValueNode* alloc_result;
-    GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(
-                                iter_result, AllocationType::kYoung));
+    GET_VALUE(alloc_result, reducer_.BuildInlinedAllocation(iter_result));
     subgraph.set(ret_value, alloc_result);
     subgraph.Goto(&done);
   }
@@ -8834,7 +8826,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
       broker()->target_native_context().iterator_result_map(broker());
   VirtualObject* iter_result = reducer_.CreateJSIteratorResult(
       map, subgraph.get(ret_value), subgraph.get(is_done));
-  return reducer_.BuildInlinedAllocation(iter_result, AllocationType::kYoung);
+  return reducer_.BuildInlinedAllocation(iter_result);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
@@ -9227,8 +9219,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCollectionIteratorPrototypeNext(
             broker()->target_native_context().iterator_result_map(broker());
         VirtualObject* iter_result =
             reducer_.CreateJSIteratorResult(iter_result_map, value, is_done);
-        return reducer_.BuildInlinedAllocation(iter_result,
-                                               AllocationType::kYoung);
+        return reducer_.BuildInlinedAllocation(iter_result);
       });
 }
 
@@ -9913,8 +9904,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
       }
       VirtualObject* temp_vobj =
           reducer_.CreateFixedArray(base::VectorOf(smis));
-      GET_VALUE_OR_ABORT(temp_array, reducer_.BuildInlinedAllocation(
-                                         temp_vobj, AllocationType::kYoung));
+      GET_VALUE_OR_ABORT(temp_array,
+                         reducer_.BuildInlinedAllocation(temp_vobj));
     }
 
     // Helper: copy all elements in [0, length) between two FixedArrays.
@@ -12435,8 +12426,7 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicGeneratorYieldResult(
             map, value, GetBooleanConstant(false));
         ValueNode* alloc_result;
         GET_VALUE_OR_ABORT(alloc_result,
-                           reducer_.BuildInlinedAllocation(
-                               iter_result, AllocationType::kYoung));
+                           reducer_.BuildInlinedAllocation(iter_result));
         subgraph.set(ret_val, alloc_result);
         return ReduceResult::Done();
       }));
@@ -12454,8 +12444,7 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicCreateIterResultObject(
       broker()->target_native_context().iterator_result_map(broker());
   VirtualObject* iter_result =
       reducer_.CreateJSIteratorResult(map, value, done);
-  return SetAccumulator(
-      reducer_.BuildInlinedAllocation(iter_result, AllocationType::kYoung));
+  return SetAccumulator(reducer_.BuildInlinedAllocation(iter_result));
 }
 
 ReduceResult MaglevGraphBuilder::VisitIntrinsicCreateAsyncFromSyncIterator(
@@ -12570,8 +12559,7 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionAwait(
       async_function_object, fulfilled_value,
       GetSmiConstant(AsyncResumeTask::kAsyncFunctionAwait));
   ValueNode* task_node;
-  GET_VALUE_OR_ABORT(
-      task_node, reducer_.BuildInlinedAllocation(task, AllocationType::kYoung));
+  GET_VALUE_OR_ABORT(task_node, reducer_.BuildInlinedAllocation(task));
   BuildCallBuiltin<Builtin::kEnqueueMicrotask>({task_node});
 
   sub_graph.set(ret_val, outer_promise);
@@ -12611,8 +12599,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionEnter(
   VirtualObject* async_function = reducer_.CreateJSAsyncFunctionObject(
       GetContext(), closure, receiver, register_file, promise);
 
-  return reducer_.BuildInlinedAllocation(async_function,
-                                         AllocationType::kYoung);
+  return reducer_.BuildInlinedAllocation(async_function);
 }
 
 ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionEnter(
@@ -12834,13 +12821,12 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateKeyValueArray(
   GET_VALUE_OR_ABORT(array, reducer_.CreateJSArray(map, map.instance_size(),
                                                    GetSmiConstant(2)));
   array->set(offsetof(JSObject, elements_), elements);
-  return reducer_.BuildInlinedAllocation(array, AllocationType::kYoung);
+  return reducer_.BuildInlinedAllocation(array);
 }
 
 ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArray(
     compiler::MapRef map, ValueNode* length, ValueNode* elements,
-    const compiler::SlackTrackingPrediction& slack_tracking_prediction,
-    AllocationType allocation_type) {
+    const compiler::SlackTrackingPrediction& slack_tracking_prediction) {
   VirtualObject* array;
   GET_VALUE_OR_ABORT(
       array, reducer_.CreateJSArray(
@@ -12851,7 +12837,7 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArray(
     array->set(map.GetInObjectPropertyOffset(i),
                GetRootConstant(RootIndex::kUndefinedValue));
   }
-  return reducer_.BuildInlinedAllocation(array, allocation_type);
+  return reducer_.BuildInlinedAllocation(array);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
@@ -12892,7 +12878,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
     generator->set(initial_map.GetInObjectPropertyOffset(i), undefined);
   }
 
-  return reducer_.BuildInlinedAllocation(generator, AllocationType::kYoung);
+  return reducer_.BuildInlinedAllocation(generator);
 }
 
 namespace {
@@ -13019,12 +13005,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   // bit to do certain speculative optimizations. This mechanism protects
   // against deopt loops.
   bool can_speculate_call;
-  AllocationType allocation_type = AllocationType::kYoung;
 
   if (maybe_allocation_site) {
     can_speculate_call = !maybe_allocation_site->IsSpeculationDisabled();
-    allocation_type =
-        broker()->dependencies()->DependOnPretenureMode(*maybe_allocation_site);
     broker()->dependencies()->DependOnElementsKind(*maybe_allocation_site);
   } else {
     can_speculate_call = CanSpeculateCall();
@@ -13035,7 +13018,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     return BuildAndAllocateJSArray(
         initial_map, GetSmiConstant(0),
         BuildElementsArray(elements_kind, JSArray::kPreallocatedArrayElements),
-        slack_tracking_prediction, allocation_type);
+        slack_tracking_prediction);
   }
 
   // Arity 1, `new Array(maybe_length)`.
@@ -13048,15 +13031,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         return BuildAndAllocateJSArray(
             initial_map, GetSmiConstant(*maybe_length),
             BuildElementsArray(elements_kind, *maybe_length),
-            slack_tracking_prediction, allocation_type);
+            slack_tracking_prediction);
       } else {
         ValueNode* elements;
-        GET_VALUE_OR_ABORT(elements, AddNewNode<AllocateElementsArray>(
-                                         {GetInt32Constant(*maybe_length)},
-                                         elements_kind, allocation_type));
-        return BuildAndAllocateJSArray(
-            initial_map, GetSmiConstant(*maybe_length), elements,
-            slack_tracking_prediction, allocation_type);
+        GET_VALUE_OR_ABORT(
+            elements, AddNewNode<AllocateElementsArray>(
+                          {GetInt32Constant(*maybe_length)}, elements_kind));
+        return BuildAndAllocateJSArray(initial_map,
+                                       GetSmiConstant(*maybe_length), elements,
+                                       slack_tracking_prediction);
       }
     }
 
@@ -13072,12 +13055,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         },
         [&] {
           ValueNode* elements;
-          GET_VALUE_OR_ABORT(elements,
-                             AddNewNode<AllocateElementsArray>(
-                                 {args[0]}, elements_kind, allocation_type));
+          GET_VALUE_OR_ABORT(elements, AddNewNode<AllocateElementsArray>(
+                                           {args[0]}, elements_kind));
           return BuildAndAllocateJSArray(initial_map, args[0], elements,
-                                         slack_tracking_prediction,
-                                         allocation_type);
+                                         slack_tracking_prediction);
         },
         [&] {
           ValueNode* error = GetSmiConstant(
@@ -13192,7 +13173,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   return BuildAndAllocateJSArray(
       initial_map, GetSmiConstant(arity),
       BuildElementsArray(elements_kind, base::VectorOf(values)),
-      slack_tracking_prediction, allocation_type);
+      slack_tracking_prediction);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
@@ -13214,8 +13195,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       // constructor.
       if (args.count() == 0) {
         return reducer_.BuildInlinedAllocation(
-            reducer_.CreateJSConstructor(target_function),
-            AllocationType::kYoung);
+            reducer_.CreateJSConstructor(target_function));
       }
       break;
     }
@@ -13234,7 +13214,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
                            BuildToString(args[0], ToString::kThrowOnSymbol));
       }
       return reducer_.BuildInlinedAllocation(
-          reducer_.CreateJSStringWrapper(value), AllocationType::kYoung);
+          reducer_.CreateJSStringWrapper(value));
     }
     case Builtin::kPromiseConstructor:
       // TODO(victorgomes): specialize more known constants builtin targets.
@@ -13312,8 +13292,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
         GET_VALUE_OR_ABORT(
             implicit_receiver,
             reducer_.BuildInlinedAllocation(
-                reducer_.CreateJSConstructor(new_target_function.value()),
-                AllocationType::kYoung));
+                reducer_.CreateJSConstructor(new_target_function.value())));
       }
     }
     if (implicit_receiver == nullptr) {
@@ -13439,8 +13418,8 @@ ReduceResult MaglevGraphBuilder::BuildConstruct(
   if (new_target_feedback.has_value() &&
       new_target_feedback->IsAllocationSite()) {
     // The feedback is an AllocationSite, which means we have called the
-    // Array function and collected transition (and pretenuring) feedback
-    // for the resulting arrays.
+    // Array function and collected transition feedback for the resulting
+    // arrays.
     compiler::JSFunctionRef array_function =
         broker()->target_native_context().array_function(broker());
     RETURN_IF_ABORT(BuildCheckValueByReference(
@@ -13713,8 +13692,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateRegExpLiteral() {
     compiler::MapRef map =
         native_context.regexp_function(broker()).initial_map(broker());
     return SetAccumulator(reducer_.BuildInlinedAllocation(
-        reducer_.CreateRegExpLiteralObject(map, literal),
-        AllocationType::kYoung));
+        reducer_.CreateRegExpLiteralObject(map, literal)));
   }
   // Fallback.
   return SetAccumulator(
@@ -13925,14 +13903,12 @@ ReduceResult MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   VirtualObject* array;
   GET_VALUE_OR_ABORT(array, reducer_.CreateJSArray(map, map.instance_size(),
                                                    GetSmiConstant(0)));
-  return SetAccumulator(
-      reducer_.BuildInlinedAllocation(array, AllocationType::kYoung));
+  return SetAccumulator(reducer_.BuildInlinedAllocation(array));
 }
 
 std::optional<VirtualObject*>
 MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
-    compiler::JSObjectRef boilerplate, AllocationType allocation, int max_depth,
-    int* max_properties) {
+    compiler::JSObjectRef boilerplate, int max_depth, int* max_properties) {
   DCHECK_GE(max_depth, 0);
   DCHECK_GE(*max_properties, 0);
 
@@ -14054,8 +14030,8 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
     } else if (boilerplate_value.IsJSObject()) {
       compiler::JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
       std::optional<VirtualObject*> maybe_object_value =
-          TryReadBoilerplateForFastLiteral(boilerplate_object, allocation,
-                                           max_depth - 1, max_properties);
+          TryReadBoilerplateForFastLiteral(boilerplate_object, max_depth - 1,
+                                           max_properties);
       if (!maybe_object_value.has_value()) return {};
       fast_literal->set(offset, maybe_object_value.value());
     } else if (property_details.representation().IsDouble()) {
@@ -14091,10 +14067,6 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       boilerplate_elements, offsetof(HeapObject, map_), elements_map);
   if (boilerplate_elements.length() == 0 ||
       elements_map.IsFixedCowArrayMap(broker())) {
-    if (allocation == AllocationType::kOld &&
-        !boilerplate.IsElementsTenured(boilerplate_elements)) {
-      return {};
-    }
     fast_literal->set(offsetof(JSObject, elements_),
                       GetConstant(boilerplate_elements));
   } else {
@@ -14134,8 +14106,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
         } else if (element_value->IsJSObject()) {
           std::optional<VirtualObject*> object =
               TryReadBoilerplateForFastLiteral(element_value->AsJSObject(),
-                                               allocation, max_depth - 1,
-                                               max_properties);
+                                               max_depth - 1, max_properties);
           if (!object.has_value()) return {};
           values[i] = *object;
         } else {
@@ -14334,8 +14305,7 @@ template <CreateArgumentsType type>
 ReduceResult MaglevGraphBuilder::BuildAndAllocateArgumentsObject() {
   auto arguments = BuildVirtualArgumentsObject<type>();
   ValueNode* allocation;
-  GET_VALUE_OR_ABORT(allocation, reducer_.BuildInlinedAllocation(
-                                     arguments, AllocationType::kYoung));
+  GET_VALUE_OR_ABORT(allocation, reducer_.BuildInlinedAllocation(arguments));
   return allocation;
 }
 
@@ -14343,22 +14313,20 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastCreateObjectOrArrayLiteral(
     const compiler::LiteralFeedback& feedback) {
   compiler::AllocationSiteRef site = feedback.value();
   if (!site.boilerplate(broker()).has_value()) return {};
-  AllocationType allocation_type =
-      broker()->dependencies()->DependOnPretenureMode(site);
 
   // First try to extract out the shape and values of the boilerplate, bailing
   // out on complex boilerplates.
   int max_properties = compiler::kMaxFastLiteralProperties;
   std::optional<VirtualObject*> maybe_value = TryReadBoilerplateForFastLiteral(
-      *site.boilerplate(broker()), allocation_type,
-      compiler::kMaxFastLiteralDepth, &max_properties);
+      *site.boilerplate(broker()), compiler::kMaxFastLiteralDepth,
+      &max_properties);
   if (!maybe_value.has_value()) return {};
 
   // Then, use the collected information to actually create nodes in the graph.
   // TODO(leszeks): Add support for unwinding graph modifications, so that we
   // can get rid of this two pass approach.
   broker()->dependencies()->DependOnElementsKinds(site);
-  return reducer_.BuildInlinedAllocation(*maybe_value, allocation_type);
+  return reducer_.BuildInlinedAllocation(*maybe_value);
 }
 
 ReduceResult MaglevGraphBuilder::VisitCreateObjectLiteral() {
@@ -14400,8 +14368,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateEmptyObjectLiteral() {
       native_context.object_function(broker()).initial_map(broker());
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
-  return SetAccumulator(reducer_.BuildInlinedAllocation(
-      reducer_.CreateJSObject(map), AllocationType::kYoung));
+  return SetAccumulator(
+      reducer_.BuildInlinedAllocation(reducer_.CreateJSObject(map)));
 }
 
 ReduceResult MaglevGraphBuilder::VisitCloneObject() {
@@ -14463,8 +14431,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedAllocatedContext(
   VirtualObject* context = reducer_.CreateContext(map, context_length, scope,
                                                   GetContext(), extension);
   InlinedAllocation* allocation;
-  GET_VALUE_OR_ABORT(allocation, reducer_.BuildInlinedAllocation(
-                                     context, AllocationType::kYoung));
+  GET_VALUE_OR_ABORT(allocation, reducer_.BuildInlinedAllocation(context));
   reducer_.RecordTypeNoAbort(allocation, NodeType::kContext);
   return allocation;
 }

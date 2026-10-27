@@ -33,7 +33,6 @@ enum class IsolateFieldId : uint8_t;
   V(interpreter_dispatch_table_address, "Interpreter::dispatch_table_address") \
   V(force_slow_path, "Isolate::force_slow_path_address()")                     \
   V(isolate_root, "Isolate::isolate_root()")                                   \
-  V(allocation_sites_list_address, "Heap::allocation_sites_list_address()")    \
   V(address_of_jslimit, "StackGuard::address_of_jslimit()")                    \
   V(address_of_no_heap_write_interrupt_request,                                \
     "StackGuard::address_of_interrupt_request(StackGuard::InterruptLevel::"    \

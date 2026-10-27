@@ -526,7 +526,7 @@ class RootVisitor;
   PUBLIC_SYMBOL_ROOT_LIST(V)                        \
   WELL_KNOWN_SYMBOL_ROOT_LIST(V)                    \
   STRUCT_MAPS_LIST(V)                               \
-  ALLOCATION_SITE_MAPS_LIST(V)                      \
+  V(Map, allocation_site_map, AllocationSiteMap)    \
   NAME_FOR_PROTECTOR_ROOT_LIST(V)                   \
   DATA_HANDLER_MAPS_LIST(V)                         \
   /* Maps */                                        \

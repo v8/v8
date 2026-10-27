@@ -1122,8 +1122,7 @@ class MaglevGraphBuilder {
       BuildIteratorStepResultCallback build_result);
   ReduceResult BuildAndAllocateJSArray(
       compiler::MapRef map, ValueNode* length, ValueNode* elements,
-      const compiler::SlackTrackingPrediction& slack_tracking_prediction,
-      AllocationType allocation_type);
+      const compiler::SlackTrackingPrediction& slack_tracking_prediction);
 
   MaybeReduceResult TryBuildAndAllocateJSGeneratorObject(ValueNode* closure,
                                                          ValueNode* receiver);
@@ -1556,8 +1555,7 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryBuildFastCreateObjectOrArrayLiteral(
       const compiler::LiteralFeedback& feedback);
   std::optional<VirtualObject*> TryReadBoilerplateForFastLiteral(
-      compiler::JSObjectRef boilerplate, AllocationType allocation,
-      int max_depth, int* max_properties);
+      compiler::JSObjectRef boilerplate, int max_depth, int* max_properties);
 
   ValueNode* BuildInlinedArgumentsElements(int start_index, int length);
   ValueNode* BuildInlinedUnmappedArgumentsElements(int mapped_count);
@@ -1627,9 +1625,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildStringConcat(ValueNode* left, ValueNode* right);
   ReduceResult BuildNewConsStringMap(ValueNode* left, ValueNode* right);
   uint32_t StringLengthStaticLowerBound(ValueNode* string, int max_depth = 2);
-  MaybeReduceResult TryBuildNewConsString(
-      ValueNode* left, ValueNode* right,
-      AllocationType allocation_type = AllocationType::kYoung);
+  MaybeReduceResult TryBuildNewConsString(ValueNode* left, ValueNode* right);
 
   template <Operation kOperation>
   ReduceResult VisitCompareOperation();
