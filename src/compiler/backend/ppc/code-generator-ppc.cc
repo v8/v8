@@ -2860,8 +2860,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       uint64_t high = make_uint64(i.InputUint32(5), i.InputUint32(4));
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
+      Register scratch2 = temps.Acquire();
       __ I8x16Shuffle(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                      i.InputSimd128Register(1), high, low, r0, scratch,
+                      i.InputSimd128Register(1), high, low, scratch, scratch2,
                       kScratchSimd128Reg);
       break;
     }
