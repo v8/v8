@@ -1574,6 +1574,8 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
         INTERNALIZED_ONE_BYTE_STRING_TYPE;
     types["SLICED_ONE_BYTE_STRING_TYPE"] = SLICED_ONE_BYTE_STRING_TYPE;
     types["CONS_ONE_BYTE_STRING_TYPE"] = CONS_ONE_BYTE_STRING_TYPE;
+    types["THIN_ONE_BYTE_STRING_TYPE"] = THIN_ONE_BYTE_STRING_TYPE;
+    types["FREE_SPACE_TYPE"] = FREE_SPACE_TYPE;
     types["SHARED_FUNCTION_INFO_TYPE"] = SHARED_FUNCTION_INFO_TYPE;
     types["SCRIPT_TYPE"] = SCRIPT_TYPE;
     types["JS_PROMISE_TYPE"] = JS_PROMISE_TYPE;
@@ -1660,6 +1662,13 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(SlicedString, offset_);
     fields[CONS_ONE_BYTE_STRING_TYPE]["first"] = offsetof(ConsString, first_);
     fields[CONS_ONE_BYTE_STRING_TYPE]["second"] = offsetof(ConsString, second_);
+    fields[THIN_ONE_BYTE_STRING_TYPE]["actual"] = offsetof(ThinString, actual_);
+    fields[SEQ_ONE_BYTE_STRING_TYPE]["chars"] = sizeof(SeqOneByteString);
+    fields[INTERNALIZED_ONE_BYTE_STRING_TYPE]["chars"] =
+        sizeof(SeqOneByteString);
+    fields[FREE_SPACE_TYPE]["size_in_tagged"] =
+        offsetof(FreeSpace, size_in_tagged_);
+    fields[FREE_SPACE_TYPE]["next"] = offsetof(FreeSpace, next_);
     fields[SHARED_FUNCTION_INFO_TYPE]["trusted_function_data"] =
         offsetof(SharedFunctionInfo, trusted_function_data_);
     fields[SHARED_FUNCTION_INFO_TYPE]["length"] =
