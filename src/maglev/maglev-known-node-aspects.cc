@@ -561,8 +561,8 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
 }
 
 void KnownNodeAspects::ClearUnstableNodeAspectsForMigration(
-    Node* node, bool is_tracing_enabled) {
-  if (MarkSingleMapAsStale(node->input_node(0), is_tracing_enabled)) {
+    ValueNode* object, bool is_tracing_enabled) {
+  if (MarkSingleMapAsStale(object, is_tracing_enabled)) {
     return;
   }
 

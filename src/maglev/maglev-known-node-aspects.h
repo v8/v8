@@ -398,7 +398,7 @@ class KnownNodeAspects {
 
   void ClearUnstableNodeAspectsForStoreMap(StoreMap* node,
                                            bool is_tracing_enabled);
-  void ClearUnstableNodeAspectsForMigration(Node* node,
+  void ClearUnstableNodeAspectsForMigration(ValueNode* object,
                                             bool is_tracing_enabled);
   void ClearUnstableNodeAspectsForElementsTransition(
       const ZoneVector<compiler::MapRef>& transition_sources,
@@ -821,7 +821,8 @@ class KnownNodeAspects {
                          std::is_same_v<NodeT,
                                         CheckMapsWithMigrationAndDeopt> ||
                          std::is_same_v<NodeT, MigrateMapIfNeeded>) {
-      ClearUnstableNodeAspectsForMigration(node, is_tracing_enabled);
+      ClearUnstableNodeAspectsForMigration(node->ReceiverInput().node(),
+                                           is_tracing_enabled);
     } else if constexpr (std::is_same_v<NodeT, StoreMap>) {
       ClearUnstableNodeAspectsForStoreMap(node, is_tracing_enabled);
     } else if constexpr (std::is_same_v<NodeT, TransitionElementsKind> ||

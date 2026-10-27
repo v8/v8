@@ -2953,14 +2953,14 @@ int MigrateMapIfNeeded::MaxCallStackArgs() const {
 
 void MigrateMapIfNeeded::SetValueLocationConstraints() {
   UseRegister(MapInput());
-  UseRegister(ObjectInput());
+  UseRegister(ReceiverInput());
   DefineSameAsFirst(this);
 }
 
 void MigrateMapIfNeeded::GenerateCode(MaglevAssembler* masm,
                                       const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register object = ToRegister(ObjectInput());
+  Register object = ToRegister(ReceiverInput());
   Register map = ToRegister(MapInput());
   DCHECK_EQ(map, ToRegister(result()));
 

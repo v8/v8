@@ -7486,7 +7486,7 @@ class MigrateMapIfNeeded : public FixedInputValueNodeT<2, MigrateMapIfNeeded> {
       OpProperties::EagerDeopt() | OpProperties::DeferredCall() |
       OpProperties::CanAllocate() | OpProperties::CanWrite() |
       OpProperties::CanRead();
-  DECLARE_INPUTS(Map, Object)
+  DECLARE_INPUTS(Map, Receiver)
   DECLARE_INPUT_TYPES(Tagged, Tagged)
 
   int MaxCallStackArgs() const;

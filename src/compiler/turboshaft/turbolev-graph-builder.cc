@@ -2896,7 +2896,7 @@ class GraphBuildingNodeProcessor {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     SetMap(node,
            __ MigrateMapIfNeeded(
-               Map(node->ObjectInput()), Map(node->MapInput()), frame_state,
+               Map(node->ReceiverInput()), Map(node->MapInput()), frame_state,
                node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
