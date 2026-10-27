@@ -573,9 +573,12 @@ v8_cluster_source_set("v8_unittests_sources") {
     "heap/cppgc-js/embedder-roots-handler-unittest.cc",
     "heap/cppgc-js/unified-heap-snapshot-unittest.cc",
     "heap/cppgc-js/unified-heap-unittest.cc",
+    "heap/memory-reducer-unittest.cc",  # MockTaskRunner.
     "objects/concurrent-descriptor-array-unittest.cc",
     "objects/concurrent-transition-array-unittest.cc",
     "wasm/float32-cross-compiler-determinism-fuzztest.cc",
+    "wasm/gc-unittest.cc",  # ref, refNull.
+    "wasm/liftoff-inspection-unittest.cc",  # Register() hides class Register.
     "wasm/module-decoder-unittest.cc",
     "wasm/run-wasm-unittest.cc",
     "wasm/streaming-compilation-unittest.cc",
