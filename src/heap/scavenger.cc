@@ -518,15 +518,13 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
       table.Mark(heap->young_external_pointer_space(), handle, slot.address(),
                  slot.tag_range());
     } else {
-      // When promoting, we just evacuate the entry from new to old space.
-      // Usually the entry will be unmarked, unless the slot was initialized
-      // since the last GC (external pointer tags have the mark bit set), in
-      // which case it may be marked already. In any case, transfer the color
-      // from new to old EPT space.
+      // When promoting, we evacuate the entry from new to old space.
+      // Entries in the young EPT space are allocated unmarked and Scavenger
+      // never runs during incremental marking, so the entry must be unmarked.
       handle = table.Evacuate(
           heap->young_external_pointer_space(),
           heap->old_external_pointer_space(), handle, slot.address(),
-          ExternalPointerTable::EvacuateMarkMode::kTransferMark,
+          ExternalPointerTable::EvacuateMarkMode::kLeaveUnmarked,
           slot.tag_range());
     }
 

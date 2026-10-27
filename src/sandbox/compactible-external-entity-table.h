@@ -20,13 +20,10 @@ class Histogram;
 // Specifies how the marking bit of an entry should be handled during
 // evacuation.
 enum class EvacuateMarkMode {
-  // Preserve the marking bit: if the source entry was marked, the destination
-  // entry will be marked as well. Used during young-generation space-to-space
-  // promotion when live entries are transferred to old space.
-  kTransferMark,
-  // Assume the entry is unmarked and leave it unmarked. Used during table
+  // Verify the entry is unmarked and leave it unmarked. Used during table
   // compaction when entries in the evacuation area have already been swept and
-  // unmarked.
+  // unmarked, and during Scavenger promotion when entries in the young space
+  // are unmarked.
   kLeaveUnmarked,
   // Explicitly clear the marking bit on the destination entry. Used during GC
   // promotion when marked young entries are promoted and should start unmarked
