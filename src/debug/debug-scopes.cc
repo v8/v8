@@ -178,9 +178,11 @@ void ScopeIterator::UnwindToClosureContext() {
   }
 }
 
-void ScopeIterator::UnwrapEvaluationContext() {
-  if (!context_->IsDebugEvaluateContext()) return;
-  Tagged<Context> current = *context_;
+// static
+Tagged<Context> ScopeIterator::UnwrapEvaluationContext(
+    Tagged<Context> context) {
+  if (!context->IsDebugEvaluateContext()) return context;
+  Tagged<Context> current = context;
   do {
     Tagged<Object> wrapped = current->GetNoCell(Context::WRAPPED_CONTEXT_INDEX);
     if (IsContext(wrapped)) {
@@ -190,7 +192,11 @@ void ScopeIterator::UnwrapEvaluationContext() {
       current = current->previous();
     }
   } while (current->IsDebugEvaluateContext());
-  context_ = handle(current, isolate_);
+  return current;
+}
+
+void ScopeIterator::UnwrapEvaluationContext() {
+  context_ = handle(UnwrapEvaluationContext(*context_), isolate_);
 }
 
 DirectHandle<JSObject> ScopeIterator::MaterializeScopeDetails() {
@@ -320,7 +326,7 @@ bool ScopeIterator::HasContext() const {
     const bool closure_created_in_own_context =
         current_scope().is_script_scope() || current_scope().is_module_scope();
     if (!closure_created_in_own_context && InPausedFunctionScopes() &&
-        *context_ == function_->context()) {
+        *context_ == UnwrapEvaluationContext(function_->context())) {
       return false;
     }
 
@@ -352,7 +358,7 @@ bool ScopeIterator::NeedsContext() const {
                     (current_scope().is_function_scope() ||
                      current_scope().is_eval_scope()) &&
                     !function_.is_null(),
-                function_->context() != *context_);
+                UnwrapEvaluationContext(function_->context()) != *context_);
 
   return needs_context;
 }
@@ -374,6 +380,11 @@ void ScopeIterator::AdvanceScope() {
     }
 
     if (std::optional<DebugScriptScope> parent = current_scope().parent()) {
+      if (current_scope().scope_type() != BLOCK_SCOPE && parent->is_hidden() &&
+          parent->variable_count() > 0) {
+        current_scope_index_ = parent->scope_index();
+        break;
+      }
       current_scope_index_ = parent->scope_index();
       continue;
     }

@@ -181,6 +181,7 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   void TryParseAndRetrieveScopes();
   void UnwindToClosureContext();
 
+  static Tagged<Context> UnwrapEvaluationContext(Tagged<Context> context);
   void UnwrapEvaluationContext();
 
   using Visitor =
