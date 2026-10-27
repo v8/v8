@@ -4,8 +4,8 @@
 
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compiler.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/isolate.h"

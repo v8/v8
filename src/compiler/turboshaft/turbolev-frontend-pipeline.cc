@@ -9,7 +9,7 @@
 #include <sstream>
 
 #include "src/base/logging.h"
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/flags/flags.h"

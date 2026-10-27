@@ -9,9 +9,9 @@
 #include <ostream>
 
 #include "src/base/logging.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"

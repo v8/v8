@@ -12,6 +12,7 @@
 #include <sstream>
 
 #include "src/base/macros.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/base/unique-array.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/profile-data-reader.h"
@@ -24,7 +25,6 @@
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
 #include "src/common/high-allocation-throughput-scope.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler/add-type-assertions-reducer.h"
 #include "src/compiler/backend/bitcast-elider.h"
 #include "src/compiler/backend/code-generator.h"

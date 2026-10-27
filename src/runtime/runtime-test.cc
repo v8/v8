@@ -16,10 +16,10 @@
 #include "src/base/macros.h"
 #include "src/base/numbers/double.h"
 #include "src/base/strong-alias.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug-evaluate.h"
@@ -32,6 +32,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/bytecode-array.h"
@@ -2901,8 +2902,8 @@ RUNTIME_FUNCTION(Runtime_BlockAt) {
   DirectHandle<String> phase_name = args.at<String>(0);
   base::TimeDelta timeout =
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
-  SynchronizationPointSupport::Get()->RequestBlockAt(phase_name->ToStdString(),
-                                                     timeout);
+  base::SynchronizationPointSupport::Get()->RequestBlockAt(
+      phase_name->ToStdString(), timeout);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -2915,8 +2916,8 @@ RUNTIME_FUNCTION(Runtime_Resume) {
   DCHECK_EQ(1, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   DirectHandle<String> phase_name = args.at<String>(0);
-  bool success =
-      SynchronizationPointSupport::Get()->Resume(phase_name->ToStdString());
+  bool success = base::SynchronizationPointSupport::Get()->Resume(
+      phase_name->ToStdString());
   return isolate->heap()->ToBoolean(success);
 }
 
@@ -2934,8 +2935,12 @@ RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
   base::TimeDelta timeout =
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
 
-  bool success = SynchronizationPointSupport::Get()->WaitUntilBlocked(
-      phase_name->ToStdString(), timeout);
+  std::string phase_name_str = phase_name->ToStdString();
+  bool success = false;
+  isolate->main_thread_local_heap()->ExecuteWhileParked([&]() {
+    success = base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+        phase_name_str, timeout);
+  });
   return isolate->heap()->ToBoolean(success);
 }
 

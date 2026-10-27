@@ -5,8 +5,8 @@
 #include "src/regexp/regexp.h"
 
 #include "src/base/strings.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compilation-cache.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/handles/global-handles-inl.h"

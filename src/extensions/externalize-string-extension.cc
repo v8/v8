@@ -7,7 +7,7 @@
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-layout-inl.h"

@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/base/atomicops.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/common/message-template.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/elements.h"

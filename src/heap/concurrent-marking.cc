@@ -11,8 +11,8 @@
 
 #include "include/v8config.h"
 #include "src/base/logging.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/base-page.h"

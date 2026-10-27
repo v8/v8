@@ -10,16 +10,13 @@
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/testing.h"
 #include "include/cppgc/trace-trait.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/heap/cppgc-internal/globals.h"
 #include "src/heap/cppgc-internal/marker.h"
 #include "src/heap/cppgc-internal/marking-visitor.h"
 #include "src/heap/cppgc-internal/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if !defined(CPPGC_IS_STANDALONE)
-#include "src/common/synchronization-point-support.h"
-#endif  // !defined(CPPGC_IS_STANDALONE)
 
 namespace cppgc {
 namespace internal {
@@ -203,8 +200,6 @@ TEST_F(ConcurrentMarkingTest,
   FinishGC();
 }
 
-#if !defined(CPPGC_IS_STANDALONE)
-
 namespace {
 
 class WeakTableBacking : public GarbageCollected<WeakTableBacking> {
@@ -296,7 +291,7 @@ TEST_F(ConcurrentMarkingTest, SwapWeakTableWithStackDuringConcurrentMarking) {
   static constexpr v8::base::TimeDelta kTimeout =
       v8::base::TimeDelta::FromSeconds(5);
 
-  auto* sync_points = v8::internal::SynchronizationPointSupport::Get();
+  auto* sync_points = v8::base::SynchronizationPointSupport::Get();
   sync_points->RequestBlockAt(std::string(WeakTable::kSyncPoint), kTimeout);
 
   Persistent<WeakTableHolder> holder = MakeGarbageCollected<WeakTableHolder>(
@@ -316,8 +311,6 @@ TEST_F(ConcurrentMarkingTest, SwapWeakTableWithStackDuringConcurrentMarking) {
 
   ConservativeGC();
 }
-
-#endif  // !defined(CPPGC_IS_STANDALONE)
 
 }  // namespace internal
 }  // namespace cppgc

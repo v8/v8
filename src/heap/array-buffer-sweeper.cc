@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "src/base/logging.h"
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"

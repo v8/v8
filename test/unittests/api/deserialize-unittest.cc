@@ -13,8 +13,8 @@
 #include "include/v8-primitive.h"
 #include "include/v8-script.h"
 #include "src/api/api-inl.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compilation-cache.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/string-inl.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -1242,14 +1242,14 @@ TEST_F(MergeDeserializedCodeTest,
 
   // Request block at sync point before background thread reads outer scope
   // info.
-  i::SynchronizationPointSupport::Get()->RequestBlockAt(
+  base::SynchronizationPointSupport::Get()->RequestBlockAt(
       "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10));
 
   MergeThread merge_thread(task.get());
   CHECK(merge_thread.Start());
 
   // Wait until background merge is paused at the sync point.
-  CHECK(i::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+  CHECK(base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
       "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10)));
 
   // While background merge is paused before reading outer scope info, trigger
@@ -1260,8 +1260,8 @@ TEST_F(MergeDeserializedCodeTest,
   }
 
   // Resume the background merge thread.
-  CHECK(
-      i::SynchronizationPointSupport::Get()->Resume("BeforeGetOuterScopeInfo"));
+  CHECK(base::SynchronizationPointSupport::Get()->Resume(
+      "BeforeGetOuterScopeInfo"));
   merge_thread.Join();
 
   // Complete compilation on the main thread.

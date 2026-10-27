@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 
 #include <inttypes.h>
 
@@ -17,33 +17,33 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/thread-id.h"
-#include "src/heap/local-heap-inl.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 SynchronizationPointSupport* SynchronizationPointSupport::instance_ = nullptr;
 
 void SynchronizationPointSupport::Initialize() {
-  CHECK_NULL(instance_);
-  instance_ = new SynchronizationPointSupport();
+  if (!instance_) {
+    instance_ = new SynchronizationPointSupport();
+  }
 }
 
 void SynchronizationPointSupport::RequestBlockAt(
-    std::string synchronization_point, base::TimeDelta timeout) {
+    std::string synchronization_point, TimeDelta timeout) {
   any_requested_ = true;
-  base::MutexGuard lock(&mutex_);
+  MutexGuard lock(&mutex_);
   std::unique_ptr<SyncPointState>& state =
       states_[std::move(synchronization_point)];
   if (!state) state = std::make_unique<SyncPointState>();
   state->block_requested = true;
-  state->block_requester_thread = base::ThreadId::Current();
+  state->block_requester_thread = ThreadId::Current();
   state->block_timeout = timeout;
 }
 
 bool SynchronizationPointSupport::Resume(
     std::string_view synchronization_point) {
-  base::MutexGuard lock(&mutex_);
+  MutexGuard lock(&mutex_);
   auto it = states_.find(synchronization_point);
   if (it != states_.end()) {
     SyncPointState* state = it->second.get();
@@ -53,51 +53,34 @@ bool SynchronizationPointSupport::Resume(
       return true;
     }
   }
-  base::OS::PrintError("Synchronization point not armed\n");
+  OS::PrintError("Synchronization point not armed\n");
   return false;
 }
 
 bool SynchronizationPointSupport::WaitUntilBlocked(
-    std::string_view synchronization_point, base::TimeDelta timeout) {
-  // Safe: map elements are never removed, so the pointer is stable.
-  SyncPointState* state;
-  {
-    base::MutexGuard lock(&mutex_);
-    auto it = states_.find(synchronization_point);
-    if (it == states_.end()) {
-      base::OS::PrintError("Synchronization point not armed\n");
+    std::string_view synchronization_point, TimeDelta timeout) {
+  MutexGuard lock(&mutex_);
+  auto it = states_.find(synchronization_point);
+  if (it == states_.end()) {
+    OS::PrintError("Synchronization point not armed\n");
+    return false;
+  }
+  SyncPointState* state = it->second.get();
+
+  const TimeTicks start = TimeTicks::Now();
+  while (state->blocked_threads == 0) {
+    if (!state->block_requested) {
+      OS::PrintError("Synchronization point not armed\n");
       return false;
     }
-    state = it->second.get();
-  }
-
-  bool success = false;
-  auto wait_loop = [this, state, timeout, &success]() {
-    base::MutexGuard lock(&mutex_);
-    const base::TimeTicks start = base::TimeTicks::Now();
-    while (state->blocked_threads == 0) {
-      if (!state->block_requested) {
-        base::OS::PrintError("Synchronization point not armed\n");
-        return;
-      }
-      const base::TimeDelta remaining =
-          start + timeout - base::TimeTicks::Now();
-      if (remaining <= base::TimeDelta()) {
-        base::OS::PrintError("Synchronization point wait timed out\n");
-        return;
-      }
-      std::ignore = state->cv.WaitFor(&mutex_, remaining);
+    const TimeDelta remaining = start + timeout - TimeTicks::Now();
+    if (remaining <= TimeDelta()) {
+      OS::PrintError("Synchronization point wait timed out\n");
+      return false;
     }
-    success = true;
-  };
-
-  LocalHeap* local_heap = LocalHeap::TryGetCurrent();
-  if (local_heap && local_heap->IsRunning()) {
-    local_heap->ExecuteWhileParked(wait_loop);
-  } else {
-    wait_loop();
+    std::ignore = state->cv.WaitFor(&mutex_, remaining);
   }
-  return success;
+  return true;
 }
 
 void SynchronizationPointSupport::BlockIfRequestedSlow(
@@ -105,13 +88,13 @@ void SynchronizationPointSupport::BlockIfRequestedSlow(
   // Safe: map elements are never removed, so the pointer is stable.
   SyncPointState* state = nullptr;
   {
-    base::MutexGuard lock(&mutex_);
+    MutexGuard lock(&mutex_);
     auto it = states_.find(synchronization_point);
     if (it == states_.end()) return;
     state = it->second.get();
     if (!state->block_requested) return;
-    if (state->block_requester_thread == base::ThreadId::Current()) {
-      base::OS::PrintError(
+    if (state->block_requester_thread == ThreadId::Current()) {
+      OS::PrintError(
           "Warning: ignoring self-deadlock at synchronization point '%.*s'\n",
           static_cast<int>(synchronization_point.length()),
           synchronization_point.data());
@@ -119,20 +102,19 @@ void SynchronizationPointSupport::BlockIfRequestedSlow(
     }
   }
 
-  base::TimeTicks start = base::TimeTicks::Now();
-  base::MutexGuard lock(&mutex_);
+  TimeTicks start = TimeTicks::Now();
+  MutexGuard lock(&mutex_);
   ++state->blocked_threads;
   state->cv.NotifyAll();
   while (state->block_requested) {
-    base::TimeDelta remaining =
-        start + state->block_timeout - base::TimeTicks::Now();
-    if (remaining <= base::TimeDelta()) break;
+    TimeDelta remaining = start + state->block_timeout - TimeTicks::Now();
+    if (remaining <= TimeDelta()) break;
     std::ignore = state->cv.WaitFor(&mutex_, remaining);
   }
   --state->blocked_threads;
 
   if (state->block_requested) {
-    base::OS::PrintError(
+    OS::PrintError(
         "Warning: Synchronization point '%.*s' timed out after %" PRId64
         " ms. Resuming automatically.\n",
         static_cast<int>(synchronization_point.length()),
@@ -140,5 +122,5 @@ void SynchronizationPointSupport::BlockIfRequestedSlow(
   }
 }
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
