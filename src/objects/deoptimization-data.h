@@ -85,7 +85,10 @@ class DeoptimizationLiteral {
   explicit DeoptimizationLiteral(Tagged<Smi> smi)
       : kind_(DeoptimizationLiteralKind::kWasmI31Ref), int32_(smi.value()) {}
 
-  IndirectHandle<Object> object() const { return object_; }
+  bool IsObject(IndirectHandle<Object> object) const {
+    return kind_ == DeoptimizationLiteralKind::kObject &&
+           object_.equals(object);
+  }
 
   bool operator==(const DeoptimizationLiteral& other) const {
     if (kind_ != other.kind_) {
