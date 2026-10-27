@@ -1692,6 +1692,9 @@
   # Flaky due to huge string allocation.
   'regress/regress-748069': [SKIP],
 
+  # Deep Maglev inlining might overflow the C++ stack with ASan on Windows.
+  'maglev/regress-563882510': [PASS, ['system == windows', SKIP]],
+
   # Tests that need to run sequentially (e.g. due to memory consumption).
 }],  # 'asan == True'
 
