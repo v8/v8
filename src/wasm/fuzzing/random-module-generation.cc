@@ -4692,8 +4692,25 @@ class ModuleGen {
     const bool kIsFinal = true;
     for (auto& import : *imports) {
       import.sig_index = builder_->ForceAddSignature(import.sig, kIsFinal);
+      WasmModuleBuilder::ImportEncoding encoding =
+          WasmModuleBuilder::ImportEncoding::kRegular;
+      if (v8_flags.wasm_compact_imports) {
+        switch (module_range_->get<uint8_t>() % 3) {
+          case 0:
+            encoding = WasmModuleBuilder::ImportEncoding::kCompactByModule;
+            break;
+          case 1:
+            encoding =
+                WasmModuleBuilder::ImportEncoding::kCompactByModuleAndType;
+            break;
+          case 2:
+            encoding = WasmModuleBuilder::ImportEncoding::kRegular;
+            break;
+        }
+      }
       uint32_t index =
-          builder_->AddImport(import.name, import.sig, import.module_name);
+          builder_->AddImport(import.name, import.sig, import.module_name,
+                              /*force_new_sig=*/false, encoding);
       import.index = index;
     }
     imports_ = imports;
@@ -4755,28 +4772,79 @@ class ModuleGen {
 
     // The signatures of compile-time imports must be defined in singleton
     // recgroups, so we can't allow them to get deduplicated against existing
-    // signatures that might be in nontrivial recgroups.
-    static constexpr bool kForceNewSig = true;
-#define STRINGFUNC(name, sig, group) \
-  strings.name = builder_->AddImport(#name, &sig, group, kForceNewSig)
+    // signatures that might be in nontrivial recgroups. However, compile-time
+    // imports with identical signatures can share the same singleton-recgroup
+    // signature, which also enables compact imports by module and type (0x7E).
+    static constexpr bool kIsFinal = true;
+    const ModuleTypeIndex sig_e_r =
+        builder_->ForceAddSignature(&kSig_e_r, kIsFinal);
+    const ModuleTypeIndex sig_i_r =
+        builder_->ForceAddSignature(&kSig_i_r, kIsFinal);
+    const ModuleTypeIndex sig_e_i =
+        builder_->ForceAddSignature(&kSig_e_i, kIsFinal);
+    const ModuleTypeIndex sig_i_ri =
+        builder_->ForceAddSignature(&kSig_i_ri, kIsFinal);
+    const ModuleTypeIndex sig_e_rr =
+        builder_->ForceAddSignature(&kSig_e_rr, kIsFinal);
+    const ModuleTypeIndex sig_e_rii =
+        builder_->ForceAddSignature(&kSig_e_rii, kIsFinal);
+    const ModuleTypeIndex sig_i_rr =
+        builder_->ForceAddSignature(&kSig_i_rr, kIsFinal);
+    const ModuleTypeIndex sig_from_a16 =
+        builder_->ForceAddSignature(&kSig_from_a16, kIsFinal);
+    const ModuleTypeIndex sig_into_a16 =
+        builder_->ForceAddSignature(&kSig_into_a16, kIsFinal);
+    const ModuleTypeIndex sig_into_a8 =
+        builder_->ForceAddSignature(&kSig_into_a8, kIsFinal);
+    const ModuleTypeIndex sig_to_a8 =
+        builder_->ForceAddSignature(&kSig_to_a8, kIsFinal);
+    const ModuleTypeIndex sig_from_a8 =
+        builder_->ForceAddSignature(&kSig_from_a8, kIsFinal);
 
-    STRINGFUNC(cast, kSig_e_r, kJsString);
-    STRINGFUNC(test, kSig_i_r, kJsString);
-    STRINGFUNC(fromCharCode, kSig_e_i, kJsString);
-    STRINGFUNC(fromCodePoint, kSig_e_i, kJsString);
-    STRINGFUNC(charCodeAt, kSig_i_ri, kJsString);
-    STRINGFUNC(codePointAt, kSig_i_ri, kJsString);
-    STRINGFUNC(length, kSig_i_r, kJsString);
-    STRINGFUNC(concat, kSig_e_rr, kJsString);
-    STRINGFUNC(substring, kSig_e_rii, kJsString);
-    STRINGFUNC(equals, kSig_i_rr, kJsString);
-    STRINGFUNC(compare, kSig_i_rr, kJsString);
-    STRINGFUNC(fromCharCodeArray, kSig_from_a16, kJsString);
-    STRINGFUNC(intoCharCodeArray, kSig_into_a16, kJsString);
-    STRINGFUNC(measureStringAsUTF8, kSig_i_r, kTextEncoder);
-    STRINGFUNC(encodeStringIntoUTF8Array, kSig_into_a8, kTextEncoder);
-    STRINGFUNC(encodeStringToUTF8Array, kSig_to_a8, kTextEncoder);
-    STRINGFUNC(decodeStringFromUTF8Array, kSig_from_a8, kTextDecoder);
+    using ImportEncoding = WasmModuleBuilder::ImportEncoding;
+    const uint8_t compact_mode =
+        v8_flags.wasm_compact_imports ? (module_range_->get<uint8_t>() % 4) : 4;
+    auto pick_encoding = [&](bool shares_sig_with_neighbor) -> ImportEncoding {
+      switch (compact_mode) {
+        case 0:
+          return shares_sig_with_neighbor
+                     ? ImportEncoding::kCompactByModuleAndType
+                     : ImportEncoding::kCompactByModule;
+        case 1:
+          return ImportEncoding::kCompactByModule;
+        case 2:
+          return ImportEncoding::kCompactByModuleAndType;
+        case 3:
+          if (shares_sig_with_neighbor) {
+            return ImportEncoding::kCompactByModuleAndType;
+          }
+          return ImportEncoding::kRegular;
+        default:
+          return ImportEncoding::kRegular;
+      }
+    };
+
+#define STRINGFUNC(name, sig, group, shares_sig_with_neighbor) \
+  strings.name = builder_->AddImport(#name, sig, group,        \
+                                     pick_encoding(shares_sig_with_neighbor))
+
+    STRINGFUNC(cast, sig_e_r, kJsString, false);
+    STRINGFUNC(test, sig_i_r, kJsString, false);
+    STRINGFUNC(length, sig_i_r, kJsString, false);
+    STRINGFUNC(fromCharCode, sig_e_i, kJsString, true);
+    STRINGFUNC(fromCodePoint, sig_e_i, kJsString, true);
+    STRINGFUNC(charCodeAt, sig_i_ri, kJsString, true);
+    STRINGFUNC(codePointAt, sig_i_ri, kJsString, true);
+    STRINGFUNC(concat, sig_e_rr, kJsString, false);
+    STRINGFUNC(substring, sig_e_rii, kJsString, false);
+    STRINGFUNC(equals, sig_i_rr, kJsString, true);
+    STRINGFUNC(compare, sig_i_rr, kJsString, true);
+    STRINGFUNC(fromCharCodeArray, sig_from_a16, kJsString, false);
+    STRINGFUNC(intoCharCodeArray, sig_into_a16, kJsString, false);
+    STRINGFUNC(measureStringAsUTF8, sig_i_r, kTextEncoder, false);
+    STRINGFUNC(encodeStringIntoUTF8Array, sig_into_a8, kTextEncoder, false);
+    STRINGFUNC(encodeStringToUTF8Array, sig_to_a8, kTextEncoder, false);
+    STRINGFUNC(decodeStringFromUTF8Array, sig_from_a8, kTextDecoder, false);
 
 #undef STRINGFUNC
 
