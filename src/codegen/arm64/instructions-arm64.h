@@ -516,6 +516,11 @@ class Instruction {
     return reinterpret_cast<Instruction*>(src);
   }
 
+  template <typename T>
+  V8_INLINE static const Instruction* Cast(const T* src) {
+    return reinterpret_cast<const Instruction*>(src);
+  }
+
   V8_INLINE ptrdiff_t DistanceTo(Instruction* target) {
     return reinterpret_cast<Address>(target) - reinterpret_cast<Address>(this);
   }

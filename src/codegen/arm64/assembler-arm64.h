@@ -355,7 +355,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
-  static bool IsConstantPoolAt(Instruction* instr);
+  static bool IsConstantPoolAt(const Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
 
   // Prevent veneer pool emission until EndBlockVeneerPool is called.

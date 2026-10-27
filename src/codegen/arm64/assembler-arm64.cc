@@ -891,7 +891,7 @@ void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
   }
 }
 
-bool Assembler::IsConstantPoolAt(Instruction* instr) {
+bool Assembler::IsConstantPoolAt(const Instruction* instr) {
   // The constant pool marker is "udf #<size of pool>", which the JIT emits
   // nowhere else.
   return instr->IsUdf();
