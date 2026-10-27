@@ -548,9 +548,12 @@ bool HeapAllocator::RetryCustomAllocateLight(
     return result;
   }
 
-  heap_for_allocation(allocation)->CheckHeapLimitReached();
+  if (heap_for_allocation(allocation)->ReachedHeapLimit()) {
+    CollectAllAvailableGarbage(allocation);
+    return allocate();
+  }
 
-  return {};
+  return false;
 }
 
 bool HeapAllocator::CollectGarbageAndRetryAllocation(

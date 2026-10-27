@@ -1655,6 +1655,7 @@ bool Heap::HasConsecutiveIneffectiveMarkCompact() const {
 }
 
 void Heap::CheckHeapLimitReached() {
+  DCHECK(IsMainThread());
   if (ReachedHeapLimit()) {
     InvokeNearHeapLimitCallback();
     if (ReachedHeapLimit()) {
@@ -4068,6 +4069,7 @@ void Heap::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {
 }
 
 bool Heap::InvokeNearHeapLimitCallback() {
+  CHECK(IsMainThread());
   if (!near_heap_limit_callbacks_.empty()) {
     AllowGarbageCollection allow_gc;
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_NEAR_HEAP_LIMIT);
