@@ -2769,9 +2769,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_S128Const: {
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
+      Register scratch2 = temps.Acquire();
       uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));
       uint64_t high = make_uint64(i.InputUint32(3), i.InputUint32(2));
-      __ S128Const(i.OutputSimd128Register(), high, low, r0, scratch);
+      __ S128Const(i.OutputSimd128Register(), high, low, scratch, scratch2);
       break;
     }
     case kPPC_S128Zero: {
