@@ -498,8 +498,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   Register flags = rbx;
   __ movl(flags, FieldOperand(shared_function_info,
                               offsetof(SharedFunctionInfo, flags_)));
-  __ testq(flags, Immediate(SharedFunctionInfo::IsNativeBit::kMask |
-                            SharedFunctionInfo::IsStrictBit::kMask));
+  __ testq(flags, Immediate(SharedFunctionInfo::Flags::IsNativeBit::kMask |
+                            SharedFunctionInfo::Flags::IsStrictBit::kMask));
   flags = no_reg;
   __ j(not_equal, &receiver_undefined);
   __ LoadGlobalProxy(receiver);

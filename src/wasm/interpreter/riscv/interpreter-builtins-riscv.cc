@@ -607,8 +607,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ LoadWord(flags, FieldMemOperand(shared_function_info,
                                      offsetof(SharedFunctionInfo, flags_)));
   __ Branch(&receiver_undefined, ne, flags,
-            Operand(SharedFunctionInfo::IsNativeBit::kMask |
-                    SharedFunctionInfo::IsStrictBit::kMask));
+            Operand(SharedFunctionInfo::Flags::IsNativeBit::kMask |
+                    SharedFunctionInfo::Flags::IsStrictBit::kMask));
   FREE_REG(flags);
   __ LoadGlobalProxy(receiver);
   __ Branch(&calculate_js_function_arity);
