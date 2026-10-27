@@ -4027,6 +4027,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vinsgr2vr_b(dst, i.InputRegister(2), i.InputInt8(1));
       break;
     }
+    case kLoong64I8x16MoveLane: {
+      CpuFeatureScope lsx_scope(masm(), LSX);
+      // ui8[7:4]: dest lane. ui8[3:0]: src lane.
+      __ vextrins_b(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                    (i.InputInt32(3) << 4) | i.InputInt32(2));
+      break;
+    }
+    case kLoong64I16x8MoveLane: {
+      CpuFeatureScope lsx_scope(masm(), LSX);
+      // Ditto.
+      __ vextrins_h(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                    (i.InputInt32(3) << 4) | i.InputInt32(2));
+      break;
+    }
+    case kLoong64I32x4MoveLane:
+    case kLoong64F32x4MoveLane: {
+      CpuFeatureScope lsx_scope(masm(), LSX);
+      // Ditto.
+      __ vextrins_w(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                    (i.InputInt32(3) << 4) | i.InputInt32(2));
+      break;
+    }
+    case kLoong64I64x2MoveLane:
+    case kLoong64F64x2MoveLane: {
+      CpuFeatureScope lsx_scope(masm(), LSX);
+      // Ditto.
+      __ vextrins_d(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                    (i.InputInt32(3) << 4) | i.InputInt32(2));
+      break;
+    }
     case kLoong64I8x16Shl: {
       CpuFeatureScope lsx_scope(masm(), LSX);
       if (instr->InputAt(1)->IsRegister()) {

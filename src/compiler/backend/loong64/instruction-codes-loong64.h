@@ -323,6 +323,12 @@ namespace compiler {
   V(Loong64I8x16ExtractLaneU)                        \
   V(Loong64I8x16ExtractLaneS)                        \
   V(Loong64I8x16ReplaceLane)                         \
+  V(Loong64I8x16MoveLane)                            \
+  V(Loong64I16x8MoveLane)                            \
+  V(Loong64I32x4MoveLane)                            \
+  V(Loong64I64x2MoveLane)                            \
+  V(Loong64F32x4MoveLane)                            \
+  V(Loong64F64x2MoveLane)                            \
   V(Loong64I8x16Neg)                                 \
   V(Loong64I8x16Shl)                                 \
   V(Loong64I8x16ShrS)                                \

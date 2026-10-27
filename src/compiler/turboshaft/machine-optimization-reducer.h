@@ -2385,7 +2385,7 @@ class MachineOptimizationReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-#ifdef V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_LOONG64)
   V<Simd128> REDUCE(Simd128ReplaceLane)(V<Simd128> into, V<Any> new_lane,
                                         Simd128ReplaceLaneOp::Kind kind,
                                         uint8_t lane) {
@@ -2441,7 +2441,9 @@ class MachineOptimizationReducer : public Next {
     }
     goto no_change;
   }
+#endif  // defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_LOONG64)
 
+#ifdef V8_TARGET_ARCH_ARM64
   V<Any> REDUCE(Simd128ExtractLane)(V<Simd128> input,
                                     Simd128ExtractLaneOp::Kind kind,
                                     uint8_t lane) {

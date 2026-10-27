@@ -3695,6 +3695,22 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
 
+#define SIMD_VISIT_MOVE_LANE(Type)                                     \
+  void InstructionSelector::Visit##Type##MoveLane(OpIndex node) {      \
+    Loong64OperandGenerator g(this);                                   \
+    const Simd128MoveLaneOp& op = Get(node).Cast<Simd128MoveLaneOp>(); \
+    Emit(kLoong64##Type##MoveLane, g.DefineSameAsFirst(node),          \
+         g.UseRegister(op.into()), g.UseRegister(op.from()),           \
+         g.UseImmediate(op.from_lane), g.UseImmediate(op.into_lane));  \
+  }
+SIMD_VISIT_MOVE_LANE(F64x2)
+SIMD_VISIT_MOVE_LANE(F32x4)
+SIMD_VISIT_MOVE_LANE(I64x2)
+SIMD_VISIT_MOVE_LANE(I32x4)
+SIMD_VISIT_MOVE_LANE(I16x8)
+SIMD_VISIT_MOVE_LANE(I8x16)
+#undef SIMD_VISIT_MOVE_LANE
+
 #define SIMD_VISIT_UNOP(Name, instruction)              \
   void InstructionSelector::Visit##Name(OpIndex node) { \
     VisitRR(this, instruction, node);                   \
