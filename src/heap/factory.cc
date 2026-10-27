@@ -2501,8 +2501,9 @@ Handle<WasmCustomMap> Factory::NewWasmCustomMapUninitialized(
   DirectHandle<WasmTypeInfo> type_info = NewWasmTypeInfo(
       heaptype, no_array_element, rtt_parent, num_supertypes, shared);
 
+  // Allocate in old space because we expect descriptors to be long-lived.
   AllocationType allocation =
-      shared ? AllocationType::kSharedMap : AllocationType::kMap;
+      shared ? AllocationType::kSharedOld : AllocationType::kOld;
   AllocationAlignment alignment = shared ? kDoubleAligned : kTaggedAligned;
   const int descriptor_size = WasmCustomMap::Size(descriptor);
   DCHECK_EQ(descriptor_size, WasmStruct::DecodeInstanceSizeFromMap(*map));

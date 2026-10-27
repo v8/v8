@@ -39,6 +39,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-export-wrapper-cache.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -240,7 +241,14 @@ class VerifySharedHeapObjectVisitor : public VerifyPointersVisitor {
                       MaybeObjectSlot end) override {
     if (!host.is_null()) {
       Tagged<Map> map = host->map();
-      CHECK(ReadOnlyHeap::Contains(map) || shared_space_->Contains(map));
+      bool valid_map_location =
+          ReadOnlyHeap::Contains(map) || shared_space_->Contains(map);
+#if V8_ENABLE_WEBASSEMBLY
+      if (!valid_map_location && IsWasmCustomMap(map)) {
+        valid_map_location = shared_lo_space_->Contains(map);
+      }
+#endif
+      CHECK(valid_map_location);
     }
     VerifyPointersVisitor::VerifyPointers(host, start, end);
 
@@ -512,14 +520,23 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
 }
 
 void HeapVerification::VerifyObjectMap(Tagged<HeapObject> object) {
-  // The first word should be a map, and we expect all map pointers to be
-  // in map space or read-only space.
+  // The first word should be a map, and we expect all map pointers to be in
+  // old space or read-only space (or large object space for WasmCustomMaps).
   MapWord map_word = object->map_word(kRelaxedLoad);
   CHECK(!map_word.IsForwardingAddress());
   Tagged<Map> map = map_word.ToMap();
   CHECK(IsMap(map));
-  CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map) ||
-        (shared_space() && shared_space()->Contains(map)));
+  bool valid_map_location = ReadOnlyHeap::Contains(map) ||
+                            old_space()->Contains(map) ||
+                            (shared_space() && shared_space()->Contains(map));
+#if V8_ENABLE_WEBASSEMBLY
+  if (!valid_map_location && IsWasmCustomMap(map)) {
+    valid_map_location =
+        lo_space()->Contains(map) ||
+        (shared_lo_space() && shared_lo_space()->Contains(map));
+  }
+#endif
+  CHECK(valid_map_location);
 
   if (HeapLayout::InYoungGeneration(object)) {
     // The object should not be code or a map.
