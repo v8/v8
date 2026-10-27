@@ -141,11 +141,25 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   Node* map = gasm_.LoadMap(object);
 
   DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
-                 config.exactness == kExactMatchOnly);
+                 config.exactness != kMayBeSubtype);
 
   if (config.exactness == kExactMatchOnly) {
     gasm_.Goto(&end_label, gasm_.TaggedEqual(map, rtt));
+  } else if (config.exactness == kExactMatchLastSupertype) {
+    DCHECK_EQ(config.to.ref_type_kind(), wasm::RefTypeKind::kStruct);
+    DCHECK(module_->type(config.to.ref_index()).has_descriptor());
+    // Check if map instance type identifies a wasm object.
+    if (is_cast_from_any) {
+      Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+      gasm_.GotoIfNot(is_wasm_obj, &end_label, BranchHint::kTrue,
+                      gasm_.Int32Constant(0));
+    }
+    Node* maybe_match = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), map,
+        offsetof(Map, dependent_code_) - kHeapObjectTag);
+    gasm_.Goto(&end_label, gasm_.TaggedEqual(maybe_match, rtt));
   } else {
+    DCHECK_EQ(config.exactness, kMayBeSubtype);
     // First, check if types happen to be equal. This has been shown to give
     // large speedups.
     gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue,
@@ -306,13 +320,30 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   Node* map = gasm_.LoadMap(object);
 
   DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
-                 config.exactness == kExactMatchOnly);
+                 config.exactness != kMayBeSubtype);
 
   if (config.exactness == kExactMatchOnly) {
     gasm_.TrapUnless(gasm_.TaggedEqual(map, rtt), TrapId::kTrapIllegalCast);
     UpdateSourcePosition(gasm_.effect(), node);
     gasm_.Goto(&end_label);
+  } else if (config.exactness == kExactMatchLastSupertype) {
+    DCHECK_EQ(config.to.ref_type_kind(), wasm::RefTypeKind::kStruct);
+    DCHECK(module_->type(config.to.ref_index()).has_descriptor());
+    // Check if map instance type identifies a wasm object.
+    if (is_cast_from_any) {
+      Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+      gasm_.TrapUnless(is_wasm_obj, TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(gasm_.effect(), node);
+    }
+    Node* maybe_match = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), map,
+        offsetof(Map, dependent_code_) - kHeapObjectTag);
+    gasm_.TrapUnless(gasm_.TaggedEqual(maybe_match, rtt),
+                     TrapId::kTrapIllegalCast);
+    UpdateSourcePosition(gasm_.effect(), node);
+    gasm_.Goto(&end_label);
   } else {
+    DCHECK_EQ(config.exactness, kMayBeSubtype);
     // First, check if types happen to be equal. This has been shown to give
     // large speedups.
     gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue);
