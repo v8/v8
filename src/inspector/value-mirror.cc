@@ -1752,6 +1752,7 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
     bool accessorPropertiesOnly) {
   std::vector<PrivatePropertyMirror> mirrors;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  if (isolate->IsExecutionTerminating()) return mirrors;
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
@@ -1781,14 +1782,17 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
       v8::Local<v8::Value> setter = accessors->setter();
       if (!getter->IsNull()) {
         getterMirror = ValueMirror::create(context, getter);
+        if (isolate->IsExecutionTerminating()) return {};
       }
       if (!setter->IsNull()) {
         setterMirror = ValueMirror::create(context, setter);
+        if (isolate->IsExecutionTerminating()) return {};
       }
     } else if (accessorPropertiesOnly) {
       continue;
     } else {
       valueMirror = ValueMirror::create(context, value);
+      if (isolate->IsExecutionTerminating()) return {};
     }
 
     // Creating the mirrors can run JavaScript, which might terminate

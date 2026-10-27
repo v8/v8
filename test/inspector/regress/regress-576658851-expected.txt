@@ -1,0 +1,9 @@
+Tests that side-effect-free evaluation enforces side-effect checks while generating the preview for a thrown value.
+
+Running test: testThrownValuePreviewRunsMutatingBuiltinGetter
+throw arrayLike: exception
+length after preview: 2
+
+Running test: testThrownValuePreviewRunsUserHasInstance
+throw objectWithBody: exception
+sideEffects after preview: []

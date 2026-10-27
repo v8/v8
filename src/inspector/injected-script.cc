@@ -346,8 +346,14 @@ class InjectedScript::ProtocolPromiseHandler {
                                                       exception);
       }
       std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails;
-      response = scope.injectedScript()->createExceptionDetails(
-          message, exception, m_objectGroup, &exceptionDetails);
+      {
+        std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
+        if (m_throwOnSideEffect) {
+          sideEffectCheckScope.emplace(m_inspector->isolate());
+        }
+        response = scope.injectedScript()->createExceptionDetails(
+            message, exception, m_objectGroup, &exceptionDetails);
+      }
       if (!response.IsSuccess()) {
         EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                       response);
@@ -362,16 +368,22 @@ class InjectedScript::ProtocolPromiseHandler {
 
     String16 messageString;
     std::unique_ptr<V8StackTraceImpl> stack;
-    if (result->IsNativeError()) {
-      messageString =
-          " " +
-          toProtocolString(isolate,
-                           result->ToDetailString(isolate->GetCurrentContext())
-                               .ToLocalChecked());
-      v8::Local<v8::StackTrace> stackTrace =
-          v8::Exception::GetStackTrace(result);
-      if (!stackTrace.IsEmpty()) {
-        stack = m_inspector->debugger()->createStackTrace(stackTrace);
+    {
+      std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
+      if (m_throwOnSideEffect) {
+        sideEffectCheckScope.emplace(m_inspector->isolate());
+      }
+      if (result->IsNativeError()) {
+        v8::Local<v8::String> detail;
+        if (result->ToDetailString(isolate->GetCurrentContext())
+                .ToLocal(&detail)) {
+          messageString = " " + toProtocolString(isolate, detail);
+        }
+        v8::Local<v8::StackTrace> stackTrace =
+            v8::Exception::GetStackTrace(result);
+        if (!stackTrace.IsEmpty()) {
+          stack = m_inspector->debugger()->createStackTrace(stackTrace);
+        }
       }
     }
     if (!stack) {
@@ -394,8 +406,14 @@ class InjectedScript::ProtocolPromiseHandler {
             .setColumnNumber(
                 stack && !stack->isEmpty() ? stack->topColumnNumber() : 0)
             .build();
-    response = scope.injectedScript()->addExceptionToDetails(
-        result, exceptionDetails.get(), m_objectGroup);
+    {
+      std::optional<v8::debug::SideEffectCheckScope> sideEffectCheckScope;
+      if (m_throwOnSideEffect) {
+        sideEffectCheckScope.emplace(m_inspector->isolate());
+      }
+      response = scope.injectedScript()->addExceptionToDetails(
+          result, exceptionDetails.get(), m_objectGroup);
+    }
     if (!response.IsSuccess()) {
       EvaluateCallback::sendFailure(m_callback, scope.injectedScript(),
                                     response);
@@ -551,6 +569,9 @@ Response InjectedScript::getInternalAndPrivateProperties(
     std::vector<InternalPropertyMirror> internalPropertiesWrappers;
     ValueMirror::getInternalProperties(m_context->context(), value_obj,
                                        &internalPropertiesWrappers);
+    if (m_context->isolate()->IsExecutionTerminating()) {
+      return Response::ServerError("Execution was terminated");
+    }
     for (const auto& internalProperty : internalPropertiesWrappers) {
       std::unique_ptr<RemoteObject> remoteObject;
       Response response = internalProperty.value->buildRemoteObject(
@@ -570,9 +591,16 @@ Response InjectedScript::getInternalAndPrivateProperties(
     }
   }
 
+  if (m_context->isolate()->IsExecutionTerminating()) {
+    return Response::ServerError("Execution was terminated");
+  }
+
   std::vector<PrivatePropertyMirror> privatePropertyWrappers =
       ValueMirror::getPrivateProperties(context, value_obj,
                                         accessorPropertiesOnly);
+  if (m_context->isolate()->IsExecutionTerminating()) {
+    return Response::ServerError("Execution was terminated");
+  }
   for (const auto& privateProperty : privatePropertyWrappers) {
     std::unique_ptr<PrivatePropertyDescriptor> descriptor =
         PrivatePropertyDescriptor::create()
@@ -760,6 +788,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
   if (!remoteObject || !response.IsSuccess()) return nullptr;
 
   auto mirror = ValueMirror::create(context, table);
+  if (!mirror) return nullptr;
   std::unique_ptr<ObjectPreview> preview;
   int limit = 1000;
   mirror->buildObjectPreview(context, true /* generatePreviewForTable */,
@@ -1048,14 +1077,37 @@ Response InjectedScript::wrapEvaluateResult(
     m_context->inspector()->client()->dispatchError(
         m_context->context(), tryCatch.Message(), exception);
   }
-  Response response =
-      wrapObject(exception, objectGroup,
-                 exception->IsNativeError() ? WrapOptions({WrapMode::kIdOnly})
-                                            : WrapOptions({WrapMode::kPreview}),
-                 result);
-  if (!response.IsSuccess()) return response;
-  // We send exception in result for compatibility reasons, even though it's
-  // accessible through exceptionDetails.exception.
+  Response response = Response::Success();
+  if (throwOnSideEffect) {
+    v8::TryCatch sideEffectTryCatch(m_context->isolate());
+    {
+      v8::debug::SideEffectCheckScope sideEffectCheckScope(
+          m_context->isolate());
+      response = wrapObject(exception, objectGroup,
+                            exception->IsNativeError()
+                                ? WrapOptions({WrapMode::kIdOnly})
+                                : WrapOptions({WrapMode::kPreview}),
+                            result);
+    }
+    if (!response.IsSuccess()) {
+      if (sideEffectTryCatch.HasCaught()) {
+        return createExceptionDetails(sideEffectTryCatch, objectGroup,
+                                      exceptionDetails);
+      }
+      if (sideEffectTryCatch.HasTerminated() ||
+          !sideEffectTryCatch.CanContinue()) {
+        return Response::ServerError("Execution was terminated");
+      }
+      return response;
+    }
+  } else {
+    response = wrapObject(exception, objectGroup,
+                          exception->IsNativeError()
+                              ? WrapOptions({WrapMode::kIdOnly})
+                              : WrapOptions({WrapMode::kPreview}),
+                          result);
+    if (!response.IsSuccess()) return response;
+  }
   response = createExceptionDetails(tryCatch, objectGroup, exceptionDetails);
   if (!response.IsSuccess()) return response;
   return Response::Success();
