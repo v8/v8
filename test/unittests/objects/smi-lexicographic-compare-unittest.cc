@@ -2,14 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <set>
+#include <string>
 
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+namespace smi_lexicographic_compare_unittest {
+
+using SmiLexicographicCompareTest = TestWithIsolate;
 
 namespace {
 
@@ -39,7 +43,7 @@ int ExpectedCompareResult(Tagged<Smi> a, Tagged<Smi> b) {
   }
 }
 
-bool Test(Isolate* isolate, Tagged<Smi> a, Tagged<Smi> b) {
+bool TestLexicographicCompare(Isolate* isolate, Tagged<Smi> a, Tagged<Smi> b) {
   int actual = Tagged<Smi>(Smi::LexicographicCompare(isolate, a, b)).value();
   int expected = ExpectedCompareResult(a, b);
 
@@ -48,8 +52,8 @@ bool Test(Isolate* isolate, Tagged<Smi> a, Tagged<Smi> b) {
 
 }  // namespace
 
-TEST(TestSmiLexicographicCompare) {
-  Isolate* isolate = CcTest::InitIsolateOnce();
+TEST_F(SmiLexicographicCompareTest, TestSmiLexicographicCompare) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   std::set<Tagged<Smi>> smis;
@@ -70,10 +74,10 @@ TEST(TestSmiLexicographicCompare) {
 
   for (Tagged<Smi> a : smis) {
     for (Tagged<Smi> b : smis) {
-      CHECK(Test(isolate, a, b));
+      CHECK(TestLexicographicCompare(isolate, a, b));
     }
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace smi_lexicographic_compare_unittest
+}  // namespace v8::internal

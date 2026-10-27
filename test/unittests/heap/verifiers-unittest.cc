@@ -9,10 +9,20 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/map-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal::verifiers_unittest {
+
+class VerifiersTest : public TestWithNativeContext {
+ protected:
+#ifdef VERIFY_HEAP
+  void TestWrongTypeInNormalField(bool should_fail);
+  void TestWrongStrongTypeInIndexedStructField(bool should_fail);
+  void TestWrongWeakTypeInIndexedStructField(bool should_fail);
+  void TestWrongOddball(bool should_fail);
+  void TestWrongNumber(bool should_fail);
+#endif  // VERIFY_HEAP
+};
 
 // Defines a pair of tests with similar code. The goal is to test that a
 // specific action causes a failure, but that everything else in the test case
@@ -26,25 +36,21 @@ namespace internal {
 //   do_teardown_steps_that_always_succeed();
 // }
 //
-// A corresponding entry in cctest.status specifies that all Fail* tests in this
-// file must fail.
-#define TEST_PAIR(Name)               \
-  static void Name(bool should_fail); \
-  TEST(Pass##Name) { Name(false); }   \
-  TEST(Fail##Name) { Name(true); }    \
-  static void Name(bool should_fail)
+// A corresponding entry in unittests.status specifies that all Fail* tests in
+// this file must fail.
+#define TEST_PAIR(Name)                              \
+  TEST_F(VerifiersTest, Pass##Name) { Name(false); } \
+  TEST_F(VerifiersTest, Fail##Name) { Name(true); }  \
+  void VerifiersTest::Name(bool should_fail)
 
 #ifdef VERIFY_HEAP
 
 TEST_PAIR(TestWrongTypeInNormalField) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Value> v = CompileRun("({a: 3, b: 4})");
-  DirectHandle<JSObject> o = Cast<JSObject>(v8::Utils::OpenDirectHandle(*v));
+  HandleScope scope(i_isolate());
+  DirectHandle<JSObject> o = RunJS<JSObject>("({a: 3, b: 4})");
   DirectHandle<Object> original_elements(
-      TaggedField<Object>::load(*o, offsetof(JSObject, elements_)), i_isolate);
+      TaggedField<Object>::load(*o, offsetof(JSObject, elements_)),
+      i_isolate());
   CHECK(IsFixedArrayBase(*original_elements));
 
   // There must be no GC (and therefore no verifiers running) until we can
@@ -55,7 +61,7 @@ TEST_PAIR(TestWrongTypeInNormalField) {
   // JSObject should cause a failure.
   TaggedField<Object>::store(*o, offsetof(JSObject, elements_), *o);
   if (should_fail) {
-    o->JSObjectVerify(i_isolate);
+    o->JSObjectVerify(i_isolate());
   }
 
   // Put back the original value in case verifiers run on test shutdown.
@@ -64,19 +70,15 @@ TEST_PAIR(TestWrongTypeInNormalField) {
 }
 
 TEST_PAIR(TestWrongStrongTypeInIndexedStructField) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Value> v = CompileRun("({a: 3, b: 4})");
-  DirectHandle<Object> o = v8::Utils::OpenDirectHandle(*v);
-  DirectHandle<Map> map(Cast<HeapObject>(o)->map(), i_isolate);
+  HandleScope scope(i_isolate());
+  DirectHandle<Object> o = RunJS("({a: 3, b: 4})");
+  DirectHandle<Map> map(Cast<HeapObject>(o)->map(), i_isolate());
   DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(),
-                                            i_isolate);
+                                            i_isolate());
   int offset = DescriptorArray::OffsetOfDescriptorAt(1) +
                DescriptorArray::kEntryKeyOffset;
   DirectHandle<Object> original_key(
-      TaggedField<Object>::load(*descriptors, offset), i_isolate);
+      TaggedField<Object>::load(*descriptors, offset), i_isolate());
   CHECK(IsString(*original_key));
 
   // There must be no GC (and therefore no verifiers running) until we can
@@ -87,7 +89,7 @@ TEST_PAIR(TestWrongStrongTypeInIndexedStructField) {
   // JSObject should cause a failure.
   TaggedField<Object>::store(*descriptors, offset, *o);
   if (should_fail) {
-    descriptors->DescriptorArrayEntryTypesVerify(i_isolate);
+    descriptors->DescriptorArrayEntryTypesVerify(i_isolate());
   }
 
   // Put back the original value in case verifiers run on test shutdown.
@@ -95,19 +97,15 @@ TEST_PAIR(TestWrongStrongTypeInIndexedStructField) {
 }
 
 TEST_PAIR(TestWrongWeakTypeInIndexedStructField) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Value> v = CompileRun("({a: 3, b: 4})");
-  DirectHandle<Object> o = v8::Utils::OpenDirectHandle(*v);
-  DirectHandle<Map> map(Cast<HeapObject>(o)->map(), i_isolate);
+  HandleScope scope(i_isolate());
+  DirectHandle<Object> o = RunJS("({a: 3, b: 4})");
+  DirectHandle<Map> map(Cast<HeapObject>(o)->map(), i_isolate());
   DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(),
-                                            i_isolate);
+                                            i_isolate());
   int offset = DescriptorArray::OffsetOfDescriptorAt(0) +
                DescriptorArray::kEntryValueOffset;
   DirectHandle<Object> original_value(
-      TaggedField<Object>::load(*descriptors, offset), i_isolate);
+      TaggedField<Object>::load(*descriptors, offset), i_isolate());
 
   // There must be no GC (and therefore no verifiers running) until we can
   // restore the modified data.
@@ -116,11 +114,11 @@ TEST_PAIR(TestWrongWeakTypeInIndexedStructField) {
   // Value can be JSAny, which includes JSObject, and it can be Weak<Map>, but
   // it can't be Weak<JSObject>.
   TaggedField<Object>::store(*descriptors, offset, *o);
-  descriptors->DescriptorArrayEntryTypesVerify(i_isolate);
+  descriptors->DescriptorArrayEntryTypesVerify(i_isolate());
   Tagged<MaybeObject> weak = MakeWeak(Cast<HeapObject>(*o));
   TaggedField<MaybeObject>::store(*descriptors, offset, weak);
   if (should_fail) {
-    descriptors->DescriptorArrayEntryTypesVerify(i_isolate);
+    descriptors->DescriptorArrayEntryTypesVerify(i_isolate());
   }
 
   // Put back the original value in case verifiers run on test shutdown.
@@ -128,14 +126,10 @@ TEST_PAIR(TestWrongWeakTypeInIndexedStructField) {
 }
 
 TEST_PAIR(TestWrongOddball) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Value> v = CompileRun("new Date()");
-  DirectHandle<JSDate> date = Cast<JSDate>(v8::Utils::OpenDirectHandle(*v));
+  HandleScope scope(i_isolate());
+  DirectHandle<JSDate> date = RunJS<JSDate>("new Date()");
   DirectHandle<Object> original_hour(
-      TaggedField<Object>::load(*date, offsetof(JSDate, hour_)), i_isolate);
+      TaggedField<Object>::load(*date, offsetof(JSDate, hour_)), i_isolate());
 
   // There must be no GC (and therefore no verifiers running) until we can
   // restore the modified data.
@@ -143,9 +137,9 @@ TEST_PAIR(TestWrongOddball) {
 
   // Hour is Smi|NaN. Other oddballs like null should cause a failure.
   TaggedField<Object>::store(*date, offsetof(JSDate, hour_),
-                             *i_isolate->factory()->null_value());
+                             *i_isolate()->factory()->null_value());
   if (should_fail) {
-    date->JSDateVerify(i_isolate);
+    date->JSDateVerify(i_isolate());
   }
 
   // Put back the original value in case verifiers run on test shutdown.
@@ -153,16 +147,11 @@ TEST_PAIR(TestWrongOddball) {
 }
 
 TEST_PAIR(TestWrongNumber) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Value> v = CompileRun("new Date()");
-  DirectHandle<JSDate> date = Cast<JSDate>(v8::Utils::OpenDirectHandle(*v));
+  HandleScope scope(i_isolate());
+  DirectHandle<JSDate> date = RunJS<JSDate>("new Date()");
   DirectHandle<Object> original_hour(
-      TaggedField<Object>::load(*date, offsetof(JSDate, hour_)), i_isolate);
-  v8::Local<v8::Value> v2 = CompileRun("1.1");
-  DirectHandle<Object> float_val = v8::Utils::OpenDirectHandle(*v2);
+      TaggedField<Object>::load(*date, offsetof(JSDate, hour_)), i_isolate());
+  DirectHandle<Object> float_val = RunJS("1.1");
 
   // There must be no GC (and therefore no verifiers running) until we can
   // restore the modified data.
@@ -171,7 +160,7 @@ TEST_PAIR(TestWrongNumber) {
   // Hour is Smi|NaN. Other doubles like 1.1 should cause a failure.
   TaggedField<Object>::store(*date, offsetof(JSDate, hour_), *float_val);
   if (should_fail) {
-    date->JSDateVerify(i_isolate);
+    date->JSDateVerify(i_isolate());
   }
 
   // Put back the original value in case verifiers run on test shutdown.
@@ -182,5 +171,4 @@ TEST_PAIR(TestWrongNumber) {
 
 #undef TEST_PAIR
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::verifiers_unittest

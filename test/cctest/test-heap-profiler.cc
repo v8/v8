@@ -53,9 +53,9 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/collector.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/jsonstream-helper.h"
+#include "test/common/collector.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-module-builder.h"

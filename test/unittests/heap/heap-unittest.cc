@@ -6102,19 +6102,6 @@ TEST_F(HeapTest, Regress615489) {
   EXPECT_LE(size_after, size_before);
 }
 
-namespace {
-class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
- public:
-  explicit StaticOneByteResource(const char* data) : data_(data) {}
-  ~StaticOneByteResource() override = default;
-  const char* data() const override { return data_; }
-  size_t length() const override { return strlen(data_); }
-
- private:
-  const char* data_;
-};
-}  // namespace
-
 TEST_F(HeapTest, Regress631969) {
   if (!v8_flags.incremental_marking) return;
   ManualGCScope manual_gc_scope(i_isolate());

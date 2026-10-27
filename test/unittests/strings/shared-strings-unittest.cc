@@ -11,11 +11,14 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/factory.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/incremental-marking.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/mutable-page.h"
+#include "src/heap/normal-page-inl.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -24,8 +27,10 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-forwarding-table-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-utils.h"
+#include "test/common/flag-utils.h"
+#include "test/unittests/heap/heap-utils.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 // In multi-cage mode we create one cage per isolate
 // and we don't share objects between cages.
@@ -33,7 +38,12 @@
 
 namespace v8 {
 namespace internal {
-namespace test_shared_strings {
+namespace shared_strings_unittest {
+
+class SharedStringsTest : public TestWithPlatform {
+ private:
+  SaveFlags save_flags_;
+};
 
 // Some tests in this file allocate two Isolates in the same thread to directly
 // test shared string behavior. Because both are considered running, when
@@ -94,6 +104,11 @@ class MultiClientIsolateTest {
 };
 
 namespace {
+
+void CollectSharedGarbage(Heap* heap) {
+  heap->CollectGarbageShared(heap->main_thread_local_heap(),
+                             GarbageCollectionReason::kTesting);
+}
 
 std::pair<DirectHandle<String>, MaybeDirectHandle<String>>
 CreateSharedOneByteString(Isolate* isolate, Factory* factory, int length,
@@ -217,11 +232,11 @@ class ExternalResourceFactory {
 
 }  // namespace
 
-UNINITIALIZED_TEST(StringShare) {
-  v8_flags.shared_strings = true;
+TEST_F(SharedStringsTest, StringShare) {
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
   i::FlagList::EnforceFlagImplications();
 
-  ManualGCScope manual_gc_scope;
+  ManualGCScope manual_gc_scope(nullptr);
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -370,8 +385,8 @@ UNINITIALIZED_TEST(StringShare) {
   }
 }
 
-UNINITIALIZED_TEST(SharedStringInGlobalHandle) {
-  v8_flags.shared_strings = true;
+TEST_F(SharedStringsTest, SharedStringInGlobalHandle) {
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
   i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
@@ -387,7 +402,7 @@ UNINITIALIZED_TEST(SharedStringInGlobalHandle) {
                                           lh_shared_string);
   gh_shared_string.SetWeak();
 
-  heap::InvokeMajorGC(i_isolate->heap());
+  InvokeMajorGC(i_isolate);
 
   CHECK(!gh_shared_string.IsEmpty());
 }
@@ -453,8 +468,8 @@ class WorkerIsolateThread : public v8::base::Thread {
   MultiClientIsolateTest* test_;
 };
 
-UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
-  v8_flags.shared_strings = true;
+TEST_F(SharedStringsTest, SharedStringInClientGlobalHandle) {
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
   i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
@@ -471,7 +486,8 @@ UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
   thread.Join();
 }
 
-class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
+class ClientIsolateThreadForPagePromotions : public v8::base::Thread,
+                                             protected HeapInternalsBase {
  public:
   // Expects a ManualGCScope to be in scope while `Run()` is executed.
   ClientIsolateThreadForPagePromotions(const char* name,
@@ -498,17 +514,17 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       CHECK(HeapLayout::InYoungGeneration(*young_object));
       Address young_object_address = young_object->address();
 
-      DirectHandleVector<FixedArray> handles(i_client);
+      std::vector<Handle<FixedArray>> handles;
       // Make the whole page transition from new->old, getting the buffers
       // processed in the sweeper (relying on marking information) instead of
       // processing during newspace evacuation.
-      heap::FillCurrentPage(heap->new_space(), &handles);
+      FillCurrentPage(heap->new_space(), &handles);
 
       CHECK(!heap->Contains(**shared_string_));
       CHECK(heap->SharedHeapContains(**shared_string_));
       young_object->set(0, **shared_string_);
 
-      heap::EmptyNewSpaceUsingGC(heap);
+      InvokeMajorGC(i_client);
       heap->CompleteSweepingFull(CompleteSweepingReason::kTesting);
 
       // Object should get promoted using page promotion, so address should
@@ -538,16 +554,18 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
   Handle<String>* shared_string_;
 };
 
-UNINITIALIZED_TEST(RegisterOldToSharedForPromotedPageFromClient) {
+TEST_F(SharedStringsTest, RegisterOldToSharedForPromotedPageFromClient) {
   if (v8_flags.single_generation) return;
   if (!v8_flags.minor_ms) return;
 
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  v8_flags.shared_strings = true;
+  FlagScope<bool> no_stress_concurrent_allocation(
+      &v8_flags.stress_concurrent_allocation,
+      false);  // For SealCurrentObjects.
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
   i::FlagList::EnforceFlagImplications();
 
-  ManualGCScope manual_gc_scope;
-  heap::ManualEvacuationCandidatesSelectionScope
+  ManualGCScope manual_gc_scope(nullptr);
+  ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   MultiClientIsolateTest test;
@@ -577,21 +595,24 @@ UNINITIALIZED_TEST(RegisterOldToSharedForPromotedPageFromClient) {
   thread.Join();
 }
 
-UNINITIALIZED_TEST(
-    RegisterOldToSharedForPromotedPageFromClientDuringIncrementalMarking) {
+TEST_F(SharedStringsTest,
+       RegisterOldToSharedForPromotedPageFromClientDuringIncrementalMarking) {
   if (v8_flags.single_generation) return;
   if (!v8_flags.minor_ms) return;
 
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  v8_flags.shared_strings = true;
+  FlagScope<bool> no_stress_concurrent_allocation(
+      &v8_flags.stress_concurrent_allocation,
+      false);  // For SealCurrentObjects.
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
   i::FlagList::EnforceFlagImplications();
 
-  ManualGCScope manual_gc_scope;
-  heap::ManualEvacuationCandidatesSelectionScope
+  ManualGCScope manual_gc_scope(nullptr);
+  ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
-  v8_flags.incremental_marking_task =
-      false;  // Prevent the incremental GC from finishing and finalizing in a
-              // task.
+  FlagScope<bool> no_incremental_marking_task(
+      &v8_flags.incremental_marking_task,
+      false);  // Prevent the incremental GC from finishing and finalizing in a
+               // task.
 
   MultiClientIsolateTest test;
 
@@ -609,7 +630,7 @@ UNINITIALIZED_TEST(
 
   // Start an incremental shared GC such that shared_string resides on an
   // evacuation candidate.
-  heap::ForceEvacuationCandidate(NormalPage::FromHeapObject(*shared_string));
+  ForceEvacuationCandidate(NormalPage::FromHeapObject(*shared_string));
   i::IncrementalMarking* marking = shared_heap->incremental_marking();
   CHECK(marking->IsStopped());
   {
@@ -635,7 +656,9 @@ UNINITIALIZED_TEST(
   thread.Join();
 }
 
-class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
+class ClientIsolateThreadForRetainingByRememberedSet
+    : public v8::base::Thread,
+      protected HeapInternalsBase {
  public:
   // Expects a ManualGCScope to be in scope while `Run()` is executed.
   ClientIsolateThreadForRetainingByRememberedSet(
@@ -661,11 +684,11 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       CHECK(HeapLayout::InYoungGeneration(*young_object));
       Address young_object_address = young_object->address();
 
-      DirectHandleVector<FixedArray> handles(i_client);
+      std::vector<Handle<FixedArray>> handles;
       // Make the whole page transition from new->old, getting the buffers
       // processed in the sweeper (relying on marking information) instead of
       // processing during newspace evacuation.
-      heap::FillCurrentPage(heap->new_space(), &handles);
+      FillCurrentPage(heap->new_space(), &handles);
 
       // Create a new to shared reference.
       CHECK(!weak_ref_->IsEmpty());
@@ -676,7 +699,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       CHECK(heap->SharedHeapContains(*shared_string));
       young_object->set(0, *shared_string);
 
-      heap::EmptyNewSpaceUsingGC(heap);
+      InvokeMajorGC(i_client);
 
       // Object should get promoted using page promotion, so address should
       // remain the same.
@@ -735,16 +758,18 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
   int wakeup_counter_ = 0;
 };
 
-UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
+TEST_F(SharedStringsTest, SharedObjectRetainedByClientRememberedSet) {
   if (v8_flags.single_generation) return;
   if (!v8_flags.minor_ms) return;
 
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  v8_flags.shared_strings = true;
+  FlagScope<bool> no_stress_concurrent_allocation(
+      &v8_flags.stress_concurrent_allocation,
+      false);  // For SealCurrentObjects.
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
   i::FlagList::EnforceFlagImplications();
 
-  ManualGCScope manual_gc_scope;
-  heap::ManualEvacuationCandidatesSelectionScope
+  ManualGCScope manual_gc_scope(nullptr);
+  ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   MultiClientIsolateTest test;
@@ -796,7 +821,7 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
   // slot in the client isolate.
   CHECK(!live_weak_ref.IsEmpty());
   CHECK(!dead_weak_ref.IsEmpty());
-  heap::CollectSharedGarbage(i_isolate->heap());
+  CollectSharedGarbage(i_isolate->heap());
   CHECK(!live_weak_ref.IsEmpty());
   CHECK(dead_weak_ref.IsEmpty());
 
@@ -839,7 +864,7 @@ class Regress1424955ClientIsolateThread : public v8::base::Thread {
       USE(array);
 
       // Start sweeping.
-      heap::InvokeMajorGC(i_client_heap);
+      InvokeMajorGC(i_client);
       CHECK(i_client_heap->sweeping_in_progress());
 
       // Inform the initiator thread it's time to request a global safepoint.
@@ -858,7 +883,7 @@ class Regress1424955ClientIsolateThread : public v8::base::Thread {
       // Start a minor GC. This will cause this client isolate to join the
       // global safepoint. At which point, the initiator isolate will try to
       // finalize sweeping on behalf of this client isolate.
-      heap::InvokeMinorGC(i_client_heap);
+      InvokeMinorGC(i_client);
     }
 
     // Wait for the initiator isolate to finish the shared GC.
@@ -891,16 +916,16 @@ class Regress1424955ClientIsolateThread : public v8::base::Thread {
 
 // TOOD(pthier): This test doesn't belong here. It should be moved to
 // shared-heap testing.
-UNINITIALIZED_TEST(Regress1424955) {
+TEST_F(SharedStringsTest, Regress1424955) {
   if (v8_flags.single_generation) return;
   // When heap verification is enabled, sweeping is finalized in the atomic
   // pause. This issue requires that sweeping is still in progress after the
   // atomic pause is finished.
   if (v8_flags.verify_heap) return;
-  v8_flags.shared_heap = true;
+  FlagScope<bool> shared_heap(&v8_flags.shared_heap, true);
   i::FlagList::EnforceFlagImplications();
 
-  ManualGCScope manual_gc_scope;
+  ManualGCScope manual_gc_scope(nullptr);
 
   MultiClientIsolateTest test;
   Regress1424955ClientIsolateThread thread("worker", &test);
@@ -915,7 +940,7 @@ UNINITIALIZED_TEST(Regress1424955) {
 
   // Client isolate waits for this isolate to request a global safepoint and
   // then triggers a minor GC.
-  heap::CollectSharedGarbage(test.i_main_isolate()->heap());
+  CollectSharedGarbage(test.i_main_isolate()->heap());
   V8::GetCurrentPlatform()
       ->GetForegroundTaskRunner(thread.isolate())
       ->PostTask(std::make_unique<WakeupTask>(
@@ -1001,15 +1026,18 @@ class ClientIsolateThreadForConservativePinningScope : public v8::base::Thread {
   MultiClientIsolateTest* test_;
 };
 
-UNINITIALIZED_TEST(ConservativePinningScopeInClientIsolate) {
+TEST_F(SharedStringsTest, ConservativePinningScopeInClientIsolate) {
   // `v8_flags.conservative_stack_scanning` is constexpr in some builds.
   if (v8_flags.conservative_stack_scanning) {
     return;
   }
-  v8_flags.shared_strings = true;
-  v8_flags.scavenger_conservative_object_pinning = false;
-  v8_flags.precise_object_pinning = false;
-  v8_flags.scavenger_precise_object_pinning = false;
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
+  FlagScope<bool> no_scavenger_conservative_object_pinning(
+      &v8_flags.scavenger_conservative_object_pinning, false);
+  FlagScope<bool> no_precise_object_pinning(&v8_flags.precise_object_pinning,
+                                            false);
+  FlagScope<bool> no_scavenger_precise_object_pinning(
+      &v8_flags.scavenger_precise_object_pinning, false);
   i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
@@ -1028,10 +1056,10 @@ UNINITIALIZED_TEST(ConservativePinningScopeInClientIsolate) {
   thread.Join();
 }
 
-UNINITIALIZED_TEST(InternalizeWithoutSharedStringTable) {
+TEST_F(SharedStringsTest, InternalizeWithoutSharedStringTable) {
   if (v8_flags.single_generation) return;
 
-  v8_flags.shared_strings = true;
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
   i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
@@ -1073,10 +1101,10 @@ UNINITIALIZED_TEST(InternalizeWithoutSharedStringTable) {
   CHECK(!HeapLayout::InAnySharedSpace(*two_byte_intern));
 }
 
-UNINITIALIZED_TEST(InternalizeSharedWithoutSharedStringTable) {
+TEST_F(SharedStringsTest, InternalizeSharedWithoutSharedStringTable) {
   if (v8_flags.single_generation) return;
 
-  v8_flags.shared_strings = true;
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
   i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
@@ -1144,10 +1172,10 @@ UNINITIALIZED_TEST(InternalizeSharedWithoutSharedStringTable) {
   }
 }
 
-UNINITIALIZED_TEST(LookupSharedWithoutSharedStringTable) {
+TEST_F(SharedStringsTest, LookupSharedWithoutSharedStringTable) {
   if (v8_flags.single_generation) return;
 
-  v8_flags.shared_strings = true;
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
   i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
@@ -1191,10 +1219,10 @@ UNINITIALIZED_TEST(LookupSharedWithoutSharedStringTable) {
   CHECK_EQ(main_internalized->hash(), main_pre_internalized->hash());
 }
 
-UNINITIALIZED_TEST(ExternalizeSharedWithoutSharedStringTable) {
+TEST_F(SharedStringsTest, ExternalizeSharedWithoutSharedStringTable) {
   if (v8_flags.single_generation) return;
 
-  v8_flags.shared_strings = true;
+  FlagScope<bool> shared_strings(&v8_flags.shared_strings, true);
   i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
@@ -1222,7 +1250,7 @@ UNINITIALIZED_TEST(ExternalizeSharedWithoutSharedStringTable) {
       v8::String::Encoding::ONE_BYTE_ENCODING));
 }
 
-}  // namespace test_shared_strings
+}  // namespace shared_strings_unittest
 }  // namespace internal
 }  // namespace v8
 

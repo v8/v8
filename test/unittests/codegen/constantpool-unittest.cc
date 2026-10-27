@@ -4,15 +4,19 @@
 
 // Test embedded constant pool builder code.
 
-#include "src/init/v8.h"
+#include <algorithm>
 
 #include "src/codegen/constant-pool.h"
-#include "test/cctest/cctest.h"
+#include "src/init/v8.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+namespace constantpool_unittest {
 
 #if defined(V8_TARGET_ARCH_PPC64)
+
+using ConstantPoolTest = ::testing::Test;
 
 const ConstantPoolEntry::Type kPtrType = ConstantPoolEntry::INTPTR;
 const ConstantPoolEntry::Type kDblType = ConstantPoolEntry::DOUBLE;
@@ -22,8 +26,7 @@ const ConstantPoolEntry::Access kOvflAccess = ConstantPoolEntry::OVERFLOWED;
 const int kReachBits = 6;  // Use reach of 64-bytes to test overflow.
 const int kReach = 1 << kReachBits;
 
-
-TEST(ConstantPoolPointers) {
+TEST_F(ConstantPoolTest, ConstantPoolPointers) {
   ConstantPoolBuilder builder(kReachBits, kReachBits);
   const int kRegularCount = kReach / kSystemPointerSize;
   ConstantPoolEntry::Access access;
@@ -43,8 +46,7 @@ TEST(ConstantPoolPointers) {
   CHECK_EQ(access, kOvflAccess);
 }
 
-
-TEST(ConstantPoolDoubles) {
+TEST_F(ConstantPoolTest, ConstantPoolDoubles) {
   ConstantPoolBuilder builder(kReachBits, kReachBits);
   const int kRegularCount = kReach / kDoubleSize;
   ConstantPoolEntry::Access access;
@@ -64,8 +66,7 @@ TEST(ConstantPoolDoubles) {
   CHECK_EQ(access, kOvflAccess);
 }
 
-
-TEST(ConstantPoolMixedTypes) {
+TEST_F(ConstantPoolTest, ConstantPoolMixedTypes) {
   ConstantPoolBuilder builder(kReachBits, kReachBits);
   const int kRegularCount =
       (((kReach / (kDoubleSize + kSystemPointerSize)) * 2) +
@@ -98,8 +99,7 @@ TEST(ConstantPoolMixedTypes) {
   CHECK_EQ(access, kOvflAccess);
 }
 
-
-TEST(ConstantPoolMixedReach) {
+TEST_F(ConstantPoolTest, ConstantPoolMixedReach) {
   const int ptrReachBits = kReachBits + 2;
   const int ptrReach = 1 << ptrReachBits;
   const int dblReachBits = kReachBits;
@@ -150,8 +150,7 @@ TEST(ConstantPoolMixedReach) {
   CHECK_EQ(access, kOvflAccess);
 }
 
-
-TEST(ConstantPoolSharing) {
+TEST_F(ConstantPoolTest, ConstantPoolSharing) {
   ConstantPoolBuilder builder(kReachBits, kReachBits);
   const int kRegularCount =
       (((kReach / (kDoubleSize + kSystemPointerSize)) * 2) +
@@ -200,8 +199,7 @@ TEST(ConstantPoolSharing) {
   CHECK_EQ(access, kOvflAccess);
 }
 
-
-TEST(ConstantPoolNoSharing) {
+TEST_F(ConstantPoolTest, ConstantPoolNoSharing) {
   ConstantPoolBuilder builder(kReachBits, kReachBits);
   const int kRegularCount =
       (((kReach / (kDoubleSize + kSystemPointerSize)) * 2) +
@@ -254,5 +252,6 @@ TEST(ConstantPoolNoSharing) {
 
 #endif  // defined(V8_TARGET_ARCH_PPC64)
 
+}  // namespace constantpool_unittest
 }  // namespace internal
 }  // namespace v8

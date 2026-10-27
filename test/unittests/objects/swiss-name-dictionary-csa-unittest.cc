@@ -8,10 +8,12 @@
 #include "src/codegen/cpu-features.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
-#include "test/cctest/compiler/function-tester.h"
-#include "test/cctest/test-swiss-name-dictionary-infra.h"
-#include "test/cctest/test-swiss-name-dictionary-shared-tests.h"
 #include "test/common/code-assembler-tester.h"
+#include "test/unittests/compiler/function-tester.h"
+#include "test/unittests/objects/swiss-name-dictionary-infra.h"
+#include "test/unittests/objects/swiss-name-dictionary-shared-tests.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
@@ -122,14 +124,14 @@ CSATestRunner::CSATestRunner(Isolate* isolate, uint32_t initial_capacity,
     : isolate_{isolate},
       reference_{isolate_->factory()->NewSwissNameDictionaryWithCapacity(
           initial_capacity, AllocationType::kYoung)},
-      find_entry_ft_(create_find_entry(isolate), kFindEntryParams),
-      get_data_ft_(create_get_data(isolate), kGetDataParams),
-      put_ft_{create_put(isolate), kPutParams},
-      delete_ft_{create_delete(isolate), kDeleteParams},
-      add_ft_{create_add(isolate), kAddParams},
-      allocate_ft_{create_allocate(isolate), kAllocateParams},
-      get_counts_ft_{create_get_counts(isolate), kGetCountsParams},
-      copy_ft_{create_copy(isolate), kCopyParams} {
+      find_entry_ft_(isolate, create_find_entry(isolate), kFindEntryParams),
+      get_data_ft_(isolate, create_get_data(isolate), kGetDataParams),
+      put_ft_{isolate, create_put(isolate), kPutParams},
+      delete_ft_{isolate, create_delete(isolate), kDeleteParams},
+      add_ft_{isolate, create_add(isolate), kAddParams},
+      allocate_ft_{isolate, create_allocate(isolate), kAllocateParams},
+      get_counts_ft_{isolate, create_get_counts(isolate), kGetCountsParams},
+      copy_ft_{isolate, create_copy(isolate), kCopyParams} {
   Allocate(handle(Smi::FromInt(initial_capacity), isolate));
 }
 
@@ -467,12 +469,18 @@ void CSATestRunner::CheckAgainstReference() {
   CHECK(table->EqualsForTesting(*reference_));
 }
 
-// Executes the tests defined in test-swiss-name-dictionary-shared-tests.h as if
+namespace swiss_name_dictionary_csa_unittest {
+
+// The CSA FunctionTesters create JSFunctions and thus need a native context.
+using SwissNameDictionaryCSATest = TestWithNativeContext;
+
+// Executes the tests defined in swiss-name-dictionary-shared-tests.h as if
 // they were defined in this file, using the CSATestRunner. See comments in
-// test-swiss-name-dictionary-shared-tests.h and in
-// swiss-name-dictionary-infra.h for details.
-const char kCSATestFileName[] = __FILE__;
-SharedSwissTableTests<CSATestRunner, kCSATestFileName> execute_shared_tests_csa;
+// swiss-name-dictionary-shared-tests.h and in swiss-name-dictionary-infra.h
+// for details.
+DEFINE_SHARED_SWISS_TABLE_TESTS(SwissNameDictionaryCSATest, CSATestRunner)
+
+}  // namespace swiss_name_dictionary_csa_unittest
 
 #endif
 

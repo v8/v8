@@ -2,30 +2,37 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/test-transitions.h"
+#include "src/objects/transitions.h"
 
 #include <stdlib.h>
 
 #include <array>
+#include <memory>
+#include <string>
 #include <utility>
 
+#include "include/v8-snapshot.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/execution.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/transitions-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/common/flag-utils.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+namespace transitions_unittest {
 
-TEST(TransitionArray_SimpleFieldTransitions) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
+using TransitionsTest = TestWithNativeContext;
+using TransitionsUninitializedTest = v8::TestWithPlatform;
+
+TEST_F(TransitionsTest, TransitionArray_SimpleFieldTransitions) {
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
   DirectHandle<String> name1 = factory->InternalizeUtf8String("foo");
@@ -84,11 +91,8 @@ TEST(TransitionArray_SimpleFieldTransitions) {
   }
 }
 
-
-TEST(TransitionArray_FullFieldTransitions) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(TransitionsTest, TransitionArray_FullFieldTransitions) {
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
   DirectHandle<String> name1 = factory->InternalizeUtf8String("foo");
@@ -147,11 +151,8 @@ TEST(TransitionArray_FullFieldTransitions) {
   }
 }
 
-
-TEST(TransitionArray_DifferentFieldNames) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(TransitionsTest, TransitionArray_DifferentFieldNames) {
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
   const int PROPS_COUNT = 10;
@@ -196,11 +197,9 @@ TEST(TransitionArray_DifferentFieldNames) {
   DCHECK(transitions.IsSortedNoDuplicates());
 }
 
-
-TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(TransitionsTest,
+       TransitionArray_SameFieldNamesDifferentAttributesSimple) {
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
   DirectHandle<Map> map0 = Map::Create(isolate, 0);
@@ -239,11 +238,8 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
   DCHECK(transitions.IsSortedNoDuplicates());
 }
 
-
-TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(TransitionsTest, TransitionArray_SameFieldNamesDifferentAttributes) {
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
   const int PROPS_COUNT = 10;
@@ -319,18 +315,21 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   DCHECK(transitions.IsSortedNoDuplicates());
 }
 
-UNINITIALIZED_TEST(TransitionArray_InsertToBinarySearchSizeAfterRehashing) {
-  v8_flags.rehash_snapshot = true;
-  v8_flags.hash_seed = 42;
-  v8_flags.allow_natives_syntax = true;
+TEST_F(TransitionsUninitializedTest,
+       TransitionArray_InsertToBinarySearchSizeAfterRehashing) {
+  FlagScope<bool> rehash_snapshot(&v8_flags.rehash_snapshot, true);
+  FlagScope<uint64_t> hash_seed(&v8_flags.hash_seed, 42);
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   int initial_size = TransitionArray::kMaxElementsForLinearSearch - 3;
   int final_size = TransitionArray::kMaxElementsForLinearSearch + 3;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
   {
     v8::Isolate::CreateParams testing_params;
-    testing_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    testing_params.array_buffer_allocator = allocator.get();
     v8::SnapshotCreator creator(testing_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
@@ -365,7 +364,9 @@ UNINITIALIZED_TEST(TransitionArray_InsertToBinarySearchSizeAfterRehashing) {
         objects.push_back(new_obj);
       }
       context->Global()
-          ->Set(context, v8_str("objects_for_transitions"),
+          ->Set(context,
+                v8::String::NewFromUtf8(isolate, "objects_for_transitions")
+                    .ToLocalChecked(),
                 v8::Array::New(isolate, objects.data(), objects.size()))
           .Check();
 
@@ -382,9 +383,9 @@ UNINITIALIZED_TEST(TransitionArray_InsertToBinarySearchSizeAfterRehashing) {
   }
 
   // Create a new isolate from the snapshot with rehashing enabled.
-  v8_flags.hash_seed = 1337;
+  FlagScope<uint64_t> hash_seed_rehash(&v8_flags.hash_seed, 1337);
   v8::Isolate::CreateParams testing_params;
-  testing_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  testing_params.array_buffer_allocator = allocator.get();
   testing_params.snapshot_blob = &blob;
   v8::Isolate* isolate = v8::Isolate::New(testing_params);
   {
@@ -427,7 +428,9 @@ UNINITIALIZED_TEST(TransitionArray_InsertToBinarySearchSizeAfterRehashing) {
         objects.push_back(new_obj);
       }
       context->Global()
-          ->Set(context, v8_str("objects_for_transitions_2"),
+          ->Set(context,
+                v8::String::NewFromUtf8(isolate, "objects_for_transitions_2")
+                    .ToLocalChecked(),
                 v8::Array::New(isolate, objects.data(), objects.size()))
           .Check();
       TestTransitionsAccessor transitions(i_isolate, first_map);
@@ -450,7 +453,9 @@ UNINITIALIZED_TEST(TransitionArray_InsertToBinarySearchSizeAfterRehashing) {
       }
 
       context->Global()
-          ->Set(context, v8_str("objects_for_transitions_3"),
+          ->Set(context,
+                v8::String::NewFromUtf8(isolate, "objects_for_transitions_3")
+                    .ToLocalChecked(),
                 v8::Array::New(isolate, objects.data(), objects.size()))
           .Check();
 
@@ -465,18 +470,21 @@ UNINITIALIZED_TEST(TransitionArray_InsertToBinarySearchSizeAfterRehashing) {
   FreeCurrentEmbeddedBlob();
 }
 
-UNINITIALIZED_TEST(TransitionArray_RehashNoDuplicatesWithinLinearSearchSize) {
-  v8_flags.rehash_snapshot = true;
-  v8_flags.hash_seed = 42;
-  v8_flags.allow_natives_syntax = true;
+TEST_F(TransitionsUninitializedTest,
+       TransitionArray_RehashNoDuplicatesWithinLinearSearchSize) {
+  FlagScope<bool> rehash_snapshot(&v8_flags.rehash_snapshot, true);
+  FlagScope<uint64_t> hash_seed(&v8_flags.hash_seed, 42);
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   // Stay within linear search size.
   constexpr int initial_size = TransitionArray::kMaxElementsForLinearSearch / 2;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
   {
     v8::Isolate::CreateParams testing_params;
-    testing_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    testing_params.array_buffer_allocator = allocator.get();
     v8::SnapshotCreator creator(testing_params);
     v8::Isolate* isolate = creator.GetIsolate();
     {
@@ -507,7 +515,9 @@ UNINITIALIZED_TEST(TransitionArray_RehashNoDuplicatesWithinLinearSearchSize) {
         objects.push_back(new_obj);
       }
       context->Global()
-          ->Set(context, v8_str("objects_for_transitions"),
+          ->Set(context,
+                v8::String::NewFromUtf8(isolate, "objects_for_transitions")
+                    .ToLocalChecked(),
                 v8::Array::New(isolate, objects.data(), objects.size()))
           .Check();
 
@@ -522,9 +532,9 @@ UNINITIALIZED_TEST(TransitionArray_RehashNoDuplicatesWithinLinearSearchSize) {
   }
 
   // Deserialize with a different hash seed to trigger rehashing.
-  v8_flags.hash_seed = 1337;
+  FlagScope<uint64_t> hash_seed_rehash(&v8_flags.hash_seed, 1337);
   v8::Isolate::CreateParams testing_params;
-  testing_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  testing_params.array_buffer_allocator = allocator.get();
   testing_params.snapshot_blob = &blob;
   v8::Isolate* isolate = v8::Isolate::New(testing_params);
   {
@@ -578,10 +588,8 @@ UNINITIALIZED_TEST(TransitionArray_RehashNoDuplicatesWithinLinearSearchSize) {
 
 // LinearSearchName should work correctly even when the underlying
 // TransitionArray is not in hash-sorted order.
-TEST(TransitionArray_LinearSearchHandlesUnsortedArray) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(TransitionsTest, TransitionArray_LinearSearchHandlesUnsortedArray) {
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
   // Keep the number of transitions small to ensure linear search is used.
@@ -656,5 +664,6 @@ TEST(TransitionArray_LinearSearchHandlesUnsortedArray) {
   }
 }
 
+}  // namespace transitions_unittest
 }  // namespace internal
 }  // namespace v8

@@ -7,6 +7,7 @@
 
 #include <array>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
@@ -204,15 +205,39 @@ class WithIsolateScopeMixin : public TMixin {
     return reinterpret_cast<v8::internal::Isolate*>(this->v8_isolate());
   }
 
-  i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
+  static i::DirectHandle<i::String> MakeName(i::Isolate* isolate,
+                                             const char* str, int suffix) {
     std::array<char, 128> buffer;
     v8::base::SNPrintF(buffer, "%s%d", str, suffix);
-    return MakeString(buffer.data());
+    return MakeString(isolate, buffer.data());
+  }
+
+  i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
+    return MakeName(i_isolate(), str, suffix);
+  }
+
+  static i::Handle<i::String> MakeString(i::Isolate* isolate, const char* str) {
+    i::Factory* factory = isolate->factory();
+    return factory->InternalizeUtf8String(str);
   }
 
   i::Handle<i::String> MakeString(const char* str) {
-    i::Factory* factory = i_isolate()->factory();
-    return factory->InternalizeUtf8String(str);
+    return MakeString(i_isolate(), str);
+  }
+
+  template <typename T>
+  static i::DirectHandle<T> GetGlobal(i::Isolate* isolate, const char* name) {
+    i::DirectHandle<i::String> str_name =
+        isolate->factory()->InternalizeUtf8String(name);
+    i::DirectHandle<i::Object> value =
+        i::Object::GetProperty(isolate, isolate->global_object(), str_name)
+            .ToHandleChecked();
+    return i::Cast<T>(value);
+  }
+
+  template <typename T>
+  i::DirectHandle<T> GetGlobal(const char* name) {
+    return GetGlobal<T>(i_isolate(), name);
   }
 
   Local<Value> RunJS(const char* source) {
@@ -241,6 +266,12 @@ class WithIsolateScopeMixin : public TMixin {
     Local<Script> script =
         v8::Script::Compile(context, source).ToLocalChecked();
     return script->Run(context);
+  }
+
+  static MaybeLocal<Value> TryRunJS(Isolate* isolate, Local<Context> context,
+                                    const char* source) {
+    return TryRunJS(context,
+                    v8::String::NewFromUtf8(isolate, source).ToLocalChecked());
   }
 
   Local<Value> RunJS(v8::String::ExternalOneByteStringResource* source) {
@@ -422,6 +453,26 @@ class StreamerThread : public v8::base::Thread {
   v8::ScriptCompiler::ScriptStreamingTask* task_;
 };
 
+static inline MaybeLocal<Value> TryRunJS(Isolate* isolate,
+                                         Local<Context> context,
+                                         const char* source) {
+  return TestWithIsolate::TryRunJS(isolate, context, source);
+}
+
+class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit StaticOneByteResource(const char* data) : data_(data) {}
+
+  ~StaticOneByteResource() override = default;
+
+  const char* data() const override { return data_; }
+
+  size_t length() const override { return strlen(data_); }
+
+ private:
+  const char* data_;
+};
+
 namespace internal {
 
 // Forward declarations.
@@ -574,6 +625,29 @@ static inline uint16_t* AsciiToTwoByteString(const char* source) {
   uint16_t* converted = NewArray<uint16_t>(array_length);
   for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
   return converted;
+}
+
+static inline uint16_t* AsciiToTwoByteString(const char16_t* source,
+                                             size_t* length_out = nullptr) {
+  size_t array_length = std::char_traits<char16_t>::length(source) + 1;
+  uint16_t* converted = NewArray<uint16_t>(array_length);
+  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
+  if (length_out != nullptr) *length_out = array_length - 1;
+  return converted;
+}
+
+static inline Handle<String> MakeString(Isolate* isolate, const char* str) {
+  return TestWithIsolate::MakeString(isolate, str);
+}
+
+static inline DirectHandle<String> MakeName(Isolate* isolate, const char* str,
+                                            int suffix) {
+  return TestWithIsolate::MakeName(isolate, str, suffix);
+}
+
+template <typename T>
+static inline DirectHandle<T> GetGlobal(Isolate* isolate, const char* name) {
+  return TestWithIsolate::GetGlobal<T>(isolate, name);
 }
 
 class TestTransitionsAccessor : public TransitionsAccessor {

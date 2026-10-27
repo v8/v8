@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COLLECTOR_H_
-#define V8_COLLECTOR_H_
+#ifndef V8_TEST_COMMON_COLLECTOR_H_
+#define V8_TEST_COMMON_COLLECTOR_H_
 
 #include <vector>
 
@@ -242,4 +242,4 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COLLECTOR_H_
+#endif  // V8_TEST_COMMON_COLLECTOR_H_

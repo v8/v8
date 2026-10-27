@@ -23,6 +23,8 @@
 namespace v8 {
 namespace internal {
 
+namespace memory_reducer_unittest {
+
 MemoryReducer::Event MarkCompactEvent(double time_ms,
                                       bool next_gc_likely_to_collect_more,
                                       size_t committed_memory) {
@@ -600,6 +602,8 @@ TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerOvershoot) {
   CHECK_EQ(limit_before, heap->limits()->old_generation_allocation_limit());
   CHECK_GE(heap->limits()->old_generation_allocation_limit(), consumed);
 }
+
+}  // namespace memory_reducer_unittest
 
 }  // namespace internal
 }  // namespace v8

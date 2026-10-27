@@ -2,51 +2,75 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TEST_CCTEST_TEST_SWISS_HASH_TABLE_SHARED_TESTS_H_
-#define V8_TEST_CCTEST_TEST_SWISS_HASH_TABLE_SHARED_TESTS_H_
+#ifndef V8_UNITTESTS_OBJECTS_SWISS_NAME_DICTIONARY_SHARED_TESTS_H_
+#define V8_UNITTESTS_OBJECTS_SWISS_NAME_DICTIONARY_SHARED_TESTS_H_
 
 #include <algorithm>
 #include <optional>
 #include <string>
 
-#include "test/cctest/test-swiss-name-dictionary-infra.h"
+#include "test/unittests/objects/swiss-name-dictionary-infra.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 namespace test_swiss_hash_table {
 
-// The name of the test-*.cc file that executes the tests below with the
-// RuntimeTestRunner.
-extern const char kRuntimeTestFileName[];
+// List of all tests defined in SharedSwissTableTests. Each test must be defined
+// with SHARED_SWISS_TABLE_TEST(Name) and listed here. Both directions are
+// enforced at compile time: defining a test that is not listed fails the
+// static_assert in SHARED_SWISS_TABLE_TEST, and listing a test that is not
+// defined fails in DEFINE_SHARED_SWISS_TABLE_TESTS.
+#define SHARED_SWISS_TABLE_TEST_LIST(V, ...)   \
+  V(Allocation, __VA_ARGS__)                   \
+  V(SimpleAdd, __VA_ARGS__)                    \
+  V(SimpleUpdate, __VA_ARGS__)                 \
+  V(SimpleDelete, __VA_ARGS__)                 \
+  V(AddAtBoundaries, __VA_ARGS__)              \
+  V(UpdateAtBoundaries, __VA_ARGS__)           \
+  V(DeleteAtBoundaries, __VA_ARGS__)           \
+  V(OverwritePresentAtBoundaries, __VA_ARGS__) \
+  V(Empty, __VA_ARGS__)                        \
+  V(Resize1, __VA_ARGS__)                      \
+  V(Resize2, __VA_ARGS__)                      \
+  V(AtFullCapacity, __VA_ARGS__)               \
+  V(EnumerationOrder, __VA_ARGS__)             \
+  V(SameH2, __VA_ARGS__)                       \
+  V(ReAddSameKey, __VA_ARGS__)                 \
+  V(BeyondInitialGroup, __VA_ARGS__)           \
+  V(WrapAround, __VA_ARGS__)                   \
+  V(RehashInplace, __VA_ARGS__)                \
+  V(Shrink, __VA_ARGS__)                       \
+  V(ShrinkToInitial, __VA_ARGS__)              \
+  V(ShrinkOnDelete, __VA_ARGS__)               \
+  V(Copy, __VA_ARGS__)
 
-// The name of the test-*.cc file that executes the tests below with the
-// CSATestRunner.
-extern const char kCSATestFileName[];
+// Defines the static member function SharedSwissTableTests::Test<Name>.
+#define SHARED_SWISS_TABLE_TEST(Name)                                    \
+  static_assert(static_cast<int>(ListedTest::k##Name) >= 0,              \
+                #Name " must be added to SHARED_SWISS_TABLE_TEST_LIST"); \
+  static void Test##Name(Isolate* isolate)
 
-// This class  contains test cases for SwissNameDictionary that can be executed
+// This class contains test cases for SwissNameDictionary that can be executed
 // by different "test runners", which are supplied as a template parameter. The
 // TestRunner determines how the operations on dictionaries are actually
 // executed. Currently there are two TestRunners: RuntimeTestRunner calls C++
 // functions, whereas CSATestRunner executes dictionary operations by executing
 // CSA-generated code.
-// To execute the tests, just create an instance of the class below with an
-// appropriate TestRunner.
-// Whenever creating an instance of this class in a file bar.cc, the template
-// parameter |kTestFileName| should be set to the name of the file that
-// *instantiates the class* (i.e., "bar.cc"). This ensures that the tests
-// defined below are then registered within the overall cctest machinery as if
-// they were directly written within bar.cc.
-template <typename TestRunner, char const* kTestFileName>
+// To execute the tests, use DEFINE_SHARED_SWISS_TABLE_TESTS (see below) with
+// an appropriate test fixture and TestRunner.
+template <typename TestRunner>
 struct SharedSwissTableTests {
   static_assert((std::is_same_v<TestRunner, RuntimeTestRunner>) ||
                 (std::is_same_v<TestRunner, CSATestRunner>));
 
-  SharedSwissTableTests() {
-    CHECK(kTestFileName == kRuntimeTestFileName ||
-          kTestFileName == kCSATestFileName);
-  }
-
   using TS = TestSequence<TestRunner>;
+
+#define LISTED_SHARED_SWISS_TABLE_TEST(Name, ...) k##Name,
+  enum class ListedTest {
+    SHARED_SWISS_TABLE_TEST_LIST(LISTED_SHARED_SWISS_TABLE_TEST)
+  };
+#undef LISTED_SHARED_SWISS_TABLE_TEST
 
   //
   // Helpers
@@ -133,8 +157,8 @@ struct SharedSwissTableTests {
   // Start of actual tests.
   //
 
-  MEMBER_TEST(Allocation) {
-    TS::WithAllInterestingInitialCapacities([](TS& s) {
+  SHARED_SWISS_TABLE_TEST(Allocation) {
+    TS::WithAllInterestingInitialCapacities(isolate, [](TS& s) {
       // The test runner does the allocation automatically.
       s.CheckCounts(s.initial_capacity, 0, 0);
       s.VerifyHeap();
@@ -143,11 +167,11 @@ struct SharedSwissTableTests {
 
   // Simple test for adding entries. Also uses non-Symbol keys and non-String
   // values, which is not supported by the higher-level testing infrastructure.
-  MEMBER_TEST(SimpleAdd) {
+  SHARED_SWISS_TABLE_TEST(SimpleAdd) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithInitialCapacity(4, [](TS& s) {
+    TS::WithInitialCapacity(isolate, 4, [](TS& s) {
       DirectHandle<String> key1 =
           s.isolate->factory()->InternalizeUtf8String("foo");
       Handle<String> value1 =
@@ -179,11 +203,11 @@ struct SharedSwissTableTests {
   // Simple test for updating existing entries. Also uses non-Symbol keys and
   // non-String values, which is not supported by the higher-level testing
   // infrastructure.
-  MEMBER_TEST(SimpleUpdate) {
+  SHARED_SWISS_TABLE_TEST(SimpleUpdate) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithInitialCapacity(4, [](TS& s) {
+    TS::WithInitialCapacity(isolate, 4, [](TS& s) {
       DirectHandle<String> key1 =
           s.isolate->factory()->InternalizeUtf8String("foo");
       DirectHandle<String> value1 =
@@ -224,11 +248,11 @@ struct SharedSwissTableTests {
   // Simple test for deleting existing entries. Also uses non-Symbol keys and
   // non-String values, which is not supported by the higher-level testing
   // infrastructure.
-  MEMBER_TEST(SimpleDelete) {
+  SHARED_SWISS_TABLE_TEST(SimpleDelete) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithInitialCapacity(4, [](TS& s) {
+    TS::WithInitialCapacity(isolate, 4, [](TS& s) {
       DirectHandle<String> key1 =
           s.isolate->factory()->InternalizeUtf8String("foo");
       DirectHandle<String> value1 =
@@ -263,11 +287,11 @@ struct SharedSwissTableTests {
 
   // Adds entries that occupy the boundaries (first and last
   // buckets) of the hash table.
-  MEMBER_TEST(AddAtBoundaries) {
+  SHARED_SWISS_TABLE_TEST(AddAtBoundaries) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithAllInterestingInitialCapacities([](TS& s) {
+    TS::WithAllInterestingInitialCapacities(isolate, [](TS& s) {
       AddAtBoundaries(s);
 
       uint32_t capacity = s.initial_capacity;
@@ -290,11 +314,11 @@ struct SharedSwissTableTests {
 
   // Adds entries that occupy the boundaries of the hash table, then updates
   // their values and property details.
-  MEMBER_TEST(UpdateAtBoundaries) {
+  SHARED_SWISS_TABLE_TEST(UpdateAtBoundaries) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithAllInterestingInitialCapacities([](TS& s) {
+    TS::WithAllInterestingInitialCapacities(isolate, [](TS& s) {
       AddAtBoundaries(s);
 
       uint32_t capacity = s.initial_capacity;
@@ -326,7 +350,7 @@ struct SharedSwissTableTests {
 
   // Adds entries that occupy the boundaries of the hash table, then updates
   // their values and property details.
-  MEMBER_TEST(DeleteAtBoundaries) {
+  SHARED_SWISS_TABLE_TEST(DeleteAtBoundaries) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
@@ -340,7 +364,7 @@ struct SharedSwissTableTests {
     for (uint32_t i = 0; i < count; ++i) {
       // In this iteration, we delete the i-th element of |boundary_indices|.
 
-      TS::WithAllInterestingInitialCapacities([&](TS& s) {
+      TS::WithAllInterestingInitialCapacities(isolate, [&](TS& s) {
         std::vector<uint32_t> boundary_indices =
             TS::boundary_indices(s.initial_capacity);
         uint32_t number_of_entries =
@@ -375,11 +399,11 @@ struct SharedSwissTableTests {
 
   // Adds entries that occupy the boundaries of the hash table, then add
   // further entries targeting the same buckets.
-  MEMBER_TEST(OverwritePresentAtBoundaries) {
+  SHARED_SWISS_TABLE_TEST(OverwritePresentAtBoundaries) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithAllInterestingInitialCapacities([](TS& s) {
+    TS::WithAllInterestingInitialCapacities(isolate, [](TS& s) {
       AddAtBoundaries(s);
 
       uint32_t capacity = s.initial_capacity;
@@ -426,16 +450,16 @@ struct SharedSwissTableTests {
     });
   }
 
-  MEMBER_TEST(Empty) {
+  SHARED_SWISS_TABLE_TEST(Empty) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithInitialCapacities({0}, [](TS& s) {
+    TS::WithInitialCapacities(isolate, {0}, [](TS& s) {
       // FindEntry on empty table succeeds.
       s.CheckKeyAbsent(Key{"some non-existing key"});
     });
 
-    TS::WithInitialCapacities({0}, [](TS& s) {
+    TS::WithInitialCapacities(isolate, {0}, [](TS& s) {
       PropertyDetails d = PropertyDetails::Empty();
 
       // Adding to empty table causes resize.
@@ -445,17 +469,18 @@ struct SharedSwissTableTests {
       s.CheckCounts(SwissNameDictionary::kInitialCapacity, 1, 0);
     });
 
-    TS::WithInitialCapacity(0, [](TS& s) { s.CheckEnumerationOrder({}); });
+    TS::WithInitialCapacity(isolate, 0,
+                            [](TS& s) { s.CheckEnumerationOrder({}); });
 
     // Inplace rehashing and shrinking don't have CSA versions.
     if (TS::IsRuntimeTest()) {
-      TS::WithInitialCapacity(0, [](TS& s) {
+      TS::WithInitialCapacity(isolate, 0, [](TS& s) {
         s.RehashInplace();
         s.CheckCounts(0, 0, 0);
         s.VerifyHeap();
       });
 
-      TS::WithInitialCapacity(0, [](TS& s) {
+      TS::WithInitialCapacity(isolate, 0, [](TS& s) {
         s.Shrink();
         s.CheckCounts(0, 0, 0);
         s.VerifyHeap();
@@ -465,11 +490,11 @@ struct SharedSwissTableTests {
 
   // We test that hash tables get resized/rehashed correctly by repeatedly
   // adding an deleting elements.
-  MEMBER_TEST(Resize1) {
+  SHARED_SWISS_TABLE_TEST(Resize1) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithInitialCapacity(0, [](TS& s) {
+    TS::WithInitialCapacity(isolate, 0, [](TS& s) {
       // Should be at least 8 so that we capture the transition from 8 bit to 16
       // bit meta table entries:
       const int max_exponent = 9;
@@ -520,11 +545,11 @@ struct SharedSwissTableTests {
   }
 
   // Check that we resize exactly when expected.
-  MEMBER_TEST(Resize2) {
+  SHARED_SWISS_TABLE_TEST(Resize2) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithInitialCapacities({4, 8, 16, 128}, [](TS& s) {
+    TS::WithInitialCapacities(isolate, {4, 8, 16, 128}, [](TS& s) {
       uint32_t count =
           SwissNameDictionary::MaxUsableCapacity(s.initial_capacity);
 
@@ -541,7 +566,7 @@ struct SharedSwissTableTests {
   // There are certain capacities where we can fill every single bucket of the
   // table before resizing (i.e., the max load factor is 100% for those
   // particular configurations. Test that this works as intended.
-  MEMBER_TEST(AtFullCapacity) {
+  SHARED_SWISS_TABLE_TEST(AtFullCapacity) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
@@ -559,24 +584,27 @@ struct SharedSwissTableTests {
     DCHECK_IMPLIES(SwissNameDictionary::kGroupWidth == 16,
                    capacities_allowing_full_utilization.size() > 0);
 
-    TS::WithInitialCapacities(capacities_allowing_full_utilization, [](TS& s) {
-      AddMultiple(s, s.initial_capacity, "k_full_capacity", "v_full_capacity");
+    TS::WithInitialCapacities(
+        isolate, capacities_allowing_full_utilization, [](TS& s) {
+          AddMultiple(s, s.initial_capacity, "k_full_capacity",
+                      "v_full_capacity");
 
-      // No resize must have happened.
-      s.CheckCounts(s.initial_capacity, s.initial_capacity, 0);
+          // No resize must have happened.
+          s.CheckCounts(s.initial_capacity, s.initial_capacity, 0);
 
-      CheckMultiple(s, s.initial_capacity, "k_full_capacity",
-                    "v_full_capacity");
+          CheckMultiple(s, s.initial_capacity, "k_full_capacity",
+                        "v_full_capacity");
 
-      // Must make sure that the first |SwissNameDictionary::kGroupWidth|
-      // entries of the ctrl table contain a kEmpty, so that an unsuccessful
-      // search stop, instead of going into an infinite loop. Therefore, search
-      // for a fake key whose H1 is 0, making us start from ctrl table bucket 0.
-      s.CheckKeyAbsent(Key{"non_existing_key", FakeH1{0}, FakeH2{1}});
-    });
+          // Must make sure that the first |SwissNameDictionary::kGroupWidth|
+          // entries of the ctrl table contain a kEmpty, so that an unsuccessful
+          // search stop, instead of going into an infinite loop. Therefore,
+          // search for a fake key whose H1 is 0, making us start from ctrl
+          // table bucket 0.
+          s.CheckKeyAbsent(Key{"non_existing_key", FakeH1{0}, FakeH2{1}});
+        });
   }
 
-  MEMBER_TEST(EnumerationOrder) {
+  SHARED_SWISS_TABLE_TEST(EnumerationOrder) {
     // TODO(v8:11330) Disabling this for now until the real CSA testing has
     // landed.
     if (true) return;
@@ -589,7 +617,7 @@ struct SharedSwissTableTests {
         TS::IsRuntimeTest() ? interesting_initial_capacities
                             : capacities_for_slow_sanitizer_tests;
 
-    TS::WithInitialCapacities(capacities_to_test, [](TS& s) {
+    TS::WithInitialCapacities(isolate, capacities_to_test, [](TS& s) {
       std::vector<std::string> expected_keys;
       uint32_t count = std::min(
           SwissNameDictionary::MaxUsableCapacity(s.initial_capacity), 1000u);
@@ -640,12 +668,12 @@ struct SharedSwissTableTests {
   }
 
   // Make sure that keys with colliding H1 and same H2 don't get mixed up.
-  MEMBER_TEST(SameH2) {
+  SHARED_SWISS_TABLE_TEST(SameH2) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
     uint32_t i = 0;
-    TS::WithAllInterestingInitialCapacities([&](TS& s) {
+    TS::WithAllInterestingInitialCapacities(isolate, [&](TS& s) {
       // Let's try a few different values for h1, starting at big_modulus;.
       uint32_t first_h1 = i * 13 + kBigModulus;
       uint32_t second_h1 = first_h1 + s.initial_capacity;
@@ -673,11 +701,11 @@ struct SharedSwissTableTests {
   }
 
   // Check that we can delete a key and add it again.
-  MEMBER_TEST(ReAddSameKey) {
+  SHARED_SWISS_TABLE_TEST(ReAddSameKey) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithInitialCapacity(4, [](TS& s) {
+    TS::WithInitialCapacity(isolate, 4, [](TS& s) {
       s.Add(Key{"some_key"}, "some_value", distinct_details(0));
       s.DeleteByKey(Key{"some_key"});
       s.Add(Key{"some_key"}, "new_value", distinct_details(1));
@@ -690,11 +718,11 @@ struct SharedSwissTableTests {
   // Make sure that we continue probing if there is no match in the first
   // group and that the quadratic probing for choosing subsequent groups to
   // probe works as intended.
-  MEMBER_TEST(BeyondInitialGroup) {
+  SHARED_SWISS_TABLE_TEST(BeyondInitialGroup) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithInitialCapacity(128, [](TS& s) {
+    TS::WithInitialCapacity(isolate, 128, [](TS& s) {
       uint32_t h1 = 33;     // Arbitrarily chosen.
       uint32_t count = 37;  // Will lead to more than 2 groups being filled.
 
@@ -723,7 +751,7 @@ struct SharedSwissTableTests {
   // fewer than kGroupWidth buckets before the end of the control table, we
   // (logically) continue at bucket 0. Note that actually, we use the copy of
   // first group at the end of the control table.
-  MEMBER_TEST(WrapAround) {
+  SHARED_SWISS_TABLE_TEST(WrapAround) {
     // TODO(v8:11330) Disabling this for now until the real CSA testing has
     // landed.
     if (true) {
@@ -740,7 +768,7 @@ struct SharedSwissTableTests {
     uint32_t width = SwissNameDictionary::kGroupWidth;
     for (uint32_t offset_from_end = 0; offset_from_end < width;
          ++offset_from_end) {
-      TS::WithInitialCapacities(capacities_to_test, [&](TS& s) {
+      TS::WithInitialCapacities(isolate, capacities_to_test, [&](TS& s) {
         uint32_t capacity = s.initial_capacity;
         if (capacity < offset_from_end) {
           return;
@@ -787,13 +815,13 @@ struct SharedSwissTableTests {
     }
   }
 
-  MEMBER_TEST(RehashInplace) {
+  SHARED_SWISS_TABLE_TEST(RehashInplace) {
     // This test may fully fill the table and hardly depends on the underlying
     // shape (e.g., meta table structure). Thus not testing overly large
     // capacities.
     std::vector<uint32_t> capacities_to_test = {4, 8, 16, 128, 1024};
     if (TS::IsRuntimeTest()) {
-      TS::WithInitialCapacities(capacities_to_test, [](TS& s) {
+      TS::WithInitialCapacities(isolate, capacities_to_test, [](TS& s) {
         if (s.initial_capacity <= 8) {
           // Add 3 elements, which will not cause a resize. Then delete the
           // first key before rehasing.
@@ -845,9 +873,9 @@ struct SharedSwissTableTests {
     }
   }
 
-  MEMBER_TEST(Shrink) {
+  SHARED_SWISS_TABLE_TEST(Shrink) {
     if (TS::IsRuntimeTest()) {
-      TS::WithInitialCapacity(32, [&](TS& s) {
+      TS::WithInitialCapacity(isolate, 32, [&](TS& s) {
         // Filling less than a forth of the table:
         uint32_t count = 4;
 
@@ -867,10 +895,10 @@ struct SharedSwissTableTests {
     }
   }
 
-  MEMBER_TEST(ShrinkToInitial) {
+  SHARED_SWISS_TABLE_TEST(ShrinkToInitial) {
     // When shrinking, we never go below SwissNameDictionary::kInitialCapacity.
     if (TS::IsRuntimeTest()) {
-      TS::WithInitialCapacity(8, [&](TS& s) {
+      TS::WithInitialCapacity(isolate, 8, [&](TS& s) {
         s.Shrink();
 
         s.CheckCounts(SwissNameDictionary::kInitialCapacity, 0, 0);
@@ -878,11 +906,11 @@ struct SharedSwissTableTests {
     }
   }
 
-  MEMBER_TEST(ShrinkOnDelete) {
+  SHARED_SWISS_TABLE_TEST(ShrinkOnDelete) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
-    TS::WithInitialCapacity(32, [](TS& s) {
+    TS::WithInitialCapacity(isolate, 32, [](TS& s) {
       // Adds key0 ... key9:
       AddMultiple(s, 10);
 
@@ -901,7 +929,7 @@ struct SharedSwissTableTests {
     });
   }
 
-  MEMBER_TEST(Copy) {
+  SHARED_SWISS_TABLE_TEST(Copy) {
     // TODO(v8:11330) Disabling this for now until the real CSA testing has
     // landed.
     if (true) return;
@@ -913,7 +941,7 @@ struct SharedSwissTableTests {
     std::vector<uint32_t> capacities_to_test =
         TS::IsRuntimeTest() ? interesting_initial_capacities
                             : capacities_for_slow_sanitizer_tests;
-    TS::WithInitialCapacities(capacities_to_test, [](TS& s) {
+    TS::WithInitialCapacities(isolate, capacities_to_test, [](TS& s) {
       uint32_t fill = std::min(
           1000u,
           // -2 due to the two manually added keys below.
@@ -947,8 +975,19 @@ struct SharedSwissTableTests {
   }
 };
 
+#undef SHARED_SWISS_TABLE_TEST
+
+#define DEFINE_SHARED_SWISS_TABLE_TEST(Name, TestFixture, TestRunner) \
+  TEST_F(TestFixture, Name) {                                         \
+    SharedSwissTableTests<TestRunner>::Test##Name(i_isolate());       \
+  }
+
+#define DEFINE_SHARED_SWISS_TABLE_TESTS(TestFixture, TestRunner)            \
+  SHARED_SWISS_TABLE_TEST_LIST(DEFINE_SHARED_SWISS_TABLE_TEST, TestFixture, \
+                               TestRunner)
+
 }  // namespace test_swiss_hash_table
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TEST_CCTEST_TEST_SWISS_HASH_TABLE_SHARED_TESTS_H_
+#endif  // V8_UNITTESTS_OBJECTS_SWISS_NAME_DICTIONARY_SHARED_TESTS_H_

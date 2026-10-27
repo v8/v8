@@ -6,16 +6,31 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
 #ifdef V8_COMPRESS_POINTERS
 
 namespace v8 {
 namespace internal {
+namespace ptr_compr_cage_unittest {
 
-UNINITIALIZED_TEST(PtrComprCageAndIsolateRoot) {
+class PtrComprCageTest : public TestWithPlatform {
+ public:
+  PtrComprCageTest()
+      : array_buffer_allocator_(
+            v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {}
+
+  v8::ArrayBuffer::Allocator* array_buffer_allocator() const {
+    return array_buffer_allocator_.get();
+  }
+
+ private:
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
+};
+
+TEST_F(PtrComprCageTest, PtrComprCageAndIsolateRoot) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = array_buffer_allocator();
 
   v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
@@ -31,9 +46,9 @@ UNINITIALIZED_TEST(PtrComprCageAndIsolateRoot) {
   isolate1->Dispose();
 }
 
-UNINITIALIZED_TEST(PtrComprCageCodeRange) {
+TEST_F(PtrComprCageTest, PtrComprCageCodeRange) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = array_buffer_allocator();
 
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
@@ -57,13 +72,13 @@ PtrComprCageBase GetPtrComprCageBase(v8::Isolate* isolate) {
   HandleScope scope(i_isolate);
 
   DirectHandle<FixedArray> isolate_object = factory->NewFixedArray(100);
-  return GetPtrComprCageBase(*isolate_object);
+  return i::GetPtrComprCageBase(*isolate_object);
 }
 }  // namespace
 
-UNINITIALIZED_TEST(SharedPtrComprCage) {
+TEST_F(PtrComprCageTest, SharedPtrComprCage) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = array_buffer_allocator();
 
   v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   v8::Isolate* isolate2 = v8::Isolate::New(create_params);
@@ -74,9 +89,9 @@ UNINITIALIZED_TEST(SharedPtrComprCage) {
   isolate1->Dispose();
 }
 
-UNINITIALIZED_TEST(SharedPtrComprCageCodeRange) {
+TEST_F(PtrComprCageTest, SharedPtrComprCageCodeRange) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = array_buffer_allocator();
 
   v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
@@ -97,13 +112,15 @@ constexpr int kIsolatesToAllocate = 25;
 
 class IsolateAllocatingThread final : public v8::base::Thread {
  public:
-  IsolateAllocatingThread()
-      : v8::base::Thread(base::Thread::Options("IsolateAllocatingThread")) {}
+  explicit IsolateAllocatingThread(
+      v8::ArrayBuffer::Allocator* array_buffer_allocator)
+      : v8::base::Thread(base::Thread::Options("IsolateAllocatingThread")),
+        array_buffer_allocator_(array_buffer_allocator) {}
 
   void Run() override {
     std::vector<v8::Isolate*> isolates;
     v8::Isolate::CreateParams create_params;
-    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    create_params.array_buffer_allocator = array_buffer_allocator_;
 
     for (int i = 0; i < kIsolatesToAllocate; i++) {
       isolates.push_back(v8::Isolate::New(create_params));
@@ -113,10 +130,13 @@ class IsolateAllocatingThread final : public v8::base::Thread {
       isolate->Dispose();
     }
   }
+
+ private:
+  v8::ArrayBuffer::Allocator* array_buffer_allocator_;
 };
 }  // namespace
 
-UNINITIALIZED_TEST(SharedPtrComprCageRace) {
+TEST_F(PtrComprCageTest, SharedPtrComprCageRace) {
   // Make a bunch of Isolates concurrently as a smoke test against races during
   // initialization and de-initialization.
 
@@ -124,14 +144,15 @@ UNINITIALIZED_TEST(SharedPtrComprCageRace) {
   constexpr int kRepeats = 2;
   for (int repeat = 0; repeat < kRepeats; repeat++) {
     v8::Isolate::CreateParams create_params;
-    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    create_params.array_buffer_allocator = array_buffer_allocator();
     auto main_isolate = v8::Isolate::New(create_params);
 
     std::vector<std::unique_ptr<IsolateAllocatingThread>> threads;
     constexpr int kThreads = 10;
 
     for (int i = 0; i < kThreads; i++) {
-      auto thread = std::make_unique<IsolateAllocatingThread>();
+      auto thread =
+          std::make_unique<IsolateAllocatingThread>(array_buffer_allocator());
       CHECK(thread->Start());
       threads.push_back(std::move(thread));
     }
@@ -145,9 +166,9 @@ UNINITIALIZED_TEST(SharedPtrComprCageRace) {
 }
 
 #ifdef V8_SHARED_RO_HEAP
-UNINITIALIZED_TEST(SharedPtrComprCageImpliesSharedReadOnlyHeap) {
+TEST_F(PtrComprCageTest, SharedPtrComprCageImpliesSharedReadOnlyHeap) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator = array_buffer_allocator();
 
   v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
@@ -170,6 +191,7 @@ UNINITIALIZED_TEST(SharedPtrComprCageImpliesSharedReadOnlyHeap) {
 #endif  // V8_SHARED_RO_HEAP
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
+}  // namespace ptr_compr_cage_unittest
 }  // namespace internal
 }  // namespace v8
 

@@ -2,16 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TEST_CCTEST_TEST_SWISS_NAME_DICTIONARY_INFRA_H_
-#define V8_TEST_CCTEST_TEST_SWISS_NAME_DICTIONARY_INFRA_H_
+#ifndef V8_UNITTESTS_OBJECTS_SWISS_NAME_DICTIONARY_INFRA_H_
+#define V8_UNITTESTS_OBJECTS_SWISS_NAME_DICTIONARY_INFRA_H_
 
+#include <functional>
 #include <memory>
 #include <optional>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "src/objects/objects-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -288,23 +292,24 @@ class TestSequence {
   static const std::vector<PropertyDetails> distinct_property_details;
 
   static void WithAllInterestingInitialCapacities(
+      Isolate* isolate,
       std::function<void(TestSequence&)> manipulate_sequence) {
-    WithInitialCapacities(interesting_initial_capacities, manipulate_sequence);
+    WithInitialCapacities(isolate, interesting_initial_capacities,
+                          manipulate_sequence);
   }
 
   static void WithInitialCapacity(
-      uint32_t capacity,
+      Isolate* isolate, uint32_t capacity,
       std::function<void(TestSequence&)> manipulate_sequence) {
-    WithInitialCapacities({capacity}, manipulate_sequence);
+    WithInitialCapacities(isolate, {capacity}, manipulate_sequence);
   }
 
   // For each capacity in |capacities|, create a TestSequence and run the given
   // function on it.
   static void WithInitialCapacities(
-      const std::vector<uint32_t>& capacities,
+      Isolate* isolate, const std::vector<uint32_t>& capacities,
       std::function<void(TestSequence&)> manipulate_sequence) {
     for (uint32_t capacity : capacities) {
-      Isolate* isolate = CcTest::InitIsolateOnce();
       HandleScope scope{isolate};
       TestSequence<TestRunner> s(isolate, capacity);
       manipulate_sequence(s);
@@ -325,4 +330,4 @@ class TestSequence {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TEST_CCTEST_TEST_SWISS_NAME_DICTIONARY_INFRA_H_
+#endif  // V8_UNITTESTS_OBJECTS_SWISS_NAME_DICTIONARY_INFRA_H_

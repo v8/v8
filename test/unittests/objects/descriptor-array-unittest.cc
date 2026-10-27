@@ -2,20 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/objects/descriptor-array.h"
+
 #include "src/base/logging.h"
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/common/globals.h"
-#include "src/objects/descriptor-array.h"
 #include "src/objects/property-details.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/transitions-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/compiler/function-tester.h"
-#include "test/cctest/test-transitions.h"
 #include "test/common/code-assembler-tester.h"
+#include "test/unittests/compiler/function-tester.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+namespace descriptor_array_unittest {
 
 #include "src/codegen/define-code-stub-assembler-macros.inc"
 
@@ -152,7 +153,7 @@ DirectHandle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
   }
 
   {
-    compiler::FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+    compiler::FunctionTester ft(isolate, asm_tester.GenerateCode(), kNumParams);
     // Copy function value to a handle created in the outer handle scope.
     result_function.PatchValue(*ft.function);
   }
@@ -203,7 +204,7 @@ DirectHandle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
   }
 
   {
-    compiler::FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+    compiler::FunctionTester ft(isolate, asm_tester.GenerateCode(), kNumParams);
     // Copy function value to a handle created in the outer handle scope.
     result_function.PatchValue(*ft.function);
   }
@@ -213,9 +214,10 @@ DirectHandle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
 
 }  // namespace
 
-TEST(DescriptorArrayHashCollisionMassive) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+using DescriptorArrayTest = TestWithNativeContext;
+
+TEST_F(DescriptorArrayTest, DescriptorArrayHashCollisionMassive) {
+  Isolate* isolate = i_isolate();
   HandleScope handle_scope(isolate);
 
   static_assert(Name::HashFieldTypeBits::kSize == 2,
@@ -261,9 +263,8 @@ TEST(DescriptorArrayHashCollisionMassive) {
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 }
 
-TEST(DescriptorArrayHashCollision) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(DescriptorArrayTest, DescriptorArrayHashCollision) {
+  Isolate* isolate = i_isolate();
   HandleScope handle_scope(isolate);
 
   static_assert(Name::HashFieldTypeBits::kSize == 2,
@@ -312,9 +313,8 @@ TEST(DescriptorArrayHashCollision) {
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 }
 
-TEST(TransitionArrayHashCollisionMassive) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(DescriptorArrayTest, TransitionArrayHashCollisionMassive) {
+  Isolate* isolate = i_isolate();
   HandleScope handle_scope(isolate);
 
   static_assert(Name::HashFieldTypeBits::kSize == 2,
@@ -365,9 +365,8 @@ TEST(TransitionArrayHashCollisionMassive) {
   CheckTransitionArrayLookups(isolate, transition_array, maps, csa_lookup);
 }
 
-TEST(TransitionArrayHashCollision) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(DescriptorArrayTest, TransitionArrayHashCollision) {
+  Isolate* isolate = i_isolate();
   HandleScope handle_scope(isolate);
 
   static_assert(Name::HashFieldTypeBits::kSize == 2,
@@ -425,5 +424,6 @@ TEST(TransitionArrayHashCollision) {
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 
+}  // namespace descriptor_array_unittest
 }  // namespace internal
 }  // namespace v8

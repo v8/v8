@@ -6,8 +6,8 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/execution/simulator.h"
 #include "src/handles/handles-inl.h"
-#include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
+#include "test/unittests/test-utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/code-space-access.h"
@@ -15,8 +15,9 @@
 
 namespace v8 {
 namespace internal {
-namespace test_icache {
+namespace icache_unittest {
 
+using ICacheTest = TestWithIsolate;
 using F0 = int(int);
 
 #define __ masm.
@@ -100,8 +101,8 @@ static void FloodWithNop(Isolate* isolate, TestingAssemblerBuffer* buffer) {
 
 // Order of operation for this test case:
 //   exec -> perm(RW) -> patch -> flush -> perm(RX) -> exec
-TEST(TestFlushICacheOfWritable) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(ICacheTest, TestFlushICacheOfWritable) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
 
   for (int i = 0; i < kNumIterations; ++i) {
@@ -137,15 +138,15 @@ TEST(TestFlushICacheOfWritable) {
 // The order of operations in V8 is akin to {TestFlushICacheOfWritable} above.
 // It is hence OK to disable the below test on some architectures. Only the
 // above test case should remain enabled on all architectures.
-#define CONDITIONAL_TEST DISABLED_TEST
+#define CONDITIONAL_TEST(name) TEST_F(ICacheTest, DISABLED_##name)
 #else
-#define CONDITIONAL_TEST TEST
+#define CONDITIONAL_TEST(name) TEST_F(ICacheTest, name)
 #endif
 
 // Order of operation for this test case:
 //   exec -> perm(RW) -> patch -> perm(RX) -> flush -> exec
 CONDITIONAL_TEST(TestFlushICacheOfExecutable) {
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
 
   for (int i = 0; i < kNumIterations; ++i) {
@@ -176,8 +177,8 @@ CONDITIONAL_TEST(TestFlushICacheOfExecutable) {
 #if V8_ENABLE_WEBASSEMBLY
 // Order of operation for this test case:
 //   perm(RWX) -> exec -> patch -> flush -> exec
-TEST(TestFlushICacheOfWritableAndExecutable) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(ICacheTest, TestFlushICacheOfWritableAndExecutable) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
 
   for (int i = 0; i < kNumIterations; ++i) {
@@ -207,6 +208,6 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
 
 #undef __
 
-}  // namespace test_icache
+}  // namespace icache_unittest
 }  // namespace internal
 }  // namespace v8

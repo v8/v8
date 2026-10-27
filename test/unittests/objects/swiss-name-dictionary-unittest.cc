@@ -5,9 +5,10 @@
 #include <optional>
 
 #include "src/objects/swiss-name-dictionary-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/test-swiss-name-dictionary-infra.h"
-#include "test/cctest/test-swiss-name-dictionary-shared-tests.h"
+#include "test/unittests/objects/swiss-name-dictionary-infra.h"
+#include "test/unittests/objects/swiss-name-dictionary-shared-tests.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
@@ -155,7 +156,11 @@ void RuntimeTestRunner::PrintTable() {
 #endif
 }
 
-TEST(CapacityFor) {
+namespace swiss_name_dictionary_unittest {
+
+using SwissNameDictionaryTest = TestWithIsolate;
+
+TEST_F(SwissNameDictionaryTest, CapacityFor) {
   for (uint32_t elements = 0; elements <= 32; elements++) {
     uint32_t capacity = SwissNameDictionary::CapacityFor(elements);
     if (elements == 0) {
@@ -177,7 +182,7 @@ TEST(CapacityFor) {
   }
 }
 
-TEST(MaxUsableCapacity) {
+TEST_F(SwissNameDictionaryTest, MaxUsableCapacity) {
   CHECK_EQ(0u, SwissNameDictionary::MaxUsableCapacity(0));
   CHECK_IMPLIES(SwissNameDictionary::kGroupWidth == 8,
                 SwissNameDictionary::MaxUsableCapacity(4) == 3);
@@ -188,7 +193,7 @@ TEST(MaxUsableCapacity) {
   CHECK_EQ(28u, SwissNameDictionary::MaxUsableCapacity(32));
 }
 
-TEST(SizeFor) {
+TEST_F(SwissNameDictionaryTest, SizeFor) {
   uint32_t baseline = sizeof(HeapObject) +
                       // prefix:
                       4 +
@@ -222,14 +227,13 @@ TEST(SizeFor) {
   CHECK_EQ(SwissNameDictionary::SizeFor(8), size_8);
 }
 
-// Executes the tests defined in test-swiss-name-dictionary-shared-tests.h as if
+// Executes the tests defined in swiss-name-dictionary-shared-tests.h as if
 // they were defined in this file, using the RuntimeTestRunner. See comments in
-// test-swiss-name-dictionary-shared-tests.h and in
-// swiss-name-dictionary-infra.h for details.
-const char kRuntimeTestFileName[] = __FILE__;
-SharedSwissTableTests<RuntimeTestRunner, kRuntimeTestFileName>
-    execute_shared_tests_runtime;
+// swiss-name-dictionary-shared-tests.h and in swiss-name-dictionary-infra.h
+// for details.
+DEFINE_SHARED_SWISS_TABLE_TESTS(SwissNameDictionaryTest, RuntimeTestRunner)
 
+}  // namespace swiss_name_dictionary_unittest
 }  // namespace test_swiss_hash_table
 }  // namespace internal
 }  // namespace v8
