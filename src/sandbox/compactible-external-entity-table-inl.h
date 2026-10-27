@@ -118,8 +118,8 @@ void CompactibleExternalEntityTable<Entry, size>::MaybeCreateEvacuationEntry(
 }
 
 template <typename Entry, size_t size>
-void CompactibleExternalEntityTable<Entry, size>::
-    ResolveEvacuationEntryDuringSweeping(
+bool CompactibleExternalEntityTable<Entry, size>::
+    TryResolveEvacuationEntryDuringSweeping(
         uint32_t new_index,
         typename ExternalEntityTableCompactionTraits<Entry>::Handle*
             handle_location,
@@ -127,10 +127,24 @@ void CompactibleExternalEntityTable<Entry, size>::
   using Traits = ExternalEntityTableCompactionTraits<Entry>;
   using Handle = typename Traits::Handle;
 
+  // 1. Bail out if handle was overwritten with null after compaction start.
+  // This happens when resetting handles.
   Handle old_handle = *handle_location;
+  if (old_handle == Traits::kNullHandle) {
+    return false;
+  }
+
+  // Every non-null handle must be a valid handle; if not, memory corruption
+  // occurred.
   CHECK(Traits::IsValidHandle(old_handle));
 
+  // 2. Bail out if handle was overwritten with a valid handle below compaction
+  // frontier. This can happen when setting a new handle after compaction has
+  // started.
   uint32_t old_index = Traits::HandleToIndex(old_handle);
+  if (old_index < start_of_evacuation_area) {
+    return false;
+  }
   Handle new_handle = Traits::IndexToHandle(new_index);
 
   DCHECK_GE(old_index, start_of_evacuation_area);
@@ -140,6 +154,7 @@ void CompactibleExternalEntityTable<Entry, size>::
   *handle_location = new_handle;
 
   Traits::RelocateAuxiliaryEntryData(this, old_index, new_index);
+  return true;
 }
 
 template <typename Entry, size_t size>
@@ -167,36 +182,19 @@ bool CompactibleExternalEntityTable<Entry, size>::SweepAndCompactSegment(
           payload.ExtractEvacuationEntryHandleLocation());
       DCHECK_NOT_NULL(handle_location);
 
-      // 1. Bail out if field was invalidated. This can happen when objects
-      // change their underlying layout.
+      // Bail out if field was invalidated. This can happen when objects change
+      // their underlying layout.
       if (space->FieldWasInvalidated(
               reinterpret_cast<Address>(handle_location))) {
         AddToFreelist(i);
         continue;
       }
 
-      // 2. Bail out if handle was overwritten with null after compaction start.
-      // This happens when resetting handles.
-      Handle old_handle = *handle_location;
-      if (old_handle == Traits::kNullHandle) {
+      if (!TryResolveEvacuationEntryDuringSweeping(i, handle_location,
+                                                   start_of_evacuation_area)) {
         AddToFreelist(i);
         continue;
       }
-
-      // Every non-null handle must be a valid handle; if not, memory corruption
-      // occurred.
-      CHECK(Traits::IsValidHandle(old_handle));
-
-      // 3. Bail out if handle was overwritten with a valid handle below
-      // compaction frontier. This can happen when setting a new handle after
-      // compaction has started.
-      if (Traits::HandleToIndex(old_handle) < start_of_evacuation_area) {
-        AddToFreelist(i);
-        continue;
-      }
-
-      ResolveEvacuationEntryDuringSweeping(i, handle_location,
-                                           start_of_evacuation_area);
       DCHECK(Base::at(i).GetRawPayload().ContainsPointer());
       DCHECK(!Base::at(i).GetRawPayload().HasMarkBitSet());
     } else if (!payload.HasMarkBitSet()) {

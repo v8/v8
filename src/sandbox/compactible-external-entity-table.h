@@ -196,7 +196,7 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
   inline void MaybeCreateEvacuationEntry(Space* space, uint32_t index,
                                          Address handle_location);
 
-  void ResolveEvacuationEntryDuringSweeping(
+  bool TryResolveEvacuationEntryDuringSweeping(
       uint32_t new_index,
       typename ExternalEntityTableCompactionTraits<Entry>::Handle*
           handle_location,
