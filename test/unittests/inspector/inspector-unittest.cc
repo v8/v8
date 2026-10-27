@@ -257,9 +257,54 @@ class DeepSerializeEmbedderClient : public v8_inspector::V8InspectorClient {
         return std::make_unique<v8_inspector::DeepSerializationResult>(
             std::move(deep_val));
       }
+      if (obj->Get(context,
+                   v8::String::NewFromUtf8Literal(isolate, "embedder_exceed"))
+              .ToLocal(&marker) &&
+          marker->IsTrue()) {
+        v8::Local<v8::Array> arr = v8::Array::New(isolate, 2);
+        v8::Local<v8::Array> a1 = v8::Array::New(isolate, 1);
+        v8::Local<v8::Array> a2 = v8::Array::New(isolate, 10'000'000 - 3);
+        CHECK(arr->Set(context, 0, a1).FromJust());
+        CHECK(arr->Set(context, 1, a2).FromJust());
+        auto deep_val = std::make_unique<v8_inspector::DeepSerializedValue>(
+            v8_inspector::StringBuffer::create(toStringView("embedder_node")),
+            arr);
+        return std::make_unique<v8_inspector::DeepSerializationResult>(
+            std::move(deep_val));
+      }
+      if (obj->Get(context,
+                   v8::String::NewFromUtf8Literal(isolate, "embedder_one"))
+              .ToLocal(&marker) &&
+          marker->IsTrue()) {
+        v8::Local<v8::Array> arr = v8::Array::New(isolate, 1);
+        auto deep_val = std::make_unique<v8_inspector::DeepSerializedValue>(
+            v8_inspector::StringBuffer::create(toStringView("embedder_node")),
+            arr);
+        return std::make_unique<v8_inspector::DeepSerializationResult>(
+            std::move(deep_val));
+      }
     }
     return nullptr;
   }
+};
+
+class SubtypeDescriptionClient : public v8_inspector::V8InspectorClient {
+ public:
+  std::unique_ptr<v8_inspector::StringBuffer> valueSubtype(
+      v8::Local<v8::Value> value) override {
+    if (value->IsObject() && !value->IsArray() && !value->IsMap()) {
+      return v8_inspector::StringBuffer::create(toStringView("node"));
+    }
+    return nullptr;
+  }
+
+  std::unique_ptr<v8_inspector::StringBuffer> descriptionForValueSubtype(
+      v8::Local<v8::Context>, v8::Local<v8::Value>) override {
+    description_calls_++;
+    return v8_inspector::StringBuffer::create(toStringView("node_desc"));
+  }
+
+  int description_calls_ = 0;
 };
 
 class OOMTestChannel : public v8_inspector::V8Inspector::Channel {
@@ -306,6 +351,70 @@ TEST_F(InspectorTest, RegressDeepSerializeBudget) {
   CHECK_NE(
       channel.response_.find(toString16(toStringView("Object is too large"))),
       String16::kNotFound);
+}
+
+TEST_F(InspectorTest, RegressDeepSerializeValuesBudget) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  DeepSerializeEmbedderClient client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  std::vector<std::string> expressions = {
+      "[new Array(1), {embedder_exceed: true}]",
+      "[{a: 1}, {embedder_exceed: true}]",
+      "[new Map([[1, 1]]), {embedder_exceed: true}]",
+      "[{embedder_one: true}, new Array(10000000)]",
+  };
+
+  for (const auto& expr : expressions) {
+    OOMTestChannel channel;
+    std::unique_ptr<V8InspectorSession> session =
+        inspector->connect(1, &channel, toStringView("{}"),
+                           v8_inspector::V8Inspector::kFullyTrusted);
+
+    std::string command =
+        "{\"id\": 1, \"method\": \"Runtime.evaluate\", \"params\": "
+        "{\"expression\": \"" +
+        expr +
+        "\", \"contextId\": 1, \"generatePreview\": false, "
+        "\"serializationOptions\": {\"serialization\": \"deep\"}}}";
+
+    session->dispatchProtocolMessage(toStringView(String16(command.c_str())));
+
+    CHECK_NE(
+        channel.response_.find(toString16(toStringView("Object is too large"))),
+        String16::kNotFound);
+  }
+}
+
+TEST_F(InspectorTest, DeepSerializeDoesNotDescribeChildObjects) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  SubtypeDescriptionClient client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  OOMTestChannel channel;
+  std::unique_ptr<V8InspectorSession> session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+
+  std::string command =
+      "{\"id\": 1, \"method\": \"Runtime.evaluate\", \"params\": "
+      "{\"expression\": \"const x = {}; [x, x, {a: x}, new Map([[x, x]])]\","
+      "\"contextId\": 1, \"generatePreview\": false, "
+      "\"serializationOptions\": {\"serialization\": \"deep\"}}}";
+
+  session->dispatchProtocolMessage(toStringView(String16(command.c_str())));
+
+  CHECK_EQ(client.description_calls_, 0);
 }
 
 TEST_F(InspectorTest, NoConsoleAPIForUntrustedClient) {

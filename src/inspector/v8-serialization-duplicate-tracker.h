@@ -50,6 +50,7 @@ class V8SerializationDuplicateTracker {
   bool takeCharacters(v8::Local<v8::String> string) {
     return m_budget.takeCharacters(string);
   }
+  bool takeValues(uint32_t count) { return m_budget.takeValues(count); }
   ProtocolValueBudget* budget() { return &m_budget; }
 
  private:

@@ -32,13 +32,6 @@ using protocol::Runtime::ObjectPreview;
 using protocol::Runtime::PropertyPreview;
 using protocol::Runtime::RemoteObject;
 
-#if defined(V8_USE_ADDRESS_SANITIZER) && V8_OS_DARWIN
-// For whatever reason, ASan on MacOS has bigger stack frames.
-static const int kMaxProtocolDepth = 900;
-#else
-static const int kMaxProtocolDepth = 1000;
-#endif
-
 namespace {
 
 Response toProtocolValueImpl(v8::Local<v8::Context> context,
@@ -219,9 +212,16 @@ Response objectToProtocolValue(
 
 Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value, int maxDepth,
+                         ProtocolValueBudget* budget,
+                         std::unique_ptr<protocol::Value>* result) {
+  return toProtocolValueImpl(context, value, maxDepth, budget, result);
+}
+
+Response toProtocolValue(v8::Local<v8::Context> context,
+                         v8::Local<v8::Value> value, int maxDepth,
                          std::unique_ptr<protocol::Value>* result) {
   ProtocolValueBudget budget;
-  return toProtocolValueImpl(context, value, maxDepth, &budget, result);
+  return toProtocolValue(context, value, maxDepth, &budget, result);
 }
 
 Response toProtocolValue(v8::Local<v8::Context> context,
@@ -654,53 +654,9 @@ class PrimitiveValueMirror final : public ValueMirrorBase {
       v8::Local<v8::Object> additionalParameters,
       V8SerializationDuplicateTracker& duplicateTracker,
       std::unique_ptr<protocol::DictionaryValue>* result) const override {
-    v8::Local<v8::Value> value = v8Value(v8::Isolate::GetCurrent());
-    if (value->IsUndefined()) {
-      *result = protocol::DictionaryValue::create();
-      (*result)->setString(
-          "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Undefined);
-      return Response::Success();
-    }
-    if (value->IsNull()) {
-      *result = protocol::DictionaryValue::create();
-      (*result)->setString(
-          "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Null);
-      return Response::Success();
-    }
-    if (value->IsString()) {
-      v8::Local<v8::String> stringValue = value.As<v8::String>();
-      if (!duplicateTracker.takeCharacters(stringValue)) {
-        return objectTooLargeError();
-      }
-      *result = protocol::DictionaryValue::create();
-      (*result)->setString(
-          "type", protocol::Runtime::DeepSerializedValue::TypeEnum::String);
-      (*result)->setString(
-          "value", toProtocolString(v8::Isolate::GetCurrent(), stringValue));
-      return Response::Success();
-    }
-    if (value->IsBoolean()) {
-      *result = protocol::DictionaryValue::create();
-      (*result)->setString(
-          "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Boolean);
-      (*result)->setBoolean("value", value.As<v8::Boolean>()->Value());
-      return Response::Success();
-    }
-
-    // Fallback in case of unexpected type.
-    bool isKnown;
-    *result = duplicateTracker.LinkExistingOrCreate(value, &isKnown);
-    // Fail serialization if duplicate tracker Map operations threw.
-    if (!*result) {
-      return Response::ServerError("exception during deep serialization");
-    }
-    if (isKnown) {
-      return Response::Success();
-    }
-
-    (*result)->setString(
-        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Object);
-    return Response::Success();
+    return V8DeepSerializer::serializeV8Value(
+        v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
+        additionalParameters, duplicateTracker, result);
   }
 
  private:
@@ -763,21 +719,9 @@ class NumberMirror final : public ValueMirrorBase {
       v8::Local<v8::Object> additionalParameters,
       V8SerializationDuplicateTracker& duplicateTracker,
       std::unique_ptr<protocol::DictionaryValue>* result) const override {
-    *result = protocol::DictionaryValue::create();
-    (*result)->setString(
-        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Number);
-
-    v8::Local<v8::Number> value =
-        v8Value(v8::Isolate::GetCurrent()).As<v8::Number>();
-    bool unserializable = false;
-    String16 descriptionValue = descriptionForNumber(value, &unserializable);
-    if (unserializable) {
-      (*result)->setValue("value",
-                          protocol::StringValue::create(descriptionValue));
-    } else {
-      (*result)->setValue("value", toProtocolValue(value->Value()));
-    }
-    return Response::Success();
+    return V8DeepSerializer::serializeV8Value(
+        v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
+        additionalParameters, duplicateTracker, result);
   }
 };
 
@@ -835,21 +779,9 @@ class BigIntMirror final : public ValueMirrorBase {
       v8::Local<v8::Object> additionalParameters,
       V8SerializationDuplicateTracker& duplicateTracker,
       std::unique_ptr<protocol::DictionaryValue>* result) const override {
-    v8::Local<v8::BigInt> value =
-        v8Value(v8::Isolate::GetCurrent()).As<v8::BigInt>();
-    v8::Local<v8::String> stringValue =
-        v8::debug::GetBigIntStringValue(v8::Isolate::GetCurrent(), value);
-    if (!duplicateTracker.takeCharacters(stringValue)) {
-      return objectTooLargeError();
-    }
-
-    *result = protocol::DictionaryValue::create();
-    (*result)->setString(
-        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Bigint);
-
-    (*result)->setValue("value", protocol::StringValue::create(toProtocolString(
-                                     v8::Isolate::GetCurrent(), stringValue)));
-    return Response::Success();
+    return V8DeepSerializer::serializeV8Value(
+        v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
+        additionalParameters, duplicateTracker, result);
   }
 };
 
@@ -906,20 +838,9 @@ class SymbolMirror final : public ValueMirrorBase {
       v8::Local<v8::Object> additionalParameters,
       V8SerializationDuplicateTracker& duplicateTracker,
       std::unique_ptr<protocol::DictionaryValue>* result) const override {
-    v8::Local<v8::Value> value = v8Value(v8::Isolate::GetCurrent());
-    bool isKnown;
-    *result = duplicateTracker.LinkExistingOrCreate(value, &isKnown);
-    // Fail serialization if duplicate tracker Map operations threw.
-    if (!*result) {
-      return Response::ServerError("exception during deep serialization");
-    }
-    if (isKnown) {
-      return Response::Success();
-    }
-
-    (*result)->setString(
-        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Symbol);
-    return Response::Success();
+    return V8DeepSerializer::serializeV8Value(
+        v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
+        additionalParameters, duplicateTracker, result);
   }
 };
 
@@ -1066,20 +987,9 @@ class FunctionMirror final : public ValueMirrorBase {
       v8::Local<v8::Object> additionalParameters,
       V8SerializationDuplicateTracker& duplicateTracker,
       std::unique_ptr<protocol::DictionaryValue>* result) const override {
-    bool isKnown;
-    v8::Local<v8::Value> value = v8Value(v8::Isolate::GetCurrent());
-    *result = duplicateTracker.LinkExistingOrCreate(value, &isKnown);
-    // Fail serialization if duplicate tracker Map operations threw.
-    if (!*result) {
-      return Response::ServerError("exception during deep serialization");
-    }
-    if (isKnown) {
-      return Response::Success();
-    }
-
-    (*result)->setString(
-        "type", protocol::Runtime::DeepSerializedValue::TypeEnum::Function);
-    return Response::Success();
+    return V8DeepSerializer::serializeV8Value(
+        v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
+        additionalParameters, duplicateTracker, result);
   }
 };
 
@@ -1385,55 +1295,9 @@ class ObjectMirror final : public ValueMirrorBase {
       v8::Local<v8::Object> additionalParameters,
       V8SerializationDuplicateTracker& duplicateTracker,
       std::unique_ptr<protocol::DictionaryValue>* result) const override {
-    v8::Local<v8::Object> value =
-        v8Value(v8::Isolate::GetCurrent()).As<v8::Object>();
-    maxDepth = std::min(kMaxProtocolDepth, maxDepth);
-    bool isKnown;
-    *result = duplicateTracker.LinkExistingOrCreate(value, &isKnown);
-    // Fail serialization if duplicate tracker Map operations threw.
-    if (!*result) {
-      return Response::ServerError("exception during deep serialization");
-    }
-    if (isKnown) {
-      return Response::Success();
-    }
-
-    // Check if embedder implemented custom serialization.
-    std::unique_ptr<v8_inspector::DeepSerializationResult>
-        embedderDeepSerializedResult = clientFor(context)->deepSerialize(
-            value, maxDepth, additionalParameters);
-    if (embedderDeepSerializedResult) {
-      // Embedder-implemented serialization.
-
-      if (!embedderDeepSerializedResult->isSuccess) {
-        return Response::ServerError(
-            toString16(embedderDeepSerializedResult->errorMessage->string())
-                .utf8());
-      }
-
-      (*result)->setString(
-          "type",
-          toString16(
-              embedderDeepSerializedResult->serializedValue->type->string()));
-      v8::Local<v8::Value> v8Value;
-      if (embedderDeepSerializedResult->serializedValue->value.ToLocal(
-              &v8Value) &&
-          !v8Value->IsUndefined()) {
-        // Embedder-implemented serialization has value.
-        std::unique_ptr<protocol::Value> protocolValue;
-        Response response =
-            toProtocolValueImpl(context, v8Value, kMaxProtocolDepth,
-                                duplicateTracker.budget(), &protocolValue);
-        if (!response.IsSuccess()) return response;
-        (*result)->setValue("value", std::move(protocolValue));
-      }
-      return Response::Success();
-    }
-
-    // No embedder-implemented serialization. Serialize as V8 Object.
-    return V8DeepSerializer::serializeV8Value(value, context, maxDepth,
-                                              additionalParameters,
-                                              duplicateTracker, *(*result));
+    return V8DeepSerializer::serializeV8Value(
+        v8Value(v8::Isolate::GetCurrent()), context, maxDepth,
+        additionalParameters, duplicateTracker, result);
   }
 
  private:
