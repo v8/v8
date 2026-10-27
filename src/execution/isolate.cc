@@ -3302,6 +3302,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         break;
       }
       case StackFrame::INTERNAL: {
+        if (!catchable_by_js) break;
         auto code = frame->GcSafeLookupCode();
         if (code->builtin_id() ==
             Builtin::kDeoptimizationEntry_LazyAfterFastCall) {
