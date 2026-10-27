@@ -8482,6 +8482,7 @@ int Shell::Main(int argc, char* argv[]) {
 #ifdef V8_FUZZILLI
       internal_isolate->descriptor_lookup_cache()->Clear();
       internal_isolate->compilation_cache()->Clear();
+      internal_isolate->set_force_slow_path(i::v8_flags.force_slow_path);
       if (fuzzilli_reprl) {
         unsigned action = 0;
         ssize_t nread = read(REPRL_CRFD, &action, 4);
