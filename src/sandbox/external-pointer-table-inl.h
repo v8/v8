@@ -183,23 +183,18 @@ Address ExternalPointerTable::Get(ExternalPointerHandle handle,
 void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
                                ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
+  DCHECK(!IsManagedExternalPointerType(tag));
   uint32_t index = HandleToIndex(handle);
-  // TODO(saelo): This works for now, but once we actually free the external
-  // object here, this will probably become awkward: it's likely not intuitive
-  // that a set_foo() call on some object causes another object to be freed.
-  // Probably at that point we should instead just forbid re-setting the
-  // external pointers if they are managed (via a DCHECK).
   FreeManagedResourceIfPresent(index);
-  TakeOwnershipOfManagedResourceIfNecessary(value, handle, tag);
   at(index).SetExternalPointer(value, tag);
 }
 
 Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
                                        Address value, ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
+  DCHECK_IMPLIES(IsManagedExternalPointerType(tag), value == kNullAddress);
   uint32_t index = HandleToIndex(handle);
   FreeManagedResourceIfPresent(index);
-  TakeOwnershipOfManagedResourceIfNecessary(value, handle, tag);
   return at(index).ExchangeExternalPointer(value, tag);
 }
 
