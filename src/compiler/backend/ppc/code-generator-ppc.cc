@@ -2466,13 +2466,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I32x4AllTrue)             \
   V(I16x8AllTrue)             \
   V(I8x16AllTrue)
-#define EMIT_SIMD_ALL_TRUE(name)                                        \
-  case kPPC_##name: {                                                   \
-    UseScratchRegisterScope temps(masm());                              \
-    Register scratch = temps.Acquire();                                 \
-    __ name(i.OutputRegister(), i.InputSimd128Register(0), r0, scratch, \
-            kScratchSimd128Reg);                                        \
-    break;                                                              \
+#define EMIT_SIMD_ALL_TRUE(name)                                              \
+  case kPPC_##name: {                                                         \
+    UseScratchRegisterScope temps(masm());                                    \
+    Register scratch = temps.Acquire();                                       \
+    Register scratch2 = temps.Acquire();                                      \
+    __ name(i.OutputRegister(), i.InputSimd128Register(0), scratch, scratch2, \
+            kScratchSimd128Reg);                                              \
+    break;                                                                    \
   }
       SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
 #undef EMIT_SIMD_ALL_TRUE
