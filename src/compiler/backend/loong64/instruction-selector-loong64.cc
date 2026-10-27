@@ -47,6 +47,9 @@ class Loong64OperandGenerator final : public OperandGenerator {
       if (constant->IsIntegral()) {
         return constant->integral() == 0;
       }
+      if (constant->kind == ConstantOp::Kind::kSmi) {
+        return constant->smi().value() == 0;
+      }
       if (constant->kind == ConstantOp::Kind::kFloat32) {
         return constant->float32().get_bits() == 0;
       }
@@ -2243,6 +2246,16 @@ void InstructionSelector::EmitPrepareArguments(
     OpIndex node) {
   Loong64OperandGenerator g(this);
 
+  // Zero-valued constants (e.g. Smi zero) can be stored through the zero
+  // register, but only for non-FP parameters: the code generator dispatches
+  // FP pokes on the operand being an FP register.
+  auto poke_value = [&](const PushParameter& input) {
+    if (IsFloatingPoint(input.location.GetType().representation())) {
+      return g.UseRegister(input.node);
+    }
+    return g.UseRegisterOrImmediateZero(input.node);
+  };
+
   // Prepare for C function call.
   if (call_descriptor->IsCFunctionCall()) {
     int gp_param_count = static_cast<int>(call_descriptor->GPParameterCount());
@@ -2252,11 +2265,11 @@ void InstructionSelector::EmitPrepareArguments(
     Emit(kArchPrepareCallCFunction, g.NoOutput(), g.TempImmediate(param_count));
 
     // Poke any stack arguments.
-    int slot = 0;
-    for (PushParameter input : (*arguments)) {
-      Emit(kLoong64Poke, g.NoOutput(), g.UseRegister(input.node),
-           g.TempImmediate(slot << kSystemPointerSizeLog2));
-      ++slot;
+    for (size_t n = 0; n < arguments->size(); ++n) {
+      PushParameter input = (*arguments)[n];
+      if (!input.node.valid()) continue;
+      Emit(kLoong64Poke, g.NoOutput(), poke_value(input),
+           g.TempImmediate(static_cast<int>(n << kSystemPointerSizeLog2)));
     }
   } else {
     int push_count = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -2274,7 +2287,7 @@ void InstructionSelector::EmitPrepareArguments(
     for (size_t n = 0; n < arguments->size(); ++n) {
       PushParameter input = (*arguments)[n];
       if (input.node.valid()) {
-        Emit(kLoong64Poke, g.NoOutput(), g.UseRegister(input.node),
+        Emit(kLoong64Poke, g.NoOutput(), poke_value(input),
              g.TempImmediate(static_cast<int>(n << kSystemPointerSizeLog2)));
       }
     }

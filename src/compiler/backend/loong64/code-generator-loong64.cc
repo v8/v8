@@ -2235,7 +2235,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ Fst_d(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
         }
       } else {
-        __ St_d(i.InputRegister(0), MemOperand(sp, i.InputInt32(1)));
+        __ St_d(i.InputOrZeroRegister(0), MemOperand(sp, i.InputInt32(1)));
       }
       break;
     }
@@ -5570,6 +5570,15 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   } else if (source->IsConstant()) {
     Constant src = g.ToConstant(source);
     if (destination->IsRegister() || destination->IsStackSlot()) {
+      // A relocatable constant (e.g. a Wasm canonical signature id) is a
+      // placeholder that is patched later, so it must be materialized even
+      // when its value is zero.
+      if (destination->IsStackSlot() && RelocInfo::IsNoInfo(src.rmode()) &&
+          ((src.type() == Constant::kInt32 && src.ToInt32() == 0) ||
+           (src.type() == Constant::kInt64 && src.ToInt64() == 0))) {
+        __ St_d(zero_reg, g.ToMemOperand(destination));
+        return;
+      }
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
       Register dst =
