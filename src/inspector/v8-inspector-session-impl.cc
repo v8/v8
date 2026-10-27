@@ -152,6 +152,9 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
         this, this, agentState(protocol::Schema::Metainfo::domainName)));
     protocol::Schema::Dispatcher::wire(&m_dispatcher, m_schemaAgent.get());
   }
+}
+
+void V8InspectorSessionImpl::restore(StringView savedState) {
   if (savedState.length()) {
     m_runtimeAgent->restore();
     m_debuggerAgent->restore();

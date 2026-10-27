@@ -875,6 +875,66 @@ TEST_F(InspectorTest, TerminationInCustomPreviewAtCallDepthZero) {
 
 namespace {
 
+class DefaultContextClient : public v8_inspector::V8InspectorClient {
+ public:
+  DefaultContextClient(v8::Isolate* isolate, v8::Local<v8::Context> context)
+      : m_isolate(isolate), m_context(isolate, context) {}
+  v8::Local<v8::Context> ensureDefaultContextInGroup(
+      int contextGroupId) override {
+    return m_context.Get(m_isolate);
+  }
+
+ private:
+  v8::Isolate* m_isolate;
+  v8::Global<v8::Context> m_context;
+};
+
+}  // namespace
+
+TEST_F(InspectorTest, TerminateExecutionWithDetachedDefaultContext) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  DefaultContextClient client(isolate, context);
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &client);
+  V8ContextInfo context_info(context, 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  NoopChannel channel;
+  std::unique_ptr<V8InspectorSession> session =
+      inspector->connect(1, &channel, toStringView("{}"),
+                         v8_inspector::V8Inspector::kFullyTrusted);
+
+  // 1. Detach default context while terminateExecution callback is registered.
+  session->dispatchProtocolMessage(toStringView(R"({
+    "id": 1,
+    "method": "Runtime.terminateExecution"
+  })"));
+  context->DetachGlobal();
+  // Destroying session and inspector should not crash when removing the
+  // callback from the detached context's microtask queue.
+  session.reset();
+  inspector.reset();
+
+  // 2. Calling Runtime.terminateExecution when the default context is already
+  // detached.
+  std::unique_ptr<V8Inspector> inspector2 =
+      V8Inspector::create(isolate, &client);
+  std::unique_ptr<V8InspectorSession> session2 =
+      inspector2->connect(1, &channel, toStringView("{}"),
+                          v8_inspector::V8Inspector::kFullyTrusted);
+  session2->dispatchProtocolMessage(toStringView(R"({
+    "id": 2,
+    "method": "Runtime.terminateExecution"
+  })"));
+  session2.reset();
+  inspector2.reset();
+}
+
+namespace {
+
 // Calls into JavaScript for every Debugger.paused and Debugger.resumed
 // notification, like an embedder that exposes an in-process session to JS.
 class JSCallbackChannel : public V8Inspector::Channel {

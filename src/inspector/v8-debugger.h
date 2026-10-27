@@ -21,6 +21,10 @@
 #include "src/inspector/v8-debugger-id.h"
 #include "src/inspector/v8-debugger-script.h"
 
+namespace v8 {
+class MicrotaskQueue;
+}  // namespace v8
+
 namespace v8_inspector {
 
 class AsyncStackTrace;
@@ -331,6 +335,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
   v8::Global<v8::Context> m_terminateExecutionCallbackContext;
+  v8::MicrotaskQueue* m_terminateExecutionCallbackMicrotaskQueue = nullptr;
   bool m_terminateExecutionReported = true;
 };
 

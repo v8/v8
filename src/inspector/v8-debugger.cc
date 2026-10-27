@@ -92,12 +92,14 @@ V8Debugger::~V8Debugger() {
   m_isolate->RemoveCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
   if (!m_terminateExecutionCallbackContext.IsEmpty()) {
-    v8::HandleScope handles(m_isolate);
-    v8::MicrotaskQueue* microtask_queue =
-        m_terminateExecutionCallbackContext.Get(m_isolate)->GetMicrotaskQueue();
-    microtask_queue->RemoveMicrotasksCompletedCallback(
-        &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
-        microtask_queue);
+    if (m_terminateExecutionCallbackMicrotaskQueue) {
+      m_terminateExecutionCallbackMicrotaskQueue
+          ->RemoveMicrotasksCompletedCallback(
+              &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
+              m_terminateExecutionCallbackMicrotaskQueue);
+      m_terminateExecutionCallbackMicrotaskQueue = nullptr;
+    }
+    m_terminateExecutionCallbackContext.Reset();
   }
 }
 
@@ -375,9 +377,12 @@ void V8Debugger::installTerminateExecutionCallbacks(
     m_terminateExecutionCallbackContext.Reset(m_isolate, context);
     m_terminateExecutionCallbackContext.SetWeak();
     v8::MicrotaskQueue* microtask_queue = context->GetMicrotaskQueue();
-    microtask_queue->AddMicrotasksCompletedCallback(
-        &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
-        microtask_queue);
+    if (microtask_queue) {
+      m_terminateExecutionCallbackMicrotaskQueue = microtask_queue;
+      microtask_queue->AddMicrotasksCompletedCallback(
+          &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
+          microtask_queue);
+    }
   }
 
   DCHECK(m_terminateExecutionReported);
@@ -393,12 +398,12 @@ void V8Debugger::reportTermination() {
   m_isolate->RemoveCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
   if (!m_terminateExecutionCallbackContext.IsEmpty()) {
-    v8::MicrotaskQueue* microtask_queue =
-        m_terminateExecutionCallbackContext.Get(m_isolate)->GetMicrotaskQueue();
-    if (microtask_queue) {
-      microtask_queue->RemoveMicrotasksCompletedCallback(
-          &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
-          microtask_queue);
+    if (m_terminateExecutionCallbackMicrotaskQueue) {
+      m_terminateExecutionCallbackMicrotaskQueue
+          ->RemoveMicrotasksCompletedCallback(
+              &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
+              m_terminateExecutionCallbackMicrotaskQueue);
+      m_terminateExecutionCallbackMicrotaskQueue = nullptr;
     }
   }
   m_isolate->CancelTerminateExecution();
@@ -413,6 +418,7 @@ void V8Debugger::reportTermination() {
 void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {
   V8InspectorImpl* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
+  if (!inspector) return;
   V8Debugger* debugger = inspector->debugger();
   debugger->reportTermination();
 }
