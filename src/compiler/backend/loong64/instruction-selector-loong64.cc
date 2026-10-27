@@ -1370,9 +1370,13 @@ void InstructionSelector::VisitWord64Clz(OpIndex node) {
   VisitRR(this, kLoong64Clz_d, node);
 }
 
-void InstructionSelector::VisitWord32Ctz(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Ctz(OpIndex node) {
+  VisitRR(this, kLoong64Ctz_w, node);
+}
 
-void InstructionSelector::VisitWord64Ctz(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64Ctz(OpIndex node) {
+  VisitRR(this, kLoong64Ctz_d, node);
+}
 
 void InstructionSelector::VisitWord32Popcnt(OpIndex node) {
   VisitRR(this, kLoong64Popcnt_w, node);
@@ -4030,6 +4034,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kFloat32RoundTiesEven |
+         MachineOperatorBuilder::kWord32Ctz |
+         MachineOperatorBuilder::kWord64Ctz |
          MachineOperatorBuilder::kWord32Popcnt |
          MachineOperatorBuilder::kWord64Popcnt |
          MachineOperatorBuilder::kWord64Select;

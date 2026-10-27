@@ -1558,6 +1558,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Clz_d:
       __ clz_d(i.OutputRegister(), i.InputRegister(0));
       break;
+    case kLoong64Ctz_w:
+      __ ctz_w(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kLoong64Ctz_d:
+      __ ctz_d(i.OutputRegister(), i.InputRegister(0));
+      break;
     case kLoong64Popcnt_w:
       __ Popcnt_w(i.OutputRegister(), i.InputRegister(0));
       break;
