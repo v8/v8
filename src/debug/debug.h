@@ -482,7 +482,8 @@ class V8_EXPORT_PRIVATE Debug {
   }
 
   bool IsRestartFrameScheduled() const {
-    return thread_local_.restart_frame_id_ != StackFrameId::NO_ID;
+    return !in_debug_scope() &&
+           thread_local_.restart_frame_id_ != StackFrameId::NO_ID;
   }
   bool ShouldRestartFrame(StackFrameId id) const {
     return IsRestartFrameScheduled() && thread_local_.restart_frame_id_ == id;

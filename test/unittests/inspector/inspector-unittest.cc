@@ -15,6 +15,7 @@
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -850,6 +851,117 @@ TEST_F(InspectorTest, ChannelCanRunJSWhenPausedOnInterrupt) {
       "for (let i = 0; i < 1e7 && notifications === 0; i++) {}"
       "notifications");
   CHECK_EQ(result->Int32Value(v8_context()).FromJust(), 2);
+}
+
+namespace {
+
+class DeoptOnRestartFrameChannel : public V8Inspector::Channel,
+                                   public v8_inspector::V8InspectorClient {
+ public:
+  DeoptOnRestartFrameChannel(v8::Isolate* isolate,
+                             v8::Local<v8::Context> context)
+      : isolate_(isolate), context_(isolate, context) {}
+  ~DeoptOnRestartFrameChannel() override = default;
+
+  void set_session(V8InspectorSession* session) { session_ = session; }
+
+  void DispatchRestartFrame() {
+    if (!call_frame_id_.empty() && session_) {
+      std::string msg =
+          "{\"id\": 2, \"method\": \"Debugger.restartFrame\", \"params\": "
+          "{\"callFrameId\": \"" +
+          call_frame_id_ + "\", \"mode\": \"StepInto\"}}";
+      StringView msg_view(reinterpret_cast<const uint8_t*>(msg.data()),
+                          msg.size());
+      session_->dispatchProtocolMessage(msg_view);
+    }
+  }
+
+  void sendResponse(int callId,
+                    std::unique_ptr<StringBuffer> message) override {
+    if (callId == 2) {
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+      CHECK(!i_isolate->debug()->IsRestartFrameScheduled());
+      response_received_ = true;
+    }
+  }
+
+  void sendNotification(std::unique_ptr<StringBuffer> message) override {
+    StringView str_view = message->string();
+    std::string message_str;
+    if (str_view.is8Bit()) {
+      message_str =
+          std::string(reinterpret_cast<const char*>(str_view.characters8()),
+                      str_view.length());
+    } else {
+      for (size_t i = 0; i < str_view.length(); i++) {
+        message_str += static_cast<char>(str_view.characters16()[i]);
+      }
+    }
+    if (message_str.find("Debugger.paused") != std::string::npos) {
+      const char kTarget[] = "\"callFrameId\":\"";
+      size_t pos = message_str.find(kTarget);
+      if (pos != std::string::npos) {
+        size_t start = pos + strlen(kTarget);
+        size_t end = message_str.find("\"", start);
+        if (end != std::string::npos) {
+          call_frame_id_ = message_str.substr(start, end - start);
+        }
+      }
+    }
+  }
+
+  void runMessageLoopOnPause(int contextGroupId) override {
+    if (!restarted_ && !call_frame_id_.empty() && session_) {
+      restarted_ = true;
+      DispatchRestartFrame();
+    }
+  }
+
+  void quitMessageLoopOnPause() override {}
+
+  void flushProtocolNotifications() override {}
+
+  bool response_received() const { return response_received_; }
+
+ private:
+  v8::Isolate* isolate_;
+  v8::Global<v8::Context> context_;
+  V8InspectorSession* session_ = nullptr;
+  std::string call_frame_id_;
+  bool restarted_ = false;
+  bool response_received_ = false;
+};
+
+}  // namespace
+
+TEST_F(InspectorTest, ChannelCanDeoptWhenRestartingFrame) {
+  FlagScope<bool> allow_natives_syntax(&v8_flags.allow_natives_syntax, true);
+
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  DeoptOnRestartFrameChannel channel(isolate, v8_context());
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &channel);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+  channel.set_session(session.get());
+
+  session->dispatchProtocolMessage(
+      toStringView(R"({"id": 1, "method": "Debugger.enable"})"));
+
+  TryRunJS(R"(
+    function target() { debugger; return 42; }
+  )");
+
+  v8::Local<v8::Value> result = TryRunJS("target()").ToLocalChecked();
+  CHECK_EQ(result->Int32Value(v8_context()).FromJust(), 42);
+  CHECK(channel.response_received());
 }
 }  // namespace internal
 }  // namespace v8
