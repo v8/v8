@@ -955,19 +955,6 @@ ATOMIC_BINOP_CASE(And, And, And, and)
 ATOMIC_BINOP_CASE(Or, Or, Or, or)
 ATOMIC_BINOP_CASE(Xor, Xor, Xor, xor)
 
-#define ASSEMBLE_ATOMIC_BINOP(load_linked, store_conditional, bin_instr) \
-  do {                                                                   \
-    Label binop;                                                         \
-    dbar(0);                                                             \
-    bind(&binop);                                                        \
-    load_linked(result.gp(), MemOperand(temp0, 0),                       \
-                reinterpret_cast<int*>(trapping_load_pc));               \
-    bin_instr(temp1, result.gp(), Operand(value.gp()));                  \
-    store_conditional(temp1, MemOperand(temp0, 0));                      \
-    BranchShort(&binop, eq, temp1, Operand(zero_reg));                   \
-    dbar(0);                                                             \
-  } while (0)
-
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type,
@@ -1003,10 +990,14 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
       ASSEMBLE_ATOMIC_BINOP_EXT(Ll_d, Sc_d, 32, Sub_d, 7);
       break;
     case StoreType::kI32Store:
-      ASSEMBLE_ATOMIC_BINOP(Ll_w, Sc_w, Sub_w);
+      Sub_w(temp2, zero_reg, value.gp());
+      if (trapping_load_pc) *trapping_load_pc = pc_offset();
+      amadd_db_w(result.gp(), temp2, temp0);
       break;
     case StoreType::kI64Store:
-      ASSEMBLE_ATOMIC_BINOP(Ll_d, Sc_d, Sub_d);
+      Sub_d(temp2, zero_reg, value.gp());
+      if (trapping_load_pc) *trapping_load_pc = pc_offset();
+      amadd_db_d(result.gp(), temp2, temp0);
       break;
     default:
       UNREACHABLE();
@@ -1016,7 +1007,6 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                                             buffer_start_))
                      ->IsLoad());
 }
-#undef ASSEMBLE_ATOMIC_BINOP
 #undef ASSEMBLE_ATOMIC_BINOP_EXT
 #undef ATOMIC_BINOP_CASE
 
