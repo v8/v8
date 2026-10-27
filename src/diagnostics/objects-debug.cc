@@ -3847,7 +3847,6 @@ void Script::ScriptVerify(Isolate* isolate) {
   CHECK(Is<Script>(this));
   Object::VerifyPointer(isolate, source());
   Object::VerifyPointer(isolate, name());
-  Object::VerifyPointer(isolate, context_data());
   Object::VerifyPointer(isolate, line_ends());
   Object::VerifyPointer(isolate, eval_from_shared_or_wrapped_arguments());
   Object::VerifyPointer(isolate, eval_from_position_.load());

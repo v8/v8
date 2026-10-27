@@ -157,20 +157,35 @@ bool V8Debugger::enabled() const { return m_enableCount > 0; }
 
 std::vector<std::unique_ptr<V8DebuggerScript>> V8Debugger::getCompiledScripts(
     int contextGroupId, V8DebuggerAgentImpl* agent) {
+  DCHECK_NE(contextGroupId, 0);
   std::vector<std::unique_ptr<V8DebuggerScript>> result;
   v8::HandleScope scope(m_isolate);
   std::vector<v8::Global<v8::debug::Script>> scripts;
   v8::debug::GetLoadedScripts(m_isolate, scripts);
+  std::map<int, std::unordered_set<int>> contextScripts;
+  v8::debug::GetContextScripts(m_isolate, contextScripts);
   for (size_t i = 0; i < scripts.size(); ++i) {
     v8::Local<v8::debug::Script> script = scripts[i].Get(m_isolate);
     if (!script->WasCompiled()) continue;
+    int contextId = 0;
     if (!script->IsEmbedded()) {
-      int contextId;
-      if (!script->ContextId().To(&contextId)) continue;
-      if (m_inspector->contextGroupId(contextId) != contextGroupId) continue;
+      int scriptId = script->Id();
+      for (const auto& [candidateContextId, scriptIds] : contextScripts) {
+        if (m_inspector->contextGroupId(candidateContextId) != contextGroupId) {
+          continue;
+        }
+        std::shared_ptr<InspectedContext> context =
+            m_inspector->getContext(candidateContextId);
+        if (!context || context->context().IsEmpty()) continue;
+        if (scriptIds.find(scriptId) != scriptIds.end()) {
+          contextId = candidateContextId;
+          break;
+        }
+      }
+      if (!contextId) continue;
     }
     result.push_back(std::make_unique<V8DebuggerScript>(
-        m_isolate, script, false, agent, m_inspector->client()));
+        m_isolate, script, false, contextId, agent, m_inspector->client()));
   }
   return result;
 }
@@ -611,20 +626,21 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
                                 bool has_compile_error) {
   if (m_ignoreScriptParsedEventsCounter != 0) return;
 
-  int contextId;
-  if (!script->ContextId().To(&contextId)) return;
+  if (!m_isolate->InContext()) return;
+  int contextId = InspectedContext::contextId(m_isolate->GetCurrentContext());
+  if (!contextId) return;
 
   v8::Isolate* isolate = m_isolate;
   V8InspectorClient* client = m_inspector->client();
 
   m_inspector->forEachSession(
       m_inspector->contextGroupId(contextId),
-      [isolate, &script, has_compile_error,
+      [isolate, &script, has_compile_error, contextId,
        client](V8InspectorSessionImpl* session) {
         auto agent = session->debuggerAgent();
         if (!agent->enabled()) return;
         agent->didParseSource(std::make_unique<V8DebuggerScript>(
-            isolate, script, has_compile_error, agent, client));
+            isolate, script, has_compile_error, contextId, agent, client));
       });
 }
 
@@ -705,15 +721,14 @@ void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
 bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                                       const v8::debug::Location& start,
                                       const v8::debug::Location& end) {
-  int contextId;
-  if (!script->ContextId().To(&contextId)) return false;
+  int contextGroupId = currentContextGroupId();
+  if (!contextGroupId) return false;
   bool hasAgents = false;
   bool allBlackboxed = true;
   String16 scriptId = String16::fromInteger(script->Id());
   m_inspector->forEachSession(
-      m_inspector->contextGroupId(contextId),
-      [&hasAgents, &allBlackboxed, &scriptId, &start,
-       &end](V8InspectorSessionImpl* session) {
+      contextGroupId, [&hasAgents, &allBlackboxed, &scriptId, &start,
+                       &end](V8InspectorSessionImpl* session) {
         V8DebuggerAgentImpl* agent = session->debuggerAgent();
         if (!agent->enabled()) return;
         hasAgents = true;
@@ -724,16 +739,15 @@ bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
 
 bool V8Debugger::ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
                                  int column) {
-  int contextId;
-  if (!script->ContextId().To(&contextId)) return false;
+  int contextGroupId = currentContextGroupId();
+  if (!contextGroupId) return false;
 
   bool hasAgents = false;
   bool allShouldBeSkipped = true;
   String16 scriptId = String16::fromInteger(script->Id());
   m_inspector->forEachSession(
-      m_inspector->contextGroupId(contextId),
-      [&hasAgents, &allShouldBeSkipped, &scriptId, line,
-       column](V8InspectorSessionImpl* session) {
+      contextGroupId, [&hasAgents, &allShouldBeSkipped, &scriptId, line,
+                       column](V8InspectorSessionImpl* session) {
         V8DebuggerAgentImpl* agent = session->debuggerAgent();
         if (!agent->enabled()) return;
         hasAgents = true;
@@ -746,13 +760,12 @@ bool V8Debugger::ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
 bool V8Debugger::ShouldEnterFunction(v8::Local<v8::debug::Script> script,
                                      const v8::debug::Location& start,
                                      const v8::debug::Location& end) {
-  int contextId;
-  if (!script->ContextId().To(&contextId)) return false;
+  int contextGroupId = currentContextGroupId();
+  if (!contextGroupId) return false;
   bool shouldEnter = false;
   String16 scriptId = String16::fromInteger(script->Id());
   m_inspector->forEachSession(
-      m_inspector->contextGroupId(contextId),
-      [&](V8InspectorSessionImpl* session) {
+      contextGroupId, [&](V8InspectorSessionImpl* session) {
         V8DebuggerAgentImpl* agent = session->debuggerAgent();
         if (!agent->enabled()) return;
         shouldEnter |= agent->shouldEnterFunction(scriptId, start, end);

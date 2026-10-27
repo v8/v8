@@ -7,8 +7,10 @@
 
 #include <stdint.h>
 
+#include <map>
 #include <memory>
 #include <span>
+#include <unordered_set>
 #include <vector>
 
 #include "include/v8-callbacks.h"
@@ -195,6 +197,8 @@ class V8_EXPORT_PRIVATE Script {
  public:
   ScriptOriginOptions OriginOptions() const;
   bool WasCompiled() const;
+  // Whether the script was baked into the startup snapshot by the
+  // StartupSerializer. Intentionally preserved through the code cache.
   bool IsEmbedded() const;
   int Id() const;
   int StartLine() const;
@@ -206,7 +210,6 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> SourceMappingURL() const;
   MaybeLocal<String> DebugId() const;
   MaybeLocal<String> GetSha256Hash() const;
-  Maybe<int> ContextId() const;
   Local<ScriptSource> Source() const;
   bool IsModule() const;
   bool GetPossibleBreakpoints(
@@ -274,6 +277,8 @@ void Disassemble(base::Vector<const uint8_t> wire_bytes,
 
 V8_EXPORT_PRIVATE void GetLoadedScripts(
     Isolate* isolate, std::vector<v8::Global<Script>>& scripts);
+V8_EXPORT_PRIVATE void GetContextScripts(
+    Isolate* isolate, std::map<int, std::unordered_set<int>>& context_scripts);
 
 V8_EXPORT_PRIVATE std::optional<v8::ScriptOrigin> GetScriptOrigin(
     Isolate* v8_isolate, int script_id);

@@ -224,6 +224,62 @@ void Debug::ClearScriptScopeInfos() {
   }
 }
 
+void Debug::GetContextScripts(
+    std::map<int, std::unordered_set<int>>& context_scripts) {
+  if (script_to_contexts_.is_null()) return;
+  DisallowGarbageCollection no_gc;
+  for (InternalIndex i : script_to_contexts_->IterateEntries()) {
+    Tagged<Object> key;
+    if (!script_to_contexts_->ToKey(i, &key)) continue;
+    Tagged<Script> script = Cast<Script>(key);
+    if (!script->HasValidSource()) continue;
+    Tagged<WeakArrayList> contexts =
+        Cast<WeakArrayList>(script_to_contexts_->ValueAt(i));
+    const uint32_t contexts_len = contexts->length().value();
+    for (uint32_t j = 0; j < contexts_len; ++j) {
+      Tagged<HeapObject> heap_object;
+      if (!contexts->Get(j).GetHeapObjectIfWeak(&heap_object)) continue;
+      Tagged<Object> debug_context_id =
+          Cast<NativeContext>(heap_object)->debug_context_id();
+      if (!IsSmi(debug_context_id)) continue;
+      int context_id = Smi::ToInt(debug_context_id);
+      if (context_id > 0) {
+        context_scripts[context_id].insert(script->id());
+      }
+    }
+  }
+}
+
+void Debug::RecordScriptContext(DirectHandle<Script> script) {
+  HandleScope scope(isolate_);
+  DirectHandle<NativeContext> context = isolate_->native_context();
+  Handle<EphemeronHashTable> table;
+  DirectHandle<WeakArrayList> list;
+  if (script_to_contexts_.is_null()) {
+    table = EphemeronHashTable::New(isolate_, 16);
+  } else {
+    table = script_to_contexts_;
+    Tagged<Object> obj = table->Lookup(script);
+    if (!IsTheHole(obj)) {
+      list = direct_handle(Cast<WeakArrayList>(obj), isolate_);
+    }
+  }
+  if (!list.is_null() && list->Contains(MakeWeak(*context))) return;
+  if (list.is_null()) {
+    list = isolate_->factory()->NewWeakArrayList(1, AllocationType::kOld);
+  }
+  list = WeakArrayList::Append(
+      isolate_, list, MaybeObjectDirectHandle::Weak(*context, isolate_),
+      AllocationType::kOld);
+  table = EphemeronHashTable::Put(isolate_, table, script, list);
+  if (script_to_contexts_.is_null()) {
+    script_to_contexts_ = isolate_->global_handles()->Create(*table);
+  } else if (*table != *script_to_contexts_) {
+    GlobalHandles::Destroy(script_to_contexts_.location());
+    script_to_contexts_ = isolate_->global_handles()->Create(*table);
+  }
+}
+
 BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
                                        JavaScriptFrame* frame) {
   if (debug_info->CanBreakAtEntry()) {
@@ -2911,11 +2967,15 @@ void Debug::ProcessCompileEvent(bool has_compile_error,
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Ignore temporary scripts.
   if (script->id() == Script::kTemporaryScriptId) return;
-  // Attach the correct debug id to the script. The debug id is used by the
-  // inspector to filter scripts by native context.
-  script->set_context_data(isolate_->native_context()->debug_context_id());
-  if (ignore_events()) return;
   if (!script->IsSubjectToDebugging()) return;
+  if (!isolate_->context().is_null()) {
+    Tagged<Object> debug_context_id =
+        isolate_->raw_native_context()->debug_context_id();
+    if (IsSmi(debug_context_id) && Smi::ToInt(debug_context_id) > 0) {
+      RecordScriptContext(script);
+    }
+  }
+  if (ignore_events()) return;
   if (!debug_delegate_) return;
   SuppressDebug while_processing(this);
   DebugScope debug_scope(this);

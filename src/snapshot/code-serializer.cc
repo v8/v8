@@ -204,22 +204,10 @@ void CodeSerializer::SerializeGeneric(Handle<HeapObject> heap_object,
   InstanceType instance_type = heap_object->map()->instance_type();
   if (InstanceTypeChecker::IsScript(instance_type)) {
     DirectHandle<FixedArray> host_options;
-    DirectHandle<UnionOf<Smi, Symbol, Undefined>> context_data;
     {
       DisallowGarbageCollection no_gc;
       Tagged<Script> script_obj = Cast<Script>(*heap_object);
       DCHECK(!script_obj->has_eval_origin());
-      // We want to differentiate between undefined and uninitialized_symbol for
-      // context_data for now. It is hack to allow debugging for scripts that
-      // are included as a part of custom snapshot. (see
-      // debug::Script::IsEmbedded())
-      Tagged<UnionOf<Smi, Symbol, Undefined>> raw_context_data =
-          script_obj->context_data();
-      if (raw_context_data != roots.undefined_value() &&
-          raw_context_data != roots.uninitialized_symbol()) {
-        script_obj->set_context_data(roots.undefined_value());
-      }
-      context_data = direct_handle(raw_context_data, isolate());
       // We don't want to serialize host options to avoid serializing
       // unnecessary object graph.
       host_options =
@@ -234,7 +222,6 @@ void CodeSerializer::SerializeGeneric(Handle<HeapObject> heap_object,
       DisallowGarbageCollection no_gc;
       Tagged<Script> script_obj = Cast<Script>(*heap_object);
       script_obj->set_host_defined_options(*host_options);
-      script_obj->set_context_data(*context_data);
     }
     return;
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {

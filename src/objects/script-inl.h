@@ -29,7 +29,6 @@ Script::Script(const AllocationWitness& witness,
       name_(witness.roots().undefined_value()),
       line_offset_(Smi::zero()),
       column_offset_(Smi::zero()),
-      context_data_(witness.roots().undefined_value()),
       script_type_(Smi::FromEnum(Script::Type::kNormal)),
       line_ends_(Smi::zero()),
       id_(Smi::FromInt(script_id)),
@@ -61,7 +60,6 @@ Script::Script(const AllocationWitness& witness, Tagged<Script> old_script,
       name_(witness, old_script->name()),
       line_offset_(Smi::FromInt(old_script->line_offset())),
       column_offset_(Smi::FromInt(old_script->column_offset())),
-      context_data_(witness, old_script->context_data()),
       script_type_(Smi::FromEnum(old_script->type())),
       line_ends_(Smi::zero()),
       id_(Smi::FromInt(script_id)),
@@ -103,14 +101,6 @@ void Script::set_line_offset(int value) {
 int Script::column_offset() const { return column_offset_.load().value(); }
 void Script::set_column_offset(int value) {
   column_offset_.store(this, Smi::FromInt(value));
-}
-
-Tagged<UnionOf<Smi, Undefined, Symbol>> Script::context_data() const {
-  return context_data_.load();
-}
-void Script::set_context_data(Tagged<UnionOf<Smi, Undefined, Symbol>> value,
-                              WriteBarrierMode mode) {
-  context_data_.store(this, value, mode);
 }
 
 Script::Type Script::type() const {
@@ -290,6 +280,12 @@ bool Script::deserialized() const { return flags().deserialized(); }
 
 void Script::set_deserialized(bool value) {
   set_flags(flags().with_deserialized(value));
+}
+
+bool Script::is_embedded() const { return flags().is_embedded(); }
+
+void Script::set_is_embedded(bool value) {
+  set_flags(flags().with_is_embedded(value));
 }
 
 bool Script::is_repl_mode() const { return flags().is_repl_mode(); }

@@ -501,8 +501,7 @@ bool Script::WasCompiled() const {
 }
 
 bool Script::IsEmbedded() const {
-  auto script = Utils::OpenDirectHandle(this);
-  return script->context_data() == i::GetReadOnlyRoots().uninitialized_symbol();
+  return Utils::OpenDirectHandle(this)->is_embedded();
 }
 
 int Script::Id() const { return Utils::OpenDirectHandle(this)->id(); }
@@ -587,13 +586,6 @@ MaybeLocal<String> Script::GetSha256Hash() const {
   i::DirectHandle<i::String> value =
       i::Script::GetScriptHash(isolate, script, /* forceForInspector: */ true);
   return Utils::ToLocal(value);
-}
-
-Maybe<int> Script::ContextId() const {
-  auto script = Utils::OpenDirectHandle(this);
-  i::Tagged<i::Object> value = script->context_data();
-  if (IsSmi(value)) return Just(i::Smi::ToInt(value));
-  return {};
 }
 
 Local<ScriptSource> Script::Source() const {
@@ -1030,6 +1022,14 @@ void GetLoadedScripts(Isolate* v8_isolate,
       scripts.emplace_back(v8_isolate, ToApiHandle<Script>(script_handle));
     }
   }
+}
+
+void GetContextScripts(
+    Isolate* v8_isolate,
+    std::map<int, std::unordered_set<int>>& context_scripts) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(isolate);
+  isolate->debug()->GetContextScripts(context_scripts);
 }
 
 std::optional<v8::ScriptOrigin> GetScriptOrigin(Isolate* v8_isolate,

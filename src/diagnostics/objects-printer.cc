@@ -3929,7 +3929,6 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - name: " << Brief(name());
   os << "\n - line_offset: " << line_offset();
   os << "\n - column_offset: " << column_offset();
-  os << "\n - context data: " << Brief(context_data());
   os << "\n - type: " << static_cast<int>(type());
   os << "\n - line ends: " << Brief(line_ends());
   if (!has_line_ends()) os << " (not set)";

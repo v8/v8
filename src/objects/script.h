@@ -93,11 +93,6 @@ V8_OBJECT class Script : public Struct {
   inline int column_offset() const;
   inline void set_column_offset(int value);
 
-  // [context_data]: context data for the context this script was compiled in.
-  inline Tagged<UnionOf<Smi, Undefined, Symbol>> context_data() const;
-  inline void set_context_data(Tagged<UnionOf<Smi, Undefined, Symbol>> value,
-                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   // [type]: the script type.
   inline Type type() const;
   inline void set_type(Type value);
@@ -219,6 +214,7 @@ V8_OBJECT class Script : public Struct {
     using ProduceCompileHintsBit = BreakOnEntryBit::Next<bool, 1>;
     using DeserializedBit = ProduceCompileHintsBit::Next<bool, 1>;
     using OuterLanguageModeBit = DeserializedBit::Next<LanguageMode, 1>;
+    using IsEmbeddedBit = OuterLanguageModeBit::Next<bool, 1>;
 
     BIT_FIELD_GROUP_ACCESSORS(compilation_kind, CompilationKindBits)
     BIT_FIELD_GROUP_ACCESSORS(compilation_state, CompilationStateBit)
@@ -228,6 +224,7 @@ V8_OBJECT class Script : public Struct {
     BIT_FIELD_GROUP_ACCESSORS(produce_compile_hints, ProduceCompileHintsBit)
     BIT_FIELD_GROUP_ACCESSORS(deserialized, DeserializedBit)
     BIT_FIELD_GROUP_ACCESSORS(outer_language_mode, OuterLanguageModeBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_embedded, IsEmbeddedBit)
   };
 
   // Read/write the raw 'flags' field. This uses relaxed atomic loads/stores
@@ -241,6 +238,12 @@ V8_OBJECT class Script : public Struct {
 
   inline bool deserialized() const;
   inline void set_deserialized(bool value);
+
+  // [is_embedded]: only ever set by the StartupSerializer for user scripts
+  // baked into a snapshot, and intentionally preserved through the code cache.
+  // Encoded in the 'flags' field.
+  inline bool is_embedded() const;
+  inline void set_is_embedded(bool value);
 
   // [compilation_state]: determines whether the script has already been
   // compiled. Encoded in the 'flags' field.
@@ -419,7 +422,6 @@ V8_OBJECT class Script : public Struct {
   TaggedMember<Object> name_;
   TaggedMember<Smi> line_offset_;
   TaggedMember<Smi> column_offset_;
-  TaggedMember<UnionOf<Smi, Undefined, Symbol>> context_data_;
   TaggedMember<Smi> script_type_;
   TaggedMember<UnionOf<FixedArray, Smi>> line_ends_;
   TaggedMember<Smi> id_;

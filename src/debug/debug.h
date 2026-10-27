@@ -527,6 +527,9 @@ class V8_EXPORT_PRIVATE Debug {
                           DirectHandle<DebugScriptScopeInfo> info);
   void ClearScriptScopeInfos();
 
+  void GetContextScripts(
+      std::map<int, std::unordered_set<int>>& context_scripts);
+
  private:
   explicit Debug(Isolate* isolate);
   ~Debug();
@@ -558,6 +561,7 @@ class V8_EXPORT_PRIVATE Debug {
                    bool is_stack_overflow = false);
 
   void ProcessCompileEvent(bool has_compile_error, DirectHandle<Script> script);
+  void RecordScriptContext(DirectHandle<Script> script);
 
   // Find the closest source position for a break point for a given position.
   int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position);
@@ -740,6 +744,13 @@ class V8_EXPORT_PRIVATE Debug {
   // Ephemeron table caching DebugScriptScopeInfo for Scripts.
   // This is a global handle, lazily initialized.
   IndirectHandle<EphemeronHashTable> script_scope_infos_;
+
+  // Ephemeron table mapping Scripts to WeakArrayLists of NativeContexts.
+  // This is a global handle, lazily initialized.
+  // Unlike script_scope_infos_, this intentionally survives Debug::Unload():
+  // it is populated regardless of whether a delegate is attached, since it has
+  // to be able to reconstruct the mapping on a later Debugger.enable.
+  IndirectHandle<EphemeronHashTable> script_to_contexts_;
 
   // This is a part of machinery for allowing to ignore side effects for one
   // call to this API function. See Function::NewInstanceWithSideEffectType().

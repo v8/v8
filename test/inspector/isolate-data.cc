@@ -437,7 +437,8 @@ void InspectorIsolateData::FreeContext(v8::Local<v8::Context> context) {
   int context_group_id = GetContextGroupId(context);
   auto it = contexts_.find(context_group_id);
   if (it == contexts_.end()) return;
-  contexts_.erase(it);
+  std::erase(it->second, context);
+  if (it->second.empty()) contexts_.erase(it);
 }
 
 std::vector<int> InspectorIsolateData::GetSessionIds(int context_group_id) {
