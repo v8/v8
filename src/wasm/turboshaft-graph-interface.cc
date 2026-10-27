@@ -5564,9 +5564,10 @@ class TurboshaftGraphBuildingInterface
   }
 
   void WaitqueueNew(FullDecoder* decoder, Value* result) {
-    result->op =
+    V<HeapObject> waitqueue =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmWaitqueueNew>(
             decoder, {});
+    result->op = __ AnnotateWasmType(waitqueue, result->type);
   }
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
