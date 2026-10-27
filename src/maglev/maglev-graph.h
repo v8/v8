@@ -382,6 +382,10 @@ class Graph final : public ZoneObject {
 
   MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
 
+#ifdef V8_FUZZILLI
+  void ExtractOptimizedCodeCoverage();
+#endif
+
  private:
   MaglevCompilationInfo* compilation_info_;
   uint32_t tagged_stack_slots_ = kMaxUInt32;
