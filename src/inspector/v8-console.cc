@@ -698,12 +698,25 @@ void V8Console::valuesCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   if (!obj->GetOwnPropertyNames(context).ToLocal(&names)) return;
   v8::Local<v8::Array> values = v8::Array::New(isolate, names->Length());
+  v8::TryCatch tryCatch(isolate);
   for (uint32_t i = 0; i < names->Length(); ++i) {
     v8::Local<v8::Value> key;
-    if (!names->Get(context, i).ToLocal(&key)) continue;
+    if (!names->Get(context, i).ToLocal(&key)) {
+      if (tryCatch.HasTerminated()) return;
+      tryCatch.Reset();
+      continue;
+    }
     v8::Local<v8::Value> value;
-    if (!obj->Get(context, key).ToLocal(&value)) continue;
-    createDataProperty(context, values, i, value);
+    if (!obj->Get(context, key).ToLocal(&value)) {
+      if (tryCatch.HasTerminated()) return;
+      tryCatch.Reset();
+      continue;
+    }
+    if (createDataProperty(context, values, i, value).IsNothing()) {
+      if (tryCatch.HasTerminated()) return;
+      tryCatch.Reset();
+      continue;
+    }
   }
   info.GetReturnValue().Set(values);
 }
@@ -840,9 +853,11 @@ void V8Console::inspectCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     v8::Local<v8::Object> options = info[1].As<v8::Object>();
     v8::Local<v8::Value> focusValue;
-    if (options->Get(context, toV8StringInternalized(isolate, "focus"))
-            .ToLocal(&focusValue) &&
-        focusValue->IsFalse()) {
+    if (!options->Get(context, toV8StringInternalized(isolate, "focus"))
+             .ToLocal(&focusValue)) {
+      return;
+    }
+    if (focusValue->IsFalse()) {
       omitFocus = true;
     }
   }
