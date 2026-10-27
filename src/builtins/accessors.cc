@@ -833,10 +833,20 @@ void Accessors::ValueUnavailableGetter(
       Utils::OpenDirectHandle(*name)));
 }
 
+void Accessors::ValueUnavailableSetter(
+    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  isolate->Throw(*isolate->factory()->NewReferenceError(
+      MessageTemplate::kAccessedUnavailableVariable,
+      Utils::OpenDirectHandle(*name)));
+}
+
 DirectHandle<AccessorInfo> Accessors::MakeValueUnavailableInfo(
     Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->empty_string(),
-                      &ValueUnavailableGetter, &ReconfigureToDataProperty);
+                      &ValueUnavailableGetter, &ValueUnavailableSetter);
 }
 
 //

@@ -58,7 +58,8 @@ class JavaScriptFrame;
   V(ArrayLengthSetter)          \
   V(FunctionPrototypeSetter)    \
   V(ModuleNamespaceEntrySetter) \
-  V(ReconfigureToDataProperty)
+  V(ReconfigureToDataProperty)  \
+  V(ValueUnavailableSetter)
 
 #define ACCESSOR_CALLBACK_LIST_GENERATOR(V, _) \
   V(_, ErrorStackGetter, kHasSideEffect)       \

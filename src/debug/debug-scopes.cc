@@ -549,8 +549,8 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
     } else {
       // Overwrite properties. Sometimes names in the same scope can collide,
       // e.g. with extension objects introduced via local eval.
-      Object::SetPropertyOrElement(isolate_, scope, name, value,
-                                   Just(ShouldThrow::kDontThrow))
+      JSReceiver::CreateDataProperty(isolate_, scope, name, value,
+                                     Just(ShouldThrow::kDontThrow))
           .Check();
     }
     return false;
@@ -976,8 +976,19 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
       // FunctionGetArguments does.
       if (frame_inspector_ != nullptr && !closure_scope().is_arrow_scope()) {
         auto [args_alloc, args_index] = closure_scope().arguments_info();
-        bool arguments_optimized_out =
-            args_alloc == VariableAllocationInfo::NONE;
+        bool arguments_optimized_out = false;
+        if (args_alloc == VariableAllocationInfo::NONE) {
+          for (int i = 0; i < closure_scope().variable_count(); ++i) {
+            DebugVariableInfo var = closure_scope().variable(i);
+            if (var.name == *isolate_->factory()->arguments_string()) {
+              if (var.mode == VariableMode::kVar &&
+                  var.location == VariableLocation::UNALLOCATED) {
+                arguments_optimized_out = true;
+              }
+              break;
+            }
+          }
+        }
         JavaScriptFrame* frame = GetFrame();
         if (!arguments_optimized_out &&
             args_alloc == VariableAllocationInfo::STACK) {
