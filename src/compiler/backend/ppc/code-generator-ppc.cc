@@ -2795,8 +2795,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_V128AnyTrue: {
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
-      __ V128AnyTrue(i.OutputRegister(), i.InputSimd128Register(0), r0, scratch,
-                     kScratchSimd128Reg);
+      Register scratch2 = temps.Acquire();
+      __ V128AnyTrue(i.OutputRegister(), i.InputSimd128Register(0), scratch,
+                     scratch2, kScratchSimd128Reg);
       break;
     }
     case kPPC_F64x2ConvertLowI32x4U: {
