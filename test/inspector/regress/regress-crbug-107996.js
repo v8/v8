@@ -25,26 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-crbug-107996.');
 
-Debug = debug.Debug;
-
-Debug.setListener(listener);
-var exception = null;
+contextGroup.addScript(`
 var fourteen;
-var four_in_debugger = [];
-
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    try {
-      for (var i = 0; i < exec_state.frameCount() - 1; i++) {
-        var frame = exec_state.frame(i);
-        four_in_debugger[i] = frame.evaluate("four", false).value();
-      }
-    } catch (e) {
-      exception = e;
-    }
-  }
-}
 
 function f1() {
   var three = 3;
@@ -57,12 +42,29 @@ function f1() {
      })();
   })();
 }
+`);
 
-f1();
-assertEquals(14, fourteen);
-assertEquals(4, four_in_debugger[0]);
-assertEquals(4, four_in_debugger[1]);
-assertEquals(4, four_in_debugger[2]);
+(async function test() {
+  await Protocol.Debugger.enable();
 
-Debug.setListener(null);
-assertNull(exception);
+  Protocol.Debugger.onPaused(async message => {
+    const callFrames = message.params.callFrames;
+    for (let i = 0; i < callFrames.length - 1; i++) {
+      const {result: {result}} = await Protocol.Debugger.evaluateOnCallFrame({
+        callFrameId: callFrames[i].callFrameId,
+        expression: 'four',
+        throwOnSideEffect: false,
+      });
+      InspectorTest.log(`frame ${i}: ${result.value}`);
+    }
+    Protocol.Debugger.resume();
+  });
+
+  await Protocol.Runtime.evaluate({expression: 'f1()'});
+  const {result: {result}} = await Protocol.Runtime.evaluate({
+    expression: 'fourteen',
+  });
+  InspectorTest.log(`fourteen: ${result.value}`);
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();
