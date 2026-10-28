@@ -1469,6 +1469,10 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(optimize_for_size, predictable_gc_schedule);
   CONTRADICTION(predictable, stress_concurrent_inlining_attach_code);
   CONTRADICTION(predictable_gc_schedule, stress_compaction);
+  CONTRADICTION(stress_scavenger_conservative_object_pinning,
+                predictable_gc_schedule);
+  CONTRADICTION(stress_scavenger_conservative_object_pinning_random,
+                predictable_gc_schedule);
   CONTRADICTION(single_threaded, stress_concurrent_inlining_attach_code);
 #if V8_ENABLE_WEBASSEMBLY
   CONTRADICTION(wasm_test_streaming, predictable);
