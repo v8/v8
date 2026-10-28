@@ -2600,7 +2600,8 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
       javascript()->GetTemplateObject(description, shared_info(), source);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* template_object = NewNode(op, feedback_vector_node());
-  environment()->BindAccumulator(template_object);
+  environment()->BindAccumulator(template_object,
+                                 Environment::kAttachFrameState);
 }
 
 Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(
