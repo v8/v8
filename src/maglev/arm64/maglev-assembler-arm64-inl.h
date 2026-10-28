@@ -602,9 +602,9 @@ inline void MaglevAssembler::StoreFixedDoubleArrayElement(
 inline void MaglevAssembler::LoadSignedField(Register result,
                                              MemOperand operand, int size) {
   if (size == 1) {
-    Ldrsb(result, operand);
+    Ldrsb(result.W(), operand);
   } else if (size == 2) {
-    Ldrsh(result, operand);
+    Ldrsh(result.W(), operand);
   } else {
     DCHECK_EQ(size, 4);
     Ldr(result.W(), operand);
@@ -717,8 +717,8 @@ inline void MaglevAssembler::StoreTrustedPointerFieldNoWriteBarrier(
 
 inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
   if (size == 2) {
-    Rev16(value, value);
-    Sxth(value, value);
+    Rev16(value.W(), value.W());
+    Sxth(value.W(), value.W());
   } else if (size == 4) {
     Rev32(value, value);
   } else {
@@ -729,8 +729,8 @@ inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
 inline void MaglevAssembler::ReverseByteOrderUnsigned(Register value,
                                                       int size) {
   if (size == 2) {
-    Rev16(value, value);
-    Uxth(value, value);
+    Rev16(value.W(), value.W());
+    Uxth(value.W(), value.W());
   } else if (size == 4) {
     Rev32(value, value);
   } else {
@@ -1629,13 +1629,13 @@ inline void MaglevAssembler::TestUint8AndJumpIfAllClear(
 
 inline void MaglevAssembler::LoadContextCellState(Register state,
                                                   Register cell) {
-  Ldr(state, FieldMemOperand(cell, offsetof(ContextCell, state_)));
+  Ldr(state.W(), FieldMemOperand(cell, offsetof(ContextCell, state_)));
 }
 
 inline void MaglevAssembler::LoadContextCellInt32Value(Register value,
                                                        Register cell) {
   AssertContextCellState(cell, ContextCell::kInt32);
-  Ldr(value, FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+  Ldr(value.W(), FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
 }
 
 inline void MaglevAssembler::LoadContextCellFloat64Value(DoubleRegister value,
@@ -1646,7 +1646,7 @@ inline void MaglevAssembler::LoadContextCellFloat64Value(DoubleRegister value,
 
 inline void MaglevAssembler::StoreContextCellInt32Value(Register cell,
                                                         Register value) {
-  Str(value, FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+  Str(value.W(), FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
 }
 
 inline void MaglevAssembler::StoreContextCellFloat64Value(
