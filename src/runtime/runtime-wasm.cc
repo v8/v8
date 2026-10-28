@@ -1588,21 +1588,15 @@ class PrototypesSetup : public wasm::Decoder {
         return ReadOnlyRoots(isolate()).exception();
       }
       // Important: installing {constructor} on {constructors} can invoke
-      // user code. Only determine fast path eligibility after that.
+      // user code. Only determine fast path eligibility and invalidate
+      // prototype chains after that.
       bool fast_path = false;
       DirectHandle<NameDictionary> dictionary;
       if (!prototype_is_null) {
-        if (IsJSObject(*prototype)) {
+        DCHECK_IMPLIES(IsJSObject(*prototype),
+                       Cast<JSObject>(prototype)->map()->is_prototype_map());
+        if (num_methods > 0 && IsJSObject(*prototype)) {
           DirectHandle<JSObject> proto = Cast<JSObject>(prototype);
-          if (!proto->map()->is_prototype_map()) {
-            // Important for correctness: switch to a non-shared map.
-            // Important for performance: switch to dictionary mode.
-            JSObject::OptimizeAsPrototype(proto);
-          } else {
-            // Prepare the fast path by invalidating any ICs that might already
-            // rely on this prototype.
-            JSObject::InvalidatePrototypeChains(proto->map());
-          }
           ToDictionaryMode(proto, num_methods);
           DisallowGarbageCollection using_plain_tagged_values;
           Tagged<Map> map = proto->map();
@@ -1617,8 +1611,11 @@ class PrototypesSetup : public wasm::Decoder {
             DCHECK(!map->has_named_interceptor());
             DCHECK(!IsJSGlobalObject(*proto));
             DCHECK(map->is_dictionary_map());
-            dictionary = handle(proto->property_dictionary(), isolate_);
+            dictionary = direct_handle(proto->property_dictionary(), isolate_);
             if (map->is_extensible() && dictionary->NumberOfElements() == 0) {
+              // Prepare the fast path by invalidating any ICs that might
+              // already rely on this prototype.
+              JSObject::InvalidatePrototypeChains(map);
               fast_path = true;
             }
           }
@@ -1819,7 +1816,14 @@ class PrototypesSetup : public wasm::Decoder {
           ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
           return {};
         }
-        return Cast<JSObject>(heap_proto);
+        DirectHandle<JSObject> proto = Cast<JSObject>(heap_proto);
+        if (!proto->map()->is_prototype_map()) {
+          // Important for correctness: switch to a non-shared map before
+          // installing a constructor or methods.
+          // Important for performance: switch to dictionary mode.
+          JSObject::OptimizeAsPrototype(proto);
+        }
+        return proto;
       }
       if (IsJSReceiver(*heap_proto)) {
         return Cast<JSReceiver>(heap_proto);
