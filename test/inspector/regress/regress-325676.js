@@ -1,4 +1,4 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,42 +25,50 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// If a function parameter is forced to be context allocated,
+// debug evaluate need to resolve it to a context slot instead of
+// parameter slot on the stack.
 
-Debug = debug.Debug;
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-325676.');
 
-function dummy(x) {
-  return x + 100;
+contextGroup.addScript(`
+function f(arg) {
+  debugger;
+  console.log(arg);
+
+  arg = "value";
+  debugger;
+  console.log(arg);
+
+  // Forces arg to be context allocated even though a parameter.
+  function g() { arg; }
 }
+`);
 
-function create_closure() {
-  var f = function(arg) {
-    if (arg) { %DeoptimizeFunction(f); }
-    var a = Array(10);
-    for (var i = 0; i < a.length; i++) {
-      a[i] = i;
-    }
-  }
-  return f;
-}
+(async function test() {
+  await Protocol.Runtime.enable();
+  await Protocol.Debugger.enable();
 
-var c = create_closure();
-c();
+  Protocol.Runtime.onConsoleAPICalled(message => {
+    InspectorTest.log(`after debugger: ${message.params.args[0].value}`);
+  });
 
-// c CallIC state now has custom Array handler installed.
+  Protocol.Debugger.onPaused(async message => {
+    const callFrameId = message.params.callFrames[0].callFrameId;
+    const {result: {result}} = await Protocol.Debugger.evaluateOnCallFrame({
+      callFrameId,
+      expression: 'arg',
+    });
+    InspectorTest.log(`at debugger: ${result.value}`);
+    await Protocol.Debugger.evaluateOnCallFrame({
+      callFrameId,
+      expression: 'arg = "evaluated";',
+    });
+    Protocol.Debugger.resume();
+  });
 
-// Turn on the debugger.
-Debug.setListener(function () {});
-
-var d = create_closure();
-%PrepareFunctionForOptimization(d);
-%OptimizeFunctionOnNextCall(d);
-// Thanks to the debugger, we recreate the full code too. We deopt and run
-// it, stomping on the unexpected AllocationSite in the type vector slot.
-d(true);
-
-// CallIC in c misinterprets type vector slot contents as an AllocationSite,
-// corrupting the heap.
-c();
-
-// CallIC MISS - crash due to corruption.
-dummy();
+  await Protocol.Runtime.evaluate({expression: 'f(); f(1); f(1, 2);'});
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();

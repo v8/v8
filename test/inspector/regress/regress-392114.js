@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,44 +25,54 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
-// If a function parameter is forced to be context allocated,
-// debug evaluate need to resolve it to a context slot instead of
-// parameter slot on the stack.
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests regress-392114.');
 
-var Debug = debug.Debug;
+contextGroup.addScript(`
+function dummy(x) {
+  return x + 100;
+}
 
-var expected;
-var exception = null;
-
-function listener(event, exec_state, event_data, data) {
-  if (event != Debug.DebugEvent.Break) return;
-  try {
-    assertEquals(expected, exec_state.frame(0).evaluate('arg').value());
-    exec_state.frame(0).evaluate('arg = "evaluated";');  // no effect
-  } catch (e) {
-    exception = e;
+function create_closure() {
+  var f = function(arg) {
+    if (arg) { %DeoptimizeFunction(f); }
+    var a = Array(10);
+    for (var i = 0; i < a.length; i++) {
+      a[i] = i;
+    }
   }
+  return f;
 }
 
-Debug.setListener(listener);
+var c = create_closure();
+c();
+`);
 
-function f(arg) {
-  expected = arg;
-  debugger;
-  assertEquals("evaluated", arg);
+(async function test() {
+  // c CallIC state now has custom Array handler installed.
+  // Turn on the debugger.
+  await Protocol.Debugger.enable();
 
-  arg = "value";
-  expected = arg;
-  debugger;
-  assertEquals("evaluated", arg);
+  const {result} = await Protocol.Runtime.evaluate({
+    expression: `
+      var d = create_closure();
+      %PrepareFunctionForOptimization(d);
+      %OptimizeFunctionOnNextCall(d);
+      // Thanks to the debugger, we recreate the full code too. We deopt and run
+      // it, stomping on the unexpected AllocationSite in the type vector slot.
+      d(true);
 
-  // Forces arg to be context allocated even though a parameter.
-  function g() { arg; }
-}
+      // CallIC in c misinterprets type vector slot contents as an AllocationSite,
+      // corrupting the heap.
+      c();
 
-f();
-f(1);
-f(1, 2);
-
-assertNull(exception);
+      // CallIC MISS - crash due to corruption.
+      dummy();
+    `,
+  });
+  InspectorTest.logMessage(result);
+  await Protocol.Debugger.disable();
+  InspectorTest.completeTest();
+})();
