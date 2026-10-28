@@ -4404,8 +4404,10 @@ DISALLOW_UNSAFE_FLAG(max_wasm_functions)
 // Features we don't currently want to fuzz.
 DISALLOW_UNSAFE_FLAG(cppgc_young_generation)
 // The memory corruption API is only allowed in sandbox testing/fuzzing mode.
+// LINT.IfChange(MemoryCorruptionApiImplications)
 DISALLOW_UNSAFE_FLAG_IF(!sandbox_testing && !sandbox_fuzzing,
                         expose_memory_corruption_api)
+// LINT.ThenChange(/src/d8/d8.cc:MemoryCorruptionApiImplications)
 
 // Flags which trigger a breakpoint on purpose.
 DISALLOW_UNSAFE_FLAG(maglev_break_on_entry)

@@ -5376,6 +5376,7 @@ MaybeLocal<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   }
 #ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
   if (options.memory_corruption_via_watchpoints) {
+    DCHECK(i::v8_flags.expose_memory_corruption_api);
     // The global "Sandbox" object is installed in src/sandbox/testing.cc via
     // `SandboxTesting::InstallMemoryCorruptionApi`. We add another method to
     // it with a callback implemented in hardware-watchpoints.cc.
@@ -7287,17 +7288,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.perf_ack_fd = atoi(flag_value);
 #endif  // V8_OS_LINUX
 #ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
-    } else if (bool enable_tracing = FlagMatches(
-                   "--trace-memory-corruption-via-watchpoints", &argv[i]);
-               enable_tracing ||
-               FlagMatches("--memory-corruption-via-watchpoints", &argv[i])) {
-      // The tracing flag also implies enabling the API.
+    } else if (FlagMatches("--trace-memory-corruption-via-watchpoints",
+                           &argv[i])) {
+      options.trace_memory_corruption_via_watchpoints = true;
+    } else if (FlagMatches("--memory-corruption-via-watchpoints", &argv[i])) {
       options.memory_corruption_via_watchpoints = true;
-      if (enable_tracing) {
-        options.trace_memory_corruption_via_watchpoints = true;
-      }
-      // Imply --expose-memory-corruption-api.
-      i::v8_flags.expose_memory_corruption_api.Set(true);
 #endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
     } else if (FlagMatches("--disable-in-process-stack-traces", &argv[i])) {
       options.disable_in_process_stack_traces = true;
@@ -7387,6 +7382,23 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   DCHECK(options.num_isolates);
 
+  const char* usage =
+      "Synopsis:\n"
+      "  shell [options] [--shell] [<file>...]\n"
+      "  d8 [options] [-e <string>] [--shell] [--module|]"
+      " <file>...]\n\n"
+      "  -e        execute a string in V8\n"
+      "  --shell   run an interactive JavaScript shell\n"
+      "  --module  execute a file as a JavaScript module\n"
+      "  --version print V8 version and exit\n"
+      "  -C        set the current working directory before executing "
+      "subsequent files\n";
+  using HelpOptions = i::FlagList::HelpOptions;
+  i::v8_flags.is_standalone_d8_shell.Set(true);
+  i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
+                                       HelpOptions(HelpOptions::kExit, usage));
+  i::FlagList::ResolveContradictionsWhenFuzzing();
+
   const auto handle_unsafe_d8_flag = [&](auto& flag) {
     if (!flag.WasSpecified()) return;
     if (disallow_unsafe_flags) {
@@ -7424,6 +7436,20 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   handle_unsafe_d8_flag(options.perf_ack_fd);
   handle_unsafe_d8_flag(options.scope_linux_perf_to_mark_measure);
 #endif
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  // Mirror DISALLOW_UNSAFE_FLAG_IF(!sandbox_testing && !sandbox_fuzzing,
+  // expose_memory_corruption_api), including flags that imply sandbox_testing
+  // or sandbox_fuzzing.
+  // LINT.IfChange(MemoryCorruptionApiImplications)
+  const bool sandbox_testing_or_fuzzing =
+      i::v8_flags.sandbox_testing || i::v8_flags.run_as_sandbox_security_poc ||
+      i::v8_flags.sandbox_fuzzing || i::v8_flags.sandbox_trap_fuzzing;
+  // LINT.ThenChange(/src/flags/flag-definitions.h:MemoryCorruptionApiImplications)
+  if (!sandbox_testing_or_fuzzing) {
+    handle_unsafe_d8_flag(options.memory_corruption_via_watchpoints);
+    handle_unsafe_d8_flag(options.trace_memory_corruption_via_watchpoints);
+  }
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 
   const auto handle_developer_only_d8_flag = [&](auto& flag) {
     if (!flag.WasSpecified()) return;
@@ -7448,6 +7474,16 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   handle_developer_only_d8_flag(options.dump_counters_nvp);
   handle_developer_only_d8_flag(options.dump_system_memory_stats);
   handle_developer_only_d8_flag(options.simulate_errors);
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  handle_developer_only_d8_flag(
+      options.trace_memory_corruption_via_watchpoints);
+  if (options.trace_memory_corruption_via_watchpoints) {
+    options.memory_corruption_via_watchpoints = true;
+  }
+  if (options.memory_corruption_via_watchpoints) {
+    i::v8_flags.expose_memory_corruption_api.Set(true);
+  }
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 
 #ifdef V8_OS_LINUX
   if (options.scope_linux_perf_to_mark_measure) {
@@ -7474,23 +7510,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
             "the post-execution state.\n");
     return false;
   }
-
-  const char* usage =
-      "Synopsis:\n"
-      "  shell [options] [--shell] [<file>...]\n"
-      "  d8 [options] [-e <string>] [--shell] [--module|]"
-      " <file>...]\n\n"
-      "  -e        execute a string in V8\n"
-      "  --shell   run an interactive JavaScript shell\n"
-      "  --module  execute a file as a JavaScript module\n"
-      "  --version print V8 version and exit\n"
-      "  -C        set the current working directory before executing "
-      "subsequent files\n";
-  using HelpOptions = i::FlagList::HelpOptions;
-  i::v8_flags.is_standalone_d8_shell.Set(true);
-  i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
-                                       HelpOptions(HelpOptions::kExit, usage));
-  i::FlagList::ResolveContradictionsWhenFuzzing();
 
   if (i::v8_flags.stress_snapshot && options.expose_fast_api &&
       check_d8_flag_contradictions) {
