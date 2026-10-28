@@ -385,8 +385,9 @@ void* OS::GetRandomMmapAddr() {
   // configurations.
   raw_addr = RoundDown(raw_addr, AllocatePageSize());
 #endif
-#if defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER)
+#if defined(V8_HOST_ARCH_64_BIT) &&                                    \
+    (defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
+     defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER))
   // If random hint addresses interfere with address ranges hard coded in
   // sanitizers, bad things happen. This address range is copied from TSAN
   // source but works with all tools.
