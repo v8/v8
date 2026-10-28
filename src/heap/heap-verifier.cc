@@ -729,7 +729,7 @@ void CollectSlots(MutablePage* chunk, Address start, Address end,
         }
         return KEEP_SLOT;
       },
-      SlotSet::FREE_EMPTY_BUCKETS);
+      SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<direction>::IterateTyped(
       chunk, [=](SlotType type, Address slot) {
         if (start <= slot && slot < end) {
