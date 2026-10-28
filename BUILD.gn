@@ -6281,6 +6281,8 @@ exclude_from_compiler_cluster = [
                                         # 'interpreter::Register'.
   "src/compiler/heap-refs.cc",  # Is64() function.
   "src/compiler/wasm-load-elimination.cc",  # MayAlias.
+  "src/compiler/backend/move-optimizer.cc",  # Unqualified Assembler on arm64
+                                             # vs. using namespace turboshaft.
 ]
 
 if (v8_enable_builtins_block_position) {
