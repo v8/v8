@@ -3664,11 +3664,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
     }
 
     // Deopt if {left} is not an Int32.
-    RETURN_IF_ABORT(EnsureInt32(left));
-    if (left->is_conversion()) {
-      return left->input(0).node();
-    }
-    return left;
+    return EnsureInt32(left);
   }
   // TODO(v8:7700): Add more peephole cases.
   switch (kOperation) {
@@ -4025,7 +4021,7 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
       if (left->MayBeHoleOrUndefinedNan()) {
         GET_VALUE_OR_ABORT(left, AddNewNode<Float64ToSilencedFloat64>({left}));
       }
-      return left->Unwrap();
+      return left;
     }
     // TODO(dmercadier): we could still do strength reduction, like
     //     x * 2  ==> x + x
@@ -4068,7 +4064,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Min(ValueNode* lhs,
     if (lhs->MayBeHoleOrUndefinedNan()) {
       GET_VALUE_OR_ABORT(lhs, AddNewNode<Float64ToSilencedFloat64>({lhs}));
     }
-    return lhs->Unwrap();
+    return lhs;
   }
 
   std::optional<Float64> lhs_const =
@@ -4109,7 +4105,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Max(ValueNode* lhs,
     if (lhs->MayBeHoleOrUndefinedNan()) {
       GET_VALUE_OR_ABORT(lhs, AddNewNode<Float64ToSilencedFloat64>({lhs}));
     }
-    return lhs->Unwrap();
+    return lhs;
   }
 
   std::optional<Float64> lhs_const =
@@ -4683,7 +4679,6 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathMinMax(
   ValueNode* acc;
   GET_VALUE_OR_ABORT(
       acc, GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball));
-  acc = acc->Unwrap();
   for (size_t i = 1; i < args.count(); ++i) {
     GET_VALUE_OR_ABORT(acc, float64_case(acc, args[i]));
   }
