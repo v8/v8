@@ -4,6 +4,7 @@
 
 #include "test/common/wasm/fuzzer-common.h"
 
+#include <array>
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
@@ -24,7 +25,6 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-metrics.h"
-#include "src/base/unique-array.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/objects/managed.h"
@@ -732,12 +732,10 @@ bool sparse_memory_equal(uint8_t* addr1, uint8_t* addr2, size_t total_length) {
   if (total_length == 0) return true;
 
   const size_t page_size = i::CommitPageSize();
-  // TODO(clemensb): Add batching if necessary. 16GB is 4M pages of 4kB, hence
-  // the two vectors below are <= 4MB (or <= 64MB each on Windows), which is OK.
   static_assert(kMaxMemory64Size <= uint64_t{16} * GB);
   DCHECK_GE(kMaxMemory64Size, total_length);
-  const size_t num_pages = total_length / page_size;
-  DCHECK_EQ(total_length, num_pages * page_size);
+  const size_t total_pages = total_length / page_size;
+  DCHECK_EQ(total_length, total_pages * page_size);
 
 #if V8_OS_WIN
   using residency_type = PSAPI_WORKING_SET_EX_INFORMATION;
@@ -746,44 +744,53 @@ bool sparse_memory_equal(uint8_t* addr1, uint8_t* addr2, size_t total_length) {
 #else
   using residency_type = unsigned char;
 #endif
-  // Allocate storage for the two residency vectors.
-  auto storage =
-      base::UniqueArray<residency_type>::NewForOverwrite(2 * num_pages);
-  residency_type* vec1 = storage.data();
-  residency_type* vec2 = vec1 + num_pages;
+  // Process in fixed-size stack-allocated batches (32 KB on Windows, 2 KB on
+  // POSIX) to avoid large heap allocations when near the OS commit limit.
+  constexpr size_t kBatchPages = 1024;
+  std::array<residency_type, 2 * kBatchPages> storage;
 
-  // Fetch residency status for both address ranges.
+  for (size_t page_offset = 0; page_offset < total_pages;
+       page_offset += kBatchPages) {
+    const size_t batch_pages = std::min(kBatchPages, total_pages - page_offset);
+    uint8_t* batch_addr1 = addr1 + (page_offset * page_size);
+    uint8_t* batch_addr2 = addr2 + (page_offset * page_size);
+    residency_type* vec1 = storage.data();
+    residency_type* vec2 = storage.data() + batch_pages;
+
+    // Fetch residency status for both address ranges.
 #if V8_OS_WIN
-  for (size_t i = 0; i < num_pages; ++i) {
-    vec1[i].VirtualAddress = addr1 + (i * page_size);
-    vec2[i].VirtualAddress = addr2 + (i * page_size);
-  }
-  const size_t byte_size = storage.size() * sizeof(residency_type);
-  DCHECK_GE(std::numeric_limits<DWORD>::max(), byte_size);
-  if (!QueryWorkingSetEx(GetCurrentProcess(), storage.data(),
-                         static_cast<DWORD>(byte_size))) {
-    FATAL("QueryWorkingSetEx failed: %lu", GetLastError());
-  }
-  auto is_resident = [](const residency_type& info) -> bool {
-    return info.VirtualAttributes.Valid;
-  };
+    for (size_t i = 0; i < batch_pages; ++i) {
+      vec1[i].VirtualAddress = batch_addr1 + (i * page_size);
+      vec2[i].VirtualAddress = batch_addr2 + (i * page_size);
+    }
+    const size_t byte_size = 2 * batch_pages * sizeof(residency_type);
+    DCHECK_GE(std::numeric_limits<DWORD>::max(), byte_size);
+    if (!QueryWorkingSetEx(GetCurrentProcess(), storage.data(),
+                           static_cast<DWORD>(byte_size))) {
+      FATAL("QueryWorkingSetEx failed: %lu", GetLastError());
+    }
+    auto is_resident = [](const residency_type& info) -> bool {
+      return info.VirtualAttributes.Valid;
+    };
 #else
-  if (mincore(addr1, total_length, vec1) != 0 ||
-      mincore(addr2, total_length, vec2) != 0) {
-    FATAL("mincore failed: %s", strerror(errno));
-  }
-  auto is_resident = [](residency_type val) -> bool { return val & 1; };
+    const size_t batch_byte_length = batch_pages * page_size;
+    if (mincore(batch_addr1, batch_byte_length, vec1) != 0 ||
+        mincore(batch_addr2, batch_byte_length, vec2) != 0) {
+      FATAL("mincore failed: %s", strerror(errno));
+    }
+    auto is_resident = [](residency_type val) -> bool { return val & 1; };
 #endif
 
-  for (size_t i = 0; i < num_pages; ++i) {
-    bool p1_res = is_resident(vec1[i]);
-    bool p2_res = is_resident(vec2[i]);
+    for (size_t i = 0; i < batch_pages; ++i) {
+      bool p1_res = is_resident(vec1[i]);
+      bool p2_res = is_resident(vec2[i]);
 
-    // Compare pages if at least one is resident.
-    if (!p1_res && !p2_res) continue;
-    if (std::memcmp(addr1 + (i * page_size), addr2 + (i * page_size),
-                    page_size) != 0) {
-      return false;
+      // Compare pages if at least one is resident.
+      if (!p1_res && !p2_res) continue;
+      if (std::memcmp(batch_addr1 + (i * page_size),
+                      batch_addr2 + (i * page_size), page_size) != 0) {
+        return false;
+      }
     }
   }
 
