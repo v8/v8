@@ -21,6 +21,7 @@
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/flags/save-flags.h"
 #include "src/handles/handles.h"
@@ -729,16 +730,14 @@ class FakeCodeEventLogger : public i::CodeEventLogger {
 
 class CrashKeyStore {
  public:
-  explicit CrashKeyStore(Isolate* isolate) : isolate_(isolate) {
-    InstallCallbacks();
-  }
+  CrashKeyStore();
+  ~CrashKeyStore();
 
   CrashKeyStore(const CrashKeyStore&) = delete;
   CrashKeyStore& operator=(const CrashKeyStore&) = delete;
 
-  ~CrashKeyStore() { isolate_->SetCrashKeyStringCallbacks({}, {}); }
-
-  const std::string& ValueForKey(const std::string& name) const {
+  std::string ValueForKey(const std::string& name) const {
+    base::MutexGuard guard(&mutex_);
     auto it = entries_.find(name);
     CHECK(it != entries_.end());
     CHECK_NOT_NULL(it->second.get());
@@ -746,10 +745,14 @@ class CrashKeyStore {
   }
 
   bool HasKey(const std::string& name) const {
+    base::MutexGuard guard(&mutex_);
     return entries_.find(name) != entries_.end();
   }
 
-  size_t size() const { return entries_.size(); }
+  size_t size() const {
+    base::MutexGuard guard(&mutex_);
+    return entries_.size();
+  }
   std::unordered_set<std::string> KeyNames() const;
 
  private:
@@ -758,11 +761,13 @@ class CrashKeyStore {
     std::string value;
   };
 
-  void InstallCallbacks();
-  CrashKey AllocateKey(const char key[], CrashKeySize size);
-  void SetValue(CrashKey crash_key, const std::string_view value);
+  static CrashKey AllocateCallback(const char key[], CrashKeySize size);
+  static void SetCallback(CrashKey crash_key, std::string_view value);
 
-  Isolate* isolate_;
+  CrashKey AllocateKey(const char key[], CrashKeySize size);
+  void SetValue(CrashKey crash_key, std::string_view value);
+
+  mutable base::Mutex mutex_;
   std::unordered_map<std::string, std::unique_ptr<Entry>> entries_;
 };
 

@@ -1308,7 +1308,7 @@ TEST_F(HeapTest,
 }
 
 TEST_F(HeapTest, ReportStatsAsCrashKeys) {
-  CrashKeyStore crash_key_store(i_isolate());
+  CrashKeyStore crash_key_store;
 
   HeapStats stats;
   auto next_value = [value = size_t{1}]() mutable { return value++; };
@@ -1487,7 +1487,7 @@ void FatalMemoryErrorCallbackForTest(const char* location,
 }  // anonymous namespace
 
 TEST_F(HeapTest, CheckCrashKeysAreReportedInOOM) {
-  CrashKeyStore crash_key_store(i_isolate());
+  CrashKeyStore crash_key_store;
   g_crash_key_store_for_oom = &crash_key_store;
   v8_isolate()->SetOOMErrorHandler(FatalMemoryErrorCallbackForTest);
   EXPECT_DEATH_IF_SUPPORTED(

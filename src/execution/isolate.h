@@ -2108,6 +2108,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                  std::string_view value);
   void SetCrashKeyString(CrashKey crash_key, std::string_view value);
 
+  // Deprecated - to be deleted once embedders migrate to
+  // v8::V8::SetCrashKeyCallbacks.
   void SetCrashKeyStringCallbacks(
       AllocateCrashKeyStringCallback allocate_callback,
       SetCrashKeyStringCallback set_callback);

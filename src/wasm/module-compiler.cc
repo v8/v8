@@ -3186,8 +3186,10 @@ void AsyncStreamingProcessor::SetCrashKey(std::string_view message) {
   Isolate* isolate = job_->isolate_specific_info_.isolate_;
   if (isolate && isolate->HasCrashKeyStringCallbacks()) {
     // Crash keys allocated via the embedder callback are process-wide and never
-    // freed, and in Chromium the callbacks are only installed on the main
-    // thread's Isolate, so caching the key in a process-wide static is safe.
+    // freed, while mutating a single CrashKey across threads requires external
+    // synchronization (e.g. Crashpad's StringAnnotation::Set).
+    static base::LazyMutex crash_key_mutex = LAZY_MUTEX_INITIALIZER;
+    base::MutexGuard guard(crash_key_mutex.Pointer());
     static v8::CrashKey crash_key = isolate->AllocateCrashKeyString(
         "v8-wasm-streaming-error", v8::CrashKeySize::Size1024);
     isolate->SetCrashKeyString(crash_key, message);

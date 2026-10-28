@@ -468,6 +468,11 @@ void V8::SetFatalErrorHandler(V8FatalErrorCallback that) {
   v8::base::SetFatalFunction(that);
 }
 
+void V8::SetCrashKeyCallbacks(AllocateCrashKeyCallback allocate,
+                              SetCrashKeyCallback set) {
+  i::V8::SetCrashKeyCallbacks(allocate, set);
+}
+
 void V8::SetFlagsFromString(const char* str) {
   SetFlagsFromString(str, strlen(str));
 }

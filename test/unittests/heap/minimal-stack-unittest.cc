@@ -15,7 +15,7 @@ namespace v8::internal {
 using MinimalStackTest = TestWithHeapInternals;
 
 TEST_F(MinimalStackTest, MinimalStackInTurbofanAllocate) {
-  CrashKeyStore crash_key_store(i_isolate());
+  CrashKeyStore crash_key_store;
   v8::HandleScope handle_scope(v8_isolate());
   v8_flags.allow_natives_syntax.Set(true);
   v8_flags.lazy_feedback_allocation.Set(false);

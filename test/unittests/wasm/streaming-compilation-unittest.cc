@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-initialization.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/vector.h"
@@ -2095,22 +2096,27 @@ STREAM_TEST(Regress1334651) {
 }
 
 STREAM_TEST(StreamingErrorCrashKeyReused) {
-  static int alloc_count = 0;
+  struct State {
+    int alloc_count = 0;
+    int set_count = 0;
+    std::string last_value;
+  };
   static int dummy_key = 0;
-  int set_count = 0;
-  std::string last_value;
+  static State* state = nullptr;
+  State local_state;
+  state = &local_state;
 
-  isolate->SetCrashKeyStringCallbacks(
+  v8::V8::SetCrashKeyCallbacks(
       [](const char key[], v8::CrashKeySize size) -> v8::CrashKey {
         CHECK_EQ(0, strcmp(key, "v8-wasm-streaming-error"));
         CHECK_EQ(v8::CrashKeySize::Size1024, size);
-        ++alloc_count;
+        ++state->alloc_count;
         return &dummy_key;
       },
-      [&](v8::CrashKey key, const std::string_view value) {
+      [](v8::CrashKey key, std::string_view value) {
         CHECK_EQ(&dummy_key, key);
-        ++set_count;
-        last_value = std::string(value);
+        ++state->set_count;
+        state->last_value = std::string(value);
       });
 
   {
@@ -2120,9 +2126,9 @@ STREAM_TEST(StreamingErrorCrashKeyReused) {
     tester.FinishStream();
     tester.RunCompilerTasks();
     CHECK(tester.IsPromiseRejected());
-    CHECK_EQ(1, alloc_count);
-    CHECK_EQ(1, set_count);
-    CHECK_EQ("StreamingDecoder failed", last_value);
+    CHECK_EQ(1, local_state.alloc_count);
+    CHECK_EQ(1, local_state.set_count);
+    CHECK_EQ("StreamingDecoder failed", local_state.last_value);
   }
 
   {
@@ -2133,12 +2139,42 @@ STREAM_TEST(StreamingErrorCrashKeyReused) {
     tester.FinishStream();
     tester.RunCompilerTasks();
     CHECK(tester.IsPromiseRejected());
-    CHECK_EQ(1, alloc_count);
-    CHECK_EQ(2, set_count);
-    CHECK(last_value.starts_with("ModuleDecoder: "));
+    CHECK_EQ(1, local_state.alloc_count);
+    CHECK_EQ(2, local_state.set_count);
+    CHECK(local_state.last_value.starts_with("ModuleDecoder: "));
   }
 
-  isolate->SetCrashKeyStringCallbacks(nullptr, nullptr);
+  // A secondary (e.g. worker) Isolate uses the process-wide callbacks
+  // registered via V8::SetCrashKeyCallbacks.
+  {
+    std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+        v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = allocator.get();
+    v8::Isolate* worker_isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope isolate_scope(worker_isolate);
+      v8::HandleScope handle_scope(worker_isolate);
+      v8::Local<v8::Context> worker_context = v8::Context::New(worker_isolate);
+      v8::Context::Scope context_scope(worker_context);
+
+      StreamTester tester(worker_isolate);
+      const uint8_t truncated_header[] = {0x00, 0x01, 0x02, 0x03};
+      tester.OnBytesReceived(truncated_header, arraysize(truncated_header));
+      tester.FinishStream();
+      tester.RunCompilerTasks();
+      CHECK(tester.IsPromiseRejected());
+      CHECK_EQ(1, local_state.alloc_count);
+      CHECK_EQ(3, local_state.set_count);
+      CHECK_EQ("StreamingDecoder failed", local_state.last_value);
+    }
+    worker_isolate->Dispose();
+  }
+
+  v8::V8::SetCrashKeyCallbacks(nullptr, nullptr);
+  state = nullptr;
+  CHECK(!i::V8::HasCrashKeyCallbacks());
+  CHECK(!reinterpret_cast<i::Isolate*>(isolate)->HasCrashKeyStringCallbacks());
 }
 
 #undef STREAM_TEST

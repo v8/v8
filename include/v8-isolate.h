@@ -1518,6 +1518,7 @@ class V8_EXPORT Isolate {
    * Enables the host application to provide a mechanism for allocating a new
    * crash key and setting/updating values for them.
    */
+  V8_DEPRECATE_SOON("Use V8::SetCrashKeyCallbacks instead")
   void SetCrashKeyStringCallbacks(AllocateCrashKeyStringCallback,
                                   SetCrashKeyStringCallback);
 

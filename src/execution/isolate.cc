@@ -7675,12 +7675,16 @@ void Isolate::SetCrashKeyStringCallbacks(
 }
 
 bool Isolate::HasCrashKeyStringCallbacks() {
+  if (V8::HasCrashKeyCallbacks()) return true;
   DCHECK_EQ(static_cast<bool>(allocate_crash_key_string_callback_),
             static_cast<bool>(set_crash_key_string_callback_));
   return static_cast<bool>(allocate_crash_key_string_callback_);
 }
 
 CrashKey Isolate::AllocateCrashKeyString(const char key[], CrashKeySize size) {
+  if (V8::HasCrashKeyCallbacks()) {
+    return V8::AllocateCrashKey(key, size);
+  }
   CHECK(HasCrashKeyStringCallbacks());
 #if DEBUG
   // Keys are limited in their length, see
@@ -7700,6 +7704,11 @@ CrashKey Isolate::AddCrashKeyString(const char key[], CrashKeySize size,
 }
 
 void Isolate::SetCrashKeyString(CrashKey key, std::string_view value) {
+  if (!key) return;
+  if (V8::HasCrashKeyCallbacks()) {
+    V8::SetCrashKey(key, value);
+    return;
+  }
   if (!set_crash_key_string_callback_) return;
   set_crash_key_string_callback_(key, value);
 }

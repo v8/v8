@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <string>
+#include <string_view>
 
 #include "cppgc/common.h"
 #include "v8-data.h"          // NOLINT(build/include_directory)
@@ -261,10 +262,20 @@ enum class CrashKeyId {
 
 using AddCrashKeyCallback = void (*)(CrashKeyId id, const std::string& value);
 
-// --- CrashKeyString Callbacks ---
+// --- CrashKey Callbacks ---
 using CrashKey = void*;
 enum class CrashKeySize { Size32, Size64, Size256, Size1024 };
 
+// Allocates a new crash key with the given `key` name and maximum value `size`.
+// Embedders do not need to deduplicate by `key` name: V8 caches the returned
+// `CrashKey` handle in static storage whenever a key may be updated multiple
+// times. Returns nullptr if crash keys are not supported or initialized.
+using AllocateCrashKeyCallback = CrashKey (*)(const char key[],
+                                              CrashKeySize size);
+using SetCrashKeyCallback = void (*)(CrashKey key, std::string_view value);
+
+// Deprecated: use AllocateCrashKeyCallback / SetCrashKeyCallback with
+// V8::SetCrashKeyCallbacks instead.
 using AllocateCrashKeyStringCallback =
     std::function<CrashKey(const char key[], CrashKeySize size)>;
 using SetCrashKeyStringCallback =
