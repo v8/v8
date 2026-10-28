@@ -1531,9 +1531,9 @@ std::shared_ptr<StackFrame> V8Debugger::symbolize(
       toProtocolString(isolate(), v8Frame->GetScriptNameOrSourceURL());
   auto hasSourceURLComment =
       v8Frame->GetScriptName() != v8Frame->GetScriptNameOrSourceURL();
-  stackFrame = std::make_shared<StackFrame>(std::move(functionName), scriptId,
-                                            std::move(sourceURL), lineNumber,
-                                            columnNumber, hasSourceURLComment);
+  stackFrame = std::make_shared<StackFrame>(
+      std::move(functionName), scriptId, std::move(sourceURL), lineNumber,
+      columnNumber, hasSourceURLComment, v8Frame->IsScriptOpaque());
   m_cachedStackFrames.emplace(key, stackFrame);
   return stackFrame;
 }

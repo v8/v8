@@ -1051,6 +1051,17 @@ void DispatchPause(const v8::FunctionCallbackInfo<v8::Value>& info) {
           toStringView(R"({"id": 2, "method": "Debugger.pause"})"));
 }
 
+void CaptureIsTopScriptOpaque(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  auto* inspector =
+      static_cast<V8Inspector*>(info.DataV2().As<v8::External>()->Value(
+          v8::kExternalPointerTypeTagDefault));
+  std::unique_ptr<v8_inspector::V8StackTrace> stack_trace =
+      inspector->captureStackTrace(/*fullStack=*/false);
+  CHECK(stack_trace);
+  CHECK(!stack_trace->isEmpty());
+  info.GetReturnValue().Set(stack_trace->isTopScriptOpaque());
+}
+
 }  // namespace
 
 TEST_F(InspectorTest, ChannelCanRunJSWhenPausedOnInterrupt) {
@@ -1205,5 +1216,75 @@ TEST_F(InspectorTest, ChannelCanDeoptWhenRestartingFrame) {
   CHECK_EQ(result->Int32Value(v8_context()).FromJust(), 42);
   CHECK(channel.response_received());
 }
+
+TEST_F(InspectorTest, IsTopScriptOpaque) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  v8::Local<v8::Function> capture =
+      v8::Function::New(v8_context(), &CaptureIsTopScriptOpaque,
+                        v8::External::New(isolate, inspector.get(),
+                                          v8::kExternalPointerTypeTagDefault))
+          .ToLocalChecked();
+  CHECK(v8_context()
+            ->Global()
+            ->Set(v8_context(), NewString("captureIsTopScriptOpaque"), capture)
+            .FromJust());
+
+  auto compile_and_run = [&](const char* source, const char* url,
+                             bool is_opaque) -> v8::Local<v8::Value> {
+    v8::ScriptOrigin origin(NewString(url), /*resource_line_offset=*/0,
+                            /*resource_column_offset=*/0,
+                            /*resource_is_shared_cross_origin=*/false,
+                            /*script_id=*/-1, /*source_map_url=*/{},
+                            /*resource_is_opaque=*/is_opaque);
+    v8::Local<v8::Script> script =
+        v8::Script::Compile(v8_context(), NewString(source), &origin)
+            .ToLocalChecked();
+    return script->Run(v8_context()).ToLocalChecked();
+  };
+
+  compile_and_run(
+      "function nonOpaqueFn() { return captureIsTopScriptOpaque(); }"
+      "function nonOpaqueEvalFn() { return eval('captureIsTopScriptOpaque()'); "
+      "}",
+      "https://example.com/non-opaque.js", /*is_opaque=*/false);
+  compile_and_run(
+      "function opaqueFn() { return captureIsTopScriptOpaque(); }"
+      "function opaqueEvalFn() { return eval('captureIsTopScriptOpaque()'); }",
+      "https://other.example/opaque.js", /*is_opaque=*/true);
+
+  // Exercise both scripts (including repeated calls that hit
+  // V8Debugger::symbolize()'s m_cachedStackFrames cache) and eval inside each.
+  EXPECT_FALSE(compile_and_run("nonOpaqueFn()",
+                               "https://example.com/caller1.js",
+                               /*is_opaque=*/false)
+                   ->BooleanValue(isolate));
+  EXPECT_FALSE(compile_and_run("nonOpaqueFn()",
+                               "https://other.example/caller2.js",
+                               /*is_opaque=*/true)
+                   ->BooleanValue(isolate));
+  EXPECT_TRUE(compile_and_run("opaqueFn()", "https://example.com/caller3.js",
+                              /*is_opaque=*/false)
+                  ->BooleanValue(isolate));
+  EXPECT_TRUE(compile_and_run("opaqueFn()", "https://other.example/caller4.js",
+                              /*is_opaque=*/true)
+                  ->BooleanValue(isolate));
+  EXPECT_FALSE(compile_and_run("nonOpaqueEvalFn()",
+                               "https://other.example/caller5.js",
+                               /*is_opaque=*/true)
+                   ->BooleanValue(isolate));
+  EXPECT_TRUE(compile_and_run("opaqueEvalFn()",
+                              "https://example.com/caller6.js",
+                              /*is_opaque=*/false)
+                  ->BooleanValue(isolate));
+}
+
 }  // namespace internal
 }  // namespace v8
