@@ -4769,6 +4769,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S256Xor, SXor, LaneSize::kL8, VectorLength::kV256)
 
 #define SIMD_F16x8_BINOP_LIST(V) \
+  V(F16x8Div, FDiv)              \
   V(F16x8Min, FMin)              \
   V(F16x8Max, FMax)              \
   V(F16x8Eq, FEq)                \
@@ -5284,25 +5285,6 @@ void InstructionSelector::VisitF16x8Mul(OpIndex node) {
   X64OperandGenerator operands(this);
   const Simd128BinopOp& operation = Cast<Simd128BinopOp>(node);
   InstructionCode code = kX64FMul | LaneSizeField::encode(LaneSize::kL16) |
-                         VectorLengthField::encode(VectorLength::kV128);
-  if (UseAvx10_1()) {
-    Emit(code, operands.DefineAsRegister(node),
-         operands.UseRegister(operation.left()),
-         operands.UseRegister(operation.right()));
-  } else {
-    InstructionOperand temps[] = {operands.TempSimd256Register(),
-                                  operands.TempSimd256Register()};
-    Emit(code, operands.DefineAsRegister(node),
-         operands.UseUniqueRegister(operation.left()),
-         operands.UseUniqueRegister(operation.right()), arraysize(temps),
-         temps);
-  }
-}
-
-void InstructionSelector::VisitF16x8Div(OpIndex node) {
-  X64OperandGenerator operands(this);
-  const Simd128BinopOp& operation = Cast<Simd128BinopOp>(node);
-  InstructionCode code = kX64FDiv | LaneSizeField::encode(LaneSize::kL16) |
                          VectorLengthField::encode(VectorLength::kV128);
   if (UseAvx10_1()) {
     Emit(code, operands.DefineAsRegister(node),

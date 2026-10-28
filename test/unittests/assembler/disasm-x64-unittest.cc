@@ -2033,46 +2033,6 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10Vmulph) {
                 vmulph(ymm3, ymm2, Operand(&ymm_label)));
 }
 
-TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10Vdivph) {
-  DisassemblerTester tester;
-  CpuFeatureScope fscope(&tester.assm_, AVX10_1,
-                         CpuFeatureScope::kDontCheckSupported);
-  auto compare = [&](const char* expected, auto dst, auto lhs, auto rhs) {
-    tester.prev_offset = tester.pc_offset();
-    tester.assm_.vdivph(dst, lhs, rhs);
-    std::string actual = tester.InstructionDecode();
-    CHECK_EQ(expected, actual.substr(kHexOffset));
-  };
-
-  compare("vdivph xmm3,xmm2,xmm1", xmm3, xmm2, xmm1);
-  compare("vdivph ymm3,ymm2,ymm1", ymm3, ymm2, ymm1);
-  compare("vdivph xmm19,xmm18,xmm17", xmm19, xmm18, xmm17);
-  compare("vdivph ymm31,ymm30,ymm29", ymm31, ymm30, ymm29);
-  compare("vdivph xmm3,xmm3,xmm1", xmm3, xmm3, xmm1);
-  compare("vdivph xmm3,xmm2,xmm3", xmm3, xmm2, xmm3);
-  compare("vdivph xmm3,xmm3,xmm3", xmm3, xmm3, xmm3);
-  compare("vdivph ymm3,ymm3,ymm1", ymm3, ymm3, ymm1);
-  compare("vdivph ymm3,ymm2,ymm3", ymm3, ymm2, ymm3);
-  compare("vdivph ymm3,ymm3,ymm3", ymm3, ymm3, ymm3);
-  compare("vdivph xmm3,xmm2,[rbx+0x7f0]", xmm3, xmm2, Operand(rbx, 2032));
-  compare("vdivph ymm3,ymm2,[rbx+0xfe0]", ymm3, ymm2, Operand(rbx, 4064));
-  compare("vdivph xmm3,xmm2,[rbx-0x800]", xmm3, xmm2, Operand(rbx, -2048));
-  compare("vdivph ymm3,ymm2,[rbx-0x1000]", ymm3, ymm2, Operand(rbx, -4096));
-  compare("vdivph xmm3,xmm2,[rbx+0x14]", xmm3, xmm2, Operand(rbx, 20));
-  compare("vdivph ymm3,ymm2,[rbx+0x24]", ymm3, ymm2, Operand(rbx, 36));
-  compare("vdivph xmm3,xmm2,[rbx+0x800]", xmm3, xmm2, Operand(rbx, 2048));
-  compare("vdivph ymm3,ymm2,[rbx+0x1000]", ymm3, ymm2, Operand(rbx, 4096));
-  compare("vdivph xmm19,xmm18,[r12+r13*2+0x40]", xmm19, xmm18,
-          Operand(r12, r13, times_2, 64));
-  compare("vdivph ymm19,ymm18,[r12+r13*2+0x80]", ymm19, ymm18,
-          Operand(r12, r13, times_2, 128));
-  Label xmm_label, ymm_label;
-  tester.assm_.bind(&xmm_label);
-  compare("vdivph xmm3,xmm2,[rip+0xfffffff6]", xmm3, xmm2, Operand(&xmm_label));
-  tester.assm_.bind(&ymm_label);
-  compare("vdivph ymm3,ymm2,[rip+0xfffffff6]", ymm3, ymm2, Operand(&ymm_label));
-}
-
 TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10FmaPh) {
   DisassemblerTester t;
   std::string actual;

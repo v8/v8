@@ -4169,13 +4169,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case LaneSize::kL16:
             // F16x8Div
-            if (UseAvx10_1()) {
-              CpuFeatureScope avx10_1_scope(masm(), AVX10_1);
-              __ vdivph(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                        i.InputSimd128Register(1));
-            } else {
-              ASSEMBLE_SIMD_F16x8_BINOP(vdivps);
-            }
+            ASSEMBLE_SIMD_F16x8_BINOP(vdivps);
             break;
           case LaneSize::kL32: {
             // F32x4Div
