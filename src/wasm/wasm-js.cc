@@ -1325,7 +1325,6 @@ void WebAssemblyInstantiateImpl(
 
   auto InstantiateThenCallback =
       [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-        DCHECK_EQ(info.Length(), 1);
         Isolate* isolate2 = info.GetIsolate();
         HandleScope scope(isolate2);
         Local<FixedArray> data = info.DataV2().As<FixedArray>();
@@ -1366,7 +1365,6 @@ void WebAssemblyInstantiateImpl(
 
   auto RejectInstantiation =
       [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-        DCHECK_EQ(1, info.Length());
         HandleScope scope(info.GetIsolate());
         Local<Promise::Resolver> instantiation_promise_resolver =
             info.DataV2().As<Value>().As<Promise::Resolver>();
