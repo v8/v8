@@ -39,8 +39,8 @@
   # Test that serialization with unknown external reference fails.
   'UninitializedSerializeTest.SnapshotCreatorUnknownExternalReferences': [FAIL],
   'UninitializedSerializeTest.SnapshotCreatorUnknownHandles': [FAIL],
-  'UninitializedSerializeTest.SnapshotCreatorNoExternalReferencesCustomFail1': [FAIL],
-  'UninitializedSerializeTest.SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
+  'UninitializedSerializeTest.SnapshotCreatorNoExternalReferencesCustomFail1': [FAIL, ['official_build', CRASH]],
+  'UninitializedSerializeTest.SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL, ['official_build', CRASH]],
 
   # https://crbug.com/v8/8919
   'PlatformTest.StackAlignment': [PASS, ['not clang', SKIP]],
